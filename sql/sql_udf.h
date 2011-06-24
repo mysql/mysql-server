@@ -19,10 +19,6 @@
 
 /* This file defines structures needed by udf functions */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface
-#endif
-
 enum Item_udftype {UDFTYPE_FUNCTION=1,UDFTYPE_AGGREGATE};
 
 typedef void (*Udf_func_clear)(UDF_INIT *, uchar *, uchar *);

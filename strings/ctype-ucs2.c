@@ -11,9 +11,8 @@
    Library General Public License for more details.
    
    You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   License along with this library; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* UCS2 support. Written by Alexander Barkov <bar@mysql.com> */
 
@@ -65,7 +64,7 @@ my_bincmp(const uchar *s, const uchar *se,
 
 
 static size_t
-my_caseup_str_mb2_or_mb4(CHARSET_INFO * cs  __attribute__((unused)), 
+my_caseup_str_mb2_or_mb4(const CHARSET_INFO * cs  __attribute__((unused)), 
                          char * s __attribute__((unused)))
 {
   DBUG_ASSERT(0);
@@ -74,7 +73,7 @@ my_caseup_str_mb2_or_mb4(CHARSET_INFO * cs  __attribute__((unused)),
 
 
 static size_t
-my_casedn_str_mb2_or_mb4(CHARSET_INFO *cs __attribute__((unused)), 
+my_casedn_str_mb2_or_mb4(const CHARSET_INFO *cs __attribute__((unused)), 
                          char * s __attribute__((unused)))
 {
   DBUG_ASSERT(0);
@@ -83,7 +82,7 @@ my_casedn_str_mb2_or_mb4(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int
-my_strcasecmp_mb2_or_mb4(CHARSET_INFO *cs __attribute__((unused)),
+my_strcasecmp_mb2_or_mb4(const CHARSET_INFO *cs __attribute__((unused)),
                          const char *s __attribute__((unused)),
                          const char *t __attribute__((unused)))
 {
@@ -93,7 +92,7 @@ my_strcasecmp_mb2_or_mb4(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static long
-my_strntol_mb2_or_mb4(CHARSET_INFO *cs,
+my_strntol_mb2_or_mb4(const CHARSET_INFO *cs,
                       const char *nptr, size_t l, int base,
                       char **endptr, int *err)
 {
@@ -204,7 +203,7 @@ bs:
 
 
 static ulong
-my_strntoul_mb2_or_mb4(CHARSET_INFO *cs,
+my_strntoul_mb2_or_mb4(const CHARSET_INFO *cs,
                        const char *nptr, size_t l, int base, 
                        char **endptr, int *err)
 {
@@ -308,7 +307,7 @@ bs:
 
 
 static longlong 
-my_strntoll_mb2_or_mb4(CHARSET_INFO *cs,
+my_strntoll_mb2_or_mb4(const CHARSET_INFO *cs,
                        const char *nptr, size_t l, int base,
                        char **endptr, int *err)
 {
@@ -419,7 +418,7 @@ bs:
 
 
 static ulonglong
-my_strntoull_mb2_or_mb4(CHARSET_INFO *cs,
+my_strntoull_mb2_or_mb4(const CHARSET_INFO *cs,
                         const char *nptr, size_t l, int base,
                         char **endptr, int *err)
 {
@@ -523,7 +522,7 @@ bs:
 
 
 static double
-my_strntod_mb2_or_mb4(CHARSET_INFO *cs,
+my_strntod_mb2_or_mb4(const CHARSET_INFO *cs,
                       char *nptr, size_t length, 
                       char **endptr, int *err)
 {
@@ -557,7 +556,7 @@ my_strntod_mb2_or_mb4(CHARSET_INFO *cs,
 
 
 static ulonglong
-my_strntoull10rnd_mb2_or_mb4(CHARSET_INFO *cs,
+my_strntoull10rnd_mb2_or_mb4(const CHARSET_INFO *cs,
                              const char *nptr, size_t length,
                              int unsign_fl,
                              char **endptr, int *err)
@@ -592,7 +591,7 @@ my_strntoull10rnd_mb2_or_mb4(CHARSET_INFO *cs,
 */
 
 static size_t
-my_l10tostr_mb2_or_mb4(CHARSET_INFO *cs,
+my_l10tostr_mb2_or_mb4(const CHARSET_INFO *cs,
                        char *dst, size_t len, int radix, long int val)
 {
   char buffer[66];
@@ -643,7 +642,7 @@ my_l10tostr_mb2_or_mb4(CHARSET_INFO *cs,
 
 
 static size_t
-my_ll10tostr_mb2_or_mb4(CHARSET_INFO *cs,
+my_ll10tostr_mb2_or_mb4(const CHARSET_INFO *cs,
                         char *dst, size_t len, int radix, longlong val)
 {
   char buffer[65];
@@ -709,7 +708,7 @@ cnv:
 
 #ifdef HAVE_CHARSET_mb2
 static longlong
-my_strtoll10_mb2(CHARSET_INFO *cs,
+my_strtoll10_mb2(const CHARSET_INFO *cs,
                  const char *nptr, char **endptr, int *error)
 {
   const char *s, *end, *start, *n_end, *true_end;
@@ -912,7 +911,7 @@ no_conv:
 
 
 static size_t
-my_scan_mb2(CHARSET_INFO *cs,
+my_scan_mb2(const CHARSET_INFO *cs,
             const char *str, const char *end, int sequence_type)
 {
   const char *str0= str;
@@ -938,7 +937,7 @@ my_scan_mb2(CHARSET_INFO *cs,
 
 
 static void
-my_fill_mb2(CHARSET_INFO *cs, char *s, size_t slen, int fill)
+my_fill_mb2(const CHARSET_INFO *cs, char *s, size_t slen, int fill)
 {
   char buf[10];
   int buflen;
@@ -1048,7 +1047,7 @@ my_vsnprintf_mb2(char *dst, size_t n, const char* fmt, va_list ap)
 
 
 static size_t
-my_snprintf_mb2(CHARSET_INFO *cs __attribute__((unused)),
+my_snprintf_mb2(const CHARSET_INFO *cs __attribute__((unused)),
                 char* to, size_t n, const char* fmt, ...)
 {
   va_list args;
@@ -1058,7 +1057,7 @@ my_snprintf_mb2(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static size_t
-my_lengthsp_mb2(CHARSET_INFO *cs __attribute__((unused)),
+my_lengthsp_mb2(const CHARSET_INFO *cs __attribute__((unused)),
                 const char *ptr, size_t length)
 {
   const char *end= ptr + length;
@@ -1100,7 +1099,7 @@ my_lengthsp_mb2(CHARSET_INFO *cs __attribute__((unused)),
                                   ((c & 3) << 8) + d + 0x10000)
 
 static int
-my_utf16_uni(CHARSET_INFO *cs __attribute__((unused)),
+my_utf16_uni(const CHARSET_INFO *cs __attribute__((unused)),
              my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   if (s + 2 > e)
@@ -1133,7 +1132,7 @@ my_utf16_uni(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int
-my_uni_utf16(CHARSET_INFO *cs __attribute__((unused)),
+my_uni_utf16(const CHARSET_INFO *cs __attribute__((unused)),
              my_wc_t wc, uchar *s, uchar *e)
 {
   if (wc <= 0xFFFF)
@@ -1198,7 +1197,7 @@ my_tosort_utf16(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 
 
 static size_t
-my_caseup_utf16(CHARSET_INFO *cs, char *src, size_t srclen,
+my_caseup_utf16(const CHARSET_INFO *cs, char *src, size_t srclen,
                 char *dst __attribute__((unused)),
                 size_t dstlen __attribute__((unused)))
 {
@@ -1221,7 +1220,7 @@ my_caseup_utf16(CHARSET_INFO *cs, char *src, size_t srclen,
 
 
 static void
-my_hash_sort_utf16(CHARSET_INFO *cs, const uchar *s, size_t slen,
+my_hash_sort_utf16(const CHARSET_INFO *cs, const uchar *s, size_t slen,
                    ulong *n1, ulong *n2)
 {
   my_wc_t wc;
@@ -1243,7 +1242,7 @@ my_hash_sort_utf16(CHARSET_INFO *cs, const uchar *s, size_t slen,
 
 
 static size_t
-my_casedn_utf16(CHARSET_INFO *cs, char *src, size_t srclen,
+my_casedn_utf16(const CHARSET_INFO *cs, char *src, size_t srclen,
                 char *dst __attribute__((unused)),
                 size_t dstlen __attribute__((unused)))
 {
@@ -1266,7 +1265,7 @@ my_casedn_utf16(CHARSET_INFO *cs, char *src, size_t srclen,
 
 
 static int
-my_strnncoll_utf16(CHARSET_INFO *cs, 
+my_strnncoll_utf16(const CHARSET_INFO *cs, 
                    const uchar *s, size_t slen, 
                    const uchar *t, size_t tlen,
                    my_bool t_is_prefix)
@@ -1330,7 +1329,7 @@ my_strnncoll_utf16(CHARSET_INFO *cs,
 */
 
 static int
-my_strnncollsp_utf16(CHARSET_INFO *cs,
+my_strnncollsp_utf16(const CHARSET_INFO *cs,
                      const uchar *s, size_t slen,
                      const uchar *t, size_t tlen,
                      my_bool diff_if_only_endspace_difference)
@@ -1404,7 +1403,7 @@ my_strnncollsp_utf16(CHARSET_INFO *cs,
 
 
 static uint
-my_ismbchar_utf16(CHARSET_INFO *cs, const char *b, const char *e)
+my_ismbchar_utf16(const CHARSET_INFO *cs, const char *b, const char *e)
 {
   my_wc_t wc;
   int res= cs->cset->mb_wc(cs, &wc, (const uchar *) b, (const uchar *) e);
@@ -1413,7 +1412,7 @@ my_ismbchar_utf16(CHARSET_INFO *cs, const char *b, const char *e)
 
 
 static uint
-my_mbcharlen_utf16(CHARSET_INFO *cs  __attribute__((unused)),
+my_mbcharlen_utf16(const CHARSET_INFO *cs  __attribute__((unused)),
                    uint c __attribute__((unused)))
 {
   DBUG_ASSERT(0);
@@ -1422,7 +1421,7 @@ my_mbcharlen_utf16(CHARSET_INFO *cs  __attribute__((unused)),
 
 
 static size_t
-my_numchars_utf16(CHARSET_INFO *cs,
+my_numchars_utf16(const CHARSET_INFO *cs,
                   const char *b, const char *e)
 {
   size_t nchars= 0;
@@ -1438,7 +1437,7 @@ my_numchars_utf16(CHARSET_INFO *cs,
 
 
 static size_t
-my_charpos_utf16(CHARSET_INFO *cs,
+my_charpos_utf16(const CHARSET_INFO *cs,
                  const char *b, const char *e, size_t pos)
 {
   const char *b0= b;
@@ -1454,7 +1453,7 @@ my_charpos_utf16(CHARSET_INFO *cs,
 
 
 static size_t
-my_well_formed_len_utf16(CHARSET_INFO *cs,
+my_well_formed_len_utf16(const CHARSET_INFO *cs,
                          const char *b, const char *e,
                          size_t nchars, int *error)
 {
@@ -1475,7 +1474,7 @@ my_well_formed_len_utf16(CHARSET_INFO *cs,
 
 
 static int
-my_wildcmp_utf16_ci(CHARSET_INFO *cs,
+my_wildcmp_utf16_ci(const CHARSET_INFO *cs,
                     const char *str,const char *str_end,
                     const char *wildstr,const char *wildend,
                     int escape, int w_one, int w_many)
@@ -1487,7 +1486,7 @@ my_wildcmp_utf16_ci(CHARSET_INFO *cs,
 
 
 static int
-my_wildcmp_utf16_bin(CHARSET_INFO *cs,
+my_wildcmp_utf16_bin(const CHARSET_INFO *cs,
                      const char *str,const char *str_end,
                      const char *wildstr,const char *wildend,
                      int escape, int w_one, int w_many)
@@ -1498,7 +1497,7 @@ my_wildcmp_utf16_bin(CHARSET_INFO *cs,
 
 
 static int
-my_strnncoll_utf16_bin(CHARSET_INFO *cs, 
+my_strnncoll_utf16_bin(const CHARSET_INFO *cs, 
                        const uchar *s, size_t slen,
                        const uchar *t, size_t tlen,
                        my_bool t_is_prefix)
@@ -1531,7 +1530,7 @@ my_strnncoll_utf16_bin(CHARSET_INFO *cs,
 
 
 static int
-my_strnncollsp_utf16_bin(CHARSET_INFO *cs,
+my_strnncollsp_utf16_bin(const CHARSET_INFO *cs,
                          const uchar *s, size_t slen,
                          const uchar *t, size_t tlen,
                          my_bool diff_if_only_endspace_difference)
@@ -1601,7 +1600,7 @@ my_strnncollsp_utf16_bin(CHARSET_INFO *cs,
 
 
 static void
-my_hash_sort_utf16_bin(CHARSET_INFO *cs,
+my_hash_sort_utf16_bin(const CHARSET_INFO *cs,
                        const uchar *pos, size_t len, ulong *nr1, ulong *nr2)
 {
   const uchar *end= pos + cs->cset->lengthsp(cs, (const char *) pos, len);
@@ -1747,7 +1746,7 @@ CHARSET_INFO my_charset_utf16_bin=
 
 
 static int
-my_utf16le_uni(CHARSET_INFO *cs __attribute__((unused)),
+my_utf16le_uni(const CHARSET_INFO *cs __attribute__((unused)),
                my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   my_wc_t lo;
@@ -1777,7 +1776,7 @@ my_utf16le_uni(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int
-my_uni_utf16le(CHARSET_INFO *cs __attribute__((unused)),
+my_uni_utf16le(const CHARSET_INFO *cs __attribute__((unused)),
                my_wc_t wc, uchar *s, uchar *e)
 {
   if (wc < MY_UTF16_SURROGATE_HIGH_FIRST ||
@@ -1804,7 +1803,7 @@ my_uni_utf16le(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static size_t
-my_lengthsp_utf16le(CHARSET_INFO *cs __attribute__((unused)),
+my_lengthsp_utf16le(const CHARSET_INFO *cs __attribute__((unused)),
                     const char *ptr, size_t length)
 {
   const char *end= ptr + length;
@@ -1920,7 +1919,7 @@ CHARSET_INFO my_charset_utf16le_bin=
 #ifdef HAVE_CHARSET_utf32
 
 static int
-my_utf32_uni(CHARSET_INFO *cs __attribute__((unused)),
+my_utf32_uni(const CHARSET_INFO *cs __attribute__((unused)),
              my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   if (s + 4 > e)
@@ -1931,7 +1930,7 @@ my_utf32_uni(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int
-my_uni_utf32(CHARSET_INFO *cs __attribute__((unused)),
+my_uni_utf32(const CHARSET_INFO *cs __attribute__((unused)),
              my_wc_t wc, uchar *s, uchar *e)
 {
   if (s + 4 > e) 
@@ -1980,7 +1979,7 @@ my_tosort_utf32(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 
 
 static size_t
-my_caseup_utf32(CHARSET_INFO *cs, char *src, size_t srclen,
+my_caseup_utf32(const CHARSET_INFO *cs, char *src, size_t srclen,
                 char *dst __attribute__((unused)),
                 size_t dstlen __attribute__((unused)))
 {
@@ -2011,7 +2010,7 @@ my_hash_add(ulong *n1, ulong *n2, uint ch)
 
 
 static void
-my_hash_sort_utf32(CHARSET_INFO *cs, const uchar *s, size_t slen,
+my_hash_sort_utf32(const CHARSET_INFO *cs, const uchar *s, size_t slen,
                    ulong *n1, ulong *n2)
 {
   my_wc_t wc;
@@ -2036,7 +2035,7 @@ my_hash_sort_utf32(CHARSET_INFO *cs, const uchar *s, size_t slen,
 
 
 static size_t
-my_casedn_utf32(CHARSET_INFO *cs, char *src, size_t srclen,
+my_casedn_utf32(const CHARSET_INFO *cs, char *src, size_t srclen,
                 char *dst __attribute__((unused)),
                 size_t dstlen __attribute__((unused)))
 {
@@ -2058,7 +2057,7 @@ my_casedn_utf32(CHARSET_INFO *cs, char *src, size_t srclen,
 
 
 static int
-my_strnncoll_utf32(CHARSET_INFO *cs, 
+my_strnncoll_utf32(const CHARSET_INFO *cs, 
                    const uchar *s, size_t slen, 
                    const uchar *t, size_t tlen,
                    my_bool t_is_prefix)
@@ -2122,7 +2121,7 @@ my_strnncoll_utf32(CHARSET_INFO *cs,
 
 
 static int
-my_strnncollsp_utf32(CHARSET_INFO *cs,
+my_strnncollsp_utf32(const CHARSET_INFO *cs,
                      const uchar *s, size_t slen,
                      const uchar *t, size_t tlen,
                      my_bool diff_if_only_endspace_difference)
@@ -2196,14 +2195,15 @@ my_strnncollsp_utf32(CHARSET_INFO *cs,
 
 
 static size_t
-my_strnxfrmlen_utf32(CHARSET_INFO *cs __attribute__((unused)), size_t len)
+my_strnxfrmlen_utf32(const CHARSET_INFO *cs __attribute__((unused)),
+                     size_t len)
 {
   return len / 2;
 }
 
 
 static uint
-my_ismbchar_utf32(CHARSET_INFO *cs __attribute__((unused)),
+my_ismbchar_utf32(const CHARSET_INFO *cs __attribute__((unused)),
                   const char *b __attribute__((unused)),
                   const char *e __attribute__((unused)))
 {
@@ -2212,7 +2212,7 @@ my_ismbchar_utf32(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static uint
-my_mbcharlen_utf32(CHARSET_INFO *cs  __attribute__((unused)) , 
+my_mbcharlen_utf32(const CHARSET_INFO *cs  __attribute__((unused)) , 
                    uint c __attribute__((unused)))
 {
   return 4;
@@ -2309,7 +2309,7 @@ my_vsnprintf_utf32(char *dst, size_t n, const char* fmt, va_list ap)
 
 
 static size_t
-my_snprintf_utf32(CHARSET_INFO *cs __attribute__((unused)),
+my_snprintf_utf32(const CHARSET_INFO *cs __attribute__((unused)),
                   char* to, size_t n, const char* fmt, ...)
 {
   va_list args;
@@ -2319,7 +2319,7 @@ my_snprintf_utf32(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static longlong
-my_strtoll10_utf32(CHARSET_INFO *cs __attribute__((unused)),
+my_strtoll10_utf32(const CHARSET_INFO *cs __attribute__((unused)),
                    const char *nptr, char **endptr, int *error)
 {
   const char *s, *end, *start, *n_end, *true_end;
@@ -2489,7 +2489,7 @@ no_conv:
 
 
 static size_t
-my_numchars_utf32(CHARSET_INFO *cs __attribute__((unused)),
+my_numchars_utf32(const CHARSET_INFO *cs __attribute__((unused)),
                   const char *b, const char *e)
 {
   return (size_t) (e - b) / 4;
@@ -2497,7 +2497,7 @@ my_numchars_utf32(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static size_t
-my_charpos_utf32(CHARSET_INFO *cs __attribute__((unused)),
+my_charpos_utf32(const CHARSET_INFO *cs __attribute__((unused)),
                  const char *b, const char *e, size_t pos)
 {
   size_t string_length= (size_t) (e - b);
@@ -2506,7 +2506,7 @@ my_charpos_utf32(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static size_t
-my_well_formed_len_utf32(CHARSET_INFO *cs __attribute__((unused)),
+my_well_formed_len_utf32(const CHARSET_INFO *cs __attribute__((unused)),
                          const char *b, const char *e,
                          size_t nchars, int *error)
 {
@@ -2535,7 +2535,7 @@ my_well_formed_len_utf32(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-void my_fill_utf32(CHARSET_INFO *cs,
+void my_fill_utf32(const CHARSET_INFO *cs,
                    char *s, size_t slen, int fill)
 {
   char buf[10];
@@ -2556,7 +2556,7 @@ void my_fill_utf32(CHARSET_INFO *cs,
 
 
 static size_t
-my_lengthsp_utf32(CHARSET_INFO *cs __attribute__((unused)),
+my_lengthsp_utf32(const CHARSET_INFO *cs __attribute__((unused)),
                   const char *ptr, size_t length)
 {
   const char *end= ptr + length;
@@ -2568,7 +2568,7 @@ my_lengthsp_utf32(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int
-my_wildcmp_utf32_ci(CHARSET_INFO *cs,
+my_wildcmp_utf32_ci(const CHARSET_INFO *cs,
                     const char *str, const char *str_end,
                     const char *wildstr, const char *wildend,
                     int escape, int w_one, int w_many)
@@ -2580,7 +2580,7 @@ my_wildcmp_utf32_ci(CHARSET_INFO *cs,
 
 
 static int
-my_wildcmp_utf32_bin(CHARSET_INFO *cs,
+my_wildcmp_utf32_bin(const CHARSET_INFO *cs,
                      const char *str,const char *str_end,
                      const char *wildstr,const char *wildend,
                      int escape, int w_one, int w_many)
@@ -2591,7 +2591,7 @@ my_wildcmp_utf32_bin(CHARSET_INFO *cs,
 
 
 static int
-my_strnncoll_utf32_bin(CHARSET_INFO *cs, 
+my_strnncoll_utf32_bin(const CHARSET_INFO *cs, 
                        const uchar *s, size_t slen,
                        const uchar *t, size_t tlen,
                        my_bool t_is_prefix)
@@ -2634,7 +2634,7 @@ my_utf32_get(const uchar *s)
 
 
 static int
-my_strnncollsp_utf32_bin(CHARSET_INFO *cs __attribute__((unused)), 
+my_strnncollsp_utf32_bin(const CHARSET_INFO *cs __attribute__((unused)), 
                          const uchar *s, size_t slen, 
                          const uchar *t, size_t tlen,
                          my_bool diff_if_only_endspace_difference
@@ -2682,7 +2682,7 @@ my_strnncollsp_utf32_bin(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static size_t
-my_scan_utf32(CHARSET_INFO *cs,
+my_scan_utf32(const CHARSET_INFO *cs,
               const char *str, const char *end, int sequence_type)
 {
   const char *str0= str;
@@ -2901,7 +2901,7 @@ static uchar to_upper_ucs2[] = {
 };
 
 
-static int my_ucs2_uni(CHARSET_INFO *cs __attribute__((unused)),
+static int my_ucs2_uni(const CHARSET_INFO *cs __attribute__((unused)),
 		       my_wc_t * pwc, const uchar *s, const uchar *e)
 {
   if (s+2 > e) /* Need 2 characters */
@@ -2911,7 +2911,7 @@ static int my_ucs2_uni(CHARSET_INFO *cs __attribute__((unused)),
   return 2;
 }
 
-static int my_uni_ucs2(CHARSET_INFO *cs __attribute__((unused)) ,
+static int my_uni_ucs2(const CHARSET_INFO *cs __attribute__((unused)) ,
 		       my_wc_t wc, uchar *r, uchar *e)
 {
   if ( r+2 > e ) 
@@ -2953,7 +2953,7 @@ my_tosort_ucs2(MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 }
 
 
-static size_t my_caseup_ucs2(CHARSET_INFO *cs, char *src, size_t srclen,
+static size_t my_caseup_ucs2(const CHARSET_INFO *cs, char *src, size_t srclen,
                            char *dst __attribute__((unused)),
                            size_t dstlen __attribute__((unused)))
 {
@@ -2975,8 +2975,8 @@ static size_t my_caseup_ucs2(CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 
-static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, size_t slen,
-			      ulong *n1, ulong *n2)
+static void my_hash_sort_ucs2(const CHARSET_INFO *cs, const uchar *s,
+                              size_t slen, ulong *n1, ulong *n2)
 {
   my_wc_t wc;
   int res;
@@ -2998,7 +2998,7 @@ static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, size_t slen,
 }
 
 
-static size_t my_casedn_ucs2(CHARSET_INFO *cs, char *src, size_t srclen,
+static size_t my_casedn_ucs2(const CHARSET_INFO *cs, char *src, size_t srclen,
                            char *dst __attribute__((unused)),
                            size_t dstlen __attribute__((unused)))
 {
@@ -3021,7 +3021,7 @@ static size_t my_casedn_ucs2(CHARSET_INFO *cs, char *src, size_t srclen,
 
 
 static void
-my_fill_ucs2(CHARSET_INFO *cs __attribute__((unused)), 
+my_fill_ucs2(const CHARSET_INFO *cs __attribute__((unused)), 
              char *s, size_t l, int fill)
 {
   DBUG_ASSERT(fill <= 0xFFFF);
@@ -3029,7 +3029,7 @@ my_fill_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strnncoll_ucs2(CHARSET_INFO *cs, 
+static int my_strnncoll_ucs2(const CHARSET_INFO *cs, 
 			     const uchar *s, size_t slen, 
                              const uchar *t, size_t tlen,
                              my_bool t_is_prefix)
@@ -3092,7 +3092,7 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
     > 0  a > b
 */
 
-static int my_strnncollsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncollsp_ucs2(const CHARSET_INFO *cs __attribute__((unused)),
                                const uchar *s, size_t slen,
                                const uchar *t, size_t tlen,
                                my_bool diff_if_only_endspace_difference
@@ -3143,7 +3143,7 @@ static int my_strnncollsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static uint my_ismbchar_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+static uint my_ismbchar_ucs2(const CHARSET_INFO *cs __attribute__((unused)),
                              const char *b __attribute__((unused)),
                              const char *e __attribute__((unused)))
 {
@@ -3151,7 +3151,7 @@ static uint my_ismbchar_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static uint my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) , 
+static uint my_mbcharlen_ucs2(const CHARSET_INFO *cs __attribute__((unused)) ,
                               uint c __attribute__((unused)))
 {
   return 2;
@@ -3159,7 +3159,7 @@ static uint my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) ,
 
 
 static
-size_t my_numchars_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numchars_ucs2(const CHARSET_INFO *cs __attribute__((unused)),
                         const char *b, const char *e)
 {
   return (size_t) (e-b)/2;
@@ -3167,7 +3167,7 @@ size_t my_numchars_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-size_t my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_charpos_ucs2(const CHARSET_INFO *cs __attribute__((unused)),
                        const char *b  __attribute__((unused)),
                        const char *e  __attribute__((unused)),
                        size_t pos)
@@ -3178,7 +3178,7 @@ size_t my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-size_t my_well_formed_len_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_well_formed_len_ucs2(const CHARSET_INFO *cs __attribute__((unused)),
                                const char *b, const char *e,
                                size_t nchars, int *error)
 {
@@ -3191,7 +3191,7 @@ size_t my_well_formed_len_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-int my_wildcmp_ucs2_ci(CHARSET_INFO *cs,
+int my_wildcmp_ucs2_ci(const CHARSET_INFO *cs,
 		    const char *str,const char *str_end,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many)
@@ -3203,7 +3203,7 @@ int my_wildcmp_ucs2_ci(CHARSET_INFO *cs,
 
 
 static
-int my_wildcmp_ucs2_bin(CHARSET_INFO *cs,
+int my_wildcmp_ucs2_bin(const CHARSET_INFO *cs,
 		    const char *str,const char *str_end,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many)
@@ -3214,7 +3214,7 @@ int my_wildcmp_ucs2_bin(CHARSET_INFO *cs,
 
 
 static
-int my_strnncoll_ucs2_bin(CHARSET_INFO *cs, 
+int my_strnncoll_ucs2_bin(const CHARSET_INFO *cs, 
                           const uchar *s, size_t slen,
                           const uchar *t, size_t tlen,
                           my_bool t_is_prefix)
@@ -3245,7 +3245,8 @@ int my_strnncoll_ucs2_bin(CHARSET_INFO *cs,
   return (int) (t_is_prefix ? t-te : ((se-s) - (te-t)));
 }
 
-static int my_strnncollsp_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)), 
+static int my_strnncollsp_ucs2_bin(const CHARSET_INFO *cs
+                                   __attribute__((unused)),
                                    const uchar *s, size_t slen, 
                                    const uchar *t, size_t tlen,
                                    my_bool diff_if_only_endspace_difference
@@ -3293,7 +3294,7 @@ static int my_strnncollsp_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-void my_hash_sort_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
+void my_hash_sort_ucs2_bin(const CHARSET_INFO *cs __attribute__((unused)),
 			   const uchar *key, size_t len,ulong *nr1, ulong *nr2)
 {
   const uchar *pos = key;

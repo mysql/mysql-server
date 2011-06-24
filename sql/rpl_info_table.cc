@@ -15,12 +15,12 @@
 
 #include "rpl_info_table.h"
 #include "rpl_utility.h"
-#include "sql_parse.h"
 
 Rpl_info_table::Rpl_info_table(uint nparam, uint param_field_idx,
                                const char* param_schema,
                                const char *param_table)
-:Rpl_info_handler(nparam), field_idx(param_field_idx)
+:Rpl_info_handler(nparam), field_idx(param_field_idx),
+ is_transactional(FALSE)
 {
   str_schema.str= str_table.str= NULL;
   str_schema.length= str_table.length= 0;
@@ -52,17 +52,13 @@ Rpl_info_table::Rpl_info_table(uint nparam, uint param_field_idx,
 
 Rpl_info_table::~Rpl_info_table()
 {
-  if (access)
-    delete access;
+  delete access;
   
-  if (description)
-    my_free(description);
+  my_free(description);
 
-  if (str_table.str)
-    my_free(str_table.str);
+  my_free(str_table.str);
 
-  if (str_schema.str)
-    my_free(str_schema.str);
+  my_free(str_schema.str);
 }
 
 int Rpl_info_table::do_init_info()
@@ -285,7 +281,12 @@ int Rpl_info_table::do_check_info()
   if (access->open_table(thd, str_schema, str_table,
                          get_number_info(), TL_READ,
                          &table, &backup))
+  {
+    sql_print_warning("Info table is not ready to be used. Table "
+                      "'%s.%s' cannot be opened.", str_schema.str,
+                      str_table.str);
     goto end;
+  }
 
   /*
     Points the cursor at the row to be deleted where the the master_id
@@ -447,47 +448,35 @@ char* Rpl_info_table::do_get_description_info()
 
 bool Rpl_info_table::do_is_transactional()
 {
+  return is_transactional;
+}
+
+bool Rpl_info_table::do_update_is_transactional()
+{
+  bool error= TRUE;
   ulong saved_mode;
   TABLE *table= NULL;
   Open_tables_backup backup;
-  bool is_trans= FALSE;
-
-  DBUG_ENTER("Rpl_info_table::do_is_transactional");
+ 
+  DBUG_ENTER("Rpl_info_table::do_update_is_transactional");
 
   THD *thd= access->create_thd();
-
   saved_mode= thd->variables.sql_mode;
+  tmp_disable_binlog(thd);
 
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (!access->open_table(thd, str_schema, str_table,
-                          get_number_info(), TL_READ,
-                          &table, &backup))
-    is_trans= table->file->has_transactions();
-
-  access->close_table(thd, table, &backup, 0);
-  thd->variables.sql_mode= saved_mode;
-  access->drop_thd(thd);
-  DBUG_RETURN(is_trans);
-}
-
-bool Rpl_info_table::change_engine(const char *engine)
-{
-  bool error= TRUE;
-  ulong saved_mode;
-
-  DBUG_ENTER("Rpl_info_table::do_check_info");
-
-  THD *thd= access->create_thd();
-
-  saved_mode= thd->variables.sql_mode;
-  tmp_disable_binlog(thd);
-
-  /* TODO: Change the engine using internal functions */
-
+  if (access->open_table(thd, str_schema, str_table,
+                         get_number_info(), TL_READ,
+                         &table, &backup))
+    goto end;
+ 
+  is_transactional= table->file->has_transactions();
   error= FALSE;
 
+end:
+  access->close_table(thd, table, &backup, 0);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);

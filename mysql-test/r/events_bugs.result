@@ -419,7 +419,7 @@ SET TIME_ZONE= '+04:00';
 ALTER EVENT e1 DO SELECT 2;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP EVENT e1;
 SET TIME_ZONE='+05:00';
 CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO
@@ -535,6 +535,7 @@ DROP EVENT e3;
 DROP EVENT e2;
 DROP EVENT e1;
 SET TIME_ZONE=@save_time_zone;
+SET TIMESTAMP=DEFAULT;
 drop event if exists new_event;
 CREATE EVENT new_event ON SCHEDULE EVERY 0 SECOND DO SELECT 1;
 ERROR HY000: INTERVAL is either not positive or too big
@@ -747,6 +748,68 @@ event_name	originator
 ev1	4294967295
 DROP EVENT ev1;
 SET GLOBAL server_id = @old_server_id;
+CREATE DATABASE event_test12;
+USE event_test12;
+CREATE EVENT ev1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+CREATE DATABASE event_test1;
+USE event_test1;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+DROP DATABASE event_test1;
+DROP DATABASE event_test12;
+#
+# Bug#12546938 (formerly known as bug#61005):
+# CREATE IF NOT EXIST EVENT WILL CREATE MULTIPLE RUNNING EVENTS
+#
+USE events_test;
+SET GLOBAL event_scheduler = ON;
+DROP TABLE IF EXISTS table_bug12546938;
+DROP EVENT IF EXISTS event_Bug12546938;
+CREATE TABLE table_bug12546938 (i INT);
+# Create an event which will be executed with a small delay
+# and won't be automatically dropped after that.
+CREATE EVENT event_Bug12546938
+ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND ON COMPLETION PRESERVE
+ENABLE DO
+BEGIN 
+INSERT INTO table_bug12546938 VALUES(1);
+END
+|
+# Now try to create the same event using CREATE EVENT IF NOT EXISTS.
+# A warning should be emitted. A new event should not be created nor
+# the old event should be re-executed.
+CREATE EVENT IF NOT EXISTS event_bug12546938
+ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND ON COMPLETION PRESERVE
+ENABLE DO
+BEGIN
+INSERT INTO table_bug12546938 VALUES (1);
+END
+|
+Warnings:
+Note	1537	Event 'event_bug12546938' already exists
+# Wait until at least one instance of event is executed.
+# Check that only one instance of our event was executed.
+SELECT COUNT(*) FROM table_bug12546938;
+COUNT(*)
+1
+# Clean-up.
+DROP EVENT IF EXISTS event_Bug12546938;
+DROP TABLE table_bug12546938;
+SET GLOBAL EVENT_SCHEDULER = OFF;
+DROP DATABASE IF EXISTS event_test11764334;
+CREATE DATABASE event_test11764334;
+USE event_test11764334;
+CREATE EVENT ev1 ON SCHEDULE EVERY 3 SECOND DISABLE DO SELECT 1;
+SHOW EVENTS IN event_test11764334 WHERE NAME='ev1';
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+event_test11764334	ev1	root@localhost	SYSTEM	RECURRING	NULL	3	SECOND	#	#	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+ALTER EVENT ev1 ON SCHEDULE EVERY 4 SECOND;
+SHOW EVENTS IN event_test11764334 WHERE NAME='ev1';
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+event_test11764334	ev1	root@localhost	SYSTEM	RECURRING	NULL	4	SECOND	#	#	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP EVENT ev1;
+DROP DATABASE event_test11764334;
+USE test;
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
 SET @@global.concurrent_insert= @concurrent_insert;

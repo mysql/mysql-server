@@ -16,6 +16,8 @@
 #ifndef RPL_SLAVE_H
 #define RPL_SLAVE_H
 
+typedef enum {SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
+
 /**
   MASTER_DELAY can be at most (1 << 31) - 1.
 */
@@ -158,8 +160,6 @@ extern const char *relay_log_basename;
 int start_slave(THD* thd, Master_info* mi, bool net_report);
 int stop_slave(THD* thd, Master_info* mi, bool net_report);
 bool change_master(THD* thd, Master_info* mi);
-int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
-		   const char* log_file_name2, ulonglong log_pos2);
 int reset_slave(THD *thd, Master_info* mi);
 int init_slave();
 int init_recovery(Master_info* mi, const char** errmsg);

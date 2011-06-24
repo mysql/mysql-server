@@ -103,6 +103,31 @@ a
 3
 include/check_slave_is_running.inc
 
+*** Test the deadlock warning to be escalated into the error ***
+delete from t1;
+delete from t2;
+delete from t3;
+delete from t1;
+delete from t2;
+delete from t3;
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+set @@global.slave_transaction_retries= 0;
+include/stop_slave.inc
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2), (2), (2), (2), (2), (2), (2), (2), (2), (2);
+INSERT INTO t3 VALUES (3);
+COMMIT;
+BEGIN;
+SELECT count(*) as zero FROM t1 FOR UPDATE;
+zero
+0
+start slave;
+*** Now the slave must be stopped due to timeout ***
+include/wait_for_slave_sql_error.inc [errno=1205]
+rollback;
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+include/start_slave.inc
 *** Clean up ***
 DROP TABLE t1,t2,t3;
 SET global max_relay_log_size= @my_max_relay_log_size;

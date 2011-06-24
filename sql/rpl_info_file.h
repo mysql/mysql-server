@@ -20,13 +20,16 @@
 #include <sql_priv.h>
 #include "rpl_info_handler.h"
 
+class Rpl_info_factory;
+
 /**
   Defines a file hander.
 */
 class Rpl_info_file : public Rpl_info_handler
 {
+  friend class Rpl_info_factory;
+
 public:
-  Rpl_info_file(int const nparam, const char* param_info_fname);
   virtual ~Rpl_info_file() { };
 
 private:
@@ -66,8 +69,11 @@ private:
                    const Server_ids *default_value);
   char* do_get_description_info();
   bool do_is_transactional();
+  bool do_update_is_transactional();
+
+  Rpl_info_file(int const nparam, const char* param_info_fname);
+  Rpl_info_file(const Rpl_info_file& info);
 
   Rpl_info_file& operator=(const Rpl_info_file& info);
-  Rpl_info_file(const Rpl_info_file& info);
 };
 #endif /* RPL_INFO_FILE_H */

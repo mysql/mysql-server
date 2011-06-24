@@ -85,18 +85,15 @@ enum enum_mysql_set_option
 my_bool my_net_init(NET *net, Vio* vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
-  void net_clear(NET *net, my_bool clear_buffer);
+void net_clear(NET *net, my_bool check_buffer);
 my_bool net_realloc(NET *net, size_t length);
 my_bool net_flush(NET *net);
 my_bool my_net_write(NET *net,const unsigned char *packet, size_t len);
 my_bool net_write_command(NET *net,unsigned char command,
      const unsigned char *header, size_t head_len,
      const unsigned char *packet, size_t len);
-int net_real_write(NET *net,const unsigned char *packet, size_t len);
+my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
-struct sockaddr;
-int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
-        unsigned int timeout);
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;
@@ -227,7 +224,7 @@ typedef struct st_typelib {
 extern my_ulonglong find_typeset(char *x, TYPELIB *typelib,int *error_position);
 extern int find_type_or_exit(const char *x, TYPELIB *typelib,
                              const char *option);
-extern int find_type(char *x, const TYPELIB *typelib, unsigned int full_name);
+extern int find_type(const char *x, const TYPELIB *typelib, unsigned int flags);
 extern void make_type(char *to,unsigned int nr,TYPELIB *typelib);
 extern const char *get_type(TYPELIB *typelib,unsigned int nr);
 extern TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from);
@@ -516,6 +513,7 @@ typedef struct st_mysql_bind
   my_bool is_null_value;
   void *extension;
 } MYSQL_BIND;
+struct st_mysql_stmt_extension;
 typedef struct st_mysql_stmt
 {
   MEM_ROOT mem_root;
@@ -545,7 +543,7 @@ typedef struct st_mysql_stmt
   unsigned char bind_result_done;
   my_bool unbuffered_fetch_cancelled;
   my_bool update_max_length;
-  void *extension;
+  struct st_mysql_stmt_extension *extension;
 } MYSQL_STMT;
 enum enum_stmt_attr_type
 {

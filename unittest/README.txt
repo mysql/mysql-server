@@ -7,7 +7,6 @@ will be added over time.
 
 mytap                 Source for the MyTAP library
 mysys                 Tests for mysys components
-  bitmap-t.c          Unit test for MY_BITMAP
   base64-t.c          Unit test for base64 encoding functions
 examples              Example unit tests.
   core-t.c            Example of raising a signal in the middle of the test

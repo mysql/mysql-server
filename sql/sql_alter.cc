@@ -16,6 +16,7 @@
 #include "sql_parse.h"                       // check_access
 #include "sql_table.h"                       // mysql_alter_table,
                                              // mysql_exchange_partition
+#include "sql_base.h"                        // open_temporary_tables
 #include "sql_alter.h"
 
 bool Sql_cmd_alter_table::execute(THD *thd)
@@ -64,10 +65,40 @@ bool Sql_cmd_alter_table::execute(THD *thd)
     DBUG_RETURN(TRUE);                  /* purecov: inspected */
 
   /* If it is a merge table, check privileges for merge children. */
-  if (create_info.merge_list.first &&
-      check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-                         create_info.merge_list.first, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(TRUE);
+  if (create_info.merge_list.first)
+  {
+    TABLE_LIST *tl;
+
+    /* Pre-open underlying temporary tables to simplify privilege checking. */
+    if (open_temporary_tables(thd, create_info.merge_list.first))
+      DBUG_RETURN(TRUE);
+
+    if (check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+                           create_info.merge_list.first, FALSE, UINT_MAX, FALSE))
+      DBUG_RETURN(TRUE);
+
+    /*
+      Since one of tables in UNION clause might be already used by table being
+      altered we need to close all tables opened for UNION checking to allow
+      normal open of table being altered.
+      To do this we simply close all tables and then open only tables from the
+      main statement's table list.
+    */
+    close_thread_tables(thd);
+
+    /*
+      To make things safe for re-execution and upcoming open_temporary_tables()
+      we need to reset TABLE_LIST::table pointers in both main table list and
+      and UNION clause.
+    */
+    for (tl= lex->query_tables; tl; tl= tl->next_global)
+      tl->table= NULL;
+    for (tl= lex->create_info.merge_list.first; tl; tl= tl->next_global)
+      tl->table= NULL;
+
+    if (open_temporary_tables(thd, lex->query_tables))
+      DBUG_RETURN(TRUE);
+  }
 
   if (check_grant(thd, priv_needed, first_table, FALSE, UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);                  /* purecov: inspected */
@@ -76,7 +107,7 @@ bool Sql_cmd_alter_table::execute(THD *thd)
   {
     // Rename of table
     TABLE_LIST tmp_table;
-    bzero((char*) &tmp_table,sizeof(tmp_table));
+    memset(&tmp_table, 0, sizeof(tmp_table));
     tmp_table.table_name= lex->name.str;
     tmp_table.db= select_lex->db;
     tmp_table.grant.privilege= priv;

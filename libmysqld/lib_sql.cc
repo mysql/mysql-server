@@ -50,6 +50,24 @@ extern "C" void unireg_clear(int exit_code)
   DBUG_VOID_RETURN;
 }
 
+/*
+  Wrapper error handler for embedded server to call client/server error 
+  handler based on whether thread is in client/server context
+*/
+
+static void embedded_error_handler(uint error, const char *str, myf MyFlags)
+{
+  DBUG_ENTER("embedded_error_handler");
+
+  /* 
+    If current_thd is NULL, it means restore_global has been called and 
+    thread is in client context, then call client error handler else call 
+    server error handler.
+  */
+  DBUG_RETURN(current_thd ? my_message_sql(error, str, MyFlags):
+              my_message_stderr(error, str, MyFlags));
+}
+
 
 /*
   Reads error information from the MYSQL_DATA and puts
@@ -106,12 +124,13 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (mysql->status != MYSQL_STATUS_READY)
   {
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
-    return 1;
+    result= 1;
+    goto end;
   }
 
   /* Clear result variables */
   thd->clear_error();
-  thd->stmt_da->reset_diagnostics_area();
+  thd->get_stmt_da()->reset_diagnostics_area();
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
   net_clear_error(net);
@@ -147,6 +166,9 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 #if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
 #endif
+
+end:
+  thd->restore_globals();
   return result;
 }
 
@@ -219,7 +241,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
   stmt->field_count= 0;
-  mysql->warning_count= thd->warning_info->statement_warn_count();
+  mysql->warning_count= thd->get_stmt_wi()->statement_warn_count();
 
   if (thd->first_data)
   {
@@ -404,7 +426,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
 static const char * emb_read_statistics(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
-  return thd->is_error() ? thd->stmt_da->message() : "";
+  return thd->is_error() ? thd->get_stmt_da()->message() : "";
 }
 
 
@@ -510,8 +532,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
     return 1;
   defaults_argc= *argcp;
   defaults_argv= *argvp;
-  remaining_argc= argc;
-  remaining_argv= argv;
+  remaining_argc= *argcp;
+  remaining_argv= *argvp;
 
   /* Must be initialized early for comparison of options name */
   system_charset_info= &my_charset_utf8_general_ci;
@@ -555,7 +577,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
     return 1;
   }
 
-  error_handler_hook = my_message_sql;
+  /* 
+    set error_handler_hook to embedded_error_handler wrapper.
+  */
+  error_handler_hook= embedded_error_handler;
 
   acl_error= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -662,7 +687,7 @@ void *create_embedded_thd(int client_flag)
   thd->cur_data= 0;
   thd->first_data= 0;
   thd->data_tail= &thd->first_data;
-  bzero((char*) &thd->net, sizeof(thd->net));
+  memset(&thd->net, 0, sizeof(thd->net));
 
   thread_count++;
   threads.append(thd);
@@ -776,7 +801,7 @@ void THD::clear_data_list()
 
 
 static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
-			 CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+			 const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs)
 {
   uint32 dummy32;
   uint dummy_err;
@@ -926,8 +951,8 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   Item                     *item;
   MYSQL_FIELD              *client_field;
   MEM_ROOT                 *field_alloc;
-  CHARSET_INFO             *thd_cs= thd->variables.character_set_results;
-  CHARSET_INFO             *cs= system_charset_info;
+  const CHARSET_INFO       *thd_cs= thd->variables.character_set_results;
+  const CHARSET_INFO       *cs= system_charset_info;
   MYSQL_DATA               *data;
   DBUG_ENTER("send_result_set_metadata");
 
@@ -1022,7 +1047,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 
   if (flags & SEND_EOF)
     write_eof_packet(thd, thd->server_status,
-                     thd->warning_info->statement_warn_count());
+                     thd->get_stmt_wi()->statement_warn_count());
 
   DBUG_RETURN(prepare_for_send(list->elements));
  err:
@@ -1228,7 +1253,8 @@ int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
 
 
 bool Protocol::net_store_data(const uchar *from, size_t length,
-                              CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+                              const CHARSET_INFO *from_cs,
+                              const CHARSET_INFO *to_cs)
 {
   uint conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
   uint dummy_error;

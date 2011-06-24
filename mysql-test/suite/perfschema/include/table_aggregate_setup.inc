@@ -132,12 +132,24 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
 # Enable all consumers (by default)
 update performance_schema.setup_consumers set enabled='YES';
 
+# Start from a known clean state, to avoid noise from previous tests
+flush tables;
+flush status;
+
 create table test.t1(a int, b int, c int, d int default 0,
   primary key(a),
   index index_b(b),
   index index_cb(c, b));
 create table test.t2 like test.t1;
 create table test.t3 like test.t1;
+
+#
+# Note:
+# For test robustness and to avoid picking up noise from other tests scripts,
+# it is better to use:
+#   in ('t1', 't2', 't3)
+# explicitly instead of:
+#   like 't%'
 
 prepare dump_thread from
   "select event_name, count_star
@@ -147,7 +159,7 @@ prepare dump_thread from
    \'wait/lock/table/sql/handler\')
   and thread_id in
   (select thread_id from performance_schema.threads
-   where processlist_user like \'user%\')
+   where processlist_user in (\'user1\', \'user2\', \'user3\', \'user4\'))
   order by thread_id, event_name;";
 
 prepare dump_global from
@@ -172,7 +184,8 @@ prepare dump_index_io from
   count_star, count_read, count_write,
   count_fetch, count_insert, count_update, count_delete
   from performance_schema.table_io_waits_summary_by_index_usage
-  where object_type='TABLE' and object_schema='test' and object_name like 't%'
+  where object_type='TABLE' and object_schema='test'
+  and object_name in ('t1', 't2', 't3')
   order by object_type, object_schema, object_name, index_name;";
 
 prepare dump_table_io from
@@ -180,7 +193,8 @@ prepare dump_table_io from
   count_star, count_read, count_write,
   count_fetch, count_insert, count_update, count_delete
   from performance_schema.table_io_waits_summary_by_table
-  where object_type='TABLE' and object_schema='test' and object_name like 't%'
+  where object_type='TABLE' and object_schema='test'
+  and object_name in ('t1', 't2', 't3')
   order by object_type, object_schema, object_name";
 
 prepare dump_table_lock from
@@ -192,13 +206,15 @@ prepare dump_table_lock from
   count_write_delayed, count_write_low_priority,
   count_write_external
   from performance_schema.table_lock_waits_summary_by_table
-  where object_type='TABLE' and object_schema='test' and object_name like 't%'
+  where object_type='TABLE' and object_schema='test'
+  and object_name in ('t1', 't2', 't3')
   order by object_type, object_schema, object_name";
 
 prepare dump_objects_summary from
   "select object_type, object_schema, object_name, count_star 
   from performance_schema.objects_summary_global_by_type
-  where object_type='TABLE' and object_schema='test' and object_name like 't%'
+  where object_type='TABLE' and object_schema='test'
+  and object_name in ('t1', 't2', 't3')
   order by object_type, object_schema, object_name";
 
 --enable_query_log

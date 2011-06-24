@@ -1,0 +1,10 @@
+# Test of explicit partition selection in dml statements (wl5217)
+# Creation date: 01-07-10
+# Author: Horst Hunger
+
+let $ENGINE=InnoDB;
+--source include/have_innodb.inc
+# Fails on --embedded-server because of bug#11791877.
+--source include/not_embedded.inc
+--source suite/parts/inc/partition-dml-1-11.inc
+

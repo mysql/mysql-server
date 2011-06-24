@@ -255,6 +255,8 @@ ALTER TABLE slow_log
   MODIFY insert_id INTEGER NOT NULL,
   MODIFY server_id INTEGER UNSIGNED NOT NULL,
   MODIFY sql_text MEDIUMTEXT NOT NULL;
+ALTER TABLE slow_log
+  ADD COLUMN thread_id INTEGER NOT NULL AFTER sql_text;
 SET GLOBAL slow_query_log = @old_log_state;
 
 ALTER TABLE plugin
@@ -640,8 +642,9 @@ DROP PREPARE stmt;
 
 drop procedure mysql.die;
 
-ALTER TABLE user ADD plugin char(60) DEFAULT '' NOT NULL,  ADD authentication_string TEXT NOT NULL;
-ALTER TABLE user MODIFY plugin char(60) DEFAULT '' NOT NULL;
+ALTER TABLE user ADD plugin char(64) DEFAULT '',  ADD authentication_string TEXT;
+ALTER TABLE user MODIFY plugin char(64) DEFAULT '';
+ALTER TABLE user MODIFY authentication_string TEXT;
 
 -- Need to pre-fill mysql.proxies_priv with access for root even when upgrading from
 -- older versions

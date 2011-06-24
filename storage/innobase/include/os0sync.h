@@ -42,15 +42,26 @@ Created 9/6/1995 Heikki Tuuri
 /** Native event (slow)*/
 typedef HANDLE			os_native_event_t;
 /** Native mutex */
-typedef CRITICAL_SECTION	os_fast_mutex_t;
+typedef CRITICAL_SECTION	fast_mutex_t;
 /** Native condition variable. */
 typedef CONDITION_VARIABLE	os_cond_t;
 #else
 /** Native mutex */
-typedef pthread_mutex_t		os_fast_mutex_t;
+typedef pthread_mutex_t		fast_mutex_t;
 /** Native condition variable */
 typedef pthread_cond_t		os_cond_t;
 #endif
+
+/** Structure that includes Performance Schema Probe pfs_psi
+in the os_fast_mutex structure if UNIV_PFS_MUTEX is defined */
+typedef struct os_fast_mutex_struct {
+	fast_mutex_t		mutex;	/*!< os_fast_mutex */
+#ifdef UNIV_PFS_MUTEX
+	struct PSI_mutex*	pfs_psi;/*!< The performance schema
+					instrumentation hook */
+#endif
+} os_fast_mutex_t;
+
 
 /** Operating system event */
 typedef struct os_event_struct	os_event_struct_t;
@@ -151,10 +162,7 @@ os_event_free(
 	os_event_t	event);	/*!< in: event to free */
 
 /**********************************************************//**
-Waits for an event object until it is in the signaled state. If
-srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS this also exits the
-waiting thread when the event becomes signaled (or immediately if the
-event is already in the signaled state).
+Waits for an event object until it is in the signaled state.
 
 Typically, if the event has been signalled after the os_event_reset()
 we'll return immediately because event->is_set == TRUE.
@@ -235,34 +243,119 @@ ulint
 os_fast_mutex_trylock(
 /*==================*/
 	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to acquire */
+
+/**********************************************************************
+Following os_fast_ mutex APIs would be performance schema instrumented:
+
+os_fast_mutex_init
+os_fast_mutex_lock
+os_fast_mutex_unlock
+os_fast_mutex_free
+
+These mutex APIs will point to corresponding wrapper functions that contain
+the performance schema instrumentation.
+
+NOTE! The following macro should be used in mutex operation, not the
+corresponding function. */
+
+#ifdef UNIV_PFS_MUTEX
+# define os_fast_mutex_init(K, M)			\
+	pfs_os_fast_mutex_init(K, M)
+
+# define os_fast_mutex_lock(M)				\
+	pfs_os_fast_mutex_lock(M, __FILE__, __LINE__)
+
+# define os_fast_mutex_unlock(M)	pfs_os_fast_mutex_unlock(M)
+
+# define os_fast_mutex_free(M)		pfs_os_fast_mutex_free(M)
+
+/*********************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_init(), not directly
+this function!
+A wrapper function for os_fast_mutex_init_func(). Initializes an operating
+system fast mutex semaphore. */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_init(
+/*===================*/
+	PSI_mutex_key		key,		/*!< in: Performance Schema
+						key */
+	os_fast_mutex_t*	fast_mutex);	/*!< out: fast mutex */
+/**********************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_free(), not directly
+this function!
+Wrapper function for pfs_os_fast_mutex_free(). Also destroys the performance
+schema probes when freeing the mutex */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_free(
+/*===================*/
+	os_fast_mutex_t*	fast_mutex);	/*!< in/out: mutex to free */
+/**********************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_lock, not directly
+this function!
+Wrapper function of os_fast_mutex_lock. Acquires ownership of a fast mutex. */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_lock(
+/*===================*/
+	os_fast_mutex_t*	fast_mutex,	/*!< in/out: mutex to acquire */
+	const char*		file_name,	/*!< in: file name where
+						 locked */
+	ulint			line);		/*!< in: line where locked */
+/**********************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_unlock, not directly
+this function!
+Wrapper function of os_fast_mutex_unlock. Releases ownership of a fast mutex. */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_unlock(
+/*=====================*/
+	os_fast_mutex_t*	fast_mutex);	/*!< in/out: mutex to release */
+
+#else /* UNIV_PFS_MUTEX */
+
+# define os_fast_mutex_init(K, M)			\
+	os_fast_mutex_init_func(&((os_fast_mutex_t*)(M))->mutex)
+
+# define os_fast_mutex_lock(M)				\
+	os_fast_mutex_lock_func(&((os_fast_mutex_t*)(M))->mutex)
+
+# define os_fast_mutex_unlock(M)			\
+	os_fast_mutex_unlock_func(&((os_fast_mutex_t*)(M))->mutex)
+
+# define os_fast_mutex_free(M)				\
+	os_fast_mutex_free_func(&((os_fast_mutex_t*)(M))->mutex)
+#endif /* UNIV_PFS_MUTEX */
+
 /**********************************************************//**
 Releases ownership of a fast mutex. */
 UNIV_INTERN
 void
-os_fast_mutex_unlock(
-/*=================*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to release */
+os_fast_mutex_unlock_func(
+/*======================*/
+	fast_mutex_t*		fast_mutex);	/*!< in: mutex to release */
 /*********************************************************//**
 Initializes an operating system fast mutex semaphore. */
 UNIV_INTERN
 void
-os_fast_mutex_init(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in: fast mutex */
+os_fast_mutex_init_func(
+/*====================*/
+	fast_mutex_t*		fast_mutex);	/*!< in: fast mutex */
 /**********************************************************//**
 Acquires ownership of a fast mutex. */
 UNIV_INTERN
 void
-os_fast_mutex_lock(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to acquire */
+os_fast_mutex_lock_func(
+/*====================*/
+	fast_mutex_t*		fast_mutex);	/*!< in: mutex to acquire */
 /**********************************************************//**
 Frees an mutex object. */
 UNIV_INTERN
 void
-os_fast_mutex_free(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to free */
+os_fast_mutex_free_func(
+/*====================*/
+	fast_mutex_t*		fast_mutex);	/*!< in: mutex to free */
 
 /**********************************************************//**
 Atomic compare-and-swap and increment for InnoDB. */

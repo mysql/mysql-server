@@ -96,6 +96,14 @@ def	mysql	PRIMARY	def	mysql	help_topic	help_topic_id
 def	mysql	name	def	mysql	help_topic	name
 def	mysql	PRIMARY	def	mysql	host	Host
 def	mysql	PRIMARY	def	mysql	host	Db
+def	mysql	PRIMARY	def	mysql	innodb_index_stats	database_name
+def	mysql	PRIMARY	def	mysql	innodb_index_stats	table_name
+def	mysql	PRIMARY	def	mysql	innodb_index_stats	index_name
+def	mysql	PRIMARY	def	mysql	innodb_index_stats	stat_name
+def	mysql	innodb_index_stats_ibfk_1	def	mysql	innodb_index_stats	database_name
+def	mysql	innodb_index_stats_ibfk_1	def	mysql	innodb_index_stats	table_name
+def	mysql	PRIMARY	def	mysql	innodb_table_stats	database_name
+def	mysql	PRIMARY	def	mysql	innodb_table_stats	table_name
 def	mysql	PRIMARY	def	mysql	ndb_binlog_index	epoch
 def	mysql	PRIMARY	def	mysql	plugin	name
 def	mysql	PRIMARY	def	mysql	proc	db

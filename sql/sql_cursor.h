@@ -16,10 +16,6 @@
 #ifndef _sql_cursor_h_
 #define _sql_cursor_h_
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                              /* gcc class interface */
-#endif
-
 #include "sql_class.h"                          /* Query_arena */
 
 class JOIN;
@@ -46,7 +42,7 @@ protected:
   select_result *result;
 public:
   Server_side_cursor(MEM_ROOT *mem_root_arg, select_result *result_arg)
-    :Query_arena(mem_root_arg, INITIALIZED), result(result_arg)
+    :Query_arena(mem_root_arg, STMT_INITIALIZED), result(result_arg)
   {}
 
   virtual bool is_open() const= 0;

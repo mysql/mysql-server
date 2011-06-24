@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -35,10 +35,7 @@
 #include "bounded_queue.h"
 #include "filesort_utils.h"
 #include "sql_select.h"
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class Bounded_queue<uchar, uchar>;
-#endif
+#include "debug_sync.h"
 
 	/* functions defined in this file */
 
@@ -164,6 +161,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   Item_subselect *subselect= tab ? tab->containing_subselect() : 0;
 
   MYSQL_FILESORT_START(table->s->db.str, table->s->table_name.str);
+  DEBUG_SYNC(thd, "filesort_start");
 
   /*
    Release InnoDB's adaptive hash index latch (if holding) before
@@ -203,9 +201,9 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
       goto err;
 
   if (select && select->quick)
-    status_var_increment(thd->status_var.filesort_range_count);
+    thd->inc_status_sort_range();
   else
-    status_var_increment(thd->status_var.filesort_scan_count);
+    thd->inc_status_sort_scan();
 
   // If number of rows is not known, use as much of sort buffer as possible. 
   num_rows= table->file->estimate_rows_upper_bound();
@@ -357,13 +355,16 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   if (error)
   {
-    DBUG_ASSERT(thd->is_error());
+    int kill_errno= thd->killed_errno();
+    DBUG_ASSERT(thd->is_error() || kill_errno);
     my_printf_error(ER_FILSORT_ABORT,
                     "%s: %s",
                     MYF(ME_ERROR + ME_WAITTANG),
                     ER_THD(thd, ER_FILSORT_ABORT),
-                    thd->stmt_da->message());
-                    
+                    kill_errno ?
+                    ER(kill_errno) :
+                    thd->get_stmt_da()->message());
+
     if (global_system_variables.log_warnings > 1)
     {
       sql_print_warning("%s, host: %s, user: %s, thread: %lu, query: %-.4096s",
@@ -375,8 +376,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     }
   }
   else
-    statistic_add(thd->status_var.filesort_rows,
-                  (ulong) num_rows, &LOCK_status);
+    thd->inc_status_sort_rows(num_rows);
   *examined_rows= param.examined_rows;
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
@@ -835,9 +835,9 @@ static void make_sortkey(register Sort_param *param,
 	if (field->is_null())
 	{
 	  if (sort_field->reverse)
-	    bfill(to,sort_field->length+1,(char) 255);
+	    memset(to, 255, sort_field->length+1);
 	  else
-	    bzero((char*) to,sort_field->length+1);
+	    memset(to, 0, sort_field->length+1);
 	  to+= sort_field->length+1;
 	  continue;
 	}
@@ -853,7 +853,7 @@ static void make_sortkey(register Sort_param *param,
       switch (sort_field->result_type) {
       case STRING_RESULT:
       {
-        CHARSET_INFO *cs=item->collation.collation;
+        const CHARSET_INFO *cs=item->collation.collation;
         char fill_char= ((cs->state & MY_CS_BINSORT) ? (char) 0 : ' ');
         int diff;
         uint sort_field_length;
@@ -866,7 +866,7 @@ static void make_sortkey(register Sort_param *param,
         if (!res)
         {
           if (maybe_null)
-            bzero((char*) to-1,sort_field->length+1);
+            memset(to-1, 0, sort_field->length+1);
           else
           {
             /* purecov: begin deadcode */
@@ -878,7 +878,7 @@ static void make_sortkey(register Sort_param *param,
             DBUG_ASSERT(0);
             DBUG_PRINT("warning",
                        ("Got null on something that shouldn't be null"));
-            bzero((char*) to,sort_field->length);	// Avoid crash
+            memset(to, 0, sort_field->length);	// Avoid crash
             /* purecov: end */
           }
           break;
@@ -930,12 +930,12 @@ static void make_sortkey(register Sort_param *param,
             if (item->null_value)
             {
               if (maybe_null)
-                bzero((char*) to-1,sort_field->length+1);
+                memset(to-1, 0, sort_field->length+1);
               else
               {
                 DBUG_PRINT("warning",
                            ("Got null on something that shouldn't be null"));
-                bzero((char*) to,sort_field->length);
+                memset(to, 0, sort_field->length);
               }
               break;
             }
@@ -970,7 +970,7 @@ static void make_sortkey(register Sort_param *param,
           {
             if (item->null_value)
             { 
-              bzero((char*)to, sort_field->length+1);
+              memset(to, 0, sort_field->length+1);
               to++;
               break;
             }
@@ -988,7 +988,7 @@ static void make_sortkey(register Sort_param *param,
           {
             if (item->null_value)
             {
-              bzero((char*) to,sort_field->length+1);
+              memset(to, 0, sort_field->length+1);
               to++;
               break;
             }
@@ -1030,7 +1030,7 @@ static void make_sortkey(register Sort_param *param,
     SORT_ADDON_FIELD *addonf= param->addon_field;
     uchar *nulls= to;
     DBUG_ASSERT(addonf != 0);
-    bzero((char *) nulls, addonf->offset);
+    memset(nulls, 0, addonf->offset);
     to+= addonf->offset;
     for ( ; (field= addonf->field) ; addonf++)
     {
@@ -1038,7 +1038,7 @@ static void make_sortkey(register Sort_param *param,
       {
         nulls[addonf->null_offset]|= addonf->null_bit;
 #ifdef HAVE_purify
-	bzero(to, addonf->length);
+	memset(to, 0, addonf->length);
 #endif
       }
       else
@@ -1048,7 +1048,7 @@ static void make_sortkey(register Sort_param *param,
 	uint length= (uint) ((to + addonf->length) - end);
 	DBUG_ASSERT((int) length >= 0);
 	if (length)
-	  bzero(end, length);
+	  memset(end, 0, length);
 #else
         (void) field->pack(to, field->ptr);
 #endif
@@ -1228,7 +1228,7 @@ bool check_if_pq_applicable(Sort_param *param,
                                        row_length);
       /*
         PQ has cost:
-        (insert + qsort) * log(queue size) / TIME_FOR_COMPARE_ROWID +
+        (insert + qsort) * log(queue size) * ROWID_COMPARE_COST +
         cost of file lookup afterwards.
         The lookup cost is a bit pessimistic: we take scan_time and assume
         that on average we find the row after scanning half of the file.
@@ -1237,7 +1237,7 @@ bool check_if_pq_applicable(Sort_param *param,
       */
       const double pq_cpu_cost= 
         (PQ_slowness * num_rows + param->max_keys_per_buffer) *
-        log((double) param->max_keys_per_buffer) / TIME_FOR_COMPARE_ROWID;
+        log((double) param->max_keys_per_buffer) * ROWID_COMPARE_COST;
       const double pq_io_cost=
         param->max_rows * table->file->scan_time() / 2.0;
       const double pq_cost= pq_cpu_cost + pq_io_cost;
@@ -1422,7 +1422,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
 
-  status_var_increment(current_thd->status_var.filesort_merge_passes);
+  current_thd->inc_status_sort_merge_passes();
   if (param->not_killable)
   {
     killed= &not_killable;
@@ -1658,7 +1658,7 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
            bool *multi_byte_charset)
 {
   reg2 uint length;
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
   *multi_byte_charset= 0;
 
   length=0;
@@ -1883,7 +1883,7 @@ void change_double_for_sort(double nr,uchar *to)
   if (nr == 0.0)
   {						/* Change to zero string */
     tmp[0]=(uchar) 128;
-    bzero((char*) tmp+1,sizeof(nr)-1);
+    memset(tmp+1, 0, sizeof(nr)-1);
   }
   else
   {

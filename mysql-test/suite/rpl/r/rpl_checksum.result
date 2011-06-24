@@ -3,6 +3,8 @@ include/master-slave.inc
 call mtr.add_suppression('Slave can not handle replication events with the checksum that master is configured to log');
 call mtr.add_suppression('Replication event checksum verification failed');
 call mtr.add_suppression('Relay log write failure: could not queue event from master');
+call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
+call mtr.add_suppression('Slave SQL: Error initializing relay log position: I/O error reading event at position .*, Error_code: 1593');
 call mtr.add_suppression('Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process');
 set @master_save_binlog_checksum= @@global.binlog_checksum;
 set @save_master_verify_checksum =  @@global.master_verify_checksum;
@@ -66,6 +68,7 @@ Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary 
 select count(*) as zero from t1;
 zero
 0
+include/stop_slave.inc
 set @@global.debug='';
 include/start_slave.inc
 set @@global.master_verify_checksum = 1;
@@ -82,12 +85,13 @@ include/wait_for_slave_io_error.inc [errno=1595]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 set @@global.debug='';
 start slave io_thread;
-include/wait_for_slave_param.inc [Read_Master_Log_Pos]
+include/sync_slave_io_with_master.inc
 set @@global.slave_sql_verify_checksum = 1;
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave sql_thread;
 include/wait_for_slave_sql_error.inc [errno=1593]
 Last_SQL_Error = 'Error initializing relay log position: I/O error reading event at position 4'
+include/stop_slave.inc
 set @@global.debug='';
 include/start_slave.inc
 select count(*) as 'must be zero' from t2;

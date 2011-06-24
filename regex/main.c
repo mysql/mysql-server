@@ -5,6 +5,7 @@
 
 #include "my_regex.h"
 #include "main.ih"
+#include "tests_include.h"
 
 char *progname;
 int debug = 0;
@@ -65,6 +66,7 @@ char *argv[];
 	size_t len;
 	int c;
 	int errflg = 0;
+	int opt_inline = 0;
 	register int i;
         char *input_file_name= NULL;
 	extern int optind;
@@ -72,7 +74,7 @@ char *argv[];
 
 	progname = argv[0];
 
-	while ((c = getopt(argc, argv, "c:e:i:S:E:x")) != EOF)
+	while ((c = getopt(argc, argv, "c:e:i:S:E:xI")) != EOF)
 		switch (c) {
 		case 'c':	/* compile options */
 			copts = options('c', optarg);
@@ -92,6 +94,9 @@ char *argv[];
 		case 'x':	/* Debugging. */
 			debug++;
 			break;
+		case 'I':	/* Inline. */
+			opt_inline= 1;
+			break;
 		case '?':
 		default:
 			errflg++;
@@ -100,9 +105,14 @@ char *argv[];
 	if (errflg) {
 		fprintf(stderr, "usage: %s ", progname);
 		fprintf(stderr,
-                        "[-c copt][-e eopt][-i filename][-S][-E][-x] [re]\n");
+                        "[-c copt][-e eopt][-i filename][-S][-E][-x][-I] [re]\n");
 		exit(2);
 	}
+
+        if (opt_inline) {
+          regress(NULL);
+          exit(status);
+        }
 
 	if (optind >= argc && !input_file_name) {
 		regress(stdin);
@@ -165,9 +175,24 @@ char *argv[];
 	exit(status);
 }
 
+char*
+get_next_line(s, size, stream)
+char *s;
+int size;
+FILE *stream;
+{
+  if (stream)
+    return fgets(s, size, stream);
+  if (test_array[line])
+    return strncpy(s, test_array[line], size);
+  return NULL;
+}
+
 /*
  - regress - main loop of regression test
  == void regress(FILE *in);
+    Reads file, line-by-line.
+    If in == NULL, we read data from test_array instead.
  */
 void
 regress(in)
@@ -185,13 +210,14 @@ FILE *in;
 	const char *bpname = "MY_REG_BADPAT";
 	my_regex_t re;
 
-	while (fgets(inbuf, sizeof(inbuf), in) != NULL) {
+	while (get_next_line(inbuf, sizeof(inbuf), in) != NULL) {
 		line++;
-		if (inbuf[0] == '#' || inbuf[0] == '\n')
+		if (inbuf[0] == '#' || inbuf[0] == '\n' || inbuf[0] == '\0')
 			continue;			/* NOTE CONTINUE */
-		inbuf[strlen(inbuf)-1] = '\0';	/* get rid of stupid \n */
+		if (inbuf[strlen(inbuf)-1] == '\n')
+		  inbuf[strlen(inbuf)-1] = '\0';  /* get rid of stupid \n */
 		if (debug)
-			fprintf(stdout, "%d:\n", line);
+                  fprintf(stdout, "%d: <%s>\n", line, inbuf);
 		nf = split(inbuf, f, MAXF, (char*) "\t\t");
 		if (nf < 3) {
 			fprintf(stderr, "bad input, line %d\n", line);

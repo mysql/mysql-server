@@ -37,7 +37,6 @@ SELECT COUNT(@@SESSION.master_info_repository);
 ####################################################################
 #   Check if Value can set                                         #
 ####################################################################
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@GLOBAL.master_info_repository= "TABLE";
 
 SELECT @@GLOBAL.master_info_repository;
@@ -74,3 +73,10 @@ SELECT COUNT(@@local.master_info_repository);
 
 SELECT COUNT(@@GLOBAL.master_info_repository);
 --echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_06----------------------#'
+################################################################################
+#                                     Clean up                                 #
+################################################################################
+SET @@GLOBAL.master_info_repository= "FILE";

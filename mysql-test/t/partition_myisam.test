@@ -1,0 +1,182 @@
+--source include/have_partition.inc
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+# These tests is only useful when running on MyISAM,
+# due to DATA/INDEX directory, non transactional behavior, tests with MyISAM
+# files etc.
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+
+--echo #
+--echo # Bug#50036: Inconsistent errors when using TIMESTAMP
+--echo #            columns/expressions
+
+--echo # Added test with existing TIMESTAMP partitioning (when it was allowed).
+CREATE TABLE t1 (a TIMESTAMP)
+ENGINE = MyISAM
+PARTITION BY HASH (UNIX_TIMESTAMP(a));
+INSERT INTO t1 VALUES ('2000-01-02 03:04:05');
+--sorted_result
+SELECT * FROM t1;
+FLUSH TABLES;
+--echo # replacing t1.frm with TO_DAYS(a) which was allowed earlier.
+--remove_file $MYSQLD_DATADIR/test/t1.frm
+--copy_file std_data/parts/t1TIMESTAMP.frm $MYSQLD_DATADIR/test/t1.frm
+--echo # Disable warnings, since the result would differ when running with
+--echo # --ps-protocol (only for the 'SELECT * FROM t1' statement).
+--disable_warnings
+--sorted_result
+SELECT * FROM t1;
+--enable_warnings
+--replace_result MyISAM <curr_engine> InnoDB <curr_engine>
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES ('2001-02-03 04:05:06');
+--sorted_result
+SELECT * FROM t1;
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+--error ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
+ALTER TABLE t1
+PARTITION BY RANGE (TO_DAYS(a))
+(PARTITION p0 VALUES LESS THAN (10000),
+ PARTITION p1 VALUES LESS THAN (MAXVALUE));
+SHOW CREATE TABLE t1;
+CREATE TABLE t2 LIKE t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+CREATE TABLE t2 SELECT * FROM t1;
+DROP TABLE t2;
+ALTER TABLE t1 PARTITION BY HASH (UNIX_TIMESTAMP(a));
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SHOW CREATE TABLE t1;
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#31931: Mix of handlers error message
+--echo #
+--error ER_MIX_HANDLER_ERROR
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (a)
+( PARTITION p0 ENGINE=MyISAM,
+  PARTITION p1);
+--error ER_MIX_HANDLER_ERROR
+CREATE TABLE t1 (a INT)
+PARTITION BY LIST (a)
+SUBPARTITION BY HASH (a)
+( PARTITION p0 VALUES IN (0)
+( SUBPARTITION s0, SUBPARTITION s1 ENGINE=MyISAM, SUBPARTITION s2),
+  PARTITION p1 VALUES IN (1)
+( SUBPARTITION s3 ENGINE=MyISAM, SUBPARTITION s4, SUBPARTITION s5 ENGINE=MyISAM));
+
+--echo #
+--echo # Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
+--echo #
+CREATE TABLE t1 (a INT)
+ENGINE = MyISAM
+PARTITION BY HASH (a);
+FLUSH TABLES;
+--remove_file $MYSQLD_DATADIR/test/t1.par
+--replace_result $MYSQLD_DATADIR ./
+CHECK TABLE t1;
+--error ER_FAILED_READ_FROM_PAR_FILE
+SELECT * FROM t1;
+--echo # Note that it is currently impossible to drop a partitioned table
+--echo # without the .par file
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/test/t1.frm
+--remove_file $MYSQLD_DATADIR/test/t1#P#p0.MYI
+--remove_file $MYSQLD_DATADIR/test/t1#P#p0.MYD
+
+--echo #
+--echo # Bug#50392: insert_id is not reset for partitioned tables
+--echo #            auto_increment on duplicate entry
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY)
+ENGINE = MyISAM;
+SET INSERT_ID= 13;
+INSERT INTO t1 VALUES (NULL);
+SET INSERT_ID= 12;
+--echo # For transactional engines, 12 will not be inserted, since the failing
+--echo # statement is rolled back.
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (NULL);
+--echo # NOTE: 12 exists only in non transactional engines!
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY)
+ENGINE = MyISAM
+PARTITION BY KEY(a);
+SET INSERT_ID= 13;
+INSERT INTO t1 VALUES (NULL);
+SET INSERT_ID= 12;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+DROP TABLE t1;
+#
+# Bug#30102: rename table does corrupt tables with partition files on failure
+#
+--echo # Bug#30102 test
+CREATE TABLE t1 (a INT)
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (6),
+ PARTITION `p1....................` VALUES LESS THAN (9),
+ PARTITION p2 VALUES LESS THAN MAXVALUE);
+# partition p1 is 't1#P#p1' + @002e * 20 = 107 characters + file ending
+# total path lenght of './test/t1#P#p1@002e@002e<...>@002e.MY[ID]' is 118 chars
+--echo # List of files in database `test`, all original t1-files here
+--list_files $MYSQLD_DATADIR/test t1*
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+--echo # Renaming to a file name where the first partition is 250 chars
+--echo # and the second partition is 350 chars
+# 7,7 avoids the error message, which is not deterministic.
+--error 7,7
+RENAME TABLE t1 TO `t2_new..............................................end`;
+#                         1234567890123456789012345678901234567890123456
+--echo # List of files in database `test`, should not be any t2-files here
+--list_files $MYSQLD_DATADIR/test t2*
+--echo # List of files in database `test`, should be all t1-files here
+--list_files $MYSQLD_DATADIR/test t1*
+--sorted_result
+SELECT * FROM t1;
+--echo # List of files in database `test`, should be all t1-files here
+--list_files $MYSQLD_DATADIR/test t1*
+--echo # Renaming to a file name where the first partition is 156 chars
+--echo # and the second partition is 256 chars
+# 7,7 avoids the error message, which is not deterministic.
+--error 7,7
+RENAME TABLE t1 TO `t2_............................_end`;
+#                      1234567890123456789012345678
+# 7 + 4 + 5 + 28 * 5 = 16 + 140 = 156
+--echo # List of files in database `test`, should not be any t2-files here
+--list_files $MYSQLD_DATADIR/test t2*
+--echo # List of files in database `test`, should be all t1-files here
+--list_files $MYSQLD_DATADIR/test t1*
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+--echo # Should not be any files left here
+--list_files $MYSQLD_DATADIR/test t1*
+--list_files $MYSQLD_DATADIR/test t2*
+--echo # End of bug#30102 test.
+
+--echo # Test of post-push fix for bug#11766249/59316
+CREATE TABLE t1 (a INT, b VARCHAR(255), PRIMARY KEY (a))
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) MAX_ROWS=100,
+ PARTITION p1 VALUES LESS THAN (100) MAX_ROWS=100,
+ PARTITION pMax VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1, "Partition p1, first row");
+DROP TABLE t1;

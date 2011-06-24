@@ -110,6 +110,8 @@ enum db_err {
 	DB_PARENT_NO_INDEX,		/* the parent table does not
 					have an index that contains the
 					foreign keys as its prefix columns */
+	DB_TOO_BIG_INDEX_COL,		/* index column size exceeds maximum
+					limit */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

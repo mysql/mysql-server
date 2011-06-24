@@ -37,6 +37,30 @@ buffer inserts to this page.  If there is this much of free space, the
 corresponding bits are set in the ibuf bitmap. */
 #define IBUF_PAGE_SIZE_PER_FREE_SPACE	32
 
+/***************************************************************//**
+Starts an insert buffer mini-transaction. */
+UNIV_INLINE
+void
+ibuf_mtr_start(
+/*===========*/
+	mtr_t*	mtr)	/*!< out: mini-transaction */
+{
+	mtr_start(mtr);
+	mtr->inside_ibuf = TRUE;
+}
+/***************************************************************//**
+Commits an insert buffer mini-transaction. */
+UNIV_INLINE
+void
+ibuf_mtr_commit(
+/*============*/
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+{
+	ut_ad(mtr->inside_ibuf);
+	ut_d(mtr->inside_ibuf = FALSE);
+	mtr_commit(mtr);
+}
+
 /** Insert buffer struct */
 struct ibuf_struct{
 	ulint		size;		/*!< current size of the ibuf index
@@ -104,6 +128,7 @@ ibuf_should_try(
 						decide */
 {
 	if (ibuf_use != IBUF_USE_NONE
+	    && ibuf->max_size != 0
 	    && !dict_index_is_clust(index)
 	    && (ignore_sec_unique || !dict_index_is_unique(index))) {
 
@@ -118,6 +143,22 @@ ibuf_should_try(
 	}
 
 	return(FALSE);
+}
+
+/******************************************************************//**
+Returns TRUE if the current OS thread is performing an insert buffer
+routine.
+
+For instance, a read-ahead of non-ibuf pages is forbidden by threads
+that are executing an insert buffer routine.
+@return TRUE if inside an insert buffer routine */
+UNIV_INLINE
+ibool
+ibuf_inside(
+/*========*/
+	const mtr_t*	mtr)	/*!< in: mini-transaction */
+{
+	return(mtr->inside_ibuf);
 }
 
 /***********************************************************************//**
@@ -157,7 +198,7 @@ ibuf_index_page_calc_free_bits(
 	ulint	n;
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(!zip_size || zip_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 
 	if (zip_size) {
 		n = max_ins_size
@@ -192,7 +233,7 @@ ibuf_index_page_calc_free_from_bits(
 	ut_ad(bits < 4);
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(!zip_size || zip_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 
 	if (zip_size) {
 		if (bits == 3) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -24,10 +24,6 @@
     Some string functions don't always put and end-null on a String.
     (This shouldn't be needed)
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
 #include "sha2.h"
@@ -767,7 +763,7 @@ String *Item_func_des_encrypt::val_str(String *str)
     key_number=127;				// User key string
 
     /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
-    bzero((char*) &ivec,sizeof(ivec));
+    memset(&ivec, 0, sizeof(ivec));
     EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		   (uchar*) keystr->ptr(), (int) keystr->length(),
 		   1, (uchar*) &keyblock,ivec);
@@ -796,9 +792,10 @@ String *Item_func_des_encrypt::val_str(String *str)
   tmp_arg[res_length-1]=tail;                   // save extra length
   tmp_value.realloc(res_length+1);
   tmp_value.length(res_length+1);
+  tmp_value.set_charset(&my_charset_bin);
   tmp_value[0]=(char) (128 | key_number);
   // Real encryption
-  bzero((char*) &ivec,sizeof(ivec));
+  memset(&ivec, 0, sizeof(ivec));
   DES_ede3_cbc_encrypt((const uchar*) (tmp_arg.ptr()),
 		       (uchar*) (tmp_value.ptr()+1),
 		       res_length,
@@ -858,7 +855,7 @@ String *Item_func_des_decrypt::val_str(String *str)
     if (!keystr)
       goto error;
 
-    bzero((char*) &ivec,sizeof(ivec));
+    memset(&ivec, 0, sizeof(ivec));
     EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		   (uchar*) keystr->ptr(),(int) keystr->length(),
 		   1,(uchar*) &keyblock,ivec);
@@ -871,7 +868,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   if (tmp_value.alloc(length-1))
     goto error;
 
-  bzero((char*) &ivec,sizeof(ivec));
+  memset(&ivec, 0, sizeof(ivec));
   DES_ede3_cbc_encrypt((const uchar*) res->ptr()+1,
 		       (uchar*) (tmp_value.ptr()),
 		       length-1,
@@ -883,6 +880,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   if ((tail=(uint) (uchar) tmp_value[length-2]) > 8)
     goto wrong_key;				     // Wrong key
   tmp_value.length(length-1-tail);
+  tmp_value.set_charset(&my_charset_bin);
   return &tmp_value;
 
 error:
@@ -1263,7 +1261,7 @@ void Item_func_replace::fix_length_and_dec()
     char_length+= max_substrs * (uint) diff;
   }
 
-  if (agg_arg_charsets_for_comparison(collation, args, 3))
+  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 3))
     return;
   fix_char_length_ulonglong(char_length);
 }
@@ -1553,7 +1551,7 @@ void Item_func_substr::fix_length_and_dec()
 
 void Item_func_substr_index::fix_length_and_dec()
 { 
-  if (agg_arg_charsets_for_comparison(collation, args, 2))
+  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 2))
     return;
   fix_char_length(args[0]->max_char_length());
 }
@@ -1892,7 +1890,8 @@ void Item_func_trim::fix_length_and_dec()
   {
     // Handle character set for args[1] and args[0].
     // Note that we pass args[1] as the first item, and args[0] as the second.
-    if (agg_arg_charsets_for_comparison(collation, &args[1], 2, -1))
+    if (agg_arg_charsets_for_string_result_with_comparison(collation,
+                                                           &args[1], 2, -1))
       return;
   }
   fix_char_length(args[0]->max_char_length());
@@ -2073,7 +2072,7 @@ void Item_func_decode::crypto_transform(String *res)
 }
 
 
-Item *Item_func_sysconst::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_func_sysconst::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_string *conv;
   uint conv_errors;
@@ -2126,7 +2125,7 @@ bool Item_func_user::init(const char *user, const char *host)
   // For system threads (e.g. replication SQL thread) user may be empty
   if (user)
   {
-    CHARSET_INFO *cs= str_value.charset();
+    const CHARSET_INFO *cs= str_value.charset();
     size_t res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
 
     if (str_value.alloc((uint) res_length))
@@ -2222,7 +2221,7 @@ String *Item_func_soundex::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
-  CHARSET_INFO *cs= collation.collation;
+  const CHARSET_INFO *cs= collation.collation;
   my_wc_t wc;
   uint nchars;
   int rc;
@@ -2572,6 +2571,7 @@ void Item_func_make_set::update_used_tables()
   item->update_used_tables();
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
+  with_subselect= item->has_subquery();
 }
 
 
@@ -2630,7 +2630,7 @@ String *Item_func_make_set::val_str(String *str)
 
 Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   Item *new_item= item->transform(transformer, arg);
   if (!new_item)
@@ -3158,7 +3158,7 @@ String *Item_func_charset::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   uint dummy_errors;
 
-  CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
+  const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
   null_value= 0;
   str->copy(cs->csname, (uint) strlen(cs->csname),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
@@ -3169,7 +3169,7 @@ String *Item_func_collation::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   uint dummy_errors;
-  CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
+  const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
 
   null_value= 0;
   str->copy(cs->name, (uint) strlen(cs->name),
@@ -3180,7 +3180,7 @@ String *Item_func_collation::val_str(String *str)
 
 void Item_func_weight_string::fix_length_and_dec()
 {
-  CHARSET_INFO *cs= args[0]->collation.collation;
+  const CHARSET_INFO *cs= args[0]->collation.collation;
   collation.set(&my_charset_bin, args[0]->collation.derivation);
   flags= my_strxfrm_flag_normalize(flags, cs->levels_for_order);
   /* 
@@ -3198,7 +3198,7 @@ void Item_func_weight_string::fix_length_and_dec()
 String *Item_func_weight_string::val_str(String *str)
 {
   String *res;
-  CHARSET_INFO *cs= args[0]->collation.collation;
+  const CHARSET_INFO *cs= args[0]->collation.collation;
   uint tmp_length, frm_length;
   DBUG_ASSERT(fixed == 1);
 
@@ -3214,6 +3214,15 @@ String *Item_func_weight_string::val_str(String *str)
   tmp_length= result_length ? result_length :
               cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
                                     max(res->length(), nweights));
+
+  if(tmp_length > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+                        current_thd->variables.max_allowed_packet);
+    goto nl;
+  }
 
   if (tmp_value.alloc(tmp_length))
     goto nl;
@@ -3327,7 +3336,7 @@ String *Item_func_like_range::val_str(String *str)
   longlong nbytes= args[1]->val_int();
   String *res= args[0]->val_str(str);
   size_t min_len, max_len;
-  CHARSET_INFO *cs= collation.collation;
+  const CHARSET_INFO *cs= collation.collation;
 
   if (!res || args[0]->null_value || args[1]->null_value ||
       nbytes < 0 || nbytes > MAX_BLOB_WIDTH ||
@@ -3429,23 +3438,21 @@ err:
 String* Item_func_export_set::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
-  ulonglong the_set = (ulonglong) args[0]->val_int();
-  String yes_buf, *yes;
-  yes = args[1]->val_str(&yes_buf);
-  String no_buf, *no;
-  no = args[2]->val_str(&no_buf);
-  String *sep = NULL, sep_buf ;
+  String yes_buf, no_buf, sep_buf;
+  const ulonglong the_set = (ulonglong) args[0]->val_int();
+  const String *yes= args[1]->val_str(&yes_buf);
+  const String *no= args[2]->val_str(&no_buf);
+  const String *sep= NULL;
 
   uint num_set_values = 64;
-  ulonglong mask = 0x1;
   str->length(0);
   str->set_charset(collation.collation);
 
   /* Check if some argument is a NULL value */
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
   {
-    null_value=1;
-    return 0;
+    null_value= true;
+    return NULL;
   }
   /*
     Arg count can only be 3, 4 or 5 here. This is guaranteed from the
@@ -3458,37 +3465,56 @@ String* Item_func_export_set::val_str(String* str)
       num_set_values=64;
     if (args[4]->null_value)
     {
-      null_value=1;
-      return 0;
+      null_value= true;
+      return NULL;
     }
     /* Fall through */
   case 4:
     if (!(sep = args[3]->val_str(&sep_buf)))	// Only true if NULL
     {
-      null_value=1;
-      return 0;
+      null_value= true;
+      return NULL;
     }
     break;
   case 3:
     {
       /* errors is not checked - assume "," can always be converted */
       uint errors;
-      sep_buf.copy(STRING_WITH_LEN(","), &my_charset_bin, collation.collation, &errors);
+      sep_buf.copy(STRING_WITH_LEN(","), &my_charset_bin,
+                   collation.collation, &errors);
       sep = &sep_buf;
     }
     break;
   default:
     DBUG_ASSERT(0); // cannot happen
   }
-  null_value=0;
+  null_value= false;
 
-  for (uint i = 0; i < num_set_values; i++, mask = (mask << 1))
+  const ulong max_allowed_packet= current_thd->variables.max_allowed_packet;
+  const uint num_separators= num_set_values > 0 ? num_set_values - 1 : 0;
+  const ulonglong max_total_length=
+    num_set_values * max(yes->length(), no->length()) +
+    num_separators * sep->length();
+
+  if (unlikely(max_total_length > max_allowed_packet))
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        func_name(), max_allowed_packet);
+    null_value= true;
+    return NULL;
+  }
+
+  uint ix;
+  ulonglong mask;
+  for (ix= 0, mask=0x1; ix < num_set_values; ++ix, mask = (mask << 1))
   {
     if (the_set & mask)
       str->append(*yes);
     else
       str->append(*no);
-    if (i != num_set_values - 1)
+    if (ix != num_separators)
       str->append(*sep);
   }
   return str;
@@ -3503,48 +3529,6 @@ void Item_func_export_set::fix_length_and_dec()
                                          args + 1, min(4, arg_count) - 1))
     return;
   fix_char_length(length * 64 + sep_length * 63);
-}
-
-String* Item_func_inet_ntoa::val_str(String* str)
-{
-  DBUG_ASSERT(fixed == 1);
-  uchar buf[8], *p;
-  ulonglong n = (ulonglong) args[0]->val_int();
-  char num[4];
-
-  /*
-    We do not know if args[0] is NULL until we have called
-    some val function on it if args[0] is not a constant!
-
-    Also return null if n > 255.255.255.255
-  */
-  if ((null_value= (args[0]->null_value || n > (ulonglong) LL(4294967295))))
-    return 0;					// Null value
-
-  str->set_charset(collation.collation);
-  str->length(0);
-  int4store(buf,n);
-
-  /* Now we can assume little endian. */
-
-  num[3]='.';
-  for (p=buf+4 ; p-- > buf ; )
-  {
-    uint c = *p;
-    uint n1,n2;					// Try to avoid divisions
-    n1= c / 100;				// 100 digits
-    c-= n1*100;
-    n2= c / 10;					// 10 digits
-    c-=n2*10;					// last digit
-    num[0]=(char) n1+'0';
-    num[1]=(char) n2+'0';
-    num[2]=(char) c+'0';
-    uint length= (n1 ? 4 : n2 ? 3 : 2);         // Remove pre-zero
-    uint dot_length= (p <= buf) ? 1 : 0;
-    (void) str->append(num + 4 - length, length - dot_length,
-                       &my_charset_latin1);
-  }
-  return str;
 }
 
 
@@ -3597,13 +3581,67 @@ String *Item_func_quote::val_str(String *str)
   }
 
   arg_length= arg->length();
-  new_length= arg_length+2; /* for beginning and ending ' signs */
 
-  for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
-    new_length+= get_esc_bit(escmask, (uchar) *from);
+  if (collation.collation->mbmaxlen == 1)
+  {
+    new_length= arg_length + 2; /* for beginning and ending ' signs */
+    for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
+      new_length+= get_esc_bit(escmask, (uchar) *from);
+  }
+  else
+  {
+    new_length= (arg_length * 2) +  /* For string characters */
+                (2 * collation.collation->mbmaxlen); /* For quotes */
+  }
 
   if (tmp_value.alloc(new_length))
     goto null;
+
+  if (collation.collation->mbmaxlen > 1)
+  {
+    const CHARSET_INFO *cs= collation.collation;
+    int mblen;
+    uchar *to_end;
+    to= (char*) tmp_value.ptr();
+    to_end= (uchar*) to + new_length;
+
+    /* Put leading quote */
+    if ((mblen= cs->cset->wc_mb(cs, '\'', (uchar *) to, to_end)) <= 0)
+      goto null;
+    to+= mblen;
+
+    for (start= (char*) arg->ptr(), end= start + arg_length; start < end; )
+    {
+      my_wc_t wc;
+      bool escape;
+      if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) start, (uchar*) end)) <= 0)
+        goto null;
+      start+= mblen;
+      switch (wc) {
+        case 0:      escape= 1; wc= '0'; break;
+        case '\032': escape= 1; wc= 'Z'; break;
+        case '\'':   escape= 1; break;
+        case '\\':   escape= 1; break;
+        default:     escape= 0; break;
+      }
+      if (escape)
+      {
+        if ((mblen= cs->cset->wc_mb(cs, '\\', (uchar*) to, to_end)) <= 0)
+          goto null;
+        to+= mblen;
+      }
+      if ((mblen= cs->cset->wc_mb(cs, wc, (uchar*) to, to_end)) <= 0)
+        goto null;
+      to+= mblen;
+    }
+
+    /* Put trailing quote */
+    if ((mblen= cs->cset->wc_mb(cs, '\'', (uchar *) to, to_end)) <= 0)
+      goto null;
+    to+= mblen;
+    new_length= to - tmp_value.ptr();
+    goto ret;
+  }
 
   /*
     We replace characters from the end to the beginning
@@ -3636,6 +3674,8 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
+
+ret:
   tmp_value.length(new_length);
   tmp_value.set_charset(collation.collation);
   null_value= 0;
@@ -3792,7 +3832,8 @@ String *Item_func_uncompress::val_str(String *str)
     push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_TOO_BIG_FOR_UNCOMPRESS,
 			ER(ER_TOO_BIG_FOR_UNCOMPRESS),
-                        current_thd->variables.max_allowed_packet);
+                        static_cast<int>(current_thd->variables.
+                                         max_allowed_packet));
     goto err;
   }
   if (buffer.realloc((uint32)new_size))

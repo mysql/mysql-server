@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,6 +28,16 @@ select count(*) from performance_schema.setup_timers;
 
 --disable_result_log
 select * from performance_schema.cond_instances;
+select * from performance_schema.events_stages_current;
+select * from performance_schema.events_stages_history;
+select * from performance_schema.events_stages_history_long;
+select * from performance_schema.events_stages_summary_by_thread_by_event_name;
+select * from performance_schema.events_stages_summary_global_by_event_name;
+select * from performance_schema.events_statements_current;
+select * from performance_schema.events_statements_history;
+select * from performance_schema.events_statements_history_long;
+select * from performance_schema.events_statements_summary_by_thread_by_event_name;
+select * from performance_schema.events_statements_summary_global_by_event_name;
 select * from performance_schema.events_waits_current;
 select * from performance_schema.events_waits_history;
 select * from performance_schema.events_waits_history_long;

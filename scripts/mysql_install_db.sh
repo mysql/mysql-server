@@ -63,11 +63,6 @@ Usage: $0 [OPTIONS]
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
-  --rpl-engine=engine  The storage engine used for the mysql.slave_master_info and
-                       mysql.slave_relay_log_info tables. By default, both tables are
-                       created using the MyISAM storage engine. However, any storage
-                       engine available to the server may be used. If a crash-safe
-                       slave is required, the storage engine must be transactional.
 
 All other options are passed to the mysqld program
 
@@ -119,8 +114,6 @@ parse_arguments()
       --help) usage ;;
       --no-defaults|--defaults-file=*|--defaults-extra-file=*)
         defaults="$arg" ;;
-
-      --rpl-engine=*) rpl_engine=`parse_arg "$arg"` ;;
 
       --cross-bootstrap|--windows)
         # Used when building the MySQL system tables on a different host than
@@ -395,7 +388,7 @@ fi
 # Configure mysqld command line
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
-  --basedir=$basedir --datadir=$ldata --log-warnings=0 --loose-skip-innodb \
+  --basedir=$basedir --datadir=$ldata --log-warnings=0 \
   --loose-skip-ndbcluster $args --max_allowed_packet=8M \
   --default-storage-engine=myisam \
   --net_buffer_length=16K"
@@ -432,19 +425,6 @@ else
   echo "you do mail us, you MUST use the $scriptdir/mysqlbug script!"
   echo
   exit 1
-fi
-
-if test -n "$rpl_engine"
-then
-  s_echo "Setting engine for mysql.slave_master_info mysql.slave_relay_log_info tables..."
-  if { echo "use mysql;"; echo "ALTER TABLE mysql.slave_master_info ENGINE= $rpl_engine;"; echo "ALTER TABLE mysql.slave_relay_log_info ENGINE= $rpl_engine;"; } | $mysqld_install_cmd_line > /dev/null
-  then
-    s_echo "OK"
-  else
-    echo
-    echo "WARNING: CRASH-SAFE SLAVE IS NOT COMPLETELY CONFIGURED!"
-    echo "The \"CRASH-SAFE SLAVE\" might not work properly."
-  fi
 fi
 
 s_echo "Filling help tables..."

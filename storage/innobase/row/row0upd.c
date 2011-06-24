@@ -496,14 +496,49 @@ row_upd_rec_in_place(
 	n_fields = upd_get_n_fields(update);
 
 	for (i = 0; i < n_fields; i++) {
+#ifdef UNIV_BLOB_DEBUG
+		btr_blob_dbg_t	b;
+		const byte*	field_ref	= NULL;
+#endif /* UNIV_BLOB_DEBUG */
+
 		upd_field = upd_get_nth_field(update, i);
 		new_val = &(upd_field->new_val);
 		ut_ad(!dfield_is_ext(new_val) ==
 		      !rec_offs_nth_extern(offsets, upd_field->field_no));
+#ifdef UNIV_BLOB_DEBUG
+		if (dfield_is_ext(new_val)) {
+			ulint	len;
+			field_ref = rec_get_nth_field(rec, offsets, i, &len);
+			ut_a(len != UNIV_SQL_NULL);
+			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
+			field_ref += len - BTR_EXTERN_FIELD_REF_SIZE;
+
+			b.ref_page_no = page_get_page_no(page_align(rec));
+			b.ref_heap_no = page_rec_get_heap_no(rec);
+			b.ref_field_no = i;
+			b.blob_page_no = mach_read_from_4(
+				field_ref + BTR_EXTERN_PAGE_NO);
+			ut_a(b.ref_field_no >= index->n_uniq);
+			btr_blob_dbg_rbt_delete(index, &b, "upd_in_place");
+		}
+#endif /* UNIV_BLOB_DEBUG */
 
 		rec_set_nth_field(rec, offsets, upd_field->field_no,
 				  dfield_get_data(new_val),
 				  dfield_get_len(new_val));
+
+#ifdef UNIV_BLOB_DEBUG
+		if (dfield_is_ext(new_val)) {
+			b.blob_page_no = mach_read_from_4(
+				field_ref + BTR_EXTERN_PAGE_NO);
+			b.always_owner = b.owner = !(field_ref[BTR_EXTERN_LEN]
+						     & BTR_EXTERN_OWNER_FLAG);
+			b.del = rec_get_deleted_flag(
+				rec, rec_offs_comp(offsets));
+
+			btr_blob_dbg_rbt_insert(index, &b, "upd_in_place");
+		}
+#endif /* UNIV_BLOB_DEBUG */
 	}
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
@@ -1174,8 +1209,8 @@ row_upd_replace(
 	}
 
 	if (n_ext_cols) {
-		*ext = row_ext_create(n_ext_cols, ext_cols, row,
-				      dict_table_zip_size(table), heap);
+		*ext = row_ext_create(n_ext_cols, ext_cols, table->flags, row,
+				      heap);
 	} else {
 		*ext = NULL;
 	}
@@ -1472,7 +1507,7 @@ row_upd_store_row(
 	offsets = rec_get_offsets(rec, clust_index, offsets_,
 				  ULINT_UNDEFINED, &heap);
 
-	if (dict_table_get_format(node->table) >= DICT_TF_FORMAT_ZIP) {
+	if (dict_table_get_format(node->table) >= UNIV_FORMAT_B) {
 		/* In DYNAMIC or COMPRESSED format, there is no prefix
 		of externally stored columns in the clustered index
 		record. Build a cache of column prefixes. */
@@ -1960,27 +1995,42 @@ row_upd_clust_rec(
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
 				    dict_table_is_comp(index->table)));
 
-	err = btr_cur_pessimistic_update(BTR_NO_LOCKING_FLAG, btr_cur,
-					 &heap, &big_rec, node->update,
-					 node->cmpl_info, thr, mtr);
-	mtr_commit(mtr);
-
-	if (err == DB_SUCCESS && big_rec) {
+	err = btr_cur_pessimistic_update(
+		BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur,
+		&heap, &big_rec, node->update, node->cmpl_info, thr, mtr);
+	if (big_rec) {
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_t*		rec;
 		rec_offs_init(offsets_);
 
-		mtr_start(mtr);
+		ut_a(err == DB_SUCCESS);
+		/* Write out the externally stored columns while still
+		x-latching index->lock and block->lock. We have to
+		mtr_commit(mtr) first, so that the redo log will be
+		written in the correct order. Otherwise, we would run
+		into trouble on crash recovery if mtr freed B-tree
+		pages on which some of the big_rec fields will be
+		written. */
+		btr_cur_mtr_commit_and_start(btr_cur, mtr);
 
-		ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
 		rec = btr_cur_get_rec(btr_cur);
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(btr_cur), rec,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
 			mtr, TRUE, big_rec);
-		mtr_commit(mtr);
+		/* If writing big_rec fails (for example, because of
+		DB_OUT_OF_FILE_SPACE), the record will be corrupted.
+		Even if we did not update any externally stored
+		columns, our update could cause the record to grow so
+		that a non-updated column was selected for external
+		storage. This non-update would not have been written
+		to the undo log, and thus the record cannot be rolled
+		back. */
+		ut_a(err == DB_SUCCESS);
 	}
+
+	mtr_commit(mtr);
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -2170,8 +2220,7 @@ exit_func:
 
 	if (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
 
-		err = row_upd_clust_rec(node, index, thr, mtr);
-		return(err);
+		return(row_upd_clust_rec(node, index, thr, mtr));
 	}
 
 	row_upd_store_row(node);
@@ -2246,51 +2295,51 @@ row_upd(
 		}
 	}
 
-	if (node->state == UPD_NODE_UPDATE_CLUSTERED
-	    || node->state == UPD_NODE_INSERT_CLUSTERED
-	    || node->state == UPD_NODE_INSERT_BLOB) {
-
+	switch (node->state) {
+	case UPD_NODE_UPDATE_CLUSTERED:
+	case UPD_NODE_INSERT_CLUSTERED:
+	case UPD_NODE_INSERT_BLOB:
 		log_free_check();
 		err = row_upd_clust_step(node, thr);
 
 		if (err != DB_SUCCESS) {
 
-			goto function_exit;
+			return(err);
 		}
 	}
 
-	if (!node->is_delete && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+	if (node->index == NULL
+	    || (!node->is_delete
+		&& (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
 
-		goto function_exit;
+		return(DB_SUCCESS);
 	}
 
-	while (node->index != NULL) {
-
+	do {
 		log_free_check();
 		err = row_upd_sec_step(node, thr);
 
 		if (err != DB_SUCCESS) {
 
-			goto function_exit;
+			return(err);
 		}
 
 		node->index = dict_table_get_next_index(node->index);
+	} while (node->index != NULL);
+
+	ut_ad(err == DB_SUCCESS);
+
+	/* Do some cleanup */
+
+	if (node->row != NULL) {
+		node->row = NULL;
+		node->ext = NULL;
+		node->upd_row = NULL;
+		node->upd_ext = NULL;
+		mem_heap_empty(node->heap);
 	}
 
-function_exit:
-	if (err == DB_SUCCESS) {
-		/* Do some cleanup */
-
-		if (node->row != NULL) {
-			node->row = NULL;
-			node->ext = NULL;
-			node->upd_row = NULL;
-			node->upd_ext = NULL;
-			mem_heap_empty(node->heap);
-		}
-
-		node->state = UPD_NODE_UPDATE_CLUSTERED;
-	}
+	node->state = UPD_NODE_UPDATE_CLUSTERED;
 
 	return(err);
 }

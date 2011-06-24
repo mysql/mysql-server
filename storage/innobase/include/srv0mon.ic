@@ -28,7 +28,7 @@ This function is used to calculate the maximum counter value
 since the start of monitor counter
 @return	max counter value since start. */
 UNIV_INLINE
-lint
+mon_type_t
 srv_mon_calc_max_since_start(
 /*=========================*/
 	monitor_id_t	monitor)	/*!< in: monitor id */
@@ -63,7 +63,7 @@ This function is used to calculate the minimum counter value
 since the start of monitor counter
 @return	min counter value since start. */
 UNIV_INLINE
-lint
+mon_type_t
 srv_mon_calc_min_since_start(
 /*=========================*/
 	monitor_id_t	monitor)	/*!< in: monitor id */

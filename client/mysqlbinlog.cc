@@ -226,7 +226,7 @@ public:
       {
         my_free(ptr->fname);
         delete ptr->event;
-        bzero((char *)ptr, sizeof(File_name_record));
+        memset(ptr, 0, sizeof(File_name_record));
       }
     }
 
@@ -257,7 +257,7 @@ public:
         return 0;
       ptr= dynamic_element(&file_names, file_id, File_name_record*);
       if ((res= ptr->event))
-        bzero((char *)ptr, sizeof(File_name_record));
+        memset(ptr, 0, sizeof(File_name_record));
       return res;
     }
 
@@ -287,7 +287,7 @@ public:
       if (!ptr->event)
       {
         res= ptr->fname;
-        bzero((char *)ptr, sizeof(File_name_record));
+        memset(ptr, 0, sizeof(File_name_record));
       }
       return res;
     }
@@ -683,10 +683,18 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       */
       start_datetime= 0;
       offset= 0; // print everything and protect against cycling rec_count
+      /*
+        Skip events according to the --server-id flag.  However, don't
+        skip format_description or rotate events, because they they
+        are really "global" events that are relevant for the entire
+        binlog, even if they have a server_id.  Also, we have to read
+        the format_description event so that we can parse subsequent
+        events.
+      */
+      if (ev_type != ROTATE_EVENT &&
+          server_id && (server_id != ev->server_id))
+        goto end;
     }
-    if (server_id && (server_id != ev->server_id))
-      /* skip just this event, continue processing the log. */
-      goto end;
     if (((my_time_t)(ev->when) >= stop_datetime)
         || (pos >= stop_position_mot))
     {
@@ -927,7 +935,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         row events.
       */
       if (!print_event_info->printed_fd_event && !short_form &&
-          ev_type != TABLE_MAP_EVENT && ev_type != ROWS_QUERY_LOG_EVENT)
+          ev_type != TABLE_MAP_EVENT && ev_type != ROWS_QUERY_LOG_EVENT &&
+          opt_base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
       {
         const char* type_str= ev->get_type_str();
         if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
@@ -1028,7 +1037,7 @@ static struct my_option my_long_options[] =
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"disable-log-bin", 'D', "Disable binary log. This is useful, if you "
     "enabled --to-last-log and are sending the output to the same MySQL server. "
@@ -1056,7 +1065,7 @@ static struct my_option my_long_options[] =
   {"password", 'p', "Password to connect to remote server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+    &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -1673,8 +1682,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       */
       ev->register_temp_buf((char *) net->read_pos + 1);
     }
-    if (glob_description_event->binlog_version >= 3 ||
-        (type != LOAD_EVENT && type != CREATE_FILE_EVENT))
+    if (raw_mode || (type != LOAD_EVENT))
     {
       /*
         If this is a Rotate event, maybe it's the end of the requested binlog;
@@ -1762,6 +1770,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           ev->temp_buf= 0;
           ev= 0;
         }
+      }
+      
+      if (type == LOAD_EVENT)
+      {
+        DBUG_ASSERT(raw_mode);
+        warning("Attempting to load a remote pre-4.0 binary log that contains "
+                "LOAD DATA INFILE statements. The file will not be copied from "
+                "the remote server. ");
       }
 
       if (raw_mode)

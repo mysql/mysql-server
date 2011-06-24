@@ -244,6 +244,52 @@ user_comment	Host privileges;  Merged with database privileges
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
+TABLE_NAME	innodb_index_stats
+TABLE_TYPE	BASE TABLE
+ENGINE	InnoDB
+VERSION	10
+ROW_FORMAT	Compact
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	utf8_general_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	def
+TABLE_SCHEMA	mysql
+TABLE_NAME	innodb_table_stats
+TABLE_TYPE	BASE TABLE
+ENGINE	InnoDB
+VERSION	10
+ROW_FORMAT	Compact
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	utf8_general_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	def
+TABLE_SCHEMA	mysql
 TABLE_NAME	ndb_binlog_index
 TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
@@ -336,6 +382,29 @@ user_comment	Procedure privileges
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
+TABLE_NAME	proxies_priv
+TABLE_TYPE	BASE TABLE
+ENGINE	MyISAM
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	utf8_bin
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	User proxy privileges
+Separator	-----------------------------------------------------
+TABLE_CATALOG	def
+TABLE_SCHEMA	mysql
 TABLE_NAME	servers
 TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
@@ -380,7 +449,7 @@ CREATE_OPTIONS	#CO#
 TABLE_COMMENT	#TC#
 user_comment	Master Information
 Separator	-----------------------------------------------------
-TABLE_CATALOG	NULL
+TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
 TABLE_NAME	slave_relay_log_info
 TABLE_TYPE	BASE TABLE
@@ -403,7 +472,7 @@ CREATE_OPTIONS	#CO#
 TABLE_COMMENT	#TC#
 user_comment	Relay Log Information
 Separator	-----------------------------------------------------
-TABLE_CATALOG	NULL
+TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
 TABLE_NAME	slow_log
 TABLE_TYPE	BASE TABLE
@@ -835,6 +904,52 @@ user_comment	Host privileges;  Merged with database privileges
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
+TABLE_NAME	innodb_index_stats
+TABLE_TYPE	BASE TABLE
+ENGINE	InnoDB
+VERSION	10
+ROW_FORMAT	Compact
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	utf8_general_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	def
+TABLE_SCHEMA	mysql
+TABLE_NAME	innodb_table_stats
+TABLE_TYPE	BASE TABLE
+ENGINE	InnoDB
+VERSION	10
+ROW_FORMAT	Compact
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	utf8_general_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	def
+TABLE_SCHEMA	mysql
 TABLE_NAME	ndb_binlog_index
 TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
@@ -927,6 +1042,29 @@ user_comment	Procedure privileges
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
+TABLE_NAME	proxies_priv
+TABLE_TYPE	BASE TABLE
+ENGINE	MyISAM
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	utf8_bin
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	User proxy privileges
+Separator	-----------------------------------------------------
+TABLE_CATALOG	def
+TABLE_SCHEMA	mysql
 TABLE_NAME	servers
 TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
@@ -971,7 +1109,7 @@ CREATE_OPTIONS	#CO#
 TABLE_COMMENT	#TC#
 user_comment	Master Information
 Separator	-----------------------------------------------------
-TABLE_CATALOG	NULL
+TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
 TABLE_NAME	slave_relay_log_info
 TABLE_TYPE	BASE TABLE
@@ -994,7 +1132,7 @@ CREATE_OPTIONS	#CO#
 TABLE_COMMENT	#TC#
 user_comment	Relay Log Information
 Separator	-----------------------------------------------------
-TABLE_CATALOG	NULL
+TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
 TABLE_NAME	slow_log
 TABLE_TYPE	BASE TABLE

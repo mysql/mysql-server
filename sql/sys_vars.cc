@@ -36,6 +36,8 @@
 #include <thr_alarm.h>
 #include "rpl_slave.h"
 #include "rpl_mi.h"
+#include "rpl_rli.h"
+#include "rpl_slave.h"
 #include "rpl_info_factory.h"
 #include "transaction.h"
 #include "mysqld.h"
@@ -214,6 +216,62 @@ static Sys_var_ulong Sys_pfs_setup_objects_size(
        DEFAULT(PFS_MAX_SETUP_OBJECT),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_max_stage_classes(
+       "performance_schema_max_stage_classes",
+       "Maximum number of stage instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_stage_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT(PFS_MAX_STAGE_CLASS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_events_stages_history_long_size(
+       "performance_schema_events_stages_history_long_size",
+       "Number of rows in EVENTS_STAGES_HISTORY_LONG.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_stages_history_long_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_STAGES_HISTORY_LONG_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_events_stages_history_size(
+       "performance_schema_events_stages_history_size",
+       "Number of rows per thread in EVENTS_STAGES_HISTORY.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_stages_history_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
+       DEFAULT(PFS_STAGES_HISTORY_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+/**
+  Variable performance_schema_max_statement_classes.
+  The default number of statement classes is the sum of:
+  - COM_END for all regular "statement/com/...",
+  - 1 for "statement/com/Error", for invalid enum_server_command
+  - SQLCOM_END for all regular "statement/sql/...",
+  - 1 for "statement/sql/error", for invalid enum_sql_command.
+*/
+static Sys_var_ulong Sys_pfs_max_statement_classes(
+       "performance_schema_max_statement_classes",
+       "Maximum number of statement instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 2),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_events_statements_history_long_size(
+       "performance_schema_events_statements_history_long_size",
+       "Number of rows in EVENTS_STATEMENTS_HISTORY_LONG.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_long_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_STATEMENTS_HISTORY_LONG_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_events_statements_history_size(
+       "performance_schema_events_statements_history_size",
+       "Number of rows per thread in EVENTS_STATEMENTS_HISTORY.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
+       DEFAULT(PFS_STATEMENTS_HISTORY_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static Sys_var_ulong Sys_auto_increment_increment(
@@ -359,6 +417,9 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
   return false;
 }
 
+static Sys_var_test_flag Sys_core_file(
+       "core_file", "write a core-file on crashes", TEST_CORE_ON_SIGNAL);
+
 static Sys_var_enum Sys_binlog_format(
        "binlog_format", "What form of binary logging the master will "
        "use: either ROW for row-based binary logging, STATEMENT "
@@ -431,6 +492,73 @@ static Sys_var_mybool Sys_binlog_direct(
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_direct_check));
 
+static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)
+{
+  bool ret= FALSE;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (!(thd->security_ctx->master_access & SUPER_ACL))
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+    return TRUE;
+  }
+#endif
+#ifdef HAVE_REPLICATION
+  int running= 0;
+  const char *msg= NULL;
+  mysql_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    lock_slave_threads(active_mi);
+    init_thread_mask(&running, active_mi, FALSE);
+    if(!running)
+    {
+      switch (thread_mask)
+      {
+        case SLAVE_THD_IO:
+        if (Rpl_info_factory::change_mi_repository(active_mi,
+                                                   var->save_result.ulonglong_value,
+                                                   &msg))
+        {
+          ret= TRUE;
+          my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+        }
+        break;
+        case SLAVE_THD_SQL:
+          if (Rpl_info_factory::change_rli_repository(active_mi->rli,
+                                                      var->save_result.ulonglong_value,
+                                                      &msg))
+          {
+            ret= TRUE;
+            my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+          }
+        break;
+        default:
+          assert(0);
+        break;
+      }
+    }
+    else
+    {
+      ret= TRUE;
+      my_error(ER_SLAVE_MUST_STOP, MYF(0));
+    }
+    unlock_slave_threads(active_mi);
+  }
+  mysql_mutex_unlock(&LOCK_active_mi);
+#endif
+  return ret;
+}
+
+static bool relay_log_info_repository_check(sys_var *self, THD *thd, set_var *var)
+{
+  return repository_check(self, thd, var, SLAVE_THD_SQL);
+}
+
+static bool master_info_repository_check(sys_var *self, THD *thd, set_var *var)
+{
+  return repository_check(self, thd, var, SLAVE_THD_IO);
+}
+
 static const char *repository_names[]=
 {
   "FILE", "TABLE", 0
@@ -440,15 +568,19 @@ ulong opt_mi_repository_id;
 static Sys_var_enum Sys_mi_repository(
        "master_info_repository",
        "Defines the type of the repository for the master information."
-       , READ_ONLY GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(0));
+       ,GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
+       repository_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(master_info_repository_check),
+       ON_UPDATE(0));
 
 ulong opt_rli_repository_id;
 static Sys_var_enum Sys_rli_repository(
        "relay_log_info_repository",
        "Defines the type of the repository for the relay log information."
-       , READ_ONLY GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(0));
+       ,GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
+       repository_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(relay_log_info_repository_check),
+       ON_UPDATE(0));
 
 static Sys_var_mybool Sys_binlog_rows_query(
        "binlog_rows_query_log_events",
@@ -780,7 +912,7 @@ static bool event_scheduler_update(sys_var *self, THD *thd, enum_var_type type)
             : Events::stop();
   mysql_mutex_lock(&LOCK_global_system_variables);
   if (ret)
-    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
+    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0), 0);
   return ret;
 }
 
@@ -1120,13 +1252,32 @@ static bool session_readonly(sys_var *self, THD *thd, set_var *var)
            self->name.str, "GLOBAL");
   return true;
 }
+
+static bool
+check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
+{
+  longlong val;
+  if (session_readonly(self, thd, var))
+    return true;
+
+  val= var->save_result.ulonglong_value;
+  if (val < (longlong) global_system_variables.net_buffer_length)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        "max_allowed_packet", "net_buffer_length");
+  }
+  return false;
+}
+
+
 static Sys_var_ulong Sys_max_allowed_packet(
        "max_allowed_packet",
        "Max packet length to send to or receive from the server",
        SESSION_VAR(max_allowed_packet), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, 1024*1024*1024), DEFAULT(1024*1024),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(session_readonly));
+       ON_CHECK(check_max_allowed_packet));
 
 static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "max_binlog_cache_size",
@@ -1344,12 +1495,29 @@ static Sys_var_mybool Sys_named_pipe(
        DEFAULT(FALSE));
 #endif
 
+
+static bool 
+check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
+{
+  longlong val;
+  if (session_readonly(self, thd, var))
+    return true;
+
+  val= var->save_result.ulonglong_value;
+  if (val > (longlong) global_system_variables.max_allowed_packet)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        "max_allowed_packet", "net_buffer_length");
+  }
+  return false;
+}
 static Sys_var_ulong Sys_net_buffer_length(
        "net_buffer_length",
        "Buffer length for TCP/IP and socket communication",
        SESSION_VAR(net_buffer_length), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, 1024*1024), DEFAULT(16384), BLOCK_SIZE(1024),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(session_readonly));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_net_buffer_length));
 
 static bool fix_net_read_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -1520,7 +1688,7 @@ static Sys_var_proxy_user Sys_proxy_user(
        "proxy_user", "The proxy user account name used when logging in",
        IN_SYSTEM_CHARSET);
 
-static Sys_var_external_user Sys_exterenal_user(
+static Sys_var_external_user Sys_external_user(
        "external_user", "The external user account used when logging in",
        IN_SYSTEM_CHARSET);
 
@@ -2353,8 +2521,8 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
       transaction implicitly at the end (@sa stmt_causes_implicitcommit()).
     */
     thd->variables.option_bits&=
-                 ~(OPTION_BEGIN | OPTION_KEEP_LOG | OPTION_NOT_AUTOCOMMIT);
-    thd->transaction.all.modified_non_trans_table= false;
+                 ~(OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
+    thd->transaction.all.reset_unsafe_rollback_flags();
     thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
     return false;
   }
@@ -2363,7 +2531,7 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
       !(thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT))
   { // disabling autocommit
 
-    thd->transaction.all.modified_non_trans_table= false;
+    thd->transaction.all.reset_unsafe_rollback_flags();
     thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
     return false;
@@ -2560,7 +2728,7 @@ static bool update_last_insert_id(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->first_successful_insert_id_in_prev_stmt=
@@ -2609,7 +2777,7 @@ static bool update_insert_id(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->force_one_auto_inc_interval(var->save_result.ulonglong_value);
@@ -2632,7 +2800,7 @@ static bool update_rand_seed1(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->rand.seed1= (ulong) var->save_result.ulonglong_value;
@@ -2654,7 +2822,7 @@ static bool update_rand_seed2(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->rand.seed2= (ulong) var->save_result.ulonglong_value;
@@ -2670,7 +2838,7 @@ static Sys_var_session_special Sys_rand_seed2(
 
 static ulonglong read_error_count(THD *thd)
 {
-  return thd->warning_info->error_count();
+  return thd->get_stmt_wi()->error_count();
 }
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_error_count(
@@ -2682,7 +2850,7 @@ static Sys_var_session_special Sys_error_count(
 
 static ulonglong read_warning_count(THD *thd)
 {
-  return thd->warning_info->warn_count();
+  return thd->get_stmt_wi()->warn_count();
 }
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_warning_count(
@@ -3178,7 +3346,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
     String str(buff, sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
       return true;
-    else if (!(locale= my_locale_by_name(res->c_ptr())))
+    else if (!(locale= my_locale_by_name(res->c_ptr_safe())))
     {
       ErrConvString err(res);
       my_error(ER_UNKNOWN_LOCALE, MYF(0), err.ptr());

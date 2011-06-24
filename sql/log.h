@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef LOG_H
 #define LOG_H
@@ -51,9 +51,9 @@ class TC_LOG_MMAP: public TC_LOG
 {
   public:                // only to keep Sun Forte on sol9x86 happy
   typedef enum {
-    POOL,                 // page is in pool
-    ERROR,                // last sync failed
-    DIRTY                 // new xids added since last sync
+    PS_POOL,                 // page is in pool
+    PS_ERROR,                // last sync failed
+    PS_DIRTY                 // new xids added since last sync
   } PAGE_STATE;
 
   private:
@@ -216,6 +216,37 @@ public:
 #endif
 };
 
+
+enum enum_general_log_table_field
+{
+  GLT_FIELD_EVENT_TIME = 0,
+  GLT_FIELD_USER_HOST,
+  GLT_FIELD_THREAD_ID,
+  GLT_FIELD_SERVER_ID,
+  GLT_FIELD_COMMAND_TYPE,
+  GLT_FIELD_ARGUMENT,
+  GLT_FIELD_COUNT
+};
+
+
+enum enum_slow_query_log_table_field
+{
+  SQLT_FIELD_START_TIME = 0,
+  SQLT_FIELD_USER_HOST,
+  SQLT_FIELD_QUERY_TIME,
+  SQLT_FIELD_LOCK_TIME,
+  SQLT_FIELD_ROWS_SENT,
+  SQLT_FIELD_ROWS_EXAMINED,
+  SQLT_FIELD_DATABASE,
+  SQLT_FIELD_LAST_INSERT_ID,
+  SQLT_FIELD_INSERT_ID,
+  SQLT_FIELD_SERVER_ID,
+  SQLT_FIELD_SQL_TEXT,
+  SQLT_FIELD_THREAD_ID,
+  SQLT_FIELD_COUNT
+};
+
+
 class MYSQL_QUERY_LOG: public MYSQL_LOG
 {
 public:
@@ -272,7 +303,7 @@ public:
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
-                           CHARSET_INFO *client_cs)= 0;
+                           const CHARSET_INFO *client_cs)= 0;
   virtual ~Log_event_handler() {}
 };
 
@@ -301,7 +332,7 @@ public:
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
-                           CHARSET_INFO *client_cs);
+                           const CHARSET_INFO *client_cs);
 
   int activate_log(THD *thd, uint log_type);
 };
@@ -333,7 +364,7 @@ public:
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
-                           CHARSET_INFO *client_cs);
+                           const CHARSET_INFO *client_cs);
   void flush();
   void init_pthread_objects();
   MYSQL_QUERY_LOG *get_mysql_slow_log() { return &mysql_slow_log; }
@@ -442,7 +473,7 @@ void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 void sql_print_information(const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 typedef void (*sql_print_message_func)(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  ATTRIBUTE_FORMAT_FPTR(printf, 1, 2);
 extern sql_print_message_func sql_print_message_handlers[];
 
 int error_log_print(enum loglevel level, const char *format,

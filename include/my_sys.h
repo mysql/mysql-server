@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _my_sys_h
 #define _my_sys_h
@@ -483,7 +483,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
-typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...);
+typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
+  ATTRIBUTE_FORMAT_FPTR(printf, 2, 3);
 
 extern my_error_reporter my_charset_error_reporter;
 
@@ -625,6 +626,8 @@ extern FILE *my_freopen(const char *path, const char *mode, FILE *stream);
 extern int my_fclose(FILE *fd,myf MyFlags);
 extern File my_fileno(FILE *fd);
 extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
+extern void thr_set_sync_wait_callback(void (*before_sync)(void),
+                                       void (*after_sync)(void));
 extern int my_sync(File fd, myf my_flags);
 extern int my_sync_dir(const char *dir_name, myf my_flags);
 extern int my_sync_dir_by_file(const char *file_name, myf my_flags);
@@ -639,7 +642,6 @@ extern int my_error_register(const char** (*get_errmsgs) (),
 extern const char **my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
-extern my_bool my_basic_init(void);
 extern my_bool my_init(void);
 extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);
@@ -706,7 +708,7 @@ extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 extern qsort_t my_qsort(void *base_ptr, size_t total_elems, size_t size,
                         qsort_cmp cmp);
 extern qsort_t my_qsort2(void *base_ptr, size_t total_elems, size_t size,
-                         qsort2_cmp cmp, void *cmp_argument);
+                         qsort2_cmp cmp, const void *cmp_argument);
 extern qsort2_cmp get_ptr_compare(size_t);
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
@@ -909,17 +911,18 @@ extern CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
                                             const char *name,
                                             uint cs_flags, myf my_flags);
 extern my_bool resolve_charset(const char *cs_name,
-                               CHARSET_INFO *default_cs,
-                               CHARSET_INFO **cs);
+                               const CHARSET_INFO *default_cs,
+                               const CHARSET_INFO **cs);
 extern my_bool resolve_collation(const char *cl_name,
-                                 CHARSET_INFO *default_cl,
-                                 CHARSET_INFO **cl);
+                                 const CHARSET_INFO *default_cl,
+                                 const CHARSET_INFO **cl);
 extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
-extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
+extern my_bool my_charset_same(const CHARSET_INFO *cs1,
+                               const CHARSET_INFO *cs2);
 extern my_bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
-extern size_t escape_string_for_mysql(CHARSET_INFO *charset_info,
+extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
                                       char *to, size_t to_length,
                                       const char *from, size_t length);
 #ifdef __WIN__
@@ -933,7 +936,6 @@ extern size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
 
 extern void thd_increment_bytes_sent(ulong length);
 extern void thd_increment_bytes_received(ulong length);
-extern void thd_increment_net_big_packet_count(ulong length);
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
@@ -946,9 +948,14 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
 void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
 
 /* implemented in my_conio.c */
-char* my_cgets(char *string, size_t clen, size_t* plen);
-
-#endif
+my_bool my_win_is_console(FILE *file);
+char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize);
+void my_win_console_write(const CHARSET_INFO *cs, const char *data, size_t datalen);
+void my_win_console_fputs(const CHARSET_INFO *cs, const char *data);
+void my_win_console_putc(const CHARSET_INFO *cs, int c);
+void my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt, va_list args);
+int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *ac, char ***av);
+#endif /* __WIN__ */
 
 #include <mysql/psi/psi.h>
 

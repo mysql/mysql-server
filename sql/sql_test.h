@@ -17,6 +17,7 @@
 #define SQL_TEST_INCLUDED
 
 #include "mysqld.h"
+#include "sql_select.h"
 
 class JOIN;
 struct TABLE_LIST;
@@ -31,7 +32,7 @@ void print_plan(JOIN* join,uint idx, double record_count, double read_time,
                 double current_read_time, const char *info);
 void dump_TABLE_LIST_graph(SELECT_LEX *select_lex, TABLE_LIST* tl);
 void print_sjm(TABLE_LIST *emb_sj_nest);
-void print_keyuse_array(DYNAMIC_ARRAY *keyuse_array);
+void print_keyuse_array(const Key_use_array *keyuse_array);
 #endif
 void mysql_print_status();
 

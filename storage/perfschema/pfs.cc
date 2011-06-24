@@ -30,8 +30,11 @@
 #include "pfs_column_values.h"
 #include "pfs_timer.h"
 #include "pfs_events_waits.h"
+#include "pfs_events_stages.h"
+#include "pfs_events_statements.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
+#include "sql_error.h"
 
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
@@ -884,6 +887,93 @@ static inline int mysql_mutex_lock(...)
   - [D] OBJECTS_SUMMARY_GLOBAL_BY_TYPE,
         @c table_os_global_by_type::make_row()
 
+  @section IMPL_STAGE Implementation for stages aggregates
+
+@verbatim
+  start_stage(T, S)
+   |
+   | [1]
+   |
+ a |-> pfs_thread(T).event_name(S)            =====>> [A], [B], [C], [D], [E]
+   |    |
+   |    | [2]
+   |    |
+   |  a |-> pfs_user_host(U, H).event_name(S) =====>> [B], [C], [D], [E]
+   |    |    |
+   |    |    | [3]
+   |    |    |
+   |  b |----+-> pfs_user(U).event_name(S)    =====>> [C]
+   |    |    |
+   |  c |----+-> pfs_host(H).event_name(S)    =====>> [D], [E]
+   |    |    |    |
+   |    |    |    | [4]
+   |  d |    |    |
+ b |----+----+----+-> pfs_stage_class(S)      =====>> [E]
+
+@endverbatim
+
+  Implemented as:
+  - [1] @c start_stage_v1()
+  - [2d] @c delete_thread_v1()
+  - [A] EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_esgs_by_thread_by_event_name::make_row()
+  - [E] EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_esgs_global_by_event_name::make_row()
+
+  Not implemented:
+  - [2a, 2b, 2c] @c delete_thread_v1() to aggregate to user/host buffers
+  - [3] user disconnect
+  - [4] host disconnect
+  - [B] EVENTS_STAGES_SUMMARY_BY_USER_HOST_BY_EVENT_NAME,
+        @c table_esgs_by_user_host_by_event_name::make_row()
+  - [C] EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME,
+        @c table_esgs_by_user_by_event_name::make_row()
+  - [D] EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME,
+        @c table_esgs_by_host_by_event_name::make_row()
+
+  @section IMPL_STATEMENT Implementation for statements aggregates
+
+@verbatim
+  statement_locker(T, S)
+   |
+   | [1]
+   |
+ a |-> pfs_thread(T).event_name(S)            =====>> [A], [B], [C], [D], [E]
+   |    |
+   |    | [2]
+   |    |
+   |  a |-> pfs_user_host(U, H).event_name(S) =====>> [B], [C], [D], [E]
+   |    |    |
+   |    |    | [3]
+   |    |    |
+   |  b |----+-> pfs_user(U).event_name(S)    =====>> [C]
+   |    |    |
+   |  c |----+-> pfs_host(H).event_name(S)    =====>> [D], [E]
+   |    |    |    |
+   |    |    |    | [4]
+   |  d |    |    |
+ b |----+----+----+-> pfs_stage_class(S)      =====>> [E]
+
+@endverbatim
+
+  Implemented as:
+  - [1] @c start_statement_v1(), end_statement_v1()
+  - [2d] @c delete_thread_v1()
+  - [A] EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_esms_by_thread_by_event_name::make_row()
+  - [E] EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_esms_global_by_event_name::make_row()
+
+  Not implemented:
+  - [2a, 2b, 2c] @c delete_thread_v1() to aggregate to user/host buffers
+  - [3] user disconnect
+  - [4] host disconnect
+  - [B] EVENTS_STATEMENTS_SUMMARY_BY_USER_HOST_BY_EVENT_NAME,
+        @c table_esms_by_user_host_by_event_name::make_row()
+  - [C] EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME,
+        @c table_esms_by_user_by_event_name::make_row()
+  - [D] EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME,
+        @c table_esms_by_host_by_event_name::make_row()
 */
 
 /**
@@ -904,7 +994,7 @@ static inline int mysql_mutex_lock(...)
 /** THREAD bit in the state flags bitfield. */
 #define STATE_FLAG_THREAD (1<<1)
 /** EVENT bit in the state flags bitfield. */
-#define STATE_FLAG_WAIT (1<<2)
+#define STATE_FLAG_EVENT (1<<2)
 
 pthread_key(PFS_thread*, THR_PFS);
 bool THR_PFS_initialized= false;
@@ -1152,6 +1242,88 @@ static void register_file_v1(const char *category,
                    register_file_class)
 }
 
+static void register_stage_v1(const char *category,
+                              PSI_stage_info_v1 **info_array,
+                              int count)
+{
+  char formatted_name[PFS_MAX_INFO_NAME_LENGTH];
+  int prefix_length;
+  int len;
+  int full_length;
+  PSI_stage_info_v1 *info;
+
+  DBUG_ASSERT(category != NULL);
+  DBUG_ASSERT(info_array != NULL);
+  if (unlikely(build_prefix(&stage_instrument_prefix, category,
+               formatted_name, &prefix_length)))
+  {
+    for (; count>0; count--, info_array++)
+      (*info_array)->m_key= 0;
+    return ;
+  }
+
+  for (; count>0; count--, info_array++)
+  {
+    info= *info_array;
+    DBUG_ASSERT(info != NULL);
+    DBUG_ASSERT(info->m_name != NULL);
+    len= strlen(info->m_name);
+    full_length= prefix_length + len;
+    if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
+    {
+      memcpy(formatted_name + prefix_length, info->m_name, len);
+      info->m_key= register_stage_class(formatted_name, full_length,
+                                        info->m_flags);
+    }
+    else
+    {
+      pfs_print_error("register_stage_v1: name too long <%s> <%s>\n",
+                      category, info->m_name);
+      info->m_key= 0;
+    }
+  }
+  return;
+}
+
+static void register_statement_v1(const char *category,
+                                  PSI_statement_info_v1 *info,
+                                  int count)
+{
+  char formatted_name[PFS_MAX_INFO_NAME_LENGTH];
+  int prefix_length;
+  int len;
+  int full_length;
+
+  DBUG_ASSERT(category != NULL);
+  DBUG_ASSERT(info != NULL);
+  if (unlikely(build_prefix(&statement_instrument_prefix,
+                            category, formatted_name, &prefix_length)))
+  {
+    for (; count>0; count--, info++)
+      info->m_key= 0;
+    return ;
+  }
+
+  for (; count>0; count--, info++)
+  {
+    DBUG_ASSERT(info->m_name != NULL);
+    len= strlen(info->m_name);
+    full_length= prefix_length + len;
+    if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
+    {
+      memcpy(formatted_name + prefix_length, info->m_name, len);
+      info->m_key= register_statement_class(formatted_name, full_length, info->m_flags);
+    }
+    else
+    {
+      pfs_print_error("register_statement_v1: name too long <%s>\n",
+                      info->m_name);
+      info->m_key= 0;
+    }
+  }
+  return;
+}
+
 #define INIT_BODY_V1(T, KEY, ID)                                            \
   PFS_##T##_class *klass;                                                   \
   PFS_##T *pfs;                                                             \
@@ -1230,9 +1402,6 @@ static void destroy_cond_v1(PSI_cond* cond)
 static PSI_table_share*
 get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
 {
-  /* Do not instrument this table is all table instruments are disabled. */
-  if (! global_table_io_class.m_enabled && ! global_table_lock_class.m_enabled)
-    return NULL;
   /* An instrumented thread is required, for LF_PINS. */
   PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(pfs_thread == NULL))
@@ -1282,6 +1451,16 @@ open_table_v1(PSI_table_share *share, const void *identity)
   PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(thread == NULL))
     return NULL;
+
+  if (unlikely(setup_objects_version != pfs_table_share->m_setup_objects_version))
+  {
+    pfs_table_share->refresh_setup_object_flags(thread);
+  }
+
+  /* Do not instrument this table is all table instruments are disabled. */
+  if (! pfs_table_share->m_io_enabled && ! pfs_table_share->m_lock_enabled)
+    return NULL;
+
   PFS_table *pfs_table= create_table(pfs_table_share, thread, identity);
   return reinterpret_cast<PSI_table *> (pfs_table);
 }
@@ -1744,11 +1923,12 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
       }
       PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
       state->m_wait= wait;
-      flags|= STATE_FLAG_WAIT;
+      flags|= STATE_FLAG_EVENT;
 
-#ifdef HAVE_NESTED_EVENTS
-      wait->m_nesting_event_id= (wait - 1)->m_event_id;
-#endif
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
       wait->m_class= klass;
@@ -1831,11 +2011,12 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
       }
       PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
       state->m_wait= wait;
-      flags|= STATE_FLAG_WAIT;
+      flags|= STATE_FLAG_EVENT;
 
-#ifdef HAVE_NESTED_EVENTS
-      wait->m_nesting_event_id= (wait - 1)->m_event_id;
-#endif
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
       wait->m_class= klass;
@@ -1935,11 +2116,12 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
       }
       PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
       state->m_wait= wait;
-      flags|= STATE_FLAG_WAIT;
+      flags|= STATE_FLAG_EVENT;
 
-#ifdef HAVE_NESTED_EVENTS
-      wait->m_nesting_event_id= (wait - 1)->m_event_id;
-#endif
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
       wait->m_class= klass;
@@ -2037,27 +2219,8 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
   if (! flag_global_instrumentation)
     return NULL;
 
-  if (! global_table_io_class.m_enabled)
-    return NULL;
-
   PFS_table_share *share= pfs_table->m_share;
-  if (unlikely(setup_objects_version != share->m_setup_objects_version))
-  {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
-    /* Refresh the enabled and timed flags from SETUP_OBJECTS */
-    share->m_setup_objects_version= setup_objects_version;
-    lookup_setup_object(pfs_thread,
-                        OBJECT_TYPE_TABLE, /* even for temporary tables */
-                        share->m_schema_name,
-                        share->m_schema_name_length,
-                        share->m_table_name,
-                        share->m_table_name_length,
-                        & share->m_enabled,
-                        & share->m_timed);
-  }
-  if (! share->m_enabled)
+  if (! share->m_io_enabled)
     return NULL;
 
   PFS_instr_class *klass;
@@ -2075,7 +2238,7 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (klass->m_timed && share->m_timed)
+    if (share->m_io_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2087,7 +2250,7 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
       }
       PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
       state->m_wait= wait;
-      flags|= STATE_FLAG_WAIT;
+      flags|= STATE_FLAG_EVENT;
 
       wait->m_thread= pfs_thread;
       wait->m_class= klass;
@@ -2109,7 +2272,7 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
   }
   else
   {
-    if (klass->m_timed && share->m_timed)
+    if (share->m_io_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -2145,27 +2308,8 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
   if (! flag_global_instrumentation)
     return NULL;
 
-  if (! global_table_lock_class.m_enabled)
-    return NULL;
-
   PFS_table_share *share= pfs_table->m_share;
-  if (unlikely(setup_objects_version != share->m_setup_objects_version))
-  {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
-    /* Refresh the enabled and timed flags from SETUP_OBJECTS */
-    share->m_setup_objects_version= setup_objects_version;
-    lookup_setup_object(pfs_thread,
-                        OBJECT_TYPE_TABLE, /* even for temporary tables */
-                        share->m_schema_name,
-                        share->m_schema_name_length,
-                        share->m_table_name,
-                        share->m_table_name_length,
-                        & share->m_enabled,
-                        & share->m_timed);
-  }
-  if (! share->m_enabled)
+  if (! share->m_lock_enabled)
     return NULL;
 
   PFS_instr_class *klass;
@@ -2205,7 +2349,7 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (klass->m_timed && share->m_timed)
+    if (share->m_lock_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2217,7 +2361,7 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
       }
       PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
       state->m_wait= wait;
-      flags|= STATE_FLAG_WAIT;
+      flags|= STATE_FLAG_EVENT;
 
       wait->m_thread= pfs_thread;
       wait->m_class= klass;
@@ -2239,7 +2383,7 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
   }
   else
   {
-    if (klass->m_timed && share->m_timed)
+    if (share->m_lock_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -2308,11 +2452,12 @@ get_thread_file_name_locker_v1(PSI_file_locker_state *state,
     }
     PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
     state->m_wait= wait;
-    flags|= STATE_FLAG_WAIT;
+    flags|= STATE_FLAG_EVENT;
 
-#ifdef HAVE_NESTED_EVENTS
-    wait->m_nesting_event_id= (wait - 1)->m_event_id;
-#endif
+    PFS_events_waits *parent_event= wait - 1;
+    wait->m_event_type= EVENT_TYPE_WAIT;
+    wait->m_nesting_event_id= parent_event->m_event_id;
+    wait->m_nesting_event_type= parent_event->m_event_type;
 
     wait->m_thread= pfs_thread;
     wait->m_class= klass;
@@ -2380,11 +2525,12 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
       }
       PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
       state->m_wait= wait;
-      flags|= STATE_FLAG_WAIT;
+      flags|= STATE_FLAG_EVENT;
 
-#ifdef HAVE_NESTED_EVENTS
-      wait->m_nesting_event_id= (wait - 1)->m_event_id;
-#endif
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
       wait->m_class= klass;
@@ -2483,11 +2629,12 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
       }
       PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
       state->m_wait= wait;
-      flags|= STATE_FLAG_WAIT;
+      flags|= STATE_FLAG_EVENT;
 
-#ifdef HAVE_NESTED_EVENTS
-      wait->m_nesting_event_id= (wait - 1)->m_event_id;
-#endif
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
       wait->m_class= klass;
@@ -2689,7 +2836,7 @@ static void start_mutex_wait_v1(PSI_mutex_locker* locker,
     state->m_timer_start= timer_start;
   }
 
-  if (flags & STATE_FLAG_WAIT)
+  if (flags & STATE_FLAG_EVENT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
@@ -2739,7 +2886,7 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
   if (flags & STATE_FLAG_THREAD)
   {
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_wait_stats;
+    event_name_array= thread->m_instr_class_waits_stats;
     uint index= mutex->m_class->m_event_name_index;
 
     if (flags & STATE_FLAG_TIMED)
@@ -2753,7 +2900,7 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
       event_name_array[index].aggregate_counted();
     }
 
-    if (flags & STATE_FLAG_WAIT)
+    if (flags & STATE_FLAG_EVENT)
     {
       PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
       DBUG_ASSERT(wait != NULL);
@@ -2785,7 +2932,7 @@ static void start_rwlock_rdwait_v1(PSI_rwlock_locker* locker,
     state->m_timer_start= timer_start;
   }
 
-  if (state->m_flags & STATE_FLAG_WAIT)
+  if (state->m_flags & STATE_FLAG_EVENT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
@@ -2843,7 +2990,7 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
     DBUG_ASSERT(thread != NULL);
 
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_wait_stats;
+    event_name_array= thread->m_instr_class_waits_stats;
     uint index= rwlock->m_class->m_event_name_index;
 
     if (state->m_flags & STATE_FLAG_TIMED)
@@ -2857,7 +3004,7 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
       event_name_array[index].aggregate_counted();
     }
 
-    if (state->m_flags & STATE_FLAG_WAIT)
+    if (state->m_flags & STATE_FLAG_EVENT)
     {
       PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
       DBUG_ASSERT(wait != NULL);
@@ -2889,7 +3036,7 @@ static void start_rwlock_wrwait_v1(PSI_rwlock_locker* locker,
     state->m_timer_start= timer_start;
   }
 
-  if (state->m_flags & STATE_FLAG_WAIT)
+  if (state->m_flags & STATE_FLAG_EVENT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
@@ -2940,7 +3087,7 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
   if (state->m_flags & STATE_FLAG_THREAD)
   {
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_wait_stats;
+    event_name_array= thread->m_instr_class_waits_stats;
     uint index= rwlock->m_class->m_event_name_index;
 
     if (state->m_flags & STATE_FLAG_TIMED)
@@ -2954,7 +3101,7 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
       event_name_array[index].aggregate_counted();
     }
 
-    if (state->m_flags & STATE_FLAG_WAIT)
+    if (state->m_flags & STATE_FLAG_EVENT)
     {
       PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
       DBUG_ASSERT(wait != NULL);
@@ -2986,7 +3133,7 @@ static void start_cond_wait_v1(PSI_cond_locker* locker,
     state->m_timer_start= timer_start;
   }
 
-  if (state->m_flags & STATE_FLAG_WAIT)
+  if (state->m_flags & STATE_FLAG_EVENT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
@@ -3030,7 +3177,7 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
     DBUG_ASSERT(thread != NULL);
 
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_wait_stats;
+    event_name_array= thread->m_instr_class_waits_stats;
     uint index= cond->m_class->m_event_name_index;
 
     if (state->m_flags & STATE_FLAG_TIMED)
@@ -3044,7 +3191,7 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
       event_name_array[index].aggregate_counted();
     }
 
-    if (state->m_flags & STATE_FLAG_WAIT)
+    if (state->m_flags & STATE_FLAG_EVENT)
     {
       PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
       DBUG_ASSERT(wait != NULL);
@@ -3078,7 +3225,7 @@ static void start_table_io_wait_v1(PSI_table_locker* locker,
     state->m_timer_start= timer_start;
   }
 
-  if (flags & STATE_FLAG_WAIT)
+  if (flags & STATE_FLAG_EVENT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
@@ -3141,7 +3288,7 @@ static void end_table_io_wait_v1(PSI_table_locker* locker)
     stat->aggregate_counted();
   }
 
-  if (flags & STATE_FLAG_WAIT)
+  if (flags & STATE_FLAG_EVENT)
   {
     DBUG_ASSERT(flags & STATE_FLAG_THREAD);
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
@@ -3178,7 +3325,7 @@ static void start_table_lock_wait_v1(PSI_table_locker* locker,
     state->m_timer_start= timer_start;
   }
 
-  if (flags & STATE_FLAG_WAIT)
+  if (flags & STATE_FLAG_EVENT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
@@ -3218,7 +3365,7 @@ static void end_table_lock_wait_v1(PSI_table_locker* locker)
     stat->aggregate_counted();
   }
 
-  if (flags & STATE_FLAG_WAIT)
+  if (flags & STATE_FLAG_EVENT)
   {
     DBUG_ASSERT(flags & STATE_FLAG_THREAD);
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
@@ -3319,7 +3466,7 @@ static void start_file_wait_v1(PSI_file_locker *locker,
     state->m_timer_start= timer_start;
   }
 
-  if (flags & STATE_FLAG_WAIT)
+  if (flags & STATE_FLAG_EVENT)
   {
     PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
     DBUG_ASSERT(wait != NULL);
@@ -3367,7 +3514,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
     DBUG_ASSERT(thread != NULL);
 
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_wait_stats;
+    event_name_array= thread->m_instr_class_waits_stats;
     uint index= file->m_class->m_event_name_index;
 
     if (flags & STATE_FLAG_TIMED)
@@ -3381,7 +3528,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
       event_name_array[index].aggregate_counted();
     }
 
-    if (state->m_flags & STATE_FLAG_WAIT)
+    if (state->m_flags & STATE_FLAG_EVENT)
     {
       PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
       DBUG_ASSERT(wait != NULL);
@@ -3419,6 +3566,629 @@ static void end_file_wait_v1(PSI_file_locker *locker,
   }
 }
 
+
+static void start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
+{
+  ulonglong timer_value= 0;
+
+  if (! flag_global_instrumentation)
+    return;
+
+  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (unlikely(pfs_thread == NULL))
+    return;
+
+  if (flag_thread_instrumentation && ! pfs_thread->m_enabled)
+    return;
+
+  PFS_events_stages *pfs= & pfs_thread->m_stage_current;
+  PFS_events_waits *child_wait= & pfs_thread->m_events_waits_stack[0];
+  PFS_events_statements *parent_statement= & pfs_thread->m_statement_stack[0];
+
+  PFS_instr_class *old_class= pfs->m_class;
+  if (likely(old_class != NULL))
+  {
+    PFS_stage_stat *event_name_array;
+    event_name_array= pfs_thread->m_instr_class_stages_stats;
+    uint index= old_class->m_event_name_index;
+
+    /* Finish old event */
+    if (old_class->m_timed)
+    {
+      timer_value= get_timer_raw_value(stage_timer);;
+      pfs->m_timer_end= timer_value;
+
+      /* Aggregate to EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      ulonglong stage_time= timer_value - pfs->m_timer_start;
+      event_name_array[index].aggregate_timed(stage_time);
+    }
+    else
+    {
+      /* Aggregate to EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[index].aggregate_counted();
+    }
+
+    if (flag_events_stages_current)
+    {
+      if (flag_events_stages_history)
+        insert_events_stages_history(pfs_thread, pfs);
+      if (flag_events_stages_history_long)
+        insert_events_stages_history_long(pfs);
+    }
+
+    /* New waits will now be attached directly to the parent statement. */
+    child_wait->m_event_id= parent_statement->m_event_id;
+    child_wait->m_event_type= parent_statement->m_event_type;
+    /* See below for new stages, that may overwrite this. */
+  }
+
+  /* Start new event */
+
+  PFS_stage_class *new_klass= find_stage_class(key);
+  pfs->m_class= new_klass;
+  if (unlikely(new_klass == NULL))
+    return;
+
+  if (! new_klass->m_enabled)
+    return;
+
+  if (new_klass->m_timed)
+  {
+    /*
+      Do not call the timer again if we have a
+      TIMER_END for the previous stage already.
+    */
+    if (timer_value == 0)
+      timer_value= get_timer_raw_value(stage_timer);
+    pfs->m_timer_start= timer_value;
+  }
+  else
+    pfs->m_timer_start= 0;
+  pfs->m_timer_end= 0;
+
+  if (flag_events_stages_current)
+  {
+    /* m_thread_internal_id is immutable and already set */
+    DBUG_ASSERT(pfs->m_thread_internal_id == pfs_thread->m_thread_internal_id);
+    pfs->m_event_id= pfs_thread->m_event_id++;
+    pfs->m_source_file= src_file;
+    pfs->m_source_line= src_line;
+
+    /* New wait events will have this new stage as parent. */
+    child_wait->m_event_id= pfs->m_event_id;
+    child_wait->m_event_type= EVENT_TYPE_STAGE;
+  }
+}
+
+static void end_stage_v1()
+{
+  ulonglong timer_value= 0;
+
+  if (! flag_global_instrumentation)
+    return;
+
+  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (unlikely(pfs_thread == NULL))
+    return;
+
+  if (flag_thread_instrumentation && ! pfs_thread->m_enabled)
+    return;
+
+  PFS_events_stages *pfs= & pfs_thread->m_stage_current;
+
+  PFS_instr_class *old_class= pfs->m_class;
+  if (likely(old_class != NULL))
+  {
+    PFS_stage_stat *event_name_array;
+    event_name_array= pfs_thread->m_instr_class_stages_stats;
+    uint index= old_class->m_event_name_index;
+
+    /* Finish old event */
+    if (old_class->m_timed)
+    {
+      timer_value= get_timer_raw_value(stage_timer);;
+      pfs->m_timer_end= timer_value;
+
+      /* Aggregate to EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      ulonglong stage_time= timer_value - pfs->m_timer_start;
+      event_name_array[index].aggregate_timed(stage_time);
+    }
+    else
+    {
+      /* Aggregate to EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[index].aggregate_counted();
+    }
+
+    if (flag_events_stages_current)
+    {
+      if (flag_events_stages_history)
+        insert_events_stages_history(pfs_thread, pfs);
+      if (flag_events_stages_history_long)
+        insert_events_stages_history_long(pfs);
+    }
+
+    /* New waits will now be attached directly to the parent statement. */
+    PFS_events_waits *child_wait= & pfs_thread->m_events_waits_stack[0];
+    PFS_events_statements *parent_statement= & pfs_thread->m_statement_stack[0];
+    child_wait->m_event_id= parent_statement->m_event_id;
+    child_wait->m_event_type= parent_statement->m_event_type;
+
+    /* This stage is completed */
+    pfs->m_class= NULL;
+  }
+}
+
+static PSI_statement_locker*
+get_thread_statement_locker_v1(PSI_statement_locker_state *state,
+                               PSI_statement_key key)
+{
+  DBUG_ASSERT(state != NULL);
+  if (! flag_global_instrumentation)
+    return NULL;
+  PFS_statement_class *klass= find_statement_class(key);
+  if (unlikely(klass == NULL))
+    return NULL;
+  if (! klass->m_enabled)
+    return NULL;
+
+  register uint flags;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (klass->m_timed)
+      flags|= STATE_FLAG_TIMED;
+
+    if (flag_events_statements_current)
+    {
+      ulonglong event_id= pfs_thread->m_event_id++;
+
+      if (pfs_thread->m_events_statements_count >= statement_stack_max)
+      {
+        return NULL;
+      }
+
+      PFS_events_statements *pfs= & pfs_thread->m_statement_stack[pfs_thread->m_events_statements_count];
+      /* m_thread_internal_id is immutable and already set */
+      DBUG_ASSERT(pfs->m_thread_internal_id == pfs_thread->m_thread_internal_id);
+      pfs->m_event_id= event_id;
+      pfs->m_class= klass;
+      pfs->m_timer_start= 0;
+      pfs->m_timer_end= 0;
+      pfs->m_lock_time= 0;
+      pfs->m_current_schema_name_length= 0;
+      pfs->m_sqltext_length= 0;
+
+      pfs->m_message_text[0]= '\0';
+      pfs->m_sql_errno= 0;
+      pfs->m_sqlstate[0]= '\0';
+      pfs->m_error_count= 0;
+      pfs->m_warning_count= 0;
+      pfs->m_rows_affected= 0;
+
+      pfs->m_rows_sent= 0;
+      pfs->m_rows_examined= 0;
+      pfs->m_created_tmp_disk_tables= 0;
+      pfs->m_created_tmp_tables= 0;
+      pfs->m_select_full_join= 0;
+      pfs->m_select_full_range_join= 0;
+      pfs->m_select_range= 0;
+      pfs->m_select_range_check= 0;
+      pfs->m_select_scan= 0;
+      pfs->m_sort_merge_passes= 0;
+      pfs->m_sort_range= 0;
+      pfs->m_sort_rows= 0;
+      pfs->m_sort_scan= 0;
+      pfs->m_no_index_used= 0;
+      pfs->m_no_good_index_used= 0;
+      
+      /* New stages will have this statement as parent */
+      PFS_events_stages *child_stage= & pfs_thread->m_stage_current;
+      child_stage->m_nesting_event_id= event_id;
+      child_stage->m_nesting_event_type= EVENT_TYPE_STATEMENT;
+
+      /* New waits will have this statement as parent, if no stage is instrumented */
+      PFS_events_waits *child_wait= & pfs_thread->m_events_waits_stack[0];
+      child_wait->m_nesting_event_id= event_id;
+      child_wait->m_nesting_event_type= EVENT_TYPE_STATEMENT;
+
+      state->m_statement= pfs;
+      flags|= STATE_FLAG_EVENT;
+
+      pfs_thread->m_events_statements_count++;
+    }
+  }
+  else
+  {
+    if (klass->m_timed)
+      flags= STATE_FLAG_TIMED;
+    else
+      flags= 0;
+  }
+
+  state->m_discarded= false;
+  state->m_class= klass;
+  state->m_flags= flags;
+
+  state->m_lock_time= 0;
+  state->m_rows_sent= 0;
+  state->m_rows_examined= 0;
+  state->m_created_tmp_disk_tables= 0;
+  state->m_created_tmp_tables= 0;
+  state->m_select_full_join= 0;
+  state->m_select_full_range_join= 0;
+  state->m_select_range= 0;
+  state->m_select_range_check= 0;
+  state->m_select_scan= 0;
+  state->m_sort_merge_passes= 0;
+  state->m_sort_range= 0;
+  state->m_sort_rows= 0;
+  state->m_sort_scan= 0;
+  state->m_no_index_used= 0;
+  state->m_no_good_index_used= 0;
+
+  return reinterpret_cast<PSI_statement_locker*> (state);
+}
+
+static PSI_statement_locker*
+refine_statement_v1(PSI_statement_locker *locker,
+                    PSI_statement_key key)
+{
+  PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
+  if (state == NULL)
+    return NULL;
+  DBUG_ASSERT(state->m_class != NULL);
+  PFS_statement_class *klass;
+  /* Only refine statements for mutable instrumentation */
+  klass= reinterpret_cast<PFS_statement_class*> (state->m_class);
+  DBUG_ASSERT(klass->m_flags & PSI_FLAG_MUTABLE);
+  klass= find_statement_class(key);
+  if (unlikely(klass == NULL))
+  {
+    /* FIXME : pop statement stack */
+    state->m_discarded= true;
+    return NULL;
+  }
+  if (! klass->m_enabled)
+  {
+    /* FIXME : pop statement stack */
+    state->m_discarded= true;
+    return NULL;
+  }
+
+  register uint flags= state->m_flags;
+
+  if ((flags & STATE_FLAG_TIMED) && ! klass->m_timed)
+    flags= flags & ~STATE_FLAG_TIMED;
+
+  if (flags & STATE_FLAG_EVENT)
+  {
+    PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
+    DBUG_ASSERT(pfs != NULL);
+
+    /* mutate EVENTS_STATEMENTS_CURRENT.EVENT_NAME */
+    pfs->m_class= klass;
+  }
+
+  state->m_class= klass;
+  state->m_flags= flags;
+  return reinterpret_cast<PSI_statement_locker*> (state);
+}
+
+static void start_statement_v1(PSI_statement_locker *locker,
+                               const char *db, uint db_len,
+                               const char *src_file, uint src_line)
+{
+  PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  register uint flags= state->m_flags;
+  ulonglong timer_start= 0;
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    timer_start= get_timer_raw_value_and_function(statement_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
+  }
+
+  if (flags & STATE_FLAG_EVENT)
+  {
+    PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
+    DBUG_ASSERT(pfs != NULL);
+
+    pfs->m_timer_start= timer_start;
+    pfs->m_source_file= src_file;
+    pfs->m_source_line= src_line;
+
+    DBUG_ASSERT(db_len <= sizeof(pfs->m_current_schema_name));
+    if (db_len > 0)
+      memcpy(pfs->m_current_schema_name, db, db_len);
+    pfs->m_current_schema_name_length= db_len;
+  }
+}
+
+static void set_statement_text_v1(PSI_statement_locker *locker,
+                                  const char *text, uint text_len)
+{
+  PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  if (state->m_discarded)
+    return;
+
+  if (state->m_flags & STATE_FLAG_EVENT)
+  {
+    PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
+    DBUG_ASSERT(pfs != NULL);
+    if (text_len > sizeof (pfs->m_sqltext))
+      text_len= sizeof(pfs->m_sqltext);
+    if (text_len)
+      memcpy(pfs->m_sqltext, text, text_len);
+    pfs->m_sqltext_length= text_len;
+  }
+
+  return;
+}
+
+#define SET_STATEMENT_ATTR_BODY(LOCKER, ATTR, VALUE)                    \
+  PSI_statement_locker_state *state;                                    \
+  state= reinterpret_cast<PSI_statement_locker_state*> (LOCKER);        \
+  DBUG_ASSERT(state != NULL);                                           \
+  if (state->m_discarded)                                               \
+    return;                                                             \
+  state->ATTR= VALUE;                                                   \
+  if (state->m_flags & STATE_FLAG_EVENT)                                \
+  {                                                                     \
+    PFS_events_statements *pfs;                                         \
+    pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement); \
+    DBUG_ASSERT(pfs != NULL);                                           \
+    pfs->ATTR= VALUE;                                                   \
+  }                                                                     \
+  return;
+
+#define INC_STATEMENT_ATTR_BODY(LOCKER, ATTR, VALUE)                    \
+  PSI_statement_locker_state *state;                                    \
+  state= reinterpret_cast<PSI_statement_locker_state*> (LOCKER);        \
+  DBUG_ASSERT(state != NULL);                                           \
+  if (state->m_discarded)                                               \
+    return;                                                             \
+  state->ATTR+= VALUE;                                                  \
+  if (state->m_flags & STATE_FLAG_EVENT)                                \
+  {                                                                     \
+    PFS_events_statements *pfs;                                         \
+    pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement); \
+    DBUG_ASSERT(pfs != NULL);                                           \
+    pfs->ATTR+= VALUE;                                                  \
+  }                                                                     \
+  return;
+
+static void set_statement_lock_time_v1(PSI_statement_locker *locker,
+                                       ulonglong count)
+{
+  SET_STATEMENT_ATTR_BODY(locker, m_lock_time, count);
+}
+
+static void set_statement_rows_sent_v1(PSI_statement_locker *locker,
+                                       ulonglong count)
+{
+  SET_STATEMENT_ATTR_BODY(locker, m_rows_sent, count);
+}
+
+static void set_statement_rows_examined_v1(PSI_statement_locker *locker,
+                                           ulonglong count)
+{
+  SET_STATEMENT_ATTR_BODY(locker, m_rows_examined, count);
+}
+
+static void inc_statement_created_tmp_disk_tables_v1(PSI_statement_locker *locker,
+                                                    ulonglong count)
+{
+  INC_STATEMENT_ATTR_BODY(locker, m_created_tmp_disk_tables, count);
+}
+
+static void inc_statement_created_tmp_tables_v1(PSI_statement_locker *locker,
+                                                ulonglong count)
+{
+  INC_STATEMENT_ATTR_BODY(locker, m_created_tmp_tables, count);
+}
+
+static void inc_statement_select_full_join_v1(PSI_statement_locker *locker,
+                                              ulonglong count)
+{
+  INC_STATEMENT_ATTR_BODY(locker, m_select_full_join, count);
+}
+
+static void inc_statement_select_full_range_join_v1(PSI_statement_locker *locker,
+                                                    ulonglong count)
+{
+  INC_STATEMENT_ATTR_BODY(locker, m_select_full_range_join, count);
+}
+
+static void inc_statement_select_range_v1(PSI_statement_locker *locker,
+                                          ulonglong count)
+{
+  INC_STATEMENT_ATTR_BODY(locker, m_select_range, count);
+}
+
+static void inc_statement_select_range_check_v1(PSI_statement_locker *locker,
+                                                ulonglong count)
+{
+  INC_STATEMENT_ATTR_BODY(locker, m_select_range_check, count);
+}
+
+static void inc_statement_select_scan_v1(PSI_statement_locker *locker,
+                                         ulonglong count)
+{
+  INC_STATEMENT_ATTR_BODY(locker, m_select_scan, count);
+}
+
+static void inc_statement_sort_merge_passes_v1(PSI_statement_locker *locker,
+                                               ulonglong count)
+{
+  INC_STATEMENT_ATTR_BODY(locker, m_sort_merge_passes, count);
+}
+
+static void inc_statement_sort_range_v1(PSI_statement_locker *locker,
+                                        ulonglong count)
+{
+  INC_STATEMENT_ATTR_BODY(locker, m_sort_range, count);
+}
+
+static void inc_statement_sort_rows_v1(PSI_statement_locker *locker,
+                                       ulonglong count)
+{
+  INC_STATEMENT_ATTR_BODY(locker, m_sort_rows, count);
+}
+
+static void inc_statement_sort_scan_v1(PSI_statement_locker *locker,
+                                       ulonglong count)
+{
+  INC_STATEMENT_ATTR_BODY(locker, m_sort_scan, count);
+}
+
+static void set_statement_no_index_used_v1(PSI_statement_locker *locker)
+{
+  SET_STATEMENT_ATTR_BODY(locker, m_no_index_used, 1);
+}
+
+static void set_statement_no_good_index_used_v1(PSI_statement_locker *locker)
+{
+  SET_STATEMENT_ATTR_BODY(locker, m_no_good_index_used, 1);
+}
+
+static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
+{
+  PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
+  Diagnostics_area *da= reinterpret_cast<Diagnostics_area*> (stmt_da);
+  DBUG_ASSERT(state != NULL);
+  DBUG_ASSERT(da != NULL);
+
+  if (state->m_discarded)
+    return;
+
+  PFS_statement_class *klass= reinterpret_cast<PFS_statement_class *> (state->m_class);
+  DBUG_ASSERT(klass != NULL);
+
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
+  register uint flags= state->m_flags;
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+  }
+
+  PFS_statement_stat *event_name_array;
+  uint index= klass->m_event_name_index;
+  PFS_statement_stat *stat;
+  if (flags & STATE_FLAG_THREAD)
+  {
+    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+    DBUG_ASSERT(thread != NULL);
+    event_name_array= thread->m_instr_class_statements_stats;
+    /* Aggregate to EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+    stat= & event_name_array[index];
+
+    if (flags & STATE_FLAG_EVENT)
+    {
+      PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
+      DBUG_ASSERT(pfs != NULL);
+
+      switch(da->status())
+      {
+        case Diagnostics_area::DA_EMPTY:
+          break;
+        case Diagnostics_area::DA_OK:
+          memcpy(pfs->m_message_text, da->message(), MYSQL_ERRMSG_SIZE);
+          pfs->m_message_text[MYSQL_ERRMSG_SIZE]= 0;
+          pfs->m_rows_affected= da->affected_rows();
+          pfs->m_warning_count= da->statement_warn_count();
+          memcpy(pfs->m_sqlstate, "00000", SQLSTATE_LENGTH);
+          break;
+        case Diagnostics_area::DA_EOF:
+          pfs->m_warning_count= da->statement_warn_count();
+          break;
+        case Diagnostics_area::DA_ERROR:
+          memcpy(pfs->m_message_text, da->message(), MYSQL_ERRMSG_SIZE);
+          pfs->m_message_text[MYSQL_ERRMSG_SIZE]= 0;
+          pfs->m_sql_errno= da->sql_errno();
+          memcpy(pfs->m_sqlstate, da->get_sqlstate(), SQLSTATE_LENGTH);
+          break;
+        case Diagnostics_area::DA_DISABLED:
+          break;
+      }
+
+      pfs->m_timer_end= timer_end;
+      if (flag_events_statements_history)
+        insert_events_statements_history(thread, pfs);
+      if (flag_events_statements_history_long)
+        insert_events_statements_history_long(pfs);
+
+      DBUG_ASSERT(thread->m_events_statements_count > 0);
+      thread->m_events_statements_count--;
+    }
+  }
+  else
+  {
+    event_name_array= global_instr_class_statements_array;
+    /* Aggregate to EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME */
+    stat= & event_name_array[index];
+  }
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    /* Aggregate to EVENTS_STATEMENTS_SUMMARY_..._BY_EVENT_NAME (timed) */
+    stat->aggregate_timed(wait_time);
+  }
+  else
+  {
+    /* Aggregate to EVENTS_STATEMENTS_SUMMARY_..._BY_EVENT_NAME (counted) */
+    stat->aggregate_counted();
+  }
+
+  stat->m_lock_time+= state->m_lock_time;
+  stat->m_rows_sent+= state->m_rows_sent;
+  stat->m_rows_examined+= state->m_rows_examined;
+  stat->m_created_tmp_disk_tables+= state->m_created_tmp_disk_tables;
+  stat->m_created_tmp_tables+= state->m_created_tmp_tables;
+  stat->m_select_full_join+= state->m_select_full_join;
+  stat->m_select_full_range_join+= state->m_select_full_range_join;
+  stat->m_select_range+= state->m_select_range;
+  stat->m_select_range_check+= state->m_select_range_check;
+  stat->m_select_scan+= state->m_select_scan;
+  stat->m_sort_merge_passes+= state->m_sort_merge_passes;
+  stat->m_sort_range+= state->m_sort_range;
+  stat->m_sort_rows+= state->m_sort_rows;
+  stat->m_sort_scan+= state->m_sort_scan;
+  stat->m_no_index_used+= state->m_no_index_used;
+  stat->m_no_good_index_used+= state->m_no_good_index_used;
+
+  switch(da->status())
+  {
+    case Diagnostics_area::DA_EMPTY:
+      break;
+    case Diagnostics_area::DA_OK:
+      stat->m_rows_affected+= da->affected_rows();
+      stat->m_warning_count+= da->statement_warn_count();
+      break;
+    case Diagnostics_area::DA_EOF:
+      stat->m_warning_count+= da->statement_warn_count();
+      break;
+    case Diagnostics_area::DA_ERROR:
+      stat->m_error_count++;
+      break;
+    case Diagnostics_area::DA_DISABLED:
+      break;
+  }
+}
 /**
   Implementation of the instrumentation interface.
   @sa PSI_v1.
@@ -3430,6 +4200,8 @@ PSI_v1 PFS_v1=
   register_cond_v1,
   register_thread_v1,
   register_file_v1,
+  register_stage_v1,
+  register_statement_v1,
   init_mutex_v1,
   destroy_mutex_v1,
   init_rwlock_v1,
@@ -3484,7 +4256,30 @@ PSI_v1 PFS_v1=
   end_file_open_wait_v1,
   end_file_open_wait_and_bind_to_descriptor_v1,
   start_file_wait_v1,
-  end_file_wait_v1
+  end_file_wait_v1,
+  start_stage_v1,
+  end_stage_v1,
+  get_thread_statement_locker_v1,
+  refine_statement_v1,
+  start_statement_v1,
+  set_statement_text_v1,
+  set_statement_lock_time_v1,
+  set_statement_rows_sent_v1,
+  set_statement_rows_examined_v1,
+  inc_statement_created_tmp_disk_tables_v1,
+  inc_statement_created_tmp_tables_v1,
+  inc_statement_select_full_join_v1,
+  inc_statement_select_full_range_join_v1,
+  inc_statement_select_range_v1,
+  inc_statement_select_range_check_v1,
+  inc_statement_select_scan_v1,
+  inc_statement_sort_merge_passes_v1,
+  inc_statement_sort_range_v1,
+  inc_statement_sort_rows_v1,
+  inc_statement_sort_scan_v1,
+  set_statement_no_index_used_v1,
+  set_statement_no_good_index_used_v1,
+  end_statement_v1
 };
 
 static void* get_interface(int version)

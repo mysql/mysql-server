@@ -3310,7 +3310,55 @@ connection default;
 DROP TABLE t1;
 disconnect con1;
 
+--echo
 --echo #
---echo # End of 6.0 tests.
+--echo # Bug#56115: invalid memory reads when PS selecting from
+--echo #            information_schema tables
+--echo # Bug#58701: crash in Field::make_field, cursor-protocol
+--echo #
+--echo # NOTE: MTR should be run both with --ps-protocol and --cursor-protocol.
+--echo #
+--echo
+
+SELECT *
+FROM (SELECT 1 UNION SELECT 2) t;
+
+
+--echo #
+--echo # End of 5.5 tests.
 
 ###########################################################################
+
+
+--echo #
+--echo # Bug#12661349 assert in protocol::end_statement
+--echo #
+
+--echo # Note: This test case should be run with --ps-protocol
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (col1 INT);
+
+--echo # Connection con1
+connect(con1, localhost, root);
+let $con1_id= `SELECT CONNECTION_ID()`;
+
+--echo # Connection default
+connection default;
+--replace_result $con1_id <con1_id>
+eval KILL QUERY $con1_id;
+
+--echo # Connection con1
+connection con1;
+# Here the server asserts when running with "--ps-protocol"
+--error ER_QUERY_INTERRUPTED
+SELECT * FROM t1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection default
+connection default;
+DROP TABLE t1;

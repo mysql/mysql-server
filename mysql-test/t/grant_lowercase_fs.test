@@ -1,4 +1,4 @@
--- source include/have_case_insensitive_fs.inc
+-- source include/have_case_insensitive_file_system.inc
 -- source include/not_embedded.inc
 
 

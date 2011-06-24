@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This file is for Chinese EUC character sets (GB2312), and created by Miles Tsai (net-bull@126.com).
  */
@@ -165,13 +165,14 @@ static uchar sort_order_gb2312[]=
 #define isgb2312tail(c) (0xa1<=(uchar)(c) && (uchar)(c)<=0xfe)
 
 
-static uint ismbchar_gb2312(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_gb2312(const CHARSET_INFO *cs __attribute__((unused)),
 		    const char* p, const char *e)
 {
   return (isgb2312head(*(p)) && (e)-(p)>1 && isgb2312tail(*((p)+1))? 2: 0);
 }
 
-static uint mbcharlen_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_gb2312(const CHARSET_INFO *cs __attribute__((unused)),
+                             uint c)
 {
   return (isgb2312head(c)? 2 : 1);
 }
@@ -6281,7 +6282,7 @@ static int func_uni_gb2312_onechar(int code){
 
 
 static int
-my_wc_mb_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
+my_wc_mb_gb2312(const CHARSET_INFO *cs  __attribute__((unused)),
 		my_wc_t wc, uchar *s, uchar *e)
 {
   int code;
@@ -6309,7 +6310,7 @@ my_wc_mb_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
 
 
 static int 
-my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
+my_mb_wc_gb2312(const CHARSET_INFO *cs  __attribute__((unused)),
 		my_wc_t *pwc, const uchar *s, const uchar *e){
   int hi;
   
@@ -6336,7 +6337,7 @@ my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
   Returns well formed length of a EUC-KR string.
 */
 static size_t
-my_well_formed_len_gb2312(CHARSET_INFO *cs __attribute__((unused)),
+my_well_formed_len_gb2312(const CHARSET_INFO *cs __attribute__((unused)),
                           const char *b, const char *e,
                           size_t pos, int *error)
 {
