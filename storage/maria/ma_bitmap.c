@@ -1447,10 +1447,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
     best_prefix_bits|= tmp;
     int6store(best_data, best_prefix_bits);
     if (!(best_area_size-= best_prefix_area_size))
-    {
-      DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
-      DBUG_RETURN(block->page_count);
-    }
+      goto end;
     best_data+= 6;
   }
   best_area_size*= 3;                       /* Bits to set */
@@ -1468,6 +1465,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
     bitmap->used_size= (uint) (best_data - bitmap->map);
     DBUG_ASSERT(bitmap->used_size <= bitmap->total_size);
   }
+end:
   bitmap->changed= 1;
   DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
   DBUG_RETURN(block->page_count);
@@ -2290,7 +2288,7 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
 
   bitmap_page= page - page % bitmap->pages_covered;
   if (page == bitmap_page ||
-      page + page_count >= bitmap_page + bitmap->pages_covered)
+      page + page_count > bitmap_page + bitmap->pages_covered)
   {
     DBUG_ASSERT(0);                             /* Wrong in data */
     DBUG_RETURN(1);
