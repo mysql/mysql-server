@@ -503,8 +503,9 @@ fts_index_cache_init(
 
 	ut_a(index_cache->words == NULL);
 
-	index_cache->words = rbt_create(
-		sizeof(fts_tokenizer_word_t), fts_utf8_string_cmp);
+	index_cache->words = rbt_create_arg_cmp(
+		sizeof(fts_tokenizer_word_t), innobase_fts_text_cmp,
+		index_cache->charset);
 
 	ut_a(index_cache->doc_stats == NULL);
 
@@ -637,18 +638,29 @@ fts_que_graph_free_check_lock(
         }
 }
 
+/*************************************************************//**
+Get FTS field charset info from the field's prtype
+@return charset info */
+extern
+CHARSET_INFO*
+innobase_get_fts_charset(
+/*=====================*/
+	int		mysql_type,	/*!< in: MySQL type */
+	uint		charset_number);/*!< in: number of the charset */
 /****************************************************************//**
 Create an FTS index cache. */
 UNIV_INTERN
 void
 fts_cache_index_cache_create(
 /*=========================*/
-	dict_table_t*		table,		/* in: table with FTS index */
-	dict_index_t*		index)		/* in: FTS index */
+	dict_table_t*		table,		/*!< in: table with FTS index */
+	dict_index_t*		index)		/*!< in: FTS index */
 {
 	ulint			n_bytes;
 	fts_index_cache_t*	index_cache;
 	fts_cache_t*		cache = table->fts->cache;
+	CHARSET_INFO*		charset = NULL;
+	ulint			i;
 
 	ut_a(cache != NULL);
 
@@ -662,6 +674,30 @@ fts_cache_index_cache_create(
 	memset(index_cache, 0x0, sizeof(*index_cache));
 
 	index_cache->index = index;
+
+	/* Set up charset info for this index. Please note all
+	field of the FTS index should have the same charset */
+	for (i = 0; i < index->n_fields; i++) {
+		dict_field_t*   field;
+		ulint           prtype;
+		CHARSET_INFO*   fld_charset;
+
+		field = dict_index_get_nth_field(index, i);
+		prtype = field->col->prtype;
+
+		fld_charset = innobase_get_fts_charset(
+			(int)(prtype & DATA_MYSQL_TYPE_MASK),
+			(uint)dtype_get_charset_coll(prtype));
+
+		/* All FTS columns should have the same charset */
+		if (charset) {
+			ut_a(charset == fld_charset);
+		} else {
+			charset = fld_charset;
+		}
+	}
+
+	index_cache->charset = charset;
 
 	n_bytes = sizeof(que_t*) * sizeof(fts_index_selector);
 
@@ -1735,7 +1771,7 @@ fts_trx_init(
 	savepoint = ib_vector_last(trx->fts_trx->savepoints);
 
 	tables = savepoint->tables;
-	rbt_search_cmp(tables, &parent, &table->id, fts_trx_table_id_cmp);
+	rbt_search_cmp(tables, &parent, &table->id, fts_trx_table_id_cmp, NULL);
 
 	if (parent.result == 0) {
 		ftt = *rbt_value(fts_trx_table_t*, parent.last);
@@ -2685,74 +2721,87 @@ fts_fetch_row_id(
 /*************************************************************//**
 Callback function for fetch that stores the text of an FTS document,
 converting each column to UTF-16.
-@return: always returns NULL */
+@return: always returns FALSE */
 UNIV_INTERN
 ibool
-fts_add_fetch_document(
-/*===================*/
-	void*	row,				/* in: sel_node_t* */
-	void*	user_arg)			/* in: fts_doc_t* */
+fts_query_expansion_fetch_doc(
+/*==========================*/
+	void*		row,			/*!< in: sel_node_t* */
+	void*		user_arg)		/*!< in: fts_doc_t* */
 {
-
 	que_node_t*	exp;
 	sel_node_t*	node = row;
-	fts_doc_t*	doc = user_arg;
+	fts_doc_t*	result_doc = user_arg;
 	dfield_t*	dfield;
 	ulint		len;
 	ulint		doc_len;
+	fts_doc_t	doc;
+	CHARSET_INFO*	doc_charset = NULL;
+	ulint		field_no = 0;
 
 	len = 0;
 
-	exp = node->select_list;
-
-	doc->found = TRUE;
-
-	/* First to get the total length of doc for all columns */
-	while (exp) {
-		dfield = que_node_get_val(exp);
-		len += (dfield_get_len(dfield) + 1);
-		exp = que_node_get_next(exp);
-	}
-
-	doc->text.utf8 = ib_heap_malloc(doc->self_heap, len + 1);
+	fts_doc_init(&doc);
+	doc.found = TRUE;
 
 	exp = node->select_list;
 	doc_len = 0;
+
+	doc_charset  = result_doc->charset;
 
 	/* Copy each indexed column content into doc->text.utf8 */
 	while (exp) {
 		dfield = que_node_get_val(exp);
 		len = dfield_get_len(dfield);
 
+		/* NULL column */
 		if (len == UNIV_SQL_NULL) {
 			exp = que_node_get_next(exp);
 			continue;
 		}
 
-		memcpy(doc->text.utf8 + doc_len, dfield_get_data(dfield), len);
+		if (!doc_charset) {
+			ulint   prtype = dfield->type.prtype;
+			doc_charset = innobase_get_fts_charset(
+					(int)(prtype & DATA_MYSQL_TYPE_MASK),
+					(uint)dtype_get_charset_coll(prtype));
+		}
 
-		doc->text.utf8[doc_len + len] = 0;
+		doc.charset = doc_charset;
+			
+		if (dfield_is_ext(dfield)) {
+			/* We ignore columns that stored externally, this
+			could result in too many words to search */
+			exp = que_node_get_next(exp);
+			continue;
+		} else {
+			doc.text.utf8 = dfield_get_data(dfield);
+			doc.text.len = len;
+		}
+
+		if (field_no == 0) {
+			fts_tokenize_document(&doc, result_doc);
+		} else {
+			fts_tokenize_document_next(&doc, doc_len, result_doc);
+		}
 
 		exp = que_node_get_next(exp);
 
 		doc_len += (exp) ? len + 1 : len;
+
+		field_no++;
 	}
 
-	doc->text.utf8[doc_len] = 0;
-	doc->text.len = doc_len;
+	ut_ad(doc_charset);
+
+	if (!result_doc->charset) {
+		result_doc->charset = doc_charset;
+	}
+
+	fts_doc_free(&doc);
+
 	return(FALSE);
 }
-
-/*************************************************************//**
-Get FTS field charset info from the field's prtype
-@return charset info */
-extern
-CHARSET_INFO*
-innobase_get_fts_charset(
-/*=====================*/
-	int		mysql_type,	/*!< in: MySQL type */
-	uint		charset_number);/*!< in: number of the charset */
-
 
 /*************************************************************//**
 This function fetches the document just inserted right before
@@ -2761,8 +2810,8 @@ and insert into FTS auxiliary table and its cache.
 @return TRUE if successful */
 static
 ulint
-fts_fetch_doc_by_id(
-/*================*/
+fts_add_doc_by_id(
+/*==============*/
 	fts_get_doc_t*	get_doc,	/*!< in: state */
 	doc_id_t	doc_id,		/*!< in: id of document to
 					fetch */
@@ -3899,18 +3948,18 @@ fts_process_token(
 	/* Determine where to save the result. */
 	result_doc = (result) ? result : doc;
 
-#ifndef	FTS_CHARSET_SUPPORT 
+#ifdef	FTS_CHARSET_DEBUG
 	/* We will switch to more generic parsing function
 	"innobase_mysql_fts_get_token" for non-utf8 character support */
 	ret = fts_get_next_token(
 		doc->text.utf8 + start_pos,
 		doc->text.utf8 + doc->text.len, &str, &offset);
-#else
+#endif /* FTS_CHARSET_DEBUG */
+
 	ret = innobase_mysql_fts_get_token(doc->charset,
 					   doc->text.utf8 + start_pos,
 					   doc->text.utf8 + doc->text.len,
 					   &str, &offset);
-#endif /* FTS_CHARSET_SUPPORT */
 	if (str.len > FTS_MIN_TOKEN_LENGTH) {
 		fts_token_t*	token;
 		ib_rbt_bound_t	parent;
@@ -3925,7 +3974,7 @@ fts_process_token(
 
 			fts_utf8_string_dup(&new_token.text, &str, heap);
 
-#ifdef	FTS_CHARSET_SUPPORT 
+#ifdef	FTS_CHARSET_DEBUG
 			innobase_fts_casedn_str(doc->charset,
 						(char*)new_token.text.utf8);
 #endif
@@ -3939,11 +3988,11 @@ fts_process_token(
 			ut_ad(rbt_validate(result_doc->tokens));
 		}
 
-#ifndef	FTS_CHARSET_SUPPORT 
+#ifdef	FTS_CHARSET_DEBUG
 		offset += start_pos + add_pos;
-#else
+#endif /* FTS_CHARSET_DEBUG */
+
 		offset += start_pos + ret - str.len + add_pos;
-#endif /* FTS_CHARSET_SUPPORT */
 
 		token = rbt_value(fts_token_t, parent.last);
 		ib_vector_push(token->positions, &offset);
@@ -3968,7 +4017,10 @@ fts_tokenize_document(
 
 	ut_a(!doc->tokens);
 
-	doc->tokens = rbt_create(sizeof(fts_token_t), fts_utf8_string_cmp);
+	ut_a(doc->charset);
+
+	doc->tokens = rbt_create_arg_cmp(
+		sizeof(fts_token_t), innobase_fts_text_cmp, doc->charset);
 
 	for (i = 0; i < doc->text.len; i += inc) {
 
@@ -4020,7 +4072,7 @@ fts_add_doc(
 
 	fts_doc_init(&doc);
 
-	fts_fetch_doc_by_id(get_doc, doc_id, &doc);
+	fts_add_doc_by_id(get_doc, doc_id, &doc);
 
 	if (doc.found) {
 		fts_cache_add_doc(
@@ -6134,8 +6186,17 @@ fts_init_recover_doc(
 
 		doc.charset = get_doc->index_cache->charset;
 
-		doc.text.utf8 = dfield_get_data(dfield);
-		doc.text.len = len;
+		if (dfield_is_ext(dfield)) {
+			dict_table_t*	table = cache->sync->table;
+			ulint		zip_size = dict_table_zip_size(table);
+
+			doc.text.utf8 = btr_copy_externally_stored_field(
+				&doc.text.len, dfield_get_data(dfield),
+				zip_size, len, doc.self_heap->arg);
+		} else {
+			doc.text.utf8 = dfield_get_data(dfield);
+			doc.text.len = len;
+		}
 
 		if (field_no == 1) {
 			fts_tokenize_document(&doc, NULL);

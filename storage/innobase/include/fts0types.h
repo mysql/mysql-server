@@ -86,6 +86,7 @@ struct fts_stopword_struct {
 	ulint		status;		/* Status of the stopword tree */
 	ib_alloc_t*	heap;		/* The memory allocator to use */
 	ib_rbt_t*	cached_stopword;/* This stores all active stopwords */
+	CHARSET_INFO*	charset;	/* charset for stopword */
 };
 
 /* The SYNC state of the cache. There is one instance of this struct
