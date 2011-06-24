@@ -85,6 +85,8 @@ static SORT_KEY_BLOCKS	*alloc_key_blocks(HA_CHECK *param, uint blocks,
 					  uint buffer_length);
 static ha_checksum mi_byte_checksum(const uchar *buf, uint length);
 static void set_data_file_type(MI_SORT_INFO *sort_info, MYISAM_SHARE *share);
+static int replace_data_file(HA_CHECK *param, MI_INFO *info,
+                             const char *name, File new_file);
 
 void myisamchk_init(HA_CHECK *param)
 {
@@ -1733,17 +1735,8 @@ err:
     /* Replace the actual file with the temporary file */
     if (new_file >= 0)
     {
-      my_close(new_file,MYF(0));
-      info->dfile=new_file= -1;
-      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
-			    DATA_TMP_EXT,
-                            param->backup_time,
-                            share->base.raid_chunks,
-			    (param->testflag & T_BACKUP_DATA ?
-			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,name,-1))
-	got_error=1;
-
+      got_error= replace_data_file(param, info, name, new_file);
+      new_file= -1;
       param->retry_repair= 0;
     }
   }
@@ -2553,15 +2546,8 @@ err:
     /* Replace the actual file with the temporary file */
     if (new_file >= 0)
     {
-      my_close(new_file,MYF(0));
-      info->dfile=new_file= -1;
-      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
-			    DATA_TMP_EXT, param->backup_time,
-                            share->base.raid_chunks,
-			    (param->testflag & T_BACKUP_DATA ?
-			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,name,-1))
-	got_error=1;
+      got_error= replace_data_file(param, info, name, new_file);
+      new_file= -1;
     }
   }
   if (got_error)
@@ -3092,15 +3078,8 @@ err:
     /* Replace the actual file with the temporary file */
     if (new_file >= 0)
     {
-      my_close(new_file,MYF(0));
-      info->dfile=new_file= -1;
-      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
-			    DATA_TMP_EXT, param->backup_time,
-                            share->base.raid_chunks,
-			    (param->testflag & T_BACKUP_DATA ?
-			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,name,-1))
-	got_error=1;
+      got_error= replace_data_file(param, info, name, new_file);
+      new_file= -1;
     }
   }
   if (got_error)
@@ -4764,4 +4743,30 @@ int mi_make_backup_of_index(MI_INFO *info, time_t backup_time, myf flags)
   char backup_name[FN_REFLEN + MY_BACKUP_NAME_EXTRA_LENGTH];
   my_create_backup_name(backup_name, info->s->index_file_name, backup_time);
   return my_copy(info->s->index_file_name, backup_name, flags);
+}
+
+static int replace_data_file(HA_CHECK *param, MI_INFO *info,
+                             const char *name, File new_file)
+{
+  MYISAM_SHARE *share=info->s;
+
+  my_close(new_file,MYF(0));
+  info->dfile= -1;
+  if (param->testflag & T_BACKUP_DATA)
+  {
+    char buff[MY_BACKUP_NAME_EXTRA_LENGTH+1];
+    my_create_backup_name(buff, "", param->backup_time);
+    my_printf_error(0,                          /* No error, just info */
+                    "Making backup of data file with extension '%s'",
+                    MYF(ME_JUST_INFO | ME_NOREFRESH), buff);
+  }
+
+  if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
+                        DATA_TMP_EXT, param->backup_time,
+                        share->base.raid_chunks,
+                        (param->testflag & T_BACKUP_DATA ?
+                         MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
+      mi_open_datafile(info, share, name, -1))
+    return 1;
+  return 0;
 }

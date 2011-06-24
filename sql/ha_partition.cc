@@ -2448,7 +2448,7 @@ bool ha_partition::read_par_file(const char *name)
   fn_format(buff, name, "", ha_par_ext, MY_APPEND_EXT);
 
   /* Following could be done with my_stat to read in whole file */
-  if ((file= my_open(buff, O_RDONLY | O_SHARE, MYF(0))) < 0)
+  if ((file= my_open(buff, O_RDONLY | O_SHARE, MYF(MY_WME))) < 0)
     DBUG_RETURN(true);
   if (my_read(file, (uchar *) & buff[0], PAR_WORD_SIZE, MYF(MY_NABP)))
     goto err1;

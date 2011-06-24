@@ -949,6 +949,7 @@ static void get_options(register int *argc,register char ***argv)
 static int maria_chk(HA_CHECK *param, char *filename)
 {
   int error,lock_type,recreate;
+  uint warning_printed_by_chk_status;
   my_bool rep_quick= test(param->testflag & (T_QUICK | T_FORCE_UNIQUENESS));
   MARIA_HA *info;
   File datafile;
@@ -961,6 +962,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
     recreate=0;
   datafile=0;
   param->isam_file_name=filename;		/* For error messages */
+  warning_printed_by_chk_status= 0;
   if (!(info=maria_open(filename,
                         (param->testflag & (T_DESCRIPT | T_READONLY)) ?
                         O_RDONLY : O_RDWR,
@@ -1303,7 +1305,12 @@ static int maria_chk(HA_CHECK *param, char *filename)
     maria_chk_init_for_check(param, info);
     if (opt_warning_for_wrong_transid == 0)
       param->max_trid= ~ (ulonglong) 0;
+
     error= maria_chk_status(param,info);
+    /* Forget warning printed by maria_chk_status if no problems found */
+    warning_printed_by_chk_status= param->warning_printed;
+    param->warning_printed= 0;
+   
     maria_intersect_keys_active(share->state.key_map, param->keys_in_use);
     error|= maria_chk_size(param,info);
     if (!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)))
@@ -1371,8 +1378,12 @@ static int maria_chk(HA_CHECK *param, char *filename)
                                     (state_updated ? UPDATE_STAT : 0) |
                                     ((param->testflag & T_SORT_RECORDS) ?
                                      UPDATE_SORT : 0)));
-    if (!(param->testflag & T_SILENT))
+    if (warning_printed_by_chk_status)
+      _ma_check_print_info(param, "Aria table '%s' was ok. Status updated",
+                          filename);
+    else if (!(param->testflag & T_SILENT))
       printf("State updated\n");
+    warning_printed_by_chk_status= 0;
   }
   info->update&= ~HA_STATE_CHANGED;
   _ma_reenable_logging_for_table(info, FALSE);
@@ -1426,7 +1437,7 @@ end2:
       "Aria table '%s' is corrupted\nFix it using switch \"-r\" or \"-o\"\n",
 	      filename));
   }
-  else if (param->warning_printed &&
+  else if ((param->warning_printed || warning_printed_by_chk_status) &&
 	   ! (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX |
 			  T_FORCE_CREATE)))
   {
@@ -1435,6 +1446,7 @@ end2:
     VOID(fprintf(stderr, "Aria table '%s' is usable but should be fixed\n",
 		 filename));
   }
+
   VOID(fflush(stderr));
   DBUG_RETURN(error);
 } /* maria_chk */
@@ -1464,7 +1476,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     DBUG_VOID_RETURN;
   }
 
-  printf("Aria file:          %s\n",name);
+  printf("Aria file:           %s\n",name);
   printf("Record format:       %s\n", record_formats[share->data_file_type]);
   printf("Crashsafe:           %s\n",
          share->base.born_transactional ? "yes" : "no");

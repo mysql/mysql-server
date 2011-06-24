@@ -1482,7 +1482,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       char *end= buff + length;
       length+= my_snprintf(end, buff_len - length - 1,
-                           end,"  Memory in use: %ldK  Max memory used: %ldK",
+                           "  Memory in use: %ldK  Max memory used: %ldK",
                            (sf_malloc_cur_memory+1023L)/1024L,
                            (sf_malloc_max_memory+1023L)/1024L);
     }

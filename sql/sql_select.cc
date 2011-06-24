@@ -13546,15 +13546,30 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
 	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
 	0 : FIELDFLAG_BINARY;
+
       if (!using_unique_constraint)
       {
 	cur_group->buff=(char*) group_buff;
+
+        if (maybe_null && !field->null_bit)
+        {
+          /*
+            This can only happen in the unusual case where an outer join
+            table was found to be not-nullable by the optimizer and we
+            the item can't really be null.
+            We solve this by marking the item as !maybe_null to ensure
+            that the key,field and item definition match.
+          */
+          (*cur_group->item)->maybe_null= maybe_null= 0;
+        }
+
 	if (!(cur_group->field= field->new_key_field(thd->mem_root,table,
                                                      group_buff +
                                                      test(maybe_null),
                                                      field->null_ptr,
                                                      field->null_bit)))
 	  goto err; /* purecov: inspected */
+
 	if (maybe_null)
 	{
 	  /*
@@ -13576,6 +13591,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       }
       keyinfo->key_length+=  key_part_info->length;
     }
+    /*
+      Ensure we didn't overrun the group buffer. The < is only true when
+      some maybe_null fields was changed to be not null fields.
+    */
+    DBUG_ASSERT(using_unique_constraint ||
+                group_buff <= param->group_buff + param->group_length);
   }
 
   if (distinct && field_count != param->hidden_field_count)

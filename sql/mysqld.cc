@@ -508,6 +508,9 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
 #else
                                         ;
 #endif
+#ifdef SAFEMALLOC
+my_bool sf_malloc_trough_check= 0;
+#endif
 static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
@@ -3118,7 +3121,8 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
   {
     /* At least, prevent new abuse ... */
     DBUG_ASSERT(strncmp(str, "MyISAM table", 12) == 0 ||
-                strncmp(str, "Aria table", 11) == 0);
+                strncmp(str, "Aria table", 11) == 0 ||
+                (MyFlags & ME_JUST_INFO));
     error= ER_UNKNOWN_ERROR;
   }
 
@@ -6019,7 +6023,7 @@ enum options_mysqld
   OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
   OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
   OPT_NDB_USE_COPYING_ALTER_TABLE,
-  OPT_SKIP_SAFEMALLOC, OPT_MUTEX_DEADLOCK_DETECTOR,
+  OPT_SAFEMALLOC, OPT_MUTEX_DEADLOCK_DETECTOR,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
@@ -6992,12 +6996,11 @@ each time the SQL thread starts.",
   {"skip-networking", OPT_SKIP_NETWORKING,
    "Don't allow connection with TCP/IP.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
    0, 0, 0},
-#ifndef DBUG_OFF
 #ifdef SAFEMALLOC
-  {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
-   "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-   0, 0, 0, 0, 0, 0},
-#endif
+  {"safemalloc", OPT_SAFEMALLOC,
+   "Check all memory allocation for every malloc/free call.",
+   &sf_malloc_trough_check, &sf_malloc_trough_check, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
   {"skip-show-database", OPT_SKIP_SHOW_DB,
    "Don't allow 'SHOW DATABASE' commands.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
@@ -9394,11 +9397,6 @@ mysqld_get_one_option(int optid,
     }
     strmake(ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
     break;
-  case OPT_SKIP_SAFEMALLOC:
-#ifdef SAFEMALLOC
-    sf_malloc_quick=1;
-#endif
-    break;
   case OPT_LOWER_CASE_TABLE_NAMES:
     lower_case_table_names= argument ? atoi(argument) : 1;
     lower_case_table_names_used= 1;
@@ -9593,6 +9591,9 @@ static int get_options(int *argc,char **argv)
 				  &global_system_variables.datetime_format))
     return 1;
 
+#ifdef SAFEMALLOC
+  sf_malloc_quick= !sf_malloc_trough_check;
+#endif
 #ifdef EMBEDDED_LIBRARY
   one_thread_scheduler(&thread_scheduler);
   one_thread_scheduler(&extra_thread_scheduler);

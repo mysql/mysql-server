@@ -32,4 +32,5 @@ int maria_apply_log(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply,
                     my_bool take_checkpoints, uint *warnings_count);
 /* Table of tables to recover */
 extern HASH tables_to_redo;
+extern ulong maria_recovery_force_crash_counter;
 C_MODE_END

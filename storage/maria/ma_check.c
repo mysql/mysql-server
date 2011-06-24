@@ -412,12 +412,13 @@ int maria_chk_size(HA_CHECK *param, register MARIA_HA *info)
     {
       error=1;
       _ma_check_print_error(param,
-			   "Size of indexfile is: %-8s        Should be: %s",
+			   "Size of indexfile is: %-8s         Expected: %s",
 			   llstr(size,buff), llstr(skr,buff2));
+      share->state.state.key_file_length= size;
     }
     else if (!(param->testflag & T_VERY_SILENT))
       _ma_check_print_warning(param,
-			     "Size of indexfile is: %-8s      Should be: %s",
+			     "Size of indexfile is: %-8s       Expected: %s",
 			     llstr(size,buff), llstr(skr,buff2));
   }
   if (!(param->testflag & T_VERY_SILENT) &&
@@ -439,18 +440,18 @@ int maria_chk_size(HA_CHECK *param, register MARIA_HA *info)
 #endif
   if (skr != size)
   {
+    share->state.state.data_file_length=size;	/* Skip other errors */
     if (skr > size && skr != size + MEMMAP_EXTRA_MARGIN)
     {
-      share->state.state.data_file_length=size;	/* Skip other errors */
       error=1;
-      _ma_check_print_error(param,"Size of datafile is: %-9s         Should be: %s",
+      _ma_check_print_error(param,"Size of datafile is: %-9s         Expected: %s",
 		    llstr(size,buff), llstr(skr,buff2));
       param->testflag|=T_RETRY_WITHOUT_QUICK;
     }
     else
     {
       _ma_check_print_warning(param,
-                              "Size of datafile is: %-9s       Should be: %s",
+                              "Size of datafile is: %-9s       Expected: %s",
                               llstr(size,buff), llstr(skr,buff2));
     }
   }
@@ -1803,7 +1804,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
   char llbuff[22], llbuff2[22];
   uint block_size= share->block_size;
   ha_rows full_page_count, tail_count;
-  my_bool full_dir;
+  my_bool full_dir, now_transactional;
   uint offset_page, offset, free_count;
 
   LINT_INIT(full_dir);
@@ -1814,6 +1815,10 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
                           my_errno);
     return 1;
   }
+
+  now_transactional= info->s->now_transactional;
+  info->s->now_transactional= 0;                /* Don't log changes */
+
   bitmap_buff= info->scan.bitmap_buff;
   page_buff= info->scan.page_buff;
   full_page_count= tail_count= 0;
@@ -1833,7 +1838,8 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     if (_ma_killed_ptr(param))
     {
       _ma_scan_end_block_record(info);
-      return -1;
+      info->s->now_transactional= now_transactional;
+      return -1;                                /* Interrupted */
     }
     if ((page % share->bitmap.pages_covered) == 0)
     {
@@ -2001,10 +2007,12 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
                           llstr(param->tail_count, llbuff),
                           llstr(tail_count, llbuff2));
 
+  info->s->now_transactional= now_transactional;
   return param->error_printed != 0;
 
 err:
   _ma_scan_end_block_record(info);
+  info->s->now_transactional= now_transactional;
   return 1;
 }
 

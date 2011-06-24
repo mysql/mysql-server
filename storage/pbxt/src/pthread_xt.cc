@@ -506,44 +506,23 @@ xtPublic void xt_p_init_threading(void)
 
 xtPublic int xt_p_set_low_priority(pthread_t thr)
 {
-	if (pth_min_priority == pth_max_priority) {
-		/* Under Linux the priority of normal (non-runtime)
-		 * threads are set using the standard methods
-		 * for setting process priority.
-		 */
-
-		/* We could set who == 0 because it should have the same affect
-		 * as using the PID.
-		 */
-
-		/* -20 = highest, 20 = lowest */
-#ifdef SET_GLOBAL_PRIORITY
-		if (setpriority(PRIO_PROCESS, getpid(), 20) == -1)
-			return errno;
-#endif
-		return 0;
-	}
-	return pth_set_priority(thr, pth_min_priority);
+	if (pth_min_priority != pth_max_priority)
+          return pth_set_priority(thr, pth_min_priority);
+        return 0;
 }
 
 xtPublic int xt_p_set_normal_priority(pthread_t thr)
 {
-	if (pth_min_priority == pth_max_priority) {
-		if (setpriority(PRIO_PROCESS, getpid(), 0) == -1)
-			return errno;
-		return 0;
-	}
-	return pth_set_priority(thr, pth_normal_priority);
+	if (pth_min_priority != pth_max_priority)
+ 	  return pth_set_priority(thr, pth_normal_priority);
+        return 0;
 }
 
 xtPublic int xt_p_set_high_priority(pthread_t thr)
 {
-	if (pth_min_priority == pth_max_priority) {
-		if (setpriority(PRIO_PROCESS, getpid(), -20) == -1)
-			return errno;
-		return 0;
-	}
-	return pth_set_priority(thr, pth_max_priority);
+	if (pth_min_priority != pth_max_priority)
+	  return pth_set_priority(thr, pth_max_priority);
+        return 0;
 }
 
 #ifdef DEBUG_LOCKING
