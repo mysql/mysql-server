@@ -22,7 +22,7 @@
 #undef DBUG_OFF
 #endif
 #ifndef SAFEMALLOC
-#define SAFEMALLOC
+#define SAFEMALLOC 1
 #endif
 
 #include "heapdef.h"		/* Because of hp_find_block */
