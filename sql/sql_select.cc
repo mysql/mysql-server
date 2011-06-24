@@ -242,7 +242,6 @@ static bool test_if_ref(Item *root_cond,
 
 void get_partial_join_cost(JOIN *join, uint idx, double *read_time_arg,
                            double *record_count_arg);
-static uint make_join_orderinfo(JOIN *join);
 static int
 join_read_record_no_init(JOIN_TAB *tab);
 static
@@ -1833,7 +1832,7 @@ JOIN::optimize()
 {
   bool need_distinct;
   ulonglong select_opts_for_readinfo;
-  uint no_jbuf_after;
+  uint no_jbuf_after= UINT_MAX;
 
   DBUG_ENTER("JOIN::optimize");
   // to prevent double initialization on EXPLAIN
@@ -2332,23 +2331,25 @@ JOIN::optimize()
       sort_and_group= 0;
   }
 
-  // Can't use sort on head table if using join buffering
-  if (full_join)
+  /*
+    If the hint FORCE INDEX FOR ORDER BY/GROUP BY is used for the first
+    table (it does not make sense for other tables) then we cannot do join
+    buffering.
+  */
+  if (const_tables < tables)
   {
-    TABLE *stable= (sort_by_table == (TABLE *) 1 ? 
-      join_tab[const_tables].table : sort_by_table);
-    /* 
-      FORCE INDEX FOR ORDER BY can be used to prevent join buffering when
-      sorting on the first table.
-    */
-    if (!stable || !stable->force_index_order)
-    {
-      if (group_list)
-        simple_group= 0;
-      if (order)
-        simple_order= 0;
-    }
+    const TABLE * const first= join_tab[const_tables].table;
+    if ((first->force_index_order && order) ||
+        (first->force_index_group && group_list))
+      no_jbuf_after= 0;
   }
+
+  select_opts_for_readinfo=
+    (select_options & (SELECT_DESCRIBE | SELECT_NO_JOIN_CACHE)) |
+    (select_lex->ftfunc_list->elements ?  SELECT_NO_JOIN_CACHE : 0);
+
+  if (make_join_readinfo(this, select_opts_for_readinfo, no_jbuf_after))
+    DBUG_RETURN(1);
 
   /*
     Check if we need to create a temporary table.
@@ -2366,23 +2367,6 @@ JOIN::optimize()
 	      (group_list && order) ||
 	      test(select_options & OPTION_BUFFER_RESULT))) ||
              (rollup.state != ROLLUP::STATE_NONE && select_distinct));
-
-  /*
-    If the hint FORCE INDEX FOR ORDER BY/GROUP BY is used for the table
-    whose columns are required to be returned in a sorted order, then
-    the proper value for no_jbuf_after should be yielded by a call to
-    the make_join_orderinfo function. 
-    Yet the current implementation of FORCE INDEX hints does not
-    allow us to do it in a clean manner.
-  */   
-  no_jbuf_after= 1 ? tables : make_join_orderinfo(this);
-  select_opts_for_readinfo= 
-    (select_options & (SELECT_DESCRIBE | SELECT_NO_JOIN_CACHE)) |
-    (select_lex->ftfunc_list->elements ?  SELECT_NO_JOIN_CACHE : 0);
-
-  // No cache for MATCH == 'Don't use join buffering when we use MATCH'.
-  if (make_join_readinfo(this, select_opts_for_readinfo, no_jbuf_after))
-    DBUG_RETURN(1);
 
   /* Perform FULLTEXT search before all regular searches */
   if (!(select_options & SELECT_DESCRIBE))
@@ -10599,37 +10583,6 @@ pick_table_access_method(JOIN_TAB *tab)
 }
 
 
-
-/*
-  Determine {after which table we'll produce ordered set} 
-
-  SYNOPSIS
-    make_join_orderinfo()
-     join
-
-   
-  DESCRIPTION 
-    Determine if the set is already ordered for ORDER BY, so it can 
-    disable join cache because it will change the ordering of the results.
-    Code handles sort table that is at any location (not only first after 
-    the const tables) despite the fact that it's currently prohibited.
-    We must disable join cache if the first non-const table alone is
-    ordered. If there is a temp table the ordering is done as a last
-    operation and doesn't prevent join cache usage.
-
-  RETURN
-    Number of table after which the set will be ordered
-    join->tables if we don't need an ordered set 
-*/
-
-static uint make_join_orderinfo(JOIN *join)
-{
-  JOIN_TAB *tab;
-  tab= join->get_sort_by_join_tab();
-  return tab ? tab-join->join_tab : join->tables;
-}
-
-
 /*
   Deny usage of join buffer for the specified table
 
@@ -10865,10 +10818,8 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
 
   /* No join buffering if prevented by no_jbuf_after */
   if (tableno > no_jbuf_after)
-  {
-    DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
     goto no_join_cache;
-  }
+
   /* Non-linked join buffers can't guarantee one match */
   if (force_unlinked_cache &&
       tab->is_inner_table_of_outer_join() &&
@@ -11538,24 +11489,23 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   }
   join->join_tab[join->tables-1].next_select=0; /* Set by do_select */
 
-  /* 
-    If a join buffer is used to join a table the ordering by an index
-    for the first non-constant table cannot be employed anymore.
-  */
   for (uint i= join->const_tables; i < join->tables; i++)
   {
-    JOIN_TAB *const tab=join->join_tab + i;
-    if (tab->use_join_cache != JOIN_CACHE::ALG_NONE)
+    if (join->join_tab[i].use_join_cache != JOIN_CACHE::ALG_NONE)
     {
-      JOIN_TAB *const sort_by_tab= join->get_sort_by_join_tab();
-      if (sort_by_tab)
-      {
-        join->need_tmp= 1;
-        join->simple_order= join->simple_group= 0;
-      }
+      /*
+        A join buffer is used for this table. We here inform the optimizer
+        that it should not rely on rows of the first non-const table being in
+        order thanks to an index scan; indeed join buffering of the present
+        table subsequently changes the order of rows.
+      */
+      if (join->order != NULL)
+        join->simple_order= false;
+      if (join->group_list != NULL)
+        join->simple_group= false;
       break;
     }
-  } 
+  }
 
   DBUG_RETURN(FALSE);
 }

@@ -1757,3 +1757,151 @@ eval $query_in_toplevel;
 DROP TABLE t1, t2, t3;
 
 set @@join_buffer_size=default;
+
+--echo
+--echo # BUG#12586926 "EXTRA ROW WITH JOIN + GROUP BY + ORDER BY WITH
+--echo # JCL>=5 AND MRR ENABLED"
+--echo
+
+SET @old_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='mrr=on,mrr_cost_based=off';
+
+CREATE TABLE t1 (  col_int_key int(11) NOT NULL,
+   col_varchar_key varchar(1) NOT NULL,    
+   KEY col_int_key (col_int_key),
+   KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=innodb;
+
+INSERT INTO t1 VALUES (0,'j'),(4,'b'),(4,'d');
+
+CREATE TABLE t2 (
+   col_datetime_key datetime NOT NULL,
+   col_varchar_key varchar(1) NOT NULL,
+   KEY col_varchar_key (col_varchar_key)
+) ENGINE=innodb;
+
+INSERT INTO t2 VALUES ('2003-08-21 00:00:00','b');
+
+# need to force the index, or it picks BNL for t2 (lower cost),
+# whereas we want to test BKA
+let $query=
+SELECT MIN(t2.col_datetime_key) AS field1,
+       t1.col_int_key AS field2  
+FROM t1
+  LEFT JOIN t2 force index (col_varchar_key)
+  ON t1.col_varchar_key = t2.col_varchar_key  
+GROUP BY field2
+ORDER BY field1;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1,t2;
+SET @@optimizer_switch=@old_optimizer_switch;
+
+--echo
+--echo # BUG#12619510 "JCL: MORE ROWS AND DIFFERENT OUTPUT WITH JCL>=5"
+--echo
+
+SET @old_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='mrr=on,mrr_cost_based=off';
+
+CREATE TABLE t1 (
+col_int_key int(11) NOT NULL,
+col_datetime_key datetime NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+KEY col_int_key (col_int_key),
+KEY col_datetime_key (col_datetime_key)
+);
+INSERT INTO t1 VALUES (7,'2004-06-06 04:22:12','v');
+INSERT INTO t1 VALUES (0,'2005-11-13 01:12:31','s');
+INSERT INTO t1 VALUES (9,'2002-05-04 01:50:00','l');
+INSERT INTO t1 VALUES (3,'2004-10-27 10:28:45','y');
+INSERT INTO t1 VALUES (4,'2006-07-22 05:24:23','c');
+INSERT INTO t1 VALUES (2,'2002-05-16 21:34:03','i');
+INSERT INTO t1 VALUES (5,'2008-04-17 10:45:30','h');
+INSERT INTO t1 VALUES (3,'2009-04-21 02:58:02','q');
+INSERT INTO t1 VALUES (1,'2008-01-11 11:01:51','a');
+INSERT INTO t1 VALUES (3,'1900-01-01 00:00:00','v');
+INSERT INTO t1 VALUES (6,'2007-05-17 18:24:57','u');
+INSERT INTO t1 VALUES (7,'2007-08-07 00:00:00','s');
+INSERT INTO t1 VALUES (5,'2001-08-28 00:00:00','y');
+INSERT INTO t1 VALUES (1,'2004-04-16 00:27:28','z');
+INSERT INTO t1 VALUES (204,'2005-05-03 07:06:22','h');
+INSERT INTO t1 VALUES (224,'2009-03-11 17:09:50','p');
+INSERT INTO t1 VALUES (9,'2007-12-08 01:54:28','e');
+INSERT INTO t1 VALUES (5,'2009-07-28 18:19:54','i');
+INSERT INTO t1 VALUES (0,'2008-06-08 00:00:00','y');
+INSERT INTO t1 VALUES (3,'2005-02-09 09:20:26','w');
+
+CREATE TABLE t2 (
+pk int(11) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES
+(1,'j'),(2,'v'),(3,'c'),(4,'m'),(5,'d'),(6,'d'),(7,'y'),
+(8,'t'),(9,'d'),(10,'s'),(11,'r'),(12,'m'),(13,'b'),(14,'x'),
+(15,'g'),(16,'p'),(17,'q'),(18,'w'),(19,'d'),(20,'e');
+
+let $query=SELECT t2.col_varchar_key AS field1 , COUNT(DISTINCT t1.col_varchar_nokey), t2.pk AS field4
+FROM t1
+RIGHT JOIN t2 ON t2.pk = t1.col_int_key 
+GROUP BY field1 , field4 
+ORDER BY t1.col_datetime_key ;
+
+eval explain $query;
+# even though there is ORDER BY, it does not cover all columns, so
+# there is still randomness, so we have to sort client-side:
+--sorted_result
+eval $query;
+
+DROP TABLE t1,t2;
+SET @@optimizer_switch=@old_optimizer_switch;
+
+--echo
+--echo # BUG#12619868 "JCL: MORE ROWS OF OUTPUT WHEN JCL>=5"
+--echo
+
+SET @old_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='mrr=on,mrr_cost_based=off';
+
+CREATE TABLE t1 (col_varchar_key varchar(1));
+CREATE TABLE t2 (
+ pk int(11) NOT NULL,
+ col_int_nokey int(11) NOT NULL,
+ col_int_key int(11) NOT NULL,
+ PRIMARY KEY (pk),
+ KEY col_int_key (col_int_key)
+);
+INSERT INTO t2 VALUES (5,3,9);
+INSERT INTO t2 VALUES (6,246,24);
+INSERT INTO t2 VALUES (7,2,6);
+INSERT INTO t2 VALUES (8,9,1);
+INSERT INTO t2 VALUES (9,3,6);
+INSERT INTO t2 VALUES (10,8,2);
+INSERT INTO t2 VALUES (11,1,4);
+INSERT INTO t2 VALUES (12,8,8);
+INSERT INTO t2 VALUES (13,8,4);
+INSERT INTO t2 VALUES (14,5,4);
+INSERT INTO t2 VALUES (15,7,7);
+INSERT INTO t2 VALUES (16,5,4);
+INSERT INTO t2 VALUES (17,1,1);
+INSERT INTO t2 VALUES (18,6,9);
+INSERT INTO t2 VALUES (19,2,4);
+INSERT INTO t2 VALUES (20,9,8);
+
+let $query=SELECT t1.col_varchar_key AS field1, alias2.col_int_key AS field4 
+FROM t2 AS alias2 STRAIGHT_JOIN t2 AS alias3 ON alias3.pk =
+alias2.col_int_nokey 
+left join t1 
+ON alias3.col_int_nokey 
+GROUP BY field1, field4
+LIMIT 15;
+
+eval explain $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1,t2;
+SET @@optimizer_switch=@old_optimizer_switch;

@@ -2041,16 +2041,6 @@ public:
                                         select_lex == unit->fake_select_lex));
   }
   void cache_const_exprs();
-  /* 
-    Return the table for which an index scan can be used to satisfy 
-    the sort order needed by the ORDER BY/(implicit) GROUP BY clause 
-  */
-  JOIN_TAB *get_sort_by_join_tab()
-  {
-    return (!sort_by_table || skip_sort_order ||
-            ((group || tmp_table_param.sum_func_count) && !group_list)) ?
-              NULL : join_tab+const_tables;
-  }
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
