@@ -23536,17 +23536,13 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         {
           extra.append(STRING_WITH_LEN("; Using join buffer ("));
           if ((tab->use_join_cache & JOIN_CACHE::ALG_BNL))
-            extra.append(STRING_WITH_LEN("BNL"));
+            extra.append(STRING_WITH_LEN("Block Nested Loop)"));
           else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA))
-            extra.append(STRING_WITH_LEN("BKA"));
+            extra.append(STRING_WITH_LEN("Batch Key Access)"));
           else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA_UNIQUE))
-            extra.append(STRING_WITH_LEN("BKA_UNIQUE"));
+            extra.append(STRING_WITH_LEN("Batch Key Access (unique))"));
           else
             DBUG_ASSERT(0);
-          if (tab->use_join_cache & JOIN_CACHE::NON_INCREMENTAL_BUFFER)
-            extra.append(STRING_WITH_LEN(", regular buffers)"));
-          else
-            extra.append(STRING_WITH_LEN(", incremental buffers)"));
         }
 
         /* Skip initial "; "*/
