@@ -707,7 +707,7 @@ WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
 (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using where
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
 WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
 (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
@@ -804,7 +804,7 @@ OR SUBQUERY_t2.c1 = 'a'
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	col_int_key	5	NULL	2	Using where; Using index
 2	DEPENDENT SUBQUERY	SUBQUERY_t1	eq_ref	PRIMARY,col_int_key	PRIMARY	4	func	1	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	SUBQUERY_t2	ALL	col_int_key	NULL	NULL	NULL	1	Using where; Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	SUBQUERY_t2	ALL	col_int_key	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT t1.i1
 FROM t1
 WHERE t1.i1 NOT IN
