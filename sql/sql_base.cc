@@ -7830,9 +7830,16 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     select_lex->leaf_tables.empty();
     while ((table_list= ti++))
     {
-      table_list->table->tablenr= table_list->tablenr_exec;
-      table_list->table->map= table_list->map_exec;
-      table_list->table->pos_in_table_list= table_list;
+      if(table_list->jtbm_subselect)
+      {
+        table_list->jtbm_table_no= table_list->tablenr_exec;
+      }
+      else
+      {
+        table_list->table->tablenr= table_list->tablenr_exec;
+        table_list->table->map= table_list->map_exec;
+        table_list->table->pos_in_table_list= table_list;
+      }
       select_lex->leaf_tables.push_back(table_list);
     }
   }    

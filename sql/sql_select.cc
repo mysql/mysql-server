@@ -826,6 +826,7 @@ inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
       
       //repeat of convert_subq_to_jtbm:
       table->table= hash_sj_engine->tmp_table;
+      table->table->pos_in_table_list= table;
 
       setup_table_map(table->table, table, table->jtbm_table_no);
 
