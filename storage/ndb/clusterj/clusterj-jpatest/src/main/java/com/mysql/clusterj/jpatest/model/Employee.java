@@ -28,7 +28,7 @@ import javax.persistence.Table;
 public class Employee implements IdBase, Serializable {
 
     @Id
-    private int id;
+    private Integer id;
     private String name;
     private int magic;
     private Integer age;
