@@ -244,7 +244,7 @@ insert into t1 values(9,'b9',999,'dd9');
 commit;
 explain select * from t1 where c >= 100 order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	c	PRIMARY	4	NULL	#	Using where with pushed condition
+1	SIMPLE	t1	range	c	c	4	NULL	#	Using where with pushed condition; Using filesort
 select * from t1 where c >= 100 order by a;
 a	b	c	d
 1	b1	111	dd1
