@@ -4156,6 +4156,22 @@ SELECT * FROM v1 LEFT JOIN t2 ON t2.a = v1.a
 DROP VIEW v1;
 DROP TABLE t1,t2;
 
+--echo # Bug#798625: duplicate of the previous one, but without crash  
+
+CREATE TABLE t1 (f1 int NOT NULL, f2 int, f3 int, f4 varchar(32), f5 int) ;
+INSERT INTO t1 VALUES (20,5,2,'r', 0);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT v1.f4 FROM v1 
+  WHERE f1<>0 OR f2<>0 AND f4='v' AND (f2<>0 OR f3<>0 AND f5<>0 OR f4 LIKE '%b%');
+EXPLAIN EXTENDED
+SELECT v1.f4 FROM v1 
+  WHERE f1<>0 OR f2<>0 AND f4='v' AND (f2<>0 OR f3<>0 AND f5<>0 OR f4 LIKE '%b%');
+
+DROP VIEW v1;
+DROP TABLE t1;
+
 --echo #
 --echo # Bug#798576: abort on a GROUP BY query over a view with left join 
 --echo #             that can be converted to inner join

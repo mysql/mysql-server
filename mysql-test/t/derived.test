@@ -369,3 +369,19 @@ SELECT * FROM v1, t1 WHERE v1.b=t1.a  ORDER BY v1.a;
 
 DROP VIEW v1;
 DROP TABLE t1,t2;
+
+--echo #
+--echo #  LP bug #800085: crash with a query using a simple derived table 
+--echo #                  (fixed by the patch for bug 798621)
+--echo #
+
+CREATE TABLE t1 (f1 int, f2 varchar(32)) ;
+INSERT INTO t1 VALUES (NULL,'j'), (8,'c');
+
+CREATE TABLE t2 (f1 int);
+INSERT INTO t2 VALUES (1), (5);
+
+SELECT DISTINCT t.f1 FROM (SELECT * FROM t1) AS t, t2
+  WHERE t.f2='s' AND t.f2 LIKE '%a%' OR t.f1<>0 ORDER BY t.f2;
+
+DROP TABLE t1, t2;
