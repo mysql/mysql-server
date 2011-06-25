@@ -506,18 +506,18 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     break;
   case 1:
     /* field IS NULL */
-    item= func_item->arguments()[0];
+    item= func_item->arguments()[0]->real_item();
     if (item->type() != Item::FIELD_ITEM)
       return 0;
     args[0]= item;
     break;
   case 2:
     /* 'field op const' or 'const op field' */
-    item= func_item->arguments()[0];
+    item= func_item->arguments()[0]->real_item();
     if (item->type() == Item::FIELD_ITEM)
     {
       args[0]= item;
-      item= func_item->arguments()[1];
+      item= func_item->arguments()[1]->real_item();
       if (!item->const_item())
         return 0;
       args[1]= item;
@@ -525,7 +525,7 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     else if (item->const_item())
     {
       args[1]= item;
-      item= func_item->arguments()[1];
+      item= func_item->arguments()[1]->real_item();
       if (item->type() != Item::FIELD_ITEM)
         return 0;
       args[0]= item;
@@ -536,13 +536,13 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     break;
   case 3:
     /* field BETWEEN const AND const */
-    item= func_item->arguments()[0];
+    item= func_item->arguments()[0]->real_item();
     if (item->type() == Item::FIELD_ITEM)
     {
       args[0]= item;
       for (int i= 1 ; i <= 2; i++)
       {
-        item= func_item->arguments()[i];
+        item= func_item->arguments()[i]->real_item();
         if (!item->const_item())
           return 0;
         args[i]= item;

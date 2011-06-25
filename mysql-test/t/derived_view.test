@@ -235,3 +235,45 @@ SELECT * FROM v1 JOIN t2 ON v1.f1 = t2.f1;
 
 DROP VIEW v1;
 DROP TABLE t1,t2;
+
+--echo #
+--echo #  LP bug #802023: MIN/MAX optimization 
+--echo #                  for mergeable derived tables and views
+--echo #
+
+CREATE TABLE t1 (a int, b int, c varchar(32), INDEX idx(a,b));
+INSERT INTO t1 VALUES 
+  (7, 74, 'yyyyyyy'), (9, 97, 'aaaaaaaaa'), (2, 23, 'tt'),
+  (5, 55, 'ddddd'), (2, 27, 'ss'), (7, 76, 'xxxxxxx'),
+  (7, 79, 'zzzzzzz'), (9, 92, 'bbbbbbbbb'), (2, 25, 'pp'),
+  (5, 53, 'eeeee'), (2, 23, 'qq'), (7, 76,'wwwwwww'),
+  (7, 74, 'uuuuuuu'), (9, 92, 'ccccccccc'), (2, 25, 'oo');
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT MIN(a) FROM t1 WHERE a >= 5;
+EXPLAIN
+SELECT MIN(a) FROM t1 WHERE a >= 5;
+
+SELECT MIN(a) FROM (SELECT * FROM t1) t WHERE a >= 5;
+EXPLAIN
+SELECT MIN(a) FROM(SELECT * FROM t1) t WHERE a >= 5;
+
+SELECT MIN(a) FROM v1 WHERE a >= 5;
+EXPLAIN
+SELECT MIN(a) FROM v1 WHERE a >= 5;
+
+SELECT MAX(b) FROM t1 WHERE a=7 AND b<75;
+EXPLAIN
+SELECT MAX(b) FROM t1 WHERE a=7 AND b<75;
+
+SELECT MAX(b) FROM (SELECT * FROM t1) t WHERE a=7 AND b<75;
+EXPLAIN
+SELECT MAX(b) FROM (SELECT * FROM t1) t WHERE a=7 AND b<75;
+
+SELECT MAX(b) FROM v1 WHERE a=7 AND b<75;
+EXPLAIN
+SELECT MAX(b) FROM v1 WHERE a=7 AND b<75;
+
+DROP VIEW v1;
+DROP TABLE t1;
