@@ -348,3 +348,24 @@ SELECT MAX(b) FROM (SELECT * FROM t1) AS t WHERE a = 100;
 
 DROP TABLE t1;
 
+--echo #
+--echo #  LP bug #799499: query over a materialized view 
+--echo #                  accessed by a key
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (8);
+
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES
+  (262, NULL), (253, 190), (260, NULL), (250, 163), (188, 8),
+  (257,200), (256, NULL), (255, 8), (249, NULL), (259, 7);
+
+CREATE VIEW v1 AS SELECT a, MIN(b) AS b FROM t2 GROUP BY a;
+
+EXPLAIN
+SELECT * FROM v1, t1 WHERE v1.b=t1.a  ORDER BY v1.a;
+SELECT * FROM v1, t1 WHERE v1.b=t1.a  ORDER BY v1.a;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;

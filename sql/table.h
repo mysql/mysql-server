@@ -959,7 +959,7 @@ struct st_table {
                    uint (*next_field_no) (uchar *), uchar *arg,
                    bool unique);
   void create_key_part_by_field(KEY *keyinfo, KEY_PART_INFO *key_part_info,
-                                Field *field);
+                                Field *field, uint fieldnr);
   void use_index(int key_to_save);
   void set_table_map(table_map map_arg, uint tablenr_arg)
   {

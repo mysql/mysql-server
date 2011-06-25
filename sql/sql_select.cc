@@ -7151,7 +7151,8 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
         (first_keyuse || keyuse->keypart != (keyuse-1)->keypart))
     {
       Field *field= table->field[keyuse->keypart];
-      table->create_key_part_by_field(keyinfo, key_part_info, field);
+      uint fieldnr= keyuse->keypart+1;
+      table->create_key_part_by_field(keyinfo, key_part_info, field, fieldnr);
       first_keyuse= FALSE;
       key_part_info++;
     }
@@ -13312,6 +13313,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   *reg_field= 0;
   *blob_field= 0;				// End marker
   share->fields= field_count;
+  share->column_bitmap_size= bitmap_buffer_size(share->fields);
 
   /* If result table is small; use a heap */
   /* future: storage engine selection can be made dynamic? */

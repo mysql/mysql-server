@@ -5241,13 +5241,14 @@ bool TABLE::alloc_keys(uint key_count)
 
 void TABLE::create_key_part_by_field(KEY *keyinfo,
                                      KEY_PART_INFO *key_part_info,
-                                     Field *field)
+                                     Field *field, uint fieldnr)
 {   
   field->flags|= PART_KEY_FLAG;
   key_part_info->null_bit= field->null_bit;
   key_part_info->null_offset= (uint) (field->null_ptr -
                                       (uchar*) record[0]);
   key_part_info->field= field;
+  key_part_info->fieldnr= fieldnr;
   key_part_info->offset= field->offset(record[0]);
   key_part_info->length=   (uint16) field->pack_length();
   keyinfo->key_length+= key_part_info->length;
@@ -5340,11 +5341,12 @@ bool TABLE::add_tmp_key(uint key, uint key_parts,
 
   for (i= 0; i < key_parts; i++)
   {
-    reg_field= field + next_field_no(arg);
+    uint fld_idx= next_field_no(arg); 
+    reg_field= field + fld_idx;
     if (key_start)
       (*reg_field)->key_start.set_bit(key);
     (*reg_field)->part_of_key.set_bit(key);
-    create_key_part_by_field(keyinfo, key_part_info, *reg_field);
+    create_key_part_by_field(keyinfo, key_part_info, *reg_field, fld_idx+1);
     key_start= FALSE;
     key_part_info++;
   }

@@ -441,3 +441,26 @@ SELECT MAX(b) FROM (SELECT * FROM t1) AS t WHERE a = 100;
 MAX(b)
 5
 DROP TABLE t1;
+#
+#  LP bug #799499: query over a materialized view 
+#                  accessed by a key
+#
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (8);
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES
+(262, NULL), (253, 190), (260, NULL), (250, 163), (188, 8),
+(257,200), (256, NULL), (255, 8), (249, NULL), (259, 7);
+CREATE VIEW v1 AS SELECT a, MIN(b) AS b FROM t2 GROUP BY a;
+EXPLAIN
+SELECT * FROM v1, t1 WHERE v1.b=t1.a  ORDER BY v1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	Using filesort
+1	PRIMARY	<derived2>	ref	key0	key0	5	const	1	Using where
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
+SELECT * FROM v1, t1 WHERE v1.b=t1.a  ORDER BY v1.a;
+a	b	a
+188	8	8
+255	8	8
+DROP VIEW v1;
+DROP TABLE t1,t2;
