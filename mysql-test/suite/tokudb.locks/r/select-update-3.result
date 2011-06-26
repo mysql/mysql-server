@@ -2,14 +2,12 @@ set storage_engine='tokudb';
 drop table if exists t;
 create table t (a int primary key, b int);
 insert into t values (1,0);
-set tokudb_use_write_locks=1;
 set session transaction isolation level read committed;
 begin;
 select * from t where a=1 for update;
 a	b
 1	0
 update t set b=b+1 where a=1;
-set tokudb_use_write_locks=1;
 set session transaction isolation level read committed;
 begin;
 select * from t where a=1 for update;

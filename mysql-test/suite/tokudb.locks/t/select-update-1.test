@@ -7,7 +7,6 @@ drop table if exists t;
 --enable_warnings
 create table t (a int primary key, b int);
 insert into t values (1,0);
-set tokudb_use_write_locks=1;
 set session transaction isolation level repeatable read;
 begin;
 # t1 select for update
@@ -15,7 +14,6 @@ select * from t where a=1 for update;
 # t2 update
 update t set b=b+1 where a=1;
 connect(conn1,localhost,root);
-set tokudb_use_write_locks=1;
 set session transaction isolation level repeatable read;
 begin;
 # t2 select for update, should hang until t1 commits
