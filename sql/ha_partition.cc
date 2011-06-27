@@ -1301,7 +1301,7 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
 
   DBUG_RETURN(0);
 error_external_lock:
-  VOID(file->close());
+  VOID(file->ha_close());
 error_open:
   VOID(file->ha_delete_table(part_name));
 error_create:
@@ -1347,7 +1347,7 @@ void ha_partition::cleanup_new_partition(uint part_count)
     while ((part_count > 0) && (*file))
     {
       (*file)->ha_external_lock(thd, F_UNLCK);
-      (*file)->close();
+      (*file)->ha_close();
 
       /* Leave the (*file)->ha_delete_table(part_name) to the ddl-log */
 
@@ -2842,7 +2842,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
 err_handler:
   DEBUG_SYNC(ha_thd(), "partition_open_error");
   while (file-- != m_file)
-    (*file)->close();
+    (*file)->ha_close();
 err_alloc:
   bitmap_free(&m_bulk_insert_started);
   if (!m_is_clone_of)
@@ -2928,7 +2928,7 @@ int ha_partition::close(void)
 repeat:
   do
   {
-    (*file)->close();
+    (*file)->ha_close();
   } while (*(++file));
 
   if (first && m_added_file && m_added_file[0])

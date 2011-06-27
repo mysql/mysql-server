@@ -249,7 +249,7 @@ my_bool Expression_cache_tmptable::put_value(Item *value)
   if (table_thd->is_error())
     goto err;;
 
-  if ((error= cache_table->file->ha_write_row(cache_table->record[0])))
+  if ((error= cache_table->file->ha_write_tmp_row(cache_table->record[0])))
   {
     /* create_myisam_from_heap will generate error if needed */
     if (cache_table->file->is_fatal_error(error, HA_CHECK_DUP) &&

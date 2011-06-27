@@ -2460,7 +2460,7 @@ int closefrm(register TABLE *table, bool free_share)
   {
     if (table->s->deleting)
       table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
-    error=table->file->close();
+    error=table->file->ha_close();
   }
   table->alias.free();
   if (table->expr_arena)

@@ -690,6 +690,7 @@ static void update_global_user_stats_with_user(THD *thd,
   user_stats->binlog_bytes_written+=
     (thd->status_var.binlog_bytes_written -
      thd->org_status_var.binlog_bytes_written);
+  /* We are not counting rows in internal temporary tables here ! */
   user_stats->rows_read+=      (thd->status_var.rows_read -
                                 thd->org_status_var.rows_read);
   user_stats->rows_sent+=      (thd->status_var.rows_sent -

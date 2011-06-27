@@ -1,4 +1,5 @@
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+   Copyright 2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1599,6 +1600,7 @@ public:
   KEY_PART_INFO *range_key_part;
   int key_compare_result_on_equal;
   bool eq_range;
+  bool internal_tmp_table;                      /* If internal tmp table */
 
   /* 
     TRUE <=> the engine guarantees that returned records are within the range
@@ -1643,6 +1645,7 @@ public:
   */
   /* Statistics  variables */
   ulonglong rows_read;
+  ulonglong rows_tmp_read;
   ulonglong rows_changed;
   /* One bigger than needed to avoid to test if key == MAX_KEY */
   ulonglong index_rows_read[MAX_KEY+1];
@@ -1685,7 +1688,7 @@ public:
   }
   /* ha_ methods: pubilc wrappers for private virtual API */
 
-  int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
+  int ha_open(TABLE *table, const char *name, int mode, uint test_if_locked);
   int ha_index_init(uint idx, bool sorted)
   {
     int result;
@@ -1809,7 +1812,7 @@ public:
   uint get_dup_key(int error);
   void reset_statistics()
   {
-    rows_read= rows_changed= 0;
+    rows_read= rows_changed= rows_tmp_read= 0;
     bzero(index_rows_read, sizeof(index_rows_read));
   }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
@@ -1894,7 +1897,7 @@ public:
   */
   uint get_index(void) const
   { return inited == INDEX ? active_index : MAX_KEY; }
-  virtual int close(void)=0;
+  int ha_close(void);
 
   /**
     @retval  0   Bulk update used by handler
@@ -1970,10 +1973,18 @@ protected:
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
+  virtual int close(void)=0;
+  inline void update_rows_read()
+  {
+    if (likely(!internal_tmp_table))
+      rows_read++;
+    else
+      rows_tmp_read++;
+  }
   inline void update_index_statistics()
   {
     index_rows_read[active_index]++;
-    rows_read++;
+    update_rows_read();
   }
 public:
 
@@ -2604,6 +2615,7 @@ public:
   virtual handlerton *partition_ht() const
   { return ht; }
   inline int ha_write_tmp_row(uchar *buf);
+  inline int ha_update_tmp_row(const uchar * old_data, uchar * new_data);
 };
 
 #include "multi_range_read.h"

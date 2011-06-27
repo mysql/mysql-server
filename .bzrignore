@@ -1969,3 +1969,4 @@ plugin/handler_socket/client/hsclient
 client/strings_def.h
 libmysql/strings_def.h
 libmysql_r/strings_def.h
+scripts/mytop
