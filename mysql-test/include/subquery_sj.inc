@@ -152,15 +152,31 @@ while ($i)
        let $k=3;
        while ($k)
        {
-         SELECT (SELECT COUNT(*) from t1),
-                (SELECT COUNT(*) from t2),
-                (SELECT COUNT(*) from t3);
+         SELECT (SELECT COUNT(*) from t1) AS c1,
+                (SELECT COUNT(*) from t2) AS c2,
+                (SELECT COUNT(*) from t3) AS c3;
+
+         let $query=
+         SELECT * FROM t1 WHERE (t1.i) IN 
+           (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+         eval EXPLAIN $query;
+         eval $query;
+
+         eval PREPARE stmt FROM "$query";
+         EXECUTE stmt;
+         EXECUTE stmt;
+         DEALLOCATE PREPARE stmt;
 
          let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
          eval $query;
+
+         eval PREPARE stmt FROM "$query";
+         EXECUTE stmt;
+         EXECUTE stmt;
+         DEALLOCATE PREPARE stmt;
 
          let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
@@ -3261,6 +3277,95 @@ select name from t2, t1
         and t2.uid=t1.fid;
 
 drop table t1,t2,t3,t4;
+
+--echo #
+--echo # Bug#43768 Prepared query with nested subqueries core dump on second execution
+--echo #
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  partner_id VARCHAR(35)
+);
+
+INSERT INTO t1 VALUES
+ (1, 'partner1'), (2, 'partner2'),
+ (3, 'partner3'), (4, 'partner4');
+
+CREATE TABLE t2 (
+  id INT NOT NULL,
+  t1_line_id INT,
+  article_id VARCHAR(20),
+  PRIMARY KEY(id, t1_line_id)
+);
+
+INSERT INTO t2 VALUES
+ (1, 1, 'sup'), (2, 1, 'sup'),
+ (2, 2, 'sup'), (2, 3, 'sup'),
+ (2, 4, 'imp'), (3, 1, 'sup'),
+ (4, 1, 'sup');
+
+CREATE TABLE t3 (
+  user_id VARCHAR(50),
+  article_id VARCHAR(20) NOT NULL,
+  PRIMARY KEY(user_id)
+);
+
+INSERT INTO t3 VALUES('nicke', 'imp');
+
+EXPLAIN
+SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+    SELECT t2.id
+    FROM t2
+    WHERE article_id IN (
+      SELECT article_id FROM t3
+      WHERE user_id = 'nicke'
+    )
+  );
+
+SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+    SELECT t2.id
+    FROM t2
+    WHERE article_id IN (
+      SELECT article_id FROM t3
+      WHERE user_id = 'nicke'
+    )
+  );
+
+PREPARE stmt FROM
+'EXPLAIN SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+    SELECT t2.id
+    FROM t2
+    WHERE article_id IN (
+      SELECT article_id FROM t3
+      WHERE user_id = \'nicke\'
+    )
+  )';
+EXECUTE stmt;
+EXECUTE stmt;
+
+PREPARE stmt FROM
+'SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+    SELECT t2.id
+    FROM t2
+    WHERE article_id IN (
+      SELECT article_id FROM t3
+      WHERE user_id = \'nicke\'
+    )
+  )';
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1,t2,t3;
+
+--echo # End of Bug#43768
 
 --echo #
 --echo # Bug#53058 - semijoin execution of subquery with outerjoin yields wrong result

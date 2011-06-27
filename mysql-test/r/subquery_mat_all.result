@@ -719,7 +719,8 @@ select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 min(a1)
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Materialize
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
 NULL
@@ -951,7 +952,8 @@ HAVING ('m') IN (
 SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	PRIMARY	t3	index	PRIMARY	PRIMARY	4	NULL	1	Using where; Using index; FirstMatch(t1)
 3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
 #
 # Cleanup for BUG#46680

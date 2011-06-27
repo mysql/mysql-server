@@ -60,8 +60,10 @@ struct st_sargable_param;
 
 static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array);
 static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, Item *conds,
-                                Key_use_array *keyuse);
+                                 Key_use_array *keyuse,
+                                 bool first_optimization);
 static bool optimize_semijoin_nests(JOIN *join);
+static bool pull_out_semijoin_tables(JOIN *join);
 static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
                                 JOIN_TAB *join_tab,
                                 uint tables, Item *conds,
@@ -1838,7 +1840,10 @@ JOIN::optimize()
   // to prevent double initialization on EXPLAIN
   if (optimized)
     DBUG_RETURN(0);
-  optimized= 1;
+  optimized= true;
+  const bool first_optimization= select_lex->first_cond_optimization;
+  select_lex->first_cond_optimization= false;
+
   DEBUG_SYNC(thd, "before_join_optimize");
 
   THD_STAGE_INFO(thd, stage_optimizing);
@@ -1882,7 +1887,7 @@ JOIN::optimize()
   }
 #endif
   SELECT_LEX *sel= thd->lex->current_select;
-  if (sel->first_cond_optimization)
+  if (first_optimization)
   {
     /*
       The following code will allocate the new items in a permanent
@@ -1894,8 +1899,6 @@ JOIN::optimize()
       arena= 0;                                   // For easier test
     else
       thd->set_n_backup_active_arena(arena, &backup);
-
-    sel->first_cond_optimization= 0;
 
     /* Convert all outer joins to inner joins if possible */
     conds= simplify_joins(this, join_list, conds, TRUE, FALSE);
@@ -2036,7 +2039,8 @@ JOIN::optimize()
 
   /* Calculate how to do the join */
   THD_STAGE_INFO(thd, stage_statistics);
-  if (make_join_statistics(this, select_lex->leaf_tables, conds, &keyuse))
+  if (make_join_statistics(this, select_lex->leaf_tables, conds, &keyuse,
+      first_optimization))
   {
     DBUG_PRINT("error",("Error: make_join_statistics() failed"));
     DBUG_RETURN(1);
@@ -4417,32 +4421,35 @@ bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
 }
 
 
-/*
-  Pull tables out of semi-join nests, if possible
+/**
+  Pull tables out of semi-join nests based on functional dependencies
 
-  SYNOPSIS
-    pull_out_semijoin_tables()
-      join  The join where to do the semi-join flattening
+  @param join  The join where to do the semi-join table pullout
 
-  DESCRIPTION
-    Try to pull tables out of semi-join nests.
-     
+  @return False if successful, true if error (Out of memory)
+
+  @details
+    Pull tables out of semi-join nests based on functional dependencies,
+    ie. if a table is accessed via eq_ref(outer_tables).
+    The function may be called several times, the caller is responsible
+    for setting up proper key information that this function acts upon.
+
     PRECONDITIONS
     When this function is called, the join may have several semi-join nests
     but it is guaranteed that one semi-join nest does not contain another.
-   
-    ACTION
-    A table can be pulled out of the semi-join nest if
-     - It is a constant table, or
-     - It is accessed via eq_ref(outer_tables)
+    For functionally dependent tables to be pulled out, key information must
+    have been calculated (see update_ref_and_keys()).
 
     POSTCONDITIONS
-     * Semi-join nests' TABLE_LIST::sj_inner_tables is updated accordingly
-
-    This operation is (and should be) performed at each PS execution since
-    tables may become/cease to be constant across PS reexecutions.
+     * Tables that were pulled out are removed from the semi-join nest they
+       belonged to and added to the parent join nest.
+     * For these tables, the used_tables and not_null_tables fields of
+       the semi-join nest they belonged to will be adjusted.
+       The semi-join nest is also marked as correlated, and
+       sj_corr_tables and sj_depends_on are adjusted if necessary.
+     * Semi-join nests' sj_inner_tables is set equal to used_tables
     
-  NOTE
+    NOTE
     Table pullout may make uncorrelated subquery correlated. Consider this
     example:
     
@@ -4454,13 +4461,9 @@ bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
     make the subquery (i.e. its semi-join nest) correlated.
     Making the subquery (i.e. its semi-join nest) correlated prevents us from
     using Materialization or LooseScan to execute it. 
-
-  RETURN 
-    FALSE - OK
-    TRUE  - Out of memory error
 */
 
-bool pull_out_semijoin_tables(JOIN *join)
+static bool pull_out_semijoin_tables(JOIN *join)
 {
   TABLE_LIST *sj_nest;
   DBUG_ENTER("pull_out_semijoin_tables");
@@ -4470,31 +4473,16 @@ bool pull_out_semijoin_tables(JOIN *join)
 
   List_iterator<TABLE_LIST> sj_list_it(join->select_lex->sj_nests);
    
-  /* Try pulling out of the each of the semi-joins */
+  /* Try pulling out tables from each semi-join nest */
   while ((sj_nest= sj_list_it++))
-  {
-    /* Action #1: Mark the constant tables to be pulled out */
+  {    
     table_map pulled_tables= 0;
-     
     List_iterator<TABLE_LIST> child_li(sj_nest->nested_join->join_list);
     TABLE_LIST *tbl;
-    while ((tbl= child_li++))
-    {
-      if (tbl->table)
-      {
-        if (tbl->table->map & join->const_table_map)
-        {
-          pulled_tables |= tbl->table->map;
-          DBUG_PRINT("info", ("Table %s pulled out (reason: constant)",
-                              tbl->table->alias));
-        }
-      }
-    }
-    
     /*
-      Action #2: Find which tables we can pull out based on
-      update_ref_and_keys() data. Note that pulling one table out can allow
-      us to pull out some other tables too.
+      Find which tables we can pull out based on key dependency data.
+      Note that pulling one table out can allow us to pull out some
+      other tables too.
     */
     bool pulled_a_table;
     do 
@@ -4526,23 +4514,25 @@ bool pull_out_semijoin_tables(JOIN *join)
  
     child_li.rewind();
     /*
-      Action #3: Move the pulled out TABLE_LIST elements to the parents.
+      Move the pulled out TABLE_LIST elements to the parents.
     */
-    table_map inner_tables= sj_nest->nested_join->used_tables & 
-                            ~pulled_tables;
-    /* Record the bitmap of inner tables */
-    sj_nest->sj_inner_tables= inner_tables;
+    sj_nest->nested_join->used_tables&= ~pulled_tables;
+    sj_nest->nested_join->not_null_tables&= ~pulled_tables;
+
+    /* sj_inner_tables is a copy of nested_join->used_tables */
+    sj_nest->sj_inner_tables= sj_nest->nested_join->used_tables;
+
     if (pulled_tables)
     {
-      List<TABLE_LIST> *upper_join_list= (sj_nest->embedding != NULL)?
-                                           (&sj_nest->embedding->nested_join->join_list): 
-                                           (&join->select_lex->top_join_list);
+      List<TABLE_LIST> *upper_join_list= (sj_nest->embedding != NULL) ?
+          &sj_nest->embedding->nested_join->join_list : 
+          &join->select_lex->top_join_list;
       Query_arena *arena, backup;
       arena= join->thd->activate_stmt_arena_if_needed(&backup);
       while ((tbl= child_li++))
       {
         if (tbl->table &&
-            !(inner_tables & tbl->table->map))
+            !(sj_nest->nested_join->used_tables & tbl->table->map))
         {
           /*
             Pull the table up in the same way as simplify_joins() does:
@@ -4562,7 +4552,7 @@ bool pull_out_semijoin_tables(JOIN *join)
       }
 
       /* Remove the sj-nest itself if we've removed everything from it */
-      if (!inner_tables)
+      if (!sj_nest->nested_join->used_tables)
       {
         List_iterator<TABLE_LIST> li(*upper_join_list);
         /* Find the sj_nest in the list. */
@@ -4688,19 +4678,50 @@ static uint get_tmp_table_rec_length(List<Item> &items)
   return len;
 }
 
-
 /**
-  Calculate the best possible join and initialize the join structure.
+  Calculate best possible join order and initialize the join structure.
 
-  @retval
-    0	ok
-  @retval
-    1	Fatal error
+  @param  join          Join object that is populated with statistics data
+  @param  tables_arg    List of tables that is referenced by this query 
+  @param  conds         Where condition of query
+  @param  keyuse_array[out] Populated with key_use information  
+  @param  first_optimization True if first optimization of this query
+
+  @return true if success, false if error
+
+  @details
+  Here is an overview of the logic of this function:
+
+  - Initialize JOIN data structures and setup basic dependencies between tables.
+
+  - Update dependencies based on join information.
+
+  - Make key descriptions (update_ref_and_keys()).
+
+  - Pull out semi-join tables based on table dependencies.
+
+  - Extract tables with zero or one rows as const tables.
+
+  - Read contents of const tables, substitute columns from these tables with
+    actual data. Also keep track of empty tables vs. one-row tables. 
+
+  - After const table extraction based on row count, more tables may
+    have become functionally dependent. Extract these as const tables.
+
+  - Add new sargable predicates based on retrieved const values.
+
+  - Calculate number of rows to be retrieved from each table.
+
+  - Calculate cost of potential semi-join materializations.
+
+  - Calculate best possible join order based on available statistics.
+
+  - Fill in remaining information for the generated join order.
 */
 
 static bool
 make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
-                     Key_use_array *keyuse_array)
+                     Key_use_array *keyuse_array, bool first_optimization)
 {
   int error;
   TABLE *table;
@@ -4735,10 +4756,15 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
   join->best_ref= stat_vector;
 
   stat_end= stat+table_count;
+  join->const_table_map= 0;
   join->found_const_table_map= 0;
   join->all_table_map= 0;
   const_count= 0;
 
+  /*
+    Initialize data structures for tables to be joined.
+    Initialize dependencies between tables.
+  */
   for (s= stat, i= 0;
        tables;
        s++, tables= tables->next_leaf, i++)
@@ -4765,31 +4791,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     table->quick_condition_rows= table->file->stats.records;
 
     s->on_expr_ref= &tables->on_expr;
-    if (*s->on_expr_ref)
-    {
-      /* s is the only inner table of an outer join */
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-      if ((!table->file->stats.records || table->no_partitions_used) && 
-          !tables->in_outer_join_nest())
-#else
-      if (!table->file->stats.records && !tables->in_outer_join_nest())
-#endif
-      {						// Empty table
-        s->dependent= 0;                        // Ignore LEFT JOIN depend.
-	set_position(join, const_count++, s, NULL);
-	continue;
-      }
-      outer_join|= table->map;
-      s->embedding_map= 0;
-      for (TABLE_LIST *embedding= tables->embedding;
-           embedding;
-           embedding= embedding->embedding)
-        s->embedding_map|= embedding->nested_join->nj_map;
-      continue;
-    }
+
     if (tables->in_outer_join_nest())
     {
-      /* s belongs to a nested join, maybe to several embedded joins */
+      /* s belongs to a nested join, maybe to several embedding joins */
       s->embedding_map= 0;
       for (TABLE_LIST *embedding= tables->embedding;
            embedding;
@@ -4800,20 +4805,16 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
         s->dependent|= embedding->dep_tables;
         outer_join|= nested_join->used_tables;
       }
-      continue;
     }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    const bool no_partitions_used= table->no_partitions_used;
-#else
-    const bool no_partitions_used= FALSE;
-#endif
-    if ((table->s->system || table->file->stats.records <= 1 ||
-         no_partitions_used) &&
-	!s->dependent &&
-	(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
-        !table->fulltext_searched && !join->no_const_tables)
+    else if (*s->on_expr_ref)
     {
-      set_position(join, const_count++, s, NULL);
+      /* s is the only inner table of an outer join */
+      outer_join|= table->map;
+      s->embedding_map= 0;
+      for (TABLE_LIST *embedding= tables->embedding;
+           embedding;
+           embedding= embedding->embedding)
+        s->embedding_map|= embedding->nested_join->nj_map;
     }
   }
   stat_vector[i]=0;
@@ -4822,6 +4823,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
   if (join->outer_join)
   {
     /* 
+       Complete the dependency analysis.
        Build transitive closure for relation 'to be dependent on'.
        This will speed up the plan search for many cases with outer joins,
        as well as allow us to catch illegal cross references.
@@ -4881,8 +4883,103 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
                             ~outer_join, join->select_lex, &sargables))
       goto error;
 
-  /* Read tables with 0 or 1 rows (system tables) */
-  join->const_table_map= 0;
+  /*
+    Pull out semi-join tables based on dependencies. Dependencies are valid
+    throughout the lifetime of a query, so this operation can be performed
+    on the first optimization only.
+  */
+  if (first_optimization)
+  {
+    if (pull_out_semijoin_tables(join))
+      DBUG_RETURN(true);
+  }
+
+  /*
+    Extract const tables based on row counts, must be done for each execution.
+    Tables containing exactly zero or one rows are marked as const, but
+    notice the additional constraints checked below.
+    Tables that are extracted have their rows read before actual execution
+    starts and are placed in the beginning of the join_tab array.
+    Thus, they do not take part in join order optimization process,
+    which can significantly reduce the optimization time.
+    The data read from these tables can also be regarded as "constant"
+    throughout query execution, hence the column values can be used for
+    additional constant propagation and extraction of const tables based
+    on eq-ref properties.
+  */
+  enum enum_const_table_extraction
+  {
+     extract_no_table=    0,
+     extract_empty_table= 1,
+     extract_const_table= 2
+  };
+
+  if (join->no_const_tables)
+    goto const_table_extraction_done;
+
+  for (i= 0, s= stat; i < table_count; i++, s++)
+  {
+    TABLE      *const table= s->table;
+    TABLE_LIST *const tables= table->pos_in_table_list;
+    enum enum_const_table_extraction extract_method= extract_const_table;
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    const bool no_partitions_used= table->no_partitions_used;
+#else
+    const bool no_partitions_used= false;
+#endif
+
+    if (tables->in_outer_join_nest())
+    {
+      /*
+        Table belongs to a nested join, no candidate for const table extraction.
+      */
+      extract_method= extract_no_table;
+    }
+    else if (tables->embedding && tables->embedding->sj_on_expr)
+    {
+      /*
+        Table belongs to a semi-join.
+        We do not currently pull out const tables from semi-join nests.
+      */
+      extract_method= extract_no_table;
+    }
+    else if (*s->on_expr_ref)
+    {
+      /* s is the only inner table of an outer join, extract empty tables */
+      extract_method= extract_empty_table;
+    }
+    switch (extract_method)
+    {
+    case extract_no_table:
+      break;
+
+    case extract_empty_table:
+      /* Extract tables with zero rows, but only if statistics are exact */
+      if ((table->file->stats.records == 0 ||
+           no_partitions_used) &&
+          (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
+        set_position(join, const_count++, s, NULL);
+      break;
+
+    case extract_const_table:
+      /*
+        Extract tables with zero or one rows, but do not extract tables that
+         1. are dependent upon other tables, or
+         2. have no exact statistics, or
+         3. are full-text searched
+      */ 
+      if ((table->s->system ||
+           table->file->stats.records <= 1 ||
+           no_partitions_used) &&
+          !s->dependent &&                                               // 1
+          (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) && // 2
+          !table->fulltext_searched)                                     // 3
+        set_position(join, const_count++, s, NULL);
+      break;
+    }
+  }
+  /* Read const tables (tables matching no more than 1 rows) */
 
   for (POSITION *p_pos=join->positions, *p_end=p_pos+const_count;
        p_pos < p_end ;
@@ -4904,6 +5001,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     }
   }
 
+const_table_extraction_done:
   /* loop until no more const tables are found */
   int ref_changed;
   do
@@ -5003,14 +5101,14 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
 	  } while (keyuse->table == table && keyuse->key == key);
 
           /*
-            TODO (low priority): currently we ignore the const tables that
-            are within a semi-join nest which is within an outer join nest.
-            The effect of this is that we don't do const substitution for
-            such tables.
+            Extract const tables with proper key dependencies.
+            Exclude tables that
+             1. are full-text searched, or
+             2. are part of nested outer join.
           */
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
-              !table->fulltext_searched && 
-              !table->pos_in_table_list->in_outer_join_nest())
+              !table->fulltext_searched &&                           // 1
+              !table->pos_in_table_list->in_outer_join_nest())       // 2
 	  {
             if (table->key_info[key].flags & HA_NOSAME)
             {
@@ -5069,6 +5167,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
 
   for (s=stat ; s < stat_end ; s++)
   {
+    TABLE_LIST *const tl= s->table->pos_in_table_list;
+
     if (s->type == JT_SYSTEM || s->type == JT_CONST)
     {
       /* Only one matching row */
@@ -5101,9 +5201,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       Do range analysis if we're on the inner side of a semi-join (3).
     */
     if (!s->const_keys.is_clear_all() &&                        // (1)
-        (!s->table->pos_in_table_list->embedding ||             // (2)
-         (s->table->pos_in_table_list->embedding &&             // (3)
-          s->table->pos_in_table_list->embedding->sj_on_expr))) // (3)
+        (!tl->embedding ||                                      // (2)
+         (tl->embedding && tl->embedding->sj_on_expr)))         // (3)
     {
       ha_rows records;
       SQL_SELECT *select;
@@ -5121,7 +5220,15 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
-      if (records == 0 && s->table->reginfo.impossible_range)
+      /*
+        Check for "impossible range", but make sure that we do not attempt to
+        mark semi-joined tables as "const" (only semi-joined tables that
+        are functionally dependent can be marked "const", and subsequently
+        pulled out of their semi-join nests).
+      */
+      if (records == 0 &&
+          s->table->reginfo.impossible_range &&
+          (!(tl->embedding && tl->embedding->sj_on_expr)))
       {
 	/*
 	  Impossible WHERE or ON expression
@@ -5149,18 +5256,14 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       delete select;
     }
   }
-
-  if (pull_out_semijoin_tables(join))
-    DBUG_RETURN(TRUE);
-
   /*
-    Set pointer to embedding semijoin nest for all semijoined tables.
-    Note that this must be done for every table inside all semijoin nests,
-    even for tables within outer join nests embedded in semijoin nests.
-    A table can never be part of multiple semijoin nests, hence no
+    Set pointer to embedding semi-join nest for all semi-joined tables.
+    Note that this must be done for every table inside all semi-join nests,
+    even for tables within outer join nests embedded in semi-join nests.
+    A table can never be part of multiple semi-join nests, hence no
     ambiguities can ever occur.
     Note also that the pointer is not set for TABLE_LIST objects that
-    are outer join nests within semijoin nests.
+    are outer join nests within semi-join nests.
   */
   for (s= stat; s < stat_end; s++)
   {
