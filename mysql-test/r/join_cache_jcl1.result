@@ -1444,7 +1444,6 @@ create table t2 (p int, a int, INDEX i_a(a));
 insert into t2 values
 (103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
 (107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
-The following must not show "using join cache":
 explain
 select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
@@ -2134,21 +2133,21 @@ CREATE TABLE t1 (b int);
 INSERT INTO t1 VALUES (NULL),(3);
 CREATE TABLE t2 (a int, b int, KEY (b));
 INSERT INTO t2 VALUES (100,NULL),(150,200);
-explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+EXPLAIN SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	
-SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 a
 NULL
 NULL
 delete from t1;
 INSERT INTO t1 VALUES (NULL),(NULL);
-explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+EXPLAIN SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	
-SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 a
 NULL
 NULL
@@ -2238,8 +2237,8 @@ GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	index	NULL	col_int_key	5	NULL	3	Using temporary; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT t1.col_int_key, t1.col_datetime 
 FROM t1 force index (col_int_key), t2 ignore index (col_int_key)
 WHERE t2.col_int_key = 1 AND t2.col_int >= 3
@@ -2304,6 +2303,314 @@ left join t8 on t3.col582 <=  1;
 count(*)
 32
 drop table t1,t2,t3,t4,t5,t6,t7,t8;
+#
+# Bug#12616131 - JCL: NULL VS DATE + TWICE AS MANY ROWS 
+#                RETURNED WHEN JCL>=7
+#
+CREATE TABLE t1 (t1a int, t1b int);
+INSERT INTO t1 VALUES (99, NULL),(99, 3),(99,0);
+CREATE TABLE t2 (t2a int, t2b int, KEY idx (t2b));
+INSERT INTO t2 VALUES (100,0),(150,200),(999, 0),(999, NULL);
+
+# t2b is NULL-able
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.t1b	2	
+SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
+t1a	t1b	t2a	t2b
+99	NULL	NULL	NULL
+99	3	NULL	NULL
+99	0	100	0
+99	0	999	0
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.t1b	2	Using where
+SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
+t1a	t1b	t2a	t2b
+99	NULL	999	NULL
+99	3	NULL	NULL
+99	0	100	0
+99	0	999	0
+
+DROP TABLE t2;
+CREATE TABLE t2 (t2a int, t2b int NOT NULL, KEY idx (t2b));
+INSERT INTO t2 VALUES (100,0),(150,200),(999, 0);
+
+# t2b is NOT NULL
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	4	test.t1.t1b	2	
+SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
+t1a	t1b	t2a	t2b
+99	NULL	NULL	NULL
+99	3	NULL	NULL
+99	0	100	0
+99	0	999	0
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	4	test.t1.t1b	2	Using where
+SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
+t1a	t1b	t2a	t2b
+99	NULL	NULL	NULL
+99	3	NULL	NULL
+99	0	100	0
+99	0	999	0
+
+DROP TABLE t1,t2;
+#
+# BUG#12619399 - JCL: NO ROWS VS 3X NULL QUERY OUTPUT WHEN JCL>=5
+#
+CREATE TABLE t1 (
+c1 INTEGER NOT NULL,
+c2_key INTEGER NOT NULL,
+KEY col_int_key (c2_key)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (24,204);
+CREATE TABLE t2 (  
+pk INTEGER NOT NULL,
+PRIMARY KEY (pk)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (10);
+CREATE TABLE t3 (
+c1 INTEGER,
+KEY k1 (c1)
+) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (NULL), (NULL);
+
+explain SELECT t3.c1 FROM t3
+WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	index	NULL	k1	5	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index
+2	DEPENDENT SUBQUERY	t1	ref	col_int_key	col_int_key	4	func	1	Using where; Full scan on NULL key
+explain SELECT t3.c1 FROM t3
+WHERE t3.c1 = ANY (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	index	NULL	k1	5	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index
+2	DEPENDENT SUBQUERY	t1	ref	col_int_key	col_int_key	4	func	1	Using where; Full scan on NULL key
+explain SELECT t3.c1 FROM t3
+WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	index	NULL	k1	5	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index
+2	DEPENDENT SUBQUERY	t1	ref	col_int_key	col_int_key	4	func	1	Using where; Full scan on NULL key
+explain SELECT t3.c1 FROM t3
+WHERE t3.c1 NOT IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	index	NULL	k1	5	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index
+2	DEPENDENT SUBQUERY	t1	ref	col_int_key	col_int_key	4	func	1	Using where; Full scan on NULL key
+explain SELECT t3.c1 FROM t3
+WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index; Start temporary
+1	PRIMARY	t1	ALL	col_int_key	NULL	NULL	NULL	1	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t3	ref	k1	k1	5	test.t1.c2_key	1	Using index; End temporary
+SELECT t3.c1 FROM t3
+WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+c1
+SELECT t3.c1 FROM t3
+WHERE t3.c1 = ANY (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+c1
+SELECT t3.c1 FROM t3
+WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+c1
+SELECT t3.c1 FROM t3
+WHERE t3.c1 NOT IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
+c1
+SELECT t3.c1 FROM t3
+WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
+c1
+
+DROP TABLE t1, t2, t3;
 set @@join_buffer_size=default;
+
+# BUG#12586926 "EXTRA ROW WITH JOIN + GROUP BY + ORDER BY WITH
+# JCL>=5 AND MRR ENABLED"
+
+SET @old_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='mrr=on,mrr_cost_based=off';
+CREATE TABLE t1 (  col_int_key int(11) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,    
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=innodb;
+INSERT INTO t1 VALUES (0,'j'),(4,'b'),(4,'d');
+CREATE TABLE t2 (
+col_datetime_key datetime NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=innodb;
+INSERT INTO t2 VALUES ('2003-08-21 00:00:00','b');
+explain SELECT MIN(t2.col_datetime_key) AS field1,
+t1.col_int_key AS field2  
+FROM t1
+LEFT JOIN t2 force index (col_varchar_key)
+ON t1.col_varchar_key = t2.col_varchar_key  
+GROUP BY field2
+ORDER BY field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	col_int_key	4	NULL	3	Using temporary; Using filesort
+1	SIMPLE	t2	ref	col_varchar_key	col_varchar_key	3	test.t1.col_varchar_key	1	
+SELECT MIN(t2.col_datetime_key) AS field1,
+t1.col_int_key AS field2  
+FROM t1
+LEFT JOIN t2 force index (col_varchar_key)
+ON t1.col_varchar_key = t2.col_varchar_key  
+GROUP BY field2
+ORDER BY field1;
+field1	field2
+NULL	0
+2003-08-21 00:00:00	4
+DROP TABLE t1,t2;
+SET @@optimizer_switch=@old_optimizer_switch;
+
+# BUG#12619510 "JCL: MORE ROWS AND DIFFERENT OUTPUT WITH JCL>=5"
+
+SET @old_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='mrr=on,mrr_cost_based=off';
+CREATE TABLE t1 (
+col_int_key int(11) NOT NULL,
+col_datetime_key datetime NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+KEY col_int_key (col_int_key),
+KEY col_datetime_key (col_datetime_key)
+);
+INSERT INTO t1 VALUES (7,'2004-06-06 04:22:12','v');
+INSERT INTO t1 VALUES (0,'2005-11-13 01:12:31','s');
+INSERT INTO t1 VALUES (9,'2002-05-04 01:50:00','l');
+INSERT INTO t1 VALUES (3,'2004-10-27 10:28:45','y');
+INSERT INTO t1 VALUES (4,'2006-07-22 05:24:23','c');
+INSERT INTO t1 VALUES (2,'2002-05-16 21:34:03','i');
+INSERT INTO t1 VALUES (5,'2008-04-17 10:45:30','h');
+INSERT INTO t1 VALUES (3,'2009-04-21 02:58:02','q');
+INSERT INTO t1 VALUES (1,'2008-01-11 11:01:51','a');
+INSERT INTO t1 VALUES (3,'1900-01-01 00:00:00','v');
+INSERT INTO t1 VALUES (6,'2007-05-17 18:24:57','u');
+INSERT INTO t1 VALUES (7,'2007-08-07 00:00:00','s');
+INSERT INTO t1 VALUES (5,'2001-08-28 00:00:00','y');
+INSERT INTO t1 VALUES (1,'2004-04-16 00:27:28','z');
+INSERT INTO t1 VALUES (204,'2005-05-03 07:06:22','h');
+INSERT INTO t1 VALUES (224,'2009-03-11 17:09:50','p');
+INSERT INTO t1 VALUES (9,'2007-12-08 01:54:28','e');
+INSERT INTO t1 VALUES (5,'2009-07-28 18:19:54','i');
+INSERT INTO t1 VALUES (0,'2008-06-08 00:00:00','y');
+INSERT INTO t1 VALUES (3,'2005-02-09 09:20:26','w');
+CREATE TABLE t2 (
+pk int(11) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES
+(1,'j'),(2,'v'),(3,'c'),(4,'m'),(5,'d'),(6,'d'),(7,'y'),
+(8,'t'),(9,'d'),(10,'s'),(11,'r'),(12,'m'),(13,'b'),(14,'x'),
+(15,'g'),(16,'p'),(17,'q'),(18,'w'),(19,'d'),(20,'e');
+explain SELECT t2.col_varchar_key AS field1 , COUNT(DISTINCT t1.col_varchar_nokey), t2.pk AS field4
+FROM t1
+RIGHT JOIN t2 ON t2.pk = t1.col_int_key 
+GROUP BY field1 , field4 
+ORDER BY t1.col_datetime_key ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	20	Using temporary; Using filesort
+1	SIMPLE	t1	ref	col_int_key	col_int_key	4	test.t2.pk	3	
+SELECT t2.col_varchar_key AS field1 , COUNT(DISTINCT t1.col_varchar_nokey), t2.pk AS field4
+FROM t1
+RIGHT JOIN t2 ON t2.pk = t1.col_int_key 
+GROUP BY field1 , field4 
+ORDER BY t1.col_datetime_key ;
+field1	COUNT(DISTINCT t1.col_varchar_nokey)	field4
+b	0	13
+c	4	3
+d	0	19
+d	1	6
+d	2	9
+d	3	5
+e	0	20
+g	0	15
+j	2	1
+m	0	12
+m	1	4
+p	0	16
+q	0	17
+r	0	11
+s	0	10
+t	0	8
+v	1	2
+w	0	18
+x	0	14
+y	2	7
+DROP TABLE t1,t2;
+SET @@optimizer_switch=@old_optimizer_switch;
+
+# BUG#12619868 "JCL: MORE ROWS OF OUTPUT WHEN JCL>=5"
+
+SET @old_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='mrr=on,mrr_cost_based=off';
+CREATE TABLE t1 (col_varchar_key varchar(1));
+CREATE TABLE t2 (
+pk int(11) NOT NULL,
+col_int_nokey int(11) NOT NULL,
+col_int_key int(11) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+);
+INSERT INTO t2 VALUES (5,3,9);
+INSERT INTO t2 VALUES (6,246,24);
+INSERT INTO t2 VALUES (7,2,6);
+INSERT INTO t2 VALUES (8,9,1);
+INSERT INTO t2 VALUES (9,3,6);
+INSERT INTO t2 VALUES (10,8,2);
+INSERT INTO t2 VALUES (11,1,4);
+INSERT INTO t2 VALUES (12,8,8);
+INSERT INTO t2 VALUES (13,8,4);
+INSERT INTO t2 VALUES (14,5,4);
+INSERT INTO t2 VALUES (15,7,7);
+INSERT INTO t2 VALUES (16,5,4);
+INSERT INTO t2 VALUES (17,1,1);
+INSERT INTO t2 VALUES (18,6,9);
+INSERT INTO t2 VALUES (19,2,4);
+INSERT INTO t2 VALUES (20,9,8);
+explain SELECT t1.col_varchar_key AS field1, alias2.col_int_key AS field4 
+FROM t2 AS alias2 STRAIGHT_JOIN t2 AS alias3 ON alias3.pk =
+alias2.col_int_nokey 
+left join t1 
+ON alias3.col_int_nokey 
+GROUP BY field1, field4
+LIMIT 15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	SIMPLE	alias2	index	NULL	col_int_key	4	NULL	15	
+1	SIMPLE	alias3	eq_ref	PRIMARY	PRIMARY	4	test.alias2.col_int_nokey	1	
+SELECT t1.col_varchar_key AS field1, alias2.col_int_key AS field4 
+FROM t2 AS alias2 STRAIGHT_JOIN t2 AS alias3 ON alias3.pk =
+alias2.col_int_nokey 
+left join t1 
+ON alias3.col_int_nokey 
+GROUP BY field1, field4
+LIMIT 15;
+field1	field4
+NULL	1
+NULL	2
+NULL	4
+NULL	7
+NULL	8
+NULL	9
+DROP TABLE t1,t2;
+SET @@optimizer_switch=@old_optimizer_switch;
 set optimizer_join_cache_level = default;
 set optimizer_switch = default;
