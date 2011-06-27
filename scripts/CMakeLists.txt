@@ -80,7 +80,10 @@ CONFIGURE_FILE(mysqldumpslow.sh
 CONFIGURE_FILE(mysqlhotcopy.sh
                ${CMAKE_BINARY_DIR}/scripts/mysqlhotcopy.pl ESCAPE_QUOTES @ONLY)
 
-FOREACH(f mysqldumpslow.pl mysqlhotcopy.pl mysql_config.pl
+CONFIGURE_FILE(mytop.sh
+               ${CMAKE_BINARY_DIR}/scripts/mytop.pl ESCAPE_QUOTES @ONLY)
+
+FOREACH(f mysqldumpslow.pl mysqlhotcopy.pl mytop.pl mysql_config.pl
 	mysql_convert_table_format.pl mysql_install_db.pl
 	mysql_secure_installation.pl mysqld_multi.pl)
   INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${f}

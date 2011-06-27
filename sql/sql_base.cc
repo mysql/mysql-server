@@ -675,7 +675,7 @@ void close_handle_and_leave_table_as_lock(TABLE *table)
   */
   if (table->child_l || table->parent)
     detach_merge_children(table, FALSE);
-  table->file->close();
+  table->file->ha_close();
   table->db_stat= 0;                            // Mark file closed
   release_table_share(table->s, RELEASE_NORMAL);
   table->s= share;
@@ -3708,7 +3708,7 @@ TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name)
         if (table->db_stat)
         {
           table->db_stat= 0;
-          table->file->close();
+          table->file->ha_close();
         }
       }
       else

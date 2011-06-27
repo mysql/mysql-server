@@ -94,6 +94,7 @@ show status like "rows%";
 Variable_name	Value
 Rows_read	6
 Rows_sent	1
+Rows_tmp_read	0
 show status like "ha%";
 Variable_name	Value
 Handler_commit	19
@@ -109,6 +110,8 @@ Handler_read_rnd_next	5
 Handler_rollback	2
 Handler_savepoint	0
 Handler_savepoint_rollback	0
+Handler_tmp_update	0
+Handler_tmp_write	0
 Handler_update	5
 Handler_write	7
 select variable_value - @global_read_key as "handler_read_key" from information_schema.global_status where variable_name="handler_read_key";
@@ -133,7 +136,7 @@ CONCURRENT_CONNECTIONS	0
 ROWS_READ	6
 ROWS_SENT	2
 ROWS_DELETED	1
-ROWS_INSERTED	8
+ROWS_INSERTED	7
 ROWS_UPDATED	5
 SELECT_COMMANDS	3
 UPDATE_COMMANDS	11
@@ -150,7 +153,7 @@ CONCURRENT_CONNECTIONS	0
 ROWS_READ	6
 ROWS_SENT	2
 ROWS_DELETED	1
-ROWS_INSERTED	8
+ROWS_INSERTED	7
 ROWS_UPDATED	5
 SELECT_COMMANDS	3
 UPDATE_COMMANDS	11
