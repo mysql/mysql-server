@@ -3728,6 +3728,7 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   else
   {
     conf->version =  0;
+    conf->mysql_version =  0;
     conf->inet_addr= 0;
   }
   conf->nodeId = nodeId;
@@ -3909,7 +3910,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
       msg = "Start timeout";
       break;
     case FailRep::ZHEARTBEAT_FAILURE:
-      msg = "Hearbeat failure";
+      msg = "Heartbeat failure";
       break;
     case FailRep::ZLINK_FAILURE:
       msg = "Connection failure";

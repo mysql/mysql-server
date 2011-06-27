@@ -26,8 +26,6 @@ ndb_index_ordered	 : SEAGULL alter in second connection deadlocks
 ndb_index_unique	 : SEAGULL different error with copying alter
 ndb_alter_table3	 : SEAGULL different error with copying alter
 
-ndb_read_multi_range      : SEAGULL "total length of the partitioning fields is too large"
-
 ndb_multi		 : SEAGULL schema distribution 
 
 ndb_sql_allow_batching   : SEAGULL WL3733 xxx_allow_batching

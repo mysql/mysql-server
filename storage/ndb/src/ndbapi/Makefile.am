@@ -59,6 +59,7 @@ libndbapi_la_SOURCES = \
 	NdbBlob.cpp \
 	NdbIndexStat.cpp \
 	NdbIndexStatImpl.cpp \
+	NdbIndexStatFrmData.cpp \
         SignalSender.cpp \
         ObjectMap.cpp \
 	NdbInterpretedCode.cpp \
