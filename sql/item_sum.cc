@@ -3308,7 +3308,8 @@ bool Item_func_group_concat::setup(THD *thd)
     tmp table columns.
   */
   if (arg_count_order &&
-      setup_order(thd, args, context->table_list, list, all_fields, *order))
+      setup_order(thd, Ref_ptr_array(args, arg_count),
+                  context->table_list, list, all_fields, *order))
     DBUG_RETURN(TRUE);
 
   count_field_types(select_lex, tmp_table_param, all_fields, 0);

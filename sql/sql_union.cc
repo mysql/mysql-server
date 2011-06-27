@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,9 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
 /*
   UNION  of select's
@@ -270,8 +269,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
     can_skip_order_by= is_union_select && !(sl->braces && sl->explicit_limit);
 
-    saved_error= join->prepare(&sl->ref_pointer_array,
-                               sl->table_list.first,
+    saved_error= join->prepare(sl->table_list.first,
                                sl->with_wild,
                                sl->where,
                                (can_skip_order_by ? 0 :
@@ -419,23 +417,38 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 	init_prepare_fake_select_lex(thd);
         /* Should be done only once (the only item_list per statement) */
         DBUG_ASSERT(fake_select_lex->join == 0);
-	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->variables.option_bits,
-					      result)))
+	if (!(fake_select_lex->join=
+              new JOIN(thd, item_list, thd->variables.option_bits, result)))
 	{
 	  fake_select_lex->table_list.empty();
 	  DBUG_RETURN(TRUE);
 	}
+
+        /*
+          Fake st_select_lex should have item list for correct ref_array
+          allocation.
+        */
 	fake_select_lex->item_list= item_list;
 
-	thd_arg->lex->current_select= fake_select_lex;
+        thd_arg->lex->current_select= fake_select_lex;
+
+        /*
+          We need to add up n_sum_items in order to make the correct
+          allocation in setup_ref_array().
+        */
+        fake_select_lex->n_child_sum_items+= global_parameters->n_sum_items;
+
 	saved_error= fake_select_lex->join->
-	  prepare(&fake_select_lex->ref_pointer_array,
-		  fake_select_lex->table_list.first,
-		  0, 0,
-		  fake_select_lex->order_list.elements,
-		  fake_select_lex->order_list.first,
-		  NULL, NULL, NULL,
-		  fake_select_lex, this);
+	  prepare(fake_select_lex->table_list.first, // tables_init
+                  0,                                 // wild_num
+                  0,                                 // conds_init
+                  global_parameters->order_list.elements, // og_num
+                  global_parameters->order_list.first,    // order
+                  NULL,                                // group_init
+                  NULL,                                // having_init
+                  NULL,                                // proc_param_init
+                  fake_select_lex,                     // select_lex_arg
+                  this);                               // unit_arg
 	fake_select_lex->table_list.empty();
       }
     }
@@ -607,18 +620,35 @@ bool st_select_lex_unit::exec()
         fake_select_lex->join->no_const_tables= true;
 
         /*
-          Fake st_select_lex should have item list for correctref_array
+          Fake st_select_lex should have item list for correct ref_array
           allocation.
         */
         fake_select_lex->item_list= item_list;
-        saved_error= mysql_select(thd, &fake_select_lex->ref_pointer_array,
-                              &result_table_list,
-                              0, item_list, NULL,
-                              global_parameters->order_list.elements,
-                              global_parameters->order_list.first,
-                              NULL, NULL, NULL,
-                              fake_select_lex->options | SELECT_NO_UNLOCK,
-                              result, this, fake_select_lex);
+
+        /*
+          We need to add up n_sum_items in order to make the correct
+          allocation in setup_ref_array().
+          Don't add more sum_items if we have already done JOIN::prepare
+          for this (with a different join object)
+        */
+        if (fake_select_lex->ref_pointer_array.is_null())
+          fake_select_lex->n_child_sum_items+= global_parameters->n_sum_items;
+
+        saved_error=
+          mysql_select(thd,
+                       &result_table_list,      // tables
+                       0,                       // wild_num
+                       item_list,               // fields
+                       NULL,                    // conds
+                       global_parameters->order_list.elements, // og_num
+                       global_parameters->order_list.first,    // order
+                       NULL,                    // group
+                       NULL,                    // having
+                       NULL,                    // proc_param
+                       fake_select_lex->options | SELECT_NO_UNLOCK,
+                       result,                  // result
+                       this,                    // unit
+                       fake_select_lex);        // select_lex
       }
       else
       {
@@ -634,7 +664,7 @@ bool st_select_lex_unit::exec()
             to reset them back, we re-do all of the actions (yes it is ugly):
           */
           join->init(thd, item_list, fake_select_lex->options, result);
-          saved_error= mysql_select(thd, &fake_select_lex->ref_pointer_array,
+          saved_error= mysql_select(thd,
                                 &result_table_list,
                                 0, item_list, NULL,
                                 global_parameters->order_list.elements,

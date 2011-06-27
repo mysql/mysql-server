@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ bool mysql_do(THD *thd, List<Item> &values)
   List_iterator<Item> li(values);
   Item *value;
   DBUG_ENTER("mysql_do");
-  if (setup_fields(thd, 0, values, MARK_COLUMNS_NONE, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(), values, MARK_COLUMNS_NONE, 0, 0))
     DBUG_RETURN(TRUE);
   while ((value = li++))
     value->val_int();
