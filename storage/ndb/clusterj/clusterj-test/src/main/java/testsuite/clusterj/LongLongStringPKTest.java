@@ -1,0 +1,183 @@
+/*
+   Copyright 2010 Sun Microsystems, Inc.
+   All rights reserved. Use is subject to license terms.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+package testsuite.clusterj;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import testsuite.clusterj.model.LongLongStringPK;
+
+public class LongLongStringPKTest extends AbstractClusterJTest {
+
+    protected int PK_MODULUS = 2;
+    protected int NUMBER_OF_INSTANCES = PK_MODULUS * PK_MODULUS * PK_MODULUS;
+    protected long PRETTY_BIG_NUMBER = 1000000000000000L;
+    protected List<LongLongStringPK> instances = new ArrayList<LongLongStringPK>();
+
+    @Override
+    public void localSetUp() {
+        createSessionFactory();
+        session = sessionFactory.getSession();
+        tx = session.currentTransaction();
+        try {
+            tx.begin();
+            session.deletePersistentAll(LongLongStringPK.class);
+            tx.commit();
+        } catch (Throwable t) {
+            // ignore errors while deleting
+        }
+        createInstances();
+        addTearDownClasses(LongLongStringPK.class);
+    }
+
+    public void test() {
+        insert();
+        find();
+        update();
+        delete();
+        failOnError();
+    }
+
+    /** Insert all instances.
+     */
+    protected void insert() {
+        session.makePersistentAll(instances);
+    }
+
+    /** Find all instances.
+     */
+    protected void find() {
+        for (int i = 0; i < NUMBER_OF_INSTANCES; ++i) {
+            Object[] key = new Object[]{getPK1(i), getPK2(i), getPK3(i)};
+            LongLongStringPK result = session.find(LongLongStringPK.class, key);
+            verify(result, i, false);
+        }
+    }
+
+    /** Blind update every fourth instance.
+     */
+    protected void update() {
+        // update the instances
+        for (int i = 0; i < NUMBER_OF_INSTANCES; ++i) {
+            if (0 == i % 4) {
+                LongLongStringPK instance = createInstance(i);
+                instance.setStringvalue(getValue(NUMBER_OF_INSTANCES - i));
+                session.updatePersistent(instance);
+                verify(instance, i, true);
+            }
+        }
+        // verify the updated instances
+        for (int i = 0; i < NUMBER_OF_INSTANCES; ++i) {
+            if (0 == i % 4) {
+                Object[] key = new Object[]{getPK1(i), getPK2(i), getPK3(i)};
+                LongLongStringPK instance = session.find(LongLongStringPK.class, key);
+                verify(instance, i, true);
+            }
+        }
+    }
+
+    /** Blind delete every fifth instance.
+     */
+    protected void delete() {
+        // delete the instances
+        for (int i = 0; i < NUMBER_OF_INSTANCES; ++i) {
+            if (0 == i % 5) {
+                LongLongStringPK instance = createInstance(i);
+                session.deletePersistent(instance);
+            }
+        }
+        // verify they have been deleted
+        for (int i = 0; i < NUMBER_OF_INSTANCES; ++i) {
+            if (0 == i % 5) {
+                Object[] key = new Object[]{getPK1(i), getPK2(i), getPK3(i)};
+                LongLongStringPK instance = session.find(LongLongStringPK.class, key);
+                errorIfNotEqual("Failed to delete instance: " + i, null, instance);
+            }
+        }
+    }
+
+    /** The strategy for instances is for the "instance number" to create 
+     * the three keys, such that the value of the instance is:
+     * pk1 * PK_MODULUS^2 + pk2 * PK_MODULUS + pk3
+     * 
+     */
+    protected void createInstances() {
+        for (int i = 0; i < NUMBER_OF_INSTANCES; ++i) {
+            LongLongStringPK instance = createInstance(i);
+//            System.out.println(toString(instance));
+            instances.add(instance);
+        }
+    }
+
+    /** Create an instance of LongLongStringPK.
+     * @param index the index to use to generate data
+     * @return the instance
+     */
+    protected LongLongStringPK createInstance(int index) {
+        LongLongStringPK instance = session.newInstance(LongLongStringPK.class);
+        instance.setLongpk1(getPK1(index));
+        instance.setLongpk2(getPK2(index));
+        instance.setStringpk(getPK3(index));
+        instance.setStringvalue(getValue(index));
+        return instance;
+    }
+
+    protected String toString(LongLongStringPK instance) {
+        StringBuffer result = new StringBuffer();
+        result.append("LongLongStringPK[");
+        result.append(instance.getLongpk1());
+        result.append(",");
+        result.append(instance.getLongpk2());
+        result.append(",\"");
+        result.append(instance.getStringpk());
+        result.append("\"]: ");
+        result.append(instance.getStringvalue());
+        result.append(".");
+        return result.toString();
+    }
+
+    protected long getPK1(int index) {
+        return PRETTY_BIG_NUMBER * ((index / PK_MODULUS / PK_MODULUS) % PK_MODULUS);
+    }
+
+    protected long getPK2(int index) {
+        return PRETTY_BIG_NUMBER * ((index / PK_MODULUS) % PK_MODULUS);
+    }
+
+    protected String getPK3(int index) {
+        return "" + (index % PK_MODULUS);
+    }
+
+    protected String getValue(int index) {
+        return "Value " + index;
+    }
+
+    protected void verify(LongLongStringPK instance, int index, boolean updated) {
+        errorIfNotEqual("PK1 failed", getPK1(index), instance.getLongpk1());
+        errorIfNotEqual("PK2 failed", getPK2(index), instance.getLongpk2());
+        errorIfNotEqual("PK3 failed", getPK3(index), instance.getStringpk());
+        if (updated) {
+            errorIfNotEqual("Value failed", getValue(NUMBER_OF_INSTANCES - index), instance.getStringvalue());
+        } else {
+            errorIfNotEqual("Value failed", getValue(index), instance.getStringvalue());
+
+        }
+    }
+
+}

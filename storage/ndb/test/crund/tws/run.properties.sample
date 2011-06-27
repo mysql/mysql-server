@@ -1,0 +1,94 @@
+######################################################################
+# driver settings
+######################################################################
+
+logRealTime=true
+logCpuTime=true
+logMemUsage=false
+includeFullGC=false
+
+#warmupRuns=10
+#warmupRuns=1
+warmupRuns=0
+
+######################################################################
+# TWS workload settings
+######################################################################
+
+renewConnection=false
+doJdbc=true
+doClusterj=true
+doNdbjtie=true
+doInsert=true
+doLookup=true
+doUpdate=true
+doDelete=true
+doSingle=true
+doBulk=true
+doBatch=true
+
+# lock mode for lookup and read scans
+lockMode=READ_COMMITTED
+#lockMode=SHARED
+#lockMode=EXCLUSIVE,
+
+# nRows >= 40000
+#   jdbc bulk: 1217 'Out of operation records in local data manager
+#   (increase MaxNoOfLocalOperations)' from NDBCLUSTER
+#
+# nRows >= 500
+#   "Job buffer congestion" crashes with node failure with unique indexes
+#   http://bugs.mysql.com/bug.php?id=56552
+#   ndbjtie batch: ndb-7.1.8 revno 3782 crashes with node failure during
+#   clusterj single/bulk: ndb-7.1.8 revno 3782 crashes with node failure during
+#nRows=16000
+#nRows=4000
+#nRows=1000
+#nRows=500
+#nRows=250
+nRows=10
+
+#nRuns=100
+#nRuns=10
+nRuns=1
+
+######################################################################
+# NDBAPI connection settings
+######################################################################
+
+ndb.mgmdConnect=localhost
+ndb.catalog=testdb
+ndb.schema=def
+
+######################################################################
+# JDBC - MySQL settings
+######################################################################
+
+jdbc.url=jdbc:mysql://localhost/testdb
+jdbc.driver=com.mysql.jdbc.Driver
+jdbc.user=root
+jdbc.password=
+
+######################################################################
+# ClusterJ settings
+######################################################################
+
+com.mysql.clusterj.connectstring=localhost:1186
+com.mysql.clusterj.database=testdb
+com.mysql.clusterj.connect.retries=4
+com.mysql.clusterj.connect.delay=5
+com.mysql.clusterj.connect.verbose=1
+com.mysql.clusterj.connect.timeout.before=30
+com.mysql.clusterj.connect.timeout.after=20
+com.mysql.clusterj.max.transactions=1024
+
+com.mysql.clusterj.bindings.level=INFO
+com.mysql.clusterj.core.level=INFO
+com.mysql.clusterj.core.metadata.level=INFO
+com.mysql.clusterj.core.query.level=INFO
+com.mysql.clusterj.core.util.level=INFO
+com.mysql.clusterj.tie.level=INFO
+#handlers=java.util.logging.FileHandler
+#java.util.logging.FileHandler.formatter=java.util.logging.SimpleFormatter
+#java.util.logging.FileHandler.level=FINEST
+#java.util.logging.FileHandler.pattern=./target/log%u

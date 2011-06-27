@@ -1,0 +1,60 @@
+# 5.1 Referance Manual, NDB Cluster Configuration (16.3), Limitations (16.14)
+
+# options affecting ndbd processes on all data nodes
+[ndbd default]
+NoOfReplicas= 1
+#DataMemory= 256M
+# DataMemory is allocated as 32KB pages. As each DataMemory page is used, it is assigned to a specific table; once allocated, this memory cannot be freed except by dropping the table.
+#IndexMemory= 32M
+#Error line 6: Illegal value 4096 for parameter MaxNoOfConcurrentScans.
+#Legal values are between 2 and 500
+MaxNoOfConcurrentScans=256
+#MaxNoOfConcurrentTransactions=
+#The maximum number of operations that can be performed per transaction is set using the configuration parameters
+#MaxNoOfConcurrentOperations=
+#MaxNoOfLocalOperations=
+#MaxNoOfConcurrentIndexOperations=
+#TransactionBufferMemory=
+# the maximum number of ordered indexes per table
+# MaxNoOfOrderedIndexes=
+
+[tcp default]
+#portnumber=2202 ?
+
+# The maximum number of data nodes is 48.
+
+# Beginning with MySQL Cluster NDB 6.1.1, the total maximum number of nodes in a MySQL Cluster is 255. In either case, this number in cludes all SQL nodes (MySQL Servers), API nodes (applications accessing the cluster other than MySQL servers), data nodes, and management servers.
+
+# Machine architecture: All machines used in the cluster must have the same architecture. That is, all machines hosting nodes must be either big-endian or little-endian, and you cannot use a mixture of both. This restriction does not apply to machines simply running mysql or other clients that may be accessing the cluster's SQL nodes.
+
+# Adding and dropping of data nodes. Online adding or dropping of data nodes is not currently possible. In such cases, the entire cluster must be restarted.
+
+# Multiple management nodes. Issues with using multiple management servers.
+
+# Multiple data node processes. While it is possible to run multiple cluster processes concurrently on a single host, it is not always advisable to do so for reasons of performance and high availability, as well as other considerations.
+
+# Multiple network addresses. Multiple network addresses per data node are not supported. Use of these is liable to cause problems: In the event of a data node failure, an SQL node waits for confirmation that the data node went down but never receives it because another route to that data node remains open. This can effectively make the cluster inoperable.  It is possible to use multiple network hardware interfaces (such as Ethernet cards) for a single data node, but these must be bound to the same address. This also means that it not possible to use more than one [tcp] section per connection in the config.ini file.
+
+
+[ndb_mgmd default]
+[mysqld default]
+
+# options of management node
+[ndb_mgmd]
+HostName=127.0.0.1   # hostname or IP address
+#DataDir=/home/md/bin/mysql-5.1.28-ndb-6.3.18-innodb/log     # directory for log files
+#DataDir=/home/md/bin/mysql-cluster-gpl-6.3.17-linux-i686-glibc23/log     # directory for log files
+DataDir=/home/mz103854/bin/mysql-cluster-gpl-6.3.20-solaris10-sparc/log     # directory for log files
+#PortNumber=1186
+#PortNumber=9311
+
+# options of first data node
+[ndbd]
+HostName=127.0.0.1   # hostname or IP address
+#DataDir=/home/md/bin/mysql-5.1.28-ndb-6.3.18-innodb/data     # directory for data files
+#DataDir=/home/md/bin/mysql-cluster-gpl-6.3.17-linux-i686-glibc23/datalog    # directory for data files
+DataDir=/home/mz103854/bin/mysql-cluster-gpl-6.3.20-solaris10-sparc/datalog    # directory for data files
+
+# options of first SQL node
+[mysqld]
+HostName=127.0.0.1   # hostname or IP address
