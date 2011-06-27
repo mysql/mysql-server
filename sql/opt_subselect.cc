@@ -774,18 +774,20 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
     if (convert_join_subqueries_to_semijoins(child_join))
       DBUG_RETURN(TRUE);
     (*in_subq)->sj_convert_priority= 
+      test((*in_subq)->emb_on_expr_nest != NO_JOIN_NEST) * MAX_TABLES * 2 +
       (*in_subq)->is_correlated * MAX_TABLES + child_join->outer_tables;
   }
   
   // Temporary measure: disable semi-joins when they are together with outer
   // joins.
+#if 0  
   if (check_for_outer_joins(join->join_list))
   {
     in_subq= join->sj_subselects.front();
     arena= thd->activate_stmt_arena_if_needed(&backup);
     goto skip_conversion;
   }
-
+#endif
   //dump_TABLE_LIST_struct(select_lex, select_lex->leaf_tables);
   /* 
     2. Pick which subqueries to convert:
@@ -803,6 +805,11 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
        in_subq++)
   {
     bool remove_item= TRUE;
+
+    /* Stop processing if we've reached a subquery that's attached to the ON clause */
+    if ((*in_subq)->emb_on_expr_nest != NO_JOIN_NEST)
+      break;
+
     if ((*in_subq)->is_flattenable_semijoin) 
     {
       if (join->table_count + 
@@ -828,7 +835,7 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
         DBUG_RETURN(TRUE); /* purecov: inspected */
     }
   }
-skip_conversion:
+//skip_conversion:
   /* 
     3. Finalize (perform IN->EXISTS rewrite) the subqueries that we didn't
     convert:
