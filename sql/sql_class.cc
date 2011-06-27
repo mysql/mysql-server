@@ -3974,16 +3974,24 @@ void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
 
 void THD::leave_locked_tables_mode()
 {
+  if (locked_tables_mode == LTM_LOCK_TABLES)
+  {
+    /*
+      When leaving LOCK TABLES mode we have to change the duration of most
+      of the metadata locks being held, except for HANDLER and GRL locks,
+      to transactional for them to be properly released at UNLOCK TABLES.
+    */
+    mdl_context.set_transaction_duration_for_all_locks();
+    /*
+      Make sure we don't release the global read lock and commit blocker
+      when leaving LTM.
+    */
+    global_read_lock.set_explicit_lock_duration(this);
+    /* Also ensure that we don't release metadata locks for open HANDLERs. */
+    if (handler_tables_hash.records)
+      mysql_ha_set_explicit_lock_duration(this);
+  }
   locked_tables_mode= LTM_NONE;
-  mdl_context.set_transaction_duration_for_all_locks();
-  /*
-    Make sure we don't release the global read lock and commit blocker
-    when leaving LTM.
-  */
-  global_read_lock.set_explicit_lock_duration(this);
-  /* Also ensure that we don't release metadata locks for open HANDLERs. */
-  if (handler_tables_hash.records)
-    mysql_ha_set_explicit_lock_duration(this);
 }
 
 void THD::get_definer(LEX_USER *definer)

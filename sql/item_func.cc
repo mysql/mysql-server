@@ -392,7 +392,7 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
   See comments in Item_cmp_func::split_sum_func()
 */
 
-void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
+void Item_func::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                                List<Item> &fields)
 {
   Item **arg, **arg_end;

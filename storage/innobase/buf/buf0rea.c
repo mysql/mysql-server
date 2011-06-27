@@ -81,11 +81,15 @@ buf_read_page_low(
 {
 	buf_page_t*	bpage;
 	ulint		wake_later;
+	ibool		ignore_nonexistent_pages;
 
 	*err = DB_SUCCESS;
 
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 	mode = mode & ~OS_AIO_SIMULATED_WAKE_LATER;
+
+	ignore_nonexistent_pages = mode & BUF_READ_IGNORE_NONEXISTENT_PAGES;
+	mode &= ~BUF_READ_IGNORE_NONEXISTENT_PAGES;
 
 	if (trx_doublewrite && space == TRX_SYS_SPACE
 	    && (   (offset >= trx_doublewrite->block1
@@ -139,18 +143,27 @@ buf_read_page_low(
 
 	thd_wait_begin(NULL, THD_WAIT_DISKIO);
 	if (zip_size) {
-		*err = fil_io(OS_FILE_READ | wake_later,
+		*err = fil_io(OS_FILE_READ | wake_later
+			      | ignore_nonexistent_pages,
 			      sync, space, zip_size, offset, 0, zip_size,
 			      bpage->zip.data, bpage);
 	} else {
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
 
-		*err = fil_io(OS_FILE_READ | wake_later,
+		*err = fil_io(OS_FILE_READ | wake_later
+			      | ignore_nonexistent_pages,
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
 			      ((buf_block_t*) bpage)->frame, bpage);
 	}
 	thd_wait_end(NULL);
-	ut_a(*err == DB_SUCCESS);
+
+	if (*err != DB_SUCCESS) {
+		if (ignore_nonexistent_pages) {
+			return(0);
+		}
+		/* else */
+		ut_error;
+	}
 
 	if (sync) {
 		/* The i/o is already completed when we arrive from
@@ -204,6 +217,53 @@ buf_read_page(
 
 	/* Increment number of I/O operations used for LRU policy. */
 	buf_LRU_stat_inc_io();
+
+	return(count > 0);
+}
+
+/********************************************************************//**
+High-level function which reads a page asynchronously from a file to the
+buffer buf_pool if it is not already there. Sets the io_fix flag and sets
+an exclusive lock on the buffer frame. The flag is cleared and the x-lock
+released by the i/o-handler thread.
+@return TRUE if page has been read in, FALSE in case of failure */
+UNIV_INTERN
+ibool
+buf_read_page_async(
+/*================*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset)	/*!< in: page number */
+{
+	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
+	ulint		zip_size;
+	ib_int64_t	tablespace_version;
+	ulint		count;
+	ulint		err;
+
+	zip_size = fil_space_get_zip_size(space);
+
+	if (zip_size == ULINT_UNDEFINED) {
+		return(FALSE);
+	}
+
+	tablespace_version = fil_space_get_version(space);
+
+	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE
+				  | OS_AIO_SIMULATED_WAKE_LATER
+				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
+				  space, zip_size, FALSE,
+				  tablespace_version, offset);
+	srv_buf_pool_reads += count;
+
+	/* Flush pages from the end of the LRU list if necessary */
+	buf_flush_free_margin(buf_pool);
+
+	/* We do not increment number of I/O operations used for LRU policy
+	here (buf_LRU_stat_inc_io()). We use this in heuristics to decide
+	about evicting uncompressed version of compressed pages from the
+	buffer pool. Since this function is called from buffer pool load
+	these IOs are deliberate and are not part of normal workload we can
+	ignore these in our heuristics. */
 
 	return(count > 0);
 }

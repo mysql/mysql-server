@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* Include necessary InnoDB headers */
 extern "C" {
 #include "univ.i"
+#include "buf0dump.h"
 #include "buf0lru.h"
 #include "buf0flu.h"
 #include "btr0sea.h"
@@ -388,6 +389,10 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
 
 static SHOW_VAR innodb_status_variables[]= {
+  {"buffer_pool_dump_status",
+  (char*) &export_vars.innodb_buffer_pool_dump_status,	  SHOW_CHAR},
+  {"buffer_pool_load_status",
+  (char*) &export_vars.innodb_buffer_pool_load_status,	  SHOW_CHAR},
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
   {"buffer_pool_pages_dirty",
@@ -12054,6 +12059,91 @@ innobase_index_name_is_reserved(
 	return(false);
 }
 
+/* These variables are never read by InnoDB or changed. They are a kind of
+dummies that are needed by the MySQL infrastructure to call
+buffer_pool_dump_now(), buffer_pool_load_now() and buffer_pool_load_abort()
+by the user by doing:
+  SET GLOBAL innodb_buffer_pool_dump_now=ON;
+  SET GLOBAL innodb_buffer_pool_load_now=ON;
+  SET GLOBAL innodb_buffer_pool_load_abort=ON;
+Their values are read by MySQL and displayed to the user when the variables
+are queried, e.g.:
+  SELECT @@innodb_buffer_pool_dump_now;
+  SELECT @@innodb_buffer_pool_load_now;
+  SELECT @@innodb_buffer_pool_load_abort; */
+static my_bool	innodb_buffer_pool_dump_now = FALSE;
+static my_bool	innodb_buffer_pool_load_now = FALSE;
+static my_bool	innodb_buffer_pool_load_abort = FALSE;
+
+/****************************************************************//**
+Trigger a dump of the buffer pool if innodb_buffer_pool_dump_now is set
+to ON. This function is registered as a callback with MySQL. */
+static
+void
+buffer_pool_dump_now(
+/*=================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_dump_start();
+	}
+}
+
+/****************************************************************//**
+Trigger a load of the buffer pool if innodb_buffer_pool_load_now is set
+to ON. This function is registered as a callback with MySQL. */
+static
+void
+buffer_pool_load_now(
+/*=================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_load_start();
+	}
+}
+
+/****************************************************************//**
+Abort a load of the buffer pool if innodb_buffer_pool_load_abort
+is set to ON. This function is registered as a callback with MySQL. */
+static
+void
+buffer_pool_load_abort(
+/*===================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_load_abort();
+	}
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
   {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
@@ -12278,6 +12368,37 @@ static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
   NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
 
+static MYSQL_SYSVAR_STR(buffer_pool_filename, srv_buf_dump_filename,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+  "Filename to/from which to dump/load the InnoDB buffer pool",
+  NULL, NULL, SRV_BUF_DUMP_FILENAME_DEFAULT);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_dump_now, innodb_buffer_pool_dump_now,
+  PLUGIN_VAR_RQCMDARG,
+  "Trigger an immediate dump of the buffer pool into a file named @@innodb_buffer_pool_filename",
+  NULL, buffer_pool_dump_now, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_dump_at_shutdown, srv_buffer_pool_dump_at_shutdown,
+  PLUGIN_VAR_RQCMDARG,
+  "Dump the buffer pool into a file named @@innodb_buffer_pool_filename",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_load_now, innodb_buffer_pool_load_now,
+  PLUGIN_VAR_RQCMDARG,
+  "Trigger an immediate load of the buffer pool from a file named @@innodb_buffer_pool_filename",
+  NULL, buffer_pool_load_now, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_load_abort, innodb_buffer_pool_load_abort,
+  PLUGIN_VAR_RQCMDARG,
+  "Abort a currently running load of the buffer pool",
+  NULL, buffer_pool_load_abort, FALSE);
+
+/* there is no point in changing this during runtime, thus readonly */
+static MYSQL_SYSVAR_BOOL(buffer_pool_load_at_startup, srv_buffer_pool_load_at_startup,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Load the buffer pool from a file named @@innodb_buffer_pool_filename",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments.",
@@ -12465,6 +12586,12 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_instances),
+  MYSQL_SYSVAR(buffer_pool_filename),
+  MYSQL_SYSVAR(buffer_pool_dump_now),
+  MYSQL_SYSVAR(buffer_pool_dump_at_shutdown),
+  MYSQL_SYSVAR(buffer_pool_load_now),
+  MYSQL_SYSVAR(buffer_pool_load_abort),
+  MYSQL_SYSVAR(buffer_pool_load_at_startup),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
