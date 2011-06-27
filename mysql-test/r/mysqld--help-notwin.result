@@ -424,7 +424,8 @@ The following options may be given as the first argument:
  index_merge_sort_union, index_merge_intersection,
  engine_condition_pushdown, index_condition_pushdown, mrr,
  mrr_cost_based, materialization, semijoin, loosescan,
- firstmatch} and val is one of {on, off, default}
+ firstmatch, block_nested_loop, batch_key_access} and val
+ is one of {on, off, default}
  --performance-schema 
  Enable the performance schema.
  --performance-schema-events-stages-history-long-size=# 
@@ -895,7 +896,7 @@ old-style-user-limits FALSE
 optimizer-join-cache-level 4
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on,block_nested_loop=on
 performance-schema FALSE
 performance-schema-events-stages-history-long-size 10000
 performance-schema-events-stages-history-size 10

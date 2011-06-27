@@ -1,8 +1,4 @@
-let $requires_join_cache_level = 6;
---source include/have_join_cache_level.inc
-
---eval set optimizer_join_cache_level = $requires_join_cache_level;
-
+set optimizer_switch='batch_key_access=on';
 set optimizer_switch='mrr_cost_based=off';
 
 --source include/join_cache.inc

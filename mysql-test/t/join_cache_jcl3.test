@@ -1,3 +1,4 @@
+set optimizer_switch='block_nested_loop=off';
 let $requires_join_cache_level = 3;
 --source include/have_join_cache_level.inc
 
