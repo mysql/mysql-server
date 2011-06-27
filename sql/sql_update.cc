@@ -1868,7 +1868,7 @@ int multi_update::send_data(List<Item> &not_used_values)
                   *values_for_table[offset], TRUE, FALSE);
 
       /* Write row, ignoring duplicated updates to a row */
-      error= tmp_table->file->ha_write_row(tmp_table->record[0]);
+      error= tmp_table->file->ha_write_tmp_row(tmp_table->record[0]);
       if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE)
       {
         if (error &&

@@ -14322,7 +14322,7 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
 
   /* remove heap table and change to use myisam table */
   (void) table->file->ha_rnd_end();
-  (void) table->file->close();                  // This deletes the table !
+  (void) table->file->ha_close();          // This deletes the table !
   delete table->file;
   table->file=0;
   plugin_unlock(0, table->s->db_plugin);
@@ -14343,7 +14343,7 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   table->file->print_error(write_err, MYF(0));
 err_killed:
   (void) table->file->ha_rnd_end();
-  (void) new_table.file->close();
+  (void) new_table.file->ha_close();
  err1:
   new_table.file->ha_delete_table(new_table.s->table_name.str);
  err2:
@@ -16183,8 +16183,8 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {						/* Update old record */
     restore_record(table,record[1]);
     update_tmptable_sum_func(join->sum_funcs,table);
-    if ((error= table->file->ha_update_row(table->record[1],
-                                           table->record[0])))
+    if ((error= table->file->ha_update_tmp_row(table->record[1],
+                                               table->record[0])))
     {
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
@@ -16267,8 +16267,8 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     restore_record(table,record[1]);
     update_tmptable_sum_func(join->sum_funcs,table);
-    if ((error= table->file->ha_update_row(table->record[1],
-                                           table->record[0])))
+    if ((error= table->file->ha_update_tmp_row(table->record[1],
+                                               table->record[0])))
     {
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */

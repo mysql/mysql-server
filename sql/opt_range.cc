@@ -1804,7 +1804,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
         DBUG_PRINT("info", ("Freeing separate handler 0x%lx (free: %d)", (long) file,
                             free_file));
         file->ha_external_lock(current_thd, F_UNLCK);
-        file->close();
+        file->ha_close();
         delete file;
       }
     }
@@ -1999,7 +1999,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   if (init() || reset())
   {
     file->ha_external_lock(thd, F_UNLCK);
-    file->close();
+    file->ha_close();
     goto failure;
   }
   free_file= TRUE;

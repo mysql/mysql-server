@@ -2524,7 +2524,7 @@ int ha_maria::delete_table(const char *name)
 void ha_maria::drop_table(const char *name)
 {
   DBUG_ASSERT(file->s->temporary);
-  (void) close();
+  (void) ha_close();
   (void) maria_delete_table_files(name, 0);
 }
 

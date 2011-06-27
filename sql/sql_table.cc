@@ -4681,6 +4681,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   int result_code;
   bool need_repair_or_alter= 0;
   DBUG_ENTER("mysql_admin_table");
+  DBUG_PRINT("enter", ("extra_open_options: %u", extra_open_options));
 
   if (end_active_trans(thd))
     DBUG_RETURN(1);
@@ -4705,9 +4706,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     bool fatal_error=0;
 
     DBUG_PRINT("admin", ("table: '%s'.'%s'", table->db, table->table_name));
-    DBUG_PRINT("admin", ("extra_open_options: %u", extra_open_options));
     strxmov(table_name, db, ".", table->table_name, NullS);
-    thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
     /* open only one table from local list of command */
     {
@@ -4734,12 +4733,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           lex->sql_command == SQLCOM_ANALYZE ||
           lex->sql_command == SQLCOM_OPTIMIZE)
 	thd->prepare_derived_at_open= TRUE;
+      thd->open_options|= extra_open_options;
       open_and_lock_tables(thd, table);
+      thd->open_options&= ~extra_open_options;
       thd->prepare_derived_at_open= FALSE;
       thd->no_warnings_for_error= 0;
       table->next_global= save_next_global;
       table->next_local= save_next_local;
-      thd->open_options&= ~extra_open_options;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       if (table->table)
       {
@@ -4923,7 +4923,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         /* We use extra_open_options to be able to open crashed tables */
         thd->open_options|= extra_open_options;
         result_code= admin_recreate_table(thd, table);
-        thd->open_options= ~extra_open_options;
+        thd->open_options&= ~extra_open_options;
         goto send_result;
       }
       if (check_old_types || check_for_upgrade)

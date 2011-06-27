@@ -2168,7 +2168,7 @@ THD *handler::ha_thd(void) const
     Don't wait for locks if not HA_OPEN_WAIT_IF_LOCKED is set
 */
 int handler::ha_open(TABLE *table_arg, const char *name, int mode,
-                     int test_if_locked)
+                     uint test_if_locked)
 {
   int error;
   DBUG_ENTER("handler::ha_open");
@@ -2212,11 +2212,22 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       dup_ref=ref+ALIGN_SIZE(ref_length);
     cached_table_flags= table_flags();
   }
-  rows_read= rows_changed= 0;
-  memset(index_rows_read, 0, sizeof(index_rows_read));
+  reset_statistics();
+  internal_tmp_table= test(test_if_locked & HA_OPEN_INTERNAL_TABLE);
   DBUG_RETURN(error);
 }
 
+int handler::ha_close()
+{
+  DBUG_ENTER("ha_close");
+  /*
+    Increment global statistics for temporary tables.
+    In_use is 0 for tables that was closed from the table cache.
+  */
+  if (table->in_use)
+    status_var_add(table->in_use->status_var.rows_tmp_read, rows_tmp_read);
+  DBUG_RETURN(close());
+}
 
 /* Initialize handler for random reading, with error handling */
 
@@ -3238,7 +3249,7 @@ int handler::rename_table(const char * from, const char * to)
 
 void handler::drop_table(const char *name)
 {
-  close();
+  ha_close();
   delete_table(name);
 }
 
@@ -3757,6 +3768,7 @@ void handler::update_global_table_stats()
   TABLE_STATS * table_stats;
 
   status_var_add(table->in_use->status_var.rows_read, rows_read);
+  DBUG_ASSERT(rows_tmp_read == 0);
 
   if (!table->in_use->userstat_running)
   {

@@ -530,6 +530,9 @@ typedef struct system_status_var
   ulong ha_rollback_count;
   ulong ha_update_count;
   ulong ha_write_count;
+  /* The following are for internal temporary tables */
+  ulong ha_tmp_update_count;
+  ulong ha_tmp_write_count;
   ulong ha_prepare_count;
   ulong ha_discover_count;
   ulong ha_savepoint_count;
@@ -582,6 +585,7 @@ typedef struct system_status_var
   ulonglong bytes_sent;
   ulonglong rows_read;
   ulonglong rows_sent;
+  ulonglong rows_tmp_read;
   ulonglong binlog_bytes_written;
   double last_query_cost;
   double cpu_time, busy_time;
@@ -3610,7 +3614,7 @@ inline int handler::ha_index_read_idx_map(uchar * buf, uint index,
   int error= index_read_idx_map(buf, index, key, keypart_map, find_flag);
   if (!error)
   {
-    rows_read++;
+    update_rows_read();
     index_rows_read[index]++;
   }
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3677,7 +3681,8 @@ inline int handler::ha_ft_read(uchar *buf)
 {
   int error= ft_read(buf);
   if (!error)
-    rows_read++;
+    update_rows_read();
+
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -3687,7 +3692,7 @@ inline int handler::ha_rnd_next(uchar *buf)
   increment_statistics(&SSV::ha_read_rnd_next_count);
   int error= rnd_next(buf);
   if (!error)
-    rows_read++;
+    update_rows_read();
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -3697,7 +3702,7 @@ inline int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   increment_statistics(&SSV::ha_read_rnd_count);
   int error= rnd_pos(buf, pos);
   if (!error)
-    rows_read++;
+    update_rows_read();
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -3706,7 +3711,7 @@ inline int handler::ha_rnd_pos_by_record(uchar *buf)
 {
   int error= rnd_pos_by_record(buf);
   if (!error)
-    rows_read++;
+    update_rows_read();
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -3715,15 +3720,21 @@ inline int handler::ha_read_first_row(uchar *buf, uint primary_key)
 {
   int error= read_first_row(buf, primary_key);
   if (!error)
-    rows_read++;
+    update_rows_read();
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
 inline int handler::ha_write_tmp_row(uchar *buf)
 {
-  increment_statistics(&SSV::ha_write_count);
+  increment_statistics(&SSV::ha_tmp_write_count);
   return write_row(buf);
+}
+
+inline int handler::ha_update_tmp_row(const uchar *old_data, uchar *new_data)
+{
+  increment_statistics(&SSV::ha_tmp_update_count);
+  return update_row(old_data, new_data);
 }
 
 #endif /* MYSQL_SERVER */

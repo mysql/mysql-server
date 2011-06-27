@@ -60,7 +60,7 @@ int select_union::send_data(List<Item> &values)
   if (thd->is_error())
     return 1;
 
-  if ((write_err= table->file->ha_write_row(table->record[0])))
+  if ((write_err= table->file->ha_write_tmp_row(table->record[0])))
   {
     if (write_err == HA_ERR_FOUND_DUPP_KEY)
     {
