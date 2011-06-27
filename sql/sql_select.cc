@@ -6492,7 +6492,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 
 void JOIN_TAB::calc_used_field_length(bool max_fl)
 {
-  uint null_fields,blobs,fields,rec_length;
+  uint null_fields,blobs,fields;
+  ulong rec_length;
   Field **f_ptr,*field;
   uint uneven_bit_fields;
   MY_BITMAP *read_set= table->read_set;
@@ -6523,9 +6524,11 @@ void JOIN_TAB::calc_used_field_length(bool max_fl)
     // TODO: to improve this estimate for max expected length 
     if (blobs)
     {
-      uint blob_length=(uint) (table->file->stats.mean_rec_length-
-			      (table->s->reclength-rec_length));
-      rec_length+=(uint) max(sizeof(void*) * blobs, blob_length);
+      ulong blob_length= table->file->stats.mean_rec_length;
+      if (ULONG_MAX - rec_length > blob_length)
+        rec_length+=  blob_length;
+      else
+        rec_length= ULONG_MAX;
     }
     max_used_fieldlength= rec_length;
   } 
