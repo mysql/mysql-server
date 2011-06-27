@@ -3274,6 +3274,7 @@ const char *load_default_groups[]= {
 #endif
 "mysqld", "server", MYSQL_BASE_VERSION,
 "mariadb", MARIADB_BASE_VERSION,
+"client-server",
 0, 0};
 
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
