@@ -4376,7 +4376,7 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
                                  tmp_buf,
                                  sizeof(tmp_buf)) != 0)
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_CONFLICT_FN_PARSE_ERROR,
                             ER(ER_CONFLICT_FN_PARSE_ERROR),
                             tmp_buf);
@@ -4424,7 +4424,7 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
                           args,
                           num_args) != 0)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_CONFLICT_FN_PARSE_ERROR,
                           ER(ER_CONFLICT_FN_PARSE_ERROR),
                           tmp_buf);
