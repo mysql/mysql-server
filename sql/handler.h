@@ -236,13 +236,15 @@
   Index scan will not return records in rowid order. Not guaranteed to be
   set for unordered (e.g. HASH) indexes.
 */
-#define HA_KEY_SCAN_NOT_ROR     128
+#define HA_KEY_SCAN_NOT_ROR     128 
 
+#ifndef MCP_WL4784
 /*
   no IO if read data when scan index
   i.e index is covering
 */
 #define HA_CLUSTERED_INDEX      256
+#endif
 
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
@@ -406,6 +408,7 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
 
+#ifndef MCP_WL4784
 namespace AQP {
   class Join_plan;
 };
@@ -429,6 +432,7 @@ enum ha_push_flag {
    */
   ,HA_PUSH_NO_ORDERED_INDEX
 };
+#endif
 
 /**
   struct xid_t is binary compatible with the XID structure as
@@ -836,8 +840,10 @@ struct handlerton
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
 
-   int (*make_pushed_join)(handlerton *hton, THD* thd, 
+#ifndef MCP_WL4784
+   int (*make_pushed_join)(handlerton *hton, THD* thd,
                            AQP::Join_plan* plan);
+#endif
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
@@ -1198,7 +1204,6 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
   (keypart_map for a key prefix of [0..N-1] keyparts)
 */
 #define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
-
 
 /**
   The handler class is the interface for dynamically loadable
@@ -1938,6 +1943,7 @@ public:
  */
  virtual void cond_pop() { return; };
 
+#ifndef MCP_WL4784
   /**
     Reports #tables included in pushed join which this
     handler instance is part of. ==0 -> Not pushed
@@ -1970,11 +1976,8 @@ public:
 
   virtual int index_next_pushed(uchar * buf)
   { return  HA_ERR_WRONG_COMMAND; }
+#endif
 
-
- /*
-    Part of old fast alter table, to be depricated
-  */
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }
@@ -2323,8 +2326,10 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
 
+#ifndef MCP_WL4784
 /* Build pushed joins in handlers implementing this feature */
 int ha_make_pushed_joins(THD *thd, AQP::Join_plan* plan);
+#endif
 
 /* these are called by storage engines */
 void trans_register_ha(THD *thd, bool all, handlerton *ht);
