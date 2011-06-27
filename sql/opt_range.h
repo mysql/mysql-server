@@ -374,7 +374,7 @@ class SEL_ARG;
 
 /*
   Quick select that does a range scan on a single key. The records are
-  returned in key order if 'QUICK_SELECT_I::sorted==true'.
+  returned in key order.
 */
 class QUICK_RANGE_SELECT : public QUICK_SELECT_I
 {

@@ -4022,6 +4022,7 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
   DBUG_RETURN(args.err);
 }
 
+#ifndef MCP_WL4784
 /**
   Prepare (sub-) sequences of joins in this statement 
   which may be pushed to each storage engine for execution.
@@ -4042,7 +4043,7 @@ int ha_make_pushed_joins(THD *thd, AQP::Join_plan* plan)
   }
   return 0;
 }
-
+#endif
 
 #ifdef HAVE_NDB_BINLOG
 /*

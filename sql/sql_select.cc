@@ -48,7 +48,9 @@
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
 #include "debug_sync.h"          // DEBUG_SYNC
+#ifndef MCP_WL4784
 #include "abstract_query_plan.h"
+#endif
 
 #include <m_ctype.h>
 #include <my_bit.h>
@@ -173,6 +175,9 @@ static void join_read_key_unlock_row(st_join_table *tab);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_read_last_key(JOIN_TAB *tab);
 static int join_no_more_records(READ_RECORD *info);
+#ifdef MCP_WL4784
+static int join_read_next(READ_RECORD *info);
+#endif
 static int join_init_quick_read_record(JOIN_TAB *tab);
 static int test_if_quick_select(JOIN_TAB *tab);
 static int join_init_read_record(JOIN_TAB *tab);
@@ -186,8 +191,10 @@ static int join_ft_read_first(JOIN_TAB *tab);
 static int join_ft_read_next(READ_RECORD *info);
 int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
+#ifndef MCP_WL4784
 static int join_read_linked_first(JOIN_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
+#endif
 static COND *make_cond_for_table(COND *cond,table_map table,
 				 table_map used_table);
 static Item* part_of_refkey(TABLE *form,Field *field);
@@ -200,6 +207,11 @@ static bool test_if_cheaper_ordering(const JOIN_TAB *tab,
                                      ha_rows *new_select_limit,
                                      uint *new_used_key_parts= NULL,
                                      uint *saved_best_key_parts= NULL);
+#ifdef MCP_WL4784
+static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
+				    ha_rows select_limit, bool no_changes,
+                                    key_map *map);
+#endif
 static bool list_contains_unique_index(TABLE *table,
                           bool (*find_func) (Field *, void *), void *data);
 static bool find_field_in_item_list (Field *field, void *data);
@@ -257,8 +269,9 @@ static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static bool test_if_ref(Item_field *left_item,Item *right_item);
 
+#ifndef MCP_WL4784
 static int  make_pushed_join(THD *thd, JOIN *join);
-
+#endif
 
 /**
   This handles SELECT with and without UNION.
@@ -1557,8 +1570,10 @@ JOIN::optimize()
     }
   }
 
+#ifndef MCP_WL4784
   if (make_pushed_join(thd, this))
     DBUG_RETURN(1);
+#endif
 
   tmp_having= having;
   if (select_options & SELECT_DESCRIBE)
@@ -1709,7 +1724,7 @@ JOIN::optimize()
   DBUG_RETURN(0);
 }
 
-
+#ifndef MCP_WL4784
 static int
 make_pushed_join(THD *thd, JOIN *join)
 {
@@ -1774,7 +1789,7 @@ make_pushed_join(THD *thd, JOIN *join)
   DBUG_ASSERT(active_pushed_joins==0);
   return 0;
 }
-
+#endif
 
 /**
   Restore values in temporary join.
@@ -2842,8 +2857,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
          no_partitions_used) &&
 	!s->dependent &&
 	(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
+#ifndef MCP_WL4784
         !table->fulltext_searched && !join->no_const_tables &&
         !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
+#else
+        !table->fulltext_searched && !join->no_const_tables)
+#endif
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
     }
@@ -3037,8 +3056,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
               !table->fulltext_searched && 
+#ifndef MCP_WL4784
               !table->pos_in_table_list->embedding &&
               !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
+#else
+              !table->pos_in_table_list->embedding)
+#endif
 	  {
             if (table->key_info[key].flags & HA_NOSAME)
             {
@@ -5556,13 +5579,13 @@ best_extension_by_limited_search(JOIN      *join,
      'join' is a partial plan with lower cost than the best plan so far,
      so continue expanding it further with the tables in 'remaining_tables'.
   */
+  JOIN_TAB *s;
   double best_record_count= DBL_MAX;
   double best_read_time=    DBL_MAX;
 
   DBUG_EXECUTE("opt", print_plan(join, idx, record_count, read_time, read_time,
                                 "part_plan"););
 
-  JOIN_TAB *s;
 #ifndef MCP_BUG59326
   JOIN_TAB *saved_refs[MAX_TABLES];
   // Save 'best_ref[]' as we has to restore before return.
@@ -5660,11 +5683,12 @@ best_extension_by_limited_search(JOIN      *join,
       }
 
       if ( (search_depth > 1) && (remaining_tables & ~real_table_bit) )
-      {
 #ifdef MCP_BUG59326
+      { /* Recursively expand the current partial plan */
         swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+#else
+      {  /* Explore more best extensions of plan */
 #endif
-        /* Explore more best extensions of plan */
         if (best_extension_by_limited_search(join,
                                              remaining_tables & ~real_table_bit,
                                              idx + 1,
@@ -7015,14 +7039,13 @@ make_join_readinfo(JOIN *join, ulonglong options)
   uint i;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   bool ordered_set= 0;
-  DBUG_ENTER("make_join_readinfo");
-
 #ifdef MCP_BUG11764737
   bool sorted= 1;
 #else
   /* First table sorted if ORDER or GROUP BY was specified */
   bool sorted= (join->order || join->group_list);
 #endif
+  DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
   {
@@ -12513,7 +12536,7 @@ join_read_key_unlock_row(st_join_table *tab)
     tab->ref.use_count--;
 }
 
-
+#ifndef MCP_WL4784
 /**
   Read a table *assumed* to be included in execution of a pushed join.
   This is the counterpart of join_read_key() / join_read_always_key()
@@ -12584,7 +12607,7 @@ join_read_linked_next(READ_RECORD *info)
   }
   DBUG_RETURN(error);
 }
-
+#endif
 
 /*
   ref access method implementation: "read_first" function
@@ -13950,7 +13973,11 @@ find_field_in_item_list (Field *field, void *data)
     1    We can use an index.
 */
 
+#ifndef MCP_WL4784
 bool
+#else
+static bool
+#endif
 test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 			bool no_changes, key_map *map)
 {
@@ -17225,6 +17252,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
+#ifndef MCP_WL4784
         const TABLE* pushed_root= table->file->root_of_pushed_join();
         if (pushed_root)
         {
@@ -17258,6 +17286,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           }
           extra.append(buf,len);
         }
+#endif
         if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
@@ -17893,9 +17922,11 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
     If not used with LIMIT, only use keys if the whole query can be
     resolved with a key;  This is because filesort() is usually faster than
     retrieving all rows through an index.
+#ifndef MCP_WL4784
     The exception is if there is a pushed join which we can't filesort().
     This is due to the prefetch of result rows from the pushed join
     which filesort() is not able to buffer.
+#endif
   */
   if (select_limit >= table_records)
   {
