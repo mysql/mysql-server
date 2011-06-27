@@ -4216,6 +4216,8 @@ bool JOIN::optimize_unflattened_subqueries()
     Currently there are only two possible startup functions, so we have them
     both here inside if (...) branches. In future we could switch to function
     pointers.
+
+  TODO: consider moving this together with JOIN_TAB::preread_init
   
   RETURN 
     NESTED_LOOP_OK - OK

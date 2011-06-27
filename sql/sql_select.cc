@@ -9479,6 +9479,8 @@ double JOIN_TAB::scan_time()
 /**
   Initialize the join_tab before reading.
   Currently only derived table/view materialization is done here.
+
+  TODO: consider moving this together with join_tab_execution_startup
 */
 bool JOIN_TAB::preread_init()
 {
