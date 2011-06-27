@@ -1280,11 +1280,12 @@ insert into t0 values (1),(2);
 
 set @tmp_20110622= @@optimizer_switch;
 set optimizer_switch='firstmatch=off,loosescan=off,materialization=off';
+--echo # Check DuplicateWeedout + join buffer
 explain 
 select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
 select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
 
---echo # Try also without join buffer
+--echo # Check DuplicateWeedout without join buffer
 set @tmp_jcl_20110622= @@join_cache_level;
 set join_cache_level= 0;
 explain 
@@ -1292,12 +1293,48 @@ select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
 select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
 
 
+--echo # Check FirstMatch without join buffer:
 set optimizer_switch='firstmatch=on';
 explain 
 select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
 select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
 
+--echo #
+--echo # Now, check the same for multiple inner tables:
+alter table t2 add b int;
+update t2 set b=a;
+create table t3 as select * from t2;
+
+set optimizer_switch='firstmatch=off';
+set join_cache_level= 0;
+--echo # DuplicateWeedout without join buffer
+explain 
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
 set @@join_cache_level=@tmp_jcl_20110622;
+--echo # DuplicateWeedout + join buffer
+explain
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
+--echo # Now, let the inner join side have a 'partial' match
+select * from t3;
+insert into t3 values(2,2);
+
+explain
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
 set @@optimizer_switch=@tmp_20110622;
 
 drop table t0, t1, t2;
