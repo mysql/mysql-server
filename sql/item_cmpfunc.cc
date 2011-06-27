@@ -4591,7 +4591,7 @@ void Item_cond::traverse_cond(Cond_traverser traverser,
     that have or refer (HAVING) to a SUM expression.
 */
 
-void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
+void Item_cond::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                                List<Item> &fields)
 {
   List_iterator<Item> li(list);

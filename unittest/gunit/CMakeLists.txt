@@ -205,6 +205,7 @@ ENDIF()
 # Add tests (link them with gunit library) 
 SET(TESTS
   bounded_queue
+  bounds_checked_array
   dbug
   dynarray
   mdl
