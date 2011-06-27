@@ -1,4 +1,4 @@
-set optimizer_join_cache_level = 3;;
+set optimizer_join_cache_level = 0;;
 set optimizer_switch='mrr_cost_based=off';
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
@@ -37,14 +37,14 @@ Variable_name	Value
 join_buffer_size	131072
 show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-optimizer_join_cache_level	3
+optimizer_join_cache_level	0
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -73,8 +73,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer (BNL, regular buffers)
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -232,7 +232,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -261,8 +261,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer (BNL, regular buffers)
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -634,8 +634,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	City	ALL	Population	NULL	NULL	NULL	4079	Using where
-2	DEPENDENT SUBQUERY	Country	unique_subquery	PRIMARY,Name	PRIMARY	3	func	1	Using where
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -941,8 +941,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	City	ALL	Population	NULL	NULL	NULL	4079	Using where
-2	DEPENDENT SUBQUERY	Country	unique_subquery	PRIMARY,Name	PRIMARY	3	func	1	Using where
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1315,7 +1315,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t9	ref	PRIMARY,t9_subgenreid,t9_metaid	t9_metaid	4	test.t7.metaid	2	Using index condition
 1	SIMPLE	t10	eq_ref	PRIMARY,t10_genreid	PRIMARY	4	test.t9.subgenreid	1	
 1	SIMPLE	t11	eq_ref	PRIMARY	PRIMARY	4	test.t10.genreid	1	
-1	SIMPLE	t3	ALL	t3_metaid,t3_formatid,t3_metaidformatid	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t3	ref	t3_metaid,t3_formatid,t3_metaidformatid	t3_metaid	4	test.t1.metaid	2	Using where
 SELECT t1.uniquekey, t1.xml AS affiliateXml,
 t8.name AS artistName, t8.artistid, 
 t11.name AS genreName, t11.genreid, t11.priority AS genrePriority,
@@ -1448,8 +1448,8 @@ explain
 select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	8	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	ALL	i_a	NULL	NULL	NULL	10	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using where
 select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 a	count
@@ -1474,7 +1474,7 @@ EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ALL	i_a	NULL	NULL	NULL	5	Using where; Not exists; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t2	ref	i_a	i_a	4	test.t1.a	2	Using where; Not exists
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.b IS NULL;
 a	a	b
 3	NULL	NULL
@@ -1516,7 +1516,7 @@ a	b	a	c
 explain select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
 select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
 a	b	a	c
 2	20	NULL	NULL
@@ -1537,7 +1537,7 @@ a	b
 explain select * from t1 left join t2 on (1=0) where a=40;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 select * from t1 left join t2 on (1=0) where a=40;
 a	b
 40	NULL
@@ -1699,7 +1699,7 @@ WHERE t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	8	NULL	2	Using index
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	8	test.t1.a	1	Using index
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	24	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	24	Using where
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
 FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
 WHERE t1.a=t2.a;
@@ -1936,7 +1936,7 @@ FROM t1 STRAIGHT_JOIN t2
 ORDER BY t1.int_key;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	int_key	4	NULL	14	Using index
-1	SIMPLE	t2	index	NULL	int_key	4	NULL	2	Using index; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t2	index	NULL	int_key	4	NULL	2	Using index
 
 DROP TABLE t1,t2;
 #
@@ -1987,7 +1987,7 @@ FROM t1 JOIN t2 ON t2.v
 ORDER BY t2.v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index
 
 DROP TABLE t1,t2;
 #
@@ -2003,17 +2003,17 @@ INSERT INTO t3 VALUES (1,1),(2,2);
 EXPLAIN SELECT t1.* FROM t1,t2,t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	
 SELECT t1.* FROM t1,t2,t3;
 a	b
 1	1
-2	2
+1	1
+1	1
 1	1
 2	2
-1	1
 2	2
-1	1
+2	2
 2	2
 DROP TABLE t1,t2,t3;
 #
@@ -2095,7 +2095,7 @@ FROM (t2 JOIN t1) LEFT JOIN (t3 JOIN t4 ON t3.id = t4.carrier_id)
 ON t3.carrier = t1.carrier;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.carrier	1	
 1	SIMPLE	t4	ref	carrier_id	carrier_id	5	test.t3.id	2	Using index
 
@@ -2159,7 +2159,7 @@ INSERT INTO t2 VALUES (100,NULL),(150,"varchar"),(200,NULL),(250,"long long varc
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	4	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t2	ref	b	b	103	test.t1.b	2	
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 a
 NULL
@@ -2416,7 +2416,7 @@ explain SELECT t3.c1 FROM t3
 WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index; Start temporary
-1	PRIMARY	t1	ALL	col_int_key	NULL	NULL	NULL	1	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	col_int_key	NULL	NULL	NULL	1	Using where
 1	PRIMARY	t3	ref	k1	k1	5	test.t1.c2_key	1	Using index; End temporary
 SELECT t3.c1 FROM t3
 WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
