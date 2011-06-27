@@ -130,9 +130,10 @@ MACRO(CREATE_JAR)
   SET(separator) # Empty separator to start with
   SET(classpath_str)
   FOREACH(item ${ARG_CLASSPATH})
-    SET(classpath_str ${classpath_str}${separator}${item})
+    SET(classpath_str "${classpath_str}${separator}${item}")
     IF (WIN32)
-      SET(separator ";")
+      # Quote the semicolon since it's cmakes list separator
+      SET(separator "\;")
     ELSE()
       SET(separator ":")
     ENDIF()
