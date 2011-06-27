@@ -137,7 +137,6 @@ set GLOBAL slave_transaction_retries=1;
 UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 **** On Slave ****
 include/wait_for_slave_sql_error.inc [errno=1205 ]
-Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: ''. Query: 'COMMIT''
 set GLOBAL slave_transaction_retries=10;
 include/start_slave.inc
 select * from t1 order by nid;

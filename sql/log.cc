@@ -4673,7 +4673,10 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional)
   DBUG_PRINT("enter", ("table: 0x%lx  (%s: #%lu)",
                        (long) table, table->s->table_name.str,
                        table->s->table_map_id));
-
+  DBUG_PRINT("info", ("is_current_stmt_binlog_format_row() = %s", (is_current_stmt_binlog_format_row())?"true":"false"));
+  DBUG_PRINT("info", ("mysql_bin_log.is_open() = %s", (mysql_bin_log.is_open())?"true":"false"));
+  DBUG_PRINT("info", ("current_stmt_binlog_format %u", current_stmt_binlog_format));
+  
   /* Pre-conditions */
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
   DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
