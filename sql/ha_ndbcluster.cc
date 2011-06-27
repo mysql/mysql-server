@@ -4540,7 +4540,7 @@ handle_conflict_op_error(Thd_ndb* thd_ndb,
           }
           else
           {
-            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                 ER_EXCEPTIONS_WRITE_ERROR,
                                 ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
             /* Slave will stop replication. */
@@ -4574,7 +4574,7 @@ handle_conflict_op_error(Thd_ndb* thd_ndb,
           }
           else
           {
-            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                 ER_EXCEPTIONS_WRITE_ERROR,
                                 ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
             /* Slave will stop replication. */
