@@ -3748,3 +3748,58 @@ eval $query;
 DROP TABLE t1, t2;
 
 --echo # End of bug#12603200
+
+--echo #
+--echo # Bug#12603183: Segfault in hp_movelink
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1) ,
+  col_varchar_nokey varchar(1) ,
+  KEY col_varchar_key(col_varchar_key)
+);
+
+INSERT INTO t1 VALUES
+('i','i'),
+('h','h'),
+('q','q'),
+('a','a'),
+('v','v'),
+('u','u'),
+('s','s'),
+('y','y'),
+('z','z'),
+('h','h'),
+('p','p'),
+('e','e'),
+('i','i'),
+('y','y'),
+('w','w');
+
+CREATE TABLE t2 (
+  col_varchar_nokey varchar(1)
+);
+
+INSERT INTO t2 VALUES
+('b');
+
+let $query=
+SELECT grandparent1.col_varchar_nokey
+FROM t1 AS grandparent1 LEFT JOIN t2 AS grandparent2 USING (col_varchar_nokey)
+WHERE (grandparent1.col_varchar_key) IN
+   (SELECT parent1.col_varchar_nokey
+    FROM t1 AS parent1
+    WHERE parent1.col_varchar_key IN
+       (SELECT child1.col_varchar_nokey AS c1
+        FROM t1 AS child1 LEFT JOIN t2 AS child2
+                ON (child1.col_varchar_key > child2.col_varchar_nokey)));
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo -- Notice that Materialize-scan algorithm reports wrong result for this query.
+--echo -- This problem will be filed as a separate bug and dealt with in WL#5561.
+
+DROP TABLE t1, t2;
+
+--echo # End of the test for bug#12603183.

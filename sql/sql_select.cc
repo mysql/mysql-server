@@ -17366,6 +17366,20 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     Next_select_func next_func= join_tab[sjm->table_count - 1].next_select;
     join_tab[sjm->table_count - 1].next_select= end_sj_materialize;
 
+    if (sjm->is_scan)
+    {
+      JOIN_TAB *last_tab= join_tab + (sjm->table_count - 1);
+      if (last_tab->save_read_first_record == NULL)
+      {
+        /* Save a copy of the read first function before substituting it */
+        last_tab->save_read_first_record= last_tab->read_first_record;
+      }
+      else
+      {
+        /* Restore read function saved in previous materialization round */
+        last_tab->read_first_record= last_tab->save_read_first_record;
+      }
+    }
     /*
       Now run the join for the inner tables. The first call is to run the
       join, the second one is to signal EOF (this is essential for some
@@ -17382,7 +17396,6 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     /*
       Ok, materialization finished. Initialize the access to the temptable
     */
-    sjm->materialized= TRUE;
     join_tab->read_record.read_record= join_no_more_records;
     if (sjm->is_scan)
     {
@@ -17391,7 +17404,6 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       init_read_record(&last_tab->read_record, join->thd,
                        sjm->table, NULL, TRUE, TRUE, FALSE);
 
-      DBUG_ASSERT(last_tab->read_record.read_record == rr_sequential);
       last_tab->read_first_record= join_read_record_no_init;
       last_tab->read_record.copy_field= sjm->copy_field;
       last_tab->read_record.copy_field_end= sjm->copy_field +
@@ -17402,6 +17414,8 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       last_tab->last_inner= NULL;
       last_tab->first_unmatched= NULL;
     }
+
+    sjm->materialized= true;
   }
   else
   {
