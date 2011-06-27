@@ -1,0 +1,244 @@
+# Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; version 2 of
+# the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301  USA
+#
+# Some functional checks for the content of performance_schema.socket_instances.
+#
+
+--source include/not_embedded.inc
+--source include/not_windows.inc
+
+CREATE TEMPORARY TABLE my_socket_instances AS
+SELECT * FROM performance_schema.socket_instances;
+SELECT THREAD_ID INTO @thread_id
+FROM performance_schema.threads
+WHERE PROCESSLIST_ID = CONNECTION_ID();
+
+#
+# ESTABLISH LOCAL UNIX DOMAIN CONNECTION
+#
+# Connect via mysql sock file
+
+--echo # Establish local unix domain connection (con1,localhost,root,,test,,)
+--connect(con1,localhost,root,,test,,)
+
+SELECT THREAD_ID INTO @thread_id
+FROM performance_schema.threads
+WHERE PROCESSLIST_ID = CONNECTION_ID();
+
+let $con1_thread_id= `SELECT @thread_id`;
+
+#
+# ESTABLISH LOCAL TCP/IP CONNECTION
+#
+# Have a connection with IP = '127.0.0.1,'
+
+--echo # Establish local TCP/IP connection (con1,127.0.0.1,root,,test,,)
+--connect (con2,127.0.0.1,root,,test,,)
+
+SELECT THREAD_ID INTO @thread_id
+FROM performance_schema.threads
+WHERE PROCESSLIST_ID = CONNECTION_ID();
+
+let $con2_thread_id= `SELECT @thread_id`;
+
+--echo # Switch to connection default
+--connection default
+
+#
+# VERIFY EVENT NAMES
+#
+
+--echo # EVENT_NAME is the "wait/io/socket/*" instrument identifier.
+
+SELECT COUNT(*) = 0 AS "Expect 1"
+FROM performance_schema.socket_instances
+WHERE EVENT_NAME NOT LIKE 'wait/io/socket/%';
+#
+SELECT DISTINCT EVENT_NAME
+FROM performance_schema.socket_instances
+ORDER BY EVENT_NAME;
+
+#
+# VERIFY UNIQUE EVENT ID
+#
+
+--echo # OBJECT_INSTANCE_BEGIN is an arbitrary identifier, guaranteed to be unique.
+
+SELECT COUNT(*) = COUNT(DISTINCT OBJECT_INSTANCE_BEGIN) AS "Expect 1"
+FROM performance_schema.socket_instances;
+
+#
+# VERIFY UNIQUE SOCKET ID
+#
+
+--echo # SOCKET_ID is the internal file handle assigned to the socket.
+SELECT COUNT(*) = COUNT(DISTINCT SOCKET_ID) AS "Expect 1"
+FROM performance_schema.socket_instances;
+
+#
+# VERIFY UNIQUE THREAD ID
+#
+
+--echo # Characteristics per our thread
+--echo #    There must be only one entry with our thread_id
+
+SELECT COUNT(*) = 1 AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE THREAD_ID = @thread_id;
+
+--echo #    Check the content.
+# EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID  IP  PORT    STATE
+# wait/io/socket/com/client_connection       139799531958280         16         37         0    ACTIVE
+
+SELECT EVENT_NAME = 'wait/io/socket/com/client_connection' AND IP = ''
+   AND PORT = 0 AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE THREAD_ID = @thread_id;
+
+#
+# VERIFY SERVER LISTENING SOCKET, TCP/IP
+#
+
+--echo # Characteristics of 'server_tcpip_socket' entry
+--echo #    Server listening socket, TCP/IP
+--echo #    There is only one entry with 'wait/io/socket/com/server_tcpip_socket'.
+
+SELECT COUNT(*) = 1 AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
+
+--echo #    Check the content.
+--replace_result $MASTER_MYPORT <MASTER_MYPORT>
+
+eval SELECT THREAD_ID = 1 AND PORT = $MASTER_MYPORT AND IP = '0.0.0.0'
+     AND STATE = 'ACTIVE' AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
+
+#
+# VERIFY SERVER LISTENING SOCKET, UNIX DOMAIN
+#
+
+#--echo # Characteristics of 'server_unix_socket' entry
+#--echo #    Server listening socket, unix domain (socket file)
+#--echo #    There is only one entry with 'wait/io/socket/com/server_unix_socket'.
+
+SELECT COUNT(*) = 1 AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
+
+--echo #    Check the content.
+eval SELECT THREAD_ID = 1 AND PORT = 0 AND IP = ''
+     AND STATE = 'ACTIVE' AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
+
+#
+# VERIFY SERVER LISTENING SOCKET THREAD ID
+#
+
+--echo # Server listening sockets (TCP and Unix) are handled on thread 1
+SELECT COUNT(*) = 2 AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE THREAD_ID = 1;
+
+--echo # Characteristics of entries with THREAD_ID of con1
+--echo #    There is only one entry with this id.
+--replace_result $con1_thread_id <con1_thread_id>
+
+eval SELECT COUNT(*) = 1 AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE THREAD_ID = $con1_thread_id;
+
+#
+# VERIFY LOCAL CONNECTION, UNIX DOMAIN
+#
+
+# EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID  IP  PORT  STATE
+# wait/io/socket/com/client_connection       139799531958280         16         37         0   IDLE or ACTIVE
+
+--echo #    Check the content.
+--replace_result $con1_thread_id <con1_thread_id>
+
+eval SELECT EVENT_NAME = 'wait/io/socket/com/client_connection' AND IP = ''
+     AND PORT = 0 AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE THREAD_ID = $con1_thread_id;
+
+--echo # Characteristics of entries with THREAD_ID of con2
+--echo #    There is only one entry with this id.
+--replace_result $con2_thread_id <con2_thread_id>
+
+eval SELECT COUNT(*) = 1 AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE THREAD_ID = $con2_thread_id;
+
+#
+# VERIFY LOCAL CONNECTION, TCP/IP
+#
+
+# EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID   IP           PORT  STATE
+# wait/io/socket/com/client_connection       140707865187120         18         59   127.0.0.1   59298   IDLE or ACTIVE
+
+--echo #    Check the content.
+--replace_result $con2_thread_id <con2_thread_id>
+
+eval SELECT EVENT_NAME = 'wait/io/socket/com/client_connection' AND IP = '127.0.0.1'
+     AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE THREAD_ID = $con2_thread_id;
+
+#
+# LIST CLIENT CONNECTIONS
+#
+
+--echo # Show differences to socket_instances before con1,con2 connecting
+
+SELECT EVENT_NAME, IP
+FROM performance_schema.socket_instances
+WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)
+NOT IN (SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE
+        FROM my_socket_instances)
+ORDER BY THREAD_ID;
+
+#
+# DROP CLIENT CONNECTIONS
+#
+
+--echo # Disconnect con1 and con2
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+--connection default
+
+#
+# VERIFY CONNECTIONS DROPPED
+#
+
+--echo # Show differences to socket_instances before con1,con2 connecting.
+--echo # There should be none.
+
+SELECT *
+FROM performance_schema.socket_instances
+WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)
+NOT IN (SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE
+        FROM my_socket_instances)
+ORDER BY THREAD_ID;
+
