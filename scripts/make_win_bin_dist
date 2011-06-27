@@ -373,6 +373,7 @@ mysql_secure_installation.pl \
 mysqld_multi.pl \
 mysqldumpslow.pl \
 mysqlhotcopy.pl \
+mytop.pl \
 "
 
 mkdir -p $DESTDIR/scripts

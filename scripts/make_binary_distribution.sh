@@ -459,6 +459,7 @@ copyfileto $BASE/bin $BIN_FILES
 
 $CP netware/*.pl $BASE/scripts
 $CP scripts/mysqlhotcopy $BASE/scripts/mysqlhotcopy.pl
+$CP scripts/mytop $BASE/scripts/mytop.pl
 
 copyfileto $BASE/lib \
   libmysql/.libs/libmysqlclient.a \
