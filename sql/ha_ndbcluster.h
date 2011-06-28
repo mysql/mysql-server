@@ -40,6 +40,11 @@ class NdbIndexStat;
 class NdbEventOperation;
 class ha_ndbcluster_cond;
 class Ndb_event_data;
+class NdbQuery;
+class NdbQueryOperation;
+class NdbQueryOperationTypeWrapper;
+class NdbQueryParamValue;
+class ndb_pushed_join;
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
@@ -206,6 +211,11 @@ struct st_ndb_status {
   long scan_count;
   long pruned_scan_count;
   long schema_locks_count;
+  long sorted_scan_count;
+  long pushed_queries_defined;
+  long pushed_queries_dropped;
+  long pushed_queries_executed;
+  long pushed_reads;
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
   long long api_client_stats[Ndb::NumClientStatistics];
@@ -214,6 +224,8 @@ struct st_ndb_status {
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
 class ha_ndbcluster: public handler
 {
+  friend class ndb_pushed_builder_ctx;
+
  public:
   ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
   ~ha_ndbcluster();
@@ -231,6 +243,9 @@ class ha_ndbcluster: public handler
   int delete_row(const uchar *buf);
   int index_init(uint index, bool sorted);
   int index_end();
+  int index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                         key_part_map keypart_map,
+                         enum ha_rkey_function find_flag);
   int index_read(uchar *buf, const uchar *key, uint key_len, 
                  enum ha_rkey_function find_flag);
   int index_next(uchar *buf);
@@ -243,6 +258,7 @@ class ha_ndbcluster: public handler
   int rnd_next(uchar *buf);
   int rnd_pos(uchar *buf, uchar *pos);
   void position(const uchar *record);
+  int read_first_row(uchar *buf, uint primary_key);
   virtual int cmp_ref(const uchar * ref1, const uchar * ref2);
   int read_range_first(const key_range *start_key,
                        const key_range *end_key,
@@ -297,6 +313,7 @@ class ha_ndbcluster: public handler
   void set_part_info(partition_info *part_info, bool early);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   virtual const key_map *keys_to_use_for_scanning() { return &btree_keys; }
+  bool primary_key_is_clustered();
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
   uint max_supported_key_parts() const;
@@ -386,6 +403,20 @@ static void set_tabname(const char *pathname, char *tabname);
  */
   void cond_pop();
 
+  bool maybe_pushable_join(const char*& reason) const;
+  int assign_pushed_join(const ndb_pushed_join* pushed_join);
+
+  bool test_push_flag(enum ha_push_flag flag) const;
+
+  uint number_of_pushed_joins() const;
+  const TABLE* root_of_pushed_join() const;
+  const TABLE* parent_of_pushed_join() const;
+
+  int index_read_pushed(uchar *buf, const uchar *key,
+                        key_part_map keypart_map);
+
+  int index_next_pushed(uchar * buf);
+
   uint8 table_cache_type();
 
   /*
@@ -473,6 +504,12 @@ private:
   bool has_null_in_unique_index(uint idx_no) const;
   bool check_index_fields_not_null(KEY *key_info);
 
+  bool check_if_pushable(const NdbQueryOperationTypeWrapper& type,
+                         uint idx= 0,
+			 bool rootSorted= false) const;
+  bool check_is_pushed() const;
+  int create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs= 0);
+
   int set_up_partition_info(partition_info *part_info,
                             NdbDictionary::Table&) const;
   int set_range_data(const partition_info* part_info,
@@ -514,6 +551,7 @@ private:
   int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
+  int fetch_next_pushed();
   int set_auto_inc(THD *thd, Field *field);
   int set_auto_inc_val(THD *thd, Uint64 value);
   int next_result(uchar *buf); 
@@ -557,6 +595,10 @@ private:
                                                const uchar *key, uchar *buf,
                                                NdbOperation::LockMode lm,
                                                Uint32 *ppartition_id);
+  int pk_unique_index_read_key_pushed(uint idx, 
+                                      const uchar *key,
+                                      Uint32 *ppartition_id);
+
   int read_multi_range_fetch_next();
   
   int primary_key_cmp(const uchar * old_row, const uchar * new_row);
@@ -712,6 +754,16 @@ private:
   uint m_dupkey;
   // set from thread variables at external lock
   ha_rows m_autoincrement_prefetch;
+
+  // Joins pushed to NDB.
+  const ndb_pushed_join
+       *m_pushed_join_member;            // Pushed join def. I am member of
+  int m_pushed_join_operation;           // Op. id. in above pushed join
+  static const int PUSHED_ROOT= 0;       // Op. id. if I'm root
+
+  bool m_disable_pushed_join;            // Pushed execution allowed?
+  NdbQuery* m_active_query;              // Pushed query instance executing
+  NdbQueryOperation* m_pushed_operation; // Pushed operation instance
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;

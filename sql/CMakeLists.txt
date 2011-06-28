@@ -37,6 +37,7 @@ IF(SSL_DEFINES)
 ENDIF()
 
 SET(SQL_SHARED_SOURCES
+  abstract_query_plan.cc # MCP_WL4784
   datadict.cc
   debug_sync.cc
   derror.cc
