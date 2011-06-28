@@ -812,7 +812,10 @@ int NdbTransaction::refresh()
       scan_op != 0; scan_op = (NdbIndexScanOperation *) scan_op->theNext)
   {
     NdbTransaction* scan_trans = scan_op->theNdbCon;
-    scan_trans->sendTC_HBREP();
+    if (scan_trans)
+    {
+      scan_trans->sendTC_HBREP();
+    }
   }
   return sendTC_HBREP();
 }

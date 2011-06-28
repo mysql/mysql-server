@@ -473,6 +473,10 @@ args: -n NoCloseTransaction T6 D1 D2
 
 max-time: 500
 cmd: testScan
+args: -n CloseRefresh T1
+
+max-time: 500
+cmd: testScan
 args: -n CheckInactivityTimeOut T6 D1 D2 
 
 max-time: 500
