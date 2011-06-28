@@ -256,7 +256,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     */
     table_list->next_local= 0;
     context->resolve_in_table_list_only(table_list);
-    res= setup_fields(thd, 0, fields, MARK_COLUMNS_WRITE, 0, 0);
+    res= setup_fields(thd, Ref_ptr_array(), fields, MARK_COLUMNS_WRITE, 0, 0);
 
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
@@ -347,7 +347,8 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
   }
 
   /* Check the fields we are going to modify */
-  if (setup_fields(thd, 0, update_fields, MARK_COLUMNS_WRITE, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(),
+                   update_fields, MARK_COLUMNS_WRITE, 0, 0))
     return -1;
 
   if (insert_table_list->effective_algorithm == VIEW_ALGORITHM_MERGE &&
@@ -762,7 +763,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
       goto abort;
     }
-    if (setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_READ, 0, 0))
       goto abort;
   }
   its.rewind ();
@@ -773,7 +774,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /*
     Fill in the given fields and dump it to the table file
   */
-  bzero((char*) &info,sizeof(info));
+  memset(&info, 0, sizeof(info));
   info.ignore= ignore;
   info.handle_duplicates=duplic;
   info.update_fields= &update_fields;
@@ -931,7 +932,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       error=write_record(thd, table ,&info);
     if (error)
       break;
-    thd->warning_info->inc_current_row_for_warning();
+    thd->get_stmt_wi()->inc_current_row_for_warning();
   }
 
   free_underlaid_joins(thd, &thd->lex->select_lex);
@@ -1086,11 +1087,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (lock_type == TL_WRITE_DELAYED) ? (ulong) 0 :
 	      (ulong) (info.records - info.copied),
-              (ulong) thd->warning_info->statement_warn_count());
+              (ulong) thd->get_stmt_wi()->statement_warn_count());
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (ulong) (info.deleted + updated),
-              (ulong) thd->warning_info->statement_warn_count());
+              (ulong) thd->get_stmt_wi()->statement_warn_count());
     ::my_ok(thd, info.copied + info.deleted + updated, id, buff);
   }
   thd->abort_on_warning= 0;
@@ -1377,7 +1378,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     table_list->next_local= 0;
     context->resolve_in_table_list_only(table_list);
 
-    res= (setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0) ||
+    res= (setup_fields(thd, Ref_ptr_array(),
+                       *values, MARK_COLUMNS_READ, 0, 0) ||
           check_insert_fields(thd, context->table_list, fields, *values,
                               !insert_into_view, 0, &map));
 
@@ -1393,7 +1395,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     }
 
    if (!res)
-     res= setup_fields(thd, 0, update_values, MARK_COLUMNS_READ, 0, 0);
+     res= setup_fields(thd, Ref_ptr_array(),
+                       update_values, MARK_COLUMNS_READ, 0, 0);
 
     if (!res && duplic == DUP_UPDATE)
     {
@@ -1914,11 +1917,11 @@ public:
     */
     thd.variables.lock_wait_timeout= LONG_TIMEOUT;
 
-    bzero((char*) &thd.net, sizeof(thd.net));		// Safety
-    bzero((char*) &table_list, sizeof(table_list));	// Safety
+    memset(&thd.net, 0, sizeof(thd.net));           // Safety
+    memset(&table_list, 0, sizeof(table_list));     // Safety
     thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
     thd.security_ctx->host_or_ip= "";
-    bzero((char*) &info,sizeof(info));
+    memset(&info, 0, sizeof(info));
     mysql_mutex_init(key_delayed_insert_mutex, &mutex, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_delayed_insert_cond, &cond, NULL);
     mysql_cond_init(key_delayed_insert_cond_client, &cond_client, NULL);
@@ -2153,10 +2156,11 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
             want to send "Server shutdown in progress" in the
             INSERT THREAD.
           */
-          if (di->thd.stmt_da->sql_errno() == ER_SERVER_SHUTDOWN)
+          if (di->thd.get_stmt_da()->sql_errno() == ER_SERVER_SHUTDOWN)
             my_message(ER_QUERY_INTERRUPTED, ER(ER_QUERY_INTERRUPTED), MYF(0));
           else
-            my_message(di->thd.stmt_da->sql_errno(), di->thd.stmt_da->message(),
+            my_message(di->thd.get_stmt_da()->sql_errno(),
+                       di->thd.get_stmt_da()->message(),
                        MYF(0));
         }
         di->unlock();
@@ -2241,10 +2245,12 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
         killed using THD::notify_shared_lock() or
         kill_delayed_threads_for_table().
       */
-      if (!thd.is_error() || thd.stmt_da->sql_errno() == ER_SERVER_SHUTDOWN)
+      if (!thd.is_error() ||
+          thd.get_stmt_da()->sql_errno() == ER_SERVER_SHUTDOWN)
         my_message(ER_QUERY_INTERRUPTED, ER(ER_QUERY_INTERRUPTED), MYF(0));
       else
-        my_message(thd.stmt_da->sql_errno(), thd.stmt_da->message(), MYF(0));
+        my_message(thd.get_stmt_da()->sql_errno(),
+                   thd.get_stmt_da()->message(), MYF(0));
       goto error;
     }
   }
@@ -2314,7 +2320,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   copy->def_write_set.bitmap= ((my_bitmap_map*)
                                (bitmap + share->column_bitmap_size));
   copy->tmp_set.bitmap= 0;                      // To catch errors
-  bzero((char*) bitmap, share->column_bitmap_size*2);
+  memset(bitmap, 0, share->column_bitmap_size*2);
   copy->read_set=  &copy->def_read_set;
   copy->write_set= &copy->def_write_set;
 
@@ -2627,8 +2633,8 @@ pthread_handler_t handle_delayed_insert(void *arg)
   if (my_thread_init())
   {
     /* Can't use my_error since store_globals has not yet been called */
-    thd->stmt_da->set_error_status(thd, ER_OUT_OF_RESOURCES,
-                                   ER(ER_OUT_OF_RESOURCES), NULL);
+    thd->get_stmt_da()->set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                         ER(ER_OUT_OF_RESOURCES), NULL);
     di->handler_thread_initialized= TRUE;
   }
   else
@@ -2638,8 +2644,8 @@ pthread_handler_t handle_delayed_insert(void *arg)
     if (init_thr_lock() || thd->store_globals())
     {
       /* Can't use my_error since store_globals has perhaps failed */
-      thd->stmt_da->set_error_status(thd, ER_OUT_OF_RESOURCES,
-                                     ER(ER_OUT_OF_RESOURCES), NULL);
+      thd->get_stmt_da()->set_error_status(thd, ER_OUT_OF_RESOURCES,
+                                           ER(ER_OUT_OF_RESOURCES), NULL);
       di->handler_thread_initialized= TRUE;
       thd->fatal_error();
       goto err;
@@ -3048,7 +3054,7 @@ bool Delayed_insert::handle_inserts(void)
 	{
 	  /* This should never happen */
 	  table->file->print_error(error,MYF(0));
-	  sql_print_error("%s", thd.stmt_da->message());
+	  sql_print_error("%s", thd.get_stmt_da()->message());
           DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed in loop"));
 	  goto err;
 	}
@@ -3093,7 +3099,7 @@ bool Delayed_insert::handle_inserts(void)
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {						// This shouldn't happen
     table->file->print_error(error,MYF(0));
-    sql_print_error("%s", thd.stmt_da->message());
+    sql_print_error("%s", thd.get_stmt_da()->message());
     DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed after loop"));
     goto err;
   }
@@ -3201,7 +3207,7 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
    autoinc_value_of_last_inserted_row(0),
    insert_into_view(table_list_par && table_list_par->view != 0)
 {
-  bzero((char*) &info,sizeof(info));
+  memset(&info, 0, sizeof(info));
   info.handle_duplicates= duplic;
   info.ignore= ignore_check_option_errors;
   info.update_fields= update_fields;
@@ -3231,7 +3237,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   /* Errors during check_insert_fields() should not be ignored. */
   lex->current_select->no_error= FALSE;
-  res= (setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0) ||
+  res= (setup_fields(thd, Ref_ptr_array(), values, MARK_COLUMNS_READ, 0, 0) ||
         check_insert_fields(thd, table_list, *fields, values,
                             !insert_into_view, 1, &map));
 
@@ -3279,7 +3285,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       table_list->next_name_resolution_table= 
         ctx_state.get_first_name_resolution_table();
 
-    res= res || setup_fields(thd, 0, *info.update_values,
+    res= res || setup_fields(thd, Ref_ptr_array(), *info.update_values,
                              MARK_COLUMNS_READ, 0, 0);
     if (!res)
     {
@@ -3519,7 +3525,7 @@ bool select_insert::send_eof()
   error= (thd->locked_tables_mode <= LTM_LOCK_TABLES ?
           table->file->ha_end_bulk_insert() : 0);
   if (!error && thd->is_error())
-    error= thd->stmt_da->sql_errno();
+    error= thd->get_stmt_da()->sql_errno();
 
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
@@ -3570,11 +3576,11 @@ bool select_insert::send_eof()
   if (info.ignore)
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.records - info.copied),
-            (ulong) thd->warning_info->statement_warn_count());
+            (ulong) thd->get_stmt_wi()->statement_warn_count());
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.deleted+info.updated),
-            (ulong) thd->warning_info->statement_warn_count());
+            (ulong) thd->get_stmt_wi()->statement_warn_count());
   row_count= info.copied + info.deleted +
              ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
               info.touched : info.updated);
@@ -3895,19 +3901,6 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   hook_ptr= &hooks;
 
   unit= u;
-
-  /*
-    Start a statement transaction before the create if we are using
-    row-based replication for the statement.  If we are creating a
-    temporary table, we need to start a statement transaction.
-  */
-  if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0 &&
-      thd->is_current_stmt_binlog_format_row() &&
-      mysql_bin_log.is_open())
-  {
-    thd->binlog_start_trans_and_stmt();
-  }
-
   DBUG_ASSERT(create_table->table == NULL);
 
   DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););

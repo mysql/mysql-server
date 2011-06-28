@@ -2009,6 +2009,7 @@ row_create_index_for_mysql(
 	ulint		i;
 	ulint		len;
 	char*		table_name;
+	dict_table_t*	table;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -2021,6 +2022,9 @@ row_create_index_for_mysql(
 	table later, after the index object is freed (inside
 	que_run_threads()) and thus index->table_name is not available. */
 	table_name = mem_strdup(index->table_name);
+
+	table = dict_table_open_on_name_no_stats(table_name, TRUE,
+						 DICT_ERR_IGNORE_NONE);
 
 	trx_start_if_not_started_xa(trx);
 
@@ -2054,7 +2058,7 @@ row_create_index_for_mysql(
 		}
 
 		/* Check also that prefix_len and actual length
-		< DICT_MAX_INDEX_COL_LEN */
+		is less than that from DICT_MAX_FIELD_LEN_BY_FORMAT() */
 
 		len = dict_index_get_nth_field(index, i)->prefix_len;
 
@@ -2062,8 +2066,9 @@ row_create_index_for_mysql(
 			len = ut_max(len, field_lengths[i]);
 		}
 
-		if (len >= DICT_MAX_INDEX_COL_LEN) {
-			err = DB_TOO_BIG_RECORD;
+		/* Column or prefix length exceeds maximum column length */
+		if (len > (ulint) DICT_MAX_FIELD_LEN_BY_FORMAT(table)) {
+			err = DB_TOO_BIG_INDEX_COL;
 
 			goto error_handling;
 		}
@@ -2088,6 +2093,8 @@ row_create_index_for_mysql(
 	que_graph_free((que_t*) que_node_get_parent(thr));
 
 error_handling:
+	dict_table_close(table, TRUE);
+
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
 

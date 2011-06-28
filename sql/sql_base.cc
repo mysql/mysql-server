@@ -182,7 +182,7 @@ static void check_unused(void)
   {
     share= (TABLE_SHARE*) my_hash_element(&table_def_cache, idx);
 
-    I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
+    TABLE_SHARE::TABLE_list::Iterator it(share->free_tables);
     while ((entry= it++))
     {
       /* We must not have TABLEs in the free list that have their file closed. */
@@ -676,8 +676,11 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
 
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
-  if (share || (thd->is_error() && thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE))
+  if (share || (thd->is_error() &&
+      thd->get_stmt_da()->sql_errno() != ER_NO_SUCH_TABLE))
+  {
     DBUG_RETURN(share);
+  }
 
   *error= 0;
 
@@ -822,7 +825,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
   DBUG_ENTER("list_open_tables");
 
   mysql_mutex_lock(&LOCK_open);
-  bzero((char*) &table_list,sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
   start_list= &open_list;
   open_list=0;
 
@@ -854,7 +857,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 		  share->db.str)+1,
 	   share->table_name.str);
     (*start_list)->in_use= 0;
-    I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
+    TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
     while (it++)
       ++(*start_list)->in_use;
     (*start_list)->locked= 0;                   /* Obsolete. */
@@ -935,7 +938,7 @@ void free_io_cache(TABLE *table)
 
 static void kill_delayed_threads_for_table(TABLE_SHARE *share)
 {
-  I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
+  TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
   TABLE *tab;
 
   mysql_mutex_assert_owner(&LOCK_open);
@@ -1169,7 +1172,7 @@ bool close_cached_connection_tables(THD *thd, LEX_STRING *connection)
   DBUG_ENTER("close_cached_connections");
   DBUG_ASSERT(thd);
 
-  bzero(&tmp, sizeof(TABLE_LIST));
+  memset(&tmp, 0, sizeof(TABLE_LIST));
 
   mysql_mutex_lock(&LOCK_open);
 
@@ -1728,14 +1731,14 @@ bool close_temporary_tables(THD *thd)
       qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
 
-      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->can_overwrite_status= TRUE;
       if ((error= (mysql_bin_log.write(&qinfo) || error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection
           has been closed already. So lets print a message to the
           error log instead of pushing yet another error into the
-          stmt_da.
+          Diagnostics_area.
 
           Also, we keep the error flag so that we propagate the error
           up in the stack. This way, if we're the SQL thread we notice
@@ -1746,7 +1749,7 @@ bool close_temporary_tables(THD *thd)
         sql_print_error("Failed to write the DROP statement for "
                         "temporary tables to binary log");
       }
-      thd->stmt_da->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->can_overwrite_status= FALSE;
 
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
       thd->thread_specific_used= save_thread_specific_used;
@@ -4013,7 +4016,7 @@ recover_from_failed_open(THD *thd)
         ha_create_table_from_engine(thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->warning_info->clear_warning_info(thd->query_id);
+        thd->get_stmt_wi()->clear_warning_info(thd->query_id);
         thd->clear_error();                 // Clear error message
         thd->mdl_context.release_transactional_locks();
         break;
@@ -8002,7 +8005,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 ** Check that all given fields exists and fill struct with current data
 ****************************************************************************/
 
-bool setup_fields(THD *thd, Item **ref_pointer_array,
+bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &fields, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func)
 {
@@ -8032,8 +8035,11 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     TODO: remove it when (if) we made one list for allfields and
     ref_pointer_array
   */
-  if (ref_pointer_array)
-    bzero(ref_pointer_array, sizeof(Item *) * fields.elements);
+  if (!ref_pointer_array.is_null())
+  {
+    DBUG_ASSERT(ref_pointer_array.size() >= fields.elements);
+    memset(ref_pointer_array.array(), 0, sizeof(Item *) * fields.elements);
+  }
 
   /*
     We call set_entry() there (before fix_fields() of the whole list of field
@@ -8051,7 +8057,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   while ((var= li++))
     var->set_entry(thd, FALSE);
 
-  Item **ref= ref_pointer_array;
+  Ref_ptr_array ref= ref_pointer_array;
   thd->lex->current_select->cur_pos_in_select_list= 0;
   while ((item= it++))
   {
@@ -8064,8 +8070,11 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
       DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
       DBUG_RETURN(TRUE); /* purecov: inspected */
     }
-    if (ref)
-      *(ref++)= item;
+    if (!ref.is_null())
+    {
+      ref[0]= item;
+      ref.pop_front();
+    }
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
@@ -8992,7 +9001,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   {
     if (share->ref_count)
     {
-      I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
+      TABLE_SHARE::TABLE_list::Iterator it(share->free_tables);
 #ifndef DBUG_OFF
       if (remove_type == TDC_RT_REMOVE_ALL)
       {
@@ -9000,7 +9009,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
       }
       else if (remove_type == TDC_RT_REMOVE_NOT_OWN)
       {
-        I_P_List_iterator<TABLE, TABLE_share> it2(share->used_tables);
+        TABLE_SHARE::TABLE_list::Iterator it2(share->used_tables);
         while ((table= it2++))
           if (table->in_use != thd)
           {

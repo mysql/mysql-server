@@ -1616,7 +1616,7 @@ MYSQL_LOG::MYSQL_LOG()
     called only in main(). Doing initialization here would make it happen
     before main().
   */
-  bzero((char*) &log_file, sizeof(log_file));
+  memset(&log_file, 0, sizeof(log_file));
 }
 
 void MYSQL_LOG::init_pthread_objects()
@@ -2824,7 +2824,7 @@ int TC_LOG_MMAP::recover()
     goto err2;
 
   my_hash_free(&xids);
-  bzero(data, (size_t)file_length);
+  memset(data, 0, (size_t)file_length);
   return 0;
 
 err2:

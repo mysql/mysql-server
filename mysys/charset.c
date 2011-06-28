@@ -230,7 +230,7 @@ static int add_collation(CHARSET_INFO *cs)
       if (!(all_charsets[cs->number]=
          (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),MYF(0))))
         return MY_XML_ERROR;
-      bzero((void*)all_charsets[cs->number],sizeof(CHARSET_INFO));
+      memset(all_charsets[cs->number], 0, sizeof(CHARSET_INFO));
     }
     
     if (cs->primary_number == cs->number)
@@ -487,7 +487,7 @@ static void init_available_charsets(void)
   CHARSET_INFO **cs;
   MY_CHARSET_LOADER loader;
 
-  bzero(&all_charsets,sizeof(all_charsets));
+  memset(&all_charsets, 0, sizeof(all_charsets));
   init_compiled_charsets(MYF(0));
 
   /* Copy compiled charsets */

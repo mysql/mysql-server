@@ -54,7 +54,7 @@ int _mi_write_static_record(MI_INFO *info, const uchar *record)
       if (info->s->base.pack_reclength != info->s->base.reclength)
       {
 	uint length=info->s->base.pack_reclength - info->s->base.reclength;
-	bzero(temp,length);
+	memset(temp, 0, length);
 	if (my_b_write(&info->rec_cache, temp,length))
 	  goto err;
       }
@@ -69,7 +69,7 @@ int _mi_write_static_record(MI_INFO *info, const uchar *record)
       if (info->s->base.pack_reclength != info->s->base.reclength)
       {
 	uint length=info->s->base.pack_reclength - info->s->base.reclength;
-	bzero(temp,length);
+	memset(temp, 0, length);
 	if (info->s->file_write(info, temp,length,
 		      info->state->data_file_length+
 		      info->s->base.reclength,

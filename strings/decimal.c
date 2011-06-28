@@ -2032,7 +2032,7 @@ int decimal_mul(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
   stop1=buf1-intg1;
   stop2=buf2-intg2;
 
-  bzero(to->buf, (intg0+frac0)*sizeof(dec1));
+  memset(to->buf, 0, (intg0+frac0)*sizeof(dec1));
 
   for (buf1+=frac1-1; buf1 >= stop1; buf1--, start0--)
   {
@@ -2203,7 +2203,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
   if (!(tmp1=(dec1 *)my_alloca(len1*sizeof(dec1))))
     return E_DEC_OOM;
   memcpy(tmp1, buf1, i*sizeof(dec1));
-  bzero(tmp1+i, (len1-i)*sizeof(dec1));
+  memset(tmp1+i, 0, (len1-i)*sizeof(dec1));
 
   start1=tmp1;
   stop1=start1+len1;

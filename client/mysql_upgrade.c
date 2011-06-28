@@ -92,7 +92,7 @@ static struct my_option my_long_options[]=
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Force execution of mysqlcheck even if mysql_upgrade "
    "has already been executed for the current version of MySQL.",
@@ -109,7 +109,7 @@ static struct my_option my_long_options[]=
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -608,7 +608,7 @@ static int upgrade_already_done(void)
     Read from file, don't care if it fails since it
     will be detected by the strncmp
   */
-  bzero(buf, sizeof(buf));
+  memset(buf, 0, sizeof(buf));
   res= fgets(buf, sizeof(buf), in);
 
   my_fclose(in, MYF(0));

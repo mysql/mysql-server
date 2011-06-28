@@ -85,18 +85,15 @@ enum enum_mysql_set_option
 my_bool my_net_init(NET *net, Vio* vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
-  void net_clear(NET *net, my_bool clear_buffer);
+void net_clear(NET *net, my_bool check_buffer);
 my_bool net_realloc(NET *net, size_t length);
 my_bool net_flush(NET *net);
 my_bool my_net_write(NET *net,const unsigned char *packet, size_t len);
 my_bool net_write_command(NET *net,unsigned char command,
      const unsigned char *header, size_t head_len,
      const unsigned char *packet, size_t len);
-int net_real_write(NET *net,const unsigned char *packet, size_t len);
+my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
-struct sockaddr;
-int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
-        unsigned int timeout);
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;

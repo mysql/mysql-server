@@ -130,9 +130,7 @@
 #cmakedefine HAVE_AIOWAIT 1
 #cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_ALLOCA 1
-#cmakedefine HAVE_BFILL 1
 #cmakedefine HAVE_BMOVE 1
-#cmakedefine HAVE_BZERO 1
 #cmakedefine HAVE_INDEX 1
 #cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
@@ -289,7 +287,6 @@
 #cmakedefine HAVE_TZNAME 1
 #cmakedefine HAVE_AIO_READ 1
 /* Symbols we may use */
-#cmakedefine HAVE_SYS_ERRLIST 1
 /* used by stacktrace functions */
 #cmakedefine HAVE_BSS_START 1
 #cmakedefine HAVE_BACKTRACE 1

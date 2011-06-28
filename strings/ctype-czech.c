@@ -315,7 +315,7 @@ my_strnxfrm_czech(const CHARSET_INFO *cs __attribute__((unused)),
   while (value);
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len > totlen)
   {
-    bfill(dest + totlen, len - totlen, ' ');
+    memset(dest + totlen, ' ', len - totlen);
     totlen= len;
   }
   return totlen;

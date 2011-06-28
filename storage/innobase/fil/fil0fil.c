@@ -4340,12 +4340,16 @@ fil_io(
 	ulint		is_log;
 	ulint		wake_later;
 	os_offset_t	offset;
+	ibool		ignore_nonexistent_pages;
 
 	is_log = type & OS_FILE_LOG;
 	type = type & ~OS_FILE_LOG;
 
 	wake_later = type & OS_AIO_SIMULATED_WAKE_LATER;
 	type = type & ~OS_AIO_SIMULATED_WAKE_LATER;
+
+	ignore_nonexistent_pages = type & BUF_READ_IGNORE_NONEXISTENT_PAGES;
+	type &= ~BUF_READ_IGNORE_NONEXISTENT_PAGES;
 
 	ut_ad(byte_offset < UNIV_PAGE_SIZE);
 	ut_ad(!zip_size || !byte_offset);
@@ -4413,6 +4417,12 @@ fil_io(
 
 	for (;;) {
 		if (UNIV_UNLIKELY(node == NULL)) {
+			if (ignore_nonexistent_pages) {
+				mutex_exit(&fil_system->mutex);
+				return(DB_ERROR);
+			}
+			/* else */
+
 			fil_report_invalid_page_access(
 				block_offset, space_id, space->name,
 				byte_offset, len, type);
