@@ -34,18 +34,19 @@
 //   cd ../src;make local
 
 #if defined(__cilkplusplus)
-#include <cilk.h>
-#include <cilk_mutex.h>
-#include <fake_mutex.h>
-#define cilk_worker_count (cilk::current_worker_count())
+#error DISABLING CILK ARTS CILK
+#endif
+#if defined(__cplusplus)
+#error DISABLING cplusplus
+#endif
+
+#if defined(HAVE_CILK)
+#include <cilk/cilk.h>
+#define cilk_worker_count (__cilkrts_get_nworkers())
 #else
-// maybe #include <cilk_stub.h>
-#if !defined(CILK_STUB)
-#define CILK_STUB
 #define cilk_spawn
 #define cilk_sync
 #define cilk_for for
-#endif
 #define cilk_worker_count 1
 #endif
 
@@ -944,8 +945,8 @@ static int finish_primary_rows_internal (BRTLOADER bl)
     int *MALLOC_N(bl->N, ra);
     if (ra==NULL) return errno;
 
-#if defined(__cilkplusplus)
-    #pragma cilk_grainsize = 1
+#if defined(HAVE_CILK)
+    #pragma cilk grainsize = 1
 #endif
 
     cilk_for (int i = 0; i < bl->N; i++) {
@@ -1108,8 +1109,8 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
     int *XMALLOC_N(bl->N, error_codes);
 
     // Do parallelize this loop with cilk_grainsize = 1 so that every iteration will run in parallel.
-#if defined(__cilkplusplus)
-    #pragma cilk_grainsize = 1
+#if defined(HAVE_CILK)
+    #pragma cilk grainsize = 1
 #endif
     cilk_for (int i = 0; i < bl->N; i++) {
 	error_codes[i] = 0;
@@ -2043,9 +2044,7 @@ struct dbout {
     int64_t n_translations;
     int64_t n_translations_limit;
     struct translation *translation;
-#ifndef CILK_STUB
-    cilk::mutex mutex; // the mutex is initialized by the dbout constructor
-#endif
+    toku_pthread_mutex_t mutex;
 };
 
 static inline void dbout_init(struct dbout *out) {
@@ -2053,6 +2052,8 @@ static inline void dbout_init(struct dbout *out) {
     out->current_off = 0;
     out->n_translations = out->n_translations_limit = 0;
     out->translation = NULL;
+    int r = toku_pthread_mutex_init(&out->mutex, NULL);
+    resource_assert_zero(r);
 }
 
 static inline void dbout_destroy(struct dbout *out) {
@@ -2062,22 +2063,15 @@ static inline void dbout_destroy(struct dbout *out) {
     }
     toku_free(out->translation);
     out->translation = NULL;
+    int r = toku_pthread_mutex_destroy(&out->mutex); resource_assert_zero(r);
 }
 
 static inline void dbout_lock(struct dbout *out) {
-#ifndef CILK_STUB
-    out->mutex.lock();
-#else
-    out = out;
-#endif
+    toku_pthread_mutex_lock(&out->mutex);
 }
 
 static inline void dbout_unlock(struct dbout *out) {
-#ifndef CILK_STUB
-    out->mutex.unlock();
-#else
-    out = out;
-#endif
+    toku_pthread_mutex_unlock(&out->mutex);
 }
 
 static void seek_align_locked(struct dbout *out) {
@@ -2189,24 +2183,6 @@ static void putbuf_int64_at(struct dbuf *dbuf, int off, unsigned long long v) {
     unsigned int b = v&0xFFFFFFFF;
     putbuf_int32_at(dbuf, off,   a);
     putbuf_int32_at(dbuf, off+4, b);
-}
-
-// glibc protects the "random" function with an inlined lock.  this lock is not understood by
-// cilkscreen, so we have to tell cilkscreen that "random" is safe.
-// RFP check windows random behaviour.
-#ifndef CILK_STUB
-static cilk::fake_mutex random_mutex;
-#endif
-
-static inline long int loader_random(void) {
-#ifndef CILK_STUB
-    random_mutex.lock();
-#endif
-    long int r = random();
-#ifndef CILK_STUB
-    random_mutex.unlock();
-#endif
-    return r;
 }
 
 static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc), int64_t lblocknum, TXNID xid, uint32_t target_nodesize) {

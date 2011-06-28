@@ -9,8 +9,9 @@ DEPEND_COMPILE += \
 #end
 DEPEND_COMPILE+= $(NEWBRT)
 
-LINK_FILES=$(NEWBRT)
 include $(TOKUROOT)toku_include/Makefile.include
+LDLIBS+=-lnewbrt -ltokuportability
+LDFLAGS+=-L$(TOKUROOT)lib -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
 
 ifeq ($(CC),icc)
 SKIP_WARNING += $(ICC_NOWARN)1418 #Non static functions do not need prototypes.

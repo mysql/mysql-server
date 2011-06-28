@@ -685,7 +685,11 @@ found_insert:;
         new_leafentry->type = LE_MVCC;
 
         new_leafentry->u.mvcc.num_cxrs = toku_htod32(ule->num_cuxrs);
-        new_leafentry->u.mvcc.num_pxrs = ule->num_puxrs;
+        // invariant makes cast that follows ok, although not sure if 
+        // check should be "< MAX_TRANSACTION_RECORDS" or
+        // "< MAX_TRANSACTION_RECORDS - 1"
+        invariant(ule->num_puxrs < MAX_TRANSACTION_RECORDS);
+        new_leafentry->u.mvcc.num_pxrs = (u_int8_t)ule->num_puxrs;
 
         //Store actual key.
         memcpy(new_leafentry->u.mvcc.key_xrs, ule->keyp, ule->keylen);
@@ -1620,9 +1624,9 @@ ule_remove_innermost_placeholders(ULE ule) {
     }
 }
 
-static uint32_t
+static uint8_t
 outermost_xid_not_in_ule(ULE ule, XIDS xids) {
-    int index = 0;
+    uint8_t index = 0;
     invariant(ule->num_puxrs < xids_get_num_xids(xids));
     if (ule->num_puxrs) {
         TXNID ule_xid  = ule_get_innermost_xid(ule); // xid of ica
@@ -1644,7 +1648,7 @@ ule_add_placeholders(ULE ule, XIDS xids) {
     TXNID this_xid = xids_get_innermost_xid(xids); // xid of this transaction
     invariant(this_xid!=TXNID_NONE);
     if (ica_xid != this_xid) {		// if this transaction is the ICA, don't push any placeholders
-        int index = outermost_xid_not_in_ule(ule, xids);
+        u_int8_t index = outermost_xid_not_in_ule(ule, xids);
 	TXNID    current_msg_xid = xids_get_xid(xids, index);
 	while (current_msg_xid != this_xid) { // Placeholder for each transaction before this transaction
 	    ule_push_placeholder_uxr(ule, current_msg_xid);

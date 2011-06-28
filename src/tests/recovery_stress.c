@@ -32,7 +32,7 @@ const int OPER_PER_STEP = 43;
 #define DBG(str)   if (verbose) printf("%s:%25s: %s\n", __FILE__, __FUNCTION__, str)
 #define iDBG(iter) if (verbose) printf("%s:%25s: iter = %d\n", __FILE__, __FUNCTION__, iter)
 
-static int firstkey(int iter, STEP step) { return (iter * OPER_PER_ITER) + (step * OPER_PER_STEP); }
+static int firstkey(int iter, int step) { return (iter * OPER_PER_ITER) + (step * OPER_PER_STEP); }
 
 //static toku_pthread_t thread;
 

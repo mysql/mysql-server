@@ -13,16 +13,12 @@ DEPEND_COMPILE += \
   log_header.h \
 # keep this line so I can have a \ on the previous line
 
-NEWBRT           = newbrt.$(AEXT)
-NEWBRT_SO        = libnewbrt.$(SOEXT)
-IPO_NEWBRT       = ipo_newbrt.$(AEXT)
-NEWBRT_BUNDLE    = newbrt.bundle
-#All executables need to statically link to newbrt
-LINK_FILES += $(NEWBRT)
+NEWBRT_SO        = $(TOKUROOT)lib/libnewbrt.$(SOEXT)
 
 SKIP_NEWBRTRULE=1
 include $(TOKUROOT)toku_include/Makefile.include
-
+LDFLAGS+=-L$(TOKUROOT)lib -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
+LDLIBS+=-lnewbrt -ltokuportability
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 
 BINS_RAW= \
@@ -31,8 +27,6 @@ BINS_RAW= \
   tdb-recover \
 # Intentionally left blank
 # BINS will be defined automatically.
-
-BINS_O = $(patsubst %,%.$(OEXT),$(BINS_RAW))
 
 .PHONY: build default bins libs local
 
@@ -111,28 +105,11 @@ endif
 NEWBRT_O_FILES += brtloader.$(OEXT) quicklz.$(OEXT) compress.$(OEXT)
 
 brtloader.$(OEXT): $(DEPEND_COMPILE)
-ifeq ($(BRTLOADER),cilk)
-brtloader.$(OEXT): brtloader.c
-	$(CILKPP) -DTOKU_ALLOW_DEPRECATED $(CILKFLAGS) -c $< 
-endif
-ifeq ($(BRTLOADER),cxx)
-brtloader.$(OEXT): brtloader.c
-	$(CXX) -DTOKU_ALLOW_DEPRECATED $(CXXFLAGS) -c $<
-endif
 
 $(NEWBRT_O_FILES): VISIBILITY=
-$(NEWBRT): $(NEWBRT_O_FILES)
-$(NEWBRT_SO): newbrt.bundle
-	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(CILK_LINKER_FLAGS) $(GCOV_FLAGS) newbrt.bundle/*.o -o$(NEWBRT_SO) $(CILKRTS_LIB)
-
-$(NEWBRT_BUNDLE): log_code.c log_header.h
-
-ipo_newbrt.obj: $(NEWBRT_BUNDLE)
-	$(CC) $(CFLAGS) $(CPPFLAGS) -Qipo-c $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
-	mv ipo_out.obj $@
-
-$(IPO_NEWBRT): ipo_newbrt.obj
-	xilib /out:$@ $^
+$(NEWBRT_SO): $(NEWBRT_O_FILES)
+	echo $(patsubst %,newbrt/%,$(NEWBRT_O_FILES)) > ../lib/newbrt.olist
+	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(GCOV_FLAGS) $(SKIP_WARNING) $(NEWBRT_O_FILES) -o$(NEWBRT_SO) -nostdlib $(LCILKRTS)
 
 log_code.$(OEXT): log_header.h wbuf.h log-internal.h rbuf.h
 
@@ -148,10 +125,10 @@ log_print.c log_header.h: log_code.c
 
 #Needs to be done manually since it does not include newbrt.
 logformat$(BINSUF): logformat.c $(LIBPORTABILITY)
-	$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(ALWAYS_LINK) $(LINK_MUST_BE_LAST)
+	$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(LDFLAGS) $(ALWAYS_LINK) $(LINK_MUST_BE_LAST) $(LIBPORTABILITY)
 
 
-libs: $(NEWBRT_SO) $(NEWBRT) $(NEWBRT_BUNDLE)
+libs: $(NEWBRT_SO)
 bins: $(BINS)
 
 # Put the benchmarktest_256 first since it takes the longest (and we want to use parallelism in the make)
@@ -160,7 +137,10 @@ bins: $(BINS)
 check: bins
 	cd tests;$(MAKE) check
 
-%$(BINSUF): $(NEWBRT) $(LIBPORTABILITY)
+$(BINS): $(NEWBRT_SO) $(LIBPORTABILITY)
+
+foo2:
+	echo $(BINS)
 
 checko2: SHELL=/bin/bash
 checko2:
@@ -183,7 +163,5 @@ testdump: brtdump$(BINSUF)
 	./brtdump  ../src/tests/dir.test_log5.c.tdb.recover/foo.db > dump.r && ./brtdump  ../src/tests/dir.test_log5.c.tdb/foo.db > dump.$(OEXT) && diff dump.$(OEXT) dump.r
 
 foo:
-	@echo CILKROOT $(CILKROOT)
-	@echo CILKPP $(CILKPP)
 	@echo BRTLOADER $(BRTLOADER)
 	@echo BDBDIR $(BDBDIR)

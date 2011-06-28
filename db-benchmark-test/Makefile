@@ -161,6 +161,8 @@ $(MULTIBENCH_TDB): multi-bench.c $(PTHREAD_LOCAL)
 endif
 
 $(TARGETS_BDB): CPPFLAGS+=-DDIRSUF=bdb  -DTOKU_ALLOW_DEPRECATED
+$(TARGETS_BDB): LDFLAGS+=-L$(TOKUROOT)lib -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
+$(TARGETS_BDB): LDLIBS+=-ltokuportability
 $(TARGET_BDB): db-benchmark-test.c
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 $(SCANSCAN_BDB): scanscan.c

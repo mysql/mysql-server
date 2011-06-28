@@ -290,13 +290,9 @@ BOOL toku_brt_is_empty_fast (BRT brt);
 // Effect: Return TRUE if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty
 // even though if we were to optimize the tree it might turn out that they are empty.
 
-double get_tdiff(void) __attribute__((__visibility__("default")));
-
 BOOL toku_brt_is_empty_fast (BRT brt) __attribute__ ((warn_unused_result));
 // Effect: Return TRUE if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty
 // even though if we were to optimize the tree it might turn out that they are empty.
-
-double get_tdiff(void) __attribute__((__visibility__("default"))) __attribute__ ((warn_unused_result));
 
 BOOL toku_brt_is_recovery_logging_suppressed (BRT) __attribute__ ((warn_unused_result));
 //TODO: #1485 once we have multiple main threads, restore this code, analyze performance.

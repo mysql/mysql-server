@@ -303,7 +303,7 @@ static void benchmark_shutdown (void) {
         if (singlex_child) fprintf(stderr, "SKIPPED 'small rollback' test for child txn\n");
         else
             assert(s->rollback_raw_count < 100);  // gross test, not worth investigating details
-	os_free(s);
+	toku_free(s);
 	//system("ls -l bench.tokudb");
 #endif
     }

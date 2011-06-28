@@ -48,7 +48,7 @@ static void test_env_exceptions (void) {
     {
 	DbEnv env(0);
 	int r = env.set_redzone(0); assert(r==0);
-	TC(env.open(DIR "no.such.dir", -1, 0777),                                            EINVAL);
+	TC(env.open(DIR "no.such.dir", (u_int32_t)-1, 0777),                                            EINVAL);
     }
     {
 	system("rm -rf " DIR);
@@ -97,7 +97,7 @@ static void test_env_exceptions (void) {
 	TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_TXN, 0777),    0);
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    0);
-	TC(txn->commit(-1),                                                              EINVAL);
+	TC(txn->commit((u_int32_t)-1),                                                   EINVAL);
         delete txn;
     }
     system("rm -rf " DIR);
@@ -111,7 +111,7 @@ static void test_db_exceptions (void) {
     int r = env.set_redzone(0); assert(r==0);
     TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE , 0777),    0);
     env.set_errfile(stderr);
-    TC( ({ Db db(&env, -1); assert(0); }),   EINVAL); // Create with flags=-1 should do an EINVAL
+    TC( { Db db(&env, (u_int32_t)-1); assert(0); },   EINVAL); // Create with flags=-1 should do an EINVAL
     Db db(&env, 0);
     DB *dbdb=db.get_DB();
     assert(dbdb!=0);
@@ -130,7 +130,7 @@ static void test_db_exceptions (void) {
     }
     {
 	Db db2(&env, 0);
-	TC(db2.open(0, FNAME, 0, DB_BTREE, -1, 0777), EINVAL); // bad flags
+	TC(db2.open(0, FNAME, 0, DB_BTREE, (u_int32_t)-1, 0777), EINVAL); // bad flags
     }
     {
 	Db db2(&env, 0);
@@ -146,21 +146,21 @@ static void test_db_exceptions (void) {
     }
     {
 	Dbc *curs;
-	TC(db.cursor(0, &curs, -1),  EINVAL);
+	TC(db.cursor(0, &curs, (u_int32_t)-1),  EINVAL);
     }
     {
 	Dbc *curs;
 	TC(db.cursor(0, &curs, 0),  0);
 	Dbt key,val;
         //	TC(curs->get(&key, &val, DB_FIRST), DB_NOTFOUND);
-	TC(curs->get(&key, &val, -1), EINVAL); // bad flags
+	TC(curs->get(&key, &val, (u_int32_t)-1), EINVAL); // bad flags
 	curs->close(); // no deleting cursors.
     }
     {
 	Dbt key,val;
-	TC(db.del(0, &key, -1), EINVAL);
-	TC(db.get(0, &key, &val, -1), EINVAL);
-	TC(db.put(0, &key, &val, -1), EINVAL);
+	TC(db.del(0, &key, (u_int32_t)-1), EINVAL);
+	TC(db.get(0, &key, &val, (u_int32_t)-1), EINVAL);
+	TC(db.put(0, &key, &val, (u_int32_t)-1), EINVAL);
     }
     {
 	Dbt key((char*)"hello", 6);

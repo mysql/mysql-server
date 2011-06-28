@@ -41,6 +41,7 @@ RPATH_DIRS=$(TOKUROOT)lib
 
 ifeq ($(CC),icc)
 CXXFLAGS += -diag-disable 981
+CXX=icc
 endif
 
 ifneq ($(OSX),)

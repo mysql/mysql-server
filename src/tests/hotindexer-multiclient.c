@@ -30,7 +30,7 @@ typedef struct client_spec {
     uint32_t start; // approximate start row 
     int      offset; // offset from stride (= MAX_CLIENTS)
     Direction dir;
-    TxnWork txnwork;
+    int txnwork;
     DB_TXN *txn;
     uint32_t max_inserts_per_txn;  // this is for the parent transaction
     DB **dbs;
@@ -49,7 +49,7 @@ static void * client(void *arg)
     assert(cs->dir == FORWARD || cs->dir == BACKWARD);
 
     int r;
-    if ( cs->txnwork | TXN_CREATE ) { r = env->txn_begin(env, NULL, &cs->txn, 0);  CKERR(r); }
+    if ( cs->txnwork & TXN_CREATE ) { r = env->txn_begin(env, NULL, &cs->txn, 0);  CKERR(r); }
 
     DBT key, val;
     DBT dest_keys[NUM_DBS];
@@ -101,7 +101,7 @@ static void * client(void *arg)
         n = ( cs->dir == FORWARD ) ? n + 1 : n - 1;
     }
 
-    if ( cs->txnwork | TXN_END )    { r = cs->txn->commit(cs->txn, DB_TXN_SYNC);       CKERR(r); }
+    if ( cs->txnwork & TXN_END )    { r = cs->txn->commit(cs->txn, DB_TXN_SYNC);       CKERR(r); }
     if (verbose) printf("client[%d] done\n", cs->client_number);
 
     for (int which=0; which<NUM_DBS; which++) {

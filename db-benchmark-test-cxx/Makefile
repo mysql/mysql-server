@@ -21,6 +21,11 @@ BENCHDBS = bench.bdb/ bench.tokudb
 
 OPTFLAGS = -O2
 CXXFLAGS = $(GCC_VERSION_SPECIFIC) -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS)
+
+ifeq ($(CC),icc)
+CXX=icc
+endif
+
 # CFLAGS += -pg
 
 ifdef BDBDIR

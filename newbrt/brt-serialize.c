@@ -350,7 +350,7 @@ serialize_nonleaf(BRTNODE node, int n_sub_blocks, struct sub_block sub_block[], 
             wbuf_nocrc_int(wbuf, toku_fifo_n_entries(BNC_BUFFER(node,i)));
             FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xids,
                          {
-                             invariant(type>=0 && type<256);
+                             invariant(((int)type)>=0 && type<256);
                              wbuf_nocrc_char(wbuf, (unsigned char)type);
                              wbuf_nocrc_xids(wbuf, xids);
                              wbuf_nocrc_bytes(wbuf, key, keylen);

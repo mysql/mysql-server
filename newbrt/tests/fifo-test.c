@@ -64,7 +64,7 @@ test_fifo_enq (int n) {
         buildval(i);
         assert((int) keylen == thekeylen); assert(memcmp(key, thekey, keylen) == 0);
         assert((int) vallen == thevallen); assert(memcmp(val, theval, vallen) == 0);
-        assert(i % 256 == type);
+        assert(i % 256 == (int)type);
 	assert((TXNID)i==xids_get_innermost_xid(xids));
         i += 1;
     });

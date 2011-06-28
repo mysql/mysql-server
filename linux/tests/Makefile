@@ -15,7 +15,8 @@ endif
 ifneq ($(GCOV),)
 	CFLAGS += -fprofile-arcs -ftest-coverage -DGCOV
 endif
-LDFLAGS = ../libtokuportability.a -lpthread
+LDFLAGS = -L../../lib -Wl,-rpath,../../lib
+LDLIBS = -ltokuportability -lpthread
 SRCS=$(sort $(filter-out dir.%.c,$(wildcard *.c)))
 TARGETS = $(patsubst %.c,%,$(SRCS))
 RUNTARGETS = $(patsubst %,%.tdbrun,$(TARGETS))
@@ -37,7 +38,7 @@ INVERTER=;test $$? -ne 0
 all: $(TARGETS)
 
 %: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $< $(LDFLAGS) -lrt
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $< $(LDFLAGS) $(LDLIBS) -lrt
 
 .PHONY: check build
 build: $(TARGETS)

@@ -937,6 +937,13 @@ int toku_fread_u_int64_t (FILE *f, u_int64_t *v, struct x1764 *checksum, u_int32
     return 0;
 }
 
+int toku_fread_BOOL (FILE *f, BOOL *v, struct x1764 *mm, u_int32_t *len) {
+    u_int8_t iv;
+    int r = toku_fread_u_int8_t(f, &iv, mm, len);
+    *v = (iv!=0);
+    return r;
+}
+
 int toku_fread_LSN     (FILE *f, LSN *lsn, struct x1764 *checksum, u_int32_t *len) {
     return toku_fread_u_int64_t (f, &lsn->lsn, checksum, len);
 }
@@ -1013,7 +1020,6 @@ int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, struct
     else if (isprint(v)) fprintf(outf, "('%c')", v);
     else {}/*nothing*/
     return 0;
-
 }
 
 int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format) {
@@ -1032,6 +1038,15 @@ int toku_logprint_u_int64_t (FILE *outf, FILE *inf, const char *fieldname, struc
     fprintf(outf, " %s=", fieldname);
     fprintf(outf, format ? format : "%"PRId64, v);
     return 0;
+}
+
+int toku_logprint_BOOL (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
+    BOOL v;
+    int r = toku_fread_BOOL(inf, &v, checksum, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s=%s", fieldname, v ? "TRUE" : "FALSE");
+    return 0;
+
 }
 
 void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data) {

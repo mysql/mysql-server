@@ -39,8 +39,6 @@ BINS_RAW =  $(REGRESSION_TESTS_RAW) \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 # BINS will be defined by adding .exe if appropriate.
 
-$(BINS): BIN_FROM_C_FLAGS+=$(LIBPORTABILITY)
-
 CHECKS = \
 	benchmarktest_256 \
 	test-assertA \
@@ -155,43 +153,45 @@ brtloader_test$(BINSUF): ../brtloader-internal.h ../brtloader.o
 ../brtloader.$(OEXT): ../brtloader.c ../brtloader-internal.h 
 	cd $(@D) && $(MAKE) $(@F)
 
+CILKSCREEN=../../scripts/tokucilkscreen
+
 check_brtloader:  check_brtloader-test-bad-generate check_brtloader-test-extractor check_brtloader-test-extractor-errors check_brtloader-test-merge-files-dbufio check_brtloader-test-open check_brtloader-test-writer check_brtloader-test-writer-errors
 
 cilkscreen_brtloader-tests: cilkscreen_brtloader-test-1
 	true $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-1: brtloader-test$(BINSUF)
-	$(CILKROOT)/bin/cilkscreen ./$< $(VERBVERBOSE) dir.$@ $(SUMMARIZE_CMD)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) dir.$@ $(SUMMARIZE_CMD)
 
 cilkscreen_brtloader-extractor-tests: $(patsubst %,cilkscreen_brtloader-test-extractor-%, 1 2)
 	true $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-extractor-1: brtloader-test-extractor$(BINSUF)
-	$(CILKROOT)/bin/cilkscreen ./$< $(VERBVERBOSE) dir.$@ $(SUMMARIZE_CMD)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) dir.$@ $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-extractor-2: brtloader-test-extractor$(BINSUF)
-	$(CILKROOT)/bin/cilkscreen ./$< $(VERBVERBOSE) -s dir.$@ $(SUMMARIZE_CMD)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s dir.$@ $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-extractor-3: brtloader-test-extractor$(BINSUF)
-	$(CILKROOT)/bin/cilkscreen ./$< $(VERBVERBOSE) -s -r 100 --rowsets 100 dir.$@ $(SUMMARIZE_CMD)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 100 --rowsets 100 dir.$@ $(SUMMARIZE_CMD)
 
 cilkscreen_brtloader-writer-tests: $(patsubst %,cilkscreen_brtloader-test-writer-%, 1 2)
 	true $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-1: brtloader-test-writer$(BINSUF)
-	$(CILKROOT)/bin/cilkscreen ./$< $(VERBVERBOSE) -s -r 1000 dir.$@ $(SUMMARIZE_CMD)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 1000 dir.$@ $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-2: brtloader-test-writer$(BINSUF)
-	$(CILKROOT)/bin/cilkscreen ./$< $(VERBVERBOSE) -s -r 10000 dir.$@ $(SUMMARIZE_CMD)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 10000 dir.$@ $(SUMMARIZE_CMD)
 
 # this test sometimes crashes cilkscreen 8503, omit for now
 cilkscreen_brtloader-test-writer-3: brtloader-test-writer$(BINSUF)
-	$(CILKROOT)/bin/cilkscreen ./$< $(VERBVERBOSE) -s -r 100000 dir.$@ $(SUMMARIZE_CMD)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 100000 dir.$@ $(SUMMARIZE_CMD)
 
 cilkscreen_brtloader-writer-error-tests: $(patsubst %,cilkscreen_brtloader-test-writer-errors-%, 1 2 3 4)
 	true $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-errors-1: brtloader-test-writer-errors$(BINSUF)
-	$(CILKROOT)/bin/cilkscreen ./$< $(VERBVERBOSE) -s -r 10000 -u dir.$@ $(SUMMARIZE_CMD)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 10000 -u dir.$@ $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-errors-2: brtloader-test-writer-errors$(BINSUF)
-	$(CILKROOT)/bin/cilkscreen ./$< $(VERBVERBOSE) -s -r 10000 -w dir.$@ $(SUMMARIZE_CMD)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 10000 -w dir.$@ $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-errors-3: brtloader-test-writer-errors$(BINSUF)
-	$(CILKROOT)/bin/cilkscreen ./$< $(VERBVERBOSE) -s -r 10000 -m dir.$@ $(SUMMARIZE_CMD)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 10000 -m dir.$@ $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-errors-4: brtloader-test-writer-errors$(BINSUF)
-	$(CILKROOT)/bin/cilkscreen ./$< $(VERBVERBOSE) -s -r 10000 --realloc_errors dir.$@ $(SUMMARIZE_CMD)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 10000 --realloc_errors dir.$@ $(SUMMARIZE_CMD)
 
 cilkscreen_brtloader: cilkscreen_brtloader-tests cilkscreen_brtloader-extractor-tests cilkscreen_brtloader-writer-tests cilkscreen_brtloader-writer-error-tests
 
@@ -201,7 +201,7 @@ clean:
 	rm -f test_oexcl.c.tmp
 	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out *.check.valgrind
 
-$(BINS): LDFLAGS=-L../ -lnewbrt -lz -lpthread -Wl,-rpath,../
+$(BINS): LDFLAGS=-L../../lib -ltokuportability -lnewbrt $(ALWAYS_LINK) -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
 $(BINS): test.h
 
 foo:

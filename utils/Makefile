@@ -43,7 +43,10 @@ $(UTILS): LINK_FILES+=$(WIN_YDB)
 $(UTILS): $(WIN_YDB)
 else
 $(UTILS): DLINK_FILES=$(TOKUROOT)lib/libtokudb.$(SOEXT)
-$(STATIC_UTILS): LINK_FILES+=$(TOKUROOT)lib/libtokudb.$(AEXT)
+NEWBRT_OBJS=$(patsubst %,../%,$(shell cat $(TOKUROOT)lib/newbrt.olist))
+TOKUPORTABILITY_OBJS=$(patsubst %,../%,$(shell cat $(TOKUROOT)lib/tokuportability.olist))
+YDB_OBJS=$(wildcard ../src/*.$(OEXT))
+$(STATIC_UTILS): LINK_FILES+= $(NEWBRT_OBJS) $(TOKUPORTABILITY_OBJS) $(YDB_OBJS) ../src/lock_tree/locktree.a ../src/range_tree/rangetree.a
 
 ifeq ($(BRTLOADER),cilk)
 	DLINK_FILES += cilkrts stdc++
@@ -81,6 +84,8 @@ endif
 $(BDB_UTILS): DLINK_FILES=db.$(SOEXT)
 endif
 $(BDB_UTILS): CPPFLAGS+=-DTOKU_ALLOW_DEPRECATED
+$(BDB_UTILS): LDLIBS+=-ltokuportability
+$(BDB_UTILS): LDFLAGS+=-L$(TOKUROOT)lib -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
 #empty on purpose
 $(BDB_UTILS): CPPFLAGS+=-DIS_TDB=0
 $(UTILS) $(STATIC_UTILS): CPPFLAGS+=-DIS_TDB=1
@@ -120,7 +125,7 @@ coverage: $(UTILS)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST) -DUSE_BDB=1
 
 %_static$(BINSUF): %.c ../lib/libtokudb.$(AEXT)
-	$(CC) $< ../lib/libtokudb.$(AEXT) $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
+	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 
 strip: $(STATIC_UTILS) 
 	strip $(STATIC_UTILS)
