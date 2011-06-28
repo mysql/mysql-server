@@ -4536,28 +4536,20 @@ int
 innobase_fts_text_cmp_prefix(
 /*=========================*/
 	const void*	cs,		/*!< in: Character set */
-	const void*	p1,		/*!< in: key */
-	const void*	p2)		/*!< in: node */
+	const void*	p1,		/*!< in: prefix key */
+	const void*	p2)		/*!< in: value to compare */
 {
 	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
 	const fts_string_t*	s1 = (const fts_string_t*) p1;
 	const fts_string_t*	s2 = (const fts_string_t*) p2;
 	int			result;
-	ulint			len;
 
-	len = ut_min(s1->len, s2->len);
+	result = ha_compare_text(charset, s2->utf8, s2->len,
+				 s1->utf8, s1->len, 1, 0);
 
-	result = ha_compare_text(charset, s1->utf8, len, s2->utf8, len, 0, 0);
-
-	if (result) {
-		return(result);
-	}
-
-	if (s1->len > s2->len) {
-		return(1);
-	}
-
-	return(0);
+	/* We switched s1, s2 position in ha_compare_text. So we need
+	to negate the result */
+	return(-result);
 }
 /******************************************************************//**
 Makes all characters in a string lower case. */

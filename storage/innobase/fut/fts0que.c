@@ -861,8 +861,8 @@ fts_cache_find_wildcard(
 		word = rbt_value(fts_tokenizer_word_t, parent.last);
 		cur_node = parent.last;
 
-		while (fts_utf8_string_cmp_prefix(&srch_text,
-						  &word->text) == 0) {
+		while (innobase_fts_text_cmp_prefix(
+			index_cache->charset, &srch_text, &word->text) == 0) {
 
 			nodes = word->nodes;
 

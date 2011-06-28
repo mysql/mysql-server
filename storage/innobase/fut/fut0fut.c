@@ -3974,10 +3974,8 @@ fts_process_token(
 
 			fts_utf8_string_dup(&new_token.text, &str, heap);
 
-#ifdef	FTS_CHARSET_DEBUG
 			innobase_fts_casedn_str(doc->charset,
 						(char*)new_token.text.utf8);
-#endif
 
 			new_token.positions = ib_vector_create(
 				result_doc->self_heap, sizeof(ulint), 32);
