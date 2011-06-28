@@ -4537,7 +4537,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
     Force creation of nullable item for the result tmp table for outer joined
     views/derived tables.
   */
-  if (view->outer_join)
+  if (view->table && view->table->maybe_null)
     item->maybe_null= TRUE;
   /* Save item in case we will need to fall back to materialization. */
   view->used_items.push_back(item);

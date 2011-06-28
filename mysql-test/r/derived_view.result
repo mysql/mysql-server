@@ -645,3 +645,61 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# LP bug #800535: GROUP BY query with nested left join                       
+#                 and a derived table in the nest
+#
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 (a int NOT NULL);
+INSERT INTO t2 VALUES (1), (2);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (3,3), (4,4);
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+(t2  t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` `t` join `test`.`t3`) on(((`test`.`t`.`a` >= 1) and (`test`.`t3`.`b` > 5))) where 1 group by `test`.`t`.`a`
+SELECT t.a FROM t1 LEFT JOIN
+(t2 t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+a
+NULL
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+(( SELECT * FROM t2 ) t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` >= 1) and (`test`.`t3`.`b` > 5))) where 1 group by `test`.`t2`.`a`
+SELECT t.a FROM t1 LEFT JOIN
+(( SELECT * FROM t2 ) t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+a
+NULL
+CREATE VIEW v1 AS SELECT * FROM t2;
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+(v1  t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` >= 1) and (`test`.`t3`.`b` > 5))) where 1 group by `test`.`t2`.`a`
+SELECT t.a FROM t1 LEFT JOIN
+(v1 t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+a
+NULL
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
