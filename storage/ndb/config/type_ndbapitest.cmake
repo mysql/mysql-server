@@ -13,9 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-LINK_LIBRARIES(ndbNDBT
-               ndbclient_so)
-
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_BINARY_DIR}/include
                     ${CMAKE_BINARY_DIR}/storage/ndb/include
