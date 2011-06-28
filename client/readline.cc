@@ -62,7 +62,7 @@ char *batch_readline(LINE_BUFFER *line_buff, bool binary_mode)
   if (out_length && pos[out_length-1] == '\n')
   {
     out_length--;                                   /* Remove '\n' */
-    if (!binary_mode && pos[out_length-1] == '\r')
+    if (out_length && !binary_mode && pos[out_length-1] == '\r')
       out_length--;                                 /* Remove '\r' */
   }
   line_buff->read_length=out_length;
