@@ -31,7 +31,7 @@
 	return(FTS_NUMB);
 }
 
-[a-zA-Z_][a-zA-Z0-9_]*	{
+[^" \n*()+\-<>~@]*		{
 	val->token = strdup(fts0bget_text(yyscanner));
 
 	return(FTS_TERM);
