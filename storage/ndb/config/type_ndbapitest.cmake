@@ -14,11 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 LINK_LIBRARIES(ndbNDBT
-               ndbclient
-               dbug
-               mysys
-               strings)
-
+               ndbclient_so)
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_BINARY_DIR}/include

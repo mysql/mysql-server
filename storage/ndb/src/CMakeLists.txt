@@ -38,11 +38,19 @@ SET(NDBCLIENT_LIBS
                 ndbgeneral
                 ndbconf)
 
+MERGE_LIBRARIES(ndbclient STATIC ${NDBCLIENT_LIBS} COMPONENT Development)
+
+#
+# Do a shared libd
+#
+SET(NDBCLIENT_SO_LIBS ${NDBCLIENT_LIBS})
+SET(EXTRA_SRC)
+
 IF(HAVE_JDK AND HAVE_JAVA)
 
   ADD_SUBDIRECTORY(ndbjtie)
 
-  SET(NDBCLIENT_LIBS ${NDBCLIENT_LIBS} mysqlutils ndbjtie)
+  SET(NDBCLIENT_SO_LIBS ${NDBCLIENT_SO_LIBS} mysqlutils ndbjtie)
 
   INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
@@ -53,11 +61,11 @@ IF(HAVE_JDK AND HAVE_JAVA)
                       ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/mysql
                      )
   # JNI needs a DLL
-  ADD_LIBRARY(ndbclient 
-    SHARED ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/ndbjtie_lib.cpp)
-  SET_TARGET_PROPERTIES(ndbclient PROPERTIES OUTPUT_NAME "ndbclient")
-  TARGET_LINK_LIBRARIES(ndbclient ${NDBCLIENT_LIBS})
-
-ELSE()
-  MERGE_STATIC_LIBS(ndbclient ndbclient "${NDBCLIENT_LIBS}")
+  SET(EXTRA_SRC ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/ndbjtie_lib.cpp)
 ENDIF()
+
+
+MESSAGE(STATUS "NDBCLIENT_SO_LIBS: ${NDBCLIENT_SO_LIBS}")
+ADD_LIBRARY(ndbclient_so SHARED ${EXTRA_SRC})
+TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
+SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES OUTPUT_NAME "ndbclient")
