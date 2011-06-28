@@ -1081,10 +1081,6 @@ MgmtSrvr::sendall_STOP_REQ(NodeBitmask &stoppedNodes,
         else
           failed++;
       }
-      else
-      {
-        failed++;
-      }
     }
   }
 

@@ -41,7 +41,7 @@ public class LongIntStringPKOneOne extends LongIntStringConstants implements Ser
 
     @javax.persistence.Id
     @javax.persistence.Column(name="longpk")
-    private long longpk;
+    private Long longpk;
 
     @javax.persistence.Id
     @javax.persistence.Column(name="intpk")
@@ -60,11 +60,11 @@ public class LongIntStringPKOneOne extends LongIntStringConstants implements Ser
     public LongIntStringPKOneOne() {
     }
 
-    public long getLongpk() {
+    public Long getLongpk() {
         return longpk;
     }
 
-    public void setLongpk(long value) {
+    public void setLongpk(Long value) {
         longpk = value;
     }
 

@@ -334,9 +334,9 @@ public:
   struct Mem {
     Mem();
     virtual ~Mem();
-    virtual void* mem_alloc(size_t size) = 0;
+    virtual void* mem_alloc(UintPtr size) = 0;
     virtual void mem_free(void* ptr) = 0;
-    virtual size_t mem_used() const = 0;
+    virtual UintPtr mem_used() const = 0;
   };
 
   /*
