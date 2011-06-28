@@ -3,7 +3,6 @@
 #
 
 -- source include/have_innodb.inc
--- source suite/innodb/include/innodb_stats_bootstrap.inc
 
 -- disable_warnings
 -- disable_query_log
@@ -62,4 +61,3 @@ CREATE TABLE test_innodb_stats (
 
 -- disable_query_log
 DROP TABLE test_innodb_stats;
-DROP DATABASE innodb;

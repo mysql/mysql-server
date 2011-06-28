@@ -1020,7 +1020,7 @@ size_t my_scan_8bit(const CHARSET_INFO *cs, const char *str, const char *end,
 void my_fill_8bit(const CHARSET_INFO *cs __attribute__((unused)),
 		   char *s, size_t l, int fill)
 {
-  bfill((uchar*) s,l,fill);
+  memset(s, fill, l);
 }
 
 
@@ -1164,7 +1164,7 @@ create_fromuni(CHARSET_INFO *cs,
     return TRUE;
   
   /* Clear plane statistics */
-  bzero(idx,sizeof(idx));
+  memset(idx, 0, sizeof(idx));
   
   /* Count number of characters in each plane */
   for (i=0; i< 0x100; i++)
@@ -1204,7 +1204,7 @@ create_fromuni(CHARSET_INFO *cs,
                                                  sizeof(*idx[i].uidx.tab))))
       return TRUE;
     
-    bzero(idx[i].uidx.tab,numchars*sizeof(*idx[i].uidx.tab));
+    memset(idx[i].uidx.tab, 0, numchars*sizeof(*idx[i].uidx.tab));
     
     for (ch=1; ch < PLANE_SIZE; ch++)
     {
@@ -1227,7 +1227,7 @@ create_fromuni(CHARSET_INFO *cs,
     cs->tab_from_uni[i]= idx[i].uidx;
   
   /* Set end-of-list marker */
-  bzero(&cs->tab_from_uni[i],sizeof(MY_UNI_IDX));
+  memset(&cs->tab_from_uni[i], 0, sizeof(MY_UNI_IDX));
   return FALSE;
 }
 

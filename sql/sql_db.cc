@@ -40,6 +40,7 @@
 #ifdef __WIN__
 #include <direct.h>
 #endif
+#include "debug_sync.h"
 
 #define MAX_DROP_TABLE_Q_LEN      1024
 
@@ -360,7 +361,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   bool error=1;
   uint nbytes;
 
-  bzero((char*) create,sizeof(*create));
+  memset(create, 0, sizeof(*create));
   create->default_table_charset= thd->variables.collation_server;
 
   /* Check if options for this database are already in the hash */
@@ -1532,6 +1533,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     DBUG_RETURN(TRUE);
   }
 #endif
+
+  DEBUG_SYNC(thd, "before_db_dir_check");
 
   if (check_db_dir_existence(new_db_file_name.str))
   {

@@ -510,7 +510,7 @@ static int check_connection(THD *thd)
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
     thd->main_security_ctx.ip= 0;
     /* Reset sin_addr */
-    bzero((char*) &net->vio->remote, sizeof(net->vio->remote));
+    memset(&net->vio->remote, 0, sizeof(net->vio->remote));
   }
   vio_keepalive(net->vio, TRUE);
   
@@ -631,7 +631,8 @@ void end_connection(THD *thd)
                         thd->thread_id,(thd->db ? thd->db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip,
-                        (thd->stmt_da->is_error() ? thd->stmt_da->message() :
+                        (thd->get_stmt_da()->is_error() ?
+                         thd->get_stmt_da()->message() :
                          ER(ER_UNKNOWN_ERROR)));
     }
   }
@@ -669,7 +670,7 @@ void prepare_new_connection_state(THD* thd)
                         thd->thread_id,(thd->db ? thd->db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, "init_connect command failed");
-      sql_print_warning("%s", thd->stmt_da->message());
+      sql_print_warning("%s", thd->get_stmt_da()->message());
     }
     thd->proc_info=0;
     thd->set_time();

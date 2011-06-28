@@ -19566,8 +19566,8 @@ my_uca_alloc_contractions(MY_UCA_INFO *uca,
   if (!(uca->contractions.item= (loader->once_alloc)(size)) ||
       !(uca->contractions.flags= (char *) (loader->once_alloc)(MY_UCA_CNT_FLAG_SIZE)))
     return 1;
-  bzero((void *) uca->contractions.item, size);
-  bzero((void *) uca->contractions.flags, MY_UCA_CNT_FLAG_SIZE);
+  memset(uca->contractions.item, 0, size);
+  memset(uca->contractions.flags, 0, MY_UCA_CNT_FLAG_SIZE);
   return 0;
 }
 
@@ -20924,7 +20924,7 @@ my_coll_rule_expand(my_wc_t *wc, size_t limit, my_wc_t code)
 static void
 my_coll_rule_reset(MY_COLL_RULE *r)
 {
-  bzero((void *) r, sizeof(*r));
+  memset(r, 0, sizeof(*r));
 }
 
 
@@ -21104,7 +21104,7 @@ my_coll_parser_init(MY_COLL_RULE_PARSER *p,
     Initialize parser to the input buffer and scan two tokens,
     to make the current token and the next token known.
   */
-  bzero((void *) p, sizeof(*p));
+  memset(p, 0, sizeof(*p));
   p->rules= rules;
   p->errstr[0]= '\0';
   my_coll_lexem_init(my_coll_parser_curr(p), str, str_end);
@@ -21493,7 +21493,7 @@ my_coll_parser_scan_shift_sequence(MY_COLL_RULE_PARSER *p)
 {
   MY_COLL_RULE before_extend;
 
-  bzero((void *) &p->rule.curr, sizeof(p->rule.curr));
+  memset(&p->rule.curr, 0, sizeof(p->rule.curr));
 
   /* Scan single shift character or contraction */
   if (!my_coll_parser_scan_character_list(p, p->rule.curr,
@@ -21741,7 +21741,7 @@ my_uca_copy_page(MY_CHARSET_LOADER *loader,
     return TRUE;
 
   DBUG_ASSERT(src_uca->lengths[page] <= dst_uca->lengths[page]);
-  bzero((void *) dst_uca->weights[page], size);
+  memset(dst_uca->weights[page], 0, size);
   for (chc=0 ; chc < 256; chc++)
   {
     memcpy(dst_uca->weights[page] + chc * dst_uca->lengths[page],
@@ -21783,10 +21783,10 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
   if (!cs->tailoring)
     return 0; /* Ok to add a collation without tailoring */
 
-  bzero((void *) &rules, sizeof(rules));
+  memset(&rules, 0, sizeof(rules));
   rules.loader= loader;
   rules.uca= cs->uca ? cs->uca : &my_uca_v400; /* For logical positions, etc */
-  bzero((void *) &new_uca, sizeof(new_uca));
+  memset(&new_uca, 0, sizeof(new_uca));
 
   /* Parse ICU Collation Customization expression */
   if ((rc= my_coll_rule_parse(&rules,

@@ -72,7 +72,7 @@ void* my_once_alloc(size_t Size, myf MyFlags)
   next->left-= Size;
 
   if (MyFlags & MY_ZEROFILL)
-    bzero(point, Size);
+    memset(point, 0, Size);
   return((void*) point);
 } /* my_once_alloc */
 

@@ -44,6 +44,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "data0type.h"
 #include "dict0dict.h"
 #include "buf0buf.h"
+#include "buf0dump.h"
 #include "os0file.h"
 #include "os0thread.h"
 #include "fil0fil.h"
@@ -492,12 +493,6 @@ io_handler_thread(
 	OS_THREAD_DUMMY_RETURN;
 }
 #endif /* !UNIV_HOTBACKUP */
-
-#ifdef __WIN__
-#define SRV_PATH_SEPARATOR	'\\'
-#else
-#define SRV_PATH_SEPARATOR	'/'
-#endif
 
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
@@ -2077,6 +2072,9 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	srv_file_per_table = srv_file_per_table_original_value;
+
+	/* Create the buffer pool dump/load thread */
+	os_thread_create(buf_dump_thread, NULL, NULL);
 
 	srv_was_started = TRUE;
 

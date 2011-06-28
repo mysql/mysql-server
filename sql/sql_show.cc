@@ -429,7 +429,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
 
 
-  bzero((char*) &table_list,sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
 
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
   {
@@ -1300,7 +1300,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   key_info= table->key_info;
-  bzero((char*) &create_info, sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   /* Allow update_create_info to update row type */
   create_info.row_type= share->row_type;
   file->update_create_info(&create_info);
@@ -2014,7 +2014,7 @@ static void shrink_var_array(DYNAMIC_ARRAY *array)
       all[a++]= all[b];
   if (a)
   {
-    bzero(all+a, sizeof(SHOW_VAR)); // writing NULL-element to the end
+    memset(all+a, 0, sizeof(SHOW_VAR)); // writing NULL-element to the end
     array->elements= a;
   }
   else // array is completely empty - delete it
@@ -2676,7 +2676,7 @@ bool get_lookup_field_values(THD *thd, Item *cond, TABLE_LIST *tables,
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   bool rc= 0;
 
-  bzero((char*) lookup_field_values, sizeof(LOOKUP_FIELD_VALUES));
+  memset(lookup_field_values, 0, sizeof(LOOKUP_FIELD_VALUES));
   switch (lex->sql_command) {
   case SQLCOM_SHOW_DATABASES:
     if (wild)
@@ -3130,7 +3130,7 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
     of backward compatibility.
   */
   if (!is_show_fields_or_keys && result && thd->is_error() &&
-      thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
+      thd->get_stmt_da()->sql_errno() == ER_NO_SUCH_TABLE)
   {
     /*
       Hide error for a non-existing table.
@@ -3220,7 +3220,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     default:
       DBUG_ASSERT(0);
     }
-    if (thd->is_error() && thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
+    if (thd->is_error() && thd->get_stmt_da()->sql_errno() == ER_NO_SUCH_TABLE)
     {
       thd->clear_error();
       return 0;
@@ -3376,8 +3376,8 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   uint key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
-  bzero((char*) &table_list, sizeof(TABLE_LIST));
-  bzero((char*) &tbl, sizeof(TABLE));
+  memset(&table_list, 0, sizeof(TABLE_LIST));
+  memset(&tbl, 0, sizeof(TABLE));
 
   if (lower_case_table_names)
   {
@@ -4118,13 +4118,13 @@ err:
       column with the error text, and clear the error so that the operation
       can continue.
     */
-    const char *error= thd->is_error() ? thd->stmt_da->message() : "";
+    const char *error= thd->is_error() ? thd->get_stmt_da()->message() : "";
     table->field[20]->store(error, strlen(error), cs);
 
     if (thd->is_error())
     {
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
     }
   }
@@ -4281,7 +4281,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       */
       if (thd->is_error())
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                     thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
       res= 0;
     }
@@ -4605,7 +4605,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
   bool free_sp_head;
   DBUG_ENTER("store_schema_params");
 
-  bzero((char*) &tbl, sizeof(TABLE));
+  memset(&tbl, 0, sizeof(TABLE));
   (void) build_table_filename(path, sizeof(path), "", "", "", 0);
   init_tmp_table_share(thd, &share, "", 0, "", path);
 
@@ -4801,7 +4801,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
           Field *field;
           Create_field *field_def= &sp->m_return_field_def;
 
-          bzero((char*) &tbl, sizeof(TABLE));
+          memset(&tbl, 0, sizeof(TABLE));
           (void) build_table_filename(path, sizeof(path), "", "", "", 0);
           init_tmp_table_share(thd, &share, "", 0, "", path);
           field= make_field(&share, (uchar*) 0, field_def->length,
@@ -4834,11 +4834,11 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       copy_field_as_string(table->field[21],
                            proc_table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]);
 
-      bzero((char *)&time, sizeof(time));
+      memset(&time, 0, sizeof(time));
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_CREATED])->
         get_time(&time);
       table->field[22]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
-      bzero((char *)&time, sizeof(time));
+      memset(&time, 0, sizeof(time));
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_MODIFIED])->
         get_time(&time);
       table->field[23]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
@@ -4881,7 +4881,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   strxmov(definer, thd->security_ctx->priv_user, "@",
           thd->security_ctx->priv_host, NullS);
   /* We use this TABLE_LIST instance only for checking of privileges. */
-  bzero((char*) &proc_tables,sizeof(proc_tables));
+  memset(&proc_tables, 0, sizeof(proc_tables));
   proc_tables.db= (char*) "mysql";
   proc_tables.db_length= 5;
   proc_tables.table_name= proc_tables.alias= (char*) "proc";
@@ -4942,7 +4942,7 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
       */
       if (thd->is_error())
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                     thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
       res= 0;
     }
@@ -5161,7 +5161,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
       DBUG_RETURN(1);
     if (res && thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
   }
   if (res)
     thd->clear_error();
@@ -5195,7 +5195,7 @@ static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5298,7 +5298,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5379,7 +5379,7 @@ static int get_schema_key_column_usage_record(THD *thd,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5666,7 +5666,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -6195,7 +6195,7 @@ get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -6803,25 +6803,26 @@ static bool do_fill_table(THD *thd,
   // Warning_info, so "useful warnings" get rejected. In order to avoid
   // that problem we create a Warning_info instance, which is capable of
   // storing "unlimited" number of warnings.
-  Warning_info wi(thd->query_id, true);
-  Warning_info *wi_saved= thd->warning_info;
+  Diagnostics_area *da= thd->get_stmt_da();
+  Warning_info *wi= da->get_warning_info();
+  Warning_info wi_tmp(thd->query_id, true);
 
-  thd->warning_info= &wi;
+  da->set_warning_info(&wi_tmp);
 
   bool res= table_list->schema_table->fill_table(
     thd, table_list, join_table->condition());
 
-  thd->warning_info= wi_saved;
+  da->set_warning_info(wi);
 
   // Pass an error if any.
 
-  if (thd->stmt_da->is_error())
+  if (da->is_error())
   {
-    thd->warning_info->push_warning(thd,
-                                    thd->stmt_da->sql_errno(),
-                                    thd->stmt_da->get_sqlstate(),
-                                    MYSQL_ERROR::WARN_LEVEL_ERROR,
-                                    thd->stmt_da->message());
+    wi->push_warning(thd,
+                     da->sql_errno(),
+                     da->get_sqlstate(),
+                     MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     da->message());
   }
 
   // Pass warnings (if any).
@@ -6829,14 +6830,13 @@ static bool do_fill_table(THD *thd,
   // Filter out warnings with WARN_LEVEL_ERROR level, because they
   // correspond to the errors which were filtered out in fill_table().
 
-
-  List_iterator_fast<MYSQL_ERROR> it(wi.warn_list());
-  MYSQL_ERROR *err;
+  Warning_info::Const_iterator it= wi_tmp.iterator();
+  const MYSQL_ERROR *err;
 
   while ((err= it++))
   {
     if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_ERROR)
-      thd->warning_info->push_warning(thd, err);
+      wi->push_warning(thd, err);
   }
 
   return res;

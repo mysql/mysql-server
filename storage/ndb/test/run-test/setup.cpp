@@ -440,7 +440,7 @@ configure(atrt_config& config, int setup)
   {
     bool ok = true;
     proc_rule_ctx ctx;
-    bzero(&ctx, sizeof(ctx));
+    memset(&ctx, 0, sizeof(ctx));
     ctx.m_setup = setup;
     ctx.m_config = &config;
     

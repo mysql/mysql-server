@@ -345,7 +345,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   else
 #endif
   {
-    bzero((uchar*) buff, 6);
+    memset(buff, 0, 6);
     if (mysql_file_write(file, (uchar*) buff, 6, MYF_RW))
       goto err;
   }
@@ -844,7 +844,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
     DBUG_RETURN(1);
   }
 
-  bzero((char*)forminfo,288);
+  memset(forminfo, 0, 288);
   length=(info_length+create_fields.elements*FCOMP+288+n_length+int_length+
 	  com_length);
   int2store(forminfo,length);
@@ -984,7 +984,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
         uint           i;
         unsigned char *val= NULL;
 
-        bzero(occ, sizeof(occ));
+        memset(occ, 0, sizeof(occ));
 
         for (i=0; (val= (unsigned char*) field->interval->type_names[i]); i++)
           for (uint j = 0; j < field->interval->type_lengths[i]; j++)
@@ -1062,8 +1062,8 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
   DBUG_ENTER("make_empty_rec");
 
   /* We need a table to generate columns for default values */
-  bzero((char*) &table, sizeof(table));
-  bzero((char*) &share, sizeof(share));
+  memset(&table, 0, sizeof(table));
+  memset(&share, 0, sizeof(share));
   table.s= &share;
 
   if (!(buff=(uchar*) my_malloc((size_t) reclength,MYF(MY_WME | MY_ZEROFILL))))

@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* Include necessary InnoDB headers */
 extern "C" {
 #include "univ.i"
+#include "buf0dump.h"
 #include "buf0lru.h"
 #include "buf0flu.h"
 #include "btr0sea.h"
@@ -170,6 +171,7 @@ static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
+static my_bool	innobase_large_prefix			= FALSE;
 
 
 static char*	internal_innobase_data_file_path	= NULL;
@@ -387,6 +389,10 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
 
 static SHOW_VAR innodb_status_variables[]= {
+  {"buffer_pool_dump_status",
+  (char*) &export_vars.innodb_buffer_pool_dump_status,	  SHOW_CHAR},
+  {"buffer_pool_load_status",
+  (char*) &export_vars.innodb_buffer_pool_load_status,	  SHOW_CHAR},
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
   {"buffer_pool_pages_dirty",
@@ -1064,7 +1070,7 @@ int
 convert_error_code_to_mysql(
 /*========================*/
 	int	error,	/*!< in: InnoDB error code */
-	ulint	flags,	/*!< in: InnoDB table flags, or 0 */
+	ulint	flags,  /*!< in: InnoDB table flags, or 0 */
 	THD*	thd)	/*!< in: user thread handle or NULL */
 {
 	switch (error) {
@@ -1167,6 +1173,11 @@ convert_error_code_to_mysql(
 			 page_get_free_space_of_empty(flags
 						      & DICT_TF_COMPACT) / 2);
 		return(HA_ERR_TO_BIG_ROW);
+
+	case DB_TOO_BIG_INDEX_COL:
+		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
+			 DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags));
+		return(HA_ERR_INDEX_COL_TOO_LONG);
 
 	case DB_NO_SAVEPOINT:
 		return(HA_ERR_NO_SAVEPOINT);
@@ -2842,8 +2853,10 @@ innobase_alter_table_flags(
 	uint	flags)
 {
 	return(HA_INPLACE_ADD_INDEX_NO_READ_WRITE
+		| HA_INPLACE_ADD_INDEX_NO_WRITE
 		| HA_INPLACE_DROP_INDEX_NO_READ_WRITE
 		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE
+		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE
 		| HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE
 		| HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
 }
@@ -4182,7 +4195,11 @@ uint
 ha_innobase::max_supported_key_part_length() const
 /*==============================================*/
 {
-	return(DICT_MAX_INDEX_COL_LEN - 1);
+	/* A table format specific index column length check will be performed
+	at ha_innobase::add_index() and row_create_index_for_mysql() */
+	return(innobase_large_prefix
+		? REC_VERSION_56_MAX_INDEX_COL_LEN
+		: REC_ANTELOPE_MAX_INDEX_COL_LEN - 1);
 }
 
 /******************************************************************//**
@@ -4549,7 +4566,7 @@ ha_innobase::store_key_val_for_row(
 	simple memcmp to compare two key values to determine if they are
 	equal. MySQL does this to compare contents of two 'ref' values. */
 
-	bzero(buff, buff_len);
+	memset(buff, 0, buff_len);
 
 	for (; key_part != end; key_part++) {
 		is_null = FALSE;
@@ -4627,7 +4644,7 @@ ha_innobase::store_key_val_for_row(
 			length of the true VARCHAR in the key value, though
 			only len first bytes after the 2 length bytes contain
 			actual data. The rest of the space was reset to zero
-			in the bzero() call above. */
+			in the memset() call above. */
 
 			buff += key_len;
 
@@ -7448,8 +7465,8 @@ ha_innobase::create(
 
 		if (i != (uint) primary_key_no) {
 
-			if ((error = create_index(trx, form, flags, norm_name,
-						  i))) {
+			if ((error = create_index(trx, form, flags,
+						  norm_name, i))) {
 				goto cleanup;
 			}
 		}
@@ -12042,6 +12059,91 @@ innobase_index_name_is_reserved(
 	return(false);
 }
 
+/* These variables are never read by InnoDB or changed. They are a kind of
+dummies that are needed by the MySQL infrastructure to call
+buffer_pool_dump_now(), buffer_pool_load_now() and buffer_pool_load_abort()
+by the user by doing:
+  SET GLOBAL innodb_buffer_pool_dump_now=ON;
+  SET GLOBAL innodb_buffer_pool_load_now=ON;
+  SET GLOBAL innodb_buffer_pool_load_abort=ON;
+Their values are read by MySQL and displayed to the user when the variables
+are queried, e.g.:
+  SELECT @@innodb_buffer_pool_dump_now;
+  SELECT @@innodb_buffer_pool_load_now;
+  SELECT @@innodb_buffer_pool_load_abort; */
+static my_bool	innodb_buffer_pool_dump_now = FALSE;
+static my_bool	innodb_buffer_pool_load_now = FALSE;
+static my_bool	innodb_buffer_pool_load_abort = FALSE;
+
+/****************************************************************//**
+Trigger a dump of the buffer pool if innodb_buffer_pool_dump_now is set
+to ON. This function is registered as a callback with MySQL. */
+static
+void
+buffer_pool_dump_now(
+/*=================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_dump_start();
+	}
+}
+
+/****************************************************************//**
+Trigger a load of the buffer pool if innodb_buffer_pool_load_now is set
+to ON. This function is registered as a callback with MySQL. */
+static
+void
+buffer_pool_load_now(
+/*=================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_load_start();
+	}
+}
+
+/****************************************************************//**
+Abort a load of the buffer pool if innodb_buffer_pool_load_abort
+is set to ON. This function is registered as a callback with MySQL. */
+static
+void
+buffer_pool_load_abort(
+/*===================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_load_abort();
+	}
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
   {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
@@ -12077,7 +12179,7 @@ static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
   PLUGIN_VAR_OPCMDARG,
   "Number of UNDO log pages to purge in one batch from the history list.",
   NULL, NULL,
-  20,			/* Default setting */
+  300,			/* Default setting */
   1,			/* Minimum value */
   5000, 0);		/* Maximum value */
 
@@ -12153,6 +12255,11 @@ static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
 static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "With which method to flush data.", NULL, NULL, NULL);
+
+static MYSQL_SYSVAR_BOOL(large_prefix, innobase_large_prefix,
+  PLUGIN_VAR_NOCMDARG,
+  "Support large index prefix length of REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes.",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(locks_unsafe_for_binlog, innobase_locks_unsafe_for_binlog,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -12260,6 +12367,37 @@ static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
   NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
+
+static MYSQL_SYSVAR_STR(buffer_pool_filename, srv_buf_dump_filename,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+  "Filename to/from which to dump/load the InnoDB buffer pool",
+  NULL, NULL, SRV_BUF_DUMP_FILENAME_DEFAULT);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_dump_now, innodb_buffer_pool_dump_now,
+  PLUGIN_VAR_RQCMDARG,
+  "Trigger an immediate dump of the buffer pool into a file named @@innodb_buffer_pool_filename",
+  NULL, buffer_pool_dump_now, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_dump_at_shutdown, srv_buffer_pool_dump_at_shutdown,
+  PLUGIN_VAR_RQCMDARG,
+  "Dump the buffer pool into a file named @@innodb_buffer_pool_filename",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_load_now, innodb_buffer_pool_load_now,
+  PLUGIN_VAR_RQCMDARG,
+  "Trigger an immediate load of the buffer pool from a file named @@innodb_buffer_pool_filename",
+  NULL, buffer_pool_load_now, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_load_abort, innodb_buffer_pool_load_abort,
+  PLUGIN_VAR_RQCMDARG,
+  "Abort a currently running load of the buffer pool",
+  NULL, buffer_pool_load_abort, FALSE);
+
+/* there is no point in changing this during runtime, thus readonly */
+static MYSQL_SYSVAR_BOOL(buffer_pool_load_at_startup, srv_buffer_pool_load_at_startup,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Load the buffer pool from a file named @@innodb_buffer_pool_filename",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
@@ -12448,6 +12586,12 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_instances),
+  MYSQL_SYSVAR(buffer_pool_filename),
+  MYSQL_SYSVAR(buffer_pool_dump_now),
+  MYSQL_SYSVAR(buffer_pool_dump_at_shutdown),
+  MYSQL_SYSVAR(buffer_pool_load_now),
+  MYSQL_SYSVAR(buffer_pool_load_abort),
+  MYSQL_SYSVAR(buffer_pool_load_at_startup),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
@@ -12465,6 +12609,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
+  MYSQL_SYSVAR(large_prefix),
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
   MYSQL_SYSVAR(lock_wait_timeout),
 #ifdef UNIV_LOG_ARCHIVE

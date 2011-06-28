@@ -218,7 +218,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
       const_item_cache&=      item->const_item();
-      with_subselect|=        item->with_subselect;
+      with_subselect|=        item->has_subquery();
     }
   }
   fix_length_and_dec();
@@ -392,7 +392,7 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
   See comments in Item_cmp_func::split_sum_func()
 */
 
-void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
+void Item_func::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                                List<Item> &fields)
 {
   Item **arg, **arg_end;
@@ -405,11 +405,13 @@ void Item_func::update_used_tables()
 {
   used_tables_cache=0;
   const_item_cache=1;
+  with_subselect= false;
   for (uint i=0 ; i < arg_count ; i++)
   {
     args[i]->update_used_tables();
     used_tables_cache|=args[i]->used_tables();
     const_item_cache&=args[i]->const_item();
+    with_subselect|= args[i]->has_subquery();
   }
 }
 
@@ -2273,6 +2275,9 @@ void Item_func_round::fix_length_and_dec()
   }
 
   val1= args[1]->val_int();
+  if ((null_value= args[1]->is_null()))
+    return;
+
   val1_unsigned= args[1]->unsigned_flag;
   if (val1 < 0)
     decimals_to_set= val1_unsigned ? INT_MAX : 0;
