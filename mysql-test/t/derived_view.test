@@ -277,3 +277,48 @@ SELECT MAX(b) FROM v1 WHERE a=7 AND b<75;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+
+--echo #
+--echo # LP bug #800535: GROUP BY query with nested left join                       
+--echo #                 and a derived table in the nest
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE TABLE t2 (a int NOT NULL);
+INSERT INTO t2 VALUES (1), (2);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (3,3), (4,4);
+
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+                (t2  t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+SELECT t.a FROM t1 LEFT JOIN
+                (t2 t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+                (( SELECT * FROM t2 ) t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+SELECT t.a FROM t1 LEFT JOIN
+                (( SELECT * FROM t2 ) t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+
+CREATE VIEW v1 AS SELECT * FROM t2;
+
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+                (v1  t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+SELECT t.a FROM t1 LEFT JOIN
+                (v1 t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
