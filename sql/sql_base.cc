@@ -6879,29 +6879,9 @@ find_field_in_tables(THD *thd, Item_ident *item,
   if (last_table)
     last_table= last_table->next_name_resolution_table;
 
-#ifndef DBUG_OFF
-  uint loop_count= 0;
-  TABLE_LIST *one_node;
-#endif
   for (; cur_table != last_table ;
        cur_table= cur_table->next_name_resolution_table)
   {
-#ifndef DBUG_OFF
-    ++loop_count;
-    if (loop_count == 1000) // not normal, record one node we meet
-      one_node= cur_table;
-    if ((loop_count > 1000) && (one_node == cur_table))
-    {
-      /*
-        Meeting same node again: cycle, infinite loop. Raise an error which
-        doesn't stop RQG, so that Roel can continue working while we fix the
-        bug. We cannot continue the statement though.
-      */
-      my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0),
-               "HITTING BUG#12567331 INFINITE LOOP DETECTED - ASK GUILHEM AND ROEL");
-      return NULL;
-    }
-#endif
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, length,
                                               item->name, db, table_name, ref,
                                               (thd->lex->sql_command ==
