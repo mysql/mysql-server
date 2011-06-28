@@ -295,3 +295,24 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select c1 from t1 where c1 in (select kp1 from t2 where kp2 = 10 and c2 = 4) or c1 > 7;
 c1
 drop table t1, t2;
+#
+# LP BUG#800679: Assertion `outer_join->table_count > 0' failed in
+# JOIN::choose_subquery_plan() with materialization=on,semijoin=off
+#
+CREATE TABLE t1 ( f1 int);
+insert into t1 values (1),(2);
+CREATE TABLE t2 ( f1 int);
+insert into t2 values (1),(2);
+SET @@optimizer_switch='materialization=on,semijoin=off';
+EXPLAIN
+SELECT * FROM t1
+WHERE (f1) IN (SELECT f1 FROM t2)
+LIMIT 0;
+id      select_type     table   type    possible_keys   key     key_len ref     rows    Extra
+1       PRIMARY NULL    NULL    NULL    NULL    NULL    NULL    NULL    Impossible WHERE
+2       DEPENDENT SUBQUERY      t2      ALL     NULL    NULL    NULL    NULL    2       Using where
+SELECT * FROM t1
+WHERE (f1) IN (SELECT f1 FROM t2)
+LIMIT 0;
+f1
+drop table t1, t2;

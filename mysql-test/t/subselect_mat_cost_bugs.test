@@ -326,3 +326,26 @@ select c1 from t1 where c1 in (select kp1 from t2 where kp2 = 10 and c2 = 4) or 
 select c1 from t1 where c1 in (select kp1 from t2 where kp2 = 10 and c2 = 4) or c1 > 7;
 
 drop table t1, t2;
+
+--echo #
+--echo # LP BUG#800679: Assertion `outer_join->table_count > 0' failed in
+--echo # JOIN::choose_subquery_plan() with materialization=on,semijoin=off
+--echo #
+
+CREATE TABLE t1 ( f1 int);
+insert into t1 values (1),(2);
+CREATE TABLE t2 ( f1 int);
+insert into t2 values (1),(2);
+
+SET @@optimizer_switch='materialization=on,semijoin=off';
+
+EXPLAIN
+SELECT * FROM t1
+WHERE (f1) IN (SELECT f1 FROM t2)
+LIMIT 0;
+
+SELECT * FROM t1
+WHERE (f1) IN (SELECT f1 FROM t2)
+LIMIT 0;
+
+drop table t1, t2;

@@ -4360,7 +4360,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
       by the IN predicate.
     */
     outer_join= unit->outer_select() ? unit->outer_select()->join : NULL;
-    if (outer_join)
+    if (outer_join && outer_join->table_count > 0)
     {
       /*
         The index of the last JOIN_TAB in the outer JOIN where in_subs is
@@ -4373,7 +4373,6 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
         JOIN_TAB, and their join_tab_idx remains MAX_TABLES. Such predicates
         are evaluated for each complete row of the outer join.
       */
-      DBUG_ASSERT(outer_join->table_count > 0);
       max_outer_join_tab_idx= (in_subs->get_join_tab_idx() == MAX_TABLES) ?
                                outer_join->table_count - 1:
                                in_subs->get_join_tab_idx();
