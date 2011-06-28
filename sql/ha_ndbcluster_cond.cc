@@ -1405,7 +1405,7 @@ ha_ndbcluster_cond::generate_scan_filter(NdbInterpretedCode* code,
       else
         DBUG_RETURN(ret);
     }
-    else
+    else if (options!=NULL)
     {
       options->interpretedCode= code;
       options->optionsPresent|= NdbScanOperation::ScanOptions::SO_INTERPRETED;
@@ -1615,9 +1615,12 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
     
   if (filter.end() == -1)
     DBUG_RETURN(1);
-
-  options->interpretedCode= code;
-  options->optionsPresent|= NdbScanOperation::ScanOptions::SO_INTERPRETED;
+  
+  if (options!=NULL)
+  {
+    options->interpretedCode= code;
+    options->optionsPresent|= NdbScanOperation::ScanOptions::SO_INTERPRETED;
+  }
 
   DBUG_RETURN(0);
 }
