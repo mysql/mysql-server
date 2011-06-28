@@ -868,7 +868,12 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
                                    do_fix_fields))
       DBUG_RETURN(TRUE);
     (*in_subq)->substitution= NULL;
-    
+#if 0
+    /* 
+      Don't do the following, because the simplify_join() call is after this
+      call, and that call will save to prep_wher/prep_on_expr.
+    */
+
     /*
       If this is a prepared statement, repeat the above operation for
       prep_where (or prep_on_expr). Subquery-to-semijoin conversion is 
@@ -884,6 +889,7 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
                                      FALSE))
         DBUG_RETURN(TRUE);
     }
+#endif
     /*
       Revert to the IN->EXISTS strategy in the rare case when the subquery could
       not be flattened.
