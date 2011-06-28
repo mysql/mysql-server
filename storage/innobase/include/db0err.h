@@ -64,8 +64,6 @@ enum db_err {
 	DB_CANNOT_ADD_CONSTRAINT,	/* adding a foreign key constraint
 					to a table failed */
 	DB_CORRUPTION,			/* data structure corruption noticed */
-	DB_COL_APPEARS_TWICE_IN_INDEX,	/* InnoDB cannot handle an index
-					where same column appears twice */
 	DB_CANNOT_DROP_CONSTRAINT,	/* dropping a foreign key constraint
 					from a table failed */
 	DB_NO_SAVEPOINT,		/* no savepoint exists with the given
