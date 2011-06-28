@@ -2885,7 +2885,7 @@ uint JOIN_CACHE_BKA_UNIQUE::get_hash_idx(uchar* key, uint key_len)
 void JOIN_CACHE_BKA_UNIQUE:: cleanup_hash_table()
 {
   last_key_entry= hash_table;
-  bzero(hash_table, (buff+buff_size)-hash_table);
+  memset(hash_table, 0, (buff+buff_size)-hash_table);
   key_entries= 0;
 }
 

@@ -55,7 +55,9 @@ typedef unsigned int uint;
     const int SOCKET_ERROR = -1;
 #endif
 
-
+  extern "C" {
+    #include "openssl/transport_types.h"
+  }
 
 typedef unsigned char byte;
 
@@ -65,6 +67,9 @@ class Socket {
     socket_t socket_;                    // underlying socket descriptor
     bool     wouldBlock_;                // if non-blocking data, for last read 
     bool     nonBlocking_;               // is option set
+    void     *ptr_;                      // Argument to transport function
+    yaSSL_send_func_t send_func_;        // Function to send data
+    yaSSL_recv_func_t recv_func_;        // Function to receive data
 public:
     explicit Socket(socket_t s = INVALID_SOCKET);
     ~Socket();
@@ -73,10 +78,13 @@ public:
     uint     get_ready() const;
     socket_t get_fd()    const;
 
-    uint send(const byte* buf, unsigned int len, int flags = 0) const;
-    uint receive(byte* buf, unsigned int len, int flags = 0);
+    void set_transport_ptr(void *ptr);
+    void set_transport_recv_function(yaSSL_recv_func_t recv_func);
+    void set_transport_send_function(yaSSL_send_func_t send_func);
 
-    bool wait();
+    uint send(const byte* buf, unsigned int len) const;
+    uint receive(byte* buf, unsigned int len);
+
     bool WouldBlock() const;
     bool IsNonBlocking() const;
 

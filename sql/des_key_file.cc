@@ -52,7 +52,7 @@ load_des_key_file(const char *file_name)
       init_io_cache(&io, file, IO_SIZE*2, READ_CACHE, 0, 0, MYF(MY_WME)))
     goto error;
 
-  bzero((char*) des_keyschedule,sizeof(struct st_des_keyschedule) * 10);
+  memset(des_keyschedule, 0, sizeof(struct st_des_keyschedule) * 10);
   des_default_key=15;				// Impossible key
   for (;;)
   {
@@ -76,7 +76,7 @@ load_des_key_file(const char *file_name)
       if (start != end)
       {
 	DES_cblock ivec;
-	bzero((char*) &ivec,sizeof(ivec));
+	memset(&ivec, 0, sizeof(ivec));
 	// We make good 24-byte (168 bit) key from given plaintext key with MD5
 	EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		       (uchar *) start, (int) (end-start),1,

@@ -1,0 +1,109 @@
+#
+# Test for the functionality of InnoDB Buffer Pool dump/load.
+#
+
+-- source include/have_innodb.inc
+# include/restart_mysqld.inc does not work in embedded mode
+-- source include/not_embedded.inc
+
+-- let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
+
+-- error 0,1
+-- remove_file $file
+
+# Create a table and populate it with some data
+CREATE TABLE ib_bp_test
+(a INT AUTO_INCREMENT, b VARCHAR(64), c TEXT, PRIMARY KEY (a), KEY (b, c(128)))
+ENGINE=INNODB;
+
+let $check_cnt =
+SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
+WHERE table_name LIKE '%ib_bp_test';
+
+# See that we have a small number of pages in the LRU
+-- eval $check_cnt
+
+# Here we end up with 16382 rows in the table
+-- disable_query_log
+INSERT INTO ib_bp_test (b, c) VALUES (REPEAT('b', 64), REPEAT('c', 256));
+INSERT INTO ib_bp_test (b, c) VALUES (REPEAT('B', 64), REPEAT('C', 256));
+let $i=12;
+while ($i)
+{
+  -- eval INSERT INTO ib_bp_test (b, c) VALUES ($i, $i * $i);
+  INSERT INTO ib_bp_test (b, c) SELECT b, c FROM ib_bp_test;
+  dec $i;
+}
+-- enable_query_log
+
+-- eval $check_cnt
+
+# Dump
+SET GLOBAL innodb_buffer_pool_dump_now = ON;
+
+# Wait for the dump to complete
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
+  FROM information_schema.global_status
+  WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+-- source include/wait_condition.inc
+
+# Confirm the file has been created
+-- file_exists $file
+
+# Add some garbage records to the dump file
+-- let IBDUMPFILE = $file
+perl;
+my $fn = $ENV{'IBDUMPFILE'};
+open(my $fh, '>>', $fn) || die "perl open($fn): $!";
+print $fh "123456,0\n";
+print $fh "0,123456\n";
+print $fh "123456,123456\n";
+close($fh);
+EOF
+
+-- source include/restart_mysqld.inc
+
+# Load the table so that entries in the I_S table do not appear as NULL
+select count(*) from ib_bp_test where a = 1;
+
+# Load
+SET GLOBAL innodb_buffer_pool_load_now = ON;
+
+# Wait for the load to complete
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
+  FROM information_schema.global_status
+  WHERE variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
+-- source include/wait_condition.inc
+
+# Show the status, interesting if the above timed out
+-- replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
+SELECT variable_value
+FROM information_schema.global_status
+WHERE variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
+
+-- eval $check_cnt
+
+# Add some total garbage to the dump file
+-- let IBDUMPFILE = $file
+perl;
+my $fn = $ENV{'IBDUMPFILE'};
+open(my $fh, '>>', $fn) || die "perl open($fn): $!";
+print $fh "abcdefg\n";
+close($fh);
+EOF
+
+call mtr.add_suppression("InnoDB: Error parsing");
+
+# Load
+SET GLOBAL innodb_buffer_pool_load_now = ON;
+
+# Wait for the load to fail
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 13) = 'Error parsing'
+  FROM information_schema.global_status
+  WHERE variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
+-- source include/wait_condition.inc
+
+DROP TABLE ib_bp_test;

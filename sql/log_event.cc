@@ -208,8 +208,8 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end= buff + sizeof(buff);
   uint len;
-  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
-  MYSQL_ERROR *err;
+  Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
+  const MYSQL_ERROR *err;
   buff[0]= 0;
 
   for (err= it++, slider= buff; err && slider < buff_end - 1;
@@ -221,7 +221,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
   }
 
   if (ha_error != 0)
-    rli->report(level, thd->is_error() ? thd->stmt_da->sql_errno() : 0,
+    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0,
                 "Could not execute %s event on table %s.%s;"
                 "%s handler error %s; "
                 "the event's master log %s, end_log_pos %lu",
@@ -229,7 +229,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                 buff, handler_error == NULL ? "<unknown>" : handler_error,
                 log_name, pos);
   else
-    rli->report(level, thd->is_error() ? thd->stmt_da->sql_errno() : 0,
+    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0,
                 "Could not execute %s event on table %s.%s;"
                 "%s the event's master log %s, end_log_pos %lu",
                 type, table->s->db.str, table->s->table_name.str,
@@ -372,13 +372,13 @@ inline int ignored_error_code(int err_code)
 */ 
 int convert_handler_error(int error, THD* thd, TABLE *table)
 {
-  uint actual_error= (thd->is_error() ? thd->stmt_da->sql_errno() :
+  uint actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
                            0);
 
   if (actual_error == 0)
   {
     table->file->print_error(error, MYF(0));
-    actual_error= (thd->is_error() ? thd->stmt_da->sql_errno() :
+    actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
       if (global_system_variables.log_warnings)
@@ -678,18 +678,16 @@ const char* Log_event::get_type_str()
 */
 
 #ifndef MYSQL_CLIENT
-Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
+Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
+                     enum_event_cache_type cache_type_arg,
+                     enum_event_logging_type logging_type_arg)
   :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg),
-   cache_type(Log_event::EVENT_INVALID_CACHE), crc(0), thd(thd_arg),
-   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  event_cache_type(cache_type_arg),
+  event_logging_type(logging_type_arg),
+  crc(0), thd(thd_arg), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id=	thd->server_id;
   when=		thd->start_time;
-
-  if (using_trans)
-    cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
-  else
-    cache_type= Log_event::EVENT_STMT_CACHE;
 }
 
 /**
@@ -699,9 +697,11 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
   the binlog but we have no THD, so we need this minimal constructor).
 */
 
-Log_event::Log_event()
-  :temp_buf(0), exec_time(0), flags(0),  crc(0), thd(0),
-   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+Log_event::Log_event(enum_event_cache_type cache_type_arg,
+                     enum_event_logging_type logging_type_arg)
+  :temp_buf(0), exec_time(0), flags(0), event_cache_type(cache_type_arg),
+  event_logging_type(logging_type_arg), crc(0), thd(0),
+  checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id=	::server_id;
   /*
@@ -720,8 +720,10 @@ Log_event::Log_event()
 
 Log_event::Log_event(const char* buf,
                      const Format_description_log_event* description_event)
-  :temp_buf(0), exec_time(0), cache_type(Log_event::EVENT_INVALID_CACHE),
-    crc(0), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  :temp_buf(0), exec_time(0),
+  event_cache_type(EVENT_INVALID_CACHE),
+  event_logging_type(EVENT_INVALID_LOGGING),
+  crc(0), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
@@ -904,18 +906,20 @@ void Log_event::init_show_field_list(List<Item>* field_list)
 my_bool Log_event::need_checksum()
 {
   DBUG_ENTER("Log_event::need_checksum");
-  my_bool ret;
+  my_bool ret= FALSE;
   /* 
      few callers of Log_event::write 
      (incl FD::write, FD constructing code on the slave side, Rotate relay log
      and Stop event) 
      provides their checksum alg preference through Log_event::checksum_alg.
   */
-  ret= (checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-    (checksum_alg != BINLOG_CHECKSUM_ALG_OFF) :
-    ((binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF) &&
-     (cache_type == Log_event::EVENT_NO_CACHE))? binlog_checksum_options :
-    FALSE;
+  if (checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF)
+    ret= (checksum_alg != BINLOG_CHECKSUM_ALG_OFF);
+  else if (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF &&
+           event_cache_type == Log_event::EVENT_NO_CACHE)
+    ret= binlog_checksum_options;
+  else
+    ret= FALSE;
 
   /*
     FD calls the methods before data_written has been calculated.
@@ -955,7 +959,7 @@ my_bool Log_event::need_checksum()
   DBUG_ASSERT(((get_type_code() != ROTATE_EVENT &&
                 get_type_code() != STOP_EVENT) ||
                get_type_code() != FORMAT_DESCRIPTION_EVENT) ||
-              cache_type == Log_event::EVENT_NO_CACHE);
+              event_cache_type == Log_event::EVENT_NO_CACHE);
 
   DBUG_RETURN(ret);
 }
@@ -2681,29 +2685,33 @@ Query_log_event::Query_log_event()
 }
 
 
-/*
-  SYNOPSIS
-    Query_log_event::Query_log_event()
-      thd_arg           - thread handle
-      query_arg         - array of char representing the query
-      query_length      - size of the  `query_arg' array
-      using_trans       - there is a modified transactional table
-      suppress_use      - suppress the generation of 'USE' statements
-      errcode           - the error code of the query
-      
-  DESCRIPTION
-  Creates an event for binlogging
-  The value for `errcode' should be supplied by caller.
+/**
+  Creates a Query Log Event.
+
+  @param thd_arg      Thread handle
+  @param query_arg    Array of char representing the query
+  @param query_length Size of the 'query_arg' array
+  @param using_trans  Indicates that there are transactional changes.
+  @param immediate    After being written to the binary log, the event
+                      must be flushed immediately. This indirectly implies
+                      the stmt-cache.
+  @param suppress_use Suppress the generation of 'USE' statements
+  @param errcode      The error code of the query
+  @param ignore       Ignore user's statement, i.e. lex information, while
+                      deciding which cache must be used.
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
-				 bool direct, bool suppress_use, int errcode)
+				 bool immediate, bool suppress_use,
+                                 int errcode, bool ignore_cmd_internals)
 
   :Log_event(thd_arg,
              (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F :
               0) |
              (suppress_use ? LOG_EVENT_SUPPRESS_USE_F : 0),
-	     using_trans),
+	     using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                          Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
    data_buf(0), query(query_arg), catalog(thd_arg->catalog),
    db(thd_arg->db), q_len((uint32) query_length),
    thread_id(thd_arg->thread_id),
@@ -2781,62 +2789,146 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   else
     time_zone_len= 0;
 
+  /*
+    In what follows, we define in which cache, trx-cache or stmt-cache,
+    this Query Log Event will be written to.
+
+    If ignore_cmd_internals is defined, we rely on the is_trans flag to
+    choose the cache and this is done in the base class Log_event. False
+    means that the stmt-cache will be used and upon statement commit/rollback
+    the cache will be flushed to disk. True means that the trx-cache will
+    be used and upon transaction commit/rollback the cache will be flushed
+    to disk.
+
+    If set immediate cache is defined, for convenience, we automatically
+    use the stmt-cache. This mean that the statement will be written
+    to the stmt-cache and immediately flushed to disk without waiting
+    for a commit/rollback notification.
+
+    For example, the cluster/ndb captures a request to execute a DDL
+    statement and synchronously propagate it to all available MySQL
+    servers. Unfortunately, the current protocol assumes that the
+    generated events are immediately written to diks and does not check
+    for commit/rollback.
+
+    Upon dropping a connection, DDLs (i.e. DROP TEMPORARY TABLE) are
+    generated and in this case the statements have the immediate flag
+    set because there is no commit/rollback.
+
+    If the immediate flag is not set, the decision on the cache is based
+    on the current statement and the flag is_trans, which indicates if
+    a transactional engine was updated. 
+
+    Statements are classifed as row producers (i.e. can_generate_row_events())
+    or non-row producers. Non-row producers, DDL in general, are treated
+    as the immediate flag was set and for convenience are written to the
+    stmt-cache and immediately flushed to disk. 
+
+    Row producers are handled in general according to the is_trans flag.
+    False means that the stmt-cache will be used and upon statement
+    commit/rollback the cache will be flushed to disk. True means that the
+    trx-cache will be used and upon transaction commit/rollback the cache
+    will be flushed to disk.
+
+    Unfortunately, there are exceptions to this non-row and row producer
+    rules:
+
+      . The SAVEPOINT, ROLLBACK TO SAVEPOINT, RELEASE SAVEPOINT does not
+        have the flag is_trans set because there is no updated engine but
+        must be written to the trx-cache.
+
+      . SET does not have the flag is_trans set but, if auto-commit is off,
+        must be written to the trx-cache.
+
+      . CREATE TABLE is classfied as non-row producer but CREATE TEMPORARY
+        must be handled as row producer.
+
+      . DROP TABLE is classfied as non-row producer but DROP TEMPORARY
+        must be handled as row producer.
+
+    Finally, some statements that does not have the flag is_trans set may
+    be written to the trx-cache based on the following criteria:
+
+      . updated both a transactional and a non-transactional engine (i.e.
+        stmt_has_updated_trans_table()).
+
+      . accessed both a transactional and a non-transactional engine and
+        is classified as unsafe (i.e. is_mixed_stmt_unsafe()).
+
+      . is executed within a transaction and previously a transactional
+        engine was updated and the flag binlog_direct_non_trans_update
+        is set.
+  */
+  if (ignore_cmd_internals)
+    return;
+
+  /*
+    TRUE defines that the trx-cache must be used.
+  */
+  bool cmd_can_generate_row_events= FALSE;
+  /*
+    TRUE defines that the trx-cache must be used.
+  */
+  bool cmd_must_go_to_trx_cache= FALSE;
+   
   LEX *lex= thd->lex;
-  /*
-    Defines that the statement will be written directly to the binary log
-    without being wrapped by a BEGIN...COMMIT. Otherwise, the statement
-    will be written to either the trx-cache or stmt-cache.
-
-    Note that a cache will not be used if the parameter direct is TRUE.
-  */
-  bool use_cache= FALSE;
-  /*
-    TRUE defines that the trx-cache must be used and by consequence the
-    use_cache is TRUE.
-
-    Note that a cache will not be used if the parameter direct is TRUE.
-  */
-  bool trx_cache= FALSE;
-  cache_type= Log_event::EVENT_INVALID_CACHE;
-
-  switch (lex->sql_command)
+  if (!immediate)
   {
-    case SQLCOM_DROP_TABLE:
-      use_cache= (lex->drop_temporary && thd->in_multi_stmt_transaction_mode());
-    break;
-
-    case SQLCOM_CREATE_TABLE:
-      trx_cache= (lex->select_lex.item_list.elements &&
-                  thd->is_current_stmt_binlog_format_row());
-      use_cache= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-                   thd->in_multi_stmt_transaction_mode()) || trx_cache;
+    switch (lex->sql_command)
+    {
+      case SQLCOM_DROP_TABLE:
+        cmd_can_generate_row_events= lex->drop_temporary &&
+                                     thd->in_multi_stmt_transaction_mode();
       break;
-    case SQLCOM_SET_OPTION:
-      use_cache= trx_cache= (lex->autocommit ? FALSE : TRUE);
-      break;
-    case SQLCOM_RELEASE_SAVEPOINT:
-    case SQLCOM_ROLLBACK_TO_SAVEPOINT:
-    case SQLCOM_SAVEPOINT:
-      use_cache= trx_cache= TRUE;
-      break;
-    default:
-      use_cache= sqlcom_can_generate_row_events(thd);
-      break;
+      case SQLCOM_CREATE_TABLE:
+        cmd_must_go_to_trx_cache= lex->select_lex.item_list.elements &&
+                                  thd->is_current_stmt_binlog_format_row();
+        cmd_can_generate_row_events= 
+          ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+            thd->in_multi_stmt_transaction_mode()) || cmd_must_go_to_trx_cache;
+        break;
+      case SQLCOM_SET_OPTION:
+        cmd_can_generate_row_events= cmd_must_go_to_trx_cache=
+          (lex->autocommit ? FALSE : TRUE);
+        break;
+      case SQLCOM_RELEASE_SAVEPOINT:
+      case SQLCOM_ROLLBACK_TO_SAVEPOINT:
+      case SQLCOM_SAVEPOINT:
+        cmd_can_generate_row_events= cmd_must_go_to_trx_cache= TRUE;
+        break;
+      default:
+        cmd_can_generate_row_events= sqlcom_can_generate_row_events(thd);
+        break;
+    }
   }
-
-  if (!use_cache || direct)
+  
+  if (cmd_can_generate_row_events)
   {
-    cache_type= Log_event::EVENT_NO_CACHE;
+    cmd_must_go_to_trx_cache= cmd_must_go_to_trx_cache || using_trans;
+    if (cmd_must_go_to_trx_cache || stmt_has_updated_trans_table(thd) ||
+        thd->lex->is_mixed_stmt_unsafe(thd->in_multi_stmt_transaction_mode(),
+                                       thd->variables.binlog_direct_non_trans_update,
+                                       trans_has_updated_trans_table(thd),
+                                       thd->tx_isolation) ||
+        (!thd->variables.binlog_direct_non_trans_update && trans_has_updated_trans_table(thd)))
+    {
+      event_logging_type= Log_event::EVENT_NORMAL_LOGGING; 
+      event_cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
+    }
+    else
+    {
+      event_logging_type= Log_event::EVENT_NORMAL_LOGGING; 
+      event_cache_type= Log_event::EVENT_STMT_CACHE;
+    }
   }
-  else if (using_trans || trx_cache || stmt_has_updated_trans_table(thd) ||
-           thd->lex->is_mixed_stmt_unsafe(thd->in_multi_stmt_transaction_mode(),
-                                          thd->variables.binlog_direct_non_trans_update,
-                                          trans_has_updated_trans_table(thd),
-                                          thd->tx_isolation))
-    cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
   else
-    cache_type= Log_event::EVENT_STMT_CACHE;
-  DBUG_ASSERT(cache_type != Log_event::EVENT_INVALID_CACHE);
+  {
+    event_logging_type= Log_event::EVENT_IMMEDIATE_LOGGING;
+    event_cache_type= Log_event::EVENT_STMT_CACHE;
+  }
+
+  DBUG_ASSERT(event_cache_type != Log_event::EVENT_INVALID_CACHE);
+  DBUG_ASSERT(event_logging_type != Log_event::EVENT_INVALID_LOGGING);
   DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %llu",
                      (ulong) flags2, sql_mode));
 }
@@ -3668,7 +3760,7 @@ START SLAVE; . Query: '%s'", expected_error, thd->query());
     }
 
     /* If the query was not ignored, it is printed to the general log */
-    if (!thd->is_error() || thd->stmt_da->sql_errno() != ER_SLAVE_IGNORED_TABLE)
+    if (!thd->is_error() || thd->get_stmt_da()->sql_errno() != ER_SLAVE_IGNORED_TABLE)
       general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
 compare_errors:
@@ -3680,14 +3772,14 @@ compare_errors:
       not exist errors", we silently clear the error if TEMPORARY was used.
     */
     if (thd->lex->sql_command == SQLCOM_DROP_TABLE && thd->lex->drop_temporary &&
-        thd->is_error() && thd->stmt_da->sql_errno() == ER_BAD_TABLE_ERROR &&
+        thd->is_error() && thd->get_stmt_da()->sql_errno() == ER_BAD_TABLE_ERROR &&
         !expected_error)
-      thd->stmt_da->reset_diagnostics_area();
+      thd->get_stmt_da()->reset_diagnostics_area();
     /*
       If we expected a non-zero error code, and we don't get the same error
       code, and it should be ignored or is related to a concurrency issue.
     */
-    actual_error= thd->is_error() ? thd->stmt_da->sql_errno() : 0;
+    actual_error= thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
                        expected_error, actual_error));
 
@@ -3704,7 +3796,7 @@ Error on slave: actual message='%s', error code=%d. \
 Default database: '%s'. Query: '%s'",
                       ER_SAFE(expected_error),
                       expected_error,
-                      actual_error ? thd->stmt_da->message() : "no error",
+                      actual_error ? thd->get_stmt_da()->message() : "no error",
                       actual_error,
                       print_slave_db_safe(db), query_arg);
       thd->is_slave_error= 1;
@@ -3728,7 +3820,7 @@ Default database: '%s'. Query: '%s'",
     {
       rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' on query. Default database: '%s'. Query: '%s'",
-                      (actual_error ? thd->stmt_da->message() :
+                      (actual_error ? thd->get_stmt_da()->message() :
                        "unexpected success or fatal error"),
                       print_slave_db_safe(thd->db), query_arg);
       thd->is_slave_error= 1;
@@ -4828,7 +4920,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       bool ignore, bool using_trans)
   :Log_event(thd_arg,
              thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0,
-             using_trans),
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                           Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
    thread_id(thd_arg->thread_id),
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
    num_fields(0),fields(0),
@@ -5206,7 +5300,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   {
     thd->set_time((time_t)when);
     thd->set_query_id(next_query_id());
-    thd->warning_info->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_wi()->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];
@@ -5356,9 +5450,9 @@ error:
   thd->catalog= 0;
   thd->set_db(NULL, 0);                   /* will free the current database */
   thd->reset_query();
-  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->can_overwrite_status= TRUE;
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-  thd->stmt_da->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->can_overwrite_status= FALSE;
   close_thread_tables(thd);
   /*
     - If inside a multi-statement transaction,
@@ -5385,8 +5479,8 @@ error:
     int sql_errno;
     if (thd->is_error())
     {
-      err= thd->stmt_da->message();
-      sql_errno= thd->stmt_da->sql_errno();
+      err= thd->get_stmt_da()->message();
+      sql_errno= thd->get_stmt_da()->sql_errno();
     }
     else
     {
@@ -5473,9 +5567,9 @@ void Rotate_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
                                    uint ident_len_arg, ulonglong pos_arg,
                                    uint flags_arg)
-  :Log_event(), new_log_ident(new_log_ident_arg),
-   pos(pos_arg),ident_len(ident_len_arg ? ident_len_arg :
-                          (uint) strlen(new_log_ident_arg)), flags(flags_arg)
+  :Log_event(Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING),
+   new_log_ident(new_log_ident_arg), pos(pos_arg),ident_len(ident_len_arg ?
+   ident_len_arg : (uint) strlen(new_log_ident_arg)), flags(flags_arg)
 {
 #ifndef DBUG_OFF
   char buff[22];
@@ -5483,7 +5577,8 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
   DBUG_PRINT("enter",("new_log_ident: %s  pos: %s  flags: %lu", new_log_ident_arg,
                       llstr(pos_arg, buff), (ulong) flags));
 #endif
-  cache_type= EVENT_NO_CACHE;
+  event_cache_type= EVENT_NO_CACHE;
+  event_logging_type= EVENT_IMMEDIATE_LOGGING;
   if (flags & DUP_NAME)
     new_log_ident= my_strndup(new_log_ident_arg, ident_len, MYF(MY_WME));
   if (flags & RELAY_LOG)
@@ -6761,7 +6856,7 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   int error = 1;
 
   THD_STAGE_INFO(thd, stage_making_temp_file_create_before_load_data);
-  bzero((char*)&file, sizeof(file));
+  memset(&file, 0, sizeof(file));
   ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
   /* old copy may exist already */
   mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
@@ -6838,7 +6933,11 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg,
 					       uchar *block_arg,
 					       uint block_len_arg,
 					       bool using_trans)
-  :Log_event(thd_arg,0, using_trans), block(block_arg),
+  :Log_event(thd_arg, 0,
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                           Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
+   block(block_arg),
    block_len(block_len_arg), file_id(thd_arg->file_id), db(db_arg)
 {
 }
@@ -7004,7 +7103,11 @@ err:
 #ifndef MYSQL_CLIENT
 Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char* db_arg,
 					     bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id), db(db_arg)
+  :Log_event(thd_arg, 0, 
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                           Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
+  file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif
@@ -7100,7 +7203,11 @@ int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
 Execute_load_log_event::Execute_load_log_event(THD *thd_arg,
                                                const char* db_arg,
 					       bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id), db(db_arg)
+  :Log_event(thd_arg, 0,
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                           Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
+  file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif
@@ -7316,9 +7423,9 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                              ulong query_length_arg, uint fn_pos_start_arg,
                              uint fn_pos_end_arg,
                              enum_load_dup_handling dup_handling_arg,
-                             bool using_trans, bool direct, bool suppress_use,
+                             bool using_trans, bool immediate, bool suppress_use,
                              int errcode):
-  Query_log_event(thd_arg, query_arg, query_length_arg, using_trans, direct,
+  Query_log_event(thd_arg, query_arg, query_length_arg, using_trans, immediate,
                   suppress_use, errcode),
   file_id(thd_arg->file_id), fn_pos_start(fn_pos_start_arg),
   fn_pos_end(fn_pos_end_arg), dup_handling(dup_handling_arg)
@@ -7593,8 +7700,11 @@ const char *sql_ex_info::init(const char *buf, const char *buf_end,
 
 #ifndef MYSQL_CLIENT
 Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
-                               MY_BITMAP const *cols, bool is_transactional)
-  : Log_event(thd_arg, 0, is_transactional),
+                               MY_BITMAP const *cols, bool using_trans)
+  : Log_event(thd_arg, 0,
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                           Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
     m_row_count(0),
     m_table(tbl_arg),
     m_table_id(tid),
@@ -7936,7 +8046,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     if (open_and_lock_tables(thd, rli->tables_to_lock, FALSE, 0))
     {
-      uint actual_error= thd->stmt_da->sql_errno();
+      uint actual_error= thd->get_stmt_da()->sql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)
       {
         /*
@@ -7947,7 +8057,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error executing row event: '%s'",
-                    (actual_error ? thd->stmt_da->message() :
+                    (actual_error ? thd->get_stmt_da()->message() :
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
@@ -8516,8 +8626,11 @@ int Table_map_log_event::save_field_metadata()
  */
 #if !defined(MYSQL_CLIENT)
 Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
-                                         bool is_transactional)
-  : Log_event(thd, 0, is_transactional),
+                                         bool using_trans)
+  : Log_event(thd, 0,
+              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                            Log_event::EVENT_STMT_CACHE,
+              Log_event::EVENT_NORMAL_LOGGING),
     m_table(tbl),
     m_dbnam(tbl->s->db.str),
     m_dblen(m_dbnam ? tbl->s->db.length : 0),
@@ -8576,7 +8689,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
                                  &m_field_metadata, (m_colcnt * 2),
                                  NULL);
 
-  bzero(m_field_metadata, (m_colcnt * 2));
+  memset(m_field_metadata, 0, (m_colcnt * 2));
 
   /*
     Create an array for the field metadata and store it.
@@ -8594,7 +8707,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   else
     m_data_size+= m_field_metadata_size + 3; 
 
-  bzero(m_null_bits, num_null_bytes);
+  memset(m_null_bits, 0, num_null_bytes);
   for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
     if (m_table->field[i]->maybe_null())
       m_null_bits[(i / 8)]+= 1 << (i % 8);
@@ -10604,12 +10717,12 @@ st_print_event_info::st_print_event_info()
 {
   /*
     Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
-    program's startup, but these explicit bzero() is for the day someone
+    program's startup, but these explicit memset() is for the day someone
     creates dynamic instances.
   */
-  bzero(db, sizeof(db));
-  bzero(charset, sizeof(charset));
-  bzero(time_zone_str, sizeof(time_zone_str));
+  memset(db, 0, sizeof(db));
+  memset(charset, 0, sizeof(charset));
+  memset(time_zone_str, 0, sizeof(time_zone_str));
   delimiter[0]= ';';
   delimiter[1]= 0;
   myf const flags = MYF(MY_WME | MY_NABP);

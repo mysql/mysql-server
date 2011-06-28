@@ -5356,6 +5356,35 @@ SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
 DROP TABLE t;
 
 --echo #
+--echo # Bug 11765699 - 58690: !TABLE || (!TABLE->READ_SET || 
+--echo #                BITMAP_IS_SET(TABLE->READ_SET, FIELD_INDEX
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0), (1); 
+
+CREATE TABLE t2(
+  b TEXT, 
+  c INT, 
+  PRIMARY KEY (b(1))
+);
+INSERT INTO t2 VALUES ('a', 2), ('b', 3);
+
+SELECT 1 FROM t1 WHERE a = 
+ (SELECT 1 FROM t2 WHERE b = 
+  (SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+   ORDER BY b
+ );
+
+SELECT 1 FROM t1 WHERE a = 
+ (SELECT 1 FROM t2 WHERE b = 
+  (SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+   GROUP BY b
+ );
+
+DROP TABLE t1, t2;
+
+--echo #
 --echo # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
 --echo #
 

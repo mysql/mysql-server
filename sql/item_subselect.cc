@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1156,7 +1156,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  (ALL && (> || =>)) || (ANY && (< || =<))
 	  for ALL condition is inverted
 	*/
-	item= new Item_sum_max(*select_lex->ref_pointer_array);
+	item= new Item_sum_max(join->ref_ptrs[0]);
       }
       else
       {
@@ -1164,11 +1164,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  (ALL && (< || =<)) || (ANY && (> || =>))
 	  for ALL condition is inverted
 	*/
-	item= new Item_sum_min(*select_lex->ref_pointer_array);
+	item= new Item_sum_min(join->ref_ptrs[0]);
       }
       if (upper_item)
         upper_item->set_sum_test(item);
-      *select_lex->ref_pointer_array= item;
+      join->ref_ptrs[0]= item;
       {
 	List_iterator<Item> it(select_lex->item_list);
 	it++;
@@ -1250,7 +1250,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     DBUG_RETURN(RES_OK);
 
   /* Perform the IN=>EXISTS transformation. */
-  DBUG_RETURN(single_value_in_to_exists_transformer(join, func));
+  const trans_res retval= single_value_in_to_exists_transformer(join, func);
+  DBUG_RETURN(retval);
 }
 
 
@@ -1305,8 +1306,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
     Item *item= func->create(expr,
                              new Item_ref_null_helper(&select_lex->context,
                                                       this,
-                                                      select_lex->
-                                                      ref_pointer_array,
+                                                      &join->ref_ptrs[0],
                                                       (char *)"<ref>",
                                                       this->full_name()));
     if (!abort_on_null && left_expr->maybe_null)
@@ -1349,7 +1349,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
       select_lex->item_list.push_back(new Item_int("Not_used",
                                                    (longlong) 1,
                                                    MY_INT64_NUM_DECIMAL_DIGITS));
-      select_lex->ref_pointer_array[0]= select_lex->item_list.head();
+      join->ref_ptrs[0]= select_lex->item_list.head();
        
       item= func->create(expr, item);
       if (!abort_on_null && orig_item->maybe_null)
@@ -1424,7 +1424,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
         Item *new_having=
           func->create(expr,
                        new Item_ref_null_helper(&select_lex->context, this,
-                                            select_lex->ref_pointer_array,
+                                            &join->ref_ptrs[0],
                                             (char *)"<no matter>",
                                             (char *)"<result>"));
         if (!abort_on_null && left_expr->maybe_null)
@@ -1586,13 +1586,12 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
     Item *item_having_part2= 0;
     for (uint i= 0; i < cols_num; i++)
     {
-      DBUG_ASSERT((left_expr->fixed &&
-                  select_lex->ref_pointer_array[i]->fixed) ||
-                  (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
-                   ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
-                    Item_ref::OUTER_REF));
-      if (select_lex->ref_pointer_array[i]->
-          check_cols(left_expr->element_index(i)->cols()))
+      Item *item_i= join->ref_ptrs[i];
+      Item **pitem_i= &join->ref_ptrs[i];
+      DBUG_ASSERT((left_expr->fixed && item_i->fixed) ||
+                  (item_i->type() == REF_ITEM &&
+                   ((Item_ref*)(item_i))->ref_type() == Item_ref::OUTER_REF));
+      if (item_i-> check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
       Item *item_eq=
         new Item_func_eq(new
@@ -1603,14 +1602,14 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
                                   (char *)in_left_expr_name),
                          new
                          Item_ref(&select_lex->context,
-                                  select_lex->ref_pointer_array + i,
+                                  pitem_i,
                                   (char *)"<no matter>",
                                   (char *)"<list ref>")
                         );
       Item *item_isnull=
         new Item_func_isnull(new
                              Item_ref(&select_lex->context,
-                                      select_lex->ref_pointer_array+i,
+                                      pitem_i,
                                       (char *)"<no matter>",
                                       (char *)"<list ref>")
                             );
@@ -1625,8 +1624,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
       Item *item_nnull_test= 
          new Item_is_not_null_test(this,
                                    new Item_ref(&select_lex->context,
-                                                select_lex->
-                                                ref_pointer_array + i,
+                                                pitem_i,
                                                 (char *)"<no matter>",
                                                 (char *)"<list ref>"));
       if (!abort_on_null && left_expr->element_index(i)->maybe_null)
@@ -1663,16 +1661,14 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
     Item *where_item= 0;
     for (uint i= 0; i < cols_num; i++)
     {
-      Item *item, *item_isnull;
-      DBUG_ASSERT((left_expr->fixed &&
-                  select_lex->ref_pointer_array[i]->fixed) ||
-                  (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
-                   ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
-                    Item_ref::OUTER_REF));
-      if (select_lex->ref_pointer_array[i]->
-          check_cols(left_expr->element_index(i)->cols()))
+      Item *item_i= join->ref_ptrs[i];
+      Item **pitem_i= &join->ref_ptrs[i];
+      DBUG_ASSERT((left_expr->fixed && item_i->fixed) ||
+                  (item_i->type() == REF_ITEM &&
+                   ((Item_ref*)(item_i))->ref_type() == Item_ref::OUTER_REF));
+      if (item_i->check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
-      item=
+      Item *item=
         new Item_func_eq(new
                          Item_direct_ref(&select_lex->context,
                                          (*optimizer->get_cache())->
@@ -1681,8 +1677,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
                                          (char *)in_left_expr_name),
                          new
                          Item_direct_ref(&select_lex->context,
-                                         select_lex->
-                                         ref_pointer_array+i,
+                                         pitem_i,
                                          (char *)"<no matter>",
                                          (char *)"<list ref>")
                         );
@@ -1692,16 +1687,15 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
           new Item_is_not_null_test(this,
                                     new
                                     Item_ref(&select_lex->context, 
-                                             select_lex->ref_pointer_array + i,
+                                             pitem_i,
                                              (char *)"<no matter>",
                                              (char *)"<list ref>"));
         
         
-        item_isnull= new
+        Item *item_isnull= new
           Item_func_isnull(new
                            Item_direct_ref(&select_lex->context,
-                                           select_lex->
-                                           ref_pointer_array+i,
+                                           pitem_i,
                                            (char *)"<no matter>",
                                            (char *)"<list ref>")
                           );
@@ -2193,8 +2187,7 @@ bool subselect_single_select_engine::prepare()
   prepared= 1;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
-  if (join->prepare(&select_lex->ref_pointer_array,
-		    select_lex->table_list.first,
+  if (join->prepare(select_lex->table_list.first,
 		    select_lex->with_wild,
 		    select_lex->where,
 		    select_lex->order_list.elements +
