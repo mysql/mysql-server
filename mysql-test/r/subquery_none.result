@@ -6531,4 +6531,103 @@ GROUP BY b
 );
 1
 DROP TABLE t1, t2;
+#
+# BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
+#
+CREATE TABLE t1 (f1 varchar(1));
+INSERT INTO t1 VALUES ('v'),('s');
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
+('d'),('y'),('t'),('d'),('s');
+SELECT table1.f1, table2.f1_key
+FROM t1 AS table1, t2 AS table2
+WHERE EXISTS 
+( 
+SELECT DISTINCT f1_key 
+FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
+f1	f1_key
+v	j
+s	j
+v	v
+s	v
+v	c
+s	c
+v	m
+s	m
+v	d
+s	d
+v	d
+s	d
+v	y
+s	y
+v	t
+s	t
+v	d
+s	d
+v	s
+s	s
+explain SELECT table1.f1, table2.f1_key
+FROM t1 AS table1, t2 AS table2
+WHERE EXISTS 
+( 
+SELECT DISTINCT f1_key 
+FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	table1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	table2	index	NULL	f1_key	4	NULL	10	Using where; Using index; Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	t2	range	f1_key	f1_key	4	NULL	6	Using where; Using index for group-by; Using temporary
+DROP TABLE t1,t2;
+#
+# BUG#12616477 - 0 VS NULL DIFFERENCES WITH OUTER JOIN, SUBQUERY
+#
+CREATE TABLE t1 (
+col_int_key int,
+col_varchar_key varchar(1),
+col_varchar_nokey varchar(1),
+KEY (col_int_key)
+);
+INSERT INTO t1 VALUES (224,'p','p'),(9,'e','e');
+CREATE TABLE t3 (
+col_int_key int,
+col_varchar_key varchar(1),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key))
+;
+INSERT INTO t3 VALUES (4,'p'),(8,'e'),(10,'a');
+SELECT t1f.*,t3f.*,(
+SELECT MIN(t3s.col_int_key)
+FROM t3 AS t3s JOIN
+t1 AS t1s ON t1s.col_int_key = 9 and
+t1s.col_varchar_key = 'e'
+WHERE 'e' <> t1f.col_varchar_nokey )
+FROM
+t1 AS t1f STRAIGHT_JOIN t3 AS t3f;
+col_int_key	col_varchar_key	col_varchar_nokey	col_int_key	col_varchar_key	(
+SELECT MIN(t3s.col_int_key)
+FROM t3 AS t3s JOIN
+t1 AS t1s ON t1s.col_int_key = 9 and
+t1s.col_varchar_key = 'e'
+WHERE 'e' <> t1f.col_varchar_nokey )
+224	p	p	4	p	4
+9	e	e	4	p	NULL
+224	p	p	8	e	4
+9	e	e	8	e	NULL
+224	p	p	10	a	4
+9	e	e	10	a	NULL
+explain SELECT t1f.*,t3f.*,(
+SELECT MIN(t3s.col_int_key)
+FROM t3 AS t3s JOIN
+t1 AS t1s ON t1s.col_int_key = 9 and
+t1s.col_varchar_key = 'e'
+WHERE 'e' <> t1f.col_varchar_nokey )
+FROM
+t1 AS t1f STRAIGHT_JOIN t3 AS t3f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1f	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3f	index	NULL	col_varchar_key	9	NULL	3	Using index; Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	t1s	ref	col_int_key	col_int_key	5	const	1	Using where
+2	DEPENDENT SUBQUERY	t3s	index	NULL	col_int_key	5	NULL	3	Using index; Using join buffer (BNL, incremental buffers)
+DROP TABLE t1,t3;
 set optimizer_switch=default;
