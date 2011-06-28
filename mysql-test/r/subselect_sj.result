@@ -1326,4 +1326,36 @@ x
 m
 c
 drop table t1,t2,t3,t4;
+#
+# BUG#751484: Valgrind warning / sporadic crash in evaluate_join_record sql_select.cc:14099 with semijoin
+#
+CREATE TABLE t1 ( f10 int, f11 int, KEY (f10));
+INSERT IGNORE INTO t1 VALUES (0, 0),(0, 0);
+CREATE TABLE t3 ( f10 int);
+INSERT IGNORE INTO t3 VALUES (0);
+set @tmp_751484= @@optimizer_switch;
+set optimizer_switch='materialization=on';
+SELECT * FROM t1
+WHERE f11 IN (
+SELECT C_SQ1_alias1.f11
+FROM t1 AS C_SQ1_alias1
+JOIN t3 AS C_SQ1_alias2
+ON C_SQ1_alias2.f10 = C_SQ1_alias1.f10
+);
+f10	f11
+0	0
+0	0
+set optimizer_switch='materialization=off';
+SELECT * FROM t1
+WHERE f11 IN (
+SELECT C_SQ1_alias1.f11
+FROM t1 AS C_SQ1_alias1
+JOIN t3 AS C_SQ1_alias2
+ON C_SQ1_alias2.f10 = C_SQ1_alias1.f10
+);
+f10	f11
+0	0
+0	0
+set optimizer_switch=@tmp_751484;
+drop table t1, t3;
 set @@optimizer_switch=@save_optimizer_switch;
