@@ -1209,7 +1209,7 @@ int main(int argc,char *argv[])
   glob_buffer.realloc(512);
   completion_hash_init(&ht, 128);
   init_alloc_root(&hash_mem_root, 16384, 0);
-  bzero((char*) &mysql, sizeof(mysql));
+  memset(&mysql, 0, sizeof(mysql));
   if (sql_connect(current_host,current_db,current_user,opt_password,
 		  opt_silent))
   {
@@ -1640,11 +1640,11 @@ static struct my_option my_long_options[] =
     &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+    &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", OPT_DEFAULT_AUTH,
     "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+    &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -3989,7 +3989,7 @@ com_connect(String *buffer, char *line)
   bool save_rehash= opt_rehash;
   int error;
 
-  bzero(buff, sizeof(buff));
+  memset(buff, 0, sizeof(buff));
   if (buffer)
   {
     /*
@@ -4075,7 +4075,7 @@ static int com_source(String *buffer __attribute__((unused)),
 
   /* Save old status */
   old_status=status;
-  bfill((char*) &status,sizeof(status),(char) 0);
+  memset(&status, 0, sizeof(status));
 
   status.batch=old_status.batch;		// Run in batch mode
   status.line_buff=line_buff;
@@ -4125,7 +4125,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
   char *tmp, buff[FN_REFLEN + 1];
   int select_db;
 
-  bzero(buff, sizeof(buff));
+  memset(buff, 0, sizeof(buff));
   strmake(buff, line, sizeof(buff) - 1);
   tmp= get_arg(buff, 0);
   if (!tmp || !*tmp)

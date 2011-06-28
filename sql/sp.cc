@@ -563,7 +563,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     goto done;
   }
 
-  bzero((char *)&chistics, sizeof(chistics));
+  memset(&chistics, 0, sizeof(chistics));
   if ((ptr= get_field(thd->mem_root,
 		      table->field[MYSQL_PROC_FIELD_ACCESS])) == NULL)
   {
@@ -756,6 +756,43 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
 }
 
 
+class Bad_db_error_handler : public Internal_error_handler
+{
+public:
+  Bad_db_error_handler()
+    :m_error_caught(false)
+  {}
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* message,
+                                MYSQL_ERROR ** cond_hdl);
+
+  bool error_caught() const { return m_error_caught; }
+
+private:
+  bool m_error_caught;
+};
+
+bool
+Bad_db_error_handler::handle_condition(THD *thd,
+                                       uint sql_errno,
+                                       const char* sqlstate,
+                                       MYSQL_ERROR::enum_warning_level level,
+                                       const char* message,
+                                       MYSQL_ERROR ** cond_hdl)
+{
+  if (sql_errno == ER_BAD_DB_ERROR)
+  {
+    m_error_caught= true;
+    return true;
+  }
+  return false;
+}
+
+
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 sql_mode_t sql_mode, const char *params, const char *returns,
@@ -769,7 +806,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;
-  
+  Bad_db_error_handler db_not_exists_handler;
   char definer_user_name_holder[USERNAME_LENGTH + 1];
   LEX_STRING definer_user_name= { definer_user_name_holder,
                                   USERNAME_LENGTH };
@@ -808,6 +845,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     goto end;
   }
 
+  thd->push_internal_handler(&db_not_exists_handler);
   /*
     Change the current database (if needed).
 
@@ -818,6 +856,15 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                           &cur_db_changed))
   {
     ret= SP_INTERNAL_ERROR;
+    thd->pop_internal_handler();
+    goto end;
+  }
+  thd->pop_internal_handler();
+  if (db_not_exists_handler.error_caught())
+  {
+    ret= SP_INTERNAL_ERROR;
+    my_error(ER_BAD_DB_ERROR, MYF(0), name->m_db.str);
+
     goto end;
   }
 
@@ -870,8 +917,8 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   TABLE table;
   TABLE_SHARE share;
   Field *field;
-  bzero((char*) &table, sizeof(table));
-  bzero((char*) &share, sizeof(share));
+  memset(&table, 0, sizeof(table));
+  memset(&share, 0, sizeof(share));
   table.in_use= thd;
   table.s = &share;
   field= sp->create_result_field(0, 0, &table);
@@ -1727,7 +1774,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
                                sp_find_routine(thd, TYPE_ENUM_FUNCTION,
                                                name, &thd->sp_func_cache,
                                                FALSE) != NULL;
-    thd->warning_info->clear_warning_info(thd->query_id);
+    thd->get_stmt_wi()->clear_warning_info(thd->query_id);
     if (! sp_object_found)
     {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE",
@@ -2201,7 +2248,7 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
   Stored_program_creation_ctx *creation_ctx= 
     Stored_routine_creation_ctx::load_from_db(thd, &sp_name_obj, proc_table);
   sp_body= (type == TYPE_ENUM_FUNCTION ? "RETURN NULL" : "BEGIN END");
-  bzero((char*) &sp_chistics, sizeof(sp_chistics));
+  memset(&sp_chistics, 0, sizeof(sp_chistics));
   defstr.set_charset(creation_ctx->get_client_cs());
   if (!create_string(thd, &defstr, type, 
                      sp_db_str.str, sp_db_str.length, 

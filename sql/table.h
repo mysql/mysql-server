@@ -600,8 +600,9 @@ struct TABLE_SHARE
     Doubly-linked (back-linked) lists of used and unused TABLE objects
     for this share.
   */
-  I_P_List <TABLE, TABLE_share> used_tables;
-  I_P_List <TABLE, TABLE_share> free_tables;
+  typedef I_P_List <TABLE, TABLE_share> TABLE_list;
+  TABLE_list used_tables;
+  TABLE_list free_tables;
 
   /* The following is copied to each TABLE on OPEN */
   Field **field;
@@ -669,8 +670,8 @@ struct TABLE_SHARE
   uint db_options_in_use;		/* Options in use */
   uint db_record_offset;		/* if HA_REC_IN_SEQ */
   uint rowid_field_offset;		/* Field_nr +1 to rowid field */
-  /* Index of auto-updated TIMESTAMP field in field array */
-  uint primary_key;
+  /* Primary key index number, used in TABLE::key_info[] */
+  uint primary_key;                     
   uint next_number_index;               /* autoincrement key number */
   uint next_number_key_offset;          /* autoinc keypart offset in a key */
   uint next_number_keypart;             /* autoinc keypart number in a key */
@@ -1429,7 +1430,7 @@ struct TABLE_LIST
                              const char *alias_arg,
                              enum thr_lock_type lock_type_arg)
   {
-    bzero((char*) this, sizeof(*this));
+    memset(this, 0, sizeof(*this));
     db= (char*) db_name_arg;
     db_length= db_length_arg;
     table_name= (char*) table_name_arg;
@@ -2235,7 +2236,7 @@ inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
   table->status|=STATUS_NULL_ROW;
-  bfill(table->null_flags,table->s->null_bytes,255);
+  memset(table->null_flags, 255, table->s->null_bytes);
 }
 
 bool is_simple_order(ORDER *order);

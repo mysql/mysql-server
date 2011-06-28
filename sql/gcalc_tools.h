@@ -96,7 +96,7 @@ public:
     cur_func= function_buffer.ptr();
     return count_internal();
   }
-  void clear_state() { bzero(i_states, n_shapes * sizeof(int)); }
+  void clear_state() { memset(i_states, 0, n_shapes * sizeof(int)); }
   void reset();
 
   int find_function(Gcalc_scan_iterator &scan_it);

@@ -65,7 +65,7 @@ static int my_aes_create_key(KEYINSTANCE *aes_key,
   const char *sptr;			/* Start of the working key */
   const char *key_end=key+key_length;	/* Working key boundary*/
 
-  bzero((char*) rkey,AES_KEY_LENGTH/8);      /* Set initial key  */
+  memset(rkey, 0, AES_KEY_LENGTH/8);      /* Set initial key  */
 
   for (ptr= rkey, sptr= key; sptr < key_end; ptr++,sptr++)
   {
@@ -149,7 +149,7 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
   /* Encode the rest. We always have incomplete block */
   pad_len = AES_BLOCK_SIZE - (source_length - AES_BLOCK_SIZE*num_blocks);
   memcpy(block, source, 16 - pad_len);
-  bfill(block + AES_BLOCK_SIZE - pad_len, pad_len, pad_len);
+  memset(block + AES_BLOCK_SIZE - pad_len, pad_len,  pad_len);
   rijndaelEncrypt(aes_key.rk, aes_key.nr, block, (uint8*) dest);
   return AES_BLOCK_SIZE*(num_blocks + 1);
 }

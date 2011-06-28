@@ -179,7 +179,7 @@ int mysql_sha1_result(SHA1_CONTEXT *context,
   {
     SHA1PadMessage(context);
      /* message may be sensitive, clear it out */
-    bzero((char*) context->Message_Block,64);
+    memset(context->Message_Block, 0, 64);
     context->Length   = 0;    /* and clear length  */
     context->Computed = 1;
   }
@@ -386,21 +386,21 @@ static void SHA1PadMessage(SHA1_CONTEXT *context)
   if (i > 55)
   {
     context->Message_Block[i++] = 0x80;
-    bzero((char*) &context->Message_Block[i],
+    memset(&context->Message_Block[i], 0, 
 	  sizeof(context->Message_Block[0])*(64-i));
     context->Message_Block_Index=64;
 
     /* This function sets context->Message_Block_Index to zero	*/
     SHA1ProcessMessageBlock(context);
 
-    bzero((char*) &context->Message_Block[0],
+    memset(&context->Message_Block[0], 0, 
 	  sizeof(context->Message_Block[0])*56);
     context->Message_Block_Index=56;
   }
   else
   {
     context->Message_Block[i++] = 0x80;
-    bzero((char*) &context->Message_Block[i],
+    memset(&context->Message_Block[i], 0,
 	  sizeof(context->Message_Block[0])*(56-i));
     context->Message_Block_Index=56;
   }

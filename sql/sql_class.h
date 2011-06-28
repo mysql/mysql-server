@@ -561,7 +561,6 @@ typedef struct system_status_var
   ulong key_cache_write;
   /* END OF KEY_CACHE parts */
 
-  ulong net_big_packet_count;
   ulong opened_tables;
   ulong opened_shares;
   ulong select_full_join_count;
@@ -708,7 +707,7 @@ public:
   {
     void *ptr;
     if ((ptr=alloc_root(mem_root,size)))
-      bzero(ptr, size);
+      memset(ptr, 0, size);
     return ptr;
   }
   inline char *strdup(const char *str)
@@ -1851,8 +1850,6 @@ public:
   /*
     Public interface to write RBR events to the binlog
   */
-  void binlog_start_trans_and_stmt();
-  void binlog_set_stmt_begin();
   int binlog_write_table_map(TABLE *table, bool is_transactional,
                              bool binlog_rows_query);
   int binlog_write_row(TABLE* table, bool is_transactional,
@@ -1976,7 +1973,7 @@ public:
     }
     st_transactions()
     {
-      bzero((char*)this, sizeof(*this));
+      memset(this, 0, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
@@ -2284,8 +2281,6 @@ public:
   table_map  used_tables;
   USER_CONN *user_connect;
   const CHARSET_INFO *db_charset;
-  Warning_info *warning_info;
-  Diagnostics_area *stmt_da;
 #if defined(ENABLED_PROFILING)
   PROFILING  profiling;
 #endif
@@ -2790,8 +2785,8 @@ public:
   inline void clear_error()
   {
     DBUG_ENTER("clear_error");
-    if (stmt_da->is_error())
-      stmt_da->reset_diagnostics_area();
+    if (get_stmt_da()->is_error())
+      get_stmt_da()->reset_diagnostics_area();
     is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
@@ -2818,7 +2813,7 @@ public:
   */
   inline void fatal_error()
   {
-    DBUG_ASSERT(stmt_da->is_error() || killed);
+    DBUG_ASSERT(get_stmt_da()->is_error() || killed);
     is_fatal_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
@@ -2835,7 +2830,25 @@ public:
 
     To raise this flag, use my_error().
   */
-  inline bool is_error() const { return stmt_da->is_error(); }
+  inline bool is_error() const { return get_stmt_da()->is_error(); }
+
+  /// Returns Warning-information-area for the current diagnostics area.
+  Warning_info *get_stmt_wi()
+  { return get_stmt_da()->get_warning_info(); }
+
+  /// Returns Diagnostics-area for the current statement.
+  Diagnostics_area *get_stmt_da()
+  { return m_stmt_da; }
+
+  /// Returns Diagnostics-area for the current statement.
+  const Diagnostics_area *get_stmt_da() const
+  { return m_stmt_da; }
+
+  /// Sets Diagnostics-area for the current statement.
+  void set_stmt_da(Diagnostics_area *da)
+  { m_stmt_da= da; }
+
+public:
   inline const CHARSET_INFO *charset()
   { return variables.character_set_client; }
   void update_charset();
@@ -2878,7 +2891,7 @@ public:
   inline void send_kill_message() const
   {
     int err= killed_errno();
-    if (err)
+    if (err && !get_stmt_da()->is_set())
     {
       if ((err == KILL_CONNECTION) && !shutdown_in_progress)
         err = KILL_QUERY;
@@ -3189,7 +3202,19 @@ public:
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
 
-    mdl_context.set_explicit_duration_for_all_locks();
+    if (mode_arg == LTM_LOCK_TABLES)
+    {
+      /*
+        When entering LOCK TABLES mode we should set explicit duration
+        for all metadata locks acquired so far in order to avoid releasing
+        them till UNLOCK TABLES statement.
+        We don't do this when entering prelocked mode since sub-statements
+        don't release metadata locks and restoring status-quo after leaving
+        prelocking mode gets complicated.
+      */
+      mdl_context.set_explicit_duration_for_all_locks();
+    }
+
     locked_tables_mode= mode_arg;
   }
   void leave_locked_tables_mode();
@@ -3226,8 +3251,8 @@ private:
     tree itself is reused between executions and thus is stored elsewhere.
   */
   MEM_ROOT main_mem_root;
-  Warning_info main_warning_info;
   Diagnostics_area main_da;
+  Diagnostics_area *m_stmt_da;
 
   /**
     It will be set TURE if CURRENT_USER() is called in account management
@@ -3250,24 +3275,24 @@ private:
 };
 
 
-/** A short cut for thd->stmt_da->set_ok_status(). */
+/** A short cut for thd->get_stmt_da()->set_ok_status(). */
 
 inline void
 my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
   thd->set_row_count_func(affected_rows);
-  thd->stmt_da->set_ok_status(thd, affected_rows, id, message);
+  thd->get_stmt_da()->set_ok_status(thd, affected_rows, id, message);
 }
 
 
-/** A short cut for thd->stmt_da->set_eof_status(). */
+/** A short cut for thd->get_stmt_da()->set_eof_status(). */
 
 inline void
 my_eof(THD *thd)
 {
   thd->set_row_count_func(-1);
-  thd->stmt_da->set_eof_status(thd);
+  thd->get_stmt_da()->set_eof_status(thd);
 }
 
 #define tmp_disable_binlog(A)       \
