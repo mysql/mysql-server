@@ -1973,8 +1973,13 @@ static int read_and_execute(bool interactive)
   {
     if (!interactive)
     {
+      /*
+        batch_readline can return 0 on EOF or error.
+        In that case, we need to double check that we have a valid
+        line before actually setting line_length to read_length.
+        */
       line= batch_readline(status.line_buff, real_binary_mode);
-      line_length= status.line_buff->read_length;
+      line_length= line ? status.line_buff->read_length : 0;
       /*
         ASCII 0x00 is not allowed appearing in queries if it is not in binary
         mode.
@@ -2004,7 +2009,11 @@ static int read_and_execute(bool interactive)
            (uchar) line[0] == 0xEF &&
            (uchar) line[1] == 0xBB &&
            (uchar) line[2] == 0xBF)
+      {
         line+= 3;
+        // decrease the line length accordingly to the 3 bytes chopped
+        line_length -=3;
+      }
       line_number++;
       if (!glob_buffer.length())
 	status.query_start_line=line_number;
