@@ -2024,16 +2024,19 @@ opt_ev_status:
         | ENABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::ENABLED;
+            Lex->event_parse_data->status_changed= true;
             $$= 1;
           }
         | DISABLE_SYM ON SLAVE
           {
             Lex->event_parse_data->status= Event_parse_data::SLAVESIDE_DISABLED;
+            Lex->event_parse_data->status_changed= true; 
             $$= 1;
           }
         | DISABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::DISABLED;
+            Lex->event_parse_data->status_changed= true;
             $$= 1;
           }
         ;

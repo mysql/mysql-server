@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /*
   Functions to create a unireg form-file from a FIELD and a fieldname-fieldinfo
@@ -237,13 +236,14 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     if ((thd->variables.sql_mode &
          (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
     {
-      my_error(ER_TOO_LONG_TABLE_COMMENT, MYF(0), table, tmp_len);
+      my_error(ER_TOO_LONG_TABLE_COMMENT, MYF(0), table,
+               static_cast<ulong>(tmp_len));
       goto err;
     }
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TOO_LONG_TABLE_COMMENT,
                         ER(ER_TOO_LONG_TABLE_COMMENT),
-                        table, tmp_len);
+                        table, static_cast<ulong>(tmp_len));
     create_info->comment.length= tmp_len;
   }
 
@@ -621,13 +621,14 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
       if ((current_thd->variables.sql_mode &
 	   (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
       {
-        my_error(ER_TOO_LONG_FIELD_COMMENT, MYF(0), field->field_name, tmp_len);
+        my_error(ER_TOO_LONG_FIELD_COMMENT, MYF(0), field->field_name,
+                 static_cast<ulong>(tmp_len));
 	DBUG_RETURN(1);
       }
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_TOO_LONG_FIELD_COMMENT,
                           ER(ER_TOO_LONG_FIELD_COMMENT),
-                          field->field_name, tmp_len);
+                          field->field_name, static_cast<ulong>(tmp_len));
       field->comment.length= tmp_len;
     }
 
@@ -711,7 +712,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 
   if (reclength > (ulong) file->max_record_length())
   {
-    my_error(ER_TOO_BIG_ROWSIZE, MYF(0), (uint) file->max_record_length());
+    my_error(ER_TOO_BIG_ROWSIZE, MYF(0), static_cast<long>(file->max_record_length()));
     DBUG_RETURN(1);
   }
   /* Hack to avoid bugs with small static rows in MySQL */

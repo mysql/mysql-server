@@ -2265,7 +2265,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   default:				/* Better wrong error than none */
   case 4:
     strxmov(buff, share->normalized_path.str, reg_ext, NullS);
-    my_error(ER_NOT_FORM_FILE, errortype, buff, 0);
+    my_error(ER_NOT_FORM_FILE, errortype, buff);
     break;
   }
   DBUG_VOID_RETURN;
@@ -2835,7 +2835,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
                    ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
                    table->alias, table_def->count, table->s->fields,
-                   table->s->mysql_version, MYSQL_VERSION_ID);
+                   static_cast<int>(table->s->mysql_version),
+                   MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);
     }
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
