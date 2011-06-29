@@ -689,4 +689,24 @@ SET SESSION sort_buffer_size = DEFAULT;
 
 DROP TABLE t1;
 
+
+--echo #
+--echo # Test for bug #11762012 - "54553: INNODB ASSERTS IN HA_INNOBASE::
+--echo #                           UPDATE_ROW, TEMPORARY TABLE, TABLE LOCK".
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TEMPORARY TABLE t1 (c int) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1);
+LOCK TABLES t1 READ;
+--echo # Even though temporary table was locked for READ we
+--echo # still allow writes to it to be compatible with MyISAM.
+--echo # This is possible since due to fact that temporary tables
+--echo # are specific to connection and therefore locking for them
+--echo # is irrelevant.
+UPDATE t1 SET c = 5;
+UNLOCK TABLES;
+DROP TEMPORARY TABLE t1;
+
 --echo End of 5.1 tests

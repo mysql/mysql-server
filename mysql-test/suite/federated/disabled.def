@@ -9,4 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-federated_transactions : Bug#29523 Transactions do not work
+federated_transactions : Bug#11746899 Transactions do not work

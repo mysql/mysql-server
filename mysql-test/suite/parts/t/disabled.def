@@ -1,3 +1,3 @@
-partition_basic_ndb            : Bug#19899 Crashing the server
+partition_basic_ndb            : Bug#11745782  Crashing the server
 # http://dev.mysql.com/doc/refman/5.1/en/mysql-cluster-limitations-syntax.html
-partition_syntax_ndb           : Bug#36735 Not supported
+partition_syntax_ndb           : Bug#11748568 Not supported
