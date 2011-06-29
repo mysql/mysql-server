@@ -47,6 +47,7 @@ extern my_bool opt_ndb_log_updated_only;
 extern my_bool opt_ndb_log_binlog_index;
 extern my_bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
+extern st_ndb_slave_state g_ndb_slave_state;
 
 bool ndb_log_empty_epochs(void);
 
@@ -891,6 +892,8 @@ static void ndbcluster_reset_slave(THD *thd)
     */
     thd_stmt_da(thd)->reset_diagnostics_area();
   }
+
+  g_ndb_slave_state.atResetSlave();
 
   DBUG_VOID_RETURN;
 }
