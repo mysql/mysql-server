@@ -1519,7 +1519,7 @@ my_offset_tzs_get_key(Time_zone_offset *entry,
 static void
 tz_init_table_list(TABLE_LIST *tz_tabs)
 {
-  bzero(tz_tabs, sizeof(TABLE_LIST) * MY_TZ_TABLES_COUNT);
+  memset(tz_tabs, 0, sizeof(TABLE_LIST) * MY_TZ_TABLES_COUNT);
 
   for (int i= 0; i < MY_TZ_TABLES_COUNT; i++)
   {
@@ -1650,7 +1650,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   */
 
   thd->set_db(db, sizeof(db)-1);
-  bzero((char*) &tz_tables[0], sizeof(TABLE_LIST));
+  memset(&tz_tables[0], 0, sizeof(TABLE_LIST));
   tz_tables[0].alias= tz_tables[0].table_name=
     (char*)"time_zone_leap_second";
   tz_tables[0].table_name_length= 21;
@@ -1671,7 +1671,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
                            MYSQL_OPEN_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     sql_print_warning("Can't open and lock time zone table: %s "
-                      "trying to live without them", thd->stmt_da->message());
+                      "trying to live without them", thd->get_stmt_da()->message());
     /* We will try emulate that everything is ok */
     return_val= time_zone_tables_exist= 0;
     goto end_with_setting_default_tz;
@@ -1876,7 +1876,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     return 0;
   }
   tz_info= (TIME_ZONE_INFO *)alloc_buff;
-  bzero(tz_info, sizeof(TIME_ZONE_INFO));
+  memset(tz_info, 0, sizeof(TIME_ZONE_INFO));
   tz_name_buff= alloc_buff + sizeof(TIME_ZONE_INFO);
   /*
     By writing zero to the end we guarantee that we can call ptr()

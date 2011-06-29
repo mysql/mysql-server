@@ -81,7 +81,8 @@ static const char *handler_error_messages[]=
   "File to short; Expected more data in file",
   "Read page with wrong checksum",
   "Too many active concurrent transactions",
-  "Record not matching the given partition set"
+  "Record not matching the given partition set",
+  "Index column length exceeds limit"
 };
 
 extern void my_handler_error_register(void);

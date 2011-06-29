@@ -184,9 +184,9 @@ exit:
     if (orig_table_list->view)
     {
       if (thd->is_error() &&
-          (thd->stmt_da->sql_errno() == ER_BAD_FIELD_ERROR ||
-          thd->stmt_da->sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
-          thd->stmt_da->sql_errno() == ER_SP_DOES_NOT_EXIST))
+          (thd->get_stmt_da()->sql_errno() == ER_BAD_FIELD_ERROR ||
+          thd->get_stmt_da()->sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
+          thd->get_stmt_da()->sql_errno() == ER_SP_DOES_NOT_EXIST))
       {
         thd->clear_error();
         my_error(ER_VIEW_INVALID, MYF(0), orig_table_list->db,
@@ -286,7 +286,7 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 	first_select->options&= ~OPTION_FOUND_ROWS;
 
       lex->current_select= first_select;
-      res= mysql_select(thd, &first_select->ref_pointer_array,
+      res= mysql_select(thd,
 			first_select->table_list.first,
 			first_select->with_wild,
 			first_select->item_list, first_select->where,

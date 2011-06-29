@@ -299,90 +299,42 @@ public:
   };
 };
 
-/* List of Discrete_interval objects */
+/// List of Discrete_interval objects
 class Discrete_intervals_list {
+
+/**
+   Discrete_intervals_list objects are used to remember the
+   intervals of autoincrement values that have been used by the
+   current INSERT statement, so that the values can be written to the
+   binary log.  However, the binary log can currently only store the
+   beginning of the first interval (because WL#3404 is not yet
+   implemented).  Hence, it is currently not necessary to store
+   anything else than the first interval, in the list.  When WL#3404 is
+   implemented, we should change the '# define' below.
+*/
+#define DISCRETE_INTERVAL_LIST_HAS_MAX_ONE_ELEMENT 1
+
 private:
+  /**
+    To avoid heap allocation in the common case when there is only one
+    interval in the list, we store the first interval here.
+  */
+  Discrete_interval        first_interval;
   Discrete_interval        *head;
   Discrete_interval        *tail;
-  /*
+  /**
     When many intervals are provided at the beginning of the execution of a
     statement (in a replication slave or SET INSERT_ID), "current" points to
     the interval being consumed by the thread now (so "current" goes from
     "head" to "tail" then to NULL).
   */
   Discrete_interval        *current;
-  uint                  elements; // number of elements
-  void set_members(Discrete_interval *h, Discrete_interval *t,
-                   Discrete_interval *c, uint el)
-  {  
-    head= h;
-    tail= t;
-    current= c;
-    elements= el;
-  }
-  void operator=(Discrete_intervals_list &);  /* prevent use of these */
-  Discrete_intervals_list(const Discrete_intervals_list &);
-
-public:
-  Discrete_intervals_list() : head(NULL), current(NULL), elements(0) {};
-  void empty_no_free()
-  {
-    set_members(NULL, NULL, NULL, 0);
-  }
-  void empty()
-  {
-    for (Discrete_interval *i= head; i;)
-    {
-      Discrete_interval *next= i->next;
-      delete i;
-      i= next;
-    }
-    empty_no_free();
-  }
-  void copy_shallow(const Discrete_intervals_list * dli)
-  {
-    head= dli->get_head();
-    tail= dli->get_tail();
-    current= dli->get_current();
-    elements= dli->nb_elements();
-  }
-  void swap (Discrete_intervals_list * dli)
-  {
-    Discrete_interval *h, *t, *c;
-    uint el;
-    h= dli->get_head();
-    t= dli->get_tail();
-    c= dli->get_current();
-    el= dli->nb_elements();
-    dli->copy_shallow(this);
-    set_members(h, t, c, el);
-  }
-  const Discrete_interval* get_next()
-  {
-    Discrete_interval *tmp= current;
-    if (current != NULL)
-      current= current->next;
-    return tmp;
-  }
-  ~Discrete_intervals_list() { empty(); };
-  bool append(ulonglong start, ulonglong val, ulonglong incr)
-  {
-    DBUG_ENTER("Discrete_intervals_list::append");
-    /* first, see if this can be merged with previous */
-    if ((head == NULL) || tail->merge_if_contiguous(start, val, incr))
-    {
-      /* it cannot, so need to add a new interval */
-      Discrete_interval *new_interval= new Discrete_interval(start, val, incr);
-      DBUG_RETURN(append(new_interval));
-    }
-    DBUG_RETURN(0);
-  }
-  
+  uint                  elements;               ///< number of elements
+  void operator=(Discrete_intervals_list &);    // prevent use of this
   bool append(Discrete_interval *new_interval)
   {
-    DBUG_ENTER("Discrete_intervals_list::append");
     if (unlikely(new_interval == NULL))
-      DBUG_RETURN(1);
+      return true;
     DBUG_PRINT("info",("adding new auto_increment interval"));
     if (head == NULL)
       head= current= new_interval;
@@ -390,14 +342,96 @@ public:
       tail->next= new_interval;
     tail= new_interval;
     elements++;
-    DBUG_RETURN(0);
+    return false;
+  }
+  void copy_shallow(const Discrete_intervals_list *other)
+  {
+    const Discrete_interval *o_first_interval= &other->first_interval;
+    first_interval= other->first_interval;
+    head= other->head == o_first_interval ? &first_interval : other->head;
+    tail= other->tail == o_first_interval ? &first_interval : other->tail;
+    current=
+      other->current == o_first_interval ? &first_interval : other->current;
+    elements= other->elements;
+  }
+  Discrete_intervals_list(const Discrete_intervals_list &other)
+  { copy_shallow(&other); }
+
+public:
+  Discrete_intervals_list()
+    : head(NULL), tail(NULL), current(NULL), elements(0) {}
+  void empty()
+  {
+    if (head)
+    {
+      // first element, not on heap, should not be delete-d; start with next:
+      for (Discrete_interval *i= head->next; i;)
+      {
+#ifdef DISCRETE_INTERVAL_LIST_HAS_MAX_ONE_ELEMENT
+        DBUG_ASSERT(0);
+#endif
+        Discrete_interval *next= i->next;
+        delete i;
+        i= next;
+      }
+    }
+    head= tail= current= NULL;
+    elements= 0;
+  }
+  void swap(Discrete_intervals_list *other)
+  {
+    const Discrete_intervals_list tmp(*other);
+    other->copy_shallow(this);
+    copy_shallow(&tmp);
+  }
+  const Discrete_interval *get_next()
+  {
+    const Discrete_interval *tmp= current;
+    if (current != NULL)
+      current= current->next;
+    return tmp;
+  }
+  ~Discrete_intervals_list() { empty(); };
+  /**
+    Appends an interval to the list.
+
+    @param start  start of interval
+    @val   how    many values it contains
+    @param incr   what increment between each value
+    @retval true  error
+    @retval false success
+  */
+  bool append(ulonglong start, ulonglong val, ulonglong incr)
+  {
+    // If there are no intervals, add one.
+    if (head == NULL)
+    {
+      first_interval.replace(start, val, incr);
+      return append(&first_interval);
+    }
+    // If this interval can be merged with previous, do that.
+    if (tail->merge_if_contiguous(start, val, incr) == 0)
+      return false;
+    // If this interval cannot be merged, append it.
+#ifdef DISCRETE_INTERVAL_LIST_HAS_MAX_ONE_ELEMENT
+    /*
+      We cannot create yet another interval as we already contain one. This
+      situation can happen. Assume innodb_autoinc_lock_mode>=1 and
+       CREATE TABLE T(A INT AUTO_INCREMENT PRIMARY KEY) ENGINE=INNODB;
+       INSERT INTO T VALUES (NULL),(NULL),(1025),(NULL);
+      Then InnoDB will reserve [1,4] (because of 4 rows) then
+      [1026,1026]. Only the first interval is important for
+      statement-based binary logging as it tells the starting point. So we
+      ignore the second interval:
+    */
+    return false;
+#else
+    return append(new Discrete_interval(start, val, incr));
+#endif
   }
   ulonglong minimum()     const { return (head ? head->minimum() : 0); };
   ulonglong maximum()     const { return (head ? tail->maximum() : 0); };
   uint      nb_elements() const { return elements; }
-  Discrete_interval* get_head() const { return head; };
-  Discrete_interval* get_tail() const { return tail; };
-  Discrete_interval* get_current() const { return current; };
 };
 
 #endif /* STRUCTS_INCLUDED */

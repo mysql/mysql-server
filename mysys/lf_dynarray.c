@@ -42,7 +42,7 @@
 
 void lf_dynarray_init(LF_DYNARRAY *array, uint element_size)
 {
-  bzero(array, sizeof(*array));
+  memset(array, 0, sizeof(*array));
   array->size_of_element= element_size;
   my_atomic_rwlock_init(&array->lock);
 }

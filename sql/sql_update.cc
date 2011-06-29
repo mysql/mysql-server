@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -328,7 +328,8 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
   table_list->register_want_access(want_privilege);
 #endif
-  if (setup_fields_with_no_wrap(thd, 0, fields, MARK_COLUMNS_WRITE, 0, 0))
+  if (setup_fields_with_no_wrap(thd, Ref_ptr_array(),
+                                fields, MARK_COLUMNS_WRITE, 0, 0))
     DBUG_RETURN(1);                     /* purecov: inspected */
   if (table_list->view && check_fields(thd, fields))
   {
@@ -359,7 +360,7 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege=
     (SELECT_ACL & ~table->grant.privilege);
 #endif
-  if (setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(), values, MARK_COLUMNS_READ, 0, 0))
   {
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(1);				/* purecov: inspected */
@@ -791,7 +792,7 @@ int mysql_update(THD *thd,
     }
     else
       table->file->unlock_row();
-    thd->warning_info->inc_current_row_for_warning();
+    thd->get_stmt_wi()->inc_current_row_for_warning();
     if (thd->is_error())
     {
       error= 1;
@@ -897,7 +898,7 @@ int mysql_update(THD *thd,
     char buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
-                (ulong) thd->warning_info->statement_warn_count());
+                (ulong) thd->get_stmt_wi()->statement_warn_count());
     my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
           id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
@@ -1069,17 +1070,27 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
             return true;
           }
 
-          if (primkey_clustered &&
-              (bitmap_is_set(table1->write_set, table1->s->primary_key) ||
-               bitmap_is_set(table2->write_set, table2->s->primary_key)))
+          if (primkey_clustered)
           {
-            // Clustered primary key is updated
-            my_error(ER_MULTI_UPDATE_KEY_CONFLICT, MYF(0),
-                     tl->belong_to_view ? tl->belong_to_view->alias
-                                        : tl->alias,
-                     tl2->belong_to_view ? tl2->belong_to_view->alias
-                                         : tl2->alias);
-            return true;
+            // The primary key can cover multiple columns
+            KEY key_info= table1->key_info[table1->s->primary_key];
+            KEY_PART_INFO *key_part= key_info.key_part;
+            KEY_PART_INFO *key_part_end= key_part + key_info.key_parts;
+
+            for (;key_part != key_part_end; ++key_part)
+            {
+              if (bitmap_is_set(table1->write_set, key_part->fieldnr-1) ||
+                  bitmap_is_set(table2->write_set, key_part->fieldnr-1))
+              {
+                // Clustered primary key is updated
+                my_error(ER_MULTI_UPDATE_KEY_CONFLICT, MYF(0),
+                         tl->belong_to_view ? tl->belong_to_view->alias
+                         : tl->alias,
+                         tl2->belong_to_view ? tl2->belong_to_view->alias
+                         : tl2->alias);
+                return true;
+              }
+            }
           }
         }
       }
@@ -1148,7 +1159,8 @@ int mysql_multi_update_prepare(THD *thd)
                                     UPDATE_ACL, SELECT_ACL))
     DBUG_RETURN(TRUE);
 
-  if (setup_fields_with_no_wrap(thd, 0, *fields, MARK_COLUMNS_WRITE, 0, 0))
+  if (setup_fields_with_no_wrap(thd, Ref_ptr_array(),
+                                *fields, MARK_COLUMNS_WRITE, 0, 0))
     DBUG_RETURN(TRUE);
 
   for (tl= table_list; tl ; tl= tl->next_local)
@@ -1337,7 +1349,7 @@ bool mysql_multi_update(THD *thd,
 
   List<Item> total_list;
 
-  res= mysql_select(thd, &select_lex->ref_pointer_array,
+  res= mysql_select(thd,
                     table_list, select_lex->with_wild,
                     total_list,
                     conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
@@ -1422,7 +1434,8 @@ int multi_update::prepare(List<Item> &not_used_values,
     reference tables
   */
 
-  int error= setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0);
+  int error= setup_fields(thd, Ref_ptr_array(),
+                          *values, MARK_COLUMNS_READ, 0, 0);
 
   for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
@@ -1728,7 +1741,7 @@ loop_end:
     temp_fields.concat(fields_for_table[cnt]);
 
     /* Make an unique key over the first field to avoid duplicated updates */
-    bzero((char*) &group, sizeof(group));
+    memset(&group, 0, sizeof(group));
     group.direction= ORDER::ORDER_ASC;
     group.item= (Item**) temp_fields.head_ref();
 

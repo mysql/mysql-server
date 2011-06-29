@@ -62,9 +62,9 @@ int main(int argc,char **argv)
   MY_INIT(argv[0]);
   get_options(argc,argv);
 
-  bzero((char*) keyinfo,sizeof(keyinfo));
-  bzero((char*) recinfo,sizeof(recinfo));
-  bzero((char*) keyseg,sizeof(keyseg));
+  memset(keyinfo, 0, sizeof(keyinfo));
+  memset(recinfo, 0, sizeof(recinfo));
+  memset(keyseg, 0, sizeof(keyseg));
   keyinfo[0].seg= &keyseg[0][0];
   keyinfo[0].seg[0].start=0;
   keyinfo[0].seg[0].length=8;
@@ -416,7 +416,7 @@ int test_update(MI_INFO *file,int id,int lock_type)
       return 1;
     }
   }
-  bzero((char*) &new_record,sizeof(new_record));
+  memset(&new_record, 0, sizeof(new_record));
   strmov((char*) new_record.text,"Updated");
 
   found=next=prev=update=0;

@@ -499,7 +499,7 @@ static void wt_resource_init(uchar *arg)
   WT_RESOURCE *rc= (WT_RESOURCE*)(arg+LF_HASH_OVERHEAD);
   DBUG_ENTER("wt_resource_init");
 
-  bzero(rc, sizeof(*rc));
+  memset(rc, 0, sizeof(*rc));
   rc_rwlock_init(rc);
   pthread_cond_init(&rc->cond, 0);
   my_init_dynamic_array(&rc->owners, sizeof(WT_THD *), 0, 5);
@@ -541,8 +541,8 @@ void wt_init()
     lock, condition, and dynamic array will be intact.
   */
   reshash.element_size= offsetof(WT_RESOURCE, lock);
-  bzero(wt_wait_stats, sizeof(wt_wait_stats));
-  bzero(wt_cycle_stats, sizeof(wt_cycle_stats));
+  memset(wt_wait_stats, 0, sizeof(wt_wait_stats));
+  memset(wt_cycle_stats, 0, sizeof(wt_cycle_stats));
   wt_success_stats= 0;
   { /* initialize wt_wait_table[]. from 1 us to 1 min, log e scale */
     int i;
@@ -1041,7 +1041,7 @@ retry:
       WT_RESOURCE tmp;
 
       DBUG_PRINT("wt", ("failed to find rc in hash, inserting"));
-      bzero(&tmp, sizeof(tmp));
+      memset(&tmp, 0, sizeof(tmp));
       tmp.id= *resid;
       tmp.state= ACTIVE;
 

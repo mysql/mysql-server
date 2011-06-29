@@ -752,7 +752,7 @@ bool trans_xa_rollback(THD *thd)
       ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
       xid_cache_delete(xs);
     }
-    DBUG_RETURN(thd->stmt_da->is_error());
+    DBUG_RETURN(thd->get_stmt_da()->is_error());
   }
 
   if (xa_state != XA_IDLE && xa_state != XA_PREPARED && xa_state != XA_ROLLBACK_ONLY)

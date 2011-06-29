@@ -496,8 +496,8 @@ c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = c2.id AND
 c2.active = 'Yes' WHERE m.pid=1  AND (c1.id IS NOT NULL OR c2.id IS NOT NULL);
 pid	c1id	c2id	value	id	active	id	active
 1	1	NULL	1	1	Yes	NULL	NULL
-1	NULL	3	3	NULL	NULL	3	Yes
 1	4	NULL	4	4	Yes	NULL	NULL
+1	NULL	3	3	NULL	NULL	3	Yes
 select max(value) from t1 AS m LEFT JOIN t2 AS c1 ON 
 m.c1id = c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = 
 c2.id AND c2.active = 'Yes' WHERE m.pid=1  AND (c1.id IS NOT NULL OR c2.id IS 
@@ -1967,3 +1967,23 @@ field1	field2
 DROP TABLE t1;
 DROP TABLE where_subselect;
 # End of Bug #58782
+#
+# Bug #11766429 
+# RE-EXECUTE OF PREPARED STATEMENT CRASHES IN ITEM_REF::FIX_FIELDS WITH
+#
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1 VALUES (0);
+CREATE TABLE t2(b INT, KEY(b));
+INSERT INTO t2 VALUES (0),(0);
+PREPARE stmt FROM '
+SELECT 1 FROM t2
+LEFT JOIN t1 ON NULL
+GROUP BY t2.b, t1.a
+HAVING a <> 2';
+EXECUTE stmt;
+1
+EXECUTE stmt;
+1
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1, t2;
+# End of Bug #11766429

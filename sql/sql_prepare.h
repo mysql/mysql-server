@@ -252,16 +252,9 @@ public:
   */
   ulong get_warn_count() const
   {
-    return m_warning_info.warn_count();
+    return m_diagnostics_area.get_warning_info()->warn_count();
   }
-  /**
-    Get the server warnings as a result set.
-    The result set has fixed metadata:
-    The first column is the level.
-    The second is a numeric code.
-    The third is warning text.
-  */
-  List<MYSQL_ERROR> *get_warn_list() { return &m_warning_info.warn_list(); }
+
   /**
     The following members are only valid if execute_direct()
     or move_to_next_result() returned an error.
@@ -310,7 +303,6 @@ public:
   ~Ed_connection() { free_old_result(); }
 private:
   Diagnostics_area m_diagnostics_area;
-  Warning_info m_warning_info;
   /**
     Execute direct interface does not support multi-statements, only
     multi-results. So we never have a situation when we have

@@ -47,7 +47,7 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg) co
   DBUG_ENTER("has_temporary_error");
 
   DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
-                  if (thd->stmt_da->is_error())
+                  if (thd->get_stmt_da()->is_error())
                   {
                     thd->clear_error();
                     my_error(ER_LOCK_DEADLOCK, MYF(0));
@@ -63,7 +63,7 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg) co
   if (thd->is_fatal_error || !thd->is_error())
     DBUG_RETURN(0);
 
-  error= (error_arg == 0)? thd->stmt_da->sql_errno() : error_arg;
+  error= (error_arg == 0)? thd->get_stmt_da()->sql_errno() : error_arg;
 
   /*
     Temporary error codes:

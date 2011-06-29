@@ -529,10 +529,12 @@ void Item_sum::update_used_tables ()
   if (!forced_const)
   {
     used_tables_cache= 0;
+    with_subselect= false;
     for (uint i=0 ; i < arg_count ; i++)
     {
       args[i]->update_used_tables();
       used_tables_cache|= args[i]->used_tables();
+      with_subselect|= args[i]->has_subquery();
     }
 
     used_tables_cache&= PSEUDO_TABLE_BITS;
@@ -1843,7 +1845,7 @@ void Item_sum_variance::reset_field()
   nr= args[0]->val_real();              /* sets null_value as side-effect */
 
   if (args[0]->null_value)
-    bzero(res,sizeof(double)*2+sizeof(longlong));
+    memset(res, 0, sizeof(double)*2+sizeof(longlong));
   else
   {
     /* Serialize format is (double)m, (double)s, (longlong)count */
@@ -2231,7 +2233,7 @@ void Item_sum_avg::reset_field()
     double nr= args[0]->val_real();
 
     if (args[0]->null_value)
-      bzero(res,sizeof(double)+sizeof(longlong));
+      memset(res, 0, sizeof(double)+sizeof(longlong));
     else
     {
       longlong tmp= 1;
@@ -3306,7 +3308,8 @@ bool Item_func_group_concat::setup(THD *thd)
     tmp table columns.
   */
   if (arg_count_order &&
-      setup_order(thd, args, context->table_list, list, all_fields, *order))
+      setup_order(thd, Ref_ptr_array(args, arg_count),
+                  context->table_list, list, all_fields, *order))
     DBUG_RETURN(TRUE);
 
   count_field_types(select_lex, tmp_table_param, all_fields, 0);
