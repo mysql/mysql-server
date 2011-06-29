@@ -2989,12 +2989,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   DBUG_ENTER("reset_logs");
 
   ha_reset_logs(thd);
-  /*
-    We need to get both locks to be sure that no one is trying to
-    write to the index log file.
-  */
-  pthread_mutex_lock(&LOCK_log);
-  pthread_mutex_lock(&LOCK_index);
 
   /*
     The following mutex is needed to ensure that no threads call
@@ -3002,7 +2996,14 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     thread. If the transaction involved MyISAM tables, it should go
     into binlog even on rollback.
   */
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
+  pthread_mutex_lock(&LOCK_thread_count);
+
+  /*
+    We need to get both locks to be sure that no one is trying to
+    write to the index log file.
+  */
+  pthread_mutex_lock(&LOCK_log);
+  pthread_mutex_lock(&LOCK_index);
 
   /* Save variables so that we can reopen the log */
   save_name=name;

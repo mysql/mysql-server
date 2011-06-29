@@ -553,9 +553,10 @@ dict_load_columns(
 }
 
 /********************************************************************//**
-Loads definitions for index fields. */
+Loads definitions for index fields.
+@return DB_SUCCESS if ok, DB_CORRUPTION if failed */
 static
-void
+ulint
 dict_load_fields(
 /*=============*/
 	dict_index_t*	index,	/*!< in: index whose fields to load */
@@ -574,6 +575,7 @@ dict_load_fields(
 	byte*		buf;
 	ulint		i;
 	mtr_t		mtr;
+	ulint		error = DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -640,6 +642,26 @@ dict_load_fields(
 
 		field = rec_get_nth_field_old(rec, 4, &len);
 
+		if (prefix_len >= DICT_MAX_INDEX_COL_LEN) {
+			fprintf(stderr, "InnoDB: Error: load index"
+					" '%s' failed.\n"
+					"InnoDB: index field '%s' has a prefix"
+					" length of %lu bytes,\n"
+					"InnoDB: which exceeds the"
+					" maximum limit of %lu bytes.\n"
+					"InnoDB: Please use server that"
+					" supports long index prefix\n"
+					"InnoDB: or turn on"
+					" innodb_force_recovery to load"
+					" the table\n",
+				index->name, mem_heap_strdupl(
+						heap, (char*) field, len),
+		    		(ulong) prefix_len,
+				(ulong) (DICT_MAX_INDEX_COL_LEN - 1));
+			error = DB_CORRUPTION;
+			goto func_exit;
+		}
+
 		dict_mem_index_add_field(index,
 					 mem_heap_strdupl(heap,
 							  (char*) field, len),
@@ -649,8 +671,10 @@ next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
+func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
+	return(error);
 }
 
 /********************************************************************//**
@@ -801,7 +825,25 @@ dict_load_indexes(
 						      space, type, n_fields);
 			index->id = id;
 
-			dict_load_fields(index, heap);
+			error = dict_load_fields(index, heap);
+
+			if (error != DB_SUCCESS) {
+				fprintf(stderr, "InnoDB: Error: load index '%s'"
+					" for table '%s' failed\n",
+					index->name, table->name);
+
+				/* If the force recovery flag is set, and
+				if the failed index is not the primary index, we
+				will continue and open other indexes */
+				if (srv_force_recovery
+				    && !(index->type & DICT_CLUSTERED)) {
+					error = DB_SUCCESS;
+					goto next_rec;
+				} else {
+					goto func_exit;
+				}
+			}
+
 			error = dict_index_add_to_cache(table, index, page_no,
 							FALSE);
 			/* The data dictionary tables should never contain
@@ -1027,9 +1069,18 @@ err_exit:
 		} else {
 			table->fk_max_recusive_level = 0;
 		}
-	} else if (!srv_force_recovery) {
-		dict_table_remove_from_cache(table);
-		table = NULL;
+	} else {
+		dict_index_t*	index;
+
+		/* Make sure that at least the clustered index was loaded.
+		Otherwise refuse to load the table */
+		index = dict_table_get_first_index(table);
+
+		if (!srv_force_recovery || !index
+		     || !(index->type & DICT_CLUSTERED)) {
+			dict_table_remove_from_cache(table);
+			table = NULL;
+		}
 	}
 #if 0
 	if (err != DB_SUCCESS && table != NULL) {

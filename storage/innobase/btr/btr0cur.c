@@ -31,6 +31,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "btr0sea.h"
 #include "row0upd.h"
 #include "trx0rec.h"
+#include "trx0roll.h" /* trx_roll_crash_recv_trx */
 #include "que0que.h"
 #include "row0row.h"
 #include "srv0srv.h"
@@ -72,6 +73,13 @@ this many index pages */
 	  + BTR_KEY_VAL_ESTIMATE_N_PAGES - 1 + ext_size			\
 	  + not_empty)							\
 	 / (BTR_KEY_VAL_ESTIMATE_N_PAGES + ext_size))
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/* A BLOB field reference full of zero, for use in assertions and tests.
+Initially, BLOB field references are set to zero, in
+dtuple_convert_big_rec(). */
+const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 /***********************************************************************
 Marks all extern fields in a record as owned by the record. This function
@@ -1572,7 +1580,6 @@ btr_cur_optimistic_update(
 	ulint		old_rec_size;
 	dtuple_t*	new_entry;
 	dulint		roll_ptr;
-	trx_t*		trx;
 	mem_heap_t*	heap;
 	ibool		reorganized	= FALSE;
 	ulint		i;
@@ -1585,6 +1592,10 @@ btr_cur_optimistic_update(
 
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets)
+	     || thr_get_trx(thr) == trx_roll_crash_recv_trx);
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
@@ -1691,13 +1702,11 @@ btr_cur_optimistic_update(
 
 	page_cur_move_to_prev(page_cursor);
 
-	trx = thr_get_trx(thr);
-
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
-					      trx->id);
+					      thr_get_trx(thr)->id);
 	}
 
 	rec = btr_cur_insert_if_possible(cursor, new_entry, &reorganized, mtr);
@@ -1781,7 +1790,9 @@ btr_cur_pessimistic_update(
 				/* out: DB_SUCCESS or error code */
 	ulint		flags,	/* in: undo logging, locking, and rollback
 				flags */
-	btr_cur_t*	cursor,	/* in: cursor on the record to update */
+	btr_cur_t*	cursor,	/* in/out: cursor on the record to update;
+				cursor may become invalid if *big_rec == NULL
+				|| !(flags & BTR_KEEP_POS_FLAG) */
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
 	upd_t*		update,	/* in: update vector; this is allowed also
@@ -1916,6 +1927,10 @@ btr_cur_pessimistic_update(
 			err = DB_TOO_BIG_RECORD;
 			goto return_after_reservations;
 		}
+
+		ut_ad(index->type & DICT_CLUSTERED);
+		ut_ad(btr_page_get_level(page, mtr) == 0);
+		ut_ad(flags & BTR_KEEP_POS_FLAG);
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -1942,6 +1957,8 @@ btr_cur_pessimistic_update(
 	ut_a(rec || optim_err != DB_UNDERFLOW);
 
 	if (rec) {
+		page_cursor->rec = rec;
+
 		lock_rec_restore_from_page_infimum(rec, page);
 		rec_set_field_extern_bits(rec, index,
 					  ext_vect, n_ext_vect, mtr);
@@ -1955,10 +1972,28 @@ btr_cur_pessimistic_update(
 			btr_cur_unmark_extern_fields(rec, mtr, offsets);
 		}
 
-		btr_cur_compress_if_useful(cursor, mtr);
+		btr_cur_compress_if_useful(
+			cursor,
+			big_rec_vec != NULL && (flags & BTR_KEEP_POS_FLAG),
+			mtr);
 
 		err = DB_SUCCESS;
 		goto return_after_reservations;
+	}
+
+	if (big_rec_vec) {
+		ut_ad(index->type & DICT_CLUSTERED);
+		ut_ad(btr_page_get_level(page, mtr) == 0);
+		ut_ad(flags & BTR_KEEP_POS_FLAG);
+
+		/* btr_page_split_and_insert() in
+		btr_cur_pessimistic_insert() invokes
+		mtr_memo_release(mtr, index->lock, MTR_MEMO_X_LOCK).
+		We must keep the index->lock when we created a
+		big_rec, so that row_upd_clust_rec() can store the
+		big_rec in the same mini-transaction. */
+
+		mtr_x_lock(dict_index_get_lock(index), mtr);
 	}
 
 	if (page_cur_is_before_first(page_cursor)) {
@@ -1981,6 +2016,7 @@ btr_cur_pessimistic_update(
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);
+	page_cursor->rec = rec;
 
 	rec_set_field_extern_bits(rec, index, ext_vect, n_ext_vect, mtr);
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
@@ -2013,6 +2049,43 @@ return_after_reservations:
 	*big_rec = big_rec_vec;
 
 	return(err);
+}
+
+/*****************************************************************
+Commits and restarts a mini-transaction so that it will retain an
+x-lock on index->lock and the cursor page. */
+
+void
+btr_cur_mtr_commit_and_start(
+/*=========================*/
+	btr_cur_t*	cursor,	/* in: cursor */
+	mtr_t*		mtr)	/* in/out: mini-transaction */
+{
+	buf_block_t*	block;
+
+	block = buf_block_align(btr_cur_get_rec(cursor));
+
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(cursor->index),
+				MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	/* Keep the locks across the mtr_commit(mtr). */
+	rw_lock_x_lock(dict_index_get_lock(cursor->index));
+	rw_lock_x_lock(&block->lock);
+	mutex_enter(&block->mutex);
+#ifdef UNIV_SYNC_DEBUG
+	buf_block_buf_fix_inc_debug(block, __FILE__, __LINE__);
+#else
+	buf_block_buf_fix_inc(block);
+#endif
+	mutex_exit(&block->mutex);
+	/* Write out the redo log. */
+	mtr_commit(mtr);
+	mtr_start(mtr);
+	/* Reassociate the locks with the mini-transaction.
+	They will be released on mtr_commit(mtr). */
+	mtr_memo_push(mtr, dict_index_get_lock(cursor->index),
+		      MTR_MEMO_X_LOCK);
+	mtr_memo_push(mtr, block, MTR_MEMO_PAGE_X_FIX);
 }
 
 /*==================== B-TREE DELETE MARK AND UNMARK ===============*/
@@ -2383,30 +2456,6 @@ btr_cur_del_unmark_for_ibuf(
 /*==================== B-TREE RECORD REMOVE =========================*/
 
 /*****************************************************************
-Tries to compress a page of the tree on the leaf level. It is assumed
-that mtr holds an x-latch on the tree and on the cursor page. To avoid
-deadlocks, mtr must also own x-latches to brothers of page, if those
-brothers exist. NOTE: it is assumed that the caller has reserved enough
-free extents so that the compression will always succeed if done! */
-
-void
-btr_cur_compress(
-/*=============*/
-	btr_cur_t*	cursor,	/* in: cursor on the page to compress;
-				cursor does not stay valid */
-	mtr_t*		mtr)	/* in: mtr */
-{
-	ut_ad(mtr_memo_contains(mtr,
-				dict_index_get_lock(btr_cur_get_index(cursor)),
-				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(btr_page_get_level(btr_cur_get_page(cursor), mtr) == 0);
-
-	btr_compress(cursor, mtr);
-}
-
-/*****************************************************************
 Tries to compress a page of the tree if it seems useful. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. To avoid
 deadlocks, mtr must also own x-latches to brothers of page, if those
@@ -2417,10 +2466,12 @@ ibool
 btr_cur_compress_if_useful(
 /*=======================*/
 				/* out: TRUE if compression occurred */
-	btr_cur_t*	cursor,	/* in: cursor on the page to compress;
-				cursor does not stay valid if compression
-				occurs */
-	mtr_t*		mtr)	/* in: mtr */
+	btr_cur_t*	cursor,	/* in/out: cursor on the page to compress;
+				cursor does not stay valid if !adjust and
+				compression occurs */
+	ibool		adjust,	/* in: TRUE if should adjust the
+				cursor position even if compression occurs */
+	mtr_t*		mtr)	/* in/out: mini-transaction */
 {
 	ut_ad(mtr_memo_contains(mtr,
 				dict_index_get_lock(btr_cur_get_index(cursor)),
@@ -2430,7 +2481,7 @@ btr_cur_compress_if_useful(
 
 	if (btr_cur_compress_recommendation(cursor, mtr)) {
 
-		btr_compress(cursor, mtr);
+		btr_compress(cursor, adjust, mtr);
 
 		return(TRUE);
 	}
@@ -2643,7 +2694,7 @@ return_after_reservations:
 	mem_heap_free(heap);
 
 	if (ret == FALSE) {
-		ret = btr_cur_compress_if_useful(cursor, mtr);
+		ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);
 	}
 
 	if (n_extents > 0) {

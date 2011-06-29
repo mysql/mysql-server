@@ -256,6 +256,16 @@ trx_in_trx_list(
 /*============*/
 			/* out: TRUE if is in */
 	trx_t*	in_trx);/* in: trx */
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/********************************************************
+Assert that a transaction is active. */
+UNIV_INLINE
+ibool
+trx_assert_active(
+/*==============*/
+				/* out: TRUE */
+	dulint	trx_id);	/* in: transaction identifier */
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 /*********************************************************************
 Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL

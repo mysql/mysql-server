@@ -128,7 +128,7 @@ void SetErrorString(unsigned long error, char* buffer)
         break;
 
     case badVersion_error :
-        strncpy(buffer, "protocl version mismatch", max);
+        strncpy(buffer, "protocol version mismatch", max);
         break;
         
     case compress_error :

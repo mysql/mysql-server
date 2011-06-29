@@ -1580,31 +1580,47 @@ row_upd_clust_rec(
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
 				    dict_table_is_comp(index->table)));
 
-	err = btr_cur_pessimistic_update(BTR_NO_LOCKING_FLAG, btr_cur,
-					 &big_rec, node->update,
-					 node->cmpl_info, thr, mtr);
-	mtr_commit(mtr);
+	err = btr_cur_pessimistic_update(
+		BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur,
+		&big_rec, node->update, node->cmpl_info, thr, mtr);
 
-	if (err == DB_SUCCESS && big_rec) {
+	if (big_rec) {
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_t*		rec;
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-		mtr_start(mtr);
+		ut_a(err == DB_SUCCESS);
+		/* Write out the externally stored columns while still
+		x-latching index->lock and block->lock. We have to
+		mtr_commit(mtr) first, so that the redo log will be
+		written in the correct order. Otherwise, we would run
+		into trouble on crash recovery if mtr freed B-tree
+		pages on which some of the big_rec fields will be
+		written. */
+		btr_cur_mtr_commit_and_start(btr_cur, mtr);
 
-		ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
 		rec = btr_cur_get_rec(btr_cur);
 		err = btr_store_big_rec_extern_fields(
 			index, rec,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
-			 big_rec, mtr);
+			big_rec, mtr);
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
-		mtr_commit(mtr);
+		/* If writing big_rec fails (for example, because of
+		DB_OUT_OF_FILE_SPACE), the record will be corrupted.
+		Even if we did not update any externally stored
+		columns, our update could cause the record to grow so
+		that a non-updated column was selected for external
+		storage. This non-update would not have been written
+		to the undo log, and thus the record cannot be rolled
+		back. */
+		ut_a(err == DB_SUCCESS);
 	}
+
+	mtr_commit(mtr);
 
 	if (big_rec) {
 		dtuple_big_rec_free(big_rec);
