@@ -6405,3 +6405,13 @@ ER_TABLE_NEEDS_REBUILD
 
 WARN_OPTION_BELOW_LIMIT
   eng "The value of '%s' should be no less than the value of '%s'"
+
+ER_INDEX_COLUMN_TOO_LONG
+  eng "Index column size too large. The maximum column size is %lu bytes."
+
+ER_ERROR_IN_TRIGGER_BODY
+  eng "Trigger '%-.64s' has an error in its body: '%-.256s'"
+
+ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
+  eng "Unknown trigger has an error in its body: '%-.256s'"
+

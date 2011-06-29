@@ -662,6 +662,8 @@ ut_strerr(
 		return("Table is being used");
 	case DB_TOO_BIG_RECORD:
 		return("Record too big");
+	case DB_TOO_BIG_INDEX_COL:
+		return("Index columns size too big");
 	case DB_LOCK_WAIT_TIMEOUT:
 		return("Lock wait timeout");
 	case DB_NO_REFERENCED_ROW:
@@ -672,8 +674,6 @@ ut_strerr(
 		return("Cannot add constraint");
 	case DB_CORRUPTION:
 		return("Data structure corruption");
-	case DB_COL_APPEARS_TWICE_IN_INDEX:
-		return("Column appears twice in index");
 	case DB_CANNOT_DROP_CONSTRAINT:
 		return("Cannot drop constraint");
 	case DB_NO_SAVEPOINT:

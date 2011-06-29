@@ -3766,6 +3766,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                 continue;
             }
 
+            DEBUG_SYNC(thd, "before_open_in_get_all_tables");
+
             if (fill_schema_table_by_open(thd, FALSE,
                                           table, schema_table,
                                           db_name, table_name,

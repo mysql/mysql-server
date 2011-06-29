@@ -1103,7 +1103,7 @@ err_len:
 		goto err_len;
 	}
 
-	if (prefix_len >= DICT_MAX_INDEX_COL_LEN) {
+	if (prefix_len > REC_VERSION_56_MAX_INDEX_COL_LEN) {
 		if (addition_err_str) {
 			ut_snprintf(addition_err_str, err_str_len,
 				    "index field '%s' has a prefix length"
@@ -1205,7 +1205,7 @@ dict_load_fields(
 					" innodb_force_recovery to load"
 					" the table\n",
 					index->name, addition_err_str,
-					(ulong) (DICT_MAX_INDEX_COL_LEN - 1));
+					(ulong) (REC_VERSION_56_MAX_INDEX_COL_LEN));
 
 			} else {
 				fprintf(stderr, "InnoDB: %s\n", err_msg);
