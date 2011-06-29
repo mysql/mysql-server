@@ -31,7 +31,7 @@ CONFIGURE_FILE(ndb_types.h.in
 MACRO(NDB_GET_CONFIG_VALUE keyword var)
  IF(NOT ${var})
    # Read the line which contains the keyword
-   FILE (STRINGS ${NDB_SOURCE_DIR}/ndb_configure.m4 str
+   FILE (STRINGS ${NDB_SOURCE_DIR}/VERSION str
          REGEX "^[ ]*${keyword}=")
    IF(str)
      # Remove the keyword=
