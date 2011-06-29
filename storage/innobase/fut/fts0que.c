@@ -3490,11 +3490,12 @@ fts_check_phrase_proximity(
 	fts_query_t*	query,		/*!< in:  query instance */
 	ib_vector_t*	tokens)		/*!< in: Tokens contain words */
 {
-	ulint	n_matched;
-	ulint	i;
-	ibool	matched = FALSE;
-	ulint	num_token = ib_vector_size(tokens);
-	fts_match_t* match[MAX_PROXIMITY_ITEM];
+	ulint		n_matched;
+	ulint		i;
+	ibool		matched = FALSE;
+	ulint		num_token = ib_vector_size(tokens);
+	fts_match_t*	match[MAX_PROXIMITY_ITEM];
+	ibool		end_list = FALSE;
 
 	/* Number of matched documents for the first token */
 	n_matched = ib_vector_size(query->match_array[0]);
@@ -3526,10 +3527,36 @@ fts_check_phrase_proximity(
 				if (query->flags & FTS_PHRASE) {
 					match[0]->doc_id = 0;
 				}
-
 				break;
 			}
 
+			if (k == ib_vector_size(query->match_array[j])) {
+				end_list = TRUE;
+	
+				if (match[j]->doc_id != match[0]->doc_id) {
+					/* no match */
+					if (query->flags & FTS_PHRASE) {
+						ulint	s;
+
+						match[0]->doc_id = 0;
+
+						for (s = i + 1; s < n_matched;
+						     s++) {
+							match[0] =
+							ib_vector_get(
+							query->match_array[0],
+							s);
+							match[0]->doc_id = 0;
+						}
+					}
+
+					goto func_exit;
+				}
+			}
+
+			/* FIXME: A better solution will be a counter array
+			remember each run's last position. So we don't
+			reset it here very time */
 			k = 0;
 		}
 
@@ -3558,8 +3585,13 @@ fts_check_phrase_proximity(
 					token->utf8);
 			}
 		}
+
+		if (end_list) {
+			break;
+		}
 	}
 
+func_exit:
 	return(matched);
 }
 /*************************************************************//**
