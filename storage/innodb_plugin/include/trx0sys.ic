@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -276,6 +276,28 @@ trx_get_on_id(
 
 	return(NULL);
 }
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/***********************************************************//**
+Assert that a transaction has been recovered.
+@return TRUE */
+UNIV_INLINE
+ibool
+trx_assert_recovered(
+/*=================*/
+	trx_id_t	trx_id)		/*!< in: transaction identifier */
+{
+	trx_t*		trx;
+
+	mutex_enter(&kernel_mutex);
+	trx = trx_get_on_id(trx_id);
+	ut_a(trx);
+	ut_a(trx->is_recovered);
+	mutex_exit(&kernel_mutex);
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 /****************************************************************//**
 Returns the minumum trx id in trx list. This is the smallest id for which
