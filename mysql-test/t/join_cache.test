@@ -3100,5 +3100,40 @@ SET SESSION join_buffer_size = DEFAULT;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug #802860: crash on join cache + derived + duplicate_weedout 
+--echo #
+
+SET SESSION optimizer_switch=
+  'semijoin=on,materialization=off,firstmatch=off,loosescan=off';
+
+CREATE TABLE t1 (a int) ;
+INSERT IGNORE INTO t1 VALUES (0), (1), (0);
+
+CREATE TABLE t2 (a int) ;
+INSERT IGNORE INTO t2 VALUES (0), (3), (0), (2);
+
+SET SESSION join_cache_level = 0;
+
+EXPLAIN
+SELECT * FROM (SELECT DISTINCT * FROM t1) t
+  WHERE t.a IN (SELECT t2.a FROM t2);
+SELECT * FROM (SELECT DISTINCT * FROM t1) t
+  WHERE t.a IN (SELECT t2.a FROM t2);
+
+SET SESSION join_cache_level = 1;
+
+EXPLAIN
+SELECT * FROM (SELECT DISTINCT * FROM t1) t
+  WHERE t.a  IN (SELECT t2.a FROM t2);
+SELECT * FROM (SELECT DISTINCT * FROM t1) t
+  WHERE t.a  IN (SELECT t2.a FROM t2);
+
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1, t2;
+
+SET SESSION optimizer_switch=default;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;
