@@ -3971,11 +3971,21 @@ fts_process_token(
 		if (rbt_search(result_doc->tokens, &parent, &str) != 0) {
 			fts_token_t	new_token;
 			mem_heap_t*	heap = result_doc->self_heap->arg;
+			ulint		newlen;
 
 			fts_utf8_string_dup(&new_token.text, &str, heap);
 
 			innobase_fts_casedn_str(doc->charset,
 						(char*)new_token.text.utf8);
+
+			newlen = strlen((char*)new_token.text.utf8);
+
+			if (new_token.text.len != newlen) {
+				fprintf(stderr, "InnoDB: word %s length change"
+						" when switch to lower case \n",
+						new_token.text.utf8);
+				new_token.text.len = newlen;
+			}
 
 			new_token.positions = ib_vector_create(
 				result_doc->self_heap, sizeof(ulint), 32);

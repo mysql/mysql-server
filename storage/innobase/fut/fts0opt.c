@@ -482,8 +482,6 @@ fts_index_fetch_nodes(
 		info = pars_info_create();
 	}
 
-	//fprintf(stderr, "Searching: [%.*s]\n", (int) word->len, word->utf8);
-
 	pars_info_bind_function(info, "my_func", fetch->read_record, fetch);
 	pars_info_bind_varchar_literal(info, "word", word->utf8, word->len);
 
@@ -952,9 +950,15 @@ fts_table_fetch_doc_ids(
 	ulint		error;
 	que_t*		graph;
 	pars_info_t*	info = pars_info_create();
+	ibool		alloc_bk_trx = FALSE;
 
 	ut_a(fts_table->suffix != NULL);
 	ut_a(fts_table->type == FTS_COMMON_TABLE);
+
+	if (!trx) {
+		trx = trx_allocate_for_background();
+		alloc_bk_trx = TRUE;
+	}
 
 	trx->op_info = "fetching FTS doc ids";
 
@@ -989,6 +993,10 @@ fts_table_fetch_doc_ids(
 		ib_vector_sort(doc_ids->doc_ids, fts_update_doc_id_cmp);
 	} else {
 		fts_sql_rollback(trx);
+	}
+
+	if (alloc_bk_trx) {
+		trx_free_for_background(trx);
 	}
 
 	return(error);
