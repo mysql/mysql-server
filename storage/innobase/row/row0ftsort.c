@@ -716,7 +716,7 @@ row_merge_write_fts_word(
 		if (error != DB_SUCCESS) {
 			fprintf(stderr, "InnoDB: failed to write"
 				" word %s to FTS auxiliary index"
-				" table\n", word->text.utf8);
+				" table, error (%lu) \n", word->text.utf8, error);
 			ret = error;
 		}
 
