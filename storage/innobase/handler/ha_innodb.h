@@ -373,8 +373,9 @@ extern const struct _ft_vft ft_vft_result;
 /* Structure Returned by ha_innobase::ft_init_ext() */
 typedef struct new_ft_info
 {
-	struct _ft_vft  *please;
-	row_prebuilt_t* ft_prebuilt;
+	struct _ft_vft		*please;
+	row_prebuilt_t*		ft_prebuilt;
+	fts_result_t*		ft_result;
 } NEW_FT_INFO;
 
 /********************************************************************//**
@@ -423,7 +424,8 @@ extern "C"
 float
 innobase_fts_retrieve_ranking(
 /*==========================*/
-	FT_INFO* fts_hdl);	/*!< in: FTS handler */
+	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+
 /*********************************************************************//**
 Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
 of prebuilt->fts_doc_id

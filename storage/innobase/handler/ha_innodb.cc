@@ -225,7 +225,8 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 
 /* Call back function array defined by MySQL and used to
 retrieve FTS results. */
-const struct _ft_vft ft_vft_result = {NULL, innobase_fts_find_ranking,
+const struct _ft_vft ft_vft_result = {NULL,
+				      innobase_fts_find_ranking,
 				      innobase_fts_close_ranking,
 				      innobase_fts_retrieve_ranking,
 				      NULL};
@@ -6949,11 +6950,13 @@ ha_innobase::rnd_pos(
 	DBUG_RETURN(error);
 }
 
-/*************************************************************************
-*/
-
+/**********************************************************************//**
+Initialize FT index scan
+@return 0 or error number */
+UNIV_INTERN
 int
 ha_innobase::ft_init()
+/*==================*/
 {
 	DBUG_ENTER("ft_init");
 
@@ -6962,11 +6965,13 @@ ha_innobase::ft_init()
 	DBUG_RETURN(rnd_init(false));
 }
 
-/*************************************************************************
-*/
-
+/**********************************************************************//**
+Initialize FT index scan
+@return FT_INFO structure if successful or NULL */
+UNIV_INTERN
 FT_INFO*
 ha_innobase::ft_init_ext(
+/*=====================*/
 	uint			flags,	/* in: */
 	uint			keynr,	/* in: */
 	String*			key)	/* in: */
@@ -6978,6 +6983,7 @@ ha_innobase::ft_init_ext(
 	ulint			query_len = key->length();
 	NEW_FT_INFO*		fts_hdl = NULL;
 	dict_index_t*		index;
+	fts_result_t*		result;
 
 	fprintf(stderr, "ft_init_ext()\n");
 
@@ -7017,9 +7023,9 @@ ha_innobase::ft_init_ext(
 		table->fts->fts_status |= ADDED_TABLE_SYNCED;
 	}
 
-	error = fts_query(
-		trx, index, flags,
-		query, query_len, &prebuilt->result);
+	error = fts_query(trx, index, flags, query, query_len, &result);
+
+	prebuilt->result = result;
 
 	// FIXME: Proper error handling and diagnostic
 	if (error != DB_SUCCESS) {
@@ -7034,24 +7040,30 @@ ha_innobase::ft_init_ext(
 
 		fts_hdl->please = (struct _ft_vft *)(&ft_vft_result);
 		fts_hdl->ft_prebuilt = prebuilt;
+		fts_hdl->ft_result = result;
 	}
 
 	return ((FT_INFO *)fts_hdl);
 }
 
-/*************************************************************************
-*/
+/**********************************************************************//**
+Fetch next result from the FT result set
+@return error code */
 UNIV_INTERN
 int
 ha_innobase::ft_read(
 /*=================*/
-	uchar*		buf)		/* in: */
+	uchar*		buf)		/*!< in/out: buf contain result row */
 {
 	fts_result_t*	result;
 	int		error;
+	row_prebuilt_t*	ft_prebuilt;
 
-	ut_a(prebuilt->result);
-	result = prebuilt->result;
+	ft_prebuilt = ((NEW_FT_INFO *)ft_handler)->ft_prebuilt;
+
+	ut_a(ft_prebuilt == prebuilt);
+
+	result = ((NEW_FT_INFO *)ft_handler)->ft_result;
 
 	if (result->current == NULL) {
 		/* This is the case where the FTS query did not
@@ -10185,11 +10197,6 @@ ha_innobase::external_lock(
 
 			read_view_close_for_mysql(trx);
 		}
-
-		if (prebuilt->result) {
-			fts_query_free_result(prebuilt->result);
-			prebuilt->result = NULL;
-		}
 	}
 
 	DBUG_RETURN(0);
@@ -12927,13 +12934,15 @@ innobase_fts_retrieve_ranking(
 		FT_INFO * fts_hdl)	/*!< in: FTS handler */
 {
 	row_prebuilt_t*	ft_prebuilt;	
+	fts_result_t*	result;
+
+	result = ((NEW_FT_INFO *)fts_hdl)->ft_result;
 
 	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
 
 	/* Retrieve the ranking value for doc_id with value of
 	prebuilt->fts_doc_id */
-	return(fts_retrieve_ranking(ft_prebuilt->result,
-				    ft_prebuilt->fts_doc_id));
+	return(fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id));
 }
 
 /***********************************************************************
@@ -12943,6 +12952,19 @@ innobase_fts_close_ranking(
 /*=======================*/
 		FT_INFO * fts_hdl)
 {
+	fts_result_t*	result;
+	row_prebuilt_t*	ft_prebuilt;
+
+	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
+
+	result = ((NEW_FT_INFO *)fts_hdl)->ft_result;
+
+	fts_query_free_result(result);
+
+	if (result == ft_prebuilt->result) {
+		ft_prebuilt->result = NULL;
+	}
+
 	my_free((uchar*)fts_hdl);
 
 	return;
@@ -12955,18 +12977,19 @@ of prebuilt->fts_doc_id
 float
 innobase_fts_find_ranking(
 /*======================*/
-		FT_INFO * fts_hdl,	/*!< in: FTS handler */
-		uchar*	record,		/*!< in: Unused */
-		uint	len)		/*!< in: Unused */
+		FT_INFO*	fts_hdl,	/*!< in: FTS handler */
+		uchar*		record,		/*!< in: Unused */
+		uint		len)		/*!< in: Unused */
 {
 	row_prebuilt_t*	ft_prebuilt;
+	fts_result_t*	result;
 
 	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
+	result = ((NEW_FT_INFO *)fts_hdl)->ft_result;
 
 	/* Retrieve the ranking value for doc_id with value of
 	prebuilt->fts_doc_id */
-	return fts_retrieve_ranking(ft_prebuilt->result,
-				    ft_prebuilt->fts_doc_id);
+	return fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id);
 }
 
 static SHOW_VAR innodb_status_variables_export[]= {
