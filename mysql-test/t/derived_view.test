@@ -322,3 +322,24 @@ SELECT t.a FROM t1 LEFT JOIN
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # LP bug #803410: materialized view/dt accessed by two-component key                       
+--echo #                 
+
+CREATE TABLE t1 (a varchar(1));
+INSERT INTO t1 VALUES ('c');
+
+CREATE TABLE t2 (a varchar(1) , KEY (a)) ;
+INSERT INTO t2 VALUES ('c'), (NULL), ('r');
+
+CREATE TABLE t3 (a varchar(1), b varchar(1));
+INSERT INTO t3 VALUES ('e', 'c'), ('c', 'c'), ('c', 'r');
+
+CREATE VIEW v1 AS SELECT a, MIN(b) AS b FROM t3 GROUP BY a;
+
+EXPLAIN
+SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
+SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;

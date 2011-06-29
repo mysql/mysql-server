@@ -8293,6 +8293,7 @@ bool generate_derived_keys_for_table(KEYUSE *keyuse, uint count, uint keys)
       first_keyuse= keyuse;
       keyno++;
       parts= 0;
+      prev_part= (uint) (-1);
     }
     else if (keyuse->keypart != prev_part)
     {
