@@ -609,8 +609,15 @@ void JOIN_CACHE::create_remaining_fields()
     if (tab->keep_current_rowid)
     {
       copy->str= table->file->ref;
-      copy->length= table->file->ref_length;
-      copy->type= 0;
+      if (copy->str)
+        copy->length= table->file->ref_length;
+      else
+      {
+        /* This may happen only for materialized derived tables and views */
+        copy->length= 0;
+        copy->str= (uchar *) table;
+      } 
+      copy->type= CACHE_ROWID;
       copy->field= 0;
       copy->referenced_field_no= 0;
       length+= copy->length;
@@ -1325,8 +1332,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   {
     Field *field= copy->field;
     if (field && field->maybe_null() && field->is_null())
-    {
-      /* Do not copy a field if its value is null */
+    {    
       if (copy->referenced_field_no)
         copy->offset= 0;
       continue;              
@@ -1386,6 +1392,18 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 	cp+= len+2;
         break;
       }
+      case CACHE_ROWID:
+        if (!copy->length)
+	{
+          /*
+            This may happen only for ROWID fields of materialized
+            derived tables and views.
+	  */
+	  TABLE *table= (TABLE *) copy->str;
+          copy->str= table->file->ref;
+          copy->length= table->file->ref_length;
+        }
+        /* fall through */
       default:      
         /* Copy the entire image of the field from the record buffer */
 	memcpy(cp, copy->str, copy->length);
@@ -1455,7 +1473,6 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   RETURN VALUE
     none
 */
-
 void JOIN_CACHE::reset(bool for_writing)
 {
   pos= buff;

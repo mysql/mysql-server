@@ -4964,4 +4964,40 @@ a
 SET SESSION join_cache_level = DEFAULT;
 SET SESSION join_buffer_size = DEFAULT;
 DROP TABLE t1,t2;
+#
+# Bug #802860: crash on join cache + derived + duplicate_weedout 
+#
+SET SESSION optimizer_switch=
+'semijoin=on,materialization=off,firstmatch=off,loosescan=off';
+CREATE TABLE t1 (a int) ;
+INSERT IGNORE INTO t1 VALUES (0), (1), (0);
+CREATE TABLE t2 (a int) ;
+INSERT IGNORE INTO t2 VALUES (0), (3), (0), (2);
+SET SESSION join_cache_level = 0;
+EXPLAIN
+SELECT * FROM (SELECT DISTINCT * FROM t1) t
+WHERE t.a IN (SELECT t2.a FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t2.a	2	End temporary
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
+SELECT * FROM (SELECT DISTINCT * FROM t1) t
+WHERE t.a IN (SELECT t2.a FROM t2);
+a
+0
+SET SESSION join_cache_level = 1;
+EXPLAIN
+SELECT * FROM (SELECT DISTINCT * FROM t1) t
+WHERE t.a  IN (SELECT t2.a FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	key0	NULL	NULL	NULL	3	Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
+SELECT * FROM (SELECT DISTINCT * FROM t1) t
+WHERE t.a  IN (SELECT t2.a FROM t2);
+a
+0
+SET SESSION join_cache_level = DEFAULT;
+DROP TABLE t1, t2;
+SET SESSION optimizer_switch=default;
 set @@optimizer_switch=@save_optimizer_switch;
