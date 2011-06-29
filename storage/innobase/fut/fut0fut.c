@@ -1811,7 +1811,10 @@ fts_trx_table_add_op(
 		row->state = fts_trx_row_get_new_state(row->state, state);
 
 		if (row->state == FTS_NOTHING) {
-			ib_vector_free(row->fts_indexes);
+			if (row->fts_indexes) {
+				ib_vector_free(row->fts_indexes);
+			}
+
 			ut_free(rbt_remove_node(rows, parent.last));
 			row = NULL;
 		} else if (row->fts_indexes != NULL) {
@@ -3963,29 +3966,24 @@ fts_process_token(
 	if (str.len > FTS_MIN_TOKEN_LENGTH) {
 		fts_token_t*	token;
 		ib_rbt_bound_t	parent;
+		mem_heap_t*	heap = result_doc->self_heap->arg;
+		fts_string_t	t_str;
+		ulint		newlen;
 
 		ut_a(str.len <= FTS_MAX_UTF8_WORD_LEN);
 
+		fts_utf8_string_dup(&t_str, &str, heap);
+		innobase_fts_casedn_str(doc->charset, (char*) t_str.utf8);
+		newlen = strlen((char*) t_str.utf8);
+
 		/* Add the word to the document statistics. If the word
 		hasn't been seen before we create a new entry for it. */
-		if (rbt_search(result_doc->tokens, &parent, &str) != 0) {
+		if (rbt_search(result_doc->tokens, &parent, &t_str) != 0) {
 			fts_token_t	new_token;
-			mem_heap_t*	heap = result_doc->self_heap->arg;
-			ulint		newlen;
 
-			fts_utf8_string_dup(&new_token.text, &str, heap);
 
-			innobase_fts_casedn_str(doc->charset,
-						(char*)new_token.text.utf8);
-
-			newlen = strlen((char*)new_token.text.utf8);
-
-			if (new_token.text.len != newlen) {
-				fprintf(stderr, "InnoDB: word %s length change"
-						" when switch to lower case \n",
-						new_token.text.utf8);
-				new_token.text.len = newlen;
-			}
+			new_token.text.utf8 = t_str.utf8;
+			new_token.text.len = newlen;
 
 			new_token.positions = ib_vector_create(
 				result_doc->self_heap, sizeof(ulint), 32);
