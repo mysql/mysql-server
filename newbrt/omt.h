@@ -232,6 +232,13 @@ int toku_omt_iterate_on_range(OMT omt, u_int32_t left, u_int32_t right, int (*f)
 // Performance: time=O(i+\log N) where i is the number of times f is called, and N is the number of elements in omt.
 // Rational: Although the functional iterator requires defining another function (as opposed to C++ style iterator), it is much easier to read.
 
+void toku_omt_free_items(OMT omt);
+// Effect: Iterate over the values of the omt, from left to right, freeing each value with toku_free
+// Requires: all items in OMT to have been malloced with toku_malloc
+// Rational: This function was added due to a problem encountered in brt.c. We needed to free the elements and then
+//   destroy the OMT. However, destroying the OMT requires invalidating cursors. This cannot be done if the values of the OMT
+//   have been already freed. So, this function is written to invalidate cursors and free items.
+
 int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, u_int32_t, void*), void*v);
 // Effect:  Iterate over the values of the omt, from left to right, calling f on each value.
 //  The second argument passed to f is the index of the value.

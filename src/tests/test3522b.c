@@ -2,7 +2,8 @@
 
 /* Test for #3522.    Demonstrate that with DB_TRYAGAIN a cursor can stall.
  * Strategy: Create a tree (with relatively small nodes so things happen quickly, and relatively large compared to the cache).
- *  In a single transaction: Delete everything, and then do a DB_FIRST.
+ *  In a single transaction: Delete everything except the last one, and then do a DB_FIRST.
+ *    (Compare to test3522.c which deletes everything including the last one.)
  *  Make the test terminate by capturing the calls to pread(). */
 
 #ident "$Id$"
@@ -85,11 +86,20 @@ static void finish (void) {
 }
 
 
-int did_nothing = 0;
+int did_nothing_count = 0;
+int expect_n = -1;
 
 static int
-do_nothing(DBT const *UU(a), DBT  const *UU(b), void *UU(c)) {
-    did_nothing++;
+do_nothing(DBT const *a, DBT  const *b, void *c) {
+    did_nothing_count++;
+    assert(c==NULL);
+    char hello[30], there[30];
+    snprintf(hello, sizeof(hello), "hello%d", expect_n);
+    snprintf(there, sizeof(there), "there%d", expect_n);
+    assert(strlen(hello)+1 == a->size);
+    assert(strlen(there)+1 == b->size);
+    assert(strcmp(hello, a->data)==0);
+    assert(strcmp(there, b->data)==0);
     return 0;
 }
 static void run_del_next (void) {
@@ -97,13 +107,14 @@ static void run_del_next (void) {
     DBC *cursor;
     int r;
     r = env->txn_begin(env, 0, &txn, 0);                                              CKERR(r);
-    for (int i=0; i<N; i++) delete(i, txn);
-
+    for (int i=0; i<N-1; i++) delete(i, txn);
     r = db->cursor(db, txn, &cursor, 0);                                              CKERR(r);
-    if (verbose) printf("read_next\n");
+    expect_n = N-1;
+    did_nothing_count = 0;
     n_preads = 0;
-    r = cursor->c_getf_next(cursor, 0, do_nothing, NULL);                             CKERR2(r, DB_NOTFOUND);
-    assert(did_nothing==0);
+    if (verbose) printf("read_next\n");
+    r = cursor->c_getf_next(cursor, 0, do_nothing, NULL);                             CKERR(r);
+    assert(did_nothing_count==1);
     if (verbose) printf("n_preads=%ld\n", n_preads);
     r = cursor->c_close(cursor);                                                      CKERR(r);
     r = txn->commit(txn, 0);                                                          CKERR(r);
@@ -114,13 +125,14 @@ static void run_del_prev (void) {
     DBC *cursor;
     int r;
     r = env->txn_begin(env, 0, &txn, 0);                                              CKERR(r);
-    for (int i=0; i<N; i++) delete(i, txn);
-
+    for (int i=1; i<N; i++) delete(i, txn);
     r = db->cursor(db, txn, &cursor, 0);                                              CKERR(r);
+    expect_n = 0;
+    did_nothing_count = 0;
     if (verbose) printf("read_prev\n");
     n_preads = 0;
-    r = cursor->c_getf_prev(cursor, 0, do_nothing, NULL);                             CKERR2(r, DB_NOTFOUND);
-    assert(did_nothing==0);
+    r = cursor->c_getf_prev(cursor, 0, do_nothing, NULL);                             CKERR(r);
+    assert(did_nothing_count==1);
     if (verbose) printf("n_preads=%ld\n", n_preads);
     r = cursor->c_close(cursor);                                                      CKERR(r);
     r = txn->commit(txn, 0);                                                          CKERR(r);
@@ -138,7 +150,6 @@ static void run_test (void) {
 int test_main (int argc, char*const argv[]) {
     parse_args(argc, argv);
     run_test();
-    printf("n_preads=%ld\n", n_preads);
     return 0;
 }
 

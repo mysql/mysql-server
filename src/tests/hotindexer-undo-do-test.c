@@ -8,7 +8,6 @@
 #include "tokuconst.h"
 #include "brttypes.h"
 #include "omt.h"
-#include "mempool.h"
 #include "leafentry.h"
 #include "ule.h"
 #include "ule-internal.h"

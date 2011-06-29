@@ -21,6 +21,7 @@ static void
 test_fifo_enq (int n) {
     int r;
     FIFO f;
+    MSN startmsn = ZERO_MSN;
 
     f = 0;
     r = toku_fifo_create(&f); 
@@ -53,13 +54,17 @@ test_fifo_enq (int n) {
             r = xids_create_child(xids_get_root_xids(), &xids, (TXNID)i);
             assert(r==0);
         }
-        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, xids); assert(r == 0);
+	MSN msn = next_dummymsn();
+	if (startmsn.msn == ZERO_MSN.msn)
+	  startmsn = msn;
+        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, msn, xids); assert(r == 0);
         xids_destroy(&xids);
     }
 
     i = 0;
-    FIFO_ITERATE(f, key, keylen, val, vallen, type, xids, {
-        if (verbose) printf("checkit %d %d\n", i, type);
+    FIFO_ITERATE(f, key, keylen, val, vallen, type, msn, xids, {
+        if (verbose) printf("checkit %d %d %"PRIu64"\n", i, type, msn.msn);
+        assert(msn.msn == startmsn.msn + i);
         buildkey(i);
         buildval(i);
         assert((int) keylen == thekeylen); assert(memcmp(key, thekey, keylen) == 0);
@@ -83,7 +88,6 @@ test_fifo_enq (int n) {
 int
 test_main(int argc, const char *argv[]) {
     default_parse_args(argc, argv);
-
     test_fifo_create();
     test_fifo_enq(4);
     test_fifo_enq(512);

@@ -53,6 +53,19 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     return 0;
 }
 
+static int 
+pe_callback (
+    void *brtnode_pv __attribute__((__unused__)), 
+    long bytes_to_free __attribute__((__unused__)), 
+    long* bytes_freed, 
+    void* extraargs __attribute__((__unused__))
+    ) 
+{
+    *bytes_freed = 0;
+    return 0;
+}
+
+
 // Note: cachetable_size_limit must be a power of 2
 static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     int r;
@@ -69,7 +82,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     for (i=0; i<cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, 0);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, 0);
         toku_cachetable_verify(ct);
     }
 
@@ -80,7 +93,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     for (i=i; i<2*cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, 0);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, 0);
         toku_cachetable_verify(ct);
 	// sleep(1);
     }

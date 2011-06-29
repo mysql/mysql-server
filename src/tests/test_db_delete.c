@@ -50,6 +50,9 @@ test_db_delete (int n, int dup_mode) {
     /* create the dup database file */
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
+#ifdef TOKUDB
+    r = env->set_redzone(env, 0); assert(r == 0);
+#endif
     r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;
@@ -120,6 +123,9 @@ test_db_get_datasize0 (void) {
     /* create the dup database file */
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
+#ifdef TOKUDB
+    r = env->set_redzone(env, 0); assert(r == 0);
+#endif
     r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;

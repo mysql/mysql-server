@@ -32,6 +32,11 @@ sub_block_header_size(int n_sub_blocks) {
     return sizeof (u_int32_t) + n_sub_blocks * sizeof (struct stored_sub_block);
 }
 
+void
+set_compressed_size_bound(struct sub_block *se) {
+    se->compressed_size_bound = compressBound(se->uncompressed_size);
+}
+
 // get the sum of the sub block compressed sizes 
 size_t 
 get_sum_compressed_size_bound(int n_sub_blocks, struct sub_block sub_block[]) {
@@ -88,6 +93,19 @@ choose_sub_block_size(int total_size, int n_sub_blocks_limit, int *sub_block_siz
     return 0;
 }
 
+// Choose the right size of basement nodes.  For now, just align up to
+// 256k blocks and hope it compresses well enough.
+int
+choose_basement_node_size(int total_size, int *sub_block_size_ret, int *n_sub_blocks_ret) {
+    if (total_size < 0)
+        return EINVAL;
+
+    *n_sub_blocks_ret = (total_size + max_basement_node_uncompressed_size - 1) / max_basement_node_uncompressed_size;
+    *sub_block_size_ret = max_basement_node_uncompressed_size;
+
+    return 0;
+}
+
 void
 set_all_sub_block_sizes(int total_size, int sub_block_size, int n_sub_blocks, struct sub_block sub_block[]) {
     int size_left = total_size;
@@ -112,7 +130,7 @@ get_sub_block_index(int n_sub_blocks, struct sub_block sub_block[], size_t offse
         start_offset += size;
     }
     return -1;
-}       
+}
 
 #include "workset.h"
 
@@ -133,19 +151,37 @@ void toku_set_default_compression_method (enum toku_compression_method a) {
     assert(0);
 }
 
+//
+// takes the uncompressed contents of sub_block
+// and compresses them into sb_compressed_ptr
+// cs_bound is the compressed size bound
+// Returns the size of the compressed data
+//
+u_int32_t
+compress_nocrc_sub_block(
+    struct sub_block *sub_block, 
+    void* sb_compressed_ptr, 
+    u_int32_t cs_bound
+    ) 
+{
+    // compress it
+    Bytef *uncompressed_ptr = (Bytef *) sub_block->uncompressed_ptr;
+    Bytef *compressed_ptr = (Bytef *) sb_compressed_ptr;
+    uLongf uncompressed_len = sub_block->uncompressed_size;
+    uLongf real_compressed_len = cs_bound;
+    toku_compress(toku_compress_method,
+                  compressed_ptr, &real_compressed_len,
+                  uncompressed_ptr, uncompressed_len);
+    return real_compressed_len; 
+}
 
 void
 compress_sub_block(struct sub_block *sub_block) {
-    // compress it
-    Bytef *uncompressed_ptr = (Bytef *) sub_block->uncompressed_ptr;
-    Bytef *compressed_ptr = (Bytef *) sub_block->compressed_ptr;
-    uLongf uncompressed_len = sub_block->uncompressed_size;
-    uLongf real_compressed_len = sub_block->compressed_size_bound;
-    toku_compress(toku_compress_method,
-		  compressed_ptr, &real_compressed_len,
-		  uncompressed_ptr, uncompressed_len);
-    sub_block->compressed_size = real_compressed_len; // replace the compressed size estimate with the real size
-
+    sub_block->compressed_size = compress_nocrc_sub_block(
+        sub_block, 
+        sub_block->compressed_ptr, 
+        sub_block->compressed_size_bound
+        );
     // checksum it
     sub_block->xsum = x1764_memory(sub_block->compressed_ptr, sub_block->compressed_size);
 }

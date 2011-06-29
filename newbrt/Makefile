@@ -19,6 +19,7 @@ SKIP_NEWBRTRULE=1
 include $(TOKUROOT)toku_include/Makefile.include
 LDFLAGS+=-L$(TOKUROOT)lib -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
 LDLIBS+=-lnewbrt -ltokuportability
+
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 
 BINS_RAW= \
@@ -51,7 +52,6 @@ BRT_SOURCES = \
   fifo \
   key \
   leafentry \
-  leaflock \
   le-cursor \
   logfilemgr \
   logger \
@@ -60,7 +60,6 @@ BRT_SOURCES = \
   log_print \
   logcursor \
   memarena \
-  mempool \
   minicron \
   omt \
   pqueue \
@@ -109,7 +108,7 @@ brtloader.$(OEXT): $(DEPEND_COMPILE)
 $(NEWBRT_O_FILES): VISIBILITY=
 $(NEWBRT_SO): $(NEWBRT_O_FILES)
 	echo $(patsubst %,newbrt/%,$(NEWBRT_O_FILES)) > ../lib/newbrt.olist
-	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(GCOV_FLAGS) $(SKIP_WARNING) $(NEWBRT_O_FILES) -o$(NEWBRT_SO) -nostdlib $(LCILKRTS)
+	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(GCOV_FLAGS) $(SKIP_WARNING) $(NEWBRT_O_FILES) -o$(NEWBRT_SO) $(LINUX_NOSTDLIB) $(LCILKRTS)
 
 log_code.$(OEXT): log_header.h wbuf.h log-internal.h rbuf.h
 

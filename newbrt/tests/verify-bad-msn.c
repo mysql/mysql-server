@@ -1,9 +1,18 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2011 Tokutek Inc.  All rights reserved."
 
-// verify that key_range64 can deal with >2G number of keys.
-// create a height 1 tree with 1 key in each subtree.
-// artificially set the key estimates in the subtrees to huge (2**31).
+// generate fractal trees with a given height, fanout, and number of leaf elements per leaf.
+// jam the child buffers with inserts.
+// this code can be used as a template to build broken trees
+//
+// This program (copied from make-tree.c) creates a tree with bad msns by commenting out
+// the setting of the msn:
+//
+// To correctly set msn per node:
+//  - set in each non-leaf when message is injected into node (see insert_into_child_buffer())
+//  - set in each leaf node (see append_leaf())
+//  - set in root node (set test_make_tree())
+
 
 #include "includes.h"
 #include "test.h"
@@ -26,10 +35,14 @@ append_leaf(BRTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen
     // get an index that we can use to create a new leaf entry
     uint32_t idx = toku_omt_size(leafnode->u.l.bn[0].buffer);
 
-    // apply an insert to the leaf node
     MSN msn = next_dummymsn();
+
+    // apply an insert to the leaf node
     BRT_MSG_S cmd = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &theval } };
     brt_leaf_apply_cmd_once(&leafnode->u.l.bn[0], &leafnode->subtree_estimates[0], &cmd, idx, NULL, NULL);
+
+    // Create bad tree (don't do following):
+    // leafnode->max_msn_applied_to_node = msn;
 
     // dont forget to dirty the node
     leafnode->dirty = 1;
@@ -46,8 +59,22 @@ populate_leaf(BRTNODE leafnode, int seq, int n, int *minkey, int *maxkey) {
     *maxkey = htonl(seq + n - 1);
 }
 
+static void
+insert_into_child_buffer(BRTNODE node, int childnum, int minkey, int maxkey) {
+    for (unsigned int val = htonl(minkey); val <= htonl(maxkey); val++) {
+        MSN msn = next_dummymsn();
+        unsigned int key = htonl(val);
+        DBT thekey; toku_fill_dbt(&thekey, &key, sizeof key);
+        DBT theval; toku_fill_dbt(&theval, &val, sizeof val);
+        toku_brt_append_to_child_buffer(node, childnum, BRT_INSERT, msn, xids_get_root_xids(), &thekey, &theval);
+
+	// Create bad tree (don't do following):
+	// node->max_msn_applied_to_node = msn;
+    }
+}
+
 static BRTNODE
-make_tree(BRT brt, int height, int fanout, int nperleaf, int *seq, int *minkey, int *maxkey, uint64_t subtree_size) {
+make_tree(BRT brt, int height, int fanout, int nperleaf, int *seq, int *minkey, int *maxkey) {
     BRTNODE node;
     if (height == 0) {
         node = make_node(brt, 0);
@@ -57,16 +84,16 @@ make_tree(BRT brt, int height, int fanout, int nperleaf, int *seq, int *minkey, 
         node = make_node(brt, height);
         int minkeys[fanout], maxkeys[fanout];
         for (int childnum = 0; childnum < fanout; childnum++) {
-            BRTNODE child = make_tree(brt, height-1, fanout, nperleaf, seq, &minkeys[childnum], &maxkeys[childnum], subtree_size);
+            BRTNODE child = make_tree(brt, height-1, fanout, nperleaf, seq, &minkeys[childnum], &maxkeys[childnum]);
             if (childnum == 0) 
                 toku_brt_nonleaf_append_child(node, child, NULL, 0);
             else {
-                int k = minkeys[childnum]; // use the min key of the right subtree, which creates a broken tree
+                int k = maxkeys[childnum-1]; // use the max of the left tree
                 struct kv_pair *pivotkey = kv_pair_malloc(&k, sizeof k, NULL, 0);
                 toku_brt_nonleaf_append_child(node, child, pivotkey, sizeof k);
             }
-            node->subtree_estimates[childnum] = make_subtree_estimates(subtree_size, subtree_size, 0, FALSE);
             toku_unpin_brtnode(brt, child);
+            insert_into_child_buffer(node, childnum, minkeys[childnum], maxkeys[childnum]);
         }
         *minkey = minkeys[0];
         *maxkey = maxkeys[0];
@@ -80,8 +107,12 @@ make_tree(BRT brt, int height, int fanout, int nperleaf, int *seq, int *minkey, 
     return node;
 }
 
+static UU() void
+deleted_row(UU() DB *db, UU() DBT *key, UU() DBT *val) {
+}
+
 static void 
-test_make_tree(int height, int fanout, int nperleaf, uint64_t subtree_size) {
+test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     int r;
 
     // cleanup
@@ -103,7 +134,7 @@ test_make_tree(int height, int fanout, int nperleaf, uint64_t subtree_size) {
 
     // make a tree
     int seq = 0, minkey, maxkey;
-    BRTNODE newroot = make_tree(brt, height, fanout, nperleaf, &seq, &minkey, &maxkey, subtree_size);
+    BRTNODE newroot = make_tree(brt, height, fanout, nperleaf, &seq, &minkey, &maxkey);
 
     // discard the old root block
     u_int32_t fullhash = 0;
@@ -113,15 +144,16 @@ test_make_tree(int height, int fanout, int nperleaf, uint64_t subtree_size) {
     // set the new root to point to the new tree
     *rootp = newroot->thisnodename;
 
+    // Create bad tree (don't do following):
+    // newroot->max_msn_applied_to_node = last_dummymsn(); // capture msn of last message injected into tree
+
     // unpin the new root
     toku_unpin_brtnode(brt, newroot);
 
-    // test the key range estimate
-    uint64_t less, equal, greater;
-    int k = htonl(0);
-    DBT key; toku_fill_dbt(&key, &k, sizeof k);
-    r = toku_brt_keyrange(brt, &key, &less, &equal, &greater); assert_zero(r);
-    assert(less == 0 && equal == 1 && greater == subtree_size);
+    if (do_verify) {
+        r = toku_verify_brt(brt);
+        assert(r != 0);
+    }
 
     // flush to the file system
     r = toku_close_brt(brt, 0);     
@@ -141,7 +173,8 @@ int
 test_main (int argc , const char *argv[]) {
     int height = 1;
     int fanout = 2;
-    int nperleaf = 1;
+    int nperleaf = 8;
+    int do_verify = 1;
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
         if (strcmp(arg, "-v") == 0) {
@@ -164,12 +197,12 @@ test_main (int argc , const char *argv[]) {
             nperleaf = atoi(argv[++i]);
             continue;
         }
+        if (strcmp(arg, "--verify") == 0 && i+1 < argc) {
+            do_verify = atoi(argv[++i]);
+            continue;
+        }
         return usage();
     }
-    test_make_tree(height, fanout, nperleaf, 0);
-    test_make_tree(height, fanout, nperleaf, 1ULL << 30);
-    test_make_tree(height, fanout, nperleaf, 1ULL << 31);
-    test_make_tree(height, fanout, nperleaf, 1ULL << 32);
-    
+    test_make_tree(height, fanout, nperleaf, do_verify);
     return 0;
 }

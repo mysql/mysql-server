@@ -45,6 +45,19 @@ static int f_fetch (CACHEFILE f,
     return 0;
 }
 
+static int 
+pe_callback (
+    void *brtnode_pv __attribute__((__unused__)), 
+    long bytes_to_free __attribute__((__unused__)), 
+    long* bytes_freed, 
+    void* extraargs __attribute__((__unused__))
+    ) 
+{
+    *bytes_freed = 0;
+    return 0;
+}
+
+
 const char fname[] = __FILE__ ".dat";
 
 CACHETABLE t;
@@ -66,7 +79,7 @@ static void writeit (void) {
 	u_int32_t fullhash = toku_cachetable_hash(f, key);
 	int j;
 	for (j=0; j<BLOCKSIZE; j++) ((char*)buf)[j]=(char)((i+j)%256);
-	r = toku_cachetable_put(f, key, fullhash, buf, BLOCKSIZE, f_flush, f_fetch, 0);	assert(r==0);
+	r = toku_cachetable_put(f, key, fullhash, buf, BLOCKSIZE, f_flush, f_fetch, pe_callback, 0);	assert(r==0);
 	r = toku_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, BLOCKSIZE); assert(r==0);
     }
     gettimeofday(&end, 0);
@@ -87,7 +100,7 @@ static void readit (void) {
     for (i=0; i<N; i++) {
 	CACHEKEY key = make_blocknum(i*BLOCKSIZE);
 	u_int32_t fullhash = toku_cachetable_hash(f, key);
-	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, f_flush, f_fetch, 0); assert(r==0);
+	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, f_flush, f_fetch, pe_callback, 0); assert(r==0);
 	r=toku_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, BLOCKSIZE);                                      assert(r==0);
     }
     r = toku_cachefile_close(&f, 0, FALSE, ZERO_LSN);    assert(r == 0);

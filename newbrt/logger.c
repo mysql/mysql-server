@@ -177,12 +177,8 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create)
     //Must have no data blocks (rollback logs or otherwise).
     toku_block_verify_no_data_blocks_except_root_unlocked(t->h->blocktable, t->h->root);
     toku_brtheader_unlock(t->h);
-    BOOL try_again = TRUE;;
     BOOL is_empty;
-    while (try_again) {
-	try_again = FALSE;
-	is_empty = toku_brt_is_empty(t, &try_again);
-    }
+    is_empty = toku_brt_is_empty_fast(t);
     assert(is_empty);
     return r;
 }
@@ -219,12 +215,8 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
 	    {
 		// This almost doesn't work.  If there were anything in there, then the header might get dirtied by
 		// toku_brt_is_empty().  But it turns out absolutely nothing is in there, so it's OK to assert that it's empty.
-		BOOL try_again = TRUE;
 		BOOL is_empty;
-		while (try_again) {
-		    try_again = FALSE;
-		    is_empty = toku_brt_is_empty(brt_to_close, &try_again);
-		}
+                is_empty = toku_brt_is_empty_fast(brt_to_close);
 		assert(is_empty);
 	    }
 	    assert(!h->dirty); // it should not have been dirtied by the toku_brt_is_empty test.

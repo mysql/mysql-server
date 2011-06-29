@@ -64,10 +64,8 @@ void le_unpack(ULE ule,  LEAFENTRY le);
 int le_pack(ULE ule,                            // data to be packed into new leafentry
 	size_t *new_leafentry_memorysize, 
 	size_t *new_leafentry_disksize, 
-	LEAFENTRY * const new_leafentry_p,   // this is what this function creates
-	OMT omt, 
-	struct mempool *mp, 
-	void **maybe_free);
+	LEAFENTRY * const new_leafentry_p   // this is what this function creates
+        );
 
 
 size_t le_memsize_from_ule (ULE ule);

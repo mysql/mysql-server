@@ -164,7 +164,7 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
 
         DBT key_dbt,data_dbt;
         XIDS xids = toku_txn_get_xids(txn);
-        BRT_MSG_S brtcmd = { type, xids,
+        BRT_MSG_S brtcmd = { type, ZERO_MSN, xids,
                              .u.id={(key.len > 0)
                                     ? toku_fill_dbt(&key_dbt,  key.data,  key.len)
                                     : toku_init_dbt(&key_dbt),

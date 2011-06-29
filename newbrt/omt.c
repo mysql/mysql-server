@@ -255,7 +255,7 @@ static int omt_convert_to_tree(OMT omt) {
     omt->is_array          = FALSE;
     omt->i.t.nodes         = new_nodes;
     omt->capacity          = new_size;
-    omt->i.t.free_idx      = 0; /* Allocating from mempool starts over. */
+    omt->i.t.free_idx      = 0;
     omt->i.t.root          = NODE_NULL;
     rebuild_from_sorted_array(omt, &omt->i.t.root, tmp_values, num_nodes);
     toku_free(values);
@@ -785,6 +785,20 @@ int toku_omt_fetch(OMT V, u_int32_t i, OMTVALUE *v, OMTCURSOR c) {
 	c->index = i;
     }
     return 0;
+}
+
+static int
+free_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
+    assert(vsi == NULL);
+    toku_free(lev);
+    return 0;
+}
+
+
+void toku_omt_free_items(OMT omt) {
+    invalidate_cursors(omt);
+    int r = toku_omt_iterate(omt, free_item, NULL);
+    lazy_assert_zero(r);
 }
 
 int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, u_int32_t, void*), void*v) {

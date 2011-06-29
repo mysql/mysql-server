@@ -199,7 +199,9 @@ test_filesize (void)
 	for (i = preserve; i<(N); i++) {  // leave a little at the beginning
 	    delete_n(i + offset);
 	}
+	if (verbose) printf("Filesize: Doing scan\n");
 	scan(N);
+	if (verbose) printf("Filesize: Did scan\n");
 
 	r = env->txn_checkpoint(env, 0, 0, 0);
 	CKERR(r);

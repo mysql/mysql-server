@@ -48,9 +48,6 @@ int apply_msg_to_leafentry(BRT_MSG   msg,
 			   size_t *new_leafentry_memorysize, 
 			   size_t *new_leafentry_disksize, 
 			   LEAFENTRY *new_leafentry_p,
-			   OMT omt, 
-			   struct mempool *mp, 
-			   void **maybe_free,
                            OMT snapshot_xids,
                            OMT live_list_reverse);
 

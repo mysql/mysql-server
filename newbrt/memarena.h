@@ -6,9 +6,6 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 /* We have too many memory management tricks:
- *  mempool for a collection of objects that are all allocated together.
- *    It's pretty rigid about what happens when you run out of memory.
- *    There's a callback to compress data.
  *  memarena (this code) is for a collection of objects that cannot be moved.
  *    The pattern is allocate more and more stuff.
  *    Don't free items as you go.

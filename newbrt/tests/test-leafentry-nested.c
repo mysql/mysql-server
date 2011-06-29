@@ -132,7 +132,7 @@ test_ule_packs_to_nothing (ULE ule) {
     LEAFENTRY le;
     int r = le_pack(ule,
                     &memsize, &disksize,
-                    &le, NULL, NULL, NULL);
+                    &le);
     assert(r==0);
     assert(le==NULL);
 }
@@ -267,7 +267,7 @@ test_le_pack_committed (void) {
             LEAFENTRY le;
             int r = le_pack(&ule,
                             &memsize, &disksize,
-                            &le, NULL, NULL, NULL);
+                            &le);
             assert(r==0);
             assert(le!=NULL);
             le_verify_accessors(le, &ule, memsize, disksize);
@@ -279,7 +279,7 @@ test_le_pack_committed (void) {
             size_t    tmp_disksize;
             r = le_pack(&tmp_ule,
                         &tmp_memsize, &tmp_disksize,
-                        &tmp_le, NULL, NULL, NULL);
+                        &tmp_le);
             assert(r==0);
             assert(tmp_memsize == memsize);
             assert(tmp_disksize == disksize);
@@ -336,7 +336,7 @@ test_le_pack_uncommitted (u_int8_t committed_type, u_int8_t prov_type, int num_p
             LEAFENTRY le;
             int r = le_pack(&ule,
                             &memsize, &disksize,
-                            &le, NULL, NULL, NULL);
+                            &le);
             assert(r==0);
             assert(le!=NULL);
             le_verify_accessors(le, &ule, memsize, disksize);
@@ -348,7 +348,7 @@ test_le_pack_uncommitted (u_int8_t committed_type, u_int8_t prov_type, int num_p
             size_t    tmp_disksize;
             r = le_pack(&tmp_ule,
                         &tmp_memsize, &tmp_disksize,
-                        &tmp_le, NULL, NULL, NULL);
+                        &tmp_le);
             assert(r==0);
             assert(tmp_memsize == memsize);
             assert(tmp_disksize == disksize);
@@ -412,7 +412,7 @@ test_le_apply(ULE ule_initial, BRT_MSG msg, ULE ule_expected) {
     size_t initial_memsize;
     size_t initial_disksize;
     r = le_pack(ule_initial, &initial_memsize, &initial_disksize,
-                &le_initial, NULL, NULL, NULL);
+                &le_initial);
     CKERR(r);
 
     size_t result_memsize;
@@ -421,7 +421,7 @@ test_le_apply(ULE ule_initial, BRT_MSG msg, ULE ule_expected) {
                                le_initial,
                                &result_memsize, &result_disksize,
                                &le_result,
-                               NULL, NULL, NULL, NULL, NULL);
+                               NULL, NULL);
     CKERR(r);
 
     if (le_result)
@@ -430,7 +430,7 @@ test_le_apply(ULE ule_initial, BRT_MSG msg, ULE ule_expected) {
     size_t expected_memsize;
     size_t expected_disksize;
     r = le_pack(ule_expected, &expected_memsize, &expected_disksize,
-                &le_expected, NULL, NULL, NULL);
+                &le_expected);
     CKERR(r);
 
 

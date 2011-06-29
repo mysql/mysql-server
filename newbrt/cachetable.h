@@ -9,7 +9,6 @@
 #include <fcntl.h>
 #include "brttypes.h"
 #include "workqueue.h"
-#include "leaflock.h"
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 extern "C" {
@@ -124,6 +123,8 @@ typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void 
 // Can access fd (fd is protected by a readlock during call)
 typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, int *dirtyp, void *extraargs);
 
+typedef int (*CACHETABLE_PARTIAL_EVICTION_CALLBACK)(void *brtnode_pv, long bytes_to_free, long* bytes_freed, void *extraargs);
+
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
     int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
     int (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
@@ -153,7 +154,10 @@ CACHETABLE toku_cachefile_get_cachetable(CACHEFILE cf);
 int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
 			void *value, long size,
 			CACHETABLE_FLUSH_CALLBACK flush_callback,
-                        CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs);
+                        CACHETABLE_FETCH_CALLBACK fetch_callback,
+                        CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+                        void *extraargs
+                        );
 
 // Get and pin a memory object.
 // Effects: If the memory object is in the cachetable, acquire a read lock on it.
@@ -163,7 +167,9 @@ int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
 int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/,
 				void **/*value*/, long *sizep,
 				CACHETABLE_FLUSH_CALLBACK flush_callback,
-                                CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs);
+                                CACHETABLE_FETCH_CALLBACK fetch_callback, 
+                                CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+                                void *extraargs);
 
 typedef struct unlockers *UNLOCKERS;
 struct unlockers {
@@ -178,19 +184,24 @@ struct unlockers {
 //   and return TOKU_DB_TRYAGAIN.
 int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 					     CACHETABLE_FLUSH_CALLBACK flush_callback, 
-					     CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs,
+					     CACHETABLE_FETCH_CALLBACK fetch_callback, 
+                                             CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+					     void *extraargs,
 					     UNLOCKERS unlockers);
 #define CAN_RELEASE_LOCK_DURING_IO
 
-// Maybe get and pin a memory object.
-// Effects:  This function is identical to the get_and_pin function except that it
-// will not attempt to fetch a memory object that is not in the cachetable.
+int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
+// Effect: Maybe get and pin a memory object.
+//  This function is similar to the get_and_pin function except that it
+//  will not attempt to fetch a memory object that is not in the cachetable or requires any kind of blocking to get it.  
 // Returns: If the the item is already in memory, then return 0 and store it in the
 // void**.  If the item is not in memory, then return a nonzero error number.
-int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
 
-// Like maybe get and pin, but may pin a clean pair.
-int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
+int toku_cachetable_get_and_pin_if_in_memory (CACHEFILE /*cachefile*/, CACHEKEY /*key*/, u_int32_t /*fullhash*/, void**/*value*/);
+// Effect: Get and pin an object if it is in memory, (even if doing so would require blocking, e.g., to wait on a checkpoint).
+//  This is similar to maybe_get_and_pin except that maybe_get_and_pin won't block waiting on a checkpoint.
+// Returns: 0 iff the item is in memory (otherwise return a error)
+// Modifies: *value (if returning 0, then the pointer to the value is stored in *value.
 
 // cachetable pair clean or dirty WRT external memory
 enum cachetable_dirty {
@@ -200,7 +211,7 @@ enum cachetable_dirty {
 
 int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, long size);
 // Effect: Unpin a memory object
-// Effects: If the memory object is in the cachetable, then OR the dirty flag,
+// Modifies: If the memory object is in the cachetable, then OR the dirty flag,
 // update the size, and release the read lock on the memory object.
 // Returns: 0 if success, otherwise returns an error number.
 // Requires: The ct is locked.
@@ -216,6 +227,7 @@ int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY); /* Removing somethin
 int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                             CACHETABLE_FLUSH_CALLBACK flush_callback, 
                             CACHETABLE_FETCH_CALLBACK fetch_callback, 
+                            CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
                             void *extraargs);
 // Effect: Prefetch a memory object for a given key into the cachetable
 // Precondition: The cachetable mutex is NOT held.
@@ -349,6 +361,7 @@ typedef struct cachetable_status {
     u_int64_t prefetches;    // how many times has a block been prefetched into the cachetable?
     u_int64_t maybe_get_and_pins;      // how many times has maybe_get_and_pin(_clean) been called?
     u_int64_t maybe_get_and_pin_hits;  // how many times has maybe_get_and_pin(_clean) returned with a node?
+    u_int64_t get_and_pin_if_in_memorys; // how many times has get_and_pin_if_in_memory been called?
     int64_t   size_current;            // the sum of the sizes of the nodes represented in the cachetable
     int64_t   size_limit;              // the limit to the sum of the node sizes
     int64_t   size_writing;            // the sum of the sizes of the nodes being written
@@ -359,8 +372,6 @@ typedef struct cachetable_status {
 } CACHETABLE_STATUS_S, *CACHETABLE_STATUS;
 
 void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s);
-
-LEAFLOCK_POOL toku_cachefile_leaflock_pool(CACHEFILE cf);
 
 void toku_cachetable_set_env_dir(CACHETABLE ct, const char *env_dir);
 char * toku_construct_full_name(int count, ...);

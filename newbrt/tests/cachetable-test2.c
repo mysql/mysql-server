@@ -27,9 +27,7 @@ static inline void test_mutex_unlock(void) {
 }
 
 static void maybe_flush(CACHETABLE t) {
-#if !TOKU_CACHETABLE_DO_EVICT_FROM_WRITER
     toku_cachetable_maybe_flush_some(t);
-#endif
 }
 
 static const int test_object_size = 1;
@@ -120,6 +118,19 @@ static int fetch_forchain (CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t full
     return 0;
 }
 
+static int 
+pe_callback (
+    void *brtnode_pv __attribute__((__unused__)), 
+    long bytes_to_free __attribute__((__unused__)), 
+    long* bytes_freed, 
+    void* extraargs __attribute__((__unused__))
+    ) 
+{
+    *bytes_freed = 0;
+    return 0;
+}
+
+
 static void verify_cachetable_against_present (void) {
     int i;
 
@@ -134,7 +145,7 @@ again:
     for (i=0; i<my_n_present; i++) {
 	void *v;
 	u_int32_t fullhash = toku_cachetable_hash(my_present_items[i].cf, my_present_items[i].key);
-	int r=toku_cachetable_maybe_get_and_pin(my_present_items[i].cf,
+	int r=toku_cachetable_get_and_pin_if_in_memory(my_present_items[i].cf,
 						my_present_items[i].key,
 						toku_cachetable_hash(my_present_items[i].cf, my_present_items[i].key),
 						&v);
@@ -163,7 +174,7 @@ static void test_chaining (void) {
 	int fnum = i%N_FILES;
 	//printf("%s:%d Add %d\n", __FILE__, __LINE__, i);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
-	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i);
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, pe_callback, (void*)i);
 	assert(r==0);
 	item_becomes_present(ct, f[fnum], make_blocknum(i));
 	r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, test_object_size);
@@ -191,6 +202,7 @@ static void test_chaining (void) {
 					    NULL,
 					    flush_forchain,
 					    fetch_forchain,
+					    pe_callback,
 					    (void*)(long)whichkey.b
 					    );
 	    assert(r==0);
@@ -207,7 +219,7 @@ static void test_chaining (void) {
         // if i is a duplicate, cachetable_put will return -1
 	// printf("%s:%d Add {%ld,%p}\n", __FILE__, __LINE__, i, f[fnum]);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
-	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i);
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, pe_callback, (void*)i);
         assert(r==0 || r==-1);
         if (r==0) {
             item_becomes_present(ct, f[fnum], make_blocknum(i));

@@ -45,15 +45,15 @@ static void
 hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
     u_int64_t n = size / 32;
     for (u_int64_t i = 0; i < n; i++) {
-        printf("%"PRIu64": ", offset);
+	printf("%"PRIu64": ", offset);
 	for (u_int64_t j = 0; j < 32; j++) {
 	    unsigned char c = vp[j];
 	    printf("%2.2X", c);
 	    if (((j+1) % 4) == 0)
-	        printf(" ");
+		printf(" ");
 	}
 	for (u_int64_t j = 0; j < 32; j++) {
-            unsigned char c = vp[j];
+	    unsigned char c = vp[j];
 	    printf("%c", isprint(c) ? c : ' ');
 	}
 	printf("\n");
@@ -62,13 +62,13 @@ hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
     }
     size = size % 32;
     for (u_int64_t i=0; i<size; i++) {
-        if ((i % 32) == 0)
-            printf("%"PRIu64": ", offset+i);
-        printf("%2.2X", vp[i]);
-        if (((i+1) % 4) == 0)
-            printf(" ");
-        if (((i+1) % 32) == 0)
-            printf("\n");
+	if ((i % 32) == 0)
+	    printf("%"PRIu64": ", offset+i);
+	printf("%2.2X", vp[i]);
+	if (((i+1) % 4) == 0)
+	    printf(" ");
+	if (((i+1) % 32) == 0)
+	    printf("\n");
     }
     printf("\n");
 }
@@ -136,55 +136,62 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     printf(" layout_version_original=%d\n", n->layout_version_original);
     printf(" layout_version_read_from_disk=%d\n", n->layout_version_read_from_disk);
     printf(" build_id=%d\n", n->build_id);
-    if (n->height>0) {
-	printf(" n_children=%d\n", n->u.n.n_children);
-	printf(" total_childkeylens=%u\n", n->u.n.totalchildkeylens);
-	printf(" n_bytes_in_buffers=%u\n", n->u.n.n_bytes_in_buffers);
-	int i;
-	printf(" subleafentry_estimates={");
-	for (i=0; i<n->u.n.n_children; i++) {
-	    if (i>0) printf(" ");
-	    struct subtree_estimates *est = &(BNC_SUBTREE_ESTIMATES(n, i));
-	    printf("{nkey=%" PRIu64 " ndata=%" PRIu64 " dsize=%" PRIu64 " %s }", est->nkeys, est->ndata, est->dsize, est->exact ? "T" : "F");
-	}
-	printf("}\n");
-	printf(" pivots:\n");
-	for (i=0; i<n->u.n.n_children-1; i++) {
-	    struct kv_pair *piv = n->u.n.childkeys[i];
-	    printf("  pivot %d:", i);
-            assert(n->flags == 0);
-	    print_item(kv_pair_key_const(piv), kv_pair_keylen(piv));
-	    printf("\n");
-	}
-	printf(" children:\n");
-	for (i=0; i<n->u.n.n_children; i++) {
-	    printf("   child %d: %" PRId64 "\n", i, BNC_BLOCKNUM(n, i).b);
-	    unsigned int n_bytes = BNC_NBYTESINBUF(n, i); 
-	    int n_entries = toku_fifo_n_entries(BNC_BUFFER(n, i));
-	    if (n_bytes > 0 || n_entries > 0)
-    	        printf("   buffer contains %u bytes (%d items)\n", n_bytes, n_entries);
-	    if (dump_data) {
-		FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, xids,
-			     {
-				 printf("    TYPE=");
-				 switch ((enum brt_msg_type)typ) {
-				 case BRT_NONE: printf("NONE"); goto ok;
-				 case BRT_INSERT: printf("INSERT"); goto ok;
-				 case BRT_INSERT_NO_OVERWRITE: printf("INSERT_NO_OVERWRITE"); goto ok;
-				 case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
-				 case BRT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
-				 case BRT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
-				 case BRT_COMMIT_BROADCAST_ALL: printf("COMMIT_BROADCAST_ALL"); goto ok;
-				 case BRT_COMMIT_BROADCAST_TXN: printf("COMMIT_BROADCAST_TXN"); goto ok;
-				 case BRT_ABORT_BROADCAST_TXN: printf("ABORT_BROADCAST_TXN"); goto ok;
-				 case BRT_OPTIMIZE: printf("OPTIMIZE"); goto ok;
-				 case BRT_OPTIMIZE_FOR_UPGRADE: printf("OPTIMIZE_FOR_UPGRADE"); goto ok;
-				 case BRT_UPDATE:   printf("UPDATE"); goto ok;
-				 case BRT_UPDATE_BROADCAST_ALL: printf("UPDATE_BROADCAST_ALL"); goto ok;
-				 }
-				 printf("HUH?");
-			     ok:
-				 printf(" xid=");
+    printf(" max_msn_applied_to_node=%"PRId64" (0x%"PRIx64")\n", n->max_msn_applied_to_node.msn, n->max_msn_applied_to_node.msn);
+
+    printf(" n_children=%d\n", n->n_children);
+    printf(" total_childkeylens=%u\n", n->totalchildkeylens);
+    if (n->height > 0) {
+        printf(" n_bytes_in_buffers=%u\n", n->u.n.n_bytes_in_buffers);
+    }
+    
+    int i;
+    printf(" subleafentry_estimates={");
+    for (i=0; i<n->n_children; i++) {
+        if (i>0) printf(" ");
+        struct subtree_estimates *est = &n->subtree_estimates[i];
+        printf("{nkey=%" PRIu64 " ndata=%" PRIu64 " dsize=%" PRIu64 " %s }", est->nkeys, est->ndata, est->dsize, est->exact ? "T" : "F");
+    }
+    printf("}\n");
+    printf(" pivots:\n");
+    for (i=0; i<n->n_children-1; i++) {
+        struct kv_pair *piv = n->childkeys[i];
+        printf("  pivot %d:", i);
+        assert(n->flags == 0);
+        print_item(kv_pair_key_const(piv), kv_pair_keylen(piv));
+        printf("\n");
+    }
+    printf(" children:\n");
+    for (i=0; i<n->n_children; i++) {
+        if (n->height > 0) {
+            printf("   child %d: %" PRId64 "\n", i, BNC_BLOCKNUM(n, i).b);
+            unsigned int n_bytes = BNC_NBYTESINBUF(n, i); 
+            int n_entries = toku_fifo_n_entries(BNC_BUFFER(n, i));
+            if (n_bytes > 0 || n_entries > 0) {
+                printf("   buffer contains %u bytes (%d items)\n", n_bytes, n_entries);
+            }
+            if (dump_data) {
+                FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, msn, xids,
+                             {
+                                 printf("    msn=%"PRIu64" (0x%"PRIx64") ", msn.msn, msn.msn);
+                                 printf("    TYPE=");
+                                 switch ((enum brt_msg_type)typ) {
+                                 case BRT_NONE: printf("NONE"); goto ok;
+                                 case BRT_INSERT: printf("INSERT"); goto ok;
+                                 case BRT_INSERT_NO_OVERWRITE: printf("INSERT_NO_OVERWRITE"); goto ok;
+                                 case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
+                                 case BRT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
+                                 case BRT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
+                                 case BRT_COMMIT_BROADCAST_ALL: printf("COMMIT_BROADCAST_ALL"); goto ok;
+                                 case BRT_COMMIT_BROADCAST_TXN: printf("COMMIT_BROADCAST_TXN"); goto ok;
+                                 case BRT_ABORT_BROADCAST_TXN: printf("ABORT_BROADCAST_TXN"); goto ok;
+                                 case BRT_OPTIMIZE: printf("OPTIMIZE"); goto ok;
+                                 case BRT_OPTIMIZE_FOR_UPGRADE: printf("OPTIMIZE_FOR_UPGRADE"); goto ok;
+                                 case BRT_UPDATE:   printf("UPDATE"); goto ok;
+                                 case BRT_UPDATE_BROADCAST_ALL: printf("UPDATE_BROADCAST_ALL"); goto ok;
+                                 }
+                                 printf("HUH?");
+                             ok:
+                                 printf(" xid=");
                                  xids_fprintf(stdout, xids);
                                  printf(" ");
 				 print_item(key, keylen);
@@ -196,15 +203,14 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 			     }
 			     );
 	    }
+	} else {
+	    printf(" optimized_for_upgrade=%u\n", n->u.l.bn[i].optimized_for_upgrade);
+	    printf(" n_bytes_in_buffer=%u\n", n->u.l.bn[i].n_bytes_in_buffer);
+	    printf(" items_in_buffer  =%u\n", toku_omt_size(n->u.l.bn[i].buffer));
+	    if (dump_data) toku_omt_iterate(n->u.l.bn[i].buffer, print_le, 0);
 	}
-    } else {
-        struct subtree_estimates *est = &n->u.l.leaf_stats;
-        printf("{nkey=%" PRIu64 " ndata=%" PRIu64 " dsize=%" PRIu64 " %s }\n", est->nkeys, est->ndata, est->dsize, est->exact ? "T" : "F");
-        printf(" optimized_for_upgrade=%u\n", n->u.l.optimized_for_upgrade);
-	printf(" n_bytes_in_buffer=%u\n", n->u.l.n_bytes_in_buffer);
-	printf(" items_in_buffer  =%u\n", toku_omt_size(n->u.l.buffer));
-	if (dump_data) toku_omt_iterate(n->u.l.buffer, print_le, 0);
-    }    toku_brtnode_free(&n);
+    }
+    toku_brtnode_free(&n);
 }
 
 static void 
@@ -423,12 +429,12 @@ main (int argc, const char *const argv[]) {
     while (argc>0) {
 	if (strcmp(argv[0], "--nodata") == 0) {
 	    dump_data = 0;
-        } else if (strcmp(argv[0], "--interactive") == 0 || strcmp(argv[0], "--i") == 0) {
-            interactive = 1;
-        } else if (strcmp(argv[0], "--rootnode") == 0) {
-            rootnode = 1;
-        } else if (strcmp(argv[0], "--help") == 0) {
-            return usage(arg0);
+	} else if (strcmp(argv[0], "--interactive") == 0 || strcmp(argv[0], "--i") == 0) {
+	    interactive = 1;
+	} else if (strcmp(argv[0], "--rootnode") == 0) {
+	    rootnode = 1;
+	} else if (strcmp(argv[0], "--help") == 0) {
+	    return usage(arg0);
 	} else 
 	    break;
 	argc--; argv++;
@@ -450,65 +456,63 @@ main (int argc, const char *const argv[]) {
         while (1) {
             printf("brtdump>"); fflush(stdout);
 	    enum { maxline = 64};
-            char line[maxline+1];
-            r = readline(line, maxline);
-            if (r == EOF)
-                break;
-            const int maxfields = 4;
-            char *fields[maxfields];
-            int nfields = split_fields(line, fields, maxfields);
-            if (nfields == 0) 
-                continue;
-            if (strcmp(fields[0], "help") == 0) {
-                interactive_help();
-            } else if (strcmp(fields[0], "header") == 0) {
-                toku_brtheader_free(h);
-                dump_header(f, &h, cf);
-            } else if (strcmp(fields[0], "block") == 0 && nfields == 2) {
-                BLOCKNUM blocknum = make_blocknum(getuint64(fields[1]));
-                dump_block(f, blocknum, h);
-            } else if (strcmp(fields[0], "node") == 0 && nfields == 2) {
-                BLOCKNUM off = make_blocknum(getuint64(fields[1]));
-                dump_node(f, off, h);
-            } else if (strcmp(fields[0], "dumpdata") == 0 && nfields == 2) {
-                dump_data = strtol(fields[1], NULL, 10);
+	    char line[maxline+1];
+	    r = readline(line, maxline);
+	    if (r == EOF)
+		break;
+	    const int maxfields = 4;
+	    char *fields[maxfields];
+	    int nfields = split_fields(line, fields, maxfields);
+	    if (nfields == 0) 
+		continue;
+	    if (strcmp(fields[0], "help") == 0) {
+		interactive_help();
+	    } else if (strcmp(fields[0], "header") == 0) {
+		toku_brtheader_free(h);
+		dump_header(f, &h, cf);
+	    } else if (strcmp(fields[0], "block") == 0 && nfields == 2) {
+		BLOCKNUM blocknum = make_blocknum(getuint64(fields[1]));
+		dump_block(f, blocknum, h);
+	    } else if (strcmp(fields[0], "node") == 0 && nfields == 2) {
+		BLOCKNUM off = make_blocknum(getuint64(fields[1]));
+		dump_node(f, off, h);
+	    } else if (strcmp(fields[0], "dumpdata") == 0 && nfields == 2) {
+		dump_data = strtol(fields[1], NULL, 10);
 	    } else if (strcmp(fields[0], "block_translation") == 0 || strcmp(fields[0], "bx") == 0) {
-     	        u_int64_t offset = 0;
-	        if (nfields == 2)
+		u_int64_t offset = 0;
+		if (nfields == 2)
 		    offset = getuint64(fields[1]);
-	        dump_block_translation(h, offset);
+		dump_block_translation(h, offset);
 	    } else if (strcmp(fields[0], "fragmentation") == 0) {
-	        dump_fragmentation(f, h);
-            } else if (strcmp(fields[0], "file") == 0 && nfields >= 3) {
-                u_int64_t offset = getuint64(fields[1]);
-                u_int64_t size = getuint64(fields[2]);
-                FILE *outfp = stdout;
-                if (nfields >= 4)
-                    outfp = fopen(fields[3], "w");
-                dump_file(f, offset, size, outfp);
-            } else if (strcmp(fields[0], "setfile") == 0 && nfields == 3) {
-                u_int64_t offset = getuint64(fields[1]);
-                unsigned char newc = getuint64(fields[2]);
-                set_file(f, offset, newc);
-            } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
-                break;
-            }
-        }
+		dump_fragmentation(f, h);
+	    } else if (strcmp(fields[0], "file") == 0 && nfields >= 3) {
+		u_int64_t offset = getuint64(fields[1]);
+		u_int64_t size = getuint64(fields[2]);
+		FILE *outfp = stdout;
+		if (nfields >= 4)
+		    outfp = fopen(fields[3], "w");
+		dump_file(f, offset, size, outfp);
+	    } else if (strcmp(fields[0], "setfile") == 0 && nfields == 3) {
+		u_int64_t offset = getuint64(fields[1]);
+		unsigned char newc = getuint64(fields[2]);
+		set_file(f, offset, newc);
+	    } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
+		break;
+	    }
+	}
     } else if (rootnode) {
-        dump_node(f, h->root, h);
+	dump_node(f, h->root, h);
     } else {
 	printf("Block translation:");
 
-        toku_dump_translation_table(stdout, h->blocktable);
+	toku_dump_translation_table(stdout, h->blocktable);
 
-        struct __dump_node_extra info;
-        info.f = f;
-        info.h = h;
-        toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
-                                dump_node_wrapper, &info, TRUE, TRUE);
+	struct __dump_node_extra info;
+	info.f = f;
+	info.h = h;
+	toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
+				dump_node_wrapper, &info, TRUE, TRUE);
     }
     toku_brtheader_free(h);
     return 0;
 }
-
-
