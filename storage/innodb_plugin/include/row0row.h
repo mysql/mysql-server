@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,16 +38,16 @@ Created 4/20/1996 Heikki Tuuri
 #include "btr0types.h"
 
 /*********************************************************************//**
-Gets the offset of the trx id field, in bytes relative to the origin of
+Gets the offset of the DB_TRX_ID field, in bytes relative to the origin of
 a clustered index record.
 @return	offset of DATA_TRX_ID */
-UNIV_INTERN
+UNIV_INLINE
 ulint
 row_get_trx_id_offset(
 /*==================*/
-	const rec_t*	rec,	/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*		offsets)/*!< in: record offsets */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Reads the trx id field from a clustered index record.
 @return	value of the field */
@@ -55,9 +55,10 @@ UNIV_INLINE
 trx_id_t
 row_get_rec_trx_id(
 /*===============*/
-	const rec_t*	rec,	/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
+	const rec_t*		rec,	/*!< in: record */
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Reads the roll pointer field from a clustered index record.
 @return	value of the field */
@@ -65,9 +66,10 @@ UNIV_INLINE
 roll_ptr_t
 row_get_rec_roll_ptr(
 /*=================*/
-	const rec_t*	rec,	/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
+	const rec_t*		rec,	/*!< in: record */
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
+	__attribute__((nonnull, warn_unused_result));
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.

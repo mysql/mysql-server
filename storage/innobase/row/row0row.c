@@ -212,35 +212,23 @@ row_build(
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	if (UNIV_LIKELY_NULL(rec_offs_any_null_extern(rec, offsets))) {
-		/* This condition can occur during crash recovery before
-		trx_rollback_or_clean_all_without_sess() has completed
-		execution.
+	/* This condition can occur during crash recovery before
+	trx_rollback_or_clean_all_without_sess() has completed
+	execution.
 
-		This condition is possible if the server crashed
-		during an insert or update before
-		btr_store_big_rec_extern_fields() did mtr_commit() all
-		BLOB pointers to the clustered index record.
+	This condition is possible if the server crashed
+	during an insert or update before
+	btr_store_big_rec_extern_fields() did mtr_commit() all
+	BLOB pointers to the clustered index record.
 
-		Look up the transaction that holds the implicit lock
-		on this record, and assert that it was recovered (and
-		will soon be rolled back). */
+	If the record contains a null BLOB pointer, look up the
+	transaction that holds the implicit lock on this record, and
+	assert that it is active. (In this version of InnoDB, we
+	cannot assert that it was recovered, because there is no
+	trx->is_recovered field.) */
 
-		ulint	trx_id_pos	= dict_index_get_sys_col_pos(
-			index, DATA_TRX_ID);
-		ulint	len;
-		dulint	trx_id		= trx_read_trx_id(
-			rec_get_nth_field(rec, offsets, trx_id_pos, &len));
-		trx_t*	trx;
-		ut_a(len == 6);
-
-		mutex_enter(&kernel_mutex);
-		trx = trx_get_on_id(trx_id);
-		ut_a(trx);
-		/* This field does not exist in this version of InnoDB. */
-		/* ut_a(trx->is_recovered); */
-		mutex_exit(&kernel_mutex);
-	}
+	ut_a(!rec_offs_any_null_extern(rec, offsets)
+	     || trx_assert_active(row_get_rec_trx_id(rec, index, offsets)));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 	if (type != ROW_COPY_POINTERS) {
