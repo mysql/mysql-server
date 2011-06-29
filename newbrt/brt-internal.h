@@ -126,6 +126,7 @@ struct brtnode {
 						         However, in the absence of duplicate keys, child 1's keys *are* > childkeys[0]. */
         } n;
 	struct leaf {
+	    BOOL soft_copy_is_up_to_date;        // the data in the OMT reflects the softcopy state.
 	    struct subtree_estimates leaf_stats; // actually it is exact.
             uint32_t optimized_for_upgrade;   // version number to which this leaf has been optimized, zero if never optimized for upgrade
 	    OMT buffer;

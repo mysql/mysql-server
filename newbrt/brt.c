@@ -4385,13 +4385,42 @@ is_le_val_del(LEAFENTRY le, BRT_CURSOR brtcursor) {
     return rval;
 }
 
+typedef struct ancestors *ANCESTORS;
+struct ancestors {
+    BRTNODE   node;
+    int       childnum; // which buffer holds our ancestors.
+    ANCESTORS next;
+};
+
+static void
+apply_buffer_messages_to_node (BRTNODE node, BRTNODE ancestor, int childnum, int height) {
+    assert(ancestor->height==height);
+    assert(ancestor->height>0);
+    assert(0 <= childnum && childnum < ancestor->u.n.n_children);
+    // apply buffer
+    printf("Apply buffer to %p now!\n", node); assert(0);
+}
+
+static void
+apply_ancestors_messages_to_node (BRTNODE node, ANCESTORS ancestors) {
+    int height=0;
+    while (ancestors) {
+	height++;
+	apply_buffer_messages_to_node(node, ancestors->node, ancestors->childnum, height); 
+	ancestors = ancestors->next;
+    }
+}
+
 // This is a bottom layer of the search functions.
 static int
-brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor)
+brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, BOOL *doprefetch, BRT_CURSOR brtcursor, ANCESTORS ancestors)
 {
-    // Now we have to convert from brt_search_t to the heaviside function with a direction.  What a pain...
+    if (!node->u.l.soft_copy_is_up_to_date) {
+	apply_messages_to_node(node, ancestors);
+	node->u.l.soft_copy_is_up_to_date = TRUE;
+    }
 
-    *re = get_leaf_reactivity(node); // searching doesn't change the reactivity, so we can calculate it here.
+    // Now we have to convert from brt_search_t to the heaviside function with a direction.  What a pain...
 
     int direction;
     switch (search->direction) {
@@ -4487,7 +4516,7 @@ got_a_good_value:
 }
 
 static int
-brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor, UNLOCKERS unlockers);
+brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, BOOL *doprefetch, BRT_CURSOR brtcursor, UNLOCKERS unlockers, ANCESTORS);
 
 // the number of nodes to prefetch
 #define TOKU_DO_PREFETCH 2
@@ -4532,19 +4561,9 @@ unlock_brtnode_fun (void *v) {
 
 /* search in a node's child */
 static int
-brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *parent_re, BOOL *doprefetch, BRT_CURSOR brtcursor, BOOL *did_react, UNLOCKERS unlockers)
-// Effect: Search in a node's child.
-//  If we change the shape, set *did_react = TRUE.  Else set *did_react = FALSE.
+brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, BOOL *doprefetch, BRT_CURSOR brtcursor, UNLOCKERS unlockers, ANCESTORS ancestors)
+// Effect: Search in a node's child.  Searches are read-only now (at least as far as the hardcopy is concerned).
 {
-    /* if the child's buffer is not empty then empty it */
-    if (BNC_NBYTESINBUF(node, childnum) > 0) {
-        BOOL did_io = FALSE;
-        enum reactivity child_re = RE_STABLE;
-        int rr = flush_this_child(brt, node, childnum, &child_re, &did_io);
-        lazy_assert_zero(rr);
-        /* push down may cause the child to be overfull, but that's OK.  We'll search the child anyway, and recompute the ractivity. */
-    }
-
     void *node_v;
     BLOCKNUM childblocknum = BNC_BLOCKNUM(node,childnum);
     u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
@@ -4558,9 +4577,9 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
 
     struct unlock_brtnode_extra unlock_extra   = {brt,childnode};
     struct unlockers            next_unlockers = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, unlockers};
+    struct ancestors            next_ancestors = {node, childnum, ancestors};
 
-    enum reactivity child_re = RE_STABLE;
-    int r = brt_search_node(brt, childnode, search, getf, getf_v, &child_re, doprefetch, brtcursor, &next_unlockers);
+    int r = brt_search_node(brt, childnode, search, getf, getf_v, doprefetch, brtcursor, &next_unlockers, &next_ancestors);
     if (r!=TOKUDB_TRY_AGAIN) {
 	// Even if r is reactive, we want to handle the maybe reactive child.
 
@@ -4575,14 +4594,6 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
 	    int rr = toku_unpin_brtnode(brt, childnode); // unpin the childnode before handling the reactive child (because that may make the childnode disappear.)
 	    if (rr!=0) r = rr;
 	}
-	{
-	    BOOL did_io = FALSE;
-	    int rr = brt_handle_maybe_reactive_child(brt, node, childnum, child_re, &did_io, did_react);
-	    if (rr!=0) r = rr; // if we got an error, then return rr.  Else we will return the r from brt_search_node().
-	}
-
-	*parent_re = get_nonleaf_reactivity(node);
-
     } else {
 	// try again.
 	assert(!next_unlockers.locked);
@@ -4592,10 +4603,9 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
 }
 
 static int
-brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor, UNLOCKERS unlockers)
+brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, BOOL *doprefetch, BRT_CURSOR brtcursor, UNLOCKERS unlockers, ANCESTORS ancestors)
 {
     int count=0;
- again:
     count++;
 
     {
@@ -4614,28 +4624,25 @@ brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CAL
             DBT pivotkey;
             if (search->compare(search, 
                                 toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot)))) {
-                BOOL did_change_shape = FALSE;
-                int r = brt_search_child(brt, node, child[c], search, getf, getf_v, re, doprefetch, brtcursor, &did_change_shape, unlockers);
+		int r = brt_search_child(brt, node, child[c], search, getf, getf_v, doprefetch, brtcursor, unlockers, ancestors);
                 lazy_assert(r != EAGAIN);
                 if (r == 0) return r;           //Success
                 if (r != DB_NOTFOUND) return r; //Error (or message to quit early, such as TOKUDB_FOUND_BUT_REJECTED or TOKUDB_TRY_AGAIN)
-                if (did_change_shape) goto again;
             }
         }
 
         /* check the first (left) or last (right) node if nothing has been found */
-        BOOL ignore_did_change_shape; // ignore this
-        return brt_search_child(brt, node, child[c], search, getf, getf_v, re, doprefetch, brtcursor, &ignore_did_change_shape, unlockers);
+        return brt_search_child(brt, node, child[c], search, getf, getf_v, doprefetch, brtcursor, unlockers, ancestors);
     }
 }
 
 static int
-brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor, UNLOCKERS unlockers)
+brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, BOOL *doprefetch, BRT_CURSOR brtcursor, UNLOCKERS unlockers, ANCESTORS ancestors)
 {
     if (node->height > 0)
-        return brt_search_nonleaf_node(brt, node, search, getf, getf_v, re, doprefetch, brtcursor, unlockers);
+        return brt_search_nonleaf_node(brt, node, search, getf, getf_v, doprefetch, brtcursor, unlockers, ancestors);
     else {
-        return brt_search_leaf_node(node, search, getf, getf_v, re, doprefetch, brtcursor);
+        return brt_search_leaf_node(node, search, getf, getf_v, doprefetch, brtcursor, ancestors);
     }
 }
 
@@ -4668,22 +4675,17 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
     struct unlockers            unlockers      = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
 
     {
-        enum reactivity re = RE_STABLE;
         BOOL doprefetch = FALSE;
         //static int counter = 0;        counter++;
-        r = brt_search_node(brt, node, search, getf, getf_v, &re, &doprefetch, brtcursor, &unlockers);
+        r = brt_search_node(brt, node, search, getf, getf_v, &doprefetch, brtcursor, &unlockers, (ANCESTORS)NULL);
 	if (r==TOKUDB_TRY_AGAIN) {
 	    assert(!unlockers.locked);
 	    goto try_again;
 	} else {
 	    assert(unlockers.locked);
 	}
-        if (r!=0) goto return_r;
-
-        r = brt_handle_maybe_reactive_child_at_root(brt, rootp, &node, re);
     }
 
- return_r:
     assert(unlockers.locked);
     rr = toku_unpin_brtnode(brt, node);
     lazy_assert_zero(rr);
