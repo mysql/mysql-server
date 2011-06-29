@@ -171,6 +171,7 @@ our $exe_mysql;
 our $exe_mysqladmin;
 our $exe_mysqltest;
 our $exe_libtool;
+our $exe_mysql_embedded;
 
 our $opt_big_test= 0;
 
@@ -447,6 +448,11 @@ sub main {
   # Read definitions from include/plugin.defs
   #
   read_plugin_defs("include/plugin.defs");
+
+  # Also read from any plugin local plugin.defs
+  for (glob "$basedir/plugin/*/tests/mtr/plugin.defs") {
+    read_plugin_defs($_);
+  }
 
   # Simplify reference to semisync plugins
   $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
@@ -1945,6 +1951,8 @@ sub executable_setup () {
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
 
+  $exe_mysql_embedded= mtr_exe_maybe_exists("$basedir/libmysqld/examples/mysql_embedded");
+
   if ( ! $opt_skip_ndbcluster )
   {
     # Look for single threaded NDB
@@ -2349,6 +2357,7 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
+  $ENV{'MYSQL_EMBEDDED'}=           $exe_mysql_embedded;
 
   # ----------------------------------------------------
   # bug25714 executable may _not_ exist in

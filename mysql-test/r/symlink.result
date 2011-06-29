@@ -188,3 +188,28 @@ DROP TABLE user;
 FLUSH TABLE mysql.user;
 SELECT * FROM mysql.user;
 End of 5.1 tests
+#
+# Test for bug #11759990 - "52354: 'CREATE TABLE .. LIKE ... '
+#                           STATEMENTS FAIL".
+#
+drop table if exists t1, t2;
+create table t1 (a int primary key) engine=myisam
+data directory="MYSQLTEST_VARDIR/tmp"
+      index directory="MYSQLTEST_VARDIR/run";
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
+# CREATE TABLE LIKE statement on table with INDEX/DATA DIRECTORY
+# options should not fail. Per documentation newly created table
+# should not inherit value of these options from the original table.
+create table t2 like t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop tables t1, t2;

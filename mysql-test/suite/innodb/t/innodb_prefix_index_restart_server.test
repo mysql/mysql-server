@@ -1,0 +1,127 @@
+######## suite/innodb/t/innodb_prefix_iindex_restart_server.test #####
+#                                                                    #
+# Testcase for worklog WL#5743: Lift the limit of index key prefixes #
+# Test scenario : Stop the server in between when prefix index are   #
+# created and see if state is preserved after restart                #
+#                                                                    #
+# Creation:                                                          #
+# 2011-06-02 Implemented this test as part of WL#5743                #
+#                                                                    #
+######################################################################
+
+# Don't test this under valgrind, memory leaks will occur due restart
+--source include/not_valgrind.inc
+# Test restart the server and "shutdown_server" looks for pid file
+# which is not there with embedded mode
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+# Save innodb variables
+let $innodb_file_format_orig=`select @@innodb_file_format`;
+let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
+let $innodb_large_prefix_orig=`select @@innodb_large_prefix`;
+
+# Set Innodb file format as feature works for Barracuda file format
+set global innodb_file_format="Barracuda";
+set global innodb_file_per_table=1;
+set global innodb_large_prefix=1;
+
+-- disable_warnings
+DROP TABLE IF EXISTS worklog5743;
+-- enable_warnings
+
+
+#------------------------------------------------------------------------------
+# Stop the server in between when prefix index are created and see if state is
+# correct when server is restarted.
+# Server is restarted at differnt points.
+
+CREATE TABLE worklog5743 (
+col_1_text TEXT(4000) , col_2_text TEXT(4000) ,
+PRIMARY KEY (col_1_text(3072))
+) ROW_FORMAT=DYNAMIC, engine = innodb;
+INSERT INTO worklog5743 VALUES(REPEAT("a", 3500) , REPEAT("o", 3500));
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text  = REPEAT("o", 3500) FROM
+worklog5743;
+
+--echo "In connection 1"
+--connect (con1,localhost,root,,)
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+
+
+--echo "In connection 2"
+--connect (con2,localhost,root,,)
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 3500) , REPEAT("o", 3500));
+
+
+--echo "In connection 1"
+--connection con1
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+START TRANSACTION;
+
+
+--echo "In connection default ....restarting the server"
+--connection default
+# Restart the server
+-- source include/restart_mysqld.inc
+SELECT COUNT(*) FROM worklog5743;
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text  = REPEAT("o", 3500) FROM
+worklog5743;
+
+--disconnect con1
+--disconnect con2
+
+--echo "In connection 1"
+--connect (con1,localhost,root,,)
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+START TRANSACTION;
+INSERT INTO worklog5743 VALUES(REPEAT("b", 3500) , REPEAT("o", 3500));
+DELETE FROM worklog5743 WHERE col_1_text = REPEAT("b", 3500);
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+
+--echo "In connection default ....restarting the server"
+--connection default
+# Restart the server
+-- source include/restart_mysqld.inc
+SELECT COUNT(*) FROM worklog5743;
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text  = REPEAT("o", 3500) FROM
+worklog5743;
+
+--disconnect con1
+
+--echo "In connection 1"
+--connect (con2,localhost,root,,)
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+SELECT COUNT(*) FROM worklog5743;
+START TRANSACTION;
+UPDATE worklog5743 SET col_1_text = REPEAT("b", 3500) WHERE col_1_text = REPEAT("a", 3500);
+SELECT col_1_text = REPEAT("b", 3500) , col_2_text = REPEAT("o", 3500) FROM
+worklog5743;
+
+--echo "In connection default ....restarting the server"
+--connection default
+# Restart the server
+-- source include/restart_mysqld.inc
+SELECT COUNT(*) FROM worklog5743;
+SELECT col_1_text = REPEAT("a", 3500) , col_2_text  = REPEAT("o", 3500) FROM
+worklog5743;
+
+DROP TABLE worklog5743;
+
+
+#------------------------------------------------------------------------------
+
+eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
+eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
+eval SET GLOBAL innodb_file_format_max=$innodb_file_format_max_orig;
+eval SET GLOBAL innodb_large_prefix=$innodb_large_prefix_orig;
+
