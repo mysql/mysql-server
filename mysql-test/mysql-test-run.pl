@@ -2127,7 +2127,9 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   if ( !$opt_skip_ndbcluster )
   {
-    push(@ld_library_paths,  "$basedir/storage/ndb/src/.libs");
+    push(@ld_library_paths,  
+	 "$basedir/storage/ndb/src/.libs",
+	 "$basedir/storage/ndb/src");
   }
 
   # Plugin settings should no longer be added here, instead
