@@ -3519,7 +3519,7 @@ restart:
     }
     else
     {
-      if (!(status & PCBLOCK_ERROR))
+      if (status & PCBLOCK_READ)
       {
 #if !defined(SERIALIZED_READ_FROM_CACHE)
         pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
@@ -3533,7 +3533,7 @@ restart:
         pagecache_pthread_mutex_lock(&pagecache->cache_lock);
 #endif
       }
-      else
+      if (status & PCBLOCK_ERROR)
         my_errno= block->error;
     }
 

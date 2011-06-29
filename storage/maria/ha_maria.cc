@@ -1966,19 +1966,21 @@ void ha_maria::start_bulk_insert(ha_rows rows)
        we don't want to update the key statistics based of only a few rows.
        Index file rebuild requires an exclusive lock, so if versioning is on
        don't do it (see how ha_maria::store_lock() tries to predict repair).
-       We can repair index only if we have an exclusive (TL_WRITE) lock. To
-       see if table is empty, we shouldn't rely on the old records' count from
-       our transaction's start (if that old count is 0 but now there are
-       records in the table, we would wrongly destroy them).
-       So we need to look at share->state.state.records.
-       As a safety net for now, we don't remove the test of
-       file->state->records, because there is uncertainty on what will happen
-       during repair if the two states disagree.
+       We can repair index only if we have an exclusive (TL_WRITE) lock or
+       if this is inside an ALTER TABLE, in which case lock_type == TL_UNLOCK.
+
+       To see if table is empty, we shouldn't rely on the old record
+       count from our transaction's start (if that old count is 0 but
+       now there are records in the table, we would wrongly destroy
+       them).  So we need to look at share->state.state.records.  As a
+       safety net for now, we don't remove the test of
+       file->state->records, because there is uncertainty on what will
+       happen during repair if the two states disagree.
     */
     if ((file->state->records == 0) &&
         (share->state.state.records == 0) && can_enable_indexes &&
         (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES) &&
-        (file->lock.type == TL_WRITE))
+        (file->lock.type == TL_WRITE || file->lock.type == TL_UNLOCK))
     {
       /**
          @todo for a single-row INSERT SELECT, we will go into repair, which
