@@ -328,7 +328,17 @@ UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
-	const trx_t*	in_trx);/*!< in: transaction */
+	const trx_t*	in_trx)		/*!< in: transaction */
+	__attribute__((nonnull, warn_unused_result));
+/***********************************************************//**
+Assert that a transaction has been recovered.
+@return TRUE */
+UNIV_INLINE
+ibool
+trx_assert_recovered(
+/*=================*/
+	trx_id_t	trx_id)		/*!< in: transaction identifier */
+	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
 /*****************************************************************//**
 Updates the offset information about the end of the MySQL binlog entry
