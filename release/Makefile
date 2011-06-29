@@ -9,7 +9,7 @@ setup:
 	cp ../toku_include/toku_os.h include
 	cp ../linux/toku_os_types.h include
 	cp ../linux/toku_time.h include
-	# cp ../lib/libtokuportability.a lib	
+	cp ../lib/libtokuportability.* lib	
 
 clean:
 	rm -f include/* lib/*
