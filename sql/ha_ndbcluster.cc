@@ -4187,6 +4187,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       DBUG_PRINT("info", ("Starting unique index scan"));
       if (!m_cond)
         m_cond= new ha_ndbcluster_cond;
+
       if (!m_cond)
       {
         my_errno= HA_ERR_OUT_OF_MEM;
@@ -14622,8 +14623,9 @@ const
 Item* 
 ha_ndbcluster::cond_push(const Item *cond) 
 { 
-  DBUG_ENTER("cond_push");
+  DBUG_ENTER("ha_ndbcluster::cond_push");
 
+#if 1
   if (cond->used_tables() & ~table->map)
   {
     /**
@@ -14635,6 +14637,14 @@ ha_ndbcluster::cond_push(const Item *cond)
     DBUG_EXECUTE("where",print_where((Item *)cond, "Rejected cond_push", QT_ORDINARY););
     DBUG_RETURN(cond);
   }
+#else
+  /*
+    Make sure that 'cond' does not refer field(s) from other tables
+    or other instances of this table.
+    (This was a legacy bug in optimizer)
+  */
+  DBUG_ASSERT(!(cond->used_tables() & ~table->map));
+#endif
   if (!m_cond) 
     m_cond= new ha_ndbcluster_cond;
   if (!m_cond)

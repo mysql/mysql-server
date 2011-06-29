@@ -3126,7 +3126,7 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = <cache>((60 + 3)))
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = <cache>((60 + 3))) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
@@ -3142,7 +3142,7 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	6	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	6	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = <cache>((60 + 3)))
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = <cache>((60 + 3))) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
@@ -3158,7 +3158,7 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	6	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	6	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = <cache>((60 + 3)))
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = <cache>((60 + 3))) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
@@ -3174,7 +3174,7 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = <cache>((60 + 3)))
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = <cache>((60 + 3))) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
@@ -3190,7 +3190,7 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = <cache>((60 + 3)))
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = <cache>((60 + 3))) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
@@ -3206,7 +3206,7 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = <cache>((60 + 3)))
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = <cache>((60 + 3))) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
@@ -3222,7 +3222,7 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = <cache>((60 + 3)))
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = <cache>((60 + 3))) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
