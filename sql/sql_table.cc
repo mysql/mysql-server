@@ -5233,6 +5233,40 @@ compare_tables(THD *thd,
       continue;
     }
 
+    bool is_not_null= true;
+    bool no_pk= ((table->s->primary_key == MAX_KEY) ||
+                 alter_flags->is_set(HA_DROP_PK_INDEX));
+    key_part= new_key->key_part;
+    end= key_part + new_key->key_parts;
+    for(; key_part != end; key_part++)
+    {
+      /*
+        Check if all fields in key are declared
+        NOT NULL
+      */
+      if (key_part->fieldnr < table->s->fields)
+      {
+        /* Mark field to be part of new key */
+        field= table->field[key_part->fieldnr];
+        field->flags|= FIELD_IN_ADD_INDEX;
+        is_not_null= (is_not_null && (!field->maybe_null()));
+      }
+      else
+      {
+        /* Index is defined over a newly added column */
+        List_iterator_fast<Create_field>
+          new_field_it(alter_info->create_list);
+        Create_field *new_field;
+        uint fieldnr;
+        
+        for (fieldnr= 0, new_field= new_field_it++;
+             fieldnr != key_part->fieldnr;
+             fieldnr++, new_field= new_field_it++);
+        is_not_null=
+          (is_not_null && (new_field->flags & NOT_NULL_FLAG));
+      }
+    }
+
     /* Check that the key types are compatible between old and new tables. */
     if ((table_key->algorithm != new_key->algorithm) ||
         ((table_key->flags & HA_KEYFLAG_MASK) !=
@@ -5243,12 +5277,42 @@ compare_tables(THD *thd,
       {
         /* Unique key. Check for "PRIMARY". */
         if ((uint) (table_key - table->key_info) == table->s->primary_key)
-          *alter_flags|= HA_ALTER_PK_INDEX;
+        {
+          if (new_key->flags & HA_NOSAME)
+            *alter_flags|= HA_ALTER_PK_INDEX;
+          else
+          {
+            *alter_flags|= HA_ALTER_PK_INDEX;
+            *alter_flags|= HA_DROP_PK_INDEX | HA_ADD_INDEX;
+          }
+        }
         else
-          *alter_flags|= HA_ALTER_UNIQUE_INDEX;
+        {
+          if (new_key->flags & HA_NOSAME)
+            *alter_flags|= HA_ALTER_UNIQUE_INDEX;
+          else
+          {
+            *alter_flags|= HA_ALTER_UNIQUE_INDEX;
+            *alter_flags|= HA_DROP_UNIQUE_INDEX | HA_ADD_INDEX;
+          }
+        }
       }
       else
-        *alter_flags|= HA_ALTER_INDEX;
+      {
+        if (new_key->flags & HA_NOSAME)
+        {
+          *alter_flags|= HA_ALTER_INDEX;
+          *alter_flags|= HA_DROP_INDEX;
+          if ((!my_strcasecmp(system_charset_info,
+                              new_key->name, primary_key_name)) ||
+              (no_pk && candidate_key_count == 0 && is_not_null))
+            *alter_flags|= HA_ADD_PK_INDEX;
+          else
+            *alter_flags|= HA_ADD_UNIQUE_INDEX;
+        }
+        else
+          *alter_flags|= HA_ALTER_INDEX;
+      }
       goto index_changed;
     }
 
@@ -5369,7 +5433,7 @@ compare_tables(THD *thd,
             (no_pk && candidate_key_count == 0 && is_not_null))
           *alter_flags|= HA_ADD_PK_INDEX;
         else
-        *alter_flags|= HA_ADD_UNIQUE_INDEX;
+          *alter_flags|= HA_ADD_UNIQUE_INDEX;
       }
       else
         *alter_flags|= HA_ADD_INDEX;
@@ -6642,6 +6706,17 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint candidate_key_count= 0;
   bool no_pk;
 #endif
+#ifndef MCP_WL3749
+  int alter_supported= HA_ALTER_NOT_SUPPORTED;
+  List<Alter_drop> drop_list;
+  List<Create_field> create_list;
+  List<Alter_column> alter_list;
+  List<Key> key_list;
+  List<Alter_drop> drop_list_orig(alter_info->drop_list, thd->mem_root);
+  List<Create_field> create_list_orig(alter_info->create_list, thd->mem_root);
+  List<Alter_column> alter_list_orig(alter_info->alter_list, thd->mem_root);
+  List<Key> key_list_orig(alter_info->key_list, thd->mem_root);
+#endif
   DBUG_ENTER("mysql_alter_table");
 
   DBUG_PRINT("info", ("alter_info->build_method %u", alter_info->build_method));
@@ -7360,11 +7435,28 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       else
         altered_table->part_info= table->part_info;
 #endif
-      switch (table->file->check_if_supported_alter(altered_table,
-                                                    create_info,
-                                                    alter_info,
-                                                    &ha_alter_flags,
-                                                    table_changes)) {
+      DBUG_PRINT("info", ("Reverting alter_info"));
+      drop_list= List<Alter_drop>(alter_info->drop_list, thd->mem_root);
+      create_list= List<Create_field>(alter_info->create_list, thd->mem_root);
+      alter_list= List<Alter_column>(alter_info->alter_list, thd->mem_root);
+      key_list= List<Key>(alter_info->key_list, thd->mem_root);
+      alter_info->drop_list= drop_list_orig;
+      alter_info->create_list= create_list_orig;
+      alter_info->alter_list= alter_list_orig;
+      alter_info->key_list= key_list_orig;
+
+      alter_supported= (table->file->check_if_supported_alter(altered_table,
+                                                              create_info,
+                                                              alter_info,
+                                                              &ha_alter_flags,
+                                                              table_changes));
+      
+      DBUG_PRINT("info", ("Restoring alter_info"));
+      alter_info->drop_list= drop_list;
+      alter_info->create_list= create_list;
+      alter_info->alter_list= alter_list;
+      alter_info->key_list= key_list;
+      switch (alter_supported) {
       case HA_ALTER_SUPPORTED_WAIT_LOCK:
       case HA_ALTER_SUPPORTED_NO_LOCK:
         /*

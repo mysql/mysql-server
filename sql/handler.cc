@@ -3405,6 +3405,49 @@ handler::ha_prepare_for_alter()
 }
 
 #ifndef MCP_WL3749
+
+/**
+  @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
+ 
+  @details Checks if any index is being modified (present as both DROP INDEX 
+    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling 
+    in-place ALTER TABLE.
+  
+  @param table       The table being altered
+  @param alter_info  The ALTER TABLE structure
+  @return presence of index being altered  
+  @retval FALSE  No such index
+  @retval TRUE   Have at least 1 index modified
+*/
+
+static bool
+is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
+{
+  DBUG_ENTER("is_index_maintenance_unique");
+  DBUG_PRINT("info", ("Checking is_index_maintenance_unique"));
+  List_iterator<Key> key_it(alter_info->key_list);
+  List_iterator<Alter_drop> drop_it(alter_info->drop_list);
+  Key *key;
+
+  while ((key= key_it++))
+  {
+    if (key->name.str)
+    {
+      Alter_drop *drop;
+
+      drop_it.rewind();
+      while ((drop= drop_it++))
+      {
+        DBUG_PRINT("info", ("Checking %s vs %s", key->name.str, drop->name));
+        if (drop->type == Alter_drop::KEY &&
+            !my_strcasecmp(system_charset_info, key->name.str, drop->name))
+          DBUG_RETURN(TRUE);
+      }
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+
 /*
    Default implementation to support fast alter table
    and old online add/drop index interface
@@ -3424,11 +3467,22 @@ handler::check_if_supported_alter(TABLE *altered_table,
     supported_alter_operations |
     HA_ADD_INDEX |
     HA_DROP_INDEX |
+    HA_ALTER_INDEX |
     HA_ADD_UNIQUE_INDEX |
     HA_DROP_UNIQUE_INDEX |
+    HA_ALTER_UNIQUE_INDEX |
     HA_ADD_PK_INDEX |
-    HA_DROP_PK_INDEX;
+    HA_DROP_PK_INDEX |
+    HA_ALTER_PK_INDEX;
+  HA_ALTER_FLAGS not_fast_operations;
+  not_fast_operations= 
+    not_fast_operations |
+    HA_ADD_FOREIGN_KEY |
+    HA_DROP_FOREIGN_KEY |
+    HA_ALTER_FOREIGN_KEY |
+    HA_ADD_CONSTRAINT;
   HA_ALTER_FLAGS not_supported= ~(supported_alter_operations);
+  HA_ALTER_FLAGS fast_operations= not_supported & ~(not_fast_operations);
   DBUG_PRINT("info", ("handler_alter_flags: %lu", handler_alter_flags));
 #ifndef DBUG_OFF
   {
@@ -3437,10 +3491,18 @@ handler::check_if_supported_alter(TABLE *altered_table,
     DBUG_PRINT("info", ("alter_flags: %s", dbug_string));
     not_supported.print(dbug_string);
     DBUG_PRINT("info", ("not_supported: %s", dbug_string));
+    fast_operations.print(dbug_string);
+    DBUG_PRINT("info", ("fast_operations: %s", dbug_string));
   }
 #endif
+
+  /* Bug #49838 DROP INDEX and ADD UNIQUE INDEX for same index may corrupt definition at engine */
+  if (is_index_maintenance_unique(table, alter_info))
+    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+
   /* Check the old alter table flags */
-  if ((*alter_flags & not_supported).is_set())
+  if ((*alter_flags & fast_operations).is_set() &&
+      table_changes != IS_EQUAL_NO)
   {
     /* Not adding/dropping index check if supported as fast alter */
     DBUG_PRINT("info", ("alter_info->change_level %u", alter_info->change_level));
@@ -3451,10 +3513,13 @@ handler::check_if_supported_alter(TABLE *altered_table,
     else
       DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
   }
+  else if ((*alter_flags & not_supported).is_set())
+    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
   else
   {
     /* Add index */
-    if ((*alter_flags & HA_ADD_INDEX).is_set())
+    if ((*alter_flags & HA_ADD_INDEX).is_set() ||
+        (*alter_flags & HA_ALTER_INDEX).is_set())
     {
       if (handler_alter_flags & HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
@@ -3466,7 +3531,8 @@ handler::check_if_supported_alter(TABLE *altered_table,
         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
     }
     /* Drop index */
-    if ((*alter_flags & HA_DROP_INDEX).is_set())
+    if ((*alter_flags & HA_DROP_INDEX).is_set() ||
+        (*alter_flags & HA_ALTER_INDEX).is_set())
     {
       if (handler_alter_flags & HA_INPLACE_DROP_INDEX_NO_READ_WRITE)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
@@ -3478,7 +3544,8 @@ handler::check_if_supported_alter(TABLE *altered_table,
         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
     }
     /* Add unique index */
-    if ((*alter_flags & HA_ADD_UNIQUE_INDEX).is_set())
+    if ((*alter_flags & HA_ADD_UNIQUE_INDEX).is_set() ||
+        (*alter_flags & HA_ALTER_UNIQUE_INDEX).is_set())
     {
       if (handler_alter_flags & HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
@@ -3490,7 +3557,8 @@ handler::check_if_supported_alter(TABLE *altered_table,
         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
     }
     /* Drop unique index */
-    if ((*alter_flags & HA_DROP_UNIQUE_INDEX).is_set())
+    if ((*alter_flags & HA_DROP_UNIQUE_INDEX).is_set() ||
+        (*alter_flags & HA_ALTER_UNIQUE_INDEX).is_set())
     {
       if (handler_alter_flags & HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
@@ -3502,7 +3570,8 @@ handler::check_if_supported_alter(TABLE *altered_table,
         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
     }
     /* Add primary key */
-    if ((*alter_flags & HA_ADD_PK_INDEX).is_set())
+    if ((*alter_flags & HA_ADD_PK_INDEX).is_set() ||
+        (*alter_flags & HA_ALTER_PK_INDEX).is_set())
     {
       if (handler_alter_flags & HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
@@ -3514,7 +3583,8 @@ handler::check_if_supported_alter(TABLE *altered_table,
         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
     }
     /* Drop primary key */
-    if ((*alter_flags & HA_DROP_PK_INDEX).is_set())
+    if ((*alter_flags & HA_DROP_PK_INDEX).is_set() ||
+        (*alter_flags & HA_ALTER_PK_INDEX).is_set())
     {
       if (handler_alter_flags & HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
@@ -3544,8 +3614,10 @@ handler::alter_table_phase1(THD *thd,
   HA_ALTER_FLAGS adding;
   HA_ALTER_FLAGS dropping;
 
-  adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX | HA_ADD_PK_INDEX;
-  dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
+  adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX | HA_ADD_PK_INDEX |
+    HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
+  dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX |
+    HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
 
   if ((*alter_flags & adding).is_set())
   {
@@ -3623,7 +3695,8 @@ handler::alter_table_phase2(THD *thd,
   int error= 0;
   HA_ALTER_FLAGS dropping;
 
-  dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
+  dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX |
+    HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
 
   if ((*alter_flags & dropping).is_set())
   {
