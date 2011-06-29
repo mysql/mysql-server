@@ -193,7 +193,7 @@ size_t cleanup_dirname(register char *to, const char *from)
 	  while (pos >= start && *pos != FN_LIBCHAR)	/* remove prev dir */
 	    pos--;
           if (pos[1] == FN_HOMELIB ||
-              (pos > start && memcmp(pos, parent, length) == 0))
+              (pos >= start && memcmp(pos, parent, length) == 0))
 	  {					/* Don't remove ~user/ */
 	    pos=strmov(end_parentdir+1,parent);
 	    *pos=FN_LIBCHAR;
