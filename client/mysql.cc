@@ -2018,8 +2018,6 @@ static int read_and_execute(bool interactive)
           line_length -=3;
         }
       }
-      else
-        line_length= 0;
       line_number++;
       if (!glob_buffer.length())
 	status.query_start_line=line_number;
