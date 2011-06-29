@@ -1979,41 +1979,47 @@ static int read_and_execute(bool interactive)
         line before actually setting line_length to read_length.
         */
       line= batch_readline(status.line_buff, real_binary_mode);
-      line_length= line ? status.line_buff->read_length : 0;
-      /*
-        ASCII 0x00 is not allowed appearing in queries if it is not in binary
-        mode.
-      */
-      if (!real_binary_mode && line && strlen(line) != line_length)
+      if (line) 
       {
-        status.exit_status= 1;
-        String msg;
-        msg.append("ASCII '\\0' appeared in the statement, but this is not "
-                   "allowed unless option --binary-mode is enabled and mysql is "
-                   "run in non-interactive mode. Set --binary-mode to 1 if ASCII "
-                   "'\\0' is expected. Query: '");
-        msg.append(glob_buffer);
-        msg.append(line);
-        msg.append("'.");
-        put_info(msg.c_ptr(), INFO_ERROR);
-        break;
-      }
+        line_length= status.line_buff->read_length;
 
-      /*
-        Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
-        Editors like "notepad" put this marker in
-        the very beginning of a text file when
-        you save the file using "Unicode UTF-8" format.
-      */
-      if (line && !line_number &&
-           (uchar) line[0] == 0xEF &&
-           (uchar) line[1] == 0xBB &&
-           (uchar) line[2] == 0xBF)
-      {
-        line+= 3;
-        // decrease the line length accordingly to the 3 bytes chopped
-        line_length -=3;
+        /*
+          ASCII 0x00 is not allowed appearing in queries if it is not in binary
+          mode.
+        */
+        if (!real_binary_mode && strlen(line) != line_length)
+        {
+          status.exit_status= 1;
+          String msg;
+          msg.append("ASCII '\\0' appeared in the statement, but this is not "
+                     "allowed unless option --binary-mode is enabled and mysql is "
+                     "run in non-interactive mode. Set --binary-mode to 1 if ASCII "
+                     "'\\0' is expected. Query: '");
+          msg.append(glob_buffer);
+          msg.append(line);
+          msg.append("'.");
+          put_info(msg.c_ptr(), INFO_ERROR);
+          break;
+        }
+
+        /*
+          Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
+          Editors like "notepad" put this marker in
+          the very beginning of a text file when
+          you save the file using "Unicode UTF-8" format.
+        */
+        if (!line_number &&
+             (uchar) line[0] == 0xEF &&
+             (uchar) line[1] == 0xBB &&
+             (uchar) line[2] == 0xBF)
+        {
+          line+= 3;
+          // decrease the line length accordingly to the 3 bytes chopped
+          line_length -=3;
+        }
       }
+      else
+        line_length= 0;
       line_number++;
       if (!glob_buffer.length())
 	status.query_start_line=line_number;
