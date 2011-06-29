@@ -47,35 +47,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "read0read.h"
 #include "ut0mem.h"
 
-/*********************************************************************//**
-Gets the offset of trx id field, in bytes relative to the origin of
-a clustered index record.
-@return	offset of DATA_TRX_ID */
-UNIV_INTERN
-ulint
-row_get_trx_id_offset(
-/*==================*/
-	const rec_t*	rec __attribute__((unused)),
-				/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
-{
-	ulint	pos;
-	ulint	offset;
-	ulint	len;
-
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(rec, index, offsets));
-
-	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-
-	offset = rec_get_nth_field_offs(offsets, pos, &len);
-
-	ut_ad(len == DATA_TRX_ID_LEN);
-
-	return(offset);
-}
-
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.
@@ -233,33 +204,19 @@ row_build(
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	if (UNIV_LIKELY_NULL(rec_offs_any_null_extern(rec, offsets))) {
-		/* This condition can occur during crash recovery before
-		trx_rollback_active() has completed execution.
+	/* This condition can occur during crash recovery before
+	trx_rollback_active() has completed execution.
 
-		This condition is possible if the server crashed
-		during an insert or update before
-		btr_store_big_rec_extern_fields() did mtr_commit() all
-		BLOB pointers to the clustered index record.
+	This condition is possible if the server crashed
+	during an insert or update before
+	btr_store_big_rec_extern_fields() did mtr_commit() all
+	BLOB pointers to the clustered index record.
 
-		Look up the transaction that holds the implicit lock
-		on this record, and assert that it was recovered (and
-		will soon be rolled back). */
-
-		ulint		trx_id_pos	= dict_index_get_sys_col_pos(
-				index, DATA_TRX_ID);
-		ulint		len;
-		trx_id_t	trx_id		= trx_read_trx_id(
-			rec_get_nth_field(rec, offsets, trx_id_pos, &len));
-		trx_t*		trx;
-		ut_a(len == 6);
-
-		mutex_enter(&kernel_mutex);
-		trx = trx_get_on_id(trx_id);
-		ut_a(trx);
-		ut_a(trx->is_recovered);
-		mutex_exit(&kernel_mutex);
-	}
+	If the record contains a null BLOB pointer, look up the
+	transaction that holds the implicit lock on this record, and
+	assert that it was recovered (and will soon be rolled back). */
+	ut_a(!rec_offs_any_null_extern(rec, offsets)
+	     || trx_assert_recovered(row_get_rec_trx_id(rec, index, offsets)));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 	if (type != ROW_COPY_POINTERS) {
