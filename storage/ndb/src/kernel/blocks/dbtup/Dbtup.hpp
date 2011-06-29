@@ -979,8 +979,8 @@ ArrayPool<TupTriggerData> c_triggerPool;
       subscriptionUpdateTriggers(triggerPool),
       constraintUpdateTriggers(triggerPool),
       deferredInsertTriggers(triggerPool),
-      deferredDeleteTriggers(triggerPool),
       deferredUpdateTriggers(triggerPool),
+      deferredDeleteTriggers(triggerPool),
       tuxCustomTriggers(triggerPool)
       {}
     
