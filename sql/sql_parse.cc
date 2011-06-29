@@ -794,7 +794,7 @@ bool do_command(THD *thd)
     Consider moving to init_connect() instead.
   */
   thd->clear_error();				// Clear error message
-  thd->stmt_da->reset_diagnostics_area();
+  thd->get_stmt_da()->reset_diagnostics_area();
 
   net_new_transaction(net);
 
@@ -1173,7 +1173,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
 
 /* PSI end */
-      MYSQL_END_STATEMENT(thd->m_statement_psi, thd->stmt_da);
+      MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
 
 /* DTRACE end */
       if (MYSQL_QUERY_DONE_ENABLED())
@@ -1319,7 +1319,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* We don't calculate statistics for this command */
     general_log_print(thd, command, NullS);
     net->error=0;				// Don't give 'abort' message
-    thd->stmt_da->disable_status();              // Don't send anything back
+    thd->get_stmt_da()->disable_status();              // Don't send anything back
     error=TRUE;					// End server
     break;
 #ifndef EMBEDDED_LIBRARY
@@ -1444,7 +1444,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     length= my_snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
                         "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
-                        "Open tables: %u  Queries per second avg: %u.%u",
+                        "Open tables: %u  Queries per second avg: %u.%03u",
                         uptime,
                         (int) thread_count, (ulong) thd->query_id,
                         current_global_status_var.long_query_count,
@@ -1459,7 +1459,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #else
     (void) my_net_write(net, (uchar*) buff, length);
     (void) net_flush(net);
-    thd->stmt_da->disable_status();
+    thd->get_stmt_da()->disable_status();
 #endif
     break;
   }
@@ -1527,6 +1527,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   /* Finalize server status flags after executing a command. */
   thd->update_server_status();
+  if (thd->killed)
+    thd->send_kill_message();
   thd->protocol->end_statement();
   query_cache_end_of_result(thd);
 
@@ -1534,7 +1536,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
 
   mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
-                      thd->stmt_da->is_error() ? thd->stmt_da->sql_errno() : 0,
+                      thd->get_stmt_da()->is_error() ?
+                      thd->get_stmt_da()->sql_errno() : 0,
                       command_name[command].str);
 
   log_slow_statement(thd);
@@ -1547,7 +1550,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
   /* Performance Schema Interface instrumentation, end */
-  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->stmt_da);
+  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
 
   /* DTRACE instrumentation, end */
@@ -1891,6 +1894,67 @@ bool sp_process_definer(THD *thd)
 
 
 /**
+  Auxiliary call that opens and locks tables for LOCK TABLES statement
+  and initializes the list of locked tables.
+
+  @param thd     Thread context.
+  @param tables  List of tables to be locked.
+
+  @return FALSE in case of success, TRUE in case of error.
+*/
+
+static bool lock_tables_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
+  uint counter;
+  TABLE_LIST *table;
+
+  thd->in_lock_tables= 1;
+
+  if (open_tables(thd, &tables, &counter, 0, &lock_tables_prelocking_strategy))
+    goto err;
+
+  /*
+    We allow to change temporary tables even if they were locked for read
+    by LOCK TABLES. To avoid a discrepancy between lock acquired at LOCK
+    TABLES time and by the statement which is later executed under LOCK TABLES
+    we ensure that for temporary tables we always request a write lock (such
+    discrepancy can cause problems for the storage engine).
+    We don't set TABLE_LIST::lock_type in this case as this might result in
+    extra warnings from THD::decide_logging_format() even though binary logging
+    is totally irrelevant for LOCK TABLES.
+  */
+  for (table= tables; table; table= table->next_global)
+    if (!table->placeholder() && table->table->s->tmp_table)
+      table->table->reginfo.lock_type= TL_WRITE;
+
+  if (lock_tables(thd, tables, counter, 0) ||
+      thd->locked_tables_list.init_locked_tables(thd))
+    goto err;
+
+  thd->in_lock_tables= 0;
+
+  return FALSE;
+
+err:
+  thd->in_lock_tables= 0;
+
+  trans_rollback_stmt(thd);
+  /*
+    Need to end the current transaction, so the storage engine (InnoDB)
+    can free its locks if LOCK TABLES locked some tables before finding
+    that it can't lock a table in its list
+  */
+  trans_commit_implicit(thd);
+  /* Close tables and release metadata locks. */
+  close_thread_tables(thd);
+  DBUG_ASSERT(!thd->locked_tables_mode);
+  thd->mdl_context.release_transactional_locks();
+  return TRUE;
+}
+
+
+/**
   Execute command saved in thd and lex->sql_command.
 
   @param thd                       Thread handle
@@ -1963,12 +2027,12 @@ mysql_execute_command(THD *thd)
     variables, but for now this is probably good enough.
   */
   if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) != 0)
-    thd->warning_info->set_read_only(TRUE);
+    thd->get_stmt_wi()->set_read_only(TRUE);
   else
   {
-    thd->warning_info->set_read_only(FALSE);
+    thd->get_stmt_wi()->set_read_only(FALSE);
     if (all_tables)
-      thd->warning_info->opt_clear_warning_info(thd->query_id);
+      thd->get_stmt_wi()->opt_clear_warning_info(thd->query_id);
   }
 
 #ifdef HAVE_REPLICATION
@@ -2109,6 +2173,11 @@ mysql_execute_command(THD *thd)
   */
   if (stmt_causes_implicit_commit(thd, CF_IMPLICT_COMMIT_BEGIN))
   {
+    /*
+      Note that this should never happen inside of stored functions
+      or triggers as all such statements prohibited there.
+    */
+    DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
     /* Commit the normal transaction if one is active. */
@@ -2633,7 +2702,7 @@ end_with_restore_list:
     */
     thd->enable_slow_log= opt_log_slow_admin_statements;
 
-    bzero((char*) &create_info, sizeof(create_info));
+    memset(&create_info, 0, sizeof(create_info));
     create_info.db_type= 0;
     create_info.row_type= ROW_TYPE_NOT_USED;
     create_info.default_table_charset= thd->variables.collation_database;
@@ -2929,8 +2998,7 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        (void) mysql_bin_log.write(&ev);        /* error is ignored */
-        if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        if (mysql_bin_log.write_incident(&ev, TRUE))
         {
           res= 1;
           break;
@@ -3083,7 +3151,7 @@ end_with_restore_list:
     if (!thd->is_fatal_error &&
         (del_result= new multi_delete(aux_tables, lex->table_count)))
     {
-      res= mysql_select(thd, &select_lex->ref_pointer_array,
+      res= mysql_select(thd,
 			select_lex->get_table_list(),
 			select_lex->with_wild,
 			select_lex->item_list,
@@ -3265,31 +3333,11 @@ end_with_restore_list:
       goto error;
 
     thd->variables.option_bits|= OPTION_TABLE_LOCK;
-    thd->in_lock_tables=1;
 
-    {
-      Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
-
-      res= (open_and_lock_tables(thd, all_tables, FALSE, 0,
-                                 &lock_tables_prelocking_strategy) ||
-            thd->locked_tables_list.init_locked_tables(thd));
-    }
-
-    thd->in_lock_tables= 0;
+    res= lock_tables_open_and_lock_tables(thd, all_tables);
 
     if (res)
     {
-      trans_rollback_stmt(thd);
-      /*
-        Need to end the current transaction, so the storage engine (InnoDB)
-        can free its locks if LOCK TABLES locked some tables before finding
-        that it can't lock a table in its list
-      */
-      trans_commit_implicit(thd);
-      /* Close tables and release metadata locks. */
-      close_thread_tables(thd);
-      DBUG_ASSERT(!thd->locked_tables_mode);
-      thd->mdl_context.release_transactional_locks();
       thd->variables.option_bits&= ~(OPTION_TABLE_LOCK);
     }
     else
@@ -4485,10 +4533,7 @@ finish:
   {
     /* report error issued during command execution */
     if (thd->killed_errno())
-    {
-      if (! thd->stmt_da->is_set())
-        thd->send_kill_message();
-    }
+      thd->send_kill_message();
     if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
     {
       thd->killed= THD::NOT_KILLED;
@@ -4499,9 +4544,9 @@ finish:
     else
     {
       /* If commit fails, we should be able to reset the OK status. */
-      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->can_overwrite_status= TRUE;
       trans_commit_stmt(thd);
-      thd->stmt_da->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->can_overwrite_status= FALSE;
     }
   }
 
@@ -4520,10 +4565,10 @@ finish:
     /* No transaction control allowed in sub-statements. */
     DBUG_ASSERT(! thd->in_sub_stmt);
     /* If commit fails, we should be able to reset the OK status. */
-    thd->stmt_da->can_overwrite_status= TRUE;
+    thd->get_stmt_da()->can_overwrite_status= TRUE;
     /* Commit the normal transaction if one is active. */
     trans_commit_implicit(thd);
-    thd->stmt_da->can_overwrite_status= FALSE;
+    thd->get_stmt_da()->can_overwrite_status= FALSE;
     thd->mdl_context.release_transactional_locks();
   }
   else if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
@@ -5112,7 +5157,7 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
 {
   TABLE_LIST tables[1];
   
-  bzero((char *)tables, sizeof(TABLE_LIST));
+  memset(tables, 0, sizeof(TABLE_LIST));
   tables->db= db;
   tables->table_name= tables->alias= name;
   
@@ -5402,8 +5447,8 @@ void THD::reset_for_next_command()
     thd->user_var_events_alloc= thd->mem_root;
   }
   thd->clear_error();
-  thd->stmt_da->reset_diagnostics_area();
-  thd->warning_info->reset_for_next_command();
+  thd->get_stmt_da()->reset_diagnostics_area();
+  thd->get_stmt_wi()->reset_for_next_command();
   thd->rand_used= 0;
   thd->m_sent_row_count= thd->m_examined_row_count= 0;
   thd->thd_marker.emb_on_expr_nest= NULL;
@@ -5545,7 +5590,7 @@ void create_select_for_variable(const char *var_name)
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
-  bzero((char*) &null_lex_string.str, sizeof(null_lex_string));
+  memset(&null_lex_string, 0, sizeof(null_lex_string));
   /*
     We set the name of Item to @@session.var_name because that then is used
     as the column name in the output.

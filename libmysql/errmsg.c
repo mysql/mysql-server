@@ -51,7 +51,7 @@ const char *client_errors[]=
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
   "Error connecting to master:",
-  "SSL connection error",
+  "SSL connection error: %-.100s",
   "Malformed packet",
   "This client library is licensed only for use with MySQL servers having '%s' license",
   "Invalid use of null pointer",

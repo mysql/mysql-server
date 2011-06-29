@@ -340,7 +340,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
   buff[9]= 0;                                   // Guard against a 4.1 client
-  tmp= min(stmt->thd->warning_info->statement_warn_count(), 65535);
+  tmp= min(stmt->thd->get_stmt_wi()->statement_warn_count(), 65535);
   int2store(buff+10, tmp);
 
   /*
@@ -357,7 +357,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
 
   if (!error)
     /* Flag that a response has already been sent */
-    thd->stmt_da->disable_status();
+    thd->get_stmt_da()->disable_status();
 
   DBUG_RETURN(error);
 }
@@ -370,7 +370,7 @@ static bool send_prep_stmt(Prepared_statement *stmt,
   thd->client_stmt_id= stmt->id;
   thd->client_param_count= stmt->param_count;
   thd->clear_error();
-  thd->stmt_da->disable_status();
+  thd->get_stmt_da()->disable_status();
 
   return 0;
 }
@@ -1294,7 +1294,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
         my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
         goto error;
       }
-      if (setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0))
+      if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_NONE, 0, 0))
         goto error;
     }
   }
@@ -1373,7 +1373,8 @@ static int mysql_test_update(Prepared_statement *stmt,
   table_list->register_want_access(want_privilege);
 #endif
   thd->lex->select_lex.no_wrap_view_item= TRUE;
-  res= setup_fields(thd, 0, select->item_list, MARK_COLUMNS_READ, 0, 0);
+  res= setup_fields(thd, Ref_ptr_array(),
+                    select->item_list, MARK_COLUMNS_READ, 0, 0);
   thd->lex->select_lex.no_wrap_view_item= FALSE;
   if (res)
     goto error;
@@ -1384,7 +1385,8 @@ static int mysql_test_update(Prepared_statement *stmt,
     (SELECT_ACL & ~table_list->table->grant.privilege);
   table_list->register_want_access(SELECT_ACL);
 #endif
-  if (setup_fields(thd, 0, stmt->lex->value_list, MARK_COLUMNS_NONE, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(),
+                   stmt->lex->value_list, MARK_COLUMNS_NONE, 0, 0))
     goto error;
   /* TODO: here we should send types of placeholders to the client. */
   DBUG_RETURN(0);
@@ -1530,7 +1532,8 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
 
   if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(TRUE);
-  DBUG_RETURN(setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0));
+  DBUG_RETURN(setup_fields(thd, Ref_ptr_array(),
+                           *values, MARK_COLUMNS_NONE, 0, 0));
 }
 
 
@@ -1957,7 +1960,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 
   /* Reset warning count for each query that uses tables */
   if (tables)
-    thd->warning_info->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_wi()->opt_clear_warning_info(thd->query_id);
 
   if (sql_command_flags[sql_command] & CF_HA_CLOSE)
     mysql_ha_rm_tables(thd, tables);
@@ -2428,6 +2431,14 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       DBUG_ASSERT(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */
+      if (sl->group_list_ptrs && sl->group_list_ptrs->size() > 0)
+      {
+        for (uint ix= 0; ix < sl->group_list_ptrs->size() - 1; ++ix)
+        {
+          order= sl->group_list_ptrs->at(ix);
+          order->next= sl->group_list_ptrs->at(ix+1);
+        }
+      }
       for (order= sl->group_list.first; order; order= order->next)
         order->item= &order->item_ptr;
       /* Fix ORDER list */
@@ -2745,7 +2756,7 @@ void mysqld_stmt_close(THD *thd, char *packet)
   Prepared_statement *stmt;
   DBUG_ENTER("mysqld_stmt_close");
 
-  thd->stmt_da->disable_status();
+  thd->get_stmt_da()->disable_status();
 
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
     DBUG_VOID_RETURN;
@@ -2821,7 +2832,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   status_var_increment(thd->status_var.com_stmt_send_long_data);
 
-  thd->stmt_da->disable_status();
+  thd->get_stmt_da()->disable_status();
 #ifndef EMBEDDED_LIBRARY
   /* Minimal size of long data packet is 6 bytes */
   if (packet_length < MYSQL_LONG_DATA_HEADER)
@@ -2850,26 +2861,23 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   param= stmt->param_array[param_number];
 
-  Diagnostics_area new_stmt_da, *save_stmt_da= thd->stmt_da;
-  Warning_info new_warnning_info(thd->query_id, false);
-  Warning_info *save_warinig_info= thd->warning_info;
+  Diagnostics_area new_stmt_da(thd->query_id, false);
+  Diagnostics_area *save_stmt_da= thd->get_stmt_da();
 
-  thd->stmt_da= &new_stmt_da;
-  thd->warning_info= &new_warnning_info;
+  thd->set_stmt_da(&new_stmt_da);
 
 #ifndef EMBEDDED_LIBRARY
   param->set_longdata(packet, (ulong) (packet_end - packet));
 #else
   param->set_longdata(thd->extra_data, thd->extra_length);
 #endif
-  if (thd->stmt_da->is_error())
+  if (thd->get_stmt_da()->is_error())
   {
     stmt->state= Query_arena::STMT_ERROR;
-    stmt->last_errno= thd->stmt_da->sql_errno();
-    strncpy(stmt->last_error, thd->stmt_da->message(), MYSQL_ERRMSG_SIZE);
+    stmt->last_errno= thd->get_stmt_da()->sql_errno();
+    strncpy(stmt->last_error, thd->get_stmt_da()->message(), MYSQL_ERRMSG_SIZE);
   }
-  thd->stmt_da= save_stmt_da;
-  thd->warning_info= save_warinig_info;
+  thd->set_stmt_da(save_stmt_da);
 
   general_log_print(thd, thd->get_command(), NullS);
 
@@ -2945,8 +2953,8 @@ Reprepare_observer::report_error(THD *thd)
     that this thread execution stops and returns to the caller,
     backtracking all the way to Prepared_statement::execute_loop().
   */
-  thd->stmt_da->set_error_status(thd, ER_NEED_REPREPARE,
-                                 ER(ER_NEED_REPREPARE), "HY000");
+  thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE,
+                                       ER(ER_NEED_REPREPARE), "HY000");
   m_invalidated= TRUE;
 
   return TRUE;
@@ -3454,7 +3462,7 @@ reexecute:
       reprepare_observer.is_invalidated() &&
       reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
   {
-    DBUG_ASSERT(thd->stmt_da->sql_errno() == ER_NEED_REPREPARE);
+    DBUG_ASSERT(thd->get_stmt_da()->sql_errno() == ER_NEED_REPREPARE);
     thd->clear_error();
 
     error= reprepare();
@@ -3556,7 +3564,7 @@ Prepared_statement::reprepare()
       Sic: we can't simply silence warnings during reprepare, because if
       it's failed, we need to return all the warnings to the user.
     */
-    thd->warning_info->clear_warning_info(thd->query_id);
+    thd->get_stmt_wi()->clear_warning_info(thd->query_id);
   }
   return error;
 }
@@ -3918,7 +3926,7 @@ Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg,
 */
 
 Ed_connection::Ed_connection(THD *thd)
-  :m_warning_info(thd->query_id, false),
+  :m_diagnostics_area(thd->query_id, false),
   m_thd(thd),
   m_rsets(0),
   m_current_rset(0)
@@ -3944,7 +3952,7 @@ Ed_connection::free_old_result()
   }
   m_current_rset= m_rsets;
   m_diagnostics_area.reset_diagnostics_area();
-  m_warning_info.clear_warning_info(m_thd->query_id);
+  m_diagnostics_area.get_warning_info()->clear_warning_info(m_thd->query_id);
 }
 
 
@@ -3981,23 +3989,20 @@ bool Ed_connection::execute_direct(Server_runnable *server_runnable)
   Protocol_local protocol_local(m_thd, this);
   Prepared_statement stmt(m_thd);
   Protocol *save_protocol= m_thd->protocol;
-  Diagnostics_area *save_diagnostics_area= m_thd->stmt_da;
-  Warning_info *save_warning_info= m_thd->warning_info;
+  Diagnostics_area *save_diagnostics_area= m_thd->get_stmt_da();
 
   DBUG_ENTER("Ed_connection::execute_direct");
 
   free_old_result(); /* Delete all data from previous execution, if any */
 
   m_thd->protocol= &protocol_local;
-  m_thd->stmt_da= &m_diagnostics_area;
-  m_thd->warning_info= &m_warning_info;
+  m_thd->set_stmt_da(&m_diagnostics_area);
 
   rc= stmt.execute_server_runnable(server_runnable);
   m_thd->protocol->end_statement();
 
   m_thd->protocol= save_protocol;
-  m_thd->stmt_da= save_diagnostics_area;
-  m_thd->warning_info= save_warning_info;
+  m_thd->set_stmt_da(save_diagnostics_area);
   /*
     Protocol_local makes use of m_current_rset to keep
     track of the last result set, while adding result sets to the end.
@@ -4150,7 +4155,7 @@ bool Protocol_local::store_null()
   if (m_current_column == NULL)
     return TRUE; /* prepare_for_resend() failed to allocate memory. */
 
-  bzero(m_current_column, sizeof(*m_current_column));
+  memset(m_current_column, 0, sizeof(*m_current_column));
   ++m_current_column;
   return FALSE;
 }

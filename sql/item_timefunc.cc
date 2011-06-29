@@ -202,7 +202,7 @@ static bool sec_to_time(longlong seconds, bool unsigned_flag, MYSQL_TIME *ltime)
 {
   uint sec;
 
-  bzero((char *)ltime, sizeof(*ltime));
+  memset(ltime, 0, sizeof(*ltime));
   
   if (seconds < 0)
   {
@@ -306,7 +306,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   DBUG_ENTER("extract_date_time");
 
   if (!sub_pattern_end)
-    bzero((char*) l_time, sizeof(*l_time));
+    memset(l_time, 0, sizeof(*l_time));
 
   for (; ptr != end && val != val_end; ptr++)
   {
@@ -898,7 +898,7 @@ static bool get_interval_info(const char *str, uint length,
       /* Change values[0...i-1] -> values[0...count-1] */
       bmove_upp((uchar*) (values+count), (uchar*) (values+i),
 		sizeof(*values)*i);
-      bzero((uchar*) values, sizeof(*values)*(count-i));
+      memset(values, 0, sizeof(*values)*(count-i));
       break;
     }
   }
@@ -1385,6 +1385,26 @@ longlong Item_func_unix_timestamp::val_int()
   return (longlong) TIME_to_timestamp(current_thd, &ltime, &not_used);
 }
 
+enum_monotonicity_info Item_func_unix_timestamp::get_monotonicity_info() const
+{
+  if (args[0]->type() == Item::FIELD_ITEM &&
+      (args[0]->field_type() == MYSQL_TYPE_TIMESTAMP))
+    return MONOTONIC_INCREASING;
+  return NON_MONOTONIC;
+}
+
+
+longlong Item_func_unix_timestamp::val_int_endpoint(bool left_endp, bool *incl_endp)
+{
+  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(arg_count == 1 &&
+              args[0]->type() == Item::FIELD_ITEM &&
+              args[0]->field_type() == MYSQL_TYPE_TIMESTAMP);
+  Field *field=((Item_field*) args[0])->field;
+  /* Leave the incl_endp intact */
+  return ((Field_timestamp*) field)->get_timestamp(&null_value);
+}
+
 
 longlong Item_func_time_to_sec::val_int()
 {
@@ -1412,7 +1432,7 @@ bool get_interval_value(Item *args,interval_type int_type,
   size_t UNINIT_VAR(length);
   const CHARSET_INFO *cs=str_value->charset();
 
-  bzero((char*) interval,sizeof(*interval));
+  memset(interval, 0, sizeof(*interval));
   if ((int) int_type <= INTERVAL_MICROSECOND)
   {
     value= args->val_int();
@@ -1586,7 +1606,7 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   longlong value=args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 1;
-  bzero(ltime, sizeof(MYSQL_TIME));
+  memset(ltime, 0, sizeof(MYSQL_TIME));
   get_date_from_daynr((long) value, &ltime->year, &ltime->month, &ltime->day);
 
   if ((null_value= (fuzzy_date & TIME_NO_ZERO_DATE) &&
@@ -2597,8 +2617,8 @@ String *Item_char_typecast::val_str(String *str)
         str_value.copy(*res);
         res= &str_value;
       }
-      bzero((char*) res->ptr() + res->length(),
-            (uint) cast_length - res->length());
+      memset(const_cast<char*>(res->ptr() + res->length()), 0,
+             cast_length - res->length());
       res->length(cast_length);
     }
   }
@@ -2732,7 +2752,7 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 
 bool Item_date_typecast::get_time(MYSQL_TIME *ltime)
 {
-  bzero((char *)ltime, sizeof(MYSQL_TIME));
+  memset(ltime, 0, sizeof(MYSQL_TIME));
   return args[0]->null_value;
 }
 
@@ -2912,7 +2932,7 @@ MYSQL_TIME *Item_func_add_time::val_datetime(MYSQL_TIME *time,
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
   
-  bzero((char *)time, sizeof(MYSQL_TIME));
+  memset(time, 0, sizeof(MYSQL_TIME));
   
   time->neg= calc_time_diff(&l_time1, &l_time2, -l_sign,
                             &seconds, &microseconds);
@@ -3029,7 +3049,7 @@ String *Item_func_timediff::val_str(String *str)
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
 
-  bzero((char *)&l_time3, sizeof(l_time3));
+  memset(&l_time3, 0, sizeof(l_time3));
   
   l_time3.neg= calc_time_diff(&l_time1, &l_time2, l_sign,
 			      &seconds, &microseconds);
@@ -3078,7 +3098,7 @@ String *Item_func_maketime::val_str(String *str)
                    str->alloc(MAX_DATE_STRING_REP_LENGTH))))
     return 0;
 
-  bzero((char *)&ltime, sizeof(ltime));
+  memset(&ltime, 0, sizeof(ltime));
   ltime.neg= 0;
 
   /* Check for integer overflows */
@@ -3470,7 +3490,7 @@ bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     goto null_date;
 
   null_value= 0;
-  bzero((char*) ltime, sizeof(*ltime));
+  memset(ltime, 0, sizeof(*ltime));
   date_time_format.format.str=    (char*) format->ptr();
   date_time_format.format.length= format->length();
   if (extract_date_time(&date_time_format, val->ptr(), val->length(),

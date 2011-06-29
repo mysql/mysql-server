@@ -43,6 +43,18 @@ buf_read_page(
 	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
 	ulint	offset);/*!< in: page number */
 /********************************************************************//**
+High-level function which reads a page asynchronously from a file to the
+buffer buf_pool if it is not already there. Sets the io_fix flag and sets
+an exclusive lock on the buffer frame. The flag is cleared and the x-lock
+released by the i/o-handler thread.
+@return TRUE if page has been read in, FALSE in case of failure */
+UNIV_INTERN
+ibool
+buf_read_page_async(
+/*================*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset);/*!< in: page number */
+/********************************************************************//**
 Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
 Does not read any page if the read-ahead mechanism is not activated. Note
@@ -132,6 +144,9 @@ invoked */
 #define BUF_READ_IBUF_PAGES_ONLY	131
 /** read any page */
 #define BUF_READ_ANY_PAGE		132
+/** read any page, but ignore (return an error) if a page does not exist
+instead of crashing like BUF_READ_ANY_PAGE does */
+#define BUF_READ_IGNORE_NONEXISTENT_PAGES 1024
 /* @} */
 
 #endif

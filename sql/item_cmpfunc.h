@@ -1218,7 +1218,7 @@ public:
       list.push_back(else_expr_arg);
     }
     set_arguments(list);
-    bzero(&cmp_items, sizeof(cmp_items));
+    memset(&cmp_items, 0, sizeof(cmp_items));
   }
   double val_real();
   longlong val_int();
@@ -1275,7 +1275,7 @@ public:
     :Item_func_opt_neg(list), array(0), have_null(0),
     arg_types_compatible(FALSE)
   {
-    bzero(&cmp_items, sizeof(cmp_items));
+    memset(&cmp_items, 0, sizeof(cmp_items));
     allowed_arg_cols= 0;  // Fetch this value from first argument
   }
   longlong val_int();
@@ -1363,6 +1363,8 @@ public:
     else
     {
       args[0]->update_used_tables();
+      with_subselect= args[0]->has_subquery();
+
       if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
           !with_subselect))
       {
@@ -1538,7 +1540,8 @@ public:
   table_map used_tables() const;
   void update_used_tables();
   virtual void print(String *str, enum_query_type query_type);
-  void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
+  void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+                      List<Item> &fields);
   friend int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
                          Item **conds);
   void top_level_item() { abort_on_null=1; }

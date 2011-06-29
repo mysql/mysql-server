@@ -455,7 +455,7 @@ public:
       if (maybe_null && *min_value)
       {
 	**min_key=1;
-	bzero(*min_key+1,length-1);
+	memset(*min_key+1, 0, length-1);
       }
       else
 	memcpy(*min_key,min_value,length);
@@ -473,7 +473,7 @@ public:
       if (maybe_null && *max_value)
       {
 	**max_key=1;
-	bzero(*max_key+1,length-1);
+	memset(*max_key+1, 0, length-1);
       }
       else
 	memcpy(*max_key,max_value,length);
@@ -637,7 +637,7 @@ public:
   SEL_TREE(enum Type type_arg) :type(type_arg) {}
   SEL_TREE() :type(KEY)
   {
-    bzero((char*) keys,sizeof(keys));
+    memset(keys, 0, sizeof(keys));
   }
   SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param);
   /*
@@ -1203,7 +1203,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
     thd->mem_root= &alloc;
   }
   else
-    bzero((char*) &alloc,sizeof(alloc));
+    memset(&alloc, 0, sizeof(alloc));
   file= head->file;
   record= head->record[0];
   save_read_set= head->read_set;
@@ -1284,7 +1284,7 @@ QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param,
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT");
   index= MAX_KEY;
   head= table;
-  bzero(&read_record, sizeof(read_record));
+  memset(&read_record, 0, sizeof(read_record));
   init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
   DBUG_VOID_RETURN;
 }
@@ -1348,7 +1348,7 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
   if (!parent_alloc)
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
   else
-    bzero(&alloc, sizeof(MEM_ROOT));
+    memset(&alloc, 0, sizeof(MEM_ROOT));
   last_rowid= (uchar*) alloc_root(parent_alloc? parent_alloc : &alloc,
                                   head->file->ref_length);
 }
@@ -1631,7 +1631,7 @@ int QUICK_ROR_UNION_SELECT::init()
                  FALSE , QUICK_ROR_UNION_SELECT_queue_cmp,
                  (void*) this))
   {
-    bzero(&queue, sizeof(QUEUE));
+    memset(&queue, 0, sizeof(QUEUE));
     DBUG_RETURN(1);
   }
 
@@ -9045,7 +9045,7 @@ int QUICK_RANGE_SELECT::reset()
       (Now ndb stores  complete row in here, instead of only the used fields
       which gives us valgrind warnings in compare_record[])
     */
-    bzero((char*) mrange_buff, buf_size);
+    memset(mrange_buff, 0, buf_size);
 #endif
   }
 
@@ -10473,7 +10473,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
 
         /* Check that pred compares min_max_arg_item with a constant. */
         Item *args[3];
-        bzero(args, 3 * sizeof(Item*));
+        memset(args, 0, 3 * sizeof(Item*));
         bool inv;
         /* Test if this is a comparison of a field and a constant. */
         if (!simple_pred(pred, args, &inv))
@@ -10609,7 +10609,7 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       */
       DBUG_ASSERT (field_length > 0);
       *key_ptr= 1;
-      bzero(key_ptr+1,field_length-1);
+      memset(key_ptr+1, 0, field_length-1);
       key_ptr+= field_length;
       *key_infix_len+= field_length;
     }
@@ -11014,7 +11014,7 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
     join->thd->mem_root= &alloc;
   }
   else
-    bzero(&alloc, sizeof(MEM_ROOT));            // ensure that it's not used
+    memset(&alloc, 0, sizeof(MEM_ROOT));  // ensure that it's not used
 }
 
 
@@ -11299,6 +11299,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   int result;
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
+  seen_first_key= false;
   head->set_keyread(TRUE); /* We need only the key attributes */
   /*
     Request ordered index access as usage of ::index_last(), 

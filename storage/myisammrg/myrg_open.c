@@ -46,7 +46,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   my_bool bad_children= FALSE;
   DBUG_ENTER("myrg_open");
 
-  bzero((char*) &file,sizeof(file));
+  memset(&file, 0, sizeof(file));
   if ((fd= mysql_file_open(rg_key_file_MRG,
                            fn_format(name_buff, name, "", MYRG_NAME_EXT,
                                      MY_UNPACK_FILENAME|MY_APPEND_EXT),
@@ -158,7 +158,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     goto err;
   }
   m_info->keys= min_keys;
-  bzero((char*) &m_info->by_key,sizeof(m_info->by_key));
+  memset(&m_info->by_key, 0, sizeof(m_info->by_key));
 
   /* this works ok if the table list is empty */
   m_info->end_table=m_info->open_tables+files;
@@ -235,7 +235,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
 
   rc= 1;
   errpos= 0;
-  bzero((char*) &file_cache, sizeof(file_cache));
+  memset(&file_cache, 0, sizeof(file_cache));
 
   /* Open MERGE meta file. */
   if ((fd= mysql_file_open(rg_key_file_MRG,
@@ -424,7 +424,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
           goto err; /* purecov: inspected */
         errpos= 1;
       }
-      bzero((char*) m_info->rec_per_key_part, key_parts * sizeof(long));
+      memset(m_info->rec_per_key_part, 0, key_parts * sizeof(long));
     }
 
     /* Add MyISAM table info. */
@@ -514,7 +514,7 @@ int myrg_detach_children(MYRG_INFO *m_info)
   {
     /* Do not attach/detach an empty child list. */
     m_info->children_attached= FALSE;
-    bzero((char*) m_info->open_tables, m_info->tables * sizeof(MYRG_TABLE));
+    memset(m_info->open_tables, 0, m_info->tables * sizeof(MYRG_TABLE));
   }
   m_info->records= 0;
   m_info->del= 0;
