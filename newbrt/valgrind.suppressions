@@ -110,3 +110,8 @@
    Memcheck:Cond
    fun:qlz_compress
 }
+{
+   qlz_is_not_valgrind_clean
+   Memcheck:Value8
+   fun:qlz_compress
+}
