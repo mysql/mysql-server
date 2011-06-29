@@ -3162,15 +3162,18 @@ fts_query(
 	ib_time_t	start_time;
 	byte*		lc_query_str;
 	ibool		boolean_mode;
+	trx_t*		query_trx;
 
 	boolean_mode = flags & FTS_BOOL;
 
 	*result = NULL;
 	memset(&query, 0x0, sizeof(query));
+	query_trx = trx_allocate_for_background();
+	query_trx->op_info = "FTS query";
 
 	start_time = ut_time();
 
-	query.trx = trx;
+	query.trx = query_trx;
 	query.index = index;
 	query.inited = FALSE;
 	query.boolean_mode = boolean_mode;
@@ -3207,7 +3210,7 @@ fts_query(
 
 	/* Read the deleted doc_ids, we need these for filtering. */
 	error = fts_table_fetch_doc_ids(
-		trx, &query.fts_common_table, query.deleted);
+		NULL, &query.fts_common_table, query.deleted);
 
 	if (error != DB_SUCCESS) {
 		goto func_exit;
@@ -3216,7 +3219,7 @@ fts_query(
 	query.fts_common_table.suffix = "DELETED_CACHE";
 
 	error = fts_table_fetch_doc_ids(
-		trx, &query.fts_common_table, query.deleted);
+		NULL, &query.fts_common_table, query.deleted);
 
 	if (error != DB_SUCCESS) {
 		goto func_exit;
@@ -3282,6 +3285,8 @@ fts_query(
 
 func_exit:
 	fts_query_free(&query);
+
+	trx_free_for_background(query_trx);
 
 	return(error);
 }
