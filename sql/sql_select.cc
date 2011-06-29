@@ -3060,12 +3060,23 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
         s->embedding_map|= embedding->nested_join->nj_map;
       continue;
     }
-    if (embedding && !(embedding->sj_on_expr && ! embedding->embedding))
+    if (embedding)
     {
       /* s belongs to a nested join, maybe to several embedded joins */
       s->embedding_map= 0;
+      bool inside_an_outer_join= FALSE;
       do
       {
+        /* 
+          If this is a semi-join nest, skip it, and proceed upwards. Maybe
+          we're in some outer join nest
+        */
+        if (embedding->sj_on_expr)
+        {
+          embedding= embedding->embedding;
+          continue;
+        }
+        inside_an_outer_join= TRUE;
         NESTED_JOIN *nested_join= embedding->nested_join;
         s->embedding_map|=nested_join->nj_map;
         s->dependent|= embedding->dep_tables;
@@ -3073,7 +3084,8 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
         outer_join|= nested_join->used_tables;
       }
       while (embedding);
-      continue;
+      if (inside_an_outer_join)
+        continue;
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     const bool no_partitions_used= table->no_partitions_used;
