@@ -344,13 +344,23 @@ struct st_ndb_slave_state
   /* Counter values for current slave transaction */
   Uint32 current_conflict_defined_op_count;
   Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
+  Uint64 current_master_server_epoch;
+  Uint64 current_max_rep_epoch;
 
   /* Cumulative counter values */
   Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
+  Uint64 max_rep_epoch;
+  Uint32 sql_run_id;
 
   /* Methods */
   void atTransactionCommit();
   void atTransactionAbort();
+  void atResetSlave();
+
+  void atApplyStatusWrite(Uint32 master_server_id,
+                          Uint32 row_server_id,
+                          Uint64 row_epoch,
+                          bool is_row_server_id_local);
 
   st_ndb_slave_state();
 };

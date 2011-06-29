@@ -1,0 +1,169 @@
+include/rpl_init.inc [topology=1->2,4->3]
+include/rpl_connect.inc [creating master]
+include/rpl_connect.inc [creating master1]
+include/rpl_connect.inc [creating slave]
+include/rpl_connect.inc [creating slave1]
+include/rpl_start_slaves.inc
+Cluster A servers have no epoch replication info
+select count(1) from mysql.ndb_apply_status;
+count(1)
+0
+Cluster A servers have no max replicated epoch value
+Master(1)
+select variable_name, variable_value from information_schema.global_status
+where variable_name='Ndb_slave_max_replicated_epoch';
+variable_name	variable_value
+NDB_SLAVE_MAX_REPLICATED_EPOCH	0
+Master1(3)
+select variable_name, variable_value from information_schema.global_status
+where variable_name='Ndb_slave_max_replicated_epoch';
+variable_name	variable_value
+NDB_SLAVE_MAX_REPLICATED_EPOCH	0
+Make a change originating at Cluster A
+Master(1)
+use test;
+create table t1 (a int primary key, b varchar(100)) engine=ndb;
+insert into t1 values (1, "Venice");
+Allow it to propagate to Cluster B
+Originate a second unrelated change at Cluster B, to allow us to wait for
+reverse propagation in the testcase
+Slave1 (4)
+insert into t1 values (2, "Death");
+Allow it to propagate to Cluster A
+Observe new entry in ndb_apply_status on Cluster A
+Master (1)
+select server_id from mysql.ndb_apply_status order by server_id;
+server_id
+1
+4
+Non-slave server on Cluster A will have no value for Max Replicated Epoch
+select variable_name, variable_value from information_schema.global_status
+where variable_name='Ndb_slave_max_replicated_epoch';
+variable_name	variable_value
+NDB_SLAVE_MAX_REPLICATED_EPOCH	0
+Slave server on Cluster A has current value for Max Replicated Epoch
+Master1 (3)
+Expect count 1
+select
+count(1)
+from
+information_schema.global_status,
+mysql.ndb_apply_status
+where
+server_id = 1
+and
+variable_name='Ndb_slave_max_replicated_epoch'
+    and
+variable_value = epoch;
+count(1)
+1
+Now wait for all replication to quiesce
+Now swap replication channels around
+include/rpl_stop_slaves.inc
+include/rpl_change_topology.inc [new topology=2->1,3->4]
+Get current master status on Cluster A new master (next pos in Binlog)
+Master1 (3)
+Flush logs to ensure any pending update (e.g. reflected apply_status write row)
+is skipped over.
+flush logs;
+Setup slave on Cluster B to use it
+Slave1 (4)
+Get current master status on Cluster B new master (next pos in Binlog)
+Slave (2)
+Flush logs to ensure any pending update (e.g. reflected apply_status write row)
+is skipped over.
+flush logs;
+Setup slave on Cluster A to use it
+Master (1)
+Master (1)
+Show that Cluster A Slave server (old master) has no Max replicated epoch before receiving data
+select variable_name, variable_value from information_schema.global_status
+where variable_name='Ndb_slave_max_replicated_epoch';
+variable_name	variable_value
+NDB_SLAVE_MAX_REPLICATED_EPOCH	0
+Master1 (3)
+Cluster A Master server (old slave) has old Max replicated epoch
+select
+count(1)
+from
+information_schema.global_status,
+mysql.ndb_apply_status
+where
+server_id = 1
+and
+variable_name='Ndb_slave_max_replicated_epoch'
+    and
+variable_value = epoch;
+count(1)
+1
+Now start slaves up
+include/rpl_start_slaves.inc
+Show that applying something from Cluster B causes the
+old Max Rep Epoch to be loaded from ndb_apply_status
+There is no new Max Rep Epoch from Cluster A as it has not changed
+anything yet
+Slave (2)
+insert into test.t1 values (3, "From the Sea");
+Allow to propagate to Cluster A
+Master (1)
+New Slave server on Cluster A has loaded old Max-Replicated-Epoch
+select server_id from mysql.ndb_apply_status order by server_id;
+server_id
+1
+2
+4
+select
+count(1)
+from
+information_schema.global_status,
+mysql.ndb_apply_status
+where
+server_id = 1
+and
+variable_name='Ndb_slave_max_replicated_epoch'
+    and
+variable_value = epoch;
+count(1)
+1
+Now make a new Cluster A change and see that the Max Replicated Epoch advances
+once it has propagated
+Master1 (3)
+insert into test.t1 values (4, "Brooke");
+Propagate to Cluster B
+Make change on Cluster B to allow waiting for reverse propagation
+Slave (2)
+insert into test.t1 values (5, "Rupert");
+Wait for propagation back to Cluster A
+Master (1)
+Show that Cluster A now has 2 different server_id entries in ndb_apply_status
+Those from the new master (server_id 3) are highest.
+select server_id from mysql.ndb_apply_status order by server_id;
+server_id
+1
+2
+3
+4
+select
+count(1)
+from
+information_schema.global_status,
+mysql.ndb_apply_status
+where
+server_id = 3
+and
+variable_name='Ndb_slave_max_replicated_epoch'
+    and
+variable_value = epoch;
+count(1)
+1
+local_server_with_max_epoch
+3
+Done
+drop table t1;
+include/rpl_stop_slaves.inc
+CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+include/rpl_start_slaves.inc
+include/rpl_end.inc
