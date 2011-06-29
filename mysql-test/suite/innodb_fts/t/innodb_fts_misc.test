@@ -392,3 +392,79 @@ AGAINST ('"following database"@10' IN BOOLEAN MODE);
 
 
 DROP TABLE t1;
+
+
+
+#------------------------------------------------------------------------------
+# More FTS test from peter's testing
+#------------------------------------------------------------------------------
+--disable_warnings
+drop table if exists t50;
+--enable_warnings
+
+set names utf8;
+
+
+--echo "----------Test1---------"
+# Create FTS table
+create table t50 (s1 varchar(60) character set utf8 collate utf8_bin) engine = innodb;
+create fulltext index i on t50 (s1);
+# INNODB_FTS: Assert
+# Assert : InnoDB: Failing assertion: rbt_validate(result_doc->tokens)
+#insert into t50 values ('ABCDE'),('FGHIJ'),('KLMNO'),('VÐƷWİ');
+# it was giving empty result set instead of one record  
+select * from t50 where match(s1) against ('VÐƷWİ'); 
+drop table t50;
+
+
+--echo "----------Test2---------"
+create table t50 (s1 int unsigned primary key auto_increment, s2
+varchar(60) character set utf8) engine = innodb;
+create fulltext index i on t50 (s2);
+insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
+# INNODB_FTS: RESULT DIFF
+# Order by does not sort result. 
+# Optimizer's Evgeny is investigate a similar issue. InnoDB FTS is used only 
+# for FT search, and should not be used as regular index for such order by query. 
+# Correct the result file when fixed.
+select * from t50 order by s2; 
+drop table t50;
+
+
+--echo "----------Test3---------"
+create table t50 (id int unsigned primary key auto_increment, s2
+varchar(60) character set utf8) engine = innodb;
+create fulltext index i on t50 (s2);
+insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
+set @@autocommit=0;
+update t50 set s2 = lower(s2);
+# INNODB_FTS: Assert
+# crash seen on second update
+#update t50 set s2 = upper(s2); 
+commit;
+select * from t50 where match(s2) against ('VÐƷWİ FGHIJ KLMNO ABCDE' in boolean mode);
+select * from t50;
+drop table t50;
+
+
+--echo "----------Test4---------"
+create table t50 (id int unsigned primary key auto_increment, s2
+varchar(60) character set utf8) engine = innodb;
+create fulltext index i on t50 (s2);
+insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCD*');
+select * from t50 where match(s2) against ('abcd*' in natural language
+mode); 
+# INNODB_FTS: RESULT DIFF
+# abcd record expected in boolean mode search
+select * from t50 where match(s2) against ('abcd*' in boolean mode); 
+drop table t50;
+
+
+--echo "----------Test5---------"
+create table t50 (s1 int, s2 varchar(200), fulltext key(s2)) engine = innodb;
+set @@autocommit=0;
+insert into t50 values (1,'Sunshine'),(2,'Lollipops');
+select * from t50 where match(s2) against('Rainbows');
+rollback;
+select * from t50;
+drop table t50;

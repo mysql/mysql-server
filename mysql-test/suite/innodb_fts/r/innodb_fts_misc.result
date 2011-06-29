@@ -412,3 +412,65 @@ AGAINST ('"following database"@10' IN BOOLEAN MODE);
 id	a	b
 105	MySQL vs. YourSQL	In the following database comparison ...
 DROP TABLE t1;
+drop table if exists t50;
+set names utf8;
+"----------Test1---------"
+create table t50 (s1 varchar(60) character set utf8 collate utf8_bin) engine = innodb;
+create fulltext index i on t50 (s1);
+select * from t50 where match(s1) against ('VÐƷWİ');
+s1
+drop table t50;
+"----------Test2---------"
+create table t50 (s1 int unsigned primary key auto_increment, s2
+varchar(60) character set utf8) engine = innodb;
+create fulltext index i on t50 (s2);
+insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
+select * from t50 order by s2;
+s1	s2
+1	FGHIJ
+2	KLMNO
+3	VÐƷWİ
+4	ABCDE
+drop table t50;
+"----------Test3---------"
+create table t50 (id int unsigned primary key auto_increment, s2
+varchar(60) character set utf8) engine = innodb;
+create fulltext index i on t50 (s2);
+insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
+set @@autocommit=0;
+update t50 set s2 = lower(s2);
+commit;
+select * from t50 where match(s2) against ('VÐƷWİ FGHIJ KLMNO ABCDE' in boolean mode);
+id	s2
+1	fghij
+2	klmno
+3	vðʒwi
+4	abcde
+select * from t50;
+id	s2
+1	fghij
+2	klmno
+3	vðʒwi
+4	abcde
+drop table t50;
+"----------Test4---------"
+create table t50 (id int unsigned primary key auto_increment, s2
+varchar(60) character set utf8) engine = innodb;
+create fulltext index i on t50 (s2);
+insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCD*');
+select * from t50 where match(s2) against ('abcd*' in natural language
+mode);
+id	s2
+select * from t50 where match(s2) against ('abcd*' in boolean mode);
+id	s2
+drop table t50;
+"----------Test5---------"
+create table t50 (s1 int, s2 varchar(200), fulltext key(s2)) engine = innodb;
+set @@autocommit=0;
+insert into t50 values (1,'Sunshine'),(2,'Lollipops');
+select * from t50 where match(s2) against('Rainbows');
+s1	s2
+rollback;
+select * from t50;
+s1	s2
+drop table t50;
