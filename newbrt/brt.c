@@ -69,17 +69,7 @@ Split_or_merge (node, childnum, BOOL *did_io) {
 }
 
 
-lookup (key, node) {
-  if (node is a leaf) {
-     return lookup in leaf.
-  } else {
-     find appropriate child, i, for key.
-     BOOL did_io = FALSE;
-     rs = Flush_this_child(node, i, &did_io);
-     if (rs is reactive) Split_or_merge(node, i, &did_io);
-     return lookup(node, child[i])
-  }
-}
+As of #3312, we don't do any tree shaping on lookup.
 
 When inserting a message, we send it as far down the tree as possible, but
  - we stop if it would require I/O (we bring in the root node even if does require I/O), and
@@ -105,6 +95,8 @@ message are not gorged.  (But they may be hungry or too fat or too thin.)
 --------------------
 */
 
+// As of #3312 we don't do eager promotions or aggressive promotion or passive-aggressive promotion.
+//
 // Simple scheme with no eager promotions:
 //
 // Insert_message_in_tree:
@@ -124,45 +116,6 @@ message are not gorged.  (But they may be hungry or too fat or too thin.)
 //      else do nothing
 //  If the node is an hungry leaf:
 //     merge the node (or distribute the data with its neighbor if the merge would be too big)
-//
-//
-// Note: When nodes a merged,  they may become gorged.  But we just let it be gorged.
-//
-// search()
-//  To search a leaf node, we just do the lookup.
-//  To search a nonleaf node:
-//    Determine which child is the right one.
-//    Push all data to that child.
-//    search() the child, collecting whatever result is needed.
-//    Then:
-//      If the child is an gorged leaf or a too-fat nonleaf
-//         split it
-//      If the child is an hungry leaf or a too-thin nonleaf
-//         merge it (or distribute the data with the neighbor if the merge would be too big.)
-//    return from the search.
-//
-// Note: During search we may end up with gorged nonleaf nodes.
-// (Nonleaf nodes can become gorged because of merging two thin nodes
-// that had big buffers.)  We just let that happen, without worrying
-// about it too much.
-//
-// --------------------
-//
-// Eager promotions make it only slightly tougher:
-//
-//
-// Insert_message_in_tree:
-//   It's the same routine, except that
-//     if the fifo leading to the child is empty
-//     and the child is in main memory
-//     and the child is not gorged
-//     then we place the message in the child (and we do this recursively, so we may place the message in the grandchild, or so forth.)
-//       We simply leave any resulting gorged or hungry nodes alone, since the nodes can only be slightly gorged (and for hungryness we don't worry in this case.)
-//   Otherewise put the message in the root and handle_node_that_is_maybe_the_wrong_shape().
-//
-//       An even more aggresive promotion scheme would be to go ahead and insert the new message in the gorged child, and then do the splits and merges resulting from that child getting gorged.
-//
-// */
 //
 //
 #include "includes.h"
