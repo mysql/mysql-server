@@ -40,7 +40,8 @@ typedef NdbDictionary::Table NDBTAB;
   position of fields that is not directly available in the Item tree.
   Also checks if condition is supported.
 */
-void ndb_serialize_cond(const Item *item, void *arg)
+static void
+ndb_serialize_cond(const Item *item, void *arg)
 {
   Ndb_cond_traverse_context *context= (Ndb_cond_traverse_context *) arg;
   DBUG_ENTER("ndb_serialize_cond");  
@@ -230,6 +231,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
         context->expect(Item::STRING_ITEM);
         context->expect(Item::VARBIN_ITEM);
         context->expect(Item::FUNC_ITEM);
+        context->expect(Item::CACHE_ITEM);
         ndb_serialize_cond(rewrite_context->left_hand_item, arg);
         context->skip= 0; // Any FUNC_ITEM expression has already been parsed
         context->rewrite_stack= rewrite_context; // Enable rewrite mode
@@ -258,7 +260,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
         {
           Item_field *field_item= (Item_field *) item;
           Field *field= field_item->field;
-          enum_field_types type= field->real_type();
+          const enum_field_types type= field->real_type();
           /*
             Check that the field is part of the table of the handler
             instance and that we expect a field with of this result type.
@@ -270,13 +272,13 @@ void ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("table %s", tab->getName()));
             DBUG_PRINT("info", ("column %s", field->field_name));
             DBUG_PRINT("info", ("column length %u", field->field_length));
-            DBUG_PRINT("info", ("type %d", field->real_type()));
+            DBUG_PRINT("info", ("type %d", type));
             DBUG_PRINT("info", ("result type %d", field->result_type()));
 
             // Check that we are expecting a field and with the correct
             // result type and of length that can store the item value
             if (context->expecting(Item::FIELD_ITEM) &&
-                context->expecting_field_type(field->real_type()) &&
+                context->expecting_field_type(type) &&
                 context->expecting_max_length(field->field_length) &&
                 (context->expecting_field_result(field->result_type()) ||
                  // Date and year can be written as string or int
@@ -579,6 +581,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::STRING_ITEM);
             context->expect(Item::VARBIN_ITEM);
             context->expect(Item::FUNC_ITEM);
+            context->expect(Item::CACHE_ITEM);
             break;
           }
           case Item_func::IN_FUNC:
@@ -606,6 +609,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::STRING_ITEM);
             context->expect(Item::VARBIN_ITEM);
             context->expect(Item::FUNC_ITEM);
+            context->expect(Item::CACHE_ITEM);
             break;
           }
           case Item_func::NEG_FUNC:
@@ -759,8 +763,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
           {
 #ifndef DBUG_OFF
             char buff[256];
-            String str(buff,(uint32) sizeof(buff), system_charset_info);
-            str.length(0);
+            String str(buff,0, system_charset_info);
+            //str.length(0);// Magnus
             Item_string *string_item= (Item_string *) item;
             DBUG_PRINT("info", ("value \"%s\"", 
                                 string_item->val_str(&str)->ptr()));
@@ -924,9 +928,151 @@ void ndb_serialize_cond(const Item *item, void *arg)
           }
           break;
         }
+        case Item::CACHE_ITEM:
+        {
+          DBUG_PRINT("info", ("CACHE_ITEM"));
+          Item_cache* cache_item = (Item_cache*)item;
+          DBUG_PRINT("info", ("result type %d", cache_item->result_type()));
+
+          // Item_cache has cached "something", use its value
+          // based on the result_type of the item
+          switch(cache_item->result_type())
+          {
+          case INT_RESULT:
+            DBUG_PRINT("info", ("INT_RESULT"));
+            if (context->expecting(Item::INT_ITEM)) 
+            {
+              DBUG_PRINT("info", ("value %ld",
+                                  (long) ((Item_int*) item)->value));
+              NDB_ITEM_QUALIFICATION q;
+              q.value_type= Item::INT_ITEM;
+              curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
+              if (! context->expecting_no_field_result()) 
+              {
+                // We have not seen the field argument yet
+                context->expect_only(Item::FIELD_ITEM);
+                context->expect_only_field_result(INT_RESULT);
+                context->expect_field_result(REAL_RESULT);
+                context->expect_field_result(DECIMAL_RESULT);
+              }
+              else
+              {
+                // Expect another logical expression
+                context->expect_only(Item::FUNC_ITEM);
+                context->expect(Item::COND_ITEM);
+              }
+            }
+            else
+              context->supported= FALSE;
+            break;
+
+          case REAL_RESULT:
+            DBUG_PRINT("info", ("REAL_RESULT"));
+            if (context->expecting(Item::REAL_ITEM)) 
+            {
+              DBUG_PRINT("info", ("value %f", ((Item_float*) item)->value));
+              NDB_ITEM_QUALIFICATION q;
+              q.value_type= Item::REAL_ITEM;
+              curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
+              if (! context->expecting_no_field_result()) 
+              {
+                // We have not seen the field argument yet
+                context->expect_only(Item::FIELD_ITEM);
+                context->expect_only_field_result(REAL_RESULT);
+              }
+              else
+              {
+                // Expect another logical expression
+                context->expect_only(Item::FUNC_ITEM);
+                context->expect(Item::COND_ITEM);
+              }
+            }
+            else
+              context->supported= FALSE;
+            break;
+
+          case DECIMAL_RESULT:
+            DBUG_PRINT("info", ("DECIMAL_RESULT"));
+            if (context->expecting(Item::DECIMAL_ITEM)) 
+            {
+              DBUG_PRINT("info", ("value %f",
+                                  ((Item_decimal*) item)->val_real()));
+              NDB_ITEM_QUALIFICATION q;
+              q.value_type= Item::DECIMAL_ITEM;
+              curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
+              if (! context->expecting_no_field_result()) 
+              {
+                // We have not seen the field argument yet
+                context->expect_only(Item::FIELD_ITEM);
+                context->expect_only_field_result(REAL_RESULT);
+                context->expect_field_result(DECIMAL_RESULT);
+              }
+              else
+              {
+                // Expect another logical expression
+                context->expect_only(Item::FUNC_ITEM);
+                context->expect(Item::COND_ITEM);
+              }
+            }
+            else
+              context->supported= FALSE;
+            break;
+
+          case STRING_RESULT:
+            DBUG_PRINT("info", ("STRING_RESULT")); 
+            // Check that we do support pushing the item value length
+            if (context->expecting(Item::STRING_ITEM) &&
+                context->expecting_length(item->max_length)) 
+            {
+  #ifndef DBUG_OFF
+              char buff[256];
+              String str(buff,0, system_charset_info);
+              //str.length(0);// Magnus
+              Item_string *string_item= (Item_string *) item;
+              DBUG_PRINT("info", ("value \"%s\"", 
+                                  string_item->val_str(&str)->ptr()));
+  #endif
+              NDB_ITEM_QUALIFICATION q;
+              q.value_type= Item::STRING_ITEM;
+              curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
+              if (! context->expecting_no_field_result())
+              {
+                // We have not seen the field argument yet
+                context->expect_only(Item::FIELD_ITEM);
+                context->expect_only_field_result(STRING_RESULT);
+                context->expect_collation(item->collation.collation);
+                context->expect_length(item->max_length);
+              }
+              else 
+              {
+                // Expect another logical expression
+                context->expect_only(Item::FUNC_ITEM);
+                context->expect(Item::COND_ITEM);
+                context->expect_no_length();
+                // Check that we are comparing with a field with same collation
+                if (!context->expecting_collation(item->collation.collation))
+                {
+                  DBUG_PRINT("info", ("Found non-matching collation %s",  
+                                      item->collation.collation->name));
+                  context->supported= FALSE;
+                }
+              }
+            }
+            else
+              context->supported= FALSE;
+            break;
+
+          default:
+            context->supported= FALSE;
+            break;
+          }
+          break;
+        }
+
         default:
         {
-          DBUG_PRINT("info", ("Found item of type %d", item->type()));
+          DBUG_PRINT("info", ("Found unsupported item of type %d",
+                              item->type()));
           context->supported= FALSE;
         }
         }
@@ -967,7 +1113,7 @@ Item*
 ha_ndbcluster_cond::cond_push(const Item *cond, 
                               TABLE *table, const NDBTAB *ndb_table)
 { 
-  DBUG_ENTER("cond_push");
+  DBUG_ENTER("ha_ndbcluster_cond::cond_push");
   Ndb_cond_stack *ndb_cond = new Ndb_cond_stack();
   if (ndb_cond == NULL)
   {
