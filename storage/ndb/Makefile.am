@@ -15,7 +15,7 @@
 
 SUBDIRS = include src tools . @ndb_opt_subdirs@
 DIST_SUBDIRS = src tools include test docs clusterj
-EXTRA_DIST = config cmake ndbapi-examples plug.in CMakeLists.txt ndb_configure.cmake
+EXTRA_DIST = config cmake ndbapi-examples plug.in CMakeLists.txt ndb_configure.cmake compile-cluster
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
