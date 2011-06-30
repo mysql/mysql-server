@@ -1,5 +1,4 @@
-/* Copyright (c) 2002-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -520,7 +519,7 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
   n_points= wkb_get_uint(wkb, bo);
   proper_length= 4 + n_points * POINT_DATA_SIZE;
 
-  if (len < proper_length || res->reserve(proper_length))
+  if (!n_points || len < proper_length || res->reserve(proper_length))
     return 0;
 
   res->q_append(n_points);
@@ -738,7 +737,9 @@ uint Gis_polygon::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
   if (len < 4)
     return 0;
 
-  n_linear_rings= wkb_get_uint(wkb, bo);
+  if (!(n_linear_rings= wkb_get_uint(wkb, bo)))
+    return 0;
+
   if (res->reserve(4, 512))
     return 0;
   wkb+= 4;
