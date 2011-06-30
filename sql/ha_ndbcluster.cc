@@ -14397,8 +14397,9 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type,
     return FALSE;
   }
 
+  const NdbQueryDef& queryDef= m_pushed_join_member->get_query_def();
   const NdbQueryOperationDef* const root_operation= 
-    m_pushed_join_member->get_query_def().getQueryOperation((uint)PUSHED_ROOT);
+    queryDef.getQueryOperation((uint)PUSHED_ROOT);
 
   const NdbQueryOperationTypeWrapper& query_def_type=  
     root_operation->getType();
@@ -14461,6 +14462,13 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type,
                           "Therefore, join cannot be pushed.", 
                           m_index[idx].index->getName(),
                           expected_index->getName()));
+      return FALSE;
+    }
+    if (needSorted && queryDef.getQueryType() == NdbQueryDef::MultiScanQuery)
+    {
+      DBUG_PRINT("info", 
+                 ("OrderedIndexScan with scan siblings " 
+                  "can not execute as pushed join."));
       return FALSE;
     }
     break;
