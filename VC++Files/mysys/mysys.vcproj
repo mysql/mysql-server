@@ -477,9 +477,6 @@
 			RelativePath="my_fstream.c">
 		</File>
 		<File
-			RelativePath="my_gethostbyname.c">
-		</File>
-		<File
 			RelativePath="my_gethwaddr.c">
 		</File>
 		<File
@@ -492,7 +489,7 @@
 			RelativePath="my_getwd.c">
 		</File>
 		<File
-			RelativePath="my_handler.c">
+			RelativePath="my_compare.c">
 		</File>
 		<File
 			RelativePath="my_init.c">
