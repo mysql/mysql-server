@@ -30,11 +30,12 @@ endif
 
 ifdef BDBDIR
 BDB_CPPFLAGS = -I$(BDBDIR)/include -DHAVE_CXX_STDHEADERS
-BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb_cxx -Wl,-rpath,$(BDBDIR)/lib -lpthread
+BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb_cxx -Wl,-rpath,$(BDBDIR)/lib
 else
 BDB_CPPFLAGS =
-BDB_LDFLAGS = -ldb_cxx -lpthread
+BDB_LDFLAGS = -ldb_cxx
 endif
+BDB_LDFLAGS += -lpthread -L../lib -Wl,-rpath,$(PWD)/../lib -ltokuportability
 
 TARGET_BDB = db-benchmark-test-bdb
 TARGET_TDB = db-benchmark-test-tokudb
@@ -65,7 +66,7 @@ clean:
 
 db-benchmark-test-tokudb: ../lib/libtokudb_cxx.a
 db-benchmark-test-tokudb: db-benchmark-test.cpp
-	$(CXX) $(CXXFLAGS) -I../include -I../toku_include -L../lib -Wl,-rpath,$(PWD)/../lib $< -o $@ -ltokudb -ltokudb_cxx -DDIRSUF=tokudb -lz -lpthread
+	$(CXX) $(CXXFLAGS) -I../include -I../toku_include -L../lib -Wl,-rpath,$(PWD)/../lib $< -o $@ -ltokudb -ltokudb_cxx -DDIRSUF=tokudb -lz -lpthread -ltokuportability
 
 db-benchmark-test-bdb: db-benchmark-test.cpp
 	$(CXX) $(CXXFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS)                      $< -o $@ -DDIRSUF=bdb

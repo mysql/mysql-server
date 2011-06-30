@@ -159,7 +159,8 @@ else ifeq ($(GCCVERSION),4.4.1)
 else ifeq ($(GCCVERSION),4.4.0)
  CFLAGS += -Wno-strict-aliasing 
 endif
-LIBPORTABILITY=$(TOKUROOT)lib/libtokuportability.$(SOEXT)
+LIBPORTABILITY_SO=$(TOKUROOT)lib/libtokuportability.$(SOEXT)
+LIBPORTABILITY_A=$(TOKUROOT)lib/libtokuportability.$(AEXT)
 
 PORTABILITY_HEADERS= $(TOKUROOT)$(SYSTEM)
 ALWAYS_LINK= -lz -lpthread 
@@ -203,7 +204,8 @@ LINK_DLINK_FILES=$(patsubst %,$(LINK)%,$(notdir $(DLINK_FILES_PREPROCESS_2)))
 
 CRUNTIME=
 DEPEND_LINK += \
-	$(LIBPORTABILITY) \
+	$(LIBPORTABILITY_SO) \
+	$(LIBPORTABILITY_A) \
 	$(LINK_FILES) \
 # keep this line so I can have a \ on the previous line
 
@@ -306,7 +308,7 @@ ifneq ($(CYGWIN),)
     #Cygwin (Windows) Must override some settings
     BINSUF=.exe
     WRONGBINSUF=#empty
-    ALWAYS_LINK=$(LIBPORTABILITY) /usr/lib/libz.a
+    ALWAYS_LINK=/usr/lib/libz.a
     SRCPATH_DIRS = `find $(TOKUROOT) -type d | grep -v '/\.[^.]' | grep -F -v "$(TOKUROOT)$(OS_NOTCHOICE)" | tr '\n' ';'` 
     ifeq ($(WINDBG),1)
 	VGRIND = windbg -hd -y "$(SRCPATH_DIRS)" -srcpath "$(SRCPATH_DIRS)" #No Valgrind in cygwin #-G is quit at exit, but does not return ERROR on error!!! and quits on error to quickly
@@ -325,7 +327,7 @@ ifneq ($(CYGWIN),)
 	    CRUNTIME=MTd
 	endif
 	endif
-        ALWAYS_LINK=$(LIBPORTABILITY) $(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib PowrProf.lib
+        ALWAYS_LINK=$(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib PowrProf.lib
         LINK=#Empty
         BINOUTPUT=-Fe
         OOUTPUT=-Fo
@@ -448,19 +450,6 @@ clean-default:
 %.$(WRONGSOEXT):
 	echo "Wrong target type: $@ should be $*.$(SOEXT)" && false
 
-ifeq ($(SKIP_LIBPORTABILITYRULE),)
-ifeq ($(CYGWIN),)
-$(LIBPORTABILITY): $(TOKUROOT)$(SYSTEM)/*.[ch]
-	pwd && cd $(TOKUROOT)$(SYSTEM) &&   $(MAKE) install
-else ifneq ($(CC),icc)
-$(LIBPORTABILITY): $(TOKUROOT)$(SYSTEM)/*.[ch]
-	cd $(TOKUROOT)$(SYSTEM) &&   $(MAKE) install
-else
-$(LIBPORTABILITY): $(TOKUROOT)windows/*.[ch]
-	cd $(TOKUROOT)windows && $(MAKE) install
-endif
-endif
-
 ifeq ($(SKIP_LOCKTREERULE),)
 LOCKTREE         = $(TOKUROOT)src/lock_tree/locktree.$(AEXT)
 LOCKTREE_BUNDLE  = $(TOKUROOT)src/lock_tree/locktree.bundle
@@ -469,7 +458,7 @@ LOCKTREE_TLOG    = $(TOKUROOT)src/lock_tree/locktree_tlog.$(AEXT)
 LOCKTREE_LOG     = $(TOKUROOT)src/lock_tree/locktree_log.$(AEXT)
 $(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG) $(LOCKTREE_BUNDLE): $(@D)*.[ch]
 	cd $(@D) && $(MAKE) $(@F)
-$(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG) $(LOCKTREE_BUNDLE): $(LIBPORTABILITY)
+$(LOCKTREE) $(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE_LOG) $(LOCKTREE_BUNDLE): $(LIBPORTABILITY_SO)
 endif
 
 ifeq ($(SKIP_RANGETREERULE),)
@@ -480,7 +469,7 @@ RANGETREE_TLOG   = $(TOKUROOT)src/range_tree/rangetree_tlog.$(AEXT)
 RANGETREE_LOG    = $(TOKUROOT)src/range_tree/rangetree_log.$(AEXT)
 $(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG) $(RANGETREE_BUNDLE): $(@D)*.[ch]
 	cd $(@D) && $(MAKE) $(@F)
-$(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG) $(RANGETREE_BUNDLE): $(LIBPORTABILITY)
+$(RANGETREE) $(RANGETREE_LINEAR) $(RANGETREE_TLOG) $(RANGETREE_LOG) $(RANGETREE_BUNDLE): $(LIBPORTABILITY_SO)
 endif
 
 ifeq ($(SKIP_NEWBRTRULE),)

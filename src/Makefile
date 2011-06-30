@@ -73,8 +73,7 @@ buildlocktrees: $(LOCKTREE) $(RANGETREE) ;
 
 $(LIBRARY):  $(OBJS) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(DEPEND_COMPILE) $(DEPEND_LINK) 
 NEWBRT_OFILES = $(patsubst %,../%,$(shell cat ../lib/newbrt.olist))
-PORTABILITY_OFILES = $(patsubst %,../%,$(shell cat ../lib/tokuportability.olist))
-$(LIBRARY): LINK_FILES=$(OBJS) $(LOCKTREE) $(RANGETREE) $(NEWBRT_OFILES) $(PORTABILITY_OFILES)
+$(LIBRARY): LINK_FILES=$(OBJS) $(LOCKTREE) $(RANGETREE) $(NEWBRT_OFILES)
 ifeq ($(CC),icc)
  ifeq ($(HAVE_CILK),1)
   ifeq (0,1)

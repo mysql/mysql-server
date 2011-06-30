@@ -130,7 +130,7 @@ OFILES = \
 	$(TOKUROOT)src/range_tree/rangetree.lib \
 	$(TOKUROOT)src/lock_tree/locktree.lib \
 	$(TOKUROOT)newbrt/newbrt.lib \
-	$(LIBPORTABILITY) \
+	$(LIBPORTABILITY_SO) \
 #end
 
 $(TARGET_TDB): db-benchmark-test.c $(PTHREAD_LOCAL)
@@ -150,6 +150,7 @@ else
 $(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB) $(MULTIBENCH_TDB): DLINK_FILES=$(TDB_DLINK_FILES)
 $(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB) $(MULTIBENCH_TDB): RPATH_DIRS=$(dir $(TDB_DLINK_FILES))
 endif
+$(TARGET_TDB) $(SCANSCAN_TDB) $(SCANRACE_TDB) $(MULTIBENCH_TDB): LDLIBS+=-ltokuportability
 $(TARGET_TDB): db-benchmark-test.c $(PTHREAD_LOCAL)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
 $(SCANSCAN_TDB): scanscan.c $(PTHREAD_LOCAL)
