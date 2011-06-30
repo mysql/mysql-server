@@ -101,12 +101,27 @@ row_build_index_entry(
 
 		dfield_copy(dfield, dfield2);
 
-		if (dfield_is_null(dfield) || ind_field->prefix_len == 0) {
+		if (dfield_is_null(dfield)) {
 			continue;
 		}
 
-		/* If a column prefix index, take only the prefix.
-		Prefix-indexed columns may be externally stored. */
+		if (ind_field->prefix_len == 0
+		    && (!dfield_is_ext(dfield)
+			|| dict_index_is_clust(index))) {
+			/* The dfield_copy() above suffices for
+			columns that are stored in-page, or for
+			clustered index record columns that are not
+			part of a column prefix in the PRIMARY KEY. */
+			continue;
+		}
+
+		/* If the column is stored externally (off-page) in
+		the clustered index, it must be an ordering field in
+		the secondary index.  In the Antelope format, only
+		prefix-indexed columns may be stored off-page in the
+		clustered index record. In the Barracuda format, also
+		fully indexed long CHAR or VARCHAR columns may be
+		stored off-page. */
 		ut_ad(col->ord_part);
 
 		if (UNIV_LIKELY_NULL(ext)) {
@@ -119,13 +134,34 @@ row_build_index_entry(
 				}
 				dfield_set_data(dfield, buf, len);
 			}
+
+			if (ind_field->prefix_len == 0) {
+				/* In the Barracuda format
+				(ROW_FORMAT=DYNAMIC or
+				ROW_FORMAT=COMPRESSED), we can have a
+				secondary index on an entire column
+				that is stored off-page in the
+				clustered index. As this is not a
+				prefix index (prefix_len == 0),
+				include the entire off-page column in
+				the secondary index record. */
+				continue;
+			}
 		} else if (dfield_is_ext(dfield)) {
+			/* This table should be in Antelope format
+			(ROW_FORMAT=REDUNDANT or ROW_FORMAT=COMPACT).
+			In that format, the maximum column prefix
+			index length is 767 bytes, and the clustered
+			index record contains a 768-byte prefix of
+			each off-page column. */
 			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 			len -= BTR_EXTERN_FIELD_REF_SIZE;
 			ut_a(ind_field->prefix_len <= len
 			     || dict_index_is_clust(index));
 		}
 
+		/* If a column prefix index, take only the prefix. */
+		ut_ad(ind_field->prefix_len);
 		len = dtype_get_at_most_n_mbchars(
 			col->prtype, col->mbminlen, col->mbmaxlen,
 			ind_field->prefix_len, len, dfield_get_data(dfield));

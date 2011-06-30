@@ -1,3 +1,9 @@
+2011-06-30	The InnoDB Team
+
+	* row/row0row.c:
+	Fix Bug#12637786 Wrong secondary index entries on CHAR and VARCHAR
+	columns in ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED
+
 2011-06-16	The InnoDB Team
 
 	* btr/btr0cur.c, buf/buf0buddy.c, buf/buf0buf.c, buf/buf0lru.c,
