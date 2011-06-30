@@ -32,6 +32,12 @@ db-benchmark-test-cxx.dir: cxx.dir
 
 build: $(patsubst %,%.dir, $(BUILDDIRS))
 
+%.local:
+	cd $(patsubst %.local, %,$@) && $(MAKE) local
+
+release: newbrt.local src.local
+	cd release && $(MAKE) setup
+
 CHECKS = $(patsubst %,%.checkdir,$(SRCDIRS))
 
 # This is the original check rule
