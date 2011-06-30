@@ -177,3 +177,13 @@ INSERT INTO t1 VALUES (NULL, 0), (NULL, 1);
 SELECT IF(b, (SELECT a FROM t1 LIMIT 1), b) c FROM t1 GROUP BY c;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#12620084
+--echo # ASSERTION WHEN CHECKING FIELD_TYPES[FIELD_POS] AND IT'S MYSQL_TYPE_NULL
+--echo #
+
+SELECT if(0, (SELECT min('hello')), NULL);
+SELECT if(1, (SELECT min('hello')), NULL);
+SELECT if(0, NULL, (SELECT min('hello')));
+SELECT if(1, NULL, (SELECT min('hello')));
