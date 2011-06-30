@@ -595,6 +595,8 @@ public:
   bool isScanQuery() const
   { return m_operations[0]->isScanOperation(); }
 
+  NdbQueryDef::QueryType getQueryType() const;
+
   Uint32 getNoOfOperations() const
   { return m_operations.size(); }
 

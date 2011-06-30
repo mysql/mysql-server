@@ -44,6 +44,7 @@ extern my_bool opt_ndb_log_updated_only;
 extern my_bool opt_ndb_log_binlog_index;
 extern my_bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
+extern st_ndb_slave_state g_ndb_slave_state;
 
 bool ndb_log_empty_epochs(void);
 
@@ -781,6 +782,8 @@ static void ndbcluster_reset_slave(THD *thd)
     // Failed to delete rows from table
     error = 1;
   }
+
+  g_ndb_slave_state.atResetSlave();
 
   // pending fix for bug#59844 will make this function return int
   DBUG_VOID_RETURN;
