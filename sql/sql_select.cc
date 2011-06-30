@@ -865,6 +865,7 @@ JOIN::optimize()
   uint no_jbuf_after;
 
   DBUG_ENTER("JOIN::optimize");
+  do_send_rows = (unit->select_limit_cnt) ? 1 : 0;
   // to prevent double initialization on EXPLAIN
   if (optimized)
     DBUG_RETURN(0);
@@ -914,7 +915,6 @@ JOIN::optimize()
   select_limit= unit->select_limit_cnt;
   if (having || (select_options & OPTION_FOUND_ROWS))
     select_limit= HA_POS_ERROR;
-  do_send_rows = (unit->select_limit_cnt) ? 1 : 0;
   // Ignore errors of execution if option IGNORE present
   if (thd->lex->ignore)
     thd->lex->current_select->no_error= 1;

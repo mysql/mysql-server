@@ -343,3 +343,19 @@ SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
 
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
+
+
+--echo #
+--echo # LP bug #802845: select from derived table with limit 0                       
+--echo #                 
+
+SELECT * FROM (SELECT 1 LIMIT 0) t;
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (7), (1), (3);
+
+SELECT * FROM (SELECT * FROM t1 LIMIT 0) t;
+
+DROP TABLE t1;
+
+
