@@ -281,9 +281,9 @@ public:
 
   // default memory allocator
   struct MemDefault : public Mem {
-    virtual void* mem_alloc(size_t bytes);
+    virtual void* mem_alloc(UintPtr bytes);
     virtual void mem_free(void* p);
-    virtual size_t mem_used() const;
+    virtual UintPtr mem_used() const;
     MemDefault();
     virtual ~MemDefault();
   private:
