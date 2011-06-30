@@ -2984,7 +2984,8 @@ dict_foreign_find_index(
 	while (index != NULL) {
 		/* Ignore matches that refer to the same instance
 		or the index is to be dropped */
-		if (index->to_be_dropped || types_idx == index) {
+		if (index->to_be_dropped || types_idx == index
+		    || index->type & DICT_FTS) {
 
 			goto next_rec;
 
