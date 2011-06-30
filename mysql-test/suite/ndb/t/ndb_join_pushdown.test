@@ -1665,7 +1665,6 @@ insert into t1 values (3,2,2);
 insert into t1 values (4,null, 2);
 insert into t1 values (5,1, null);
 insert into t1 values (6,2,2);
-analyze table t1; # needed to get row-count into table :(
 
 set ndb_join_pushdown=false;
 
@@ -2266,8 +2265,6 @@ while ($1)
  dec $1;
 }
 enable_query_log;
-
-analyze table t1;
 
 explain extended
 select count(*)

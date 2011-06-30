@@ -91,7 +91,14 @@ static void ndbcluster_explain_no_push(const char* msgfmt, ...)
   va_start(args,msgfmt);
   (void) my_vsnprintf (wbuff, sizeof(wbuff), msgfmt, args);
   va_end(args);
-  push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_QUERY_NOT_PUSHED,
+  /**
+   *  FIXME:
+   *  We temp. use '9999' as errorcode, Change to use
+   *  'WARN_QUERY_NOT_PUSHED' when its deffinition has reached
+   *  one if the 'mainline' branches. (sql/share/errmsg.txt)
+   */
+  uint warn_code= 9999;
+  push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE, warn_code,
                wbuff);
 } // ndbcluster_explain_no_push();
 
