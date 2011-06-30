@@ -76,9 +76,6 @@ my $cmake_version_id;
 
   # MySQL Server options
   push(@args, "--with-ssl");
-  push(@args, "--with-embedded-server");
-  push(@args, "--with-extra-charsets=complex");
-  push(@args, "--enable-mysql-maintainer-mode");
  
   if ($opt_debug)
   {
