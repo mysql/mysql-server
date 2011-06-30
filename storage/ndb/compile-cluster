@@ -36,8 +36,7 @@ GetOptions(
 
   # Build MySQL Server and NDB with debug
   'debug' => \$opt_debug,
-  'with-debug=s' => \$opt_debug,
-
+  'with-debug:s' => sub { $opt_debug = 1; },
 
 ) or exit(1);
 
