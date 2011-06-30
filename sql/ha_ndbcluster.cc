@@ -22,8 +22,6 @@
 
 #include "ha_ndbcluster_glue.h"
 
-#include "rpl_mi.h"
-
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
 #include <ndbapi/NdbApi.hpp>
@@ -46,6 +44,7 @@
 
 #include <mysql/plugin.h>
 #include <ndb_version.h>
+#include "ndb_mi.h"
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal();
@@ -488,7 +487,11 @@ update_slave_api_stats(Ndb* ndb)
 st_ndb_slave_state g_ndb_slave_state;
 
 st_ndb_slave_state::st_ndb_slave_state()
-  : current_conflict_defined_op_count(0)
+  : current_conflict_defined_op_count(0),
+    current_master_server_epoch(0),
+    current_max_rep_epoch(0),
+    max_rep_epoch(0),
+    sql_run_id(~Uint32(0))
 {
   memset(current_violation_count, 0, sizeof(current_violation_count));
   memset(total_violation_count, 0, sizeof(total_violation_count));
@@ -500,6 +503,7 @@ st_ndb_slave_state::atTransactionAbort()
   /* Reset current-transaction counters + state */
   memset(current_violation_count, 0, sizeof(current_violation_count));
   current_conflict_defined_op_count = 0;
+  current_max_rep_epoch = 0;
 }
 
 void
@@ -514,7 +518,194 @@ st_ndb_slave_state::atTransactionCommit()
     current_violation_count[i] = 0;
   }
   current_conflict_defined_op_count = 0;
+  if (current_max_rep_epoch > max_rep_epoch)
+  {
+    DBUG_PRINT("info", ("Max replicated epoch increases from %llu to %llu",
+                        max_rep_epoch,
+                        current_max_rep_epoch));
+
+    max_rep_epoch = current_max_rep_epoch;
+  }
+  current_max_rep_epoch = 0;
 }
+
+void
+st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
+                                       Uint32 row_server_id,
+                                       Uint64 row_epoch,
+                                       bool is_row_server_id_local)
+{
+  if (row_server_id == master_server_id)
+  {
+    /*
+       WRITE_ROW to ndb_apply_status injected by MySQLD
+       immediately upstream of us.
+       Record epoch
+    */
+    current_master_server_epoch = row_epoch;
+    assert(! is_row_server_id_local);
+  }
+  else if (is_row_server_id_local)
+  {
+    DBUG_PRINT("info", ("Recording application of local server %u epoch %llu "
+                        " which is %s.",
+                        row_server_id, row_epoch,
+                        (row_epoch > g_ndb_slave_state.current_max_rep_epoch)?
+                        " new highest." : " older than previously applied"));
+    if (row_epoch > current_max_rep_epoch)
+    {
+      /*
+        Store new highest epoch in thdvar.  If we commit successfully
+        then this can become the new global max
+      */
+      current_max_rep_epoch = row_epoch;
+    }
+  }
+}
+
+void
+st_ndb_slave_state::atResetSlave()
+{
+  /* Reset the Maximum replicated epoch vars
+   * on slave reset
+   * No need to touch the sql_run_id as that
+   * will increment if the slave is started
+   * again.
+   */
+  current_max_rep_epoch = 0;
+  max_rep_epoch = 0;
+}
+
+static int check_slave_state(THD* thd)
+{
+  DBUG_ENTER("check_slave_state");
+
+#ifdef HAVE_NDB_BINLOG
+  if (!thd->slave_thread)
+    DBUG_RETURN(0);
+
+  const Uint32 runId = ndb_mi_get_slave_run_id();
+  DBUG_PRINT("info", ("Slave SQL thread run id is %u",
+                      runId));
+  if (unlikely(runId != g_ndb_slave_state.sql_run_id))
+  {
+    DBUG_PRINT("info", ("Slave run id changed from %u, "
+                        "treating as Slave restart",
+                        g_ndb_slave_state.sql_run_id));
+    g_ndb_slave_state.sql_run_id = runId;
+
+    /* Always try to load the Max Replicated Epoch info
+     * first.
+     * Could be made optional if it's a problem
+     */
+    {
+      /*
+         Load highest replicated epoch from a local
+         MySQLD from the cluster.
+      */
+      DBUG_PRINT("info", ("Loading applied epoch information from %s",
+                          NDB_APPLY_TABLE));
+      NdbError ndb_error;
+      Uint64 highestAppliedEpoch = 0;
+      do
+      {
+        Ndb* ndb= check_ndb_in_thd(thd);
+        NDBDICT* dict= ndb->getDictionary();
+        NdbTransaction* trans= NULL;
+        ndb->setDatabaseName(NDB_REP_DB);
+        Ndb_table_guard ndbtab_g(dict, NDB_APPLY_TABLE);
+
+        const NDBTAB* ndbtab= ndbtab_g.get_table();
+        if (unlikely(ndbtab == NULL))
+        {
+          ndb_error = dict->getNdbError();
+          break;
+        }
+
+        trans= ndb->startTransaction();
+        if (unlikely(trans == NULL))
+        {
+          ndb_error = ndb->getNdbError();
+          break;
+        }
+
+        do
+        {
+          NdbScanOperation* sop = trans->getNdbScanOperation(ndbtab);
+          if (unlikely(sop == NULL))
+          {
+            ndb_error = trans->getNdbError();
+            break;
+          }
+
+          const Uint32 server_id_col_num = 0;
+          const Uint32 epoch_col_num = 1;
+          NdbRecAttr* server_id_ra;
+          NdbRecAttr* epoch_ra;
+
+          if (unlikely((sop->readTuples(NdbOperation::LM_CommittedRead) != 0)   ||
+                       ((server_id_ra = sop->getValue(server_id_col_num)) == NULL)  ||
+                       ((epoch_ra = sop->getValue(epoch_col_num)) == NULL)))
+          {
+            ndb_error = sop->getNdbError();
+            break;
+          }
+
+          if (trans->execute(NdbTransaction::Commit))
+          {
+            ndb_error = trans->getNdbError();
+            break;
+          }
+
+          int rc = 0;
+          while (0 == (rc= sop->nextResult(true)))
+          {
+            Uint32 serverid = server_id_ra->u_32_value();
+            Uint64 epoch = epoch_ra->u_64_value();
+
+            if ((serverid == ::server_id) ||
+                (ndb_mi_get_ignore_server_id(serverid)))
+            {
+              highestAppliedEpoch = MAX(epoch, highestAppliedEpoch);
+            }
+          }
+
+          if (rc != 1)
+          {
+            ndb_error = sop->getNdbError();
+            break;
+          }
+        } while (0);
+
+        trans->close();
+      } while(0);
+
+      if (ndb_error.code != 0)
+      {
+        sql_print_warning("NDB Slave : Could not determine maximum replicated epoch from %s.%s "
+                          "at Slave start, error %u %s",
+                          NDB_REP_DB,
+                          NDB_APPLY_TABLE,
+                          ndb_error.code, ndb_error.message);
+      }
+
+      /*
+        Set Global status variable to the Highest Applied Epoch from
+        the Cluster DB.
+        If none was found, this will be zero.
+      */
+      g_ndb_slave_state.max_rep_epoch = highestAppliedEpoch;
+      sql_print_information("NDB Slave : MaxReplicatedEpoch set to %llu (%u/%u) at Slave start",
+                            g_ndb_slave_state.max_rep_epoch,
+                            (Uint32)(g_ndb_slave_state.max_rep_epoch >> 32),
+                            (Uint32)(g_ndb_slave_state.max_rep_epoch & 0xffffffff));
+    } // Load highest replicated epoch
+  } // New Slave SQL thread run id
+#endif
+
+  DBUG_RETURN(0);
+}
+
 
 static int update_status_variables(Thd_ndb *thd_ndb,
                                    st_ndb_status *ns,
@@ -660,6 +851,7 @@ SHOW_VAR ndb_status_injector_variables[]= {
 
 SHOW_VAR ndb_status_slave_variables[]= {
   NDBAPI_COUNTERS("_slave", &g_slave_api_client_stats),
+  {"slave_max_replicated_epoch", (char*) &g_ndb_slave_state.max_rep_epoch, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -779,7 +971,7 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 }
 
 #ifdef HAVE_NDB_BINLOG
-extern Master_info *active_mi;
+
 /* Write conflicting row to exceptions table. */
 static int write_conflict_row(NDB_SHARE *share,
                               NdbTransaction *trans,
@@ -807,8 +999,8 @@ static int write_conflict_row(NDB_SHARE *share,
   }
   {
     uint32 server_id= (uint32)::server_id;
-    uint32 master_server_id= (uint32)active_mi->master_id;
-    uint64 master_epoch= (uint64)active_mi->master_epoch;
+    uint32 master_server_id= (uint32) ndb_mi_get_master_server_id();
+    uint64 master_epoch= (uint64) g_ndb_slave_state.current_master_server_epoch;
     uint32 count= (uint32)++(cfn_share->m_count);
     if (ex_op->setValue((Uint32)0, (const char *)&(server_id)) ||
         ex_op->setValue((Uint32)1, (const char *)&(master_server_id)) ||
@@ -4349,7 +4541,7 @@ bool ha_ndbcluster::isManualBinlogExec(THD *thd)
 #ifndef EMBEDDED_LIBRARY
   return thd ? 
     ( thd->rli_fake? 
-      thd->rli_fake->get_flag(Relay_log_info::IN_STMT) : false)
+      ndb_mi_get_in_relay_log_statement(thd->rli_fake) : false)
     : false;
 #else
   /* For Embedded library, we can't determine if we're
@@ -4605,21 +4797,38 @@ handle_conflict_op_error(Thd_ndb* thd_ndb,
 #endif /* HAVE_NDB_BINLOG */
 
 
+#ifdef HAVE_NDB_BINLOG
+/*
+  is_serverid_local
+*/
+static bool is_serverid_local(Uint32 serverid)
+{
+  /*
+     If it's not our serverid, check the
+     IGNORE_SERVER_IDS setting to check if
+     it's local.
+  */
+  return ((serverid == ::server_id) ||
+          ndb_mi_get_ignore_server_id(serverid));
+}
+#endif
+
 int ha_ndbcluster::write_row(uchar *record)
 {
   DBUG_ENTER("ha_ndbcluster::write_row");
 #ifdef HAVE_NDB_BINLOG
   if (m_share == ndb_apply_status_share && table->in_use->slave_thread)
   {
-    uint32 sid, master_server_id= active_mi->master_id;
-    memcpy(&sid, table->field[0]->ptr + (record - table->record[0]), sizeof(sid));
-    if (sid == master_server_id)
-    {
-      uint64 master_epoch;
-      memcpy(&master_epoch, table->field[1]->ptr + (record - table->record[0]),
-             sizeof(master_epoch));
-      active_mi->master_epoch= master_epoch;
-    }
+    uint32 row_server_id, master_server_id= ndb_mi_get_master_server_id();
+    uint64 row_epoch;
+    memcpy(&row_server_id, table->field[0]->ptr + (record - table->record[0]),
+           sizeof(row_server_id));
+    memcpy(&row_epoch, table->field[1]->ptr + (record - table->record[0]),
+           sizeof(row_epoch));
+    g_ndb_slave_state.atApplyStatusWrite(master_server_id,
+                                         row_server_id,
+                                         row_epoch,
+                                         is_serverid_local(row_server_id));
   }
 #endif /* HAVE_NDB_BINLOG */
   DBUG_RETURN(ndb_write_row(record, FALSE, FALSE));
@@ -4642,6 +4851,10 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   NdbOperation::SetValueSpec sets[2];
   Uint32 num_sets= 0;
   DBUG_ENTER("ha_ndbcluster::ndb_write_row");
+
+  error = check_slave_state(thd);
+  if (unlikely(error))
+    DBUG_RETURN(error);
 
   has_auto_increment= (table->next_number_field && record == table->record[0]);
 
@@ -5187,6 +5400,11 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
 
   DBUG_ENTER("ndb_update_row");
   DBUG_ASSERT(trans);
+
+  error = check_slave_state(thd);
+  if (unlikely(error))
+    DBUG_RETURN(error);
+
   /*
    * If IGNORE the ignore constraint violations on primary and unique keys,
    * but check that it is not part of INSERT ... ON DUPLICATE KEY UPDATE
@@ -5520,6 +5738,10 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 
   DBUG_ENTER("ndb_delete_row");
   DBUG_ASSERT(trans);
+
+  error = check_slave_state(thd);
+  if (unlikely(error))
+    DBUG_RETURN(error);
 
   ha_statistic_increment(&SSV::ha_delete_count);
   m_rows_changed++;
@@ -7097,30 +7319,15 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
     r|= op->setValue(1u, (Uint64)0);
     DBUG_ASSERT(r == 0);
   }
-#if MYSQL_VERSION_ID < 50600
   const char* group_master_log_name =
-    active_mi->rli.group_master_log_name;
+    ndb_mi_get_group_master_log_name();
   const Uint64 group_master_log_pos =
-    (Uint64)active_mi->rli.group_master_log_pos;
+    ndb_mi_get_group_master_log_pos();
   const Uint64 future_event_relay_log_pos =
-    (Uint64)active_mi->rli.future_event_relay_log_pos;
+    ndb_mi_get_future_event_relay_log_pos();
   const Uint64 group_relay_log_pos =
-    (Uint64)active_mi->rli.group_relay_log_pos;
-#else
-  /*
-    - Master_info's rli member returns Relay_log_info*
-    - Relay_log_info members are protected and must be accessed
-      using accessor functions
-  */
-  const char* group_master_log_name =
-    active_mi->rli->get_group_master_log_name();
-  const Uint64 group_master_log_pos =
-    (Uint64)active_mi->rli->get_group_master_log_pos();
-  const Uint64 future_event_relay_log_pos =
-    (Uint64)active_mi->rli->get_future_event_relay_log_pos();
-  const Uint64 group_relay_log_pos =
-    (Uint64)active_mi->rli->get_group_relay_log_pos();
-#endif
+    ndb_mi_get_group_relay_log_pos();
+
   // log_name
   char tmp_buf[FN_REFLEN];
   ndb_pack_varchar(ndbtab->getColumn(2u), tmp_buf,

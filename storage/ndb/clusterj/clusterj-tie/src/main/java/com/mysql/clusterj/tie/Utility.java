@@ -99,6 +99,18 @@ public class Utility {
 
     static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
+    // TODO: this is intended to investigate a class loader issue with Sparc java
+    // The idea is to force loading the CharsetMap native class prior to calling the static create method
+    static Class<?> charsetMapClass = loadClass("com.mysql.ndbjtie.mysql.CharsetMap");
+    static Class<?> loadClass(String className) {
+        try {
+            return Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            // TODO Auto-generated catch block
+            throw new ClusterJFatalInternalException(local.message("ERR_Loading_Native_Class", className), e);
+        }
+    }
+
     // TODO: change this to a weak reference so we can call delete on it when not needed
     /** Note that mysql refers to charset number and charset name, but the number is
     * actually a collation number. The CharsetMap interface thus has methods like

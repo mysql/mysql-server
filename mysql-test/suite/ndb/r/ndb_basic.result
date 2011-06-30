@@ -82,6 +82,7 @@ Ndb_pushed_reads	#
 Ndb_scan_count	#
 Ndb_schema_locks_count	#
 Ndb_sorted_scan_count	#
+Ndb_slave_max_replicated_epoch	#
 SHOW GLOBAL VARIABLES LIKE 'ndb\_%';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
