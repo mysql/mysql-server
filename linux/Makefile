@@ -11,7 +11,7 @@ SRCS = $(wildcard *.c)
 OBJS = $(patsubst %.c,%.$(OEXT),$(SRCS))
 TARGET = $(LIBPORTABILITY_SO) $(LIBPORTABILITY_A)
 
-build install: $(TARGET)
+local build install: $(TARGET)
 
 ifeq ($(CC),icc)
 #LINUX_NOSTDLIB=-nostdlib
