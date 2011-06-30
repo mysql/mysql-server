@@ -2202,7 +2202,10 @@ row_create_index_for_mysql(
 
 	/* Create the index specific FTS auxiliary tables. */
 	if (err == DB_SUCCESS && index->type == DICT_FTS) {
-		err = fts_create_index_tables(trx, index);
+		dict_index_t*	idx;
+
+		idx = dict_table_get_index_on_name(table, index->name);
+		err = fts_create_index_tables(trx, idx);
 	}
 
 error_handling:

@@ -247,15 +247,13 @@ row_fts_insert_tuple(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
 	que_t**		ins_graph,	/*!< in: Insert query graphs */
-	dict_index_t*	index,		/*!< in: fts sort index */
 	fts_table_t*	fts_table,	/*!< in: fts aux table instance */
 	fts_tokenizer_word_t* word,	/*!< in: last processed
 					tokenized word */
 	ib_vector_t*	positions,	/*!< in: word position */
 	doc_id_t*	in_doc_id,	/*!< in: last item doc id */
 	dtuple_t*	dtuple,		/*!< in: index entry */
-	int*		count);		/*!< in/out: counter recording how many
-					records have been inserted */
+	mem_heap_t*	heap);		/*!< in: heap */
 /********************************************************************//**
 Propagate a newly added record up one level in the selection tree
 @return parent where this value propagated to */

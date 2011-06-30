@@ -554,6 +554,14 @@ fts_que_graph_free_check_lock(
 	const fts_index_cache_t*index_cache,	/*!< in: FTS index cache */
 	que_t*			graph);		/*!< in: query graph */
 
+/****************************************************************//**
+Create an FTS index cache. */
+UNIV_INTERN
+CHARSET_INFO*
+fts_index_get_charset(
+/*==================*/
+	dict_index_t*		index);		/*!< in: FTS index */
+
 /*********************************************************************//**
 Get the initial Doc ID by consulting the ADDED and the CONFIG table
 @return initial Doc ID */
@@ -572,6 +580,16 @@ innobase_fts_text_cmp(
 	const void*	cs,		/*!< in: Character set */
 	const void*	p1,		/*!< in: key */
 	const void*	p2);		/*!< in: node */
+
+/******************************************************************//**
+Makes all characters in a string lower case. */
+extern
+void
+innobase_fts_casedn_str(
+/*====================*/
+        CHARSET_INFO*   cs,     /*!< in: Character set */
+        char*           a);     /*!< in/out: string to put in
+                                lower case */
 
 /******************************************************************//**
 compare two character string according to their charset. */
