@@ -36,6 +36,7 @@ GetOptions(
 
   # Build MySQL Server and NDB with debug
   'debug' => \$opt_debug,
+  'with-debug=s' => \$opt_debug,
 
 
 ) or exit(1);
@@ -80,6 +81,7 @@ my $cmake_version_id;
   if ($opt_debug)
   {
     push(@args, "--with-debug");
+    push(@args, "--disable-mysql-maintainer-mode");
   }
 
   # NDB options
