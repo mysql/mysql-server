@@ -7,8 +7,8 @@ exit $?
 #endif
 
 /*
-   Copyright (C) 2005, 2006 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2006 MySQL AB
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
