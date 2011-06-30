@@ -275,7 +275,7 @@ int Geometry::create_from_opresult(Geometry_buffer *g_buf,
 
   res->q_append((char) wkb_ndr);
   res->q_append(geom_type);
-  return obj->init_from_opresult(res, rr.result(), rr.get_nshapes());
+  return obj->init_from_opresult(res, rr.result(), rr.length());
 }
 
 
@@ -789,19 +789,18 @@ bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
 }
 
 
-uint Gis_polygon::priv_init_from_opresult(String *bin,
-                                          const char *opres, uint32 n_shapes,
-                                          uint32 *poly_shapes)
+uint Gis_polygon::init_from_opresult(String *bin,
+                                     const char *opres, uint res_len)
 {
   const char *opres_orig= opres;
   uint32 position= bin->length();
+  uint32 poly_shapes= 0;
 
-  *poly_shapes= 0;
   if (bin->reserve(4, 512))
     return 0;
-  bin->q_append(*poly_shapes);
+  bin->q_append(poly_shapes);
 
-  while (n_shapes--)
+  while (opres_orig + res_len > opres)
   {
     uint32 n_points, proper_length;
     const char *op_end, *p1_position;
@@ -809,9 +808,9 @@ uint Gis_polygon::priv_init_from_opresult(String *bin,
     Gcalc_function::shape_type st;
 
     st= (Gcalc_function::shape_type) uint4korr(opres);
-    if (*poly_shapes && st != Gcalc_function::shape_hole)
+    if (poly_shapes && st != Gcalc_function::shape_hole)
       break;
-    (*poly_shapes)++;
+    poly_shapes++;
     n_points= uint4korr(opres + 4) + 1; /* skip shape type id */
     proper_length= 4 + n_points * POINT_DATA_SIZE;
 
@@ -830,7 +829,7 @@ uint Gis_polygon::priv_init_from_opresult(String *bin,
       return 0;
   }
 
-  bin->write_at_position(position, *poly_shapes);
+  bin->write_at_position(position, poly_shapes);
 
   return (uint) (opres - opres_orig);
 }
@@ -1202,20 +1201,20 @@ bool Gis_multi_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
 
 
 uint Gis_multi_point::init_from_opresult(String *bin,
-                                         const char *opres, uint32 n_shapes)
+                                         const char *opres, uint res_len)
 {
-  uint bin_size, opres_size;
+  uint bin_size, n_points;
   Gis_point p;
   const char *opres_end;
 
-  bin_size= n_shapes * (WKB_HEADER_SIZE + POINT_DATA_SIZE) + 4;
-  opres_size= n_shapes * (4 + 8*2);
+  n_points= res_len/(4+8*2);
+  bin_size= n_points * (WKB_HEADER_SIZE + POINT_DATA_SIZE) + 4;
  
   if (bin->reserve(bin_size, 512))
     return 0;
     
-  bin->q_append(n_shapes);
-  opres_end= opres + opres_size;
+  bin->q_append(n_points);
+  opres_end= opres + res_len;
   for (; opres < opres_end; opres+= (4 + 8*2))
   {
     bin->q_append((char)wkb_ndr);
@@ -1223,7 +1222,7 @@ uint Gis_multi_point::init_from_opresult(String *bin,
     if (!p.init_from_wkb(opres + 4, POINT_DATA_SIZE, wkb_ndr, bin))
       return 0;
   }
-  return opres_size;
+  return res_len;
 }
 
 
@@ -1395,16 +1394,17 @@ bool Gis_multi_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
 
 
 uint Gis_multi_line_string::init_from_opresult(String *bin,
-                                               const char *opres,
-                                               uint32 n_shapes)
+                                               const char *opres, uint res_len)
 {
   const char *opres_orig= opres;
+  int ns_pos= bin->length();
+  uint n_linestring= 0;
 
   if (bin->reserve(4, 512))
     return 0;
-  bin->q_append(n_shapes);
+  bin->q_append(n_linestring);
   
-  while (n_shapes--)
+  while (res_len)
   {
     Gis_line_string ls;
     int ls_len;
@@ -1415,10 +1415,13 @@ uint Gis_multi_line_string::init_from_opresult(String *bin,
     bin->q_append((char) wkb_ndr);
     bin->q_append((uint32) wkb_linestring);
 
-    if (!(ls_len= ls.init_from_opresult(bin, opres)))
+    if (!(ls_len= ls.init_from_opresult(bin, opres, res_len)))
       return 0;
     opres+= ls_len;
+    res_len-= ls_len;
+    n_linestring++;
   }
+  bin->write_at_position(ns_pos, n_linestring);
   return (uint) (opres - opres_orig);
 }
 
@@ -1744,29 +1747,28 @@ uint Gis_multi_polygon::init_from_wkb(const char *wkb, uint len,
 
 
 uint Gis_multi_polygon::init_from_opresult(String *bin,
-                                           const char *opres, uint32 n_shapes)
+                                           const char *opres, uint res_len)
 {
   Gis_polygon p;
   const char *opres_orig= opres;
   uint p_len;
-  uint poly_shapes;
-  uint n_poly= 0;
+  uint32 n_poly= 0;
   uint32 np_pos= bin->length();
 
   if (bin->reserve(4, 512))
     return 0;
     
-  bin->q_append(n_shapes);
-  while (n_shapes)
+  bin->q_append(n_poly);
+  while (res_len)
   {
     if (bin->reserve(1 + 4, 512))
       return 0;
     bin->q_append((char)wkb_ndr);
     bin->q_append((uint32)wkb_polygon);
-    if (!(p_len= p.priv_init_from_opresult(bin, opres, n_shapes, &poly_shapes)))
+    if (!(p_len= p.init_from_opresult(bin, opres, res_len)))
       return 0;
-    n_shapes-= poly_shapes;
     opres+= p_len;
+    res_len-= p_len;
     n_poly++;
   }
   bin->write_at_position(np_pos, n_poly);
@@ -2063,19 +2065,21 @@ bool Gis_geometry_collection::init_from_wkt(Gis_read_stream *trs, String *wkb)
 
 uint Gis_geometry_collection::init_from_opresult(String *bin,
                                                  const char *opres,
-                                                 uint32 n_shapes)
+                                                 uint res_len)
 {
   const char *opres_orig= opres;
   Geometry_buffer buffer;
   Geometry *geom;
   int g_len;
   uint32 wkb_type;
+  int no_pos= bin->length();
+  uint32 n_objects= 0;
 
   if (bin->reserve(4, 512))
     return 0;
-  bin->q_append(n_shapes);
+  bin->q_append(n_objects);
   
-  while (n_shapes--)
+  while (res_len)
   {
     switch ((Gcalc_function::shape_type) uint4korr(opres))
     {
@@ -2092,10 +2096,13 @@ uint Gis_geometry_collection::init_from_opresult(String *bin,
     bin->q_append(wkb_type);
 
     if (!(geom= create_by_typeid(&buffer, wkb_type)) ||
-        !(g_len= geom->init_from_opresult(bin, opres, 1)))
+        !(g_len= geom->init_from_opresult(bin, opres, res_len)))
       return 0;
     opres+= g_len;
+    res_len-= g_len;
+    n_objects++;
   }
+  bin->write_at_position(no_pos, n_objects);
   return (uint) (opres - opres_orig);
 }
 

@@ -105,3 +105,9 @@ select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('p
 SELECT ST_Equals(PolyFromText('POLYGON((67 13, 67 18, 67 18, 59 18, 59 13, 67 13) )'),PolyFromText('POLYGON((67 13, 67 18, 59 19, 59 13, 59 13, 67 13) )')) as result;
 SELECT ST_Equals(PolyFromText('POLYGON((67 13, 67 18, 67 18, 59 18, 59 13, 67 13) )'),PolyFromText('POLYGON((67 13, 67 18, 59 18, 59 13, 59 13, 67 13) )')) as result;
 SELECT ST_Equals(PointFromText('POINT (12 13)'),PointFromText('POINT (12 13)')) as result;
+
+# bug #801243 Assertion `(0)' failed in Gis_geometry_collection::init_from_opresult on ST_UNION
+
+SELECT astext(ST_UNION (
+        PolyFromText('POLYGON(( 2 2 ,3 2,2 7,2 2),( 0 0,8 2,1 9,0 0))'),
+        ExteriorRing( Envelope( MultiLineStringFromText('MULTILINESTRING((3 4,5 3),(3 0,0 5))')))));

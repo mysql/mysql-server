@@ -251,7 +251,7 @@ public:
   virtual uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
                              String *res)=0;
   virtual uint init_from_opresult(String *bin,
-                                  const char *opres, uint32 n_shapes=1)
+                                  const char *opres, uint res_len)
   { return init_from_wkb(opres + 4, UINT_MAX32, wkb_ndr, bin) + 4; }
 
   virtual bool get_data_as_wkt(String *txt, const char **end) const=0;
@@ -425,13 +425,7 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint priv_init_from_opresult(String *bin, const char *opres,
-                               uint32 n_shapes, uint32 *poly_shapes);
-  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes)
-  {
-    uint32 foo;
-    return priv_init_from_opresult(bin, opres, n_shapes, &foo);
-  }
+  uint init_from_opresult(String *bin, const char *opres, uint res_len);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int area(double *ar, const char **end) const;
@@ -461,7 +455,7 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
+  uint init_from_opresult(String *bin, const char *opres, uint res_len);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int num_geometries(uint32 *num) const;
@@ -487,7 +481,7 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
+  uint init_from_opresult(String *bin, const char *opres, uint res_len);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int num_geometries(uint32 *num) const;
@@ -529,7 +523,7 @@ public:
   }
   int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
-  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
+  uint init_from_opresult(String *bin, const char *opres, uint res_len);
 };
 
 
@@ -543,7 +537,7 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
+  uint init_from_opresult(String *bin, const char *opres, uint res_len);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int num_geometries(uint32 *num) const;
