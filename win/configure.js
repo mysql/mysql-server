@@ -1,7 +1,6 @@
 // Configure.js
 //
-// Copyright (C) 2006 MySQL AB
-//  All rights reserved. Use is subject to license terms.
+// Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
