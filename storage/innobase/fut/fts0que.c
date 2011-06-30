@@ -454,6 +454,7 @@ fts_query_compare_rank(
 	return(1);
 }
 
+#ifdef FTS_UTF8_DEBUG
 /********************************************************************
 Convert string to lowercase. */
 static
@@ -481,6 +482,7 @@ fts_tolower(
 
 	return(lc_str);
 }
+#endif
 
 /********************************************************************
 Do a case insensitive search. Doesn't check for NUL byte end marker
@@ -3163,6 +3165,7 @@ fts_query(
 	byte*		lc_query_str;
 	ibool		boolean_mode;
 	trx_t*		query_trx;
+	CHARSET_INFO*	charset;
 
 	boolean_mode = flags & FTS_BOOL;
 
@@ -3234,7 +3237,15 @@ fts_query(
 
 	/* Convert the query string to lower case before parsing. We own
 	the ut_malloc'ed result and so remember to free it before return. */
-	lc_query_str = fts_tolower(query_str, query_len);
+
+	charset = fts_index_get_charset(index);
+
+	lc_query_str = ut_malloc(query_len + 1);
+	memcpy(lc_query_str, query_str, query_len);
+	lc_query_str[query_len] = 0;
+
+	innobase_fts_casedn_str(charset, (char*) lc_query_str);
+
 	query.heap = mem_heap_create(128);
 
 	/* Create the rb tree for the doc id (current) set. */

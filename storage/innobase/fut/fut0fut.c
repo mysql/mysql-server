@@ -64,9 +64,6 @@ typedef struct fts_sys_table_struct fts_sys_table_t;
 /* Error condition reported by fts_utf8_decode() */
 const ulint UTF8_ERROR = 0xFFFFFFFF;
 
-/* The minimum length of token that is supported */
-static const ulint FTS_MIN_TOKEN_LENGTH = 0;
-
 /* The cache size permissible lower limit (1K) */
 static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
 
@@ -204,13 +201,6 @@ static const char* fts_create_index_tables_sql = {
 static const char* fts_create_index_sql = {
 	"BEGIN\n"
 	""
-	"CREATE TABLE %s (\n"
-	"   word CHAR,\n"
-	"   first_doc_id BIGINT UNSIGNED NOT NULL,\n"
-	"   last_doc_id BIGINT UNSIGNED NOT NULL,\n"
-	"   doc_count INT UNSIGNED NOT NULL,\n"
-	"   ilist BLOB NOT NULL\n"
-	") COMPACT;\n"
 	"CREATE UNIQUE CLUSTERED INDEX FTS_INDEX_TABLE_IND "
 		"ON %s(word, first_doc_id);\n"
 };
@@ -650,36 +640,26 @@ innobase_get_fts_charset(
 /****************************************************************//**
 Create an FTS index cache. */
 UNIV_INTERN
-void
-fts_cache_index_cache_create(
-/*=========================*/
-	dict_table_t*		table,		/*!< in: table with FTS index */
+CHARSET_INFO*
+fts_index_get_charset(
+/*==================*/
 	dict_index_t*		index)		/*!< in: FTS index */
 {
-	ulint			n_bytes;
-	fts_index_cache_t*	index_cache;
-	fts_cache_t*		cache = table->fts->cache;
 	CHARSET_INFO*		charset = NULL;
-	ulint			i;
+	dict_field_t*		field;
+	ulint			prtype;
 
-	ut_a(cache != NULL);
+	field = dict_index_get_nth_field(index, 0);
+	prtype = field->col->prtype;
 
-	rw_lock_x_lock(&cache->lock);
+	charset = innobase_get_fts_charset(
+		(int)(prtype & DATA_MYSQL_TYPE_MASK),
+		(uint)dtype_get_charset_coll(prtype));
 
-	/* Must not already exist in the cache vector. */
-	ut_a(fts_find_index_cache(cache, index) == NULL);
-
-	index_cache = ib_vector_push(cache->indexes, NULL);
-
-	memset(index_cache, 0x0, sizeof(*index_cache));
-
-	index_cache->index = index;
-
+#ifdef FTS_DEBUG
 	/* Set up charset info for this index. Please note all
 	field of the FTS index should have the same charset */
-	for (i = 0; i < index->n_fields; i++) {
-		dict_field_t*   field;
-		ulint           prtype;
+	for (i = 1; i < index->n_fields; i++) {
 		CHARSET_INFO*   fld_charset;
 
 		field = dict_index_get_nth_field(index, i);
@@ -696,8 +676,38 @@ fts_cache_index_cache_create(
 			charset = fld_charset;
 		}
 	}
+#endif
 
-	index_cache->charset = charset;
+	return(charset);
+
+}
+/****************************************************************//**
+Create an FTS index cache. */
+UNIV_INTERN
+void
+fts_cache_index_cache_create(
+/*=========================*/
+	dict_table_t*		table,		/*!< in: table with FTS index */
+	dict_index_t*		index)		/*!< in: FTS index */
+{
+	ulint			n_bytes;
+	fts_index_cache_t*	index_cache;
+	fts_cache_t*		cache = table->fts->cache;
+
+	ut_a(cache != NULL);
+
+	rw_lock_x_lock(&cache->lock);
+
+	/* Must not already exist in the cache vector. */
+	ut_a(fts_find_index_cache(cache, index) == NULL);
+
+	index_cache = ib_vector_push(cache->indexes, NULL);
+
+	memset(index_cache, 0x0, sizeof(*index_cache));
+
+	index_cache->index = index;
+
+	index_cache->charset = fts_index_get_charset(index);
 
 	n_bytes = sizeof(que_t*) * sizeof(fts_index_selector);
 
@@ -1442,6 +1452,57 @@ func_exit:
 Wrapper function of fts_create_index_tables_low(), create auxiliary
 tables for an FTS index
 @return: DB_SUCCESS or error code */
+static
+dict_table_t*
+fts_create_one_index_table(
+/*=======================*/
+	trx_t*		trx,		/*!< in: transaction */
+	const dict_index_t*
+			index,		/*!< in: the index instance */
+	fts_table_t*	fts_table,	/*!< in: fts_table structure */
+	mem_heap_t*	heap)		/*!< in: heap */
+{
+	dict_field_t*		field;
+	dict_table_t*		new_table = NULL;
+	char*			table_name = fts_get_table_name(fts_table);
+	ulint			error;
+	
+	ut_ad(index->type & DICT_FTS);
+
+	new_table = dict_mem_table_create(table_name, 0, 5, 1, 0);
+
+	field = dict_index_get_nth_field(index, 0);
+
+	dict_mem_table_add_col(new_table, heap, "word", DATA_VARCHAR,
+			       field->col->prtype, FTS_MAX_UTF8_WORD_LEN);
+
+	dict_mem_table_add_col(new_table, heap, "first_doc_id", DATA_INT,
+			       DATA_NOT_NULL | DATA_UNSIGNED,
+			       sizeof(fts_doc_ids_t));
+
+	dict_mem_table_add_col(new_table, heap, "last_doc_id", DATA_INT,
+			       DATA_NOT_NULL | DATA_UNSIGNED,
+			       sizeof(fts_doc_ids_t));
+
+	dict_mem_table_add_col(new_table, heap, "doc_count", DATA_INT,
+			       DATA_NOT_NULL | DATA_UNSIGNED, 4);
+
+	dict_mem_table_add_col(new_table, heap, "ilist", DATA_BLOB,
+			       4130048,	0);
+
+	error = row_create_table_for_mysql(new_table, trx);
+
+        if (error != DB_SUCCESS) {
+                trx->error_state = error;
+                new_table = NULL;
+        }
+
+	return(new_table);
+}
+/*************************************************************//**
+Wrapper function of fts_create_index_tables_low(), create auxiliary
+tables for an FTS index
+@return: DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_create_index_tables_low(
@@ -1482,6 +1543,8 @@ fts_create_index_tables_low(
 		which fts_parse_sql_no_dict_lock() will fill in for us. */
 		fts_table.suffix = fts_get_suffix(i);
 
+		fts_create_one_index_table(trx, index, &fts_table, heap);
+
 		graph = fts_parse_sql_no_dict_lock(
 			&fts_table, NULL, fts_create_index_sql);
 
@@ -1490,11 +1553,7 @@ fts_create_index_tables_low(
 	}
 
 	if (error == DB_SUCCESS) {
-
-		// FIXME: This causes a crash later, since commit will reset
-		// trx->mysql_query_str to NULL.
-		//error = fts_sql_commit(trx);
-
+		error = fts_sql_commit(trx);
 	} else {
 		/* We have special error handling here */
 
@@ -3913,16 +3972,6 @@ innobase_mysql_fts_get_token(
 					measured as characters from
 					'start' */
 
-/******************************************************************//**
-Makes all characters in a string lower case. */
-extern
-void
-innobase_fts_casedn_str(
-/*====================*/
-	CHARSET_INFO*	cs,	/*!< in: Character set */
-	char*		a);	/*!< in/out: string to put in
-				lower case */ 
-
 /********************************************************************
 Process next token from document starting at the given position, i.e., add
 the token's start position to the token's list of positions. */
@@ -3963,7 +4012,7 @@ fts_process_token(
 					   doc->text.utf8 + start_pos,
 					   doc->text.utf8 + doc->text.len,
 					   &str, &offset);
-	if (str.len > FTS_MIN_TOKEN_LENGTH) {
+	if (str.len >= FTS_MIN_TOKEN_SIZE) {
 		fts_token_t*	token;
 		ib_rbt_bound_t	parent;
 		mem_heap_t*	heap = result_doc->self_heap->arg;

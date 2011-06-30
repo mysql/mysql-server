@@ -230,7 +230,6 @@ insert into t1 values('ab c d');
 update t1 set a='ab c d';
 select * from t1 where match a against('ab c' in boolean mode);
 a
-ab c d
 select * from t1 where match a against('ab	c' in boolean mode);
 a
 drop table t1;

@@ -735,18 +735,15 @@ row_fts_insert_tuple(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
 	que_t**		ins_graph,	/*!< in: Insert query graphs */
-	dict_index_t*	index,		/*!< in: fts sort index */
 	fts_table_t*	fts_table,	/*!< in: fts aux table instance */
 	fts_tokenizer_word_t* word,	/*!< in: last processed
 					tokenized word */
 	ib_vector_t*	positions,	/*!< in: word position */
 	doc_id_t*	in_doc_id,	/*!< in: last item doc id */
 	dtuple_t*	dtuple,		/*!< in: index entry */
-	int*		count)		/*!< in/out: counter recording how many
-					records have been inserted */
+	mem_heap_t*	heap)		/*!< in: heap */
 {
 	fts_node_t*	fts_node = NULL;
-	mem_heap_t*	heap = index->heap;
 	dfield_t*	dfield;
 	doc_id_t	doc_id;
 	ulint		position;
@@ -777,9 +774,6 @@ row_fts_insert_tuple(
 			row_merge_write_fts_word(trx, ins_graph, word,
 						 fts_node, fts_table);
 
-			if (count) {
-				(*count)++;
-			}
 		}
 
 		return;
@@ -810,9 +804,6 @@ row_fts_insert_tuple(
 		row_merge_write_fts_word(trx, ins_graph, word,
 					 fts_node, fts_table);
 
-		if (count) {
-			(*count)++;
-		}
 		/* Copy the new word */
 		fts_utf8_string_dup(&word->text, &token_word, heap);
 
@@ -1040,7 +1031,7 @@ row_fts_merge_insert(
 {
 	const byte*		b[FTS_PARALLEL_DEGREE];
 	mem_heap_t*		tuple_heap;
-	mem_heap_t*		graph_heap;
+	mem_heap_t*		heap;
 	ulint			error = DB_SUCCESS;
 	ulint			foffs[FTS_PARALLEL_DEGREE];
 	ulint*			offsets[FTS_PARALLEL_DEGREE];
@@ -1061,7 +1052,7 @@ row_fts_merge_insert(
 	int			sel_tree[1 << (FTS_PARALLEL_DEGREE)];
 	ulint			height;
 	ulint			start;
-	int			counta = 0;
+	ulint			counta = 0;
 	trx_t*			insert_trx;
 
 	ut_ad(trx);
@@ -1075,7 +1066,7 @@ row_fts_merge_insert(
 
 	insert_trx->op_info = "inserting index entries";
 
-	graph_heap = mem_heap_create(500 + sizeof(mrec_buf_t));
+	heap = mem_heap_create(500 + sizeof(mrec_buf_t));
 
 	tuple_heap = mem_heap_create(1000);
 
@@ -1083,23 +1074,23 @@ row_fts_merge_insert(
 
 		num = 1 + REC_OFFS_HEADER_SIZE
 			+ dict_index_get_n_fields(index);
-		offsets[i] = mem_heap_alloc(graph_heap,
+		offsets[i] = mem_heap_alloc(heap,
 					    num * sizeof *offsets[i]);
 		offsets[i][0] = num;
 		offsets[i][1] = dict_index_get_n_fields(index);
-		block[i] =psort_info[i].merge_block[id];
+		block[i] = psort_info[i].merge_block[id];
 		b[i] = *psort_info[i].merge_block[id];
 		fd[i] = psort_info[i].merge_file[id]->fd;
 		foffs[i] = 0;
 
-		buf[i] = mem_heap_alloc(graph_heap, sizeof *buf[i]);
+		buf[i] = mem_heap_alloc(heap, sizeof *buf[i]);
 		counta += (int) psort_info[i].merge_file[id]->n_rec;
 	}
+
 	fprintf(stderr, "to inserted %lu record \n", (ulong)counta);
-	counta = 0;
 
 	/* Initialize related variables if creating FTS indexes */
-	heap_alloc = ib_heap_allocator_create(index->heap);
+	heap_alloc = ib_heap_allocator_create(heap);
 
 	memset(&new_word, 0, sizeof(new_word));
 
@@ -1110,7 +1101,7 @@ row_fts_merge_insert(
 	/* Allocate insert query graphs for FTS auxillary
 	Index Table, note we have 4 such index tables */
 	n_bytes = sizeof(que_t*) * (FTS_NUM_INDEX_TABLE + 1);
-	ins_graph = mem_heap_alloc(index->heap, n_bytes);
+	ins_graph = mem_heap_alloc(heap, n_bytes);
 	memset(ins_graph, 0x0, n_bytes);
 
 	fts_table.type = FTS_INDEX_TABLE;
@@ -1150,10 +1141,10 @@ row_fts_merge_insert(
 				if (min_rec >= FTS_PARALLEL_DEGREE) {
 
 					row_fts_insert_tuple(
-						insert_trx, ins_graph, index,
+						insert_trx, ins_graph,
 						&fts_table, &new_word,
 						positions, &last_doc_id,
-						NULL, &counta);
+						NULL, heap);
 
 					goto exit;
 				}
@@ -1176,10 +1167,10 @@ row_fts_merge_insert(
 
 			if (min_rec ==  -1) {
 				row_fts_insert_tuple(
-					insert_trx, ins_graph, index,
+					insert_trx, ins_graph,
 					&fts_table, &new_word,
 					positions, &last_doc_id,
-					NULL, &counta);
+					NULL, heap);
 
 				goto exit;
 			}
@@ -1190,8 +1181,8 @@ row_fts_merge_insert(
 			tuple_heap);
 
 		row_fts_insert_tuple(
-			insert_trx, ins_graph, index, &fts_table, &new_word,
-			positions, &last_doc_id, dtuple, &counta);
+			insert_trx, ins_graph, &fts_table, &new_word,
+			positions, &last_doc_id, dtuple, heap);
 
 
 		ROW_MERGE_READ_GET_NEXT(min_rec);
@@ -1226,8 +1217,11 @@ exit:
 
 	trx_free_for_background(insert_trx);
 
+	mem_heap_free(heap);
+
 	/* FIXME: Diagnostic printout, will be removed later */
 	ut_print_timestamp(stderr);
-	fprintf(stderr, "FTS: inserted %lu record and final record %lu\n", (ulong)count, (ulong)counta);
+	fprintf(stderr, "FTS: inserted %lu record\n", (ulong)count);
+
 	return(error);
 }

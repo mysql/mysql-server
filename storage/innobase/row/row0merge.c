@@ -1986,7 +1986,6 @@ row_merge_insert_index_tuples(
 	doc_id_t		last_doc_id;
 	que_t**			ins_graph;
 	fts_table_t		fts_table;
-	int			counta;
 	mem_heap_t*		fts_heap = NULL;
 
 	ut_ad(trx);
@@ -2072,9 +2071,10 @@ row_merge_insert_index_tuples(
 
 			if (index->type & DICT_FTS) {
 				row_fts_insert_tuple(
-					trx, ins_graph, index,
+					trx, ins_graph,
 					&fts_table, &new_word,
-					positions, &last_doc_id, dtuple, &counta);
+					positions, &last_doc_id, dtuple,
+					fts_heap);
 				continue;
                         }
 
@@ -2111,9 +2111,9 @@ next_rec:
 		/* Insert the last word for FTS) */
 		if (index->type & DICT_FTS) {
 			row_fts_insert_tuple(
-				trx, ins_graph, index,
+				trx, ins_graph,
 				&fts_table, &new_word,
-				positions, &last_doc_id, NULL, NULL);
+				positions, &last_doc_id, NULL, fts_heap);
 		}
 	}
 
