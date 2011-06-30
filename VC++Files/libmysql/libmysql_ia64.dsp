@@ -334,10 +334,6 @@ SOURCE=..\mysys\my_fstream.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\mysys\my_gethostbyname.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\mysys\my_getopt.c
 # End Source File
 # Begin Source File
