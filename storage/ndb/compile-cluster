@@ -45,6 +45,87 @@ GetOptions(
 my $srcdir = dirname(dirname(dirname(abs_path($0))));
 die unless -d $srcdir; # Sanity check that the srcdir exist
 
+# Windows build is special case...
+if ($^O eq "cygwin" or $^O eq "MSWin32")
+{
+  if ($^O eq "cygwin") {
+    # Convert posix path to Windows mixed path since cmake
+    # is most likely a windows binary
+    $srcdir= `cygpath -m $srcdir`;
+    chomp $srcdir;
+  }
+
+  # Check that cmake exists and figure out it's version 
+  my $cmake_version_id;
+  {
+    my $version_text = `cmake --version`;
+    print $version_text;
+    die "Could not find cmake" if ($?);
+    if ( $version_text =~ /^cmake version ([0-9]*)\.([0-9]*)\.*([^\s]*)/ )
+    {
+      #print "1: $1 2: $2 3: $3\n";
+      $cmake_version_id= $1*10000 + $2*100 + $3;
+      print "cmake_version_id: $cmake_version_id\n";
+    }
+    die "Could not parse cmake version" unless ($cmake_version_id);
+  }
+
+  die "You need to install cmake with version > 2.8"
+      if ($cmake_version_id < 20800);
+
+  # Configure
+  {
+    my @args;
+    push(@args, "$srcdir/win/configure.js");
+
+    # NDB options
+    push(@args, "WITH_NDBCLUSTER_STORAGE_ENGINE");
+    push(@args, "WITH_NDB_TEST");
+
+
+    foreach my $arg (@ARGV)
+    {
+      # Convert args from --arg to ARG format 
+      $arg =~ s/^--//; # Remove leading -- 
+      $arg = uc($arg); # Uppercase
+      $arg =~ s/-/_/g; # Convert - to _ 
+      push(@args, $arg);
+    }
+
+    cmd("cscript", @args);
+  }
+
+  # cmake
+  {
+    my @args;
+    push(@args, "$srcdir");
+    cmd("cmake", @args);
+  }
+ 
+  # Build
+  {
+    # Use universal "cmake --build <srcdir>"
+    my @args;
+    push(@args, "--build");
+    push(@args, "$srcdir");
+
+    if ($opt_debug)
+    {
+      push(@args, "--config");
+      push(@args, "Debug");
+    }
+    else
+    {
+      # Legacy default
+      push(@args, "--config");
+      push(@args, "RelWithDebInfo");
+    }
+    cmd("cmake", @args);
+  }
+
+  exit(0);
+}
+
 #
 # Build MySQL autotools
 #
