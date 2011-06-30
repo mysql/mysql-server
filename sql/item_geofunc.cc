@@ -1406,6 +1406,18 @@ String *Item_func_buffer::val_str(String *str_value)
       !(g= Geometry::construct(&buffer, obj->ptr(), obj->length())))
     goto mem_error;
 
+  /*
+    If the distance given is 0, the Buffer function is in fact NOOP,
+    so it's natural just to return the argument1.
+    Besides, internal calculations here can't handle zero distance anyway.
+  */
+  if (fabs(dist) < GIS_ZERO)
+  {
+    null_value= 0;
+    str_result= obj;
+    goto mem_error;
+  }
+
   if (func.reserve_op_buffer(2))
     goto mem_error;
   /* will specify operands later */

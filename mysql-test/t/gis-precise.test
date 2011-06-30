@@ -111,3 +111,6 @@ SELECT ST_Equals(PointFromText('POINT (12 13)'),PointFromText('POINT (12 13)')) 
 SELECT astext(ST_UNION (
         PolyFromText('POLYGON(( 2 2 ,3 2,2 7,2 2),( 0 0,8 2,1 9,0 0))'),
         ExteriorRing( Envelope( MultiLineStringFromText('MULTILINESTRING((3 4,5 3),(3 0,0 5))')))));
+
+#bug 801189 ST_BUFFER asserts if radius = 0
+SELECT astext(ST_BUFFER(LineStringFromText('LINESTRING(0 0,1 1)'),0));
