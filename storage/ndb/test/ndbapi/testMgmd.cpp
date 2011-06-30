@@ -280,6 +280,8 @@ public:
 
   }
 
+  NdbMgmHandle handle() { return m_mgmd_client.handle(); }
+
 private:
 
   bool get_section_string(const Properties& config,
@@ -1099,6 +1101,55 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
 
 }
 
+int
+runBug61607(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
+
+  // Create config.ini
+  const int cnt_mgmd = 1;
+  Properties config = ConfigFactory::create(cnt_mgmd);
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+  // Start ndb_mgmd(s)
+  MgmdProcessList mgmds;
+  for (int i = 1; i <= cnt_mgmd; i++)
+  {
+    Mgmd* mgmd = new Mgmd(i);
+    mgmds.push_back(mgmd);
+    CHECK(mgmd->start_from_config_ini(wd.path()));
+  }
+
+  // Connect the ndb_mgmd(s)
+  for (unsigned i = 0; i < mgmds.size(); i++)
+    CHECK(mgmds[i]->connect(config));
+
+  // wait for confirmed config
+  for (unsigned i = 0; i < mgmds.size(); i++)
+    CHECK(mgmds[i]->wait_confirmed_config());
+
+  // Check binary config files created
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_1_config.bin.1",
+                         NULL).c_str()));
+
+  int no_of_nodes = 0;
+  int * node_ids = 0;
+  int initialstart = 0;
+  int nostart = 0;
+  int abort = 0;
+  int force = 0;
+  int need_disconnect = 0;
+  int res = ndb_mgm_restart4(mgmds[0]->handle(), no_of_nodes, node_ids,
+                             initialstart, nostart, abort, force,
+                             &need_disconnect);
+
+
+  return res == 0 ? NDBT_OK : NDBT_FAILED;
+}
+
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 
@@ -1150,6 +1201,10 @@ TESTCASE("Bug12352191",
          "Test mgmd status for other mgmd")
 {
   INITIALIZER(runTestBug12352191);
+}
+TESTCASE("Bug61607", "")
+{
+  INITIALIZER(runBug61607);
 }
 
 NDBT_TESTSUITE_END(testMgmd);
