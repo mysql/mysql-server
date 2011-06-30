@@ -1224,6 +1224,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
     table_no++;
   }
   parent_join->table_count += subq_lex->join->table_count;
+  //parent_join->table_count += subq_lex->leaf_tables.elements;
 
   /* 
     Put the subquery's WHERE into semi-join's sj_on_expr

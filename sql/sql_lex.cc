@@ -1897,6 +1897,10 @@ void st_select_lex::register_dependency_item(st_select_lex *def_sel,
   DBUG_ENTER("st_select_lex::register_dependency_item");
   DBUG_ASSERT(this != def_sel);
   DBUG_ASSERT(*dependency);
+  //psergey-add-stupid:
+  while (def_sel->merged_into)
+    def_sel= def_sel->merged_into;
+  //:eof
   do
   {
     /* check duplicates */

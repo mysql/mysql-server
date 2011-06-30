@@ -476,10 +476,11 @@ void Item_subselect::recalc_used_tables(st_select_lex *new_parent,
           upper->item->walk(&Item::enumerate_field_refs_processor, FALSE,
                             (uchar*)&fixer);
           used_tables_cache |= fixer.used_tables;
-
+/*
           if (after_pullout)
             upper->item->fix_after_pullout(new_parent, &(upper->item));
           upper->item->update_used_tables();
+*/          
         }
       }
     }

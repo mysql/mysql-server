@@ -7,6 +7,8 @@ show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	6
 drop table if exists t0, t1, t2, t3, t4, t10, t11, t12;
+drop view if exists v1, v2;
+drop procedure if exists p1;
 set @save_optimizer_switch=@@optimizer_switch;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);

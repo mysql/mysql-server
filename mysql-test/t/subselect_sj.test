@@ -3,6 +3,8 @@
 #
 --disable_warnings
 drop table if exists t0, t1, t2, t3, t4, t10, t11, t12;
+drop view if exists v1, v2;
+drop procedure if exists p1;
 --enable_warnings
 
 set @save_optimizer_switch=@@optimizer_switch;

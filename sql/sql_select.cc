@@ -558,7 +558,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   List_iterator_fast<TABLE_LIST> li(select_lex->leaf_tables);
   while ((tbl= li++))
   {
-    table_count++; /* Count the number of tables in the join. */
+    //table_count++; /* Count the number of tables in the join. */
     /*
       If the query uses implicit grouping where the select list contains both
       aggregate functions and non-aggregate fields, any non-aggregated field
@@ -4761,12 +4761,15 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
 	(map= (keyuse->used_tables & ~join->const_table_map &
 	       ~OUTER_REF_TABLE_BIT)))
     {
-      uint tablenr;
-      tablenr= my_count_bits(map);
-      if (map == 1)			// Only one table
+      uint n_tables= my_count_bits(map);
+      if (n_tables == 1)			// Only one table
       {
+        Table_map_iterator it(map);
+        int tablenr= it.next_bit();
+        DBUG_ASSERT(tablenr != Table_map_iterator::BITMAP_END);
 	TABLE *tmp_table=join->table[tablenr];
-	keyuse->ref_table_rows= max(tmp_table->file->stats.records, 100);
+        if (tmp_table) // already created
+          keyuse->ref_table_rows= max(tmp_table->file->stats.records, 100);
       }
     }
     /*
