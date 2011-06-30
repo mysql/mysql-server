@@ -1,0 +1,92 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+# -*- cperl -*-
+#
+# MySQL Cluster compile script to bridge the gap between
+# different build systems in different versions of MySQL Server
+#
+# This script is intended for internal use
+#
+use strict;
+use Cwd 'abs_path';
+use File::Basename;
+use Getopt::Long;
+
+# Only add the command line options handled by this script, 
+# thus acting like a filter and passing all other arguments
+# straight through
+my $opt_debug;
+Getopt::Long::Configure("pass_through");
+GetOptions(
+
+  # Build MySQL Server and NDB with debug
+  'debug' => \$opt_debug,
+
+
+) or exit(1);
+
+# Find source root directory, assume this script is
+# in <srcroot>/storage/ndb/
+my $srcdir = dirname(dirname(dirname(abs_path($0))));
+die unless -d $srcdir; # Sanity check that the srcdir exist
+
+#
+# Build MySQL autotools
+#
+{
+  cmd("$srcdir/BUILD/autorun.sh"); 
+}
+
+#
+# Configure
+#
+{
+  my @args;
+  push(@args, "$srcdir/configure");
+
+  # MySQL Server options
+  push(@args, "--with-ssl");
+ 
+  if ($opt_debug)
+  {
+    push(@args, "--with-debug");
+  }
+
+  # NDB options
+  push(@args, "--with-plugin-ndbcluster");
+  push(@args, "--with-ndb-test");
+
+  cmd($^X, @args, @ARGV);
+}
+
+#
+# Build
+#
+{
+    cmd("make -C $srcdir");
+}
+
+sub cmd {
+  my ($cmd, @a)= @_;
+  print "compile-cluster: calling '$cmd ", join(' ', @a), "'\n";
+  system($cmd, @a)
+    and print("command failed: $!\n")
+      and exit(1);
+}
+
+exit(0);
