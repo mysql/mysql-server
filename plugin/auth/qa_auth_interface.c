@@ -62,7 +62,7 @@ static int qa_auth_interface (MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *inf
     if (info->auth_string_length != 14)
        err= CR_ERROR;
 /* To be set by the plugin */
-#ifdef MCP_BUG61709
+#ifndef MCP_BUG61709
 /*    if (strcmp(info->authenticated_as, "qa_test_1_user"))
          err= CR_ERROR; */
 #else
@@ -70,7 +70,7 @@ static int qa_auth_interface (MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *inf
 //       err= CR_ERROR;
 #endif
 /* To be set by the plugin */
-#ifdef MCP_BUG61709
+#ifndef MCP_BUG61709
 /*    if (strcmp(info->external_user, ""))
          err= CR_ERROR; */
 #else
