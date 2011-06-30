@@ -1,4 +1,5 @@
-/* Copyright 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +52,8 @@ and you are welcome to modify and redistribute it under the GPL v2 license\n"
 
 const char *VER= "14.14";
 
-/* Don't try to make a nice table if the data is too big */
+/* Don't try to make a nice table if the data is too big
+*/
 #define MAX_COLUMN_LENGTH	     1024
 
 /* Buffer to hold 'version' and 'version_comment' */

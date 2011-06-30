@@ -1,6 +1,5 @@
 /*
    Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
-    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
