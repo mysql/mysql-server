@@ -409,9 +409,9 @@ set names utf8;
 # Create FTS table
 create table t50 (s1 varchar(60) character set utf8 collate utf8_bin) engine = innodb;
 create fulltext index i on t50 (s1);
-# INNODB_FTS: Assert
+# INNODB_FTS: Assert - fixed
 # Assert : InnoDB: Failing assertion: rbt_validate(result_doc->tokens)
-#insert into t50 values ('ABCDE'),('FGHIJ'),('KLMNO'),('VÐƷWİ');
+insert into t50 values ('ABCDE'),('FGHIJ'),('KLMNO'),('VÐƷWİ');
 # it was giving empty result set instead of one record  
 select * from t50 where match(s1) against ('VÐƷWİ'); 
 drop table t50;
@@ -438,9 +438,9 @@ create fulltext index i on t50 (s2);
 insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
 set @@autocommit=0;
 update t50 set s2 = lower(s2);
-# INNODB_FTS: Assert
+# INNODB_FTS: Assert - fixed
 # crash seen on second update
-#update t50 set s2 = upper(s2); 
+update t50 set s2 = upper(s2); 
 commit;
 select * from t50 where match(s2) against ('VÐƷWİ FGHIJ KLMNO ABCDE' in boolean mode);
 select * from t50;

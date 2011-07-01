@@ -1,0 +1,336 @@
+# FTS index with transaction
+# Important Note:
+# 1) Uncommitted records are not visible using FTS index - this is by FTS design
+# 2) records will be seen using FTS index ONLY when transaction completes 
+# 3) UNCOMMITTED RECORDS CAN BE SEEN WITH QURIES WHICH DO NOT USE FTS INDEX
+# this behavior do not break integratity of tables and "select" which do not use FTS still can view them.
+
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+let $default_engine = `select @@SESSION.default_storage_engine`;
+--replace_result $default_engine <default_engine>
+#------------------------------------------------------------------------------
+# FTS with transaction
+#------------------------------------------------------------------------------
+# Create FTS table
+--replace_result $default_engine <default_engine>
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE= $default_engine;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...');
+
+START TRANSACTION;
+
+# this record is NOT seen with queries using FTS index until commit 
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','request docteam for oraclehelp.');
+
+# first and third record expected 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+
+# no records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request' IN NATURAL LANGUAGE MODE);
+
+# all records with MySQL expected but record with 'request' not
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request MySQL' IN BOOLEAN MODE);
+
+# all records with MySQL expected but record with 'request' not
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('-request +MySQL' IN BOOLEAN MODE);
+
+# only 2nd record expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+MySQL -(Tutorial Optimizing)' IN BOOLEAN MODE);
+
+# one record expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"stands Database"@11' IN BOOLEAN MODE);
+
+# all records expected except with 'request' 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+# transaction commit ,now we will be able to see records with FTS index
+COMMIT;
+
+# records having tutorial word
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+
+# records having tutorial and MySQL word
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request MySQL' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+START TRANSACTION;
+
+# insert null values
+INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+
+# one record expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+# update record which is visible with FTS index as transaction completed
+UPDATE t1 SET a = 'Trial version' , b = 'query performace 1255 minute on 2.1Hz Memory 2GB...'
+WHERE MATCH (a,b) AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+# no records expected as it is updated with new value
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request');
+
+# no records expected as update tnx is not committed yet.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('query performace' IN BOOLEAN MODE);
+
+# update will not able to find record as it uses FTS , so record will be updated
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq  xyz.com ...'
+WHERE MATCH (a,b) AGAINST ('+query +performace' IN BOOLEAN MODE);
+
+# no records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('performace');
+# no records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+mail +MySQL' IN BOOLEAN MODE);
+COMMIT;
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1;
+
+# insert record with @ character which is used in proximity search
+INSERT INTO t1 (a,b) VALUES
+        ('Trial version','query performace 1255 minute on 2.1Hz Memory 2GB...')  ,
+        ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+#------------------------------------------------------------------------------
+# FTS with rollback
+#------------------------------------------------------------------------------
+# Create FTS table
+--replace_result $default_engine <default_engine>
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE= $default_engine;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...');
+
+START TRANSACTION;
+
+# insert record but it won't be visible using FTS index until tnx completes.
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','request docteam for oraclehelp.');
+# two records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+# no records expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request' IN NATURAL LANGUAGE MODE);
+# only records with MySQL expected as record with 'request' word not committed yet.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request MySQL' IN BOOLEAN MODE);
+
+# records with MySQL word
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('-request +MySQL' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+MySQL -(Tutorial Optimizing)' IN BOOLEAN MODE);
+
+# query expansion mode 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+# query expansion mode 
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+# rollback transaction , record with 'request' word rollbacked.
+ROLLBACK;
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request MySQL' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('tutorial' WITH QUERY EXPANSION);
+
+START TRANSACTION;
+INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+
+# no update as record with where condition is not present
+UPDATE t1 SET a = 'Trial version' , b = 'query performace 1255 minute on 2.1Hz Memory 2GB...'
+WHERE MATCH (a,b) AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+# no records
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request');
+
+# no records
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('query performace' IN BOOLEAN MODE);
+
+# no update as record with where condition is not present
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq  xyz.com ...'
+WHERE MATCH (a,b) AGAINST ('+query +performace' IN BOOLEAN MODE);
+
+# no records
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('performace');
+
+# no records
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+mail +MySQL' IN BOOLEAN MODE);
+ROLLBACK;
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1;
+
+# insert record with @ character which is used in proximity search
+INSERT INTO t1 (a,b) VALUES
+        ('Trial version','query performace 1255 minute on 2.1Hz Memory 2GB...')  ,
+        ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#------------------------------------------------------------------------------
+# FTS with transaction - 
+# Uncommitted records are visible using FTS index so try use normal query to 
+# update such records in active transaction
+#------------------------------------------------------------------------------
+# Create FTS table
+--replace_result $default_engine <default_engine>
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE= $default_engine;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+        ('when To Use MySQL Well','After that you went through a ...'),
+        ('where will Optimizing MySQL','what In this tutorial we will show ...');
+
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','request docteam for oraclehelp.');
+
+START TRANSACTION;
+INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+
+# only one record expected
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+# update record
+UPDATE t1 SET a = 'Trial version' , b = 'query performace 1255 minute on 2.1Hz Memory 2GB...' WHERE MATCH (a,b) AGAINST ('+request +MySQL' IN BOOLEAN MODE);
+
+# updated record is visible as we do not use FTS index in following query
+SELECT * from t1;
+
+# no records expected as it is updated with new value
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('request');
+
+# no record expected as transaction is not committed.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('query performace' IN BOOLEAN MODE);
+
+# following update will not succeed as it uses FTS index in where clause and the record matching condition is not committe yet.
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq mail xyz.com ...' WHERE MATCH (a,b) AGAINST ('+query +performace' IN BOOLEAN MODE);
+# update will succeed as it uses non FTS condition in where clause. Record in where clause is visible as it is accessed by NON FTS condition.
+UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq mail xyz.com ...' WHERE b like '%query performace%';
+
+# no record expected as it is updated wih new value
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('performace');
+
+# not visible with FTS as transaction not committed.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('+mail +MySQL' IN BOOLEAN MODE);
+
+SELECT * from t1;
+COMMIT;
+SELECT * from t1;
+
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+MySQL' IN BOOLEAN MODE);
+SELECT * FROM t1;
+
+# insert record with @ character which is used in proximity search
+INSERT INTO t1 (a,b) VALUES
+        ('Trial version','query performace 1255 minute on 2.1Hz Memory 2GB...')  ,
+        ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+
+SELECT * FROM t1;
+DROP TABLE t1;
+
