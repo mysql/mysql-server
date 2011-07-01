@@ -468,3 +468,38 @@ select * from t50 where match(s2) against('Rainbows');
 rollback;
 select * from t50;
 drop table t50;
+
+
+--echo "----------Test6---------"
+CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('aab` MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('aas How To Use MySQL Well','After you went through a ...'),
+        ('aac Optimizing MySQL','In this tutorial we will show ...');
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('aac 1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('aab MySQL vs. YourSQL','In the following database comparison ...'),
+        ('aaa MySQL Security','When configured properly, MySQL ...');
+# Create the FTS index Using Alter Table
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+
+SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aac') DESC;
+SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aab') DESC; 
+
+
+select * from t1 where match(a,b) against ('aaa')
+union select * from t1 where match(a,b) against ('aab')
+union select * from t1 where match(a,b) against ('aac');
+
+select * from t1 where match(a,b) against ('aaa')
+                or    match(a,b) against ('aab')
+                or    match(a,b) against ('aac'); 
+
+DROP TABLE t1;
