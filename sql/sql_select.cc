@@ -1909,7 +1909,8 @@ JOIN::optimize()
     conds= simplify_joins(this, join_list, conds, TRUE, FALSE);
     build_bitmap_for_nested_joins(join_list, 0);
 
-    sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
+    sel->prep_where=
+      conds ? conds->real_item()->copy_andor_structure(thd) : NULL;
 
     if (arena)
       thd->restore_active_arena(arena, &backup);
