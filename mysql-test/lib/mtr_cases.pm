@@ -111,6 +111,9 @@ sub collect_test_cases ($$$$) {
   my $opt_skip_test_list= shift;
   my $cases= []; # Array of hash(one hash for each testcase)
 
+  # Unit tests off by default also if using --do-test or --start-from
+  $::opt_ctest= 0 if $::opt_ctest == -1 && ($do_test || $start_from);
+
   $do_test_reg= init_pattern($do_test, "--do-test");
   $skip_test_reg= init_pattern($skip_test, "--skip-test");
 
