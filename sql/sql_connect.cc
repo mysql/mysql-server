@@ -957,16 +957,16 @@ static int check_connection(THD *thd)
   thd->client_capabilities= uint2korr(end);
 
   /*
-    JConnector only sends client capabilities (4 bytes) before starting SSL
+    Connector/J only sends client capabilities (4 bytes) before starting SSL
     negotiation so we don't have char_set and other information for client in
     packet read. In that case, skip reading those information. The below code 
     is patch for this.
   */
   if(bytes_remaining_in_packet == AUTH_PACKET_HEADER_SIZE_CONNJ_SSL &&
-     thd->client_capabilities & CLIENT_SSL)
+     (thd->client_capabilities & CLIENT_SSL))
   {
     thd->client_capabilities= uint4korr(end);
-    thd->max_client_packet_length= 0xfffff;
+    thd->max_client_packet_length= global_system_variables.max_allowed_packet;
     charset_code= default_charset_info->number;
     end+= AUTH_PACKET_HEADER_SIZE_CONNJ_SSL;
     bytes_remaining_in_packet-= AUTH_PACKET_HEADER_SIZE_CONNJ_SSL;
