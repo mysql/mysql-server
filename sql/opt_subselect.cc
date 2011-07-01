@@ -774,18 +774,20 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
     if (convert_join_subqueries_to_semijoins(child_join))
       DBUG_RETURN(TRUE);
     (*in_subq)->sj_convert_priority= 
+      test((*in_subq)->emb_on_expr_nest != NO_JOIN_NEST) * MAX_TABLES * 2 +
       (*in_subq)->is_correlated * MAX_TABLES + child_join->outer_tables;
   }
   
   // Temporary measure: disable semi-joins when they are together with outer
   // joins.
+#if 0  
   if (check_for_outer_joins(join->join_list))
   {
     in_subq= join->sj_subselects.front();
     arena= thd->activate_stmt_arena_if_needed(&backup);
     goto skip_conversion;
   }
-
+#endif
   //dump_TABLE_LIST_struct(select_lex, select_lex->leaf_tables);
   /* 
     2. Pick which subqueries to convert:
@@ -803,6 +805,11 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
        in_subq++)
   {
     bool remove_item= TRUE;
+
+    /* Stop processing if we've reached a subquery that's attached to the ON clause */
+    if ((*in_subq)->emb_on_expr_nest != NO_JOIN_NEST)
+      break;
+
     if ((*in_subq)->is_flattenable_semijoin) 
     {
       if (join->table_count + 
@@ -828,7 +835,7 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
         DBUG_RETURN(TRUE); /* purecov: inspected */
     }
   }
-skip_conversion:
+//skip_conversion:
   /* 
     3. Finalize (perform IN->EXISTS rewrite) the subqueries that we didn't
     convert:
@@ -861,7 +868,12 @@ skip_conversion:
                                    do_fix_fields))
       DBUG_RETURN(TRUE);
     (*in_subq)->substitution= NULL;
-    
+#if 0
+    /* 
+      Don't do the following, because the simplify_join() call is after this
+      call, and that call will save to prep_wher/prep_on_expr.
+    */
+
     /*
       If this is a prepared statement, repeat the above operation for
       prep_where (or prep_on_expr). Subquery-to-semijoin conversion is 
@@ -877,6 +889,7 @@ skip_conversion:
                                      FALSE))
         DBUG_RETURN(TRUE);
     }
+#endif
     /*
       Revert to the IN->EXISTS strategy in the rare case when the subquery could
       not be flattened.
@@ -1211,6 +1224,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
     table_no++;
   }
   parent_join->table_count += subq_lex->join->table_count;
+  //parent_join->table_count += subq_lex->leaf_tables.elements;
 
   /* 
     Put the subquery's WHERE into semi-join's sj_on_expr
@@ -2840,9 +2854,8 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
     TRUE   Error
 */
 
-bool setup_sj_materialization(JOIN_TAB *sjm_tab)
+bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab)
 {
-  uint i;
   DBUG_ENTER("setup_sj_materialization");
   JOIN_TAB *tab= sjm_tab->bush_children->start;
   TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
@@ -2850,7 +2863,8 @@ bool setup_sj_materialization(JOIN_TAB *sjm_tab)
   THD *thd= tab->join->thd;
   /* First the calls come to the materialization function */
   List<Item> &item_list= emb_sj_nest->sj_subq_pred->unit->first_select()->item_list;
-
+  
+  DBUG_ASSERT(sjm->is_used);
   /* 
     Set up the table to write to, do as select_union::create_result_table does
   */
@@ -2878,6 +2892,22 @@ bool setup_sj_materialization(JOIN_TAB *sjm_tab)
   
   sjm->materialized= FALSE;
   sjm_tab->table= sjm->table;
+  sjm->table->pos_in_table_list= emb_sj_nest;
+ 
+  DBUG_RETURN(FALSE);
+}
+
+
+bool setup_sj_materialization_part2(JOIN_TAB *sjm_tab)
+{
+  DBUG_ENTER("setup_sj_materialization_part2");
+  JOIN_TAB *tab= sjm_tab->bush_children->start;
+  TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
+  SJ_MATERIALIZATION_INFO *sjm= emb_sj_nest->sj_mat_info;
+  THD *thd= tab->join->thd;
+  uint i;
+  List<Item> &item_list= emb_sj_nest->sj_subq_pred->unit->first_select()->item_list;
+  List_iterator<Item> it(item_list);
 
   if (!sjm->is_sj_scan)
   {
@@ -2992,7 +3022,7 @@ bool setup_sj_materialization(JOIN_TAB *sjm_tab)
       in the record buffers for the source tables. 
     */
     sjm->copy_field= new Copy_field[sjm->sjm_table_cols.elements];
-    it.rewind();
+    //it.rewind();
     for (uint i=0; i < sjm->sjm_table_cols.elements; i++)
     {
       bool dummy;

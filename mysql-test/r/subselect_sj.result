@@ -1,4 +1,6 @@
 drop table if exists t0, t1, t2, t3, t4, t10, t11, t12;
+drop view if exists v1, v2;
+drop procedure if exists p1;
 set @save_optimizer_switch=@@optimizer_switch;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -1277,9 +1279,9 @@ CREATE VIEW v1 AS SELECT 1;
 EXPLAIN
 SELECT * FROM t1 INNER JOIN t2 ON t2.a != 0 AND t2.a IN (SELECT * FROM v1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived3>	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using where
 3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 SELECT * FROM t1 INNER JOIN t2 ON t2.a != 0 AND t2.a IN (SELECT * FROM v1);
 a	a
@@ -1358,4 +1360,180 @@ f10	f11
 0	0
 set optimizer_switch=@tmp_751484;
 drop table t1, t3;
+# BUG#795530 Wrong result with subquery semijoin materialization and outer join 
+#  Simplified testcase that uses DuplicateElimination
+#
+create table t1 (a int);
+create table t2 (a int, b char(10));
+insert into t1 values (1),(2);
+insert into t2 values (1, 'one'), (3, 'three');
+create table t3 (b char(10));
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+explain select * from t3 where t3.b in (select t2.b from t1 left join t2 on t1.a=t2.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	8	Using where; End temporary; Using join buffer (flat, BNL join)
+select * from t3 where t3.b in (select t2.b from t1 left join t2 on t1.a=t2.a);
+b
+drop table t1, t2, t3;
+#
+# BUG#600958 RQG: Crash in optimize_semijoin_nests
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_key int(11) DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (10,8,'2002-02-21',NULL);
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_key int(11) DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (1,7,'1900-01-01','f');
+SELECT col_date_key FROM t1
+WHERE 5 IN (
+SELECT SUBQUERY3_t1 .col_int_key
+FROM t2 SUBQUERY3_t1
+LEFT JOIN t1 SUBQUERY3_t2 ON SUBQUERY3_t1 .col_varchar_key
+);
+col_date_key
+drop table t2, t1;
+#
+# No BUG#: Duplicate weedout check is not done for outer joins
+#
+create table t1 (a int);
+create table t2 (a int);
+insert into t1 values (1),(1),(2),(2);
+insert into t2 values (1);
+create table t0 (a int);
+insert into t0 values (1),(2);
+set @tmp_20110622= @@optimizer_switch;
+set optimizer_switch='firstmatch=off,loosescan=off,materialization=off';
+# Check DuplicateWeedout + join buffer
+explain 
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Start temporary
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+a
+1
+2
+# Check DuplicateWeedout without join buffer
+set @tmp_jcl_20110622= @@join_cache_level;
+set join_cache_level= 0;
+explain 
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+a
+1
+2
+# Check FirstMatch without join buffer:
+set optimizer_switch='firstmatch=on';
+explain 
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t0)
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+a
+1
+2
+#
+# Now, check the same for multiple inner tables:
+alter table t2 add b int;
+update t2 set b=a;
+create table t3 as select * from t2;
+set optimizer_switch='firstmatch=off';
+set join_cache_level= 0;
+# DuplicateWeedout without join buffer
+explain 
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+a
+1
+2
+set @@join_cache_level=@tmp_jcl_20110622;
+# DuplicateWeedout + join buffer
+explain
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Start temporary
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+a
+1
+2
+# Now, let the inner join side have a 'partial' match
+select * from t3;
+a	b
+1	1
+insert into t3 values(2,2);
+explain
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Start temporary
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+a
+1
+2
+set @@optimizer_switch=@tmp_20110622;
+drop table t0, t1, t2, t3;
+#
+# BUG#802965: Crash in do_copy_not_null with semijoin=on in maria-5.3
+# 
+set @save_802965= @@optimizer_switch;
+set optimizer_switch='semijoin=on,materialization=off,firstmatch=off,loosescan=off';
+CREATE TABLE t2 ( f1 int NOT NULL , PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t2 VALUES (19),(20);
+CREATE TABLE t1 ( f1 int NOT NULL , PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t1 VALUES (21),(22),(23),(24);
+SELECT *
+FROM t2 , t1
+WHERE t2.f1 IN
+(
+SELECT SQ1_alias1.f1
+FROM t1 AS SQ1_alias1 LEFT JOIN t2 AS SQ1_alias2 JOIN t2 AS SQ1_alias3 ON SQ1_alias3.f1 ON SQ1_alias3.f1
+)
+AND t1.f1 = t2.f1 ;
+f1	f1
+DROP TABLE t1, t2;
+set optimizer_switch=@save_802965;
 set @@optimizer_switch=@save_optimizer_switch;
