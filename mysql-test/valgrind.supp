@@ -876,3 +876,18 @@
    fun:buf_buddy_free_low
    fun:buf_buddy_free
 }
+
+#
+# NDB packfrm vs deflate
+#
+{
+   NDB packfrm case 1
+   Memcheck:Cond
+   fun:deflate_slow
+   fun:deflate
+   fun:compress
+   fun:my_compress_alloc
+   fun:my_compress
+   fun:packfrm
+}
+
