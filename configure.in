@@ -2875,6 +2875,15 @@ AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' C
 
 AC_OUTPUT
 
+# Add warning if user configures with --with-ndbcluster
+if test X"$with_plugin_ndbcluster" = Xyes ; then
+  echo 
+  echo This version of MySQL Cluster is no longer maintained.
+  echo Please use the separate sources provided for MySQL Cluster instead.
+  echo See http://dev.mysql.com/doc/refman/5.1/en/mysql-cluster.html
+  echo for more details.
+fi
+
 # The first line "Thank you ..." is checked in ./Do-compile to verify that configure
 # ended sucessfully - don't remove it.
 echo
