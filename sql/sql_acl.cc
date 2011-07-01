@@ -9543,13 +9543,10 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
     my_ok(thd);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (likely(PSI_server != NULL))
-  {
-    PSI_server->set_thread_user_host(thd->main_security_ctx.user,
-                                     strlen(thd->main_security_ctx.user),
-                                     thd->main_security_ctx.host_or_ip,
-                                     strlen(thd->main_security_ctx.host_or_ip));
-  }
+  PSI_CALL(set_thread_user_host)(thd->main_security_ctx.user,
+                                 strlen(thd->main_security_ctx.user),
+                                 thd->main_security_ctx.host_or_ip,
+                                 strlen(thd->main_security_ctx.host_or_ip));
 #endif
 
   /* Ready to handle queries */

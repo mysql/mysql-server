@@ -2686,42 +2686,33 @@ innobase_change_buffering_inited_ok:
 
 #ifdef HAVE_PSI_INTERFACE
 	/* Register keys with MySQL performance schema */
-	if (PSI_server) {
-		int	count;
+	int	count;
 
-		count = array_elements(all_pthread_mutexes);
-
- 		mysql_mutex_register(
-			"innodb", all_pthread_mutexes, count);
+	count = array_elements(all_pthread_mutexes);
+ 	mysql_mutex_register("innodb", all_pthread_mutexes, count);
 
 # ifdef UNIV_PFS_MUTEX
-		count = array_elements(all_innodb_mutexes);
-		mysql_mutex_register("innodb",
-					   all_innodb_mutexes, count);
+	count = array_elements(all_innodb_mutexes);
+	mysql_mutex_register("innodb", all_innodb_mutexes, count);
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_RWLOCK
-		count = array_elements(all_innodb_rwlocks);
-		mysql_rwlock_register("innodb",
-					    all_innodb_rwlocks, count);
+	count = array_elements(all_innodb_rwlocks);
+	mysql_rwlock_register("innodb", all_innodb_rwlocks, count);
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_THREAD
-		count = array_elements(all_innodb_threads);
-		mysql_thread_register("innodb",
-					    all_innodb_threads, count);
+	count = array_elements(all_innodb_threads);
+	mysql_thread_register("innodb", all_innodb_threads, count);
 # endif /* UNIV_PFS_THREAD */
 
 # ifdef UNIV_PFS_IO
-		count = array_elements(all_innodb_files);
-		mysql_file_register("innodb",
-					  all_innodb_files, count);
+	count = array_elements(all_innodb_files);
+	mysql_file_register("innodb", all_innodb_files, count);
 # endif /* UNIV_PFS_IO */
 
-		count = array_elements(all_innodb_conds);
-		mysql_cond_register("innodb",
-					  all_innodb_conds, count);
-	}
+	count = array_elements(all_innodb_conds);
+	mysql_cond_register("innodb", all_innodb_conds, count);
 #endif /* HAVE_PSI_INTERFACE */
 
 	/* Since we in this module access directly the fields of a trx
