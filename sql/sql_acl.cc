@@ -7478,7 +7478,6 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   THD *thd= mpvio->thd;
   NET *net= &thd->net;
   char *end;
-
   DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
 
   if (pkt_len < MIN_HANDSHAKE_SIZE)
@@ -7490,7 +7489,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   ulong client_capabilities= uint2korr(net->read_pos);
   if (client_capabilities & CLIENT_PROTOCOL_41)
   {
-    client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
+    client_capabilities|= ((ulonglong) uint2korr(net->read_pos+2)) << 16;
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
     if (thd_init_client_charset(thd, (uint) net->read_pos[8]))

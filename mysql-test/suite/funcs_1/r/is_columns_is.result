@@ -320,6 +320,9 @@ NULL	information_schema	PROCESSLIST	DB	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	
 NULL	information_schema	PROCESSLIST	HOST	3		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	PROCESSLIST	ID	1	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(4)			select	
 NULL	information_schema	PROCESSLIST	INFO	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	PROCESSLIST	MAX_STAGE	11	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(2)			select	
+NULL	information_schema	PROCESSLIST	PROGRESS	12	0.000	NO	decimal	NULL	NULL	7	3	NULL	NULL	NULL	decimal(7,3)			select	
+NULL	information_schema	PROCESSLIST	STAGE	10	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(2)			select	
 NULL	information_schema	PROCESSLIST	STATE	7	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	PROCESSLIST	TIME	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(7)			select	
 NULL	information_schema	PROCESSLIST	TIME_MS	9	0.000	NO	decimal	NULL	NULL	22	3	NULL	NULL	NULL	decimal(22,3)			select	
@@ -532,6 +535,7 @@ NULL	datetime	NULL	NULL
 NULL	decimal	NULL	NULL
 NULL	double	NULL	NULL
 NULL	int	NULL	NULL
+NULL	tinyint	NULL	NULL
 --> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values
 --> are 0, which is intended behavior, and the result of 0 / 0 IS NULL
 SELECT CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
@@ -870,6 +874,9 @@ NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int(7)
 3.0000	information_schema	PROCESSLIST	STATE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	PROCESSLIST	INFO	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
 NULL	information_schema	PROCESSLIST	TIME_MS	decimal	NULL	NULL	NULL	NULL	decimal(22,3)
+NULL	information_schema	PROCESSLIST	STAGE	tinyint	NULL	NULL	NULL	NULL	tinyint(2)
+NULL	information_schema	PROCESSLIST	MAX_STAGE	tinyint	NULL	NULL	NULL	NULL	tinyint(2)
+NULL	information_schema	PROCESSLIST	PROGRESS	decimal	NULL	NULL	NULL	NULL	decimal(7,3)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)

@@ -1220,6 +1220,8 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   See ma_check_standalone.h .
 */
 int _ma_killed_ptr(HA_CHECK *param);
+void _ma_report_progress(HA_CHECK *param, ulonglong progress,
+                         ulonglong max_progress);
 void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...))
   ATTRIBUTE_FORMAT(printf, 2, 3);
 void _ma_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...))

@@ -13,9 +13,9 @@ id
 update t1 set id = 8 where id = 5;
 update t1 set id = 8 where id = 4;
 show processlist;
-Id	User	Host	db	Command	Time	State	Info
-x	root	x	test	Query	x	NULL	show processlist
-x	root	x	test	Query	x	Searching rows for update	update t1 set id = 8 where id = 4
+Id	User	Host	db	Command	Time	State	Info	Progress
+x	root	x	test	Query	x	NULL	show processlist	0.000
+x	root	x	test	Query	x	Searching rows for update	update t1 set id = 8 where id = 4	0.000
 commit;
 select * from t1;
 id
@@ -49,9 +49,9 @@ id
 update t1 set id = 8 where id < 4;
 update t1 set id = 8 where id = 5;
 show processlist;
-Id	User	Host	db	Command	Time	State	Info
-x	root	x	test	Query	x	NULL	show processlist
-x	root	x	test	Query	x	Searching rows for update	update t1 set id = 8 where id = 5
+Id	User	Host	db	Command	Time	State	Info	Progress
+x	root	x	test	Query	x	NULL	show processlist	0.000
+x	root	x	test	Query	x	Searching rows for update	update t1 set id = 8 where id = 5	0.000
 commit;
 select * from t1;
 id

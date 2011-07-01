@@ -17,6 +17,7 @@ use strict;
 use DBI;
 use Getopt::Long;
 use Socket;
+use List::Util qw(min max);
 
 $main::VERSION = "1.9a";
 
@@ -1014,7 +1015,7 @@ sub GetData()
         $lines_left--;
 
 
-        printf(" Key Efficiency: %2.1f%%  Bps in/out: %5s/%5s   ",
+        printf(" MyISAM Key Efficiency: %2.1f%%  Bps in/out: %5s/%5s   ",
                $cache_hits_percent,
                make_short($STATUS{Bytes_received} / $STATUS{Uptime} ),
                make_short($STATUS{Bytes_sent} / $STATUS{Uptime}));
@@ -1075,21 +1076,22 @@ sub GetData()
     ## Threads
     ##
 
-    #my $sz = $width - 52;
-    my @sz   = (9, 9, 15, 10, 10, 6, 8);
+    my @sz   = (9, 8, 15, 9, 6, 5, 6, 8);
     my $used = scalar(@sz) + Sum(@sz);
-    my $free = $width - $used;
-
+    my $state= $width <= 80 ? 6 : int(min(6+($width-80)/3, 15));
+    my $free = $width - $used - ($state - 6);
+    my $format= "%9s %8s %15s %9s %6s %5s %6s %${state}s %-.${free}s\n";
+    my $format2= "%9d %8.8s %15.15s %9.9s %6d %5.1f %6.6s %${state}.${state}s %-${free}.${free}s\n";
     print BOLD() if ($HAS_COLOR);
 
-    printf "%9s %9s %15s %10s %10s %6s %8s %-${free}s\n",
-        'Id','User','Host/IP','DB','Time', 'Cmd', 'State', 'Query';
+    printf $format,
+        'Id','User','Host/IP','DB','Time', '%', 'Cmd', 'State', 'Query';
 
     print RESET() if ($HAS_COLOR);
 
     ##      Id User Host DB
-    printf "%9s %9s %15s %10s %10s %6s %8s %-.${free}s\n",
-        '--','----','-------','--','----', '---', '-----', '----------';
+    printf $format,
+        '--','----','-------','--','----', '-', '---', '-----', '----------';
 
     $lines_left -= 2;
 
@@ -1137,6 +1139,7 @@ sub GetData()
         $thread->{Command} ||= '';
         $thread->{Host}    ||= '';
 	$thread->{State}   ||= "";
+	$thread->{Progress} ||= 0;
 
 	## alter double hyphen comments so they don't break 
 	## the query when newlines are removed - http://freshmeat.net/users/jerjones
@@ -1201,8 +1204,6 @@ sub GetData()
         next if ($thread->{Host}  !~ $config{filter_host});
         next if ($thread->{State} !~ $config{filter_state});
 
-        $thread->{State} = trim(sprintf("%8.8s",$thread->{State}));
-
         # Otherwise, print.
 
         my $smInfo;
@@ -1229,9 +1230,9 @@ sub GetData()
 	    print MAGENTA() if $thread->{Time} > $config{long};
         }
 
-        printf "%9d %9.9s %15.15s %10.10s %10d %6.6s %8.8s %-${free}.${free}s\n",
+        printf $format2,
             $thread->{Id}, $thread->{User}, $thread->{Host}, $thread->{db},
-            $thread->{Time}, $thread->{Command}, $thread->{State}, $smInfo;
+            $thread->{Time}, $thread->{Progress}, $thread->{Command}, $thread->{State}, $smInfo;
 
         print RESET() if $HAS_COLOR;
 
@@ -2321,8 +2322,9 @@ showing most values in short form, such as 10k rather than 10000.
 =item Michael "Monty" Widenius <monty@askmonty.org>
 
 Fixed a couple of minor bugs that gave warnings on startup.
-Added support for MariaDB (show MariaDB at top).
+Added support for MariaDB (show MariaDB at top and % done).
 Cut long server version names to display width.
+Made 'State' length dynamic.
 
 =back
 

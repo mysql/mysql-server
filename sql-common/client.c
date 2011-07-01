@@ -125,6 +125,7 @@ const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 static void mysql_close_free_options(MYSQL *mysql);
 static void mysql_close_free(MYSQL *mysql);
 static void mysql_prune_stmt_list(MYSQL *mysql);
+static int cli_report_progress(MYSQL *mysql, uchar *packet, uint length);
 
 #if !(defined(__WIN__) || defined(__NETWARE__))
 static int wait_for_data(my_socket fd, uint timeout);
@@ -689,6 +690,7 @@ cli_safe_read(MYSQL *mysql)
   ulong len=0;
   init_sigpipe_variables
 
+restart:
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
   if (net->vio != 0)
@@ -712,13 +714,27 @@ cli_safe_read(MYSQL *mysql)
   {
     if (len > 3)
     {
-      char *pos=(char*) net->read_pos+1;
-      net->last_errno=uint2korr(pos);
+      uchar *pos= net->read_pos+1;
+      uint last_errno=uint2korr(pos);
+
+      if (last_errno == 65535 &&
+          (mysql->server_capabilities & CLIENT_PROGRESS))
+      {
+        if (cli_report_progress(mysql, pos+2, (uint) (len-3)))
+        {
+          /* Wrong packet */
+          set_mysql_error(mysql,  CR_MALFORMED_PACKET, unknown_sqlstate);
+          return (packet_error);
+        }
+        goto restart;
+      }
+      net->last_errno= last_errno;
+      
       pos+=2;
       len-=2;
-      if (protocol_41(mysql) && pos[0] == '#')
+      if (protocol_41(mysql) && (char) pos[0] == '#')
       {
-	strmake(net->sqlstate, pos+1, SQLSTATE_LENGTH);
+	strmake(net->sqlstate, (char*) pos+1, SQLSTATE_LENGTH);
 	pos+= SQLSTATE_LENGTH+1;
       }
       else
@@ -875,6 +891,40 @@ static void cli_flush_use_result(MYSQL *mysql)
 }
 
 
+/*
+  Report progress to the client
+
+  RETURN VALUES
+    0  ok
+    1  error
+*/
+
+static int cli_report_progress(MYSQL *mysql, uchar *packet, uint length)
+{
+  uint stage, max_stage, proc_length;
+  double progress;
+  uchar *start= packet;
+
+  if (length < 5)
+    return 1;                         /* Wrong packet */
+
+  if (!(mysql->options.extension && mysql->options.extension->report_progress))
+    return 0;                         /* No callback, ignore packet */
+
+  packet++;                           /* Ignore number of strings */
+  stage= (uint) *packet++;
+  max_stage= (uint) *packet++;
+  progress= uint3korr(packet)/1000.0;
+  packet+= 3;
+  proc_length= net_field_length(&packet);
+  if (packet + proc_length > start + length)
+    return 1;                         /* Wrong packet */
+  (*mysql->options.extension->report_progress)(mysql, stage, max_stage,
+                                               progress, (char*) packet,
+                                               proc_length);
+  return 0;
+}
+
 #ifdef __WIN__
 static my_bool is_NT(void)
 {
@@ -882,57 +932,6 @@ static my_bool is_NT(void)
   return (os && !strcmp(os, "Windows_NT")) ? 1 : 0;
 }
 #endif
-
-
-#ifdef CHECK_LICENSE
-/**
-  Check server side variable 'license'.
-
-  If the variable does not exist or does not contain 'Commercial',
-  we're talking to non-commercial server from commercial client.
-
-  @retval  0   success
-  @retval  !0  network error or the server is not commercial.
-               Error code is saved in mysql->net.last_errno.
-*/
-
-static int check_license(MYSQL *mysql)
-{
-  MYSQL_ROW row;
-  MYSQL_RES *res;
-  NET *net= &mysql->net;
-  static const char query[]= "SELECT @@license";
-  static const char required_license[]= STRINGIFY_ARG(LICENSE);
-
-  if (mysql_real_query(mysql, query, sizeof(query)-1))
-  {
-    if (net->last_errno == ER_UNKNOWN_SYSTEM_VARIABLE)
-    {
-      set_mysql_extended_error(mysql, CR_WRONG_LICENSE, unknown_sqlstate,
-                               ER(CR_WRONG_LICENSE), required_license);
-    }
-    return 1;
-  }
-  if (!(res= mysql_use_result(mysql)))
-    return 1;
-  row= mysql_fetch_row(res);
-  /* 
-    If no rows in result set, or column value is NULL (none of these
-    two is ever true for server variables now), or column value
-    mismatch, set wrong license error.
-  */
-  if (!net->last_errno &&
-      (!row || !row[0] ||
-       strncmp(row[0], required_license, sizeof(required_license))))
-  {
-    set_mysql_extended_error(mysql, CR_WRONG_LICENSE, unknown_sqlstate,
-                             ER(CR_WRONG_LICENSE), required_license);
-  }
-  mysql_free_result(res);
-  return net->last_errno;
-}
-#endif /* CHECK_LICENSE */
-
 
 /**************************************************************************
   Shut down connection
@@ -1050,14 +1049,17 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   return 0;
 }
 
-#define extension_set_string(OPTS, X, STR)                       \
-    if ((OPTS)->extension)                                       \
-      my_free((OPTS)->extension->X, MYF(MY_ALLOW_ZERO_PTR));     \
-    else                                                         \
+#define extension_set(OPTS, X, VAL)                              \
+    if (!(OPTS)->extension)                                      \
       (OPTS)->extension= (struct st_mysql_options_extention *)   \
         my_malloc(sizeof(struct st_mysql_options_extention),     \
                   MYF(MY_WME | MY_ZEROFILL));                    \
-    (OPTS)->extension->X= my_strdup((STR), MYF(MY_WME));
+    (OPTS)->extension->X= VAL;
+
+#define extension_set_string(OPTS, X, STR)                       \
+    if ((OPTS)->extension)                                       \
+      my_free((OPTS)->extension->X, MYF(MY_ALLOW_ZERO_PTR));     \
+    extension_set(OPTS, X, my_strdup((STR), MYF(MY_WME)));
 
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group)
@@ -2977,11 +2979,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   if (mysql->client_flag & CLIENT_COMPRESS)      /* We will use compression */
     net->compress=1;
 
-#ifdef CHECK_LICENSE 
-  if (check_license(mysql))
-    goto error;
-#endif
-
   if (db && !mysql->db && mysql_select_db(mysql, db))
   {
     if (mysql->net.last_errno == CR_SERVER_LOST)
@@ -3736,6 +3733,15 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     break;
   case MYSQL_DEFAULT_AUTH:
     extension_set_string(&mysql->options, default_auth, arg);
+    break;
+  case MYSQL_PROGRESS_CALLBACK:
+    if (!mysql->options.extension)
+      mysql->options.extension= (struct st_mysql_options_extention *)
+        my_malloc(sizeof(struct st_mysql_options_extention),
+                  MYF(MY_WME | MY_ZEROFILL));
+    if (mysql->options.extension)
+      mysql->options.extension->report_progress= 
+        (void (*)(const MYSQL *, uint, uint, double, const char *, uint)) arg;
     break;
   default:
     DBUG_RETURN(1);

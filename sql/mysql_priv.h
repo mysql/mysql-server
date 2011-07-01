@@ -808,17 +808,6 @@ inline THD *_current_thd(void)
 #endif
 #define current_thd _current_thd()
 
-
-/** 
-  The meat of thd_proc_info(THD*, char*), a macro that packs the last
-  three calling-info parameters. 
-*/
-extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info, 
-                              const char *calling_func, 
-                              const char *calling_file, 
-                              const unsigned int calling_line);
-
 /**
   Enumerate possible types of a table from re-execution
   standpoint.
@@ -2184,6 +2173,7 @@ extern ulonglong thd_startup_options;
 extern ulong thread_id;
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong aborted_threads,aborted_connects;
+extern ulong opt_progress_report_time;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern ulong delayed_insert_threads, delayed_insert_writes;

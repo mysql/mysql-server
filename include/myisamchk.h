@@ -155,6 +155,11 @@ typedef struct st_handler_check_param
   char temp_filename[FN_REFLEN];
   IO_CACHE read_cache;
   enum_handler_stats_method stats_method;
+  /* For reporting progress */
+  uint stage, max_stage;
+  uint progress_counter;             /* How often to call _report_progress() */
+  ulonglong progress, max_progress;
+
 #ifdef THREAD
   pthread_mutex_t print_msg_mutex;
   my_bool need_print_msg_lock;

@@ -156,6 +156,7 @@ static bool sys_update_slow_log_path(THD *thd, set_var * var);
 static void sys_default_slow_log_path(THD *thd, enum_var_type type);
 static void fix_sys_log_slow_filter(THD *thd, enum_var_type);
 static uchar *get_myisam_mmap_size(THD *thd);
+static uchar *in_transaction(THD *thd);
 static int check_max_allowed_packet(THD *thd,  set_var *var);
 static int check_net_buffer_length(THD *thd,  set_var *var);
 
@@ -526,6 +527,10 @@ static sys_var_thd_ulong        sys_optimizer_search_depth(&vars, "optimizer_sea
                                                    &SV::optimizer_search_depth);
 static sys_var_thd_optimizer_switch   sys_optimizer_switch(&vars, "optimizer_switch",
                                      &SV::optimizer_switch);
+
+static sys_var_thd_ulong        sys_progress_report_time(&vars,
+                                                         "progress_report_time",
+                                                         &SV::progress_report_time);
 
 static sys_var_const            sys_pid_file(&vars, "pid_file",
                                              OPT_GLOBAL, SHOW_CHAR,
@@ -996,6 +1001,12 @@ static sys_var_readonly         sys_myisam_mmap_size(&vars, "myisam_mmap_size",
 static sys_var_enum_const     sys_plugin_maturity(&vars, "plugin_maturity",
                                                   &plugin_maturity,
                                                   &plugin_maturity_values);
+
+static sys_var_readonly       sys_in_transaction(&vars, "in_transaction",
+                                                 OPT_SESSION, SHOW_BOOL,
+                                                 in_transaction);
+
+
 
 bool sys_var::check(THD *thd, set_var *var)
 {
@@ -3269,35 +3280,26 @@ static bool set_option_log_bin_bit(THD *thd, set_var *var)
 
 static bool set_option_autocommit(THD *thd, set_var *var)
 {
+  ulonglong new_options= thd->options;
+
   /* The test is negative as the flag we use is NOT autocommit */
-
-  ulonglong org_options= thd->options;
-
-  if (var->save_result.ulong_value != 0)
-    thd->options&= ~((sys_var_thd_bit*) var->var)->bit_flag;
+  if (var->save_result.ulong_value)
+    new_options&= ~OPTION_NOT_AUTOCOMMIT;
   else
-    thd->options|= ((sys_var_thd_bit*) var->var)->bit_flag;
+    new_options|= OPTION_NOT_AUTOCOMMIT;
 
-  if ((org_options ^ thd->options) & OPTION_NOT_AUTOCOMMIT)
+  if ((new_options ^ thd->options) & OPTION_NOT_AUTOCOMMIT)
   {
-    if ((org_options & OPTION_NOT_AUTOCOMMIT))
+    if ((thd->options & OPTION_NOT_AUTOCOMMIT))
     {
-      /* We changed to auto_commit mode */
-      if (thd->transaction.xid_state.xa_state != XA_NOTR)
-      {
-        thd->options= org_options;
-        my_error(ER_XAER_RMFAIL, MYF(0),
-                 xa_state_names[thd->transaction.xid_state.xa_state]);
+      if (end_active_trans(thd))
         return 1;
-      }
-      thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
-      thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
-      if (ha_commit(thd))
-	return 1;
+      thd->options= new_options;
     }
     else
     {
+      thd->options= new_options;
       thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     }
@@ -3399,6 +3401,12 @@ static uchar *get_myisam_mmap_size(THD *thd)
   return (uchar *)&myisam_mmap_size;
 }
 
+static uchar *in_transaction(THD *thd)
+{
+  thd->sys_var_tmp.my_bool_value=
+    test(thd->server_status & SERVER_STATUS_IN_TRANS);
+  return (uchar*) &thd->sys_var_tmp.my_bool_value;
+}
 
 /****************************************************************************
   Main handling of variables:

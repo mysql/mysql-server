@@ -725,6 +725,8 @@ THD::THD()
   user_time.val= start_time= start_time_sec_part= 0;
   start_utime= prior_thr_create_utime= 0L;
   utime_after_lock= 0L;
+  progress.report_to_client= 0;
+  progress.max_counter= 0;
   current_linfo =  0;
   slave_thread = 0;
   bzero(&variables, sizeof(variables));
@@ -990,6 +992,11 @@ void THD::update_all_stats()
 {
   ulonglong end_cpu_time, end_utime;
   double busy_time, cpu_time;
+
+  /* Reset status variables used by information_schema.processlist */
+  progress.max_counter= 0;
+  progress.max_stage= 0;
+  progress.report= 0;
 
   /* This is set at start of query if opt_userstat_running was set */
   if (!userstat_running)
@@ -3364,10 +3371,122 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   @retval 0 the user thread is active
   @retval 1 the user thread has been killed
 */
+
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
   return(thd->killed);
 }
+
+
+/**
+   Send an out-of-band progress report to the client
+
+   The report is sent every 'thd->...progress_report_time' second,
+   however not more often than global.progress_report_time.
+   If global.progress_report_time is 0, then don't send progress reports, but
+   check every second if the value has changed
+*/
+
+static void thd_send_progress(THD *thd)
+{
+  /* Check if we should send the client a progress report */
+  ulonglong report_time= my_interval_timer();
+  if (report_time > thd->progress.next_report_time)
+  {
+    uint seconds_to_next= max(thd->variables.progress_report_time,
+                              global_system_variables.progress_report_time);
+    if (seconds_to_next == 0)             // Turned off
+      seconds_to_next= 1;                 // Check again after 1 second
+
+    thd->progress.next_report_time= (report_time +
+                                     seconds_to_next * 1000000000ULL);
+    if (global_system_variables.progress_report_time &&
+        thd->variables.progress_report_time)
+      net_send_progress_packet(thd);
+  }
+}
+
+
+/** Initialize progress report handling **/
+
+extern "C" void thd_progress_init(MYSQL_THD thd, uint max_stage)
+{
+  /*
+    Send progress reports to clients that supports it, if the command
+    is a high level command (like ALTER TABLE) and we are not in a
+    stored procedure
+  */
+  thd->progress.report= ((thd->client_capabilities & CLIENT_PROGRESS) &&
+                         thd->progress.report_to_client &&
+                         !thd->in_sub_stmt);
+  thd->progress.next_report_time= 0;
+  thd->progress.stage= 0;
+  thd->progress.counter= thd->progress.max_counter= 0;
+  thd->progress.max_stage= max_stage;
+}
+
+
+/* Inform processlist and the client that some progress has been made */
+
+extern "C" void thd_progress_report(MYSQL_THD thd,
+                                    ulonglong progress, ulonglong max_progress)
+{
+  if (thd->progress.max_counter != max_progress)        // Simple optimization
+  {
+    pthread_mutex_lock(&thd->LOCK_thd_data);
+    thd->progress.counter= progress;
+    thd->progress.max_counter= max_progress;
+    pthread_mutex_unlock(&thd->LOCK_thd_data);
+  }
+  else
+    thd->progress.counter= progress;
+
+  if (thd->progress.report)
+    thd_send_progress(thd);
+}
+
+/**
+  Move to next stage in process list handling
+
+  This will reset the timer to ensure the progress is sent to the client
+  if client progress reports are activated.
+*/
+
+extern "C" void thd_progress_next_stage(MYSQL_THD thd)
+{
+  pthread_mutex_lock(&thd->LOCK_thd_data);
+  thd->progress.stage++;
+  thd->progress.counter= 0;
+  DBUG_ASSERT(thd->progress.stage < thd->progress.max_stage);
+  pthread_mutex_unlock(&thd->LOCK_thd_data);
+  if (thd->progress.report)
+  {
+    thd->progress.next_report_time= 0;          // Send new stage info
+    thd_send_progress(thd);
+  }
+}
+
+/**
+  Disable reporting of progress in process list.
+
+  @note
+  This function is safe to call even if one has not called thd_progress_init.
+
+  This function should be called by all parts that does progress
+  reporting to ensure that progress list doesn't contain 100 % done
+  forever.
+*/
+
+
+extern "C" void thd_progress_end(MYSQL_THD thd)
+{
+  /*
+    It's enough to reset max_counter to set disable progress indicator
+    in processlist.
+  */
+  thd->progress.max_counter= 0;
+}
+
 
 /**
   Return the thread id of a user thread

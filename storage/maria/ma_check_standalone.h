@@ -35,6 +35,13 @@ int _ma_killed_ptr(HA_CHECK *param __attribute__((unused)))
   return 0;
 }
 
+
+void _ma_report_progress(HA_CHECK *param __attribute__((unused)),
+                         ulonglong progress __attribute__((unused)),
+                         ulonglong max_progress __attribute__((unused)))
+{
+}
+
 	/* print warnings and errors */
 	/* VARARGS */
 

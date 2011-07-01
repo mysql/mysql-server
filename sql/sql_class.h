@@ -443,6 +443,7 @@ struct system_variables
   ulong ndb_index_stat_cache_entries;
   ulong ndb_index_stat_update_freq;
   ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
+  ulong progress_report_time;
   my_bool binlog_annotate_rows_events;
   my_bool binlog_direct_non_trans_update;
   /*
@@ -1550,6 +1551,25 @@ public:
   // track down slow pthread_create
   ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
+
+  // Process indicator
+  struct {
+    /*
+      true, if the currently running command can send progress report
+      packets to a client. Set by mysql_execute_command() for safe commands
+      See CF_REPORT_PROGRESS
+    */
+    bool       report_to_client;
+    /*
+      true, if we will send progress report packets to a client
+      (client has requested them, see CLIENT_PROGRESS; report_to_client
+      is true; not in sub-statement)
+    */
+    bool       report;
+    uint       stage, max_stage;
+    ulonglong  counter, max_counter;
+    ulonglong  next_report_time;
+  } progress;
 
   thr_lock_type update_lock_default;
   Delayed_insert *di;
@@ -3556,6 +3576,7 @@ public:
 #define CF_STATUS_COMMAND	4
 #define CF_SHOW_TABLE_COMMAND	8
 #define CF_WRITE_LOGS_COMMAND  16
+
 /**
   Must be set for SQL statements that may contain
   Item expressions and/or use joins and tables.
@@ -3570,6 +3591,7 @@ public:
   joins are currently prohibited in these statements.
 */
 #define CF_REEXECUTION_FRAGILE 32
+#define CF_REPORT_PROGRESS     64
 
 /* Functions in sql_class.cc */
 

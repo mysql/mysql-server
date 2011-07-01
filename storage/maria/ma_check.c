@@ -125,6 +125,7 @@ void maria_chk_init(HA_CHECK *param)
   param->max_record_length= LONGLONG_MAX;
   param->pagecache_block_size= KEY_CACHE_BLOCK_SIZE;
   param->stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+  param->max_stage= 1;
 }
 
 
@@ -517,6 +518,7 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
       continue;
     }
     found_keys++;
+    _ma_report_progress(param, key, share->base.keys);
 
     param->record_checksum=init_checksum;
 
@@ -1123,10 +1125,14 @@ static int check_keys_in_record(HA_CHECK *param, MARIA_HA *info, int extend,
 
   param->tmp_record_checksum+= (ha_checksum) start_recpos;
   param->records++;
-  if (param->testflag & T_WRITE_LOOP && param->records % WRITE_COUNT == 0)
+  if (param->records % WRITE_COUNT == 0)
   {
-    printf("%s\r", llstr(param->records, llbuff));
-    VOID(fflush(stdout));
+    if (param->testflag & T_WRITE_LOOP)
+    {
+      printf("%s\r", llstr(param->records, llbuff));
+      VOID(fflush(stdout));
+    }
+    _ma_report_progress(param, param->records, share->state.state.records);
   }
 
   /* Check if keys match the record */
@@ -2355,6 +2361,7 @@ static int initialize_variables_for_repair(HA_CHECK *param,
 
   /* calculate max_records */
   sort_info->filelength= my_seek(info->dfile.file, 0L, MY_SEEK_END, MYF(0));
+  param->max_progress= sort_info->filelength;
   if ((param->testflag & T_CREATE_MISSING_KEYS) ||
       sort_info->org_data_file_type == COMPRESSED_RECORD)
     sort_info->max_records= share->state.state.records;
@@ -2377,6 +2384,8 @@ static int initialize_variables_for_repair(HA_CHECK *param,
   maria_ignore_trids(info);
   /* Don't write transid's during repair */
   maria_versioning(info, 0);
+  /* remember original number of rows */
+  *info->state= info->s->state.state;
   return 0;
 }
 
@@ -3609,7 +3618,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
                          const char * name, my_bool rep_quick)
 {
   int got_error;
-  uint i;
+  uint i, keys_to_repair;
   ha_rows start_records;
   my_off_t new_header_length, org_header_length, del;
   File new_file;
@@ -3735,6 +3744,17 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 
   del=share->state.state.del;
 
+  /* Calculate number of keys to repair */
+  keys_to_repair= 0;
+  for (sort_param.key=0 ; sort_param.key < share->base.keys ;
+       sort_param.key++)
+  {
+    if (maria_is_key_active(key_map, sort_param.key))
+      keys_to_repair++;
+  }
+  /* For each key we scan and merge sort the keys */
+  param->max_stage= keys_to_repair*2;
+
   rec_per_key_part= param->new_rec_per_key_part;
   for (sort_param.key=0 ; sort_param.key < share->base.keys ;
        rec_per_key_part+=sort_param.keyinfo->keysegs, sort_param.key++)
@@ -3855,6 +3875,9 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 
     /* Set for next loop */
     sort_info.max_records= (ha_rows) sort_info.new_info->s->state.state.records;
+    param->stage++;                             /* Next stage */
+    param->progress= 0;
+
     if (param->testflag & T_STATISTICS)
       maria_update_key_parts(sort_param.keyinfo, rec_per_key_part,
                              sort_param.unique,
@@ -3935,6 +3958,10 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
       sort_info.org_data_file_type= share->data_file_type;
       sort_info.filelength= share->state.state.data_file_length;
       sort_param.fix_datafile=0;
+
+      /* Offsets are now in proportion to the new file length */
+      param->max_progress= sort_info.filelength;
+
     }
     else
       share->state.state.data_file_length=sort_param.max_pos;
@@ -4735,6 +4762,11 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
 
   if (_ma_killed_ptr(param))
     DBUG_RETURN(1);
+  if (param->progress_counter++ >= WRITE_COUNT)
+  {
+    param->progress_counter= 0;
+    _ma_report_progress(param, param->progress, param->max_progress);
+  }
 
   switch (sort_info->org_data_file_type) {
   case BLOCK_RECORD:
@@ -4775,6 +4807,9 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
           flag= HA_ERR_ROW_NOT_VISIBLE;
         }
       }
+      param->progress= (ma_recordpos_to_page(info->cur_row.lastpos)*
+                        share->block_size);
+
       share->page_type= save_page_type;
       if (!flag)
       {
@@ -4827,6 +4862,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
 	DBUG_RETURN(-1);
       }
       sort_param->start_recpos=sort_param->pos;
+      param->progress= sort_param->pos;
       if (!sort_param->fix_datafile)
       {
 	sort_param->current_filepos= sort_param->pos;
@@ -4854,6 +4890,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
     LINT_INIT(to);
 
     pos=sort_param->pos;
+    param->progress= pos;
     searching=(sort_param->fix_datafile && (param->testflag & T_EXTEND));
     parallel_flag= (sort_param->read_cache.file < 0) ? READING_NEXT : 0;
     for (;;)
@@ -5163,6 +5200,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
     }
   }
   case COMPRESSED_RECORD:
+    param->progress= sort_param->pos;
     for (searching=0 ;; searching=1, sort_param->pos++)
     {
       if (_ma_read_cache(info, &sort_param->read_cache, block_info.header,
@@ -6530,6 +6568,17 @@ static void copy_data_file_state(MARIA_STATE_INFO *to,
 }
 
 
+/* Return 1 if block is full of zero's */
+
+static my_bool zero_filled_block(uchar *tmp, uint length)
+{
+  while (length--)
+    if (*(tmp++) != 0)
+      return 0;
+  return 1;
+}
+
+
 /*
   Read 'safely' next record while scanning table.
 
@@ -6631,9 +6680,21 @@ read_next_page:
       {
         if (my_errno == HA_ERR_WRONG_CRC)
         {
-          _ma_check_print_info(sort_info->param,
-                               "Wrong CRC on datapage at %s",
-                               llstr(page, llbuff));
+          /*
+            Don't give errors for zero filled blocks. These can
+            sometimes be found at end of a bitmap when we wrote a big
+            record last that was moved to the next bitmap.
+          */
+          if (!zero_filled_block(info->scan.page_buff, share->block_size) ||
+              _ma_check_bitmap_data(info, UNALLOCATED_PAGE, 0, 
+                                    _ma_bitmap_get_page_bits(info,
+                                                             &share->bitmap,
+                                                             page)))
+          {
+            _ma_check_print_info(sort_info->param,
+                                 "Wrong CRC on datapage at %s",
+                                 llstr(page, llbuff));
+          }
           continue;
         }
         DBUG_RETURN(my_errno);

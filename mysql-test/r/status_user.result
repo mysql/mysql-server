@@ -186,4 +186,33 @@ bytes_sent <> 0, binlog_bytes_written <> 0
 from information_schema.client_statistics;
 connected_time <> 0	busy_time <> 0	bytes_received <> 0	bytes_sent <> 0	binlog_bytes_written <> 0
 1	1	1	1	1
+create table t1 (a int) engine=innodb;
+select @@in_transaction;
+@@in_transaction
+0
+begin;
+select @@in_transaction;
+@@in_transaction
+1
+insert into t1 values (1);
+select @@in_transaction;
+@@in_transaction
+1
+commit;
+select @@in_transaction;
+@@in_transaction
+0
+set @@autocommit=0;
+select @@in_transaction;
+@@in_transaction
+0
+insert into t1 values (2);
+select @@in_transaction;
+@@in_transaction
+1
+set @@autocommit=1;
+select @@in_transaction;
+@@in_transaction
+0
+drop table t1;
 set @@global.general_log=@save_general_log;
