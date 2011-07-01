@@ -57,8 +57,12 @@ ENDMACRO()
 
 # Temporarily remove -Werror from compiler flags until
 # storage/ndb/ can be built with it
-STRING(REPLACE "-Werror" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-STRING(REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+IF(CMAKE_C_FLAGS)
+  STRING(REPLACE "-Werror" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+ENDIF()
+IF(CMAKE_CXX_FLAGS)
+  STRING(REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+ENDIF()
 
 IF (MYSQL_VERSION_ID LESS 50500)
   # Use same compiler defines as MySQL Server for debug compile
