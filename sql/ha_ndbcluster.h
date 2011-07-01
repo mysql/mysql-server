@@ -799,11 +799,12 @@ private:
   bool has_null_in_unique_index(uint idx_no) const;
   bool check_index_fields_not_null(KEY *key_info);
 
-  bool check_if_pushable(const NdbQueryOperationTypeWrapper& type,
-                         uint idx= 0,
-			 bool rootSorted= false) const;
+  bool check_if_pushable(int type, //NdbQueryOperationDef::Type,
+                         uint idx= MAX_KEY,
+                         bool rootSorted= false) const;
   bool check_is_pushed() const;
-  int create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs= 0);
+  int create_pushed_join(const NdbQueryParamValue* keyFieldParams=NULL,
+                         uint paramCnt= 0);
 
   int set_up_partition_info(partition_info *part_info,
                             NdbDictionary::Table&) const;

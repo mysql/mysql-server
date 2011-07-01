@@ -886,30 +886,7 @@ SHOW_VAR ndb_status_index_stat_variables[]= {
 };
 
 #ifndef NO_PUSHED_JOIN
-
-/**
- * C++98 does not allow forward declarations of enum types. By using this 
- * class instead of using NdbQueryOperationDef::Type directly, 
- * ha_ndbcluster.h avoids including NdbQueryBuilder.h.
- */
-class NdbQueryOperationTypeWrapper
-{
-public:
-  /** Implcit conversion from NdbQueryOperationDef::Type.*/
-  NdbQueryOperationTypeWrapper(NdbQueryOperationDef::Type type)
-    :m_type(type)
-  {}
-
-  /** Implcit conversion to NdbQueryOperationDef::Type.*/
-  operator NdbQueryOperationDef::Type() const
-  { return m_type; }
-
-private:
-  const NdbQueryOperationDef::Type m_type;
-};
-
 static int ndbcluster_make_pushed_join(handlerton *, THD*,AQP::Join_plan*);
-
 #endif
 
 /*
@@ -4005,7 +3982,8 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
 
   uint i;
   Uint32 offset= 0;
-  NdbQueryParamValue paramValues[ndb_pushed_join::MAX_KEY_PART + ndb_pushed_join::MAX_REFERRED_FIELDS];
+  NdbQueryParamValue paramValues[ndb_pushed_join::MAX_KEY_PART];
+  DBUG_ASSERT(key_def->key_parts <= ndb_pushed_join::MAX_KEY_PART);
 
   uint map[ndb_pushed_join::MAX_KEY_PART];
   ndbcluster_build_key_map(m_table, m_index[idx], &table->key_info[idx], map);
@@ -4029,11 +4007,8 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     offset+= key_part->store_length;
   }
 
-  const int error= create_pushed_join(paramValues, key_def->key_parts);
-  if (unlikely(error))
-    DBUG_RETURN(error);
-
-  DBUG_RETURN(0);
+  const int ret= create_pushed_join(paramValues, key_def->key_parts);
+  DBUG_RETURN(ret);
 } // ha_ndbcluster::pk_unique_index_read_key_pushed
 
 
@@ -4168,8 +4143,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, active_index,
                         sorted))
   {
-    NdbQueryParamValue paramValues[ndb_pushed_join::MAX_REFERRED_FIELDS];
-    const int error= create_pushed_join(paramValues);
+    const int error= create_pushed_join();
     if (unlikely(error))
       DBUG_RETURN(error);
 
@@ -4361,8 +4335,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 
   if (check_if_pushable(NdbQueryOperationDef::TableScan))
   {
-    NdbQueryParamValue paramValues[ndb_pushed_join::MAX_REFERRED_FIELDS];
-    const int error= create_pushed_join(paramValues);
+    const int error= create_pushed_join();
     if (unlikely(error))
       DBUG_RETURN(error);
 
@@ -13738,8 +13711,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       {
         if (!m_active_query)
         {
-          NdbQueryParamValue paramValues[ndb_pushed_join::MAX_REFERRED_FIELDS];
-          const int error= create_pushed_join(paramValues);
+          const int error= create_pushed_join();
           if (unlikely(error))
             DBUG_RETURN(error);
 
@@ -14384,141 +14356,37 @@ ha_ndbcluster::maybe_pushable_join(const char*& reason) const
  *
  * @param type This is the operation type that the server want to execute.
  * @param idx  Index used whenever relevant for operation type
- * @param rootSorted True if the root operation is an ordered index scan 
+ * @param needSorted True if the root operation is an ordered index scan 
  * with sorted results.
  * @return True if the operation may be pushed.
  */
 bool 
-ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type, 
-                                 uint idx, bool needSorted) const
+ha_ndbcluster::check_if_pushable(int type,  //NdbQueryOperationDef::Type, 
+                                 uint idx,  
+                                 bool needSorted) const
 {
-  if (m_pushed_join_operation != PUSHED_ROOT)
-  {
-    return FALSE;
-  }
-
-  const NdbQueryDef& queryDef= m_pushed_join_member->get_query_def();
-  const NdbQueryOperationDef* const root_operation= 
-    queryDef.getQueryOperation((uint)PUSHED_ROOT);
-
-  const NdbQueryOperationTypeWrapper& query_def_type=  
-    root_operation->getType();
-
   if (m_disable_pushed_join)
   {
     DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
-    return FALSE;
+    return false;
   }
-
-  if (query_def_type != type)
-  {
-    DBUG_PRINT("info", 
-               ("Cannot execute push join. Root operation prepared as %s "
-                "not executable as %s w/ index %d",
-                NdbQueryOperationDef::getTypeName(query_def_type),
-                NdbQueryOperationDef::getTypeName(type), idx));
-    return FALSE;
-  }
-
-  const NdbDictionary::Index* const expected_index= root_operation->getIndex();
-
-  // Check that we still use the same index as when the query was prepared.
-  switch (type)
-  {
-  case NdbQueryOperationDef::PrimaryKeyAccess:
-    DBUG_ASSERT(idx==table->s->primary_key);
-    break;
-
-  case NdbQueryOperationDef::UniqueIndexAccess:
-    DBUG_ASSERT(idx<MAX_KEY);
-    //          DBUG_ASSERT(m_index[idx].unique_index == expected_index);
-    if (m_index[idx].unique_index != expected_index)
-    {
-      DBUG_PRINT("info", ("Actual index %s differs from expected index %s."
-                          "Therefore, join cannot be pushed.", 
-                          m_index[idx].unique_index->getName(),
-                          expected_index->getName()));
-      return FALSE;
-    }
-    break;
-
-  case NdbQueryOperationDef::TableScan:
-    DBUG_ASSERT (idx==0);
-    if (needSorted)
-    {
-      DBUG_PRINT("info", 
-                 ("TableScan access not not be provied as sorted result. " 
-                  "Therefore, join cannot be pushed."));
-      return FALSE;
-    }
-    break;
-
-  case NdbQueryOperationDef::OrderedIndexScan:
-    DBUG_ASSERT(idx<MAX_KEY);
-    //          DBUG_ASSERT(m_index[idx].index == expected_index);
-    if (m_index[idx].index != expected_index)
-    {
-      DBUG_PRINT("info", ("Actual index %s differs from expected index %s. "
-                          "Therefore, join cannot be pushed.", 
-                          m_index[idx].index->getName(),
-                          expected_index->getName()));
-      return FALSE;
-    }
-    if (needSorted && queryDef.getQueryType() == NdbQueryDef::MultiScanQuery)
-    {
-      DBUG_PRINT("info", 
-                 ("OrderedIndexScan with scan siblings " 
-                  "can not execute as pushed join."));
-      return FALSE;
-    }
-    break;
-
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
-  // There may be referrences to Field values from tables outside the scope of
-  // our pushed join which are supplied as paramValues().
-  // If any of these are NULL values, join can't be pushed
-  for (uint i= 0; i < m_pushed_join_member->get_field_referrences_count(); i++)
-  {
-    Field* field= m_pushed_join_member->get_field_ref(i);
-    if (field->is_real_null())
-    {
-      DBUG_PRINT("info", 
-                 ("paramValue is NULL, can not execute as pushed join"));
-      return FALSE;
-    }
-  }
-
-  return TRUE;
+  return   m_pushed_join_operation == PUSHED_ROOT
+        && m_pushed_join_member    != NULL
+        && m_pushed_join_member->match_definition(
+                        type,
+                        (idx<MAX_KEY) ? &m_index[idx] : NULL,
+                        needSorted);
 }
 
 int
-ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs)
+ha_ndbcluster::create_pushed_join(const NdbQueryParamValue* keyFieldParams, uint paramCnt)
 {
   DBUG_ENTER("create_pushed_join");
-  DBUG_ASSERT(m_pushed_join_operation == PUSHED_ROOT);
-  DBUG_PRINT("info", 
-             ("executing chain of %d pushed joins."
-              " First table is %s, accessed as %s.", 
-              m_pushed_join_member->get_operation_count(),
-              m_pushed_join_member->get_table(0)->alias,
-              NdbQueryOperationDef::getTypeName(
-                m_pushed_join_member->get_query_def().getQueryOperation((uint)PUSHED_ROOT)->getType()))
-             );
+  DBUG_ASSERT(m_pushed_join_member && m_pushed_join_operation == PUSHED_ROOT);
 
-  // There may be referrences to Field values from tables outside the scope of
-  // our pushed join: These are expected to be supplied as paramValues()
-  for (uint i= 0; i < m_pushed_join_member->get_field_referrences_count(); i++)
-  {
-    Field* field= m_pushed_join_member->get_field_ref(i);
-    DBUG_ASSERT(!field->is_real_null());  // Checked by ::check_if_pushable()
-    paramValues[paramOffs+i]= NdbQueryParamValue(field->ptr, false);
-  }
+  NdbQuery* const query= 
+    m_pushed_join_member->make_query_instance(m_thd_ndb->trans, keyFieldParams, paramCnt);
 
-  NdbQuery* const query= m_thd_ndb->trans->createQuery(&m_pushed_join_member->get_query_def(), paramValues);
   if (unlikely(query==NULL))
     ERR_RETURN(m_thd_ndb->trans->getNdbError());
 
@@ -14650,7 +14518,7 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
       DBUG_RETURN(true);
     }
     const NdbQueryDef& query_def = m_pushed_join_member->get_query_def();
-    const NdbQueryOperationTypeWrapper& root_type=
+    const NdbQueryOperationDef::Type root_type=
       query_def.getQueryOperation((uint)PUSHED_ROOT)->getType();
 
     /**
@@ -14670,7 +14538,7 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
     {
       for (uint i= 1; i < query_def.getNoOfOperations(); i++)
       {
-        const NdbQueryOperationTypeWrapper& child_type=
+        const NdbQueryOperationDef::Type child_type=
           query_def.getQueryOperation(i)->getType();
         if (child_type == NdbQueryOperationDef::TableScan ||
             child_type == NdbQueryOperationDef::OrderedIndexScan)
