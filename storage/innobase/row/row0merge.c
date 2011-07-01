@@ -359,7 +359,7 @@ row_merge_buf_add(
 
 				n_row_added += row_merge_fts_doc_tokenize(
 					&buf, row_field, *doc_id, NULL, NULL,
-					0, NULL, NULL, &init_pos,
+					0, NULL, NULL, FALSE, &init_pos,
 					NULL, NULL, NULL);
 
 				if (!n_row_added) {
@@ -2074,7 +2074,7 @@ row_merge_insert_index_tuples(
 					trx, ins_graph,
 					&fts_table, &new_word,
 					positions, &last_doc_id, dtuple,
-					fts_heap);
+					NULL, fts_heap);
 				continue;
                         }
 
@@ -2113,7 +2113,7 @@ next_rec:
 			row_fts_insert_tuple(
 				trx, ins_graph,
 				&fts_table, &new_word,
-				positions, &last_doc_id, NULL, fts_heap);
+				positions, &last_doc_id, NULL, NULL, fts_heap);
 		}
 	}
 

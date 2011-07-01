@@ -41,11 +41,8 @@ typedef struct fts_stopword_struct	fts_stopword_t;
 #define STOPWORD_FROM_DEFAULT           0x4
 #define STOPWORD_USER_TABLE             0x8
 
-/* Max length of an FTS word in characters */
-#define FTS_MAX_WORD_LEN		32
-
 /* Maximum token length in bytes(for UTF8)*/
-#define FTS_MAX_UTF8_WORD_LEN		(FTS_MAX_WORD_LEN * 4)
+#define FTS_MAX_WORD_LEN		ft_max_word_len
 
 extern const char*	fts_default_stopword[];
 

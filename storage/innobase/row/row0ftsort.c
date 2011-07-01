@@ -66,6 +66,8 @@ row_merge_create_fts_sort_index(
 {
 	dict_index_t*   new_index;
 	dict_field_t*   field;
+	dict_field_t*   idx_field;
+	CHARSET_INFO*	charset;
 
 	new_index = dict_mem_index_create(index->table->name, "tmp_fts_idx",
 					  0, DICT_FTS, 3);
@@ -76,15 +78,24 @@ row_merge_create_fts_sort_index(
 	new_index->n_def = FTS_NUM_FIELDS_SORT;
 	new_index->cached = TRUE;
 
+	idx_field = dict_index_get_nth_field(index, 0);
+	charset = fts_index_get_charset(index);
+
 	/* The first field is on the Tokenized Word */
 	field = dict_index_get_nth_field(new_index, 0);
 	field->name = NULL;
 	field->prefix_len = 0;
 	field->col = mem_heap_alloc(new_index->heap, sizeof(dict_col_t));
-	field->col->len = FTS_MAX_UTF8_WORD_LEN;
-	field->col->mtype = DATA_VARCHAR;
-	field->col->prtype = DATA_NOT_NULL;
-	field->col->mbminmaxlen = 0;
+	field->col->len = FTS_MAX_WORD_LEN;
+
+	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
+		field->col->mtype = DATA_VARCHAR;
+	} else {
+		field->col->mtype = DATA_VARMYSQL;
+	}
+
+	field->col->prtype = idx_field->col->prtype | DATA_NOT_NULL;
+	field->col->mbminmaxlen = idx_field->col->mbminmaxlen;
 	field->fixed_len = 0;
 
 	/* The second field is on the Doc ID. To reduce the
@@ -273,6 +284,7 @@ row_merge_fts_doc_tokenize(
 	mem_heap_t*	blob_heap,	/*!< in: Heap used when fetch external
 					stored record */
 	ib_rbt_t*	cached_stopword,/*!< in: Cached stopword */
+	dtype_t*	word_dtype,	/*!< in: data structure for word col */
 	ulint*		init_pos,	/*!< in/out: doc start position */
 	ulint*		buf_used,	/*!< in/out: sort buffer used */
 	ulint*		rows_added,	/*!< in/out: num rows added */
@@ -281,7 +293,7 @@ row_merge_fts_doc_tokenize(
 	ulint		i;
 	ulint		inc;
 	fts_string_t	str;
-	byte		str_buf[FTS_MAX_UTF8_WORD_LEN + 1];
+	byte		str_buf[FTS_MAX_WORD_LEN + 1];
 	dfield_t*	field;
 	ulint		data_size[FTS_NUM_AUX_INDEX];
 	ulint		len;
@@ -292,7 +304,6 @@ row_merge_fts_doc_tokenize(
 	ibool		buf_full = FALSE;
 
 	*buf_used = 0;
-
 
 	/* If "dfield" is not NULL, we will fetch the data, otherwise
 	previous document has not yet finished being processed, so continue
@@ -317,8 +328,6 @@ row_merge_fts_doc_tokenize(
 		ut_ad(*processed_len < doc->text.len);
 	}
 
-	str.utf8 = str_buf;
-
 	if (!FTS_PLL_ENABLED) {
 		buf = sort_buf[0];
 		n_tuple[0] = 0;
@@ -339,19 +348,31 @@ row_merge_fts_doc_tokenize(
 		ulint		idx = 0;
 		ulint		cur_len = 0;
 		ib_rbt_bound_t	parent;
+		fts_string_t	t_str;
 
-		inc = fts_get_next_token(
+		inc = innobase_mysql_fts_get_token(doc->charset,
 			doc->text.utf8 + i,
 			doc->text.utf8 + doc->text.len, &str, &offset);
 
 		ut_a(inc > 0);
 
-		/* Ignore string len smaller thane FTS_MIN_TOKEN_SIZE, or
+		if (str.len < FTS_MIN_TOKEN_SIZE
+		    || str.len > FTS_MAX_WORD_LEN) {
+			*processed_len += inc;
+			continue;
+		}
+
+		memcpy(str_buf, str.utf8, str.len);
+		str_buf[str.len] = 0;
+		innobase_fts_casedn_str(doc->charset, (char*) &str_buf);
+		t_str.utf8 = (byte*) &str_buf;
+		t_str.len = strlen((char*) t_str.utf8);
+
+		/* Ignore string len smaller than "FTS_MIN_TOKEN_SIZE", or
 		if "cached_stopword" is defined, ingore words in the
 		stopword list */
-		if (str.len < FTS_MIN_TOKEN_SIZE
-		    || (cached_stopword
-			&& rbt_search(cached_stopword, &parent, &str) == 0)) {
+		if (cached_stopword
+		    && rbt_search(cached_stopword, &parent, &t_str) == 0) {
 			*processed_len += inc;
 			continue;
 		}
@@ -359,7 +380,7 @@ row_merge_fts_doc_tokenize(
 		/* There are FTS_NUM_AUX_INDEX auxiliary tables, find
 		out which sort buffer to put this word record in */
 		if (FTS_PLL_ENABLED) {
-			*buf_used = fts_select_index(*str.utf8);
+			*buf_used = fts_select_index(*t_str.utf8);
 
 			buf = sort_buf[*buf_used];
 
@@ -374,12 +395,13 @@ row_merge_fts_doc_tokenize(
 		ut_a(field);
 
 		/* The first field is the tokenized word */
-		dfield_set_data(field, str.utf8, str.len);
+		dfield_set_data(field, t_str.utf8, t_str.len);
 		len = dfield_get_len(field);
-		field->type.mtype = DATA_VARCHAR;
-		field->type.prtype = DATA_NOT_NULL;
-		field->type.len = FTS_MAX_UTF8_WORD_LEN;
-		field->type.mbminmaxlen = 0;
+
+		field->type.mtype = word_dtype->mtype;
+		field->type.prtype = word_dtype->prtype | DATA_NOT_NULL;
+		field->type.len = FTS_MAX_WORD_LEN;
+		field->type.mbminmaxlen = word_dtype->mbminmaxlen;
 		cur_len += len;
 		dfield_dup(field, buf->heap);
 		field++;
@@ -399,7 +421,7 @@ row_merge_fts_doc_tokenize(
 
 		/* The second field is the position */
 		mach_write_to_4((byte*) &position,
-				(i + offset + (*init_pos)));
+				(i + offset + inc - str.len +(*init_pos)));
 		dfield_set_data(field, &position, 4);
 		len = dfield_get_len(field);
 		field->type.mtype = DATA_INT;
@@ -410,7 +432,7 @@ row_merge_fts_doc_tokenize(
 		dfield_dup(field, buf->heap);
 
 		/* One variable length column, word with its lenght less than
-		FTS_MAX_UTF8_WORD_LEN (128) bytes, add one extra size
+		FTS_MAX_WORD_LEN (default 84) bytes, add one extra size
 		and one extra byte */
 		cur_len += 2;
 
@@ -482,7 +504,8 @@ fts_parallel_tokenization(
 	fts_doc_t		doc;
 	ulint			processed_len = 0;
 	dict_table_t*		table = psort_info->psort_common->new_table;
-
+	dtype_t			word_dtype;
+	dict_field_t*		idx_field;
 	ut_ad(psort_info);
 
 	id = psort_info->psort_id;
@@ -490,6 +513,15 @@ fts_parallel_tokenization(
 	merge_file = psort_info->merge_file;
 	blob_heap = mem_heap_create(512);
 	memset(&doc, 0, sizeof(doc));
+	doc.charset = fts_index_get_charset(
+		psort_info->psort_common->sort_index);
+
+	idx_field = dict_index_get_nth_field(
+		psort_info->psort_common->sort_index, 0);
+	word_dtype.prtype = idx_field->col->prtype;
+	word_dtype.mbminmaxlen = idx_field->col->mbminmaxlen;
+	word_dtype.mtype = (strcmp(doc.charset->name, "latin1_swedish_ci") == 0)
+				? DATA_VARCHAR : DATA_VARMYSQL;
 
 	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 		rows_added[i] = 0;
@@ -506,11 +538,12 @@ loop:
 		last_doc_id = doc_item->doc_id;
 
 		processed = row_merge_fts_doc_tokenize(
-				buf, processed ? doc_item->field : NULL,
-				doc_item->doc_id, &doc, &processed_len,
-				zip_size, blob_heap,
-				table->fts->cache->stopword_info.cached_stopword,
-				&init_pos, &buf_used, rows_added, merge_file);
+			buf, processed ? doc_item->field : NULL,
+			doc_item->doc_id, &doc, &processed_len,
+			zip_size, blob_heap,
+			table->fts->cache->stopword_info.cached_stopword,
+			&word_dtype, &init_pos, &buf_used, rows_added,
+			merge_file);
 
 		/* Current sort buffer full, need to recycle */
 		if (!processed) {
@@ -741,6 +774,7 @@ row_fts_insert_tuple(
 	ib_vector_t*	positions,	/*!< in: word position */
 	doc_id_t*	in_doc_id,	/*!< in: last item doc id */
 	dtuple_t*	dtuple,		/*!< in: index entry */
+	CHARSET_INFO*	charset,	/*!< in: charset */
 	mem_heap_t*	heap)		/*!< in: heap */
 {
 	fts_node_t*	fts_node = NULL;
@@ -790,7 +824,7 @@ row_fts_insert_tuple(
 
 	/* compare to the last word, to see if they are the same
 	word */
-	if (fts_utf8_string_cmp(&word->text, &token_word) != 0) {
+	if (innobase_fts_text_cmp(charset, &word->text, &token_word) != 0) {
 		ulint	num_item;
 
 		/* Getting a new word, flush the last position info
@@ -1054,6 +1088,7 @@ row_fts_merge_insert(
 	ulint			start;
 	ulint			counta = 0;
 	trx_t*			insert_trx;
+	CHARSET_INFO*		charset;
 
 	ut_ad(trx);
 	ut_ad(index);
@@ -1069,6 +1104,8 @@ row_fts_merge_insert(
 	heap = mem_heap_create(500 + sizeof(mrec_buf_t));
 
 	tuple_heap = mem_heap_create(1000);
+
+	charset = fts_index_get_charset(index);
 
 	for (i = 0; i < FTS_PARALLEL_DEGREE; i++) {
 
@@ -1094,7 +1131,7 @@ row_fts_merge_insert(
 
 	memset(&new_word, 0, sizeof(new_word));
 
-	new_word.nodes = ib_vector_create( heap_alloc, sizeof(fts_node_t), 4);
+	new_word.nodes = ib_vector_create(heap_alloc, sizeof(fts_node_t), 4);
 	positions = ib_vector_create(heap_alloc, sizeof(ulint), 32);
 	last_doc_id = 0;
 
@@ -1144,7 +1181,7 @@ row_fts_merge_insert(
 						insert_trx, ins_graph,
 						&fts_table, &new_word,
 						positions, &last_doc_id,
-						NULL, heap);
+						NULL, charset, heap);
 
 					goto exit;
 				}
@@ -1170,7 +1207,7 @@ row_fts_merge_insert(
 					insert_trx, ins_graph,
 					&fts_table, &new_word,
 					positions, &last_doc_id,
-					NULL, heap);
+					NULL, charset, heap);
 
 				goto exit;
 			}
@@ -1182,7 +1219,7 @@ row_fts_merge_insert(
 
 		row_fts_insert_tuple(
 			insert_trx, ins_graph, &fts_table, &new_word,
-			positions, &last_doc_id, dtuple, heap);
+			positions, &last_doc_id, dtuple, charset, heap);
 
 
 		ROW_MERGE_READ_GET_NEXT(min_rec);

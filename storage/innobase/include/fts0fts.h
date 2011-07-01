@@ -22,6 +22,7 @@ Created 2006-02-15 Osku Salerma
 #include "ut0rbt.h"
 #include "ut0wqueue.h"
 #include "que0types.h"
+#include "ft_global.h"
 
 /* FTS hidden column that is used to map to and from the row */
 #define FTS_DOC_ID_COL_NAME		"FTS_DOC_ID"
@@ -601,6 +602,20 @@ innobase_fts_text_cmp_prefix(
 	const void*	p1,		/*!< in: key */
 	const void*	p2);		/*!< in: node */
 
+/*************************************************************//**
+Get the next token from the given string and store it in *token. */
+extern
+ulint
+innobase_mysql_fts_get_token(
+/*=========================*/
+	CHARSET_INFO*	charset,	/*!< in: Character set */
+	byte*		start,		/*!< in: start of text */
+	byte*		end,		/*!< in: one character past end of
+					text */
+	fts_string_t*	token,		/*!< out: token's text */
+	ulint*		offset);	/*!< out: offset to token,
+					measured as characters from
+					'start' */
 /********************************************************************
 Fetch COUNT(*) from specified table. */
 ulint

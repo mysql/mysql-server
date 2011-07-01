@@ -111,7 +111,7 @@ struct fts_zip_struct {
 	ulint		last_big_block;	/* Offset of last block in the
 					blocks array that is of size
 					block_sz. Blocks beyond this offset
-					are of size FTS_MAX_UTF8_WORD_LEN */
+					are of size FTS_MAX_WORD_LEN */
 
 	z_streamp	zp;		/* ZLib state */
 
@@ -279,7 +279,7 @@ fts_zip_initialize(
 	zip->last_big_block = 0;
 
 	zip->word.len = 0;
-	memset(zip->word.utf8, 0, FTS_MAX_UTF8_WORD_LEN);
+	memset(zip->word.utf8, 0, FTS_MAX_WORD_LEN);
 
 	ib_vector_reset(zip->blocks);
 
@@ -302,8 +302,8 @@ fts_zip_create(
 
 	memset(zip, 0, sizeof(*zip));
 
-	zip->word.utf8 = mem_heap_alloc(heap, FTS_MAX_UTF8_WORD_LEN + 1);
-	memset(zip->word.utf8, 0, FTS_MAX_UTF8_WORD_LEN);
+	zip->word.utf8 = mem_heap_alloc(heap, FTS_MAX_WORD_LEN + 1);
+	memset(zip->word.utf8, 0, FTS_MAX_WORD_LEN);
 
 	zip->block_sz = block_sz;
 
@@ -435,7 +435,7 @@ fts_optimize_index_fetch_node(
 	void*		data = dfield_get_data(dfield);
 	ulint		dfield_len = dfield_get_len(dfield);
 
-	ut_a(dfield_len < FTS_MAX_UTF8_WORD_LEN);
+	ut_a(dfield_len < FTS_MAX_WORD_LEN);
 
 	if (ib_vector_size(words) == 0) {
 
@@ -594,7 +594,7 @@ fts_zip_read_word(
 
 				if (zip->pos > zip->last_big_block) {
 					zip->zp->avail_in =
-						FTS_MAX_UTF8_WORD_LEN;
+						FTS_MAX_WORD_LEN;
 				} else {
 					zip->zp->avail_in = zip->block_sz;
 				}
@@ -609,7 +609,7 @@ fts_zip_read_word(
 		case Z_OK:
 			if (zip->zp->avail_out == 0 && len > 0) {
 
-				ut_a(len < FTS_MAX_UTF8_WORD_LEN);
+				ut_a(len < FTS_MAX_WORD_LEN);
 				ptr[len] = 0;
 
 				zip->zp->next_out = ptr;
@@ -672,7 +672,7 @@ fts_fetch_index_words(
 		return(TRUE);
 	}
 
-	ut_a(len <= FTS_MAX_UTF8_WORD_LEN);
+	ut_a(len <= FTS_MAX_WORD_LEN);
 
 	memcpy(zip->word.utf8, data, len);
 	zip->word.len = len;
@@ -703,7 +703,7 @@ fts_fetch_index_words(
 			if (zip->zp->avail_in == 0) {
 				zip->zp->next_in = data;
 				zip->zp->avail_in = len;
-				ut_a(len <= FTS_MAX_UTF8_WORD_LEN);
+				ut_a(len <= FTS_MAX_WORD_LEN);
 				len = 0;
 			}
 			break;
@@ -748,11 +748,11 @@ fts_zip_deflate_end(
 
 		ut_a(zip->zp->avail_out == 0);
 
-		block = ut_malloc(FTS_MAX_UTF8_WORD_LEN);
+		block = ut_malloc(FTS_MAX_WORD_LEN);
 		ib_vector_push(zip->blocks, &block);
 
 		zip->zp->next_out = block;
-		zip->zp->avail_out = FTS_MAX_UTF8_WORD_LEN;
+		zip->zp->avail_out = FTS_MAX_WORD_LEN;
 
 		zip->status = deflate(zip->zp, Z_FINISH);
 	}
@@ -1957,7 +1957,7 @@ fts_optimize_index(
 {
 	fts_string_t	word;
 	ulint		error;
-	byte		str[FTS_MAX_UTF8_WORD_LEN + 1];
+	byte		str[FTS_MAX_WORD_LEN + 1];
 
 	/* Set the current index that we have to optimize. */
 	optim->fts_index_table.index_id = index->id;

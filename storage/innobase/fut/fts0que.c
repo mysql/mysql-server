@@ -284,6 +284,16 @@ fts_proximity_check_position(
 					items */
 	ulint		distance);	/*!< in: distance value
 					for proximity search */
+/******************************************************************//**
+compare two character string according to their charset. */
+extern
+int
+innobase_fts_string_cmp(
+/*====================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*	p1,		/*!< in: key */
+	const void*	p2);		/*!< in: node */
+
 #if 0
 /********************************************************************
 Get the total number of words in a documents. */
@@ -841,7 +851,7 @@ fts_cache_find_wildcard(
 	ib_rbt_bound_t		parent;
 	const ib_vector_t*	nodes = NULL;
 	fts_string_t		srch_text;
-	byte			term[FTS_MAX_UTF8_WORD_LEN];
+	byte			term[FTS_MAX_WORD_LEN];
 	ulint			num_word = 0;
 
 	srch_text.len = (token->utf8[token->len - 1] == '%')
@@ -2718,7 +2728,7 @@ fts_query_read_node(
 	ib_rbt_bound_t		parent;
 	fts_word_freq_t*	word_freq;
 	ibool			skip = FALSE;
-	byte			term[FTS_MAX_UTF8_WORD_LEN];
+	byte			term[FTS_MAX_WORD_LEN];
 
 	ut_a(query->cur_node->type == FTS_AST_TERM ||
 	     query->cur_node->type == FTS_AST_TEXT);
@@ -2828,7 +2838,7 @@ fts_query_index_fetch_nodes(
 	key.utf8 = data;
 	key.len = dfield_len;
 
-	ut_a(dfield_len < FTS_MAX_UTF8_WORD_LEN);
+	ut_a(dfield_len < FTS_MAX_WORD_LEN);
 
 	fts_query_read_node(query, &key, que_node_get_next(exp));
 
@@ -3192,10 +3202,12 @@ fts_query(
 	query.fts_index_table.table_id = index->table->id;
 	query.fts_index_table.parent = index->table->name;
 
+	charset = fts_index_get_charset(index);
+
 	/* Setup the RB tree that will be used to collect per term
 	statistics. */
-	query.word_freqs = rbt_create(
-		sizeof(fts_word_freq_t), fts_query_strcmp);
+	query.word_freqs = rbt_create_arg_cmp(
+		sizeof(fts_word_freq_t), innobase_fts_string_cmp, charset);
 
 	query.total_docs = fts_get_total_document_count(index->table);
 
@@ -3237,8 +3249,6 @@ fts_query(
 
 	/* Convert the query string to lower case before parsing. We own
 	the ut_malloc'ed result and so remember to free it before return. */
-
-	charset = fts_index_get_charset(index);
 
 	lc_query_str = ut_malloc(query_len + 1);
 	memcpy(lc_query_str, query_str, query_len);

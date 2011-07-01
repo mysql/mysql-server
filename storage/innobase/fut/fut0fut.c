@@ -1466,15 +1466,24 @@ fts_create_one_index_table(
 	dict_table_t*		new_table = NULL;
 	char*			table_name = fts_get_table_name(fts_table);
 	ulint			error;
+	CHARSET_INFO*		charset;
 	
 	ut_ad(index->type & DICT_FTS);
 
 	new_table = dict_mem_table_create(table_name, 0, 5, 1, 0);
 
 	field = dict_index_get_nth_field(index, 0);
+	charset = innobase_get_fts_charset(
+		(int)(field->col->prtype & DATA_MYSQL_TYPE_MASK),
+		(uint)dtype_get_charset_coll(field->col->prtype));
 
-	dict_mem_table_add_col(new_table, heap, "word", DATA_VARCHAR,
-			       field->col->prtype, FTS_MAX_UTF8_WORD_LEN);
+	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
+		dict_mem_table_add_col(new_table, heap, "word", DATA_VARCHAR,
+				       field->col->prtype, FTS_MAX_WORD_LEN);
+	} else {
+		dict_mem_table_add_col(new_table, heap, "word", DATA_VARMYSQL,
+				       field->col->prtype, FTS_MAX_WORD_LEN);
+	}
 
 	dict_mem_table_add_col(new_table, heap, "first_doc_id", DATA_INT,
 			       DATA_NOT_NULL | DATA_UNSIGNED,
@@ -3157,7 +3166,7 @@ fts_write_node(
 		info = pars_info_create();
 	}
 
-	ut_a(word->len <= FTS_MAX_UTF8_WORD_LEN);
+	ut_a(word->len <= FTS_MAX_WORD_LEN);
 
 	pars_info_bind_varchar_literal(info, "token", word->utf8, word->len);
 
@@ -3935,7 +3944,7 @@ fts_get_next_token(
 	}
 
 	if (len <= FTS_MAX_WORD_LEN) {
-		token->len = ut_min(FTS_MAX_UTF8_WORD_LEN, s - word_start);
+		token->len = ut_min(FTS_MAX_WORD_LEN, s - word_start);
 		memcpy(token->utf8, word_start, token->len);
 
 		/* The string can't end on a ' character. */
@@ -3992,7 +4001,7 @@ fts_process_token(
 	ulint		ret;
 	fts_string_t	str;
 	ulint		offset = 0;
-	byte		buf[FTS_MAX_UTF8_WORD_LEN + 1];
+	byte		buf[FTS_MAX_WORD_LEN + 1];
 	fts_doc_t*	result_doc;
 
 	str.utf8 = buf;
@@ -4012,14 +4021,13 @@ fts_process_token(
 					   doc->text.utf8 + start_pos,
 					   doc->text.utf8 + doc->text.len,
 					   &str, &offset);
-	if (str.len >= FTS_MIN_TOKEN_SIZE) {
+
+	if (str.len >= FTS_MIN_TOKEN_SIZE && str.len <= FTS_MAX_WORD_LEN) {
 		fts_token_t*	token;
 		ib_rbt_bound_t	parent;
 		mem_heap_t*	heap = result_doc->self_heap->arg;
 		fts_string_t	t_str;
 		ulint		newlen;
-
-		ut_a(str.len <= FTS_MAX_UTF8_WORD_LEN);
 
 		fts_utf8_string_dup(&t_str, &str, heap);
 		innobase_fts_casedn_str(doc->charset, (char*) t_str.utf8);
@@ -6085,7 +6093,7 @@ fts_load_stopword(
 	fts_cache_t*	cache;
 	const char*	stopword_to_use;
 	trx_t*		trx;
-	byte		str_buffer[FTS_MAX_UTF8_WORD_LEN + 1];
+	byte		str_buffer[FTS_MAX_WORD_LEN + 1];
 
 	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE, table);
 

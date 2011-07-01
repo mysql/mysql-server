@@ -2878,7 +2878,7 @@ static ST_FIELD_INFO	i_s_fts_index_fields_info[] =
 {
 #define	I_S_FTS_WORD			0
 	{STRUCT_FLD(field_name,		"WORD"),
-	 STRUCT_FLD(field_length,	FTS_MAX_UTF8_WORD_LEN + 1),
+	 STRUCT_FLD(field_length,	FTS_MAX_WORD_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
