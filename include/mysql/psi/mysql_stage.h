@@ -53,8 +53,7 @@
 static inline void inline_mysql_stage_register(
   const char *category, PSI_stage_info **info, int count)
 {
-  if (likely(PSI_server != NULL))
-    PSI_server->register_stage(category, info, count);
+  PSI_CALL(register_stage)(category, info, count);
 }
 #endif
 
@@ -63,8 +62,7 @@ static inline void
 inline_mysql_set_stage(PSI_stage_key key,
                        const char *src_file, int src_line)
 {
-  if (likely(PSI_server != NULL))
-    PSI_server->start_stage(key, src_file, src_line);
+  PSI_CALL(start_stage)(key, src_file, src_line);
 }
 #endif
 

@@ -2631,26 +2631,23 @@ public:
     else
       start_utime= utime_after_lock= my_micro_time_and_time(&start_time);
 
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   inline void set_current_time()
   {
     start_time= my_time(MY_WME);
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   inline void set_time(time_t t)
   {
     start_time= user_time= t;
     start_utime= utime_after_lock= my_micro_time();
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
@@ -3024,9 +3021,9 @@ public:
     }
     db_length= db ? new_db_len : 0;
     result= new_db && !db;
-#ifdef HAVE_PSI_INTERFACE
-    if (result && PSI_server)
-      PSI_server->set_thread_db(new_db, new_db_len);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    if (result)
+      PSI_CALL(set_thread_db)(new_db, new_db_len);
 #endif
     return result;
   }
@@ -3046,9 +3043,8 @@ public:
   {
     db= new_db;
     db_length= new_db_len;
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_db(new_db, new_db_len);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_db)(new_db, new_db_len);
 #endif
   }
   /*

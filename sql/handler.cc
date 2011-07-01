@@ -2081,8 +2081,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   delete file;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely((error == 0) && (PSI_server != NULL)))
-    PSI_server->drop_table_share(db, strlen(db), alias, strlen(alias));
+  if (likely(error == 0))
+    PSI_CALL(drop_table_share)(db, strlen(db), alias, strlen(alias));
 #endif
 
   DBUG_RETURN(error);
@@ -2181,12 +2181,8 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
 #ifdef HAVE_PSI_TABLE_INTERFACE
-    if (likely(PSI_server != NULL))
-    {    
-      PSI_table_share *share_psi= ha_table_share_psi(table_share);
-      if (likely(share_psi != NULL))
-        m_psi= PSI_server->open_table(share_psi, this);
-    }    
+    PSI_table_share *share_psi= ha_table_share_psi(table_share);
+    m_psi= PSI_CALL(open_table)(share_psi, this);
 #endif
 
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
@@ -2210,11 +2206,8 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 int handler::ha_close(void)
 {
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely(PSI_server && m_psi))
-  {
-    PSI_server->close_table(m_psi);
-    m_psi= NULL; /* instrumentation handle, invalid after close_table() */
-  }
+  PSI_CALL(close_table)(m_psi);
+  m_psi= NULL; /* instrumentation handle, invalid after close_table() */
 #endif
   DBUG_ASSERT(m_psi == NULL);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
@@ -3905,10 +3898,9 @@ int ha_create_table(THD *thd, const char *path,
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely(PSI_server != NULL))
   {
     my_bool temp= (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
-    share.m_psi= PSI_server->get_table_share(temp, &share);
+    share.m_psi= PSI_CALL(get_table_share)(temp, &share);
   }
 #endif
 
