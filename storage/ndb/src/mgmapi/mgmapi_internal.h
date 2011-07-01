@@ -94,7 +94,8 @@ extern "C" {
   struct ndb_mgm_configuration *
   ndb_mgm_get_configuration2(NdbMgmHandle handle,
                              unsigned version,
-                             enum ndb_mgm_node_type nodetype);
+                             enum ndb_mgm_node_type nodetype,
+                             int from_node = 0);
 
 
 #ifdef __cplusplus
