@@ -3952,7 +3952,7 @@ lock_deadlock_check_and_resolve(
 
 		} else if (victim_trx_id != 0 && victim_trx_id != trx->id) {
 
-			ut_ad(victim_trx_id == ctx->wait_lock->trx->id);
+			ut_ad(victim_trx_id == ctx.wait_lock->trx->id);
 			lock_deadlock_trx_rollback(&ctx);
 
 			lock_deadlock_found = TRUE;
