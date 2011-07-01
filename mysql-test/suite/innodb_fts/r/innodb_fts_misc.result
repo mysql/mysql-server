@@ -417,8 +417,10 @@ set names utf8;
 "----------Test1---------"
 create table t50 (s1 varchar(60) character set utf8 collate utf8_bin) engine = innodb;
 create fulltext index i on t50 (s1);
+insert into t50 values ('ABCDE'),('FGHIJ'),('KLMNO'),('VÐƷWİ');
 select * from t50 where match(s1) against ('VÐƷWİ');
 s1
+VÐƷWİ
 drop table t50;
 "----------Test2---------"
 create table t50 (s1 int unsigned primary key auto_increment, s2
@@ -439,19 +441,20 @@ create fulltext index i on t50 (s2);
 insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
 set @@autocommit=0;
 update t50 set s2 = lower(s2);
+update t50 set s2 = upper(s2);
 commit;
 select * from t50 where match(s2) against ('VÐƷWİ FGHIJ KLMNO ABCDE' in boolean mode);
 id	s2
-1	fghij
-2	klmno
-3	vðʒwi
-4	abcde
+1	FGHIJ
+2	KLMNO
+3	VÐƷWI
+4	ABCDE
 select * from t50;
 id	s2
-1	fghij
-2	klmno
-3	vðʒwi
-4	abcde
+1	FGHIJ
+2	KLMNO
+3	VÐƷWI
+4	ABCDE
 drop table t50;
 "----------Test4---------"
 create table t50 (id int unsigned primary key auto_increment, s2
