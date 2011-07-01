@@ -27,6 +27,8 @@
 #include <ndbapi/ndbapi_limits.h>
 #include <kernel/ndb_limits.h>
 
+#define NDB_IGNORE_VALUE(x) (void)x
+
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
 class Ndb;             // Forward declaration
