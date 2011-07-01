@@ -61,3 +61,6 @@ echo == 18 == bug56185;
 # Read bitmask value and enum from config.ini
 --exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/bug56185.ini --query=Arbitration,LockExecuteThreadToCPU --type=ndbd
 
+echo == 19 == bug12712109;
+--exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/bug12712109.ini --query=OverloadLimit --connections 2>&1
+
