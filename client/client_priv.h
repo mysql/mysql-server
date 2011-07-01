@@ -97,6 +97,7 @@ enum options_client
   OPT_REWRITE_DB,
   OPT_PLUGIN_DIR,
   OPT_DEFAULT_PLUGIN,
+  OPT_REPORT_PROGRESS,
   OPT_SKIP_ANNOTATE_ROWS_EVENTS,
   OPT_MAX_CLIENT_OPTION /* should be always the last */
 };

@@ -711,6 +711,34 @@ int _ma_killed_ptr(HA_CHECK *param)
 }
 
 
+/*
+  Report progress to mysqld
+
+  This is a bit more complex than what a normal progress report
+  function normally is.
+
+  The reason is that this is called by enable_index/repair which
+  is one stage in ALTER TABLE and we can't use the external
+  stage/max_stage for this.
+
+  thd_progress_init/thd_progress_next_stage is to be called by
+  high level commands like CHECK TABLE or REPAIR TABLE, not
+  by sub commands like enable_index().
+
+  In ma_check.c it's easier to work with stages than with a total
+  progress, so we use internal stage/max_stage here to keep the
+  code simple.
+*/
+
+void _ma_report_progress(HA_CHECK *param, ulonglong progress,
+                         ulonglong max_progress)
+{
+  thd_progress_report((THD*)param->thd,
+                      progress + max_progress * param->stage,
+                      max_progress * param->max_stage);
+}
+
+
 void _ma_check_print_error(HA_CHECK *param, const char *fmt, ...)
 {
   va_list args;
@@ -1104,7 +1132,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   int error;
   HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   MARIA_SHARE *share= file->s;
-  const char *old_proc_info= thd_proc_info(thd, "Checking table");
+  const char *old_proc_info;
   TRN *old_trn= file->trn;
 
   if (!file || !&param) return HA_ADMIN_INTERNAL_ERROR;
@@ -1132,12 +1160,18 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
     return HA_ADMIN_ALREADY_DONE;
 
   maria_chk_init_for_check(&param, file);
+  old_proc_info= thd_proc_info(thd, "Checking status");
+  thd_progress_init(thd, 3);
   (void) maria_chk_status(&param, file);                // Not fatal
   error= maria_chk_size(&param, file);
   if (!error)
     error|= maria_chk_del(&param, file, param.testflag);
+  thd_proc_info(thd, "Checking keys");
+  thd_progress_next_stage(thd);
   if (!error)
     error= maria_chk_key(&param, file);
+  thd_proc_info(thd, "Checking data");
+  thd_progress_next_stage(thd);
   if (!error)
   {
     if ((!(param.testflag & T_QUICK) &&
@@ -1188,6 +1222,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   /* Reset trn, that may have been set by repair */
   _ma_set_trn_for_table(file, old_trn);
   thd_proc_info(thd, old_proc_info);
+  thd_progress_end(thd);
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
 
@@ -1203,6 +1238,7 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   int error= 0;
   HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   MARIA_SHARE *share= file->s;
+  const char *old_proc_info;
 
   if (!&param)
     return HA_ADMIN_INTERNAL_ERROR;
@@ -1220,6 +1256,8 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   if (!(share->state.changed & STATE_NOT_ANALYZED))
     return HA_ADMIN_ALREADY_DONE;
 
+  old_proc_info= thd_proc_info(thd, "Scanning");
+  thd_progress_init(thd, 1);
   error= maria_chk_key(&param, file);
   if (!error)
   {
@@ -1229,6 +1267,8 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   }
   else if (!maria_is_crashed(file) && !thd->killed)
     maria_mark_crashed(file);
+  thd_proc_info(thd, old_proc_info);
+  thd_progress_end(thd);
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
 
@@ -1362,6 +1402,7 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
   int error;
   HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   ha_rows start_records;
+  const char *old_proc_info;
 
   if (!file || !&param)
     return HA_ADMIN_INTERNAL_ERROR;
@@ -1375,6 +1416,8 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
   param.backup_time= check_opt->start_time;
   start_records= file->state->records;
+  old_proc_info= thd_proc_info(thd, "Checking table");
+  thd_progress_init(thd, 1);
   while ((error= repair(thd, &param, 0)) && param.retry_repair)
   {
     param.retry_repair= 0;
@@ -1410,6 +1453,8 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
                           llstr(start_records, llbuff2),
                           table->s->path.str);
   }
+  thd_proc_info(thd, old_proc_info);
+  thd_progress_end(thd);
   return error;
 }
 
@@ -1457,14 +1502,15 @@ int ha_maria::optimize(THD * thd, HA_CHECK_OPT *check_opt)
   param.testflag= (check_opt->flags | T_SILENT | T_FORCE_CREATE |
                    T_REP_BY_SORT | T_STATISTICS | T_SORT_INDEX);
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
+  thd_progress_init(thd, 1);
   if ((error= repair(thd, &param, 1)) && param.retry_repair)
   {
     sql_print_warning("Warning: Optimize table got errno %d on %s.%s, retrying",
                       my_errno, param.db_name, param.table_name);
     param.testflag &= ~T_REP_BY_SORT;
-    error= repair(thd, &param, 1);
+    error= repair(thd, &param, 0);
   }
-
+  thd_progress_end(thd);
   return error;
 }
 
@@ -1638,6 +1684,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
   }
   pthread_mutex_unlock(&share->intern_lock);
   thd_proc_info(thd, old_proc_info);
+  thd_progress_end(thd);                        // Mark done
   if (!thd->locked_tables)
     maria_lock_database(file, F_UNLCK);
 
@@ -1999,19 +2046,21 @@ void ha_maria::start_bulk_insert(ha_rows rows)
        we don't want to update the key statistics based of only a few rows.
        Index file rebuild requires an exclusive lock, so if versioning is on
        don't do it (see how ha_maria::store_lock() tries to predict repair).
-       We can repair index only if we have an exclusive (TL_WRITE) lock. To
-       see if table is empty, we shouldn't rely on the old records' count from
-       our transaction's start (if that old count is 0 but now there are
-       records in the table, we would wrongly destroy them).
-       So we need to look at share->state.state.records.
-       As a safety net for now, we don't remove the test of
-       file->state->records, because there is uncertainty on what will happen
-       during repair if the two states disagree.
+       We can repair index only if we have an exclusive (TL_WRITE) lock or
+       if this is inside an ALTER TABLE, in which case lock_type == TL_UNLOCK.
+
+       To see if table is empty, we shouldn't rely on the old record
+       count from our transaction's start (if that old count is 0 but
+       now there are records in the table, we would wrongly destroy
+       them).  So we need to look at share->state.state.records.  As a
+       safety net for now, we don't remove the test of
+       file->state->records, because there is uncertainty on what will
+       happen during repair if the two states disagree.
     */
     if ((file->state->records == 0) &&
         (share->state.state.records == 0) && can_enable_indexes &&
         (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES) &&
-        (file->lock.type == TL_WRITE))
+        (file->lock.type == TL_WRITE || file->lock.type == TL_UNLOCK))
     {
       /**
          @todo for a single-row INSERT SELECT, we will go into repair, which

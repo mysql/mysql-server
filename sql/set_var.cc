@@ -528,6 +528,10 @@ static sys_var_thd_ulong        sys_optimizer_search_depth(&vars, "optimizer_sea
 static sys_var_thd_optimizer_switch   sys_optimizer_switch(&vars, "optimizer_switch",
                                      &SV::optimizer_switch);
 
+static sys_var_thd_ulong        sys_progress_report_time(&vars,
+                                                         "progress_report_time",
+                                                         &SV::progress_report_time);
+
 static sys_var_const            sys_pid_file(&vars, "pid_file",
                                              OPT_GLOBAL, SHOW_CHAR,
                                              (uchar*) pidfile_name);

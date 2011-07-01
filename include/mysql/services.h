@@ -20,6 +20,7 @@ extern "C" {
 
 #include <mysql/service_my_snprintf.h>
 #include <mysql/service_thd_alloc.h>
+#include <mysql/service_progress_report.h>
 
 #ifdef __cplusplus
 }

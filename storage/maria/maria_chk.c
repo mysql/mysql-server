@@ -436,7 +436,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.0 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 1.1 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
   NETWARE_SET_SCREEN_MODE(1);
 }

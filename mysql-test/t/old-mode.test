@@ -15,3 +15,13 @@ checksum table t1, t2;
 checksum table t1, t2 quick;
 checksum table t1, t2 extended;
 drop table t1,t2;
+
+#
+# Test that SHOW PROCESSLIST doesn't have the Progress column
+#
+
+--replace_column 1 <Id> 3 <Host> 6 <Time>
+# Embedded server is hardcoded to show "Writing to net" as STATE.
+--replace_result "Writing to net" "NULL"
+--replace_regex /localhost[:0-9]*/localhost/
+SHOW PROCESSLIST;

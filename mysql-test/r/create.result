@@ -1760,7 +1760,10 @@ t1	CREATE TABLE `t1` (
   `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext,
-  `TIME_MS` decimal(22,3) NOT NULL DEFAULT '0.000'
+  `TIME_MS` decimal(22,3) NOT NULL DEFAULT '0.000',
+  `STAGE` tinyint(2) NOT NULL DEFAULT '0',
+  `MAX_STAGE` tinyint(2) NOT NULL DEFAULT '0',
+  `PROGRESS` decimal(7,3) NOT NULL DEFAULT '0.000'
 )  DEFAULT CHARSET=utf8
 drop table t1;
 create temporary table t1 like information_schema.processlist;
@@ -1775,7 +1778,10 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext,
-  `TIME_MS` decimal(22,3) NOT NULL DEFAULT '0.000'
+  `TIME_MS` decimal(22,3) NOT NULL DEFAULT '0.000',
+  `STAGE` tinyint(2) NOT NULL DEFAULT '0',
+  `MAX_STAGE` tinyint(2) NOT NULL DEFAULT '0',
+  `PROGRESS` decimal(7,3) NOT NULL DEFAULT '0.000'
 )  DEFAULT CHARSET=utf8
 drop table t1;
 create table t1 like information_schema.character_sets;

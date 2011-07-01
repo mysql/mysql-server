@@ -158,6 +158,7 @@ enum enum_server_command
 #define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
 
 #define CLIENT_PLUGIN_AUTH  (1UL << 19) /* Client supports plugin authentication */
+#define CLIENT_PROGRESS  (1UL << 29)   /* Client support progress indicator */
 
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
@@ -189,6 +190,7 @@ enum enum_server_command
                            CLIENT_MULTI_RESULTS | \
                            CLIENT_SSL_VERIFY_SERVER_CERT | \
                            CLIENT_REMEMBER_OPTIONS | \
+                           CLIENT_PROGRESS | \
                            CLIENT_PLUGIN_AUTH)
 
 /*

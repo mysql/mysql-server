@@ -265,17 +265,17 @@ void init_update_queries(void)
   bzero((uchar*) &sql_command_flags, sizeof(sql_command_flags));
 
   sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND;
+  sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND | CF_REPORT_PROGRESS;
   sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE | CF_REPORT_PROGRESS;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_BACKUP_TABLE]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_RESTORE_TABLE]=  CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA | CF_REPORT_PROGRESS;
   sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA;
@@ -368,9 +368,11 @@ void init_update_queries(void)
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]=           CF_WRITE_LOGS_COMMAND;
-  sql_command_flags[SQLCOM_OPTIMIZE]=         CF_WRITE_LOGS_COMMAND;
-  sql_command_flags[SQLCOM_ANALYZE]=          CF_WRITE_LOGS_COMMAND;
+  sql_command_flags[SQLCOM_REPAIR]=           CF_WRITE_LOGS_COMMAND | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_OPTIMIZE]=         CF_WRITE_LOGS_COMMAND | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_ANALYZE]=          CF_WRITE_LOGS_COMMAND | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_CHECK]=            CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_CHECKSUM]=         CF_REPORT_PROGRESS;
 }
 
 
@@ -2166,6 +2168,8 @@ mysql_execute_command(THD *thd)
   } /* endif unlikely slave */
 #endif
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
+  thd->progress.report_to_client= test(sql_command_flags[lex->sql_command] &
+                                       CF_REPORT_PROGRESS);
 
   DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
   
@@ -2995,6 +2999,7 @@ end_with_restore_list:
     thd->enable_slow_log= opt_log_slow_admin_statements;
     thd->query_plan_flags|= QPLAN_ADMIN;
     res= mysql_analyze_table(thd, first_table, &lex->check_opt);
+
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
     {
