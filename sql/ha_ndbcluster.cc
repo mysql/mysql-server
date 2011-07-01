@@ -13322,7 +13322,7 @@ void ha_ndbcluster::check_read_before_write_removal()
   /* Index must be unique */
   DBUG_PRINT("info", ("using index %d", active_index));
   const KEY *key= table->key_info + active_index;
-  assert((key->flags & HA_NOSAME));
+  assert((key->flags & HA_NOSAME)); NDB_IGNORE_VALUE(key);
 
   DBUG_VOID_RETURN;
 }
