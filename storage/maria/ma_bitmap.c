@@ -1061,14 +1061,18 @@ static my_bool move_to_next_bitmap(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap)
   MARIA_STATE_INFO *state= &info->s->state;
   DBUG_ENTER("move_to_next_bitmap");
 
-  if (state->first_bitmap_with_space != ~(ulonglong) 0 &&
+  if (state->first_bitmap_with_space != ~(pgcache_page_no_t) 0 &&
       state->first_bitmap_with_space != page)
   {
     page= state->first_bitmap_with_space;
-    state->first_bitmap_with_space= ~(ulonglong) 0;
+    state->first_bitmap_with_space= ~(pgcache_page_no_t) 0;
+    DBUG_ASSERT(page % bitmap->pages_covered == 0);
   }
   else
+  {
     page+= bitmap->pages_covered;
+    DBUG_ASSERT(page % bitmap->pages_covered == 0);
+  }
   DBUG_RETURN(_ma_change_bitmap_page(info, bitmap, page));
 }
 
@@ -2039,8 +2043,7 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
     goto abort;
 
   /* Switch bitmap to current head page */
-  bitmap_page= page / share->bitmap.pages_covered;
-  bitmap_page*= share->bitmap.pages_covered;
+  bitmap_page= page - page % share->bitmap.pages_covered;
 
   if (share->bitmap.page != bitmap_page &&
       _ma_change_bitmap_page(info, &share->bitmap, bitmap_page))

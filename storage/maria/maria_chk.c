@@ -878,9 +878,9 @@ static void get_options(register int *argc,register char ***argv)
 
   load_defaults("my", load_default_groups, argc, argv);
   default_argv= *argv;
+  check_param.testflag= T_UPDATE_STATE;
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
-  check_param.testflag= T_UPDATE_STATE;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
