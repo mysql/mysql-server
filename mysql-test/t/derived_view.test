@@ -358,4 +358,30 @@ SELECT * FROM (SELECT * FROM t1 LIMIT 0) t;
 
 DROP TABLE t1;
 
+--echo #
+--echo # LP bug #803851: materialized view + IN->EXISTS                       
+--echo #                 
 
+SET SESSION optimizer_switch='semijoin=off,derived_with_keys=on';
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (2,2), (3,3), (1,1);
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (1), (2), (1);
+
+CREATE TABLE t3 (a int);
+INSERT INTO t3 VALUES (3), (1), (2), (1);
+
+CREATE VIEW v1 AS SELECT a, MAX(b) AS b FROM t1 GROUP BY a;
+
+EXPLAIN EXTENDED
+SELECT * FROM t3
+  WHERE t3.a IN (SELECT v1.a FROM v1, t2 WHERE t2.a = v1.b);
+SELECT * FROM t3
+  WHERE t3.a IN (SELECT v1.a FROM v1, t2 WHERE t2.a = v1.b);
+
+SET SESSION optimizer_switch=default;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;

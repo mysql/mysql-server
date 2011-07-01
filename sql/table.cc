@@ -5232,8 +5232,8 @@ void st_table::mark_virtual_columns_for_write(bool insert_fl)
 
 bool TABLE::alloc_keys(uint key_count)
 {
-  DBUG_ASSERT(!s->keys);
   key_info= s->key_info= (KEY*) alloc_root(&mem_root, sizeof(KEY)*key_count);
+  s->keys= 0;
   max_keys= key_count;
   return !(key_info);
 }
@@ -5374,7 +5374,7 @@ void TABLE::use_index(int key_to_save)
   DBUG_ASSERT(!created && key_to_save < (int)s->keys);
   if (key_to_save >= 0)
     /* Save the given key. */
-    memcpy(key_info, key_info + key_to_save, sizeof(KEY));
+    memmove(key_info, key_info + key_to_save, sizeof(KEY));
   else
     /* Drop all keys; */
     i= 0;
