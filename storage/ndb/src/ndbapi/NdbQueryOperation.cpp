@@ -507,7 +507,7 @@ void NdbBulkAllocator::reset(){
   // Overwrite with 0xff bytes to detect accidental use of released memory.
   assert(m_buffer == NULL || 
          memset(m_buffer, 0xff, m_maxObjs * m_objSize) != NULL);
-  delete m_buffer;
+  delete [] m_buffer;
   m_buffer = NULL;
   m_nextObjNo = 0;
   m_maxObjs = 0;
