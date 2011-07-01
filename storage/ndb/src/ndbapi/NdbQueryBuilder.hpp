@@ -493,6 +493,15 @@ class NdbQueryDef
 
 public:
 
+  /**
+   * The different types of query types supported
+   */
+  enum QueryType {
+    LookupQuery,     ///< All operations are PrimaryKey- or UniqueIndexAccess
+    SingleScanQuery, ///< Root is Table- or OrderedIndexScan, childs are 'lookup'
+    MultiScanQuery   ///< Root, and some childs are scans
+  };
+
   Uint32 getNoOfOperations() const;
 
   // Get a specific NdbQueryOperationDef by ident specified
@@ -503,6 +512,9 @@ public:
   // A scan query may return multiple rows, and may be ::close'ed when
   // the client has completed access to it.
   bool isScanQuery() const;
+
+  // Return the 'enum QueryType' as defined above.
+  QueryType getQueryType() const;
 
   // Remove this NdbQueryDef including operation and operands it contains
   void destroy() const;

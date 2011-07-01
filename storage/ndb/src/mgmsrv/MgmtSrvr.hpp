@@ -488,6 +488,10 @@ public:
   bool get_packed_config(ndb_mgm_node_type nodetype,
                          BaseString& buf64, BaseString& error);
 
+  /* Get copy of configuration packed with base64 from node nodeid */
+  bool get_packed_config_from_node(NodeId nodeid,
+                         BaseString& buf64, BaseString& error);
+
   void print_config(const char* section_filter = NULL,
                     NodeId nodeid_filter = 0,
                     const char* param_filter = NULL,

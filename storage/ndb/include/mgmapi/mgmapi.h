@@ -710,6 +710,18 @@ extern "C" {
 			 int num_args,
 			 struct ndb_mgm_reply* reply);
 
+  /**
+   * Get the current configuration from a node.
+   *
+   * @param handle the NDB management handle.
+   * @param nodeId of the node for which the configuration is requested.
+   * @return the current configuration from the requested node.
+   */
+  struct ndb_mgm_configuration *
+  ndb_mgm_get_configuration_from_node(NdbMgmHandle handle,
+                                      int nodeid);
+
+
   /** @} *********************************************************************/
   /**
    * @name Functions: Start/stop nodes
