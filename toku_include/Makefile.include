@@ -535,6 +535,9 @@ ifeq ($(SOEXT),so)
 EXPORTMAPFILE=export.map
 EXPORTMAP = -Wl,--version-script=$(EXPORTMAPFILE)
 SHARED=-shared
+ifeq ($(CC),icc)
+SHARED += -static-intel
+endif
 endif
 ifeq ($(SOEXT),dll)
     ifeq ($(DEBUG),0)
