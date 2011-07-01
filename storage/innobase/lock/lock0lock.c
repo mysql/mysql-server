@@ -3885,13 +3885,11 @@ static
 void
 lock_deadlock_trx_rollback(
 /*=======================*/
-	lock_deadlock_ctx_t*	ctx,		/*!< in: deadlock context */
-	trx_id_t		victim_trx_id)	/*!< in: transaction id */
+	lock_deadlock_ctx_t*	ctx)		/*!< in: deadlock context */
 {
 	trx_t*			trx;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(victim_trx_id == ctx->wait_lock->trx->id);
 
 	trx = ctx->wait_lock->trx;
 
@@ -3954,7 +3952,8 @@ lock_deadlock_check_and_resolve(
 
 		} else if (victim_trx_id != 0 && victim_trx_id != trx->id) {
 
-			lock_deadlock_trx_rollback(&ctx, victim_trx_id);
+			ut_ad(victim_trx_id == ctx->wait_lock->trx->id);
+			lock_deadlock_trx_rollback(&ctx);
 
 			lock_deadlock_found = TRUE;
 
