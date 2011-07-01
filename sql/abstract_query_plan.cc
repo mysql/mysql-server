@@ -21,11 +21,7 @@
 #endif
 
 #include "mysql_priv.h"
-#include "rpl_filter.h"
-#include <myisampack.h>
-#include <errno.h>
 #include "sql_select.h"
-
 #include "abstract_query_plan.h"
 
 
