@@ -154,11 +154,12 @@ function build() {
     done
     popd
 
-    tracefile=$builddir/build+$productname-$BDB+$nodename+$system+$release+$arch
+    tracefile=$builddir/build+$productname-$CC-$BDB+$nodename+$system+$release+$arch
 
     # get some config info
     uname -a >>$tracefile 2>&1
-    cc -v >>$tracefile 2>&1
+    $CC -v >>$tracefile 2>&1
+    $CXX -v >>$tracefile 2>&1
     if [ -f /proc/version ] ; then
 	cat /proc/version >>$tracefile
     fi
@@ -198,7 +199,6 @@ function build() {
     # src
     runcmd 0 $productbuilddir/src make -k -s -j$makejobs local >>$tracefile 2>&1
     runcmd $dowindows $productbuilddir/src make -k -j$makejobs check_globals >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src make -k -s -j$makejobs install >>$tracefile 2>&1
     runcmd 0 $productbuilddir/src/tests make -k -s -j$makejobs >>$tracefile 2>&1
 
     # utils
@@ -346,8 +346,18 @@ while [ $# -gt 0 ] ; do
     elif [ "$arg" = "--windows=yes" -o "$arg" = "--windows=1" ] ; then
         usage; exit 1
     elif [ $arg = "--gcc44" ] ; then
-	export CC=gcc44
-	export CXX=g++44
+	export CC=gcc44; export CXX=g++44
+    elif [ $arg = "--icc" ] ; then
+	export CC=icc; export CXX=icpc
+	d=/opt/intel/bin
+	if [ -d $d ] ; then
+	    export PATH=$d:$PATH
+	    . $d/compilervars.sh intel64
+	fi
+	d=/opt/intel/cilkutil/bin
+	if [ -d $d ] ; then
+	    export PATH=$d:$PATH
+	fi
     elif [[ $arg =~ ^--(.*)=(.*) ]] ; then
 	eval ${BASH_REMATCH[1]}=${BASH_REMATCH[2]}
     else
@@ -365,7 +375,7 @@ if [ $revision -eq 0 ] ; then revision=`get_latest_svn_revision`; fi
 export GCCVERSION=`$CC --version|head -1|cut -f3 -d" "`
 export VALGRIND=$VALGRIND
 
-build $bdb
-exitcode=$?
+# setup VGRIND
+if [ $dovalgrind = 0 ] ; then export VGRIND=""; fi
 
-exit $exitcode
+build $bdb
