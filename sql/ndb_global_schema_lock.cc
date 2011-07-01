@@ -396,7 +396,7 @@ Thd_ndb::has_required_global_schema_lock(const char* func)
   LEX_STRING* query= thd_query_string(m_thd);
   sql_print_error("NDB: programming error, no lock taken while running "
                   "query '%*s' in function '%s'",
-                  query->length, query->str, func);
+                  (int)query->length, query->str, func);
   abort();
   return false;
 }
