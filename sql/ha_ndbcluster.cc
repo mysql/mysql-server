@@ -615,8 +615,8 @@ static int check_slave_state(THD* thd)
 
           const Uint32 server_id_col_num = 0;
           const Uint32 epoch_col_num = 1;
-          NdbRecAttr* server_id_ra;
-          NdbRecAttr* epoch_ra;
+          NdbRecAttr* server_id_ra = 0;
+          NdbRecAttr* epoch_ra = 0;
 
           if (unlikely((sop->readTuples(NdbOperation::LM_CommittedRead) != 0)   ||
                        ((server_id_ra = sop->getValue(server_id_col_num)) == NULL)  ||
