@@ -599,6 +599,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   ndbcluster_includes="-I\$(top_builddir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include/ndbapi -I\$(top_srcdir)/storage/ndb/include/mgmapi"
   ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"
   ndbcluster_system_libs=""
+  ndbcluster_sql_defines=""
 
   MYSQL_CHECK_NDB_OPTIONS
   NDB_CHECK_NDBMTD
@@ -694,6 +695,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     then
       NDB_DEFS=""
     else
+      ndbcluster_sql_defines="-DNDEBUG"
       NDB_DEFS="-DNDEBUG"
     fi
   fi
@@ -817,6 +819,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
   AC_SUBST(NDB_SCI_LIBS)
+  AC_SUBST(ndbcluster_sql_defines)
 
   AC_SUBST(ndb_transporter_opt_objs)
   AC_SUBST(ndb_bin_am_ldflags)
