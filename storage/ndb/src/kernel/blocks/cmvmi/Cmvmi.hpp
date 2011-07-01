@@ -78,6 +78,8 @@ private:
   void execALLOC_MEM_REF(Signal*);
   void execALLOC_MEM_CONF(Signal*);
 
+  void execGET_CONFIG_REQ(Signal*);
+
   char theErrorMessage[256];
   void sendSTTORRY(Signal* signal);
 

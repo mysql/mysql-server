@@ -16,7 +16,45 @@
 */
 
 /**
- * ndb_config --nodes --query=nodeid --type=ndbd --host=local1
+ * Description of config variables, including their min, max, default
+ * values can be printed (--configinfo). This can also be printed
+ * in xml format (--xml).
+ *
+ * Config can be retrieved from only one of the following sources:
+ ** config stored at mgmd (default. The options --config_from_node=0,
+ ** or --config_from_node=1 also give the same results.)
+ ** config stored at a data node (--config_from_node)
+ ** my.cnf (--mycnf=<fullPath/mycnfFileName>)
+ ** config.file  (--config_file=<fullPath/configFileName>
+ *
+ * Config variables are displayed from only one of the following
+ * sections of the retrieved config:
+ ** CFG_SECTION_NODE (default, or --nodes)
+ ** CFG_SECTION_CONNECTION (--connections)
+ ** CFG_SECTION_SYSTEM (--system)
+ */
+
+/**
+ * Examples:
+ * Get config from mgmd (default):
+ ** Display results from section CFG_SECTION_NODE (default)
+ *** ndb_config --nodes --query=nodeid --type=ndbd --host=local1
+ *** ndb_config  --query=nodeid,host
+ *
+ ** Display results from section CFG_SECTION_SYSTEM
+ *** ndb_config --system --query=ConfigGenerationNumber
+ *
+ ** Display results from section CFG_SECTION_CONNECTION
+ *** ndb_config --connections --query=type
+ *
+ * Get config from eg. node 2, which is a data node:
+ *
+ ** ndb_config --config_from_node=2 --system --query=ConfigGenerationNumber
+ ** ndb_config --config_from_node=2 --connections --query=type
+ ** ndb_config --config_from_node=2 --query=id,NoOfFragmentLogFiles
+ *
+ ** Display results for only node 2:
+ *** ndb_config --config_from_node=2 --query=id,NoOfFragmentLogFiles --nodeid=2
  */
 
 #include <ndb_global.h>
@@ -36,7 +74,7 @@
 static int g_verbose = 0;
 static int try_reconnect = 3;
 
-static int g_nodes, g_connections, g_section;
+static int g_nodes, g_connections, g_system, g_section;
 static const char * g_query = 0;
 
 static int g_nodeid = 0;
@@ -48,6 +86,7 @@ static const char * g_config_file = 0;
 static int g_mycnf = 0;
 static int g_configinfo = 0;
 static int g_xml = 0;
+static int g_config_from_node = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
@@ -61,6 +100,9 @@ static struct my_option my_long_options[] =
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "connections", NDB_OPT_NOSHORT, "Print connections",
     (uchar**) &g_connections, (uchar**) &g_connections,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "system", NDB_OPT_NOSHORT, "Print system",
+    (uchar**) &g_system, (uchar**) &g_system,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "query", 'q', "Query option(s)",
     (uchar**) &g_query, (uchar**) &g_query,
@@ -95,6 +137,9 @@ static struct my_option my_long_options[] =
   { "xml", NDB_OPT_NOSHORT, "Print configinfo in xml format",
     (uchar**) &g_xml, (uchar**) &g_xml,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "config_from_node", NDB_OPT_NOSHORT, "Use current config from node with given nodeid",
+    (uchar**) &g_config_from_node, (uchar**) &g_config_from_node,
+    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -154,7 +199,7 @@ static int parse_query(Vector<Apply*>&, int &argc, char**& argv);
 static int parse_where(Vector<Match*>&, int &argc, char**& argv);
 static int eval(const Iter&, const Vector<Match*>&);
 static int apply(const Iter&, const Vector<Apply*>&);
-static ndb_mgm_configuration* fetch_configuration();
+static ndb_mgm_configuration* fetch_configuration(int from_node);
 static ndb_mgm_configuration* load_configuration();
 
 
@@ -178,23 +223,47 @@ main(int argc, char** argv){
     exit(0);
   }
 
-  if (g_nodes && g_connections)
+  if ((g_nodes && g_connections) ||
+       g_system && (g_nodes || g_connections))
   {
     fprintf(stderr,
-	    "Only one option of --nodes and --connections allowed\n");
+	    "Error: Only one of the section-options: --nodes, --connections, --system is allowed.\n");
+    exit(255);
+  }
+
+  /* There is no explicit option for the user to set
+   * 'retrieving config from mgmd', but this is the default.
+   * Therefore will not contradict with other sources.
+   */
+
+  if ((g_config_file && g_mycnf) ||
+       g_config_from_node && (g_config_file || g_mycnf))
+  {
+    fprintf(stderr,
+	    "Error: Config should be retrieved from only one of the following sources:\n");
+    fprintf(stderr,
+            "\tconfig stored at mgmd (default),\n");
+    fprintf(stderr,
+            "\tconfig stored at a data node (--config_from_node=<nodeid>), \n");
+    fprintf(stderr,
+            "\tmy.cnf(--mycnf=<my.cnf file>),\n");
+    fprintf(stderr,
+             "\tconfig.file (--config_file=<config file>).\n");
     exit(255);
   }
 
   g_section = CFG_SECTION_NODE; //default
   if (g_connections)
     g_section = CFG_SECTION_CONNECTION;
+  else if (g_system)
+    g_section = CFG_SECTION_SYSTEM;
 
   ndb_mgm_configuration * conf = 0;
 
   if (g_config_file || g_mycnf)
     conf = load_configuration();
   else
-    conf = fetch_configuration();
+    conf = fetch_configuration(g_config_from_node);
 
   if (conf == 0)
   {
@@ -289,7 +358,9 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
 	     (g_section == CFG_SECTION_NODE &&
               (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
                strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
-               strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0)))
+               strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0))
+             ||
+	     (g_section == CFG_SECTION_SYSTEM))
 	  {
 	    if(strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
 	    {
@@ -496,8 +567,8 @@ ConnectionTypeApply::apply(const Iter& iter)
 }
 
 static ndb_mgm_configuration*
-fetch_configuration()
-{  
+fetch_configuration(int from_node)
+{
   ndb_mgm_configuration* conf = 0;
   NdbMgmHandle mgm = ndb_mgm_create_handle();
   if(mgm == NULL) {
@@ -532,11 +603,17 @@ fetch_configuration()
 	    ndb_mgm_get_connected_port(mgm));
   }
 	  
-  conf = ndb_mgm_get_configuration(mgm, 0);
+  if (from_node > 1)
+  {
+    conf = ndb_mgm_get_configuration_from_node(mgm, from_node);
+  }
+  else
+     conf = ndb_mgm_get_configuration(mgm, 0);
+
   if(conf == 0)
   {
-    fprintf(stderr, "Could not get configuration");
-    fprintf(stderr, "code: %d, msg: %s\n",
+    fprintf(stderr, "Could not get configuration, ");
+    fprintf(stderr, "error code: %d, error msg: %s\n",
 	    ndb_mgm_get_latest_error(mgm),
 	    ndb_mgm_get_latest_error_msg(mgm));
   }

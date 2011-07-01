@@ -61,7 +61,14 @@ class Defragger {
 
 public:
   Defragger() {};
-  ~Defragger() {};
+  ~Defragger()
+  {
+    for (size_t i = m_buffers.size(); i > 0; --i)
+    {
+      delete m_buffers[i-1]; // free the memory of the fragment
+    }
+    // m_buffers will be freed by ~Vector
+  };
 
   /*
     return true when complete signal received
@@ -113,13 +120,12 @@ public:
     clear any unassembled signal buffers from node
   */
   void node_failed(NodeId nodeId) {
-    for (size_t i = 0; i < m_buffers.size(); i++)
+    for (size_t i = m_buffers.size(); i > 0; --i)
     {
-      DefragBuffer* dbuf = m_buffers[i];
-      if (dbuf->m_node_id == nodeId)
+      if (m_buffers[i-1]->m_node_id == nodeId)
       {
-        delete dbuf; // MASV ?
-        m_buffers.erase(i);
+        delete m_buffers[i]; // free the memory of the signal fragment
+	m_buffers.erase(i); // remove the reference from the vector.
       }
     }
   }
