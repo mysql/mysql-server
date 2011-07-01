@@ -3486,13 +3486,15 @@ UNIV_INTERN
 ulong
 ha_innobase::index_flags(
 /*=====================*/
-	uint,
+	uint	key,
 	uint,
 	bool) const
 {
-	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
-	       | HA_READ_RANGE | HA_KEYREAD_ONLY
-	       | HA_DO_INDEX_COND_PUSHDOWN);
+	return((table_share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT)
+		 ? 0
+		 : (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
+		  | HA_READ_RANGE | HA_KEYREAD_ONLY
+		  | HA_DO_INDEX_COND_PUSHDOWN));
 }
 
 /****************************************************************//**
@@ -4551,6 +4553,22 @@ innobase_fts_text_cmp_prefix(
 	/* We switched s1, s2 position in ha_compare_text. So we need
 	to negate the result */
 	return(-result);
+}
+/******************************************************************//**
+compare two character string according to their charset. */
+extern "C" UNIV_INTERN
+int
+innobase_fts_string_cmp(
+/*====================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*     p1,		/*!< in: key */
+        const void*     p2)		/*!< in: node */
+{
+	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
+        uchar*		s1 = (uchar*) p1;
+        uchar*		s2 = *(uchar**) p2;
+
+        return(ha_compare_text(charset, s1, strlen((const char*)s1), s2, strlen((const char*)s2), 0, 0));
 }
 /******************************************************************//**
 Makes all characters in a string lower case. */

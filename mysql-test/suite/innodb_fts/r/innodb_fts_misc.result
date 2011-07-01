@@ -429,10 +429,10 @@ create fulltext index i on t50 (s2);
 insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
 select * from t50 order by s2;
 s1	s2
+4	ABCDE
 1	FGHIJ
 2	KLMNO
 3	VÐƷWİ
-4	ABCDE
 drop table t50;
 "----------Test3---------"
 create table t50 (id int unsigned primary key auto_increment, s2
