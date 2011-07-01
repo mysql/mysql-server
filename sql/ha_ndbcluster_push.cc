@@ -41,6 +41,7 @@
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/NdbInterpretedCode.hpp>
 #include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
+#include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 
 #include <ndb_version.h>
 
@@ -160,6 +161,153 @@ ndb_pushed_join::~ndb_pushed_join()
   if (m_query_def)
     m_query_def->destroy();
 }
+
+bool ndb_pushed_join::match_definition(
+                      int type, //NdbQueryOperationDef::Type, 
+                      const NDB_INDEX_DATA* idx,
+                      bool needSorted) const
+{
+  const NdbQueryOperationDef* const root_operation= 
+    m_query_def->getQueryOperation((uint)0);
+  const NdbQueryOperationDef::Type def_type=  
+    root_operation->getType();
+
+  if (def_type != type)
+  {
+    DBUG_PRINT("info", 
+               ("Cannot execute push join. Root operation prepared as %s "
+                "not executable as %s",
+                NdbQueryOperationDef::getTypeName(def_type),
+                NdbQueryOperationDef::getTypeName((NdbQueryOperationDef::Type)type)));
+    return FALSE;
+  }
+  const NdbDictionary::Index* const expected_index= root_operation->getIndex();
+
+  // Check that we still use the same index as when the query was prepared.
+  switch (def_type)
+  {
+  case NdbQueryOperationDef::PrimaryKeyAccess:
+    DBUG_ASSERT(idx!=NULL);
+    DBUG_ASSERT(idx->unique_index == expected_index);
+    break;
+
+  case NdbQueryOperationDef::UniqueIndexAccess:
+    DBUG_ASSERT(idx!=NULL);
+    // DBUG_ASSERT(idx->unique_index == expected_index);
+    if (idx->unique_index != expected_index)
+    {
+      DBUG_PRINT("info", ("Actual index %s differs from expected index %s."
+                          "Therefore, join cannot be pushed.", 
+                          idx->unique_index->getName(),
+                          expected_index->getName()));
+      return FALSE;
+    }
+    break;
+
+  case NdbQueryOperationDef::TableScan:
+    DBUG_ASSERT (idx==NULL && expected_index==NULL);
+    if (needSorted)
+    {
+      DBUG_PRINT("info", 
+                 ("TableScan access can not be provied as sorted result. " 
+                  "Therefore, join cannot be pushed."));
+      return FALSE;
+    }
+    break;
+
+  case NdbQueryOperationDef::OrderedIndexScan:
+    DBUG_ASSERT(idx!=NULL);
+    // DBUG_ASSERT(idx->index == expected_index);
+    if (idx->index != expected_index)
+    {
+      DBUG_PRINT("info", ("Actual index %s differs from expected index %s. "
+                          "Therefore, join cannot be pushed.", 
+                          idx->index->getName(),
+                          expected_index->getName()));
+      return FALSE;
+    }
+    if (needSorted && m_query_def->getQueryType() == NdbQueryDef::MultiScanQuery)
+    {
+      DBUG_PRINT("info", 
+                 ("OrderedIndexScan with scan siblings " 
+                  "can not execute as pushed join."));
+      return FALSE;
+    }
+    break;
+
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  /**
+   * There may be referrences to Field values from tables outside the scope of
+   * our pushed join which are supplied as paramValues().
+   * If any of these are NULL values, join can't be pushed.
+   */
+  for (uint i= 0; i < get_field_referrences_count(); i++)
+  {
+    Field* field= m_referred_fields[i];
+    if (field->is_real_null())
+    {
+      DBUG_PRINT("info", 
+                 ("paramValue is NULL, can not execute as pushed join"));
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+NdbQuery* ndb_pushed_join::make_query_instance(
+                       NdbTransaction* trans,
+                       const NdbQueryParamValue* keyFieldParams,
+                       uint paramCnt) const
+{
+  DBUG_ENTER("make_query_instance");
+  DBUG_PRINT("info", 
+             ("executing chain of %d pushed joins."
+              " First table is %s, accessed as %s.", 
+              get_operation_count(),
+              get_table(0)->alias,
+              NdbQueryOperationDef::getTypeName(
+                m_query_def->getQueryOperation((uint)0)->getType())
+             ));
+
+  const NdbQueryParamValue* paramValues = keyFieldParams;
+
+  /**
+   * There may be referrences to Field values from tables outside the scope of
+   * our pushed join: These are expected to be supplied as paramValues()
+   * after the keyFieldParams[]. 
+   */
+  uint outer_fields= get_field_referrences_count();
+  if (unlikely(outer_fields > 0))
+  {
+    uint size= sizeof(NdbQueryParamValue) * (paramCnt+outer_fields);
+    NdbQueryParamValue* extendedParams = reinterpret_cast<NdbQueryParamValue*>(alloca(size));
+    // Copy specified keyFieldParams[] first
+    for (uint i= 0; i < paramCnt; i++)
+    {
+      extendedParams[i]= keyFieldParams[i];
+    }
+
+    // There may be referrences to Field values from tables outside the scope of
+    // our pushed join: These are expected to be supplied as paramValues()
+    for (uint i= 0; i < outer_fields; i++)
+    {
+      Field* field= m_referred_fields[i];
+      DBUG_ASSERT(!field->is_real_null());  // Checked by ::check_if_pushable()
+      extendedParams[paramCnt+i]= NdbQueryParamValue(field->ptr, false);
+    }
+    paramValues= extendedParams;
+  }
+
+  NdbQuery* query= trans->createQuery(&get_query_def(), paramValues);
+  DBUG_RETURN(query);
+}
+
+/////////////////////////////////////////
 
 ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
 :
