@@ -2257,7 +2257,7 @@ NdbIndexStatImpl::MemDefault::~MemDefault()
 }
 
 void*
-NdbIndexStatImpl::MemDefault::mem_alloc(size_t size)
+NdbIndexStatImpl::MemDefault::mem_alloc(UintPtr size)
 {
   if (size == 0 || size % 4 != 0)
   {
@@ -2290,7 +2290,7 @@ NdbIndexStatImpl::MemDefault::mem_free(void* ptr)
   }
 }
 
-size_t
+UintPtr
 NdbIndexStatImpl::MemDefault::mem_used() const
 {
   return m_used;

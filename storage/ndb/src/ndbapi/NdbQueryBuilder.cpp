@@ -318,6 +318,11 @@ NdbQueryDef::isScanQuery() const
 { return m_impl.isScanQuery();
 }
 
+NdbQueryDef::QueryType
+NdbQueryDef::getQueryType() const
+{ return m_impl.getQueryType();
+}
+
 NdbQueryDefImpl& 
 NdbQueryDef::getImpl() const{
   return m_impl;
@@ -1095,24 +1100,10 @@ NdbQueryBuilderImpl::contains(const NdbQueryOperationDefImpl* opDef)
 const NdbQueryDefImpl*
 NdbQueryBuilderImpl::prepare()
 {
-  /* Check if query is sorted and has multiple scan operations. This 
-   * combination is not implemented.
-   */
-  if (m_operations.size() > 0 && 
-      m_operations[0]->isScanOperation() &&
-      m_operations[0]->getOrdering() 
-        != NdbQueryOptions::ScanOrdering_unordered &&
-      m_operations[0]->getOrdering() != NdbQueryOptions::ScanOrdering_void)
-  {
-    for (Uint32 i = 1; i<m_operations.size(); i++)
-    {
-      if (m_operations[i]->isScanOperation())
-      {
-        setErrorCode(QRY_MULTIPLE_SCAN_SORTED);
-        return NULL;
-      } 
-    }
-  }
+  const bool sorted =
+    m_operations.size() > 0 &&
+    m_operations[0]->getOrdering() != NdbQueryOptions::ScanOrdering_unordered &&
+    m_operations[0]->getOrdering() != NdbQueryOptions::ScanOrdering_void;
 
   int error;
   NdbQueryDefImpl* def = new NdbQueryDefImpl(m_operations, m_operands, error);
@@ -1124,6 +1115,16 @@ NdbQueryBuilderImpl::prepare()
   if(unlikely(error!=0)){
     delete def;
     setErrorCode(error);
+    return NULL;
+  }
+
+  /* Check if query is sorted and has multiple scan operations. This 
+   * combination is not implemented.
+   */
+  if (sorted && def->getQueryType() == NdbQueryDef::MultiScanQuery)
+  {
+    delete def;
+    setErrorCode(QRY_MULTIPLE_SCAN_SORTED);
     return NULL;
   }
 
@@ -1254,6 +1255,20 @@ NdbQueryDefImpl::getQueryOperation(const char* ident) const
       return *opDefs;
   }
   return NULL;
+}
+
+NdbQueryDef::QueryType
+NdbQueryDefImpl::getQueryType() const
+{
+  if (!m_operations[0]->isScanOperation())
+    return NdbQueryDef::LookupQuery;
+
+  for (Uint32 i=1; i<m_operations.size(); ++i)
+  {
+    if (m_operations[i]->isScanOperation())
+      return NdbQueryDef::MultiScanQuery;
+  }
+  return NdbQueryDef::SingleScanQuery;
 }
 
 ////////////////////////////////////////////////////////////////

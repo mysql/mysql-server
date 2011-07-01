@@ -34,6 +34,8 @@
 #include <ndbapi/ndbapi_limits.h>
 #include <kernel/ndb_limits.h>
 
+#define NDB_IGNORE_VALUE(x) (void)x
+
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
 class Ndb;             // Forward declaration
@@ -344,13 +346,23 @@ struct st_ndb_slave_state
   /* Counter values for current slave transaction */
   Uint32 current_conflict_defined_op_count;
   Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
+  Uint64 current_master_server_epoch;
+  Uint64 current_max_rep_epoch;
 
   /* Cumulative counter values */
   Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
+  Uint64 max_rep_epoch;
+  Uint32 sql_run_id;
 
   /* Methods */
   void atTransactionCommit();
   void atTransactionAbort();
+  void atResetSlave();
+
+  void atApplyStatusWrite(Uint32 master_server_id,
+                          Uint32 row_server_id,
+                          Uint64 row_epoch,
+                          bool is_row_server_id_local);
 
   st_ndb_slave_state();
 };
