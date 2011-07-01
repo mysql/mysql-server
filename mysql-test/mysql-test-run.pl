@@ -198,7 +198,7 @@ our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
 # -1 indicates use default, override with env.var.
-my $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
+our $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
 # Unit test report stored here for delayed printing
 my $ctest_report;
 
