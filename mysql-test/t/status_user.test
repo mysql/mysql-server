@@ -85,5 +85,25 @@ select connected_time <> 0, busy_time <> 0, bytes_received <> 0,
        bytes_sent <> 0, binlog_bytes_written <> 0
        from information_schema.client_statistics;
 
+#
+# Test of in transaction
+#
+
+create table t1 (a int) engine=innodb;
+select @@in_transaction;
+begin;
+select @@in_transaction;
+insert into t1 values (1);
+select @@in_transaction;
+commit;
+select @@in_transaction;
+set @@autocommit=0;
+select @@in_transaction;
+insert into t1 values (2);
+select @@in_transaction;
+set @@autocommit=1;
+select @@in_transaction;
+drop table t1;
+
 # Cleanup
 set @@global.general_log=@save_general_log;
