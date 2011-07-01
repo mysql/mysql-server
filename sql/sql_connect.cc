@@ -22,6 +22,7 @@
 /** Size of the header fields of an authentication packet. */
 #define AUTH_PACKET_HEADER_SIZE_PROTO_41    32
 #define AUTH_PACKET_HEADER_SIZE_PROTO_40    5  
+#define AUTH_PACKET_HEADER_SIZE_CONNJ_SSL   4
 
 #ifdef __WIN__
 extern void win_install_sigabrt_handler();
@@ -955,6 +956,23 @@ static int check_connection(THD *thd)
   
   thd->client_capabilities= uint2korr(end);
 
+  /*
+    JConnector only sends client capabilities (4 bytes) before starting SSL
+    negotiation so we don't have char_set and other information for client in
+    packet read. In that case, skip reading those information. The below code 
+    is patch for this.
+  */
+  if(bytes_remaining_in_packet == AUTH_PACKET_HEADER_SIZE_CONNJ_SSL &&
+     thd->client_capabilities & CLIENT_SSL)
+  {
+    thd->client_capabilities= uint4korr(end);
+    thd->max_client_packet_length= 0xfffff;
+    charset_code= default_charset_info->number;
+    end+= AUTH_PACKET_HEADER_SIZE_CONNJ_SSL;
+    bytes_remaining_in_packet-= AUTH_PACKET_HEADER_SIZE_CONNJ_SSL;
+    goto skip_to_ssl;
+  }
+
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     packet_has_required_size= bytes_remaining_in_packet >= 
       AUTH_PACKET_HEADER_SIZE_PROTO_41;
@@ -988,6 +1006,8 @@ static int check_connection(THD *thd)
     */
     charset_code= default_charset_info->number;
   }
+
+skip_to_ssl:
 
   DBUG_PRINT("info", ("client_character_set: %u", charset_code));
   if (thd_init_client_charset(thd, charset_code))
