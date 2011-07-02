@@ -19,6 +19,7 @@ make_node(BRT brt, int height) {
     BRTNODE node = NULL;
     int n_children = (height == 0) ? 1 : 0;
     toku_create_new_brtnode(brt, &node, height, n_children);
+    if (n_children) BP_STATE(node,0) = PT_AVAIL;
     return node;
 }
 
@@ -30,15 +31,16 @@ append_leaf(BRTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen
     DBT theval; toku_fill_dbt(&theval, val, vallen);
 
     // get an index that we can use to create a new leaf entry
-    uint32_t idx = toku_omt_size(leafnode->u.l.bn[0].buffer);
+    uint32_t idx = toku_omt_size(BLB_BUFFER(leafnode, 0));
 
     MSN msn = next_dummymsn();
 
     // apply an insert to the leaf node
     BRT_MSG_S cmd = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &theval } };
-    brt_leaf_apply_cmd_once(&leafnode->u.l.bn[0], &leafnode->subtree_estimates[0], &cmd, idx, NULL, NULL);
+    brt_leaf_apply_cmd_once((BASEMENTNODE)leafnode->bp[0].ptr, &BP_SUBTREE_EST(leafnode,0), &cmd, idx, NULL, NULL);
 
-    leafnode->max_msn_applied_to_node = msn;
+    leafnode->max_msn_applied_to_node_on_disk = msn;
+    leafnode->max_msn_applied_to_node_in_memory = msn;
 
     // dont forget to dirty the node
     leafnode->dirty = 1;
@@ -63,7 +65,7 @@ insert_into_child_buffer(BRTNODE node, int childnum, int minkey, int maxkey) {
         DBT thekey; toku_fill_dbt(&thekey, &key, sizeof key);
         DBT theval; toku_fill_dbt(&theval, &val, sizeof val);
         toku_brt_append_to_child_buffer(node, childnum, BRT_INSERT, msn, xids_get_root_xids(), &thekey, &theval);
-	node->max_msn_applied_to_node = msn;
+	node->max_msn_applied_to_node_in_memory = msn;
     }
 }
 
@@ -138,7 +140,7 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     // set the new root to point to the new tree
     *rootp = newroot->thisnodename;
 
-    newroot->max_msn_applied_to_node = last_dummymsn(); // capture msn of last message injected into tree
+    newroot->max_msn_applied_to_node_in_memory = last_dummymsn(); // capture msn of last message injected into tree
 
     // unpin the new root
     toku_unpin_brtnode(brt, newroot);

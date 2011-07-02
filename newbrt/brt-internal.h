@@ -82,9 +82,6 @@ add_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
 
 
 struct brtnode_nonleaf_childinfo {
-    BLOCKNUM     blocknum;
-    BOOL         have_fullhash;     // do we have the full hash?
-    u_int32_t    fullhash;          // the fullhash of the child
     FIFO         buffer;
     unsigned int n_bytes_in_buffer; /* How many bytes are in each buffer (including overheads for the disk-representation) */
 };
@@ -97,9 +94,65 @@ struct brtnode_leaf_basement_node {
     unsigned int seqinsert;         /* number of sequential inserts to this leaf */
 };
 
-/* Internal nodes. */
+#define PT_INVALID 0
+#define PT_ON_DISK 1
+#define PT_COMPRESSED 2
+#define PT_AVAIL 3
+
+// a brtnode partition represents 
+struct brtnode_partition {
+    BLOCKNUM     blocknum;
+    BOOL         have_fullhash;     // do we have the full hash?
+    u_int32_t    fullhash;          // the fullhash of the child
+
+    struct subtree_estimates subtree_estimates; //estimates for a child, for leaf nodes, are estimates of basement nodes
+    //
+    // at any time, the partitions may be in one of the following three states (stored in pt_state):
+    //   PT_INVALID - means that the partition was just initialized
+    //   PT_ON_DISK - means that the partition is not in memory and needs to be read from disk. To use, must read off disk and decompress
+    //   PT_COMPRESSED - means that the partition is compressed in memory. To use, must decompress
+    //   PT_AVAIL - means the partition is decompressed and in memory
+    //
+    u_int8_t state;
+    //
+    // stores the offset to the end of the partition on disk from the brtnode, needed to read a partition off of disk
+    // the value is only meaningful if the node is clean. If the node is dirty, then the value is meaningless
+    //
+    u_int32_t offset;
+    //
+    // pointer to the partition. Depending on the state, they may be different things
+    // if state == PT_INVALID, then the node was just initialized and ptr == NULL
+    // if state == PT_ON_DISK, then ptr == NULL
+    // if state == PT_COMPRESSED, then ptr points to a struct sub_block*
+    // if state == PT_AVAIL, then ptr is:
+    //         a struct brtnode_nonleaf_childinfo for internal nodes, 
+    //         a struct brtnode_leaf_basement_node for leaf nodes
+    //
+    void* ptr;
+};
+
+// brtnode partition macros
+#define BP_BLOCKNUM(node,i) ((node)->bp[i].blocknum)
+#define BP_HAVE_FULLHASH(node,i) ((node)->bp[i].have_fullhash)
+#define BP_FULLHASH(node,i) ((node)->bp[i].fullhash)
+#define BP_STATE(node,i) ((node)->bp[i].state)
+#define BP_OFFSET(node,i) ((node)->bp[i].offset)
+#define BP_SUBTREE_EST(node,i) ((node)->bp[i].subtree_estimates)
+
+// internal node macros
+#define BNC_BUFFER(node,i) (((struct brtnode_nonleaf_childinfo*)((node)->bp[i].ptr))->buffer)
+#define BNC_NBYTESINBUF(node,i) (((struct brtnode_nonleaf_childinfo*)((node)->bp[i].ptr))->n_bytes_in_buffer)
+
+// leaf node macros
+#define BLB_OPTIMIZEDFORUPGRADE(node,i) (((struct brtnode_leaf_basement_node*)((node)->bp[i].ptr))->optimized_for_upgrade)
+#define BLB_SOFTCOPYISUPTODATE(node,i) (((struct brtnode_leaf_basement_node*)((node)->bp[i].ptr))->soft_copy_is_up_to_date)
+#define BLB_BUFFER(node,i) (((struct brtnode_leaf_basement_node*)((node)->bp[i].ptr))->buffer)
+#define BLB_NBYTESINBUF(node,i) (((struct brtnode_leaf_basement_node*)((node)->bp[i].ptr))->n_bytes_in_buffer)
+#define BLB_SEQINSERT(node,i) (((struct brtnode_leaf_basement_node*)((node)->bp[i].ptr))->seqinsert)
+
 struct brtnode {
-    MSN      max_msn_applied_to_node;  // max msn that has been applied to this node (for root node, this is max msn for the tree)
+    MSN      max_msn_applied_to_node_in_memory; // max msn that has been applied to this node (for root node, this is max msn for the tree)
+    MSN      max_msn_applied_to_node_on_disk; // same as above, but for data on disk, only meaningful if node is clean
     unsigned int nodesize;
     unsigned int flags;
     BLOCKNUM thisnodename;   // Which block number is this node?
@@ -115,26 +168,11 @@ struct brtnode {
     unsigned int    totalchildkeylens;
     struct kv_pair **childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
                                                                         Child 1's keys are > childkeys[0]. */
-
-    struct subtree_estimates *subtree_estimates; //array of estimates for each child, for leaf nodes, are estimates
-                                                 // of basement nodes
-    union node {
-	struct nonleaf {
-	    unsigned int    n_bytes_in_buffers;
-
-	    struct brtnode_nonleaf_childinfo *childinfos; /* One extra so we can grow */
-
-#define BNC_BLOCKNUM(node,i) ((node)->u.n.childinfos[i].blocknum)
-#define BNC_BUFFER(node,i) ((node)->u.n.childinfos[i].buffer)
-#define BNC_NBYTESINBUF(node,i) ((node)->u.n.childinfos[i].n_bytes_in_buffer)
-#define BNC_HAVE_FULLHASH(node,i) ((node)->u.n.childinfos[i].have_fullhash)
-#define BNC_FULLHASH(node,i) ((node)->u.n.childinfos[i].fullhash)
-
-        } n;
-	struct leaf {
-            struct brtnode_leaf_basement_node *bn; // individual basement nodes of a leaf
-	} l;
-    } u;
+    // array of brtnode partitions
+    // each one is associated with a child
+    // for internal nodes, the ith partition corresponds to the ith message buffer
+    // for leaf nodes, the ith partition corresponds to the ith basement node
+    struct brtnode_partition *bp;
 };
 
 /* pivot flags  (must fit in 8 bits) */
@@ -248,9 +286,10 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int6
 int toku_deserialize_brtheader_from (int fd, LSN max_acceptable_lsn, struct brt_header **brth);
 int toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
 void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
-void toku_setup_empty_leafnode( BRTNODE n, u_int32_t num_bn);
+void toku_setup_empty_bn(BASEMENTNODE bn);
 void toku_destroy_brtnode_internals(BRTNODE node);
 void toku_brtnode_free (BRTNODE *node);
+void toku_assert_entire_node_in_memory(BRTNODE node);
 
 // append a child node to a parent node
 void toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivotkey, size_t pivotkeysize);

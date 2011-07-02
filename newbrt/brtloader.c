@@ -3104,7 +3104,8 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     node->layout_version = BRT_LAYOUT_VERSION;
     node->layout_version_original = BRT_LAYOUT_VERSION;
     node->build_id = BUILD_ID;
-    node->max_msn_applied_to_node = MIN_MSN;
+    node->max_msn_applied_to_node_on_disk = MIN_MSN;
+    node->max_msn_applied_to_node_in_memory = MIN_MSN;
     node->height=height;
     node->n_children = n_children;
     node->flags = 0;
@@ -3122,21 +3123,19 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 	node->childkeys[i] = childkey;
 	totalchildkeylens += kv_pair_keylen(childkey);
     }
-    node->u.n.n_bytes_in_buffers = 0;
     node->totalchildkeylens = totalchildkeylens;
-    XMALLOC_N(n_children, node->u.n.childinfos);
-    XMALLOC_N(n_children, node->subtree_estimates);
+    XMALLOC_N(n_children, node->bp);
     for (int i=0; i<n_children; i++) {
-	struct brtnode_nonleaf_childinfo *ci = &node->u.n.childinfos[i];
-	ci->blocknum            = make_blocknum(subtree_info[i].block);
-        node->subtree_estimates[i] = subtree_info[i].subtree_estimates;
-	ci->have_fullhash       = FALSE;
-	ci->fullhash            = 0;
-        ci->buffer              = NULL;
-	int r = toku_fifo_create(&ci->buffer);
+        node->bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_nonleaf_childinfo));
+	BP_BLOCKNUM(node,i)= make_blocknum(subtree_info[i].block);
+        BP_SUBTREE_EST(node,i) = subtree_info[i].subtree_estimates;
+	BP_HAVE_FULLHASH(node,i) = FALSE;
+	BP_FULLHASH(node,i) = 0;
+        BP_STATE(node,i) = PT_AVAIL;
+	int r = toku_fifo_create(&BNC_BUFFER(node,i));
 	if (r != 0)
             result = r;
-	ci->n_bytes_in_buffer = 0;
+	BNC_NBYTESINBUF(node,i)= 0;
     }
 
     if (result == 0) {
@@ -3167,15 +3166,15 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 	toku_free(node->childkeys[i]);
     }
     for (int i=0; i<n_children; i++) {
-        if (node->u.n.childinfos[i].buffer) {
-            toku_fifo_free(&node->u.n.childinfos[i].buffer);
-            node->u.n.childinfos[i].buffer = NULL;
+        if (BNC_BUFFER(node, i)) {
+            toku_fifo_free(&BNC_BUFFER(node, i));
+            BNC_BUFFER(node, i) = NULL;
         }
+        toku_free(node->bp[i].ptr);
     }
     toku_free(pivots);
-    toku_free(node->u.n.childinfos);
+    toku_free(node->bp);
     toku_free(node->childkeys);
-    toku_free(node->subtree_estimates);
     toku_free(node);
     toku_free(subtree_info);
 

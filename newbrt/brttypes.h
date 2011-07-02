@@ -21,6 +21,7 @@ extern "C" {
 typedef struct brt *BRT;
 typedef struct brtnode *BRTNODE;
 typedef struct brtnode_leaf_basement_node *BASEMENTNODE;
+typedef struct brtnode_nonleaf_childinfo *NONLEAF_CHILDINFO;
 typedef struct subtree_estimates *SUBTREE_EST;
 struct brt_header;
 struct wbuf;
