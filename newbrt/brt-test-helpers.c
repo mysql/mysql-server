@@ -77,8 +77,19 @@ int toku_testsetup_get_sersize(BRT brt, BLOCKNUM diskoff) // Return the size on 
 {
     assert(testsetup_initialized);
     void *node_v;
-    int r  = toku_cachetable_get_and_pin(brt->cf, diskoff, toku_cachetable_hash(brt->cf, diskoff), &node_v, NULL,
-					 toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt);
+    int r  = toku_cachetable_get_and_pin(
+        brt->cf, diskoff, 
+        toku_cachetable_hash(brt->cf, diskoff), 
+        &node_v, 
+        NULL,
+        toku_brtnode_flush_callback, 
+        toku_brtnode_fetch_callback, 
+        toku_brtnode_pe_callback, 
+        toku_brtnode_pf_req_callback,
+        toku_brtnode_pf_callback,
+        brt->h, 
+        brt->h
+        );
     assert(r==0);
     int size = toku_serialize_brtnode_size(node_v);
     toku_unpin_brtnode(brt, node_v);
@@ -91,8 +102,20 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
 
     assert(testsetup_initialized);
     
-    r = toku_cachetable_get_and_pin(brt->cf, blocknum, toku_cachetable_hash(brt->cf, blocknum), &node_v, NULL,
-				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt);
+    r = toku_cachetable_get_and_pin(
+        brt->cf, 
+        blocknum, 
+        toku_cachetable_hash(brt->cf, blocknum), 
+        &node_v, 
+        NULL,
+	toku_brtnode_flush_callback, 
+	toku_brtnode_fetch_callback, 
+	toku_brtnode_pe_callback, 
+        toku_brtnode_pf_req_callback,
+        toku_brtnode_pf_callback,
+	brt->h, 
+	brt->h
+	);
     if (r!=0) return r;
     BRTNODE node=node_v;
     toku_verify_or_set_counts(node);
@@ -146,8 +169,20 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
 
     assert(testsetup_initialized);
 
-    r = toku_cachetable_get_and_pin(brt->cf, blocknum, toku_cachetable_hash(brt->cf, blocknum), &node_v, NULL,
-				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt);
+    r = toku_cachetable_get_and_pin(
+        brt->cf, 
+        blocknum, 
+        toku_cachetable_hash(brt->cf, blocknum), 
+        &node_v, 
+        NULL,
+	toku_brtnode_flush_callback, 
+	toku_brtnode_fetch_callback, 
+	toku_brtnode_pe_callback, 
+        toku_brtnode_pf_req_callback,
+        toku_brtnode_pf_callback,
+	brt->h, 
+	brt->h
+	);
     if (r!=0) return r;
     BRTNODE node=node_v;
     assert(node->height>0);

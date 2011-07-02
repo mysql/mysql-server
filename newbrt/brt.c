@@ -260,7 +260,20 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 		      ANCESTORS ancestors, struct pivot_bounds const * const bounds,
 		      BRTNODE *node_p) {
     void *node_v;
-    int r = toku_cachetable_get_and_pin_nonblocking(brt->cf, blocknum, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt->h, unlockers);
+    int r = toku_cachetable_get_and_pin_nonblocking(
+            brt->cf, 
+            blocknum, 
+            fullhash, 
+            &node_v, 
+            NULL, 
+            toku_brtnode_flush_callback, 
+            toku_brtnode_fetch_callback, 
+            toku_brtnode_pe_callback,
+            toku_brtnode_pf_req_callback,
+            toku_brtnode_pf_callback,
+            brt->h, 
+            brt->h,
+            unlockers);
     if (r==0) {
 	BRTNODE node = node_v;
 	maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
@@ -277,7 +290,20 @@ void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullha
 				   ANCESTORS ancestors, struct pivot_bounds const * const bounds,
 				   BRTNODE *node_p) {
     void *node_v;
-    int r = toku_cachetable_get_and_pin(brt->cf, blocknum, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt->h);
+    int r = toku_cachetable_get_and_pin(
+        brt->cf, 
+        blocknum, 
+        fullhash, 
+        &node_v, 
+        NULL, 
+        toku_brtnode_flush_callback, 
+        toku_brtnode_fetch_callback, 
+        toku_brtnode_pe_callback, 
+        toku_brtnode_pf_req_callback,
+        toku_brtnode_pf_callback,
+        brt->h,
+        brt->h
+        );
     assert(r==0);
     BRTNODE node = node_v;
     maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
@@ -392,7 +418,20 @@ toku_verify_estimates (BRT t, BRTNODE node) {
                 BLOCKNUM childblocknum = BP_BLOCKNUM(node, childnum);
                 u_int32_t fullhash = compute_child_fullhash(t->cf, node, childnum);
                 void *childnode_v;
-                int r = toku_cachetable_get_and_pin(t->cf, childblocknum, fullhash, &childnode_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, t->h);
+                int r = toku_cachetable_get_and_pin(
+                    t->cf, 
+                    childblocknum, 
+                    fullhash, 
+                    &childnode_v, 
+                    NULL, 
+                    toku_brtnode_flush_callback, 
+                    toku_brtnode_fetch_callback, 
+                    toku_brtnode_pe_callback, 
+                    toku_brtnode_pf_req_callback,
+                    toku_brtnode_pf_callback,
+                    t->h, 
+                    t->h
+                    );
                 assert_zero(r);
                 BRTNODE childnode = childnode_v;
                 for (int i=0; i<childnode->n_children; i++) {
@@ -522,6 +561,21 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_
     assert(bytes_to_free > 0);
     return 0;
 }
+
+// callback that sates if partially reading a node is necessary
+// could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
+BOOL toku_brtnode_pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
+    // placeholder for now
+    return FALSE;
+}
+
+// callback for partially reading a node
+// could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
+int toku_brtnode_pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), long* UU(sizep)) {
+    assert(FALSE);
+}
+
+
 
 static int
 leafval_heaviside_le (u_int32_t klen, void *kval,
@@ -778,7 +832,7 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, newroot_diskoff);
     newroot->fullhash = fullhash;
     toku_cachetable_put(brt->cf, newroot_diskoff, fullhash, newroot, brtnode_memory_size(newroot),
-			toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt->h);
+			toku_brtnode_flush_callback, toku_brtnode_pe_callback, brt->h);
     *newrootp = newroot;
 }
 
@@ -800,7 +854,7 @@ void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children
     n->fullhash = fullhash;
     r=toku_cachetable_put(t->cf, n->thisnodename, fullhash,
 			  n, brtnode_memory_size(n),
-			  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, t->h);
+			  toku_brtnode_flush_callback, toku_brtnode_pe_callback, t->h);
     assert_zero(r);
 }
 
@@ -1302,7 +1356,12 @@ brt_split_child (BRT t, BRTNODE node, int childnum, BOOL *did_react)
 					    compute_child_fullhash(t->cf, node, childnum),
 					    &childnode_v,
 					    NULL,
-					    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback,
+					    toku_brtnode_flush_callback, 
+					    toku_brtnode_fetch_callback, 
+					    toku_brtnode_pe_callback,
+                                            toku_brtnode_pf_req_callback,
+                                            toku_brtnode_pf_callback,
+					    t->h,
 					    t->h);
 	assert(r==0);
 	child = childnode_v;
@@ -2212,16 +2271,39 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_react,
     {
 	void *childnode_v;
 	u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnuma);
-	int r = toku_cachetable_get_and_pin(t->cf, BP_BLOCKNUM(node, childnuma), childfullhash, &childnode_v, NULL,
-					    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, t->h);
+	int r = toku_cachetable_get_and_pin(
+            t->cf, 
+            BP_BLOCKNUM(node, childnuma), 
+            childfullhash, 
+            &childnode_v, 
+            NULL,
+            toku_brtnode_flush_callback, 
+            toku_brtnode_fetch_callback, 
+            toku_brtnode_pe_callback, 
+            toku_brtnode_pf_req_callback,
+            toku_brtnode_pf_callback,
+            t->h, 
+            t->h
+            );
 	assert(r==0);
 	childa = childnode_v;
     }
     {
 	void *childnode_v;
 	u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnumb);
-	int r = toku_cachetable_get_and_pin(t->cf, BP_BLOCKNUM(node, childnumb), childfullhash, &childnode_v, NULL,
-					    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, t->h);
+	int r = toku_cachetable_get_and_pin(
+            t->cf, 
+            BP_BLOCKNUM(node, childnumb), 
+            childfullhash, &childnode_v, 
+            NULL,
+            toku_brtnode_flush_callback, 
+            toku_brtnode_fetch_callback, 
+            toku_brtnode_pe_callback, 
+            toku_brtnode_pf_req_callback,
+            toku_brtnode_pf_callback,
+            t->h, 
+            t->h
+            );
 	assert(r==0);
 	childb = childnode_v;
     }
@@ -3166,7 +3248,7 @@ static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum) {
     node->fullhash = fullhash;
     r=toku_cachetable_put(t->cf, blocknum, fullhash,
 			  node, brtnode_memory_size(node),
-			  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, t->h);
+			  toku_brtnode_flush_callback, toku_brtnode_pe_callback, t->h);
     if (r!=0) {
 	toku_free(node);
 	return r;
@@ -4864,8 +4946,18 @@ brt_node_maybe_prefetch(BRT brt, BRTNODE node, int childnum, BRT_CURSOR brtcurso
 		break;
 	    BLOCKNUM nextchildblocknum = BP_BLOCKNUM(node, nextchildnum);
 	    u_int32_t nextfullhash =  compute_child_fullhash(brt->cf, node, nextchildnum);
-	    toku_cachefile_prefetch(brt->cf, nextchildblocknum, nextfullhash, 
-				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt->h);
+	    toku_cachefile_prefetch(
+                brt->cf, 
+                nextchildblocknum, 
+                nextfullhash, 
+		toku_brtnode_flush_callback, 
+		toku_brtnode_fetch_callback, 
+		toku_brtnode_pe_callback,
+		toku_brtnode_pf_req_callback,
+		toku_brtnode_pf_callback,
+		brt->h, 
+		brt->h
+		);
 	    *doprefetch = FALSE;
 	}
     }
@@ -4992,7 +5084,7 @@ brt_search_node(
     ANCESTORS ancestors, 
     struct pivot_bounds const * const bounds
     )
-{   int r;
+{   int r = 0;
     int child_to_search = brt_search_which_child(brt, node, search);
     assert(child_to_search >= 0 || child_to_search < node->n_children);
     //
@@ -5566,8 +5658,20 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename,
     {
 	void *node_v;
 	//assert(fullhash == toku_cachetable_hash(brt->cf, nodename));
-	int rr = toku_cachetable_get_and_pin(brt->cf, nodename, fullhash,
-					     &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt->h);
+	int rr = toku_cachetable_get_and_pin(
+	    brt->cf, 
+	    nodename, 
+	    fullhash,
+            &node_v, 
+            NULL, 
+            toku_brtnode_flush_callback, 
+            toku_brtnode_fetch_callback, 
+            toku_brtnode_pe_callback, 
+            toku_brtnode_pf_req_callback,
+            toku_brtnode_pf_callback,
+            brt->h, 
+            brt->h
+            );
 	assert_zero(rr);
 	node = node_v;
 	assert(node->fullhash==fullhash);
@@ -5640,9 +5744,20 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
     CACHEKEY root = *rootp;
     void *node_v;
-    int r = toku_cachetable_get_and_pin(brt->cf, root, fullhash,
-					&node_v, NULL,
-					toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt->h);
+    int r = toku_cachetable_get_and_pin(
+        brt->cf, 
+        root, 
+        fullhash,
+        &node_v, 
+        NULL,
+        toku_brtnode_flush_callback, 
+        toku_brtnode_fetch_callback, 
+        toku_brtnode_pe_callback, 
+        toku_brtnode_pf_req_callback,
+        toku_brtnode_pf_callback,
+        brt->h, 
+        brt->h
+        );
     if (r!=0) return r;
     BRTNODE node = node_v;
 
@@ -5667,9 +5782,20 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
     BRTNODE node;
     void *node_v;
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
-    int r = toku_cachetable_get_and_pin(brt->cf, blocknum, fullhash,
-					&node_v, NULL,
-					toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt->h);
+    int r = toku_cachetable_get_and_pin(
+        brt->cf, 
+        blocknum, 
+        fullhash,
+        &node_v, 
+        NULL,
+	toku_brtnode_flush_callback, 
+	toku_brtnode_fetch_callback, 
+	toku_brtnode_pe_callback, 
+        toku_brtnode_pf_req_callback,
+        toku_brtnode_pf_callback,
+	brt->h, 
+	brt->h
+	);
     assert_zero(r);
     node=node_v;
     assert(node->fullhash==fullhash);
@@ -5971,7 +6097,20 @@ static BOOL is_empty_fast_iter (BRT brt, BRTNODE node) {
 		void *node_v;
 		BLOCKNUM childblocknum = BP_BLOCKNUM(node,childnum);
 		u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
-		int rr = toku_cachetable_get_and_pin(brt->cf, childblocknum, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt->h);
+		int rr = toku_cachetable_get_and_pin(
+                    brt->cf, 
+                    childblocknum, 
+                    fullhash, 
+                    &node_v, 
+                    NULL, 
+                    toku_brtnode_flush_callback, 
+                    toku_brtnode_fetch_callback, 
+                    toku_brtnode_pe_callback, 
+                    toku_brtnode_pf_req_callback,
+                    toku_brtnode_pf_callback,
+                    brt->h, 
+                    brt->h
+                    );
 		assert(rr ==0);
 		childnode = node_v;
 	    }
@@ -6001,8 +6140,20 @@ BOOL toku_brt_is_empty_fast (BRT brt)
     //assert(fullhash == toku_cachetable_hash(brt->cf, *rootp));
     {
 	void *node_v;
-	int rr = toku_cachetable_get_and_pin(brt->cf, *rootp, fullhash,
-					     &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, toku_brtnode_pe_callback, brt->h);
+	int rr = toku_cachetable_get_and_pin(
+            brt->cf, 
+            *rootp, 
+            fullhash,
+            &node_v, 
+            NULL, 
+            toku_brtnode_flush_callback, 
+            toku_brtnode_fetch_callback, 
+            toku_brtnode_pe_callback, 
+            toku_brtnode_pf_req_callback,
+            toku_brtnode_pf_callback,
+            brt->h, 
+            brt->h
+            );
 	assert_zero(rr);
 	node = node_v;
     }

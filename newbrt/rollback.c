@@ -96,7 +96,7 @@ toku_apply_txn (TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn,
 
         r = toku_maybe_prefetch_older_rollback_log(txn, log);
         assert(r==0);
-
+        
         last_sequence = log->sequence;
         if (func) {
             while ((item=log->newest_logentry)) {
@@ -523,6 +523,14 @@ static int toku_rollback_pe_callback (
     *bytes_freed = 0;
     return 0;
 }
+static BOOL toku_rollback_pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
+    return FALSE;
+}
+
+static int toku_rollback_pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), long* UU(sizep)) {
+    // should never be called, given that toku_rollback_pf_req_callback always returns false
+    assert(FALSE);
+}
 
 
 
@@ -553,7 +561,6 @@ static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t o
     r=toku_cachetable_put(cf, log->thislogname, log->thishash,
                           log, rollback_memory_size(log),
                           toku_rollback_flush_callback, 
-                          toku_rollback_fetch_callback,
                           toku_rollback_pe_callback,
                           h);
     assert(r==0);
@@ -760,6 +767,7 @@ int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr) {
 int
 toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     //Currently processing 'log'.  Prefetch the next (older) log node.
+
     BLOCKNUM name = log->older;
     int r = 0;
     if (name.b != ROLLBACK_NONE.b) {
@@ -770,6 +778,9 @@ toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
                                     toku_rollback_flush_callback,
                                     toku_rollback_fetch_callback,
                                     toku_rollback_pe_callback,
+                                    toku_brtnode_pf_req_callback,
+                                    toku_brtnode_pf_callback,
+                                    h,
                                     h);
         assert(r==0);
     }
@@ -796,6 +807,9 @@ int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLO
                                         toku_rollback_flush_callback, 
                                         toku_rollback_fetch_callback,
                                         toku_rollback_pe_callback,
+                                        toku_rollback_pf_req_callback,
+                                        toku_rollback_pf_callback,
+                                        h,
                                         h);
         assert(r==0);
         log = (ROLLBACK_LOG_NODE)log_v;

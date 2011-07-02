@@ -65,6 +65,14 @@ pe_callback (
     return 0;
 }
 
+static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
+    return FALSE;
+}
+
+static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), long* UU(sizep)) {
+    assert(FALSE);
+}
+
 
 // Note: cachetable_size_limit must be a power of 2
 static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
@@ -82,7 +90,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     for (i=0; i<cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, 0);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0);
         toku_cachetable_verify(ct);
     }
 
@@ -93,7 +101,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     for (i=i; i<2*cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, 0);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0);
         toku_cachetable_verify(ct);
 	// sleep(1);
     }

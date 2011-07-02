@@ -130,6 +130,14 @@ pe_callback (
     return 0;
 }
 
+static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
+    return FALSE;
+}
+
+static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), long* UU(sizep)) {
+    assert(FALSE);
+}
+
 
 static void verify_cachetable_against_present (void) {
     int i;
@@ -174,7 +182,7 @@ static void test_chaining (void) {
 	int fnum = i%N_FILES;
 	//printf("%s:%d Add %d\n", __FILE__, __LINE__, i);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
-	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, pe_callback, (void*)i);
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, pe_callback, (void*)i);
 	assert(r==0);
 	item_becomes_present(ct, f[fnum], make_blocknum(i));
 	r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, test_object_size);
@@ -203,7 +211,10 @@ static void test_chaining (void) {
 					    flush_forchain,
 					    fetch_forchain,
 					    pe_callback,
-					    (void*)(long)whichkey.b
+					    pf_req_callback,
+					    pf_callback,
+					    (void*)(long)whichkey.b,
+                                            (void*)(long)whichkey.b
 					    );
 	    assert(r==0);
 	    r = toku_cachetable_unpin(whichcf,
@@ -219,7 +230,7 @@ static void test_chaining (void) {
         // if i is a duplicate, cachetable_put will return -1
 	// printf("%s:%d Add {%ld,%p}\n", __FILE__, __LINE__, i, f[fnum]);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
-	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, pe_callback, (void*)i);
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, pe_callback, (void*)i);
         assert(r==0 || r==-1);
         if (r==0) {
             item_becomes_present(ct, f[fnum], make_blocknum(i));

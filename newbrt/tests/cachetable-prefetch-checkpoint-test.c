@@ -44,6 +44,14 @@ pe_callback (
     return 0;
 }
 
+static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
+    return FALSE;
+}
+
+static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), long* UU(sizep)) {
+    assert(FALSE);
+}
+
 static int dummy_pin_unpin(CACHEFILE UU(cfu), void* UU(v)) {
     return 0;
 }
@@ -66,7 +74,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     {
         CACHEKEY key = make_blocknum(n+1);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, 0);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0);
         toku_cachetable_verify(ct);
     }
 
@@ -75,7 +83,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t hi = toku_cachetable_hash(f1, key);
-        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, 1, flush, fetch, pe_callback, 0);
+        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, 1, flush, pe_callback, 0);
         assert(r == 0);
 
         r = toku_cachetable_unpin(f1, key, hi, dirty, item_size);

@@ -83,7 +83,7 @@ struct ctpair {
     CACHETABLE_FLUSH_CALLBACK flush_callback;
     CACHETABLE_FETCH_CALLBACK fetch_callback;
     CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback; 
-    void    *extraargs;
+    void    *write_extraargs;
 
     PAIR     next,prev;          // In clock.
     PAIR     hash_chain;
@@ -1064,13 +1064,13 @@ static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p) {
         CACHEFILE cachefile = p->cachefile;
         CACHEKEY key = p->key;
         void *value = p->value;
-        void *extraargs = p->extraargs;
+        void *write_extraargs = p->write_extraargs;
         long size = p->size;
 
         rwlock_prefer_read_lock(&cachefile->fdlock, ct->mutex);
         cachetable_unlock(ct);
 
-        flush_callback(cachefile, cachefile->fd, key, value, extraargs, size, FALSE, FALSE, TRUE);
+        flush_callback(cachefile, cachefile->fd, key, value, write_extraargs, size, FALSE, FALSE, TRUE);
 
         cachetable_lock(ct);
         rwlock_read_unlock(&cachefile->fdlock);
@@ -1086,12 +1086,17 @@ static void abort_fetch_pair(PAIR p) {
 }
 
 // Read a pair from a cachefile into memory using the pair's fetch callback
-static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
+static int cachetable_fetch_pair(
+    CACHETABLE ct, 
+    CACHEFILE cf, 
+    PAIR p, 
+    CACHETABLE_FETCH_CALLBACK fetch_callback, 
+    void* read_extraargs
+    ) 
+{
     // helgrind
-    CACHETABLE_FETCH_CALLBACK fetch_callback = p->fetch_callback;
     CACHEKEY key = p->key;
     u_int32_t fullhash = p->fullhash;
-    void *extraargs = p->extraargs;
 
     void *toku_value = 0;
     long size = 0;
@@ -1105,7 +1110,7 @@ static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
 
     int r;
     if (toku_cachefile_is_dev_null_unlocked(cf)) r = -1;
-    else r = fetch_callback(cf, cf->fd, key, fullhash, &toku_value, &size, &dirty, extraargs);
+    else r = fetch_callback(cf, cf->fd, key, fullhash, &toku_value, &size, &dirty, read_extraargs);
     if (dirty)
 	p->dirty = CACHETABLE_DIRTY;
 
@@ -1116,6 +1121,7 @@ static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
         cachetable_remove_pair(ct, p);
         p->state = CTPAIR_INVALID;
         if (p->cq) {
+            workitem_init(&p->asyncwork, NULL, p);
             workqueue_enq(p->cq, &p->asyncwork, 1);
             return r;
         }
@@ -1126,6 +1132,7 @@ static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
         p->size = size;
         ct->size_current += size;
         if (p->cq) {
+            workitem_init(&p->asyncwork, NULL, p);
             workqueue_enq(p->cq, &p->asyncwork, 1);
             return 0;
         }
@@ -1152,7 +1159,7 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p, BOOL remove_me) {
     CACHEFILE cachefile = p->cachefile;
     CACHEKEY key = p->key;
     void *value = p->value;
-    void *extraargs = p->extraargs;
+    void *write_extraargs = p->write_extraargs;
     long size = p->size;
     BOOL dowrite = (BOOL)(p->dirty);
     BOOL for_checkpoint = p->checkpoint_pending;
@@ -1164,7 +1171,7 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p, BOOL remove_me) {
 
     // write callback
     if (toku_cachefile_is_dev_null_unlocked(cachefile)) dowrite = FALSE;
-    flush_callback(cachefile, cachefile->fd, key, value, extraargs, size, dowrite, TRUE, for_checkpoint);
+    flush_callback(cachefile, cachefile->fd, key, value, write_extraargs, size, dowrite, TRUE, for_checkpoint);
 
     cachetable_lock(ct);
     rwlock_read_unlock(&cachefile->fdlock);
@@ -1269,9 +1276,9 @@ static int maybe_flush_some (CACHETABLE ct, long size) {
                 rwlock_write_lock(&curr_in_clock->rwlock, ct->mutex);
                 long size_remaining = (size + ct->size_current) - (ct->size_limit + unattainable_data);
                 void *value = curr_in_clock->value;
-                void *extraargs = curr_in_clock->extraargs;
+                void *write_extraargs = curr_in_clock->write_extraargs;
                 long bytes_freed;
-                curr_in_clock->pe_callback(value, size_remaining, &bytes_freed, extraargs);
+                curr_in_clock->pe_callback(value, size_remaining, &bytes_freed, write_extraargs);
                 assert(bytes_freed <= ct->size_current);
                 assert(bytes_freed <= curr_in_clock->size);
                 ct->size_current -= bytes_freed;
@@ -1315,9 +1322,8 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
                                  u_int32_t fullhash, 
                                  long size,
                                  CACHETABLE_FLUSH_CALLBACK flush_callback,
-                                 CACHETABLE_FETCH_CALLBACK fetch_callback,
                                  CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-                                 void *extraargs, 
+                                 void *write_extraargs, 
                                  enum cachetable_dirty dirty) {
     PAIR MALLOC(p);
     assert(p);
@@ -1331,9 +1337,8 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
     p->size = size;
     p->state = state;
     p->flush_callback = flush_callback;
-    p->fetch_callback = fetch_callback;
     p->pe_callback = pe_callback;
-    p->extraargs = extraargs;
+    p->write_extraargs = write_extraargs;
     p->fullhash = fullhash;
     p->next = p->prev = 0;
     rwlock_init(&p->rwlock);
@@ -1370,9 +1375,8 @@ note_hash_count (int count) {
 
 int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void*value, long size,
 			CACHETABLE_FLUSH_CALLBACK flush_callback, 
-                        CACHETABLE_FETCH_CALLBACK fetch_callback, 
                         CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-                        void *extraargs) {
+                        void *write_extraargs) {
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
     CACHETABLE ct = cachefile->cachetable;
     int count=0;
@@ -1385,7 +1389,6 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
 		// Semantically, these two asserts are not strictly right.  After all, when are two functions eq?
 		// In practice, the functions better be the same.
 		assert(p->flush_callback==flush_callback);
-		assert(p->fetch_callback==fetch_callback);
 		assert(p->pe_callback==pe_callback);
                 rwlock_read_lock(&p->rwlock, ct->mutex);
 		note_hash_count(count);
@@ -1401,7 +1404,19 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
     }
     // flushing could change the table size, but wont' change the fullhash
     cachetable_puts++;
-    PAIR p = cachetable_insert_at(ct, cachefile, key, value, CTPAIR_IDLE, fullhash, size, flush_callback, fetch_callback, pe_callback, extraargs, CACHETABLE_DIRTY);
+    PAIR p = cachetable_insert_at(
+        ct, 
+        cachefile, 
+        key, 
+        value, 
+        CTPAIR_IDLE, 
+        fullhash, 
+        size, 
+        flush_callback, 
+        pe_callback, 
+        write_extraargs, 
+        CACHETABLE_DIRTY
+        );
     assert(p);
     rwlock_read_lock(&p->rwlock, ct->mutex);
     note_hash_count(count);
@@ -1456,11 +1471,21 @@ static CACHEKEY  get_and_pin_key       = {0};
 static u_int32_t get_and_pin_fullhash  = 0;            
 
 
-int toku_cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
-				 CACHETABLE_FLUSH_CALLBACK flush_callback, 
-				 CACHETABLE_FETCH_CALLBACK fetch_callback, 
-                                 CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-				 void *extraargs) {
+int toku_cachetable_get_and_pin (
+    CACHEFILE cachefile, 
+    CACHEKEY key, 
+    u_int32_t fullhash, 
+    void**value, 
+    long *sizep,
+    CACHETABLE_FLUSH_CALLBACK flush_callback, 
+    CACHETABLE_FETCH_CALLBACK fetch_callback, 
+    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+    CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
+    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
+    void* read_extraargs,
+    void* write_extraargs
+    ) 
+{
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
     int count=0;
@@ -1500,29 +1525,53 @@ int toku_cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fu
 		write_pair_for_checkpoint(ct, p, FALSE);
 	    }
 	    // still have the cachetable lock
+
+            //
+            // at this point, we know the node is at least partially in memory,
+            // but we do not know if the user requires a partial fetch (because
+            // some basement node is missing or some message buffer needs
+            // to be decompressed. So, we check to see if a partial fetch is required
+            //
             get_and_pin_footprint = 7;
+            BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
+            //
+            // in this case, a partial fetch is required so we must grab the PAIR's write lock
+            // and then call a callback to retrieve what we need
+            //
+            if (partial_fetch_required) {
+                rwlock_write_lock(&p->rwlock, ct->mutex);
+                if (do_wait_time) {
+                    cachetable_waittime += get_tnow() - t0;
+                }
+	        t0 = get_tnow();
+                long size = 0;
+                int r = pf_callback(p->value, read_extraargs, &size);
+                lazy_assert_zero(r);                
+                cachetable_waittime += get_tnow() - t0;
+                rwlock_write_unlock(&p->rwlock);
+            }
             rwlock_read_lock(&p->rwlock, ct->mutex);
-	    if (do_wait_time)
-		cachetable_waittime += get_tnow() - t0;
-	    get_and_pin_footprint = 8;
+            if (do_wait_time)
+                cachetable_waittime += get_tnow() - t0;
+            get_and_pin_footprint = 8;
             if (p->state == CTPAIR_INVALID) {
-		get_and_pin_footprint = 9;
+                get_and_pin_footprint = 9;
                 rwlock_read_unlock(&p->rwlock);
                 if (rwlock_users(&p->rwlock) == 0)
                     ctpair_destroy(p);
                 cachetable_unlock(ct);
-		get_and_pin_footprint = 1001;
+                get_and_pin_footprint = 1001;
                 return ENODEV;
             }
-	    pair_touch(p);
-	    *value = p->value;
+            pair_touch(p);
+            *value = p->value;
             if (sizep) *sizep = p->size;
             cachetable_hit++;
-	    note_hash_count(count);
+            note_hash_count(count);
             cachetable_unlock(ct);
-	    WHEN_TRACE_CT(printf("%s:%d cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
-	    get_and_pin_footprint = 1000;
-	    return 0;
+            WHEN_TRACE_CT(printf("%s:%d cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
+            get_and_pin_footprint = 1000;
+            return 0;
 	}
     }
     get_and_pin_footprint = 9;
@@ -1530,13 +1579,25 @@ int toku_cachetable_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fu
     int r;
     // Note.  hashit(t,key) may have changed as a result of flushing.  But fullhash won't have changed.
     {
-	p = cachetable_insert_at(ct, cachefile, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, pe_callback, extraargs, CACHETABLE_CLEAN);
+	p = cachetable_insert_at(
+            ct, 
+            cachefile, 
+            key, 
+            zero_value, 
+            CTPAIR_READING, 
+            fullhash, 
+            zero_size, 
+            flush_callback, 
+            pe_callback, 
+            write_extraargs, 
+            CACHETABLE_CLEAN
+            );
         assert(p);
 	get_and_pin_footprint = 10;
         rwlock_write_lock(&p->rwlock, ct->mutex);
 	uint64_t t0 = get_tnow();
 
-        r = cachetable_fetch_pair(ct, cachefile, p);
+        r = cachetable_fetch_pair(ct, cachefile, p, fetch_callback, read_extraargs);
         if (r) {
             cachetable_unlock(ct);
 	    get_and_pin_footprint = 1002;
@@ -1691,12 +1752,21 @@ run_unlockers (UNLOCKERS unlockers) {
     }
 }
 
-int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
-					     CACHETABLE_FLUSH_CALLBACK flush_callback, 
-					     CACHETABLE_FETCH_CALLBACK fetch_callback, 
-                                             CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-					     void *extraargs,
-					     UNLOCKERS unlockers)
+int toku_cachetable_get_and_pin_nonblocking (
+    CACHEFILE cf, 
+    CACHEKEY key, 
+    u_int32_t fullhash, 
+    void**value, 
+    long *sizep,
+    CACHETABLE_FLUSH_CALLBACK flush_callback, 
+    CACHETABLE_FETCH_CALLBACK fetch_callback, 
+    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+    CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
+    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
+    void *read_extraargs,
+    void* write_extraargs,
+    UNLOCKERS unlockers
+    )
 // Effect:  If the block is in the cachetable, then pin it and return it. 
 //   Otherwise call the lock_unlock_callback (to unlock), fetch the data (but don't pin it, since we'll just end up pinning it again later),  and the call (to lock)
 //   and return TOKUDB_TRY_AGAIN.
@@ -1735,13 +1805,32 @@ int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cf, CACHEKEY key, u_int32
 		if (ct->ydb_lock_callback) ct->ydb_lock_callback();
 		return TOKUDB_TRY_AGAIN;
 	    case CTPAIR_IDLE:
-		rwlock_read_lock(&p->rwlock, ct->mutex);
-		pair_touch(p);
-		*value = p->value;
-		if (sizep) *sizep = p->size;
-		cachetable_hit++;
-		cachetable_unlock(ct);
-		return 0;
+                {
+                    BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
+                    //
+                    // in this case, a partial fetch is required so we must grab the PAIR's write lock
+                    // and then call a callback to retrieve what we need
+                    //
+                    if (partial_fetch_required) {
+                        run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
+                        if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
+                        // Now wait for the I/O to occur.
+                        rwlock_write_lock(&p->rwlock, ct->mutex);
+                        long size = 0;
+                        int r = pf_callback(p->value, read_extraargs, &size);
+                        lazy_assert_zero(r);
+                        rwlock_write_unlock(&p->rwlock);
+                        cachetable_unlock(ct);
+                        return TOKUDB_TRY_AGAIN;
+                    }
+                    rwlock_read_lock(&p->rwlock, ct->mutex);
+                    pair_touch(p);
+                    *value = p->value;
+                    if (sizep) *sizep = p->size;
+                    cachetable_hit++;
+                    cachetable_unlock(ct);
+                    return 0;
+	        }
 	    }
 	    assert(0); // cannot get here
 	}
@@ -1749,25 +1838,46 @@ int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cf, CACHEKEY key, u_int32
     assert(p==0);
 
     // Not found
-    p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, pe_callback, extraargs, CACHETABLE_CLEAN);
+    p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, pe_callback, write_extraargs, CACHETABLE_CLEAN);
     assert(p);
     rwlock_write_lock(&p->rwlock, ct->mutex);
     run_unlockers(unlockers); // we hold the ct mutex.
     if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
-    int r = cachetable_fetch_pair(ct, cf, p);
+    int r = cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs);
     cachetable_unlock(ct);
     if (ct->ydb_lock_callback) ct->ydb_lock_callback();
     if (r!=0) return r;
     else return TOKUDB_TRY_AGAIN;
 }
 
+struct cachefile_prefetch_args {
+    PAIR p;
+    CACHETABLE_FETCH_CALLBACK fetch_callback;
+    void* read_extraargs;
+};
+
+//
+// PREFETCHING DOES NOT WORK IN MAXWELL AS OF NOW!
+//
 int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                             CACHETABLE_FLUSH_CALLBACK flush_callback, 
                             CACHETABLE_FETCH_CALLBACK fetch_callback, 
-                            CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
-                            void *extraargs)
+                            CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback,
+                            CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
+                            CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
+                            void *read_extraargs, 
+                            void *write_extraargs)
 // Effect: See the documentation for this function in cachetable.h
 {
+    // TODO: Fix prefetching, as part of ticket 3635
+    // Here is the cachetable's reason why we are not doing prefetching in Maxwell.
+    // The fetch_callback requires data that is only valid in the caller's thread,
+    // namely, a struct that the caller allocates that contains information
+    // on what pieces of the node will be needed. This data is not necessarily 
+    // valid when the prefetch thread gets around to trying to prefetch the node
+    // If we pass this data to another thread, we need a mechanism for freeing it.
+    // It may be another callback. That is way too many callbacks that are being used
+    // Fixing this in a clean, simple way requires some thought.
     if (0) printf("%s:%d %"PRId64"\n", __FUNCTION__, __LINE__, key.b);
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
@@ -1784,10 +1894,14 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
     // if not found then create a pair in the READING state and fetch it
     if (p == 0) {
         cachetable_prefetches++;
-	p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, pe_callback, extraargs, CACHETABLE_CLEAN);
+	p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, pe_callback, write_extraargs, CACHETABLE_CLEAN);
         assert(p);
         rwlock_write_lock(&p->rwlock, ct->mutex);
-        workitem_init(&p->asyncwork, cachetable_reader, p);
+        struct cachefile_prefetch_args *cpargs = toku_xmalloc(sizeof(struct cachefile_prefetch_args));
+        cpargs->p = p;
+        cpargs->fetch_callback = fetch_callback;
+        cpargs->read_extraargs = read_extraargs;
+        workitem_init(&p->asyncwork, cachetable_reader, cpargs);
         workqueue_enq(&ct->wq, &p->asyncwork, 0);
     }
     cachetable_unlock(ct);
@@ -2442,11 +2556,21 @@ static void cachetable_writer(WORKITEM wi) {
 
 // Worker thread function to read a pair from a cachefile to memory
 static void cachetable_reader(WORKITEM wi) {
-    PAIR p = workitem_arg(wi);
-    CACHETABLE ct = p->cachefile->cachetable;
+    struct cachefile_prefetch_args* cpargs = workitem_arg(wi);
+    CACHETABLE ct = cpargs->p->cachefile->cachetable;
     cachetable_lock(ct);
-    cachetable_fetch_pair(ct, p->cachefile, p);
+    // TODO: find a way to properly pass some information for read_extraargs
+    // This is only called in toku_cachefile_prefetch, by putting it on a workqueue
+    // The problem is described in comments in toku_cachefile_prefetch
+    cachetable_fetch_pair(
+        ct, 
+        cpargs->p->cachefile, 
+        cpargs->p, 
+        cpargs->fetch_callback, 
+        cpargs->read_extraargs
+        );
     cachetable_unlock(ct);
+    toku_free(cpargs);
 }
 
 

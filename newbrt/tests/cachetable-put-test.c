@@ -15,20 +15,6 @@ flush (CACHEFILE f __attribute__((__unused__)),
     /* Do nothing */
 }
 
-static int
-fetch (CACHEFILE f        __attribute__((__unused__)),
-       int UU(fd),
-       CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
-       void **value       __attribute__((__unused__)),
-       long *sizep        __attribute__((__unused__)),
-       int  *dirtyp       __attribute__((__unused__)),
-       void *extraargs    __attribute__((__unused__))
-       ) {
-    *dirtyp = 0;
-    return 0;
-}
-
 static int 
 pe_callback (
     void *brtnode_pv __attribute__((__unused__)), 
@@ -57,11 +43,11 @@ cachetable_put_test (int n) {
     for (i=1; i<=n; i++) {
         u_int32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
-        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, 1, flush, fetch, pe_callback, 0);
+        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, 1, flush, pe_callback, 0);
         assert(r == 0);
         assert(toku_cachefile_count_pinned(f1, 0) == i);
 
-        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, 1, flush, fetch, pe_callback, 0);
+        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, 1, flush, pe_callback, 0);
         assert(r == -1);
         assert(toku_cachefile_count_pinned(f1, 0) == i);
         

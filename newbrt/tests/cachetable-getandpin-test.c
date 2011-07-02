@@ -49,6 +49,13 @@ pe_callback (
     *bytes_freed = 0;
     return 0;
 }
+static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
+  return FALSE;
+}
+
+static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), long* UU(sizep)) {
+  assert(FALSE);
+}
 
 
 static void
@@ -69,7 +76,7 @@ cachetable_getandpin_test (int n) {
         u_int32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
         void *v; long size;
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(i), hi, &v, &size, flush, fetch_error, pe_callback, 0);
+        r = toku_cachetable_get_and_pin(f1, make_blocknum(i), hi, &v, &size, flush, fetch_error, pe_callback, pf_req_callback, pf_callback, 0, 0);
         assert(r == -1);
     }
 
@@ -78,7 +85,7 @@ cachetable_getandpin_test (int n) {
         u_int32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
         void *v; long size;
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(i), hi, &v, &size, flush, fetch, pe_callback, 0);
+        r = toku_cachetable_get_and_pin(f1, make_blocknum(i), hi, &v, &size, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0);
         assert(r == 0);
         assert(size == i);
 

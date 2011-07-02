@@ -50,6 +50,14 @@ pe_callback (
     return 0;
 }
 
+static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
+    return FALSE;
+}
+
+static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), long* UU(sizep)) {
+    assert(FALSE);
+}
+
 static uint64_t tdelta_usec(struct timeval *tend, struct timeval *tstart) {
     uint64_t t = tend->tv_sec * 1000000 + tend->tv_usec;
     t -= tstart->tv_sec * 1000000 + tstart->tv_usec;
@@ -72,13 +80,13 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     // prefetch block 0. this will take 10 seconds.
     CACHEKEY key = make_blocknum(0);
     u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
-    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, 0);
+    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0);
     toku_cachetable_verify(ct);
 
     // verify that get_and_pin waits while the prefetch is in progress
     void *v = 0;
     long size = 0;
-    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, flush, fetch, pe_callback, NULL);
+    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, flush, fetch, pe_callback, pf_req_callback, pf_callback, NULL, NULL);
     assert(r == 0 && v == 0 && size == 1);
 
     struct timeval tend; 
