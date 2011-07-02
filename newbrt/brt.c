@@ -2514,6 +2514,10 @@ brtnode_nonleaf_put_cmd_at_root (BRT t, BRTNODE node, BRT_MSG cmd)
     brt_nonleaf_put_cmd(t, node, cmd);
 }
 
+// Effect: applies the cmd to the leaf if the appropriate basement node is in memory.
+//           If the appropriate basement node is not in memory, then nothing gets applied
+//           If the appropriate basement node must be in memory, it is the caller's responsibility to ensure
+//             that it is
 void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, int *made_change) {
     VERIFY_NODE(t, node);
     // ignore messages that have already been applied to this leaf
@@ -2527,25 +2531,29 @@ void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, int *made_change) 
     
     if (brt_msg_applies_once(cmd)) {
 	unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, t);
-	brt_leaf_put_cmd(
-	    t, 
-	    (BASEMENTNODE)node->bp[childnum].ptr, 
-	    &BP_SUBTREE_EST(node, childnum),
-	    cmd, 
-	    made_change
-	    );
+        if (BP_STATE(node,childnum) == PT_AVAIL) {
+            brt_leaf_put_cmd(
+            t, 
+            (BASEMENTNODE)node->bp[childnum].ptr, 
+            &BP_SUBTREE_EST(node, childnum),
+            cmd, 
+            made_change
+            );
+        }
     }
     else if (brt_msg_applies_all(cmd)) {
 	int bn_made_change = 0;
 	for (int childnum=0; childnum<node->n_children; childnum++) {
-	    brt_leaf_put_cmd(
-		t, 
-		(BASEMENTNODE)node->bp[childnum].ptr, 
-                &BP_SUBTREE_EST(node,childnum),
-		cmd, 
-		&bn_made_change
-		);
-	    if (bn_made_change) *made_change = 1;
+            if (BP_STATE(node,childnum) == PT_AVAIL) {
+                brt_leaf_put_cmd(
+                    t, 
+                    (BASEMENTNODE)node->bp[childnum].ptr, 
+                    &BP_SUBTREE_EST(node,childnum),
+                    cmd, 
+                    &bn_made_change
+                    );
+                if (bn_made_change) *made_change = 1;
+            }
 	}
     }
     else if (!brt_msg_does_nothing(cmd)) {
