@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,6 +93,8 @@ ssize_t vio_pending(Vio *vio);
 my_bool vio_get_normalized_ip_string(const struct sockaddr *addr, int addr_length,
                                      char *ip_string, size_t ip_string_size);
 
+my_bool vio_is_no_name_error(int err_code);
+
 int vio_getnameinfo(const struct sockaddr *sa,
                     char *hostname, size_t hostname_size,
                     char *port, size_t port_size,
@@ -132,13 +134,13 @@ struct st_VioSSLFd
   SSL_CTX *ssl_context;
 };
 
-int sslaccept(struct st_VioSSLFd*, Vio *, long timeout, char *error_string);
-int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, char *error_string);
+int sslaccept(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr);
+int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr);
 
 struct st_VioSSLFd
 *new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
 		       const char *ca_file,  const char *ca_path,
-		       const char *cipher);
+		       const char *cipher, enum enum_ssl_init_error* error);
 struct st_VioSSLFd
 *new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
 		      const char *ca_file,const char *ca_path,

@@ -71,3 +71,4 @@ connection master;
 drop table t2;
 sync_slave_with_master;
 remove_file $MYSQLTEST_VARDIR/tmp/bug30435_5k.txt;
+--source include/rpl_end.inc

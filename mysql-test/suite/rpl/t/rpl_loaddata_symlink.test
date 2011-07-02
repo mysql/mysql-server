@@ -19,3 +19,4 @@ connection master;
 drop table t1;
 sync_slave_with_master;
 
+--source include/rpl_end.inc

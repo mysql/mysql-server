@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,20 +130,6 @@ void Item_subselect::cleanup()
   value_assigned= 0;
   expr_cache= 0;
   DBUG_VOID_RETURN;
-}
-
-
-/*
-   We cannot use generic Item::safe_charset_converter() because
-   Subselect transformation does not happen in view_prepare_mode
-   and thus we can not evaluate val_...() for const items.
-*/
-
-Item *Item_subselect::safe_charset_converter(CHARSET_INFO *tocs)
-{
-  Item_func_conv_charset *conv=
-    new Item_func_conv_charset(this, tocs, thd->lex->view_prepare_mode ? 0 : 1);
-  return conv->safe ? conv : NULL;
 }
 
 
@@ -471,29 +457,31 @@ bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
 
 bool Item_subselect::exec()
 {
-  int res;
+  DBUG_ENTER("Item_subselect::exec");
 
   /*
     Do not execute subselect in case of a fatal error
     or if the query has been killed.
   */
   if (thd->is_error() || thd->killed)
-    return 1;
+    DBUG_RETURN(true);
 
+  DBUG_ASSERT(!thd->lex->context_analysis_only);
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.
   */
-  DBUG_EXECUTE_IF("subselect_exec_fail", return 1;);
+  DBUG_EXECUTE_IF("subselect_exec_fail", DBUG_RETURN(true););
 
-  res= engine->exec();
+  bool res= engine->exec();
 
   if (engine_changed)
   {
     engine_changed= 0;
-    return exec();
+    res= exec();
+    DBUG_RETURN(res);
   }
-  return (res);
+  DBUG_RETURN(res);
 }
 
 
@@ -607,7 +595,7 @@ table_map Item_subselect::used_tables() const
 
 bool Item_subselect::const_item() const
 {
-  return const_item_cache;
+  return thd->lex->context_analysis_only ? FALSE : const_item_cache;
 }
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
@@ -1563,6 +1551,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
     select_lex->having= join->having= and_items(join->having, item);
     if (join->having == item)
       item->name= (char*)in_having_cond;
+    select_lex->having->top_level_item();
     select_lex->having_fix_field= 1;
     /*
       we do not check join->having->fixed, because Item_and (from and_items)
@@ -2178,7 +2167,8 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
     }
   }
 
-  if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed &&
+  if ((thd_arg->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
+      left_expr && !left_expr->fixed &&
       left_expr->fix_fields(thd_arg, &left_expr))
     return TRUE;
   if (Item_subselect::fix_fields(thd_arg, ref))
@@ -2647,21 +2637,26 @@ int subselect_single_select_engine::exec()
       DBUG_RETURN(join->error ? join->error : 1);
     }
     if (!select_lex->uncacheable && thd->lex->describe && 
-        !(join->select_options & SELECT_DESCRIBE) && 
-        join->need_tmp)
+        !(join->select_options & SELECT_DESCRIBE))
     {
       item->update_used_tables();
       if (item->const_item())
       {
+        /*
+          It's necessary to keep original JOIN table because
+          create_sort_index() function may overwrite original
+          JOIN_TAB::type and wrong optimization method can be
+          selected on re-execution.
+        */
+        select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
+        select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
         /*
           Force join->join_tmp creation, because this subquery will be replaced
           by a simple select from the materialization temp table by optimize()
           called by EXPLAIN and we need to preserve the initial query structure
           so we can display it.
         */
-        select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
-        select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
-        if (join->init_save_join_tab())
+        if (join->need_tmp && join->init_save_join_tab())
           DBUG_RETURN(1);                        /* purecov: inspected */
       }
     }

@@ -1,7 +1,7 @@
 #ifndef ITEM_GEOFUNC_INCLUDED
 #define ITEM_GEOFUNC_INCLUDED
 
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -181,6 +181,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   {
+    Item_geometry_func::fix_length_and_dec();
     for (unsigned int i= 0; i < arg_count; ++i)
     {
       if (args[i]->fixed && args[i]->field_type() != MYSQL_TYPE_GEOMETRY)

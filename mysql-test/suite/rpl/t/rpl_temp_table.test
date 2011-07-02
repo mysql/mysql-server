@@ -64,3 +64,6 @@ connect (master2,localhost,root,,);
 connection master2;
 drop table if exists t1,t2;
 sync_slave_with_master;
+
+
+--source include/rpl_end.inc

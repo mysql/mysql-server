@@ -12,12 +12,6 @@ connection master;
 # we disable the ps-protocol for this statement.
 --disable_ps_protocol
 
---disable_query_log
---disable_warnings
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
---enable_warnings
---enable_query_log
-
 # Set the default storage engine to different values on master and
 # slave. We need to stop the slave for the server variable to take
 # effect, since the variable is only read on start-up.
@@ -31,7 +25,7 @@ START SLAVE;
 --source include/wait_for_slave_to_start.inc
 --enable_query_log
 
---source include/reset_master_and_slave.inc
+--source include/rpl_reset.inc
 
 connection master;
 CREATE TABLE t1 (a INT, b INT);
@@ -67,7 +61,7 @@ SELECT * FROM t5 ORDER BY a,b,c;
 --query_vertical SHOW CREATE TABLE t6
 SELECT * FROM t6 ORDER BY a,b,c;
 
---source include/reset_master_and_slave.inc
+--source include/rpl_reset.inc
 
 connection master;
 # Test for erroneous constructions
@@ -86,7 +80,7 @@ SELECT * FROM t7 ORDER BY a,b;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
 
---source include/reset_master_and_slave.inc
+--source include/rpl_reset.inc
 
 connection master;
 CREATE TEMPORARY TABLE tt4 (a INT, b INT);
@@ -99,7 +93,7 @@ SELECT * FROM t7 ORDER BY a,b;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
 
---source include/reset_master_and_slave.inc
+--source include/rpl_reset.inc
 
 connection master;
 CREATE TABLE t8 LIKE t4;
@@ -131,7 +125,7 @@ START SLAVE;
 # table' from log):
 --echo ================ BUG#22864 ================
 
---source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 
 connection master;
 SET AUTOCOMMIT=0;
@@ -168,17 +162,7 @@ SET AUTOCOMMIT=1;
 sync_slave_with_master;
 
 # Some tests with temporary tables
-connection slave;
-STOP SLAVE;
---source include/wait_for_slave_to_stop.inc
-RESET SLAVE;
-
-connection master;
-RESET MASTER;
-
-connection slave;
-START SLAVE;
---source include/wait_for_slave_to_start.inc
+--source include/rpl_reset.inc
 
 connection master;
 CREATE TABLE t1 (a INT);
@@ -204,7 +188,7 @@ connection master;
 TRUNCATE TABLE t2;
 sync_slave_with_master;
 
---source include/reset_master_and_slave.inc
+--source include/rpl_reset.inc
 
 connection master;
 BEGIN;
@@ -253,7 +237,7 @@ sync_slave_with_master;
 # BUG#34707: Row based replication: slave creates table within wrong database
 #
 
-source include/master-slave-reset.inc;
+--source include/rpl_reset.inc
 
 connection master;
 --disable_warnings
@@ -275,7 +259,7 @@ sync_slave_with_master;
 # <tmp_tbl> with RBL
 #
 
-source include/master-slave-reset.inc;
+--source include/rpl_reset.inc
 
 connection master;
 CREATE TEMPORARY TABLE t7(c1 INT);
@@ -305,5 +289,7 @@ DROP VIEW IF EXISTS bug48506_t1, bug48506_t2, bug48506_t3;
 DROP TEMPORARY TABLES t7;
 DROP TABLES t4, t5;
 DROP TABLES IF EXISTS bug48506_t4;
-source include/master-slave-end.inc;
+
+--source include/rpl_end.inc
+
 --echo end of the tests

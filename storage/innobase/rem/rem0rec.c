@@ -1174,7 +1174,7 @@ rec_convert_dtuple_to_rec_comp(
 		} else if (dfield_is_ext(field)) {
 			ut_ad(ifield->col->len >= 256
 			      || ifield->col->mtype == DATA_BLOB);
-			ut_ad(len <= REC_MAX_INDEX_COL_LEN
+			ut_ad(len <= REC_ANTELOPE_MAX_INDEX_COL_LEN
 			      + BTR_EXTERN_FIELD_REF_SIZE);
 			*lens-- = (byte) (len >> 8) | 0xc0;
 			*lens-- = (byte) len;
@@ -1749,9 +1749,9 @@ UNIV_INTERN
 void
 rec_print(
 /*======*/
-	FILE*		file,	/*!< in: file where to print */
-	const rec_t*	rec,	/*!< in: physical record */
-	dict_index_t*	index)	/*!< in: record descriptor */
+	FILE*			file,	/*!< in: file where to print */
+	const rec_t*		rec,	/*!< in: physical record */
+	const dict_index_t*	index)	/*!< in: record descriptor */
 {
 	ut_ad(index);
 

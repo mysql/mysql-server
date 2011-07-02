@@ -1,0 +1,9 @@
+rpl.rpl_semi_sync_event : lsoares 2011-02-11 BUG#11769332 Anitha asked me to disable this until plugin issues on windows are fixed.
+rpl.rpl_semi_sync : lsoares 2011-02-11 BUG#11769332 Anitha asked me to disable this until plugin issues on windows are fixed.
+sys_vars.rpl_semi_sync_master_enabled_basic : lsoares 2011-02-11 BUG#11769332 Anitha asked me to disable this until plugin issues on windows are fixed.
+sys_vars.rpl_semi_sync_master_timeout_basic : lsoares 2011-02-11 BUG#11769332 Anitha asked me to disable this until plugin issues on windows are fixed.
+sys_vars.rpl_semi_sync_master_trace_level_basic : lsoares 2011-02-11 BUG#11769332 Anitha asked me to disable this until plugin issues on windows are fixed.
+sys_vars.rpl_semi_sync_master_wait_no_slave_basic : lsoares 2011-02-11 BUG#11769332 Anitha asked me to disable this until plugin issues on windows are fixed.
+sys_vars.rpl_semi_sync_slave_enabled_basic : lsoares 2011-02-11 BUG#11769332 Anitha asked me to disable this until plugin issues on windows are fixed.
+sys_vars.rpl_semi_sync_slave_trace_level_basic : lsoares 2011-02-11 BUG#11769332 Anitha asked me to disable this until plugin issues on windows are fixed.
+sys_vars.all_vars : lsoares 2011-02-11 BUG#11769332 Anitha asked me to disable this until plugin issues on windows are fixed.

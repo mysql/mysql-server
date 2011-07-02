@@ -6,16 +6,34 @@
 # Please use this instead of 'START SLAVE', to reduce the risk of test
 # case bugs.
 #
+#
 # ==== Usage ====
 #
-# source include/wait_for_slave_to_start.inc;
+# [--let $slave_timeout= NUMBER]
+# [--let $rpl_debug= 1]
+# --source include/start_slave.inc
 #
-# Parameters to this macro are $slave_timeout and
-# $master_connection. See wait_for_slave_param.inc for
-# descriptions.
+# Parameters:
+#   $slave_timeout
+#     See include/wait_for_slave_param.inc
+#
+#   $rpl_debug
+#     See include/rpl_init.inc
 
---disable_query_log
+
+--let $include_filename= start_slave.inc
+--source include/begin_include_file.inc
+
+
+if (!$rpl_debug)
+{
+  --disable_query_log
+}
+
+
 START SLAVE;
---enable_query_log
---echo include/start_slave.inc
 source include/wait_for_slave_to_start.inc;
+
+
+--let $include_filename= start_slave.inc
+--source include/end_include_file.inc

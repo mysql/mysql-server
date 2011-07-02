@@ -14,14 +14,22 @@ connection slave;
 sync_with_master;
 connection master;
 
+--disable_query_log
+CALL mtr.add_suppression(" Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
 create table t2(n int);
 create temporary table t1 (n int);
 insert into t1 values(1),(2),(3);
+--disable_warnings
 insert into t2 select * from t1;
+--enable_warnings
 connection master1;
 create temporary table t1 (n int);
 insert into t1 values (4),(5);
+--disable_warnings
 insert into t2 select * from t1 as t10;
+--enable_warnings
 save_master_pos;
 disconnect master;
 connection slave;

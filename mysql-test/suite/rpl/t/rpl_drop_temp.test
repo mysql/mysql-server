@@ -71,9 +71,8 @@ sync_slave_with_master;
 # BUG#54842: DROP TEMPORARY TABLE not binlogged after manual switching binlog format to ROW
 #
 
--- connection master
--- source include/master-slave-reset.inc
--- connection master
+--source include/rpl_reset.inc
+--connection master
 
 CREATE TABLE t1 ( i INT );
 --sync_slave_with_master
@@ -95,3 +94,4 @@ SHOW STATUS LIKE 'Slave_open_temp_tables';
 DROP TABLE t1;
 
 # End of 4.1 tests
+--source include/rpl_end.inc

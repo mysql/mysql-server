@@ -10,12 +10,12 @@
 #   # at this point, get_relay_log_pos.inc sets $relay_log_pos. echo position
 #   # in $relay_log_file: $relay_log_pos. 
 
-if (`SELECT '$relay_log_file' = ''`)
+if (!$relay_log_file)
 {
   --die 'variable $relay_log_file is null'
 }
 
-if (`SELECT '$master_log_pos' = ''`)
+if (!$master_log_pos)
 {
   --die 'variable $master_log_pos is null'
 }

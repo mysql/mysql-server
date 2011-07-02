@@ -44,4 +44,5 @@ FLUSH LOGS;
 --echo # Connection master
 connection master;
 DROP TABLE nt;
---source include/master-slave-end.inc
+
+--source include/rpl_end.inc

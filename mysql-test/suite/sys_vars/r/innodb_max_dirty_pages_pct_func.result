@@ -64,12 +64,12 @@ SET last = pct;
 END IF;
 END WHILE;
 END//
-CREATE PROCEDURE check_pct(IN num DECIMAL)
+CREATE PROCEDURE check_pct(IN success_on_wait BOOLEAN)
 BEGIN
-IF (dirty_pct() < num) THEN
+IF (success_on_wait > 0) THEN
 SELECT 'BELOW_MAX' AS PCT_VALUE;
 ELSE
-SELECT 'ABOVE_MAX' AS PCT_VALUE;
+SELECT 'ABOVE_MAX or TimeOut Of The Test' AS PCT_VALUE;
 END IF;
 END//
 CREATE TABLE t1(
@@ -83,7 +83,7 @@ CALL add_until(10);
 FLUSH TABLES;
 CALL add_records(500);
 'We expect dirty pages pct to be BELOW_MAX after some time depending on performance'
-CALL check_pct(10);
+CALL check_pct(1);
 PCT_VALUE
 BELOW_MAX
 DROP PROCEDURE add_records;

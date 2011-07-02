@@ -94,6 +94,25 @@ ib_vector_get(
 	ulint		n);	/*!< in: element index to get */
 
 /****************************************************************//**
+Get last element. The vector must not be empty.
+@return	last element */
+UNIV_INLINE
+void*
+ib_vector_get_last(
+/*===============*/
+	ib_vector_t*	vec);	/*!< in: vector */
+
+/****************************************************************//**
+Set the n'th element. */
+UNIV_INLINE
+void
+ib_vector_set(
+/*==========*/
+	ib_vector_t*	vec,	/*!< in/out: vector */
+	ulint		n,	/*!< in: element index to set */
+	void*		elem);	/*!< in: data element */
+
+/****************************************************************//**
 Remove the last element from the vector. */
 UNIV_INLINE
 void*

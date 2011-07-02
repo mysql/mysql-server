@@ -33,16 +33,23 @@ MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
                                       int allocate_lex_string);
 #include <mysql/service_thd_wait.h>
 typedef enum _thd_wait_type_e {
-  THD_WAIT_MUTEX= 1,
+  THD_WAIT_SLEEP= 1,
   THD_WAIT_DISKIO= 2,
-  THD_WAIT_ROW_TABLE_LOCK= 3,
-  THD_WAIT_GLOBAL_LOCK= 4
+  THD_WAIT_ROW_LOCK= 3,
+  THD_WAIT_GLOBAL_LOCK= 4,
+  THD_WAIT_META_DATA_LOCK= 5,
+  THD_WAIT_TABLE_LOCK= 6,
+  THD_WAIT_USER_LOCK= 7,
+  THD_WAIT_BINLOG= 8,
+  THD_WAIT_GROUP_COMMIT= 9,
+  THD_WAIT_SYNC= 10,
+  THD_WAIT_LAST= 11
 } thd_wait_type;
 extern struct thd_wait_service_st {
-  void (*thd_wait_begin_func)(void*, thd_wait_type);
+  void (*thd_wait_begin_func)(void*, int);
   void (*thd_wait_end_func)(void*);
 } *thd_wait_service;
-void thd_wait_begin(void* thd, thd_wait_type wait_type);
+void thd_wait_begin(void* thd, int wait_type);
 void thd_wait_end(void* thd);
 #include <mysql/service_thread_scheduler.h>
 struct scheduler_functions;
@@ -205,13 +212,8 @@ void mysql_query_cache_invalidate4(void* thd,
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
-struct mysql_event
-{
-  unsigned int event_class;
-};
 struct mysql_event_general
 {
-  unsigned int event_class;
   unsigned int event_subclass;
   int general_error_code;
   unsigned long general_thread_id;
@@ -225,10 +227,30 @@ struct mysql_event_general
   unsigned long long general_time;
   unsigned long long general_rows;
 };
+struct mysql_event_connection
+{
+  unsigned int event_subclass;
+  int status;
+  unsigned long thread_id;
+  const char *user;
+  unsigned int user_length;
+  const char *priv_user;
+  unsigned int priv_user_length;
+  const char *external_user;
+  unsigned int external_user_length;
+  const char *proxy_user;
+  unsigned int proxy_user_length;
+  const char *host;
+  unsigned int host_length;
+  const char *ip;
+  unsigned int ip_length;
+  const char *database;
+  unsigned int database_length;
+};
 struct st_mysql_audit
 {
   int interface_version;
   void (*release_thd)(void*);
-  void (*event_notify)(void*, const struct mysql_event *);
+  void (*event_notify)(void*, unsigned int, const void *);
   unsigned long class_mask[1];
 };

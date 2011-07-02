@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
@@ -51,3 +47,4 @@ SELECT length(data) < 100 FROM t1;
 length(data) < 100
 1
 drop table t1;
+include/rpl_end.inc

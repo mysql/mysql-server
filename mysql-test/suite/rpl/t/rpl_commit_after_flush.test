@@ -1,12 +1,6 @@
-#####################################
-# Wrapper for rpl_commit_after_flush#
-#####################################
-########################################################
-# By JBM 2005-02-15 Wrapped to allow reuse of test code#
-# Added to skip if ndb is default                      #
-########################################################
 -- source include/not_ndb_default.inc
 -- source include/have_innodb.inc
 -- source include/master-slave.inc
 let $engine_type=innodb;
 -- source extra/rpl_tests/rpl_commit_after_flush.test
+--source include/rpl_end.inc

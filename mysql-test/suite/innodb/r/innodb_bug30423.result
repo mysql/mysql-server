@@ -1,0 +1,95 @@
+set global innodb_stats_method = default;
+select @@innodb_stats_method;
+@@innodb_stats_method
+nulls_equal
+select count(*) from bug30243_3 where org_id is not NULL;
+count(*)
+20
+select count(*) from bug30243_3 where org_id is NULL;
+count(*)
+16384
+select count(*) from bug30243_2 where org_id is not NULL;
+count(*)
+224
+select count(*) from bug30243_2 where org_id is NULL;
+count(*)
+65536
+select @@innodb_stats_method;
+@@innodb_stats_method
+nulls_equal
+analyze table bug30243_1;
+Table	Op	Msg_type	Msg_text
+test.bug30243_1	analyze	status	OK
+analyze table bug30243_2;
+Table	Op	Msg_type	Msg_text
+test.bug30243_2	analyze	status	OK
+analyze table bug30243_3;
+Table	Op	Msg_type	Msg_text
+test.bug30243_3	analyze	status	OK
+set global innodb_stats_method = "NULL";
+ERROR 42000: Variable 'innodb_stats_method' can't be set to the value of 'NULL'
+set global innodb_stats_method = "nulls_ignored";
+select @@innodb_stats_method;
+@@innodb_stats_method
+nulls_ignored
+analyze table bug30243_1;
+Table	Op	Msg_type	Msg_text
+test.bug30243_1	analyze	status	OK
+analyze table bug30243_2;
+Table	Op	Msg_type	Msg_text
+test.bug30243_2	analyze	status	OK
+analyze table bug30243_3;
+Table	Op	Msg_type	Msg_text
+test.bug30243_3	analyze	status	OK
+explain SELECT COUNT(*), 0
+FROM bug30243_1 orgs
+LEFT JOIN bug30243_3 sa_opportunities
+ON orgs.org_id=sa_opportunities.org_id
+LEFT JOIN bug30243_2 contacts
+ON orgs.org_id=contacts.org_id ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	orgs	index	NULL	org_id	4	NULL	128	Using index
+1	SIMPLE	sa_opportunities	ref	org_id	org_id	5	test.orgs.org_id	1	Using index
+1	SIMPLE	contacts	ref	contacts$org_id	contacts$org_id	5	test.orgs.org_id	1	Using index
+select @@innodb_stats_method;
+@@innodb_stats_method
+nulls_ignored
+set global innodb_stats_method = "nulls_unequal";
+select @@innodb_stats_method;
+@@innodb_stats_method
+nulls_unequal
+analyze table bug30243_1;
+Table	Op	Msg_type	Msg_text
+test.bug30243_1	analyze	status	OK
+analyze table bug30243_2;
+Table	Op	Msg_type	Msg_text
+test.bug30243_2	analyze	status	OK
+analyze table bug30243_3;
+Table	Op	Msg_type	Msg_text
+test.bug30243_3	analyze	status	OK
+explain SELECT COUNT(*), 0
+FROM bug30243_1 orgs
+LEFT JOIN bug30243_3 sa_opportunities
+ON orgs.org_id=sa_opportunities.org_id
+LEFT JOIN bug30243_2 contacts
+ON orgs.org_id=contacts.org_id;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	orgs	index	NULL	org_id	4	NULL	128	Using index
+1	SIMPLE	sa_opportunities	ref	org_id	org_id	5	test.orgs.org_id	1	Using index
+1	SIMPLE	contacts	ref	contacts$org_id	contacts$org_id	5	test.orgs.org_id	1	Using index
+SELECT COUNT(*) FROM table_bug30423 WHERE org_id IS NULL;
+COUNT(*)
+1024
+set global innodb_stats_method = "nulls_unequal";
+analyze table table_bug30423;
+Table	Op	Msg_type	Msg_text
+test.table_bug30423	analyze	status	OK
+set global innodb_stats_method = "nulls_ignored";
+analyze table table_bug30423;
+Table	Op	Msg_type	Msg_text
+test.table_bug30423	analyze	status	OK
+set global innodb_stats_method = nulls_equal;
+drop table bug30243_2;
+drop table bug30243_1;
+drop table bug30243_3;
+drop table table_bug30423;

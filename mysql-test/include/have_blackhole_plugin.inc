@@ -2,4 +2,3 @@ if (`select plugin_library IS NULL from information_schema.plugins where plugin_
 {
   --skip blackhole plugin not available;
 }
-

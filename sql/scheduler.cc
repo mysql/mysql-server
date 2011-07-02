@@ -46,18 +46,32 @@ static bool no_threads_end(THD *thd, bool put_in_cache)
 */
 
 /**@{*/
-static void scheduler_wait_begin(void) {
+extern "C"
+{
+static void scheduler_wait_lock_begin(void) {
   THD *thd=current_thd;
   scheduler_functions *func= thd->scheduler;
-  MYSQL_CALLBACK(func,
-                 thd_wait_begin, (thd, THD_WAIT_ROW_TABLE_LOCK));
+  MYSQL_CALLBACK(func, thd_wait_begin, (thd, THD_WAIT_ROW_TABLE_LOCK));
 }
 
-static void scheduler_wait_end(void) {
+static void scheduler_wait_lock_end(void) {
   THD *thd=current_thd;
   scheduler_functions *func= thd->scheduler;
   MYSQL_CALLBACK(func, thd_wait_end, (thd));
 }
+
+static void scheduler_wait_sync_begin(void) {
+  THD *thd=current_thd;
+  scheduler_functions *func= thd->scheduler;
+  MYSQL_CALLBACK(func, thd_wait_begin, (thd, THD_WAIT_TABLE_LOCK));
+}
+
+static void scheduler_wait_sync_end(void) {
+  THD *thd=current_thd;
+  scheduler_functions *func= thd->scheduler;
+  MYSQL_CALLBACK(func, thd_wait_end, (thd));
+}
+};
 /**@}*/
 
 /**
@@ -68,7 +82,10 @@ static void scheduler_wait_end(void) {
   mysqld.cc, so this init function will always be called.
  */
 static void scheduler_init() {
-  thr_set_lock_wait_callback(scheduler_wait_begin, scheduler_wait_end);
+  thr_set_lock_wait_callback(scheduler_wait_lock_begin,
+                             scheduler_wait_lock_end);
+  thr_set_sync_wait_callback(scheduler_wait_sync_begin,
+                             scheduler_wait_sync_end);
 }
 
 /*
@@ -119,10 +136,6 @@ void one_thread_scheduler(scheduler_functions *func)
 thd_scheduler::thd_scheduler()
   : m_psi(NULL), logged_in(FALSE), io_event(NULL), thread_attached(FALSE)
 {
-#ifndef DBUG_OFF
-  dbug_explain[0]= '\0';
-  set_explain= FALSE;
-#endif
 }
 
 

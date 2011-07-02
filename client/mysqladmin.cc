@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,12 +17,11 @@
 
 #include "client_priv.h"
 #include <signal.h>
-#ifdef THREAD
 #include <my_pthread.h>				/* because of signal()	*/
-#endif
 #include <sys/stat.h>
 #include <mysql.h>
 #include <sql_common.h>
+#include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #define ADMIN_VERSION "9.0"
 #define MAX_MYSQL_VAR 512
@@ -43,6 +42,7 @@ static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations;
 static uint opt_count_iterations= 0, my_end_arg;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static char * unix_port=0;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -211,6 +211,13 @@ static struct my_option my_long_options[] =
   {"shutdown_timeout", OPT_SHUTDOWN_TIMEOUT, "", &opt_shutdown_timeout,
    &opt_shutdown_timeout, 0, GET_ULONG, REQUIRED_ARG,
    SHUTDOWN_DEF_TIMEOUT, 0, 3600*12, 0, 1, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+    &opt_plugin_dir, &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_DEFAULT_AUTH,
+   "Default authentication client-side plugin to use.",
+   &opt_default_auth, &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -347,6 +354,12 @@ int main(int argc,char *argv[])
   mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   error_flags= (myf)(opt_nobeep ? 0 : ME_BELL);
 
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(&mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
   if (sql_connect(&mysql, option_wait))
   {
     /*
@@ -362,7 +375,8 @@ int main(int argc,char *argv[])
       /* Return 0 if all commands are PING */
       for (; argc > 0; argv++, argc--)
       {
-        if (find_type(argv[0], &command_typelib, 2) != ADMIN_PING)
+        if (find_type(argv[0], &command_typelib, FIND_TYPE_BASIC) !=
+            ADMIN_PING)
         {
           error= 1;
           break;
@@ -406,6 +420,9 @@ int main(int argc,char *argv[])
 
       if (interval)                             /* --sleep=interval given */
       {
+        if (opt_count_iterations && --nr_iterations == 0)
+          break;
+
         /*
           If connection was dropped (unintentionally, or due to SHUTDOWN),
           re-establish it if --wait ("retry-connect") was given and user
@@ -583,7 +600,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
   for (; argc > 0 ; argv++,argc--)
   {
     int command;
-    switch ((command= find_type(argv[0],&command_typelib,2))) {
+    switch ((command= find_type(argv[0],&command_typelib,FIND_TYPE_BASIC))) {
     case ADMIN_CREATE:
     {
       char buff[FN_REFLEN+20];
@@ -681,9 +698,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_VER:
       new_line=1;
       print_version();
-      puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc,\n"
-           "2009 Monty Program Ab");
-      puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
+      puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
       printf("Server version\t\t%s\n", mysql_get_server_info(mysql));
       printf("Protocol version\t%d\n", mysql_get_proto_info(mysql));
       printf("Connection\t\t%s\n",mysql_get_host_info(mysql));
@@ -1001,7 +1016,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 
       if (typed_password[0])
       {
-        bool old= (find_type(argv[0], &command_typelib, 2) ==
+        bool old= (find_type(argv[0], &command_typelib, FIND_TYPE_BASIC) ==
                    ADMIN_OLD_PASSWORD);
 #ifdef __WIN__
         size_t pw_len= strlen(typed_password);
@@ -1155,9 +1170,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc,\n"
-       "2009 Monty Program Ab");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
   puts("Administration program for the mysqld daemon.");
   printf("Usage: %s [OPTIONS] command command....\n", my_progname);
   my_print_help(my_long_options);

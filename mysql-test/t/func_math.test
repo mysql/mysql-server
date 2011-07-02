@@ -316,6 +316,14 @@ SELECT RAND(i) FROM t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#57477 SIGFPE when dividing a huge number a negative number
+--echo #
+--error ER_DATA_OUT_OF_RANGE
+SELECT -9999999999999999991 DIV -1;
+--error ER_DATA_OUT_OF_RANGE
+SELECT -9223372036854775808 DIV -1;
+SELECT -9223372036854775808 MOD -1;
+SELECT -9223372036854775808999 MOD -1;
 
 #
 # Bug #8457: Precision math:
@@ -327,6 +335,46 @@ select 123456789012345678901234567890.123456789012345678901234567890 div 1 as x;
 --error ER_DATA_OUT_OF_RANGE
 select "123456789012345678901234567890.123456789012345678901234567890" div 1 as x; 
 SHOW WARNINGS;
+
+--echo #
+--echo # Bug#57810 case/when/then : Assertion failed: length || !scale
+--echo #
+
+SELECT CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1)) END;
+CREATE TABLE t1 SELECT CAST((CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1)) END) AS CHAR) as C;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#11764994  57900: CREATE TABLE .. SELECT ASSERTS SCALE >= 0 && PRECISION > 0 && SCALE <= PR
+--echo #
+
+CREATE TABLE t1 SELECT CEIL(LINESTRINGFROMWKB(1) DIV NULL);
+DROP TABLE t1;
+CREATE TABLE t1 SELECT FLOOR(LINESTRINGFROMWKB(1) DIV NULL);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#11765923  58937: MANY VALGRIND ERRORS AFTER GROUPING BY RESULT OF DECIMAL COLUMN FUNCTION
+--echo #
+
+CREATE TABLE t1(f1 DECIMAL(22,1));
+INSERT INTO t1 VALUES (0),(1);
+SELECT ROUND(f1, f1) FROM t1;
+SELECT ROUND(f1, f1) FROM t1 GROUP BY 1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#11764671  57533: UNINITIALISED VALUES IN COPY_AND_CONVERT (SQL_STRING.CC) WITH CERTAIN CHA
+--echo #
+
+SELECT ROUND(LEAST(15, -4939092, 0.2704), STDDEV('a'));
+
+--echo #
+--echo # Bug#12392636  ASSERTION FAILED: SCALE >= 0 && PRECISION > 0 && SCALE <= PRECISION
+--echo #
+
+SELECT SUM(DISTINCT (TRUNCATE((.1), NULL)));
 
 --echo End of 5.1 tests
 
@@ -458,3 +506,33 @@ SELECT 2 DIV -2;
 SELECT -(1 DIV 0);
 # Crashed the server with SIGFPE before the bugfix
 SELECT -9223372036854775808 MOD -1;
+
+--echo #
+--echo # Bug #57209 valgrind + Assertion failed: dst > buf 
+--echo #
+SELECT floor(log10(format(concat_ws(5445796E25, 5306463, 30837), -358821)))
+as foo;
+
+--echo #
+--echo # Bug #58137 char(0) column cause:
+--echo #            my_gcvt: Assertion `width > 0 && to != ((void *)0)' failed
+--echo #
+CREATE TABLE t1(a char(0));
+INSERT INTO t1 (SELECT -pi());
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #59241 invalid memory read
+--echo #            in do_div_mod with doubly assigned variables
+--echo #
+SELECT ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')));
+
+--echo #
+--echo # Bug #59498 div function broken in mysql-trunk
+--echo #
+SELECT 1 div null;
+
+--echo #
+--echo # Bug #11792200 - DIVIDING LARGE NUMBERS CAUSES STACK CORRUPTIONS
+--echo #
+select (1.175494351E-37 div 1.7976931348623157E+308);

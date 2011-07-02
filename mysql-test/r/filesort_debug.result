@@ -1,0 +1,33 @@
+SET @old_debug= @@session.debug;
+#
+# Bug#36022 please log more information about "Sort aborted" queries
+#
+CREATE TABLE t1(f0 int auto_increment primary key, f1 int);
+INSERT INTO t1(f1) VALUES (0),(1),(2),(3),(4),(5);
+SET session debug= '+d,make_char_array_fail';
+CALL mtr.add_suppression("Out of sort memory");
+SELECT * FROM t1 ORDER BY f1 ASC, f0;
+ERROR HY001: Out of sort memory, consider increasing server sort buffer size
+SET session debug= @old_debug;
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+DELETE FROM t1 ORDER BY (f1(10)) LIMIT 1;
+ERROR 42000: Incorrect number of arguments for FUNCTION test.f1; expected 0, got 1
+DROP TABLE t1;
+DROP FUNCTION f1;
+#
+# Bug #11747102
+# 30771: LOG MORE INFO ABOUT THREADS KILL'D AND SORT ABORTED MESSAGES
+#
+# connection 1
+CREATE TABLE t1(f0 int auto_increment primary key, f1 int);
+INSERT INTO t1(f1) VALUES (0),(1),(2),(3),(4),(5);
+SET DEBUG_SYNC='filesort_start SIGNAL filesort_started WAIT_FOR filesort_killed';
+# Sending: (not reaped since connection is killed later)
+SELECT * FROM t1 ORDER BY f1 ASC, f0;
+# connection 2
+SET DEBUG_SYNC='now WAIT_FOR filesort_started';
+KILL @id;
+SET DEBUG_SYNC='now SIGNAL filesort_killed';
+# connection default
+SET DEBUG_SYNC= "RESET";
+DROP TABLE t1;

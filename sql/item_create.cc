@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -1328,6 +1328,34 @@ protected:
   Create_func_length() {}
   virtual ~Create_func_length() {}
 };
+
+
+#ifndef DBUG_OFF
+class Create_func_like_range_min : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_like_range_min s_singleton;
+
+protected:
+  Create_func_like_range_min() {}
+  virtual ~Create_func_like_range_min() {}
+};
+
+
+class Create_func_like_range_max : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_like_range_max s_singleton;
+
+protected:
+  Create_func_like_range_max() {}
+  virtual ~Create_func_like_range_max() {}
+};
+#endif
 
 
 class Create_func_ln : public Create_func_arg1
@@ -3836,6 +3864,26 @@ Create_func_length::create_1_arg(THD *thd, Item *arg1)
 }
 
 
+#ifndef DBUG_OFF
+Create_func_like_range_min Create_func_like_range_min::s_singleton;
+
+Item*
+Create_func_like_range_min::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_like_range_min(arg1, arg2);
+}
+
+
+Create_func_like_range_max Create_func_like_range_max::s_singleton;
+
+Item*
+Create_func_like_range_max::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_like_range_max(arg1, arg2);
+}
+#endif
+
+
 Create_func_ln Create_func_ln::s_singleton;
 
 Item*
@@ -4927,6 +4975,10 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("LCASE") }, BUILDER(Create_func_lcase)},
   { { C_STRING_WITH_LEN("LEAST") }, BUILDER(Create_func_least)},
   { { C_STRING_WITH_LEN("LENGTH") }, BUILDER(Create_func_length)},
+#ifndef DBUG_OFF
+  { { C_STRING_WITH_LEN("LIKE_RANGE_MIN") }, BUILDER(Create_func_like_range_min)},
+  { { C_STRING_WITH_LEN("LIKE_RANGE_MAX") }, BUILDER(Create_func_like_range_max)},
+#endif
   { { C_STRING_WITH_LEN("LINEFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("LINEFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("LINESTRINGFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
@@ -5166,8 +5218,8 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       decoded_size= strtoul(c_len, NULL, 10);
       if (errno != 0)
       {
-        my_error(ER_TOO_BIG_PRECISION, MYF(0), c_len, a->name,
-                 DECIMAL_MAX_PRECISION);
+        my_error(ER_TOO_BIG_PRECISION, MYF(0), INT_MAX, a->name,
+                 static_cast<ulong>(DECIMAL_MAX_PRECISION));
         return NULL;
       }
       len= decoded_size;
@@ -5180,8 +5232,8 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       decoded_size= strtoul(c_dec, NULL, 10);
       if ((errno != 0) || (decoded_size > UINT_MAX))
       {
-        my_error(ER_TOO_BIG_SCALE, MYF(0), c_dec, a->name,
-                 DECIMAL_MAX_SCALE);
+        my_error(ER_TOO_BIG_SCALE, MYF(0), INT_MAX, a->name,
+                 static_cast<ulong>(DECIMAL_MAX_SCALE));
         return NULL;
       }
       dec= decoded_size;
@@ -5194,14 +5246,14 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     }
     if (len > DECIMAL_MAX_PRECISION)
     {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), len, a->name,
-               DECIMAL_MAX_PRECISION);
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), static_cast<int>(len), a->name,
+               static_cast<ulong>(DECIMAL_MAX_PRECISION));
       return 0;
     }
     if (dec > DECIMAL_MAX_SCALE)
     {
       my_error(ER_TOO_BIG_SCALE, MYF(0), dec, a->name,
-               DECIMAL_MAX_SCALE);
+               static_cast<ulong>(DECIMAL_MAX_SCALE));
       return 0;
     }
     res= new (thd->mem_root) Item_decimal_typecast(a, len, dec);

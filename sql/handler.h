@@ -1,19 +1,22 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010-2011 Monty Program Ab
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+   02110-1301  USA */
 
 /* Definitions for parameters to do with handler-routines */
 
@@ -28,7 +31,7 @@
 #include "sql_cache.h"
 #include "structs.h"                            /* SHOW_COMP_OPTION */
 
-#include <my_handler.h>
+#include <my_compare.h>
 #include <ft_global.h>
 #include <keycache.h>
 
@@ -63,7 +66,7 @@
   a table with rnd_next()
   - We will see all rows (including deleted ones)
   - Row positions are 'table->s->db_record_offset' apart
-  If this flag is not set, filesort will do a postion() call for each matched
+  If this flag is not set, filesort will do a position() call for each matched
   row to be able to find the row later.
 */
 #define HA_REC_NOT_IN_SEQ      (1 << 3)
@@ -157,10 +160,18 @@
     ordered.
 */
 #define HA_DUPLICATE_KEY_NOT_IN_ORDER    (LL(1) << 36)
-/* Has automatic checksums and uses the new checksum format */
-#define HA_HAS_NEW_CHECKSUM    (LL(1) << 37)
 
-#define HA_MRR_CANT_SORT       (LL(1) << 38)
+/*
+  Engine supports REPAIR TABLE. Used by CHECK TABLE FOR UPGRADE if an
+  incompatible table is detected. If this flag is set, CHECK TABLE FOR UPGRADE
+  will report ER_TABLE_NEEDS_UPGRADE, otherwise ER_TABLE_NEED_REBUILD.
+*/
+#define HA_CAN_REPAIR                    (LL(1) << 37)
+
+/* Has automatic checksums and uses the new checksum format */
+#define HA_HAS_NEW_CHECKSUM    (LL(1) << 38)
+
+#define HA_MRR_CANT_SORT       (LL(1) << 39)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -189,26 +200,31 @@
   bits in alter_table_flags:
 */
 /*
-  These bits are set if different kinds of indexes can be created
-  off-line without re-create of the table (but with a table lock).
+  These bits are set if different kinds of indexes can be created or dropped
+  in-place without re-creating the table using a temporary table.
+  NO_READ_WRITE indicates that the handler needs concurrent reads and writes
+  of table data to be blocked.
+  Partitioning needs both ADD and DROP to be supported by its underlying
+  handlers, due to error handling, see bug#57778.
 */
-#define HA_ONLINE_ADD_INDEX_NO_WRITES           (1L << 0) /*add index w/lock*/
-#define HA_ONLINE_DROP_INDEX_NO_WRITES          (1L << 1) /*drop index w/lock*/
-#define HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES    (1L << 2) /*add unique w/lock*/
-#define HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES   (1L << 3) /*drop uniq. w/lock*/
-#define HA_ONLINE_ADD_PK_INDEX_NO_WRITES        (1L << 4) /*add prim. w/lock*/
-#define HA_ONLINE_DROP_PK_INDEX_NO_WRITES       (1L << 5) /*drop prim. w/lock*/
+#define HA_INPLACE_ADD_INDEX_NO_READ_WRITE         (1L << 0)
+#define HA_INPLACE_DROP_INDEX_NO_READ_WRITE        (1L << 1)
+#define HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE  (1L << 2)
+#define HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE (1L << 3)
+#define HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE      (1L << 4)
+#define HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE     (1L << 5)
 /*
-  These are set if different kinds of indexes can be created on-line
-  (without a table lock). If a handler is capable of one or more of
-  these, it should also set the corresponding *_NO_WRITES bit(s).
+  These are set if different kinds of indexes can be created or dropped
+  in-place while still allowing concurrent reads (but not writes) of table
+  data. If a handler is capable of one or more of these, it should also set
+  the corresponding *_NO_READ_WRITE bit(s).
 */
-#define HA_ONLINE_ADD_INDEX                     (1L << 6) /*add index online*/
-#define HA_ONLINE_DROP_INDEX                    (1L << 7) /*drop index online*/
-#define HA_ONLINE_ADD_UNIQUE_INDEX              (1L << 8) /*add unique online*/
-#define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
-#define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
-#define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
+#define HA_INPLACE_ADD_INDEX_NO_WRITE              (1L << 6)
+#define HA_INPLACE_DROP_INDEX_NO_WRITE             (1L << 7)
+#define HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE       (1L << 8)
+#define HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE      (1L << 9)
+#define HA_INPLACE_ADD_PK_INDEX_NO_WRITE           (1L << 10)
+#define HA_INPLACE_DROP_PK_INDEX_NO_WRITE          (1L << 11)
 /*
   HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
   supported at all.
@@ -1102,7 +1118,7 @@ typedef struct st_ha_create_information
 {
   CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
-  const char *password, *tablespace;
+  const char *password;
   LEX_STRING comment;
   const char *data_file_name, *index_file_name;
   const char *alias;
@@ -1131,7 +1147,6 @@ typedef struct st_ha_create_information
   enum ha_choice transactional;
   bool frm_only;                        ///< 1 if no ha_create_table()
   bool varchar;                         ///< 1 if table has a VARCHAR
-  enum ha_storage_media storage_media;  ///< DEFAULT, DISK or MEMORY
   enum ha_choice page_checksum;         ///< If we have page_checksums
   engine_option_value *option_list;     ///< list of table create options
   /* the following three are only for ALTER TABLE, check_if_incompatible_data() */
@@ -1464,6 +1479,27 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 */
 #define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
 
+
+/**
+  Index creation context.
+  Created by handler::add_index() and freed by handler::final_add_index().
+*/
+
+class handler_add_index
+{
+public:
+  /* Table where the indexes are added */
+  TABLE* const table;
+  /* Indexes being created */
+  KEY* const key_info;
+  /* Size of key_info[] */
+  const uint num_of_keys;
+  handler_add_index(TABLE *table_arg, KEY *key_info_arg, uint num_of_keys_arg)
+    : table (table_arg), key_info (key_info_arg), num_of_keys (num_of_keys_arg)
+  {}
+  virtual ~handler_add_index() {}
+};
+
 /**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -1522,7 +1558,6 @@ public:
   bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   bool mark_trx_done;
-  bool cloned;                          /* 1 if this was created with clone */
   const COND *pushed_cond;
   /**
     next_insert_id is the next value which should be inserted into the
@@ -1584,7 +1619,7 @@ public:
     in_range_check_pushed_down(FALSE),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
-    locked(FALSE), implicit_emptied(0), mark_trx_done(FALSE), cloned(0),
+    locked(FALSE), implicit_emptied(0), mark_trx_done(FALSE),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
     pushed_idx_cond(NULL),
     pushed_idx_cond_keyno(MAX_KEY),
@@ -1598,7 +1633,7 @@ public:
     DBUG_ASSERT(locked == FALSE);
     DBUG_ASSERT(inited == NONE);
   }
-  virtual handler *clone(MEM_ROOT *mem_root);
+  virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
   void init()
   {
@@ -1690,6 +1725,7 @@ public:
   int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                          uint *dup_key_found);
   int ha_delete_all_rows();
+  int ha_truncate();
   int ha_reset_auto_increment(ulonglong value);
   int ha_optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int ha_analyze(THD* thd, HA_CHECK_OPT* check_opt);
@@ -2049,8 +2085,33 @@ public:
   { return(NULL);}  /* gets tablespace name from handler */
   /** used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
-  /** used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
-  virtual int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  /**
+    Get the list of foreign keys in this table.
+
+    @remark Returns the set of foreign keys where this table is the
+            dependent or child table.
+
+    @param thd  The thread handle.
+    @param f_key_list[out]  The list of foreign keys.
+
+    @return The handler error code or zero for success.
+  */
+  virtual int
+  get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  { return 0; }
+  /**
+    Get the list of foreign keys referencing this table.
+
+    @remark Returns the set of foreign keys where this table is the
+            referenced or parent table.
+
+    @param thd  The thread handle.
+    @param f_key_list[out]  The list of foreign keys.
+
+    @return The handler error code or zero for success.
+  */
+  virtual int
+  get_parent_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   { return 0; }
   virtual uint referenced_by_foreign_key() { return 0;}
   virtual void init_table_handle_for_HANDLER()
@@ -2084,8 +2145,36 @@ public:
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
-  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
+/**
+   First phase of in-place add index.
+   Handlers are supposed to create new indexes here but not make them
+   visible.
+
+   @param table_arg   Table to add index to
+   @param key_info    Information about new indexes
+   @param num_of_key  Number of new indexes
+   @param add[out]    Context of handler specific information needed
+                      for final_add_index().
+
+   @note This function can be called with less than exclusive metadata
+   lock depending on which flags are listed in alter_table_flags.
+*/
+  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+                        handler_add_index **add)
   { return (HA_ERR_WRONG_COMMAND); }
+
+/**
+   Second and last phase of in-place add index.
+   Commit or rollback pending new indexes.
+
+   @param add     Context of handler specific information from add_index().
+   @param commit  If true, commit. If false, rollback index changes.
+
+   @note This function is called with exclusive metadata lock.
+*/
+  virtual int final_add_index(handler_add_index *add, bool commit)
+  { return (HA_ERR_WRONG_COMMAND); }
+
   virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
                                  uint num_of_keys)
   { return (HA_ERR_WRONG_COMMAND); }
@@ -2411,7 +2500,10 @@ private:
      upon the table.
   */
   virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  {
+    DBUG_ASSERT(!(ha_table_flags() & HA_CAN_REPAIR));
+    return HA_ADMIN_NOT_IMPLEMENTED;
+  }
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() { return 0; }
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,
@@ -2440,16 +2532,34 @@ private:
     This is called to delete all rows in a table
     If the handler don't support this, then this function will
     return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
-    by one. It should reset auto_increment if
-    thd->lex->sql_command == SQLCOM_TRUNCATE.
+    by one.
   */
   virtual int delete_all_rows()
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
   /**
+    Quickly remove all rows from a table.
+
+    @remark This method is responsible for implementing MySQL's TRUNCATE
+            TABLE statement, which is a DDL operation. As such, a engine
+            can bypass certain integrity checks and in some cases avoid
+            fine-grained locking (e.g. row locks) which would normally be
+            required for a DELETE statement.
+
+    @remark Typically, truncate is not used if it can result in integrity
+            violation. For example, truncate is not used when a foreign
+            key references the table, but it might be used if foreign key
+            checks are disabled.
+
+    @remark Engine is responsible for resetting the auto-increment counter.
+
+    @remark The table is locked in exclusive mode.
+  */
+  virtual int truncate()
+  { return HA_ERR_WRONG_COMMAND; }
+  /**
     Reset the auto-increment counter to the given value, i.e. the next row
-    inserted will get the given value. This is called e.g. after TRUNCATE
-    is emulated by doing a 'DELETE FROM t'. HA_ERR_WRONG_COMMAND is
-    returned by storage engines that don't support this operation.
+    inserted will get the given value. HA_ERR_WRONG_COMMAND is returned by
+    storage engines that don't support this operation.
   */
   virtual int reset_auto_increment(ulonglong value)
   { return HA_ERR_WRONG_COMMAND; }

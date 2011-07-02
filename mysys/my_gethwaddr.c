@@ -21,18 +21,6 @@
 
 #ifndef MAIN
 
-#if defined(__FreeBSD__) || defined(__linux__)
-static my_bool memcpy_and_test(uchar *to, uchar *from, uint len)
-{
-  uint i, res=1;
-
-  for (i=0; i < len; i++)
-    if ((*to++= *from++))
-      res=0;
-  return res;
-}
-#endif   /* FreeBSD || linux */
-
 #ifdef __FreeBSD__
 
 #include <net/ethernet.h>
@@ -44,10 +32,11 @@ static my_bool memcpy_and_test(uchar *to, uchar *from, uint len)
 my_bool my_gethwaddr(uchar *to)
 {
   size_t len;
-  uchar  *buf, *next, *end, *addr;
+  char *buf, *next, *end;
   struct if_msghdr *ifm;
   struct sockaddr_dl *sdl;
   int res=1, mib[6]={CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, 0};
+  char zero_array[ETHER_ADDR_LEN] = {0};
 
   if (sysctl(mib, 6, NULL, &len, NULL, 0) == -1)
     goto err;
@@ -63,9 +52,9 @@ my_bool my_gethwaddr(uchar *to)
     ifm = (struct if_msghdr *)next;
     if (ifm->ifm_type == RTM_IFINFO)
     {
-      sdl = (struct sockaddr_dl *)(ifm + 1);
-      addr=(uchar *)LLADDR(sdl);
-      res=memcpy_and_test(to, addr, ETHER_ADDR_LEN);
+      sdl= (struct sockaddr_dl *)(ifm + 1);
+      memcpy(to, LLADDR(sdl), ETHER_ADDR_LEN);
+      res= memcmp(to, zero_array, ETHER_ADDR_LEN) ? 0 : 1;
     }
   }
 
@@ -81,8 +70,9 @@ err:
 
 my_bool my_gethwaddr(uchar *to)
 {
-  int fd, res=1;
+  int fd, res= 1;
   struct ifreq ifr;
+  char zero_array[ETHER_ADDR_LEN] = {0};
 
   fd = socket(AF_INET, SOCK_DGRAM, 0);
   if (fd < 0)
@@ -91,9 +81,13 @@ my_bool my_gethwaddr(uchar *to)
   bzero(&ifr, sizeof(ifr));
   strnmov(ifr.ifr_name, "eth0", sizeof(ifr.ifr_name) - 1);
 
-  do {
+  do
+  {
     if (ioctl(fd, SIOCGIFHWADDR, &ifr) >= 0)
-      res=memcpy_and_test(to, (uchar *)&ifr.ifr_hwaddr.sa_data, ETHER_ADDR_LEN);
+    {
+      memcpy(to, &ifr.ifr_hwaddr.sa_data, ETHER_ADDR_LEN);
+      res= memcmp(to, zero_array, ETHER_ADDR_LEN) ? 0 : 1;
+    }
   } while (res && (errno == 0 || errno == ENODEV) && ifr.ifr_name[3]++ < '6');
 
   close(fd);

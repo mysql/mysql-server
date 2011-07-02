@@ -39,7 +39,7 @@ connection con2;
 --echo # Wait until COMMIT gets blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for release of readlock" and info = "COMMIT";
+  where state = "Waiting for commit lock" and info = "COMMIT";
 --source include/wait_condition.inc
 --echo # Verify that 'con1' was blocked and data did not move.
 SELECT * FROM t1;

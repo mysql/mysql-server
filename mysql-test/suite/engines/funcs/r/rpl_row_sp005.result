@@ -77,6 +77,8 @@ id2
 < ---- Master selects-- >
 -------------------------
 CALL test.p1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM test.t3 ORDER BY id3;
 id3	c
 1	MySQL

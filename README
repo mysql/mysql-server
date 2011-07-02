@@ -251,22 +251,19 @@ cmake-2.4.8/Utilities/cmzlib/zlib.h:
 
 ----------------------------------------------
 
- This source code was modified by Martin Hedenfalk
- for
- use in Curl. His latest changes were done 2000-09-18.
+ This source code was modified by Martin Hedenfalk for use in Curl. His latest
+ changes were done 2000-09-18.
 
- It has since been patched away like a madman by Daniel Stenberg
- to make it better applied to curl conditions, and to make
- it not use globals, pollute name space and more. This source code awaits a
- rewrite to work around the paragraph 2 in the BSD licenses as explained
- below.
+ It has since been patched away like a madman by Daniel Stenberg to make it
+ better applied to curl conditions, and to make it not use globals, pollute
+ name space and more. This source code awaits a rewrite to work around the
+ paragraph 2 in the BSD licenses as explained below.
 
- Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Hgskolan
- It has since been patched and modified a lot by Daniel Stenberg
-  to make it better applied to curl conditions, and to make
- it not use globals, pollute name space and more. This source code awaits a
- rewrite to work around the paragraph 2 in the BSD licenses as explained
- below.
+ Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Hgskolan It has
+ since been patched and modified a lot by Daniel Stenberg to make it better
+ applied to curl conditions, and to make it not use globals, pollute name space
+ and more. This source code awaits a rewrite to work around the paragraph 2 in
+ the BSD licenses as explained below.
 
  Copyright (c) 1998, 1999 Kungliga Tekniska Hgskolan
  (Royal Institute of Technology, Stockholm, Sweden).
@@ -2202,3 +2199,41 @@ Use of any of this software is governed by the terms of the license below:
 */
 
 ***************************************************************************
+MySQL Server 5.5
+
+This is a release of MySQL, a dual-license SQL database server.
+For the avoidance of doubt, this particular copy of the software 
+is released under the version 2 of the GNU General Public License. 
+MySQL is brought to you by Oracle.
+
+Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+
+License information can be found in the COPYING file.
+
+MySQL FOSS License Exception
+We want free and open source software applications under certain
+licenses to be able to use specified GPL-licensed MySQL client
+libraries despite the fact that not all such FOSS licenses are
+compatible with version 2 of the GNU General Public License.  
+Therefore there are special exceptions to the terms and conditions 
+of the GPLv2 as applied to these client libraries, which are 
+identified and described in more detail in the FOSS License 
+Exception at 
+<http://www.mysql.com/about/legal/licensing/foss-exception.html>.
+
+This distribution may include materials developed by third
+parties. For license and attribution notices for these
+materials, please refer to the documentation that accompanies
+this distribution (see the "Licenses for Third-Party Components"
+appendix) or view the online documentation at 
+<http://dev.mysql.com/doc/>.
+
+GPLv2 Disclaimer
+For the avoidance of doubt, except that if any license choice
+other than GPL or LGPL is available it will apply instead, 
+Oracle elects to use only the General Public License version 2 
+(GPLv2) at this time for any software where a choice of GPL 
+license versions is made available with the language indicating 
+that GPLv2 or any later version may be used, or where a choice 
+of which version of the GPL is applied is otherwise unspecified.
+

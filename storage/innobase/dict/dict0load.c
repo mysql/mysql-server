@@ -40,6 +40,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
+#include "ha_prototypes.h" /* innobase_casedn_str() */
 
 
 /** Following are six InnoDB system tables */
@@ -346,7 +347,8 @@ dict_process_sys_tables_rec(
 
 		/* Update statistics if DICT_TABLE_UPDATE_STATS
 		is set */
-		dict_update_statistics_low(*table, TRUE);
+		dict_update_statistics(*table, FALSE /* update even if
+				       initialized */);
 	}
 
 	return(NULL);
@@ -427,17 +429,19 @@ dict_process_sys_fields_rec(
 	mach_write_to_8(last_index_id, last_id);
 
 	err_msg = dict_load_field_low(buf, NULL, sys_field,
-				      pos, last_index_id, heap, rec);
+				      pos, last_index_id, heap, rec, NULL, 0);
 
 	*index_id = mach_read_from_8(buf);
 
 	return(err_msg);
 
 }
+
+#ifdef FOREIGN_NOT_USED
 /********************************************************************//**
 This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information
-about SYS_FOREIGN fields, please refer to dict_load_foreign() function
+about SYS_FOREIGN fields, please refer to dict_load_foreign() function.
 @return error message, or NULL on success */
 UNIV_INTERN
 const char*
@@ -465,6 +469,11 @@ dict_process_sys_foreign_rec(
 err_len:
 		return("incorrect column length in SYS_FOREIGN");
 	}
+	
+	/* This recieves a dict_foreign_t* that points to a stack variable.
+	So mem_heap_free(foreign->heap) is not used as elsewhere.
+	Since the heap used here is freed elsewhere, foreign->heap
+	is not assigned. */
 	foreign->id = mem_heap_strdupl(heap, (const char*) field, len);
 
 	rec_get_nth_field_offs_old(rec, 1/*DB_TRX_ID*/, &len);
@@ -475,6 +484,9 @@ err_len:
 	if (UNIV_UNLIKELY(len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL)) {
 		goto err_len;
 	}
+
+	/* The _lookup versions of the referenced and foreign table names
+	 are not assigned since they are not used in this dict_foreign_t */
 
 	field = rec_get_nth_field_old(rec, 3/*FOR_NAME*/, &len);
 	if (UNIV_UNLIKELY(len < 1 || len == UNIV_SQL_NULL)) {
@@ -501,6 +513,9 @@ err_len:
 
 	return(NULL);
 }
+#endif  /* FOREIGN_NOT_USED */
+
+#ifdef FOREIGN_NOT_USED
 /********************************************************************//**
 This function parses a SYS_FOREIGN_COLS record and extract necessary
 information from the record and return to caller.
@@ -564,6 +579,8 @@ err_len:
 
 	return(NULL);
 }
+#endif  /* FOREIGN_NOT_USED */
+
 /********************************************************************//**
 Determine the flags of a table described in SYS_TABLES.
 @return compressed page size in kilobytes; or 0 if the tablespace is
@@ -977,6 +994,9 @@ dict_load_columns(
 /** Error message for a delete-marked record in dict_load_field_low() */
 static const char* dict_load_field_del = "delete-marked record in SYS_FIELDS";
 
+static const char* dict_load_field_too_big = "column prefix exceeds maximum"
+					     " limit";
+
 /********************************************************************//**
 Loads an index field definition from a SYS_FIELDS record to
 dict_index_t.
@@ -998,7 +1018,12 @@ dict_load_field_low(
 	byte*		last_index_id,	/*!< in: last index id */
 	mem_heap_t*	heap,		/*!< in/out: memory heap
 					for temporary storage */
-	const rec_t*	rec)		/*!< in: SYS_FIELDS record */
+	const rec_t*	rec,		/*!< in: SYS_FIELDS record */
+	char*		addition_err_str,/*!< out: additional error message
+					that requires information to be
+					filled, or NULL */
+	ulint		err_str_len)	/*!< in: length of addition_err_str
+					in bytes */
 {
 	const byte*	field;
 	ulint		len;
@@ -1078,6 +1103,19 @@ err_len:
 		goto err_len;
 	}
 
+	if (prefix_len > REC_VERSION_56_MAX_INDEX_COL_LEN) {
+		if (addition_err_str) {
+			ut_snprintf(addition_err_str, err_str_len,
+				    "index field '%s' has a prefix length"
+				    " of %lu bytes",
+				    mem_heap_strdupl(
+						heap, (const char*) field, len),
+				    (ulong) prefix_len);
+		}
+
+		return(dict_load_field_too_big);
+	}
+
 	if (index) {
 		dict_mem_index_add_field(
 			index, mem_heap_strdupl(heap, (const char*) field, len),
@@ -1137,14 +1175,16 @@ dict_load_fields(
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (i = 0; i < index->n_fields; i++) {
-		const char* err_msg;
+		const char*	err_msg;
+		char		addition_err_str[1024];
 
 		rec = btr_pcur_get_rec(&pcur);
 
 		ut_a(btr_pcur_is_on_user_rec(&pcur));
 
 		err_msg = dict_load_field_low(buf, index, NULL, NULL, NULL,
-					      heap, rec);
+					      heap, rec, addition_err_str,
+					      sizeof(addition_err_str));
 
 		if (err_msg == dict_load_field_del) {
 			/* There could be delete marked records in
@@ -1153,7 +1193,24 @@ dict_load_fields(
 
 			goto next_rec;
 		} else if (err_msg) {
-			fprintf(stderr, "InnoDB: %s\n", err_msg);
+			if (err_msg == dict_load_field_too_big) {
+				fprintf(stderr, "InnoDB: Error: load index"
+					" '%s' failed.\n"
+					"InnoDB: %s,\n"
+					"InnoDB: which exceeds the"
+					" maximum limit of %lu bytes.\n"
+					"InnoDB: Please use server that"
+					" supports long index prefix\n"
+					"InnoDB: or turn on"
+					" innodb_force_recovery to load"
+					" the table\n",
+					index->name, addition_err_str,
+					(ulong) (REC_VERSION_56_MAX_INDEX_COL_LEN));
+
+			} else {
+				fprintf(stderr, "InnoDB: %s\n", err_msg);
+			}
+
 			error = DB_CORRUPTION;
 			goto func_exit;
 		}
@@ -1306,7 +1363,10 @@ ulint
 dict_load_indexes(
 /*==============*/
 	dict_table_t*	table,	/*!< in/out: table */
-	mem_heap_t*	heap)	/*!< in: memory heap for temporary storage */
+	mem_heap_t*	heap,	/*!< in: memory heap for temporary storage */
+	dict_err_ignore_t ignore_err)
+				/*!< in: error to be ignored when
+				loading the index definition */
 {
 	dict_table_t*	sys_indexes;
 	dict_index_t*	sys_index;
@@ -1389,10 +1449,22 @@ dict_load_indexes(
 				"InnoDB: but the index tree has been freed!\n",
 				index->name, table->name);
 
+			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
+				/* If caller can tolerate this error,
+				we will continue to load the index and
+				let caller deal with this error. However
+				mark the index and table corrupted */
+				index->corrupted = TRUE;
+				table->corrupted = TRUE;
+				fprintf(stderr,
+					"InnoDB: Index is corrupt but forcing"
+					" load into data dictionary\n");
+			} else {
 corrupted:
-			dict_mem_index_free(index);
-			error = DB_CORRUPTION;
-			goto func_exit;
+				dict_mem_index_free(index);
+				error = DB_CORRUPTION;
+				goto func_exit;
+			}
 		} else if (!dict_index_is_clust(index)
 			   && NULL == dict_table_get_first_index(table)) {
 
@@ -1414,7 +1486,26 @@ corrupted:
 			of the database server */
 			dict_mem_index_free(index);
 		} else {
-			dict_load_fields(index, heap);
+			error = dict_load_fields(index, heap);
+
+			if (error != DB_SUCCESS) {
+
+				fprintf(stderr, "InnoDB: Error: load index '%s'"
+					" for table '%s' failed\n",
+					index->name, table->name);
+
+				/* If the force recovery flag is set, and
+				if the failed index is not the primary index, we
+				will continue and open other indexes */
+				if (srv_force_recovery
+				    && !dict_index_is_clust(index)) {
+					error = DB_SUCCESS;
+					goto next_rec;
+				} else {
+					goto func_exit;
+				}
+			}
+
 			error = dict_index_add_to_cache(table, index,
 							index->page, FALSE);
 			/* The data dictionary tables should never contain
@@ -1535,7 +1626,7 @@ err_len:
 				"InnoDB: in InnoDB data dictionary"
 				" has unknown type %lx.\n",
 				(ulong) flags);
-			return(NULL);
+			return("incorrect flags in SYS_TABLES");
 		}
 	} else {
 		flags = 0;
@@ -1601,7 +1692,10 @@ dict_load_table(
 /*============*/
 	const char*	name,	/*!< in: table name in the
 				databasename/tablename format */
-	ibool		cached)	/*!< in: TRUE=add to cache, FALSE=do not */
+	ibool		cached,	/*!< in: TRUE=add to cache, FALSE=do not */
+	dict_err_ignore_t ignore_err)
+				/*!< in: error to be ignored when loading
+				table and its indexes' definition */
 {
 	dict_table_t*	table;
 	dict_table_t*	sys_tables;
@@ -1716,7 +1810,7 @@ err_exit:
 
 	mem_heap_empty(heap);
 
-	err = dict_load_indexes(table, heap);
+	err = dict_load_indexes(table, heap, ignore_err);
 
 	/* Initialize table foreign_child value. Its value could be
 	changed when dict_load_foreigns() is called below */
@@ -1733,13 +1827,22 @@ err_exit:
 		if (err != DB_SUCCESS) {
 			dict_table_remove_from_cache(table);
 			table = NULL;
+		} else {
+			table->fk_max_recusive_level = 0;
 		}
-	} else if (!srv_force_recovery) {
-		dict_table_remove_from_cache(table);
-		table = NULL;
-	}
+	} else {
+		dict_index_t*	index;
 
-	table->fk_max_recusive_level = 0;
+		/* Make sure that at least the clustered index was loaded.
+		Otherwise refuse to load the table */
+		index = dict_table_get_first_index(table);
+
+		if (!srv_force_recovery || !index
+		     || !dict_index_is_clust(index)) {
+			dict_table_remove_from_cache(table);
+			table = NULL;
+		}
+	}
 #if 0
 	if (err != DB_SUCCESS && table != NULL) {
 
@@ -1851,7 +1954,7 @@ dict_load_table_on_id(
 	field = rec_get_nth_field_old(rec, 1, &len);
 	/* Load the table definition to memory */
 	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len),
-				TRUE);
+				TRUE, DICT_ERR_IGNORE_NONE);
 func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -1876,7 +1979,7 @@ dict_load_sys_table(
 
 	heap = mem_heap_create(1000);
 
-	dict_load_indexes(table, heap);
+	dict_load_indexes(table, heap, DICT_ERR_IGNORE_NONE);
 
 	mem_heap_free(heap);
 }
@@ -2055,12 +2158,15 @@ dict_load_foreign(
 	foreign->id = mem_heap_strdup(foreign->heap, id);
 
 	field = rec_get_nth_field_old(rec, 3, &len);
+
 	foreign->foreign_table_name = mem_heap_strdupl(
 		foreign->heap, (char*) field, len);
+	dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
 
 	field = rec_get_nth_field_old(rec, 4, &len);
 	foreign->referenced_table_name = mem_heap_strdupl(
 		foreign->heap, (char*) field, len);
+	dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -2068,7 +2174,7 @@ dict_load_foreign(
 	dict_load_foreign_cols(id, foreign);
 
 	ref_table = dict_table_check_if_in_cache_low(
-			foreign->referenced_table_name);
+			foreign->referenced_table_name_lookup);
 
 	/* We could possibly wind up in a deep recursive calls if
 	we call dict_table_get_low() again here if there
@@ -2101,7 +2207,7 @@ dict_load_foreign(
 		have to load it so that we are able to make type comparisons
 		in the next function call. */
 
-		for_table = dict_table_get_low(foreign->foreign_table_name);
+		for_table = dict_table_get_low(foreign->foreign_table_name_lookup);
 
 		if (for_table && ref_table && check_recursive) {
 			/* This is to record the longest chain of ancesters
@@ -2220,10 +2326,12 @@ loop:
 	/* Since table names in SYS_FOREIGN are stored in a case-insensitive
 	order, we have to check that the table name matches also in a binary
 	string comparison. On Unix, MySQL allows table names that only differ
-	in character case. */
+	in character case.  If lower_case_table_names=2 then what is stored
+	may not be the same case, but the previous comparison showed that they
+	match with no-case.  */
 
-	if (0 != ut_memcmp(field, table_name, len)) {
-
+	if ((innobase_get_lower_case_table_names() != 2)
+	    && (0 != ut_memcmp(field, table_name, len))) {
 		goto next_rec;
 	}
 

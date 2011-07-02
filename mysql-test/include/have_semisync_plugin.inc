@@ -8,7 +8,7 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 #
 # Check if the variable SEMISYNC_MASTER_SO is set
 #
-if (`select LENGTH('$SEMISYNC_MASTER_SO') = 0`)
+if (!$SEMISYNC_MASTER_SO)
 {
   skip Need semisync plugins;
 }

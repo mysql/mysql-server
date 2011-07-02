@@ -9,9 +9,11 @@ end|
 call bug4902()|
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 call bug4902()|
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 drop procedure bug4902|
 drop procedure if exists bug4902_2|
 create procedure bug4902_2()
@@ -154,9 +156,11 @@ create procedure 15298_2 () sql security definer show grants;
 call 15298_1();
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 call 15298_2();
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 drop user mysqltest_1@localhost;
 drop procedure 15298_1;
 drop procedure 15298_2;
@@ -200,7 +204,6 @@ CREATE PROCEDURE p1(i INT) BEGIN END;
 DROP PROCEDURE p1;
 DELETE FROM mysql.user WHERE User='mysqltest_1';
 FLUSH PRIVILEGES;
-set @@global.concurrent_insert= @old_concurrent_insert;
 #
 # Bug#44521 Prepared Statement: CALL p() - crashes: `! thd->main_da.is_sent' failed et.al.
 #
@@ -234,3 +237,25 @@ DROP FUNCTION f1;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
+#
+# Test for bug#11763757 "56510: ERROR 42000: FUNCTION DOES NOT EXIST
+# IF NOT-PRIV USER RECONNECTS ".
+#
+# The real problem was that server was unable handle properly stored
+# functions in databases which names contained dot.
+#
+DROP DATABASE IF EXISTS `my.db`;
+create database `my.db`;
+use `my.db`;
+CREATE FUNCTION f1(a int) RETURNS INT RETURN a;
+# Create new connection.
+USE `my.db`;
+SELECT f1(1);
+f1(1)
+1
+SELECT `my.db`.f1(2);
+`my.db`.f1(2)
+2
+# Switching to default connection.
+DROP DATABASE `my.db`;
+set @@global.concurrent_insert= @old_concurrent_insert;

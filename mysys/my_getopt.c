@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -176,7 +176,7 @@ int handle_options(int *argc, char ***argv,
   */
   for (pos= *argv, pos_end=pos+ *argc; pos != pos_end ; pos++)
   {
-    if (*pos == args_separator)
+    if (my_getopt_is_args_separator(*pos))
     {
       is_cmdline_arg= 0;
       break;
@@ -188,7 +188,7 @@ int handle_options(int *argc, char ***argv,
     char **first= pos;
     char *cur_arg= *pos;
     opt_found= 0;
-    if (!is_cmdline_arg && (cur_arg == args_separator))
+    if (!is_cmdline_arg && (my_getopt_is_args_separator(cur_arg)))
     {
       is_cmdline_arg= 1;
 
@@ -360,14 +360,6 @@ int handle_options(int *argc, char ***argv,
 	  }
 	  return EXIT_OPTION_DISABLED;
 	}
-	if (must_be_var && optp->arg_type == NO_ARG)
-	{
-	  if (my_getopt_print_errors)
-            my_getopt_error_reporter(ERROR_LEVEL, 
-                                     "%s: option '%s' cannot take an argument",
-                                     my_progname, optp->name);
-	  return EXIT_NO_ARGUMENT_ALLOWED;
-	}
         error= 0;
 	value= optp->var_type & GET_ASK_ADDR ?
 	  (*getopt_get_addr)(key_name, (uint) strlen(key_name), optp, &error) :
@@ -377,6 +369,11 @@ int handle_options(int *argc, char ***argv,
 
 	if (optp->arg_type == NO_ARG)
 	{
+	  /*
+	    Due to historical reasons GET_BOOL var_types still accepts arguments
+	    despite the NO_ARG arg_type attribute. This can seems a bit unintuitive
+	    and care should be taken when refactoring this code.
+	  */
 	  if (optend && (optp->var_type & GET_TYPE_MASK) != GET_BOOL)
 	  {
 	    if (my_getopt_print_errors)
@@ -391,7 +388,7 @@ int handle_options(int *argc, char ***argv,
 	      Set bool to 1 if no argument or if the user has used
 	      --enable-'option-name'.
 	      *optend was set to '0' if one used --disable-option
-	      */
+	    */
 	    (*argc)--;
 	    if (!optend || *optend == '1' ||
 		!my_strcasecmp(&my_charset_latin1, optend, "true"))
@@ -418,10 +415,9 @@ int handle_options(int *argc, char ***argv,
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
 	{
 	  /* Check if there are more arguments after this one,
-
-             Note: options loaded from config file that requires value
-             should always be in the form '--option=value'.
-           */
+       Note: options loaded from config file that requires value
+       should always be in the form '--option=value'.
+    */
 	  if (!is_cmdline_arg || !*++pos)
 	  {
 	    if (my_getopt_print_errors)
@@ -607,6 +603,32 @@ static char *check_struct_option(char *cur_arg, char *key_name)
   }
 }
 
+/**
+   Parse a boolean command line argument
+
+   "ON", "TRUE" and "1" will return true,
+   other values will return false.
+
+   @param[in] argument The value argument
+   @return boolean value
+*/
+static my_bool get_bool_argument(const struct my_option *opts,
+                                 const char *argument)
+{
+  if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
+      !my_strcasecmp(&my_charset_latin1, argument, "on") ||
+      !my_strcasecmp(&my_charset_latin1, argument, "1"))
+    return 1;
+  else if (!my_strcasecmp(&my_charset_latin1, argument, "false") ||
+      !my_strcasecmp(&my_charset_latin1, argument, "off") ||
+      !my_strcasecmp(&my_charset_latin1, argument, "0"))
+    return 0;
+  my_getopt_error_reporter(WARNING_LEVEL,
+      "option '%s': boolean value '%s' wasn't recognized. Set to OFF.",
+      opts->name, argument);
+  return 0;
+}
+
 /*
   function: setval
 
@@ -634,7 +656,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 
     switch ((opts->var_type & GET_TYPE_MASK)) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
-      *((my_bool*) value)= (my_bool) atoi(argument) != 0;
+      *((my_bool*) value)= get_bool_argument(opts, argument);
       break;
     case GET_INT:
       *((int*) value)= (int) getopt_ll(argument, opts, &err);
@@ -674,7 +696,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       break;
     case GET_ENUM:
       {
-        int type= find_type(argument, opts->typelib, 2);
+        int type= find_type(argument, opts->typelib, FIND_TYPE_BASIC);
         if (type == 0)
         {
           /*

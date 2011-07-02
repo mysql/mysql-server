@@ -35,7 +35,7 @@ class ha_heap: public handler
 public:
   ha_heap(handlerton *hton, TABLE_SHARE *table);
   ~ha_heap() {}
-  handler *clone(MEM_ROOT *mem_root);
+  handler *clone(const char *name, MEM_ROOT *mem_root);
   const char *table_type() const
   {
     return (table->in_use->variables.sql_mode & MODE_MYSQL323) ?
@@ -99,6 +99,7 @@ public:
   int reset();
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
+  int truncate();
   int reset_auto_increment(ulonglong value);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);

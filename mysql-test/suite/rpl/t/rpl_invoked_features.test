@@ -308,3 +308,4 @@ DROP EVENT IF EXISTS e11;
 --sync_slave_with_master slave
 
 # End 5.1 test case
+--source include/rpl_end.inc

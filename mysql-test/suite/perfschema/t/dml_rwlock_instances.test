@@ -18,38 +18,33 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_column 1 # 2 # 3 # 4 #
-select * from performance_schema.RWLOCK_INSTANCES limit 1;
+--disable_result_log
+select * from performance_schema.rwlock_instances limit 1;
 
-select * from performance_schema.RWLOCK_INSTANCES
+select * from performance_schema.rwlock_instances
   where name='FOO';
+--enable_result_log
 
---replace_result '\'rwlock_instances' '\'RWLOCK_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.RWLOCK_INSTANCES
+insert into performance_schema.rwlock_instances
   set name='FOO', object_instance_begin=12;
 
---replace_result '\'rwlock_instances' '\'RWLOCK_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.RWLOCK_INSTANCES
+update performance_schema.rwlock_instances
   set name='FOO';
 
---replace_result '\'rwlock_instances' '\'RWLOCK_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.RWLOCK_INSTANCES
+delete from performance_schema.rwlock_instances
   where name like "wait/%";
 
---replace_result '\'rwlock_instances' '\'RWLOCK_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.RWLOCK_INSTANCES;
+delete from performance_schema.rwlock_instances;
 
---replace_result '\'rwlock_instances' '\'RWLOCK_INSTANCES'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.RWLOCK_INSTANCES READ;
+LOCK TABLES performance_schema.rwlock_instances READ;
 UNLOCK TABLES;
 
---replace_result '\'rwlock_instances' '\'RWLOCK_INSTANCES'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.RWLOCK_INSTANCES WRITE;
+LOCK TABLES performance_schema.rwlock_instances WRITE;
 UNLOCK TABLES;
 

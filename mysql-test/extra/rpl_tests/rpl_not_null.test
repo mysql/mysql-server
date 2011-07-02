@@ -71,12 +71,10 @@ INSERT INTO t4(a) VALUES (5);
 sync_slave_with_master;
 
 --echo TABLES t1 and t2 must be equal otherwise an error will be thrown. 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
  
-let $diff_table_1=master:test.t2;
-let $diff_table_2=slave:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 --echo TABLES t2 and t3 must be different.
@@ -101,8 +99,7 @@ REPLACE INTO t1(a,b,c) VALUES (2, NULL, 300);
 sync_slave_with_master;
 
 --echo TABLES t1 and t2 must be equal otherwise an error will be thrown. 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 --echo ************* CLEANING *************
@@ -154,8 +151,7 @@ REPLACE INTO t1(a,b,c) VALUES (2, NULL, b'00');
 --echo ************* SHOWING THE RESULT SETS WITH UPDATES and REPLACES *************
 --echo TABLES t1 and t2 must be equal otherwise an error will be thrown. 
 sync_slave_with_master;
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
  
 connection master;
@@ -177,7 +173,7 @@ sync_slave_with_master;
 #--source include/wait_for_slave_to_start.inc
 #
 #let $y=0;
-#while (`select $y < 6`)
+#while ($y < 6)
 #{
 #  connection master;
 #
@@ -202,21 +198,21 @@ sync_slave_with_master;
 #  `c` INT DEFAULT 500, 
 #  PRIMARY KEY(`a`)) ENGINE=$engine DEFAULT CHARSET=LATIN1;
 #  
-#  if (`select $y=0`)
+#  if ($y==0)
 #  {
 #    --echo ************* EXECUTION WITH INSERTS *************
 #    connection master;
 #    INSERT INTO t1(a) VALUES (1);
 #  }
 #  
-#  if (`select $y=1`)
+#  if ($y==1)
 #  {
 #    --echo ************* EXECUTION WITH INSERTS *************
 #    connection master;
 #    INSERT INTO t1(a, b) VALUES (1, NULL);
 #  }
 #  
-#  if (`select $y=2`)
+#  if ($y==2)
 #  {
 #    --echo ************* EXECUTION WITH UPDATES *************
 #    connection master;
@@ -225,14 +221,14 @@ sync_slave_with_master;
 #    UPDATE t3 SET b = NULL where a= 1;
 #  }
 #  
-#  if (`select $y=3`)
+#  if ($y==3)
 #  {
 #    --echo ************* EXECUTION WITH INSERTS/REPLACES *************
 #    connection master;
 #    REPLACE INTO t3(a, b) VALUES (1, null);
 #  }
 #   
-#  if (`select $y=4`)
+#  if ($y==4)
 #  {
 #    --echo ************* EXECUTION WITH UPDATES/REPLACES *************
 #    connection master;
@@ -240,7 +236,7 @@ sync_slave_with_master;
 #    REPLACE INTO t3(a, b) VALUES (1, null);
 #  }
 #   
-#  if (`select $y=5`)
+#  if ($y==5)
 #  {
 #    --echo ************* EXECUTION WITH MULTI-ROW INSERTS *************
 #    connection master;
@@ -273,7 +269,7 @@ sync_slave_with_master;
 #  SELECT * FROM t3 ORDER BY a;
 #  connection slave;
 #  SELECT * FROM t3 ORDER BY a;
-#  --source include/reset_master_and_slave.inc
+#  --source include/rpl_reset.inc
 #  
 #  connection master;
 #  

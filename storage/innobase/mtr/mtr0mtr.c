@@ -251,6 +251,7 @@ mtr_commit(
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(!mtr->inside_ibuf);
 	ut_d(mtr->state = MTR_COMMITTING);
 
 #ifndef UNIV_HOTBACKUP
@@ -264,9 +265,20 @@ mtr_commit(
 	mtr_memo_pop_all(mtr);
 #endif /* !UNIV_HOTBACKUP */
 
-	ut_d(mtr->state = MTR_COMMITTED);
 	dyn_array_free(&(mtr->memo));
 	dyn_array_free(&(mtr->log));
+#ifdef UNIV_DEBUG_VALGRIND
+	/* Declare everything uninitialized except
+	mtr->start_lsn, mtr->end_lsn and mtr->state. */
+	{
+		ib_uint64_t	start_lsn	= mtr->start_lsn;
+		ib_uint64_t	end_lsn		= mtr->end_lsn;
+		UNIV_MEM_INVALID(mtr, sizeof *mtr);
+		mtr->start_lsn = start_lsn;
+		mtr->end_lsn = end_lsn;
+	}
+#endif /* UNIV_DEBUG_VALGRIND */
+	ut_d(mtr->state = MTR_COMMITTED);
 }
 
 #ifndef UNIV_HOTBACKUP

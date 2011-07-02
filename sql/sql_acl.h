@@ -173,6 +173,14 @@ enum mysql_db_table_field
 extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
 
+
+static inline int access_denied_error_code(int passwd_used)
+{
+  return passwd_used == 2 ? ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+                          : ER_ACCESS_DENIED_ERROR;
+}
+
+
 /* prototypes */
 
 bool hostname_requires_resolving(const char *hostname);
@@ -190,7 +198,7 @@ int check_change_password(THD *thd, const char *host, const char *user,
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *password);
 bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
-                 ulong rights, bool revoke);
+                 ulong rights, bool revoke, bool is_proxy);
 int mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
                        List <LEX_COLUMN> &column_list, ulong rights,
                        bool revoke);
@@ -372,4 +380,6 @@ get_cached_table_access(GRANT_INTERNAL_INFO *grant_internal_info,
                         const char *schema_name,
                         const char *table_name);
 
+bool acl_check_proxy_grant_access (THD *thd, const char *host, const char *user,
+                                   bool with_grant);
 #endif /* SQL_ACL_INCLUDED */

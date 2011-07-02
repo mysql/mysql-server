@@ -6,9 +6,9 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 }
 
 #
-# Check if the variable UDF_EXAMPLE_SO is set
+# Check if the variable UDF_EXAMPLE_LIB is set
 #
-#
-if (`SELECT LENGTH('$UDF_EXAMPLE_SO') = 0`) {
+if (!$UDF_EXAMPLE_SO) {
   --skip Need udf example
 }
+

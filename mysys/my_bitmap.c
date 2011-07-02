@@ -21,17 +21,13 @@
 
     * the internal size is a set of 32 bit words
     * the number of bits specified in creation can be any number > 0
-    * there are THREAD safe versions of most calls called bitmap_lock_*
-      many of those are not used and not compiled normally but the code
-      already exist for them in an #ifdef:ed part. These can only be used
-      if THREAD was specified in bitmap_init
 
   TODO:
-  Make assembler THREAD safe versions of these using test-and-set instructions
+  Make assembler thread safe versions of these using test-and-set instructions
 
   Original version created by Sergei Golubchik 2001 - 2004.
   New version written and test program added and some changes to the interface
-  was made by Mikael Ronström 2005, with assistance of Tomas Ulin and Mats
+  was made by Mikael Ronstrom 2005, with assistance of Tomas Ulin and Mats
   Kindahl.
 */
 
@@ -100,18 +96,14 @@ void create_last_word_mask(MY_BITMAP *map)
 
 static inline void bitmap_lock(MY_BITMAP *map __attribute__((unused)))
 {
-#ifdef THREAD
   if (map->mutex)
     mysql_mutex_lock(map->mutex);
-#endif
 }
 
 static inline void bitmap_unlock(MY_BITMAP *map __attribute__((unused)))
 {
-#ifdef THREAD
   if (map->mutex)
     mysql_mutex_unlock(map->mutex);
-#endif
 }
 
 
@@ -123,30 +115,24 @@ my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
   {
     uint size_in_bytes= bitmap_buffer_size(n_bits);
     uint extra= 0;
-#ifdef THREAD
     if (thread_safe)
     {
       size_in_bytes= ALIGN_SIZE(size_in_bytes);
       extra= sizeof(mysql_mutex_t);
     }
     map->mutex= 0;
-#endif
     if (!(buf= (my_bitmap_map*) my_malloc(size_in_bytes+extra, MYF(MY_WME))))
       DBUG_RETURN(1);
-#ifdef THREAD
     if (thread_safe)
     {
       map->mutex= (mysql_mutex_t *) ((char*) buf + size_in_bytes);
       mysql_mutex_init(key_BITMAP_mutex, map->mutex, MY_MUTEX_INIT_FAST);
     }
-#endif
   }
-#ifdef THREAD
   else
   {
     DBUG_ASSERT(thread_safe == 0);
   }
-#endif
 
   map->bitmap= buf;
   map->n_bits= n_bits;
@@ -161,10 +147,8 @@ void bitmap_free(MY_BITMAP *map)
   DBUG_ENTER("bitmap_free");
   if (map->bitmap)
   {
-#ifdef THREAD
     if (map->mutex)
       mysql_mutex_destroy(map->mutex);
-#endif
     my_free(map->bitmap);
     map->bitmap=0;
   }

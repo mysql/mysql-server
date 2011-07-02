@@ -22,7 +22,7 @@
 #include "mysys_priv.h"
 #include <myisampack.h>
 
-#ifdef TARGET_OS_SOLARIS
+#ifdef __sun
 /*
  * On Solaris, memcmp() is normally faster than the unrolled ptr_compare_N
  * functions, as memcmp() is usually a platform-specific implementation
@@ -39,22 +39,25 @@ static int native_compare(size_t *length, unsigned char **a, unsigned char **b)
   return memcmp(*a, *b, *length);
 }
 
-#else	/* TARGET_OS_SOLARIS */
+#else	/* __sun */
 
 static int ptr_compare(size_t *compare_length, uchar **a, uchar **b);
 static int ptr_compare_0(size_t *compare_length, uchar **a, uchar **b);
 static int ptr_compare_1(size_t *compare_length, uchar **a, uchar **b);
 static int ptr_compare_2(size_t *compare_length, uchar **a, uchar **b);
 static int ptr_compare_3(size_t *compare_length, uchar **a, uchar **b);
-#endif	/* TARGET_OS_SOLARIS */
+#endif	/* __sun */
 
 	/* Get a pointer to a optimal byte-compare function for a given size */
 
+#ifdef __sun
+qsort2_cmp get_ptr_compare (size_t size __attribute__((unused)))
+{
+  return (qsort2_cmp) native_compare;
+}
+#else
 qsort2_cmp get_ptr_compare (size_t size)
 {
-#ifdef TARGET_OS_SOLARIS
-  return (qsort2_cmp) native_compare;
-#else
   if (size < 4)
     return (qsort2_cmp) ptr_compare;
   switch (size & 3) {
@@ -64,8 +67,8 @@ qsort2_cmp get_ptr_compare (size_t size)
     case 3: return (qsort2_cmp) ptr_compare_3;
     }
   return 0;					/* Impossible */
-#endif /* TARGET_OS_SOLARIS */
 }
+#endif /* __sun */
 
 
 	/*
@@ -74,6 +77,8 @@ qsort2_cmp get_ptr_compare (size_t size)
 	*/
 
 #define cmp(N) if (first[N] != last[N]) return (int) first[N] - (int) last[N]
+
+#ifndef __sun
 
 static int ptr_compare(size_t *compare_length, uchar **a, uchar **b)
 {
@@ -176,6 +181,8 @@ static int ptr_compare_3(size_t *compare_length,uchar **a, uchar **b)
   }
   return (0);
 }
+
+#endif /* !__sun */
 
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos)
 {

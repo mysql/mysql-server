@@ -11,8 +11,9 @@ change master to master_user='test';
 Master_User	test
 Master_Host	127.0.0.1
 reset slave;
-Master_User	root
+Master_User	test
 Master_Host	127.0.0.1
+change master to master_user='root';
 include/start_slave.inc
 Master_User	root
 Master_Host	127.0.0.1
@@ -30,11 +31,11 @@ include/stop_slave.inc
 reset slave;
 change master to master_user='impossible_user_name';
 start slave;
-include/stop_slave.inc
+stop slave;
 change master to master_user='root';
 include/start_slave.inc
-include/stop_slave.inc
+stop slave;
 change master to master_user='impossible_user_name';
 start slave;
-include/stop_slave.inc
+stop slave;
 reset slave;

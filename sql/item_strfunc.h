@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,16 @@ class MY_LOCALE;
 
 class Item_str_func :public Item_func
 {
+protected:
+  /**
+     Sets the result value of the function an empty string, using the current
+     character set. No memory is allocated.
+     @retval A pointer to the str_value member.
+   */
+  String *make_empty_result() {
+    str_value.set("", 0, collation.collation);
+    return &str_value; 
+  }
 public:
   Item_str_func() :Item_func() { decimals=NOT_FIXED_DEC; }
   Item_str_func(Item *a) :Item_func(a) {decimals=NOT_FIXED_DEC; }
@@ -41,6 +51,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref);
+  String *val_str_from_val_str_ascii(String *str, String *str2);
 };
 
 
@@ -56,8 +67,10 @@ public:
   Item_str_ascii_func(Item *a) :Item_str_func(a) {}
   Item_str_ascii_func(Item *a,Item *b) :Item_str_func(a,b) {}
   Item_str_ascii_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
-  String *val_str_convert_from_ascii(String *str, String *ascii_buf);
-  String *val_str(String *str);
+  String *val_str(String *str)
+  {
+    return val_str_from_val_str_ascii(str, &ascii_buf);
+  }
   virtual String *val_str_ascii(String *)= 0;
 };
 
@@ -351,7 +364,9 @@ public:
   {
     maybe_null=1;
     /* 9 = MAX ((8- (arg_len % 8)) + 1) */
-    max_length = args[0]->max_length - 9;
+    max_length= args[0]->max_length;
+    if (max_length >= 9U)
+      max_length-= 9U;
   }
   const char *func_name() const { return "des_decrypt"; }
 };
@@ -666,6 +681,46 @@ public:
 };
 
 
+#ifndef DBUG_OFF
+class Item_func_like_range :public Item_str_func
+{
+protected:
+  String min_str;
+  String max_str;
+  const bool is_min;
+public:
+  Item_func_like_range(Item *a, Item *b, bool is_min_arg)
+    :Item_str_func(a, b), is_min(is_min_arg)
+  { maybe_null= 1; }
+  String *val_str(String *);
+  void fix_length_and_dec()
+  {
+    collation.set(args[0]->collation);
+    decimals=0;
+    max_length= MAX_BLOB_WIDTH;
+  }
+};
+
+
+class Item_func_like_range_min :public Item_func_like_range
+{
+public:
+  Item_func_like_range_min(Item *a, Item *b) 
+    :Item_func_like_range(a, b, true) { }
+  const char *func_name() const { return "like_range_min"; }
+};
+
+
+class Item_func_like_range_max :public Item_func_like_range
+{
+public:
+  Item_func_like_range_max(Item *a, Item *b)
+    :Item_func_like_range(a, b, false) { }
+  const char *func_name() const { return "like_range_max"; }
+};
+#endif
+
+
 class Item_func_binary :public Item_str_func
 {
 public:
@@ -745,15 +800,17 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   {
-    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 + 2;
-    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
     collation.set(args[0]->collation);
+    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 +
+                                  2 * collation.collation->mbmaxlen;
+    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
   }
 };
 
 class Item_func_conv_charset :public Item_str_func
 {
   bool use_cached_value;
+  String tmp_value;
 public:
   bool safe;
   CHARSET_INFO *conv_charset; // keep it public

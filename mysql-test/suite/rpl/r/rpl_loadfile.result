@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE IF EXISTS test.t1;
 CREATE TABLE test.t1 (a INT, blob_column LONGBLOB, PRIMARY KEY(a));
@@ -225,11 +221,7 @@ aberration
 
 DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE test.t1;
-**** Resetting master and slave ****
-include/stop_slave.inc
-RESET SLAVE;
-RESET MASTER;
-include/start_slave.inc
+include/rpl_reset.inc
 SELECT repeat('x',20) INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug_39701.data';
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (t text);
@@ -240,6 +232,7 @@ END|
 include/stop_slave.inc
 CALL p('MYSQLTEST_VARDIR/tmp/bug_39701.data');
 include/start_slave.inc
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE t1;
 DROP PROCEDURE p;
+include/rpl_end.inc

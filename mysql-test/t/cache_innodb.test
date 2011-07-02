@@ -14,3 +14,18 @@ let $engine_type= InnoDB;
 let $test_foreign_keys= 1;
 
 --source include/query_cache.inc
+
+#
+# Bug#56452 Assertion failed: thd->transaction.stmt.is_empty() || 
+#           thd->in_sub_stmt
+#
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+BEGIN;
+  INSERT INTO t1 VALUES(1);
+ROLLBACK WORK AND CHAIN NO RELEASE;
+SELECT a FROM t1;
+ROLLBACK WORK AND CHAIN NO RELEASE;
+SELECT a FROM t1;
+ROLLBACK;
+DROP TABLE t1;
+

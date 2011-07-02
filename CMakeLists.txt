@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -61,6 +61,13 @@ SET(BUILDTYPE_DOCSTRING
  
 IF(WITH_DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
+  SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
+      "MySQL maintainer-specific development environment")
+  IF(UNIX AND NOT APPLE)
+    # Compiling with PIC speeds up embedded build, on PIC sensitive systems 
+    # Predefine it to ON, in case user chooses to build embedded. 
+    SET(WITH_PIC ON CACHE BOOL "Compile with PIC")
+  ENDIF()
   SET(OLD_WITH_DEBUG 1 CACHE INTERNAL "" FORCE)
 ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   IF(CUSTOM_C_FLAGS)
@@ -72,12 +79,12 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
-IF(BUILD_CONFIG)
-  SET(CMAKE_USER_MAKE_RULES_OVERRIDE 
-    ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)
-ENDIF()
 
 PROJECT(MySQL)
+IF(BUILD_CONFIG)
+  INCLUDE(
+  ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)
+ENDIF()
 
 # Include the platform-specific file. To allow exceptions, this code
 # looks for files in order of how specific they are. If there is, for
@@ -108,21 +115,24 @@ ENDIF()
 # Control aspects of the development environment which are
 # specific to MySQL maintainers and developers.
 #
-OPTION(MYSQL_MAINTAINER_MODE "MySQL maintainer-specific development environment" OFF)
-# Whether the maintainer mode should be enabled.
+INCLUDE(maintainer)
+
+OPTION(MYSQL_MAINTAINER_MODE
+       "MySQL maintainer-specific development environment" OFF)
+
+# Whether the maintainer mode compiler options should be enabled.
 IF(MYSQL_MAINTAINER_MODE)
-  IF(CMAKE_COMPILER_IS_GNUCC)
-    SET(MY_MAINTAINER_C_WARNINGS
-        "-Wall -Wextra -Wunused -Wwrite-strings -Wno-strict-aliasing -Werror"
-        CACHE STRING "C warning options used in maintainer builds.")
+  IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
   ENDIF()
-  IF(CMAKE_COMPILER_IS_GNUCXX)
-    SET(MY_MAINTAINER_CXX_WARNINGS "${MY_MAINTAINER_C_WARNINGS} -Wno-unused-parameter"
-        CACHE STRING "C++ warning options used in maintainer builds.")
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS()
   ENDIF()
-  # Do not make warnings in checks into errors.
-  IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)
-    SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Wno-error")
+  IF(CMAKE_C_COMPILER_ID MATCHES "Intel")
+    SET_MYSQL_MAINTAINER_INTEL_C_OPTIONS()
+  ENDIF()
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
+    SET_MYSQL_MAINTAINER_INTEL_CXX_OPTIONS()
   ENDIF()
 ENDIF()
 
@@ -162,6 +172,13 @@ IF(ENABLE_DEBUG_SYNC)
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC") 
 ENDIF() 
  
+OPTION(ENABLE_GCOV "Enable gcov (debug, Linux builds only)" OFF)
+IF (ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
+  SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -lgcov")
+ENDIF()
+
 OPTION(ENABLED_LOCAL_INFILE
  "If we should should enable LOAD DATA LOCAL by default" ${IF_WIN})
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
@@ -307,6 +324,24 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
                ${CMAKE_BINARY_DIR}/include/mysql_version.h )
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
     ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc)
+CONFIGURE_FILE(
+    ${CMAKE_SOURCE_DIR}/cmake/info_macros.cmake.in ${CMAKE_BINARY_DIR}/info_macros.cmake @ONLY)
+
+# Handle the "INFO_*" files.
+INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
+# Source: This can be done during the cmake phase, all information is
+# available, but should be repeated on each "make" just in case someone
+# does "cmake ; make ; bzr pull ; make".
+CREATE_INFO_SRC(${CMAKE_BINARY_DIR}/Docs)
+ADD_CUSTOM_TARGET(INFO_SRC ALL
+  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/info_src.cmake
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+# Build flags: This must be postponed to the make phase.
+ADD_CUSTOM_TARGET(INFO_BIN ALL
+  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/info_bin.cmake
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
 
 # Packaging
 IF(WIN32)
@@ -315,23 +350,34 @@ ELSE()
   SET(CPACK_GENERATOR "TGZ")
 ENDIF() 
 ADD_SUBDIRECTORY(packaging/WiX)
+
+# Create a single package with "make package"
+# (see http://public.kitware.com/Bug/view.php?id=11452)
+SET(CPACK_MONOLITHIC_INSTALL 1 CACHE INTERNAL "")
+
 INCLUDE(CPack)
 IF(UNIX)
-  INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL)
+  INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL COMPONENT Info)
 ENDIF()
 #
 # RPM installs documentation directly from the source tree
 #
 IF(NOT INSTALL_LAYOUT MATCHES "RPM")
-  INSTALL(FILES COPYING EXCEPTIONS-CLIENT LICENSE.mysql DESTINATION ${INSTALL_DOCREADMEDIR} OPTIONAL)
-  INSTALL(FILES README DESTINATION ${INSTALL_DOCREADMEDIR})
+  INSTALL(FILES COPYING LICENSE.mysql 
+  DESTINATION ${INSTALL_DOCREADMEDIR} 
+  COMPONENT Readme
+  OPTIONAL
+  )
+  INSTALL(FILES README DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
+  INSTALL(FILES ${CMAKE_BINARY_DIR}/Docs/INFO_SRC ${CMAKE_BINARY_DIR}/Docs/INFO_BIN DESTINATION ${INSTALL_DOCDIR})
   IF(UNIX)
-    INSTALL(FILES Docs/INSTALL-BINARY DESTINATION ${INSTALL_DOCREADMEDIR})
+    INSTALL(FILES Docs/INSTALL-BINARY DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
   ENDIF()
   # MYSQL_DOCS_LOCATON is used in "make dist", points to the documentation directory
   SET(MYSQL_DOCS_LOCATION "" CACHE PATH "Location from where documentation is copied")
   MARK_AS_ADVANCED(MYSQL_DOCS_LOCATION)
   INSTALL(DIRECTORY Docs/ DESTINATION ${INSTALL_DOCDIR}
+    COMPONENT Documentation
     PATTERN "INSTALL-BINARY" EXCLUDE
     PATTERN "Makefile.*" EXCLUDE
     PATTERN "glibc*" EXCLUDE

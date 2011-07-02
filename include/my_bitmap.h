@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,9 +19,7 @@
 #define MY_BIT_NONE (~(uint) 0)
 
 #include <m_string.h>
-#ifdef THREAD
 #include <my_pthread.h>
-#endif
 
 typedef uint32 my_bitmap_map;
 
@@ -34,9 +32,7 @@ typedef struct st_bitmap
      thread_safe flag in bitmap_init was set.  Otherwise, we optimize by not
      acquiring the mutex
    */
-#ifdef THREAD
   mysql_mutex_t *mutex;
-#endif
   my_bitmap_map last_word_mask;
   uint32	n_bits; /* number of bits occupied by the above */
 } MY_BITMAP;
@@ -132,9 +128,10 @@ bitmap_is_set(const MY_BITMAP *map,uint bit)
 
 static inline my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
 {
-  *(map1)->last_word_ptr|= (map1)->last_word_mask;
-  *(map2)->last_word_ptr|= (map2)->last_word_mask;
-  return memcmp((map1)->bitmap, (map2)->bitmap, 4*no_words_in_map((map1)))==0;
+  if (memcmp(map1->bitmap, map2->bitmap, 4*(no_words_in_map(map1)-1)) != 0)
+    return FALSE;
+  return ((*map1->last_word_ptr | map1->last_word_mask) ==
+          (*map2->last_word_ptr | map2->last_word_mask));
 }
 
 #define bitmap_clear_all(MAP) \

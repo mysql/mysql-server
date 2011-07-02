@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
-   original idea: Brian Aker via playing with ab for too many years
-   coded by: Patrick Galbraith
-*/
-
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
   MySQL Slap
@@ -94,6 +89,7 @@ TODO:
 #include <sys/wait.h>
 #endif
 #include <ctype.h>
+#include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #ifdef __WIN__
 #define srandom  srand
@@ -126,12 +122,13 @@ static char *host= NULL, *opt_password= NULL, *user= NULL,
             *pre_system= NULL,
             *post_system= NULL,
             *opt_mysql_unix_port= NULL;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
 const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-static my_bool opt_preserve= TRUE;
+static my_bool opt_preserve= TRUE, opt_no_drop= FALSE;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool opt_only_print= FALSE;
 static my_bool opt_compress= FALSE, tty_password= FALSE,
@@ -347,6 +344,12 @@ int main(int argc, char **argv)
   }
   mysql_init(&mysql);
   set_mysql_connect_options(&mysql);
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(&mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
   if (!opt_only_print) 
   {
@@ -599,6 +602,10 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", 'T', "Print some debug info at exit.", &debug_info_flag,
    &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_DEFAULT_AUTH,
+   "Default authentication client-side plugin to use.",
+   &opt_default_auth, &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", 'F',
     "Delimiter to use in SQL statements supplied in file or command line.",
    (char**) &delimiter, (char**) &delimiter, 0, GET_STR, REQUIRED_ARG,
@@ -617,6 +624,8 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"iterations", 'i', "Number of times to run the tests.", &iterations,
     &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"no-drop", OPT_SLAP_NO_DROP, "Do not drop the schema after the test.",
+   &opt_no_drop, &opt_no_drop, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
     "Number of VARCHAR columns to create in table if specifying --auto-generate-sql.",
    (char**) &num_char_cols_opt, (char**) &num_char_cols_opt, 0, GET_STR, REQUIRED_ARG,
@@ -641,6 +650,9 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   &opt_plugin_dir, &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", &opt_mysql_port,
     &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
     0},
@@ -703,8 +715,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 2005 MySQL AB");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2005, 2010"));
   puts("Run a query multiple times against the server.\n");
   printf("Usage: %s [OPTIONS]\n",my_progname);
   print_defaults("my",load_default_groups);
@@ -1159,8 +1170,11 @@ get_options(int *argc,char ***argv)
   if (!user)
     user= (char *)"root";
 
-  /* If something is created we clean it up, otherwise we leave schemas alone */
-  if (create_string || auto_generate_sql)
+  /*
+    If something is created and --no-drop is not specified, we drop the
+    schema.
+  */
+  if (!opt_no_drop && (create_string || auto_generate_sql))
     opt_preserve= FALSE;
 
   if (auto_generate_sql && (create_string || user_supplied_query))
@@ -1533,7 +1547,12 @@ generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt)
       exit(1);
     }
 
-    result= mysql_store_result(mysql);
+    if (!(result= mysql_store_result(mysql)))
+    {
+      fprintf(stderr, "%s: Error when storing result: %d %s\n",
+              my_progname, mysql_errno(mysql), mysql_error(mysql));
+      exit(1);
+    }
     primary_keys_number_of= mysql_num_rows(result);
 
     /* So why check this? Blackhole :) */
@@ -1907,16 +1926,14 @@ limit_not_met:
       {
         if (mysql_field_count(mysql))
         {
-          if ((result= mysql_store_result(mysql)))
-          {
-            while ((row = mysql_fetch_row(result)))
-              counter++;
-            mysql_free_result(result);
-          }
+          if (!(result= mysql_store_result(mysql)))
+            fprintf(stderr, "%s: Error when storing result: %d %s\n",
+                    my_progname, mysql_errno(mysql), mysql_error(mysql));
           else
           {
-            fprintf(stderr,"%s: Error in mysql_store_result(): %d %s\n",
-                my_progname, mysql_errno(mysql), mysql_error(mysql));
+            while ((row= mysql_fetch_row(result)))
+              counter++;
+            mysql_free_result(result);
           }
         }
       } while(mysql_next_result(mysql) == 0);

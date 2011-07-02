@@ -52,6 +52,15 @@ drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
 --enable_warnings
 
+# Bug#58912 InnoDB unnecessarily avoids update-in-place on column prefixes
+CREATE TABLE bug58912 (a BLOB, b TEXT, PRIMARY KEY(a(1))) ENGINE=InnoDB;
+INSERT INTO bug58912 VALUES(REPEAT('a',8000),REPEAT('b',8000));
+UPDATE bug58912 SET a=REPEAT('a',7999);
+# The above statements used to trigger a failure during purge when
+# Bug#55284 was fixed while Bug#58912 was not. Defer the DROP TABLE,
+# so that purge gets a chance to run (and a double free of the
+# off-page column can be detected, if one is to occur.)
+
 #
 # Small basic test with ignore
 #
@@ -1474,11 +1483,6 @@ CREATE TABLE t1 (
 id INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE t2 (
-id INTEGER NOT NULL,
-FOREIGN KEY (id) REFERENCES t1 (id)
-) ENGINE=InnoDB;
-
 INSERT INTO t1 (id) VALUES (NULL);
 SELECT * FROM t1;
 TRUNCATE t1;
@@ -1491,7 +1495,7 @@ DELETE FROM t1;
 TRUNCATE t1;
 INSERT INTO t1 (id) VALUES (NULL);
 SELECT * FROM t1;
-DROP TABLE t2, t1;
+DROP TABLE t1;
 
 # Test that foreign keys in temporary tables are not accepted (bug #12084)
 CREATE TABLE t1
@@ -1726,13 +1730,15 @@ update t2 set a=2;
 update t3 set a=2;
 -- error 1452
 update t4 set a=2;
--- error 1451
+-- error ER_TRUNCATE_ILLEGAL_FK
 truncate t1;
--- error 1451
+-- error ER_TRUNCATE_ILLEGAL_FK
 truncate t3;
 truncate t2;
 truncate t4;
+-- error ER_TRUNCATE_ILLEGAL_FK
 truncate t1;
+-- error ER_TRUNCATE_ILLEGAL_FK
 truncate t3;
 
 drop table t4,t3,t2,t1;
@@ -2553,6 +2559,9 @@ CONNECTION default;
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log
+
+# Clean up after the Bug#55284/Bug#58912 test case.
+DROP TABLE bug58912;
 
 #######################################################################
 #                                                                     #

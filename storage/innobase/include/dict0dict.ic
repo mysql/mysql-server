@@ -828,6 +828,34 @@ dict_table_check_if_in_cache_low(
 }
 
 /**********************************************************************//**
+load a table into dictionary cache, ignore any error specified during load; 
+@return	table, NULL if not found */
+UNIV_INLINE
+dict_table_t*
+dict_table_get_low_ignore_err(
+/*==========================*/
+	const char*	table_name,	/*!< in: table name */
+	dict_err_ignore_t
+			ignore_err)	/*!< in: error to be ignored when
+					loading a table definition */
+{
+	dict_table_t*	table;
+
+	ut_ad(table_name);
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	table = dict_table_check_if_in_cache_low(table_name);
+
+	if (table == NULL) {
+		table = dict_load_table(table_name, TRUE, ignore_err);
+	}
+
+	ut_ad(!table || table->cached);
+
+	return(table);
+}
+
+/**********************************************************************//**
 Gets a table; loads it to the dictionary cache if necessary. A low-level
 function.
 @return	table, NULL if not found */
@@ -845,7 +873,7 @@ dict_table_get_low(
 	table = dict_table_check_if_in_cache_low(table_name);
 
 	if (table == NULL) {
-		table = dict_load_table(table_name, TRUE);
+		table = dict_load_table(table_name, TRUE, DICT_ERR_IGNORE_NONE);
 	}
 
 	ut_ad(!table || table->cached);
@@ -883,4 +911,30 @@ dict_table_get_on_id_low(
 
 	return(table);
 }
+
+/**********************************************************************//**
+Determine bytes of column prefix to be stored in the undo log. Please
+note if the table format is UNIV_FORMAT_A (< DICT_TF_FORMAT_ZIP), no prefix
+needs to be stored in the undo log.
+@return bytes of column prefix to be stored in the undo log */
+UNIV_INLINE
+ulint
+dict_max_field_len_store_undo(
+/*==========================*/
+	dict_table_t*		table,	/*!< in: table */
+	const dict_col_t*	col)	/*!< in: column which index prefix
+					is based on */
+{
+	ulint   prefix_len = 0;
+
+	if (dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP)
+	{
+		prefix_len = col->max_prefix
+			? col->max_prefix
+			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+	}
+
+	return(prefix_len);
+}
+
 #endif /* !UNIV_HOTBACKUP */

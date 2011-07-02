@@ -117,14 +117,14 @@ create user 'user_1'@'localhost';
 grant create routine on db_storedproc_1.* to 'user_1'@'localhost';
 flush privileges;
 
+--disable_warnings
+DROP PROCEDURE IF EXISTS db_storedproc_1.sp3;
+DROP FUNCTION IF EXISTS db_storedproc_1.fn1;
+--enable_warnings
+
 #  disconnect default;
 connect (user2, localhost, user_1, , db_storedproc_1);
 --source suite/funcs_1/include/show_connection.inc
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp3;
-DROP FUNCTION IF EXISTS fn1;
---enable_warnings
 
 delimiter //;
 CREATE PROCEDURE sp3(v1 char(20))
@@ -149,10 +149,6 @@ USE db_storedproc_1;
 
 drop user 'user_1'@'localhost';
 DROP PROCEDURE sp3;
-# This drop function shouldn't generated a warning as the
-# privileges should have been removed when the user was
-# dropped. Reported as Bug#36544 DROP USER does not remove
-# stored function privileges
 DROP FUNCTION fn1;
 
 

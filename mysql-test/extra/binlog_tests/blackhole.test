@@ -173,7 +173,7 @@ insert into t1 values(2);
 rollback;
 
 let $master_log_pos_2= query_get_value(SHOW MASTER STATUS, Position, 1);
-if (`SELECT $master_log_pos_2 <> $master_log_pos_1`)
+if ($master_log_pos_2 != $master_log_pos_1)
 {
   echo $master_log_pos_1 $master_log_pos_2;
   die Rollbacked transaction has been binlogged;

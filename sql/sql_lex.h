@@ -162,7 +162,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_OPEN_TABLES,
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
   SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_UPDATE_MULTI,
-  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
+  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_DO,
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
   SQLCOM_SHOW_STORAGE_ENGINES, SQLCOM_SHOW_PRIVILEGES,
   SQLCOM_HELP, SQLCOM_CREATE_USER, SQLCOM_DROP_USER, SQLCOM_RENAME_USER,
@@ -272,8 +272,7 @@ typedef struct st_lex_server_options
 
 
 /**
-  Structure to hold parameters for CHANGE MASTER or START/STOP SLAVE
-  or SHOW NEW MASTER.
+  Structure to hold parameters for CHANGE MASTER, START SLAVE, and STOP SLAVE.
 
   Remark: this should not be confused with Master_info (and perhaps
   would better be renamed to st_lex_replication_info).  Some fields,
@@ -962,19 +961,19 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_CHANGE_COLUMN_DEFAULT (1L << 8)
 #define ALTER_KEYS_ONOFF        (1L << 9)
 #define ALTER_CONVERT           (1L << 10)
-#define ALTER_FORCE		(1L << 11)
-#define ALTER_RECREATE          (1L << 12)
-#define ALTER_ADD_PARTITION     (1L << 13)
-#define ALTER_DROP_PARTITION    (1L << 14)
-#define ALTER_COALESCE_PARTITION (1L << 15)
-#define ALTER_REORGANIZE_PARTITION (1L << 16) 
-#define ALTER_PARTITION          (1L << 17)
-#define ALTER_ADMIN_PARTITION    (1L << 18)
-#define ALTER_TABLE_REORG        (1L << 19)
-#define ALTER_REBUILD_PARTITION  (1L << 20)
-#define ALTER_ALL_PARTITION      (1L << 21)
-#define ALTER_REMOVE_PARTITIONING (1L << 22)
-#define ALTER_FOREIGN_KEY        (1L << 23)
+#define ALTER_RECREATE          (1L << 11)
+#define ALTER_ADD_PARTITION     (1L << 12)
+#define ALTER_DROP_PARTITION    (1L << 13)
+#define ALTER_COALESCE_PARTITION (1L << 14)
+#define ALTER_REORGANIZE_PARTITION (1L << 15)
+#define ALTER_PARTITION          (1L << 16)
+#define ALTER_ADMIN_PARTITION    (1L << 17)
+#define ALTER_TABLE_REORG        (1L << 18)
+#define ALTER_REBUILD_PARTITION  (1L << 19)
+#define ALTER_ALL_PARTITION      (1L << 20)
+#define ALTER_REMOVE_PARTITIONING (1L << 21)
+#define ALTER_FOREIGN_KEY        (1L << 22)
+#define ALTER_TRUNCATE_PARTITION (1L << 23)
 
 enum enum_alter_table_change_level
 {
@@ -1064,6 +1063,8 @@ struct st_sp_chistics
   enum enum_sp_data_access daccess;
 };
 
+extern const LEX_STRING null_lex_str;
+extern const LEX_STRING empty_lex_str;
 
 struct st_trg_chistics
 {
@@ -1404,6 +1405,7 @@ public:
     STMT_ACCESS_TABLE_COUNT
   };
 
+#ifndef DBUG_OFF
   static inline const char *stmt_accessed_table_string(enum_stmt_accessed_table accessed_table)
   {
     switch (accessed_table)
@@ -1437,7 +1439,10 @@ public:
         DBUG_ASSERT(0);
       break;
     }
+    MY_ASSERT_UNREACHABLE();
+    return "";
   }
+#endif  /* DBUG */
                
   #define BINLOG_DIRECT_ON 0xF0    /* unsafe when
                                       --binlog-direct-non-trans-updates
@@ -2306,19 +2311,12 @@ struct LEX: public Query_tables_list
   uint8 derived_tables;
   uint8 create_view_algorithm;
   uint8 create_view_check;
+  uint8 context_analysis_only;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool autocommit;
   bool verbose, no_write_to_binlog;
 
   enum enum_yes_no_unknown tx_chain, tx_release;
-  /*
-    Special JOIN::prepare mode: changing of query is prohibited.
-    When creating a view, we need to just check its syntax omitting
-    any optimizations: afterwards definition of the view will be
-    reconstructed by means of ::print() methods and written to
-    to an .frm file. We need this definition to stay untouched.
-  */
-  bool view_prepare_mode;
   bool safe_to_cache_query;
   bool subqueries, ignore;
   st_parsing_options parsing_options;
@@ -2344,6 +2342,7 @@ struct LEX: public Query_tables_list
   sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
+  bool proxy_priv;
   sp_pcontext *spcont;
 
   st_sp_chistics sp_chistics;
@@ -2382,15 +2381,19 @@ struct LEX: public Query_tables_list
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
 
-    keyword_delayed_begin points to the begin of the DELAYED keyword in
-    INSERT DELAYED statement.
+    keyword_delayed_begin_offset is the offset to the beginning of the DELAYED
+    keyword in INSERT DELAYED statement. keyword_delayed_end_offset is the
+    offset to the character right after the DELAYED keyword.
   */
   union {
     const char *stmt_definition_begin;
-    const char *keyword_delayed_begin;
+    uint keyword_delayed_begin_offset;
   };
 
-  const char *stmt_definition_end;
+  union {
+    const char *stmt_definition_end;
+    uint keyword_delayed_end_offset;
+  };
 
   /**
     Collects create options for Field and KEY
@@ -2414,22 +2417,6 @@ struct LEX: public Query_tables_list
   bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
 
-  /*
-    Special case for SELECT .. FOR UPDATE and LOCK TABLES .. WRITE.
-
-    Protect from a impending GRL as otherwise the thread might deadlock
-    if it starts waiting for the GRL in mysql_lock_tables.
-
-    The protection is needed because there is a race between setting
-    the global read lock and waiting for all open tables to be closed.
-    The problem is a circular wait where a thread holding "old" open
-    tables will wait for the global read lock to be released while the
-    thread holding the global read lock will wait for all "old" open
-    tables to be closed -- the flush part of flush tables with read
-    lock.
-  */
-  bool protect_against_global_read_lock;
-
   LEX();
 
   virtual ~LEX()
@@ -2437,6 +2424,13 @@ struct LEX: public Query_tables_list
     destroy_query_tables_list();
     plugin_unlock_list(NULL, (plugin_ref *)plugins.buffer, plugins.elements);
     delete_dynamic(&plugins);
+  }
+
+  inline bool is_ps_or_view_context_analysis()
+  {
+    return (context_analysis_only &
+            (CONTEXT_ANALYSIS_ONLY_PREPARE |
+             CONTEXT_ANALYSIS_ONLY_VIEW));
   }
 
   inline void uncacheable(uint8 cause)

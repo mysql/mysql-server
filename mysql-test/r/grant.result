@@ -13,8 +13,48 @@ GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3
 GRANT SELECT ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
 grant delete on mysqltest.* to mysqltest_1@localhost;
 select * from mysql.user where user="mysqltest_1";
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	auth_string
-localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	SPECIFIED	EDH-RSA-DES-CBC3-SHA			0	0	0	0		
+Host	localhost
+User	mysqltest_1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	SPECIFIED
+ssl_cipher	EDH-RSA-DES-CBC3-SHA
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	NULL
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3-SHA'
@@ -44,15 +84,95 @@ delete from mysql.user where user='mysqltest_1';
 flush privileges;
 grant usage on *.* to mysqltest_1@localhost with max_queries_per_hour 10;
 select * from mysql.user where user="mysqltest_1";
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	auth_string
-localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					10	0	0	0		
+Host	localhost
+User	mysqltest_1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	10
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	NULL
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10
 grant usage on *.* to mysqltest_1@localhost with max_updates_per_hour 20 max_connections_per_hour 30;
 select * from mysql.user where user="mysqltest_1";
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	auth_string
-localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					10	20	30	0		
+Host	localhost
+User	mysqltest_1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	10
+max_updates	20
+max_connections	30
+max_user_connections	0
+plugin	
+authentication_string	NULL
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10 MAX_UPDATES_PER_HOUR 20 MAX_CONNECTIONS_PER_HOUR 30
@@ -474,6 +594,7 @@ Index	Tables	To create or drop indexes
 Insert	Tables	To insert data into tables
 Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
 Process	Server Admin	To view the plain text of currently executing queries
+Proxy	Server Admin	To make proxy user possible
 References	Databases,Tables	To have references on tables
 Reload	Server Admin	To reload or refresh tables, logs and privileges
 Replication client	Server Admin	To ask where the slave or master servers are
@@ -626,16 +747,19 @@ show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 GRANT SELECT ON `ÂÄ`.* TO 'root'@'localhost'
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 flush privileges;
 show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 GRANT SELECT ON `ÂÄ`.* TO 'root'@'localhost'
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 drop database ÂÄ;
 revoke all privileges on ÂÄ.* from root@localhost;
 show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 set names latin1;
 create user mysqltest_7@;
 set password for mysqltest_7@ = password('systpass');
@@ -1254,6 +1378,273 @@ CURRENT_USER()
 root@localhost
 SET PASSWORD FOR CURRENT_USER() = PASSWORD("admin");
 SET PASSWORD FOR CURRENT_USER() = PASSWORD("");
+
+# Bug#57952
+
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+use mysqltest1;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (2);
+CREATE TABLE mysqltest2.t3(a INT);
+INSERT INTO mysqltest2.t3 VALUES (4);
+CREATE USER testuser@localhost;
+GRANT CREATE ROUTINE, EXECUTE ON mysqltest1.* TO testuser@localhost;
+GRANT SELECT(b) ON t1 TO testuser@localhost;
+GRANT SELECT    ON t2 TO testuser@localhost;
+GRANT SELECT    ON mysqltest2.* TO testuser@localhost;
+
+# Connection: bug57952_con1 (testuser@localhost, db: mysqltest1)
+PREPARE s1 FROM 'SELECT b FROM t1';
+PREPARE s2 FROM 'SELECT a FROM t2';
+PREPARE s3 FROM 'SHOW TABLES FROM mysqltest2';
+CREATE PROCEDURE p1() SELECT b FROM t1;
+CREATE PROCEDURE p2() SELECT a FROM t2;
+CREATE PROCEDURE p3() SHOW TABLES FROM mysqltest2;
+CALL p1;
+b
+1
+CALL p2;
+a
+2
+CALL p3;
+Tables_in_mysqltest2
+t3
+
+# Connection: default
+REVOKE SELECT ON t1 FROM testuser@localhost;
+GRANT SELECT(a) ON t1 TO testuser@localhost;
+REVOKE SELECT ON t2 FROM testuser@localhost;
+REVOKE SELECT ON mysqltest2.* FROM testuser@localhost;
+
+# Connection: bug57952_con1 (testuser@localhost, db: mysqltest1)
+#   - Check column-level privileges...
+EXECUTE s1;
+ERROR 42000: SELECT command denied to user 'testuser'@'localhost' for column 'b' in table 't1'
+SELECT b FROM t1;
+ERROR 42000: SELECT command denied to user 'testuser'@'localhost' for column 'b' in table 't1'
+EXECUTE s1;
+ERROR 42000: SELECT command denied to user 'testuser'@'localhost' for column 'b' in table 't1'
+CALL p1;
+ERROR 42000: SELECT command denied to user 'testuser'@'localhost' for column 'b' in table 't1'
+#   - Check table-level privileges...
+SELECT a FROM t2;
+ERROR 42000: SELECT command denied to user 'testuser'@'localhost' for table 't2'
+EXECUTE s2;
+ERROR 42000: SELECT command denied to user 'testuser'@'localhost' for table 't2'
+CALL p2;
+ERROR 42000: SELECT command denied to user 'testuser'@'localhost' for table 't2'
+#   - Check database-level privileges...
+SHOW TABLES FROM mysqltest2;
+ERROR 42000: Access denied for user 'testuser'@'localhost' to database 'mysqltest2'
+EXECUTE s3;
+ERROR 42000: Access denied for user 'testuser'@'localhost' to database 'mysqltest2'
+CALL p3;
+ERROR 42000: Access denied for user 'testuser'@'localhost' to database 'mysqltest2'
+
+# Connection: default
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+DROP USER testuser@localhost;
+use test;
+
+#
+# Test for bug #36544 "DROP USER does not remove stored function
+#                      privileges".
+#
+create database mysqltest1;
+create function mysqltest1.f1() returns int return 0;
+create procedure mysqltest1.p1() begin end;
+#
+# 1) Check that DROP USER properly removes privileges on both
+#    stored procedures and functions.
+#
+create user mysqluser1@localhost;
+grant execute on function mysqltest1.f1 to mysqluser1@localhost;
+grant execute on procedure mysqltest1.p1 to mysqluser1@localhost;
+# Quick test that granted privileges are properly reflected
+# in privilege tables and in in-memory structures.
+show grants for mysqluser1@localhost;
+Grants for mysqluser1@localhost
+GRANT USAGE ON *.* TO 'mysqluser1'@'localhost'
+GRANT EXECUTE ON PROCEDURE `mysqltest1`.`p1` TO 'mysqluser1'@'localhost'
+GRANT EXECUTE ON FUNCTION `mysqltest1`.`f1` TO 'mysqluser1'@'localhost'
+select db, routine_name, routine_type, proc_priv from mysql.procs_priv where user='mysqluser1' and host='localhost';
+db	routine_name	routine_type	proc_priv
+mysqltest1	f1	FUNCTION	Execute
+mysqltest1	p1	PROCEDURE	Execute
+#
+# Create connection 'bug_36544_con1' as 'mysqluser1@localhost'.
+call mysqltest1.p1();
+select mysqltest1.f1();
+mysqltest1.f1()
+0
+#
+# Switch to connection 'default'.
+drop user mysqluser1@localhost;
+#
+# Test that dropping of user is properly reflected in
+# both privilege tables and in in-memory structures.
+#
+# Switch to connection 'bug36544_con1'.
+# The connection cold be alive but should not be able to
+# access to any of the stored routines.
+call mysqltest1.p1();
+ERROR 42000: execute command denied to user 'mysqluser1'@'localhost' for routine 'mysqltest1.p1'
+select mysqltest1.f1();
+ERROR 42000: execute command denied to user 'mysqluser1'@'localhost' for routine 'mysqltest1.f1'
+#
+# Switch to connection 'default'.
+#
+# Now create user with the same name and check that he
+# has not inherited privileges.
+create user mysqluser1@localhost;
+show grants for mysqluser1@localhost;
+Grants for mysqluser1@localhost
+GRANT USAGE ON *.* TO 'mysqluser1'@'localhost'
+select db, routine_name, routine_type, proc_priv from mysql.procs_priv where user='mysqluser1' and host='localhost';
+db	routine_name	routine_type	proc_priv
+#
+# Create connection 'bug_36544_con2' as 'mysqluser1@localhost'.
+# Newly created user should not be able to access any of the routines.
+call mysqltest1.p1();
+ERROR 42000: execute command denied to user 'mysqluser1'@'localhost' for routine 'mysqltest1.p1'
+select mysqltest1.f1();
+ERROR 42000: execute command denied to user 'mysqluser1'@'localhost' for routine 'mysqltest1.f1'
+#
+# Switch to connection 'default'.
+#
+# 2) Check that RENAME USER properly updates privileges on both
+#    stored procedures and functions.
+#
+grant execute on function mysqltest1.f1 to mysqluser1@localhost;
+grant execute on procedure mysqltest1.p1 to mysqluser1@localhost;
+#
+# Create one more user to make in-memory hashes non-trivial.
+# User names 'mysqluser11' and 'mysqluser10' were selected
+# to trigger bug discovered during code inspection.
+create user mysqluser11@localhost;
+grant execute on function mysqltest1.f1 to mysqluser11@localhost;
+grant execute on procedure mysqltest1.p1 to mysqluser11@localhost;
+# Also create a couple of tables to test for another bug
+# discovered during code inspection (again table names were
+# chosen especially to trigger the bug).
+create table mysqltest1.t11 (i int);
+create table mysqltest1.t22 (i int);
+grant select on mysqltest1.t22 to mysqluser1@localhost;
+grant select on mysqltest1.t11 to mysqluser1@localhost;
+# Quick test that granted privileges are properly reflected
+# in privilege tables and in in-memory structures.
+show grants for mysqluser1@localhost;
+Grants for mysqluser1@localhost
+GRANT USAGE ON *.* TO 'mysqluser1'@'localhost'
+GRANT SELECT ON `mysqltest1`.`t11` TO 'mysqluser1'@'localhost'
+GRANT SELECT ON `mysqltest1`.`t22` TO 'mysqluser1'@'localhost'
+GRANT EXECUTE ON PROCEDURE `mysqltest1`.`p1` TO 'mysqluser1'@'localhost'
+GRANT EXECUTE ON FUNCTION `mysqltest1`.`f1` TO 'mysqluser1'@'localhost'
+select db, routine_name, routine_type, proc_priv from mysql.procs_priv where user='mysqluser1' and host='localhost';
+db	routine_name	routine_type	proc_priv
+mysqltest1	f1	FUNCTION	Execute
+mysqltest1	p1	PROCEDURE	Execute
+select db, table_name, table_priv from mysql.tables_priv where user='mysqluser1' and host='localhost';
+db	table_name	table_priv
+mysqltest1	t11	Select
+mysqltest1	t22	Select
+#
+# Switch to connection 'bug36544_con2'.
+call mysqltest1.p1();
+select mysqltest1.f1();
+mysqltest1.f1()
+0
+select * from mysqltest1.t11;
+i
+select * from mysqltest1.t22;
+i
+#
+# Switch to connection 'default'.
+rename user mysqluser1@localhost to mysqluser10@localhost;
+#
+# Test that there are no privileges left for mysqluser1.
+#
+# Switch to connection 'bug36544_con2'.
+# The connection cold be alive but should not be able to
+# access to any of the stored routines or tables.
+call mysqltest1.p1();
+ERROR 42000: execute command denied to user 'mysqluser1'@'localhost' for routine 'mysqltest1.p1'
+select mysqltest1.f1();
+ERROR 42000: execute command denied to user 'mysqluser1'@'localhost' for routine 'mysqltest1.f1'
+select * from mysqltest1.t11;
+ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 't11'
+select * from mysqltest1.t22;
+ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 't22'
+#
+# Switch to connection 'default'.
+#
+# Now create user with the old name and check that he
+# has not inherited privileges.
+create user mysqluser1@localhost;
+show grants for mysqluser1@localhost;
+Grants for mysqluser1@localhost
+GRANT USAGE ON *.* TO 'mysqluser1'@'localhost'
+select db, routine_name, routine_type, proc_priv from mysql.procs_priv where user='mysqluser1' and host='localhost';
+db	routine_name	routine_type	proc_priv
+select db, table_name, table_priv from mysql.tables_priv where user='mysqluser1' and host='localhost';
+db	table_name	table_priv
+#
+# Create connection 'bug_36544_con3' as 'mysqluser1@localhost'.
+# Newly created user should not be able to access to any of the
+# stored routines or tables.
+call mysqltest1.p1();
+ERROR 42000: execute command denied to user 'mysqluser1'@'localhost' for routine 'mysqltest1.p1'
+select mysqltest1.f1();
+ERROR 42000: execute command denied to user 'mysqluser1'@'localhost' for routine 'mysqltest1.f1'
+select * from mysqltest1.t11;
+ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 't11'
+select * from mysqltest1.t22;
+ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 't22'
+#
+# Switch to connection 'default'.
+#
+# Now check that privileges became associated with a new user
+# name - mysqluser10.
+#
+show grants for mysqluser10@localhost;
+Grants for mysqluser10@localhost
+GRANT USAGE ON *.* TO 'mysqluser10'@'localhost'
+GRANT SELECT ON `mysqltest1`.`t22` TO 'mysqluser10'@'localhost'
+GRANT SELECT ON `mysqltest1`.`t11` TO 'mysqluser10'@'localhost'
+GRANT EXECUTE ON PROCEDURE `mysqltest1`.`p1` TO 'mysqluser10'@'localhost'
+GRANT EXECUTE ON FUNCTION `mysqltest1`.`f1` TO 'mysqluser10'@'localhost'
+select db, routine_name, routine_type, proc_priv from mysql.procs_priv where user='mysqluser10' and host='localhost';
+db	routine_name	routine_type	proc_priv
+mysqltest1	f1	FUNCTION	Execute
+mysqltest1	p1	PROCEDURE	Execute
+select db, table_name, table_priv from mysql.tables_priv where user='mysqluser10' and host='localhost';
+db	table_name	table_priv
+mysqltest1	t11	Select
+mysqltest1	t22	Select
+#
+# Create connection 'bug_36544_con4' as 'mysqluser10@localhost'.
+call mysqltest1.p1();
+select mysqltest1.f1();
+mysqltest1.f1()
+0
+select * from mysqltest1.t11;
+i
+select * from mysqltest1.t22;
+i
+#
+# Switch to connection 'default'.
+#
+# Clean-up.
+drop user mysqluser1@localhost;
+drop user mysqluser10@localhost;
+drop user mysqluser11@localhost;
+drop database mysqltest1;
 End of 5.0 tests
 set names utf8;
 grant select on test.* to ÑŽÐ·ÐµÑ€_ÑŽÐ·ÐµÑ€@localhost;
@@ -1325,8 +1716,6 @@ CREATE USER 'userbug33464'@'localhost';
 GRANT CREATE ROUTINE ON dbbug33464.* TO 'userbug33464'@'localhost';
 	
 userbug33464@localhost	dbbug33464
-DROP PROCEDURE IF EXISTS sp3;
-DROP FUNCTION IF EXISTS fn1;
 CREATE PROCEDURE sp3(v1 char(20))
 BEGIN
 SELECT * from dbbug33464.t6 where t6.f2= 'xyz';
@@ -1350,11 +1739,7 @@ fn2()
 2
 DROP USER 'userbug33464'@'localhost';
 DROP FUNCTION fn1;
-Warnings:
-Warning	1403	There is no such grant defined for user 'userbug33464' on host 'localhost' on routine 'fn1'
 DROP FUNCTION fn2;
-Warnings:
-Warning	1403	There is no such grant defined for user 'userbug33464' on host 'localhost' on routine 'fn2'
 DROP PROCEDURE sp3;
 DROP USER 'userbug33464'@'localhost';
 USE test;
@@ -1454,6 +1839,17 @@ DROP USER 'testbug'@localhost;
 DROP TABLE db2.t1;
 DROP DATABASE db1;
 DROP DATABASE db2;
+#
+# Bug #36742
+#
+grant usage on Foo.* to myuser@Localhost identified by 'foo';
+grant select on Foo.* to myuser@localhost;
+select host,user from mysql.user where User='myuser';
+host	user
+localhost	myuser
+revoke select on Foo.* from myuser@localhost;
+delete from mysql.user where User='myuser';
+flush privileges;
 #########################################################################
 #
 # Bug#38347: ALTER ROUTINE privilege allows SHOW CREATE TABLE.

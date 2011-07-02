@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /*
   Functions to autenticate and handle reqests for a connection
@@ -52,7 +51,7 @@ static HASH hash_user_connections;
 
 int get_or_create_user_conn(THD *thd, const char *user,
                             const char *host,
-                            USER_RESOURCES *mqh)
+                            const USER_RESOURCES *mqh)
 {
   int return_val= 0;
   size_t temp_len, user_len;
@@ -277,7 +276,6 @@ end:
 }
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
 
 /*
   Check for maximum allowable user connections, if the mysqld server is
@@ -801,8 +799,23 @@ void update_global_user_stats(THD *thd, bool create_user, time_t now)
 }
 
 
-void thd_init_client_charset(THD *thd, uint cs_number)
+/**
+  Set thread character set variables from the given ID
+
+  @param  thd         thread handle
+  @param  cs_number   character set and collation ID
+
+  @retval  0  OK; character_set_client, collation_connection and
+              character_set_results are set to the new value,
+              or to the default global values.
+
+  @retval  1  error, e.g. the given ID is not supported by parser.
+              Corresponding SQL error is sent.
+*/
+
+bool thd_init_client_charset(THD *thd, uint cs_number)
 {
+  CHARSET_INFO *cs;
   /*
    Use server character set and collation if
    - opt_character_set_client_handshake is not set
@@ -811,10 +824,10 @@ void thd_init_client_charset(THD *thd, uint cs_number)
    - client character set doesn't exists in server
   */
   if (!opt_character_set_client_handshake ||
-      !(thd->variables.character_set_client= get_charset(cs_number, MYF(0))) ||
+      !(cs= get_charset(cs_number, MYF(0))) ||
       !my_strcasecmp(&my_charset_latin1,
                      global_system_variables.character_set_client->name,
-                     thd->variables.character_set_client->name))
+                     cs->name))
   {
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
@@ -825,10 +838,18 @@ void thd_init_client_charset(THD *thd, uint cs_number)
   }
   else
   {
+    if (!is_supported_parser_charset(cs))
+    {
+      /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+               cs->csname);
+      return true;
+    }    
     thd->variables.character_set_results=
       thd->variables.collation_connection= 
-      thd->variables.character_set_client;
+      thd->variables.character_set_client= cs;
   }
+  return false;
 }
 
 
@@ -874,7 +895,7 @@ static int check_connection(THD *thd)
 
     if (vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST))
     {
-      my_error(ER_BAD_HOST_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
@@ -885,7 +906,7 @@ static int check_connection(THD *thd)
       if (ip_to_hostname(&net->vio->remote, thd->main_security_ctx.ip,
                          &thd->main_security_ctx.host, &connect_errors))
       {
-        my_error(ER_BAD_HOST_ERROR, MYF(0), ip);
+        my_error(ER_BAD_HOST_ERROR, MYF(0));
         return 1;
       }
 
@@ -949,7 +970,7 @@ bool setup_connection_thread_globals(THD *thd)
 {
   if (thd->store_globals())
   {
-    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+    close_connection(thd, ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_status);
     MYSQL_CALLBACK(thd->scheduler, end_thread, (thd, 0));
     return 1;                                   // Error
@@ -1124,6 +1145,32 @@ pthread_handler_t handle_one_connection(void *arg)
   return 0;
 }
 
+bool thd_prepare_connection(THD *thd)
+{
+  bool rc;
+  lex_start(thd);
+  rc= login_connection(thd);
+  MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+  if (rc)
+    return rc;
+
+  MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
+                         (char *) thd->security_ctx->host_or_ip);
+
+  prepare_new_connection_state(thd);
+  return FALSE;
+}
+
+bool thd_is_connection_alive(THD *thd)
+{
+  NET *net= &thd->net;
+  if (!net->error &&
+      net->vio != 0 &&
+      !(thd->killed == THD::KILL_CONNECTION))
+    return TRUE;
+  return FALSE;
+}
+
 void do_handle_one_connection(THD *thd_arg)
 {
   THD *thd= thd_arg;
@@ -1132,7 +1179,7 @@ void do_handle_one_connection(THD *thd_arg)
 
   if (MYSQL_CALLBACK_ELSE(&thread_scheduler, init_new_connection_thread, (), 0))
   {
-    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+    close_connection(thd, ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_status);
     MYSQL_CALLBACK(thd->scheduler, end_thread, (thd, 0));
     return;
@@ -1166,23 +1213,15 @@ void do_handle_one_connection(THD *thd_arg)
 
   for (;;)
   {
-    NET *net= &thd->net;
     bool create_user= TRUE;
 
-    lex_start(thd);
-    if (login_connection(thd))
+    if (thd_prepare_connection(thd))
     {
       create_user= FALSE;
       goto end_thread;
     }      
 
-    MYSQL_CONNECTION_START(thd->thread_id, thd->security_ctx->priv_user,
-                           (char *) thd->security_ctx->host_or_ip);
-
-    prepare_new_connection_state(thd);
-
-    while (!net->error && net->vio != 0 &&
-           !(thd->killed == THD::KILL_CONNECTION))
+    while (thd_is_connection_alive(thd))
     {
       mysql_audit_release(thd);
       if (do_command(thd))
@@ -1191,7 +1230,7 @@ void do_handle_one_connection(THD *thd_arg)
     end_connection(thd);
    
 end_thread:
-    close_connection(thd, 0, 1);
+    close_connection(thd);
 
     if (thd->userstat_running)
       update_global_user_stats(thd, create_user, time(NULL));

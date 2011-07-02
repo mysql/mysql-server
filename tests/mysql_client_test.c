@@ -1,4 +1,4 @@
-/* Copyright (C) 2003-2004 MySQL AB
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include <mysqld_error.h>
 #include <my_handler.h>
 #include <sql_common.h>
+#include <mysql/client_plugin.h>
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
@@ -62,6 +63,7 @@ static unsigned int test_count= 0;
 static unsigned int opt_count= 0;
 static unsigned int iter_count= 0;
 static my_bool have_innodb= FALSE;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
 static const char *opt_basedir= "./";
 static const char *opt_vardir= "mysql-test/var";
@@ -248,6 +250,11 @@ static MYSQL *mysql_client_init(MYSQL* con)
   if (res && shared_memory_base_name)
     mysql_options(res, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
 #endif
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(res, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(res, MYSQL_DEFAULT_AUTH, opt_default_auth);
   return res;
 }
 
@@ -329,6 +336,11 @@ static MYSQL* client_connect(ulong flag, uint protocol, my_bool auto_reconnect)
   /* enable local infile, in non-binary builds often disabled by default */
   mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
   mysql_options(mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
   if (!(mysql_real_connect(mysql, opt_host, opt_user,
                            opt_password, opt_db ? opt_db:"test", opt_port,
@@ -2105,6 +2117,255 @@ static void test_wl4435_2()
     rc= mysql_query(mysql, "DROP PROCEDURE p1");
     myquery(rc);
   }
+}
+
+
+#define WL4435_TEST(sql_type, sql_value, \
+                    c_api_in_type, c_api_out_type, \
+                    c_type, c_type_ext, \
+                    printf_args, assert_condition) \
+\
+  do { \
+  int rc; \
+  MYSQL_STMT *ps; \
+  MYSQL_BIND psp; \
+  MYSQL_RES *rs_metadata; \
+  MYSQL_FIELD *fields; \
+  c_type pspv c_type_ext; \
+  my_bool psp_null; \
+  \
+  bzero(&pspv, sizeof (pspv)); \
+  \
+  rc= mysql_query(mysql, "DROP PROCEDURE IF EXISTS p1"); \
+  myquery(rc); \
+  \
+  rc= mysql_query(mysql, \
+    "CREATE PROCEDURE p1(OUT v " sql_type ") SET v = " sql_value ";"); \
+  myquery(rc); \
+  \
+  ps = mysql_simple_prepare(mysql, "CALL p1(?)"); \
+  check_stmt(ps); \
+  \
+  bzero(&psp, sizeof (psp)); \
+  psp.buffer_type= c_api_in_type; \
+  psp.is_null= &psp_null; \
+  psp.buffer= (char *) &pspv; \
+  psp.buffer_length= sizeof (psp); \
+  \
+  rc= mysql_stmt_bind_param(ps, &psp); \
+  check_execute(ps, rc); \
+  \
+  rc= mysql_stmt_execute(ps); \
+  check_execute(ps, rc); \
+  \
+  DIE_UNLESS(mysql->server_status & SERVER_PS_OUT_PARAMS); \
+  DIE_UNLESS(mysql_stmt_field_count(ps) == 1); \
+  \
+  rs_metadata= mysql_stmt_result_metadata(ps); \
+  fields= mysql_fetch_fields(rs_metadata); \
+  \
+  rc= mysql_stmt_bind_result(ps, &psp); \
+  check_execute(ps, rc); \
+  \
+  rc= mysql_stmt_fetch(ps); \
+  DIE_UNLESS(rc == 0); \
+  \
+  DIE_UNLESS(fields[0].type == c_api_out_type); \
+  printf printf_args; \
+  printf("; in type: %d; out type: %d\n", \
+         (int) c_api_in_type, (int) c_api_out_type); \
+  \
+  rc= mysql_stmt_fetch(ps); \
+  DIE_UNLESS(rc == MYSQL_NO_DATA); \
+  \
+  rc= mysql_stmt_next_result(ps); \
+  DIE_UNLESS(rc == 0); \
+  \
+  mysql_stmt_free_result(ps); \
+  mysql_stmt_close(ps); \
+  \
+  DIE_UNLESS(assert_condition); \
+  \
+  } while (0)
+
+static void test_wl4435_3()
+{
+  char tmp[255];
+
+  puts("");
+
+  // The following types are not supported:
+  //   - ENUM
+  //   - SET
+  //
+  // The following types are supported but can not be used for
+  // OUT-parameters:
+  //   - MEDIUMINT;
+  //   - BIT(..);
+  //
+  // The problem is that those types are not supported for IN-parameters,
+  // and OUT-parameters should be bound as IN-parameters before execution.
+  //
+  // The following types should not be used:
+  //   - MYSQL_TYPE_YEAR (use MYSQL_TYPE_SHORT instead);
+  //   - MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB
+  //     (use MYSQL_TYPE_BLOB instead);
+
+  WL4435_TEST("TINYINT", "127",
+              MYSQL_TYPE_TINY, MYSQL_TYPE_TINY,
+              char, ,
+              ("  - TINYINT / char / MYSQL_TYPE_TINY:\t\t\t %d", (int) pspv),
+              pspv == 127);
+
+  WL4435_TEST("SMALLINT", "32767",
+              MYSQL_TYPE_SHORT, MYSQL_TYPE_SHORT,
+              short, ,
+              ("  - SMALLINT / short / MYSQL_TYPE_SHORT:\t\t %d", (int) pspv),
+              pspv == 32767);
+
+  WL4435_TEST("INT", "2147483647",
+              MYSQL_TYPE_LONG, MYSQL_TYPE_LONG,
+              int, ,
+              ("  - INT / int / MYSQL_TYPE_LONG:\t\t\t %d", pspv),
+              pspv == 2147483647l);
+
+  WL4435_TEST("BIGINT", "9223372036854775807",
+              MYSQL_TYPE_LONGLONG, MYSQL_TYPE_LONGLONG,
+              long long, ,
+              ("  - BIGINT / long long / MYSQL_TYPE_LONGLONG:\t\t %lld", pspv),
+              pspv == 9223372036854775807ll);
+
+  WL4435_TEST("TIMESTAMP", "'2007-11-18 15:01:02'",
+              MYSQL_TYPE_TIMESTAMP, MYSQL_TYPE_TIMESTAMP,
+              MYSQL_TIME, ,
+              ("  - TIMESTAMP / MYSQL_TIME / MYSQL_TYPE_TIMESTAMP:\t "
+               "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
+               (int) pspv.year, (int) pspv.month, (int) pspv.day,
+               (int) pspv.hour, (int) pspv.minute, (int) pspv.second),
+              pspv.year == 2007 && pspv.month == 11 && pspv.day == 18 &&
+              pspv.hour == 15 && pspv.minute == 1 && pspv.second == 2);
+
+  WL4435_TEST("DATETIME", "'1234-11-12 12:34:59'",
+              MYSQL_TYPE_DATETIME, MYSQL_TYPE_DATETIME,
+              MYSQL_TIME, ,
+              ("  - DATETIME / MYSQL_TIME / MYSQL_TYPE_DATETIME:\t "
+               "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
+               (int) pspv.year, (int) pspv.month, (int) pspv.day,
+               (int) pspv.hour, (int) pspv.minute, (int) pspv.second),
+              pspv.year == 1234 && pspv.month == 11 && pspv.day == 12 &&
+              pspv.hour == 12 && pspv.minute == 34 && pspv.second == 59);
+
+  WL4435_TEST("TIME", "'123:45:01'",
+              MYSQL_TYPE_TIME, MYSQL_TYPE_TIME,
+              MYSQL_TIME, ,
+              ("  - TIME / MYSQL_TIME / MYSQL_TYPE_TIME:\t\t "
+               "%.3d:%.2d:%.2d",
+               (int) pspv.hour, (int) pspv.minute, (int) pspv.second),
+              pspv.hour == 123 && pspv.minute == 45 && pspv.second == 1);
+
+  WL4435_TEST("DATE", "'1234-11-12'",
+              MYSQL_TYPE_DATE, MYSQL_TYPE_DATE,
+              MYSQL_TIME, ,
+              ("  - DATE / MYSQL_TIME / MYSQL_TYPE_DATE:\t\t "
+               "%.4d-%.2d-%.2d",
+               (int) pspv.year, (int) pspv.month, (int) pspv.day),
+              pspv.year == 1234 && pspv.month == 11 && pspv.day == 12);
+
+  WL4435_TEST("YEAR", "'2010'",
+              MYSQL_TYPE_SHORT, MYSQL_TYPE_YEAR,
+              short, ,
+              ("  - YEAR / short / MYSQL_TYPE_SHORT:\t\t\t %.4d", (int) pspv),
+              pspv == 2010);
+
+  WL4435_TEST("FLOAT(7, 4)", "123.4567",
+              MYSQL_TYPE_FLOAT, MYSQL_TYPE_FLOAT,
+              float, ,
+              ("  - FLOAT / float / MYSQL_TYPE_FLOAT:\t\t\t %g", (double) pspv),
+              pspv - 123.4567 < 0.0001);
+
+  WL4435_TEST("DOUBLE(8, 5)", "123.45678",
+              MYSQL_TYPE_DOUBLE, MYSQL_TYPE_DOUBLE,
+              double, ,
+              ("  - DOUBLE / double / MYSQL_TYPE_DOUBLE:\t\t %g", (double) pspv),
+              pspv - 123.45678 < 0.00001);
+
+  WL4435_TEST("DECIMAL(9, 6)", "123.456789",
+              MYSQL_TYPE_NEWDECIMAL, MYSQL_TYPE_NEWDECIMAL,
+              char, [255],
+              ("  - DECIMAL / char[] / MYSQL_TYPE_NEWDECIMAL:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "123.456789"));
+
+  WL4435_TEST("CHAR(32)", "REPEAT('C', 16)",
+              MYSQL_TYPE_STRING, MYSQL_TYPE_STRING,
+              char, [255],
+              ("  - CHAR(32) / char[] / MYSQL_TYPE_STRING:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "CCCCCCCCCCCCCCCC"));
+
+  WL4435_TEST("VARCHAR(32)", "REPEAT('V', 16)",
+              MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_VAR_STRING,
+              char, [255],
+              ("  - VARCHAR(32) / char[] / MYSQL_TYPE_VAR_STRING:\t '%s'", (char *) pspv),
+              !strcmp(pspv, "VVVVVVVVVVVVVVVV"));
+
+  WL4435_TEST("TINYTEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - TINYTEXT / char[] / MYSQL_TYPE_TINY_BLOB:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("TEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - TEXT / char[] / MYSQL_TYPE_BLOB:\t\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("MEDIUMTEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - MEDIUMTEXT / char[] / MYSQL_TYPE_MEDIUM_BLOB:\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("LONGTEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - LONGTEXT / char[] / MYSQL_TYPE_LONG_BLOB:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("BINARY(32)", "REPEAT('\1', 16)",
+              MYSQL_TYPE_STRING, MYSQL_TYPE_STRING,
+              char, [255],
+              ("  - BINARY(32) / char[] / MYSQL_TYPE_STRING:\t\t '%s'", (char *) pspv),
+              memset(tmp, 1, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("VARBINARY(32)", "REPEAT('\1', 16)",
+              MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_VAR_STRING,
+              char, [255],
+              ("  - VARBINARY(32) / char[] / MYSQL_TYPE_VAR_STRING:\t '%s'", (char *) pspv),
+              memset(tmp, 1, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("TINYBLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - TINYBLOB / char[] / MYSQL_TYPE_TINY_BLOB:\t\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("BLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - BLOB / char[] / MYSQL_TYPE_BLOB:\t\t\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("MEDIUMBLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - MEDIUMBLOB / char[] / MYSQL_TYPE_MEDIUM_BLOB:\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("LONGBLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - LONGBLOB / char[] / MYSQL_TYPE_LONG_BLOB:\t\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
 }
 
 
@@ -15473,8 +15734,11 @@ static void test_bug13488()
   check_execute(stmt1, rc);
 
   if (!opt_silent)
-    printf("data is: %s", (f1 == 1 && f2 == 1 && f3 == 2)?"OK":
-           "wrong");
+  {
+    printf("data: f1: %d; f2: %d; f3: %d\n", f1, f2, f3);
+    printf("data is: %s\n",
+           (f1 == 1 && f2 == 1 && f3 == 2) ? "OK" : "wrong");
+  }
   DIE_UNLESS(f1 == 1 && f2 == 1 && f3 == 2);
   rc= mysql_query(mysql, "drop table t1, t2");
   myquery(rc);
@@ -19083,6 +19347,72 @@ static void test_bug47485()
 
 
 /*
+  Bug#58036 client utf32, utf16, ucs2 should be disallowed, they crash server
+*/
+static void test_bug58036()
+{
+  MYSQL *conn;
+  DBUG_ENTER("test_bug47485");
+  myheader("test_bug58036");
+
+  /* Part1: try to connect with ucs2 client character set */
+  conn= mysql_client_init(NULL);
+  mysql_options(conn, MYSQL_SET_CHARSET_NAME, "ucs2");
+  if (mysql_real_connect(conn, opt_host, opt_user,
+                         opt_password,  opt_db ? opt_db : "test",
+                         opt_port, opt_unix_socket, 0))
+  {
+    if (!opt_silent)
+      printf("mysql_real_connect() succeeded (failure expected)\n");
+    mysql_close(conn);
+    DIE("");
+  }
+
+  if (!opt_silent)
+    printf("Got mysql_real_connect() error (expected): %s (%d)\n",
+           mysql_error(conn), mysql_errno(conn));  
+  DIE_UNLESS(mysql_errno(conn) == ER_WRONG_VALUE_FOR_VAR);
+  mysql_close(conn);
+
+
+  /*
+    Part2:
+    - connect with latin1
+    - then change client character set to ucs2
+    - then try mysql_change_user()
+  */
+  conn= mysql_client_init(NULL);
+  mysql_options(conn, MYSQL_SET_CHARSET_NAME, "latin1");
+  if (!mysql_real_connect(conn, opt_host, opt_user,
+                         opt_password, opt_db ? opt_db : "test",
+                         opt_port, opt_unix_socket, 0))
+  {
+    if (!opt_silent)
+      printf("mysql_real_connect() failed: %s (%d)\n",
+             mysql_error(conn), mysql_errno(conn));
+    mysql_close(conn);
+    DIE("");
+  }
+
+  mysql_options(conn, MYSQL_SET_CHARSET_NAME, "ucs2");
+  if (!mysql_change_user(conn, opt_user, opt_password, NULL))
+  {
+    if (!opt_silent)
+      printf("mysql_change_user() succedded, error expected!");
+    mysql_close(conn);
+    DIE("");
+  }
+
+  if (!opt_silent)
+    printf("Got mysql_change_user() error (expected): %s (%d)\n",
+           mysql_error(conn), mysql_errno(conn));
+  mysql_close(conn);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Bug#49972: Crash in prepared statements.
 
   The following case lead to a server crash:
@@ -19104,7 +19434,7 @@ static void test_bug49972()
   my_bool is_null;
 
   DBUG_ENTER("test_bug49972");
-  myheader("test_49972");
+  myheader("test_bug49972");
 
   rc= mysql_query(mysql, "DROP FUNCTION IF EXISTS f1");
   myquery(rc);
@@ -19191,6 +19521,192 @@ static void test_bug49972()
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  Bug #56976:   Severe Denial Of Service in prepared statements
+*/
+static void test_bug56976()
+{
+  MYSQL_STMT   *stmt;
+  MYSQL_BIND    bind[1];
+  int           rc;
+  const char*   query = "SELECT LENGTH(?)";
+  char *long_buffer;
+  unsigned long i, packet_len = 256 * 1024L;
+  unsigned long dos_len    = 2 * 1024 * 1024L;
+
+  DBUG_ENTER("test_bug56976");
+  myheader("test_bug56976");
+
+  stmt= mysql_stmt_init(mysql);
+  check_stmt(stmt);
+
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type = MYSQL_TYPE_TINY_BLOB;
+
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  long_buffer= (char*) my_malloc(packet_len, MYF(0));
+  DIE_UNLESS(long_buffer);
+
+  memset(long_buffer, 'a', packet_len);
+
+  for (i= 0; i < dos_len / packet_len; i++)
+  {
+    rc= mysql_stmt_send_long_data(stmt, 0, long_buffer, packet_len);
+    check_execute(stmt, rc);
+  }
+
+  my_free(long_buffer);
+  rc= mysql_stmt_execute(stmt);
+
+  DIE_UNLESS(rc && mysql_stmt_errno(stmt) == ER_UNKNOWN_ERROR);
+
+  mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Bug#57058 SERVER_QUERY_WAS_SLOW not wired up.
+*/
+
+static void test_bug57058()
+{
+  MYSQL_RES *res;
+  int rc;
+
+  DBUG_ENTER("test_bug57058");
+  myheader("test_bug57058");
+
+  rc= mysql_query(mysql, "set @@session.long_query_time=0.1");
+  myquery(rc);
+
+  DIE_UNLESS(!(mysql->server_status & SERVER_QUERY_WAS_SLOW));
+
+  rc= mysql_query(mysql, "select sleep(1)");
+  myquery(rc);
+
+  /*
+    Important: the flag is sent in the last EOF packet of
+    the query, the one which ends the result. Read the
+    result to see the "slow" status.
+  */
+  res= mysql_store_result(mysql);
+
+  DIE_UNLESS(mysql->server_status & SERVER_QUERY_WAS_SLOW);
+
+  mysql_free_result(res);
+
+  rc= mysql_query(mysql, "set @@session.long_query_time=default");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Bug#11766854: 60075: MYSQL_LOAD_CLIENT_PLUGIN DOESN'T CLEAR ERROR 
+*/
+
+static void test_bug11766854()
+{
+  struct st_mysql_client_plugin *plugin;
+
+  DBUG_ENTER("test_bug11766854");
+  myheader("test_bug11766854");
+
+  plugin= mysql_load_plugin(mysql, "foo", -1, 0);
+  DIE_UNLESS(plugin == 0);
+
+  plugin= mysql_load_plugin(mysql, "qa_auth_client", -1, 0);
+  DIE_UNLESS(plugin != 0);
+  DIE_IF(mysql_errno(mysql));
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Bug#12337762: 60075: MYSQL_LIST_FIELDS() RETURNS WRONG CHARSET FOR 
+                       CHAR/VARCHAR/TEXT COLUMNS IN VIEWS 
+*/
+static void test_bug12337762()
+{
+  int rc,i=0;
+  MYSQL_RES *result;
+  MYSQL_FIELD *field;
+  unsigned int tab_charsetnr[3]= {0};
+
+  DBUG_ENTER("test_bug12337762");
+  myheader("test_bug12337762");
+
+  /*
+    Creating table with specific charset.
+  */
+  rc= mysql_query(mysql, "drop table if exists charset_tab");
+  rc= mysql_query(mysql, "create table charset_tab("\
+                         "txt1 varchar(32) character set Latin1,"\
+                         "txt2 varchar(32) character set Latin1 collate latin1_bin,"\
+                         "txt3 varchar(32) character set utf8 collate utf8_bin"\
+						 ")");
+  
+  DIE_UNLESS(rc == 0);
+  DIE_IF(mysql_errno(mysql));
+
+  /*
+    Creating view from table created earlier.
+  */
+  rc= mysql_query(mysql, "drop view if exists charset_view");
+  rc= mysql_query(mysql, "create view charset_view as "\
+                         "select * from charset_tab;");
+  DIE_UNLESS(rc == 0);
+  DIE_IF(mysql_errno(mysql));
+
+  /*
+    Checking field information for table.
+  */
+  result= mysql_list_fields(mysql, "charset_tab", NULL);
+  DIE_IF(mysql_errno(mysql));
+  i=0;
+  while((field= mysql_fetch_field(result)))
+  {
+    printf("field name %s\n", field->name);
+    printf("field table %s\n", field->table);
+    printf("field type %d\n", field->type);
+    printf("field charset %d\n", field->charsetnr);
+    tab_charsetnr[i++]= field->charsetnr;
+    printf("\n");
+  }
+  mysql_free_result(result);
+
+  /*
+    Checking field information for view.
+  */
+  result= mysql_list_fields(mysql, "charset_view", NULL);
+  DIE_IF(mysql_errno(mysql));
+  i=0;
+  while((field= mysql_fetch_field(result)))
+  {
+    printf("field name %s\n", field->name);
+    printf("field table %s\n", field->table);
+    printf("field type %d\n", field->type);
+    printf("field charset %d\n", field->charsetnr);
+    printf("\n");
+    /* 
+      charset value for field must be same for both, view and table.
+    */
+    DIE_UNLESS(field->charsetnr == tab_charsetnr[i++]);
+  }
+  mysql_free_result(result);
+
+  DBUG_VOID_RETURN;
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -19248,6 +19764,12 @@ static struct my_option client_test_long_options[] =
   {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
    &opt_getopt_ll_test, &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
+  {"plugin_dir", 0, "Directory for client-side plugins.",
+   &opt_plugin_dir, &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", 0, "Default authentication client-side plugin to use.",
+   &opt_default_auth, &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -19511,6 +20033,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4284_1", test_wl4284_1 },
   { "test_wl4435",   test_wl4435 },
   { "test_wl4435_2", test_wl4435_2 },
+  { "test_wl4435_3", test_wl4435_3 },
   { "test_bug38486", test_bug38486 },
   { "test_bug33831", test_bug33831 },
   { "test_bug40365", test_bug40365 },
@@ -19522,6 +20045,11 @@ static struct my_tests_st my_tests[]= {
   { "test_bug42373", test_bug42373 },
   { "test_bug54041", test_bug54041 },
   { "test_bug47485", test_bug47485 },
+  { "test_bug58036", test_bug58036 },
+  { "test_bug57058", test_bug57058 },
+  { "test_bug56976", test_bug56976 },
+  { "test_bug11766854", test_bug11766854 },
+  { "test_bug12337762", test_bug12337762 },
   { 0, 0 }
 };
 
@@ -19662,29 +20190,29 @@ int main(int argc, char **argv)
     if (!argc)
     {
       for (fptr= my_tests; fptr->name; fptr++)
-	(*fptr->function)();	
+        (*fptr->function)();	
     }
     else
     {
       for ( ; *argv ; argv++)
       {
-	for (fptr= my_tests; fptr->name; fptr++)
-	{
-	  if (!strcmp(fptr->name, *argv))
-	  {
-	    (*fptr->function)();
-	    break;
-	  }
-	}
-	if (!fptr->name)
-	{
-	  fprintf(stderr, "\n\nGiven test not found: '%s'\n", *argv);
-	  fprintf(stderr, "See legal test names with %s -T\n\nAborting!\n",
-		  my_progname);
-	  client_disconnect(mysql, 1);
-	  free_defaults(defaults_argv);
-	  exit(1);
-	}
+        for (fptr= my_tests; fptr->name; fptr++)
+        {
+          if (!strcmp(fptr->name, *argv))
+          {
+            (*fptr->function)();
+            break;
+          }
+        }
+        if (!fptr->name)
+        {
+          fprintf(stderr, "\n\nGiven test not found: '%s'\n", *argv);
+          fprintf(stderr, "See legal test names with %s -T\n\nAborting!\n",
+                  my_progname);
+          client_disconnect(mysql, 1);
+          free_defaults(defaults_argv);
+          exit(1);
+        }
       }
     }
 

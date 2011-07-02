@@ -1,5 +1,6 @@
 #ifndef MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
 /* Copyright (C) 2010 Sergei Golubchik and Monty Program Ab
+   Copyright (C) 2010 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

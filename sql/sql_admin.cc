@@ -1,4 +1,4 @@
-/* Copyright (c) 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,7 +114,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     key_length= create_table_def_key(thd, key, table_list, 0);
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
-                                 MDL_EXCLUSIVE);
+                                 MDL_EXCLUSIVE, MDL_TRANSACTION);
 
     if (lock_table_names(thd, table_list, table_list->next_global,
                          thd->variables.lock_wait_timeout,
@@ -139,9 +139,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     }
     table= &tmp_table;
   }
-
-  /* A MERGE table must not come here. */
-  DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
   /*
     REPAIR TABLE ... USE_FRM for temporary tables makes little sense.
@@ -179,6 +176,9 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   ext= table->file->bas_ext();
   if (!ext[0] || !ext[1])
     goto end;					// No data file
+
+  /* A MERGE table must not come here. */
+  DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
@@ -260,6 +260,26 @@ end:
 }
 
 
+/**
+  Check if a given error is something that could occur during
+  open_and_lock_tables() that does not indicate table corruption.
+
+  @param  sql_errno  Error number to check.
+
+  @retval TRUE       Error does not indicate table corruption.
+  @retval FALSE      Error could indicate table corruption.
+*/
+
+static inline bool table_not_corrupt_error(uint sql_errno)
+{
+  return (sql_errno == ER_NO_SUCH_TABLE ||
+          sql_errno == ER_FILE_NOT_FOUND ||
+          sql_errno == ER_LOCK_WAIT_TIMEOUT ||
+          sql_errno == ER_LOCK_DEADLOCK ||
+          sql_errno == ER_CANT_LOCK_LOG_TABLE ||
+          sql_errno == ER_OPEN_AS_READONLY);
+}
+
 
 /*
   RETURN VALUES
@@ -272,7 +292,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                               const char *operator_name,
                               thr_lock_type lock_type,
                               bool open_for_modify,
-                              bool no_warnings_for_error,
+                              bool repair_table_use_frm,
                               uint extra_open_options,
                               int (*prepare_func)(THD *, TABLE_LIST *,
                                                   HA_CHECK_OPT *),
@@ -341,15 +361,54 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       lex->query_tables= table;
       lex->query_tables_last= &table->next_global;
       lex->query_tables_own_last= 0;
-      thd->no_warnings_for_error= no_warnings_for_error;
+
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
 
-      open_error= open_and_lock_tables(thd, table, TRUE, 0);
-      thd->no_warnings_for_error= 0;
+      if (!thd->locked_tables_mode && repair_table_use_frm)
+      {
+        /*
+          If we're not under LOCK TABLES and we're executing REPAIR TABLE
+          USE_FRM, we need to ignore errors from open_and_lock_tables().
+          REPAIR TABLE USE_FRM is a heavy weapon used when a table is
+          critically damaged, so open_and_lock_tables() will most likely
+          report errors. Those errors are not interesting for the user
+          because it's already known that the table is badly damaged.
+        */
+
+        Warning_info wi(thd->query_id, false);
+        Warning_info *wi_saved= thd->warning_info;
+
+        thd->warning_info= &wi;
+
+        open_error= open_and_lock_tables(thd, table, TRUE, 0);
+
+        thd->warning_info= wi_saved;
+      }
+      else
+      {
+        /*
+          It's assumed that even if it is REPAIR TABLE USE_FRM, the table
+          can be opened if we're under LOCK TABLES (otherwise LOCK TABLES
+          would fail). Thus, the only errors we could have from
+          open_and_lock_tables() are logical ones, like incorrect locking
+          mode. It does make sense for the user to see such errors.
+        */
+
+        open_error= open_and_lock_tables(thd, table, TRUE, 0);
+      }
+
       table->next_global= save_next_global;
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
+
+      /*
+        If open_and_lock_tables() failed, close_thread_tables() will close
+        the table and table->table can therefore be invalid.
+      */
+      if (open_error)
+        table->table= NULL;
+
       /*
         Under locked tables, we know that the table can be opened,
         so any errors opening the table are logical errors.
@@ -448,9 +507,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
       if (thd->stmt_da->is_error() &&
-          (thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE ||
-           thd->stmt_da->sql_errno() == ER_FILE_NOT_FOUND))
-        /* A missing table is just issued as a failed command */
+          table_not_corrupt_error(thd->stmt_da->sql_errno()))
         result_code= HA_ADMIN_FAILED;
       else
         /* Default failure code is corrupt table */
@@ -706,7 +763,7 @@ send_result_message:
       protocol->store(operator_name, system_charset_info);
       if (result_code) // either mysql_recreate_table or analyze failed
       {
-        DBUG_ASSERT(thd->is_error());
+        DBUG_ASSERT(thd->is_error() || thd->killed);
         if (thd->is_error())
         {
           const char *err_msg= thd->stmt_da->message();
@@ -749,8 +806,12 @@ send_result_message:
       size_t length;
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      length=my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
-                         table->table_name);
+      if (table->table->file->ha_table_flags() & HA_CAN_REPAIR)
+        length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
+                            table->table_name);
+      else
+        length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_REBUILD),
+                            table->table_name);
       protocol->store(buf, length, system_charset_info);
       fatal_error=1;
       break;

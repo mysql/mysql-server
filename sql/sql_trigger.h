@@ -97,6 +97,27 @@ class Table_triggers_list: public Sql_alloc
   */
   GRANT_INFO        subject_table_grants[TRG_EVENT_MAX][TRG_ACTION_MAX];
 
+  /**
+     This flag indicates that one of the triggers was not parsed successfully,
+     and as a precaution the object has entered a state where all trigger
+     access results in errors until all such triggers are dropped. It is not
+     safe to add triggers since we don't know if the broken trigger has the
+     same name or event type. Nor is it safe to invoke any trigger for the
+     aforementioned reasons. The only safe operations are drop_trigger and
+     drop_all_triggers.
+
+     @see Table_triggers_list::set_parse_error
+   */
+  bool m_has_unparseable_trigger;
+
+  /**
+    This error will be displayed when the user tries to manipulate or invoke
+    triggers on a table that has broken triggers. It will get set only once
+    per statement and thus will contain the first parse error encountered in
+    the trigger file.
+   */
+  char m_parse_error_message[MYSQL_ERRMSG_SIZE];
+
 public:
   /**
     Field responsible for storing triggers definitions in file.
@@ -118,8 +139,9 @@ public:
 
   /* End of character ser context. */
 
-  Table_triggers_list(TABLE *table_arg):
-    record1_field(0), trigger_table(table_arg)
+  Table_triggers_list(TABLE *table_arg)
+    :record1_field(0), trigger_table(table_arg),
+    m_has_unparseable_trigger(false)
   {
     bzero((char *)bodies, sizeof(bodies));
     bzero((char *)trigger_fields, sizeof(trigger_fields));
@@ -157,6 +179,7 @@ public:
                            TABLE *table, bool names_only);
   static bool drop_all_triggers(THD *thd, char *db, char *table_name);
   static bool change_table_name(THD *thd, const char *db,
+                                const char *old_alias,
                                 const char *old_table,
                                 const char *new_db,
                                 const char *new_table);
@@ -175,6 +198,8 @@ public:
 
   void mark_fields_used(trg_event_type event);
 
+  void set_parse_error_message(char *error_message);
+
   friend class Item_trigger_field;
 
   bool add_tables_and_routines_for_triggers(THD *thd,
@@ -192,6 +217,16 @@ private:
                                      const char *new_db_name,
                                      LEX_STRING *old_table_name,
                                      LEX_STRING *new_table_name);
+
+  bool check_for_broken_triggers() 
+  {
+    if (m_has_unparseable_trigger)
+    {
+      my_message(ER_PARSE_ERROR, m_parse_error_message, MYF(0));
+      return true;
+    }
+    return false;
+  }
 };
 
 extern const LEX_STRING trg_action_time_type_names[];

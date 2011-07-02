@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 #
 # Bug #25144 "replication / binlog with view breaks".
 # Statements that used views didn't ensure that view were not modified
@@ -88,3 +84,4 @@ i
 drop table t1, t2;
 drop view v1;
 # Syncing slave with master and switching to connection 'slave'
+include/rpl_end.inc

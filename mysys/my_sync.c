@@ -17,7 +17,18 @@
 #include "mysys_err.h"
 #include <errno.h>
 
+
 ulong my_sync_count;                           /* Count number of sync calls */
+
+static void (*before_sync_wait)(void)= 0;
+static void (*after_sync_wait)(void)= 0;
+
+void thr_set_sync_wait_callback(void (*before_wait)(void),
+                                void (*after_wait)(void))
+{
+  before_sync_wait= before_wait;
+  after_sync_wait= after_wait;
+}
 
 /*
   Sync data in file to disk
@@ -46,12 +57,19 @@ int my_sync(File fd, myf my_flags)
 {
   int res;
   DBUG_ENTER("my_sync");
+
   DBUG_PRINT("my",("fd: %d  my_flags: %d", fd, my_flags));
 
   if (my_disable_sync)
     DBUG_RETURN(0);
 
   statistic_increment(my_sync_count,&THR_LOCK_open);
+
+  DBUG_PRINT("my",("Fd: %d  my_flags: %d", fd, my_flags));
+
+  if (before_sync_wait)
+    (*before_sync_wait)();
+
   do
   {
 #if defined(F_FULLFSYNC)
@@ -64,7 +82,7 @@ int my_sync(File fd, myf my_flags)
     /* Some file systems don't support F_FULLFSYNC and fail above: */
     DBUG_PRINT("info",("fcntl(F_FULLFSYNC) failed, falling back"));
 #endif
-#if defined(HAVE_FDATASYNC)
+#if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
     res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)
     res= fsync(fd);
@@ -83,6 +101,8 @@ int my_sync(File fd, myf my_flags)
     int er= errno;
     if (!(my_errno= er))
       my_errno= -1;                             /* Unknown error */
+    if (after_sync_wait)
+      (*after_sync_wait)();
     if ((my_flags & MY_IGNORE_BADFD) &&
         (er == EBADF || er == EINVAL || er == EROFS))
     {
@@ -92,11 +112,18 @@ int my_sync(File fd, myf my_flags)
     else if (my_flags & MY_WME)
       my_error(EE_SYNC, MYF(ME_BELL+ME_WAITTANG), my_filename(fd), my_errno);
   }
+  else
+  {
+    if (after_sync_wait)
+      (*after_sync_wait)();
+  }
   DBUG_RETURN(res);
 } /* my_sync */
 
 
 static const char cur_dir_name[]= {FN_CURLIB, 0};
+
+
 /*
   Force directory information to disk.
 
@@ -108,7 +135,9 @@ static const char cur_dir_name[]= {FN_CURLIB, 0};
   RETURN
     0 if ok, !=0 if error
 */
+
 #ifdef NEED_EXPLICIT_SYNC_DIR
+
 int my_sync_dir(const char *dir_name, myf my_flags)
 {
   File dir_fd;
@@ -133,12 +162,15 @@ int my_sync_dir(const char *dir_name, myf my_flags)
     res= 1;
   DBUG_RETURN(res);
 }
+
 #else /* NEED_EXPLICIT_SYNC_DIR */
+
 int my_sync_dir(const char *dir_name __attribute__((unused)),
-		myf my_flags __attribute__((unused)))
+                myf my_flags __attribute__((unused)))
 {
   return 0;
 }
+
 #endif /* NEED_EXPLICIT_SYNC_DIR */
 
 
@@ -153,7 +185,9 @@ int my_sync_dir(const char *dir_name __attribute__((unused)),
   RETURN
     0 if ok, !=0 if error
 */
+
 #ifdef NEED_EXPLICIT_SYNC_DIR
+
 int my_sync_dir_by_file(const char *file_name, myf my_flags)
 {
   char dir_name[FN_REFLEN];
@@ -161,10 +195,14 @@ int my_sync_dir_by_file(const char *file_name, myf my_flags)
   dirname_part(dir_name, file_name, &dir_name_length);
   return my_sync_dir(dir_name, my_flags);
 }
+
 #else /* NEED_EXPLICIT_SYNC_DIR */
+
 int my_sync_dir_by_file(const char *file_name __attribute__((unused)),
-			myf my_flags __attribute__((unused)))
+                        myf my_flags __attribute__((unused)))
 {
   return 0;
 }
+
 #endif /* NEED_EXPLICIT_SYNC_DIR */
+

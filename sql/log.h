@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #ifndef LOG_H
 #define LOG_H
@@ -45,7 +45,7 @@ class TC_LOG
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
   virtual int log_xid(THD *thd, my_xid xid)=0;
-  virtual void unlog(ulong cookie, my_xid xid)=0;
+  virtual int unlog(ulong cookie, my_xid xid)=0;
 };
 
 class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
@@ -55,7 +55,7 @@ public:
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
   int log_xid(THD *thd, my_xid xid)         { return 1; }
-  void unlog(ulong cookie, my_xid xid)  { }
+  int unlog(ulong cookie, my_xid xid)  { return 0; }
 };
 
 #ifdef HAVE_MMAP
@@ -63,9 +63,9 @@ class TC_LOG_MMAP: public TC_LOG
 {
   public:                // only to keep Sun Forte on sol9x86 happy
   typedef enum {
-    POOL,                 // page is in pool
-    ERROR,                // last sync failed
-    DIRTY                 // new xids added since last sync
+    PS_POOL,                 // page is in pool
+    PS_ERROR,                // last sync failed
+    PS_DIRTY                 // new xids added since last sync
   } PAGE_STATE;
 
   private:
@@ -100,7 +100,7 @@ class TC_LOG_MMAP: public TC_LOG
   int open(const char *opt_name);
   void close();
   int log_xid(THD *thd, my_xid xid);
-  void unlog(ulong cookie, my_xid xid);
+  int unlog(ulong cookie, my_xid xid);
   int recover();
 
   private:
@@ -196,7 +196,11 @@ public:
   MYSQL_LOG();
   void init_pthread_objects();
   void cleanup();
-  bool open(const char *log_name,
+  bool open(
+#ifdef HAVE_PSI_INTERFACE
+            PSI_file_key log_file_key,
+#endif
+            const char *log_name,
             enum_log_type log_type,
             const char *new_name,
             enum cache_type io_cache_type_arg);
@@ -223,6 +227,10 @@ public:
   volatile enum_log_state log_state;
   enum cache_type io_cache_type;
   friend class Log_event;
+#ifdef HAVE_PSI_INTERFACE
+  /** Instrumentation key to use for file io in @c log_file */
+  PSI_file_key m_log_file_key;
+#endif
 };
 
 class MYSQL_QUERY_LOG: public MYSQL_LOG
@@ -241,14 +249,22 @@ public:
   bool open_slow_log(const char *log_name)
   {
     char buf[FN_REFLEN];
-    return open(generate_name(log_name, "-slow.log", 0, buf), LOG_NORMAL, 0,
-                WRITE_CACHE);
+    return open(
+#ifdef HAVE_PSI_INTERFACE
+                key_file_slow_log,
+#endif
+                generate_name(log_name, "-slow.log", 0, buf),
+                LOG_NORMAL, 0, WRITE_CACHE);
   }
   bool open_query_log(const char *log_name)
   {
     char buf[FN_REFLEN];
-    return open(generate_name(log_name, ".log", 0, buf), LOG_NORMAL, 0,
-                WRITE_CACHE);
+    return open(
+#ifdef HAVE_PSI_INTERFACE
+                key_file_query_log,
+#endif
+                generate_name(log_name, ".log", 0, buf),
+                LOG_NORMAL, 0, WRITE_CACHE);
   }
 
 private:
@@ -258,6 +274,16 @@ private:
 class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
  private:
+#ifdef HAVE_PSI_INTERFACE
+  /** The instrumentation key to use for @ LOCK_index. */
+  PSI_mutex_key m_key_LOCK_index;
+  /** The instrumentation key to use for @ update_cond. */
+  PSI_cond_key m_key_update_cond;
+  /** The instrumentation key to use for opening the log file. */
+  PSI_file_key m_key_file_log;
+  /** The instrumentation key to use for opening the log index file. */
+  PSI_file_key m_key_file_log_index;
+#endif
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
   mysql_mutex_t LOCK_prep_xids;
@@ -318,8 +344,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
     new_file() is locking. new_file_without_locking() does not acquire
     LOCK_log.
   */
-  void new_file_without_locking();
-  void new_file_impl(bool need_lock);
+  int new_file_without_locking();
+  int new_file_impl(bool need_lock);
 
 public:
   MYSQL_LOG::generate_name;
@@ -346,10 +372,23 @@ public:
     on exit() - but only during the correct shutdown process
   */
 
+#ifdef HAVE_PSI_INTERFACE
+  void set_psi_keys(PSI_mutex_key key_LOCK_index,
+                    PSI_cond_key key_update_cond,
+                    PSI_file_key key_file_log,
+                    PSI_file_key key_file_log_index)
+  {
+    m_key_LOCK_index= key_LOCK_index;
+    m_key_update_cond= key_update_cond;
+    m_key_file_log= key_file_log;
+    m_key_file_log_index= key_file_log_index;
+  }
+#endif
+
   int open(const char *opt_name);
   void close();
   int log_xid(THD *thd, my_xid xid);
-  void unlog(ulong cookie, my_xid xid);
+  int unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
 
@@ -392,14 +431,14 @@ public:
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_mutex);
   /* Use this to start writing a new log file */
-  void new_file();
+  int new_file();
 
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
   bool write_incident(THD *thd, bool lock);
   int  write_cache(THD *thd, IO_CACHE *cache, bool lock_log,
                    bool flush_and_sync);
-  void set_write_error(THD *thd);
+  void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
 
   void start_union_events(THD *thd, query_id_t query_id_param);
@@ -416,7 +455,7 @@ public:
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
-  void rotate_and_purge(uint flags);
+  int rotate_and_purge(uint flags);
   /**
      Flush binlog cache and synchronize to disk.
 
@@ -648,7 +687,7 @@ void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 void sql_print_information(const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 typedef void (*sql_print_message_func)(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  ATTRIBUTE_FORMAT_FPTR(printf, 1, 2);
 extern sql_print_message_func sql_print_message_handlers[];
 
 int error_log_print(enum loglevel level, const char *format,

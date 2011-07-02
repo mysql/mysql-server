@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -166,6 +166,11 @@ public:
   {
     return agg_item_charsets(c, func_name(), items, nitems, flags, item_sep);
   }
+  /*
+    Aggregate arguments for string result, e.g: CONCAT(a,b)
+    - convert to @@character_set_connection if all arguments are numbers
+    - allow DERIVATION_NONE
+  */
   bool agg_arg_charsets_for_string_result(DTCollation &c,
                                           Item **items, uint nitems,
                                           int item_sep= 1)
@@ -173,12 +178,32 @@ public:
     return agg_item_charsets_for_string_result(c, func_name(),
                                                items, nitems, item_sep);
   }
+  /*
+    Aggregate arguments for comparison, e.g: a=b, a LIKE b, a RLIKE b
+    - don't convert to @@character_set_connection if all arguments are numbers
+    - don't allow DERIVATION_NONE
+  */
   bool agg_arg_charsets_for_comparison(DTCollation &c,
                                        Item **items, uint nitems,
                                        int item_sep= 1)
   {
     return agg_item_charsets_for_comparison(c, func_name(),
                                             items, nitems, item_sep);
+  }
+  /*
+    Aggregate arguments for string result, when some comparison
+    is involved internally, e.g: REPLACE(a,b,c)
+    - convert to @@character_set_connection if all arguments are numbers
+    - disallow DERIVATION_NONE
+  */
+  bool agg_arg_charsets_for_string_result_with_comparison(DTCollation &c,
+                                                          Item **items,
+                                                          uint nitems,
+                                                          int item_sep= 1)
+  {
+    return agg_item_charsets_for_string_result_with_comparison(c, func_name(),
+                                                               items, nitems,
+                                                               item_sep);
   }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
@@ -238,6 +263,7 @@ public:
   {
     return (error == E_DEC_OVERFLOW) ? raise_decimal_overflow() : error;
   }
+
   bool has_timestamp_args()
   {
     DBUG_ASSERT(fixed == TRUE);
@@ -249,6 +275,45 @@ public:
     }
     return FALSE;
   }
+
+  bool has_date_args()
+  {
+    DBUG_ASSERT(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      if (args[i]->type() == Item::FIELD_ITEM &&
+          (args[i]->field_type() == MYSQL_TYPE_DATE ||
+           args[i]->field_type() == MYSQL_TYPE_DATETIME))
+        return TRUE;
+    }
+    return FALSE;
+  }
+
+  bool has_time_args()
+  {
+    DBUG_ASSERT(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      if (args[i]->type() == Item::FIELD_ITEM &&
+          (args[i]->field_type() == MYSQL_TYPE_TIME ||
+           args[i]->field_type() == MYSQL_TYPE_DATETIME))
+        return TRUE;
+    }
+    return FALSE;
+  }
+
+  bool has_datetime_args()
+  {
+    DBUG_ASSERT(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      if (args[i]->type() == Item::FIELD_ITEM &&
+          args[i]->field_type() == MYSQL_TYPE_DATETIME)
+        return TRUE;
+    }
+    return FALSE;
+  }
+
   /*
     We assume the result of any function that has a TIMESTAMP argument to be
     timezone-dependent, since a TIMESTAMP value in both numeric and string
@@ -257,7 +322,7 @@ public:
     representation of a TIMESTAMP argument verbatim, and thus does not depend on
     the timezone.
    */
-  virtual bool is_timezone_dependent_processor(uchar *bool_arg)
+  virtual bool check_valid_arguments_processor(uchar *bool_arg)
   {
     return has_timestamp_args();
   }
@@ -1649,7 +1714,7 @@ public:
        join_key(0), ft_handler(0), table(0), master(0), concat_ws(0) { }
   void cleanup()
   {
-    DBUG_ENTER("Item_func_match");
+    DBUG_ENTER("Item_func_match::cleanup");
     Item_real_func::cleanup();
     if (!master && ft_handler)
       ft_handler->please->close_search(ft_handler);

@@ -1,0 +1,122 @@
+include/master-slave.inc
+[connection master]
+
+# BUG#56118 STOP SLAVE does not wait till trx with CREATE TMP TABLE ends
+#
+# If a temporary table is created or dropped, the transaction should be
+# regarded similarly that a non-transactional table is modified. So 
+# STOP SLAVE should wait until the transaction has finished.
+CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
+CREATE TABLE t2(c1 INT) ENGINE=InnoDB;
+SET DEBUG_SYNC= 'RESET';
+include/stop_slave.inc
+
+# Suspend the INSERT statement in current transaction on SQL thread.
+# It guarantees that SQL thread is applying the transaction when
+# STOP SLAVE command launchs.
+SET GLOBAL debug= 'd,after_mysql_insert';
+include/start_slave.inc
+
+# CREATE TEMPORARY TABLE with InnoDB engine
+# -----------------------------------------
+
+[ On Master ]
+BEGIN;
+DELETE FROM t1;
+CREATE TEMPORARY TABLE tt1(c1 INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1);
+DROP TEMPORARY TABLE tt1;
+COMMIT;
+
+[ On Slave ]
+STOP SLAVE SQL_THREAD;
+
+[ On Slave1 ]
+# To resume slave SQL thread
+SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+SET DEBUG_SYNC= 'RESET';
+
+[ On Slave ]
+include/wait_for_slave_sql_to_stop.inc
+# Slave should stop after the transaction has committed.
+# So t1 on master is same to t1 on slave.
+include/diff_tables.inc [master:t1, slave:t1]
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# CREATE TEMPORARY TABLE ... SELECT with InnoDB engine
+# ----------------------------------------------------
+
+[ On Master ]
+BEGIN;
+DELETE FROM t1;
+CREATE TEMPORARY TABLE tt1(c1 INT) ENGINE = InnoDB
+SELECT c1 FROM t2;
+INSERT INTO t1 VALUES (1);
+DROP TEMPORARY TABLE tt1;
+COMMIT;
+
+[ On Slave ]
+STOP SLAVE SQL_THREAD;
+
+[ On Slave1 ]
+# To resume slave SQL thread
+SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+SET DEBUG_SYNC= 'RESET';
+
+[ On Slave ]
+include/wait_for_slave_sql_to_stop.inc
+# Slave should stop after the transaction has committed.
+# So t1 on master is same to t1 on slave.
+include/diff_tables.inc [master:t1, slave:t1]
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# Test end
+SET GLOBAL debug= '$debug_save';
+include/restart_slave.inc
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+[connection master]
+DROP TABLE t1, t2;
+
+# Bug#58546 test rpl_packet timeout failure sporadically on PB
+# ----------------------------------------------------------------------
+# STOP SLAVE stopped IO thread first and then stopped SQL thread. It was
+# possible that IO thread stopped after replicating part of a transaction
+# which SQL thread was executing. SQL thread would be hung if the
+# transaction could not be rolled back safely.
+# It caused some sporadic failures on PB2.
+#
+# This test verifies that when 'STOP SLAVE' is issued by a user, IO
+# thread will continue to fetch the rest events of the transaction which
+# is being executed by SQL thread and is not able to be rolled back safely.
+CREATE TABLE t1 (c1 INT KEY, c2 INT) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(1, 1);
+[connection master]
+SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
+[connection slave]
+include/restart_slave.inc
+BEGIN;
+UPDATE t1 SET c2 = 2 WHERE c1 = 1;
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES(2, 2);
+INSERT INTO t2 VALUES(1);
+UPDATE t1 SET c2 = 3 WHERE c1 = 1;
+COMMIT;
+[connection slave1]
+STOP SLAVE;
+[connection slave]
+ROLLBACK;
+[connection master]
+SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+SET DEBUG_SYNC= 'RESET';
+[connection slave]
+include/wait_for_slave_to_stop.inc
+[connection slave1]
+include/start_slave.inc
+[connection master]
+DROP TABLE t1, t2;
+SET GLOBAL debug= $debug_save;
+include/rpl_end.inc

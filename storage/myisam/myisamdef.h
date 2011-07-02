@@ -18,12 +18,8 @@
 #include "myisam.h"                     /* Structs & some defines */
 #include "myisampack.h"                 /* packing of keys */
 #include <my_tree.h>
-#ifdef THREAD
 #include <my_pthread.h>
 #include <thr_lock.h>
-#else
-#include <my_no_pthread.h>
-#endif
 #include <mysql/psi/mysql_file.h>
 
 /* undef map from my_nosys; We need test-if-disk full */
@@ -220,11 +216,9 @@ typedef struct st_mi_isam_share
     global_changed,                     /* If changed since open */
     not_flushed, temporary, delay_key_write, concurrent_insert;
   my_bool deleting;                     /* we are going to delete this table */
-#ifdef THREAD
   THR_LOCK lock;
   mysql_mutex_t intern_lock;            /* Locking for use with _locking */
   mysql_rwlock_t *key_root_lock;
-#endif
   my_off_t mmaped_length;
   uint     nonmmaped_inserts;           /* counter of writing in non-mmaped
                                            area */
@@ -304,9 +298,7 @@ struct st_myisam_info
   my_bool buff_used;
   index_cond_func_t index_cond_func;   /* Index condition function */
   void *index_cond_func_arg;           /* parameter for the func */
-#ifdef THREAD
   THR_LOCK_DATA lock;
-#endif
   uchar *rtree_recursion_state;         /* For RTREE */
   int rtree_recursion_depth;
 };
@@ -415,10 +407,8 @@ struct st_myisam_info
 #define MI_UNIQUE_HASH_TYPE     HA_KEYTYPE_ULONG_INT
 #define mi_unique_store(A,B)    mi_int4store((A),(B))
 
-#ifdef THREAD
 extern mysql_mutex_t THR_LOCK_myisam;
-#endif
-#if !defined(THREAD) || defined(DONT_USE_RW_LOCKS)
+#ifdef DONT_USE_RW_LOCKS
 #define mysql_rwlock_wrlock(A) {}
 #define mysql_rwlock_rdlock(A) {}
 #define mysql_rwlock_unlock(A) {}
@@ -730,9 +720,7 @@ int killed_ptr(HA_CHECK *param);
 void mi_check_print_error(HA_CHECK *param, const char *fmt, ...);
 void mi_check_print_warning(HA_CHECK *param, const char *fmt, ...);
 void mi_check_print_info(HA_CHECK *param, const char *fmt, ...);
-#ifdef THREAD
 pthread_handler_t thr_find_all_keys(void *arg);
-#endif
 extern void mi_set_index_cond_func(MI_INFO *info, index_cond_func_t func,
                                    void *func_arg);
 int flush_blocks(HA_CHECK *param, KEY_CACHE *key_cache, File file,

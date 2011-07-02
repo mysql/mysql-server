@@ -669,4 +669,68 @@ Error	1242	Subquery returns more than 1 row
 Error	1242	Subquery returns more than 1 row
 DROP TABLE t1, t2, t3;
 SET SESSION sql_safe_updates = DEFAULT;
-end of tests
+#
+# Bug#52157 various crashes and assertions with multi-table update, stored function
+#
+CREATE FUNCTION f1 () RETURNS BLOB RETURN 1;
+CREATE TABLE t1 (f1 DATE);
+INSERT INTO t1 VALUES('2001-01-01');
+UPDATE (SELECT 1 FROM t1 WHERE f1 = (SELECT f1() FROM t1)) x, t1 SET f1 = 1;
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '1'
+DROP FUNCTION f1;
+DROP TABLE t1;
+#
+# BUG#57373: Multi update+InnoDB reports ER_KEY_NOT_FOUND if a
+#            table is updated twice
+#
+CREATE TABLE t1(
+pk INT,
+a INT,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0,0);
+UPDATE t1 AS A, t1 AS B SET A.pk = 1, B.a = 2;
+
+# Should be (1,2)
+SELECT * FROM t1;
+pk	a
+1	2
+DROP TABLE t1;
+#
+# BUG#11882110: UPDATE REPORTS ER_KEY_NOT_FOUND IF TABLE IS 
+#               UPDATED TWICE
+#
+CREATE TABLE t1 ( 
+col_int_key int, 
+pk int, 
+col_int int, 
+key(col_int_key), 
+primary key (pk)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,2,3);
+
+CREATE TABLE t2 ( 
+col_int_key int, 
+pk_1 int, 
+pk_2 int, 
+col_int int, 
+key(col_int_key), 
+primary key (pk_1,pk_2)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,2,3,4);
+
+UPDATE t1 AS A NATURAL JOIN t1 B SET A.pk=5,B.pk=7;
+
+SELECT * FROM t1;
+col_int_key	pk	col_int
+1	7	3
+
+UPDATE t2 AS A NATURAL JOIN t2 B SET A.pk_1=5,B.pk_1=7;
+
+UPDATE t2 AS A NATURAL JOIN t2 B SET A.pk_2=10,B.pk_2=11;
+
+SELECT * FROM t2;
+col_int_key	pk_1	pk_2	col_int
+1	7	11	4
+DROP TABLE t1,t2;

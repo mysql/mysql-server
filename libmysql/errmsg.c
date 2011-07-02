@@ -5,8 +5,7 @@
    the Free Software Foundation.
 
    There are special exceptions to the terms and conditions of the GPL as it
-   is applied to this software. View the full text of the exception in file
-   EXCEPTIONS-CLIENT in the directory of this software distribution.
+   is applied to this software.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -52,7 +51,7 @@ const char *client_errors[]=
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
   "Error connecting to master:",
-  "SSL connection error",
+  "SSL connection error: %-.100s",
   "Malformed packet",
   "This client library is licensed only for use with MySQL servers having '%s' license",
   "Invalid use of null pointer",

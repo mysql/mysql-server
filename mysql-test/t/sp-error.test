@@ -2719,10 +2719,6 @@ DROP PROCEDURE p1;
 --echo # Bug#5889: Exit handler for a warning doesn't hide the warning in trigger
 --echo #
 
---echo
---echo # - Case 1
---echo
-
 CREATE TABLE t1(a INT, b INT);
 INSERT INTO t1 VALUES (1, 2);
 
@@ -2746,36 +2742,6 @@ SELECT * FROM t1;
 
 DROP TRIGGER t1_bu;
 DROP TABLE t1;
-
---echo
---echo # - Case 2
---echo
-
-CREATE TABLE t1(a INT);
-CREATE TABLE t2(b CHAR(1));
-
-delimiter |;
-
-CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
-BEGIN
-  INSERT INTO t2 VALUES('ab'); # Produces a warning.
-
-  INSERT INTO t2 VALUES('b');  # Does not produce a warning,
-                               # previous warning should be cleared.
-END|
-
-delimiter ;|
-
-INSERT INTO t1 VALUES(0);
-
-SHOW WARNINGS;
-
-SELECT * FROM t1;
-SELECT * FROM t2;
-
-DROP TRIGGER t1_bi;
-DROP TABLE t1;
-DROP TABLE t2;
 
 --echo #
 --echo # Bug#9857: Stored procedures: handler for sqlwarning ignored
@@ -2813,3 +2779,83 @@ SHOW WARNINGS;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 SET sql_mode = @sql_mode_saved;
+
+--echo #
+--echo # Bug#55850: Trigger warnings not cleared.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE TABLE t1(x SMALLINT, y SMALLINT, z SMALLINT);
+CREATE TABLE t2(a SMALLINT, b SMALLINT, c SMALLINT,
+                d SMALLINT, e SMALLINT, f SMALLINT);
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  INSERT INTO t2(a, b, c) VALUES(99999, 99999, 99999);
+
+CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW
+  INSERT INTO t2(d, e, f) VALUES(99999, 99999, 99999);
+
+CREATE PROCEDURE p1()
+  INSERT INTO t1 VALUES(99999, 99999, 99999);
+
+# What happened before the patch was:
+#  - INSERT INTO t1 added 3 warnings about overflow in 'x', 'y' and 'z' columns;
+#  - t1_bi run and added 3 warnings about overflow in 'a', 'b' and 'c' columns;
+#  - t1_ai run and added 3 warnings about overflow in 'd', 'e' and 'f' columns;
+# => we had 9 warnings.
+#
+# Now what happens is:
+#  - INSERT INTO t1 adds 3 warnings about overflow in 'x', 'y' and 'z' columns;
+#  - t1_bi adds 3 warnings about overflow in 'a', 'b' and 'c' columns;
+#  - The warnings added by triggers are cleared;
+#  - t1_ai run and added 3 warnings about overflow in 'd', 'e' and 'f' columns;
+#  - The warnings added by triggers are cleared;
+# => we have 3 warnings.
+
+--echo
+CALL p1();
+
+--echo
+SHOW WARNINGS;
+
+--echo
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE p1;
+
+--echo # ----------------------------------------------------------------------
+
+CREATE TABLE t1(x SMALLINT, y SMALLINT, z SMALLINT);
+CREATE TABLE t2(a SMALLINT, b SMALLINT, c SMALLINT NOT NULL);
+
+delimiter |;
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  INSERT INTO t2 VALUES(
+    CAST('111111 ' AS SIGNED),
+    CAST('222222 ' AS SIGNED),
+    NULL);
+END|
+
+delimiter ;|
+
+CREATE PROCEDURE p1()
+  INSERT INTO t1 VALUES(99999, 99999, 99999);
+
+--echo
+--error ER_BAD_NULL_ERROR
+CALL p1();
+
+--echo
+SHOW WARNINGS;
+
+--echo
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE p1;

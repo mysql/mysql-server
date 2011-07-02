@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 **** On Master ****
 CREATE USER dummy@localhost;
 CREATE USER dummy1@localhost, dummy2@localhost;
@@ -41,3 +37,4 @@ user	host
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
 COUNT(*)
 0
+include/rpl_end.inc

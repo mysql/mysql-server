@@ -1,0 +1,66 @@
+drop table if exists t1, t2;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=myisam;
+**** Preparing the enviroment to check commit and its effect on status variables.
+**** Expected: binlog_cache_use = 0, binlog_cache_disk_use = 0.
+**** Expected: binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0.
+flush status;
+**** Transactional changes which are long enough so they will be flushed to disk...
+**** Expected: binlog_cache_use = 1, binlog_cache_disk_use = 1.
+**** Expected: binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0.
+**** Transactional changes which should not be flushed to disk and so should not
+**** increase either binlog_cache_disk_use or binlog_stmt_cache_disk_use.
+**** Expected: binlog_cache_use = 2, binlog_cache_disk_use = 1.
+**** Expected: binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0.
+begin;
+insert into t1 values( 1 );
+commit;
+**** Non-Transactional changes which should not be flushed to disk and so should not
+**** increase either binlog_cache_disk_use or binlog_stmt_cache_disk_use.
+**** Expected: binlog_cache_use = 2, binlog_cache_disk_use = 1.
+**** Expected: binlog_stmt_cache_use = 1, binlog_stmt_cache_disk_use = 0.
+begin;
+insert into t2 values( 1 );
+commit;
+**** Mixed changes which should not be flushed to disk and so should not
+**** increase either binlog_cache_disk_use or binlog_stmt_cache_disk_use.
+**** Expected: binlog_cache_use = 3, binlog_cache_disk_use = 1.
+**** Expected: binlog_stmt_cache_use = 2, binlog_stmt_cache_disk_use = 0.
+begin;
+insert into t1 values( 1 );
+insert into t2 values( 1 );
+commit;
+**** Preparing the enviroment to check abort and its effect on the status variables.
+**** Expected: binlog_cache_use = 0, binlog_cache_disk_use = 0.
+**** Expected: binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0.
+flush status;
+**** Transactional changes which are long enough so they will be flushed to disk...
+**** Expected: binlog_cache_use = 1, binlog_cache_disk_use = 1.
+**** Expected: binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0.
+**** Transactional changes which should not be flushed to disk and so should not
+**** increase either binlog_cache_disk_use or binlog_stmt_cache_disk_use.
+**** Expected: binlog_cache_use = 2, binlog_cache_disk_use = 1.
+**** Expected: binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0.
+begin;
+insert into t1 values( 1 );
+rollback;
+**** Non-Transactional changes which should not be flushed to disk and so should not
+**** increase either binlog_cache_disk_use or binlog_stmt_cache_disk_use.
+**** Expected: binlog_cache_use = 2, binlog_cache_disk_use = 1.
+**** Expected: binlog_stmt_cache_use = 1, binlog_stmt_cache_disk_use = 0.
+begin;
+insert into t2 values( 1 );
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+**** Mixed changes which should not be flushed to disk and so should not
+**** increase either binlog_cache_disk_use or binlog_stmt_cache_disk_use.
+**** Expected: binlog_cache_use = 3, binlog_cache_disk_use = 1.
+**** Expected: binlog_stmt_cache_use = 2, binlog_stmt_cache_disk_use = 0.
+begin;
+insert into t1 values( 1 );
+insert into t2 values( 1 );
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+drop table t1, t2;

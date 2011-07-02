@@ -972,5 +972,170 @@ DROP PROCEDURE p1;
 
 
 --echo #
+--echo # Bug#57663 Concurrent statement using stored function and DROP DATABASE
+--echo #           breaks SBR
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+connect(con1, localhost, root);
+connect(con2, localhost, root);
+
+--echo # Test 1: Check that DROP DATABASE block if a function is used
+--echo #         by an active transaction.
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE FUNCTION db1.f1() RETURNS INTEGER RETURN 1;
+START TRANSACTION;
+SELECT db1.f1();
+
+--echo # Connection con1
+connection con1;
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection default
+connection default;
+--echo # Waiting for DROP DATABASE to be blocked by the lock on f1()
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+  WHERE state= 'Waiting for stored function metadata lock'
+  AND info='DROP DATABASE db1';
+--source include/wait_condition.inc
+COMMIT;
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Test 2: Check that DROP DATABASE blocks if a procedure is
+--echo #         used by an active transaction.
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE PROCEDURE db1.p1() BEGIN END;
+delimiter |;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+  CALL db1.p1();
+  RETURN 1;
+END|
+delimiter ;|
+START TRANSACTION;
+SELECT f1();
+
+--echo # Connection con1
+connection con1;
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection default
+connection default;
+--echo # Waiting for DROP DATABASE to be blocked by the lock on p1()
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+  WHERE state= 'Waiting for stored procedure metadata lock'
+  AND info='DROP DATABASE db1';
+--source include/wait_condition.inc
+COMMIT;
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Test 3: Check that DROP DATABASE is not selected as a victim if a
+--echo #         deadlock is discovered with DML statements.
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+CREATE FUNCTION db1.f1() RETURNS INTEGER RETURN 1;
+START TRANSACTION;
+# DROP DATABASE will lock tables (t1) before functions (f1)
+SELECT db1.f1();
+
+--echo # Connection con1
+connection con1;
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection default
+connection default;
+--echo # Waiting for DROP DATABASE to be blocked by the lock on f1()
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+  WHERE state= 'Waiting for stored function metadata lock'
+  AND info='DROP DATABASE db1';
+--source include/wait_condition.inc
+--error ER_LOCK_DEADLOCK
+SELECT * FROM db1.t1;
+COMMIT;
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Test 4: Check that active DROP DATABASE blocks stored routine DDL.
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE FUNCTION db1.f1() RETURNS INTEGER RETURN 1;
+CREATE FUNCTION db1.f2() RETURNS INTEGER RETURN 2;
+START TRANSACTION;
+SELECT db1.f2();
+
+--echo # Connection con1
+connection con1;
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+--echo # Waiting for DROP DATABASE to be blocked by the lock on f2()
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+  WHERE state= 'Waiting for stored function metadata lock'
+  AND info='DROP DATABASE db1';
+--source include/wait_condition.inc
+--echo # Sending:
+--send ALTER FUNCTION db1.f1 COMMENT "test"
+
+--echo # Connection default
+connection default;
+--echo # Waiting for ALTER FUNCTION to be blocked by the schema lock on db1
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+  WHERE state= 'Waiting for schema metadata lock'
+  AND info='ALTER FUNCTION db1.f1 COMMENT "test"';
+--source include/wait_condition.inc
+COMMIT;
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: DROP DATABASE db1
+--reap
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: ALTER FUNCTION f1 COMMENT 'test'
+--error ER_SP_DOES_NOT_EXIST
+--reap
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection default
+connection default;
+DROP FUNCTION f1;
+
+
+--echo #
 --echo # End of 5.5 tests
 --echo #

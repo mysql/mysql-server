@@ -742,7 +742,6 @@ bool partition_info::check_range_constants(THD *thd)
     longlong part_range_value;
     bool signed_flag= !part_expr->unsigned_flag;
 
-    part_result_type= INT_RESULT;
     range_int_array= (longlong*)sql_alloc(num_parts * sizeof(longlong));
     if (unlikely(range_int_array == NULL))
     {
@@ -917,7 +916,6 @@ bool partition_info::check_list_constants(THD *thd)
   List_iterator<partition_element> list_func_it(partitions);
   DBUG_ENTER("partition_info::check_list_constants");
 
-  part_result_type= INT_RESULT;
   num_list_values= 0;
   /*
     We begin by calculating the number of list values that have been
@@ -1608,6 +1606,52 @@ id_err:
   return 1;
 }
 
+
+/**
+  Check what kind of error to report
+
+  @param use_subpart_expr Use the subpart_expr instead of part_expr
+  @param part_str         Name of partition to report error (or NULL)
+*/
+void partition_info::report_part_expr_error(bool use_subpart_expr)
+{
+  Item *expr= part_expr;
+  DBUG_ENTER("partition_info::report_part_expr_error");
+  if (use_subpart_expr)
+    expr= subpart_expr;
+
+  if (expr->type() == Item::FIELD_ITEM)
+  {
+    partition_type type= part_type;
+    bool list_of_fields= list_of_part_fields;
+    Item_field *item_field= (Item_field*) expr;
+    /*
+      The expression consists of a single field.
+      It must be of integer type unless KEY or COLUMNS partitioning.
+    */
+    if (use_subpart_expr)
+    {
+      type= subpart_type;
+      list_of_fields= list_of_subpart_fields;
+    }
+    if (!column_list &&
+        item_field->field &&
+        item_field->field->result_type() != INT_RESULT &&
+        !(type == HASH_PARTITION && list_of_fields))
+    {
+      my_error(ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD, MYF(0),
+               item_field->name);
+      DBUG_VOID_RETURN;
+    }
+  }
+  if (use_subpart_expr)
+    my_error(ER_PARTITION_FUNC_NOT_ALLOWED_ERROR, MYF(0), "SUBPARTITION");
+  else
+    my_error(ER_PARTITION_FUNC_NOT_ALLOWED_ERROR, MYF(0), "PARTITION");
+  DBUG_VOID_RETURN;
+}
+ 
+
 /*
   Create a new column value in current list with maxvalue
   Called from parser
@@ -1891,7 +1935,7 @@ int partition_info::reorganize_into_single_field_col_val()
   code.
 
   SYNOPSIS
-  fix_func_partition()
+  fix_partition_values()
   thd                             Thread object
   col_val                         Array of one value
   part_elem                       The partition instance
@@ -1901,13 +1945,13 @@ int partition_info::reorganize_into_single_field_col_val()
     TRUE                     Failure
     FALSE                    Success
 */
-int partition_info::fix_func_partition(THD *thd,
-                                       part_elem_value *val,
-                                       partition_element *part_elem,
-                                       uint part_id)
+int partition_info::fix_partition_values(THD *thd,
+                                         part_elem_value *val,
+                                         partition_element *part_elem,
+                                         uint part_id)
 {
   part_column_list_val *col_val= val->col_val_array;
-  DBUG_ENTER("partition_info::fix_func_partition");
+  DBUG_ENTER("partition_info::fix_partition_values");
 
   if (col_val->fixed)
   {
@@ -1953,7 +1997,8 @@ int partition_info::fix_func_partition(THD *thd,
     }
     else if (item_expr->result_type() != INT_RESULT)
     {
-      my_error(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR, MYF(0));
+      my_error(ER_VALUES_IS_NOT_INT_TYPE_ERROR, MYF(0),
+               part_elem->partition_name);
       DBUG_RETURN(TRUE);
     }
     if (part_type == RANGE_PARTITION)
@@ -2168,7 +2213,7 @@ int partition_info::fix_parser_data(THD *thd)
       }
       else
       {
-        if (fix_func_partition(thd, val, part_elem, i))
+        if (fix_partition_values(thd, val, part_elem, i))
         {
           DBUG_RETURN(TRUE);
         }

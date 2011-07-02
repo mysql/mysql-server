@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1 (a int, unique(a)) engine=myisam;
 set sql_log_bin=0;
 insert into t1 values(2);
@@ -11,6 +7,11 @@ set sql_log_bin=1;
 insert into t1 values(1),(2);
 ERROR 23000: Duplicate entry '2' for key 'a'
 drop table t1;
-Error: "Query caused different errors on master and slave.     Error on master: 'Duplicate entry '%-.192s' for key %d' (1062), Error on slave: 'no error' (0). Default database: 'test'. Query: 'insert into t1 values(1),(2)'" (expected different error codes on master and slave)
+include/wait_for_slave_sql_to_stop.inc
+call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.* error code=1062.*Error on slave:.* Error_code: 0");
+Error: "Query caused different errors on master and slave.     Error on master: message (format)='Duplicate entry '%-.192s' for key %d' error code=1062 ; Error on slave: actual message='no error', error code=0. Default database: 'test'. Query: 'insert into t1 values(1),(2)'" (expected different error codes on master and slave)
 Errno: "0" (expected 0)
 drop table t1;
+include/stop_slave.inc
+RESET SLAVE;
+include/rpl_end.inc

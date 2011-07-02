@@ -54,7 +54,7 @@ table_setup_instruments::m_field_def=
 PFS_engine_table_share
 table_setup_instruments::m_share=
 {
-  { C_STRING_WITH_LEN("SETUP_INSTRUMENTS") },
+  { C_STRING_WITH_LEN("setup_instruments") },
   &pfs_updatable_acl,
   &table_setup_instruments::create,
   NULL, /* write_row */
@@ -253,7 +253,6 @@ int table_setup_instruments::update_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* NAME */
-        my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
         return HA_ERR_WRONG_COMMAND;
       case 1: /* ENABLED */
         value= (enum_yes_no) get_field_enum(f);

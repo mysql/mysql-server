@@ -84,8 +84,6 @@ test	t8	Compact
 test	t9	Compact
 drop table t0,t00,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14;
 alter table t1 key_block_size=0;
-Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=0.
 alter table t1 row_format=dynamic;
 SELECT table_schema, table_name, row_format
 FROM information_schema.tables WHERE engine='innodb';
@@ -191,16 +189,9 @@ set global innodb_file_per_table = on;
 set global innodb_file_format = `1`;
 set innodb_strict_mode = off;
 create table t1 (id int primary key) engine = innodb key_block_size = 0;
-Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=0.
 drop table t1;
 set innodb_strict_mode = on;
 create table t1 (id int primary key) engine = innodb key_block_size = 0;
-ERROR HY000: Can't create table 'test.t1' (errno: 1478)
-show warnings;
-Level	Code	Message
-Warning	1478	InnoDB: invalid KEY_BLOCK_SIZE = 0. Valid values are [1, 2, 4, 8, 16]
-Error	1005	Can't create table 'test.t1' (errno: 1478)
 create table t2 (id int primary key) engine = innodb key_block_size = 9;
 ERROR HY000: Can't create table 'test.t2' (errno: 1478)
 show warnings;
@@ -219,6 +210,7 @@ create table t11(id int primary key) engine = innodb row_format = redundant;
 SELECT table_schema, table_name, row_format
 FROM information_schema.tables WHERE engine='innodb';
 table_schema	table_name	row_format
+test	t1	Compact
 test	t10	Compact
 test	t11	Redundant
 test	t3	Compressed
@@ -228,7 +220,7 @@ test	t6	Compressed
 test	t7	Compressed
 test	t8	Compressed
 test	t9	Dynamic
-drop table t3, t4, t5, t6, t7, t8, t9, t10, t11;
+drop table t1, t3, t4, t5, t6, t7, t8, t9, t10, t11;
 create table t1 (id int primary key) engine = innodb
 key_block_size = 8 row_format = compressed;
 create table t2 (id int primary key) engine = innodb
@@ -254,16 +246,12 @@ Warning	1478	InnoDB: cannot specify ROW_FORMAT = DYNAMIC with KEY_BLOCK_SIZE.
 Error	1005	Can't create table 'test.t4' (errno: 1478)
 create table t5 (id int primary key) engine = innodb
 key_block_size = 8 row_format = default;
-ERROR HY000: Can't create table 'test.t5' (errno: 1478)
-show warnings;
-Level	Code	Message
-Warning	1478	InnoDB: cannot specify ROW_FORMAT = COMPACT with KEY_BLOCK_SIZE.
-Error	1005	Can't create table 'test.t5' (errno: 1478)
 SELECT table_schema, table_name, row_format
 FROM information_schema.tables WHERE engine='innodb';
 table_schema	table_name	row_format
 test	t1	Compressed
-drop table t1;
+test	t5	Compressed
+drop table t1, t5;
 create table t1 (id int primary key) engine = innodb
 key_block_size = 9 row_format = redundant;
 ERROR HY000: Can't create table 'test.t1' (errno: 1478)
@@ -394,8 +382,8 @@ table_schema	table_name	row_format
 test	t8	Compact
 test	t9	Redundant
 drop table t8, t9;
-set global innodb_file_per_table=1;
-set global innodb_file_format=Barracuda;
+set global innodb_file_per_table=0;
+set global innodb_file_format=Antelope;
 set global innodb_file_per_table=on;
 set global innodb_file_format=`Barracuda`;
 set global innodb_file_format_max=`Antelope`;

@@ -18,50 +18,44 @@ connection master;
 # create some events on master
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (1),(2),(3),(4);
-let $master_log_pos_1= query_get_value(SHOW MASTER STATUS, Position, 1);
 drop table t1;
-
 create table t2(n int not null auto_increment primary key);
 insert into t2 values (1),(2);
-let $master_log_pos_2= query_get_value(SHOW MASTER STATUS, Position, 1);
 insert into t2 values (3),(4);
 drop table t2;
 
 # try to replicate all queries until drop of t1
 connection slave;
---replace_result $master_log_pos_1 MASTER_LOG_POS
-eval start slave until master_log_file='master-bin.000001', master_log_pos=$master_log_pos_1;
+start slave until master_log_file='master-bin.000001', master_log_pos=311;
 sleep 2;
 wait_for_slave_to_stop;
 # here table should be still not deleted
 select * from t1;
---let $slave_param= Exec_Master_Log_Pos
---let $slave_param_value= $master_log_pos_1
---source include/check_slave_param.inc
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 7 # 9 # 11 # 22 # 23 # 33 #
+show slave status;
 
 # this should fail right after start
---replace_result 291 MASTER_LOG_POS
 start slave until master_log_file='master-no-such-bin.000001', master_log_pos=291;
 # again this table should be still not deleted
 select * from t1;
 sleep 2;
 wait_for_slave_to_stop;
---let $slave_param= Exec_Master_Log_Pos
---let $slave_param_value= $master_log_pos_1
---source include/check_slave_param.inc
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 7 # 9 # 11 # 22 # 23 # 33 #
+show slave status;
 
 # try replicate all up to and not including the second insert to t2;
-let $master_log_pos= $master_log_pos_2;
-let $relay_log_file= slave-relay-bin.000004;
---source include/get_relay_log_pos.inc
---replace_result $relay_log_pos RELAY_LOG_POS
-eval start slave until relay_log_file='$relay_log_file', relay_log_pos=$relay_log_pos;
+start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=728;
 sleep 2;
 wait_for_slave_to_stop;
 select * from t2;
---let $slave_param= Exec_Master_Log_Pos
---let $slave_param_value= $master_log_pos
---source include/check_slave_param.inc
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 7 # 9 # 11 # 22 # 23 # 33 #
+show slave status;
 
 # clean up
 start slave;
@@ -71,32 +65,27 @@ connection slave;
 sync_with_master;
 stop slave;
 
---let $exec_log_pos_1= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
 # this should stop immediately as we are already there
---replace_result $master_log_pos_2 MASTER_LOG_POS
-eval start slave until master_log_file='master-bin.000001', master_log_pos=$master_log_pos_2;
+start slave until master_log_file='master-bin.000001', master_log_pos=740;
 sleep 2;
 wait_for_slave_to_stop;
 # here the sql slave thread should be stopped
---let $slave_param= Exec_Master_Log_Pos
---let $slave_param_value= $exec_log_pos_1
---source include/check_slave_param.inc
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_MYPORT bin.000005 bin.000004 bin.000006 bin.000004 bin.000007 bin.000004
+--replace_column 1 # 7 # 9 # 22 # 23 # 33 #
+show slave status;
 
 #testing various error conditions
---replace_result 561 MASTER_LOG_POS
 --error 1277
 start slave until master_log_file='master-bin', master_log_pos=561;
---replace_result 561 MASTER_LOG_POS 12 RELAY_LOG_POS
 --error 1277
 start slave until master_log_file='master-bin.000001', master_log_pos=561, relay_log_pos=12;
 --error 1277
 start slave until master_log_file='master-bin.000001';
 --error 1277
 start slave until relay_log_file='slave-relay-bin.000002';
---replace_result 561 MASTER_LOG_POS
 --error 1277
 start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
 # Warning should be given for second command
 start slave sql_thread;
---replace_result 740 MASTER_LOG_POS
 start slave until master_log_file='master-bin.000001', master_log_pos=740;

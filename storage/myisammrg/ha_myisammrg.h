@@ -110,7 +110,7 @@ public:
   int add_children_list(void);
   int attach_children(void);
   int detach_children(void);
-  virtual handler *clone(MEM_ROOT *mem_root);
+  virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   int close(void);
   int write_row(uchar * buf);
   int update_row(const uchar * old_data, uchar * new_data);
@@ -131,6 +131,7 @@ public:
   int rnd_pos(uchar * buf, uchar *pos);
   void position(const uchar *record);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
+  int truncate();
   int info(uint);
   int reset(void);
   int extra(enum ha_extra_function operation);

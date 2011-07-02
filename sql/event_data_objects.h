@@ -82,10 +82,6 @@ protected:
 
 class Event_queue_element : public Event_basic
 {
-protected:
-  bool status_changed;
-  bool last_executed_changed;
-
 public:
   int on_completion;
   int status;
@@ -117,9 +113,6 @@ public:
 
   void
   mark_last_executed(THD *thd);
-
-  bool
-  update_timing_fields(THD *thd);
 };
 
 

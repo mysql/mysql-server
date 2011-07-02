@@ -49,7 +49,7 @@ while ($i)
     let $i = 1//
 
     # Check that mysql_errno is 1436
-    if (`select $mysql_errno != 1436`)
+    if ($mysql_errno != 1436)
     {
       die Wrong error triggered, expected 1436 but got $mysql_errno//
     }

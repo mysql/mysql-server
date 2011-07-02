@@ -65,8 +65,8 @@ extern const char *globerrs[];  /* my_error_messages is here */
 #define EE_FILE_NOT_CLOSED	30
 #define EE_CHANGE_OWNERSHIP     31
 #define EE_CHANGE_PERMISSIONS   32
-#define EE_CANT_CHMOD		33
-#define EE_CANT_SEEK		34
+#define EE_CANT_SEEK            33
+#define EE_CANT_CHMOD		34
 #define EE_CANT_COPY_OWNERSHIP  35
 #define EE_ERROR_LAST           35 /* Copy last error nr */
 /* Add error numbers before EE_ERROR_LAST and change it accordingly. */

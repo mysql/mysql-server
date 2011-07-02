@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -211,7 +211,6 @@
 %define license_files_server    %{src_dir}/LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_devel     %{src_dir}/EXCEPTIONS-CLIENT
 %define license_files_server    %{src_dir}/COPYING %{src_dir}/README
 %define license_type            GPL
 %endif
@@ -223,7 +222,7 @@
 Name:           MySQL%{product_suffix}
 Summary:        MySQL: a very fast and reliable SQL database server
 Group:          Applications/Databases
-Version:        @MYSQL_U_SCORE_VERSION@
+Version:        @MYSQL_RPM_VERSION@
 Release:        %{release}%{?distro_releasetag:.%{distro_releasetag}}
 Distribution:   %{distro_description}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
@@ -335,6 +334,7 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 %package -n MySQL-shared%{product_suffix}
 Summary:        MySQL - Shared libraries
 Group:          Applications/Databases
+Provides:       mysql-shared
 Obsoletes:      MySQL-shared-community
 
 %description -n MySQL-shared%{product_suffix}
@@ -398,6 +398,7 @@ export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
+export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-}
 
 # Build debug mysqld and libmysqld.a
 mkdir debug
@@ -425,7 +426,7 @@ mkdir debug
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
-  make VERBOSE=1
+  make ${MAKE_JFLAG} VERBOSE=1
 )
 # Build full release
 mkdir release
@@ -440,7 +441,7 @@ mkdir release
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
-  make VERBOSE=1
+  make ${MAKE_JFLAG} VERBOSE=1
 )
 
 # Use the build root for temporary storage of the shared libraries.
@@ -522,10 +523,27 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 ##############################################################################
 
 %pre -n MySQL-server%{product_suffix}
+# This is the code running at the beginning of a RPM upgrade action,
+# before replacing the old files with the new ones.
 
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
 
-mysql_datadir=%{mysqldatadir}
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  PID_FILE_PATT=`%{_bindir}/my_print_defaults server mysqld | grep '^--pid-file=' | sed -n 's/--pid-file=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
+if [ -z "$PID_FILE_PATT" ]
+then
+  PID_FILE_PATT="$mysql_datadir/*.pid"
+fi
+
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
@@ -600,7 +618,7 @@ fi
 
 # We assume that if there is exactly one ".pid" file,
 # it contains the valid PID of a running MySQL server.
-NR_PID_FILES=`ls $mysql_datadir/*.pid 2>/dev/null | wc -l`
+NR_PID_FILES=`ls $PID_FILE_PATT 2>/dev/null | wc -l`
 case $NR_PID_FILES in
 	0 ) SERVER_TO_START=''  ;;  # No "*.pid" file == no running server
 	1 ) SERVER_TO_START='true' ;;
@@ -622,8 +640,8 @@ if [ -f $STATUS_FILE ]; then
 	echo "before repeating the MySQL upgrade."
 	exit 1
 elif [ -n "$SEVERAL_PID_FILES" ] ; then
-	echo "Your MySQL directory '$mysql_datadir' has more than one PID file:"
-	ls -ld $mysql_datadir/*.pid
+	echo "You have more than one PID file:"
+	ls -ld $PID_FILE_PATT
 	echo "Please check which one (if any) corresponds to a running server"
 	echo "and delete all others before repeating the MySQL upgrade."
 	exit 1
@@ -648,17 +666,17 @@ if [ -d $mysql_datadir ] ; then
 	if [ -n "$SERVER_TO_START" ] ; then
 		# There is only one PID file, race possibility ignored
 		echo "PID file:"                           >> $STATUS_FILE
-		ls -l   $mysql_datadir/*.pid               >> $STATUS_FILE
-		cat     $mysql_datadir/*.pid               >> $STATUS_FILE
+		ls -l   $PID_FILE_PATT                     >> $STATUS_FILE
+		cat     $PID_FILE_PATT                     >> $STATUS_FILE
 		echo                                       >> $STATUS_FILE
 		echo "Server process:"                     >> $STATUS_FILE
-		ps -fp `cat $mysql_datadir/*.pid`          >> $STATUS_FILE
+		ps -fp `cat $PID_FILE_PATT`                >> $STATUS_FILE
 		echo                                       >> $STATUS_FILE
 		echo "SERVER_TO_START=$SERVER_TO_START"    >> $STATUS_FILE
 	else
 		# Take a note we checked it ...
 		echo "PID file:"                           >> $STATUS_FILE
-		ls -l   $mysql_datadir/*.pid               >> $STATUS_FILE 2>&1
+		ls -l   $PID_FILE_PATT                     >> $STATUS_FILE 2>&1
 	fi
 fi
 
@@ -673,10 +691,22 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 fi
 
 %post -n MySQL-server%{product_suffix}
+# This is the code running at the end of a RPM install or upgrade action,
+# after the (new) files have been written.
 
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
 
-mysql_datadir=%{mysqldatadir}
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
+
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 
@@ -854,7 +884,17 @@ fi
 #   http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch10s02.html
 # For all details of this code, see the "pre" and "post" sections.
 
-mysql_datadir=%{mysqldatadir}
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
+
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER-LAST  # Note the difference!
 STATUS_HISTORY=$mysql_datadir/RPM_UPGRADE_HISTORY
@@ -907,6 +947,8 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %{license_files_server}
 %endif
 %doc %{src_dir}/Docs/ChangeLog
+%doc %{src_dir}/Docs/INFO_SRC*
+%doc release/Docs/INFO_BIN*
 %doc release/support-files/my-*.cnf
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
@@ -974,11 +1016,23 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -1024,9 +1078,6 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-devel%{product_suffix} -f optional-files-devel
 %defattr(-, root, root, 0755)
-%if %{defined license_files_devel}
-%doc %{license_files_devel}
-%endif
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -1075,6 +1126,31 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Thu Feb 09 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Fix bug#56581: If an installation deviates from the default file locations
+  ("datadir" and "pid-file"), the mechanism to detect a running server (on upgrade)
+  should still work, and use these locations.
+  The problem was that the fix for bug#27072 did not check for local settings.
+  
+* Mon Jan 31 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Install the new "manifest" files: "INFO_SRC" and "INFO_BIN".
+
+* Tue Nov 23 2010 Jonathan Perkin <jonathan.perkin@oracle.com>
+
+- EXCEPTIONS-CLIENT has been deleted, remove it from here too
+- Support MYSQL_BUILD_MAKE_JFLAG environment variable for passing
+  a '-j' argument to make.
+
+* Mon Nov 1 2010 Georgi Kodinov <georgi.godinov@oracle.com>
+
+- Added test authentication (WL#1054) plugin binaries
+
+* Wed Oct 6 2010 Georgi Kodinov <georgi.godinov@oracle.com>
+
+- Added example external authentication (WL#1054) plugin binaries
+
 * Wed Aug 11 2010 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - With a recent spec file cleanup, names have changed: A "-community" part was dropped.

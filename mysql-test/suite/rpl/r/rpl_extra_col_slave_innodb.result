@@ -1,0 +1,595 @@
+include/master-slave.inc
+[connection master]
+call mtr.add_suppression("Slave: Unknown table 't6' Error_code: 1051");
+call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: 1677");
+**** Diff Table Def Start ****
+*** On Slave ***
+STOP SLAVE;
+RESET SLAVE;
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+CREATE TABLE t1 (a INT, b INT PRIMARY KEY, c CHAR(20),
+d FLOAT DEFAULT '2.00', 
+e CHAR(4) DEFAULT 'TEST') 
+ENGINE='InnoDB';
+*** Create t1 on Master ***
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c CHAR(10)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+INSERT INTO t1 () VALUES(1,2,'TEXAS'),(2,1,'AUSTIN'),(3,4,'QA');
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	2	TEXAS
+2	1	AUSTIN
+3	4	QA
+*** Select from slave ***
+SELECT * FROM t1 ORDER BY a;
+a	b	c	d	e
+1	2	TEXAS	2	TEST
+2	1	AUSTIN	2	TEST
+3	4	QA	2	TEST
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+*** Drop t1  ***
+DROP TABLE t1;
+*** Create t2 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t2 (a INT, b INT PRIMARY KEY, c CHAR(5),
+d FLOAT DEFAULT '2.00',
+e CHAR(5) DEFAULT 'TEST2')
+ENGINE='InnoDB';
+*** Create t2 on Master ***
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, c CHAR(10)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Master Data Insert ***
+INSERT INTO t2 () VALUES(1,2,'Kyle, TEX'),(2,1,'JOE AUSTIN'),(3,4,'QA TESTING');
+SELECT * FROM t2 ORDER BY a;
+a	b	c
+1	2	Kyle, TEX
+2	1	JOE AUSTIN
+3	4	QA TESTING
+*** Start Slave ***
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=1677]
+Last_SQL_Error = 'Column 2 of table 'test.t2' cannot be converted from type 'char(10)' to type 'char(5)''
+STOP SLAVE;
+RESET SLAVE;
+SELECT * FROM t2 ORDER BY a;
+a	b	c	d	e
+RESET MASTER;
+START SLAVE;
+*** Drop t2  ***
+DROP TABLE t2;
+*** Create t3 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t3 (a INT, b INT PRIMARY KEY, c CHAR(20),
+d FLOAT DEFAULT '2.00',
+e CHAR(5) DEFAULT 'TEST2')
+ENGINE='InnoDB';
+*** Create t3 on Master ***
+CREATE TABLE t3 (a BLOB, b INT PRIMARY KEY, c CHAR(20)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TESTING');
+********************************************
+*** Expect slave to fail with Error 1677 ***
+********************************************
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 0 of table 'test.t3' cannot be converted from type 'tinyblob' to type 'int(11)''
+*** Drop t3  ***
+DROP TABLE t3;
+*** Create t4 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t4 (a INT, b INT PRIMARY KEY, c CHAR(20),
+d FLOAT DEFAULT '2.00',
+e CHAR(5) DEFAULT 'TEST2')
+ENGINE='InnoDB';
+*** Create t4 on Master ***
+CREATE TABLE t4 (a DECIMAL(8,2), b INT PRIMARY KEY, c CHAR(20)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
+(30000.22,4,'QA TESTING');
+********************************************
+*** Expect slave to fail with Error 1677 ***
+********************************************
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 0 of table 'test.t4' cannot be converted from type 'decimal(8,2)' to type 'int(11)''
+*** Drop t4  ***
+DROP TABLE t4;
+*** Create t5 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t5 (a INT PRIMARY KEY, b CHAR(5),
+c FLOAT, d INT, e DOUBLE,
+f DECIMAL(8,2))ENGINE='InnoDB';
+*** Create t5 on Master ***
+CREATE TABLE t5 (a INT PRIMARY KEY, b VARCHAR(6),
+c DECIMAL(8,2), d BIT, e BLOB,
+f FLOAT) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
+(2,'JOE',300.01,0,'b2b2',1.0000009);
+********************************************
+*** Expect slave to fail with Error 1677 ***
+********************************************
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 1 of table 'test.t5' cannot be converted from type 'varchar(6)' to type 'char(5)''
+*** Drop t5  ***
+DROP TABLE t5;
+*** Create t6 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t6 (a INT PRIMARY KEY, b CHAR(5),
+c FLOAT, d INT)ENGINE='InnoDB';
+*** Create t6 on Master ***
+CREATE TABLE t6 (a INT PRIMARY KEY, b VARCHAR(6),
+c DECIMAL(8,2), d BIT 
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
+(2,'JOE',300.01,0);
+********************************************
+*** Expect slave to fail with Error 1677 ***
+********************************************
+include/wait_for_slave_sql_error.inc [errno=1677]
+Last_SQL_Error = 'Column 1 of table 'test.t6' cannot be converted from type 'varchar(6)' to type 'char(5)''
+*** Drop t6  ***
+include/rpl_reset.inc
+DROP TABLE t6;
+**** Diff Table Def End ****
+**** Extra Colums Start ****
+*** Create t7 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t7 (a INT KEY, b BLOB, c CHAR(5),
+d TIMESTAMP NULL DEFAULT '0000-00-00 00:00:00',
+e CHAR(20) DEFAULT 'Extra Column Testing')
+ENGINE='InnoDB';
+*** Create t7 on Master ***
+CREATE TABLE t7 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t7 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
+SELECT * FROM t7 ORDER BY a;
+a	b	c
+1	b1b1	Kyle
+2	b1b1	JOE
+3	b1b1	QA
+*** Select from slave ***
+SELECT * FROM t7 ORDER BY a;
+a	b	c	d	e
+1	b1b1	Kyle	0000-00-00 00:00:00	Extra Column Testing
+2	b1b1	JOE	0000-00-00 00:00:00	Extra Column Testing
+3	b1b1	QA	0000-00-00 00:00:00	Extra Column Testing
+*** Drop t7  ***
+DROP TABLE t7;
+*** Create t8 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t8 (a INT KEY, b BLOB, c CHAR(5),
+d TIMESTAMP NULL DEFAULT '0000-00-00 00:00:00',
+e INT)ENGINE='InnoDB';
+*** Create t8 on Master ***
+CREATE TABLE t8 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t8 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
+*** Drop t8  ***
+DROP TABLE t8;
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t9 (a INT KEY, b BLOB, c CHAR(5),
+d TIMESTAMP,
+e INT NOT NULL,
+f text not null,
+g text,
+h blob not null,
+i blob) ENGINE='InnoDB';
+*** Create t9 on Master ***
+CREATE TABLE t9 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t9 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
+select * from t9;
+a	b	c	d	e	f	g	h	i
+1	b1b1b1b1b1b1b1b1	Kyle	0000-00-00 00:00:00	0		NULL		NULL
+2	b1b1b1b1b1b1b1b1	JOE	0000-00-00 00:00:00	0		NULL		NULL
+3	b1b1b1b1b1b1b1b1	QA	0000-00-00 00:00:00	0		NULL		NULL
+DROP TABLE t9;
+*** Create t10 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t10 (a INT KEY, b BLOB, f DOUBLE DEFAULT '233', 
+c CHAR(5), e INT DEFAULT '1')ENGINE='InnoDB';
+*** Create t10 on Master ***
+CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
+********************************************
+*** Expect slave to fail with Error 1677 ***
+********************************************
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 2 of table 'test.t10' cannot be converted from type 'char(5)' to type 'double''
+*** Drop t10  ***
+DROP TABLE t10;
+*** Create t11 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t11 (a INT KEY, b BLOB, f INT,
+c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='InnoDB';
+*** Create t11 on Master ***
+CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
+********************************************
+*** Expect slave to fail with Error 1677 ***
+********************************************
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 2 of table 'test.t11' cannot be converted from type 'varchar(254)' to type 'int(11)''
+*** Drop t11  ***
+DROP TABLE t11;
+*** Create t12 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t12 (a INT KEY, b BLOB, f TEXT,
+c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE='InnoDB';
+*** Create t12 on Master ***
+CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t12 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
+SELECT * FROM t12 ORDER BY a;
+a	b	c
+1	b1b1b1b1b1b1b1b1	Kyle
+2	b1b1b1b1b1b1b1b1	JOE
+3	b1b1b1b1b1b1b1b1	QA
+*** Select on Slave ***
+SELECT * FROM t12 ORDER BY a;
+a	b	f	c	e
+1	b1b1b1b1b1b1b1b1	Kyle	test	1
+2	b1b1b1b1b1b1b1b1	JOE	test	1
+3	b1b1b1b1b1b1b1b1	QA	test	1
+*** Drop t12  ***
+DROP TABLE t12;
+**** Extra Colums End ****
+*** BUG 22177 Start ***
+*** Create t13 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t13 (a INT KEY, b BLOB, c CHAR(5),
+d INT DEFAULT '1',
+e TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+*** Create t13 on Master ***
+CREATE TABLE t13 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t13 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
+SELECT * FROM t13 ORDER BY a;
+a	b	c
+1	b1b1b1b1b1b1b1b1	Kyle
+2	b1b1b1b1b1b1b1b1	JOE
+3	b1b1b1b1b1b1b1b1	QA
+*** Select on Slave ****
+SELECT * FROM t13 ORDER BY a;
+a	b	c	d	e
+1	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
+2	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
+3	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+*** Drop t13  ***
+DROP TABLE t13;
+*** 22117 END *** 
+*** Alter Master Table Testing Start ***
+*** Create t14 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t14 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+c6 INT DEFAULT '1',
+c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+*** Create t14 on Master ***
+CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+ALTER TABLE t14 ADD COLUMN c2 DECIMAL(8,2) AFTER c1;
+ALTER TABLE t14 ADD COLUMN c3 TEXT AFTER c2;
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t14 () VALUES(1,1.00,'Replication Testing Extra Col',@b1,'Kyle'),
+(2,2.00,'This Test Should work',@b1,'JOE'),
+(3,3.00,'If is does not, I will open a bug',@b1,'QA');
+SELECT * FROM t14 ORDER BY c1;
+c1	c2	c3	c4	c5
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA
+*** Select on Slave ****
+SELECT * FROM t14 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+*** Create t14a on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t14a (c1 INT KEY, c4 BLOB, c5 CHAR(5),
+c6 INT DEFAULT '1',
+c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+*** Create t14a on Master ***
+CREATE TABLE t14a (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t14a () VALUES(1,@b1,'Kyle'),
+(2,@b1,'JOE'),
+(3,@b1,'QA');
+SELECT * FROM t14a ORDER BY c1;
+c1	c4	c5
+1	b1b1b1b1b1b1b1b1	Kyle
+2	b1b1b1b1b1b1b1b1	JOE
+3	b1b1b1b1b1b1b1b1	QA
+*** Select on Slave ****
+SELECT * FROM t14a ORDER BY c1;
+c1	c4	c5	c6	c7
+1	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
+2	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
+3	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+STOP SLAVE;
+RESET SLAVE;
+*** Master Drop c5 ***
+ALTER TABLE t14a DROP COLUMN c5;
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t14a () VALUES(4,@b1),
+(5,@b1),
+(6,@b1);
+SELECT * FROM t14a ORDER BY c1;
+c1	c4
+1	b1b1b1b1b1b1b1b1
+2	b1b1b1b1b1b1b1b1
+3	b1b1b1b1b1b1b1b1
+4	b1b1b1b1b1b1b1b1
+5	b1b1b1b1b1b1b1b1
+6	b1b1b1b1b1b1b1b1
+*** Select on Slave ****
+SELECT * FROM t14a ORDER BY c1;
+c1	c4	c5	c6	c7
+1	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
+2	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
+3	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+4	b1b1b1b1b1b1b1b1	NULL	1	CURRENT_TIMESTAMP
+5	b1b1b1b1b1b1b1b1	NULL	1	CURRENT_TIMESTAMP
+6	b1b1b1b1b1b1b1b1	NULL	1	CURRENT_TIMESTAMP
+DROP TABLE t14a;
+*** connect to master and drop columns ***
+ALTER TABLE t14 DROP COLUMN c2;
+ALTER TABLE t14 DROP COLUMN c4;
+*** Select from Master ***
+SELECT * FROM t14 ORDER BY c1;
+c1	c3	c5
+1	Replication Testing Extra Col	Kyle
+2	This Test Should work	JOE
+3	If is does not, I will open a bug	QA
+*** Select from Slave ***
+SELECT * FROM t14 ORDER BY c1;
+c1	c3	c5	c6	c7
+1	Replication Testing Extra Col	Kyle	1	CURRENT_TIMESTAMP
+2	This Test Should work	JOE	1	CURRENT_TIMESTAMP
+3	If is does not, I will open a bug	QA	1	CURRENT_TIMESTAMP
+*** Drop t14  ***
+DROP TABLE t14;
+*** Create t15 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t15 (c1 INT KEY, c2 DECIMAL(8,2), c3 TEXT,
+c4 BLOB, c5 CHAR(5),
+c6 INT DEFAULT '1',
+c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+*** Create t15 on Master ***
+CREATE TABLE t15 (c1 INT PRIMARY KEY, c2 DECIMAL(8,2), c3 TEXT,
+c4 BLOB, c5 CHAR(5)) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+call mtr.add_suppression("Error .Unknown table .t6.. on query.* Error_code: 1051");
+call mtr.add_suppression("Error .Duplicate column name .c6.. on query.* Error_code: 1060");
+call mtr.add_suppression("Table definition on master and slave does not match: Column . ...e mismatch.* Error_code: 1535");
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t15 () VALUES(1,1.00,'Replication Testing Extra Col',@b1,'Kyle'),
+(2,2.00,'This Test Should work',@b1,'JOE'),
+(3,3.00,'If is does not, I will open a bug',@b1,'QA');
+SELECT * FROM t15 ORDER BY c1;
+c1	c2	c3	c4	c5
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA
+*** Select on Slave ****
+SELECT * FROM t15 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+*** Add column on master that is a Extra on Slave ***
+ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
+********************************************
+*** Expect slave to fail with Error 1060 ***
+********************************************
+include/wait_for_slave_sql_error_and_skip.inc [errno=1060]
+Last_SQL_Error = 'Error 'Duplicate column name 'c6'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5''
+*** Try to insert in master ****
+INSERT INTO t15 () VALUES(5,2.00,'Replication Testing',@b1,'Buda',2);
+SELECT * FROM t15 ORDER BY c1;
+c1	c2	c3	c4	c5	c6
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	NULL
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	NULL
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	NULL
+5	2.00	Replication Testing	b1b1b1b1b1b1b1b1	Buda	2
+*** Try to select from slave ****
+SELECT * FROM t15 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+5	2.00	Replication Testing	b1b1b1b1b1b1b1b1	Buda	2	CURRENT_TIMESTAMP
+*** DROP TABLE t15 ***
+DROP TABLE t15;
+*** Create t16 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t16 (c1 INT KEY, c2 DECIMAL(8,2), c3 TEXT,
+c4 BLOB, c5 CHAR(5),
+c6 INT DEFAULT '1',
+c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+)ENGINE='InnoDB';
+*** Create t16 on Master ***
+CREATE TABLE t16 (c1 INT PRIMARY KEY, c2 DECIMAL(8,2), c3 TEXT,
+c4 BLOB, c5 CHAR(5))ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+set @b1 = 'b1b1b1b1';
+set @b1 = concat(@b1,@b1);
+INSERT INTO t16 () VALUES(1,1.00,'Replication Testing Extra Col',@b1,'Kyle'),
+(2,2.00,'This Test Should work',@b1,'JOE'),
+(3,3.00,'If is does not, I will open a bug',@b1,'QA');
+SELECT * FROM t16 ORDER BY c1;
+c1	c2	c3	c4	c5
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA
+*** Select on Slave ****
+SELECT * FROM t16 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
+2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
+3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
+*** Add Partition on master ***
+ALTER TABLE t16 PARTITION BY KEY(c1) PARTITIONS 4;
+INSERT INTO t16 () VALUES(4,1.00,'Replication Rocks',@b1,'Omer');
+SHOW CREATE TABLE t16;
+Table	Create Table
+t16	CREATE TABLE `t16` (
+  `c1` int(11) NOT NULL,
+  `c2` decimal(8,2) DEFAULT NULL,
+  `c3` text,
+  `c4` blob,
+  `c5` char(5) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (c1)
+PARTITIONS 4 */
+*** Show table on Slave ****
+SHOW CREATE TABLE t16;
+Table	Create Table
+t16	CREATE TABLE `t16` (
+  `c1` int(11) NOT NULL,
+  `c2` decimal(8,2) DEFAULT NULL,
+  `c3` text,
+  `c4` blob,
+  `c5` char(5) DEFAULT NULL,
+  `c6` int(11) DEFAULT '1',
+  `c7` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (c1)
+PARTITIONS 4 */
+*** DROP TABLE t16 ***
+DROP TABLE t16;
+*** Alter Master End ***
+*** Create t17 on slave  ***
+STOP SLAVE;
+RESET SLAVE;
+CREATE TABLE t17 (a SMALLINT, b INT PRIMARY KEY, c CHAR(5),
+d FLOAT DEFAULT '2.00',
+e CHAR(5) DEFAULT 'TEST2')
+ENGINE='InnoDB';
+*** Create t17 on Master ***
+CREATE TABLE t17 (a BIGINT PRIMARY KEY, b INT, c CHAR(10)
+) ENGINE='InnoDB';
+RESET MASTER;
+*** Start Slave ***
+START SLAVE;
+*** Master Data Insert ***
+INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
+********************************************
+*** Expect slave to fail with Error 1677 ***
+********************************************
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 0 of table 'test.t17' cannot be converted from type 'bigint' to type 'smallint(6)''
+** DROP table t17 ***
+DROP TABLE t17;
+include/rpl_end.inc

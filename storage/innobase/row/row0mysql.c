@@ -503,7 +503,7 @@ row_mysql_convert_row_to_innobase(
 					row is used, as row may contain
 					pointers to this record! */
 {
-	mysql_row_templ_t*	templ;
+	const mysql_row_templ_t*templ;
 	dfield_t*		dfield;
 	ulint			i;
 
@@ -632,7 +632,7 @@ handle_new_error:
 		      "InnoDB: If the mysqld server crashes"
 		      " after the startup or when\n"
 		      "InnoDB: you dump the tables, look at\n"
-		      "InnoDB: " REFMAN "forcing-recovery.html"
+		      "InnoDB: " REFMAN "forcing-innodb-recovery.html"
 		      " for help.\n", stderr);
 		break;
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
@@ -930,7 +930,8 @@ row_update_statistics_if_needed(
 	if (counter > 2000000000
 	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
 
-		dict_update_statistics(table);
+		dict_update_statistics(table, FALSE /* update even if stats
+						    are initialized */);
 	}
 }
 
@@ -975,7 +976,6 @@ row_lock_table_autoinc_for_mysql(
 	ibool			was_lock_wait;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	/* If we already hold an AUTOINC lock on the table then do nothing.
         Note: We peek at the value of the current owner without acquiring
@@ -1055,7 +1055,6 @@ row_lock_table_for_mysql(
 	ibool		was_lock_wait;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	trx->op_info = "setting table lock";
 
@@ -1129,7 +1128,6 @@ row_insert_for_mysql(
 	ins_node_t*	node		= prebuilt->ins_node;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	if (prebuilt->table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
@@ -1363,7 +1361,6 @@ row_update_for_mysql(
 	trx_t*		trx		= prebuilt->trx;
 
 	ut_ad(prebuilt && trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	UT_NOT_USED(mysql_rec);
 
 	if (prebuilt->table->ibd_file_missing) {
@@ -1531,7 +1528,6 @@ row_unlock_for_mysql(
 	trx_t*		trx		= prebuilt->trx;
 
 	ut_ad(prebuilt && trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	if (UNIV_UNLIKELY
 	    (!srv_locks_unsafe_for_binlog
@@ -1833,7 +1829,6 @@ row_create_table_for_mysql(
 	ulint		table_name_len;
 	ulint		err;
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1938,15 +1933,13 @@ err_exit:
 
 	err = trx->error_state;
 
-	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+	switch (err) {
+	case DB_SUCCESS:
+		break;
+	case DB_OUT_OF_FILE_SPACE:
 		trx->error_state = DB_SUCCESS;
 		trx_general_rollback_for_mysql(trx, NULL);
-		/* TO DO: free table?  The code below will dereference
-		table->name, though. */
-	}
 
-	switch (err) {
-	case DB_OUT_OF_FILE_SPACE:
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Warning: cannot create table ",
 		      stderr);
@@ -1961,9 +1954,13 @@ err_exit:
 		break;
 
 	case DB_DUPLICATE_KEY:
+	default:
 		/* We may also get err == DB_ERROR if the .ibd file for the
 		table already exists */
 
+		trx->error_state = DB_SUCCESS;
+		trx_general_rollback_for_mysql(trx, NULL);
+		dict_mem_table_free(table);
 		break;
 	}
 
@@ -2000,12 +1997,12 @@ row_create_index_for_mysql(
 	ulint		i;
 	ulint		len;
 	char*		table_name;
+	dict_table_t*	table;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	trx->op_info = "creating index";
 
@@ -2013,6 +2010,8 @@ row_create_index_for_mysql(
 	table later, after the index object is freed (inside
 	que_run_threads()) and thus index->table_name is not available. */
 	table_name = mem_strdup(index->table_name);
+
+	table = dict_table_get_low(table_name);
 
 	trx_start_if_not_started(trx);
 
@@ -2046,7 +2045,7 @@ row_create_index_for_mysql(
 		}
 
 		/* Check also that prefix_len and actual length
-		< DICT_MAX_INDEX_COL_LEN */
+		is less than that from DICT_MAX_FIELD_LEN_BY_FORMAT() */
 
 		len = dict_index_get_nth_field(index, i)->prefix_len;
 
@@ -2054,8 +2053,9 @@ row_create_index_for_mysql(
 			len = ut_max(len, field_lengths[i]);
 		}
 
-		if (len >= DICT_MAX_INDEX_COL_LEN) {
-			err = DB_TOO_BIG_RECORD;
+		/* Column or prefix length exceeds maximum column length */
+		if (len > (ulint) DICT_MAX_FIELD_LEN_BY_FORMAT(table)) {
+			err = DB_TOO_BIG_INDEX_COL;
 
 			goto error_handling;
 		}
@@ -2080,6 +2080,7 @@ row_create_index_for_mysql(
 	que_graph_free((que_t*) que_node_get_parent(thr));
 
 error_handling:
+
 	if (err != DB_SUCCESS) {
 		/* We have special error handling here */
 
@@ -2408,8 +2409,6 @@ row_discard_tablespace_for_mysql(
 	table->n_foreign_key_checks_running > 0, we do not allow the
 	discard. We also reserve the data dictionary latch. */
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-
 	trx->op_info = "discarding tablespace";
 	trx_start_if_not_started(trx);
 
@@ -2567,8 +2566,6 @@ row_import_tablespace_for_mysql(
 	ibool		success;
 	ib_uint64_t	current_lsn;
 	ulint		err		= DB_SUCCESS;
-
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	trx_start_if_not_started(trx);
 
@@ -2753,7 +2750,6 @@ row_truncate_table_for_mysql(
 	redo log records on the truncated tablespace, we will assign
 	a new tablespace identifier to the truncated tablespace. */
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(table);
 
 	if (srv_created_new_raw) {
@@ -2839,15 +2835,6 @@ row_truncate_table_for_mysql(
 
 	trx->table_id = table->id;
 
-	/* Lock all index trees for this table, as we will
-	truncate the table/index and possibly change their metadata.
-	All DML/DDL are blocked by table level lock, with
-	a few exceptions such as queries into information schema
-	about the table, MySQL could try to access index stats
-	for this kind of query, we need to use index locks to
-	sync up */
-	dict_table_x_lock_indexes(table);
-
 	if (table->space && !table->dir_path_of_temp_table) {
 		/* Discard and create the single-table tablespace. */
 		ulint	space	= table->space;
@@ -2859,6 +2846,11 @@ row_truncate_table_for_mysql(
 			dict_index_t*	index;
 
 			dict_hdr_get_new_id(NULL, NULL, &space);
+
+			/* Lock all index trees for this table. We must
+			do so after dict_hdr_get_new_id() to preserve
+			the latch order */
+			dict_table_x_lock_indexes(table);
 
 			if (space == ULINT_UNDEFINED
 			    || fil_create_new_single_table_tablespace(
@@ -2893,6 +2885,15 @@ row_truncate_table_for_mysql(
 					FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 			mtr_commit(&mtr);
 		}
+	} else {
+		/* Lock all index trees for this table, as we will
+		truncate the table/index and possibly change their metadata.
+		All DML/DDL are blocked by table level lock, with
+		a few exceptions such as queries into information schema
+		about the table, MySQL could try to access index stats
+		for this kind of query, we need to use index locks to
+		sync up */
+		dict_table_x_lock_indexes(table);
 	}
 
 	/* scan SYS_INDEXES for all indexes of the table */
@@ -2945,7 +2946,7 @@ row_truncate_table_for_mysql(
 		rec = btr_pcur_get_rec(&pcur);
 
 		if (root_page_no != FIL_NULL) {
-			page_rec_write_index_page_no(
+			page_rec_write_field(
 				rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
 				root_page_no, &mtr);
 			/* We will need to commit and restart the
@@ -3011,12 +3012,12 @@ next_rec:
 		dict_table_change_id_in_cache(table, new_id);
 	}
 
-	/* MySQL calls ha_innobase::reset_auto_increment() which does
-	the same thing. */
+	/* Reset auto-increment. */
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
-	dict_update_statistics(table);
+	dict_update_statistics(table, FALSE /* update even if stats are
+					    initialized */);
 
 	trx_commit_for_mysql(trx);
 
@@ -3124,7 +3125,7 @@ row_drop_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = dict_table_get_low(name);
+	table = dict_table_get_low_ignore_err(name, DICT_ERR_IGNORE_INDEX_ROOT);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -3157,7 +3158,7 @@ check_next_foreign:
 
 	if (foreign && trx->check_foreigns
 	    && !(drop_db && dict_tables_have_same_db(
-			 name, foreign->foreign_table_name))) {
+			 name, foreign->foreign_table_name_lookup))) {
 		FILE*	ef	= dict_foreign_err_file;
 
 		/* We only allow dropping a referenced table if
@@ -3359,7 +3360,7 @@ check_next_foreign:
 
 		dict_table_remove_from_cache(table);
 
-		if (dict_load_table(name, TRUE) != NULL) {
+		if (dict_load_table(name, TRUE, DICT_ERR_IGNORE_NONE) != NULL) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: not able to remove table ",
 			      stderr);
@@ -3505,7 +3506,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table(table_name, TRUE);
+		table = dict_load_table(table_name, TRUE, DICT_ERR_IGNORE_NONE);
 
 		if (table) {
 			row_drop_table_for_mysql(table_name, trx, FALSE);
@@ -3599,7 +3600,6 @@ row_drop_database_for_mysql(
 	int	err	= DB_SUCCESS;
 	ulint	namelen	= strlen(name);
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(name != NULL);
 	ut_a(name[namelen - 1] == '/');
 
@@ -3769,7 +3769,6 @@ row_rename_table_for_mysql(
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
 

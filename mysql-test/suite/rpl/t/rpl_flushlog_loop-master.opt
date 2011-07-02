@@ -1,1 +1,1 @@
---max_binlog_size=1M  --relay-log=$MYSQLTEST_VARDIR/mysqld.1/data/relay-log
+--max_binlog_size=1M

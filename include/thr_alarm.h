@@ -41,7 +41,7 @@ typedef struct st_alarm_info
 
 void thr_alarm_info(ALARM_INFO *info);
 
-#if defined(DONT_USE_THR_ALARM) || !defined(THREAD)
+#if defined(DONT_USE_THR_ALARM)
 
 #define USE_ALARM_THREAD
 #undef USE_ONE_SIGNAL_HAND

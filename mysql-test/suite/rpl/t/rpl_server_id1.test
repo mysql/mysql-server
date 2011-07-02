@@ -4,21 +4,19 @@
 # ignored, which has caught our customers), unless
 # --replicate-same-server-id.
 
-source include/master-slave.inc;
-connection slave;
-reset master;
+--let $rpl_topology= 2->2
+--let $rpl_skip_start_slave= 1
+--source include/rpl_init.inc
 
-# replicate ourselves
-source include/stop_slave.inc;
---replace_result $SLAVE_MYPORT SLAVE_PORT
-eval change master to master_port=$SLAVE_MYPORT;
-start slave;
+--connection server_2
+START SLAVE;
+# 1593 = ER_SLAVE_FATAL_ERROR
+--let $slave_io_errno= 1593
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
 
-let $slave_param= Last_IO_Errno;                                          
-let $slave_param_value= 1593;
-source include/wait_for_slave_param.inc; 
---echo *** must be having the replicate-same-server-id IO thread error ***
-let $last_io_errno= query_get_value("show slave status", Last_IO_Errno, 1);
-let $last_io_error= query_get_value("show slave status", Last_IO_Error, 1);
-echo Slave_IO_Errno= $last_io_errno;
-echo Slave_IO_Error= $last_io_error;
+--source include/stop_slave_sql.inc
+RESET SLAVE;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

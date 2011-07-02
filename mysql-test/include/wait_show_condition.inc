@@ -31,6 +31,21 @@
 # Created: 2009-02-18 mleich
 #
 
+if (!$condition)
+{
+  --die ERROR IN TEST: the "condition" variable must be set
+}
+
+if (!$field)
+{
+  --die ERROR IN TEST: the "field" variable must be set
+}
+
+if (!$show_statement)
+{
+  --die ERROR IN TEST: the "show_statement" variable must be set
+}
+
 let $max_run_time= 30;
 if ($wait_timeout)
 {
@@ -50,7 +65,7 @@ inc $max_run_time;
 let $found= 0;
 let $max_end_time= `SELECT UNIX_TIMESTAMP() + $max_run_time`;
 
-if (`SELECT '$wait_for_all' != '1'`)
+if ($wait_for_all != 1)
 {
   while (`SELECT UNIX_TIMESTAMP() <= $max_end_time AND $found = 0`)
   {
@@ -58,24 +73,27 @@ if (`SELECT '$wait_for_all' != '1'`)
      real_sleep 0.2;
      let $rowno= 1;
      let $process_result= 1;
-     while (`SELECT $process_result = 1 AND $found = 0`)
+     let $do_loop= 1;
+     while ($do_loop)
      {
         let $field_value= query_get_value($show_statement, $field, $rowno);
         if (`SELECT '$field_value' $condition`)
         {
            let $found= 1;
+	   let $do_loop= 0;
         }
-        if (`SELECT '$field_value' = 'No such row'`)
+        if ($field_value == No such row)
         {
            # We are behind the last row of the result set.
            let $process_result= 0;
+	   let $do_loop= 0;
         }
         inc $rowno;
      }
   }
 }
 
-if (`SELECT '$wait_for_all' = '1'`)
+if ($wait_for_all == 1)
 {
   while (`SELECT UNIX_TIMESTAMP() <= $max_end_time AND $found = 0`)
   {
@@ -83,16 +101,19 @@ if (`SELECT '$wait_for_all' = '1'`)
      real_sleep 0.2;
      let $rowno= 1;
      let $process_result= 1;
-     while (`SELECT $process_result = 1 AND $found = 0`)
+     let $do_loop= 1;
+     while ($do_loop)
      {
         let $field_value= query_get_value($show_statement, $field, $rowno);
-        if (`SELECT '$field_value' = 'No such row'`)
+        if ($field_value == No such row)
         {
            let $found= 1;
+	   let $do_loop= 0;
         }
         if (`SELECT $found = 0 AND NOT '$field_value' $condition`)
         {
            let process_result= 0;
+	   let $do_loop= 0;
         }
         inc $rowno;
      }
@@ -101,7 +122,7 @@ if (`SELECT '$wait_for_all' = '1'`)
 
 if (!$found)
 {
-  echo # Timeout in include/wait_show_condition.inc for $wait_condition;
+  echo # Timeout in include/wait_show_condition.inc for $condition;
   echo #         show_statement : $show_statement;
   echo #         field          : $field;
   echo #         condition      : $condition;

@@ -25,6 +25,7 @@
 #include <memory.h>
 
 #include "stub_print_error.h"
+#include "stub_server_misc.h"
 
 /* test helpers, to simulate the setup */
 
@@ -1204,6 +1205,8 @@ void test_enabled()
 
 void do_all_tests()
 {
+  /* Using initialize_performance_schema(), no partial init needed. */
+
   test_bootstrap();
   test_bad_registration();
   test_init_disabled();

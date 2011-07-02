@@ -53,7 +53,7 @@ begin;
 connection con1;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for release of readlock" and
+  where state = "Waiting for global read lock" and
         info = "insert into t1 values (1)";
 --source include/wait_condition.inc
 unlock tables;

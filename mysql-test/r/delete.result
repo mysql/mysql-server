@@ -509,3 +509,18 @@ CREATE TABLE t3 LIKE t1;
 DELETE FROM t1.*, test.t2.*, a.* USING t1, t2, t3 AS a;
 DROP TABLE t1, t2, t3;
 End of 5.1 tests
+#
+# Bug#51099 Assertion in mysql_multi_delete_prepare()
+#
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1, v2;
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(b INT);
+CREATE VIEW v1 AS SELECT a, b FROM t1, t2;
+CREATE VIEW v2 AS SELECT a FROM v1;
+DELETE FROM v2;
+ERROR HY000: Can not delete from join view 'test.v2'
+DELETE v2 FROM v2;
+ERROR HY000: Can not delete from join view 'test.v2'
+DROP VIEW v2, v1;
+DROP TABLE t1, t2;

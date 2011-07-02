@@ -1,17 +1,19 @@
-/* Copyright (C) 2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+   02110-1301  USA */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation        // gcc: Class implementation
@@ -20,6 +22,7 @@
 #include "sql_priv.h"
 #include "probes_mysql.h"
 #include "sql_class.h"                          // SSV
+#include "sql_table.h"
 #include <myisam.h>
 
 #include "ha_archive.h"
@@ -256,7 +259,7 @@ int archive_discover(handlerton *hton, THD* thd, const char *db,
   char *frm_ptr;
   MY_STAT file_stat; 
 
-  fn_format(az_file, name, db, ARZ, MY_REPLACE_EXT | MY_UNPACK_FILENAME);
+  build_table_filename(az_file, sizeof(az_file) - 1, db, name, ARZ, 0);
 
   if (!(my_stat(az_file, &file_stat, MYF(0))))
     goto err;
@@ -934,7 +937,7 @@ int ha_archive::write_row(uchar *buf)
        */
       azflush(&(share->archive_write), Z_SYNC_FLUSH);
       /*
-        Set the position of the local read thread to the beginning postion.
+        Set the position of the local read thread to the beginning position.
       */
       if (read_data_header(&archive))
       {
@@ -1190,7 +1193,7 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record)
   ptr+= table->s->null_bytes;
   for (Field **field=table->field ; *field ; field++)
   {
-    if (!((*field)->is_null()))
+    if (!((*field)->is_null_in_record(record)))
     {
       ptr= (*field)->unpack(record + (*field)->offset(table->record[0]), ptr);
     }
@@ -1670,9 +1673,9 @@ int ha_archive::end_bulk_insert()
   This is done for security reasons. In a later version we will enable this by 
   allowing the user to select a different row format.
 */
-int ha_archive::delete_all_rows()
+int ha_archive::truncate()
 {
-  DBUG_ENTER("ha_archive::delete_all_rows");
+  DBUG_ENTER("ha_archive::truncate");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
@@ -1702,11 +1705,12 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
   azflush(&(share->archive_write), Z_SYNC_FLUSH);
   mysql_mutex_unlock(&share->mutex);
 
+  if (init_archive_reader())
+    DBUG_RETURN(HA_ADMIN_CORRUPT);
   /*
     Now we will rewind the archive file so that we are positioned at the 
     start of the file.
   */
-  init_archive_reader();
   read_data_header(&archive);
   while (!(rc= get_row(&archive, table->record[0])))
     count--;

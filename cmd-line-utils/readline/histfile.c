@@ -402,6 +402,7 @@ history_truncate_file (fname, lines)
   if (bp > buffer && ((file = open (filename, O_WRONLY|O_TRUNC|O_BINARY, 0600)) != -1))
     {
       bytes_written= write (file, bp, chars_read - (bp - buffer));
+      (void) bytes_written;
 
 #if defined (__BEOS__)
       /* BeOS ignores O_TRUNC. */

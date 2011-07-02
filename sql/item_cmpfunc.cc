@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -403,7 +403,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
   Field *field= field_item->field;
   int result= 0;
 
-  if (!(*item)->with_subselect && (*item)->const_item())
+  if ((*item)->const_item())
   {
     TABLE *table= field->table;
     ulonglong orig_sql_mode= thd->variables.sql_mode;
@@ -499,7 +499,7 @@ void Item_bool_func2::fix_length_and_dec()
   }
 
   thd= current_thd;
-  if (!thd->is_context_analysis_only())
+  if (!thd->lex->is_ps_or_view_context_analysis())
   {
     if (args[0]->real_item()->type() == FIELD_ITEM)
     {
@@ -803,7 +803,7 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
       confuse storage engines since in context analysis mode tables 
       aren't locked.
     */
-    if (!thd->is_context_analysis_only() &&
+    if (!thd->lex->is_ps_or_view_context_analysis() &&
         cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
         (str_arg->type() != Item::FUNC_ITEM ||
         ((Item_func*)str_arg)->functype() != Item_func::GUSERVAR_FUNC))
@@ -923,7 +923,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
       */
       Query_arena backup;
       Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
-      Item_cache_int *cache= new Item_cache_int();
+      Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
       if (save_arena)
         thd->set_query_arena(save_arena);
 
@@ -1044,7 +1044,7 @@ Item** Arg_comparator::cache_converted_constant(THD *thd_arg, Item **value,
                                                 Item_result type)
 {
   /* Don't need cache if doing context analysis only. */
-  if (!thd_arg->is_context_analysis_only() &&
+  if (!thd->lex->is_ps_or_view_context_analysis() &&
       (*value)->const_item() && type != (*value)->result_type())
   {
     Item_cache *cache= Item_cache::get_cache(*value, type);
@@ -1221,9 +1221,12 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
          value of 2000.
   */
   Item *real_item= item->real_item();
-  if (!(real_item->type() == Item::FIELD_ITEM &&
-        ((Item_field *)real_item)->field->type() == MYSQL_TYPE_YEAR &&
-        ((Item_field *)real_item)->field->field_length == 4))
+  Field *field= NULL;
+  if (real_item->type() == Item::FIELD_ITEM)
+    field= ((Item_field *)real_item)->field;
+  else if (real_item->type() == Item::CACHE_ITEM)
+    field= ((Item_cache *)real_item)->field();
+  if (!(field && field->type() == MYSQL_TYPE_YEAR && field->field_length == 4))
   {
     if (value < 70)
       value+= 100;
@@ -2211,7 +2214,6 @@ void Item_func_interval::fix_length_and_dec()
             if (dec != &range->dec)
             {
               range->dec= *dec;
-              range->dec.fix_buffer_pointer();
             }
           }
           else
@@ -2763,7 +2765,7 @@ Item_func_if::fix_length_and_dec()
   if (null1)
   {
     cached_result_type= arg2_type;
-    collation.set(args[2]->collation.collation);
+    collation.set(args[2]->collation);
     cached_field_type= args[2]->field_type();
     max_length= args[2]->max_length;
     return;
@@ -2772,7 +2774,7 @@ Item_func_if::fix_length_and_dec()
   if (null2)
   {
     cached_result_type= arg1_type;
-    collation.set(args[1]->collation.collation);
+    collation.set(args[1]->collation);
     cached_field_type= args[1]->field_type();
     max_length= args[1]->max_length;
     return;
@@ -3154,6 +3156,14 @@ void Item_func_case::fix_length_and_dec()
   {
     if (agg_arg_charsets_for_string_result(collation, agg, nagg))
       return;
+    /*
+      Copy all THEN and ELSE items back to args[] array.
+      Some of the items might have been changed to Item_func_conv_charset.
+    */
+    for (nagg= 0 ; nagg < ncases / 2 ; nagg++)
+      args[nagg * 2 + 1]= agg[nagg];
+    if (else_expr_num != -1)
+      args[else_expr_num]= agg[nagg++];
   }
   else
     collation.set_numeric();
@@ -3169,20 +3179,53 @@ void Item_func_case::fix_length_and_dec()
     agg[0]= args[first_expr_num];
     left_result_type= agg[0]->result_type();
 
+    /*
+      As the first expression and WHEN expressions
+      are intermixed in args[] array THEN and ELSE items,
+      extract the first expression and all WHEN expressions into 
+      a temporary array, to process them easier.
+    */
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
     nagg++;
     if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
-    if (with_sum_func || current_thd->lex->current_select->group_list.elements)
+    if (found_types & (1 << STRING_RESULT))
     {
       /*
-        See TODO commentary in the setup_copy_fields function:
-        item in a group may be wrapped with an Item_copy_string item.
-        That item has a STRING_RESULT result type, so we need
-        to take this type into account.
+        If we'll do string comparison, we also need to aggregate
+        character set and collation for first/WHEN items and
+        install converters for some of them to cmp_collation when necessary.
+        This is done because cmp_item compatators cannot compare
+        strings in two different character sets.
+        Some examples when we install converters:
+
+        1. Converter installed for the first expression:
+
+           CASE         latin1_item              WHEN utf16_item THEN ... END
+
+        is replaced to:
+
+           CASE CONVERT(latin1_item USING utf16) WHEN utf16_item THEN ... END
+
+        2. Converter installed for the left WHEN item:
+
+          CASE utf16_item WHEN         latin1_item              THEN ... END
+
+        is replaced to:
+
+           CASE utf16_item WHEN CONVERT(latin1_item USING utf16) THEN ... END
       */
-      found_types |= (1 << item_cmp_type(left_result_type, STRING_RESULT));
+      if (agg_arg_charsets_for_comparison(cmp_collation, agg, nagg))
+        return;
+      /*
+        Now copy first expression and all WHEN expressions back to args[]
+        arrray, because some of the items might have been changed to converters
+        (e.g. Item_func_conv_charset, or Item_string for constants).
+      */
+      args[first_expr_num]= agg[0];
+      for (nagg= 0; nagg < ncases / 2; nagg++)
+        args[nagg * 2]= agg[nagg + 1];
     }
 
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
@@ -3190,9 +3233,6 @@ void Item_func_case::fix_length_and_dec()
       if (found_types & (1 << i) && !cmp_items[i])
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
-        if ((Item_result)i == STRING_RESULT &&
-            agg_arg_charsets_for_comparison(cmp_collation, agg, nagg))
-          return;
         if (!(cmp_items[i]=
             cmp_item::get_comparator((Item_result)i,
                                      cmp_collation.collation)))
@@ -4154,13 +4194,11 @@ void Item_func_in::fix_length_and_dec()
       uint j=0;
       for (uint i=1 ; i < arg_count ; i++)
       {
-	if (!args[i]->null_value)			// Skip NULL values
-        {
-          array->set(j,args[i]);
-	  j++;
-        }
-	else
-	  have_null= 1;
+        array->set(j,args[i]);
+        if (!args[i]->null_value)                      // Skip NULL values
+          j++;
+        else
+          have_null= 1;
       }
       if ((array->used_count= j))
 	array->sort();
@@ -4470,7 +4508,7 @@ bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 
 Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   List_iterator<Item> li(list);
   Item *item;
@@ -4878,12 +4916,13 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   
-  if (escape_item->const_item() && !thd->lex->view_prepare_mode)
+  if (escape_item->const_item())
   {
     /* If we are on execution stage */
     String *escape_str= escape_item->val_str(&cmp.value1);
     if (escape_str)
     {
+      const char *escape_str_ptr= escape_str->ptr();
       if (escape_used_in_parsing && (
              (((thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
                 escape_str->numchars() != 1) ||
@@ -4898,9 +4937,9 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
         CHARSET_INFO *cs= escape_str->charset();
         my_wc_t wc;
         int rc= cs->cset->mb_wc(cs, &wc,
-                                (const uchar*) escape_str->ptr(),
-                                (const uchar*) escape_str->ptr() +
-                                               escape_str->length());
+                                (const uchar*) escape_str_ptr,
+                                (const uchar*) escape_str_ptr +
+                                escape_str->length());
         escape= (int) (rc > 0 ? wc : '\\');
       }
       else
@@ -4917,13 +4956,13 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
         {
           char ch;
           uint errors;
-          uint32 cnvlen= copy_and_convert(&ch, 1, cs, escape_str->ptr(),
+          uint32 cnvlen= copy_and_convert(&ch, 1, cs, escape_str_ptr,
                                           escape_str->length(),
                                           escape_str->charset(), &errors);
           escape= cnvlen ? ch : '\\';
         }
         else
-          escape= *(escape_str->ptr());
+          escape= escape_str_ptr ? *escape_str_ptr : '\\';
       }
     }
     else
@@ -5780,20 +5819,22 @@ longlong Item_equal::val_int()
     return 0;
   List_iterator_fast<Item_field> it(fields);
   Item *item= const_item ? const_item : it++;
-  if ((null_value= item->is_null()))
-    return 0;
   eval_item->store_value(item);
+  if ((null_value= item->null_value))
+    return 0;
   while ((item_field= it++))
   {
     /* Skip fields of non-const tables. They haven't been read yet */
     if (item_field->field->table->const_table)
     {
-      if ((null_value= item_field->is_null()) || eval_item->cmp(item_field))
+      int res= eval_item->cmp(item_field);
+      if ((null_value= item_field->null_value) || res)
         return 0;
     }
   }
   return 1;
 }
+
 
 void Item_equal::fix_length_and_dec()
 {
@@ -5816,7 +5857,7 @@ bool Item_equal::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 
 Item *Item_equal::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   List_iterator<Item_field> it(fields);
   Item *item;

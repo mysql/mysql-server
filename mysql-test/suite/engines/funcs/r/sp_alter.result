@@ -31,6 +31,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET#       ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -80,6 +82,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# CONTAINS SQL     ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -129,6 +133,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# NO SQL     ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -178,6 +184,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# READS SQL DATA     ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -227,6 +235,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# MODIFIES SQL DATA     ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -276,6 +286,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET#     COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -325,6 +337,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# CONTAINS SQL   COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -374,6 +388,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# NO SQL   COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -423,6 +439,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# READS SQL DATA   COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -472,6 +490,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# MODIFIES SQL DATA   COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -521,6 +541,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET#       ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -570,6 +592,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# CONTAINS SQL     ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -619,6 +643,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# NO SQL     ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -668,6 +694,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# READS SQL DATA     ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -717,6 +745,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# MODIFIES SQL DATA     ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -766,6 +796,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET#     COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -815,6 +847,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# CONTAINS SQL   COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -864,6 +898,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# NO SQL   COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -913,6 +949,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# READS SQL DATA   COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -962,6 +1000,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# MODIFIES SQL DATA   COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1011,6 +1051,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET#   SQL SECURITY INVOKER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1060,6 +1102,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# CONTAINS SQL SQL SECURITY INVOKER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1109,6 +1153,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# NO SQL SQL SECURITY INVOKER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1158,6 +1204,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# READS SQL DATA SQL SECURITY INVOKER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1207,6 +1255,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# MODIFIES SQL DATA SQL SECURITY INVOKER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1256,6 +1306,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET#   SQL SECURITY INVOKER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1305,6 +1357,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# CONTAINS SQL SQL SECURITY INVOKER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1354,6 +1408,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# NO SQL SQL SECURITY INVOKER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1403,6 +1459,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# READS SQL DATA SQL SECURITY INVOKER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1452,6 +1510,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# MODIFIES SQL DATA SQL SECURITY INVOKER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1501,6 +1561,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET#   SQL SECURITY INVOKER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1550,6 +1612,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# CONTAINS SQL SQL SECURITY INVOKER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1599,6 +1663,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# NO SQL SQL SECURITY INVOKER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1648,6 +1714,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# READS SQL DATA SQL SECURITY INVOKER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1697,6 +1765,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# MODIFIES SQL DATA SQL SECURITY INVOKER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1746,6 +1816,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET#   SQL SECURITY INVOKER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1795,6 +1867,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# CONTAINS SQL SQL SECURITY INVOKER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1844,6 +1918,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# NO SQL SQL SECURITY INVOKER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1893,6 +1969,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# READS SQL DATA SQL SECURITY INVOKER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1942,6 +2020,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# MODIFIES SQL DATA SQL SECURITY INVOKER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1991,6 +2071,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET#    SQL SECURITY DEFINER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2040,6 +2122,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# CONTAINS SQL  SQL SECURITY DEFINER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2089,6 +2173,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# NO SQL  SQL SECURITY DEFINER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2138,6 +2224,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# READS SQL DATA  SQL SECURITY DEFINER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2187,6 +2275,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# MODIFIES SQL DATA  SQL SECURITY DEFINER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2236,6 +2326,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET#    SQL SECURITY DEFINER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2285,6 +2377,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# CONTAINS SQL  SQL SECURITY DEFINER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2334,6 +2428,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# NO SQL  SQL SECURITY DEFINER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2383,6 +2479,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# READS SQL DATA  SQL SECURITY DEFINER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2432,6 +2530,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1    #DET# MODIFIES SQL DATA  SQL SECURITY DEFINER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2481,6 +2581,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET#    SQL SECURITY DEFINER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2530,6 +2632,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# CONTAINS SQL  SQL SECURITY DEFINER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2579,6 +2683,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# NO SQL  SQL SECURITY DEFINER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2628,6 +2734,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# READS SQL DATA  SQL SECURITY DEFINER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2677,6 +2785,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# MODIFIES SQL DATA  SQL SECURITY DEFINER   ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2726,6 +2836,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET#    SQL SECURITY DEFINER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2775,6 +2887,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# CONTAINS SQL  SQL SECURITY DEFINER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2824,6 +2938,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# NO SQL  SQL SECURITY DEFINER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2873,6 +2989,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# READS SQL DATA  SQL SECURITY DEFINER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2922,6 +3040,8 @@ CLOSE cur2;
 END//
 ALTER PROCEDURE sp1  LANGUAGE SQL #DET# MODIFIES SQL DATA  SQL SECURITY DEFINER COMMENT 'comment' ;
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1

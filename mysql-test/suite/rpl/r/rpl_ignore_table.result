@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 **** Test case for BUG#16487 ****
 **** Master ****
 CREATE TABLE test.t4 (a int);
@@ -117,6 +113,7 @@ show grants for mysqltest4@localhost;
 Grants for mysqltest4@localhost
 GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
 set global slave_exec_mode='IDEMPOTENT';
+call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table mysql.* Error_code: 1032");
 drop table t1, mysqltest2.t2;
 drop table t4;
 drop database mysqltest2;
@@ -142,3 +139,4 @@ HEX(word)
 SELECT * FROM tmptbl504451f4258$1;
 ERROR 42S02: Table 'test.tmptbl504451f4258$1' doesn't exist
 DROP TABLE t5;
+include/rpl_end.inc

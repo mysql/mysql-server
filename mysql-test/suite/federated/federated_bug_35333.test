@@ -1,0 +1,74 @@
+--echo #
+--echo # Bug 35333 "If a Federated table can't connect to the remote hose, can't retrieve metadata"
+--echo #
+--echo # Queries such as SHOW TABLE STATUS and SELECT * FROM INFORMATION_SCHEMA.TABLES fail
+--echo # when encountering a federated table that cannot connect to its remote table.
+--echo #
+--echo # The fix is to store the error text in the TABLE COMMENTS column of I_S.TABLES, clear
+--echo # the remote connection error and push a warning instead. This allows the SELECT operation
+--echo # to complete while still indicating a problem. This fix applies to any non-fatal system
+--echo # error that occurs during a query against I_S.TABLES.de
+
+--source federated.inc
+
+--disable_warnings
+CREATE DATABASE IF NOT EXISTS realdb;
+# Federated database exists
+DROP TABLE IF EXISTS realdb.t0;
+DROP TABLE IF EXISTS federated.t0;
+--enable_warnings
+
+--echo #
+--echo # Create the base table to be referenced
+--echo #
+CREATE TABLE realdb.t0 (a text, b text) ENGINE=MYISAM;
+
+--echo #
+--echo # Create a federated table with a bogus port number
+--echo #
+CREATE TABLE federated.t0 (a text, b text) ENGINE=FEDERATED
+    CONNECTION='mysql://root@127.0.0.1:63333/realdb/t0';
+
+#--warning ER_CONNECT_TO_FOREIGN_DATA_SOURCE
+
+--echo #
+--echo # Trigger a federated system error during a INFORMATION_SCHEMA.TABLES query
+--echo #
+# Remove O/S-specific socket error
+--replace_regex /\(.*\)/(socket errno)/
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, TABLE_ROWS, DATA_LENGTH, TABLE_COMMENT
+       FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'realdb' or TABLE_SCHEMA = 'federated';
+
+# Remove O/S-specific socket error
+--replace_regex /\(.*\)/(socket errno)/
+SHOW WARNINGS;
+
+--echo #
+--echo # Create a MyISAM table then corrupt the file
+--echo #
+USE realdb;
+CREATE TABLE t1 (c1 int) ENGINE=MYISAM;
+--echo #
+--echo # Corrupt the MyISAM table by deleting the base file
+--echo #
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+--remove_file $MYSQLD_DATADIR/realdb/t1.MYD
+--remove_file $MYSQLD_DATADIR/realdb/t1.MYI
+
+--echo #
+--echo # Trigger a MyISAM system error during an INFORMATION_SCHEMA.TABLES query
+--echo #
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, TABLE_ROWS, DATA_LENGTH, TABLE_COMMENT
+       FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+
+SHOW WARNINGS;
+--echo #
+--echo # Cleanup
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS realdb.t0;
+DROP TABLE IF EXISTS federated.t0;
+DROP DATABASE realdb;
+--enable_warnings
+
+--source federated_cleanup.inc

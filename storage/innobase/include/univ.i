@@ -44,9 +44,14 @@ Created 1/20/1994 Heikki Tuuri
 #include "hb_univ.i"
 #endif /* UNIV_HOTBACKUP */
 
+/* aux macros to convert M into "123" (string) if M is defined like
+#define M 123 */
+#define _IB_TO_STR(s)	#s
+#define IB_TO_STR(s)	_IB_TO_STR(s)
+
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	1
-#define INNODB_VERSION_BUGFIX	2
+#define INNODB_VERSION_BUGFIX	8
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -57,16 +62,14 @@ component, i.e. we show M.N.P as M.N */
 #define INNODB_VERSION_SHORT	\
 	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
 
-/* auxiliary macros to help creating the version as string */
-#define __INNODB_VERSION(a, b, c)	(#a "." #b "." #c)
-#define _INNODB_VERSION(a, b, c)	__INNODB_VERSION(a, b, c)
-
 #define INNODB_VERSION_STR			\
-	_INNODB_VERSION(INNODB_VERSION_MAJOR,	\
-			INNODB_VERSION_MINOR,	\
-			INNODB_VERSION_BUGFIX)
+	IB_TO_STR(INNODB_VERSION_MAJOR) "."	\
+	IB_TO_STR(INNODB_VERSION_MINOR) "."	\
+	IB_TO_STR(INNODB_VERSION_BUGFIX)
 
-#define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
+#define REFMAN "http://dev.mysql.com/doc/refman/"	\
+	IB_TO_STR(MYSQL_MAJOR_VERSION) "."		\
+	IB_TO_STR(MYSQL_MINOR_VERSION) "/en/"
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* In the dynamic plugin, redefine some externally visible symbols
@@ -77,19 +80,6 @@ have not figured out how to apply the visibility=hidden attribute to
 the virtual method table (vtable) in GCC 3. */
 # define ha_innobase ha_innodb
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-
-/* if any of the following macros is defined at this point this means
-that the code from the "right" plug.in was executed and we do not
-need to include ut0auxconf.h which would either define the same macros
-or will be empty */
-#if !defined(HAVE_IB_GCC_ATOMIC_BUILTINS) \
- && !defined(HAVE_IB_ATOMIC_PTHREAD_T_GCC) \
- && !defined(HAVE_IB_SOLARIS_ATOMICS) \
- && !defined(HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS) \
- && !defined(SIZEOF_PTHREAD_T) \
- && !defined(HAVE_IB_PAUSE_INSTRUCTION)
-# include "ut0auxconf.h"
-#endif
 
 #if (defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)) && !defined(MYSQL_SERVER) && !defined(__WIN__)
 # undef __WIN__
@@ -194,14 +184,17 @@ command. Not tested on Windows. */
 						debugging without UNIV_DEBUG */
 #define UNIV_BUF_DEBUG				/* Enable buffer pool
 						debugging without UNIV_DEBUG */
+#define UNIV_BLOB_LIGHT_DEBUG			/* Enable off-page column
+						debugging without UNIV_DEBUG */
+#define UNIV_BLOB_NULL_DEBUG			/* Enable deep off-page
+						column debugging */
 #define UNIV_DEBUG				/* Enable ut_ad() assertions
 						and disable UNIV_INLINE */
 #define UNIV_DEBUG_LOCK_VALIDATE		/* Enable
 						ut_ad(lock_rec_validate_page())
 						assertions. */
-#define UNIV_DEBUG_FILE_ACCESSES		/* Debug .ibd file access
-						(field file_page_was_freed
-						in buf_page_t) */
+#define UNIV_DEBUG_FILE_ACCESSES		/* Enable freed block access
+						debugging without UNIV_DEBUG */
 #define UNIV_LRU_DEBUG				/* debug the buffer pool LRU */
 #define UNIV_HASH_DEBUG				/* debug HASH_ macros */
 #define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
@@ -210,6 +203,8 @@ this will break redo log file compatibility, but it may be useful when
 debugging redo log application problems. */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_IBUF_DEBUG				/* debug the insert buffer */
+#define UNIV_BLOB_DEBUG				/* track BLOB ownership;
+assumes that no BLOBs survive server restart */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */
@@ -262,8 +257,21 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 #else
 # define UNIV_INTERN
 #endif
+#if defined __GNUC__ && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+/** Starting with GCC 4.3, the "cold" attribute is used to inform the
+compiler that a function is unlikely executed.  The function is
+optimized for size rather than speed and on many targets it is placed
+into special subsection of the text section so all cold functions
+appears close together improving code locality of non-cold parts of
+program.  The paths leading to call of cold functions within code are
+marked as unlikely by the branch prediction mechanism.  optimize a
+rarely invoked function for size instead for speed. */
+# define UNIV_COLD __attribute__((cold))
+#else
+# define UNIV_COLD /* empty */
+#endif
 
-#if (!defined(UNIV_DEBUG) && !defined(UNIV_MUST_NOT_INLINE))
+#ifndef UNIV_MUST_NOT_INLINE
 /* Definition for inline version */
 
 #ifdef __WIN__
@@ -317,6 +325,18 @@ defined in mysql_com.h like NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN, the
 number does not include a terminating '\0'. InnoDB probably can handle
 longer names internally */
 #define MAX_TABLE_NAME_LEN	192
+
+/* The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
+the MySQL's NAME_LEN, see check_and_convert_db_name(). */
+#define MAX_DATABASE_NAME_LEN	MAX_TABLE_NAME_LEN
+
+/* MAX_FULL_NAME_LEN defines the full name path including the
+database name and table name. In addition, 14 bytes is added for:
+	2 for surrounding quotes around table name
+	1 for the separating dot (.)
+	9 for the #mysql50# prefix */
+#define MAX_FULL_NAME_LEN				\
+	(MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 14)
 
 /*
 			UNIVERSAL TYPE DEFINITIONS
@@ -387,6 +407,9 @@ typedef unsigned long long int	ullint;
 /** The generic InnoDB system object identifier data type */
 typedef ib_uint64_t	ib_id_t;
 
+/* The 'undefined' value for a ullint */
+#define ULLINT_UNDEFINED        ((ullint)(-1))
+
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
 #define ibool			ulint
@@ -436,7 +459,7 @@ it is read or written. */
 /* Use sun_prefetch when compile with Sun Studio */
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)
-# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many(addr)
+# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many((void*) addr)
 # define UNIV_PREFETCH_RW(addr) sun_prefetch_write_many(addr)
 #else
 /* Dummy versions of the macros */

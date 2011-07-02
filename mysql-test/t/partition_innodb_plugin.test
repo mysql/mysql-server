@@ -1,6 +1,73 @@
 --source include/have_partition.inc
 --source include/have_innodb.inc
 
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+call mtr.add_suppression("nnoDB: Error: table `test`.`t1` .* Partition.* InnoDB internal");
+--echo #
+--echo # Bug#55091: Server crashes on ADD PARTITION after a failed attempt
+--echo #
+SET @old_innodb_file_format_max = @@global.innodb_file_format_max;
+SET @old_innodb_file_format = @@global.innodb_file_format;
+SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
+SET @old_innodb_strict_mode = @@global.innodb_strict_mode;
+SET @@global.innodb_file_format = Barracuda,
+@@global.innodb_file_per_table = ON,
+@@global.innodb_strict_mode = ON;
+
+--echo # Connection con1
+--connect(con1,localhost,root,,)
+
+CREATE TABLE t1 (id INT NOT NULL
+PRIMARY KEY,
+user_num CHAR(10)
+) ENGINE = InnoDB
+KEY_BLOCK_SIZE=4
+PARTITION BY HASH(id) PARTITIONS 1;
+
+--replace_result #p# #P#
+--list_files $MYSQLD_DATADIR/test
+SHOW CREATE TABLE t1;
+
+SET GLOBAL innodb_file_per_table = OFF;
+
+--disconnect con1
+--connect(con2,localhost,root,,)
+--echo # Connection con2
+
+LOCK TABLE t1 WRITE;
+
+--echo # ALTER fails because COMPRESSED/KEY_BLOCK_SIZE
+--echo # are incompatible with innodb_file_per_table = OFF;
+
+--error ER_GET_ERRNO
+ALTER TABLE t1 ADD PARTITION PARTITIONS 1;
+
+--replace_result #p# #P#
+--list_files $MYSQLD_DATADIR/test
+--echo # This SET is not needed to reproduce the bug,
+--echo # it is here just to make the test case more realistic
+SET innodb_strict_mode = OFF;
+
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+--replace_result #p# #P#
+--list_files $MYSQLD_DATADIR/test
+
+# really bug#56172
+ALTER TABLE t1 REBUILD PARTITION p0;
+
+UNLOCK TABLES;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--disconnect con2
+--connection default
+--echo # Connection default
+SET @@global.innodb_strict_mode = @old_innodb_strict_mode;
+SET @@global.innodb_file_format = @old_innodb_file_format;
+SET @@global.innodb_file_per_table = @old_innodb_file_per_table;
+SET @@global.innodb_file_format_max = @old_innodb_file_format_max;
+
 #
 # Bug#32430 - show engine innodb status causes errors
 #

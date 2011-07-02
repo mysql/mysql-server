@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -120,6 +120,10 @@ enum enum_server_command
 #define FIELD_IN_PART_FUNC_FLAG (1 << 19)/* Field part of partition func */
 #define FIELD_IN_ADD_INDEX (1<< 20)	/* Intern: Field used in ADD INDEX */
 #define FIELD_IS_RENAMED (1<< 21)       /* Intern: Field is being renamed */
+#define FIELD_FLAGS_STORAGE_MEDIA 22    /* Field storage media, bit 22-23,
+                                           reserved by MySQL Cluster */
+#define FIELD_FLAGS_COLUMN_FORMAT 24    /* Field column format, bit 24-25,
+                                           reserved by MySQL Cluster */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */
@@ -267,7 +271,11 @@ enum enum_server_command
 #define SERVER_STATUS_CLEAR_SET (SERVER_QUERY_NO_GOOD_INDEX_USED| \
                                  SERVER_QUERY_NO_INDEX_USED|\
                                  SERVER_MORE_RESULTS_EXISTS|\
-                                 SERVER_STATUS_METADATA_CHANGED)
+                                 SERVER_STATUS_METADATA_CHANGED |\
+                                 SERVER_QUERY_WAS_SLOW |\
+                                 SERVER_STATUS_DB_DROPPED |\
+                                 SERVER_STATUS_CURSOR_EXISTS|\
+                                 SERVER_STATUS_LAST_ROW_SENT)
 
 #define MYSQL_ERRMSG_SIZE	512
 #define NET_READ_TIMEOUT	30		/* Timeout on read */

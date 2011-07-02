@@ -1,0 +1,65 @@
+--source include/have_innodb.inc
+
+--echo #
+--echo # TRUNCATE TABLE
+--echo #
+--echo # Truncating is disallowed for parent tables unless such table
+--echo # participates in self-referencing foreign keys only.
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=INNODB;
+CREATE TABLE t2 (fk INT NOT NULL, FOREIGN KEY (fk) REFERENCES t1 (pk)) ENGINE=INNODB;
+--error ER_TRUNCATE_ILLEGAL_FK
+TRUNCATE TABLE t1;
+--echo # Truncation of child should succeed.
+TRUNCATE TABLE t2;
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT,
+                 FOREIGN KEY (fk) REFERENCES t1 (pk)) ENGINE=INNODB;
+--echo # Truncation of self-referencing table should succeed.
+TRUNCATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Also, truncating such tables is allowed if foreign key
+--echo # checks are disabled.
+--echo #
+
+SET @old_foreign_key_checks = @@SESSION.foreign_key_checks;
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=INNODB;
+CREATE TABLE t2 (fk INT NOT NULL, FOREIGN KEY (fk) REFERENCES t1 (pk)) ENGINE=INNODB;
+CREATE TABLE t3 (pk INT PRIMARY KEY, fk INT,
+                 FOREIGN KEY (fk) REFERENCES t1 (pk)) ENGINE=INNODB;
+SET @@SESSION.foreign_key_checks = 0;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+SET @@SESSION.foreign_key_checks = 1;
+--error ER_TRUNCATE_ILLEGAL_FK
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+LOCK TABLES t1 WRITE;
+SET @@SESSION.foreign_key_checks = 0;
+TRUNCATE TABLE t1;
+SET @@SESSION.foreign_key_checks = 1;
+--error ER_TRUNCATE_ILLEGAL_FK
+TRUNCATE TABLE t1;
+UNLOCK TABLES;
+DROP TABLE t3,t2,t1;
+SET @@SESSION.foreign_key_checks = @old_foreign_key_checks;
+
+--echo #
+--echo # Test that TRUNCATE resets auto-increment.
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT);
+INSERT INTO t1 VALUES (NULL), (NULL);
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't1';
+SELECT * FROM t1 ORDER BY a;
+TRUNCATE TABLE t1;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't1';
+INSERT INTO t1 VALUES (NULL), (NULL);
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+

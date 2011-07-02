@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights 
+   reserved
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,9 +31,6 @@
 #define EOVERFLOW 84
 #endif
 
-#if !defined(USE_MY_FUNC) && !defined(THREAD)
-#include <my_nosys.h>			/* For faster code, after test */
-#endif	/* USE_MY_FUNC */
 #endif	/* stdin */
 #include <my_list.h>
 
@@ -365,7 +363,7 @@ enum ha_base_keytype {
 /*
   update the 'variable' part of the info:
   handler::records, deleted, data_file_length, index_file_length,
-  delete_length, check_time, mean_rec_length
+  check_time, mean_rec_length
 */
 #define HA_STATUS_VARIABLE      16
 /*
@@ -378,6 +376,11 @@ enum ha_base_keytype {
   update handler::auto_increment_value
 */
 #define HA_STATUS_AUTO          64
+/*
+  Get also delete_length when HA_STATUS_VARIABLE is called. It's ok to set it also
+  when only HA_STATUS_VARIABLE but it won't be used.
+*/
+#define HA_STATUS_VARIABLE_EXTRA 128
 
 /*
   Errorcodes given by handler functions
@@ -455,9 +458,10 @@ enum ha_base_keytype {
 #define HA_ERR_INITIALIZATION     174    /* Error during initialization */
 #define HA_ERR_FILE_TOO_SHORT	  175	 /* File too short */
 #define HA_ERR_WRONG_CRC	  176	 /* Wrong CRC on page */
-#define HA_ERR_ROW_NOT_VISIBLE    177
-#define HA_ERR_TOO_MANY_CONCURRENT_TRXS 178 /*Too many active concurrent transactions */
-#define HA_ERR_LAST               178    /* Copy of last error nr */
+#define HA_ERR_TOO_MANY_CONCURRENT_TRXS 177 /*Too many active concurrent transactions */
+#define HA_ERR_INDEX_COL_TOO_LONG 178	/* Index column length exceeds limit */
+#define HA_ERR_ROW_NOT_VISIBLE    179
+#define HA_ERR_LAST               179    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

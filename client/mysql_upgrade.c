@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
    Copyright (C) 2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -17,6 +17,8 @@
 #include "client_priv.h"
 #include <sslopt-vars.h>
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
+
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #define VER "1.2"
 
@@ -45,6 +47,8 @@ static DYNAMIC_STRING ds_args;
 static DYNAMIC_STRING conn_args;
 
 static char *opt_password= 0;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+
 static my_bool tty_password= 0;
 
 static char opt_tmpdir[FN_REFLEN] = "";
@@ -92,6 +96,10 @@ static struct my_option my_long_options[]=
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Not used by mysql_upgrade. Only for backward compatibility.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_DEFAULT_AUTH,
+   "Default authentication client-side plugin to use.",
+   &opt_default_auth, &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Force execution of mysqlcheck even if mysql_upgrade "
    "has already been executed for the current version of MySQL.",
    &opt_force, &opt_force, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -105,6 +113,9 @@ static struct my_option my_long_options[]=
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   &opt_plugin_dir, &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
 #if MYSQL_PORT_DEFAULT == 0
@@ -238,7 +249,8 @@ get_one_option(int optid, const struct my_option *opt,
   case '?':
     printf("%s  Ver %s Distrib %s, for %s (%s)\n",
            my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-    puts("MySQL utility for upgrading databases to new MySQL versions.\n");
+    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
+    puts("MariaDB utility for upgrading databases to new MariaDB versions.\n");
     my_print_help(my_long_options);
     exit(0);
     break;
@@ -301,6 +313,8 @@ get_one_option(int optid, const struct my_option *opt,
   case 'S': /* --socket */
   case OPT_MYSQL_PROTOCOL: /* --protocol */
   case OPT_SHARED_MEMORY_BASE_NAME: /* --shared-memory-base-name */
+  case OPT_PLUGIN_DIR:                          /* --plugin-dir */
+  case OPT_DEFAULT_AUTH:                        /* --default-auth */
     add_one_option(&conn_args, opt, argument);
     break;
   }

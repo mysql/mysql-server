@@ -2374,6 +2374,16 @@ hex(convert(_latin1 0xA4A2 using ujis))	hex(c2)
 DROP PROCEDURE sp1;
 DROP TABLE t1;
 DROP TABLE t2;
+#
+# Bug#57257 Replace(ExtractValue(...)) causes MySQL crash
+#
+SET NAMES utf8;
+SELECT CONVERT(REPLACE(EXPORT_SET('a','a','a','','a'),'00','') USING ujis);
+CONVERT(REPLACE(EXPORT_SET('a','a','a','','a'),'00','') USING ujis)
+
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'a'
+Warning	1292	Truncated incorrect INTEGER value: 'a'
 set names default;
 set character_set_database=default;
 set character_set_server=default;

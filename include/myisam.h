@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights 
+   reserved
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,16 +22,10 @@
 extern "C" {
 #endif
 
-#ifndef _my_base_h
 #include <my_base.h>
-#endif
-#ifndef _m_ctype_h
 #include <m_ctype.h>
-#endif
-#ifndef _keycache_h
 #include "keycache.h"
-#endif
-#include "my_handler.h"
+#include "my_compare.h"
 #include <myisamchk.h>
 #include <mysql/plugin.h>
 
@@ -315,11 +310,9 @@ typedef struct st_mi_bit_buff
 
 typedef struct st_sort_info
 {
-#ifdef THREAD
   /* sync things */
   mysql_mutex_t mutex;
   mysql_cond_t  cond;
-#endif
   MI_INFO *info;
   HA_CHECK *param;
   uchar *buff;

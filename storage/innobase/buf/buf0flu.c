@@ -88,6 +88,34 @@ ibool
 buf_flush_validate_low(
 /*===================*/
 	buf_pool_t*	buf_pool);	/*!< in: Buffer pool instance */
+
+/******************************************************************//**
+Validates the flush list some of the time.
+@return	TRUE if ok or the check was skipped */
+static
+ibool
+buf_flush_validate_skip(
+/*====================*/
+	buf_pool_t*	buf_pool)	/*!< in: Buffer pool instance */
+{
+/** Try buf_flush_validate_low() every this many times */
+# define BUF_FLUSH_VALIDATE_SKIP	23
+
+	/** The buf_flush_validate_low() call skip counter.
+	Use a signed type because of the race condition below. */
+	static int buf_flush_validate_count = BUF_FLUSH_VALIDATE_SKIP;
+
+	/* There is a race condition below, but it does not matter,
+	because this call is only for heuristic purposes. We want to
+	reduce the call frequency of the costly buf_flush_validate_low()
+	check in debug builds. */
+	if (--buf_flush_validate_count > 0) {
+		return(TRUE);
+	}
+
+	buf_flush_validate_count = BUF_FLUSH_VALIDATE_SKIP;
+	return(buf_flush_validate_low(buf_pool));
+}
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /******************************************************************//**
@@ -133,12 +161,18 @@ buf_flush_delete_from_flush_rbt(
 /*============================*/
 	buf_page_t*	bpage)	/*!< in: bpage to be removed. */
 {
+#ifdef UNIV_DEBUG
 	ibool		ret = FALSE;
+#endif /* UNIV_DEBUG */
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
 
-	ret = rbt_delete(buf_pool->flush_rbt, &bpage);
+#ifdef UNIV_DEBUG
+	ret =
+#endif /* UNIV_DEBUG */
+	rbt_delete(buf_pool->flush_rbt, &bpage);
+
 	ut_ad(ret);
 }
 
@@ -287,7 +321,7 @@ buf_flush_insert_into_flush_list(
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(buf_flush_validate_low(buf_pool));
+	ut_a(buf_flush_validate_skip(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 	buf_flush_list_mutex_exit(buf_pool);
@@ -315,7 +349,7 @@ buf_flush_insert_sorted_into_flush_list(
 
 	buf_flush_list_mutex_enter(buf_pool);
 
-	/* The field in_LRU_list is protected by buf_pool_mutex, which
+	/* The field in_LRU_list is protected by buf_pool->mutex, which
 	we are not holding.  However, while a block is in the flush
 	list, it is dirty and cannot be discarded, not from the
 	page_hash or from the LRU list.  At most, the uncompressed
@@ -509,7 +543,7 @@ buf_flush_remove(
 	bpage->oldest_modification = 0;
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(buf_flush_validate_low(buf_pool));
+	ut_a(buf_flush_validate_skip(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 	buf_flush_list_mutex_exit(buf_pool);
@@ -1055,7 +1089,7 @@ buf_flush_write_block_low(
 
 	ut_ad(buf_page_in_file(bpage));
 
-	/* We are not holding buf_pool_mutex or block_mutex here.
+	/* We are not holding buf_pool->mutex or block_mutex here.
 	Nevertheless, it is safe to access bpage, because it is
 	io_fixed and oldest_modification != 0.  Thus, it cannot be
 	relocated in the buffer pool or removed from flush_list or
@@ -1125,6 +1159,83 @@ buf_flush_write_block_low(
 		buf_flush_post_to_doublewrite_buf(bpage);
 	}
 }
+
+# if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/********************************************************************//**
+Writes a flushable page asynchronously from the buffer pool to a file.
+NOTE: buf_pool->mutex and block->mutex must be held upon entering this
+function, and they will be released by this function after flushing.
+This is loosely based on buf_flush_batch() and buf_flush_page().
+@return TRUE if the page was flushed and the mutexes released */
+UNIV_INTERN
+ibool
+buf_flush_page_try(
+/*===============*/
+	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
+	buf_block_t*	block)		/*!< in/out: buffer control block */
+{
+	ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	ut_ad(mutex_own(&block->mutex));
+
+	if (!buf_flush_ready_for_flush(&block->page, BUF_FLUSH_LRU)) {
+		return(FALSE);
+	}
+
+	if (buf_pool->n_flush[BUF_FLUSH_LRU] > 0
+	    || buf_pool->init_flush[BUF_FLUSH_LRU]) {
+		/* There is already a flush batch of the same type running */
+		return(FALSE);
+	}
+
+	buf_pool->init_flush[BUF_FLUSH_LRU] = TRUE;
+
+	buf_page_set_io_fix(&block->page, BUF_IO_WRITE);
+
+	buf_page_set_flush_type(&block->page, BUF_FLUSH_LRU);
+
+	if (buf_pool->n_flush[BUF_FLUSH_LRU]++ == 0) {
+
+		os_event_reset(buf_pool->no_flush[BUF_FLUSH_LRU]);
+	}
+
+	/* VERY IMPORTANT:
+	Because any thread may call the LRU flush, even when owning
+	locks on pages, to avoid deadlocks, we must make sure that the
+	s-lock is acquired on the page without waiting: this is
+	accomplished because buf_flush_ready_for_flush() must hold,
+	and that requires the page not to be bufferfixed. */
+
+	rw_lock_s_lock_gen(&block->lock, BUF_IO_WRITE);
+
+	/* Note that the s-latch is acquired before releasing the
+	buf_pool mutex: this ensures that the latch is acquired
+	immediately. */
+
+	mutex_exit(&block->mutex);
+	buf_pool_mutex_exit(buf_pool);
+
+	/* Even though block is not protected by any mutex at this
+	point, it is safe to access block, because it is io_fixed and
+	oldest_modification != 0.  Thus, it cannot be relocated in the
+	buffer pool or removed from flush_list or LRU_list. */
+
+	buf_flush_write_block_low(&block->page);
+
+	buf_pool_mutex_enter(buf_pool);
+	buf_pool->init_flush[BUF_FLUSH_LRU] = FALSE;
+
+	if (buf_pool->n_flush[BUF_FLUSH_LRU] == 0) {
+		/* The running flush batch has ended */
+		os_event_set(buf_pool->no_flush[BUF_FLUSH_LRU]);
+	}
+
+	buf_pool_mutex_exit(buf_pool);
+	buf_flush_buffered_writes();
+
+	return(TRUE);
+}
+# endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /********************************************************************//**
 Writes a flushable page asynchronously from the buffer pool to a file.
@@ -1605,7 +1716,7 @@ buf_flush_batch(
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad((flush_type != BUF_FLUSH_LIST)
-	      || sync_thread_levels_empty_gen(TRUE));
+	      || sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 
 	buf_pool_mutex_enter(buf_pool);
@@ -2110,12 +2221,12 @@ buf_flush_validate_low(
 
 		ut_ad(bpage->in_flush_list);
 
-		/* A page in flush_list can be in BUF_BLOCK_REMOVE_HASH
-		state. This happens when a page is in the middle of
-		being relocated. In that case the original descriptor
-		can have this state and still be in the flush list
-		waiting to acquire the flush_list_mutex to complete
-		the relocation. */
+		/* A page in buf_pool->flush_list can be in
+		BUF_BLOCK_REMOVE_HASH state. This happens when a page
+		is in the middle of being relocated. In that case the
+		original descriptor can have this state and still be
+		in the flush list waiting to acquire the
+		buf_pool->flush_list_mutex to complete the relocation. */
 		ut_a(buf_page_in_file(bpage)
 		     || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 		ut_a(om > 0);

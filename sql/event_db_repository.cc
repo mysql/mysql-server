@@ -236,9 +236,16 @@ mysql_event_fill_row(THD *thd,
   if (fields[f_num= ET_FIELD_NAME]->store(et->name.str, et->name.length, scs))
     goto err_truncate;
 
-  /* both ON_COMPLETION and STATUS are NOT NULL thus not calling set_notnull()*/
+  /* ON_COMPLETION field is NOT NULL thus not calling set_notnull()*/
   rs|= fields[ET_FIELD_ON_COMPLETION]->store((longlong)et->on_completion, TRUE);
-  rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
+
+  /*
+    Set STATUS value unconditionally in case of CREATE EVENT.
+    For ALTER EVENT set it only if value of this field was changed.
+    Since STATUS field is NOT NULL call to set_notnull() is not needed.
+  */
+  if (!is_update || et->status_changed)
+    rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
   rs|= fields[ET_FIELD_ORIGINATOR]->store((longlong)et->originator, TRUE);
 
   /*
@@ -435,7 +442,7 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   if (!(ret= event_table->file->ha_index_read_map(event_table->record[0],
                                                   key_buf,
                                                   (key_part_map)1,
-                                                  HA_READ_PREFIX)))
+                                                  HA_READ_KEY_EXACT)))
   {
     DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
     do
@@ -537,6 +544,13 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *i_s_table,
   if (open_system_tables_for_read(thd, &event_table, &open_tables_backup))
     DBUG_RETURN(TRUE);
 
+  if (table_intact.check(event_table.table, &event_table_def))
+  {
+    close_system_tables(thd, &open_tables_backup);
+    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   /*
     1. SELECT I_S => use table scan. I_S.EVENTS does not guarantee order
                      thus we won't order it. OTOH, SHOW EVENTS will be
@@ -594,6 +608,14 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
 
   *table= tables.table;
   tables.table->use_all_columns();
+
+  if (table_intact.check(*table, &event_table_def))
+  {
+    close_thread_tables(thd);
+    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   DBUG_RETURN(FALSE);
 }
 
@@ -608,23 +630,32 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   only creates a record on disk.
   @pre The thread handle has no open tables.
 
-  @param[in,out] thd           THD
-  @param[in]     parse_data    Parsed event definition
-  @param[in]     create_if_not TRUE if IF NOT EXISTS clause was provided
-                               to CREATE EVENT statement
-
+  @param[in,out] thd                   THD
+  @param[in]     parse_data            Parsed event definition
+  @param[in]     create_if_not         TRUE if IF NOT EXISTS clause was provided
+                                       to CREATE EVENT statement
+  @param[out]    event_already_exists  When method is completed successfully
+                                       set to true if event already exists else
+                                       set to false
   @retval FALSE  success
   @retval TRUE   error
 */
 
 bool
 Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
-                                  bool create_if_not)
+                                  bool create_if_not,
+                                  bool *event_already_exists)
 {
   int ret= 1;
   TABLE *table= NULL;
   sp_head *sp= thd->lex->sphead;
   ulong saved_mode= thd->variables.sql_mode;
+  /*
+    Take a savepoint to release only the lock on mysql.event
+    table at the end but keep the global read lock and
+    possible other locks taken by the caller.
+  */
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   DBUG_ENTER("Event_db_repository::create_event");
 
@@ -645,6 +676,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   {
     if (create_if_not)
     {
+      *event_already_exists= true;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                           ER_EVENT_ALREADY_EXISTS, ER(ER_EVENT_ALREADY_EXISTS),
                           parse_data->name.str);
@@ -652,8 +684,10 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     }
     else
       my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), parse_data->name.str);
+
     goto end;
-  }
+  } else
+    *event_already_exists= false;
 
   DBUG_PRINT("info", ("non-existent, go forward"));
 
@@ -692,8 +726,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   if (mysql_event_fill_row(thd, table, parse_data, sp, saved_mode, FALSE))
     goto end;
 
-  table->field[ET_FIELD_STATUS]->store((longlong)parse_data->status, TRUE);
-
   if ((ret= table->file->ha_write_row(table->record[0])))
   {
     table->file->print_error(ret, MYF(0));
@@ -702,8 +734,8 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   ret= 0;
 
 end:
-  if (table)
-    close_mysql_tables(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   thd->variables.sql_mode= saved_mode;
   DBUG_RETURN(test(ret));
@@ -737,6 +769,12 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   TABLE *table= NULL;
   sp_head *sp= thd->lex->sphead;
   ulong saved_mode= thd->variables.sql_mode;
+  /*
+    Take a savepoint to release only the lock on mysql.event
+    table at the end but keep the global read lock and
+    possible other locks taken by the caller.
+  */
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   int ret= 1;
 
   DBUG_ENTER("Event_db_repository::update_event");
@@ -814,8 +852,8 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   ret= 0;
 
 end:
-  if (table)
-    close_mysql_tables(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   thd->variables.sql_mode= saved_mode;
   DBUG_RETURN(test(ret));
@@ -841,6 +879,12 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
                                 bool drop_if_exists)
 {
   TABLE *table= NULL;
+  /*
+    Take a savepoint to release only the lock on mysql.event
+    table at the end but keep the global read lock and
+    possible other locks taken by the caller.
+  */
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   int ret= 1;
 
   DBUG_ENTER("Event_db_repository::drop_event");
@@ -869,8 +913,8 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
   ret= 0;
 
 end:
-  if (table)
-    close_mysql_tables(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   DBUG_RETURN(test(ret));
 }
@@ -944,7 +988,7 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
   TABLE *table= NULL;
   READ_RECORD read_record_info;
   enum enum_events_table_field field= ET_FIELD_DB;
-  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("Event_db_repository::drop_schema_events");
   DBUG_PRINT("enter", ("field=%d schema=%s", field, schema.str));
 
@@ -1025,6 +1069,13 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
   */
   if (!(ret= open_system_tables_for_read(thd, &event_table, &open_tables_backup)))
   {
+    if (table_intact.check(event_table.table, &event_table_def))
+    {
+      close_system_tables(thd, &open_tables_backup);
+      my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
+
     if ((ret= find_named_event(dbname, name, event_table.table)))
       my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
     else if ((ret= etn->load_from_row(thd, event_table.table)))
@@ -1050,15 +1101,14 @@ Event_db_repository::
 update_timing_fields_for_event(THD *thd,
                                LEX_STRING event_db_name,
                                LEX_STRING event_name,
-                               bool update_last_executed,
                                my_time_t last_executed,
-                               bool update_status,
                                ulonglong status)
 {
   TABLE *table= NULL;
   Field **fields;
   int ret= 1;
   bool save_binlog_row_based;
+  MYSQL_TIME time;
 
   DBUG_ENTER("Event_db_repository::update_timing_fields_for_event");
 
@@ -1083,20 +1133,12 @@ update_timing_fields_for_event(THD *thd,
   /* Don't update create on row update. */
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
-  if (update_last_executed)
-  {
-    MYSQL_TIME time;
-    my_tz_OFFSET0->gmt_sec_to_TIME(&time, last_executed);
+  my_tz_OFFSET0->gmt_sec_to_TIME(&time, last_executed);
+  fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
+  fields[ET_FIELD_LAST_EXECUTED]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
 
-    fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
-    fields[ET_FIELD_LAST_EXECUTED]->store_time(&time,
-                                               MYSQL_TIMESTAMP_DATETIME);
-  }
-  if (update_status)
-  {
-    fields[ET_FIELD_STATUS]->set_notnull();
-    fields[ET_FIELD_STATUS]->store(status, TRUE);
-  }
+  fields[ET_FIELD_STATUS]->set_notnull();
+  fields[ET_FIELD_STATUS]->store(status, TRUE);
 
   if ((ret= table->file->ha_update_row(table->record[1], table->record[0])))
   {

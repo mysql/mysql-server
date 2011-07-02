@@ -1,6 +1,5 @@
-/* Copyright (C) 2000 MySQL AB & Jani Tolonen
-   Copyright (C) 2009 Sun Microsystems, Inc
-   Copyright (C) 2010 Monty Program Ab
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (C) 2010-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +23,7 @@
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 /* Exit codes */
 
@@ -43,14 +43,15 @@ static int my_end_arg;
 static char * opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, 
 	    *default_charset= 0, *current_host= 0;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
-DYNAMIC_ARRAY tables4repair;
+DYNAMIC_ARRAY tables4repair, tables4rebuild;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
 
-enum operations { DO_CHECK, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
+enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
 
 static struct my_option my_long_options[] =
 {
@@ -102,6 +103,10 @@ static struct my_option my_long_options[] =
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", &default_charset,
    &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_DEFAULT_AUTH,
+   "Default authentication client-side plugin to use.",
+   &opt_default_auth, &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fast",'F', "Check only tables that haven't been closed properly.",
    &opt_fast, &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
@@ -139,6 +144,9 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   &opt_plugin_dir, &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
 #if MYSQL_PORT_DEFAULT == 0
@@ -217,9 +225,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("By Jani Tolonen, 2001-04-20, MySQL Development Team.\n");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
-  puts("and you are welcome to modify and redistribute it under the GPL license.\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
   printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
   printf("OR     %s [OPTIONS] --databases DB1 [DB2 DB3...]\n",
 	 my_progname);
@@ -248,6 +254,8 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
+  int orig_what_to_do= what_to_do;
+
   switch(optid) {
   case 'a':
     what_to_do = DO_ANALYZE;
@@ -321,6 +329,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
     break;
+  }
+
+  if (orig_what_to_do && (what_to_do != orig_what_to_do))
+  {
+    fprintf(stderr, "Error:  %s doesn't support multiple contradicting commands.\n",
+            my_progname);
+    return 1;
   }
   return 0;
 }
@@ -628,6 +643,27 @@ static int fix_database_storage_name(const char *name)
   return rc;
 }
 
+static int rebuild_table(char *name)
+{
+  char *query, *ptr;
+  int rc= 0;
+  query= (char*)my_malloc(sizeof(char) * (12 + fixed_name_length(name) + 6 + 1),
+                          MYF(MY_WME));
+  if (!query)
+    return 1;
+  ptr= strmov(query, "ALTER TABLE ");
+  ptr= fix_table_name(ptr, name);
+  ptr= strxmov(ptr, " FORCE", NullS);
+  if (mysql_real_query(sock, query, (uint)(ptr - query)))
+  {
+    fprintf(stderr, "Failed to %s\n", query);
+    fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    rc= 1;
+  }
+  my_free(query);
+  return rc;
+}
+
 static int process_one_db(char *database)
 {
   if (verbose)
@@ -744,7 +780,7 @@ static void print_result()
   MYSQL_ROW row;
   char prev[(NAME_LEN+9)*2+2];
   uint i;
-  my_bool found_error=0;
+  my_bool found_error=0, table_rebuild=0;
 
   res = mysql_use_result(sock);
 
@@ -763,8 +799,14 @@ static void print_result()
       */
       if (found_error && opt_auto_repair && what_to_do != DO_REPAIR &&
 	  strcmp(row[3],"OK"))
-	insert_dynamic(&tables4repair, (uchar*) prev);
+      {
+        if (table_rebuild)
+          insert_dynamic(&tables4rebuild, (uchar*) prev);
+        else
+          insert_dynamic(&tables4repair, (uchar*) prev);
+      }
       found_error=0;
+      table_rebuild=0;
       if (opt_silent)
 	continue;
     }
@@ -782,7 +824,11 @@ static void print_result()
       else
         printf("%s\n%-9s: %s", row[0], row[2], row[3]);
       if (strcmp(row[2],"note"))
+      {
 	found_error=1;
+        if (opt_auto_repair && strstr(row[3], "ALTER TABLE") != NULL)
+          table_rebuild=1;
+      }
     }
     else
       printf("%-9s: %s", row[2], row[3]);
@@ -791,7 +837,12 @@ static void print_result()
   }
   /* add the last table to be repaired to the list */
   if (found_error && opt_auto_repair && what_to_do != DO_REPAIR)
-    insert_dynamic(&tables4repair, (uchar*) prev);
+  {
+    if (table_rebuild)
+      insert_dynamic(&tables4rebuild, (uchar*) prev);
+    else
+      insert_dynamic(&tables4repair, (uchar*) prev);
+  }
   mysql_free_result(res);
 }
 
@@ -817,6 +868,13 @@ static int dbConnect(char *host, char *user, char *passwd)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(&mysql_connection, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(&mysql_connection, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
   mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd,
          NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
@@ -883,7 +941,8 @@ int main(int argc, char **argv)
   }
 
   if (opt_auto_repair &&
-      my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64))
+      (my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64) ||
+       my_init_dynamic_array(&tables4rebuild, sizeof(char)*(NAME_LEN*2+2),16,64)))
   {
     first_error = 1;
     goto end;
@@ -901,7 +960,7 @@ int main(int argc, char **argv)
   {
     uint i;
 
-    if (!opt_silent && tables4repair.elements)
+    if (!opt_silent && (tables4repair.elements || tables4rebuild.elements))
       puts("\nRepairing tables");
     what_to_do = DO_REPAIR;
     for (i = 0; i < tables4repair.elements ; i++)
@@ -909,11 +968,16 @@ int main(int argc, char **argv)
       char *name= (char*) dynamic_array_ptr(&tables4repair, i);
       handle_request_for_tables(name, fixed_name_length(name));
     }
+    for (i = 0; i < tables4rebuild.elements ; i++)
+      rebuild_table((char*) dynamic_array_ptr(&tables4rebuild, i));
   }
  end:
   dbDisconnect(current_host);
   if (opt_auto_repair)
+  {
     delete_dynamic(&tables4repair);
+    delete_dynamic(&tables4rebuild);
+  }
   my_free(opt_password);
 #ifdef HAVE_SMEM
   my_free(shared_memory_base_name);

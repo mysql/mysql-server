@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1(a int not null auto_increment, b int, primary key(a) );
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 select * from t1;
@@ -15,3 +11,4 @@ a	b
 1	10
 2	15
 drop table t1;
+include/rpl_end.inc

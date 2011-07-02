@@ -15,6 +15,7 @@ SELECT * FROM t1;
 
 connection slave;
 # Wait until SQL thread stops with error LOST_EVENT on master
+call mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master.* 1590");
 let $slave_sql_errno= 1590;
 let $show_slave_sql_error= 1;
 source include/wait_for_slave_sql_error.inc;
@@ -37,3 +38,4 @@ source include/check_slave_is_running.inc;
 connection master;
 DROP TABLE t1;
 --sync_slave_with_master
+--source include/rpl_end.inc

@@ -20,6 +20,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -56,6 +57,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -92,6 +94,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -131,6 +134,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -173,6 +177,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -218,6 +223,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK

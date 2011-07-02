@@ -1,7 +1,6 @@
-#############################################################
-# Author:  Serge Kozlov <skozlov@mysql.com>
-# Date:    03/17/2008
-# Purpose: Set up circular cluster replication where each 
+# ==== Purpose ====
+#
+# Set up circular cluster replication where each 
 # cluster has two mysqlds and replication directions are 
 # following:
 #          master ---> slave  
@@ -9,128 +8,60 @@
 #     cluster A        cluster B
 #           \            /
 #         master1 <--- slave1
-#############################################################
+#
+# ==== Usage ====
+#
+#   [--let $rpl_server_count= N]
+#   [--let $rpl_skip_check_server_ids= 1]
+#   [--let $rpl_skip_reset_master_and_slave= 1]
+#   [--let $rpl_skip_change_master= 1]
+#   [--let $rpl_skip_start_slave= 1]
+#   [--let $rpl_debug= 1]
+#   [--let $slave_timeout= NUMBER]
+#   --source include/ndb_master-slave_2ch.inc
+#
+# Parameters:
+#   $rpl_server_count, $rpl_skip_check_server_ids,
+#   $rpl_skip_reset_master_and_slave, $rpl_skip_change_master,
+#   $rpl_skip_start_slave, $rpl_debug, $slave_timeout
+#     See include/master-slave.inc
 
---source include/have_log_bin.inc
+--let $rpl_topology= 1->2,4->3
+--let $rpl_skip_check_server_ids= 1
+--source include/rpl_init.inc
 
 # Make connections to mysqlds
 
-connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
-connect (master1,127.0.0.1,root,,test,$MASTER_MYPORT1,);
-connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
-connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT1,);
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
 
-# Check that all mysqld compiled with ndb support
+--let $rpl_connection_name= master1
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
 
---connection master
---disable_query_log
---require r/true.require
-SELECT (support = 'YES' or support = 'DEFAULT') AS `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
---source include/ndb_not_readonly.inc
---enable_query_log
+--let $rpl_connection_name= slave
+--let $rpl_server_number= 2
+--source include/rpl_connect.inc
 
---connection master1
---disable_query_log
---require r/true.require
-SELECT (support = 'YES' or support = 'DEFAULT') AS `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
---source include/ndb_not_readonly.inc
---enable_query_log
+--let $rpl_connection_name= slave1
+--let $rpl_server_number= 2
+--source include/rpl_connect.inc
 
---connection slave
---disable_query_log
---require r/true.require
-SELECT (support = 'YES' or support = 'DEFAULT') AS `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
---source include/ndb_not_readonly.inc
---enable_query_log
 
---connection slave1
---disable_query_log
---require r/true.require
-SELECT (support = 'YES' or support = 'DEFAULT') AS `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
---source include/ndb_not_readonly.inc
---enable_query_log
-
-# Stop slaves
-
---connection master
---disable_warnings
-STOP SLAVE;
---wait_for_slave_to_stop
---enable_warnings
-
---connection master1
---disable_warnings
-STOP SLAVE;
---wait_for_slave_to_stop
---enable_warnings
-
---connection slave
---disable_warnings
-STOP SLAVE;
---wait_for_slave_to_stop
---enable_warnings
-
---connection slave1
---disable_warnings
-STOP SLAVE;
---wait_for_slave_to_stop
---enable_warnings
-
-# Reset masters
-
---connection master
---disable_warnings
---disable_query_log
-USE test;
---enable_query_log
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
---enable_warnings
-RESET MASTER;
-
---connection master1
---disable_warnings
---disable_query_log
-USE test;
---enable_query_log
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
---enable_warnings
-RESET MASTER;
-
---connection slave
---disable_warnings
---disable_query_log
-USE test;
---enable_query_log
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
---enable_warnings
-RESET MASTER;
-
---connection slave1
---disable_warnings
---disable_query_log
-USE test;
---enable_query_log
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
---enable_warnings
-RESET MASTER;
-
-# Start slaves
-
---connection slave
-RESET SLAVE;
---replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$MASTER_MYPORT,master_user='root'
-START SLAVE;
---source include/wait_for_slave_to_start.inc
-
---connection master1
-RESET SLAVE;
---replace_result $SLAVE_MYPORT1 SLAVE_MYPORT1
---eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$SLAVE_MYPORT1,master_user='root'
-START SLAVE;
---source include/wait_for_slave_to_start.inc
+# Check that all mysqld are compiled with ndb support
+--let $_rpl_server= 4
+while ($_rpl_server)
+{
+  --connection server_$_rpl_server
+  if (`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.ENGINES WHERE engine = 'ndbcluster' AND (support = 'YES' OR support = 'DEFAULT')`)
+  {
+    --skip Test requires NDB.
+  }
+  --source include/ndb_not_readonly.inc
+  --dec $_rpl_server
+}
 
 
 # Set the default connection to 'master' (cluster A)
 connection master;
-

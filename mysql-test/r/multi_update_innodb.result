@@ -1,0 +1,69 @@
+#
+# BUG#57373: Multi update+InnoDB reports ER_KEY_NOT_FOUND if a
+#            table is updated twice
+#
+CREATE TABLE t1(
+pk INT,
+a INT,
+b INT,
+PRIMARY KEY (pk)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0,0,0);
+UPDATE t1 AS A, t1 AS B SET A.pk = 1, B.a = 2;
+ERROR HY000: Primary key/partition key update is not allowed since the table is updated both as 'A' and 'B'.
+SELECT * FROM t1;
+pk	a	b
+0	0	0
+CREATE VIEW v1 AS SELECT * FROM t1;
+UPDATE v1 AS A, t1 AS B SET A.pk = 1, B.a = 2;
+ERROR HY000: Primary key/partition key update is not allowed since the table is updated both as 'A' and 'B'.
+SELECT * FROM t1;
+pk	a	b
+0	0	0
+UPDATE t1 AS A, t1 AS B SET A.a = 1, B.b = 2;
+# Should be (0,1,2)
+SELECT * FROM t1;
+pk	a	b
+0	1	2
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# BUG#11882110: UPDATE REPORTS ER_KEY_NOT_FOUND IF TABLE IS 
+#               UPDATED TWICE
+#
+CREATE TABLE t1 ( 
+col_int_key int, 
+pk int, 
+col_int int, 
+key(col_int_key), 
+primary key (pk)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,2,3);
+
+CREATE TABLE t2 ( 
+col_int_key int, 
+pk_1 int, 
+pk_2 int, 
+col_int int, 
+key(col_int_key), 
+primary key (pk_1,pk_2)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,2,3,4);
+
+UPDATE t1 AS A NATURAL JOIN t1 B SET A.pk=5,B.pk=7;
+ERROR HY000: Primary key/partition key update is not allowed since the table is updated both as 'A' and 'B'.
+
+SELECT * FROM t1;
+col_int_key	pk	col_int
+1	2	3
+
+UPDATE t2 AS A NATURAL JOIN t2 B SET A.pk_1=5,B.pk_1=7;
+ERROR HY000: Primary key/partition key update is not allowed since the table is updated both as 'A' and 'B'.
+
+UPDATE t2 AS A NATURAL JOIN t2 B SET A.pk_2=10,B.pk_2=11;
+ERROR HY000: Primary key/partition key update is not allowed since the table is updated both as 'A' and 'B'.
+
+SELECT * FROM t2;
+col_int_key	pk_1	pk_2	col_int
+1	2	3	4
+DROP TABLE t1,t2;

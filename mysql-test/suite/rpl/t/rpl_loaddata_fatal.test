@@ -15,6 +15,7 @@ connection master;
 LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t1;
 
 connection slave;
+call mtr.add_suppression("Slave SQL.*Fatal error: Not enough memory, Error_code: 1593");
 let $slave_sql_errno= 1593;
 let $show_slave_sql_error= 1;
 source include/wait_for_slave_sql_error_and_skip.inc;
@@ -23,3 +24,4 @@ connection master;
 DROP TABLE t1;
 sync_slave_with_master;
 
+--source include/rpl_end.inc

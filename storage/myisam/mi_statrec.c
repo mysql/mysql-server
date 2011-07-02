@@ -114,9 +114,6 @@ int _mi_cmp_static_record(register MI_INFO *info, register const uchar *old)
 {
   DBUG_ENTER("_mi_cmp_static_record");
 
-  /* We are going to do changes; dont let anybody disturb */
-  dont_break();				/* Dont allow SIGHUP or SIGINT */
-
   if (info->opt_flag & WRITE_CACHE_USED)
   {
     if (flush_io_cache(&info->rec_cache))

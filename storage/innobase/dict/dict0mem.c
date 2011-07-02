@@ -33,9 +33,13 @@ Created 1/8/1996 Heikki Tuuri
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
+#include "ha_prototypes.h" /* innobase_casedn_str()*/
 #ifndef UNIV_HOTBACKUP
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
+#ifdef UNIV_BLOB_DEBUG
+# include "ut0rbt.h"
+#endif /* UNIV_BLOB_DEBUG */
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
@@ -228,6 +232,7 @@ dict_mem_fill_column_struct(
 
 	column->ind = (unsigned int) col_pos;
 	column->ord_part = 0;
+	column->max_prefix = 0;
 	column->mtype = (unsigned int) mtype;
 	column->prtype = (unsigned int) prtype;
 	column->len = (unsigned int) col_len;
@@ -288,6 +293,60 @@ dict_mem_foreign_create(void)
 }
 
 /**********************************************************************//**
+Sets the foreign_table_name_lookup pointer based on the value of
+lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
+will point to foreign_table_name.  If 2, then another string is
+allocated from foreign->heap and set to lower case. */
+UNIV_INTERN
+void
+dict_mem_foreign_table_name_lookup_set(
+/*===================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc)	/*!< in: is an alloc needed */
+{
+	if (innobase_get_lower_case_table_names() == 2) {
+		if (do_alloc) {
+			foreign->foreign_table_name_lookup = mem_heap_alloc(
+				foreign->heap,
+				strlen(foreign->foreign_table_name) + 1);
+		}
+		strcpy(foreign->foreign_table_name_lookup,
+		       foreign->foreign_table_name);
+		innobase_casedn_str(foreign->foreign_table_name_lookup);
+	} else {
+		foreign->foreign_table_name_lookup
+			= foreign->foreign_table_name;
+	}
+}
+
+/**********************************************************************//**
+Sets the referenced_table_name_lookup pointer based on the value of
+lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
+will point to referenced_table_name.  If 2, then another string is
+allocated from foreign->heap and set to lower case. */
+UNIV_INTERN
+void
+dict_mem_referenced_table_name_lookup_set(
+/*======================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc)	/*!< in: is an alloc needed */
+{
+	if (innobase_get_lower_case_table_names() == 2) {
+		if (do_alloc) {
+			foreign->referenced_table_name_lookup = mem_heap_alloc(
+				foreign->heap,
+				strlen(foreign->referenced_table_name) + 1);
+		}
+		strcpy(foreign->referenced_table_name_lookup,
+		       foreign->referenced_table_name);
+		innobase_casedn_str(foreign->referenced_table_name_lookup);
+	} else {
+		foreign->referenced_table_name_lookup
+			= foreign->referenced_table_name;
+	}
+}
+
+/**********************************************************************//**
 Adds a field definition to an index. NOTE: does not take a copy
 of the column name if the field is a column. The memory occupied
 by the column name may be released only after publishing the index. */
@@ -324,6 +383,12 @@ dict_mem_index_free(
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+#ifdef UNIV_BLOB_DEBUG
+	if (index->blobs) {
+		mutex_free(&index->blobs_mutex);
+		rbt_free(index->blobs);
+	}
+#endif /* UNIV_BLOB_DEBUG */
 
 	mem_heap_free(index->heap);
 }

@@ -1,0 +1,2192 @@
+#
+# Test coverage for various aspects of FLUSH TABLES WITH READ LOCK
+# functionality.
+#
+
+# We need InnoDB for COMMIT/ROLLBACK related tests.
+--source include/have_innodb.inc
+# We need the Debug Sync Facility.
+--source include/have_debug_sync.inc
+# Parts of this test use DDL on events, BINLOG statement and
+# other statements which are not supported in embedded server.
+-- source include/not_embedded.inc
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+--echo # FTWRL takes two global metadata locks -- a global shared
+--echo # metadata lock and the commit blocker lock.
+--echo # The first lock prevents DDL from taking place.
+--echo # Let's say that all DDL statements that take metadata
+--echo # locks form class #1 -- incompatible with FTWRL because
+--echo # take incompatible MDL table locks.
+--echo # The first global lock doesn't, however, prevent standalone
+--echo # COMMITs (or implicit COMMITs) from taking place, since a
+--echo # COMMIT doesn't take table locks. It doesn't prevent
+--echo # DDL on temporary tables either, since they don't
+--echo # take any table locks either.
+--echo # Most DDL statements do not perform an implicit commit
+--echo # if operate on a temporary table. Examples are CREATE
+--echo # TEMPORARY TABLE and DROP TEMPORARY TABLE. 
+--echo # Thus, these DDL statements can go through in presence
+--echo # of FTWRL. This is class #2 -- compatible because
+--echo # do not take incompatible MDL locks and do not issue
+--echo # implicit commit..
+--echo # (Although these operations do not commit, their effects
+--echo # cannot be rolled back either.)
+--echo # ALTER TABLE, ANALYZE, OPTIMIZE and some others always
+--echo # issue an implicit commit, even if its argument is a
+--echo # temporary table. 
+--echo # *Howewer* an implicit commit is a no-op if all engines
+--echo # used since the start of transactiona are non-
+--echo # transactional. Thus, for non-transactional engines,
+--echo # these operations are not blocked by FTWRL.
+--echo # This is class #3 -- compatible because do not take
+--echo # MDL table locks and are non-transactional. 
+--echo # On the contrary, for transactional engines, there
+--echo # is always a commit, regardless of whether a table
+--echo # is temporary or not. Thus, for example, ALTER TABLE
+--echo # for a transactional engine will wait for FTWRL, 
+--echo # even if the subject table is temporary.
+--echo # Thus ALTER TABLE <temporary> is incompatible
+--echo # with FTWRL. This is class #4 -- incompatible
+--echo # becuase issue implicit COMMIT which is not a no-op.
+--echo # Finally, there are administrative statements (such as 
+--echo # RESET SLAVE) that do not take any locks and do not
+--echo # issue COMMIT.
+--echo # This is class #5.
+--echo # The goal of this coverage is to test statements
+--echo # of all classes.
+--echo # @todo: documents the effects of @@autocommit,
+--echo # DML and temporary transactional tables.
+
+--echo # Use MyISAM engine for the most of the tables
+--echo # used in this test in order to be able to 
+--echo # check that DDL statements on temporary tables
+--echo # are compatible with FTRWL. 
+--disable_warnings
+drop tables if exists t1_base, t2_base, t3_trans;
+drop tables if exists tm_base, tm_base_temp;
+drop database if exists mysqltest1;
+--echo # We're going to test ALTER DATABASE UPGRADE
+drop database if exists `#mysql50#mysqltest-2`;
+drop procedure if exists p1;
+drop function if exists f1;
+drop view if exists v1;
+drop procedure if exists p2;
+drop function if exists f2_base;
+drop function if exists f2_temp;
+drop event if exists e1;
+drop event if exists e2;
+--enable_warnings
+create table t1_base(i int) engine=myisam;
+create table t2_base(j int) engine=myisam;
+create table t3_trans(i int) engine=innodb;
+create temporary table t1_temp(i int) engine=myisam;
+create temporary table t2_temp(j int) engine=myisam;
+create temporary table t3_temp_trans(i int) engine=innodb;
+create database mysqltest1;
+create database `#mysql50#mysqltest-2`;
+create procedure p1() begin end;
+create function f1() returns int return 0;
+create view v1 as select 1 as i;
+create procedure p2(i int) begin end;
+delimiter |;
+create function f2_base() returns int
+begin
+  insert into t1_base values (1);
+  return 0;
+end|
+create function f2_temp() returns int
+begin
+  insert into t1_temp values (1);
+  return 0;
+end|
+delimiter ;|
+create event e1 on schedule every 1 minute do begin end;
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+connection default;
+
+--echo #
+--echo # Test compatibility of FLUSH TABLES WITH READ LOCK 
+--echo # with various statements.
+--echo #
+--echo # These tests don't cover some classes of statements:
+--echo # - Replication-related - CHANGE MASTER TO, START/STOP SLAVE and etc
+--echo #   (all compatible with FTWRL).
+--echo # - Plugin-related - INSTALL/UNINSTALL (incompatible with FTWRL,
+--echo #   require plugin support).
+
+let $con_aux1=con1;
+let $con_aux2=con2;
+let $cleanup_stmt2= ;
+let $skip_3rd_check= ;
+
+--echo #
+--echo # 1) ALTER variants.
+--echo #
+--echo # 1.1) ALTER TABLE
+--echo # 
+--echo # 1.1.a) For base table should be incompatible with FTWRL.
+--echo #
+let $statement= alter table t1_base add column c1 int;
+let $cleanup_stmt1= alter table t1_base drop column c1;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 1.1.b) For a temporary table should be compatible with FTWRL.
+--echo #
+let $statement= alter table t1_temp add column c1 int;
+let $cleanup_stmt= alter table t1_temp drop column c1;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 1.2) ALTER DATABASE should be incompatible with FTWRL.
+--echo #
+let $statement= alter database mysqltest1 default character set utf8;
+let $cleanup_stmt1= alter database mysqltest1 default character set latin1;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 1.3) ALTER DATABASE UPGRADE DATA DIRECTORY NAME should be
+--echo #      incompatible with FTWRL.
+--echo #
+let $statement= alter database `#mysql50#mysqltest-2` upgrade data directory name;
+let $cleanup_stmt1= drop database `mysqltest-2`;
+let $cleanup_stmt2= create database `#mysql50#mysqltest-2`;
+--source include/check_ftwrl_incompatible.inc
+let $cleanup_stmt2= ;
+
+--echo #
+--echo # 1.4) ALTER PROCEDURE should be incompatible with FTWRL.
+--echo #
+let $statement= alter procedure p1 comment 'a';
+let $cleanup_stmt1= alter procedure p1 comment '';
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 1.5) ALTER FUNCTION should be incompatible with FTWRL.
+--echo #
+let $statement= alter function f1 comment 'a';
+let $cleanup_stmt1= alter function f1 comment '';
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 1.6) ALTER VIEW should be incompatible with FTWRL.
+--echo #
+let $statement= alter view v1 as select 2 as j;
+let $cleanup_stmt1= alter view v1 as select 1 as i;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 1.7) ALTER EVENT should be incompatible with FTWRL.
+--echo #
+let $statement= alter event e1 comment 'test';
+let $cleanup_stmt1= alter event e1 comment '';
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 1.x) The rest of ALTER statements (ALTER TABLESPACE,
+--echo #      ALTER LOGFILE GROUP and ALTER SERVER) are too
+--echo #      special to be tested here.
+--echo #
+
+
+--echo #
+--echo # 2) ANALYZE TABLE statement is compatible with FTWRL.
+--echo # See Bug#43336 ANALYZE and OPTIMIZE do not honour
+--echo #  --read-only for a discussion why.
+--echo #
+let $statement= analyze table t1_base;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 3) BEGIN, ROLLBACK and COMMIT statements.
+--echo #    BEGIN and ROLLBACK are compatible with FTWRL.
+--echo #    COMMIT is not.
+--echo # 
+--echo # We need a special test for these statements as
+--echo # FTWRL commits a transaction and because COMMIT
+--echo # is handled in a special way.
+flush tables with read lock;
+begin;
+--echo # ROLLBACK is allowed under FTWRL although there
+--echo # no much sense in it. FTWRL commits any previous
+--echo # changes and doesn't allows any DML after it.
+--echo # So such a ROLLBACK is always a no-op.
+rollback;
+--echo # Although COMMIT is incompatible with FTWRL in
+--echo # other senses it is still allowed under FTWRL.
+--echo # This fact relied upon by some versions of
+--echo # innobackup tool.
+--echo # Similarly to ROLLBACK it is a no-op in this situation.
+commit;
+unlock tables;
+--echo # Check that BEGIN/ROLLBACK are not blocked and 
+--echo # COMMIT is blocked by active FTWRL in another
+--echo # connection.
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+begin;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Do some work so ROLLBACK is not a no-op.
+insert into t3_trans values (1);
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+rollback;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+begin;
+--echo # Do some work so COMMIT is not a no-op.
+insert into t3_trans values (1);
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Send:
+--send commit
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Wait until COMMIT is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "commit";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap COMMIT.
+--reap
+delete from t3_trans;
+--echo #
+--echo # Check that COMMIT blocks FTWRL in another connection.
+begin;
+insert into t3_trans values (1);
+set debug_sync='RESET';
+set debug_sync='ha_commit_trans_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+--send commit
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+set debug_sync='now WAIT_FOR parked';
+--send flush tables with read lock
+--echo # Switching to connection '$con_aux2'.
+connection $con_aux2;
+--echo # Wait until FTWRL is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "flush tables with read lock";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap COMMIT.
+--reap
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Reap FTWRL.
+--reap 
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+delete from t3_trans;
+set debug_sync= "RESET";
+--echo # We don't run similar test for BEGIN and ROLLBACK as
+--echo # they release metadata locks in non-standard place.
+
+
+--echo #
+--echo # 4) BINLOG statement should be incompatible with FTWRL.
+--echo #
+--echo #
+--echo # Provide format description BINLOG statement first.
+BINLOG '
+MfmqTA8BAAAAZwAAAGsAAAABAAQANS41LjctbTMtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAx+apMEzgNAAgAEgAEBAQEEgAAVAAEGggAAAAICAgCAA==
+';
+--echo # Now test compatibility for BINLOG statement which is 
+--echo # equivalent to INSERT INTO t1_base VALUES (1).
+let $statement= BINLOG '
+MfmqTBMBAAAALgAAAN0AAAAAACgAAAAAAAEABHRlc3QAB3QxX2Jhc2UAAQMAAQ==
+MfmqTBcBAAAAIgAAAP8AAAAAACgAAAAAAAEAAf/+AQAAAA==
+';
+let $cleanup_stmt1= delete from t1_base where i = 1 limit 1;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_incompatible.inc
+let $skip_3rd_check= ;
+
+
+--echo #
+--echo # 5) CALL statement. This statement uses resources in two
+--echo #    ways: through expressions used as parameters and through
+--echo #    sub-statements. This test covers only usage through
+--echo #    parameters as sub-statements do locking individually.
+--echo #
+--echo # 5.a) In simple cases a parameter expression should be
+--echo #      compatible with FTWRL.
+let $statement= call p2((select count(*) from t1_base));
+let $cleanup_stmt1= ;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+--echo #
+--echo # 5.b) In case when an expression uses function which updates
+--echo #      base tables CALL should be incompatible with FTWRL.
+--echo #
+let $statement= call p2(f2_base());
+let $cleanup_stmt1= ;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_incompatible.inc
+let $skip_3rd_check= ;
+
+--echo #
+--echo # 5.c) If function used as argument updates temporary tables
+--echo #      CALL statement should be compatible with FTWRL.
+--echo #
+let $statement= call p2(f2_temp());
+let $cleanup_stmt1= ;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+
+--echo #
+--echo # 6) CHECK TABLE statement is compatible with FTWRL.
+--echo #
+let $statement= check table t1_base;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 7) CHECKSUM TABLE statement is compatible with FTWRL.
+--echo #
+let $statement= checksum table t1_base;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 8) CREATE variants.
+--echo #
+--echo # 8.1) CREATE TABLE statement.
+--echo #
+--echo # 8.1.a) CREATE TABLE is incompatible with FTWRL when
+--echo #        base table is created.
+let $statement= create table t3_base(i int);
+let $cleanup_stmt1= drop table t3_base;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 8.1.b) CREATE TABLE is compatible with FTWRL when
+--echo #        temporary table is created.
+let $statement= create temporary table t3_temp(i int);
+let $cleanup_stmt= drop temporary tables t3_temp;
+--source include/check_ftwrl_compatible.inc
+
+--echo # 8.1.c) CREATE TABLE LIKE is incompatible with FTWRL when
+--echo #        base table is created.
+let $statement= create table t3_base like t1_temp;
+let $cleanup_stmt1= drop table t3_base;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 8.1.d) CREATE TABLE LIKE is compatible with FTWRL when
+--echo #        temporary table is created.
+let $statement= create temporary table t3_temp like t1_base;
+let $cleanup_stmt= drop temporary table t3_temp;
+--source include/check_ftwrl_compatible.inc
+
+--echo # 8.1.e) CREATE TABLE SELECT is incompatible with FTWRL when
+--echo #        base table is created.
+let $statement= create table t3_base select 1 as i;
+let $cleanup_stmt1= drop table t3_base;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 8.1.f) CREATE TABLE SELECT is compatible with FTWRL when
+--echo #        temporary table is created.
+let $statement= create temporary table t3_temp select 1 as i;
+let $cleanup_stmt= drop temporary table t3_temp;
+--source include/check_ftwrl_compatible.inc
+
+--echo # 8.2) CREATE INDEX statement.
+--echo #
+--echo # 8.2.a) CREATE INDEX is incompatible with FTWRL when
+--echo #        applied to base table.
+let $statement= create index i on t1_base (i);
+let $cleanup_stmt1= drop index i on t1_base;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 8.2.b) CREATE INDEX is compatible with FTWRL when
+--echo #        applied to temporary table.
+let $statement= create index i on t1_temp (i);
+let $cleanup_stmt= drop index i on t1_temp;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 8.3) CREATE DATABASE is incompatible with FTWRL.
+--echo #
+let $statement= create database mysqltest2;
+let $cleanup_stmt1= drop database mysqltest2;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 8.4) CREATE VIEW is incompatible with FTWRL.
+--echo #
+let $statement= create view v2 as select 1 as j;
+let $cleanup_stmt1= drop view v2;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 8.5) CREATE TRIGGER is incompatible with FTWRL.
+--echo #
+let $statement= create trigger t1_bi before insert on t1_base for each row begin end;
+let $cleanup_stmt1= drop trigger t1_bi;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 8.6) CREATE FUNCTION is incompatible with FTWRL.
+--echo #
+let $statement= create function f2() returns int return 0;
+let $cleanup_stmt1= drop function f2;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 8.7) CREATE PROCEDURE is incompatible with FTWRL.
+--echo #
+let $statement= create procedure p3() begin end;
+let $cleanup_stmt1= drop procedure p3;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 8.8) CREATE EVENT should be incompatible with FTWRL.
+--echo #
+let $statement= create event e2 on schedule every 1 minute do begin end;
+let $cleanup_stmt1= drop event e2;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 8.9) CREATE USER should be incompatible with FTWRL.
+--echo #
+let $statement= create user mysqltest_u1;
+let $cleanup_stmt1= drop user mysqltest_u1;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 8.x) The rest of CREATE variants (CREATE LOGFILE GROUP,
+--echo #      CREATE TABLESPACE and CREATE SERVER) are too special
+--echo #      to test here.
+--echo #
+
+
+--echo #
+--echo # 9) PREPARE, EXECUTE and DEALLOCATE PREPARE statements.
+--echo #
+--echo # 9.1) PREPARE statement is compatible with FTWRL as it
+--echo #      doesn't change any data.
+--echo # 
+--echo # 9.1.a) Prepare of simple INSERT statement.
+--echo #
+let $statement= prepare stmt1 from 'insert into t1_base values (1)';
+let $cleanup_stmt= deallocate prepare stmt1;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+--echo #
+--echo # 9.1.b) Prepare of multi-UPDATE. At some point such statements
+--echo #        tried to acquire thr_lock.c locks during prepare phase.
+--echo #        This no longer happens and thus it is compatible with
+--echo #        FTWRL.
+let $statement= prepare stmt1 from 'update t1_base, t2_base set t1_base.i= 1 where t1_base.i = t2_base.j';
+let $cleanup_stmt= deallocate prepare stmt1;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+--echo #
+--echo # 9.1.c) Prepare of multi-DELETE. Again PREPARE of such
+--echo #        statement should be compatible with FTWRL.
+let $statement= prepare stmt1 from 'delete t1_base from t1_base, t2_base where t1_base.i = t2_base.j';
+let $cleanup_stmt= deallocate prepare stmt1;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+--echo #
+--echo # 9.2) Compatibility of EXECUTE statement depends on statement
+--echo #     to be executed.
+--echo #
+--echo # 9.2.a) EXECUTE for statement which is itself compatible with
+--echo #       FTWRL should be compatible.
+prepare stmt1 from 'select * from t1_base';
+let $statement= execute stmt1;
+let $cleanup_stmt= ; 
+--source include/check_ftwrl_compatible.inc
+deallocate prepare stmt1;
+
+call mtr.add_suppression("Slave SQL.*Can.t execute the query because you have a conflicting read lock., Error_code: 1223");
+
+--echo #
+--echo # 9.2.b) EXECUTE for statement which is incompatible with FTWRL
+--echo #        should be also incompatible.
+--echo #
+--echo # Check that EXECUTE is not allowed under FTWRL.
+prepare stmt1 from 'insert into t1_base values (1)';
+flush tables with read lock;
+--error ER_CANT_UPDATE_WITH_READLOCK
+execute stmt1;
+unlock tables;
+--echo # Check that active FTWRL in another connection
+--echo # blocks EXECUTE which changes data.
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--send execute stmt1 
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Check that EXECUTE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock" and
+        info = "insert into t1_base values (1)";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap EXECUTE.
+--reap
+set debug_sync='RESET';
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+--send execute stmt1; 
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+set debug_sync='now WAIT_FOR parked';
+--send flush tables with read lock
+--echo # Switching to connection '$con_aux2'.
+connection $con_aux2;
+--echo # Wait until FTWRL is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock" and
+        info = "flush tables with read lock";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap EXECUTE.
+--reap
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Reap FTWRL.
+--reap 
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+set debug_sync= "RESET";
+delete from t1_base;
+deallocate prepare stmt1;
+
+--echo #
+--echo # 9.3) DEALLOCATE PREPARE is compatible with FTWRL.
+--echo #
+prepare stmt1 from 'insert into t1_base values (1)';
+let $statement= deallocate prepare stmt1;
+let $cleanup_stmt= prepare stmt1 from 'insert into t1_base values (1)';
+--source include/check_ftwrl_compatible.inc
+deallocate prepare stmt1;
+
+
+--echo #
+--echo # 10) DELETE variations.
+--echo #
+--echo # 10.1) Simple DELETE.
+--echo # 
+--echo # 10.1.a) Simple DELETE on base table is incompatible with FTWRL.
+let $statement= delete from t1_base;
+let $cleanup_stmt1= ;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 
+--echo # 10.1.b) Simple DELETE on temporary table is compatible with FTWRL.
+let $statement= delete from t1_temp;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 10.2) Multi DELETE.
+--echo # 
+--echo # 10.2.a) Multi DELETE on base tables is incompatible with FTWRL.
+let $statement= delete t1_base from t1_base, t2_base where t1_base.i = t2_base.j;
+let $cleanup_stmt1= ;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 
+--echo # 10.2.b) Multi DELETE on temporary tables is compatible with FTWRL.
+let $statement= delete t1_temp from t1_temp, t2_temp where t1_temp.i = t2_temp.j;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 11) DESCRIBE should be compatible with FTWRL.
+--echo #
+let $statement= describe t1_base;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 12) Compatibility of DO statement with FTWRL depends on its
+--echo #     expression.
+--echo #
+--echo # 12.a) DO with expression which does not change base table
+--echo #       should be compatible with FTWRL.
+let $statement= do (select count(*) from t1_base);
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 12.b) DO which calls SF updating base table should be
+--echo #       incompatible with FTWRL.
+let $statement= do f2_base();
+let $cleanup_stmt1= delete from t1_base limit 1;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 12.c) DO which calls SF updating temporary table should be
+--echo #       compatible with FTWRL.
+let $statement= do f2_temp();
+let $cleanup_stmt= delete from t1_temp limit 1;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 13) DROP variants.
+--echo #
+--echo # 13.1) DROP TABLES.
+--echo #
+--echo # 13.1.a) DROP TABLES which affects base tables is incompatible
+--echo #         with FTWRL.
+let $statement= drop table t2_base;
+let $cleanup_stmt1= create table t2_base(j int);
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 13.1.b) DROP TABLES which affects only temporary tables
+--echo #         in theory can be compatible with FTWRL.
+--echo #         In practice it is not yet.
+let $statement= drop table t2_temp;
+let $cleanup_stmt1= create temporary table t2_temp(j int);
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 13.1.c) DROP TEMPORARY TABLES should be compatible with FTWRL.
+let $statement= drop temporary table t2_temp;
+let $cleanup_stmt= create temporary table t2_temp(j int);
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 13.2) DROP INDEX.
+--echo #
+--echo # 13.2.a) DROP INDEX on a base table is incompatible with FTWRL.
+create index i on t1_base (i);
+let $statement= drop index i on t1_base;
+let $cleanup_stmt1= create index i on t1_base (i);
+--source include/check_ftwrl_incompatible.inc
+drop index i on t1_base;
+
+--echo #
+--echo # 13.2.b) DROP INDEX on a temporary table is compatible with FTWRL.
+create index i on t1_temp (i);
+let $statement= drop index i on t1_temp;
+let $cleanup_stmt= create index i on t1_temp (i);
+--source include/check_ftwrl_compatible.inc
+drop index i on t1_temp;
+
+--echo #
+--echo # 13.3) DROP DATABASE is incompatible with FTWRL
+--echo #
+let $statement= drop database mysqltest1;
+let $cleanup_stmt1= create database mysqltest1;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 13.4) DROP FUNCTION is incompatible with FTWRL.
+--echo #
+let $statement= drop function f1;
+let $cleanup_stmt1= create function f1() returns int return 0;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 13.5) DROP PROCEDURE is incompatible with FTWRL.
+--echo #
+let $statement= drop procedure p1;
+let $cleanup_stmt1= create procedure p1() begin end;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 13.6) DROP USER should be incompatible with FTWRL.
+--echo #
+create user mysqltest_u1;
+let $statement= drop user mysqltest_u1;
+let $cleanup_stmt1= create user mysqltest_u1;
+--source include/check_ftwrl_incompatible.inc
+drop user mysqltest_u1;
+
+--echo #
+--echo # 13.7) DROP VIEW should be incompatible with FTWRL.
+--echo #
+let $statement= drop view v1;
+let $cleanup_stmt1= create view v1 as select 1 as i;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 13.8) DROP EVENT should be incompatible with FTWRL.
+--echo #
+let $statement= drop event e1;
+let $cleanup_stmt1= create event e1 on schedule every 1 minute do begin end;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 13.9) DROP TRIGGER is incompatible with FTWRL.
+--echo #
+create trigger t1_bi before insert on t1_base for each row begin end;
+let $statement= drop trigger t1_bi;
+let $cleanup_stmt1= create trigger t1_bi before insert on t1_base for each row begin end;
+--source include/check_ftwrl_incompatible.inc
+drop trigger t1_bi;
+
+--echo #
+--echo # 13.x) The rest of DROP variants (DROP TABLESPACE, DROP LOGFILE
+--echo #       GROUP and DROP SERVER) are too special to test here.
+--echo #
+
+
+--echo #
+--echo # 14) FLUSH variants.
+--echo #
+--echo # Test compatibility of _some_ important FLUSH variants with FTWRL.
+--echo #
+--echo # 14.1) FLUSH TABLES WITH READ LOCK is compatible with itself.
+--echo # 
+--echo # Check that FTWRL statements can be run while FTWRL
+--echo # is active in another connection.
+--echo #
+--echo # Switching to connection '$con_aux1'.
+flush tables with read lock;
+--echo # The second FTWRL in a row is allowed at the moment.
+--echo # It does not make much sense as it does only flush.
+flush tables with read lock;
+unlock tables;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+flush tables with read lock;
+unlock tables;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+
+--echo #
+--echo # 14.2) FLUSH TABLES <list> WITH READ LOCK is not blocked by
+--echo #       active FTWRL. But since the latter keeps tables open
+--echo #       FTWRL is blocked by FLUSH TABLES <list> WITH READ LOCK.
+flush tables with read lock;
+--echo # FT <list> WRL is allowed under FTWRL at the moment.
+--echo # It does not make much sense though.
+flush tables t1_base, t2_base with read lock;
+unlock tables;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+flush tables t1_base, t2_base with read lock;
+unlock tables;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+flush tables t1_base, t2_base with read lock;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--send flush tables with read lock
+--echo # Switching to connection '$con_aux2'.
+connection $con_aux2;
+--echo # Wait until FTWRL is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table flush" and
+        info = "flush tables with read lock";
+--source include/wait_condition.inc
+--echo # Switching to connection 'default'.
+connection default;
+unlock tables;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Reap FTWRL.
+--reap
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+
+
+--echo #
+--echo # 14.3) FLUSH TABLES is compatible with FTWRL.
+let $statement= flush tables;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 14.4) FLUSH TABLES <list> is compatible with FTWRL.
+let $statement= flush table t1_base, t2_base;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 14.5) FLUSH PRIVILEGES is compatible with FTWRL.
+let $statement= flush privileges;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 15) GRANT statement should be incompatible with FTWRL.
+--echo #
+let $statement= grant all privileges on t1_base to mysqltest_u1;
+let $cleanup_stmt1= revoke all privileges on t1_base from mysqltest_u1;
+--source include/check_ftwrl_incompatible.inc
+drop user mysqltest_u1;
+
+
+--echo #
+--echo # 16) All HANDLER variants are half-compatible with FTWRL.
+--echo #     I.e. they are not blocked by active FTWRL. But since open
+--echo #     HANDLER means open table instance FTWRL is blocked while
+--echo #     HANDLER is not closed.
+--echo #
+--echo # Check that HANDLER statements succeed under FTWRL.
+flush tables with read lock;
+handler t1_base open;
+handler t1_base read first;
+handler t1_base close;
+unlock tables;
+--echo # Check that HANDLER statements can be run while FTWRL
+--echo # is active in another connection.
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+handler t1_base open;
+handler t1_base read first;
+handler t1_base close;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+
+
+--echo #
+--echo # 17) HELP statement is compatible with FTWRL.
+--echo #
+let $statement= help no_such_topic;
+let $cleanup_stmt= ; 
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 18) INSERT statement.
+--echo # 
+--echo # 18.a) Ordinary INSERT into base table is incompatible with FTWRL.
+let $statement= insert into t1_base values (1);
+let $cleanup_stmt1= delete from t1_base limit 1;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 18.b) Ordinary INSERT into temp table is compatible with FTWRL.
+let $statement= insert into t1_temp values (1);
+let $cleanup_stmt= delete from t1_temp limit 1;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 18.c) INSERT DELAYED is incompatible with FTWRL.
+let $statement= insert delayed into t1_base values (1);
+let $cleanup_stmt1= ;
+--source include/check_ftwrl_incompatible.inc
+delete from t1_base;
+
+--echo # 
+--echo # 18.d) INSERT SELECT into base table is incompatible with FTWRL.
+let $statement= insert into t1_base select * from t1_temp;
+let $cleanup_stmt1= ;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 18.e) INSERT SELECT into temp table is compatible with FTWRL.
+let $statement= insert into t1_temp select * from t1_base;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 19) KILL statement is compatible with FTWRL.
+--echo #
+--echo # Check that KILL can be run under FTWRL.
+flush tables with read lock;
+set @id:= connection_id();
+--error ER_QUERY_INTERRUPTED
+kill query @id;
+unlock tables;
+--echo # Check that KILL statements can be run while FTWRL
+--echo # is active in another connection.
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--error ER_QUERY_INTERRUPTED
+kill query @id;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Finally check that KILL doesn't block FTWRL
+set debug_sync='RESET';
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+--send kill query @id
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+unlock tables;
+set debug_sync='now SIGNAL go';
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap KILL. 
+--error ER_QUERY_INTERRUPTED
+--reap
+set debug_sync='RESET';
+
+
+--echo #
+--echo # 20) LOAD DATA statement.
+--echo # 
+--echo # 20.a) LOAD DATA into base table is incompatible with FTWRL.
+let $statement= load data infile '../../std_data/rpl_loaddata.dat' into table t1_base (@dummy, i);
+let $cleanup_stmt1= delete from t1_base;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 
+--echo # 20.b) LOAD DATA into temporary table is compatible with FTWRL.
+let $statement= load data infile '../../std_data/rpl_loaddata.dat' into table t1_temp (@dummy, i);
+let $cleanup_stmt= delete from t1_temp;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 21) LOCK/UNLOCK TABLES statements.
+--echo #
+--echo # LOCK TABLES statement always (almost) blocks FTWRL as it
+--echo # keeps tables open until UNLOCK TABLES.
+--echo # Active FTWRL on the other hand blocks only those
+--echo # LOCK TABLES which allow updating of base tables.
+--echo #
+--echo # 21.a) LOCK TABLES READ is allowed under FTWRL and
+--echo #       is not blocked by active FTWRL.
+flush tables with read lock;
+lock tables t1_base read;
+unlock tables;
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+lock tables t1_base read;
+unlock tables;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+
+--echo #
+--echo # 21.b) LOCK TABLES WRITE on a base table is disallowed
+--echo #       under FTWRL and should be blocked by active FTWRL.
+flush tables with read lock;
+--error ER_CANT_UPDATE_WITH_READLOCK
+lock tables t1_base write;
+unlock tables;
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--send lock tables t1_base write 
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Check that LOCK TABLES WRITE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock" and
+        info = "lock tables t1_base write";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap LOCK TABLES WRITE
+--reap
+unlock tables;
+
+--echo #
+--echo # 21.c) LOCK TABLES WRITE on temporary table doesn't
+--echo #       make much sense but is allowed under FTWRL
+--echo #       and should not be blocked by active FTWRL.
+flush tables with read lock;
+lock tables t1_temp write;
+unlock tables;
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+lock tables t1_temp write;
+unlock tables;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+
+
+--echo #
+--echo # 22) OPTIMIZE TABLE statement.
+--echo #
+--echo # 22.a) OPTIMIZE TABLE of base table is incompatible with FTWRL.
+flush tables with read lock;
+--echo # OPTIMIZE statement returns errors as part of result-set.
+optimize table t1_base;
+unlock tables;
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--send optimize table t1_base
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Check that OPTIMIZE TABLE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock" and
+        info = "optimize table t1_base";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap OPTIMIZE TABLE
+--reap
+--echo # We don't check that active OPTIMIZE TABLE blocks
+--echo # FTWRL as this one of statements releasing metadata
+--echo # locks in non-standard place.
+
+--echo #
+--echo # 22.b) OPTIMIZE TABLE of temporary table is compatible with FTWRL.
+let $statement= optimize table t1_temp;
+let $cleanup_stmt= ;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+
+--echo #
+--echo # 23) CACHE statement is compatible with FTWRL.
+--echo #
+let $statement= cache index t1_base in default;
+let $cleanup_stmt= ;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+
+--echo #
+--echo # 24) LOAD INDEX statement is compatible with FTWRL.
+--echo #
+let $statement= load index into cache t1_base;
+let $cleanup_stmt= ;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+
+--echo #
+--echo # 25) SAVEPOINT/RELEASE SAVEPOINT/ROLLBACK TO SAVEPOINT are
+--echo #     compatible with FTWRL.
+--echo #
+--echo # Since manipulations on savepoint have to be done
+--echo # inside transaction and FTWRL commits transaction we
+--echo # need a special test for these statements.
+flush tables with read lock;
+begin;
+savepoint sv1;
+rollback to savepoint sv1;
+release savepoint sv1;
+unlock tables;
+commit;
+--echo # Check that these statements are not blocked by
+--echo # active FTWRL in another connection.
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+begin;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Do some changes to avoid SAVEPOINT and friends
+--echo # being almost no-ops.
+insert into t3_trans values (1);
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+savepoint sv1;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+insert into t3_trans values (2);
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+rollback to savepoint sv1;
+release savepoint sv1;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+rollback;
+--echo # Check that these statements don't block FTWRL in
+--echo # another connection.
+begin;
+--echo # Do some changes to avoid SAVEPOINT and friends
+--echo # being almost no-ops.
+insert into t3_trans values (1);
+set debug_sync='RESET';
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+--send savepoint sv1
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+unlock tables;
+set debug_sync='now SIGNAL go';
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap SAVEPOINT
+--reap
+insert into t3_trans values (2);
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+--send rollback to savepoint sv1
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+unlock tables;
+set debug_sync='now SIGNAL go';
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap ROLLBACK TO SAVEPOINT
+--reap
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+--send release savepoint sv1
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+unlock tables;
+set debug_sync='now SIGNAL go';
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap RELEASE SAVEPOINT
+--reap
+rollback;
+set debug_sync= "RESET";
+
+
+--echo #
+--echo # 26) RENAME variants.
+--echo #
+--echo # 26.1) RENAME TABLES is incompatible with FTWRL.
+let $statement= rename table t1_base to t3_base;
+let $cleanup_stmt1= rename table t3_base to t1_base;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 26.2) RENAME USER is incompatible with FTWRL.
+create user mysqltest_u1;
+let $statement= rename user mysqltest_u1 to mysqltest_u2;
+let $cleanup_stmt1= rename user mysqltest_u2 to mysqltest_u1;
+--source include/check_ftwrl_incompatible.inc
+drop user mysqltest_u1;
+
+
+--echo #
+--echo # 27) REPAIR TABLE statement.
+--echo #
+--echo # 27.a) REPAIR TABLE of base table is incompatible with FTWRL.
+flush tables with read lock;
+--echo # REPAIR statement returns errors as part of result-set.
+repair table t1_base;
+unlock tables;
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--send repair table t1_base
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Check that REPAIR TABLE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock" and
+        info = "repair table t1_base";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap REPAIR TABLE
+--reap
+--echo # We don't check that active REPAIR TABLE blocks
+--echo # FTWRL as this one of statements releasing metadata
+--echo # locks in non-standard place.
+
+--echo #
+--echo # 27.b) REPAIR TABLE of temporary table is compatible with FTWRL.
+let $statement= repair table t1_temp;
+let $cleanup_stmt= ;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+
+--echo #
+--echo # 28) REPLACE statement.
+--echo # 
+--echo # 28.a) Ordinary REPLACE into base table is incompatible with FTWRL.
+let $statement= replace into t1_base values (1);
+let $cleanup_stmt1= delete from t1_base limit 1;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 28.b) Ordinary REPLACE into temp table is compatible with FTWRL.
+let $statement= replace into t1_temp values (1);
+let $cleanup_stmt= delete from t1_temp limit 1;
+--source include/check_ftwrl_compatible.inc
+
+--echo # 
+--echo # 28.c) REPLACE SELECT into base table is incompatible with FTWRL.
+let $statement= replace into t1_base select * from t1_temp;
+let $cleanup_stmt1= ;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 28.d) REPLACE SELECT into temp table is compatible with FTWRL.
+let $statement= replace into t1_temp select * from t1_base;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 29) REVOKE variants.
+--echo # 
+--echo # 29.1) REVOKE privileges is incompatible with FTWRL. 
+grant all privileges on t1_base to mysqltest_u1;
+let $statement= revoke all privileges on t1_base from mysqltest_u1;
+let $cleanup_stmt1= grant all privileges on t1_base to mysqltest_u1;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 
+--echo # 29.2) REVOKE ALL PRIVILEGES, GRANT OPTION is incompatible with FTWRL.
+let $statement= revoke all privileges, grant option from mysqltest_u1;
+let $cleanup_stmt1= grant all privileges on t1_base to mysqltest_u1;
+--source include/check_ftwrl_incompatible.inc
+drop user mysqltest_u1;
+
+
+--echo #
+--echo # 30) Compatibility of SELECT statement with FTWRL depends on
+--echo #     locking mode used and on functions being invoked by it.
+--echo #
+--echo # 30.a) Simple SELECT which does not change tables should be
+--echo #       compatible with FTWRL.
+let $statement= select count(*) from t1_base;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo # 30.b) SELECT ... FOR UPDATE is incompatible with FTWRL.
+let $statement= select count(*) from t1_base for update;
+let $cleanup_stmt1= ;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 30.c) SELECT ... LOCK IN SHARE MODE is compatible with FTWRL.
+let $statement= select count(*) from t1_base lock in share mode;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 30.d) SELECT which calls SF updating base table should be
+--echo #       incompatible with FTWRL.
+let $statement= select f2_base();
+let $cleanup_stmt1= delete from t1_base limit 1;
+--source include/check_ftwrl_incompatible.inc
+
+--echo #
+--echo # 30.e) SELECT which calls SF updating temporary table should be
+--echo #       compatible with FTWRL.
+let $statement= select f2_temp();
+let $cleanup_stmt= delete from t1_temp limit 1;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 31) Compatibility of SET statement with FTWRL depends on its
+--echo #     expression and on whether it is a special SET statement.
+--echo #
+--echo # 31.a) Ordinary SET with expression which does not
+--echo #       changes base table should be compatible with FTWRL.
+let $statement= set @a:= (select count(*) from t1_base);
+let $cleanup_stmt= ;
+--echo # Skip last part of compatibility testing as our helper debug
+--echo # sync-point doesn't work for SET statements.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+--echo #
+--echo # 31.b) Ordinary SET which calls SF updating base table should
+--echo #       be incompatible with FTWRL.
+let $statement= set @a:= f2_base();
+let $cleanup_stmt1= delete from t1_base limit 1;
+--echo # Skip last part of compatibility testing as our helper debug
+--echo # sync-point doesn't work for SET statements.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_incompatible.inc
+let $skip_3rd_check= ;
+
+--echo #
+--echo # 31.c) Ordinary SET which calls SF updating temporary table
+--echo #       should be compatible with FTWRL.
+let $statement= set @a:= f2_temp();
+let $cleanup_stmt= delete from t1_temp limit 1;
+--echo # Skip last part of compatibility testing as our helper debug
+--echo # sync-point doesn't work for SET statements.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+--echo #
+--echo # 31.d) Special SET variants have different compatibility with FTWRL.
+--echo #
+--echo # 31.d.I) SET PASSWORD is incompatible with FTWRL as it changes data.
+create user mysqltest_u1;
+let $statement= set password for 'mysqltest_u1' = password('');
+let $cleanup_stmt1= ;
+--echo # Skip last part of compatibility testing as our helper debug
+--echo # sync-point doesn't work for SET statements.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_incompatible.inc
+let $skip_3rd_check= ;
+drop user mysqltest_u1;
+--echo #
+--echo # 31.d.II) SET READ_ONLY is compatible with FTWRL (but has no
+--echo #          effect when executed under it).
+let $statement= set global read_only= 1;
+let $cleanup_stmt= set global read_only= 0;
+--echo # Skip last part of compatibility testing as our helper debug
+--echo # sync-point doesn't work for SET statements.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+--echo #
+--echo # 31.d.III) Situation with SET AUTOCOMMIT is complex.
+--echo #           Turning auto-commit off is always compatible with FTWRL.
+--echo #           Turning auto-commit on causes implicit commit and so
+--echo #           is incompatible with FTWRL if there are changes to be
+--echo #           committed.
+flush tables with read lock;
+set autocommit= 0;
+--echo # Turning auto-commit on causes implicit commit so can
+--echo # be incompatible with FTWRL if there is something to
+--echo # commit. But since even in this case we allow commits
+--echo # under active FTWRL such statement should always succeed.
+insert into t3_temp_trans values (1);
+set autocommit= 1;
+unlock tables;
+delete from t3_temp_trans;
+--echo # Check that SET AUTOCOMMIT=0 is not blocked and 
+--echo # SET AUTOCOMMIT=1 is blocked by active FTWRL in
+--echo # another connection.
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+set autocommit= 0;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Do some work so implicit commit in SET AUTOCOMMIT=1 
+--echo # is not a no-op.
+insert into t3_trans values (1);
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Send:
+--send set autocommit= 1
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Wait until SET AUTOCOMMIT=1 is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "set autocommit= 1";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap SET AUTOCOMMIT=1.
+--reap
+delete from t3_trans;
+--echo #
+--echo # Check that SET AUTOCOMMIT=1 blocks FTWRL in another connection.
+set autocommit= 0;
+insert into t3_trans values (1);
+set debug_sync='RESET';
+set debug_sync='ha_commit_trans_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+--send set autocommit= 1
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+set debug_sync='now WAIT_FOR parked';
+--send flush tables with read lock
+--echo # Switching to connection '$con_aux2'.
+connection $con_aux2;
+--echo # Wait until FTWRL is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "flush tables with read lock";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap SET AUTOCOMMIT=1.
+--reap
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Reap FTWRL.
+--reap 
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+delete from t3_trans;
+set debug_sync= "RESET";
+
+
+--echo #
+--echo # 32) SHOW statements are compatible with FTWRL.
+--echo #     Let us test _some_ of them.
+--echo #
+--echo # 32.1) SHOW TABLES.
+let $statement= show tables from test;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 32.1) SHOW TABLES.
+let $statement= show tables from test;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 32.2) SHOW EVENTS.
+let $statement= show events from test;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 32.3) SHOW GRANTS.
+create user mysqltest_u1;
+let $statement= show grants for mysqltest_u1;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+drop user mysqltest_u1;
+
+--echo #
+--echo # 32.4) SHOW CREATE TABLE.
+let $statement= show create table t1_base;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 32.5) SHOW CREATE FUNCTION.
+let $statement= show create function f1;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 33) SIGNAL statement is compatible with FTWRL.
+--echo #
+--echo # Note that we don't cover RESIGNAL as it requires
+--echo # active handler context. 
+let $statement= signal sqlstate '01000';
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 34) TRUNCATE TABLE statement.
+--echo # 
+--echo # 34.a) TRUNCATE of base table is incompatible with FTWRL.
+let $statement= truncate table t1_base;
+let $cleanup_stmt1= ;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 
+--echo # 34.b) TRUNCATE of temporary table is compatible with FTWRL.
+let $statement= truncate table t1_temp;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 35) UPDATE variants.
+--echo #
+--echo # 35.1) Simple UPDATE.
+--echo # 
+--echo # 35.1.a) Simple UPDATE on base table is incompatible with FTWRL.
+let $statement= update t1_base set i= 1 where i = 0;
+let $cleanup_stmt1= ;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 
+--echo # 35.1.b) Simple UPDATE on temporary table is compatible with FTWRL.
+let $statement= update t1_temp set i= 1 where i = 0;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo #
+--echo # 35.2) Multi UPDATE.
+--echo # 
+--echo # 35.2.a) Multi UPDATE on base tables is incompatible with FTWRL.
+let $statement= update t1_base, t2_base set t1_base.i= 1 where t1_base.i = t2_base.j;
+let $cleanup_stmt1= ;
+--source include/check_ftwrl_incompatible.inc
+
+--echo # 
+--echo # 35.2.b) Multi UPDATE on temporary tables is compatible with FTWRL.
+let $statement= update t1_temp, t2_temp set t1_temp.i= 1 where t1_temp.i = t2_temp.j;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 36) USE statement is compatible with FTWRL.
+--echo #
+let $statement= use mysqltest1;
+let $cleanup_stmt= use test;
+--source include/check_ftwrl_compatible.inc
+
+
+--echo #
+--echo # 37) XA statements.
+--echo #     
+--echo # XA statements are similar to BEGIN/COMMIT/ROLLBACK.
+--echo #
+--echo # XA BEGIN, END, PREPARE, ROLLBACK and RECOVER are compatible
+--echo # with FTWRL. XA COMMIT is not.
+flush tables with read lock;
+--echo # Although all below statements are allowed under FTWRL they
+--echo # are almost no-ops as FTWRL does commit and does not allows
+--echo # any non-temporary DML under it.
+xa start 'test1';
+xa end 'test1';
+xa prepare 'test1';
+xa rollback 'test1';
+xa start 'test1';
+xa end 'test1';
+xa prepare 'test1';
+xa commit 'test1';
+--disable_result_log
+xa recover;
+--enable_result_log
+unlock tables;
+--echo # Check that XA non-COMMIT statements are not and COMMIT is
+--echo # blocked by active FTWRL in another connection
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+xa start 'test1';
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+insert into t3_trans values (1);
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+xa end 'test1';
+xa prepare 'test1';
+xa rollback 'test1';
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+xa start 'test1';
+insert into t3_trans values (1);
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+connection default;
+xa end 'test1';
+xa prepare 'test1';
+--echo # Send:
+--send xa commit 'test1';
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Wait until XA COMMIT is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "xa commit 'test1'";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap XA COMMIT.
+--reap
+delete from t3_trans;
+--echo #
+--echo # Check that XA COMMIT blocks FTWRL in another connection.
+xa start 'test1';
+insert into t3_trans values (1);
+xa end 'test1';
+xa prepare 'test1';
+set debug_sync='RESET';
+set debug_sync='trans_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+--send xa commit 'test1'
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+set debug_sync='now WAIT_FOR parked';
+--send flush tables with read lock
+--echo # Switching to connection '$con_aux2'.
+connection $con_aux2;
+--echo # Wait until FTWRL is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "flush tables with read lock";
+--source include/wait_condition.inc
+set debug_sync='now SIGNAL go';
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap XA COMMIT.
+--reap
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Reap FTWRL.
+--reap 
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+delete from t3_trans;
+set debug_sync= "RESET";
+
+
+--echo #
+--echo # 38) Test effect of auto-commit mode for DML on transactional
+--echo #     temporary tables.
+--echo # 
+--echo # 38.1) When auto-commit is on each such a statement ends with commit
+--echo #       of changes to temporary tables. But since transactions doing
+--echo #       such changes are considered read only [sic!/QQ] this commit
+--echo #       is compatible with FTWRL.
+--echo #
+--echo #       Let us demostrate this fact for some common DML statements.
+let $statement= delete from t3_temp_trans;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+let $statement= insert into t3_temp_trans values (1);
+let $cleanup_stmt= delete from t3_temp_trans limit 1;
+--source include/check_ftwrl_compatible.inc
+
+let $statement= update t3_temp_trans, t2_temp set t3_temp_trans.i= 1 where t3_temp_trans.i = t2_temp.j;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+--echo # 
+--echo # 38.2) When auto-commit is off DML on transaction temporary tables
+--echo #       is compatible with FTWRL.
+--echo #
+set autocommit= 0;
+let $statement= delete from t3_temp_trans;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+
+let $statement= insert into t3_temp_trans values (1);
+let $cleanup_stmt= delete from t3_temp_trans limit 1;
+--source include/check_ftwrl_compatible.inc
+
+let $statement= update t3_temp_trans, t2_temp set t3_temp_trans.i= 1 where t3_temp_trans.i = t2_temp.j;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+set autocommit= 1;
+
+
+--echo #
+--echo # 39) Test effect of DDL on transactional tables.
+--echo #
+--echo # 39.1) Due to implicit commit at the end of statement some of DDL
+--echo #       statements which are compatible with FTWRL in non-transactional
+--echo #       case are not compatible in case of transactional tables.
+--echo #
+--echo # 39.1.a) ANALYZE TABLE for transactional table is incompatible with
+--echo #         FTWRL.
+flush tables with read lock;
+--echo # Implicit commits are allowed under FTWRL.
+analyze table t3_trans;
+unlock tables;
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--send analyze table t3_trans
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Check that ANALYZE TABLE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "analyze table t3_trans";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap ANALYZE TABLE
+--reap
+
+--echo #
+--echo # 39.1.b) CHECK TABLE for transactional table is compatible with FTWRL.
+--echo #         Although it does implicit commit at the end of statement it
+--echo #         is considered to be read-only operation.
+let $statement= check table t3_trans;
+let $cleanup_stmt= ;
+--echo # Skip last part of compatibility testing as this statement
+--echo # releases metadata locks in non-standard place.
+let $skip_3rd_check= 1;
+--source include/check_ftwrl_compatible.inc
+let $skip_3rd_check= ;
+
+--echo #
+--echo # 39.2) Situation with DDL on temporary transactional tables is
+--echo #       complex.
+--echo #
+--echo # 39.2.a) Some statements compatible with FTWRL since they don't
+--echo #         do implicit commit.
+--echo #
+--echo # For example, CREATE TEMPORARY TABLE:
+let $statement= create temporary table t4_temp_trans(i int) engine=innodb;
+let $cleanup_stmt= drop temporary tables t4_temp_trans;
+--source include/check_ftwrl_compatible.inc
+--echo #
+--echo # Or DROP TEMPORARY TABLE:
+let $statement= drop temporary tables t3_temp_trans;
+let $cleanup_stmt= create temporary table t3_temp_trans(i int) engine=innodb;
+--source include/check_ftwrl_compatible.inc
+--echo #
+--echo # 39.2.b) Some statements do implicit commit but are considered
+--echo #         read-only and so are compatible with FTWRL.
+--echo #
+--echo # For example, REPAIR TABLE:
+let $statement= repair table t3_temp_trans;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+--echo #
+--echo # And ANALYZE TABLE:
+let $statement= analyze table t3_temp_trans;
+let $cleanup_stmt= ;
+--source include/check_ftwrl_compatible.inc
+--echo #
+--echo # 39.2.c) Some statements do implicit commit and not
+--echo #         considered read-only. As result they are 
+--echo #         not compatible with FTWRL.
+--echo #
+flush tables with read lock;
+--echo # Implicit commits are allowed under FTWRL.
+alter table t3_temp_trans add column c1 int;
+unlock tables;
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--send alter table t3_temp_trans drop column c1
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Check that ALTER TABLE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "alter table t3_temp_trans drop column c1";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+
+
+--echo #
+--echo # 40) Test effect of implicit commit for DDL which is otherwise
+--echo #     compatible with FTWRL. Implicit commit at the start of DDL
+--echo #     statement can make it incompatible with FTWRL if there are
+--echo #     some changes to be commited even in case when DDL statement
+--echo #     itself is compatible with FTWRL.
+--echo #
+--echo # For example CHECK TABLE for base non-transactional tables and
+--echo # ALTER TABLE for temporary non-transactional tables are affected.
+begin;
+insert into t3_trans values (1);
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--send check table t1_base
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Check that CHECK TABLE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "check table t1_base";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap CHECK TABLE
+--reap
+begin;
+delete from t3_trans;
+--echo #
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--send alter table t1_temp add column c1 int
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Check that ALTER TABLE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "alter table t1_temp add column c1 int";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap ALTER TABLE
+--reap
+alter table t1_temp drop column c1;
+
+
+--echo #
+--echo # Check that FLUSH TABLES WITH READ LOCK is blocked by individual
+--echo # statements and is not blocked in the presence of transaction which
+--echo # has done some changes earlier but is idle now (or does only reads).
+--echo # This allows to use this statement even on systems which has long
+--echo # running transactions.
+--echo #
+begin;
+insert into t1_base values (1);
+insert into t3_trans values (1);
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # The below FTWRL should not be blocked by transaction in 'default'.
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Transaction still is able to read even with FTWRL active in another
+--echo # connection.
+select * from t1_base;
+select * from t2_base;
+select * from t3_trans;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+commit;
+delete from t1_base;
+delete from t3_trans;
+
+
+--echo #
+--echo # Check that impending FTWRL blocks new DML statements and
+--echo # so can't be starved by a constant flow of DML.
+--echo # (a.k.a. test for bug #54673 "It takes too long to get
+--echo # readlock for 'FLUSH TABLES WITH READ LOCK'").
+--echo #
+set debug_sync='RESET';
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+--send insert into t1_base values (1)
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+set debug_sync='now WAIT_FOR parked';
+--send flush tables with read lock
+--echo # Switching to connection '$con_aux2'.
+connection $con_aux2;
+--echo # Wait until FTWRL is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock" and
+        info = "flush tables with read lock";
+--source include/wait_condition.inc
+--echo # Try to run another INSERT and see that it is blocked.
+--send insert into t2_base values (1);
+--echo # Switching to connection 'con3'.
+connection con3;
+--echo # Wait until new INSERT is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock" and
+        info = "insert into t2_base values (1)";
+--echo # Unblock INSERT in the first connection.
+set debug_sync='now SIGNAL go';
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap first INSERT.
+--reap
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Reap FTWRL.
+--reap 
+unlock tables;
+--echo # Switching to connection '$con_aux2'.
+connection $con_aux2;
+--echo # Reap second INSERT.
+--reap
+--echo # Switching to connection 'default'.
+connection default;
+set debug_sync= "RESET";
+delete from t1_base;
+delete from t2_base;
+
+--echo 
+--echo # Check that COMMIT thas is issued after
+--echo # FLUSH TABLES WITH READ LOCK is not blocked by
+--echo # FLUSH TABLES WITH READ LOCK from another connection.
+--echo # This scenario is used in innobackup.pl. The COMMIT goes
+--echo # through because the transaction started by FTWRL does
+--echo # not modify any tables, and the commit blocker lock is
+--echo # only taken when there were such modifications.
+--echo 
+flush tables with read lock;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # The below FTWRL should not be blocked by transaction in 'default'.
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+select * from t1_base;
+select * from t3_trans;
+commit;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+select * from t1_base;
+select * from t3_trans;
+commit;
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+unlock tables;
+
+
+--echo #
+--echo # Check how FLUSH TABLE WITH READ LOCK is handled for MERGE tables.
+--echo # As usual there are tricky cases related to this type of tables.
+--echo #
+--echo #
+--echo # 1) Most typical case - base MERGE table with base underlying tables.
+--echo #    
+--echo # 1.a) DML statements which change data should be incompatible with FTWRL.
+create table tm_base (i int) engine=merge union=(t1_base) insert_method=last;
+let $statement= insert into tm_base values (1);
+let $cleanup_stmt1= delete from tm_base;
+--source include/check_ftwrl_incompatible.inc
+--echo #
+--echo # 1.b) DDL statement on such table should be incompatible with FTWRL as well.
+let $statement= alter table tm_base insert_method=first;
+let $cleanup_stmt1= alter table tm_base insert_method=last;
+--source include/check_ftwrl_incompatible.inc
+drop table tm_base;
+
+--echo #
+--echo # 2) Temporary MERGE table with base underlying tables.
+--echo #
+--echo # 2.a) DML statements which change data should be incompatible with FTWRL
+--echo #      as they affect base tables.
+create temporary table tm_temp_base (i int) engine=merge union=(t1_base) insert_method=last;
+let $statement= insert into tm_temp_base values (1);
+let $cleanup_stmt1= delete from tm_temp_base;
+--source include/check_ftwrl_incompatible.inc
+--echo #
+--echo # 2.b) Some of DDL statements on such table can be compatible with FTWRL
+--echo #      as they don't affect base tables.
+let $statement= drop temporary tables tm_temp_base;
+let $cleanup_stmt= create temporary table tm_temp_base (i int) engine=merge union=(t1_base) insert_method=last;
+--source include/check_ftwrl_compatible.inc
+--echo #
+--echo # 2.c) ALTER statement is incompatible with FTWRL. Even though it does
+--echo #      not change data in base table it still acquires strong metadata
+--echo #      locks on them.
+let $statement= alter table tm_temp_base insert_method=first;
+let $cleanup_stmt1= alter table tm_temp_base insert_method=last;
+--source include/check_ftwrl_incompatible.inc
+drop table tm_temp_base;
+
+--echo #
+--echo # 3) Temporary MERGE table with temporary underlying tables.
+--echo #
+--echo # 3.a) DML statements should be compatible with FTWRL as
+--echo #      no base table is going to be affected.
+create temporary table tm_temp_temp (i int) engine=merge union=(t1_temp) insert_method=last;
+let $statement= insert into tm_temp_temp values (1);
+let $cleanup_stmt= delete from tm_temp_temp;
+--source include/check_ftwrl_compatible.inc
+--echo #
+--echo # 3.b) DDL statements should be compatible with FTWRL as well
+--echo #      as no base table is going to be affected too.
+let $statement= alter table tm_temp_temp union=(t1_temp) insert_method=first;
+let $cleanup_stmt= alter table tm_temp_temp union=(t1_temp) insert_method=last;
+--source include/check_ftwrl_compatible.inc
+drop table tm_temp_temp;
+
+--echo #
+--echo # 4) For the sake of completeness let us check that base MERGE tables
+--echo #    with temporary underlying tables are not functional.
+create table tm_base_temp (i int) engine=merge union=(t1_temp) insert_method=last;
+--error ER_WRONG_MRG_TABLE
+select * from tm_base_temp;
+drop table tm_base_temp;
+
+
+--echo #
+--echo # Clean-up.
+--echo #
+drop event e1;
+drop function f2_temp;
+drop function f2_base;
+drop procedure p2;
+drop view v1;
+drop function f1;
+drop procedure p1;
+drop database `#mysql50#mysqltest-2`;
+drop database mysqltest1;
+drop temporary tables t1_temp, t2_temp;
+drop tables t1_base, t2_base, t3_trans;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

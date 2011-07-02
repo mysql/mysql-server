@@ -13,16 +13,16 @@ EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a IN (10, 100, 3) GROUP BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	5	NULL	4	Using where; Using index
 DROP TABLE t1;
-create table t1 (a int)
-partition by range (a)
+create table t1 (a DATETIME)
+partition by range (TO_DAYS(a))
 subpartition by hash(to_seconds(a))
 (partition p0 values less than (1));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50500 PARTITION BY RANGE (a)
+/*!50500 PARTITION BY RANGE (TO_DAYS(a))
 SUBPARTITION BY HASH (to_seconds(a))
 (PARTITION p0 VALUES LESS THAN (1) ENGINE = MyISAM) */
 drop table t1;

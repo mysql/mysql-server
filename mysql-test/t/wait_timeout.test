@@ -53,7 +53,7 @@ while (!`select @aborted_clients`)
   dec $retries;
   if (!$retries)
   {
-    Failed to detect that client has been aborted;
+    die Failed to detect that client has been aborted;
   }
 }
 --enable_query_log
@@ -108,7 +108,7 @@ while (!`select @aborted_clients`)
   dec $retries;
   if (!$retries)
   {
-    Failed to detect that client has been aborted;
+    die Failed to detect that client has been aborted;
   }
 }
 --enable_query_log

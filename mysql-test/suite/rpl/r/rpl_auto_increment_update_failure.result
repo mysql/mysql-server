@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 # Test case1: INVOKES A TRIGGER with after insert action
 create table t1(a int, b int) engine=innodb;
 create table t2(i1 int not null auto_increment, a int, primary key(i1)) engine=innodb;
@@ -110,9 +106,9 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave
 #for 'INVOKES A TRIGGER with after insert action'
-Comparing tables master:test.t2 and slave:test.t2
-Comparing tables master:test.t4 and slave:test.t4
-Comparing tables master:test.t6 and slave:test.t6
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t4, slave:t4]
+include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -226,9 +222,9 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave
 #for 'INVOKES A TRIGGER with before insert action'
-Comparing tables master:test.t2 and slave:test.t2
-Comparing tables master:test.t4 and slave:test.t4
-Comparing tables master:test.t6 and slave:test.t6
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t4, slave:t4]
+include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -342,9 +338,9 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave
 #for 'INVOKES A TRIGGER with after update action'
-Comparing tables master:test.t2 and slave:test.t2
-Comparing tables master:test.t4 and slave:test.t4
-Comparing tables master:test.t6 and slave:test.t6
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t4, slave:t4]
+include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -458,9 +454,9 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave
 #for 'INVOKES A TRIGGER with before update action'
-Comparing tables master:test.t2 and slave:test.t2
-Comparing tables master:test.t4 and slave:test.t4
-Comparing tables master:test.t6 and slave:test.t6
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t4, slave:t4]
+include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -574,9 +570,9 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave
 #for 'INVOKES A TRIGGER with after delete action'
-Comparing tables master:test.t2 and slave:test.t2
-Comparing tables master:test.t4 and slave:test.t4
-Comparing tables master:test.t6 and slave:test.t6
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t4, slave:t4]
+include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -690,9 +686,9 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave
 #for 'INVOKES A TRIGGER with before delete action'
-Comparing tables master:test.t2 and slave:test.t2
-Comparing tables master:test.t4 and slave:test.t4
-Comparing tables master:test.t6 and slave:test.t6
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t4, slave:t4]
+include/diff_tables.inc [master:t6, slave:t6]
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -761,8 +757,8 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave
 #for 'CALLS A FUNCTION which INVOKES A TRIGGER with after insert action'
-Comparing tables master:test.t2 and slave:test.t2
-Comparing tables master:test.t3 and slave:test.t3
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t3, slave:t3]
 drop table t1;
 drop table t2;
 drop table t3;
@@ -828,8 +824,8 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave
 #for 'CALLS A FUNCTION which INVOKES A TRIGGER with before insert action'
-Comparing tables master:test.t2 and slave:test.t2
-Comparing tables master:test.t3 and slave:test.t3
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t3, slave:t3]
 drop table t1;
 drop table t2;
 drop table t3;
@@ -853,7 +849,7 @@ INSERT INTO v16(c1) VALUES (25), (26);
 commit;
 #Test if the results are consistent on master and slave
 #for 'INSERT DATA INTO VIEW WHICH INVOKES TRIGGERS'
-Comparing tables master:test.t3 and slave:test.t3
+include/diff_tables.inc [master:t3, slave:t3]
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -877,7 +873,7 @@ INSERT INTO v16(c1) VALUES (25), (26);
 commit;
 #Test if the results are consistent on master and slave
 #for 'INSERT DATA INTO VIEW WHICH INVOKES TRIGGERS'
-Comparing tables master:test.t3 and slave:test.t3
+include/diff_tables.inc [master:t3, slave:t3]
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -980,8 +976,8 @@ master-bin.000001	#	Query	#	#	use `test`; insert into t2(a,b) values(3,3)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #Test if the results are consistent on master and slave
 #for 'UPDATE MORE THAN ONE TABLES ON TOP-STATEMENT'
-Comparing tables master:test.t1 and slave:test.t1
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
 drop table t1;
 drop table t2;
 # Test case14: INSERT DATA INTO VIEW WHICH INVOLVED MORE THAN ONE TABLES
@@ -1034,8 +1030,9 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO v15(c2) VALUES (25), (26)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 #Test if the results are consistent on master and slave
 #for 'INSERT DATA INTO VIEW WHICH INVOLVED MORE THAN ONE TABLES'
-Comparing tables master:test.t1 and slave:test.t1
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
 drop table t1;
 drop table t2;
 drop view  v15;
+include/rpl_end.inc

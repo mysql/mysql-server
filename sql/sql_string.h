@@ -99,9 +99,13 @@ public:
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
   { return (void*) alloc_root(mem_root, (uint) size); }
-  static void operator delete(void *ptr_arg,size_t size)
-  { TRASH(ptr_arg, size); }
-  static void operator delete(void *ptr_arg, MEM_ROOT *mem_root)
+  static void operator delete(void *ptr_arg, size_t size)
+  {
+    (void) ptr_arg;
+    (void) size;
+    TRASH(ptr_arg, size);
+  }
+  static void operator delete(void *, MEM_ROOT *)
   { /* never called */ }
   ~String() { free(); }
 
@@ -117,6 +121,9 @@ public:
   inline const char *ptr() const { return Ptr; }
   inline char *c_ptr()
   {
+    DBUG_ASSERT(!alloced || !Ptr || !Alloced_length || 
+                (Alloced_length >= (str_length + 1)));
+
     if (!Ptr || Ptr[str_length])		/* Should be safe */
       (void) realloc(str_length);
     return Ptr;
@@ -152,6 +159,16 @@ public:
       Alloced_length=0;
     str_charset=str.str_charset;
   }
+
+
+  /**
+     Points the internal buffer to the supplied one. The old buffer is freed.
+     @param str Pointer to the new buffer.
+     @param arg_length Length of the new buffer in characters, excluding any 
+            null character.
+     @param cs Character set to use for interpreting string data.
+     @note The new buffer will not be null terminated.
+  */
   inline void set(char *str,uint32 arg_length, CHARSET_INFO *cs)
   {
     free();
@@ -273,8 +290,12 @@ public:
 	    CHARSET_INFO *csto, uint *errors);
   bool append(const String &s);
   bool append(const char *s);
-  bool append(const char *s,uint32 arg_length);
-  bool append(const char *s,uint32 arg_length, CHARSET_INFO *cs);
+  bool append(LEX_STRING *ls)
+  {
+    return append(ls->str, ls->length);
+  }
+  bool append(const char *s, uint32 arg_length);
+  bool append(const char *s, uint32 arg_length, CHARSET_INFO *cs);
   bool append_ulonglong(ulonglong val);
   bool append(IO_CACHE* file, uint32 arg_length);
   bool append_with_prefill(const char *s, uint32 arg_length, 

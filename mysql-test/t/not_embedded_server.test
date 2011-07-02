@@ -4,31 +4,7 @@
 
 -- source include/not_embedded.inc
 
-# The following fails sporadically because 'check-testcase' runs
-# queries before this test and there is no way to guarantee that any
-# previous process finishes.  The purpose of the test is not clearly
-# stated, there is no reference to any bug report, and "select from
-# I_S from prepared statement" doesn't look like something that's
-# really imporant to test.  I'm commenting out this for now.  If
-# anyone wants to keep this, please fix the race and motivate why we
-# need to test this.  If you see this comment and it is after mid-2009
-# or so, feel free to remove this test from the file.  /Sven
-#
-#
-## Show full process list with prepare
-## To not show other connections, this must be the first test and we must
-## have a server restart before this one
-##
-## We don't have any 4.1 tests as we use I_S to query the PROCESSLIST to
-## exclude system threads that may/may not be active in the server
-## (namely the ndb injector thread)
-##
-## End of 4.1 tests
-#
-#prepare stmt1 from ' SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND!=\'Daemon\' ';
-#--replace_column 1 number 6 time 3 localhost 9 time_ms
-#execute stmt1;
-#deallocate prepare stmt1;
+# End of 4.1 tests
 
 call mtr.add_suppression("Can't open and lock privilege tables: Table 'host' was not locked with LOCK TABLES");
 
@@ -38,6 +14,16 @@ call mtr.add_suppression("Can't open and lock privilege tables: Table 'host' was
 
 SHOW VARIABLES like 'slave_skip_errors';
 
+--echo #
+--echo # Bug#58026: massive recursion and crash in regular expression handling
+--echo #
+
+--disable_result_log
+--error ER_STACK_OVERRUN_NEED_MORE
+SELECT '1' RLIKE RPAD('1', 10000, '(');
+--enable_result_log
+
+
 # End of 5.1 tests
 
 --echo #
@@ -46,11 +32,75 @@ SHOW VARIABLES like 'slave_skip_errors';
 --echo # FLUSH PRIVILEGES should not implicitly unlock locked tables.
 --echo #
 --disable_warnings
-drop table if exists t1;
+DROP TABLE IF EXISTS t1;
 --enable_warnings
-create table t1 (c1 int);
-lock tables t1 read;
+CREATE TABLE t1 (c1 INT);
+LOCK TABLES t1 READ;
 --error ER_TABLE_NOT_LOCKED
-flush privileges;
-unlock tables;
-drop table t1;
+FLUSH PRIVILEGES;
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#54812: assert in Diagnostics_area::set_ok_status during EXPLAIN
+--echo #
+
+CREATE USER nopriv_user@localhost;
+
+connection default;
+--echo connection: default
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP FUNCTION IF EXISTS f;
+--enable_warnings
+
+CREATE TABLE t1 (key1 INT PRIMARY KEY);
+CREATE TABLE t2 (key2 INT);
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE FUNCTION f() RETURNS INT RETURN 1;
+
+GRANT FILE ON *.* TO 'nopriv_user'@'localhost';
+
+FLUSH PRIVILEGES;
+
+connect (con1,localhost,nopriv_user,,);
+connection con1;
+--echo connection: con1
+
+let outfile=$MYSQLTEST_VARDIR/tmp/mytest;
+--error 0,1
+--remove_file $outfile
+--replace_result $outfile <outfile>
+--error ER_PROCACCESS_DENIED_ERROR
+eval SELECT MAX(key1) FROM t1 WHERE f() < 1 INTO OUTFILE '$outfile';
+# A removal of the outfile is necessary, at least today (2010-12-07), because
+# the outfile is created even if the SELECT statement fails.
+# If the server is improved in the future this may not happen.
+# ==> Do not fail if the outfile does not exist.
+--error 0,1
+--remove_file $outfile
+
+--error ER_PROCACCESS_DENIED_ERROR
+INSERT INTO t2 SELECT MAX(key1) FROM t1 WHERE f() < 1;
+
+--error ER_PROCACCESS_DENIED_ERROR
+SELECT MAX(key1) INTO @dummy FROM t1 WHERE f() < 1;
+
+--error ER_PROCACCESS_DENIED_ERROR
+CREATE TABLE t3 (i INT) AS SELECT MAX(key1) FROM t1 WHERE f() < 1;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+connection default;
+--echo connection: default
+
+DROP TABLE t1,t2;
+DROP FUNCTION f;
+DROP USER nopriv_user@localhost;
+
+--echo #
+--echo # End Bug#54812
+--echo #

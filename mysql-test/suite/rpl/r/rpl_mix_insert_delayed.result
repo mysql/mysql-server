@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE SCHEMA IF NOT EXISTS mysqlslap;
 USE mysqlslap;
 select @@global.binlog_format;
@@ -60,3 +56,4 @@ drop table t1;
 FLUSH LOGS;
 FLUSH LOGS;
 End of 5.0 tests
+include/rpl_end.inc

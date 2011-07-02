@@ -110,10 +110,10 @@ Ensure that root always has the GRANT CREATE ROUTINE privilege.
 --------------------------------------------------------------------------------
 grant create routine on db_storedproc_1.* to 'user_1'@'localhost';
 flush privileges;
+DROP PROCEDURE IF EXISTS db_storedproc_1.sp3;
+DROP FUNCTION IF EXISTS db_storedproc_1.fn1;
 	
 user_1@localhost	db_storedproc_1
-DROP PROCEDURE IF EXISTS sp3;
-DROP FUNCTION IF EXISTS fn1;
 CREATE PROCEDURE sp3(v1 char(20))
 BEGIN
 SELECT * from db_storedproc_1.t6 where t6.f2= 'xyz';
@@ -128,8 +128,6 @@ root@localhost	db_storedproc_1
 drop user 'user_1'@'localhost';
 DROP PROCEDURE sp3;
 DROP FUNCTION fn1;
-Warnings:
-Warning	1403	There is no such grant defined for user 'user_1' on host 'localhost' on routine 'fn1'
 
 Testcase 3.1.6.4:
 -----------------

@@ -78,15 +78,15 @@
                 : "memory")
 
 /*
-  Actually 32-bit reads/writes are always atomic on x86
-  But we add LOCK_prefix here anyway to force memory barriers
+  Actually 32/64-bit reads/writes are always atomic on x86_64,
+  nonetheless issue memory barriers as appropriate.
 */
 #define make_atomic_load_body(S)                                \
-  ret=0;                                                        \
-  asm volatile (LOCK_prefix "; cmpxchg %2, %0"                  \
-                : "=m" (*a), "=a" (ret)                         \
-                : "r" (ret), "m" (*a)                           \
-                : "memory")
+  /* Serialize prior load and store operations. */              \
+  asm volatile ("mfence" ::: "memory");                         \
+  ret= *a;                                                      \
+  /* Prevent compiler from reordering instructions. */          \
+  asm volatile ("" ::: "memory")
 #define make_atomic_store_body(S)                               \
   asm volatile ("; xchg %0, %1;"                                \
                 : "=m" (*a), "+r" (v)                           \

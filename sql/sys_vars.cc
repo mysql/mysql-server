@@ -231,11 +231,20 @@ static Sys_var_charptr Sys_basedir(
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_ulong Sys_binlog_cache_size(
-       "binlog_cache_size", "The size of the cache to "
-       "hold the SQL statements for the binary log during a "
-       "transaction. If you often use big, multi-statement "
-       "transactions you can increase this to get more performance",
+       "binlog_cache_size", "The size of the transactional cache for "
+       "updates to transactional engines for the binary log. "
+       "If you often use transactions containing many statements, "
+       "you can increase this to get more performance",
        GLOBAL_VAR(binlog_cache_size),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
+
+static Sys_var_ulong Sys_binlog_stmt_cache_size(
+       "binlog_stmt_cache_size", "The size of the statement cache for "
+       "updates to non-transactional engines for the binary log. "
+       "If you often use statements updating a great number of rows, "
+       "you can increase this to get more performance",
+       GLOBAL_VAR(binlog_stmt_cache_size),
        CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
 
@@ -684,7 +693,7 @@ static bool event_scheduler_update(sys_var *self, THD *thd, enum_var_type type)
             : Events::stop();
   mysql_mutex_lock(&LOCK_global_system_variables);
   if (ret)
-    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
+    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0), 0);
   return ret;
 }
 
@@ -1019,19 +1028,45 @@ static bool session_readonly(sys_var *self, THD *thd, set_var *var)
            self->name.str, "GLOBAL");
   return true;
 }
+
+static bool
+check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
+{
+  longlong val;
+  if (session_readonly(self, thd, var))
+    return true;
+
+  val= var->save_result.ulonglong_value;
+  if (val < (longlong) global_system_variables.net_buffer_length)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        "max_allowed_packet", "net_buffer_length");
+  }
+  return false;
+}
+
+
 static Sys_var_ulong Sys_max_allowed_packet(
        "max_allowed_packet",
        "Max packet length to send to or receive from the server",
        SESSION_VAR(max_allowed_packet), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, 1024*1024*1024), DEFAULT(1024*1024),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(session_readonly));
+       ON_CHECK(check_max_allowed_packet));
 
 static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "max_binlog_cache_size",
-       "Can be used to restrict the total size used to cache a "
-       "multi-transaction query",
+       "Sets the total size of the transactional cache",
        GLOBAL_VAR(max_binlog_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
+       DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
+       BLOCK_SIZE(IO_SIZE));
+
+static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
+       "max_binlog_stmt_cache_size",
+       "Sets the total size of the statement cache",
+       GLOBAL_VAR(max_binlog_stmt_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
        DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
        BLOCK_SIZE(IO_SIZE));
@@ -1164,6 +1199,16 @@ static Sys_var_harows Sys_sql_max_join_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_max_join_size), DEPRECATED(70000, 0));
 
+static Sys_var_ulong Sys_max_long_data_size(
+       "max_long_data_size",
+       "The maximum BLOB length to send to server from "
+       "mysql_send_long_data API. Deprecated option; "
+       "use max_allowed_packet instead.",
+       READ_ONLY GLOBAL_VAR(max_long_data_size),
+       CMD_LINE(REQUIRED_ARG, OPT_MAX_LONG_DATA_SIZE),
+       VALID_RANGE(1024, UINT_MAX32), DEFAULT(1024*1024),
+       BLOCK_SIZE(1));
+
 static PolyLock_mutex PLock_prepared_stmt_count(&LOCK_prepared_stmt_count);
 static Sys_var_ulong Sys_max_prepared_stmt_count(
        "max_prepared_stmt_count",
@@ -1239,12 +1284,29 @@ static Sys_var_mybool Sys_named_pipe(
        DEFAULT(FALSE));
 #endif
 
+
+static bool 
+check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
+{
+  longlong val;
+  if (session_readonly(self, thd, var))
+    return true;
+
+  val= var->save_result.ulonglong_value;
+  if (val > (longlong) global_system_variables.max_allowed_packet)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        "max_allowed_packet", "net_buffer_length");
+  }
+  return false;
+}
 static Sys_var_ulong Sys_net_buffer_length(
        "net_buffer_length",
        "Buffer length for TCP/IP and socket communication",
        SESSION_VAR(net_buffer_length), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, 1024*1024), DEFAULT(16384), BLOCK_SIZE(1024),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(session_readonly));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_net_buffer_length));
 
 static bool fix_net_read_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -1428,6 +1490,14 @@ static Sys_var_uint Sys_protocol_version(
        READ_ONLY GLOBAL_VAR(protocol_version), NO_CMD_LINE,
        VALID_RANGE(0, ~0), DEFAULT(PROTOCOL_VERSION), BLOCK_SIZE(1));
 
+static Sys_var_proxy_user Sys_proxy_user(
+       "proxy_user", "The proxy user account name used when logging in",
+       IN_SYSTEM_CHARSET);
+
+static Sys_var_external_user Sys_exterenal_user(
+       "external_user", "The external user account used when logging in",
+       IN_SYSTEM_CHARSET);
+
 static Sys_var_ulong Sys_read_buff_size(
        "read_buffer_size",
        "Each thread that does a sequential scan allocates a buffer of "
@@ -1437,7 +1507,6 @@ static Sys_var_ulong Sys_read_buff_size(
        VALID_RANGE(IO_SIZE*2, INT_MAX32), DEFAULT(128*1024),
        BLOCK_SIZE(IO_SIZE));
 
-static my_bool read_only;
 static bool check_read_only(sys_var *self, THD *thd, set_var *var)
 {
   /* Prevent self dead-lock */
@@ -1521,6 +1590,16 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   read_only= opt_readonly;
   DBUG_RETURN(result);
 }
+
+
+/**
+  The read_only boolean is always equal to the opt_readonly boolean except
+  during fix_read_only(); when that function is entered, opt_readonly is
+  the pre-update value and read_only is the post-update value.
+  fix_read_only() compares them and runs needed operations for the
+  transition (especially when transitioning from false to true) and
+  synchronizes both booleans in the end.
+*/
 static Sys_var_mybool Sys_readonly(
        "read_only",
        "Make all non-temporary tables read-only, with the exception for "
@@ -2417,17 +2496,17 @@ static ulonglong read_timestamp(THD *thd)
 
 static bool check_timestamp(sys_var *self, THD *thd, set_var *var)
 {
-  time_t val;
+  longlong val;
 
   if (!var->value)
     return FALSE;
 
-  val= (time_t) var->save_result.ulonglong_value;
-  if (val < (time_t) MY_TIME_T_MIN || val > (time_t) MY_TIME_T_MAX)
+  val= (longlong) var->save_result.ulonglong_value;
+  if (val != 0 &&          // this is how you set the default value
+      (val < TIMESTAMP_MIN_VALUE || val > TIMESTAMP_MAX_VALUE))
   {
-    my_message(ER_UNKNOWN_ERROR, 
-               "This version of MySQL doesn't support dates later than 2038",
-               MYF(0));
+    char buf[64];
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", llstr(val, buf));
     return TRUE;
   }
   return FALSE;
@@ -2445,7 +2524,7 @@ static bool update_last_insert_id(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->first_successful_insert_id_in_prev_stmt=
@@ -2494,7 +2573,7 @@ static bool update_insert_id(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->force_one_auto_inc_interval(var->save_result.ulonglong_value);
@@ -2517,7 +2596,7 @@ static bool update_rand_seed1(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->rand.seed1= (ulong) var->save_result.ulonglong_value;
@@ -2539,7 +2618,7 @@ static bool update_rand_seed2(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->rand.seed2= (ulong) var->save_result.ulonglong_value;
@@ -2743,7 +2822,7 @@ static Sys_var_charptr Sys_slow_log_path(
        ON_CHECK(check_log_path), ON_UPDATE(fix_slow_log_file));
 
 /// @todo deprecate these four legacy have_PLUGIN variables and use I_S instead
-export SHOW_COMP_OPTION have_csv, have_innodb;
+export SHOW_COMP_OPTION have_csv, have_innodb= SHOW_OPTION_DISABLED;
 export SHOW_COMP_OPTION have_ndbcluster, have_partitioning;
 static Sys_var_have Sys_have_csv(
        "have_csv", "have_csv",
@@ -2946,11 +3025,8 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                      (active_mi? active_mi->heartbeat_period : 0.0)));
   if (active_mi && slave_net_timeout < active_mi->heartbeat_period)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                        "The current value for master_heartbeat_period"
-                        " exceeds the new value of `slave_net_timeout' sec."
-                        " A sensible value for the period should be"
-                        " less than the timeout.");
+                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                        ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
   return false;
 }
@@ -3072,7 +3148,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
     String str(buff, sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
       return true;
-    else if (!(locale= my_locale_by_name(res->c_ptr())))
+    else if (!(locale= my_locale_by_name(res->c_ptr_safe())))
     {
       ErrConvString err(res);
       my_error(ER_UNKNOWN_LOCALE, MYF(0), err.ptr());

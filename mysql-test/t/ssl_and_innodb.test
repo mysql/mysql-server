@@ -1,0 +1,11 @@
+-- source include/have_innodb.inc
+-- source include/have_ssl_crypto_functs.inc
+
+CREATE TABLE t1(a int) engine=innodb;
+INSERT INTO t1 VALUES (1);
+
+SELECT DISTINCT
+convert((SELECT des_decrypt(2,1) AS a FROM t1 WHERE @a:=1), signed) as d
+FROM t1 ;
+
+DROP TABLE t1;

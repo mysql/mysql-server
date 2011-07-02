@@ -79,7 +79,8 @@ static int sort_delete_record(MI_SORT_PARAM *sort_param);
 static SORT_KEY_BLOCKS	*alloc_key_blocks(HA_CHECK *param, uint blocks,
 					  uint buffer_length);
 static ha_checksum mi_byte_checksum(const uchar *buf, uint length);
-static void set_data_file_type(MI_SORT_INFO *sort_info, MYISAM_SHARE *share);
+static void set_data_file_type(SORT_INFO *sort_info, MYISAM_SHARE *share);
+static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a);
 
 void myisamchk_init(HA_CHECK *param)
 {
@@ -98,6 +99,7 @@ void myisamchk_init(HA_CHECK *param)
   param->max_record_length= LONGLONG_MAX;
   param->key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
   param->stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+  param->need_print_msg_lock= 0;
 }
 
 	/* Check the status flags for the table */
@@ -1748,6 +1750,8 @@ err:
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
 	  mi_open_datafile(info,share,name,-1))
 	got_error=1;
+
+      param->retry_repair= 0;
     }
   }
   if (got_error)
@@ -2633,9 +2637,6 @@ err:
 int mi_repair_parallel(HA_CHECK *param, register MI_INFO *info,
 			const char * name, int rep_quick)
 {
-#ifndef THREAD
-  return mi_repair_by_sort(param, info, name, rep_quick);
-#else
   int got_error;
   uint i,key, total_key_length, istep;
   ulong rec_length;
@@ -3125,7 +3126,6 @@ err:
     share->pack.header_length=0;
   }
   DBUG_RETURN(got_error);
-#endif /* THREAD */
 }
 
 	/* Read next record and return next key */
@@ -4747,3 +4747,4 @@ set_data_file_type(MI_SORT_INFO *sort_info, MYISAM_SHARE *share)
     share->delete_record=tmp.delete_record;
   }
 }
+

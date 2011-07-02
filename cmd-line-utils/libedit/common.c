@@ -136,7 +136,7 @@ ed_delete_prev_word(EditLine *el, int c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-ed_delete_next_char(EditLine *el, int c)
+ed_delete_next_char(EditLine *el, int c __attribute__((__unused__)))
 {
 #ifdef notdef			/* XXX */
 #define	EL	el->el_line
@@ -431,7 +431,8 @@ ed_argument_digit(EditLine *el, int c)
  */
 protected el_action_t
 /*ARGSUSED*/
-ed_unassigned(EditLine *el, int c __attribute__((__unused__)))
+ed_unassigned(EditLine *el __attribute__((__unused__)),
+	      int c __attribute__((__unused__)))
 {
 
 	return (CC_ERROR);

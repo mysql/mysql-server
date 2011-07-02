@@ -1724,7 +1724,50 @@ m
 1
 DROP TABLE t1;
 #
+#  Bug#58030 crash in Item_func_geometry_from_text::val_str
+#
+SELECT MAX(TIMESTAMP(RAND(0)));
+SELECT MIN(TIMESTAMP(RAND(0)));
+#
+#  Bug#58177 crash and valgrind warnings in decimal and protocol sending functions...
+#
+SELECT MIN(GET_LOCK('aaaaaaaaaaaaaaaaa',0) / '0b1111111111111111111111111111111111111111111111111111111111111111111111111' ^ (RAND()));
+SELECT MIN(GET_LOCK('aaaaaaaaaaaaaaaaa',0) / '0b1111111111111111111111111111111111111111111111111111111111111111111111111' ^ (RAND()));
+SELECT MIN(GET_LOCK('aaaaaaaaaaaaaaaaa',0) / '0b1111111111111111111111111111111111111111111111111111111111111111111111111' ^ (RAND()));
+SELECT MIN(GET_LOCK('aaaaaaaaaaaaaaaaa',0) / '0b1111111111111111111111111111111111111111111111111111111111111111111111111' ^ (RAND()));
+SELECT RELEASE_LOCK('aaaaaaaaaaaaaaaaa');
+#
+# Bug #11766094 - 59132: MIN() AND MAX() REMOVE UNSIGNEDNESS 
+#
+CREATE TABLE t1 (a BIGINT UNSIGNED);
+INSERT INTO t1 VALUES (18446668621106209655);
+SELECT MAX(LENGTH(a)), LENGTH(MAX(a)), MIN(a), MAX(a), CONCAT(MIN(a)), CONCAT(MAX(a)) FROM t1;
+MAX(LENGTH(a))	LENGTH(MAX(a))	MIN(a)	MAX(a)	CONCAT(MIN(a))	CONCAT(MAX(a))
+20	20	18446668621106209655	18446668621106209655	18446668621106209655	18446668621106209655
+DROP TABLE t1;
+#
+# Bug #11766270  59343: YEAR(4): INCORRECT RESULT AND VALGRIND WARNINGS WITH MIN/MAX, UNION
+#
+CREATE TABLE t1(f1 YEAR(4));
+INSERT INTO t1 VALUES (0000),(2001);
+(SELECT MAX(f1) FROM t1) UNION (SELECT MAX(f1) FROM t1);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def				MAX(f1)	MAX(f1)	13	4	4	Y	32864	0	63
+MAX(f1)
+2001
+DROP TABLE t1;
+#
 End of 5.1 tests
+#
+# Bug#52123 Assertion failed: aggregator == aggr->Aggrtype(),
+#           file .\item_sum.cc, line 587
+#
+CREATE TABLE t1(a int, KEY(a));
+INSERT INTO t1 VALUES (1), (2);
+SELECT 1 FROM t1 ORDER BY AVG(DISTINCT a);
+1
+1
+DROP TABLE t1;
 #
 # Bug#55648: Server crash on MIN/MAX on maximum time value
 #
@@ -1746,3 +1789,18 @@ MAX(c1)	MIN(c1)
 -00:00:01	-00:00:01
 DROP TABLE t1;
 # End of the bug#56120
+#
+# Bug#57932 "query with AVG(DISTINCT) returns NULL if last
+# aggregated value was NULL"
+#
+CREATE TABLE t1 (col_int_nokey int(11));
+INSERT INTO t1 VALUES (7),(8),(NULL);
+SELECT AVG(DISTINCT col_int_nokey) FROM t1;
+AVG(DISTINCT col_int_nokey)
+7.5000
+SELECT AVG(DISTINCT outr.col_int_nokey) FROM t1 AS outr LEFT JOIN t1 AS outr2 ON
+outr.col_int_nokey = outr2.col_int_nokey;
+AVG(DISTINCT outr.col_int_nokey)
+7.5000
+DROP TABLE t1;
+# End of the bug#57932

@@ -42,3 +42,4 @@ SET GLOBAL SLAVE_TYPE_CONVERSIONS= @saved_slave_type_conversions;
 -- source include/stop_slave.inc
 -- source include/start_slave.inc
 -- connection master
+--source include/rpl_end.inc

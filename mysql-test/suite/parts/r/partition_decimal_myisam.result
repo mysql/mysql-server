@@ -86,3 +86,111 @@ select count(*) from t2;
 count(*)
 196605
 drop table t2;
+create table t3 (a decimal(18,9) not null, primary key(a)) engine='MYISAM' 
+partition by range (floor(a)) subpartition by key (a) subpartitions 2 (
+partition pa2 values less than (2),
+partition pa4 values less than (4),
+partition pa6 values less than (6),
+partition pa8 values less than (8),
+partition pa10 values less than (10)
+);
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` decimal(18,9) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (floor(a))
+SUBPARTITION BY KEY (a)
+SUBPARTITIONS 2
+(PARTITION pa2 VALUES LESS THAN (2) ENGINE = MyISAM,
+ PARTITION pa4 VALUES LESS THAN (4) ENGINE = MyISAM,
+ PARTITION pa6 VALUES LESS THAN (6) ENGINE = MyISAM,
+ PARTITION pa8 VALUES LESS THAN (8) ENGINE = MyISAM,
+ PARTITION pa10 VALUES LESS THAN (10) ENGINE = MyISAM) */
+9*3 inserts;
+insert into t3 values (9);
+insert into t3 values (9+0.333333333);
+insert into t3 values (9+0.755555555);
+insert into t3 values (8);
+insert into t3 values (8+0.333333333);
+insert into t3 values (8+0.755555555);
+insert into t3 values (7);
+insert into t3 values (7+0.333333333);
+insert into t3 values (7+0.755555555);
+insert into t3 values (6);
+insert into t3 values (6+0.333333333);
+insert into t3 values (6+0.755555555);
+insert into t3 values (5);
+insert into t3 values (5+0.333333333);
+insert into t3 values (5+0.755555555);
+insert into t3 values (4);
+insert into t3 values (4+0.333333333);
+insert into t3 values (4+0.755555555);
+insert into t3 values (3);
+insert into t3 values (3+0.333333333);
+insert into t3 values (3+0.755555555);
+insert into t3 values (2);
+insert into t3 values (2+0.333333333);
+insert into t3 values (2+0.755555555);
+insert into t3 values (1);
+insert into t3 values (1+0.333333333);
+insert into t3 values (1+0.755555555);
+select count(*) from t3;
+count(*)
+27
+drop table t3;
+create table t4 (a decimal(18,9) not null, primary key(a)) engine='MYISAM' 
+partition by list (ceiling(a)) subpartition by key (a) subpartitions 2 (
+partition pa2 values in (1,2),
+partition pa4 values in (3,4),
+partition pa6 values in (5,6),
+partition pa8 values in (7,8),
+partition pa10 values in (9,10)
+);
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` decimal(18,9) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (ceiling(a))
+SUBPARTITION BY KEY (a)
+SUBPARTITIONS 2
+(PARTITION pa2 VALUES IN (1,2) ENGINE = MyISAM,
+ PARTITION pa4 VALUES IN (3,4) ENGINE = MyISAM,
+ PARTITION pa6 VALUES IN (5,6) ENGINE = MyISAM,
+ PARTITION pa8 VALUES IN (7,8) ENGINE = MyISAM,
+ PARTITION pa10 VALUES IN (9,10) ENGINE = MyISAM) */
+9*3 inserts;
+insert into t4 values (9);
+insert into t4 values (9+0.333333333);
+insert into t4 values (9+0.755555555);
+insert into t4 values (8);
+insert into t4 values (8+0.333333333);
+insert into t4 values (8+0.755555555);
+insert into t4 values (7);
+insert into t4 values (7+0.333333333);
+insert into t4 values (7+0.755555555);
+insert into t4 values (6);
+insert into t4 values (6+0.333333333);
+insert into t4 values (6+0.755555555);
+insert into t4 values (5);
+insert into t4 values (5+0.333333333);
+insert into t4 values (5+0.755555555);
+insert into t4 values (4);
+insert into t4 values (4+0.333333333);
+insert into t4 values (4+0.755555555);
+insert into t4 values (3);
+insert into t4 values (3+0.333333333);
+insert into t4 values (3+0.755555555);
+insert into t4 values (2);
+insert into t4 values (2+0.333333333);
+insert into t4 values (2+0.755555555);
+insert into t4 values (1);
+insert into t4 values (1+0.333333333);
+insert into t4 values (1+0.755555555);
+select count(*) from t4;
+count(*)
+27
+drop table t4;

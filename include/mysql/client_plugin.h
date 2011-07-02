@@ -38,7 +38,7 @@
 #define MYSQL_CLIENT_MAX_PLUGINS             3
 
 #define mysql_declare_client_plugin(X)          \
-     struct st_mysql_client_plugin_ ## X        \
+     MYSQL_PLUGIN_EXPORT struct st_mysql_client_plugin_ ## X        \
         _mysql_client_plugin_declaration_ = {   \
           MYSQL_CLIENT_ ## X ## _PLUGIN,        \
           MYSQL_CLIENT_ ## X ## _PLUGIN_INTERFACE_VERSION,
@@ -52,8 +52,11 @@
   const char *author;                                   \
   const char *desc;                                     \
   unsigned int version[3];                              \
+  const char *license;                                  \
+  void *mysql_api;                                      \
   int (*init)(char *, size_t, int, va_list);            \
-  int (*deinit)();
+  int (*deinit)();                                      \
+  int (*options)(const char *option, const void *);
 
 struct st_mysql_client_plugin
 {
@@ -94,8 +97,7 @@ typedef char *(*mysql_authentication_dialog_ask_t)(struct st_mysql *mysql,
 /**
   loads a plugin and initializes it
 
-  @param mysql  MYSQL structure. only MYSQL_PLUGIN_DIR option value is used,
-                and last_errno/last_error, for error reporting
+  @param mysql  MYSQL structure.
   @param name   a name of the plugin to load
   @param type   type of plugin that should be loaded, -1 to disable type check
   @param argc   number of arguments to pass to the plugin initialization
@@ -115,8 +117,7 @@ mysql_load_plugin(struct st_mysql *mysql, const char *name, int type,
   This is the same as mysql_load_plugin, but take va_list instead of
   a list of arguments.
 
-  @param mysql  MYSQL structure. only MYSQL_PLUGIN_DIR option value is used,
-                and last_errno/last_error, for error reporting
+  @param mysql  MYSQL structure.
   @param name   a name of the plugin to load
   @param type   type of plugin that should be loaded, -1 to disable type check
   @param argc   number of arguments to pass to the plugin initialization
@@ -133,8 +134,7 @@ mysql_load_plugin_v(struct st_mysql *mysql, const char *name, int type,
 /**
   finds an already loaded plugin by name, or loads it, if necessary
 
-  @param mysql  MYSQL structure. only MYSQL_PLUGIN_DIR option value is used,
-                and last_errno/last_error, for error reporting
+  @param mysql  MYSQL structure.
   @param name   a name of the plugin to load
   @param type   type of plugin that should be loaded
 
@@ -162,5 +162,19 @@ struct st_mysql_client_plugin *
 mysql_client_register_plugin(struct st_mysql *mysql,
                              struct st_mysql_client_plugin *plugin);
 
+/**
+  set plugin options
+
+  Can be used to set extra options and affect behavior for a plugin.
+  This function may be called multiple times to set several options
+
+  @param plugin an st_mysql_client_plugin structure
+  @param option a string which specifies the option to set
+  @param value  value for the option.
+
+  @retval 0 on success, 1 in case of failure
+**/
+int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
+                         const char *option, const void *value);
 #endif
 

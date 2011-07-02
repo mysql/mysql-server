@@ -1,4 +1,4 @@
-/* Copyright (C) 2009 Sun Microsystems, Inc
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -125,6 +125,7 @@
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1
 #cmakedefine GWINSZ_IN_SYS_IOCTL 1
 #cmakedefine TIOCSTAT_IN_SYS_IOCTL 1
+#cmakedefine FIONREAD_IN_SYS_FILIO 1
 
 /* Functions we may want to use. */
 #cmakedefine HAVE_AIOWAIT 1
@@ -157,7 +158,6 @@
 #cmakedefine HAVE_GETADDRINFO 1
 #cmakedefine HAVE_GETCWD 1
 #cmakedefine HAVE_GETHOSTBYADDR_R 1
-#cmakedefine HAVE_GETHOSTBYNAME_R 1
 #cmakedefine HAVE_GETHRTIME 1
 #cmakedefine HAVE_GETLINE 1
 #cmakedefine HAVE_GETNAMEINFO 1
@@ -174,6 +174,10 @@
 #cmakedefine gmtime_r @gmtime_r@
 #cmakedefine HAVE_INITGROUPS 1
 #cmakedefine HAVE_ISSETUGID 1
+#cmakedefine HAVE_GETUID 1
+#cmakedefine HAVE_GETEUID 1
+#cmakedefine HAVE_GETGID 1
+#cmakedefine HAVE_GETEGID 1
 #cmakedefine HAVE_ISNAN 1
 #cmakedefine HAVE_ISINF 1
 #cmakedefine HAVE_LARGE_PAGE_OPTION 1
@@ -220,13 +224,13 @@
 #cmakedefine HAVE_PTHREAD_KEY_DELETE 1
 #cmakedefine HAVE_PTHREAD_KILL 1
 #cmakedefine HAVE_PTHREAD_RWLOCK_RDLOCK 1
-#cmakedefine HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP 1
 #cmakedefine HAVE_PTHREAD_SETPRIO_NP 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
 #cmakedefine HAVE_PTHREAD_THREADMASK 1
 #cmakedefine HAVE_PTHREAD_YIELD_NP 1
 #cmakedefine HAVE_PTHREAD_YIELD_ZERO_ARG 1
+#cmakedefine PTHREAD_ONCE_INITIALIZER @PTHREAD_ONCE_INITIALIZER@
 #cmakedefine HAVE_PUTENV 1
 #cmakedefine HAVE_RE_COMP 1
 #cmakedefine HAVE_REGCOMP 1
@@ -407,7 +411,6 @@
 
 
 #cmakedefine TARGET_OS_LINUX 1
-#cmakedefine TARGET_OS_SOLARIS 1
 
 #cmakedefine HAVE_WCTYPE_H 1
 #cmakedefine HAVE_WCHAR_H 1
@@ -449,8 +452,6 @@
 
 
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
-#cmakedefine HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE 1
-#cmakedefine HAVE_GETHOSTBYNAME_R_RETURN_INT 1
 
 #cmakedefine MY_ATOMIC_MODE_DUMMY 1
 #cmakedefine MY_ATOMIC_MODE_RWLOCKS 1
@@ -470,9 +471,6 @@
 #cmakedefine TIME_WITH_SYS_TIME 1
 
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
-
-#define THREAD 1
-#define THREAD_SAFE_CLIENT 1
 
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
 #define MACHINE_TYPE "@CMAKE_SYSTEM_PROCESSOR@"
@@ -517,10 +515,11 @@
 #cmakedefine EXTRA_DEBUG 1
 #cmakedefine BACKUP_TEST 1
 #cmakedefine CYBOZU 1
+#cmakedefine USE_SYMDIR 1
 
 /* Character sets and collations */
-#cmakedefine MYSQL_DEFAULT_CHARSET_NAME "latin1"
-#cmakedefine MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"
+#cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
+#cmakedefine MYSQL_DEFAULT_COLLATION_NAME "@MYSQL_DEFAULT_COLLATION_NAME@"
 
 #cmakedefine USE_MB 1
 #cmakedefine USE_MB_IDENT 1
@@ -605,6 +604,11 @@
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
 
+#cmakedefine SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
+
+#define MYSQL_MAJOR_VERSION @MAJOR_VERSION@
+#define MYSQL_MINOR_VERSION @MINOR_VERSION@
+
 #define PACKAGE "mysql"
 #define PACKAGE_BUGREPORT ""
 #define PACKAGE_NAME "MySQL Server"
@@ -614,5 +618,10 @@
 #define VERSION "@VERSION@"
 #define PROTOCOL_VERSION 10
 
+
+/* time_t related defines */
+
+#cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
+#cmakedefine TIME_T_UNSIGNED @TIME_T_UNSIGNED@
 
 #endif

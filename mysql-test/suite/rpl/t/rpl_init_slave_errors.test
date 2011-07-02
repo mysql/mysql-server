@@ -53,11 +53,12 @@ start slave;
 # slave is going to stop because of emulated failures
 # but there won't be any crashes nor asserts hit.
 #
-source include/wait_for_slave_to_stop.inc;
+# 1593 = ER_SLAVE_FATAL_ERROR
+--let $slave_sql_errno= 1593
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 
-let $error= query_get_value(SHOW SLAVE STATUS, Last_Error, 1);
-echo Reporting the following error: $error;
-call mtr.add_suppression("Failed during slave I/O thread initialization");
+call mtr.add_suppression("Failed during slave.* thread initialization");
 
 SET GLOBAL debug= "";
 
@@ -66,22 +67,23 @@ SET GLOBAL debug= "";
 ######################################################################
 connection slave;
 
---disable_warnings
-stop slave;
---enable_warnings
-source include/wait_for_slave_to_stop.inc;
-
 reset slave;
 
 SET GLOBAL init_slave= "garbage";
 
 start slave;
-source include/wait_for_slave_sql_to_stop.inc;
-
-let $error= query_get_value(SHOW SLAVE STATUS, Last_Error, 1);
-echo Reporting the following error: $error;
+# 1064 = ER_PARSE_ERROR
+--let $slave_sql_errno= 1064
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 
 ######################################################################
 #                             Clean up
 ######################################################################
 SET GLOBAL init_slave= "";
+
+# Clean up Last_SQL_Error
+--source include/stop_slave_io.inc
+RESET SLAVE;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

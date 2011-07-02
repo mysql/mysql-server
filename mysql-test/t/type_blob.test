@@ -617,4 +617,17 @@ SELECT LENGTH(c) FROM t2;
 
 DROP TABLE t1, t2;
 
+--echo # Bug #52160: crash and inconsistent results when grouping
+--echo #             by a function and column
+
+CREATE FUNCTION f1() RETURNS TINYBLOB RETURN 1;
+
+CREATE TABLE t1(a CHAR(1));
+INSERT INTO t1 VALUES ('0'), ('0');
+
+SELECT COUNT(*) FROM t1 GROUP BY f1(), a;
+
+DROP FUNCTION f1;
+DROP TABLE t1;
+
 --echo End of 5.1 tests

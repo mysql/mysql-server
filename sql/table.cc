@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -434,6 +434,18 @@ void TABLE_SHARE::destroy()
       info_it->flags= 0;
     }
   }
+  if (ha_data_destroy)
+  {
+    ha_data_destroy(ha_data);
+    ha_data_destroy= NULL;
+  }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (ha_part_data_destroy)
+  {
+    ha_part_data_destroy(ha_part_data);
+    ha_part_data_destroy= NULL;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   /*
     Make a copy since the share is allocated in its own root,
     and free_root() updates its argument after freeing the memory.
@@ -748,13 +760,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   enum legacy_db_type legacy_db_type;
   my_bitmap_map *bitmaps;
   bool null_bits_are_used;
-  uint vcol_screen_length, options_len;
+  uint vcol_screen_length, UNINIT_VAR(options_len);
   char *vcol_screen_pos;
-  uchar *options, *buff= 0;
+  uchar *UNINIT_VAR(options);
+  uchar *extra_segment_buff= 0;
   DBUG_ENTER("open_binary_frm");
-
-  LINT_INIT(options);
-  LINT_INIT(options_len);
 
   new_field_pack_flag= head[27];
   new_frm_ver= (head[2] - FRM_VER);
@@ -950,19 +960,25 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     /* Read extra data segment */
     uchar *next_chunk, *buff_end;
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
-    if (!(next_chunk= buff= (uchar*) my_malloc(n_length+1, MYF(MY_WME))))
+    if (!(extra_segment_buff= (uchar*) my_malloc(n_length + 1, MYF(MY_WME))))
       goto err;
-    if (mysql_file_pread(file, buff, n_length, record_offset + share->reclength,
+    next_chunk= extra_segment_buff;
+    if (mysql_file_pread(file, extra_segment_buff,
+                         n_length, record_offset + share->reclength,
                          MYF(MY_NABP)))
-      goto free_and_err;
-    share->connect_string.length= uint2korr(buff);
+    {
+      goto err;
+    }
+    share->connect_string.length= uint2korr(next_chunk);
     if (!(share->connect_string.str= strmake_root(&share->mem_root,
                                                   (char*) next_chunk + 2,
                                                   share->connect_string.
                                                   length)))
-      goto free_and_err;
+    {
+      goto err;
+    }
     next_chunk+= share->connect_string.length + 2;
-    buff_end= buff + n_length;
+    buff_end= extra_segment_buff + n_length;
     if (next_chunk + 2 < buff_end)
     {
       uint str_db_type_length= uint2korr(next_chunk);
@@ -979,7 +995,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                 plugin_data(tmp_plugin, handlerton *)))
         {
           /* bad file, legacy_db_type did not match the name */
-          goto free_and_err;
+          goto err;
         }
         /*
           tmp_plugin is locked with a local lock.
@@ -1008,7 +1024,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           error= 8;
           my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
                    "--skip-partition");
-          goto free_and_err;
+          goto err;
         }
         plugin_unlock(NULL, share->db_plugin);
         share->db_plugin= ha_lock_engine(NULL, partition_hton);
@@ -1023,7 +1039,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         error= 8;
         name.str[name.length]=0;
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
-        goto free_and_err;
+        goto err;
         /* purecov: end */
       }
       next_chunk+= str_db_type_length + 2;
@@ -1038,13 +1054,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (!(share->partition_info_str= (char*)
               memdup_root(&share->mem_root, next_chunk + 4,
                           partition_info_str_len + 1)))
-          goto free_and_err;
+        {
+          goto err;
+        }
       }
 #else
       if (partition_info_str_len)
       {
         DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        goto free_and_err;
+        goto err;
       }
 #endif
       next_chunk+= 5 + partition_info_str_len;
@@ -1068,7 +1086,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         {
           DBUG_PRINT("error",
                      ("fulltext key uses parser that is not defined in .frm"));
-          goto free_and_err;
+          goto err;
         }
         parser_name.str= (char*) next_chunk;
         parser_name.length= strlen((char*) next_chunk);
@@ -1078,7 +1096,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (! keyinfo->parser)
         {
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
-          goto free_and_err;
+          goto err;
         }
       }
     }
@@ -1090,16 +1108,19 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       {
           DBUG_PRINT("error",
                      ("long table comment is not defined in .frm"));
-          goto free_and_err;
+          goto err;
       }
       share->comment.length = uint2korr(next_chunk);
       if (! (share->comment.str= strmake_root(&share->mem_root,
              (char*)next_chunk + 2, share->comment.length)))
-          goto free_and_err;
+      {
+          goto err;
+      }
       next_chunk+= 2 + share->comment.length;
     }
 
     DBUG_ASSERT(next_chunk <= buff_end);
+
     if (share->db_create_options & HA_OPTION_TEXT_CREATE_OPTIONS)
     {
       /*
@@ -1501,8 +1522,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   /* Fix key->name and key_part->field */
   if (key_parts)
   {
-    uint primary_key=(uint) (find_type((char*) primary_key_name,
-				       &share->keynames, 3) - 1);
+    uint primary_key=(uint) (find_type(primary_key_name, &share->keynames,
+                                       FIND_TYPE_NO_PREFIX) - 1);
     longlong ha_option= handler_file->ha_table_flags();
     keyinfo= share->key_info;
     key_part= keyinfo->key_part;
@@ -1787,24 +1808,30 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (use_hash)
     (void) my_hash_check(&share->name_hash);
 #endif
+  my_free(extra_segment_buff);
   DBUG_RETURN (0);
 
- free_and_err:
-  my_free(buff);
  err:
   share->error= error;
   share->open_errno= my_errno;
   share->errarg= errarg;
   my_free(disk_buff);
+  my_free(extra_segment_buff);
   delete crypted;
   delete handler_file;
   my_hash_free(&share->name_hash);
   if (share->ha_data_destroy)
+  {
     share->ha_data_destroy(share->ha_data);
+    share->ha_data_destroy= NULL;
+  }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->ha_part_data_destroy)
+  {
     share->ha_part_data_destroy(share->ha_part_data);
-#endif
+    share->ha_data_destroy= NULL;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
@@ -2315,7 +2342,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
     Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
     Query_arena backup_arena;
-    Query_arena part_func_arena(&outparam->mem_root, Query_arena::INITIALIZED);
+    Query_arena part_func_arena(&outparam->mem_root,
+                                Query_arena::STMT_INITIALIZED);
     thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
     thd->stmt_arena= &part_func_arena;
     bool tmp;
@@ -2535,7 +2563,15 @@ void free_blobs(register TABLE *table)
   for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
        ptr != end ;
        ptr++)
-    ((Field_blob*) table->field[*ptr])->free();
+  {
+    /*
+      Reduced TABLE objects which are used by row-based replication for
+      type conversion might have some fields missing. Skip freeing BLOB
+      buffers for such missing fields.
+    */
+    if (table->field[*ptr])
+      ((Field_blob*) table->field[*ptr])->free();
+  }
 }
 
 
@@ -2769,7 +2805,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   default:				/* Better wrong error than none */
   case 4:
     strxmov(buff, share->normalized_path.str, reg_ext, NullS);
-    my_error(ER_NOT_FORM_FILE, errortype, buff, 0);
+    my_error(ER_NOT_FORM_FILE, errortype, buff);
     break;
   }
   DBUG_VOID_RETURN;
@@ -3364,7 +3400,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
                    ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
                    table->alias, table_def->count, table->s->fields,
-                   table->s->mysql_version, MYSQL_VERSION_ID);
+                   static_cast<int>(table->s->mysql_version),
+                   MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);
     }
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
@@ -3519,30 +3556,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
     holding a write-lock on MDL_lock::m_rwlock.
   */
   if (gvisitor->m_lock_open_count++ == 0)
-  {
-    /*
-      To circumvent bug #56405 "Deadlock in the MDL deadlock detector"
-      we don't try to lock LOCK_open mutex if some thread doing
-      deadlock detection already owns it and current search depth is
-      greater than 0. Instead we report a deadlock.
-
-      TODO/FIXME: The proper fix for this bug is to use rwlocks for
-                  protection of table shares/instead of LOCK_open.
-                  Unfortunately it requires more effort/has significant
-                  performance effect.
-    */
-    mysql_mutex_lock(&LOCK_dd_owns_lock_open);
-    if (gvisitor->m_current_search_depth > 0 && dd_owns_lock_open > 0)
-    {
-      mysql_mutex_unlock(&LOCK_dd_owns_lock_open);
-      --gvisitor->m_lock_open_count;
-      gvisitor->abort_traversal(src_ctx);
-      return TRUE;
-    }
-    ++dd_owns_lock_open;
-    mysql_mutex_unlock(&LOCK_dd_owns_lock_open);
     mysql_mutex_lock(&LOCK_open);
-  }
 
   I_P_List_iterator <TABLE, TABLE_share> tables_it(used_tables);
 
@@ -3557,12 +3571,8 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
     goto end;
   }
 
-  ++gvisitor->m_current_search_depth;
   if (gvisitor->enter_node(src_ctx))
-  {
-    --gvisitor->m_current_search_depth;
     goto end;
-  }
 
   while ((table= tables_it++))
   {
@@ -3585,16 +3595,10 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
 
 end_leave_node:
   gvisitor->leave_node(src_ctx);
-  --gvisitor->m_current_search_depth;
 
 end:
   if (gvisitor->m_lock_open_count-- == 1)
-  {
     mysql_mutex_unlock(&LOCK_open);
-    mysql_mutex_lock(&LOCK_dd_owns_lock_open);
-    --dd_owns_lock_open;
-    mysql_mutex_unlock(&LOCK_dd_owns_lock_open);
-  }
 
   return result;
 }
@@ -3687,6 +3691,68 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     DBUG_ASSERT(0);
     return TRUE;
   }
+}
+
+
+/**
+  Initialize TABLE instance (newly created, or coming either from table
+  cache or THD::temporary_tables list) and prepare it for further use
+  during statement execution. Set the 'alias' attribute from the specified
+  TABLE_LIST element. Remember the TABLE_LIST element in the
+  TABLE::pos_in_table_list member.
+
+  @param thd  Thread context.
+  @param tl   TABLE_LIST element.
+*/
+
+void TABLE::init(THD *thd, TABLE_LIST *tl)
+{
+  DBUG_ASSERT(s->ref_count > 0 || s->tmp_table != NO_TMP_TABLE);
+
+  if (thd->lex->need_correct_ident())
+    alias_name_used= my_strcasecmp(table_alias_charset,
+                                   s->table_name.str,
+                                   tl->alias);
+  /* Fix alias if table name changes. */
+  if (strcmp(alias, tl->alias))
+  {
+    uint length= (uint) strlen(tl->alias)+1;
+    alias= (char*) my_realloc((char*) alias, length, MYF(MY_WME));
+    memcpy((char*) alias, tl->alias, length);
+  }
+
+  tablenr= thd->current_tablenr++;
+  used_fields= 0;
+  const_table= 0;
+  null_row= 0;
+  maybe_null= 0;
+  force_index= 0;
+  force_index_order= 0;
+  force_index_group= 0;
+  status= STATUS_NO_RECORD;
+  insert_values= 0;
+  fulltext_searched= 0;
+  file->ha_start_of_new_statement();
+  reginfo.impossible_range= 0;
+
+  /* Catch wrong handling of the auto_increment_field_not_null. */
+  DBUG_ASSERT(!auto_increment_field_not_null);
+  auto_increment_field_not_null= FALSE;
+
+  if (timestamp_field)
+    timestamp_field_type= timestamp_field->get_auto_set_type();
+
+  pos_in_table_list= tl;
+
+  clear_column_bitmaps();
+
+  DBUG_ASSERT(key_read == 0);
+
+  /* mark the record[0] uninitialized */
+  TRASH(table->record[0], table->s->reclength);
+
+  /* Tables may be reused in a sub statement. */
+  DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 }
 
 
@@ -4501,10 +4567,15 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
         }
         else
         {
-           my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
-                    thd->security_ctx->priv_user,
-                    thd->security_ctx->priv_host,
-                    (thd->password ?  ER(ER_YES) : ER(ER_NO)));
+          if (thd->password == 2)
+            my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
+                     thd->security_ctx->priv_user,
+                     thd->security_ctx->priv_host);
+          else
+            my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
+                     thd->security_ctx->priv_user,
+                     thd->security_ctx->priv_host,
+                     (thd->password ?  ER(ER_YES) : ER(ER_NO)));
         }
         DBUG_RETURN(TRUE);
       }
@@ -5840,7 +5911,8 @@ void init_mdl_requests(TABLE_LIST *table_list)
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
                                  table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                                 MDL_SHARED_WRITE : MDL_SHARED_READ);
+                                 MDL_SHARED_WRITE : MDL_SHARED_READ,
+                                 MDL_TRANSACTION);
 }
 
 

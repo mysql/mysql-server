@@ -26,6 +26,8 @@
 #include "rpl_utility.h"
 #include "transaction.h"
 #include "sql_parse.h"                          // end_trans, ROLLBACK
+#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 static int count_relay_log_space(Relay_log_info* rli);
 
@@ -53,6 +55,13 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
    last_event_start_time(0), m_flags(0)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
+
+#ifdef HAVE_PSI_INTERFACE
+  relay_log.set_psi_keys(key_RELAYLOG_LOCK_index,
+                         key_RELAYLOG_update_cond,
+                         key_file_relaylog,
+                         key_file_relaylog_index);
+#endif
 
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
@@ -356,7 +365,7 @@ static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
 {
   MY_STAT s;
   DBUG_ENTER("add_relay_log");
-  if (!mysql_file_stat(key_file_binlog,
+  if (!mysql_file_stat(key_file_relaylog,
                        linfo->log_file_name, &s, MYF(0)))
   {
     sql_print_error("log %s listed in the index, but failed to stat",
@@ -792,6 +801,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
       We are going to mysql_cond_(timed)wait(); if the SQL thread stops it
       will wake us up.
     */
+    thd_wait_begin(thd, THD_WAIT_BINLOG);
     if (timeout > 0)
     {
       /*
@@ -809,6 +819,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     }
     else
       mysql_cond_wait(&data_cond, &data_lock);
+    thd_wait_end(thd);
     DBUG_PRINT("info",("Got signal of master update or timed out"));
     if (error == ETIMEDOUT || error == ETIME)
     {
@@ -1247,6 +1258,16 @@ void Relay_log_info::clear_tables_to_lock()
       tables_to_lock->m_tabledef.table_def::~table_def();
       tables_to_lock->m_tabledef_valid= FALSE;
     }
+
+    /*
+      If blob fields were used during conversion of field values 
+      from the master table into the slave table, then we need to 
+      free the memory used temporarily to store their values before
+      copying into the slave's table.
+    */
+    if (tables_to_lock->m_conv_table)
+      free_blobs(tables_to_lock->m_conv_table);
+
     tables_to_lock=
       static_cast<RPL_TABLE_LIST*>(tables_to_lock->next_global);
     tables_to_lock_count--;
@@ -1274,6 +1295,9 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
   */
   if (! thd->in_multi_stmt_transaction_mode())
     thd->mdl_context.release_transactional_locks();
+  else
+    thd->mdl_context.release_statement_locks();
+
   clear_tables_to_lock();
 }
 #endif

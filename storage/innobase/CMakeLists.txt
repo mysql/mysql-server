@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-# This is the CMakeLists for InnoDB Plugin
+# This is the CMakeLists for InnoDB
 
 INCLUDE(CheckFunctionExists)
 INCLUDE(CheckCSourceCompiles)
@@ -40,12 +40,9 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
-# Enable InnoDB's UNIV_DEBUG if MySQL's WITH_DEBUG[_FULL] is defined
-# enable when this bug is resolved:
-# Bug#54861 Additional connections not handled properly in mtr --embedded
-#IF(WITH_DEBUG)
-#  ADD_DEFINITIONS("-DUNIV_DEBUG")
-#ENDIF()
+# Enable InnoDB's UNIV_DEBUG for debug builds
+SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DUNIV_DEBUG")
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG")
 
 IF(NOT MSVC)
 # either define HAVE_IB_GCC_ATOMIC_BUILTINS or not
@@ -127,9 +124,13 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   CHECK_FUNCTION_EXISTS(atomic_cas_ulong  HAVE_ATOMIC_CAS_ULONG)
   CHECK_FUNCTION_EXISTS(atomic_cas_32 HAVE_ATOMIC_CAS_32)
   CHECK_FUNCTION_EXISTS(atomic_cas_64 HAVE_ATOMIC_CAS_64)
-  CHECK_FUNCTION_EXISTS(atomic_add_long HAVE_ATOMIC_ADD_LONG)
-  IF(HAVE_ATOMIC_CAS_ULONG AND HAVE_ATOMIC_CAS_32 AND
-    HAVE_ATOMIC_CAS_64 AND HAVE_ATOMIC_ADD_LONG)
+  CHECK_FUNCTION_EXISTS(atomic_add_long_nv HAVE_ATOMIC_ADD_LONG_NV)
+  CHECK_FUNCTION_EXISTS(atomic_swap_uchar HAVE_ATOMIC_SWAP_UCHAR)
+  IF(HAVE_ATOMIC_CAS_ULONG AND
+     HAVE_ATOMIC_CAS_32 AND
+     HAVE_ATOMIC_CAS_64 AND
+     HAVE_ATOMIC_ADD_LONG_NV AND
+     HAVE_ATOMIC_SWAP_UCHAR)
     SET(HAVE_IB_SOLARIS_ATOMICS 1)
   ENDIF()
   
@@ -188,7 +189,7 @@ IF(SIZEOF_PTHREAD_T)
 ENDIF()
 
 IF(MSVC)
-  ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
+  ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS)
 ENDIF()
 
 
@@ -233,48 +234,25 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			os/os0file.c os/os0proc.c os/os0sync.c os/os0thread.c
 			page/page0cur.c page/page0page.c page/page0zip.c
 			que/que0que.c
-			handler/ha_innodb.cc handler/handler0alter.cc handler/i_s.cc handler/mysql_addons.cc
+			handler/ha_innodb.cc handler/handler0alter.cc handler/i_s.cc
 			read/read0read.c
 			rem/rem0cmp.c rem/rem0rec.c
 			row/row0ext.c row/row0ins.c row/row0merge.c row/row0mysql.c row/row0purge.c row/row0row.c
 			row/row0sel.c row/row0uins.c row/row0umod.c row/row0undo.c row/row0upd.c row/row0vers.c
 			srv/srv0srv.c srv/srv0start.c
 			sync/sync0arr.c sync/sync0rw.c sync/sync0sync.c
-			thr/thr0loc.c
 			trx/trx0i_s.c trx/trx0purge.c trx/trx0rec.c trx/trx0roll.c trx/trx0rseg.c
 			trx/trx0sys.c trx/trx0trx.c trx/trx0undo.c
 			usr/usr0sess.c
 			ut/ut0byte.c ut/ut0dbg.c ut/ut0list.c ut/ut0mem.c ut/ut0rbt.c ut/ut0rnd.c
-			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c)
+			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c ut/ut0bh.c)
 
 IF(WITH_INNODB)
   # Legacy option
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
-
-#The plugin's CMakeLists.txt still needs to work with previous versions of MySQL.
-IF(EXISTS ${SOURCE_DIR}/storage/mysql_storage_engine.cmake)
-	# Old plugin support on Windows only, 
-	# use tricks to force ha_innodb.dll name for DLL
-	INCLUDE(${SOURCE_DIR}/storage/mysql_storage_engine.cmake)
-	MYSQL_STORAGE_ENGINE(INNOBASE)
-	GET_TARGET_PROPERTY(LIB_LOCATION ha_innobase LOCATION)
-	IF(LIB_LOCATION)
-		SET_TARGET_PROPERTIES(ha_innobase PROPERTIES OUTPUT_NAME ha_innodb)
-	ENDIF()
-ELSEIF (MYSQL_VERSION_ID LESS "50137")
-	# Windows only, no plugin support
-	IF (NOT SOURCE_SUBLIBS)
-		ADD_DEFINITIONS(-DMYSQL_SERVER)
-		ADD_LIBRARY(innobase STATIC ${INNOBASE_SOURCES})
-		# Require mysqld_error.h, which is built as part of the GenError
-		ADD_DEPENDENCIES(innobase GenError)
-	ENDIF()
-ELSE()
-	# New plugin support, cross-platform ,  base name for shared module is "ha_innodb"
-	MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE 
-          MODULE_ONLY
-		MODULE_OUTPUT_NAME ha_innodb
-		LINK_LIBRARIES ${ZLIB_LIBRARY})
-ENDIF()
+MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE 
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME ha_innodb
+  LINK_LIBRARIES ${ZLIB_LIBRARY})

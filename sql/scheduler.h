@@ -58,6 +58,13 @@ struct scheduler_functions
 */
 enum scheduler_types
 {
+  /*
+    The default of --thread-handling is the first one in the
+    thread_handling_names array, this array has to be consistent with
+    the order in this array, so to change default one has to change
+    the first entry in this enum and the first entry in the
+    thread_handling_names array.
+  */
   SCHEDULER_ONE_THREAD_PER_CONNECTION=0,
   SCHEDULER_NO_THREADS,
   SCHEDULER_TYPES_COUNT
@@ -66,11 +73,6 @@ enum scheduler_types
 void one_thread_per_connection_scheduler(scheduler_functions *func,
     ulong *arg_max_connections, uint *arg_connection_count);
 void one_thread_scheduler(scheduler_functions *func);
-
-enum pool_command_op
-{
-  NOT_IN_USE_OP= 0, NORMAL_OP= 1, CONNECT_OP, KILL_OP, DIE_OP
-};
 
 #if defined(HAVE_LIBEVENT) && !defined(EMBEDDED_LIBRARY)
 
@@ -98,11 +100,6 @@ public:
   LIST list;
   bool thread_attached;  /* Indicates if THD is attached to the OS thread */
 
-#  ifndef DBUG_OFF
-  char dbug_explain[512];
-  bool set_explain;
-#  endif
-
   thd_scheduler();
   ~thd_scheduler();
   bool init(THD* parent_thd);
@@ -121,5 +118,12 @@ class thd_scheduler
 {};
 
 #endif
+
+void *thd_get_scheduler_data(THD *thd);
+void thd_set_scheduler_data(THD *thd, void *data);
+PSI_thread* thd_get_psi(THD *thd);
+void thd_set_psi(THD *thd, PSI_thread *psi);
+
+extern scheduler_functions *thread_scheduler;
 
 #endif

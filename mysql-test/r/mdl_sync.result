@@ -2322,6 +2322,8 @@ select table_name, table_type, auto_increment, table_comment
 from information_schema.tables where table_schema='test' and table_name='t2';
 table_name	table_type	auto_increment	table_comment
 t2	BASE TABLE	NULL	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
+Warnings:
+Warning	1684	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
 # Switching to connection 'default'.
 unlock tables;
 # Switching to connection 'con46044'.
@@ -2471,7 +2473,7 @@ CREATE PROCEDURE p1() SELECT 1;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 # Check that FLUSH must wait to get the GRL
 # and let CREATE PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 FLUSH TABLES WITH READ LOCK;
 # Connection 1
 # Connection 2
@@ -2486,10 +2488,17 @@ DROP PROCEDURE p1;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 # Check that FLUSH must wait to get the GRL
 # and let DROP PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 FLUSH TABLES WITH READ LOCK;
 # Connection 1
+# Once FLUSH TABLES WITH READ LOCK starts waiting
+# DROP PROCEDURE will be waked up and will drop
+# procedure. Global read lock will be granted after
+# this statement ends.
+#
+# Reaping DROP PROCEDURE.
 # Connection 2
+# Reaping FTWRL.
 UNLOCK TABLES;
 # Connection 1
 SET DEBUG_SYNC= 'RESET';
@@ -2632,7 +2641,8 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1),(2),(3);
 # Connection: con1
-SET debug_sync='lock_table_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
+LOCK TABLES t1 WRITE;
+SET debug_sync='upgrade_lock_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
 TRUNCATE TABLE t1;
 # Connection: default
 SET debug_sync='now WAIT_FOR parked_truncate';
@@ -2647,10 +2657,11 @@ FLUSH TABLES t1;
 # Connection: default
 SET debug_sync='now WAIT_FOR parked_flush';
 SET debug_sync='now SIGNAL go_truncate';
-# Connection: con1
-# Reaping...
-# Connection: default
+# Ensure that truncate waits for a exclusive lock
 SET debug_sync= 'now SIGNAL go_show';
+# Connection: con1 (TRUNCATE)
+# Reaping...
+UNLOCK TABLES;
 # Connection: con2 (SHOW FIELDS FROM t1)
 # Reaping...
 Field	Type	Null	Key	Default	Extra
@@ -2913,3 +2924,41 @@ UNLOCK TABLES;
 # Connection default
 UNLOCK TABLES;
 DROP DATABASE db1;
+#
+# Bug#56292 Deadlock with ALTER TABLE and MERGE tables
+#
+DROP TABLE IF EXISTS t1, t2, m1;
+CREATE TABLE t1(a INT) engine=MyISAM;
+CREATE TABLE t2(a INT) engine=MyISAM;
+CREATE TABLE m1(a INT) engine=MERGE UNION=(t1, t2);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (3), (4);
+# Connection con1
+SET DEBUG_SYNC= 'mdl_upgrade_shared_lock_to_exclusive SIGNAL upgrade WAIT_FOR continue';
+# Sending:
+ALTER TABLE m1 engine=MERGE UNION=(t2, t1);
+# Connection con2
+# Waiting for ALTER TABLE to try lock upgrade
+SET DEBUG_SYNC= 'now WAIT_FOR upgrade';
+# Sending:
+DELETE FROM t2 WHERE a = 3;
+# Connection default
+# Check that DELETE is waiting on a metadata lock and not a table lock.
+# Now that DELETE blocks on a metadata lock, we should be able to do
+# SELECT * FROM m1 here. SELECT used to be blocked by a DELETE table
+# lock request.
+SELECT * FROM m1;
+a
+1
+2
+3
+4
+# Resuming ALTER TABLE
+SET DEBUG_SYNC= 'now SIGNAL continue';
+# Connection con1
+# Reaping: ALTER TABLE m1 engine=MERGE UNION=(t2, t1)
+# Connection con2
+# Reaping: DELETE FROM t2 WHERE a = 3
+# Connection default
+DROP TABLE m1, t1, t2;
+SET DEBUG_SYNC= 'RESET';

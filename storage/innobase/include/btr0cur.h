@@ -243,6 +243,22 @@ btr_cur_pessimistic_insert(
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
 	mtr_t*		mtr);	/*!< in: mtr */
 /*************************************************************//**
+See if there is enough place in the page modification log to log
+an update-in-place.
+@return	TRUE if enough place */
+UNIV_INTERN
+ibool
+btr_cur_update_alloc_zip(
+/*=====================*/
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	buf_block_t*	block,	/*!< in/out: buffer page */
+	dict_index_t*	index,	/*!< in: the index corresponding to the block */
+	ulint		length,	/*!< in: size needed */
+	ibool		create,	/*!< in: TRUE=delete-and-insert,
+				FALSE=update-in-place */
+	mtr_t*		mtr)	/*!< in: mini-transaction */
+	__attribute__((nonnull, warn_unused_result));
+/*************************************************************//**
 Updates a record when the update causes no size changes in its fields.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
@@ -317,10 +333,14 @@ ulint
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
-	btr_cur_t*	cursor,	/*!< in: cursor */
+	buf_block_t*	block,	/*!< in/out: buffer block of the record */
+	rec_t*		rec,	/*!< in/out: record */
+	dict_index_t*	index,	/*!< in: clustered index of the record */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
 	ibool		val,	/*!< in: value to set */
 	que_thr_t*	thr,	/*!< in: query thread */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+	__attribute__((nonnull));
 /***********************************************************//**
 Sets a secondary index record delete mark to TRUE or FALSE.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error number */
@@ -446,57 +466,42 @@ btr_estimate_n_rows_in_range(
 /*******************************************************************//**
 Estimates the number of different key values in a given index, for
 each n-column prefix of the index where n <= dict_index_get_n_unique(index).
-The estimates are stored in the array index->stat_n_diff_key_vals. */
+The estimates are stored in the array index->stat_n_diff_key_vals.
+If innodb_stats_method is nulls_ignored, we also record the number of
+non-null values for each prefix and stored the estimates in
+array index->stat_n_non_null_key_vals. */
 UNIV_INTERN
 void
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
 	dict_index_t*	index);	/*!< in: index */
 /*******************************************************************//**
-Marks not updated extern fields as not-owned by this record. The ownership
-is transferred to the updated record which is inserted elsewhere in the
+Marks non-updated off-page fields as disowned by this record. The ownership
+must be transferred to the updated record which is inserted elsewhere in the
 index tree. In purge only the owner of externally stored field is allowed
-to free the field.
-@return TRUE if BLOB ownership was transferred */
+to free the field. */
 UNIV_INTERN
-ibool
-btr_cur_mark_extern_inherited_fields(
-/*=================================*/
+void
+btr_cur_disown_inherited_fields(
+/*============================*/
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose uncompressed
 				part will be updated, or NULL */
 	rec_t*		rec,	/*!< in/out: record in a clustered index */
 	dict_index_t*	index,	/*!< in: index of the page */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	const upd_t*	update,	/*!< in: update vector */
-	mtr_t*		mtr);	/*!< in: mtr, or NULL if not logged */
-/*******************************************************************//**
-The complement of the previous function: in an update entry may inherit
-some externally stored fields from a record. We must mark them as inherited
-in entry, so that they are not freed in a rollback. */
-UNIV_INTERN
-void
-btr_cur_mark_dtuple_inherited_extern(
-/*=================================*/
-	dtuple_t*	entry,		/*!< in/out: updated entry to be
-					inserted to clustered index */
-	const upd_t*	update);	/*!< in: update vector */
-/*******************************************************************//**
-Marks all extern fields in a dtuple as owned by the record. */
-UNIV_INTERN
-void
-btr_cur_unmark_dtuple_extern_fields(
-/*================================*/
-	dtuple_t*	entry);		/*!< in/out: clustered index entry */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull(2,3,4,5,6)));
 /*******************************************************************//**
 Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
 The fields are stored on pages allocated from leaf node
 file segment of the index tree.
-@return	DB_SUCCESS or error */
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 ulint
-btr_store_big_rec_extern_fields(
-/*============================*/
+btr_store_big_rec_extern_fields_func(
+/*=================================*/
 	dict_index_t*	index,		/*!< in: index of rec; the index tree
 					MUST be X-latched */
 	buf_block_t*	rec_block,	/*!< in/out: block containing rec */
@@ -505,10 +510,42 @@ btr_store_big_rec_extern_fields(
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
-	big_rec_t*	big_rec_vec,	/*!< in: vector containing fields
+#ifdef UNIV_DEBUG
+	mtr_t*		local_mtr,	/*!< in: mtr containing the
+					latch to rec and to the tree */
+#endif /* UNIV_DEBUG */
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	ibool		update_in_place,/*! in: TRUE if the record is updated
+					in place (not delete+insert) */
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+	const big_rec_t*big_rec_vec)	/*!< in: vector containing fields
 					to be stored externally */
-	mtr_t*		local_mtr);	/*!< in: mtr containing the latch to
-					rec and to the tree */
+	__attribute__((nonnull));
+
+/** Stores the fields in big_rec_vec to the tablespace and puts pointers to
+them in rec.  The extern flags in rec will have to be set beforehand.
+The fields are stored on pages allocated from leaf node
+file segment of the index tree.
+@param index	in: clustered index; MUST be X-latched by mtr
+@param b	in/out: block containing rec; MUST be X-latched by mtr
+@param rec	in/out: clustered index record
+@param offsets	in: rec_get_offsets(rec, index);
+		the "external storage" flags in offsets will not be adjusted
+@param mtr	in: mini-transaction that holds x-latch on index and b
+@param upd	in: TRUE if the record is updated in place (not delete+insert)
+@param big	in: vector containing fields to be stored externally
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+#ifdef UNIV_DEBUG
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,mtr,upd,big)
+#elif defined UNIV_BLOB_LIGHT_DEBUG
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,upd,big)
+#else
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,big)
+#endif
+
 /*******************************************************************//**
 Frees the space in an externally stored field to the file space
 management if the field in data is owned the externally stored field,

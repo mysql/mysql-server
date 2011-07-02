@@ -53,9 +53,6 @@
  *      Enhanced Software Technologies, Tempe, AZ
  *      asuvax!mcdphx!estinc!fnf
  *
- *      Binayak Banerjee        (profiling enhancements)
- *      seismo!bpa!sjuvax!bbanerje
- *
  *      Michael Widenius:
  *        DBUG_DUMP       - To dump a block of memory.
  *        PUSH_FLAG "O"   - To be used insted of "o" if we
@@ -125,7 +122,6 @@
 #define DEPTH_ON        (1 <<  4)  /* Function nest level print enabled */
 #define PROCESS_ON      (1 <<  5)  /* Process name print enabled */
 #define NUMBER_ON       (1 <<  6)  /* Number each line of output */
-#define PROFILE_ON      (1 <<  7)  /* Print out profiling code */
 #define PID_ON          (1 <<  8)  /* Identify each line with process id */
 #define TIMESTAMP_ON    (1 <<  9)  /* timestamp every line of output */
 #define FLUSH_ON_WRITE  (1 << 10)  /* Flush on every write */
@@ -134,7 +130,6 @@
 
 #define TRACING (cs->stack->flags & TRACE_ON)
 #define DEBUGGING (cs->stack->flags & DEBUG_ON)
-#define PROFILING (cs->stack->flags & PROFILE_ON)
 
 /*
  *      Typedefs to make things more obvious.
@@ -150,24 +145,6 @@
 #define EXPORT                  /* Allocated here, available globally */
 #define AUTO auto               /* Names to be allocated on stack */
 #define REGISTER register       /* Names to be placed in registers */
-
-/*
- * The default file for profiling.  Could also add another flag
- * (G?) which allowed the user to specify this.
- *
- * If the automatic variables get allocated on the stack in
- * reverse order from their declarations, then define AUTOS_REVERSE to 1.
- * This is used by the code that keeps track of stack usage.  For
- * forward allocation, the difference in the dbug frame pointers
- * represents stack used by the callee function.  For reverse allocation,
- * the difference represents stack used by the caller function.
- *
- */
-
-#define PROF_FILE       "dbugmon.out"
-#define PROF_EFMT       "E\t%ld\t%s\n"
-#define PROF_SFMT       "S\t%lx\t%lx\t%s\n"
-#define PROF_XFMT       "X\t%ld\t%s\n"
 
 #ifdef M_I386           /* predefined by xenix 386 compiler */
 #define AUTOS_REVERSE 1
@@ -219,10 +196,8 @@ struct settings {
   uint delay;                   /* Delay after each output line         */
   uint sub_level;               /* Sub this from code_state->level      */
   FILE *out_file;               /* Current output stream                */
-  FILE *prof_file;              /* Current profiling stream             */
   char name[FN_REFLEN];         /* Name of output file                  */
   struct link *functions;       /* List of functions                    */
-  struct link *p_functions;     /* List of profiled functions           */
   struct link *keywords;        /* List of debug keywords               */
   struct link *processes;       /* List of process names                */
   struct settings *next;        /* Next settings in the list            */
@@ -319,15 +294,6 @@ static void DbugExit(const char *why);
 static const char *DbugStrTok(const char *s);
 static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 
-#ifndef THREAD
-        /* Open profile output stream */
-static FILE *OpenProfile(CODE_STATE *cs, const char *name);
-        /* Profile if asked for it */
-static BOOLEAN DoProfile(CODE_STATE *);
-        /* Return current user time (ms) */
-static unsigned long Clock(void);
-#endif
-
 /*
  *      Miscellaneous printf format strings.
  */
@@ -355,7 +321,6 @@ static unsigned long Clock(void);
 ** Macros to allow dbugging with threads
 */
 
-#ifdef THREAD
 #include <my_pthread.h>
 static pthread_mutex_t THR_LOCK_dbug;
 
@@ -393,30 +358,6 @@ static CODE_STATE *code_state(void)
   }
   return cs;
 }
-
-#else /* !THREAD */
-
-static CODE_STATE static_code_state=
-{
-  "dbug", "?func", "?file", NULL, &init_settings,
-  NullS, NullS, 0,0,0,0,0,NullS
-};
-
-static CODE_STATE *code_state(void)
-{
-  if (!init_done)
-  {
-    bzero(&init_settings, sizeof(init_settings));
-    init_settings.out_file=stderr;
-    init_settings.flags=OPEN_APPEND;
-    init_done=TRUE;
-  }
-  return &static_code_state;
-}
-
-#define pthread_mutex_lock(A) {}
-#define pthread_mutex_unlock(A) {}
-#endif
 
 /*
  *      Translate some calls among different systems.
@@ -509,9 +450,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
     stack->maxdepth= 0;
     stack->sub_level= 0;
     stack->out_file= stderr;
-    stack->prof_file= NULL;
     stack->functions= NULL;
-    stack->p_functions= NULL;
     stack->keywords= NULL;
     stack->processes= NULL;
   }
@@ -522,20 +461,23 @@ int DbugParse(CODE_STATE *cs, const char *control)
     stack->maxdepth= stack->next->maxdepth;
     stack->sub_level= stack->next->sub_level;
     strcpy(stack->name, stack->next->name);
-    stack->out_file= stack->next->out_file;
-    stack->prof_file= stack->next->prof_file;
     if (stack->next == &init_settings)
     {
-      /* never share with the global parent - it can change under your feet */
+      /*
+        Never share with the global parent - it can change under your feet.
+
+        Reset out_file to stderr to prevent sharing of trace files between
+        global and session settings.
+      */
+      stack->out_file= stderr;
       stack->functions= ListCopy(init_settings.functions);
-      stack->p_functions= ListCopy(init_settings.p_functions);
       stack->keywords= ListCopy(init_settings.keywords);
       stack->processes= ListCopy(init_settings.processes);
     }
     else
     {
+      stack->out_file= stack->next->out_file;
       stack->functions= stack->next->functions;
-      stack->p_functions= stack->next->p_functions;
       stack->keywords= stack->next->keywords;
       stack->processes= stack->next->processes;
     }
@@ -602,15 +544,6 @@ int DbugParse(CODE_STATE *cs, const char *control)
       else
         stack->flags |= PID_ON;
       break;
-#ifndef THREAD
-    case 'g':
-      if (OpenProfile(cs, PROF_FILE))
-      {
-        stack->flags |= PROFILE_ON;
-        stack->p_functions= ListAdd(stack->p_functions, control, end);
-      }
-      break;
-#endif
     case 'L':
       if (sign < 0)
         stack->flags &= ~LINE_ON;
@@ -911,6 +844,7 @@ void _db_set_init_(const char *control)
   CODE_STATE tmp_cs;
   bzero((uchar*) &tmp_cs, sizeof(tmp_cs));
   tmp_cs.stack= &init_settings;
+  tmp_cs.process= db_process ? db_process : "dbug";
   DbugParse(&tmp_cs, control);
 }
 
@@ -1052,7 +986,6 @@ int _db_explain_ (CODE_STATE *cs, char *buf, size_t len)
   op_list_to_buf('f', cs->stack->functions, cs->stack->functions);
   op_bool_to_buf('F', cs->stack->flags & FILE_ON);
   op_bool_to_buf('i', cs->stack->flags & PID_ON);
-  op_list_to_buf('g', cs->stack->p_functions, PROFILING);
   op_bool_to_buf('L', cs->stack->flags & LINE_ON);
   op_bool_to_buf('n', cs->stack->flags & DEPTH_ON);
   op_bool_to_buf('N', cs->stack->flags & NUMBER_ON);
@@ -1159,23 +1092,7 @@ void _db_enter_(const char *_func_, const char *_file_,
   _stack_frame_->prev= cs->framep;
   _stack_frame_->level= ++cs->level | framep_trace_flag(cs, cs->framep);
   cs->framep= _stack_frame_;
-#ifndef THREAD
-  if (DoProfile(cs))
-  {
-    long stackused;
-    if (cs->framep->prev == NULL)
-      stackused= 0;
-    else
-    {
-      stackused= (char*)(cs->framep->prev) - (char*)(cs->framep);
-      stackused= stackused > 0 ? stackused : -stackused;
-    }
-    (void) fprintf(cs->stack->prof_file, PROF_EFMT , Clock(), cs->func);
-    (void) fprintf(cs->stack->prof_file, PROF_SFMT, (ulong) cs->framep, stackused,
-                   AUTOS_REVERSE ? _stack_frame_->func : cs->func);
-    (void) fflush(cs->stack->prof_file);
-  }
-#endif
+
   switch (DoTrace(cs)) {
   case ENABLE_TRACE:
     cs->framep->level|= TRACE_ON;
@@ -1234,10 +1151,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
     my_snprintf(buf, sizeof(buf), ERR_MISSING_RETURN, cs->func);
     DbugExit(buf);
   }
-#ifndef THREAD
-  if (DoProfile(cs))
-    (void) fprintf(cs->stack->prof_file, PROF_XFMT, Clock(), cs->func);
-#endif
+
   if (DoTrace(cs) & DO_TRACE)
   {
     if (TRACING)
@@ -1650,18 +1564,11 @@ static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
     FreeList(state->functions);
   if (!is_shared(state, processes))
     FreeList(state->processes);
-  if (!is_shared(state, p_functions))
-    FreeList(state->p_functions);
 
   if (!is_shared(state, out_file))
     DBUGCloseFile(cs, state->out_file);
   else
     (void) fflush(state->out_file);
-
-  if (!is_shared(state, prof_file))
-    DBUGCloseFile(cs, state->prof_file);
-  else
-    (void) fflush(state->prof_file);
 
   if (free_state)
     free((void*) state);
@@ -1710,12 +1617,10 @@ void _db_end_()
   pthread_mutex_lock(&THR_LOCK_dbug);
   init_settings.flags=    OPEN_APPEND;
   init_settings.out_file= stderr;
-  init_settings.prof_file= stderr;
   init_settings.maxdepth= 0;
   init_settings.delay= 0;
   init_settings.sub_level= 0;
   init_settings.functions= 0;
-  init_settings.p_functions= 0;
   init_settings.keywords= 0;
   init_settings.processes= 0;
   pthread_mutex_unlock(&THR_LOCK_dbug);
@@ -1753,36 +1658,6 @@ static int DoTrace(CODE_STATE *cs)
     }
   return DONT_TRACE;
 }
-
-
-/*
- *  FUNCTION
- *
- *      DoProfile    check to see if profiling is current enabled
- *
- *  SYNOPSIS
- *
- *      static BOOLEAN DoProfile()
- *
- *  DESCRIPTION
- *
- *      Checks to see if profiling is enabled based on whether the
- *      user has specified profiling, the maximum trace depth has
- *      not yet been reached, the current function is selected,
- *      and the current process is selected.  Returns TRUE if
- *      profiling is enabled, FALSE otherwise.
- *
- */
-
-#ifndef THREAD
-static BOOLEAN DoProfile(CODE_STATE *cs)
-{
-  return (PROFILING &&
-          cs->level <= cs->stack->maxdepth &&
-          InList(cs->stack->p_functions, cs->func, 0) & (INCLUDE|MATCHED) &&
-          InList(cs->stack->processes, cs->process, 0) & (INCLUDE|MATCHED));
-}
-#endif
 
 FILE *_db_fp_(void)
 {
@@ -1910,11 +1785,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
   cs->lineno++;
   if (cs->stack->flags & PID_ON)
   {
-#ifdef THREAD
     (void) fprintf(cs->stack->out_file, "%-7s: ", my_thread_name());
-#else
-    (void) fprintf(cs->stack->out_file, "%5d: ", (int) getpid());
-#endif
   }
   if (cs->stack->flags & NUMBER_ON)
     (void) fprintf(cs->stack->out_file, "%5d: ", cs->lineno);
@@ -2023,63 +1894,6 @@ static void DBUGOpenFile(CODE_STATE *cs,
     }
   }
 }
-
-
-/*
- *  FUNCTION
- *
- *      OpenProfile    open new output stream for profiler output
- *
- *  SYNOPSIS
- *
- *      static FILE *OpenProfile(name)
- *      char *name;
- *
- *  DESCRIPTION
- *
- *      Given name of a new file, opens the file
- *      and sets the profiler output stream to the new file.
- *
- *      It is currently unclear whether the prefered behavior is
- *      to truncate any existing file, or simply append to it.
- *      The latter behavior would be desirable for collecting
- *      accumulated runtime history over a number of separate
- *      runs.  It might take some changes to the analyzer program
- *      though, and the notes that Binayak sent with the profiling
- *      diffs indicated that append was the normal mode, but this
- *      does not appear to agree with the actual code. I haven't
- *      investigated at this time [fnf; 24-Jul-87].
- */
-
-#ifndef THREAD
-static FILE *OpenProfile(CODE_STATE *cs, const char *name)
-{
-  REGISTER FILE *fp;
-  REGISTER BOOLEAN newfile;
-
-  fp=0;
-  if (!Writable(name))
-  {
-    (void) fprintf(cs->stack->out_file, ERR_OPEN, cs->process, name);
-    perror("");
-    (void) Delay(cs->stack->delay);
-  }
-  else
-  {
-    newfile= !EXISTS(name);
-    if (!(fp= fopen(name, "w")))
-    {
-      (void) fprintf(cs->stack->out_file, ERR_OPEN, cs->process, name);
-      perror("");
-    }
-    else
-    {
-      cs->stack->prof_file= fp;
-    }
-  }
-  return fp;
-}
-#endif
 
 /*
  *  FUNCTION
@@ -2382,10 +2196,29 @@ static void DbugFlush(CODE_STATE *cs)
 
 void _db_flush_()
 {
-  CODE_STATE *cs;
+  CODE_STATE *cs= NULL;
   get_code_state_or_return;
   (void) fflush(cs->stack->out_file);
 }
+
+
+#ifndef __WIN__
+void _db_suicide_()
+{
+  int retval;
+  sigset_t new_mask;
+  sigfillset(&new_mask);
+
+  fprintf(stderr, "SIGKILL myself\n");
+  fflush(stderr);
+
+  retval= kill(getpid(), SIGKILL);
+  assert(retval == 0);
+  retval= sigsuspend(&new_mask);
+  fprintf(stderr, "sigsuspend returned %d errno %d \n", retval, errno);
+  assert(FALSE); /* With full signal mask, we should never return here. */
+}
+#endif  /* ! __WIN__ */
 
 
 void _db_lock_file_()
@@ -2411,80 +2244,6 @@ const char* _db_get_func_(void)
   return cs->func;
 }
 
-/*
- * Here we need the definitions of the clock routine.  Add your
- * own for whatever system that you have.
- */
-
-#ifndef THREAD
-#if defined(HAVE_GETRUSAGE)
-
-#include <sys/param.h>
-#include <sys/resource.h>
-
-/* extern int getrusage(int, struct rusage *); */
-
-/*
- * Returns the user time in milliseconds used by this process so
- * far.
- */
-
-static unsigned long Clock()
-{
-    struct rusage ru;
-
-    (void) getrusage(RUSAGE_SELF, &ru);
-    return ru.ru_utime.tv_sec*1000 + ru.ru_utime.tv_usec/1000;
-}
-
-#elif defined(__WIN__)
-
-static ulong Clock()
-{
-  return clock()*(1000/CLOCKS_PER_SEC);
-}
-#elif defined(amiga)
-
-struct DateStamp {              /* Yes, this is a hack, but doing it right */
-        long ds_Days;           /* is incredibly ugly without splitting this */
-        long ds_Minute;         /* off into a separate file */
-        long ds_Tick;
-};
-
-static int first_clock= TRUE;
-static struct DateStamp begin;
-static struct DateStamp elapsed;
-
-static unsigned long Clock()
-{
-    register struct DateStamp *now;
-    register unsigned long millisec= 0;
-    extern VOID *AllocMem();
-
-    now= (struct DateStamp *) AllocMem((long) sizeof(struct DateStamp), 0L);
-    if (now != NULL)
-    {
-        if (first_clock == TRUE)
-        {
-            first_clock= FALSE;
-            (void) DateStamp(now);
-            begin= *now;
-        }
-        (void) DateStamp(now);
-        millisec= 24 * 3600 * (1000 / HZ) * (now->ds_Days - begin.ds_Days);
-        millisec += 60 * (1000 / HZ) * (now->ds_Minute - begin.ds_Minute);
-        millisec += (1000 / HZ) * (now->ds_Tick - begin.ds_Tick);
-        (void) FreeMem(now, (long) sizeof(struct DateStamp));
-    }
-    return millisec;
-}
-#else
-static unsigned long Clock()
-{
-    return 0;
-}
-#endif /* RUSAGE */
-#endif /* THREADS */
 
 #else
 

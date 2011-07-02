@@ -11,6 +11,7 @@
 *.dir/
 *.dll
 *.dsp
+*.dylib
 *.exe
 *.exp
 *.gcda
@@ -22,6 +23,7 @@
 *.lai
 *.lib
 *.lo
+*.manifest
 *.map
 *.o
 *.obj
@@ -32,6 +34,7 @@
 *.Po
 *.reject
 *.res
+*.rule
 *.sbr
 *.so
 *.so.*
@@ -40,7 +43,12 @@
 *.user
 *.vcproj
 *.vcproj.cmake
-*/*_pure_*warnings
+*.vcxproj
+*.vcxproj.filters
+Debug
+MySql.sdf
+Win32
+RelWithDebInfo
 *~
 .*.swp
 ./CMakeCache.txt
@@ -55,23 +63,16 @@
 .defs.mk
 .depend
 .depend.mk
-.deps
 .DS_Store
 .gdb_history
 .gdbinit
-.libs
 .o
 .out
 .snprj/*
 .vimrc
 ac_available_languages_fragment
-acinclude.m4
-aclocal.m4
-autom4te-2.53.cache/*
-autom4te.cache/*
 BitKeeper/
 client/*.ds?
-client/.libs -prune
 client/completion_hash.cpp
 client/decimal.c
 client/dtoa.c
@@ -137,16 +138,7 @@ comments
 comon.h
 comp_err/*.ds?
 compile
-config.cache
-config.guess
 config.h
-config.h.in
-config.log
-config.status
-config.sub
-configure
-configure.am
-configure.lineno
 contrib/*.ds?
 COPYING
 COPYING.LIB
@@ -216,7 +208,9 @@ include/mysql_h.ic
 include/mysql_version.h
 include/mysqld_ername.h
 include/mysqld_error.h
+include/mysqld_error.h.rule
 include/openssl
+include/probes_mysql_dtrace.h
 include/readline
 include/readline/*.h
 include/readline/readline.h
@@ -246,7 +240,6 @@ libmysql/release/libmysql.exp
 libmysql/vio_priv.h
 libmysql/viosocket.o.6WmSJk
 libmysql_r/*.c
-libmysql_r/acconfig.h
 libmysql_r/client_settings.h
 libmysql_r/conf_to_src
 libmysql_r/link_sources
@@ -557,7 +550,9 @@ scripts/mysql_find_rows
 scripts/mysql_fix_extensions
 scripts/mysql_fix_privilege_tables
 scripts/mysql_fix_privilege_tables.sql
+scripts/mysql_fix_privilege_tables.sql.rule
 scripts/mysql_fix_privilege_tables_sql.c
+scripts/mysql_fix_privilege_tables_sql.c.rule
 scripts/mysql_install_db
 scripts/mysql_secure_installation
 scripts/mysql_setpermission
@@ -609,6 +604,7 @@ sql/client_plugin.c
 sql/Doxyfile
 sql/gen_lex_hash
 sql/lex_hash.h
+sql/lex_hash.h.rule
 sql/link_sources
 sql/message.h
 sql/message.mc
@@ -630,6 +626,7 @@ sql/share/*/*.sys
 sql/sql_builtin.cc
 sql/sql_yacc.cc
 sql/sql_yacc.h
+sql/sql_yacc.h.rule
 sql/sql_yacc.output
 sql_error.cc
 sql_prepare.cc
@@ -812,7 +809,6 @@ storage/ndb/bin/testTimeout
 storage/ndb/bin/testTransactions
 storage/ndb/bin/verify_index
 storage/ndb/bin/waiter
-storage/ndb/config/autom4te.cache/*
 storage/ndb/config/config.mk
 storage/ndb/examples/ndbapi_example1/ndbapi_example1
 storage/ndb/examples/ndbapi_example2/ndbapi_example2
@@ -932,8 +928,6 @@ storage/ndb/tools/ndb_show_tables
 storage/ndb/tools/ndb_test_platform
 storage/ndb/tools/ndb_waiter
 storage/pbxt/bin/xtstat
-storage/xtradb/autom4te-2.53.cache/*
-storage/xtradb/autom4te.cache/*
 storage/xtradb/configure.lineno
 storage/xtradb/conftest.s1
 storage/xtradb/conftest.subs
@@ -1028,7 +1022,6 @@ test1/*
 test?.MA?
 test_xml
 tests/*.ds?
-tests/.libs -prune
 tests/bug25714
 tests/client_test
 tests/connect_test
@@ -1038,7 +1031,6 @@ thr_test/*
 thread_test
 tmp
 tmp/*
-tools/.libs -prune
 tools/my_vsnprintf.c
 tools/mysqlmanager
 tools/mysqlmngd
@@ -1072,5 +1064,6 @@ vio/viotest.cpp
 win/configure.data
 win/vs71cache.txt
 win/vs8cache.txt
+win/nmake_cache.txt
 ylwrap
 zlib/*.ds?

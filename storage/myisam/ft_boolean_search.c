@@ -92,8 +92,6 @@ static double *nwghts=_nwghts+5; /* nwghts[i] = -0.5*1.5**i */
 #define FTB_FLAG_NO    4
 #define FTB_FLAG_WONLY 8
 
-#define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
-
 typedef struct st_ftb_expr FTB_EXPR;
 struct st_ftb_expr
 {

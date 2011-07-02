@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,11 +44,11 @@
 #include "transaction.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "records.h"             // init_read_record, end_read_record
-#include "hostname.h"
-#include "sql_db.h"
-#include "sql_connect.h"
 #include <sql_common.h>
 #include <mysql/plugin_auth.h>
+#include "sql_connect.h"
+#include "hostname.h"
+#include "sql_db.h"
 
 bool mysql_user_table_is_in_short_password_format= false;
 
@@ -180,17 +180,17 @@ static LEX_STRING old_password_plugin_name= {
 /// @todo make it configurable
 LEX_STRING *default_auth_plugin_name= &native_password_plugin_name;
 
-static plugin_ref native_password_plugin;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 static plugin_ref old_password_plugin;
 #endif
+static plugin_ref native_password_plugin;
 
 /* Classes */
 
 struct acl_host_and_ip
 {
   char *hostname;
-  long ip,ip_mask;                      // Used with masked ip:s
+  long ip, ip_mask;                      // Used with masked ip:s
 };
 
 class ACL_ACCESS {
@@ -215,7 +215,7 @@ public:
   uint hostname_length;
   USER_RESOURCES user_resource;
   char *user;
-  uint8 salt[SCRAMBLE_LENGTH+1];       // scrambled password in binary form
+  uint8 salt[SCRAMBLE_LENGTH + 1];       // scrambled password in binary form
   uint8 salt_len;        // 0 - no password, 4 - 3.20, 8 - 4.0,  20 - 4.1.1 
   enum SSL_type ssl_type;
   const char *ssl_cipher, *x509_issuer, *x509_subject;
@@ -224,7 +224,7 @@ public:
 
   ACL_USER *copy(MEM_ROOT *root)
   {
-    ACL_USER *dst= (ACL_USER *)alloc_root(root, sizeof(ACL_USER));
+    ACL_USER *dst= (ACL_USER *) alloc_root(root, sizeof(ACL_USER));
     if (!dst)
       return 0;
     *dst= *this;
@@ -237,7 +237,7 @@ public:
       dst->plugin= plugin;
     else
       dst->plugin.str= strmake_root(root, plugin.str, plugin.length);
-    dst->auth_string.str = safe_strdup_root(root, auth_string.str);
+    dst->auth_string.str= safe_strdup_root(root, auth_string.str);
     dst->host.hostname= safe_strdup_root(root, host.hostname);
     return dst;
   }
@@ -250,7 +250,253 @@ public:
   char *user,*db;
 };
 
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+static void update_hostname(acl_host_and_ip *host, const char *hostname);
+static ulong get_sort(uint count,...);
+static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
+			     const char *ip);
+static bool show_proxy_grants (THD *thd, LEX_USER *user,
+                               char *buff, size_t buffsize);
+
+class ACL_PROXY_USER :public ACL_ACCESS
+{
+  acl_host_and_ip host;
+  const char *user;
+  acl_host_and_ip proxied_host;
+  const char *proxied_user;
+  bool with_grant;
+
+  typedef enum { 
+    MYSQL_PROXIES_PRIV_HOST, 
+    MYSQL_PROXIES_PRIV_USER, 
+    MYSQL_PROXIES_PRIV_PROXIED_HOST,
+    MYSQL_PROXIES_PRIV_PROXIED_USER, 
+    MYSQL_PROXIES_PRIV_WITH_GRANT,
+    MYSQL_PROXIES_PRIV_GRANTOR,
+    MYSQL_PROXIES_PRIV_TIMESTAMP } old_acl_proxy_users;
+public:
+  ACL_PROXY_USER () {};
+
+  void init(const char *host_arg, const char *user_arg,
+       const char *proxied_host_arg, const char *proxied_user_arg,
+       bool with_grant_arg)
+  {
+    user= (user_arg && *user_arg) ? user_arg : NULL;
+    update_hostname (&host, 
+                     (host_arg && *host_arg) ? host_arg : NULL);
+    proxied_user= (proxied_user_arg && *proxied_user_arg) ? 
+      proxied_user_arg : NULL;
+    update_hostname (&proxied_host, 
+                     (proxied_host_arg && *proxied_host_arg) ?
+                     proxied_host_arg : NULL);
+    with_grant= with_grant_arg;
+    sort= get_sort(4, host.hostname, user,
+                   proxied_host.hostname, proxied_user);
+  }
+
+  void init(MEM_ROOT *mem, const char *host_arg, const char *user_arg,
+       const char *proxied_host_arg, const char *proxied_user_arg,
+       bool with_grant_arg)
+  {
+    init ((host_arg && *host_arg) ? strdup_root (mem, host_arg) : NULL,
+          (user_arg && *user_arg) ? strdup_root (mem, user_arg) : NULL,
+          (proxied_host_arg && *proxied_host_arg) ? 
+            strdup_root (mem, proxied_host_arg) : NULL,
+          (proxied_user_arg && *proxied_user_arg) ? 
+            strdup_root (mem, proxied_user_arg) : NULL,
+          with_grant_arg);
+  }
+
+  void init(TABLE *table, MEM_ROOT *mem)
+  {
+    init (get_field(mem, table->field[MYSQL_PROXIES_PRIV_HOST]),
+          get_field(mem, table->field[MYSQL_PROXIES_PRIV_USER]),
+          get_field(mem, table->field[MYSQL_PROXIES_PRIV_PROXIED_HOST]),
+          get_field(mem, table->field[MYSQL_PROXIES_PRIV_PROXIED_USER]),
+          table->field[MYSQL_PROXIES_PRIV_WITH_GRANT]->val_int() != 0);
+  }
+
+  bool get_with_grant() { return with_grant; }
+  const char *get_user() { return user; }
+  const char *get_host() { return host.hostname; }
+  const char *get_proxied_user() { return proxied_user; }
+  const char *get_proxied_host() { return proxied_host.hostname; }
+  void set_user(MEM_ROOT *mem, const char *user_arg) 
+  { 
+    user= user_arg && *user_arg ? strdup_root(mem, user_arg) : NULL;
+  }
+  void set_host(MEM_ROOT *mem, const char *host_arg) 
+  { 
+    update_hostname(&host, 
+                    (host_arg && *host_arg) ? 
+                    strdup_root(mem, host_arg) : NULL);
+  }
+
+  bool check_validity(bool check_no_resolve)
+  {
+    if (check_no_resolve && 
+        (hostname_requires_resolving(host.hostname) ||
+         hostname_requires_resolving(proxied_host.hostname)))
+    {
+      sql_print_warning("'proxies_priv' entry '%s@%s %s@%s' "
+                        "ignored in --skip-name-resolve mode.",
+                        proxied_user ? proxied_user : "",
+                        proxied_host.hostname ? proxied_host.hostname : "",
+                        user ? user : "",
+                        host.hostname ? host.hostname : "");
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  bool matches(const char *host_arg, const char *user_arg, const char *ip_arg,
+                const char *proxied_user_arg)
+  {
+    DBUG_ENTER("ACL_PROXY_USER::matches");
+    DBUG_PRINT("info", ("compare_hostname(%s,%s,%s) &&"
+                        "compare_hostname(%s,%s,%s) &&"
+                        "wild_compare (%s,%s) &&"
+                        "wild_compare (%s,%s)",
+                        host.hostname ? host.hostname : "<NULL>",
+                        host_arg ? host_arg : "<NULL>",
+                        ip_arg ? ip_arg : "<NULL>",
+                        proxied_host.hostname ? proxied_host.hostname : "<NULL>",
+                        host_arg ? host_arg : "<NULL>",
+                        ip_arg ? ip_arg : "<NULL>",
+                        user_arg ? user_arg : "<NULL>",
+                        user ? user : "<NULL>",
+                        proxied_user_arg ? proxied_user_arg : "<NULL>",
+                        proxied_user ? proxied_user : "<NULL>"));
+    DBUG_RETURN(compare_hostname(&host, host_arg, ip_arg) &&
+                compare_hostname(&proxied_host, host_arg, ip_arg) &&
+                (!user ||
+                 (user_arg && !wild_compare(user_arg, user, TRUE))) &&
+                (!proxied_user || 
+                 (proxied_user && !wild_compare(proxied_user_arg, 
+                                                proxied_user, TRUE))));
+  }
+
+
+  inline static bool auth_element_equals(const char *a, const char *b)
+  {
+    return (a == b || (a != NULL && b != NULL && !strcmp(a,b)));
+  }
+
+
+  bool pk_equals(ACL_PROXY_USER *grant)
+  {
+    DBUG_ENTER("pk_equals");
+    DBUG_PRINT("info", ("strcmp(%s,%s) &&"
+                        "strcmp(%s,%s) &&"
+                        "wild_compare (%s,%s) &&"
+                        "wild_compare (%s,%s)",
+                        user ? user : "<NULL>",
+                        grant->user ? grant->user : "<NULL>",
+                        proxied_user ? proxied_user : "<NULL>",
+                        grant->proxied_user ? grant->proxied_user : "<NULL>",
+                        host.hostname ? host.hostname : "<NULL>",
+                        grant->host.hostname ? grant->host.hostname : "<NULL>",
+                        proxied_host.hostname ? proxied_host.hostname : "<NULL>",
+                        grant->proxied_host.hostname ? 
+                        grant->proxied_host.hostname : "<NULL>"));
+
+    DBUG_RETURN(auth_element_equals(user, grant->user) &&
+                auth_element_equals(proxied_user, grant->proxied_user) &&
+                auth_element_equals(host.hostname, grant->host.hostname) &&
+                auth_element_equals(proxied_host.hostname, 
+                                    grant->proxied_host.hostname));
+  }
+
+
+  bool granted_on(const char *host_arg, const char *user_arg)
+  {
+    return (((!user && (!user_arg || !user_arg[0])) ||
+             (user && user_arg && !strcmp(user, user_arg))) &&
+            ((!host.hostname && (!host_arg || !host_arg[0])) ||
+             (host.hostname && host_arg && !strcmp(host.hostname, host_arg))));
+  }
+
+
+  void print_grant(String *str)
+  {
+    str->append(STRING_WITH_LEN("GRANT PROXY ON '"));
+    if (proxied_user)
+      str->append(proxied_user, strlen(proxied_user));
+    str->append(STRING_WITH_LEN("'@'"));
+    if (proxied_host.hostname)
+      str->append(proxied_host.hostname, strlen(proxied_host.hostname));
+    str->append(STRING_WITH_LEN("' TO '"));
+    if (user)
+      str->append(user, strlen(user));
+    str->append(STRING_WITH_LEN("'@'"));
+    if (host.hostname)
+      str->append(host.hostname, strlen(host.hostname));
+    str->append(STRING_WITH_LEN("'"));
+    if (with_grant)
+      str->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
+  }
+
+  void set_data(ACL_PROXY_USER *grant)
+  {
+    with_grant= grant->with_grant;
+  }
+
+  static int store_pk(TABLE *table, 
+                      const LEX_STRING *host, 
+                      const LEX_STRING *user,
+                      const LEX_STRING *proxied_host, 
+                      const LEX_STRING *proxied_user)
+  {
+    DBUG_ENTER("ACL_PROXY_USER::store_pk");
+    DBUG_PRINT("info", ("host=%s, user=%s, proxied_host=%s, proxied_user=%s",
+                        host->str ? host->str : "<NULL>",
+                        user->str ? user->str : "<NULL>",
+                        proxied_host->str ? proxied_host->str : "<NULL>",
+                        proxied_user->str ? proxied_user->str : "<NULL>"));
+    if (table->field[MYSQL_PROXIES_PRIV_HOST]->store(host->str, 
+                                                   host->length,
+                                                   system_charset_info))
+      DBUG_RETURN(TRUE);
+    if (table->field[MYSQL_PROXIES_PRIV_USER]->store(user->str, 
+                                                   user->length,
+                                                   system_charset_info))
+      DBUG_RETURN(TRUE);
+    if (table->field[MYSQL_PROXIES_PRIV_PROXIED_HOST]->store(proxied_host->str,
+                                                           proxied_host->length,
+                                                           system_charset_info))
+      DBUG_RETURN(TRUE);
+    if (table->field[MYSQL_PROXIES_PRIV_PROXIED_USER]->store(proxied_user->str,
+                                                           proxied_user->length,
+                                                           system_charset_info))
+      DBUG_RETURN(TRUE);
+
+    DBUG_RETURN(FALSE);
+  }
+
+  static int store_data_record(TABLE *table,
+                               const LEX_STRING *host,
+                               const LEX_STRING *user,
+                               const LEX_STRING *proxied_host,
+                               const LEX_STRING *proxied_user,
+                               bool with_grant,
+                               const char *grantor)
+  {
+    DBUG_ENTER("ACL_PROXY_USER::store_pk");
+    if (store_pk(table,  host, user, proxied_host, proxied_user))
+      DBUG_RETURN(TRUE);
+    DBUG_PRINT("info", ("with_grant=%s", with_grant ? "TRUE" : "FALSE"));
+    if (table->field[MYSQL_PROXIES_PRIV_WITH_GRANT]->store(with_grant ? 1 : 0, 
+                                                         TRUE))
+      DBUG_RETURN(TRUE);
+    if (table->field[MYSQL_PROXIES_PRIV_GRANTOR]->store(grantor, 
+                                                        strlen(grantor),
+                                                        system_charset_info))
+      DBUG_RETURN(TRUE);
+
+    DBUG_RETURN(FALSE);
+  }
+};
 
 #define FIRST_NON_YN_FIELD 26
 
@@ -270,17 +516,18 @@ static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
   return (uchar*) entry->key;
 }
 
-#define IP_ADDR_STRLEN (3+1+3+1+3+1+3)
-#define ACL_KEY_LENGTH (IP_ADDR_STRLEN+1+NAME_LEN+1+USERNAME_LENGTH+1)
+#define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
+#define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
+                        1 + USERNAME_LENGTH + 1)
 
 #if defined(HAVE_OPENSSL)
 /*
   Without SSL the handshake consists of one packet. This packet
-  has both client capabilites and scrambled password.
+  has both client capabilities and scrambled password.
   With SSL the handshake might consist of two packets. If the first
   packet (client capabilities) has CLIENT_SSL flag set, we have to
   switch to SSL and read the second packet. The scrambled password
-  is in the second packet and client_capabilites field will be ignored.
+  is in the second packet and client_capabilities field will be ignored.
   Maybe it is better to accept flags other than CLIENT_SSL from the
   second packet?
 */
@@ -291,7 +538,7 @@ static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
 #define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 
-static DYNAMIC_ARRAY acl_hosts,acl_users,acl_dbs;
+static DYNAMIC_ARRAY acl_hosts, acl_users, acl_dbs, acl_proxy_users;
 static MEM_ROOT mem, memex;
 static bool initialized=0;
 static bool allow_all_hosts=1;
@@ -306,11 +553,9 @@ static void init_check_host(void);
 static void rebuild_check_host(void);
 static ACL_USER *find_acl_user(const char *host, const char *user,
                                my_bool exact);
-static bool update_user_table(THD *, TABLE *, const char *, const char *,
-                              const char *, uint);
-static void update_hostname(acl_host_and_ip *host, const char *hostname);
-static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
-			     const char *ip);
+static bool update_user_table(THD *thd, TABLE *table, const char *host,
+                              const char *user, const char *new_password,
+                              uint new_password_len);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 static inline void get_grantor(THD *thd, char* grantor);
@@ -443,6 +688,37 @@ my_bool acl_init(bool dont_read_acl_tables)
   /* Remember that we don't have a THD */
   my_pthread_setspecific_ptr(THR_THD,  0);
   DBUG_RETURN(return_val);
+}
+
+/**
+  Choose from either native or old password plugins when assigning a password
+*/
+
+static bool
+set_user_plugin (ACL_USER *user, int password_len)
+{
+  switch (password_len) 
+  {
+  case 0: /* no password */
+  case SCRAMBLED_PASSWORD_CHAR_LENGTH:
+    user->plugin= native_password_plugin_name;
+    return FALSE;
+  case SCRAMBLED_PASSWORD_CHAR_LENGTH_323:
+    user->plugin= old_password_plugin_name;
+    return FALSE;
+  case 45: /* 4.1: to be removed */
+    sql_print_warning("Found 4.1.0 style password for user '%s@%s'. "
+                      "Ignoring user. "
+                      "You should change password for this user.",
+                      user->user ? user->user : "",
+                      user->host.hostname ? user->host.hostname : "");
+    return TRUE;
+  default:
+    sql_print_warning("Found invalid password for user: '%s@%s'; "
+                      "Ignoring user", user->user ? user->user : "",
+                      user->host.hostname ? user->host.hostname : "");
+    return TRUE;
+  }
 }
 
 
@@ -582,9 +858,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_USER user;
-    char *password;
-    uint password_len;
-
     bzero(&user, sizeof(user));
     update_hostname(&user.host, get_field(&mem, table->field[0]));
     user.user= get_field(&mem, table->field[1]);
@@ -597,33 +870,14 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       continue;
     }
 
-    password= get_field(&mem, table->field[2]);
-    password_len= password ? strlen(password) : 0;
+    char *password= get_field(&mem, table->field[2]);
+    uint password_len= password ? strlen(password) : 0;
     user.auth_string.str= password ? password : const_cast<char*>("");
     user.auth_string.length= password_len;
     set_user_salt(&user, password, password_len);
 
-    switch (password_len) {
-    case 0: /* no password */
-    case SCRAMBLED_PASSWORD_CHAR_LENGTH:
-      user.plugin= native_password_plugin_name;
-      break;
-    case SCRAMBLED_PASSWORD_CHAR_LENGTH_323:
-      user.plugin= old_password_plugin_name;
-      break;
-    case 45: /* 4.1: to be removed */
-      sql_print_warning("Found 4.1.0 style password for user '%s@%s'. "
-                        "Ignoring user. "
-                        "You should change password for this user.",
-                        user.user ? user.user : "",
-                        user.host.hostname ? user.host.hostname : "");
+    if (set_user_plugin(&user, password_len))
       continue;
-    default:
-      sql_print_warning("Found invalid password for user: '%s@%s'; "
-                        "Ignoring user", user.user ? user.user : "",
-                         user.host.hostname ? user.host.hostname : "");
-      continue;
-    }
     
     {
       uint next_field;
@@ -816,6 +1070,38 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 	   sizeof(ACL_DB),(qsort_cmp) acl_compare);
   end_read_record(&read_record_info);
   freeze_size(&acl_dbs);
+
+  (void) my_init_dynamic_array(&acl_proxy_users, sizeof(ACL_PROXY_USER), 
+                               50, 100);
+  if (tables[3].table)
+  {
+    init_read_record(&read_record_info, thd, table= tables[3].table, NULL, 1, 
+                     0, FALSE);
+    table->use_all_columns();
+    while (!(read_record_info.read_record(&read_record_info)))
+    {
+      ACL_PROXY_USER proxy;
+      proxy.init(table, &mem);
+      if (proxy.check_validity(check_no_resolve))
+        continue;
+      if (push_dynamic(&acl_proxy_users, (uchar*) &proxy))
+      {
+        end_read_record(&read_record_info);
+        goto end;
+      }
+    }
+    my_qsort((uchar*) dynamic_element(&acl_proxy_users, 0, ACL_PROXY_USER*),
+             acl_proxy_users.elements,
+             sizeof(ACL_PROXY_USER), (qsort_cmp) acl_compare);
+    end_read_record(&read_record_info);
+  }
+  else
+  {
+    sql_print_error("Missing system table mysql.proxies_priv; "
+                    "please run mysql_upgrade to create it");
+  }
+  freeze_size(&acl_proxy_users);
+
   init_check_host();
 
   initialized=1;
@@ -834,6 +1120,7 @@ void acl_free(bool end)
   delete_dynamic(&acl_users);
   delete_dynamic(&acl_dbs);
   delete_dynamic(&acl_wild_hosts);
+  delete_dynamic(&acl_proxy_users);
   my_hash_free(&acl_check_hosts);
   plugin_unlock(0, native_password_plugin);
   plugin_unlock(0, old_password_plugin);
@@ -868,8 +1155,8 @@ void acl_free(bool end)
 
 my_bool acl_reload(THD *thd)
 {
-  TABLE_LIST tables[3];
-  DYNAMIC_ARRAY old_acl_hosts,old_acl_users,old_acl_dbs;
+  TABLE_LIST tables[4];
+  DYNAMIC_ARRAY old_acl_hosts, old_acl_users, old_acl_dbs, old_acl_proxy_users;
   MEM_ROOT old_mem;
   bool old_initialized;
   my_bool return_val= TRUE;
@@ -885,9 +1172,15 @@ my_bool acl_reload(THD *thd)
                            C_STRING_WITH_LEN("user"), "user", TL_READ);
   tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("db"), "db", TL_READ);
-  tables[0].next_local= tables[0].next_global= tables+1;
-  tables[1].next_local= tables[1].next_global= tables+2;
-  tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
+  tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("proxies_priv"), 
+                           "proxies_priv", TL_READ);
+  tables[0].next_local= tables[0].next_global= tables + 1;
+  tables[1].next_local= tables[1].next_global= tables + 2;
+  tables[2].next_local= tables[2].next_global= tables + 3;
+  tables[0].open_type= tables[1].open_type= tables[2].open_type= 
+  tables[3].open_type= OT_BASE_ONLY;
+  tables[3].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
@@ -904,10 +1197,11 @@ my_bool acl_reload(THD *thd)
   if ((old_initialized=initialized))
     mysql_mutex_lock(&acl_cache->lock);
 
-  old_acl_hosts=acl_hosts;
-  old_acl_users=acl_users;
-  old_acl_dbs=acl_dbs;
-  old_mem=mem;
+  old_acl_hosts= acl_hosts;
+  old_acl_users= acl_users;
+  old_acl_proxy_users= acl_proxy_users;
+  old_acl_dbs= acl_dbs;
+  old_mem= mem;
   delete_dynamic(&acl_wild_hosts);
   my_hash_free(&acl_check_hosts);
 
@@ -915,10 +1209,11 @@ my_bool acl_reload(THD *thd)
   {					// Error. Revert to old list
     DBUG_PRINT("error",("Reverting to old privileges"));
     acl_free();				/* purecov: inspected */
-    acl_hosts=old_acl_hosts;
-    acl_users=old_acl_users;
-    acl_dbs=old_acl_dbs;
-    mem=old_mem;
+    acl_hosts= old_acl_hosts;
+    acl_users= old_acl_users;
+    acl_proxy_users= old_acl_proxy_users;
+    acl_dbs= old_acl_dbs;
+    mem= old_mem;
     init_check_host();
   }
   else
@@ -926,6 +1221,7 @@ my_bool acl_reload(THD *thd)
     free_root(&old_mem,MYF(0));
     delete_dynamic(&old_acl_hosts);
     delete_dynamic(&old_acl_users);
+    delete_dynamic(&old_acl_proxy_users);
     delete_dynamic(&old_acl_dbs);
   }
   if (old_initialized)
@@ -1172,6 +1468,7 @@ static void acl_update_user(const char *user, const char *host,
           if (fix_user_plugin_ptr(acl_user))
             acl_user->plugin.str= strmake_root(&mem, plugin->str, plugin->length);
         }
+#if 0
         else
           if (password)
           {
@@ -1179,6 +1476,7 @@ static void acl_update_user(const char *user, const char *host,
             acl_user->auth_string.length= password_len;
             set_user_salt(acl_user, password, password_len);
           }
+#endif
 	acl_user->access=privileges;
 	if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
 	  acl_user->user_resource.questions=mqh->questions;
@@ -1198,6 +1496,8 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->x509_subject= (x509_subject ?
 				   strdup_root(&mem,x509_subject) : 0);
 	}
+	if (password)
+	  set_user_salt(acl_user, password, password_len);
         /* search complete: */
 	break;
       }
@@ -1238,7 +1538,6 @@ static void acl_insert_user(const char *user, const char *host,
       old_password_plugin_name : native_password_plugin_name;
     acl_user.auth_string.str= strmake_root(&mem, password, password_len);
     acl_user.auth_string.length= password_len;
-    set_user_salt(&acl_user, password, password_len);
   }
 
   acl_user.access=privileges;
@@ -1250,6 +1549,8 @@ static void acl_insert_user(const char *user, const char *host,
   acl_user.ssl_cipher=	ssl_cipher   ? strdup_root(&mem,ssl_cipher) : 0;
   acl_user.x509_issuer= x509_issuer  ? strdup_root(&mem,x509_issuer) : 0;
   acl_user.x509_subject=x509_subject ? strdup_root(&mem,x509_subject) : 0;
+
+  set_user_salt(&acl_user, password, password_len);
 
   (void) push_dynamic(&acl_users,(uchar*) &acl_user);
   if (!acl_user.host.hostname ||
@@ -1635,6 +1936,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
     goto end;
   }
+
   /* update loaded acl entry: */
   if (acl_user->plugin.str == native_password_plugin_name.str || 
       acl_user->plugin.str == old_password_plugin_name.str)
@@ -1642,7 +1944,11 @@ bool change_password(THD *thd, const char *host, const char *user,
     acl_user->auth_string.str= strmake_root(&mem, new_password, new_password_len);
     acl_user->auth_string.length= new_password_len;
     set_user_salt(acl_user, new_password, new_password_len);
+    set_user_plugin(acl_user, new_password_len);
   }
+  else
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                 ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
 
   if (update_user_table(thd, table,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
@@ -2024,15 +2330,14 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 
       see also test_if_create_new_users()
     */
-    else if (!password_len && no_auto_create)
+    else if (!password_len && !combo.plugin.length && no_auto_create)
     {
-      my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo.user.str, combo.host.str);
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
       goto end;
     }
     else if (!can_create_user)
     {
-      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0),
-               thd->security_ctx->user, thd->security_ctx->host_or_ip);
+      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
       goto end;
     }
     else if (combo.plugin.str[0])
@@ -2057,6 +2362,15 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   {
     old_row_exists = 1;
     store_record(table,record[1]);			// Save copy for update
+#if 0
+    /* what == 'N' means revoke */
+    if (combo.plugin.length && what != 'N')
+    {
+        my_error(ER_GRANT_PLUGIN_USER_EXISTS, MYF(0),
+                 static_cast<int>(combo.user.length), combo.user.str);
+        goto end;
+    }
+#endif
     if (combo.password.str)                             // If password given
       table->field[2]->store(password, password_len, system_charset_info);
     else if (!rights && !revoke_grant &&
@@ -2139,13 +2453,15 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       table->field[next_field+3]->store((longlong) mqh.user_conn, TRUE);
     mqh_used= mqh_used || mqh.questions || mqh.updates || mqh.conn_per_hour;
 
-    next_field+=4;
+    next_field+= 4;
     if (table->s->fields >= 41 && combo.plugin.str[0])
     {
       table->field[next_field]->store(combo.plugin.str, combo.plugin.length,
-                  system_charset_info);
-      table->field[next_field+1]->store(combo.auth.str, combo.auth.length,
-                  system_charset_info);
+                                      system_charset_info);
+      table->field[next_field]->set_notnull();
+      table->field[next_field + 1]->store(combo.auth.str, combo.auth.length,
+                                          system_charset_info);
+      table->field[next_field + 1]->set_notnull();
     }
   }
 
@@ -2315,6 +2631,164 @@ table_error:
   table->file->print_error(error,MYF(0));	/* purecov: deadcode */
 
 abort:
+  DBUG_RETURN(-1);
+}
+
+
+static void  
+acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke)
+{
+  mysql_mutex_assert_owner(&acl_cache->lock);
+
+  DBUG_ENTER("acl_update_proxy_user");
+  for (uint i= 0; i < acl_proxy_users.elements; i++)
+  {
+    ACL_PROXY_USER *acl_user= 
+      dynamic_element(&acl_proxy_users, i, ACL_PROXY_USER *);
+
+    if (acl_user->pk_equals(new_value))
+    {
+      if (is_revoke)
+      {
+        DBUG_PRINT("info", ("delting ACL_PROXY_USER"));
+        delete_dynamic_element(&acl_proxy_users, i);
+      }
+      else
+      {
+        DBUG_PRINT("info", ("updating ACL_PROXY_USER"));
+        acl_user->set_data(new_value);
+      }
+      break;
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+static void  
+acl_insert_proxy_user(ACL_PROXY_USER *new_value)
+{
+  DBUG_ENTER("acl_insert_proxy_user");
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  (void) push_dynamic(&acl_proxy_users, (uchar *) new_value);
+  my_qsort((uchar*) dynamic_element(&acl_proxy_users, 0, ACL_PROXY_USER *),
+           acl_proxy_users.elements,
+           sizeof(ACL_PROXY_USER), (qsort_cmp) acl_compare);
+  DBUG_VOID_RETURN;
+}
+
+
+static int 
+replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
+                         const LEX_USER *proxied_user, bool with_grant_arg, 
+                         bool revoke_grant)
+{
+  bool old_row_exists= 0;
+  int error;
+  uchar user_key[MAX_KEY_LENGTH];
+  ACL_PROXY_USER new_grant;
+  char grantor[USER_HOST_BUFF_SIZE];
+
+  DBUG_ENTER("replace_proxies_priv_table");
+
+  if (!initialized)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(-1);
+  }
+
+  /* Check if there is such a user in user table in memory? */
+  if (!find_acl_user(user->host.str,user->user.str, FALSE))
+  {
+    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
+    DBUG_RETURN(-1);
+  }
+
+  table->use_all_columns();
+  ACL_PROXY_USER::store_pk (table, &user->host, &user->user, 
+                            &proxied_user->host, &proxied_user->user);
+
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+
+  get_grantor(thd, grantor);
+
+  table->file->ha_index_init(0, 1);
+  if (table->file->index_read_map(table->record[0], user_key,
+                                      HA_WHOLE_KEY,
+                                      HA_READ_KEY_EXACT))
+  {
+    DBUG_PRINT ("info", ("Row not found"));
+    if (revoke_grant)
+    { // no row, no revoke
+      my_error(ER_NONEXISTING_GRANT, MYF(0), user->user.str, user->host.str);
+      goto abort;
+    }
+    old_row_exists= 0;
+    restore_record(table, s->default_values);
+    ACL_PROXY_USER::store_data_record(table, &user->host, &user->user,
+                                      &proxied_user->host,
+                                      &proxied_user->user,
+                                      with_grant_arg,
+                                      grantor);
+  }
+  else
+  {
+    DBUG_PRINT("info", ("Row found"));
+    old_row_exists= 1;
+    store_record(table, record[1]);
+  }
+
+  if (old_row_exists)
+  {
+    /* update old existing row */
+    if (!revoke_grant)
+    {
+      if ((error= table->file->ha_update_row(table->record[1],
+                                             table->record[0])) &&
+          error != HA_ERR_RECORD_IS_THE_SAME)
+	goto table_error;			/* purecov: inspected */
+    }
+    else
+    {
+      if ((error= table->file->ha_delete_row(table->record[1])))
+	goto table_error;			/* purecov: inspected */
+    }
+  }
+  else if ((error= table->file->ha_write_row(table->record[0])))
+  {
+    DBUG_PRINT("info", ("error inserting the row"));
+    if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+      goto table_error; /* purecov: inspected */
+  }
+
+  acl_cache->clear(1);				// Clear privilege cache
+  if (old_row_exists)
+  {
+    new_grant.init(user->host.str, user->user.str,
+                   proxied_user->host.str, proxied_user->user.str,
+                   with_grant_arg);
+    acl_update_proxy_user(&new_grant, revoke_grant);
+  }
+  else
+  {
+    new_grant.init(&mem, user->host.str, user->user.str,
+                   proxied_user->host.str, proxied_user->user.str,
+                   with_grant_arg);
+    acl_insert_proxy_user(&new_grant);
+  }
+
+  table->file->ha_index_end();
+  DBUG_RETURN(0);
+
+  /* This could only happen if the grant tables got corrupted */
+table_error:
+  DBUG_PRINT("info", ("table error"));
+  table->file->print_error(error, MYF(0));	/* purecov: inspected */
+
+abort:
+  DBUG_PRINT("info", ("aborting replace_proxies_priv_table"));
+  table->file->ha_index_end();
   DBUG_RETURN(-1);
 }
 
@@ -3221,6 +3695,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   {						// Should never happen
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    thd->lex->restore_backup_query_tables_list(&backup);
     if (save_binlog_row_based)
       thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(TRUE);				/* purecov: deadcode */
@@ -3535,10 +4010,10 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
 
 bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
-                 ulong rights, bool revoke_grant)
+                 ulong rights, bool revoke_grant, bool is_proxy)
 {
   List_iterator <LEX_USER> str_list (list);
-  LEX_USER *Str, *tmp_Str;
+  LEX_USER *Str, *tmp_Str, *proxied_user= NULL;
   char tmp_db[SAFE_NAME_LEN+1];
   bool create_new_users=0;
   TABLE_LIST tables[2];
@@ -3558,11 +4033,26 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     db=tmp_db;
   }
 
-  /* open the mysql.user and mysql.db tables */
+  if (is_proxy)
+  {
+    DBUG_ASSERT(!db);
+    proxied_user= str_list++;
+  }
+
+  /* open the mysql.user and mysql.db or mysql.proxies_priv tables */
   tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("user"), "user", TL_WRITE);
-  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("db"), "db", TL_WRITE);
+  if (is_proxy)
+
+    tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("proxies_priv"),
+                             "proxies_priv", 
+                             TL_WRITE);
+  else
+    tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("db"), 
+                             "db", 
+                             TL_WRITE);
   tables[0].next_local= tables[0].next_global= tables+1;
 
   /*
@@ -3647,6 +4137,13 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 	my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
 	result= -1;
       }
+    }
+    else if (is_proxy)
+    {
+      if (replace_proxies_priv_table (thd, tables[1].table, Str, proxied_user,
+                                    rights & GRANT_ACL ? TRUE : FALSE, 
+                                    revoke_grant))
+        result= -1;
     }
   }
   mysql_mutex_unlock(&acl_cache->lock);
@@ -4070,7 +4567,8 @@ end:
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
                  bool any_combination_will_do, uint number, bool no_errors)
 {
-  TABLE_LIST *table, *first_not_own_table= thd->lex->first_not_own_table();
+  TABLE_LIST *tl;
+  TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
   Security_context *sctx= thd->security_ctx;
   uint i;
   ulong orig_want_access= want_access;
@@ -4087,34 +4585,32 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     the given table list refers to the list for prelocking (contains tables
     of other queries). For simple queries first_not_own_table is 0.
   */
-  for (i= 0, table= tables;
-       i < number  && table != first_not_own_table;
-       table= table->next_global, i++)
+  for (i= 0, tl= tables;
+       i < number  && tl != first_not_own_table;
+       tl= tl->next_global, i++)
   {
     /*
       Save a copy of the privileges without the SHOW_VIEW_ACL attribute.
       It will be checked during making view.
     */
-    table->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
+    tl->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
   }
 
   mysql_rwlock_rdlock(&LOCK_grant);
-  for (table= tables;
-       table && number-- && table != first_not_own_table;
-       table= table->next_global)
+  for (tl= tables;
+       tl && number-- && tl != first_not_own_table;
+       tl= tl->next_global)
   {
-    GRANT_TABLE *grant_table;
-    sctx = test(table->security_ctx) ?
-      table->security_ctx : thd->security_ctx;
+    sctx = test(tl->security_ctx) ? tl->security_ctx : thd->security_ctx;
 
-    const ACL_internal_table_access *access;
-    access= get_cached_table_access(&table->grant.m_internal,
-                                    table->get_db_name(),
-                                    table->get_table_name());
+    const ACL_internal_table_access *access=
+      get_cached_table_access(&tl->grant.m_internal,
+                              tl->get_db_name(),
+                              tl->get_table_name());
 
     if (access)
     {
-      switch(access->check(orig_want_access, &table->grant.privilege))
+      switch(access->check(orig_want_access, &tl->grant.privilege))
       {
       case ACL_INTERNAL_ACCESS_GRANTED:
         /*
@@ -4138,29 +4634,33 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     if (!want_access)
       continue;                                 // ok
 
-    if (!(~table->grant.privilege & want_access) ||
-        table->is_anonymous_derived_table() || table->schema_table)
+    if (!(~tl->grant.privilege & want_access) ||
+        tl->is_anonymous_derived_table() || tl->schema_table)
     {
       /*
-        It is subquery in the FROM clause. VIEW set table->derived after
+        It is subquery in the FROM clause. VIEW set tl->derived after
         table opening, but this function always called before table opening.
       */
-      if (!table->referencing_view)
+      if (!tl->referencing_view)
       {
         /*
           If it's a temporary table created for a subquery in the FROM
           clause, or an INFORMATION_SCHEMA table, drop the request for
           a privilege.
         */
-        table->grant.want_privilege= 0;
+        tl->grant.want_privilege= 0;
       }
       continue;
     }
-    if (!(grant_table= table_hash_search(sctx->host, sctx->ip,
-                                         table->get_db_name(), sctx->priv_user,
-                                         table->get_table_name(), FALSE)))
+    GRANT_TABLE *grant_table= table_hash_search(sctx->host, sctx->ip,
+                                                tl->get_db_name(),
+                                                sctx->priv_user,
+                                                tl->get_table_name(),
+                                                FALSE);
+
+    if (!grant_table)
     {
-      want_access &= ~table->grant.privilege;
+      want_access &= ~tl->grant.privilege;
       goto err;					// No grants
     }
 
@@ -4171,18 +4671,17 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     if (any_combination_will_do)
       continue;
 
-    table->grant.grant_table=grant_table;	// Remember for column test
-    table->grant.version=grant_version;
-    table->grant.privilege|= grant_table->privs;
-    table->grant.want_privilege= ((want_access & COL_ACLS)
-				  & ~table->grant.privilege);
+    tl->grant.grant_table= grant_table; // Remember for column test
+    tl->grant.version= grant_version;
+    tl->grant.privilege|= grant_table->privs;
+    tl->grant.want_privilege= ((want_access & COL_ACLS) & ~tl->grant.privilege);
 
-    if (!(~table->grant.privilege & want_access))
+    if (!(~tl->grant.privilege & want_access))
       continue;
 
-    if (want_access & ~(grant_table->cols | table->grant.privilege))
+    if (want_access & ~(grant_table->cols | tl->grant.privilege))
     {
-      want_access &= ~(grant_table->cols | table->grant.privilege);
+      want_access &= ~(grant_table->cols | tl->grant.privilege);
       goto err;					// impossible
     }
   }
@@ -4201,7 +4700,7 @@ err:
              command,
              sctx->priv_user,
              sctx->host_or_ip,
-             table ? table->get_table_name() : "unknown");
+             tl ? tl->get_table_name() : "unknown");
   }
   DBUG_RETURN(TRUE);
 }
@@ -5093,6 +5592,12 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     goto end;
   }
 
+  if (show_proxy_grants(thd, lex_user, buff, sizeof(buff)))
+  {
+    error= -1;
+    goto end;
+  }
+
 end:
   mysql_mutex_unlock(&acl_cache->lock);
   mysql_rwlock_unlock(&LOCK_grant);
@@ -5250,7 +5755,7 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc)
     < 0         Error.
 */
 
-#define GRANT_TABLES 5
+#define GRANT_TABLES 6
 int open_grant_tables(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("open_grant_tables");
@@ -5274,10 +5779,16 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
   (tables+4)->init_one_table(C_STRING_WITH_LEN("mysql"),
                              C_STRING_WITH_LEN("procs_priv"),
                              "procs_priv", TL_WRITE);
-  tables->next_local= tables->next_global= tables+1;
-  (tables+1)->next_local= (tables+1)->next_global= tables+2;
-  (tables+2)->next_local= (tables+2)->next_global= tables+3;
-  (tables+3)->next_local= (tables+3)->next_global= tables+4;
+  (tables+5)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("proxies_priv"),
+                             "proxies_priv", TL_WRITE);
+  tables[5].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+
+  tables->next_local= tables->next_global= tables + 1;
+  (tables+1)->next_local= (tables+1)->next_global= tables + 2;
+  (tables+2)->next_local= (tables+2)->next_global= tables + 3;
+  (tables+3)->next_local= (tables+3)->next_global= tables + 4;
+  (tables+4)->next_local= (tables+4)->next_global= tables + 5;
 
 #ifdef HAVE_REPLICATION
   /*
@@ -5290,12 +5801,12 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
       The tables must be marked "updating" so that tables_ok() takes them into
       account in tests.
     */
-    tables[0].updating=tables[1].updating=tables[2].updating=
-      tables[3].updating=tables[4].updating=1;
+    tables[0].updating= tables[1].updating= tables[2].updating=
+      tables[3].updating= tables[4].updating= tables[5].updating= 1;
     if (!(thd->spcont || rpl_filter->tables_ok(0, tables)))
       DBUG_RETURN(1);
-    tables[0].updating=tables[1].updating=tables[2].updating=
-      tables[3].updating=tables[4].updating=0;;
+    tables[0].updating= tables[1].updating= tables[2].updating=
+      tables[3].updating= tables[4].updating= tables[5].updating= 0;
   }
 #endif
 
@@ -5424,7 +5935,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   int error;
   TABLE *table= tables[table_no].table;
   Field *host_field= table->field[0];
-  Field *user_field= table->field[table_no ? 2 : 1];
+  Field *user_field= table->field[table_no && table_no != 5 ? 2 : 1];
   char *host_str= user_from->host.str;
   char *user_str= user_from->user.str;
   const char *host;
@@ -5507,12 +6018,15 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
           user= "";
 
 #ifdef EXTRA_DEBUG
-        DBUG_PRINT("loop",("scan fields: '%s'@'%s' '%s' '%s' '%s'",
-                           user, host,
-                           get_field(thd->mem_root, table->field[1]) /*db*/,
-                           get_field(thd->mem_root, table->field[3]) /*table*/,
-                           get_field(thd->mem_root,
-                                     table->field[4]) /*column*/));
+        if (table_no != 5)
+        {
+          DBUG_PRINT("loop",("scan fields: '%s'@'%s' '%s' '%s' '%s'",
+                             user, host,
+                             get_field(thd->mem_root, table->field[1]) /*db*/,
+                             get_field(thd->mem_root, table->field[3]) /*table*/,
+                             get_field(thd->mem_root,
+                                       table->field[4]) /*column*/));
+        }
 #endif
         if (strcmp(user_str, user) ||
             my_strcasecmp(system_charset_info, host_str, host))
@@ -5535,18 +6049,15 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
 }
 
 
-/*
+/**
   Handle an in-memory privilege structure.
 
-  SYNOPSIS
-    handle_grant_struct()
-    struct_no                   The number of the structure to handle (0..3).
-    drop                        If user_from is to be dropped.
-    user_from                   The the user to be searched/dropped/renamed.
-    user_to                     The new name for the user if to be renamed,
-                                NULL otherwise.
+  @param struct_no  The number of the structure to handle (0..5).
+  @param drop       If user_from is to be dropped.
+  @param user_from  The the user to be searched/dropped/renamed.
+  @param user_to    The new name for the user if to be renamed, NULL otherwise.
 
-  DESCRIPTION
+  @note
     Scan through all elements in an in-memory grant structure and apply
     the requested operation.
     Delete from grant structure if drop is true.
@@ -5556,12 +6067,13 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     0 acl_users
     1 acl_dbs
     2 column_priv_hash
-    3 procs_priv_hash
+    3 proc_priv_hash
+    4 func_priv_hash
+    5 acl_proxy_users
 
-  RETURN
-    > 0         At least one element matched.
-    0           OK, but no element matched.
-    -1		Wrong arguments to function
+  @retval > 0  At least one element matched.
+  @retval 0    OK, but no element matched.
+  @retval -1   Wrong arguments to function.
 */
 
 static int handle_grant_struct(uint struct_no, bool drop,
@@ -5574,7 +6086,9 @@ static int handle_grant_struct(uint struct_no, bool drop,
   const char *host;
   ACL_USER *acl_user= NULL;
   ACL_DB *acl_db= NULL;
+  ACL_PROXY_USER *acl_proxy_user= NULL;
   GRANT_NAME *grant_name= NULL;
+  HASH *grant_name_hash= NULL;
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
@@ -5594,9 +6108,18 @@ static int handle_grant_struct(uint struct_no, bool drop,
     break;
   case 2:
     elements= column_priv_hash.records;
+    grant_name_hash= &column_priv_hash;
     break;
   case 3:
     elements= proc_priv_hash.records;
+    grant_name_hash= &proc_priv_hash;
+    break;
+  case 4:
+    elements= func_priv_hash.records;
+    grant_name_hash= &func_priv_hash;
+    break;
+  case 5:
+    elements= acl_proxy_users.elements;
     break;
   default:
     return -1;
@@ -5626,16 +6149,19 @@ static int handle_grant_struct(uint struct_no, bool drop,
       break;
 
     case 2:
-      grant_name= (GRANT_NAME*) my_hash_element(&column_priv_hash, idx);
+    case 3:
+    case 4:
+      grant_name= (GRANT_NAME*) my_hash_element(grant_name_hash, idx);
       user= grant_name->user;
       host= grant_name->host.hostname;
       break;
 
-    case 3:
-      grant_name= (GRANT_NAME*) my_hash_element(&proc_priv_hash, idx);
-      user= grant_name->user;
-      host= grant_name->host.hostname;
+    case 5:
+      acl_proxy_user= dynamic_element(&acl_proxy_users, idx, ACL_PROXY_USER*);
+      user= acl_proxy_user->get_user();
+      host= acl_proxy_user->get_host();
       break;
+
     default:
       DBUG_ASSERT(0);
     }
@@ -5665,14 +6191,30 @@ static int handle_grant_struct(uint struct_no, bool drop,
         break;
 
       case 2:
-        my_hash_delete(&column_priv_hash, (uchar*) grant_name);
+      case 3:
+      case 4:
+        my_hash_delete(grant_name_hash, (uchar*) grant_name);
 	break;
 
-      case 3:
-        my_hash_delete(&proc_priv_hash, (uchar*) grant_name);
-	break;
+      case 5:
+        delete_dynamic_element(&acl_proxy_users, idx);
+        break;
+
       }
       elements--;
+      /*
+        - If we are iterating through an array then we just have moved all
+          elements after the current element one position closer to its head.
+          This means that we have to take another look at the element at
+          current position as it is a new element from the array's tail.
+        - If we are iterating through a hash the current element was replaced
+          with one of elements from the tail. So we also have to take a look
+          at the new element in current position.
+          Note that in our HASH implementation hash_delete() won't move any
+          elements with position after current one to position before the
+          current (i.e. from the tail to the head), so it is safe to continue
+          iteration without re-starting.
+      */
       idx--;
     }
     else if ( user_to )
@@ -5690,22 +6232,47 @@ static int handle_grant_struct(uint struct_no, bool drop,
 
       case 2:
       case 3:
-        /* 
-          Update the grant structure with the new user name and
-          host name
-        */
-        grant_name->set_user_details(user_to->host.str, grant_name->db,
-                                     user_to->user.str, grant_name->tname,
-                                     TRUE);
+      case 4:
+        {
+          /*
+            Save old hash key and its length to be able properly update
+            element position in hash.
+          */
+          char *old_key= grant_name->hash_key;
+          size_t old_key_length= grant_name->key_length;
 
-        /*
-          Since username is part of the hash key, when the user name
-          is renamed, the hash key is changed. Update the hash to
-          ensure that the position matches the new hash key value
-        */
-        my_hash_update(&column_priv_hash, (uchar*) grant_name,
-                       (uchar*) grant_name->hash_key, grant_name->key_length);
-	break;
+          /*
+            Update the grant structure with the new user name and host name.
+          */
+          grant_name->set_user_details(user_to->host.str, grant_name->db,
+                                       user_to->user.str, grant_name->tname,
+                                       TRUE);
+
+          /*
+            Since username is part of the hash key, when the user name
+            is renamed, the hash key is changed. Update the hash to
+            ensure that the position matches the new hash key value
+          */
+          my_hash_update(grant_name_hash, (uchar*) grant_name, (uchar*) old_key,
+                         old_key_length);
+          /*
+            hash_update() operation could have moved element from the tail
+            of the hash to the current position. So we need to take a look
+            at the element in current position once again.
+            Thanks to the fact that hash_update() for our HASH implementation
+            won't move any elements from the tail of the hash to the positions
+            before the current one (a.k.a. head) it is safe to continue
+            iteration without restarting.
+          */
+          idx--;
+          break;
+        }
+
+      case 5:
+        acl_proxy_user->set_user (&mem, user_to->user.str);
+        acl_proxy_user->set_host (&mem, user_to->host.str);
+        break;
+
       }
     }
     else
@@ -5791,7 +6358,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     }
   }
 
-  /* Handle procedures table. */
+  /* Handle stored routines table. */
   if ((found= handle_grant_table(tables, 4, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch in-memory array. */
@@ -5801,6 +6368,15 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   {
     /* Handle procs array. */
     if (((handle_grant_struct(3, drop, user_from, user_to) && ! result) ||
+         found) && ! result)
+    {
+      result= 1; /* At least one record/element found. */
+      /* If search is requested, we do not need to search further. */
+      if (! drop && ! user_to)
+        goto end;
+    }
+    /* Handle funcs array. */
+    if (((handle_grant_struct(4, drop, user_from, user_to) && ! result) ||
          found) && ! result)
     {
       result= 1; /* At least one record/element found. */
@@ -5837,6 +6413,23 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
       /* Handle columns hash. */
       if (((handle_grant_struct(2, drop, user_from, user_to) && ! result) ||
            found) && ! result)
+        result= 1; /* At least one record/element found. */
+    }
+  }
+
+  /* Handle proxies_priv table. */
+  if (tables[5].table)
+  {
+    if ((found= handle_grant_table(tables, 5, drop, user_from, user_to)) < 0)
+    {
+      /* Handle of table failed, don't touch the in-memory array. */
+      result= -1;
+    }
+    else
+    {
+      /* Handle proxies_priv array. */
+      if ((handle_grant_struct(5, drop, user_from, user_to) && !result) ||
+          found)
         result= 1; /* At least one record/element found. */
     }
   }
@@ -6596,6 +7189,129 @@ template class List<LEX_COLUMN>;
 template class List<LEX_USER>;
 #endif
 
+/**
+  Validate if a user can proxy as another user
+
+  @thd                     current thread
+  @param user              the logged in user (proxy user)
+  @param authenticated_as  the effective user a plugin is trying to 
+                           impersonate as (proxied user)
+  @return                  proxy user definition
+    @retval NULL           proxy user definition not found or not applicable
+    @retval non-null       the proxy user data
+*/
+
+static ACL_PROXY_USER *
+acl_find_proxy_user(const char *user, const char *host, const char *ip, 
+                    const char *authenticated_as, bool *proxy_used)
+{
+  uint i;
+  /* if the proxied and proxy user are the same return OK */
+  DBUG_ENTER("acl_find_proxy_user");
+  DBUG_PRINT("info", ("user=%s host=%s ip=%s authenticated_as=%s",
+                      user, host, ip, authenticated_as));
+
+  if (!strcmp(authenticated_as, user))
+  {
+    DBUG_PRINT ("info", ("user is the same as authenticated_as"));
+    DBUG_RETURN (NULL);
+  }
+
+  *proxy_used= TRUE; 
+  for (i=0; i < acl_proxy_users.elements; i++)
+  {
+    ACL_PROXY_USER *proxy= dynamic_element(&acl_proxy_users, i, 
+                                           ACL_PROXY_USER *);
+    if (proxy->matches(host, user, ip, authenticated_as))
+      DBUG_RETURN(proxy);
+  }
+
+  DBUG_RETURN(NULL);
+}
+
+
+bool
+acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
+                             bool with_grant)
+{
+  DBUG_ENTER("acl_check_proxy_grant_access");
+  DBUG_PRINT("info", ("user=%s host=%s with_grant=%d", user, host, 
+                      (int) with_grant));
+  if (!initialized)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(1);
+  }
+
+  /* replication slave thread can do anything */
+  if (thd->slave_thread)
+  {
+    DBUG_PRINT("info", ("replication slave"));
+    DBUG_RETURN(FALSE);
+  }
+
+  /* one can grant proxy to himself to others */
+  if (!strcmp(thd->security_ctx->user, user) &&
+      !my_strcasecmp(system_charset_info, host,
+                     thd->security_ctx->host))
+  {
+    DBUG_PRINT("info", ("strcmp (%s, %s) my_casestrcmp (%s, %s) equal", 
+                        thd->security_ctx->user, user,
+                        host, thd->security_ctx->host));
+    DBUG_RETURN(FALSE);
+  }
+
+  /* check for matching WITH PROXY rights */
+  for (uint i=0; i < acl_proxy_users.elements; i++)
+  {
+    ACL_PROXY_USER *proxy= dynamic_element(&acl_proxy_users, i, 
+                                           ACL_PROXY_USER *);
+    if (proxy->matches(thd->security_ctx->host,
+                       thd->security_ctx->user,
+                       thd->security_ctx->ip,
+                       user) &&
+        proxy->get_with_grant())
+    {
+      DBUG_PRINT("info", ("found"));
+      DBUG_RETURN(FALSE);
+    }
+  }
+
+  my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
+           thd->security_ctx->user,
+           thd->security_ctx->host_or_ip);
+  DBUG_RETURN(TRUE);
+}
+
+
+static bool
+show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
+{
+  Protocol *protocol= thd->protocol;
+  int error= 0;
+
+  for (uint i=0; i < acl_proxy_users.elements; i++)
+  {
+    ACL_PROXY_USER *proxy= dynamic_element(&acl_proxy_users, i,
+                                           ACL_PROXY_USER *);
+    if (proxy->granted_on(user->host.str, user->user.str))
+    {
+      String global(buff, buffsize, system_charset_info);
+      global.length(0);
+      proxy->print_grant(&global);
+      protocol->prepare_for_resend();
+      protocol->store(global.ptr(), global.length(), global.charset());
+      if (protocol->write())
+      {
+        error= -1;
+        break;
+      }
+    }
+  }
+  return error;
+}
+
+
 #endif /*NO_EMBEDDED_ACCESS_CHECKS */
 
 
@@ -7183,18 +7899,17 @@ get_cached_table_access(GRANT_INTERNAL_INFO *grant_internal_info,
 #ifndef HAVE_OPENSSL
 #define ssl_acceptor_fd 0
 #define sslaccept(A,B,C,D) 1
-#define NORMAL_HANDSHAKE_SIZE   6
 #endif
 
 /**
   The internal version of what plugins know as MYSQL_PLUGIN_VIO,
   basically the context of the authentication session
 */
-struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
+struct MPVIO_EXT :public MYSQL_PLUGIN_VIO
 {
   MYSQL_SERVER_AUTH_INFO auth_info;
   THD *thd;
-  ACL_USER *acl_user;       ///< a copy, independent from acl_users array
+  const ACL_USER *acl_user; ///< a copy, independent from acl_users array
   plugin_ref plugin;        ///< what plugin we're under
   LEX_STRING db;            ///< db name from the handshake packet
   /** when restarting a plugin this caches the last client reply */
@@ -7213,18 +7928,16 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
   enum { SUCCESS, FAILURE, RESTART } status;
 };
 
-
 /**
   a helper function to report an access denied error in all the proper places
 */
-
-static void login_failed_error(THD *thd, bool passwd_used)
+static void login_failed_error(THD *thd, int passwd_used)
 {
-  my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
+  my_error(access_denied_error_code(passwd_used), MYF(0),
            thd->main_security_ctx.user,
            thd->main_security_ctx.host_or_ip,
            passwd_used ? ER(ER_YES) : ER(ER_NO));
-  general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+  general_log_print(thd, COM_CONNECT, ER(access_denied_error_code(passwd_used)),
                     thd->main_security_ctx.user,
                     thd->main_security_ctx.host_or_ip,
                     passwd_used ? ER(ER_YES) : ER(ER_NO));
@@ -7236,13 +7949,12 @@ static void login_failed_error(THD *thd, bool passwd_used)
   */
   if (global_system_variables.log_warnings > 1)
   {
-    sql_print_warning(ER(ER_ACCESS_DENIED_ERROR),
+    sql_print_warning(ER(access_denied_error_code(passwd_used)),
                       thd->main_security_ctx.user,
                       thd->main_security_ctx.host_or_ip,
                       passwd_used ? ER(ER_YES) : ER(ER_NO));      
   }
 }
-
 
 /**
   sends a server handshake initialization packet, the very first packet
@@ -7269,7 +7981,6 @@ static void login_failed_error(THD *thd, bool passwd_used)
   @retval 0 ok
   @retval 1 error
 */
-
 static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
                                          const char *data, uint data_len)
 {
@@ -7277,13 +7988,25 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   DBUG_ASSERT(data_len <= 255);
 
   THD *thd= mpvio->thd;
-  char *buff= (char *)my_alloca(1 + SERVER_VERSION_LENGTH + 1 + data_len + 64);
+  char *buff= (char *) my_alloca(1 + SERVER_VERSION_LENGTH + 1 + data_len + 64);
   char scramble_buf[SCRAMBLE_LENGTH];
   char *end= buff;
+  DBUG_ENTER("send_server_handshake_packet");
 
   *end++= protocol_version;
 
   thd->client_capabilities= CLIENT_BASIC_FLAGS;
+
+  if (opt_using_transactions)
+    thd->client_capabilities|= CLIENT_TRANSACTIONS;
+
+  thd->client_capabilities|= CAN_CLIENT_COMPRESS;
+
+  if (ssl_acceptor_fd)
+  {
+    thd->client_capabilities |= CLIENT_SSL;
+    thd->client_capabilities |= CLIENT_SSL_VERIFY_SERVER_CERT;
+  }
 
   if (data_len)
   {
@@ -7294,12 +8017,13 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   if (data_len < SCRAMBLE_LENGTH)
   {
     if (data_len)
-    { /*
+    {
+      /*
         the first packet *must* have at least 20 bytes of a scramble.
         if a plugin provided less, we pad it to 20 with zeros
       */
       memcpy(scramble_buf, data, data_len);
-      bzero(scramble_buf+data_len, SCRAMBLE_LENGTH-data_len);
+      bzero(scramble_buf + data_len, SCRAMBLE_LENGTH - data_len);
       data= scramble_buf;
     }
     else
@@ -7319,17 +8043,6 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
     data_len= SCRAMBLE_LENGTH;
   }
 
-  if (opt_using_transactions)
-    thd->client_capabilities|= CLIENT_TRANSACTIONS;
-
-  thd->client_capabilities|= CAN_CLIENT_COMPRESS;
-
-  if (ssl_acceptor_fd)
-  {
-    thd->client_capabilities |= CLIENT_SSL;
-    thd->client_capabilities |= CLIENT_SSL_VERIFY_SERVER_CERT;
-  }
-
   end= strnmov(end, server_version, SERVER_VERSION_LENGTH) + 1;
   int4store((uchar*) end, mpvio->thd->thread_id);
   end+= 4;
@@ -7339,29 +8052,30 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
     tail: that's why first part of the scramble is placed here, and second
     part at the end of packet.
   */
-  end= (char*)memcpy(end, data, SCRAMBLE_LENGTH_323);
+  end= (char*) memcpy(end, data, SCRAMBLE_LENGTH_323);
   end+= SCRAMBLE_LENGTH_323;
   *end++= 0;
  
   int2store(end, thd->client_capabilities);
   /* write server characteristics: up to 16 bytes allowed */
-  end[2]=(char) default_charset_info->number;
+  end[2]= (char) default_charset_info->number;
   int2store(end+3, mpvio->thd->server_status);
   int2store(end+5, thd->client_capabilities >> 16);
   end[7]= data_len;
-  bzero(end+8, 10);
+  bzero(end + 8, 10);
   end+= 18;
   /* write scramble tail */
-  end= (char*)memcpy(end, data + SCRAMBLE_LENGTH_323,
-                     data_len - SCRAMBLE_LENGTH_323);
+  end= (char*) memcpy(end, data + SCRAMBLE_LENGTH_323,
+                      data_len - SCRAMBLE_LENGTH_323);
   end+= data_len - SCRAMBLE_LENGTH_323;
   end= strmake(end, plugin_name(mpvio->plugin)->str,
                     plugin_name(mpvio->plugin)->length);
 
-  int res= my_net_write(&mpvio->thd->net, (uchar*) buff, (size_t) (end-buff)) ||
+  int res= my_net_write(&mpvio->thd->net, (uchar*) buff,
+                        (size_t) (end - buff + 1)) ||
            net_flush(&mpvio->thd->net);
   my_afree(buff);
-  return res;
+  DBUG_RETURN (res);
 }
 
 static bool secure_auth(THD *thd)
@@ -7411,7 +8125,6 @@ static bool secure_auth(THD *thd)
   @retval 0 ok
   @retval 1 error
 */
-
 static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
                                        const uchar *data, uint data_len)
 {
@@ -7419,12 +8132,12 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   DBUG_ASSERT(mpvio->packets_read == 1);
   NET *net= &mpvio->thd->net;
   static uchar switch_plugin_request_buf[]= { 254 };
-
+  DBUG_ENTER("send_plugin_request_packet");
 
   mpvio->status= MPVIO_EXT::FAILURE; // the status is no longer RESTART
 
   const char *client_auth_plugin=
-    ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+    ((st_mysql_auth *) (plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
 
   DBUG_ASSERT(client_auth_plugin);
   DBUG_ASSERT(my_strcasecmp(system_charset_info, client_auth_plugin,
@@ -7444,9 +8157,9 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
     client_auth_plugin == old_password_plugin_name.str;
 
   if (switch_from_long_to_short_scramble)
-    return secure_auth(mpvio->thd) ||
-           my_net_write(net, switch_plugin_request_buf, 1) ||
-           net_flush(net);
+    DBUG_RETURN (secure_auth(mpvio->thd) ||
+                 my_net_write(net, switch_plugin_request_buf, 1) ||
+                 net_flush(net));
 
   /*
     We never request a client to switch from a short to long scramble.
@@ -7461,15 +8174,16 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     general_log_print(mpvio->thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
-    return 1;
+    DBUG_RETURN (1);
   }
 
-  return net_write_command(net, switch_plugin_request_buf[0],
-                           (uchar*)client_auth_plugin,
-                           strlen(client_auth_plugin)+1,
-                           (uchar*)data, data_len);
+  DBUG_PRINT("info", ("requesting client to use the %s plugin", 
+                      client_auth_plugin));
+  DBUG_RETURN(net_write_command(net, switch_plugin_request_buf[0],
+                                (uchar*) client_auth_plugin,
+                                strlen(client_auth_plugin) + 1,
+                                (uchar*) data, data_len));
 }
-
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 /**
@@ -7484,15 +8198,16 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
    @retval 0    found
    @retval 1    not found
 */
-
-static bool find_mpvio_user(MPVIO_EXT *mpvio, Security_context *sctx)
+static bool find_mpvio_user(MPVIO_EXT *mpvio)
 {
+  Security_context *sctx= mpvio->thd->security_ctx;
+  DBUG_ENTER("find_mpvio_user");
   DBUG_ASSERT(mpvio->acl_user == 0);
 
   mysql_mutex_lock(&acl_cache->lock);
-  for (uint i=0 ; i < acl_users.elements ; i++)
+  for (uint i=0; i < acl_users.elements; i++)
   {
-    ACL_USER *acl_user_tmp= dynamic_element(&acl_users,i,ACL_USER*);
+    ACL_USER *acl_user_tmp= dynamic_element(&acl_users, i, ACL_USER*);
     if ((!acl_user_tmp->user || !strcmp(sctx->user, acl_user_tmp->user)) &&
         compare_hostname(&acl_user_tmp->host, sctx->host, sctx->ip))
     {
@@ -7505,7 +8220,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio, Security_context *sctx)
   if (!mpvio->acl_user)
   {
     login_failed_error(mpvio->thd, 0);
-    return 1;
+    DBUG_RETURN (1);
   }
 
   /* user account requires non-default plugin and the client is too old */
@@ -7519,18 +8234,26 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio, Security_context *sctx)
                               old_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     general_log_print(mpvio->thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
-    return 1;
+    DBUG_RETURN (1);
   }
 
   mpvio->auth_info.user_name= sctx->user;
+  mpvio->auth_info.user_name_length= user_len;
   mpvio->auth_info.auth_string= mpvio->acl_user->auth_string.str;
+  mpvio->auth_info.auth_string_length= 
+    (unsigned long) mpvio->acl_user->auth_string.length;
   strmake(mpvio->auth_info.authenticated_as, mpvio->acl_user->user ?
           mpvio->acl_user->user : "", USERNAME_LENGTH);
 
-  return 0;
+  DBUG_PRINT("info", ("exit: user=%s, auth_string=%s, authenticated as=%s"
+                      "plugin=%s",
+                      mpvio->auth_info.user_name,
+                      mpvio->auth_info.auth_string,
+                      mpvio->auth_info.authenticated_as,
+                      mpvio->acl_user->plugin.str));
+  DBUG_RETURN(0);
 }
 #endif
-
 
 /* the packet format is described in send_change_user_packet() */
 static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
@@ -7542,17 +8265,18 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   char *user= (char*) net->read_pos;
   char *end= user + packet_length;
   /* Safe because there is always a trailing \0 at the end of the packet */
-  char *passwd= strend(user)+1;
+  char *passwd= strend(user) + 1;
   uint user_len= passwd - user - 1;
   char *db= passwd;
   char db_buff[SAFE_NAME_LEN + 1];            // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];	      // buffer to store user in utf8
   uint dummy_errors;
+  DBUG_ENTER ("parse_com_change_user_packet");
 
   if (passwd >= end)
   {
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-    return 1;
+    DBUG_RETURN (1);
   }
 
   /*
@@ -7566,7 +8290,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
     *passwd > 127 and become 2**32-127+ after casting to uint.
   */
   uint passwd_len= (thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-                    (uchar)(*passwd++) : strlen(passwd));
+                    (uchar) (*passwd++) : strlen(passwd));
 
   db+= passwd_len + 1;
   /*
@@ -7576,37 +8300,37 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   if (db >= end)
   {
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-    return 1;
+    DBUG_RETURN (1);
   }
 
   uint db_len= strlen(db);
 
   char *ptr= db + db_len + 1;
 
-  if (ptr+1 < end)
+  if (ptr + 1 < end)
   {
-    uint cs_number= uint2korr(ptr);
-    thd_init_client_charset(thd, cs_number);
+    if (thd_init_client_charset(thd, uint2korr(ptr)))
+      DBUG_RETURN(1);
     thd->update_charset();
   }
 
   /* Convert database and user names to utf8 */
-  db_len= copy_and_convert(db_buff, sizeof(db_buff)-1, system_charset_info,
+  db_len= copy_and_convert(db_buff, sizeof(db_buff) - 1, system_charset_info,
                            db, db_len, thd->charset(), &dummy_errors);
 
-  user_len= copy_and_convert(user_buff, sizeof(user_buff)-1,
+  user_len= copy_and_convert(user_buff, sizeof(user_buff) - 1,
                              system_charset_info, user, user_len,
                              thd->charset(), &dummy_errors);
 
   if (!(sctx->user= my_strndup(user_buff, user_len, MYF(MY_WME))))
-    return 1;
+    DBUG_RETURN(1);
 
   /* Clear variables that are allocated */
   thd->user_connect= 0;
   strmake(sctx->priv_user, sctx->user, USERNAME_LENGTH);
 
   if (thd->make_lex_string(&mpvio->db, db_buff, db_len, 0) == 0)
-    return 1; /* The error is set by make_lex_string(). */
+    DBUG_RETURN(1); /* The error is set by make_lex_string(). */
 
   /*
     Clear thd->db as it points to something, that will be freed when
@@ -7619,12 +8343,12 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   {
     // if mysqld's been started with --skip-grant-tables option
     mpvio->status= MPVIO_EXT::SUCCESS;
-    return 0;
+    DBUG_RETURN(0);
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (find_mpvio_user(mpvio, sctx))
-    return 1;
+  if (find_mpvio_user(mpvio))
+    DBUG_RETURN(1);
 
   char *client_plugin;
   if (thd->client_capabilities & CLIENT_PLUGIN_AUTH)
@@ -7633,7 +8357,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
     if (client_plugin >= end)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      return 1;
+      DBUG_RETURN(1);
     }
     client_plugin= fix_plugin_ptr(client_plugin);
   }
@@ -7654,15 +8378,19 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
         mpvio->acl_user->plugin= old_password_plugin_name;
     }
   }
-  
-  /* remember the data part of the packet, to present it to plugin in read_packet() */
+
+  DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
+  /* 
+    Remember the data part of the packet, to present it to plugin in 
+    read_packet() 
+  */
   mpvio->cached_client_reply.pkt= passwd;
   mpvio->cached_client_reply.pkt_len= passwd_len;
   mpvio->cached_client_reply.plugin= client_plugin;
   mpvio->status= MPVIO_EXT::RESTART;
 #endif
 
-  return 0;
+  DBUG_RETURN (0);
 }
 
 
@@ -7686,36 +8414,34 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   ulong client_capabilities= uint2korr(net->read_pos);
   if (client_capabilities & CLIENT_PROTOCOL_41)
   {
-    client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
-    thd->max_client_packet_length= uint4korr(net->read_pos+4);
+    client_capabilities|= ((ulong) uint2korr(net->read_pos + 2)) << 16;
+    thd->max_client_packet_length= uint4korr(net->read_pos + 4);
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
-    thd_init_client_charset(thd, (uint) net->read_pos[8]);
+    if (thd_init_client_charset(thd, (uint) net->read_pos[8]))
+      return packet_error;
     thd->update_charset();
-    end= (char*) net->read_pos+32;
+    end= (char*) net->read_pos + 32;
   }
   else
   {
-    thd->max_client_packet_length= uint3korr(net->read_pos+2);
-    end= (char*) net->read_pos+5;
+    mpvio->max_client_packet_length= uint3korr(net->read_pos + 2);
+    end= (char*) net->read_pos + 5;
   }
 
   /* Disable those bits which are not supported by the client. */
   thd->client_capabilities&= client_capabilities;
 
-  if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
-    thd->variables.sql_mode|= MODE_IGNORE_SPACE;
-
   DBUG_PRINT("info", ("client capabilities: %lu", thd->client_capabilities));
   if (thd->client_capabilities & CLIENT_SSL)
   {
-    char error_string[1024] __attribute__((unused));
+    unsigned long errptr __attribute__((unused));
 
     /* Do the SSL layering. */
     if (!ssl_acceptor_fd)
       return packet_error;
 
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout, error_string))
+    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout, &errptr))
     {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       return packet_error;
@@ -7731,11 +8457,14 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     }
   }
 
+  if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
+    thd->variables.sql_mode|= MODE_IGNORE_SPACE;
+  if (thd->client_capabilities & CLIENT_INTERACTIVE)
+    thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
+
   if (end >= (char*) net->read_pos+ pkt_len +2)
     return packet_error;
 
-  if (thd->client_capabilities & CLIENT_INTERACTIVE)
-    thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
     net->return_status= &thd->server_status;
@@ -7781,12 +8510,12 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   /* Since 4.1 all database names are stored in utf8 */
   if (db)
   {
-    db_len= copy_and_convert(db_buff, sizeof(db_buff)-1, system_charset_info,
+    db_len= copy_and_convert(db_buff, sizeof(db_buff) - 1, system_charset_info,
                              db, db_len, thd->charset(), &dummy_errors);
     db= db_buff;
   }
 
-  user_len= copy_and_convert(user_buff, sizeof(user_buff)-1,
+  user_len= copy_and_convert(user_buff, sizeof(user_buff) - 1,
                              system_charset_info, user, user_len,
                              thd->charset(), &dummy_errors);
   user= user_buff;
@@ -7806,6 +8535,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   if (!(sctx->user= my_strndup(user, user_len, MYF(MY_WME))))
     return packet_error; /* The error is set by my_strdup(). */
 
+
   /*
     Clear thd->db as it points to something, that will be freed when
     connection is closed. We don't want to accidentally free a wrong
@@ -7820,7 +8550,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     return packet_error;
   }
 
-  if (find_mpvio_user(mpvio, sctx))
+  if (find_mpvio_user(mpvio))
     return packet_error;
 
   if (thd->client_capabilities & CLIENT_PLUGIN_AUTH)
@@ -7874,22 +8604,22 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     doesn't need to know.
   */
   const char *client_auth_plugin=
-    ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+    ((st_mysql_auth *) (plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
 
   if (client_auth_plugin &&
       my_strcasecmp(system_charset_info, client_plugin, client_auth_plugin))
   {
     mpvio->cached_client_reply.plugin= client_plugin;
     if (send_plugin_request_packet(mpvio,
-                                   (uchar*)mpvio->cached_server_packet.pkt,
+                                   (uchar*) mpvio->cached_server_packet.pkt,
                                    mpvio->cached_server_packet.pkt_len))
       return packet_error;
 
     passwd_len= my_net_read(&mpvio->thd->net);
-    passwd = (char*)mpvio->thd->net.read_pos;
+    passwd= (char*)mpvio->thd->net.read_pos;
   }
 
-  *buff= (uchar*)passwd;
+  *buff= (uchar*) passwd;
   return passwd_len;
 #else
   return 0;
@@ -7907,18 +8637,19 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   and handles plugin negotiation with the client. If necessary,
   it escapes the plugin data, if it starts with a mysql protocol packet byte.
 */
-
 static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
                                    const uchar *packet, int packet_len)
 {
-  MPVIO_EXT *mpvio= (MPVIO_EXT*)param;
+  MPVIO_EXT *mpvio= (MPVIO_EXT *) param;
   int res;
+  DBUG_ENTER("server_mpvio_write_packet");
 
   /* reset cached_client_reply */
   mpvio->cached_client_reply.pkt= 0;
+
   /* for the 1st packet we wrap plugin data into the handshake packet */
   if (mpvio->packets_written == 0)
-    res= send_server_handshake_packet(mpvio, (char*)packet, packet_len);
+    res= send_server_handshake_packet(mpvio, (char*) packet, packet_len);
   else if (mpvio->status == MPVIO_EXT::RESTART)
     res= send_plugin_request_packet(mpvio, packet, packet_len);
   else if (packet_len > 0 && (*packet == 1 || *packet == 255 || *packet == 254))
@@ -7938,9 +8669,8 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
          net_flush(&mpvio->thd->net);
   }
   mpvio->packets_written++;
-  return res;
+  DBUG_RETURN(res);
 }
-
 
 /**
   vio->read_packet() callback method for server authentication plugins
@@ -7952,12 +8682,11 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
   a client authentication handshake packet, and handles plugin negotiation
   with the client, if necessary.
 */
-
 static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
 {
-  MPVIO_EXT *mpvio= (MPVIO_EXT*)param;
+  MPVIO_EXT *mpvio= (MPVIO_EXT *) param;
   ulong pkt_len;
-
+  DBUG_ENTER("server_mpvio_read_packet");
   if (mpvio->packets_written == 0)
   {
     /*
@@ -7969,8 +8698,7 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
     else
       pkt_len= my_net_read(&mpvio->thd->net);
   }
-  else 
-  if (mpvio->cached_client_reply.pkt)
+  else if (mpvio->cached_client_reply.pkt)
   {
     DBUG_ASSERT(mpvio->status == MPVIO_EXT::RESTART);
     DBUG_ASSERT(mpvio->packets_read > 0);
@@ -7981,17 +8709,18 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
       cached data straight away and avoid one round trip.
     */
     const char *client_auth_plugin=
-      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+      ((st_mysql_auth *) (plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
     if (client_auth_plugin == 0 ||
         my_strcasecmp(system_charset_info, mpvio->cached_client_reply.plugin,
                       client_auth_plugin) == 0)
     {
       mpvio->status= MPVIO_EXT::FAILURE;
-      *buf= (uchar*)mpvio->cached_client_reply.pkt;
+      *buf= (uchar*) mpvio->cached_client_reply.pkt;
       mpvio->cached_client_reply.pkt= 0;
       mpvio->packets_read++;
-      return (int)mpvio->cached_client_reply.pkt_len;
+      DBUG_RETURN ((int) mpvio->cached_client_reply.pkt_len);
     }
+
     /*
       But if the client has used the wrong plugin, the cached data are
       useless. Furthermore, we have to send a "change plugin" request
@@ -8021,39 +8750,36 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
       goto err;
   }
   else
-    *buf = mpvio->thd->net.read_pos;
+    *buf= mpvio->thd->net.read_pos;
 
-  return (int)pkt_len;
+  DBUG_RETURN((int)pkt_len);
 
 err:
-  if (mpvio->status == MPVIO_EXT::FAILURE && !mpvio->thd->is_error())
+  if (mpvio->status == MPVIO_EXT::FAILURE)
   {
-    inc_host_errors(mpvio->thd->main_security_ctx.ip);
-    my_error(ER_HANDSHAKE_ERROR, MYF(0),
-             mpvio->thd->security_ctx->host_or_ip);
+    inc_host_errors(mpvio->thd->security_ctx.ip);
+    if (!mpvio->thd->is_error())
+      my_error(ER_HANDSHAKE_ERROR, MYF(0));
   }
-  return -1;
+  DBUG_RETURN(-1);
 }
-
 
 /**
   fills MYSQL_PLUGIN_VIO_INFO structure with the information about the
   connection
 */
-
 static void server_mpvio_info(MYSQL_PLUGIN_VIO *vio,
                               MYSQL_PLUGIN_VIO_INFO *info)
 {
-  MPVIO_EXT *mpvio= (MPVIO_EXT*)vio;
+  MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
   mpvio_info(mpvio->thd->net.vio, info);
 }
 
-
-static bool acl_check_ssl(THD *thd, ACL_USER *acl_user)
+static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
 {
-#if defined(HAVE_OPENSSL)
-  Vio *vio=thd->net.vio;
-  SSL *ssl= (SSL*) vio->ssl_arg;
+#ifdef HAVE_OPENSSL
+  Vio *vio= thd->net.vio;
+  SSL *ssl= (SSL *) vio->ssl_arg;
   X509 *cert;
 #endif
 
@@ -8067,7 +8793,7 @@ static bool acl_check_ssl(THD *thd, ACL_USER *acl_user)
   case SSL_TYPE_NOT_SPECIFIED:                  // Impossible
   case SSL_TYPE_NONE:                           // SSL is not required
     return 0;
-#if defined(HAVE_OPENSSL)
+#ifdef HAVE_OPENSSL
   case SSL_TYPE_ANY:                            // Any kind of SSL is ok
     return vio_type(vio) != VIO_TYPE_SSL;
   case SSL_TYPE_X509: /* Client should have any valid certificate. */
@@ -8093,9 +8819,9 @@ static bool acl_check_ssl(THD *thd, ACL_USER *acl_user)
       return 1;
     if (acl_user->ssl_cipher)
     {
-      DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
-                         acl_user->ssl_cipher,SSL_get_cipher(ssl)));
-      if (strcmp(acl_user->ssl_cipher,SSL_get_cipher(ssl)))
+      DBUG_PRINT("info", ("comparing ciphers: '%s' and '%s'",
+                         acl_user->ssl_cipher, SSL_get_cipher(ssl)));
+      if (strcmp(acl_user->ssl_cipher, SSL_get_cipher(ssl)))
       {
         if (global_system_variables.log_warnings)
           sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
@@ -8109,8 +8835,8 @@ static bool acl_check_ssl(THD *thd, ACL_USER *acl_user)
     /* If X509 issuer is specified, we check it... */
     if (acl_user->x509_issuer)
     {
-      char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
-      DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
+      char *ptr= X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
+      DBUG_PRINT("info", ("comparing issuers: '%s' and '%s'",
                          acl_user->x509_issuer, ptr));
       if (strcmp(acl_user->x509_issuer, ptr))
       {
@@ -8127,9 +8853,9 @@ static bool acl_check_ssl(THD *thd, ACL_USER *acl_user)
     if (acl_user->x509_subject)
     {
       char *ptr= X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
-      DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
+      DBUG_PRINT("info", ("comparing subjects: '%s' and '%s'",
                          acl_user->x509_subject, ptr));
-      if (strcmp(acl_user->x509_subject,ptr))
+      if (strcmp(acl_user->x509_subject, ptr))
       {
         if (global_system_variables.log_warnings)
           sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
@@ -8154,18 +8880,17 @@ static bool acl_check_ssl(THD *thd, ACL_USER *acl_user)
   return 1;
 }
 
-static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
+
+static int do_auth_once(THD *thd, const LEX_STRING *auth_plugin_name,
                         MPVIO_EXT *mpvio)
 {
   int res= CR_OK, old_status= MPVIO_EXT::FAILURE;
   bool unlock_plugin= false;
-  plugin_ref plugin;
+  plugin_ref plugin= NULL;
 
-#ifdef EMBEDDED_LIBRARY
-  plugin= native_password_plugin;
-#else
   if (auth_plugin_name->str == native_password_plugin_name.str)
     plugin= native_password_plugin;
+#ifndef EMBEDDED_LIBRARY
   else if (auth_plugin_name->str == old_password_plugin_name.str)
     plugin= old_password_plugin;
   else if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
@@ -8178,7 +8903,7 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
 
   if (plugin)
   {
-    st_mysql_auth *auth= (st_mysql_auth*)plugin_decl(plugin)->info;
+    st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
     res= auth->authenticate_user(mpvio, &mpvio->auth_info);
 
     if (unlock_plugin)
@@ -8205,6 +8930,7 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
   return res;
 }
 
+
 /**
   Perform the handshake, authorize the client and update thd sctx variables.
 
@@ -8219,12 +8945,12 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
   @retval 0  success, thd is updated.
   @retval 1  error
 */
-
-bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
+bool acl_authenticate(THD *thd, uint connect_errors,
+                      uint com_change_user_pkt_len)
 {
   int res= CR_OK;
   MPVIO_EXT mpvio;
-  LEX_STRING *auth_plugin_name= default_auth_plugin_name;
+  const LEX_STRING *auth_plugin_name= default_auth_plugin_name;
   enum  enum_server_command command= com_change_user_pkt_len ? COM_CHANGE_USER
                                                              : COM_CONNECT;
   DBUG_ENTER("acl_authenticate");
@@ -8238,6 +8964,8 @@ bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_le
   mpvio.thd= thd;
   mpvio.connect_errors= connect_errors;
   mpvio.status= MPVIO_EXT::FAILURE;
+
+  DBUG_PRINT("info", ("com_change_user_pkt_len=%u", com_change_user_pkt_len));
 
   if (command == COM_CHANGE_USER)
   {
@@ -8261,7 +8989,8 @@ bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_le
       with a user name, and performs the authentication if everyone has used
       the correct plugin.
     */
-    res= do_auth_once(thd, auth_plugin_name, &mpvio);
+
+    res= do_auth_once(thd, auth_plugin_name, &mpvio);  
   }
 
   /*
@@ -8279,7 +9008,7 @@ bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_le
   }
 
   Security_context *sctx= thd->security_ctx;
-  ACL_USER *acl_user= mpvio.acl_user;
+  const ACL_USER *acl_user= mpvio.acl_user;
 
   thd->password= mpvio.auth_info.password_used;  // remember for error messages 
 
@@ -8313,12 +9042,59 @@ bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_le
     DBUG_RETURN(1);
   }
 
+  sctx->proxy_user[0]= 0;
+
   if (initialized) // if not --skip-grant-tables
   {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    bool is_proxy_user= FALSE;
+    const char *auth_user = acl_user->user ? acl_user->user : "";
+    ACL_PROXY_USER *proxy_user;
+    /* check if the user is allowed to proxy as another user */
+    proxy_user= acl_find_proxy_user(auth_user, sctx->host, sctx->ip,
+                                    mpvio.auth_info.authenticated_as,
+                                          &is_proxy_user);
+    if (is_proxy_user)
+    {
+      ACL_USER *acl_proxy_user;
+
+      /* we need to find the proxy user, but there was none */
+      if (!proxy_user)
+      {
+        if (!thd->is_error())
+          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        DBUG_RETURN(1);
+      }
+
+      my_snprintf(sctx->proxy_user, sizeof(sctx->proxy_user) - 1,
+                  "'%s'@'%s'", auth_user,
+                  acl_user->host.hostname ? acl_user->host.hostname : "");
+
+      /* we're proxying : find the proxy user definition */
+      mysql_mutex_lock(&acl_cache->lock);
+      acl_proxy_user= find_acl_user(proxy_user->get_proxied_host() ? 
+                                    proxy_user->get_proxied_host() : "",
+                                    mpvio.auth_info.authenticated_as, TRUE);
+      if (!acl_proxy_user)
+      {
+        if (!thd->is_error())
+          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        mysql_mutex_unlock(&acl_cache->lock);
+        DBUG_RETURN(1);
+      }
+      acl_user= acl_proxy_user->copy(thd->mem_root);
+      mysql_mutex_unlock(&acl_cache->lock);
+    }
+#endif
+
     sctx->master_access= acl_user->access;
-    strmake(sctx->priv_user, mpvio.auth_info.authenticated_as, USERNAME_LENGTH);
+    if (acl_user->user)
+      strmake(sctx->priv_user, acl_user->user, USERNAME_LENGTH - 1);
+    else
+      *sctx->priv_user= 0;
+
     if (acl_user->host.hostname)
-      strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME);
+      strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME - 1);
     else
       *sctx->priv_host= 0;
 
@@ -8405,6 +9181,9 @@ bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_le
 
   thd->net.net_skip_rest_factor= 2;  // skip at most 2*max_packet_size
 
+  if (mpvio.auth_info.external_user[0])
+    sctx->external_user= my_strdup(mpvio.auth_info.external_user, MYF(0));
+
   if (res == CR_OK_HANDSHAKE_COMPLETE)
     thd->stmt_da->disable_status();
   else
@@ -8414,7 +9193,6 @@ bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_le
   DBUG_RETURN(0);
 }
 
-
 /**
   MySQL Server Password Authentication Plugin
 
@@ -8423,14 +9201,14 @@ bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_le
   2. client sends the encrypted password back to the server
   3. the server checks the password.
 */
-
-static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio, 
+static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                                         MYSQL_SERVER_AUTH_INFO *info)
 {
   uchar *pkt;
   int pkt_len;
-  MPVIO_EXT *mpvio=(MPVIO_EXT*)vio;
+  MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
   THD *thd=mpvio->thd;
+  DBUG_ENTER("native_password_authenticate");
 
   /* generate the scramble, or reuse the old one */
   if (thd->scramble[SCRAMBLE_LENGTH])
@@ -8480,33 +9258,37 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   /* read the reply with the encrypted password */
   if ((pkt_len= mpvio->read_packet(mpvio, &pkt)) < 0)
-    return CR_ERROR;
+    DBUG_RETURN(CR_ERROR);
+  DBUG_PRINT("info", ("reply read : pkt_len=%d", pkt_len));
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
-  return CR_OK;
+  DBUG_RETURN(CR_OK);
 #endif
 
   if (pkt_len == 0) /* no password */
-    return info->auth_string[0] ? CR_ERROR : CR_OK;
+    DBUG_RETURN(info->auth_string[0] ? CR_ERROR : CR_OK);
 
-  info->password_used = 1;
+  info->password_used= PASSWORD_USED_YES;
   if (pkt_len == SCRAMBLE_LENGTH)
-    return info->auth_string[0] == 0 ||
-           check_scramble(pkt, thd->scramble, mpvio->acl_user->salt) ?
-             CR_ERROR : CR_OK;
+  {
+    if (!mpvio->acl_user->salt_len)
+      DBUG_RETURN(CR_ERROR);
+
+    DBUG_RETURN(check_scramble(pkt, thd->scramble, mpvio->acl_user->salt) ?
+                CR_ERROR : CR_OK);
+  }
 
   inc_host_errors(mpvio->thd->main_security_ctx.ip);
-  my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
-  return CR_ERROR;
+  my_error(ER_HANDSHAKE_ERROR, MYF(0));
+  DBUG_RETURN(CR_ERROR);
 }
-
 
 static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio, 
                                      MYSQL_SERVER_AUTH_INFO *info)
 {
   uchar *pkt;
   int pkt_len;
-  MPVIO_EXT *mpvio=(MPVIO_EXT*)vio;
+  MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
   THD *thd=mpvio->thd;
 
   /* generate the scramble, or reuse the old one */
@@ -8531,7 +9313,7 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     the password is sent \0-terminated, the pkt_len is always 9 bytes.
     We need to figure out the correct scramble length here.
   */
-  if (pkt_len == SCRAMBLE_LENGTH_323+1)
+  if (pkt_len == SCRAMBLE_LENGTH_323 + 1)
     pkt_len= strnlen((char*)pkt, pkt_len);
 
   if (pkt_len == 0) /* no password */
@@ -8540,15 +9322,20 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   if (secure_auth(thd))
     return CR_ERROR;
 
-  info->password_used = 1;
+  info->password_used= PASSWORD_USED_YES;
 
   if (pkt_len == SCRAMBLE_LENGTH_323)
-    return info->auth_string[0] == 0 ||
-           check_scramble_323(pkt, thd->scramble,
-                             (ulong *)mpvio->acl_user->salt) ? CR_ERROR : CR_OK;
+  {
+    if (!mpvio->acl_user->salt_len)
+      return CR_ERROR;
+
+    return check_scramble_323(pkt, thd->scramble,
+                             (ulong *) mpvio->acl_user->salt) ? 
+                             CR_ERROR : CR_OK;
+  }
 
   inc_host_errors(mpvio->thd->main_security_ctx.ip);
-  my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+  my_error(ER_HANDSHAKE_ERROR, MYF(0));
   return CR_ERROR;
 }
 

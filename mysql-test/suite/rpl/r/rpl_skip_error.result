@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ==== Test Without sql_mode=strict_trans_tables ====
 [on master]
 create table t1 (n int not null primary key);
@@ -31,7 +27,7 @@ n
 3
 7
 8
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 ==== Clean Up ====
 drop table t1;
 create table t1(a int primary key);
@@ -46,7 +42,7 @@ select * from t1;
 a
 1
 2
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 ==== Clean Up ====
 drop table t1;
 ==== Using Innodb ====
@@ -60,6 +56,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SET SQL_LOG_BIN=1;
+call mtr.add_suppression("Slave SQL.*Could not execute .*te_rows event on table test.t.; Duplicate entry.* Error_code: 1062");
 CREATE TABLE t1(id INT NOT NULL PRIMARY KEY, data INT) Engine=InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -112,3 +109,4 @@ UPDATE t2 SET id= id + 3, data = 2;
 ==== Clean Up ====
 DROP TABLE t1;
 DROP TABLE t2;
+include/rpl_end.inc

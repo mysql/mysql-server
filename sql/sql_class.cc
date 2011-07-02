@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
 /*****************************************************************************
@@ -273,6 +273,252 @@ bool Foreign_key::validate(List<Create_field> &table_fields)
 ** Thread specific functions
 ****************************************************************************/
 
+/**
+  Get reference to scheduler data object
+
+  @param thd            THD object
+
+  @retval               Scheduler data object on THD
+*/
+void *thd_get_scheduler_data(THD *thd)
+{
+  return thd->scheduler.data;
+}
+
+/**
+  Set reference to Scheduler data object for THD object
+
+  @param thd            THD object
+  @param psi            Scheduler data object to set on THD
+*/
+void thd_set_scheduler_data(THD *thd, void *data)
+{
+  thd->scheduler.data= data;
+}
+
+/**
+  Get reference to Performance Schema object for THD object
+
+  @param thd            THD object
+
+  @retval               Performance schema object for thread on THD
+*/
+PSI_thread *thd_get_psi(THD *thd)
+{
+  return thd->scheduler.m_psi;
+}
+
+/**
+  Set reference to Performance Schema object for THD object
+
+  @param thd            THD object
+  @param psi            Performance schema object for thread
+*/
+void thd_set_psi(THD *thd, PSI_thread *psi)
+{
+  thd->scheduler.m_psi= psi;
+}
+
+/**
+  Set the state on connection to killed
+
+  @param thd               THD object
+*/
+void thd_set_killed(THD *thd)
+{
+  thd->killed= THD::KILL_CONNECTION;
+}
+
+/**
+  Clear errors from the previous THD
+
+  @param thd              THD object
+*/
+void thd_clear_errors(THD *thd)
+{
+  my_errno= 0;
+  thd->mysys_var->abort= 0;
+}
+
+/**
+  Set thread stack in THD object
+
+  @param thd              Thread object
+  @param stack_start      Start of stack to set in THD object
+*/
+void thd_set_thread_stack(THD *thd, char *stack_start)
+{
+  thd->thread_stack= stack_start;
+}
+
+/**
+  Lock connection data for the set of connections this connection
+  belongs to
+
+  @param thd                       THD object
+*/
+void thd_lock_thread_count(THD *)
+{
+  mysql_mutex_lock(&LOCK_thread_count);
+}
+
+/**
+  Lock connection data for the set of connections this connection
+  belongs to
+
+  @param thd                       THD object
+*/
+void thd_unlock_thread_count(THD *)
+{
+  mysql_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
+}
+
+/**
+  Close the socket used by this connection
+
+  @param thd                THD object
+*/
+void thd_close_connection(THD *thd)
+{
+  if (thd->net.vio)
+    vio_close(thd->net.vio);
+}
+
+/**
+  Get current THD object from thread local data
+
+  @retval     The THD object for the thread, NULL if not connection thread
+*/
+THD *thd_get_current_thd()
+{
+  return current_thd;
+}
+
+/**
+  Set up various THD data for a new connection
+
+  thd_new_connection_setup
+
+  @param              thd            THD object
+  @param              stack_start    Start of stack for connection
+*/
+void thd_new_connection_setup(THD *thd, char *stack_start)
+{
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+    thd_set_psi(thd,
+                PSI_server->new_thread(key_thread_one_connection,
+                                       thd,
+                                       thd_get_thread_id((MYSQL_THD)thd)));
+#endif
+  thd->set_time();
+  thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
+    my_micro_time();
+  threads.append(thd);
+  thd_unlock_thread_count(thd);
+  DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
+          (ulong)thd, thd->net.vio->sd));
+  thd_set_thread_stack(thd, stack_start);
+}
+
+/**
+  Lock data that needs protection in THD object
+
+  @param thd                   THD object
+*/
+void thd_lock_data(THD *thd)
+{
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+}
+
+/**
+  Unlock data that needs protection in THD object
+
+  @param thd                   THD object
+*/
+void thd_unlock_data(THD *thd)
+{
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+}
+
+/**
+  Support method to check if connection has already started transcaction
+
+  @param client_cntx    Low level client context
+
+  @retval               TRUE if connection already started transaction
+*/
+bool thd_is_transaction_active(THD *thd)
+{
+  return thd->transaction.is_active();
+}
+
+/**
+  Check if there is buffered data on the socket representing the connection
+
+  @param thd                  THD object
+*/
+int thd_connection_has_data(THD *thd)
+{
+  Vio *vio= thd->net.vio;
+  return vio->has_data(vio);
+}
+
+/**
+  Set reading/writing on socket, used by SHOW PROCESSLIST
+
+  @param thd                       THD object
+  @param val                       Value to set it to (0 or 1)
+*/
+void thd_set_net_read_write(THD *thd, uint val)
+{
+  thd->net.reading_or_writing= val;
+}
+
+/**
+  Set reference to mysys variable in THD object
+
+  @param thd             THD object
+  @param mysys_var       Reference to set
+*/
+void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
+{
+  thd->set_mysys_var(mysys_var);
+}
+
+/**
+  Get socket file descriptor for this connection
+
+  @param thd            THD object
+
+  @retval               Socket of the connection
+*/
+my_socket thd_get_fd(THD *thd)
+{
+  return thd->net.vio->sd;
+}
+
+/**
+  Get thread attributes for connection threads
+
+  @retval      Reference to thread attribute for connection threads
+*/
+pthread_attr_t *get_connection_attrib(void)
+{
+  return &connection_attrib;
+}
+
+/**
+  Get max number of connections
+
+  @retval         Max number of connections for MySQL Server
+*/
+ulong get_max_connections(void)
+{
+  return max_connections;
+}
+
 /*
   The following functions form part of the C plugin API
 */
@@ -328,9 +574,11 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
     thd= current_thd;
 
   const char *old_info= thd->proc_info;
-  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, info));
+  const char *basename= calling_file ? base_name(calling_file) : NULL;
+  DBUG_PRINT("proc_info", ("%s:%d  %s", basename, calling_line, info));
+
 #if defined(ENABLED_PROFILING)
-  thd->profiling.status_change(info, calling_function, calling_file, calling_line);
+  thd->profiling.status_change(info, calling_function, basename, calling_line);
 #endif
   thd->proc_info= info;
   return old_info;
@@ -548,7 +796,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 
 
 THD::THD()
-   :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
+   :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
    user_time(0), in_sub_stmt(0),
@@ -576,7 +824,7 @@ THD::THD()
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-   main_warning_info(0)
+   main_warning_info(0, false)
 {
   ulong tmp;
 
@@ -594,7 +842,8 @@ THD::THD()
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
-  no_errors=password= 0;
+  no_errors= 0;
+  password= 0;
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
@@ -637,7 +886,7 @@ THD::THD()
   client_capabilities= 0;                       // minimalistic client
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
-  cleanup_done= abort_on_warning= no_warnings_for_error= 0;
+  cleanup_done= abort_on_warning= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.on= 1;
@@ -692,8 +941,8 @@ THD::THD()
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
 
   m_internal_handler= NULL;
+  m_binlog_invoker= FALSE;
   arena_for_cached_items= 0;
-  current_user_used= FALSE;
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
 }
@@ -916,10 +1165,6 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   }
 
   query_cache_abort(&query_cache_tls);
-
-  /* FIXME: broken special case */
-  if (no_warnings_for_error && (level == MYSQL_ERROR::WARN_LEVEL_ERROR))
-    DBUG_RETURN(NULL);
 
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(NULL););
@@ -1313,36 +1558,70 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 #endif
 
 
+/**
+  Awake a thread.
+
+  @param[in]  state_to_set    value for THD::killed
+
+  This is normally called from another thread's THD object.
+
+  @note Do always call this while holding LOCK_thd_data.
+*/
+
 void THD::awake(THD::killed_state state_to_set)
 {
   DBUG_ENTER("THD::awake");
-  DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
+  DBUG_PRINT("enter", ("this: %p current_thd: %p", this, current_thd));
   THD_CHECK_SENTRY(this);
   mysql_mutex_assert_owner(&LOCK_thd_data);
 
+  /* Set the 'killed' flag of 'this', which is the target THD object. */
   killed= state_to_set;
+
   if (state_to_set != THD::KILL_QUERY)
   {
-    thr_alarm_kill(thread_id);
-    if (!slave_thread)
-      MYSQL_CALLBACK(scheduler, post_kill_notification, (this));
 #ifdef SIGNAL_WITH_VIO_CLOSE
     if (this != current_thd)
     {
       /*
-        In addition to a signal, let's close the socket of the thread that
-        is being killed. This is to make sure it does not block if the
-        signal is lost. This needs to be done only on platforms where
-        signals are not a reliable interruption mechanism.
+        Before sending a signal, let's close the socket of the thread
+        that is being killed ("this", which is not the current thread).
+        This is to make sure it does not block if the signal is lost.
+        This needs to be done only on platforms where signals are not
+        a reliable interruption mechanism.
 
-        If we're killing ourselves, we know that we're not blocked, so this
-        hack is not used.
+        Note that the downside of this mechanism is that we could close
+        the connection while "this" target thread is in the middle of
+        sending a result to the application, thus violating the client-
+        server protocol.
+
+        On the other hand, without closing the socket we have a race
+        condition. If "this" target thread passes the check of
+        thd->killed, and then the current thread runs through
+        THD::awake(), sets the 'killed' flag and completes the
+        signaling, and then the target thread runs into read(), it will
+        block on the socket. As a result of the discussions around
+        Bug#37780, it has been decided that we accept the race
+        condition. A second KILL awakes the target from read().
+
+        If we are killing ourselves, we know that we are not blocked.
+        We also know that we will check thd->killed before we go for
+        reading the next statement.
       */
 
       close_active_vio();
     }
-#endif    
+#endif
+
+    /* Mark the target thread's alarm request expired, and signal alarm. */
+    thr_alarm_kill(thread_id);
+
+    /* Send an event to the scheduler that a thread should be killed. */
+    if (!slave_thread)
+      MYSQL_CALLBACK(scheduler, post_kill_notification, (this));
   }
+
+  /* Broadcast a condition to kick the target if it is waiting on it. */
   if (mysys_var)
   {
     mysql_mutex_lock(&mysys_var->mutex);
@@ -1366,6 +1645,11 @@ void THD::awake(THD::killed_state state_to_set)
       we issue a second KILL or the status it's waiting for happens).
       It's true that we have set its thd->killed but it may not
       see it immediately and so may have time to reach the cond_wait().
+
+      However, where possible, we test for killed once again after
+      enter_cond(). This should make the signaling as safe as possible.
+      However, there is still a small chance of failure on platforms with
+      instruction or memory write reordering.
     */
     if (mysys_var->current_cond && mysys_var->current_mutex)
     {
@@ -1377,6 +1661,40 @@ void THD::awake(THD::killed_state state_to_set)
   }
   DBUG_VOID_RETURN;
 }
+
+
+/**
+  Close the Vio associated this session.
+
+  @remark LOCK_thd_data is taken due to the fact that
+          the Vio might be disassociated concurrently.
+*/
+
+void THD::disconnect()
+{
+  Vio *vio= NULL;
+
+  mysql_mutex_lock(&LOCK_thd_data);
+
+  killed= THD::KILL_CONNECTION;
+
+#ifdef SIGNAL_WITH_VIO_CLOSE
+  /*
+    Since a active vio might might have not been set yet, in
+    any case save a reference to avoid closing a inexistent
+    one or closing the vio twice if there is a active one.
+  */
+  vio= active_vio;
+  close_active_vio();
+#endif
+
+  /* Disconnect even if a active vio is not associated. */
+  if (net.vio != vio)
+    vio_close(net.vio);
+
+  mysql_mutex_unlock(&LOCK_thd_data);
+}
+
 
 /*
   Remember the location of thread info, the structure needed for
@@ -1422,7 +1740,6 @@ bool THD::store_globals()
   return 0;
 }
 
-
 /**
    Untie THD from current thread
 
@@ -1434,6 +1751,11 @@ void THD::reset_globals()
   mysql_mutex_lock(&LOCK_thd_data);
   mysys_var= 0;
   mysql_mutex_unlock(&LOCK_thd_data);
+
+  /* Undocking the thread specific data. */
+  my_pthread_setspecific_ptr(THR_THD, NULL);
+  my_pthread_setspecific_ptr(THR_MALLOC, NULL);
+  
 }
 
 /*
@@ -1486,7 +1808,7 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
-  clean_current_user_used();
+  m_binlog_invoker= FALSE;
 }
 
 
@@ -1505,7 +1827,7 @@ LEX_STRING *THD::make_lex_string(LEX_STRING *lex_str,
                                  bool allocate_lex_string)
 {
   if (allocate_lex_string)
-    if (!(lex_str= (LEX_STRING *)alloc(sizeof(LEX_STRING))))
+    if (!(lex_str= (LEX_STRING *)alloc_root(mem_root, sizeof(LEX_STRING))))
       return 0;
   if (!(lex_str->str= strmake_root(mem_root, str, length)))
     return 0;
@@ -1983,8 +2305,9 @@ void select_to_file::send_error(uint errcode,const char *err)
 bool select_to_file::send_eof()
 {
   int error= test(end_io_cache(&cache));
-  if (mysql_file_close(file, MYF(MY_WME)))
-    error= 1;
+  if (mysql_file_close(file, MYF(MY_WME)) || thd->is_error())
+    error= true;
+
   if (!error)
   {
     ::my_ok(thd,row_count);
@@ -2262,7 +2585,7 @@ bool select_export::send_data(List<Item> &items)
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
-                            item->name, (ulong) row_count);
+                            item->name, static_cast<long>(row_count));
       }
       else if (from_end_pos < res->ptr() + res->length())
       { 
@@ -2271,7 +2594,7 @@ bool select_export::send_data(List<Item> &items)
         */
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
-                            item->full_name(), row_count);
+                            item->full_name(), static_cast<long>(row_count));
       }
       cvt_str.length(bytes);
       res= &cvt_str;
@@ -2725,8 +3048,6 @@ Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
   db(NULL),
   db_length(0)
 {
-  query_string.length= 0;
-  query_string.str= NULL;
   name.str= NULL;
 }
 
@@ -2762,15 +3083,6 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
   stmt->set_statement(this);
   set_statement(backup);
   DBUG_VOID_RETURN;
-}
-
-
-/** Assign a new value to thd->query.  */
-
-void Statement::set_query_inner(char *query_arg, uint32 query_length_arg)
-{
-  query_string.str= query_arg;
-  query_string.length= query_length_arg;
 }
 
 
@@ -3024,6 +3336,13 @@ bool select_dumpvar::send_eof()
   if (! row_count)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
+  /*
+    Don't send EOF if we're in error condition (which implies we've already
+    sent or are sending an error)
+  */
+  if (thd->is_error())
+    return true;
+
   ::my_ok(thd,row_count);
   return 0;
 }
@@ -3157,9 +3476,9 @@ void THD::set_status_var_init()
 
 void Security_context::init()
 {
-  host= user= ip= 0;
+  host= user= ip= external_user= 0;
   host_or_ip= "connecting host";
-  priv_user[0]= priv_host[0]= '\0';
+  priv_user[0]= priv_host[0]= proxy_user[0]= '\0';
   master_access= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
@@ -3178,6 +3497,12 @@ void Security_context::destroy()
   if (user != delayed_user)
   {
     my_free(user);
+    user= NULL;
+  }
+
+  if (external_user)
+  {
+    my_free(external_user);
     user= NULL;
   }
 
@@ -3375,7 +3700,7 @@ extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)
 */
 extern "C" char **thd_query(MYSQL_THD thd)
 {
-  return(&thd->query_string.str);
+  return (&thd->query_string.string.str);
 }
 
 /**
@@ -3386,7 +3711,7 @@ extern "C" char **thd_query(MYSQL_THD thd)
 */
 extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd)
 {
-  return(&thd->query_string);
+  return(&thd->query_string.string);
 }
 
 extern "C" int thd_slave_thread(const MYSQL_THD thd)
@@ -3447,7 +3772,7 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 
   thd_wait_end MUST be called immediately after waking up again.
 */
-extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
+extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
   MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, wait_type));
 }
@@ -3463,7 +3788,7 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
   MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
 }
 #else
-extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
+extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
   /* do NOTHING for the embedded library */
   return;
@@ -3633,20 +3958,21 @@ void THD::set_statement(Statement *stmt)
 
 /** Assign a new value to thd->query.  */
 
-void THD::set_query(char *query_arg, uint32 query_length_arg)
+void THD::set_query(const CSET_STRING &string_arg)
 {
   mysql_mutex_lock(&LOCK_thd_data);
-  set_query_inner(query_arg, query_length_arg);
+  set_query_inner(string_arg);
   mysql_mutex_unlock(&LOCK_thd_data);
 }
 
 /** Assign a new value to thd->query and thd->query_id.  */
 
 void THD::set_query_and_id(char *query_arg, uint32 query_length_arg,
+                           CHARSET_INFO *cs,
                            query_id_t new_query_id)
 {
   mysql_mutex_lock(&LOCK_thd_data);
-  set_query_inner(query_arg, query_length_arg);
+  set_query_inner(query_arg, query_length_arg, cs);
   query_id= new_query_id;
   mysql_mutex_unlock(&LOCK_thd_data);
 }
@@ -3676,16 +4002,20 @@ void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
 void THD::leave_locked_tables_mode()
 {
   locked_tables_mode= LTM_NONE;
-  /* Make sure we don't release the global read lock when leaving LTM. */
-  mdl_context.reset_trans_sentinel(global_read_lock.global_shared_lock());
+  mdl_context.set_transaction_duration_for_all_locks();
+  /*
+    Make sure we don't release the global read lock and commit blocker
+    when leaving LTM.
+  */
+  global_read_lock.set_explicit_lock_duration(this);
   /* Also ensure that we don't release metadata locks for open HANDLERs. */
   if (handler_tables_hash.records)
-    mysql_ha_move_tickets_after_trans_sentinel(this);
+    mysql_ha_set_explicit_lock_duration(this);
 }
 
 void THD::get_definer(LEX_USER *definer)
 {
-  set_current_user_used();
+  binlog_invoker();
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   if (slave_thread && has_invoker())
   {
@@ -3814,6 +4144,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
     xs->xa_state=xa_state;
     xs->xid.set(xid);
     xs->in_thd=0;
+    xs->rm_error=0;
     res=my_hash_insert(&xid_cache, (uchar*)xs);
   }
   mysql_mutex_unlock(&LOCK_xid_cache);

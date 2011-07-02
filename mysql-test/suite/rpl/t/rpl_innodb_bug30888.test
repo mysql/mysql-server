@@ -62,5 +62,5 @@ connection master;
 DROP PROCEDURE test.proc_norm;
 DROP TABLE test.regular_tbl;
 
---source include/master-slave-end.inc
+--source include/rpl_end.inc
 

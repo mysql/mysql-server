@@ -281,7 +281,7 @@ buf_buddy_alloc_from(
 
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
-buf_pool->mutex and must not hold buf_pool_zip_mutex or any block->mutex.
+buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
 The buf_pool->mutex may only be released and reacquired if lru != NULL.
 @return	allocated block, possibly NULL if lru==NULL */
 UNIV_INTERN
@@ -327,7 +327,7 @@ buf_buddy_alloc_low(
 
 	/* Try replacing an uncompressed page in the buffer pool. */
 	buf_pool_mutex_exit(buf_pool);
-	block = buf_LRU_get_free_block(buf_pool, 0);
+	block = buf_LRU_get_free_block(buf_pool);
 	*lru = TRUE;
 	buf_pool_mutex_enter(buf_pool);
 

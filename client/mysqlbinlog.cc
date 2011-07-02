@@ -1,4 +1,4 @@
-/* Copyright (C) 2001-2004 MySQL AB
+/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include "sql_priv.h"
 #include "log_event.h"
 #include "sql_common.h"
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 /* Needed for Rpl_filter */
 CHARSET_INFO* system_charset_info= &my_charset_utf8_general_ci;
@@ -88,6 +89,8 @@ static char* host = 0;
 static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name= 0;
 #endif
@@ -757,10 +760,18 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       */
       start_datetime= 0;
       offset= 0; // print everything and protect against cycling rec_count
+      /*
+        Skip events according to the --server-id flag.  However, don't
+        skip format_description or rotate events, because they they
+        are really "global" events that are relevant for the entire
+        binlog, even if they have a server_id.  Also, we have to read
+        the format_description event so that we can parse subsequent
+        events.
+      */
+      if (ev_type != ROTATE_EVENT &&
+          server_id && (server_id != ev->server_id))
+        goto end;
     }
-    if (server_id && (server_id != ev->server_id))
-      /* skip just this event, continue processing the log. */
-      goto end;
     if (((my_time_t)(ev->when) >= stop_datetime)
         || (pos >= stop_position_mot))
     {
@@ -1012,7 +1023,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         passed --short-form, because --short-form disables printing
         row events.
       */
-      if (!print_event_info->printed_fd_event && !short_form)
+      if (!print_event_info->printed_fd_event && !short_form &&
+          opt_base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
       {
         const char* type_str= ev->get_type_str();
         if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
@@ -1068,10 +1080,11 @@ static struct my_option my_long_options[] =
    "row-based events; 'decode-rows' decodes row events into commented SQL "
    "statements if the --verbose option is also given; 'auto' prints base64 "
    "only when necessary (i.e., for row-based events and format description "
-   "events); 'always' prints base64 whenever possible. 'always' is for "
-   "debugging only and should not be used in a production system. If this "
-   "argument is not given, the default is 'auto'; if it is given with no "
-   "argument, 'always' is used.",
+   "events); 'always' prints base64 whenever possible. 'always' is "
+   "deprecated, will be removed in a future version, and should not be used "
+   "in a production system.  --base64-output with no 'name' argument is "
+   "equivalent to --base64-output=always and is also deprecated.  If no "
+   "--base64-output[=name] option is given at all, the default is 'auto'.",
    &opt_base64_output_mode_str, &opt_base64_output_mode_str,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   /*
@@ -1096,6 +1109,10 @@ static struct my_option my_long_options[] =
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
    &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_DEFAULT_AUTH,
+   "Default authentication client-side plugin to use.",
+   &opt_default_auth, &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"disable-log-bin", 'D', "Disable binary log. This is useful, if you "
     "enabled --to-last-log and are sending the output to the same MySQL server. "
     "This way you could avoid an endless loop. You would also like to use it "
@@ -1121,6 +1138,9 @@ static struct my_option my_long_options[] =
    0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p', "Password to connect to remote server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+    &opt_plugin_dir, &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
 #if MYSQL_PORT_DEFAULT == 0
@@ -1302,10 +1322,7 @@ static void print_version()
 static void usage()
 {
   print_version();
-  puts("By Monty and Sasha, for your professional use\n\
-This software comes with NO WARRANTY:  This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license.\n");
-
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2001, 2010"));
   printf("\
 Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client.\n\n");
@@ -1495,6 +1512,12 @@ static Exit_status safe_connect()
     error("Failed on mysql_init.");
     return ERROR_STOP;
   }
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
@@ -2150,6 +2173,13 @@ int main(int argc, char** argv)
 
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
     opt_base64_output_mode= BASE64_OUTPUT_AUTO;
+  if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
+    warning("The --base64-output=always flag and the --base64-output flag "
+            "(with '=MODE' omitted), are deprecated. "
+            "The output generated when these flags are used cannot be "
+            "parsed by mysql 5.6.0 and later. "
+            "The flags will be removed in a future version. "
+            "Please use --base64-output=auto instead.");
 
   my_set_max_open_files(open_files_limit);
 

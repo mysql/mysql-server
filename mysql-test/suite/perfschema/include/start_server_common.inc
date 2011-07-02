@@ -17,31 +17,31 @@
 
 show databases;
 
-select count(*) from performance_schema.PERFORMANCE_TIMERS;
-select count(*) from performance_schema.SETUP_CONSUMERS;
-select count(*) > 0 from performance_schema.SETUP_INSTRUMENTS;
-select count(*) from performance_schema.SETUP_TIMERS;
+select count(*) from performance_schema.performance_timers;
+select count(*) from performance_schema.setup_consumers;
+select count(*) > 0 from performance_schema.setup_instruments;
+select count(*) from performance_schema.setup_timers;
 
 # Make sure we don't crash, no matter what the starting parameters are
 
 --disable_result_log
-select * from performance_schema.COND_INSTANCES;
-select * from performance_schema.EVENTS_WAITS_CURRENT;
-select * from performance_schema.EVENTS_WAITS_HISTORY;
-select * from performance_schema.EVENTS_WAITS_HISTORY_LONG;
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE;
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
-select * from performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME;
-select * from performance_schema.FILE_INSTANCES;
-select * from performance_schema.FILE_SUMMARY_BY_EVENT_NAME;
-select * from performance_schema.FILE_SUMMARY_BY_INSTANCE;
-select * from performance_schema.MUTEX_INSTANCES;
-select * from performance_schema.PERFORMANCE_TIMERS;
-select * from performance_schema.RWLOCK_INSTANCES;
-select * from performance_schema.SETUP_CONSUMERS;
-select * from performance_schema.SETUP_INSTRUMENTS;
-select * from performance_schema.SETUP_TIMERS;
-select * from performance_schema.THREADS;
+select * from performance_schema.cond_instances;
+select * from performance_schema.events_waits_current;
+select * from performance_schema.events_waits_history;
+select * from performance_schema.events_waits_history_long;
+select * from performance_schema.events_waits_summary_by_instance;
+select * from performance_schema.events_waits_summary_by_thread_by_event_name;
+select * from performance_schema.events_waits_summary_global_by_event_name;
+select * from performance_schema.file_instances;
+select * from performance_schema.file_summary_by_event_name;
+select * from performance_schema.file_summary_by_instance;
+select * from performance_schema.mutex_instances;
+select * from performance_schema.performance_timers;
+select * from performance_schema.rwlock_instances;
+select * from performance_schema.setup_consumers;
+select * from performance_schema.setup_instruments;
+select * from performance_schema.setup_timers;
+select * from performance_schema.threads;
 --enable_result_log
 
 # This has a stable output, printing the result:

@@ -15,10 +15,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#define COPYRIGHT_NOTICE "\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL v2 license\n"
-
 /* mysql command tool
  * Commands compatible with mSQL by David J. Hughes
  *
@@ -111,6 +107,7 @@ extern "C" {
 #endif
 
 #include "completion_hash.h"
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
@@ -169,7 +166,7 @@ static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
-static char *opt_plugin_dir= 0, *opt_default_auth;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -1135,6 +1132,8 @@ int main(int argc,char *argv[])
   if (status.batch && !status.line_buff &&
       !(status.line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, stdin)))
   {
+    put_info("Can't initialize batch_readline - may be the input source is "
+             "a directory or a block device.", INFO_ERROR, 0);
     free_defaults(defaults_argv);
     my_end(0);
     exit(1);
@@ -1182,7 +1181,7 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
-  put_info(COPYRIGHT_NOTICE, INFO_INFO);
+  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"), INFO_INFO);
 
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
@@ -1474,8 +1473,8 @@ static struct my_option my_long_options[] =
    &opt_sigint_ignore,  &opt_sigint_ignore, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"one-database", 'o',
-   "Only update the default database. This is useful for skipping updates "
-   "to other database in the update log.",
+   "Ignore statements except those that occur while the default "
+   "database is the one named at the command line.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef USE_POPEN
   {"pager", OPT_PAGER,
@@ -1580,11 +1579,11 @@ static struct my_option my_long_options[] =
     &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+    &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"default_auth", OPT_PLUGIN_DIR,
+  {"default_auth", OPT_DEFAULT_AUTH,
     "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+    &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -1609,7 +1608,7 @@ static void usage(int version)
 
   if (version)
     return;
-  printf("%s", COPYRIGHT_NOTICE);
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
@@ -1860,14 +1859,13 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
-  bool truncated= 0;
   status.exit_status=1;
   
   while (!aborted)
   {
     if (!interactive)
     {
-      line=batch_readline(status.line_buff, &truncated);
+      line=batch_readline(status.line_buff);
       /*
         Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
         Editors like "notepad" put this marker in
@@ -1930,9 +1928,13 @@ static int read_and_execute(bool interactive)
       if (opt_outfile && line)
 	fprintf(OUTFILE, "%s\n", line);
     }
-    if (!line)					// End of file
+    // End of file or system error
+    if (!line)
     {
-      status.exit_status=0;
+      if (status.line_buff && status.line_buff->error)
+        status.exit_status= 1;
+      else
+        status.exit_status= 0;
       break;
     }
 
@@ -1953,7 +1955,8 @@ static int read_and_execute(bool interactive)
 #endif
       continue;
     }
-    if (add_line(glob_buffer,line,&in_string,&ml_comment, truncated))
+    if (add_line(glob_buffer, line, &in_string, &ml_comment,
+                 status.line_buff ? status.line_buff->truncated : 0))
       break;
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */
@@ -2717,6 +2720,10 @@ static int reconnect(void)
 static void get_current_db()
 {
   MYSQL_RES *res;
+
+  /* If one_database is set, current_db is not supposed to change. */
+  if (one_database)
+    return;
 
   my_free(current_db);
   current_db= NULL;
@@ -3760,7 +3767,8 @@ print_tab_data(MYSQL_RES *result)
 }
 
 static int
-com_tee(String *buffer, char *line __attribute__((unused)))
+com_tee(String *buffer __attribute__((unused)),
+        char *line __attribute__((unused)))
 {
   char file_name[FN_REFLEN], *end, *param;
 
@@ -3819,7 +3827,8 @@ com_notee(String *buffer __attribute__((unused)),
 
 #ifdef USE_POPEN
 static int
-com_pager(String *buffer, char *line __attribute__((unused)))
+com_pager(String *buffer __attribute__((unused)),
+          char *line __attribute__((unused)))
 {
   char pager_name[FN_REFLEN], *end, *param;
 
@@ -3949,7 +3958,8 @@ com_rehash(String *buffer __attribute__((unused)),
 
 #ifdef USE_POPEN
 static int
-com_shell(String *buffer, char *line __attribute__((unused)))
+com_shell(String *buffer __attribute__((unused)),
+          char *line __attribute__((unused)))
 {
   char *shell_cmd;
 
@@ -4041,7 +4051,8 @@ com_connect(String *buffer, char *line)
 }
 
 
-static int com_source(String *buffer, char *line)
+static int com_source(String *buffer __attribute__((unused)),
+                      char *line)
 {
   char source_name[FN_REFLEN], *end, *param;
   LINE_BUFFER *line_buff;
@@ -4395,8 +4406,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
   if (!mysql_real_connect(&mysql, host, user, password,
-			  database, opt_mysql_port, opt_mysql_unix_port,
-			  connect_flag | CLIENT_MULTI_STATEMENTS))
+                          database, opt_mysql_port, opt_mysql_unix_port,
+                          connect_flag | CLIENT_MULTI_STATEMENTS))
   {
     if (!silent ||
 	(mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&
@@ -5032,7 +5043,8 @@ static void init_username()
   }
 }
 
-static int com_prompt(String *buffer, char *line)
+static int com_prompt(String *buffer __attribute__((unused)),
+                      char *line)
 {
   char *ptr=strchr(line, ' ');
   prompt_counter = 0;

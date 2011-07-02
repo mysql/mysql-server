@@ -1,6 +1,4 @@
 #########################################
-# Author: Serge Kozlov skozlov@mysql.com
-# Date: 07/10/2006
 # Purpose: testing the replication in mixed mode
 # Requirements: define binlog format for mysqld as in example below:
 # ./mysql-test-run.pl --mysqld=--binlog-format=mixed
@@ -82,3 +80,4 @@ sync_slave_with_master;
 # the files your self to see what is not matching
 
 --diff_files $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql
+--source include/rpl_end.inc

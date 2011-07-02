@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,12 +61,31 @@
    check the pointer, use "----args-separator----" here to ease debug
    if someone misused it.
 
+   The args seprator will only be added when
+   my_getopt_use_args_seprator is set to TRUE before calling
+   load_defaults();
+
    See BUG#25192
 */
-const char *args_separator= "----args-separator----";
+static const char *args_separator= "----args-separator----";
+inline static void set_args_separator(char** arg)
+{
+  DBUG_ASSERT(my_getopt_use_args_separator);
+  *arg= (char*)args_separator;
+}
+my_bool my_getopt_use_args_separator= FALSE;
+my_bool my_getopt_is_args_separator(const char* arg)
+{
+  return (arg == args_separator);
+}
 const char *my_defaults_file=0;
 const char *my_defaults_group_suffix=0;
-char *my_defaults_extra_file=0;
+const char *my_defaults_extra_file=0;
+
+static char my_defaults_file_buffer[FN_REFLEN];
+static char my_defaults_extra_file_buffer[FN_REFLEN];
+
+static my_bool defaults_already_read= FALSE;
 
 /* Which directories are searched for options (and in which order) */
 
@@ -121,7 +140,7 @@ static int search_default_file_with_ext(Process_option_func func,
   - Unix:        /etc/
   - Unix:        /etc/mysql/
   - Unix:        --sysconfdir=<path> (compile-time option)
-  - ALL:         getenv(DEFAULT_HOME_ENV)
+  - ALL:         getenv("MYSQL_HOME")
   - ALL:         --defaults-extra-file=<path> (run-time option)
   - Unix:        ~/
 
@@ -138,6 +157,33 @@ static const char **init_default_directories(MEM_ROOT *alloc);
 
 static char *remove_end_comment(char *ptr);
 
+
+/*
+  Expand a file name so that the current working directory is added if
+  the name is relative.
+
+  RETURNS
+   0   All OK
+   2   Out of memory or path to long
+   3   Not able to get working directory
+ */
+
+static int
+fn_expand(const char *filename, char *result_buf)
+{
+  char dir[FN_REFLEN];
+  const int flags= MY_UNPACK_FILENAME | MY_SAFE_PATH | MY_RELATIVE_PATH;
+  DBUG_ENTER("fn_expand");
+  DBUG_PRINT("enter", ("filename: %s, result_buf: 0x%lx",
+                       filename, (unsigned long) result_buf));
+  if (my_getwd(dir, sizeof(dir), MYF(0)))
+    DBUG_RETURN(3);
+  DBUG_PRINT("debug", ("dir: %s", dir));
+  if (fn_format(result_buf, filename, dir, "", flags) == NULL)
+    DBUG_RETURN(2);
+  DBUG_PRINT("return", ("result: %s", result_buf));
+  DBUG_RETURN(0);
+}
 
 /*
   Process config files in default directories.
@@ -167,6 +213,7 @@ static char *remove_end_comment(char *ptr);
     0  ok
     1  given cinf_file doesn't exist
     2  out of memory
+    3  Can't get current working directory
 
     The global variable 'my_defaults_group_suffix' is updated with value for
     --defaults_group_suffix
@@ -189,11 +236,23 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   if (! my_defaults_group_suffix)
     my_defaults_group_suffix= getenv(STRINGIFY_ARG(DEFAULT_GROUP_SUFFIX_ENV));
 
-  if (forced_extra_defaults)
-    my_defaults_extra_file= (char *) forced_extra_defaults;
-  
-  if (forced_default_file)
-    my_defaults_file= forced_default_file;
+  if (forced_extra_defaults && !defaults_already_read)
+  {
+    int error= fn_expand(forced_extra_defaults, my_defaults_extra_file_buffer);
+    if (error)
+      DBUG_RETURN(error);
+    my_defaults_extra_file= my_defaults_extra_file_buffer;
+  }
+
+  if (forced_default_file && !defaults_already_read)
+  {
+    int error= fn_expand(forced_default_file, my_defaults_file_buffer);
+    if (error)
+      DBUG_RETURN(error);
+    my_defaults_file= my_defaults_file_buffer;
+  }
+
+  defaults_already_read= TRUE;
 
   /*
     We can only handle 'defaults-group-suffix' if we are called from
@@ -236,15 +295,15 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     group->type_names[group->count]= 0;
   }
   
-  if (forced_default_file)
+  if (my_defaults_file)
   {
     if ((error= search_default_file_with_ext(func, func_ctx, "", "",
-                                             forced_default_file, 0)) < 0)
+                                             my_defaults_file, 0)) < 0)
       goto err;
     if (error > 0)
     {
       fprintf(stderr, "Could not open required defaults file: %s\n",
-              forced_default_file);
+              my_defaults_file);
       goto err;
     }
   }
@@ -317,7 +376,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
   if (!option)
     return 0;
 
-  if (find_type((char *)group_name, ctx->group, 3))
+  if (find_type((char *)group_name, ctx->group, FIND_TYPE_NO_PREFIX))
   {
     if (!(tmp= alloc_root(ctx->alloc, strlen(option) + 1)))
       return 1;
@@ -458,6 +517,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
   char *ptr,**res;
   struct handle_option_ctx ctx;
   const char **dirs;
+  uint args_sep= my_getopt_use_args_separator ? 1 : 0;
   DBUG_ENTER("load_defaults");
 
   init_alloc_root(&alloc,512,0);
@@ -470,17 +530,28 @@ int my_load_defaults(const char *conf_file, const char **groups,
   if (*argc >= 2 && !strcmp(argv[0][1],"--no-defaults"))
   {
     /* remove the --no-defaults argument and return only the other arguments */
-    uint i;
+    uint i, j;
     if (!(ptr=(char*) alloc_root(&alloc,sizeof(alloc)+
 				 (*argc + 1)*sizeof(char*))))
       goto err;
     res= (char**) (ptr+sizeof(alloc));
     res[0]= **argv;				/* Copy program name */
-    /* set arguments separator */
-    res[1]= (char *)args_separator;
-    for (i=2 ; i < (uint) *argc ; i++)
-      res[i]=argv[0][i];
-    res[i]=0;					/* End pointer */
+    j= 1;                 /* Start from 1 for the reset result args */
+    if (my_getopt_use_args_separator)
+    {
+      /* set arguments separator */
+      set_args_separator(&res[1]);
+      j++;
+    }
+    for (i=2 ; i < (uint) *argc ; i++, j++)
+      res[j]=argv[0][i];
+    res[j]=0;					/* End pointer */
+    /*
+      Update the argc, if have not added args separator, then we have
+      to decrease argc because we have removed the "--no-defaults".
+    */
+    if (!my_getopt_use_args_separator)
+      (*argc)--;
     *argv=res;
     *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
     if (default_directories)
@@ -514,7 +585,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
     or a forced default file
   */
   if (!(ptr=(char*) alloc_root(&alloc,sizeof(alloc)+
-			       (args.elements + *argc + 1 + 1) *sizeof(char*))))
+			       (args.elements + *argc + 1 + args_sep) *sizeof(char*))))
     goto err;
   res= (char**) (ptr+sizeof(alloc));
 
@@ -535,16 +606,19 @@ int my_load_defaults(const char *conf_file, const char **groups,
     --*argc; ++*argv;				/* skip argument */
   }
 
-  /* set arguments separator for arguments from config file and
-     command line */
-  res[args.elements+1]= (char *)args_separator;
+  if (my_getopt_use_args_separator)
+  {
+    /* set arguments separator for arguments from config file and
+       command line */
+    set_args_separator(&res[args.elements+1]);
+  }
 
   if (*argc)
-    memcpy((uchar*) (res+1+args.elements+1), (char*) ((*argv)+1),
+    memcpy((uchar*) (res+1+args.elements+args_sep), (char*) ((*argv)+1),
 	   (*argc-1)*sizeof(char*));
-  res[args.elements+ *argc+1]=0;                /* last null */
+  res[args.elements+ *argc+args_sep]=0;                /* last null */
 
-  (*argc)+=args.elements+1;
+  (*argc)+=args.elements+args_sep;
   *argv= (char**) res;
   *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
   delete_dynamic(&args);
@@ -554,7 +628,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
     printf("%s would have been started with the following arguments:\n",
 	   **argv);
     for (i=1 ; i < *argc ; i++)
-      if ((*argv)[i] != args_separator) /* skip arguments separator */
+      if (!my_getopt_is_args_separator((*argv)[i])) /* skip arguments separator */
         printf("%s ", (*argv)[i]);
     puts("");
     exit(0);
@@ -1158,7 +1232,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
 
 #endif
 
-  if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV))))
+  if ((env= getenv("MYSQL_HOME")))
     errors += add_directory(alloc, env, dirs);
 
   /* Placeholder for --defaults-extra-file=<path> */

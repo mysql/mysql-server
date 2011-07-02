@@ -1,8 +1,16 @@
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression('Found invalid event in binary log');
+call mtr.add_suppression('Slave SQL.*Relay log read failure: Could not parse relay log event entry.* 1594');
 ==== Initialize ====
+include/stop_slave.inc
+RESET SLAVE;
+include/setup_fake_relay_log.inc
 Setting up fake replication from MYSQL_TEST_DIR/std_data/bug40482-bin.000001
 ==== Test ====
 START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=1594]
 Last_SQL_Error = Relay log read failure: Could not parse relay log event entry. The possible reasons are: the master's binary log is corrupted (you can check this by running 'mysqlbinlog' on the binary log), the slave's relay log is corrupted (you can check this by running 'mysqlbinlog' on the relay log), a network problem, or a bug in the master's or slave's MySQL code. If you want to check the master's binary log or slave's relay log, you will be able to know their names by issuing 'SHOW SLAVE STATUS' on this slave.
 ==== Clean up ====
-Cleaning up after setup_fake_relay_log.inc
+include/cleanup_fake_relay_log.inc
+include/rpl_end.inc

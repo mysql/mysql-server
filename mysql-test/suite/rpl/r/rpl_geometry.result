@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1(a varchar(100),
 b multipoint not null,
 c varchar(256));
@@ -16,3 +12,4 @@ b geometrycollection default null,
 c decimal(10,0));
 insert into t2(c) values (null);
 drop table t1, t2;
+include/rpl_end.inc

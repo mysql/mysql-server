@@ -1657,11 +1657,7 @@ recv_recover_page_func(
 
 #ifndef UNIV_HOTBACKUP
 	if (modification_to_page) {
-		buf_pool_t*	buf_pool;
-
 		ut_a(block);
-
-		buf_pool = buf_pool_from_block(block);
 
 		log_flush_order_mutex_enter();
 		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
@@ -2203,7 +2199,7 @@ recv_report_corrupt_log(
 	      "InnoDB: far enough in recovery! Please run CHECK TABLE\n"
 	      "InnoDB: on your InnoDB tables to check that they are ok!\n"
 	      "InnoDB: If mysqld crashes after this recovery, look at\n"
-	      "InnoDB: " REFMAN "forcing-recovery.html\n"
+	      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
 	      "InnoDB: about forcing recovery.\n", stderr);
 
 	fflush(stderr);

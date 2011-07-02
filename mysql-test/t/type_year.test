@@ -150,5 +150,15 @@ SELECT ta.y AS ta_y, ta.s, tb.y AS tb_y, tb.s FROM t1 ta, t1 tb HAVING ta_y = tb
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #59211: Select Returns Different Value for min(year) Function
+--echo #
+
+CREATE TABLE t1(c1 YEAR(4));
+INSERT INTO t1 VALUES (1901),(2155),(0000);
+SELECT * FROM t1;
+SELECT COUNT(*) AS total_rows, MIN(c1) AS min_value, MAX(c1) FROM t1;
+DROP TABLE t1;
+
+--echo #
 
 --echo End of 5.1 tests

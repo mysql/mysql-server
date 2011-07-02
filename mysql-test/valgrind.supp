@@ -1,3 +1,20 @@
+# Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; version 2
+# of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+#
 # Suppress some common (not fatal) errors in system libraries found by valgrind
 #
 
@@ -1100,13 +1117,92 @@
    fun:lf_hash_insert
 }
 
+#
+# Note that initialize_bucket() is reccursive,
+# can't provide more stack context.
+#
 {
    missing shutdown_performance_schema 3
    Memcheck:Leak
    fun:malloc
    fun:my_malloc
    fun:initialize_bucket
-   fun:lf_hash_search
-   fun:_Z19find_or_create_fileP10PFS_threadP14PFS_file_classPKcj
 }
 
+{
+   missing shutdown_performance_schema 4
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:_lf_pinbox_get_pins
+}
+
+{
+   missing shutdown_performance_schema 5
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_insert
+}
+
+{
+   missing shutdown_performance_schema 6
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_delete
+}
+
+{
+   missing shutdown_performance_schema 7
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_search
+}
+
+{
+   Bug 59874 Valgrind warning in InnoDB compression code
+   Memcheck:Cond
+   fun:*
+   fun:*
+   fun:deflate
+   fun:btr_store_big_rec_extern_fields_func
+   fun:row_ins_index_entry_low
+   fun:row_ins_index_entry
+   fun:row_ins_index_entry_step
+   fun:row_ins
+   fun:row_ins_step
+   fun:row_insert_for_mysql
+}
+
+{
+   In page0zip.c we have already checked that the memory is initialized before calling deflate()
+   Memcheck:Cond
+   fun:*
+   fun:*
+   fun:deflate
+   fun:page_zip_compress
+}
+
+{
+   In page0zip.c we have already checked that the memory is initialized before calling deflate()
+   Memcheck:Cond
+   fun:*
+   fun:*
+   fun:deflate
+   fun:page_zip_compress_deflate
+}
+
+{
+   Bug 59875 Valgrind warning in buf0buddy.c
+   Memcheck:Addr1
+   fun:mach_read_from_4
+   fun:buf_buddy_relocate
+   fun:buf_buddy_free_low
+   fun:buf_buddy_free
+}

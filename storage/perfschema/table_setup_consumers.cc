@@ -84,7 +84,7 @@ table_setup_consumers::m_field_def=
 PFS_engine_table_share
 table_setup_consumers::m_share=
 {
-  { C_STRING_WITH_LEN("SETUP_CONSUMERS") },
+  { C_STRING_WITH_LEN("setup_consumers") },
   &pfs_updatable_acl,
   &table_setup_consumers::create,
   NULL, /* write_row */
@@ -192,7 +192,6 @@ int table_setup_consumers::update_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* NAME */
-        my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
         return HA_ERR_WRONG_COMMAND;
       case 1: /* ENABLED */
       {

@@ -1,21 +1,14 @@
-call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 #
 # Setup
 #
-use test;
-drop table if exists t1, t2, t3;
 #
 # See if queries that use both auto_increment and LAST_INSERT_ID()
 # are replicated well
 #
 # We also check how the foreign_key_check variable is replicated
 #
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SET @old_concurrent_insert= @@global.concurrent_insert;
 SET @@global.concurrent_insert= 0;
 create table t1(a int auto_increment, key(a)) engine=myisam;
@@ -534,4 +527,4 @@ drop table t1, t2;
 drop procedure foo;
 SET @@global.concurrent_insert= @old_concurrent_insert;
 set @@session.sql_auto_is_null=default;
-call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+include/rpl_end.inc

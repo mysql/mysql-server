@@ -6,3 +6,4 @@ let $engine_type = 'MyISAM';
 -- source extra/rpl_tests/rpl_row_tabledefs.test
 
 
+--source include/rpl_end.inc

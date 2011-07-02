@@ -1379,9 +1379,6 @@ MESSAGE_TEXT = msg,
 MYSQL_ERRNO = 1012;
 end $$
 insert into t1 values (1), (2) $$
-Warnings:
-Warning	1012	This trigger SIGNAL a warning, a=1
-Warning	1012	This trigger SIGNAL a warning, a=2
 drop trigger t1_ai $$
 create trigger t1_ai after insert on t1 for each row
 begin
@@ -1416,11 +1413,7 @@ MESSAGE_TEXT = NEW.msg,
 MYSQL_ERRNO = NEW.errno;
 end $$
 insert into t1 set errno=1012, msg='Warning message 1 in trigger' $$
-Warnings:
-Warning	1012	Warning message 1 in trigger
 insert into t1 set errno=1013, msg='Warning message 2 in trigger' $$
-Warnings:
-Warning	1013	Warning message 2 in trigger
 drop table t1 $$
 drop table if exists t1 $$
 drop procedure if exists p1 $$

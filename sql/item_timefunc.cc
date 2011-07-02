@@ -315,8 +315,8 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   for (; ptr != end && val != val_end; ptr++)
   {
     /* Skip pre-space between each argument */
-    while (val != val_end && my_isspace(cs, *val))
-      val++;
+    if ((val+= cs->cset->scan(cs, val, val_end, MY_SEQ_SPACES)) >= val_end)
+      break;
 
     if (*ptr == '%' && ptr+1 != end)
     {
@@ -670,7 +670,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                     system_charset_info);
         break;
       case 'W':
-        if (type == MYSQL_TIMESTAMP_TIME)
+        if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
           return 1;
         weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
                               l_time->day),0);
@@ -679,7 +679,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                     system_charset_info);
         break;
       case 'a':
-        if (type == MYSQL_TIMESTAMP_TIME)
+        if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
           return 1;
         weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
                              l_time->day),0);
@@ -844,7 +844,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
       }
       break;
       case 'w':
-	if (type == MYSQL_TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
 	  return 1;
 	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
 					l_time->day),1);
@@ -1140,16 +1140,13 @@ String* Item_func_monthname::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
   const char *month_name;
-  uint month= (uint) val_int();
   uint err;
+  MYSQL_TIME ltime;
 
-  if (null_value || !month)
-  {
-    null_value=1;
-    return (String*) 0;
-  }
-  null_value=0;
-  month_name= locale->month_names->type_names[month-1];
+  if ((null_value= (get_arg0_date(&ltime, TIME_FUZZY_DATE) || !ltime.month)))
+    return (String *) 0;
+
+  month_name= locale->month_names->type_names[ltime.month - 1];
   str->copy(month_name, (uint) strlen(month_name), &my_charset_utf8_bin,
 	    collation.collation, &err);
   return str;
@@ -1398,6 +1395,26 @@ longlong Item_func_unix_timestamp::val_int()
   return (longlong) TIME_to_timestamp(current_thd, &ltime, &not_used);
 }
 
+enum_monotonicity_info Item_func_unix_timestamp::get_monotonicity_info() const
+{
+  if (args[0]->type() == Item::FIELD_ITEM &&
+      (args[0]->field_type() == MYSQL_TYPE_TIMESTAMP))
+    return MONOTONIC_INCREASING;
+  return NON_MONOTONIC;
+}
+
+
+longlong Item_func_unix_timestamp::val_int_endpoint(bool left_endp, bool *incl_endp)
+{
+  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(arg_count == 1 &&
+              args[0]->type() == Item::FIELD_ITEM &&
+              args[0]->field_type() == MYSQL_TYPE_TIMESTAMP);
+  Field *field=((Item_field*) args[0])->field;
+  /* Leave the incl_endp intact */
+  return ((Field_timestamp*) field)->get_timestamp(&null_value);
+}
+
 
 longlong Item_func_time_to_sec::val_int()
 {
@@ -1601,6 +1618,11 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     return 1;
   bzero(ltime, sizeof(MYSQL_TIME));
   get_date_from_daynr((long) value, &ltime->year, &ltime->month, &ltime->day);
+
+  if ((null_value= (fuzzy_date & TIME_NO_ZERO_DATE) &&
+       (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
+    return TRUE;
+
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
 }
@@ -2212,8 +2234,6 @@ void Item_date_add_interval::fix_length_and_dec()
   enum_field_types arg0_field_type;
 
   maybe_null=1;
-  fix_length_and_charset_datetime(MAX_DATETIME_FULL_WIDTH);
-  value.alloc(max_length);
 
   /*
     The field type for the result of an Item_date function is defined as
@@ -2238,6 +2258,21 @@ void Item_date_add_interval::fix_length_and_dec()
     else
       cached_field_type= MYSQL_TYPE_DATETIME;
   }
+
+  if (cached_field_type == MYSQL_TYPE_STRING)
+  {
+    /* Behave as a usual string function when return type is VARCHAR. */
+    fix_length_and_charset(MAX_DATETIME_FULL_WIDTH, default_charset());
+  }
+  else
+  {
+    /*
+      Follow the "Number-to-string conversion" rules as in WorkLog 2649
+      when return type is DATE or DATETIME.
+    */
+    fix_length_and_charset_datetime(MAX_DATETIME_FULL_WIDTH);
+  }
+  value.alloc(max_length);
 }
 
 
@@ -2260,7 +2295,7 @@ bool Item_date_add_interval::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 }
 
 
-String *Item_date_add_interval::val_str(String *str)
+String *Item_date_add_interval::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
@@ -2521,6 +2556,19 @@ String *Item_char_typecast::val_str(String *str)
   String *res;
   uint32 length;
 
+  if (cast_length >= 0 &&
+      ((unsigned) cast_length) > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			cast_cs == &my_charset_bin ?
+                        "cast_as_binary" : func_name(),
+                        current_thd->variables.max_allowed_packet);
+    null_value= 1;
+    return 0;
+  }
+
   if (!charset_conversion)
   {
     if (!(res= args[0]->val_str(str)))
@@ -2533,14 +2581,14 @@ String *Item_char_typecast::val_str(String *str)
   {
     // Convert character set if differ
     uint dummy_errors;
-    if (!(res= args[0]->val_str(&tmp_value)) ||
-        str->copy(res->ptr(), res->length(), from_cs,
-        cast_cs, &dummy_errors))
+    if (!(res= args[0]->val_str(str)) ||
+        tmp_value.copy(res->ptr(), res->length(), from_cs,
+                       cast_cs, &dummy_errors))
     {
       null_value= 1;
       return 0;
     }
-    res= str;
+    res= &tmp_value;
   }
 
   res->set_charset(cast_cs);
@@ -2575,9 +2623,9 @@ String *Item_char_typecast::val_str(String *str)
     {
       if (res->alloced_length() < (uint) cast_length)
       {
-        str->alloc(cast_length);
-        str->copy(*res);
-        res= str;
+        str_value.alloc(cast_length);
+        str_value.copy(*res);
+        res= &str_value;
       }
       bzero((char*) res->ptr() + res->length(),
             (uint) cast_length - res->length());
@@ -2763,7 +2811,7 @@ String *Item_func_makedate::val_str(String *str)
   long days;
 
   if (args[0]->null_value || args[1]->null_value ||
-      year < 0 || daynr <= 0)
+      year < 0 || year > 9999 || daynr <= 0)
     goto err;
 
   if (year < 100)
@@ -2806,7 +2854,7 @@ longlong Item_func_makedate::val_int()
   long days;
 
   if (args[0]->null_value || args[1]->null_value ||
-      year < 0 || daynr <= 0)
+      year < 0 || year > 9999 || daynr <= 0)
     goto err;
 
   if (year < 100)
@@ -2864,10 +2912,11 @@ void Item_func_add_time::fix_length_and_dec()
   Result: Time value or datetime value
 */
 
-String *Item_func_add_time::val_str(String *str)
+MYSQL_TIME *Item_func_add_time::val_datetime(MYSQL_TIME *time,
+                                             date_time_format_types *format)
 {
   DBUG_ASSERT(fixed == 1);
-  MYSQL_TIME l_time1, l_time2, l_time3;
+  MYSQL_TIME l_time1, l_time2;
   bool is_time= 0;
   long days, microseconds;
   longlong seconds;
@@ -2893,45 +2942,74 @@ String *Item_func_add_time::val_str(String *str)
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
   
-  bzero((char *)&l_time3, sizeof(l_time3));
+  bzero((char *)time, sizeof(MYSQL_TIME));
   
-  l_time3.neg= calc_time_diff(&l_time1, &l_time2, -l_sign,
-			      &seconds, &microseconds);
+  time->neg= calc_time_diff(&l_time1, &l_time2, -l_sign,
+                            &seconds, &microseconds);
 
   /*
     If first argument was negative and diff between arguments
     is non-zero we need to swap sign to get proper result.
   */
   if (l_time1.neg && (seconds || microseconds))
-    l_time3.neg= 1-l_time3.neg;         // Swap sign of result
+    time->neg= 1 - time->neg;         // Swap sign of result
 
-  if (!is_time && l_time3.neg)
+  if (!is_time && time->neg)
     goto null_date;
 
   days= (long)(seconds/86400L);
 
-  calc_time_from_sec(&l_time3, (long)(seconds%86400L), microseconds);
+  calc_time_from_sec(time, (long)(seconds%86400L), microseconds);
 
   if (!is_time)
   {
-    get_date_from_daynr(days,&l_time3.year,&l_time3.month,&l_time3.day);
-    if (l_time3.day &&
-	!make_datetime(l_time1.second_part || l_time2.second_part ?
-		       DATE_TIME_MICROSECOND : DATE_TIME,
-		       &l_time3, str))
-      return str;
+    get_date_from_daynr(days, &time->year, &time->month, &time->day);
+    *format= l_time1.second_part || l_time2.second_part ?
+             DATE_TIME_MICROSECOND : DATE_TIME;
+    if (time->day)
+      return time;
     goto null_date;
   }
-  
-  l_time3.hour+= days*24;
-  if (!make_datetime_with_warn(l_time1.second_part || l_time2.second_part ?
-                               TIME_MICROSECOND : TIME_ONLY,
-                               &l_time3, str))
-    return str;
+  *format= l_time1.second_part || l_time2.second_part ?
+           TIME_MICROSECOND : TIME_ONLY;
+  time->hour+= days*24;
+  return time;
 
 null_date:
   null_value=1;
   return 0;
+}
+
+
+String *Item_func_add_time::val_str(String *str)
+{
+  MYSQL_TIME ltime;
+  date_time_format_types format;
+
+  val_datetime(&ltime, &format);
+
+  if (null_value)
+    return 0;
+
+  if (!make_datetime_with_warn(format, &ltime, str))
+    return str;
+
+  null_value= 1;
+  return 0;
+}
+
+
+longlong Item_func_add_time::val_int()
+{
+  MYSQL_TIME ltime;
+  date_time_format_types format;
+
+  val_datetime(&ltime, &format);
+
+  if (null_value)
+    return 0;
+
+  return TIME_to_ulonglong_datetime(&ltime);
 }
 
 
@@ -3372,6 +3450,7 @@ void Item_func_str_to_date::fix_length_and_dec()
 {
   maybe_null= 1;
   decimals=0;
+  cached_format_type= DATE_TIME;
   cached_field_type= MYSQL_TYPE_DATETIME;
   max_length= MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   cached_timestamp_type= MYSQL_TIMESTAMP_NONE;
@@ -3442,7 +3521,7 @@ bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   return 0;
 
 null_date:
-  if (fuzzy_date & TIME_NO_ZERO_DATE)
+  if (val && (fuzzy_date & TIME_NO_ZERO_DATE))
   {
     char buff[128];
     strmake(buff, val->ptr(), min(val->length(), sizeof(buff)-1));

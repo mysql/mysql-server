@@ -313,12 +313,15 @@ select * from t1;
 connection master; 
 drop table t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
+--sync_slave_with_master
 
-# Delete the anonymous users
-SET sql_log_bin = 0;
+# Delete the anonymous users.
+--source include/stop_slave.inc
 source include/delete_anonymous_users.inc;
-SET sql_log_bin = 1;
-
+--connection master
+source include/delete_anonymous_users.inc;
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 
 #
@@ -350,9 +353,7 @@ connection slave;
 
 DROP USER user43748@127.0.0.1;
 
---echo -- done. back to master.
-connection master;
-
-
 
 --echo End of 5.1 tests
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

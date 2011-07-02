@@ -122,7 +122,7 @@ This could result in rescursive calls and out of stack error eventually.
 DICT_FK_MAX_RECURSIVE_LOAD defines the maximum number of recursive loads,
 when exceeded, the child table will not be loaded. It will be loaded when
 the foreign constraint check needs to be run. */
-#define DICT_FK_MAX_RECURSIVE_LOAD	250
+#define DICT_FK_MAX_RECURSIVE_LOAD	255
 
 /** Similarly, when tables are chained together with foreign key constraints
 with on cascading delete/update clause, delete from parent table could
@@ -130,7 +130,7 @@ result in recursive cascading calls. This defines the maximum number of
 such cascading deletes/updates allowed. When exceeded, the delete from
 parent table will fail, and user has to drop excessive foreign constraint
 before proceeds. */
-#define FK_MAX_CASCADE_DEL		300
+#define FK_MAX_CASCADE_DEL		255
 
 /**********************************************************************//**
 Creates a table memory object.
@@ -238,6 +238,30 @@ dict_foreign_t*
 dict_mem_foreign_create(void);
 /*=========================*/
 
+/**********************************************************************//**
+Sets the foreign_table_name_lookup pointer based on the value of
+lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
+will point to foreign_table_name.  If 2, then another string is
+allocated from the heap and set to lower case. */
+UNIV_INTERN
+void
+dict_mem_foreign_table_name_lookup_set(
+/*===================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc);	/*!< in: is an alloc needed */
+
+/**********************************************************************//**
+Sets the referenced_table_name_lookup pointer based on the value of
+lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
+will point to referenced_table_name.  If 2, then another string is
+allocated from the heap and set to lower case. */
+UNIV_INTERN
+void
+dict_mem_referenced_table_name_lookup_set(
+/*======================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc);	/*!< in: is an alloc needed */
+
 /** Data structure for a column in a table */
 struct dict_col_struct{
 	/*----------------------*/
@@ -278,32 +302,58 @@ struct dict_col_struct{
 	unsigned	ord_part:1;	/*!< nonzero if this column
 					appears in the ordering fields
 					of an index */
+	unsigned	max_prefix:12;	/*!< maximum index prefix length on
+					this column. Our current max limit is
+					3072 for Barracuda table */
 };
 
-/** @brief DICT_MAX_INDEX_COL_LEN is measured in bytes and is the maximum
-indexed column length (or indexed prefix length).
+/** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
+is the maximum indexed column length (or indexed prefix length) in
+ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT. Also, in any format,
+any fixed-length field that is longer than this will be encoded as
+a variable-length field.
 
 It is set to 3*256, so that one can create a column prefix index on
 256 characters of a TEXT or VARCHAR column also in the UTF-8
 charset. In that charset, a character may take at most 3 bytes.  This
 constant MUST NOT BE CHANGED, or the compatibility of InnoDB data
 files would be at risk! */
-#define DICT_MAX_INDEX_COL_LEN		REC_MAX_INDEX_COL_LEN
+#define DICT_ANTELOPE_MAX_INDEX_COL_LEN	REC_ANTELOPE_MAX_INDEX_COL_LEN
+
+/** Find out maximum indexed column length by its table format.
+For ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT, the maximum
+field length is REC_ANTELOPE_MAX_INDEX_COL_LEN - 1 (767). For new
+barracuda format, the length could be REC_VERSION_56_MAX_INDEX_COL_LEN
+(3072) bytes */
+#define DICT_MAX_FIELD_LEN_BY_FORMAT(table)				\
+		((dict_table_get_format(table) < DICT_TF_FORMAT_ZIP)	\
+			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
+			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+
+#define DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags)			\
+		((((flags & DICT_TF_FORMAT_MASK) >> DICT_TF_FORMAT_SHIFT)\
+		    < DICT_TF_FORMAT_ZIP)				\
+			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
+			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+
+/** Defines the maximum fixed length column size */
+#define DICT_MAX_FIXED_COL_LEN		DICT_ANTELOPE_MAX_INDEX_COL_LEN
 
 /** Data structure for a field in an index */
 struct dict_field_struct{
 	dict_col_t*	col;		/*!< pointer to the table column */
 	const char*	name;		/*!< name of the column */
-	unsigned	prefix_len:10;	/*!< 0 or the length of the column
+	unsigned	prefix_len:12;	/*!< 0 or the length of the column
 					prefix in bytes in a MySQL index of
 					type, e.g., INDEX (textcol(25));
 					must be smaller than
-					DICT_MAX_INDEX_COL_LEN; NOTE that
-					in the UTF-8 charset, MySQL sets this
-					to 3 * the prefix len in UTF-8 chars */
+					DICT_MAX_FIELD_LEN_BY_FORMAT;
+					NOTE that in the UTF-8 charset, MySQL
+					sets this to (mbmaxlen * the prefix len)
+					in UTF-8 chars */
 	unsigned	fixed_len:10;	/*!< 0 or the fixed length of the
 					column if smaller than
-					DICT_MAX_INDEX_COL_LEN */
+					DICT_ANTELOPE_MAX_INDEX_COL_LEN */
 };
 
 /** Data structure for an index.  Most fields will be
@@ -341,6 +391,8 @@ struct dict_index_struct{
 				/*!< TRUE if this index is marked to be
 				dropped in ha_innobase::prepare_drop_index(),
 				otherwise FALSE */
+	unsigned	corrupted:1;
+				/*!< TRUE if the index object is corrupted */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
@@ -356,6 +408,12 @@ struct dict_index_struct{
 				dict_get_n_unique(index); we
 				periodically calculate new
 				estimates */
+	ib_int64_t*	stat_n_non_null_key_vals;
+				/* approximate number of non-null key values
+				for this index, for each column where
+				n < dict_get_n_unique(index); This
+				is used when innodb_stats_method is
+				"nulls_ignored". */
 	ulint		stat_index_size;
 				/*!< approximate index size in
 				database pages */
@@ -369,6 +427,13 @@ struct dict_index_struct{
 				index, or 0 if the index existed
 				when InnoDB was started up */
 #endif /* !UNIV_HOTBACKUP */
+#ifdef UNIV_BLOB_DEBUG
+	mutex_t		blobs_mutex;
+				/*!< mutex protecting blobs */
+	void*		blobs;	/*!< map of (page_no,heap_no,field_no)
+				to first_blob_page_no; protected by
+				blobs_mutex; @see btr_blob_dbg_t */
+#endif /* UNIV_BLOB_DEBUG */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
 /** Value of dict_index_struct::magic_n */
@@ -393,10 +458,14 @@ struct dict_foreign_struct{
 	unsigned	type:6;		/*!< 0 or DICT_FOREIGN_ON_DELETE_CASCADE
 					or DICT_FOREIGN_ON_DELETE_SET_NULL */
 	char*		foreign_table_name;/*!< foreign table name */
+	char*		foreign_table_name_lookup;
+				/*!< foreign table name used for dict lookup */
 	dict_table_t*	foreign_table;	/*!< table where the foreign key is */
 	const char**	foreign_col_names;/*!< names of the columns in the
 					foreign key */
 	char*		referenced_table_name;/*!< referenced table name */
+	char*		referenced_table_name_lookup;
+				/*!< referenced table name for dict lookup*/
 	dict_table_t*	referenced_table;/*!< table where the referenced key
 					is */
 	const char**	referenced_col_names;/*!< names of the referenced
@@ -457,6 +526,8 @@ struct dict_table_struct{
 				to the dictionary cache */
 	unsigned	n_def:10;/*!< number of columns defined so far */
 	unsigned	n_cols:10;/*!< number of columns */
+	unsigned	corrupted:1;
+				/*!< TRUE if table is corrupted */
 	dict_col_t*	cols;	/*!< array of column descriptions */
 	const char*	col_names;
 				/*!< Column names packed in a character string

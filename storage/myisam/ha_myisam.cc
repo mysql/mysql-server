@@ -168,10 +168,9 @@ static void mi_check_print_msg(HA_CHECK *param,	const char* msg_type,
     Also we likely need to lock mutex here (in both cases with protocol and
     push_warning).
   */
-#ifdef THREAD
   if (param->need_print_msg_lock)
     mysql_mutex_lock(&param->print_msg_mutex);
-#endif
+
   protocol->prepare_for_resend();
   protocol->store(name, length, system_charset_info);
   protocol->store(param->op_name, system_charset_info);
@@ -180,10 +179,10 @@ static void mi_check_print_msg(HA_CHECK *param,	const char* msg_type,
   if (protocol->write())
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
 		    msgbuf);
-#ifdef THREAD
+
   if (param->need_print_msg_lock)
     mysql_mutex_unlock(&param->print_msg_mutex);
-#endif
+
   return;
 }
 
@@ -640,13 +639,14 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
                   HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
                   HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
-                  HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
+                  HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT | HA_CAN_REPAIR),
    can_enable_indexes(1)
 {}
 
-handler *ha_myisam::clone(MEM_ROOT *mem_root)
+handler *ha_myisam::clone(const char *name, MEM_ROOT *mem_root)
 {
-  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(mem_root));
+  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(name,
+                                                                   mem_root));
   if (new_handler)
     new_handler->file->state= file->state;
   return new_handler;
@@ -1530,8 +1530,6 @@ bool ha_myisam::check_and_repair(THD *thd)
 {
   int error=0;
   int marked_crashed;
-  char *old_query;
-  uint old_query_length;
   HA_CHECK_OPT check_opt;
   DBUG_ENTER("ha_myisam::check_and_repair");
 
@@ -1542,10 +1540,9 @@ bool ha_myisam::check_and_repair(THD *thd)
     check_opt.flags|=T_QUICK;
   sql_print_warning("Checking table:   '%s'",table->s->path.str);
 
-  old_query= thd->query();
-  old_query_length= thd->query_length();
+  const CSET_STRING query_backup= thd->query_string;
   thd->set_query(table->s->table_name.str,
-                 (uint) table->s->table_name.length);
+                 (uint) table->s->table_name.length, system_charset_info);
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
@@ -1558,7 +1555,7 @@ bool ha_myisam::check_and_repair(THD *thd)
     if (repair(thd, &check_opt))
       error=1;
   }
-  thd->set_query(old_query, old_query_length);
+  thd->set_query(query_backup);
   DBUG_RETURN(error);
 }
 
@@ -1846,6 +1843,18 @@ int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
 int ha_myisam::delete_all_rows()
 {
   return mi_delete_all_rows(file);
+}
+
+
+/*
+  Intended to support partitioning.
+  Allows a particular partition to be truncated.
+*/
+
+int ha_myisam::truncate()
+{
+  int error= delete_all_rows();
+  return error ? error : reset_auto_increment(0);
 }
 
 int ha_myisam::reset_auto_increment(ulonglong value)

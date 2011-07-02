@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 LOAD DATA INFILE 'LOAD_FILE' INTO TABLE t1;
 LOAD DATA INFILE 'LOAD_FILE' INTO TABLE t1;
@@ -53,3 +49,4 @@ SELECT n FROM t1;
 n
 3456
 DROP TABLE t1;
+include/rpl_end.inc

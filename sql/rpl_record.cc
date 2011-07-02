@@ -78,8 +78,6 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   unsigned int null_mask= 1U;
   for ( ; (field= *p_field) ; p_field++)
   {
-    DBUG_PRINT("debug", ("null_mask=%d; null_ptr=%p; row_data=%p; null_byte_count=%d",
-                         null_mask, null_ptr, row_data, null_byte_count));
     if (bitmap_is_set(cols, p_field - table->field))
     {
       my_ptrdiff_t offset;
@@ -110,6 +108,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
                              field->field_name, field->real_type(),
                              (ulong) old_pack_ptr, (ulong) pack_ptr,
                              (int) (pack_ptr - old_pack_ptr)));
+        DBUG_DUMP("packed_data", old_pack_ptr, pack_ptr - old_pack_ptr);
       }
 
       null_mask <<= 1;
@@ -186,8 +185,7 @@ int
 unpack_row(Relay_log_info const *rli,
            TABLE *table, uint const colcnt,
            uchar const *const row_data, MY_BITMAP const *cols,
-           uchar const **const row_end, ulong *const master_reclength,
-           const bool abort_on_warning, const bool first_row)
+           uchar const **const row_end, ulong *const master_reclength)
 {
   DBUG_ENTER("unpack_row");
   DBUG_ASSERT(row_data);
@@ -286,22 +284,9 @@ unpack_row(Relay_log_info const *rli,
         }
         else
         {
-          MYSQL_ERROR::enum_warning_level error_type=
-            MYSQL_ERROR::WARN_LEVEL_NOTE;
-          if (abort_on_warning && (table->file->has_transactions() ||
-                                   first_row))
-          {
-            error = HA_ERR_ROWS_EVENT_APPLY;
-            error_type= MYSQL_ERROR::WARN_LEVEL_ERROR;
-          }
-          else
-          {
-            f->set_default();
-            error_type= MYSQL_ERROR::WARN_LEVEL_WARN;
-          }
-          push_warning_printf(current_thd, error_type,
-                              ER_BAD_NULL_ERROR,
-                              ER(ER_BAD_NULL_ERROR),
+          f->set_default();
+          push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                              ER_BAD_NULL_ERROR, ER(ER_BAD_NULL_ERROR),
                               f->field_name);
         }
       }
@@ -380,8 +365,11 @@ unpack_row(Relay_log_info const *rli,
       }
       DBUG_ASSERT(null_mask & 0xFF); // One of the 8 LSB should be set
 
-      if (!((null_bits & null_mask) && tabledef->maybe_null(i)))
-        pack_ptr+= tabledef->calc_field_size(i, (uchar *) pack_ptr);
+      if (!((null_bits & null_mask) && tabledef->maybe_null(i))) {
+        uint32 len= tabledef->calc_field_size(i, (uchar *) pack_ptr);
+        DBUG_DUMP("field_data", pack_ptr, len);
+        pack_ptr+= len;
+      }
       null_mask <<= 1;
     }
   }
@@ -418,20 +406,13 @@ unpack_row(Relay_log_info const *rli,
   @param skip   Number of columns for which default/nullable check 
                 should be skipped.
   @param check  Specifies if lack of default error needs checking.
-  @param abort_on_warning
-                Controls how to react on lack of a field's default.
-                The parameter mimics the master side one for
-                @c check_that_all_fields_are_given_values.
-                
+
   @returns 0 on success or a handler level error code
  */ 
-int prepare_record(TABLE *const table, 
-                   const uint skip, const bool check,
-                   const bool abort_on_warning, const bool first_row)
+int prepare_record(TABLE *const table, const uint skip, const bool check)
 {
   DBUG_ENTER("prepare_record");
 
-  int error= 0;
   restore_record(table, s->default_values);
 
   /*
@@ -454,28 +435,16 @@ int prepare_record(TABLE *const table,
     if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
         (f->real_type() != MYSQL_TYPE_ENUM))
     {
-
-      MYSQL_ERROR::enum_warning_level error_type=
-        MYSQL_ERROR::WARN_LEVEL_NOTE;
-      if (abort_on_warning && (table->file->has_transactions() ||
-                               first_row))
-      {
-        error= HA_ERR_ROWS_EVENT_APPLY;
-        error_type= MYSQL_ERROR::WARN_LEVEL_ERROR;
-      }
-      else
-      {
-        f->set_default();
-        error_type= MYSQL_ERROR::WARN_LEVEL_WARN;
-      }
-      push_warning_printf(current_thd, error_type,
+      f->set_default();
+      push_warning_printf(current_thd,
+                          MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_NO_DEFAULT_FOR_FIELD,
                           ER(ER_NO_DEFAULT_FOR_FIELD),
                           f->field_name);
     }
   }
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
 
 #endif // HAVE_REPLICATION

@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 Sun/MySQL
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "sql_priv.h"
 #include "transaction.h"
 #include "rpl_handler.h"
+#include "debug_sync.h"         // DEBUG_SYNC
 
 /* Conditions under which the transaction state must not change. */
 static bool trans_check(THD *thd)
@@ -74,6 +75,33 @@ static bool xa_trans_rolled_back(XID_STATE *xid_state)
   }
 
   return (xid_state->xa_state == XA_ROLLBACK_ONLY);
+}
+
+
+/**
+  Rollback the active XA transaction.
+
+  @note Resets rm_error before calling ha_rollback(), so
+        the thd->transaction.xid structure gets reset
+        by ha_rollback() / THD::transaction::cleanup().
+
+  @return TRUE if the rollback failed, FALSE otherwise.
+*/
+
+static bool xa_trans_force_rollback(THD *thd)
+{
+  /*
+    We must reset rm_error before calling ha_rollback(),
+    so thd->transaction.xid structure gets reset
+    by ha_rollback()/THD::transaction::cleanup().
+  */
+  thd->transaction.xid_state.rm_error= 0;
+  if (ha_rollback_trans(thd, true))
+  {
+    my_error(ER_XAER_RMERR, MYF(0));
+    return true;
+  }
+  return false;
 }
 
 
@@ -361,6 +389,13 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
 
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (xa_state != XA_NOTR)
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
+    DBUG_RETURN(TRUE);
+  }
+
   sv= find_savepoint(thd, name);
 
   if (*sv) /* old savepoint of the same name exists */
@@ -391,15 +426,15 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
   thd->transaction.savepoints= newsv;
 
   /*
-    Remember the last acquired lock before the savepoint was set.
-    This is used as a marker to only release locks acquired after
+    Remember locks acquired before the savepoint was set.
+    They are used as a marker to only release locks acquired after
     the setting of this savepoint.
     Note: this works just fine if we're under LOCK TABLES,
     since mdl_savepoint() is guaranteed to be beyond
     the last locked table. This allows to release some
     locks acquired during LOCK TABLES.
   */
-  newsv->mdl_savepoint = thd->mdl_context.mdl_savepoint();
+  newsv->mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   DBUG_RETURN(FALSE);
 }
@@ -431,6 +466,13 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   if (sv == NULL)
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", name.str);
+    DBUG_RETURN(TRUE);
+  }
+
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (xa_state != XA_NOTR)
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
     DBUG_RETURN(TRUE);
   }
 
@@ -565,7 +607,8 @@ bool trans_xa_end(THD *thd)
   else if (!xa_trans_rolled_back(&thd->transaction.xid_state))
     thd->transaction.xid_state.xa_state= XA_IDLE;
 
-  DBUG_RETURN(thd->transaction.xid_state.xa_state != XA_IDLE);
+  DBUG_RETURN(thd->is_error() ||
+              thd->transaction.xid_state.xa_state != XA_IDLE);
 }
 
 
@@ -596,7 +639,8 @@ bool trans_xa_prepare(THD *thd)
   else
     thd->transaction.xid_state.xa_state= XA_PREPARED;
 
-  DBUG_RETURN(thd->transaction.xid_state.xa_state != XA_PREPARED);
+  DBUG_RETURN(thd->is_error() ||
+              thd->transaction.xid_state.xa_state != XA_PREPARED);
 }
 
 
@@ -632,8 +676,8 @@ bool trans_xa_commit(THD *thd)
 
   if (xa_trans_rolled_back(&thd->transaction.xid_state))
   {
-    if ((res= test(ha_rollback_trans(thd, TRUE))))
-      my_error(ER_XAER_RMERR, MYF(0));
+    xa_trans_force_rollback(thd);
+    res= thd->is_error();
   }
   else if (xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
   {
@@ -643,17 +687,31 @@ bool trans_xa_commit(THD *thd)
   }
   else if (xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
   {
-    if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, FALSE))
+    MDL_request mdl_request;
+
+    /*
+      Acquire metadata lock which will ensure that COMMIT is blocked
+      by active FLUSH TABLES WITH READ LOCK (and vice versa COMMIT in
+      progress blocks FTWRL).
+
+      We allow FLUSHer to COMMIT; we assume FLUSHer knows what it does.
+    */
+    mdl_request.init(MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_TRANSACTION);
+
+    if (thd->mdl_context.acquire_lock(&mdl_request,
+                                      thd->variables.lock_wait_timeout))
     {
       ha_rollback_trans(thd, TRUE);
       my_error(ER_XAER_RMERR, MYF(0));
     }
     else
     {
+      DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
+
       res= test(ha_commit_one_phase(thd, 1));
       if (res)
         my_error(ER_XAER_RMERR, MYF(0));
-      thd->global_read_lock.start_waiting_global_read_lock(thd);
     }
   }
   else
@@ -707,15 +765,7 @@ bool trans_xa_rollback(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  /*
-    Resource Manager error is meaningless at this point, as we perform
-    explicit rollback request by user. We must reset rm_error before
-    calling ha_rollback(), so thd->transaction.xid structure gets reset
-    by ha_rollback()/THD::transaction::cleanup().
-  */
-  thd->transaction.xid_state.rm_error= 0;
-  if ((res= test(ha_rollback_trans(thd, TRUE))))
-    my_error(ER_XAER_RMERR, MYF(0));
+  res= xa_trans_force_rollback(thd);
 
   thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;

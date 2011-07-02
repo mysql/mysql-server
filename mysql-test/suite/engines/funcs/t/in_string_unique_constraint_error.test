@@ -18,10 +18,9 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 BINARY(10) NULL UNIQUE);
 INSERT INTO t1 (c1) VALUES('abc');
 INSERT INTO t1 (c1) VALUES('def');
-# Bug#52430 : Uncomment the following lines
-#             when the bug is fixed
-#--error ER_DUP_ENTRY
-#INSERT INTO t1 (c1) VALUES('abc');
+# Bug#52430
+--error ER_DUP_ENTRY
+INSERT INTO t1 (c1) VALUES('abc');
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARBINARY(10) NULL UNIQUE);

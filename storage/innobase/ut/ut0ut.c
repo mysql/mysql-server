@@ -1,13 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
-Copyright (c) 2009, Sun Microsystems, Inc.
-
-Portions of this file contain modifications contributed and copyrighted by
-Sun Microsystems, Inc. Those modifications are gratefully acknowledged and
-are described briefly in the InnoDB documentation. The contributions by
-Sun Microsystems are incorporated with their permission, and subject to the
-conditions contained in the file COPYING.Sun_Microsystems.
+Copyright (c) 2011, Oracle Corpn. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -669,6 +662,8 @@ ut_strerr(
 		return("Table is being used");
 	case DB_TOO_BIG_RECORD:
 		return("Record too big");
+	case DB_TOO_BIG_INDEX_COL:
+		return("Index columns size too big");
 	case DB_LOCK_WAIT_TIMEOUT:
 		return("Lock wait timeout");
 	case DB_NO_REFERENCED_ROW:
@@ -693,6 +688,8 @@ ut_strerr(
 		return("Lock structs have exhausted the buffer pool");
 	case DB_FOREIGN_DUPLICATE_KEY:
 		return("Foreign key activated with duplicate keys");
+	case DB_FOREIGN_EXCEED_MAX_CASCADE:
+		return("Foreign key cascade delete/update exceeds max depth");
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		return("Too many concurrent transactions");
 	case DB_UNSUPPORTED:
@@ -713,6 +710,10 @@ ut_strerr(
 		return("Zip overflow");
 	case DB_RECORD_NOT_FOUND:
 		return("Record not found");
+	case DB_CHILD_NO_INDEX:
+		return("No index on referencing keys in referencing table");
+	case DB_PARENT_NO_INDEX:
+		return("No index on referenced keys in referenced table");
 	case DB_END_OF_INDEX:
 		return("End of index");
 	/* do not add default: in order to produce a warning if new code

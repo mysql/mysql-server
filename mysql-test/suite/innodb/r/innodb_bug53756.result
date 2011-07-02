@@ -1,0 +1,118 @@
+DROP TABLE IF EXISTS bug_53756 ;
+CREATE TABLE bug_53756 (pk INT, c1 INT) ENGINE=InnoDB;
+ALTER TABLE bug_53756 ADD PRIMARY KEY (pk);
+INSERT INTO bug_53756 VALUES(1, 11), (2, 22), (3, 33), (4, 44);
+
+# Select a less restrictive isolation level.
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+COMMIT;
+
+# Start a transaction in the default connection for isolation.
+START TRANSACTION;
+SELECT @@tx_isolation;
+@@tx_isolation
+READ-COMMITTED
+SELECT * FROM bug_53756;
+pk	c1
+1	11
+2	22
+3	33
+4	44
+
+# connection con1 deletes row 1
+START TRANSACTION;
+SELECT @@tx_isolation;
+@@tx_isolation
+READ-COMMITTED
+DELETE FROM bug_53756 WHERE pk=1;
+
+# connection con2 deletes row 2
+START TRANSACTION;
+SELECT @@tx_isolation;
+@@tx_isolation
+READ-COMMITTED
+DELETE FROM bug_53756 WHERE pk=2;
+
+# connection con3 updates row 3
+START TRANSACTION;
+SELECT @@tx_isolation;
+@@tx_isolation
+READ-COMMITTED
+UPDATE bug_53756 SET c1=77 WHERE pk=3;
+
+# connection con4 updates row 4
+START TRANSACTION;
+SELECT @@tx_isolation;
+@@tx_isolation
+READ-COMMITTED
+UPDATE bug_53756 SET c1=88 WHERE pk=4;
+
+# connection con5 inserts row 5
+START TRANSACTION;
+SELECT @@tx_isolation;
+@@tx_isolation
+READ-COMMITTED
+INSERT INTO bug_53756 VALUES(5, 55);
+
+# connection con6 inserts row 6
+START TRANSACTION;
+SELECT @@tx_isolation;
+@@tx_isolation
+READ-COMMITTED
+INSERT INTO bug_53756 VALUES(6, 66);
+
+# connection con1 commits.
+COMMIT;
+
+# connection con3 commits.
+COMMIT;
+
+# connection con4 rolls back.
+ROLLBACK;
+
+# connection con6 rolls back.
+ROLLBACK;
+
+# The connections 2 and 5 stay open.
+
+# connection default selects resulting data.
+# Delete of row 1 was committed.
+# Update of row 3 was committed.
+# Due to isolation level read committed, these should be included.
+# All other changes should not be included.
+SELECT * FROM bug_53756;
+pk	c1
+2	22
+3	77
+4	44
+
+# connection default
+#
+# Crash server.
+START TRANSACTION;
+INSERT INTO bug_53756 VALUES (666,666);
+SET SESSION debug="+d,crash_commit_before";
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+
+#
+# disconnect con1, con2, con3, con4, con5, con6.
+#
+# Restart server.
+
+#
+# Select recovered data.
+# Delete of row 1 was committed.
+# Update of row 3 was committed.
+# These should be included.
+# All other changes should not be included.
+# Delete of row 2 and insert of row 5 should be rolled back
+SELECT * FROM bug_53756;
+pk	c1
+2	22
+3	77
+4	44
+
+# Clean up.
+DROP TABLE bug_53756;

@@ -60,14 +60,11 @@ connection master;
 sync_slave_with_master;
 --echo #Test if the results are consistent on master and slave
 --echo #for 'INVOKES A TRIGGER with $trigger_action action'
-let $diff_table_1=master:test.t2;
-let $diff_table_2=slave:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
-let $diff_table_1=master:test.t4;
-let $diff_table_2=slave:test.t4;
+let $diff_tables= master:t4, slave:t4;
 source include/diff_tables.inc;
-let $diff_table_1=master:test.t6;
-let $diff_table_2=slave:test.t6;
+let $diff_tables= master:t6, slave:t6;
 source include/diff_tables.inc;
 
 connection master;

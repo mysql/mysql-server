@@ -1637,12 +1637,7 @@ CREATE TABLE t1 (a MEDIUMINT NULL) ENGINE=MYISAM;
 INSERT INTO t1 VALUES (1234567);
 SELECT GROUP_CONCAT(IFNULL(a,'')) FROM t1;
 SELECT GROUP_CONCAT(IF(a,a,'')) FROM t1;
-if (`SELECT @@character_set_connection != 'ucs2'`)
-{
-  # Temporarily disable for ucs2
-  # For details, see Bug#55744 GROUP_CONCAT + CASE + ucs return garbage
-  SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
-}
+SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
 --enable_metadata
 SELECT COALESCE(a,'') FROM t1 GROUP BY 1;
 --disable_metadata
@@ -1728,6 +1723,66 @@ DROP TABLE t1;
 --echo # End of Bug#54916
 --echo #
 
+
+--echo #
+--echo # Bug#58190 BETWEEN no longer uses indexes for date or datetime fields
+--echo #
+SELECT @@collation_connection;
+CREATE TABLE t1 (
+  id INT(11) DEFAULT NULL,
+  date_column DATE DEFAULT NULL,
+  KEY(date_column));
+INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+ALTER TABLE t1 MODIFY date_column DATETIME DEFAULT NULL;
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #31384 	DATE_ADD() and DATE_SUB() return binary data
+--echo #
+SELECT @@collation_connection, @@character_set_results;
+CREATE TABLE t1 AS
+SELECT
+  DATE_SUB('2007-08-03', INTERVAL 1 MINUTE) AS field_str1,
+  DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
+  DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
+  DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+--enable_metadata
+# PS protocol gives different "Max length" value for DATETIME.
+--disable_ps_protocol
+SELECT
+  DATE_SUB('2007-08-03', INTERVAL 1 DAY) AS field_str1,
+  DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
+  DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
+  DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
+--disable_metadata
+--enable_ps_protocol
+SELECT
+  HEX(DATE_SUB('2007-08-03', INTERVAL 1 MINUTE)) AS field_str1,
+  HEX(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field1_str2,
+  HEX(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
+  HEX(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
+ 
+--echo #
+--echo # Bug#11926811 / Bug#60625 Illegal mix of collations
+--echo #
+SELECT @@collation_connection;
+DELIMITER //;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE v_LastPaymentDate DATETIME DEFAULT NULL;
+  SELECT v_LastPaymentDate < NOW();
+  EXPLAIN EXTENDED SELECT v_LastPaymentDate < NOW();
+  SHOW WARNINGS;
+  EXPLAIN EXTENDED SELECT CONCAT(v_LastPaymentDate, NOW());
+END//
+DELIMITER ;//
+CALL p1;
+DROP PROCEDURE p1;
 
 --echo #
 --echo # Bug#52159 returning time type from function and empty left join causes debug assertion

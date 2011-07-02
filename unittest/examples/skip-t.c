@@ -18,11 +18,11 @@
 
 int main() {
   plan(4);
-  ok(1, NULL);
-  ok(1, NULL);
+  ok1(1);
+  ok1(1);
   SKIP_BLOCK_IF(1, 2, "Example of skipping a few test points in a test") {
-    ok(1, NULL);
-    ok(1, NULL);
+    ok1(1);
+    ok1(1);
   }
   return exit_status();
 }

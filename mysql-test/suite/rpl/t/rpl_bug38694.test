@@ -8,3 +8,4 @@
 source include/master-slave.inc;
 
 # End of tests
+--source include/rpl_end.inc

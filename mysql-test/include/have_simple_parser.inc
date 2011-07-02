@@ -6,8 +6,9 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 }
 
 #
-# Check if the variable MYPLUGLIB_SO is set
+# Check if the variable SIMPLE_PARSER is set
 #
-if (`SELECT LENGTH('$MYPLUGLIB_SO') = 0`) {
+if (!$MYPLUGLIB_SO) {
   --skip simple parser is not built (no mypluglib.so)
 }
+

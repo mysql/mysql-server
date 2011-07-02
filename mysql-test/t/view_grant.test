@@ -1503,8 +1503,6 @@ SHOW CREATE VIEW v1;
 DROP TABLE t1;
 DROP VIEW v1;
 
-# Wait till we reached the initial number of concurrent sessions
---source include/wait_until_count_sessions.inc
 
 --echo #
 --echo # Bug #46019: ERROR 1356 When selecting from within another 
@@ -1546,3 +1544,145 @@ CREATE DEFINER=`unknown`@`unknown` SQL SECURITY DEFINER VIEW v1 AS SELECT 1;
 --error ER_NO_SUCH_USER
 LOCK TABLES v1 READ;
 DROP VIEW v1;
+
+
+--echo #
+--echo # Bug #58499 "DEFINER-security view selecting from INVOKER-security view
+--echo #             access check wrong".
+--echo #
+--echo # Check that we correctly handle privileges for various combinations
+--echo # of INVOKER and DEFINER-security views using each other.
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+--enable_warnings
+CREATE DATABASE mysqltest1;
+USE mysqltest1;
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (j INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+--echo #
+--echo # 1) DEFINER-security view uses INVOKER-security view (covers
+--echo #    scenario originally described in the bug report).
+CREATE SQL SECURITY INVOKER VIEW v1_uses_t1 AS SELECT * FROM t1;
+CREATE SQL SECURITY INVOKER VIEW v1_uses_t2 AS SELECT * FROM t2;
+CREATE USER 'mysqluser1'@'%';
+GRANT CREATE VIEW ON mysqltest1.* TO 'mysqluser1'@'%';
+GRANT SELECT ON t1 TO 'mysqluser1'@'%';
+--echo # To be able create 'v2_uses_t2' we also need select on t2. 
+GRANT SELECT ON t2 TO 'mysqluser1'@'%';
+GRANT SELECT ON v1_uses_t1 TO 'mysqluser1'@'%';
+GRANT SELECT ON v1_uses_t2 TO 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser1'.
+--connect (mysqluser1, localhost, mysqluser1,,mysqltest1)
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t1 AS SELECT * FROM v1_uses_t1;
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t2 AS SELECT * FROM v1_uses_t2;
+--echo #
+--echo # Connection 'default'.
+--connection default
+CREATE USER 'mysqluser2'@'%';
+GRANT SELECT ON v2_uses_t1 TO 'mysqluser2'@'%';
+GRANT SELECT ON v2_uses_t2 TO 'mysqluser2'@'%';
+GRANT SELECT ON t2 TO 'mysqluser2'@'%';
+GRANT CREATE VIEW ON mysqltest1.* TO 'mysqluser2'@'%';
+--echo # Make 'mysqluser1' unable to access t2.
+REVOKE SELECT ON t2 FROM 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser2'.
+--connect (mysqluser2, localhost, mysqluser2,,mysqltest1)
+--echo # The below statement should succeed thanks to suid nature of v2_uses_t1.
+SELECT * FROM v2_uses_t1;
+--echo # The below statement should fail due to suid nature of v2_uses_t2.
+--error ER_VIEW_INVALID
+SELECT * FROM v2_uses_t2;
+--echo #
+--echo # 2) INVOKER-security view uses INVOKER-security view.
+--echo #
+--echo # Connection 'default'.
+--connection default
+DROP VIEW v2_uses_t1, v2_uses_t2;
+CREATE SQL SECURITY INVOKER VIEW v2_uses_t1 AS SELECT * FROM v1_uses_t1;
+CREATE SQL SECURITY INVOKER VIEW v2_uses_t2 AS SELECT * FROM v1_uses_t2;
+GRANT SELECT ON v2_uses_t1 TO 'mysqluser1'@'%';
+GRANT SELECT ON v2_uses_t2 TO 'mysqluser1'@'%';
+GRANT SELECT ON v1_uses_t1 TO 'mysqluser2'@'%';
+GRANT SELECT ON v1_uses_t2 TO 'mysqluser2'@'%';
+--echo #
+--echo # Connection 'mysqluser1'.
+--connection mysqluser1
+--echo # For both versions of 'v2' 'mysqluser1' privileges should be used.
+SELECT * FROM v2_uses_t1;
+--error ER_VIEW_INVALID
+SELECT * FROM v2_uses_t2;
+--echo #
+--echo # Connection 'mysqluser2'.
+--connection mysqluser2
+--echo # And now for both versions of 'v2' 'mysqluser2' privileges should
+--echo # be used.
+--error ER_VIEW_INVALID
+SELECT * FROM v2_uses_t1;
+SELECT * FROM v2_uses_t2;
+--echo #
+--echo # 3) INVOKER-security view uses DEFINER-security view.
+--echo #
+--echo # Connection 'default'.
+--connection default
+DROP VIEW v1_uses_t1, v1_uses_t2;
+--echo # To be able create 'v1_uses_t2' we also need select on t2. 
+GRANT SELECT ON t2 TO 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser1'.
+--connection mysqluser1
+CREATE SQL SECURITY DEFINER VIEW v1_uses_t1 AS SELECT * FROM t1;
+CREATE SQL SECURITY DEFINER VIEW v1_uses_t2 AS SELECT * FROM t2;
+--echo #
+--echo # Connection 'default'.
+--connection default
+--echo # Make 'mysqluser1' unable to access t2.
+REVOKE SELECT ON t2 FROM 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser2'.
+--connection mysqluser2
+--echo # Due to suid nature of v1_uses_t1 and v1_uses_t2 the first
+--echo # select should succeed and the second select should fail.
+SELECT * FROM v2_uses_t1;
+--error ER_VIEW_INVALID
+SELECT * FROM v2_uses_t2;
+--echo #
+--echo # 4) DEFINER-security view uses DEFINER-security view.
+--echo #
+--echo # Connection 'default'.
+--connection default
+DROP VIEW v2_uses_t1, v2_uses_t2;
+--echo # To be able create 'v2_uses_t2' we also need select on t2. 
+GRANT SELECT ON t2 TO 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser2'.
+--connection mysqluser2
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t1 AS SELECT * FROM v1_uses_t1;
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t2 AS SELECT * FROM v1_uses_t2;
+--echo #
+--echo # Connection 'default'.
+--connection default
+--echo # Make 'mysqluser1' unable to access t2.
+REVOKE SELECT ON t2 FROM 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser2'.
+--connection mysqluser2
+--echo # Again privileges of creator of innermost views should apply.
+SELECT * FROM v2_uses_t1;
+--error ER_VIEW_INVALID
+SELECT * FROM v2_uses_t2;
+
+--disconnect mysqluser1
+--disconnect mysqluser2
+--connection default
+USE test;
+DROP DATABASE mysqltest1;
+DROP USER 'mysqluser1'@'%';
+DROP USER 'mysqluser2'@'%';
+
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

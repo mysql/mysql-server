@@ -60,6 +60,13 @@ set session optimizer_switch="index_merge";
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge'
 set session optimizer_switch="foobar";
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'foobar'
+#
+# Bug#59894 set optimizer_switch to e or d causes invalid
+# memory writes/valgrind warnings
+
+set global optimizer_switch = 'd';
+set global optimizer_switch = 'e';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'e'
 SET @@global.optimizer_switch = @start_global_value;
 SELECT @@global.optimizer_switch;
 @@global.optimizer_switch

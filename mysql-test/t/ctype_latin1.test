@@ -128,12 +128,35 @@ select hex(cast(_ascii 0x7f as char(1) character set latin1));
 
 --echo End of 5.0 tests
 
+
+--echo #
+--echo # Bug#58022 ... like ... escape export_set ( ... ) crashes when export_set returns warnings
+--echo #
+SELECT '' LIKE '' ESCAPE EXPORT_SET(1, 1, 1, 1, '');
+
+--echo End of 5.1 tests
+
                                                                                
 --echo #
 --echo # Start of 5.5 tests
 --echo #
 
 --source include/ctype_numconv.inc
+
+--echo #
+--echo # Bug#11764503 (Bug#57341) Query in EXPLAIN EXTENDED shows wrong characters
+--echo #
+# Test latin1 client erroneously started with --default-character-set=utf8
+# EXPLAIN output should still be pretty readable.
+# We're using 'ó' (\xC3\xB3) as a magic sequence:
+# - it's "LATIN CAPITAL LETTER A WITH TILDE ABOVE + SUPERSCRIPT 3" in latin1
+# - it's "LATIN SMALL LETTER O WITH ACUTE ABOVE" in utf8.
+SET NAMES utf8;
+EXPLAIN EXTENDED SELECT 'abcdó', _latin1'abcdó', _utf8'abcdó';
+# Test normal latin1
+SET NAMES latin1;
+EXPLAIN EXTENDED SELECT 'abcdó', _latin1'abcdó', _utf8'abcdó';
+
 
 --echo #
 --echo # End of 5.5 tests

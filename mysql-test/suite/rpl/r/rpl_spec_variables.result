@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 
 * auto_increment_increment, auto_increment_offset *
 SET @@global.auto_increment_increment=2;
@@ -173,7 +169,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -223,3 +219,4 @@ SET @@global.max_heap_table_size=@restore_slave_max_heap_table_size;
 SET @@global.storage_engine=@restore_slave_storage_engine;
 
 call mtr.add_suppression("The table 't[12]' is full");
+include/rpl_end.inc

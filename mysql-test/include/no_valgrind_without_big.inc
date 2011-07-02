@@ -5,8 +5,9 @@
 # Therefore we require that the option "--big-test" is also set.
 #
 
-if (`SELECT $VALGRIND_TEST <> 0 AND '$BIG_TEST' = ''`)
-{
-   --skip Need "--big-test" when running with Valgrind
+if ($VALGRIND_TEST) {
+  if (!$BIG_TEST)
+  {
+    --skip Need "--big-test" when running with Valgrind
+  }
 }
-

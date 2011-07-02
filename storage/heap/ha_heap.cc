@@ -157,11 +157,11 @@ int ha_heap::close(void)
   DESCRIPTION
     Do same as default implementation but use file->s->name instead of 
     table->s->path. This is needed by Windows where the clone() call sees
-    '/'-delimited path in table->s->path, while ha_peap::open() was called 
+    '/'-delimited path in table->s->path, while ha_heap::open() was called 
     with '\'-delimited path.
 */
 
-handler *ha_heap::clone(MEM_ROOT *mem_root)
+handler *ha_heap::clone(const char *name, MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
   if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,
@@ -452,6 +452,13 @@ int ha_heap::delete_all_rows()
     file->s->key_stat_version++;
   }
   return 0;
+}
+
+
+int ha_heap::truncate()
+{
+  int error= delete_all_rows();
+  return error ? error : reset_auto_increment(0);
 }
 
 

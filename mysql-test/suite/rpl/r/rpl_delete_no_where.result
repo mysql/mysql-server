@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1 (a int, b int) engine=myisam;
 insert into t1 values(1,1);
 select * from t1;
@@ -13,3 +9,4 @@ delete from t1;
 select * from t1;
 a	b
 drop table t1;
+include/rpl_end.inc

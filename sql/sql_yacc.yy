@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,9 +70,6 @@
 #endif
 
 int yylex(void *yylval, void *yythd);
-
-const LEX_STRING null_lex_str= {0,0};
-const LEX_STRING empty_lex_str= { (char*) "", 0 };
 
 #define yyoverflow(A,B,C,D,E,F)               \
   {                                           \
@@ -1202,6 +1199,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PROCESSLIST_SYM
 %token  PROFILE_SYM
 %token  PROFILES_SYM
+%token  PROXY_SYM
 %token  PURGE
 %token  QUARTER_SYM
 %token  QUERY_SYM
@@ -1955,35 +1953,28 @@ master_def:
         | MASTER_HEARTBEAT_PERIOD_SYM EQ NUM_literal
           {
             Lex->mi.heartbeat_period= (float) $3->val_real();
-           if (Lex->mi.heartbeat_period > SLAVE_MAX_HEARTBEAT_PERIOD ||
-               Lex->mi.heartbeat_period < 0.0)
-           {
-             const char format[]= "%d seconds";
-             char buf[4*sizeof(SLAVE_MAX_HEARTBEAT_PERIOD) + sizeof(format)];
-             sprintf(buf, format, SLAVE_MAX_HEARTBEAT_PERIOD);
-             my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                      MYF(0), " is negative or exceeds the maximum ", buf);
-              MYSQL_YYABORT;
+            if (Lex->mi.heartbeat_period > SLAVE_MAX_HEARTBEAT_PERIOD ||
+                Lex->mi.heartbeat_period < 0.0)
+            {
+               const char format[]= "%d";
+               char buf[4*sizeof(SLAVE_MAX_HEARTBEAT_PERIOD) + sizeof(format)];
+               sprintf(buf, format, SLAVE_MAX_HEARTBEAT_PERIOD);
+               my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE, MYF(0), buf);
+               MYSQL_YYABORT;
             }
             if (Lex->mi.heartbeat_period > slave_net_timeout)
             {
               push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                  ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                                  ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE),
-                                  " exceeds the value of `slave_net_timeout' sec.",
-                                  " A sensible value for the period should be"
-                                  " less than the timeout.");
+                                  ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                                  ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
             }
             if (Lex->mi.heartbeat_period < 0.001)
             {
               if (Lex->mi.heartbeat_period != 0.0)
               {
                 push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                                    ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE),
-                                    " is less than 1 msec.",
-                                    " The period is reset to zero which means"
-                                    " no heartbeats will be sending");
+                                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
+                                    ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
                 Lex->mi.heartbeat_period= 0.0;
               }
               Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_DISABLE;
@@ -2256,16 +2247,19 @@ opt_ev_status:
         | ENABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::ENABLED;
+            Lex->event_parse_data->status_changed= true;
             $$= 1;
           }
         | DISABLE_SYM ON SLAVE
           {
             Lex->event_parse_data->status= Event_parse_data::SLAVESIDE_DISABLED;
+            Lex->event_parse_data->status_changed= true; 
             $$= 1;
           }
         | DISABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::DISABLED;
+            Lex->event_parse_data->status_changed= true;
             $$= 1;
           }
         ;
@@ -4842,7 +4836,7 @@ part_value_expr_item:
 
             if (!lex->safe_to_cache_query)
             {
-              my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+              my_parse_error(ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
               MYSQL_YYABORT;
             }
             if (part_info->add_column_list_value(YYTHD, part_expr))
@@ -6966,7 +6960,7 @@ alter_list_item:
           }
         | FORCE_SYM
           {
-            Lex->alter_info.flags|= ALTER_FORCE;
+            Lex->alter_info.flags|= ALTER_RECREATE;
           }
         | alter_order_clause
           {
@@ -7602,7 +7596,6 @@ select_lock_type:
             LEX *lex=Lex;
             lex->current_select->set_lock_for_tables(TL_WRITE);
             lex->safe_to_cache_query=0;
-            lex->protect_against_global_read_lock= TRUE;
           }
         | LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
           {
@@ -9614,7 +9607,7 @@ table_factor:
         ;
 
 select_derived_union:
-          select_derived opt_order_clause opt_limit_clause
+          select_derived opt_union_order_or_limit
         | select_derived_union
           UNION_SYM
           union_option
@@ -9630,7 +9623,7 @@ select_derived_union:
              */
             Lex->pop_context();
           }
-          opt_order_clause opt_limit_clause
+          opt_union_order_or_limit
         ;
 
 /* The equivalent of select_init2 for nested queries. */
@@ -10660,7 +10653,10 @@ insert_lock_option:
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
         | DELAYED_SYM
         {
-          Lex->keyword_delayed_begin= YYLIP->get_tok_start();
+          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
+                                                    YYTHD->query());
+          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
+                                           YYLIP->yyLength() + 1;
           $$= TL_WRITE_DELAYED;
         }
         | HIGH_PRIORITY { $$= TL_WRITE; }
@@ -10670,7 +10666,10 @@ replace_lock_option:
           opt_low_priority { $$= $1; }
         | DELAYED_SYM
         {
-          Lex->keyword_delayed_begin= YYLIP->get_tok_start();
+          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
+                                                    YYTHD->query());
+          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
+                                           YYLIP->yyLength() + 1;
           $$= TL_WRITE_DELAYED;
         }
         ;
@@ -10976,7 +10975,7 @@ truncate:
             lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
             lex->select_lex.init_order();
             YYPS->m_lock_type= TL_WRITE;
-            YYPS->m_mdl_type= MDL_SHARED_NO_READ_WRITE;
+            YYPS->m_mdl_type= MDL_EXCLUSIVE;
           }
           table_name
           {
@@ -11134,19 +11133,6 @@ show_param:
               $4->change_db($5);
             if (prepare_schema_table(YYTHD, lex, $4, SCH_COLUMNS))
               MYSQL_YYABORT;
-          }
-        | NEW_SYM MASTER_SYM FOR_SYM SLAVE
-          WITH MASTER_LOG_FILE_SYM EQ
-          TEXT_STRING_sys /* $8 */
-          AND_SYM MASTER_LOG_POS_SYM EQ
-          ulonglong_num /* $12 */
-          AND_SYM MASTER_SERVER_ID_SYM EQ
-          ulong_num /* $16 */
-          {
-            Lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
-            Lex->mi.log_file_name = $8.str;
-            Lex->mi.pos = $12;
-            Lex->mi.server_id = $16;
           }
         | master_or_binary LOGS_SYM
           {
@@ -11519,7 +11505,11 @@ opt_with_read_lock:
             TABLE_LIST *tables= Lex->query_tables;
             Lex->type|= REFRESH_READ_LOCK;
             for (; tables; tables= tables->next_global)
+            {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
+              tables->required_type= FRMTYPE_TABLE; /* Don't try to flush views. */
+              tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
+            }
           }
         ;
 
@@ -11829,7 +11819,23 @@ field_or_var:
 
 opt_load_data_set_spec:
           /* empty */ {}
-        | SET insert_update_list {}
+        | SET load_data_set_list {}
+        ;
+
+load_data_set_list:
+          load_data_set_list ',' load_data_set_elem
+        | load_data_set_elem
+        ;
+
+load_data_set_elem:
+          simple_ident_nospvar equal remember_name expr_or_default remember_end
+          {
+            LEX *lex= Lex;
+            if (lex->update_list.push_back($1) || 
+                lex->value_list.push_back($4))
+                MYSQL_YYABORT;
+            $4->set_name($3, (uint) ($5 - $3), YYTHD->charset());
+          }
         ;
 
 /* Common definitions */
@@ -12575,6 +12581,12 @@ user:
                                          system_charset_info, 0) ||
                 check_host_name(&$$->host))
               MYSQL_YYABORT;
+            /*
+              Convert hostname part of username to lowercase.
+              It's OK to use in-place lowercase as long as
+              the character set is utf8.
+            */
+            my_casedn_str(system_charset_info, $$->host.str);
           }
         | CURRENT_USER optional_braces
           {
@@ -12734,6 +12746,7 @@ keyword_sp:
         | FILE_SYM                 {}
         | FIRST_SYM                {}
         | FIXED_SYM                {}
+        | GENERAL                  {}
         | GENERATED_SYM            {}
         | GEOMETRY_SYM             {}
         | GEOMETRYCOLLECTION       {}
@@ -12744,6 +12757,7 @@ keyword_sp:
         | HOSTS_SYM                {}
         | HOUR_SYM                 {}
         | IDENTIFIED_SYM           {}
+        | IGNORE_SERVER_IDS_SYM    {}
         | INDEX_STATS_SYM          {}
         | INVOKER_SYM              {}
         | IMPORT                   {}
@@ -12767,6 +12781,7 @@ keyword_sp:
         | LOGS_SYM                 {}
         | MAX_ROWS                 {}
         | MASTER_SYM               {}
+        | MASTER_HEARTBEAT_PERIOD_SYM {}
         | MASTER_HOST_SYM          {}
         | MASTER_PORT_SYM          {}
         | MASTER_LOG_FILE_SYM      {}
@@ -12836,6 +12851,7 @@ keyword_sp:
         | PROCESSLIST_SYM          {}
         | PROFILE_SYM              {}
         | PROFILES_SYM             {}
+        | PROXY_SYM                {}
         | QUARTER_SYM              {}
         | QUERY_SYM                {}
         | QUICK                    {}
@@ -12872,6 +12888,7 @@ keyword_sp:
         | SIMPLE_SYM               {}
         | SHARE_SYM                {}
         | SHUTDOWN                 {}
+        | SLOW                     {}
         | SNAPSHOT_SYM             {}
         | SOUNDS_SYM               {}
         | SOURCE_SYM               {}
@@ -13226,7 +13243,7 @@ option_value:
             if (!(user=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
               MYSQL_YYABORT;
             user->host=null_lex_str;
-            user->user.str=thd->security_ctx->priv_user;
+            user->user.str=thd->security_ctx->user;
             set_var_password *var= new set_var_password(user, $3);
             if (var == NULL)
               MYSQL_YYABORT;
@@ -13423,9 +13440,6 @@ table_lock:
                                             MDL_SHARED_NO_READ_WRITE :
                                             MDL_SHARED_READ)))
               MYSQL_YYABORT;
-            /* If table is to be write locked, protect from a impending GRL. */
-            if (lock_for_write)
-              Lex->protect_against_global_read_lock= TRUE;
           }
         ;
 
@@ -13508,6 +13522,13 @@ handler:
           handler_read_or_scan where_clause opt_limit_clause
           {
             Lex->expr_allows_subselect= TRUE;
+            /* Stored functions are not supported for HANDLER READ. */
+            if (Lex->uses_stored_routines())
+            {
+              my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                       "stored functions in HANDLER ... READ");
+              MYSQL_YYABORT;
+            }
           }
         ;
 
@@ -13586,6 +13607,13 @@ revoke_command:
           {
             Lex->sql_command = SQLCOM_REVOKE_ALL;
           }
+        | PROXY_SYM ON user FROM grant_list
+          {
+            LEX *lex= Lex;
+            lex->users_list.push_front ($3);
+            lex->sql_command= SQLCOM_REVOKE;
+            lex->type= TYPE_ENUM_PROXY;
+          } 
         ;
 
 grant:
@@ -13625,6 +13653,13 @@ grant_command:
             lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_PROCEDURE;
           }
+        | PROXY_SYM ON user TO_SYM grant_list opt_grant_option
+          {
+            LEX *lex= Lex;
+            lex->users_list.push_front ($3);
+            lex->sql_command= SQLCOM_GRANT;
+            lex->type= TYPE_ENUM_PROXY;
+          } 
         ;
 
 opt_table:
@@ -13814,10 +13849,15 @@ grant_list:
           }
         ;
 
+via_or_with: VIA_SYM | WITH ;
+using_or_as: USING | AS ;
+
 grant_user:
           user IDENTIFIED_SYM BY TEXT_STRING
           {
             $$=$1; $1->password=$4;
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
             if ($4.length)
             {
               if (YYTHD->variables.old_passwords)
@@ -13843,15 +13883,24 @@ grant_user:
             }
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
-          { $$= $1; $1->password= $5; }
-        | user IDENTIFIED_SYM VIA_SYM ident_or_text
+          { 
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
+            $$= $1; 
+            $1->password= $5; 
+          }
+        | user IDENTIFIED_SYM via_or_with ident_or_text
           {
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
             $$= $1;
             $1->plugin= $4;
             $1->auth= empty_lex_str;
           }
-        | user IDENTIFIED_SYM VIA_SYM ident_or_text USING TEXT_STRING_sys
+        | user IDENTIFIED_SYM via_or_with ident_or_text using_or_as TEXT_STRING_sys
           {
+            if (Lex->sql_command == SQLCOM_REVOKE)
+              MYSQL_YYABORT;
             $$= $1;
             $1->plugin= $4;
             $1->auth= $6;
@@ -13925,6 +13974,11 @@ require_clause:
 grant_options:
           /* empty */ {}
         | WITH grant_option_list
+        ;
+
+opt_grant_option:
+          /* empty */ {}
+        | WITH GRANT OPTION { Lex->grant |= GRANT_ACL;}
         ;
 
 grant_option_list:
@@ -14075,6 +14129,11 @@ union_opt:
         | union_order_or_limit { $$= 1; }
         ;
 
+opt_union_order_or_limit:
+	  /* Empty */
+	| union_order_or_limit
+	;
+
 union_order_or_limit:
           {
             THD *thd= YYTHD;
@@ -14122,7 +14181,7 @@ query_specification:
         ;
 
 query_expression_body:
-          query_specification
+          query_specification opt_union_order_or_limit
         | query_expression_body
           UNION_SYM union_option 
           {
@@ -14130,6 +14189,7 @@ query_expression_body:
               MYSQL_YYABORT;
           }
           query_specification
+          opt_union_order_or_limit
           {
             Lex->pop_context();
             $$= $1;

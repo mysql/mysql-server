@@ -817,6 +817,71 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_add_partition_1";
 SET SESSION debug="+d,fail_add_partition_2";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -880,6 +945,71 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_add_partition_2";
 SET SESSION debug="+d,fail_add_partition_3";
@@ -945,6 +1075,71 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_add_partition_3";
 SET SESSION debug="+d,fail_add_partition_4";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -1008,6 +1203,71 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_add_partition_4";
 SET SESSION debug="+d,fail_add_partition_5";
@@ -1073,6 +1333,71 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_add_partition_5";
 SET SESSION debug="+d,fail_add_partition_6";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -1137,6 +1462,71 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_add_partition_6";
 SET SESSION debug="+d,fail_add_partition_7";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -1200,6 +1590,71 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_add_partition_7";
 SET SESSION debug="+d,fail_add_partition_8";
@@ -1268,6 +1723,74 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_add_partition_8";
 SET SESSION debug="+d,fail_add_partition_9";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -1335,6 +1858,74 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_add_partition_9";
 SET SESSION debug="+d,fail_add_partition_10";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -1401,6 +1992,74 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_add_partition_10";
 # Test DROP PARTITION
@@ -2061,6 +2720,70 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 DROP PARTITION p10;
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_drop_partition_1";
 SET SESSION debug="+d,fail_drop_partition_2";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -2123,6 +2846,70 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 DROP PARTITION p10;
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_drop_partition_2";
 SET SESSION debug="+d,fail_drop_partition_3";
@@ -2187,6 +2974,70 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 DROP PARTITION p10;
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_drop_partition_3";
 SET SESSION debug="+d,fail_drop_partition_4";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -2242,6 +3093,63 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 DROP PARTITION p10;
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_drop_partition_4";
 SET SESSION debug="+d,fail_drop_partition_5";
@@ -2299,6 +3207,63 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 DROP PARTITION p10;
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_drop_partition_5";
 SET SESSION debug="+d,fail_drop_partition_6";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -2354,6 +3319,63 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 DROP PARTITION p10;
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_drop_partition_6";
 SET SESSION debug="+d,fail_drop_partition_7";
@@ -2411,6 +3433,63 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 DROP PARTITION p10;
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_drop_partition_7";
 SET SESSION debug="+d,fail_drop_partition_8";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -2467,6 +3546,63 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 DROP PARTITION p10;
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_drop_partition_8";
 SET SESSION debug="+d,fail_drop_partition_9";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -2522,6 +3658,63 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 DROP PARTITION p10;
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_drop_partition_9";
 # Test change partition (REORGANIZE/REBUILD/COALESCE
@@ -2957,6 +4150,8 @@ t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p10.MYD
 t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
 t1.frm
 t1.par
 SHOW CREATE TABLE t1;
@@ -2967,7 +4162,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
 (PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+ PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -3099,8 +4295,6 @@ ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
 PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-#sql-t1.frm
-#sql-t1.par
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p10#TMP#.MYD
@@ -3520,6 +4714,72 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_1";
 SET SESSION debug="+d,fail_change_partition_2";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -3584,6 +4844,72 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_2";
 SET SESSION debug="+d,fail_change_partition_3";
@@ -3650,6 +4976,72 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_3";
 SET SESSION debug="+d,fail_change_partition_4";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -3714,6 +5106,72 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_4";
 SET SESSION debug="+d,fail_change_partition_5";
@@ -3780,6 +5238,72 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_5";
 SET SESSION debug="+d,fail_change_partition_6";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -3823,6 +5347,43 @@ t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p10.MYD
 t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
 t1.frm
 t1.par
 SHOW CREATE TABLE t1;
@@ -3844,6 +5405,41 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_6";
 SET SESSION debug="+d,fail_change_partition_7";
@@ -3913,6 +5509,75 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_7";
 SET SESSION debug="+d,fail_change_partition_8";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -3980,6 +5645,75 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_8";
 SET SESSION debug="+d,fail_change_partition_9";
@@ -4049,6 +5783,75 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_9";
 SET SESSION debug="+d,fail_change_partition_10";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -4116,6 +5919,75 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_10";
 SET SESSION debug="+d,fail_change_partition_11";
@@ -4185,6 +6057,75 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
+DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_11";
 SET SESSION debug="+d,fail_change_partition_12";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -4252,5 +6193,74 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'MyISAM'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+ERROR HY000: Unknown error
+# State after failure
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p10.MYD
+t1#P#p10.MYI
+t1#P#p20.MYD
+t1#P#p20.MYI
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = MyISAM,
+ PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = MyISAM,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = MyISAM) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_change_partition_12";

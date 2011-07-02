@@ -1,4 +1,4 @@
-/* Copyright (C) 1995-2002 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /**
   @file
@@ -1185,7 +1185,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   uint32 length= 0;
   THD *thd= stmt->thd;
 
-  DBUG_ENTER("insert_params_from_vars");
+  DBUG_ENTER("insert_params_from_vars_with_log");
 
   if (query->copy(stmt->query(), stmt->query_length(), default_charset_info))
     DBUG_RETURN(1);
@@ -1469,7 +1469,7 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(select_send));
+    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(select_send)));
     goto error;
   }
 
@@ -1783,7 +1783,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto err;
 
-  lex->view_prepare_mode= 1;
+  lex->context_analysis_only|=  CONTEXT_ANALYSIS_ONLY_VIEW;
   res= select_like_stmt_test(stmt, 0, 0);
 
 err:
@@ -2295,19 +2295,6 @@ end:
 }
 
 
-/** Init PS/SP specific parse tree members.  */
-
-static void init_stmt_after_parse(LEX *lex)
-{
-  SELECT_LEX *sl= lex->all_selects_list;
-  /*
-    Switch off a temporary flag that prevents evaluation of
-    subqueries in statement prepare.
-  */
-  for (; sl; sl= sl->next_select_in_list())
-   sl->uncacheable&= ~UNCACHEABLE_PREPARE;
-}
-
 /**
   SQLCOM_PREPARE implementation.
 
@@ -2559,7 +2546,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_execute");
     DBUG_VOID_RETURN;
   }
@@ -2613,7 +2600,7 @@ void mysql_sql_stmt_execute(THD *thd)
   if (!(stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
-             name->length, name->str, "EXECUTE");
+             static_cast<int>(name->length), name->str, "EXECUTE");
     DBUG_VOID_RETURN;
   }
 
@@ -2656,7 +2643,7 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_fetch");
     DBUG_VOID_RETURN;
   }
@@ -2716,7 +2703,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_reset");
     DBUG_VOID_RETURN;
   }
@@ -2729,7 +2716,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   */
   reset_stmt_params(stmt);
 
-  stmt->state= Query_arena::PREPARED;
+  stmt->state= Query_arena::STMT_PREPARED;
 
   general_log_print(thd, thd->command, NullS);
 
@@ -2791,7 +2778,7 @@ void mysql_sql_stmt_close(THD *thd)
 
   if (! (stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
-             name->length, name->str, "DEALLOCATE PREPARE");
+             static_cast<int>(name->length), name->str, "DEALLOCATE PREPARE");
   else if (stmt->is_in_use())
     my_error(ER_PS_NO_RECURSION, MYF(0));
   else
@@ -2800,6 +2787,7 @@ void mysql_sql_stmt_close(THD *thd)
     my_ok(thd);
   }
 }
+
 
 /**
   Handle long data in pieces from client.
@@ -2847,7 +2835,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (param_number >= stmt->param_count)
   {
     /* Error will be sent in execute call */
-    stmt->state= Query_arena::ERROR;
+    stmt->state= Query_arena::STMT_ERROR;
     stmt->last_errno= ER_WRONG_ARGUMENTS;
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
             "mysqld_stmt_send_long_data");
@@ -2857,16 +2845,26 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   param= stmt->param_array[param_number];
 
+  Diagnostics_area new_stmt_da, *save_stmt_da= thd->stmt_da;
+  Warning_info new_warnning_info(thd->query_id, false);
+  Warning_info *save_warinig_info= thd->warning_info;
+
+  thd->stmt_da= &new_stmt_da;
+  thd->warning_info= &new_warnning_info;
+
 #ifndef EMBEDDED_LIBRARY
-  if (param->set_longdata(packet, (ulong) (packet_end - packet)))
+  param->set_longdata(packet, (ulong) (packet_end - packet));
 #else
-  if (param->set_longdata(thd->extra_data, thd->extra_length))
+  param->set_longdata(thd->extra_data, thd->extra_length);
 #endif
+  if (thd->stmt_da->is_error())
   {
-    stmt->state= Query_arena::ERROR;
-    stmt->last_errno= ER_OUTOFMEMORY;
-    sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
+    stmt->state= Query_arena::STMT_ERROR;
+    stmt->last_errno= thd->stmt_da->sql_errno();
+    strncpy(stmt->last_error, thd->stmt_da->message(), MYSQL_ERRMSG_SIZE);
   }
+  thd->stmt_da= save_stmt_da;
+  thd->warning_info= save_warinig_info;
 
   general_log_print(thd, thd->command, NullS);
 
@@ -2902,8 +2900,15 @@ bool Select_fetch_protocol_binary::send_result_set_metadata(List<Item> &list, ui
 
 bool Select_fetch_protocol_binary::send_eof()
 {
+  /*
+    Don't send EOF if we're in error condition (which implies we've already
+    sent or are sending an error)
+  */
+  if (thd->is_error())
+    return true;
+
   ::my_eof(thd);
-  return FALSE;
+  return false;
 }
 
 
@@ -3009,7 +3014,7 @@ end:
 
 Prepared_statement::Prepared_statement(THD *thd_arg)
   :Statement(NULL, &main_mem_root,
-             INITIALIZED, ++thd_arg->statement_id_counter),
+             STMT_INITIALIZED, ++thd_arg->statement_id_counter),
   thd(thd_arg),
   result(thd_arg),
   param_array(0),
@@ -3176,7 +3181,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   bool error;
   Statement stmt_backup;
   Query_arena *old_stmt_arena;
-  MDL_ticket *mdl_savepoint= NULL;
   DBUG_ENTER("Prepared_statement::prepare");
   /*
     If this is an SQLCOM_PREPARE, we also increase Com_prepare_sql.
@@ -3221,6 +3225,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   parser_state.m_lip.multi_statements= FALSE;
 
   lex_start(thd);
+  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_PREPARE;
 
   error= parse_sql(thd, & parser_state, NULL) ||
     thd->is_error() ||
@@ -3248,7 +3253,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     Marker used to release metadata locks acquired while the prepared
     statement is being checked.
   */
-  mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /* 
    The only case where we should have items in the thd->free_list is
@@ -3281,8 +3286,8 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   if (error == 0)
   {
     setup_set_params();
-    init_stmt_after_parse(lex);
-    state= Query_arena::PREPARED;
+    lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_PREPARE;
+    state= Query_arena::STMT_PREPARED;
     flags&= ~ (uint) IS_IN_USE;
 
     /* 
@@ -3399,6 +3404,13 @@ Prepared_statement::execute_loop(String *expanded_query,
   bool error;
   int reprepare_attempt= 0;
 
+  /* Check if we got an error when sending long data */
+  if (state == Query_arena::STMT_ERROR)
+  {
+    my_message(last_errno, last_error, MYF(0));
+    return TRUE;
+  }
+
   if (set_parameters(expanded_query, packet, packet_end))
     return TRUE;
 
@@ -3456,7 +3468,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   Item_change_list save_change_list;
   thd->change_list.move_elements_to(&save_change_list);
 
-  state= CONVENTIONAL_EXECUTION;
+  state= STMT_CONVENTIONAL_EXECUTION;
 
   if (!(lex= new (mem_root) st_lex_local))
     return TRUE;
@@ -3666,12 +3678,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   status_var_increment(thd->status_var.com_stmt_execute);
 
-  /* Check if we got an error when sending long data */
-  if (state == Query_arena::ERROR)
-  {
-    my_message(last_errno, last_error, MYF(0));
-    return TRUE;
-  }
   if (flags & (uint) IS_IN_USE)
   {
     my_error(ER_PS_NO_RECURSION, MYF(0));
@@ -3739,7 +3745,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     to point at it even after we restore from backup. This is ok, as
     expanded query was allocated in thd->mem_root.
   */
-  stmt_backup.set_query_inner(thd->query(), thd->query_length());
+  stmt_backup.set_query_inner(thd->query_string);
 
   /*
     At first execution of prepared statement we may perform logical
@@ -3769,7 +3775,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       MYSQL_QUERY_EXEC_START(thd->query(),
                              thd->thread_id,
                              (char *) (thd->db ? thd->db : ""),
-                             thd->security_ctx->priv_user,
+                             &thd->security_ctx->priv_user[0],
                              (char *) thd->security_ctx->host_or_ip,
                              1);
       error= mysql_execute_command(thd);
@@ -3797,8 +3803,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   thd->set_statement(&stmt_backup);
   thd->stmt_arena= old_stmt_arena;
 
-  if (state == Query_arena::PREPARED)
-    state= Query_arena::EXECUTED;
+  if (state == Query_arena::STMT_PREPARED)
+    state= Query_arena::STMT_EXECUTED;
 
   if (error == 0 && this->lex->sql_command == SQLCOM_CALL)
   {
@@ -3899,7 +3905,7 @@ Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg,
 */
 
 Ed_connection::Ed_connection(THD *thd)
-  :m_warning_info(thd->query_id),
+  :m_warning_info(thd->query_id, false),
   m_thd(thd),
   m_rsets(0),
   m_current_rset(0)

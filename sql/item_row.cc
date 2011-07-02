@@ -80,12 +80,8 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
     used_tables_cache |= item->used_tables();
     const_item_cache&= item->const_item() && !with_null;
     not_null_tables_cache|= item->not_null_tables();
-    /*
-      Some subqueries transformations aren't done in the view_prepare_mode thus
-      is_null() will fail. So we skip is_null() calculation for CREATE VIEW as
-      not necessary.
-    */
-    if (const_item_cache && !thd->lex->view_prepare_mode)
+
+    if (const_item_cache)
     {
       if (item->cols() > 1)
 	with_null|= item->null_inside();
@@ -188,7 +184,7 @@ bool Item_row::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 
 Item *Item_row::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   for (uint i= 0; i < arg_count; i++)
   {

@@ -73,7 +73,8 @@ public:
   Event_db_repository(){}
 
   bool
-  create_event(THD *thd, Event_parse_data *parse_data, bool create_if_not);
+  create_event(THD *thd, Event_parse_data *parse_data, bool create_if_not,
+               bool *event_already_exists);
 
   bool
   update_event(THD *thd, Event_parse_data *parse_data, LEX_STRING *new_dbname,
@@ -101,9 +102,7 @@ public:
   update_timing_fields_for_event(THD *thd,
                                  LEX_STRING event_db_name,
                                  LEX_STRING event_name,
-                                 bool update_last_executed,
                                  my_time_t last_executed,
-                                 bool update_status,
                                  ulonglong status);
 public:
   static bool

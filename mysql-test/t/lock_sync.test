@@ -1023,6 +1023,120 @@ DROP EVENT e2;
 SET DEBUG_SYNC="RESET";
 
 
+--echo #
+--echo # Bug#55930 Assertion `thd->transaction.stmt.is_empty() ||
+--echo #           thd->in_sub_stmt || (thd->state..
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT) engine=InnoDB;
+INSERT INTO t1 VALUES (1), (2);
+
+connect (con1, localhost, root);
+connect (con2, localhost, root);
+
+--echo # Connection con1
+connection con1;
+SET SESSION lock_wait_timeout= 1;
+SET DEBUG_SYNC= 'ha_admin_open_ltable SIGNAL opti_recreate WAIT_FOR opti_analyze';
+--echo # Sending:
+--send OPTIMIZE TABLE t1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR opti_recreate';
+SET DEBUG_SYNC= 'after_lock_tables_takes_lock SIGNAL thrlock WAIT_FOR release_thrlock';
+--echo # Sending:
+--send INSERT INTO t1 VALUES (3)
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR thrlock';
+SET DEBUG_SYNC= 'now SIGNAL opti_analyze';
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: OPTIMIZE TABLE t1
+--reap
+SET DEBUG_SYNC= 'now SIGNAL release_thrlock';
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: INSERT INTO t1 VALUES (3)
+--reap
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection default
+connection default;
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo #
+--echo # Bug#57130 crash in Item_field::print during SHOW CREATE TABLE or VIEW
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+CREATE FUNCTION f1() RETURNS INTEGER RETURN 1;
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE f1() = 1;
+DROP FUNCTION f1;
+connect(con2, localhost, root);
+
+--echo # Connection con1
+connect (con1, localhost, root);
+# Need to trigger this sync point at least twice in order to
+# get valgrind test failures without the patch
+SET DEBUG_SYNC= 'open_tables_after_open_and_process_table SIGNAL opened WAIT_FOR dropped EXECUTE 2';
+--echo # Sending:
+--send SHOW CREATE VIEW v1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+SET DEBUG_SYNC= 'now SIGNAL dropped';
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+--echo # Sending:
+--send FLUSH TABLES
+
+--echo # Connection default
+connection default;
+--echo # Waiting for FLUSH TABLES to be blocked.
+let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state= 'Waiting for table flush' AND info= 'FLUSH TABLES';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL dropped';
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: SHOW CREATE VIEW v1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: FLUSH TABLES
+--reap
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'RESET';
+DROP VIEW v1;
+DROP TABLE t1;
+disconnect con1;
+disconnect con2;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

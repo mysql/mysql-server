@@ -13,8 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_parse.h"                       // check_access,
-                                             // check_merge_table_access
+#include "sql_parse.h"                       // check_access
 #include "sql_table.h"                       // mysql_alter_table,
                                              // mysql_exchange_partition
 #include "sql_alter.h"
@@ -60,10 +59,14 @@ bool Alter_table_statement::execute(THD *thd)
       check_access(thd, INSERT_ACL | CREATE_ACL, select_lex->db,
                    &priv,
                    NULL, /* Don't use first_tab->grant with sel_lex->db */
-                   0, 0) ||
-      check_merge_table_access(thd, first_table->db,
-                               create_info.merge_list.first))
+                   0, 0))
     DBUG_RETURN(TRUE);                  /* purecov: inspected */
+
+  /* If it is a merge table, check privileges for merge children. */
+  if (create_info.merge_list.first &&
+      check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+                         create_info.merge_list.first, FALSE, UINT_MAX, FALSE))
+    DBUG_RETURN(TRUE);
 
   if (check_grant(thd, priv_needed, first_table, FALSE, UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);                  /* purecov: inspected */

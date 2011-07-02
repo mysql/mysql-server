@@ -117,6 +117,7 @@ size_t nmatch;
 my_regmatch_t pmatch[];
 int eflags;
 {
+	char *pstr = (char *) str;
 	register struct re_guts *g = preg->re_g;
 #ifdef REDEBUG
 #	define	GOODFLAGS(f)	(f)
@@ -133,7 +134,7 @@ int eflags;
 
 	if ((size_t) g->nstates <= CHAR_BIT*sizeof(states1) &&
 	    !(eflags&REG_LARGE))
-		return(smatcher(preg->charset, g, (char *)str, nmatch, pmatch, eflags));
+		return(smatcher(preg->charset, g, pstr, nmatch, pmatch, eflags));
 	else
-		return(lmatcher(preg->charset, g, (char *)str, nmatch, pmatch, eflags));
+		return(lmatcher(preg->charset, g, pstr, nmatch, pmatch, eflags));
 }

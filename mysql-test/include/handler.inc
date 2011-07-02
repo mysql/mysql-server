@@ -1545,8 +1545,6 @@ lock table not_exists_write read;
 --echo # We still have the read lock.
 --error ER_CANT_UPDATE_WITH_READLOCK
 drop table t1;
-handler t1 read next;
-handler t1 close;
 handler t1 open;
 select a from t2;
 handler t1 read next;
@@ -1809,9 +1807,32 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1);
 HANDLER t1 OPEN;
 # This used to cause the assert
---error ER_NO_SUCH_TABLE
+--error ER_NOT_SUPPORTED_YET
 HANDLER t1 READ FIRST WHERE f1() = 1;
 HANDLER t1 CLOSE;
 
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#54920 Stored functions are allowed in HANDLER statements,
+--echo #           but broken.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+HANDLER t1 OPEN;
+
+--error ER_NOT_SUPPORTED_YET
+HANDLER t1 READ FIRST WHERE f1() = 1;
+
+HANDLER t1 CLOSE;
 DROP FUNCTION f1;
 DROP TABLE t1;

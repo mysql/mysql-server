@@ -109,6 +109,7 @@ class ha_innobase: public handler
 	ulint innobase_update_autoinc(ulonglong	auto_inc);
 	void innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
+	int info_low(uint flag, bool called_from_analyze);
 
 	/* Init values for the class: */
  public:
@@ -178,13 +179,15 @@ class ha_innobase: public handler
 	void update_create_info(HA_CREATE_INFO* create_info);
 	int create(const char *name, register TABLE *form,
 					HA_CREATE_INFO *create_info);
-	int delete_all_rows();
+	int truncate();
 	int delete_table(const char *name);
 	int rename_table(const char* from, const char* to);
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
 	char* update_table_comment(const char* comment);
 	char* get_foreign_key_create_info();
 	int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list);
+	int get_parent_foreign_key_list(THD *thd,
+					List<FOREIGN_KEY_INFO> *f_key_list);
 	bool can_switch_engines();
 	uint referenced_by_foreign_key();
 	void free_foreign_key_create_info(char* str);
@@ -212,7 +215,9 @@ class ha_innobase: public handler
 	bool primary_key_is_clustered();
 	int cmp_ref(const uchar *ref1, const uchar *ref2);
 	/** Fast index creation (smart ALTER TABLE) @see handler0alter.cc @{ */
-	int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+	int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+		      handler_add_index **add);
+	int final_add_index(handler_add_index *add, bool commit);
 	int prepare_drop_index(TABLE *table_arg, uint *key_num,
 			       uint num_of_keys);
 	int final_drop_index(TABLE *table_arg);
@@ -273,14 +278,13 @@ int thd_binlog_format(const MYSQL_THD thd);
 */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 
-#if MYSQL_VERSION_ID > 50140
 /**
   Check if binary logging is filtered for thread's current db.
   @param  thd   Thread handle
   @retval 1 the query is not filtered, 0 otherwise.
 */
 bool thd_binlog_filter_ok(const MYSQL_THD thd);
-#endif /* MYSQL_VERSION_ID > 50140 */
+
 /**
   Check if the query may generate row changes which
   may end up in the binary.
@@ -319,15 +323,14 @@ innobase_trx_allocate(
 This function checks each index name for a table against reserved
 system default primary index name 'GEN_CLUST_INDEX'. If a name
 matches, this function pushes an warning message to the client,
-and returns true. */
+and returns true.
+@return true if the index name matches the reserved name */
 extern "C"
 bool
 innobase_index_name_is_reserved(
 /*============================*/
-					/* out: true if the index name
-					matches the reserved name */
-	const trx_t*	trx,		/* in: InnoDB transaction handle */
-	const KEY*	key_info,	/* in: Indexes to be created */
-	ulint		num_of_keys);	/* in: Number of indexes to
+	THD*		thd,		/*!< in/out: MySQL connection */
+	const KEY*	key_info,	/*!< in: Indexes to be created */
+	ulint		num_of_keys);	/*!< in: Number of indexes to
 					be created. */
 

@@ -1,4 +1,4 @@
--- Copyright (C) 2008, 2010 Oracle and/or its affiliates. All rights reserved.
+-- Copyright (C) 2003, 2010 Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -642,6 +642,19 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 drop procedure mysql.die;
+
+ALTER TABLE user ADD plugin char(64) DEFAULT '',  ADD authentication_string TEXT;
+ALTER TABLE user MODIFY plugin char(64) DEFAULT '';
+ALTER TABLE user MODIFY authentication_string TEXT;
+
+-- Need to pre-fill mysql.proxies_priv with access for root even when upgrading from
+-- older versions
+
+CREATE TEMPORARY TABLE tmp_proxies_priv LIKE proxies_priv;
+INSERT INTO tmp_proxies_priv VALUES ('localhost', 'root', '', '', TRUE, '', now());
+INSERT INTO proxies_priv SELECT * FROM tmp_proxies_priv WHERE @had_proxies_priv_table=0;
+DROP TABLE tmp_proxies_priv;
+
 
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above

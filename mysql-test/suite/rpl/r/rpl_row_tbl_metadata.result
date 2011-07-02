@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP TABLE IF EXISTS `t1`;
 ### TABLE with field_metadata_size == 290
 CREATE TABLE `t1` (
@@ -159,15 +155,10 @@ LOCK TABLES `t1` WRITE;
 INSERT INTO `t1`(c2) VALUES ('1');
 FLUSH LOGS;
 ### assertion: the slave replicated event successfully and tables match
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE `t1`;
 === Using mysqlbinlog to detect failure. Before the patch mysqlbinlog would find a corrupted event, thence would fail.
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 ### action: generating several tables with different metadata 
 ###         sizes (resorting to perl)
 ### testing table with 249 field metadata size.
@@ -182,25 +173,26 @@ start slave;
 ### testing table with 258 field metadata size.
 FLUSH LOGS;
 ### assertion: the slave replicated event successfully and tables match for t10
-Comparing tables master:test.t10 and slave:test.t10
+include/diff_tables.inc [master:t10, slave:t10]
 ### assertion: the slave replicated event successfully and tables match for t9
-Comparing tables master:test.t9 and slave:test.t9
+include/diff_tables.inc [master:t9, slave:t9]
 ### assertion: the slave replicated event successfully and tables match for t8
-Comparing tables master:test.t8 and slave:test.t8
+include/diff_tables.inc [master:t8, slave:t8]
 ### assertion: the slave replicated event successfully and tables match for t7
-Comparing tables master:test.t7 and slave:test.t7
+include/diff_tables.inc [master:t7, slave:t7]
 ### assertion: the slave replicated event successfully and tables match for t6
-Comparing tables master:test.t6 and slave:test.t6
+include/diff_tables.inc [master:t6, slave:t6]
 ### assertion: the slave replicated event successfully and tables match for t5
-Comparing tables master:test.t5 and slave:test.t5
+include/diff_tables.inc [master:t5, slave:t5]
 ### assertion: the slave replicated event successfully and tables match for t4
-Comparing tables master:test.t4 and slave:test.t4
+include/diff_tables.inc [master:t4, slave:t4]
 ### assertion: the slave replicated event successfully and tables match for t3
-Comparing tables master:test.t3 and slave:test.t3
+include/diff_tables.inc [master:t3, slave:t3]
 ### assertion: the slave replicated event successfully and tables match for t2
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t2, slave:t2]
 ### assertion: the slave replicated event successfully and tables match for t1
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 ### assertion: check that binlog is not corrupt. Using mysqlbinlog to 
 ###            detect failure. Before the patch mysqlbinlog would find 
 ###            a corrupted event, thence would fail.
+include/rpl_end.inc

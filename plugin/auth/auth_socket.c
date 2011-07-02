@@ -1,22 +1,24 @@
 /* Copyright (C) 2010 Sergei Golubchik and Monty Program Ab
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+    
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License as
+    published by the Free Software Foundation; version 2 of the
+    License.
+    
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+    
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
 /**
   @file
 
-  socket_peercred authentication plugin.
+  auth_socket authentication plugin.
 
   Authentication is successful if the connection is done via a unix socket and
   the owner of the client process matches the user name that was used when
@@ -54,7 +56,7 @@ static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
       return CR_ERROR;
   }
 
-  info->password_used = 0;
+  info->password_used= PASSWORD_USED_NO_MENTION;
 
   vio->info(vio, &vio_info);
   if (vio_info.protocol != MYSQL_VIO_SOCKET)
@@ -87,7 +89,7 @@ mysql_declare_plugin(socket_auth)
 {
   MYSQL_AUTHENTICATION_PLUGIN,
   &socket_auth_handler,
-  "socket_peercred",
+  "auth_socket",
   "Sergei Golubchik",
   "Unix Socket based authentication",
   PLUGIN_LICENSE_GPL,
@@ -103,7 +105,7 @@ maria_declare_plugin(socket_auth)
 {
   MYSQL_AUTHENTICATION_PLUGIN,
   &socket_auth_handler,
-  "socket_peercred",
+  "auth_socket",
   "Sergei Golubchik",
   "Unix Socket based authentication",
   PLUGIN_LICENSE_GPL,

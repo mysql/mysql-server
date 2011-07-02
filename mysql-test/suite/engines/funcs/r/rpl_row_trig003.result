@@ -69,9 +69,15 @@ INSERT INTO test.t2 VALUES(NULL,0,'Testing MySQL databases is a cool ', 'MySQL C
 UPDATE test.t1 SET b1 = 0 WHERE b1 = 1;
 INSERT INTO test.t2 VALUES(NULL,1,'This is an after update test.', 'If this works, total will not be zero on the master or slave',1.4321,5.221,0,YEAR(NOW()),NOW());
 UPDATE test.t2 SET b1 = 0 WHERE b1 = 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 INSERT INTO test.t1 VALUES(NULL,1,'add some more test data test.', 'and hope for the best', 3.321,5.221,0,YEAR(NOW()),NOW());
 DELETE FROM test.t1 WHERE id = 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 DELETE FROM test.t2 WHERE id = 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 DROP TRIGGER test.t1_bi;
 DROP TRIGGER test.t2_ai;
 DROP TRIGGER test.t1_bu;

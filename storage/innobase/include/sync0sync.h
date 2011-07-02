@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -85,7 +85,6 @@ extern mysql_pfs_key_t	hash_table_mutex_key;
 extern mysql_pfs_key_t	ibuf_bitmap_mutex_key;
 extern mysql_pfs_key_t	ibuf_mutex_key;
 extern mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
-extern mysql_pfs_key_t	ios_mutex_key;
 extern mysql_pfs_key_t	log_sys_mutex_key;
 extern mysql_pfs_key_t	log_flush_order_mutex_key;
 extern mysql_pfs_key_t	kernel_mutex_key;
@@ -94,7 +93,7 @@ extern mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */
 extern mysql_pfs_key_t	mem_pool_mutex_key;
 extern mysql_pfs_key_t	mutex_list_mutex_key;
-extern mysql_pfs_key_t	purge_sys_mutex_key;
+extern mysql_pfs_key_t	purge_sys_bh_mutex_key;
 extern mysql_pfs_key_t	recv_sys_mutex_key;
 extern mysql_pfs_key_t	rseg_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
@@ -111,7 +110,6 @@ extern mysql_pfs_key_t	syn_arr_mutex_key;
 extern mysql_pfs_key_t	sync_thread_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */
 extern mysql_pfs_key_t	trx_doublewrite_mutex_key;
-extern mysql_pfs_key_t	thr_local_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
@@ -415,13 +413,6 @@ sync_thread_reset_level(
 /*====================*/
 	void*	latch);	/*!< in: pointer to a mutex or an rw-lock */
 /******************************************************************//**
-Checks that the level array for the current thread is empty.
-@return	TRUE if empty */
-UNIV_INTERN
-ibool
-sync_thread_levels_empty(void);
-/*==========================*/
-/******************************************************************//**
 Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
 @return	a matching latch, or NULL if not found */
@@ -432,17 +423,33 @@ sync_thread_levels_contains(
 	ulint	level);			/*!< in: latching order level
 					(SYNC_DICT, ...)*/
 /******************************************************************//**
-Checks if the level array for the current thread is empty.
+Checks that the level array for the current thread is empty.
 @return	a latch, or NULL if empty except the exceptions specified below */
 UNIV_INTERN
 void*
 sync_thread_levels_nonempty_gen(
 /*============================*/
-	ibool	dict_mutex_allowed);	/*!< in: TRUE if dictionary mutex is
-					allowed to be owned by the thread,
-					also purge_is_running mutex is
-					allowed */
-#define sync_thread_levels_empty_gen(d) (!sync_thread_levels_nonempty_gen(d))
+	ibool	dict_mutex_allowed)	/*!< in: TRUE if dictionary mutex is
+					allowed to be owned by the thread */
+	__attribute__((warn_unused_result));
+/******************************************************************//**
+Checks if the level array for the current thread is empty,
+except for data dictionary latches. */
+#define sync_thread_levels_empty_except_dict()		\
+	(!sync_thread_levels_nonempty_gen(TRUE))
+/******************************************************************//**
+Checks if the level array for the current thread is empty,
+except for the btr_search_latch.
+@return	a latch, or NULL if empty except the exceptions specified below */
+UNIV_INTERN
+void*
+sync_thread_levels_nonempty_trx(
+/*============================*/
+	ibool	has_search_latch)
+				/*!< in: TRUE if and only if the thread
+				is supposed to hold btr_search_latch */
+	__attribute__((warn_unused_result));
+
 /******************************************************************//**
 Gets the debug information for a reserved mutex. */
 UNIV_INTERN
@@ -638,7 +645,6 @@ or row lock! */
 #define SYNC_TREE_NODE_NEW	892
 #define SYNC_TREE_NODE_FROM_HASH 891
 #define SYNC_TREE_NODE		890
-#define	SYNC_PURGE_SYS		810
 #define	SYNC_PURGE_LATCH	800
 #define	SYNC_TRX_UNDO		700
 #define SYNC_RSEG		600
@@ -660,6 +666,7 @@ or row lock! */
 #define SYNC_REC_LOCK		299
 #define	SYNC_TRX_LOCK_HEAP	298
 #define SYNC_TRX_SYS_HEADER	290
+#define	SYNC_PURGE_QUEUE	200
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
 #define SYNC_RECV		168

@@ -1,4 +1,5 @@
 /* Copyright (C) 2010 Sergei Golubchik and Monty Program Ab
+   Copyright (C) 2010 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,11 +32,7 @@
 #include "mysql.h"
 #include <my_sys.h>
 #include <m_string.h>
-#ifdef THREAD
 #include <my_pthread.h>
-#else
-#include <my_no_pthread.h>
-#endif
 
 #include <sql_common.h>
 #include "errmsg.h"
@@ -67,9 +64,7 @@ static uint plugin_version[MYSQL_CLIENT_MAX_PLUGINS]=
   loading the same plugin twice in parallel.
 */
 struct st_client_plugin_int *plugin_list[MYSQL_CLIENT_MAX_PLUGINS];
-#ifdef THREAD
 static pthread_mutex_t LOCK_load_client_plugin;
-#endif
 
 static int is_not_initialized(MYSQL *mysql, const char *name)
 {
@@ -82,7 +77,6 @@ static int is_not_initialized(MYSQL *mysql, const char *name)
   return 1;
 }
 
-
 /**
   finds a plugin in the list
 
@@ -93,8 +87,8 @@ static int is_not_initialized(MYSQL *mysql, const char *name)
   
   @retval a pointer to a found plugin or 0
 */
-
-static struct st_mysql_client_plugin *find_plugin(const char *name, int type)
+static struct st_mysql_client_plugin *
+find_plugin(const char *name, int type)
 {
   struct st_client_plugin_int *p;
 
@@ -111,7 +105,6 @@ static struct st_mysql_client_plugin *find_plugin(const char *name, int type)
   return NULL;
 }
 
-
 /**
   verifies the plugin and adds it to the list
 
@@ -124,7 +117,6 @@ static struct st_mysql_client_plugin *find_plugin(const char *name, int type)
 
   @retval a pointer to an installed plugin or 0
 */
-
 static struct st_mysql_client_plugin *
 add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
            int argc, va_list args)
@@ -172,6 +164,7 @@ add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
 
   p->next= plugin_list[plugin->type];
   plugin_list[plugin->type]= p;
+  net_clear_error(&mysql->net);
 
   return plugin;
 
@@ -179,14 +172,13 @@ err2:
   if (plugin->deinit)
     plugin->deinit();
 err1:
-  if (dlhandle)
-    dlclose(dlhandle);
   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
                            ER(CR_AUTH_PLUGIN_CANNOT_LOAD), plugin->name,
                            errmsg);
+  if (dlhandle)
+    dlclose(dlhandle);
   return NULL;
 }
-
 
 /**
   Loads plugins which are specified in the environment variable
@@ -203,7 +195,6 @@ err1:
   or
   LIBMYSQL_PLUGINS="plugin1=int:param1,str:param2;plugin2;..."
 */
-
 static void load_env_plugins(MYSQL *mysql)
 {
   char *plugs, *free_env, *s= getenv("LIBMYSQL_PLUGINS");
@@ -234,7 +225,6 @@ static void load_env_plugins(MYSQL *mysql)
   @retval 0    successful
   @retval != 0 error occured
 */
-
 int mysql_client_plugin_init()
 {
   MYSQL mysql;
@@ -264,13 +254,11 @@ int mysql_client_plugin_init()
   return 0;
 }
 
-
 /**
   Deinitializes the client plugin layer.
 
   Unloades all client plugins and frees any associated resources.
 */
-
 void mysql_client_plugin_deinit()
 {
   int i;
@@ -321,7 +309,6 @@ mysql_client_register_plugin(MYSQL *mysql,
   return plugin;
 }
 
-
 /* see <mysql/client_plugin.h> for a full description */
 struct st_mysql_client_plugin *
 mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
@@ -332,8 +319,13 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
   void *sym, *dlhandle;
   struct st_mysql_client_plugin *plugin;
 
+  DBUG_ENTER ("mysql_load_plugin_v");
+  DBUG_PRINT ("entry", ("name=%s type=%d int argc=%d", name, type, argc));
   if (is_not_initialized(mysql, name))
-    return NULL;
+  {
+    DBUG_PRINT ("leave", ("mysql not initialized"));
+    DBUG_RETURN (NULL);
+  }
 
   pthread_mutex_lock(&LOCK_load_client_plugin);
 
@@ -350,9 +342,11 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
            mysql->options.extension->plugin_dir : PLUGINDIR, "/",
            name, SO_EXT, NullS);
    
+  DBUG_PRINT ("info", ("dlopeninig %s", dlpath));
   /* Open new dll handle */
   if (!(dlhandle= dlopen(dlpath, RTLD_NOW)))
   {
+    DBUG_PRINT ("info", ("failed to dlopen"));
     errmsg= dlerror();
     goto err;
   }
@@ -388,15 +382,16 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
 
   pthread_mutex_unlock(&LOCK_load_client_plugin);
 
-  return plugin;
+  DBUG_PRINT ("leave", ("plugin loaded ok"));
+  DBUG_RETURN (plugin);
 
 err:
   pthread_mutex_unlock(&LOCK_load_client_plugin);
+  DBUG_PRINT ("leave", ("plugin load error : %s", errmsg));
   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
                            ER(CR_AUTH_PLUGIN_CANNOT_LOAD), name, errmsg);
-  return NULL;
+  DBUG_RETURN (NULL);
 }
-
 
 /* see <mysql/client_plugin.h> for a full description */
 struct st_mysql_client_plugin *
@@ -410,15 +405,16 @@ mysql_load_plugin(MYSQL *mysql, const char *name, int type, int argc, ...)
   return p;
 }
 
-
 /* see <mysql/client_plugin.h> for a full description */
 struct st_mysql_client_plugin *
 mysql_client_find_plugin(MYSQL *mysql, const char *name, int type)
 {
   struct st_mysql_client_plugin *p;
 
+  DBUG_ENTER ("mysql_client_find_plugin");
+  DBUG_PRINT ("entry", ("name=%s, type=%d", name, type));
   if (is_not_initialized(mysql, name))
-    return NULL;
+    DBUG_RETURN (NULL);
 
   if (type < 0 || type >= MYSQL_CLIENT_MAX_PLUGINS)
   {
@@ -428,9 +424,26 @@ mysql_client_find_plugin(MYSQL *mysql, const char *name, int type)
   }
 
   if ((p= find_plugin(name, type)))
-    return p;
+  {
+    DBUG_PRINT ("leave", ("found %p", p));
+    DBUG_RETURN (p);
+  }
 
   /* not found, load it */
-  return mysql_load_plugin(mysql, name, type, 0);
+  p= mysql_load_plugin(mysql, name, type, 0);
+  DBUG_PRINT ("leave", ("loaded %p", p));
+  DBUG_RETURN (p);
 }
 
+
+/* see <mysql/client_plugin.h> for a full description */
+int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
+                                 const char *option,
+                                 const void *value)
+{
+  DBUG_ENTER("mysql_plugin_options");
+  /* does the plugin support options call? */
+  if (!plugin || !plugin->options)
+    DBUG_RETURN(1);
+  DBUG_RETURN(plugin->options(option, value));
+}

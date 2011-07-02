@@ -47,8 +47,8 @@ Created 3/26/1996 Heikki Tuuri
 rollback */
 #define TRX_ROLL_TRUNC_THRESHOLD	1
 
-/** In crash recovery, the current trx to be rolled back */
-static trx_t*		trx_roll_crash_recv_trx	= NULL;
+/** In crash recovery, the current trx to be rolled back; NULL otherwise */
+static const trx_t*	trx_roll_crash_recv_trx	= NULL;
 
 /** In crash recovery we set this to the undo n:o of the current trx to be
 rolled back. Then we can print how many % the rollback has progressed. */
@@ -459,10 +459,6 @@ trx_rollback_active(
 		(ullint) trx->id,
 		(ulong) rows_to_undo, unit);
 	mutex_exit(&kernel_mutex);
-
-	trx->mysql_thread_id = os_thread_get_curr_id();
-
-	trx->mysql_process_no = os_proc_get_number();
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 		row_mysql_lock_data_dictionary(trx);

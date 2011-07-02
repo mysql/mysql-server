@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright 2004-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,7 +32,9 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 use mtr_match;
 use My::Platform;
 use POSIX qw[ _exit ];
+use IO::Handle qw[ flush ];
 require "mtr_io.pl";
+use mtr_results;
 
 my $tot_real_time= 0;
 
@@ -68,7 +70,7 @@ sub _mtr_report_test_name ($) {
   print _name(). _timestamp();
   printf "%-40s ", $tname;
   my $worker = $tinfo->{worker};
-  printf "w$worker " if $worker;
+  print "w$worker " if defined $worker;
 
   return $tname;
 }
@@ -91,6 +93,7 @@ sub mtr_report_test_passed ($) {
   {
     $timer_str= mtr_fromfile("$::opt_vardir/log/timer");
     $tinfo->{timer}= $timer_str;
+    resfile_test_info('duration', $timer_str) if $::opt_resfile;
   }
 
   # Big warning if status already set
@@ -125,7 +128,8 @@ sub mtr_report_test ($) {
       # Find out if this test case is an experimental one, so we can treat
       # the failure as an expected failure instead of a regression.
       for my $exp ( @$::experimental_test_cases ) {
-        if ( $exp ne $test_name ) {
+	# Include pattern match for combinations
+        if ( $exp ne $test_name && $test_name !~ /^$exp / ) {
           # if the expression is not the name of this test case, but has
           # an asterisk at the end, determine if the characters up to
           # but excluding the asterisk are the same
@@ -228,7 +232,8 @@ sub mtr_report_stats ($$$$) {
   # Find out how we where doing
   # ----------------------------------------------------------------------
 
-  my $tot_skiped= 0;
+  my $tot_skipped= 0;
+  my $tot_skipdetect= 0;
   my $tot_passed= 0;
   my $tot_failed= 0;
   my $tot_tests=  0;
@@ -245,8 +250,9 @@ sub mtr_report_stats ($$$$) {
     }
     elsif ( $tinfo->{'result'} eq 'MTR_RES_SKIPPED' )
     {
-      # Test was skipped
-      $tot_skiped++;
+      # Test was skipped (disabled not counted)
+      $tot_skipped++ unless $tinfo->{'disable'};
+      $tot_skipdetect++ if $tinfo->{'skip_detected_by_test'};
     }
     elsif ( $tinfo->{'result'} eq 'MTR_RES_PASSED' )
     {
@@ -295,6 +301,8 @@ sub mtr_report_stats ($$$$) {
     mtr_report("Spent", sprintf("%.3f", $tot_real_time),"of",
 	       time - $BASETIME, "seconds executing testcases");
   }
+
+  resfile_global("duration", time - $BASETIME) if $::opt_resfile;
 
   my $warnlog= "$::opt_vardir/log/warnings";
   if ( ! $::glob_use_running_server && !$::opt_extern && -f $warnlog)
@@ -382,6 +390,9 @@ MSG
     print "    $_\n" for @$extra_warnings;
   }
 
+  print "$tot_skipped tests were skipped, ".
+    "$tot_skipdetect by the test itself.\n\n" if $tot_skipped;
+
   if ( $tot_failed != 0 || $found_problems)
   {
     mtr_error("there were failing test cases");
@@ -404,7 +415,7 @@ MSG
 ##############################################################################
 
 sub mtr_print_line () {
-  print '-' x 60 . "\n";
+  print '-' x 74 . "\n";
 }
 
 
@@ -414,13 +425,18 @@ sub mtr_print_thick_line {
 }
 
 
-sub mtr_print_header () {
+sub mtr_print_header ($) {
+  my ($wid) = @_;
   print "\n";
   printf "TEST";
-  print " " x 38;
+  if ($wid) {
+    print " " x 34 . "WORKER ";
+  } else {
+    print " " x 38;
+  }
   print "RESULT   ";
-  print "TIME (ms)" if $timer;
-  print "\n";
+  print "TIME (ms) or " if $timer;
+  print "COMMENT\n";
   mtr_print_line();
   print "\n";
 }
@@ -490,6 +506,7 @@ sub mtr_warning (@) {
 
 # Print error to screen and then exit
 sub mtr_error (@) {
+  IO::Handle::flush(\*STDOUT) if IS_WINDOWS;
   print STDERR _name(). _timestamp().
     "mysql-test-run: *** ERROR: ". join(" ", @_). "\n";
   if (IS_WINDOWS)

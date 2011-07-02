@@ -50,6 +50,23 @@ extern "C" void unireg_clear(int exit_code)
   DBUG_VOID_RETURN;
 }
 
+/*
+  Wrapper error handler for embedded server to call client/server error 
+  handler based on whether thread is in client/server context
+*/
+
+static void embedded_error_handler(uint error, const char *str, myf MyFlags)
+{
+  DBUG_ENTER("embedded_error_handler");
+
+  /* 
+    If current_thd is NULL, it means restore_global has been called and 
+    thread is in client context, then call client error handler else call 
+    server error handler.
+  */
+  DBUG_RETURN(current_thd ? my_message_sql(error, str, MyFlags):
+              my_message_stderr(error, str, MyFlags));
+}
 
 /*
   Reads error information from the MYSQL_DATA and puts
@@ -106,7 +123,8 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (mysql->status != MYSQL_STATUS_READY)
   {
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
-    return 1;
+    result= 1;
+    goto end;
   }
 
   /* Clear result variables */
@@ -147,6 +165,9 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 #if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
 #endif
+
+end:
+  thd->restore_globals();
   return result;
 }
 
@@ -506,11 +527,12 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   orig_argc= *argcp;
   orig_argv= *argvp;
-  load_defaults("my", (const char **)groups, argcp, argvp);
+  if (load_defaults("my", (const char **)groups, argcp, argvp))
+    return 1;
   defaults_argc= *argcp;
   defaults_argv= *argvp;
-  remaining_argc= argc;
-  remaining_argv= argv;
+  remaining_argc= *argcp;
+  remaining_argv= *argvp;
 
   /* Must be initialized early for comparison of options name */
   system_charset_info= &my_charset_utf8_general_ci;
@@ -544,7 +566,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
     return 1;
   }
 
-  error_handler_hook = my_message_sql;
+  /* 
+    set error_handler_hook to embedded_error_handler wrapper.
+  */
+  error_handler_hook= embedded_error_handler;
 
   acl_error= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -604,7 +629,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag)
   thd->mysql= mysql;
   mysql->server_version= server_version;
   mysql->client_flag= client_flag;
-  mysql->server_capabilities= client_flag;
+  //mysql->server_capabilities= client_flag;
   init_alloc_root(&mysql->field_alloc, 8192, 0);
 }
 
@@ -677,6 +702,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
   strmake(sctx->priv_user, mysql->user,  USERNAME_LENGTH-1);
   sctx->user= my_strdup(mysql->user, MYF(0));
+  sctx->proxy_user[0]= 0;
   sctx->master_access= GLOBAL_ACLS;       // Full rights
   /* Change database if necessary */
   if (!(result= (db && db[0] && mysql_change_db(thd, &db_str, FALSE))))
@@ -715,7 +741,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
 
   memset(thd->scramble, 55, SCRAMBLE_LENGTH); // dummy scramble
   thd->scramble[SCRAMBLE_LENGTH]= 0;
-  strcpy(mysql->scramble, thd->scramble);
+  //strcpy(mysql->scramble, thd->scramble);
 
   if (mysql->passwd && mysql->passwd[0])
   {
@@ -742,8 +768,9 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   return 0;
 
 err:
-  strmake(net->last_error, thd->stmt_da->message(), sizeof(net->last_error)-1);
-  memcpy(net->sqlstate, mysql_errno_to_sqlstate(thd->stmt_da->sql_errno()),
+  strmake(net->last_error, thd->main_da.message(), sizeof(net->last_error)-1);
+  memcpy(net->sqlstate,
+         mysql_errno_to_sqlstate(thd->main_da.sql_errno()),
          sizeof(net->sqlstate)-1);
   return 1;
 }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -480,6 +480,18 @@ ulint
 rec_offs_any_extern(
 /*================*/
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+#ifdef UNIV_BLOB_NULL_DEBUG
+/******************************************************//**
+Determine if the offsets are for a record containing null BLOB pointers.
+@return	first field containing a null BLOB pointer, or NULL if none found */
+UNIV_INLINE
+const byte*
+rec_offs_any_null_extern(
+/*=====================*/
+	const rec_t*	rec,		/*!< in: record */
+	const ulint*	offsets)	/*!< in: rec_get_offsets(rec) */
+	__attribute__((nonnull, warn_unused_result));
+#endif /* UNIV_BLOB_NULL_DEBUG */
 /******************************************************//**
 Returns nonzero if the extern bit is set in nth field of rec.
 @return	nonzero if externally stored */
@@ -600,6 +612,7 @@ ulint
 rec_offs_size(
 /*==========*/
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+#ifdef UNIV_DEBUG
 /**********************************************************//**
 Returns a pointer to the start of the record.
 @return	pointer to start */
@@ -607,7 +620,7 @@ UNIV_INLINE
 byte*
 rec_get_start(
 /*==========*/
-	rec_t*		rec,	/*!< in: pointer to record */
+	const rec_t*	rec,	/*!< in: pointer to record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
 /**********************************************************//**
 Returns a pointer to the end of the record.
@@ -616,8 +629,12 @@ UNIV_INLINE
 byte*
 rec_get_end(
 /*========*/
-	rec_t*		rec,	/*!< in: pointer to record */
+	const rec_t*	rec,	/*!< in: pointer to record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+#else /* UNIV_DEBUG */
+# define rec_get_start(rec, offsets) ((rec) - rec_offs_extra_size(offsets))
+# define rec_get_end(rec, offsets) ((rec) + rec_offs_data_size(offsets))
+#endif /* UNIV_DEBUG */
 /***************************************************************//**
 Copies a physical record to a buffer.
 @return	pointer to the origin of the copy */
@@ -801,12 +818,10 @@ UNIV_INTERN
 void
 rec_print(
 /*======*/
-	FILE*		file,	/*!< in: file where to print */
-	const rec_t*	rec,	/*!< in: physical record */
-	dict_index_t*	index);	/*!< in: record descriptor */
+	FILE*			file,	/*!< in: file where to print */
+	const rec_t*		rec,	/*!< in: physical record */
+	const dict_index_t*	index);	/*!< in: record descriptor */
 #endif /* UNIV_HOTBACKUP */
-
-#define REC_INFO_BITS		6	/* This is single byte bit-field */
 
 /* Maximum lengths for the data in a physical record if the offsets
 are given in one byte (resp. two byte) format. */

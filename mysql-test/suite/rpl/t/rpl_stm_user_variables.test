@@ -43,8 +43,7 @@ CREATE TABLE t1 (`tinyint` TINYINT,
 -- echo #########################################
 -- connection master
 -- echo ## assertion: master and slave tables are in sync
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables=master:t1,slave:t1
 -- source include/diff_tables.inc
 -- connection master
 TRUNCATE t1;
@@ -74,8 +73,7 @@ INSERT INTO t1 VALUES (@positive,
 -- echo #########################################
 -- connection master
 -- echo ## assertion: master and slave tables are in sync
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables=master:t1,slave:t1
 -- source include/diff_tables.inc
 -- connection master
 TRUNCATE t1;
@@ -94,8 +92,7 @@ TRUNCATE t1;
 -- echo #########################################
 -- connection master
 -- echo ## assertion: master and slave tables are in sync
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables=master:t1,slave:t1
 -- source include/diff_tables.inc
 -- connection master
 TRUNCATE t1;
@@ -126,8 +123,7 @@ INSERT INTO t1 VALUES (@negative,
 -- connection master
 
 -- echo ## assertion: master and slave tables are in sync
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables=master:t1,slave:t1
 -- source include/diff_tables.inc
 -- connection master
 TRUNCATE t1;
@@ -145,7 +141,7 @@ DROP TABLE t1;
 # BUG#51426
 #
 #####################################################################
--- source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 -- connection master
 
 CREATE TABLE t1 ( c INT, PRIMARY KEY (c)) Engine=MyISAM;
@@ -162,8 +158,7 @@ INSERT INTO t1 VALUES (@aux) , (@aux1);
 -- sync_slave_with_master
 
 -- echo ## assertion: master and slave tables are in sync
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables=master:t1,slave:t1
 -- source include/diff_tables.inc
 
 --connection master
@@ -172,3 +167,4 @@ DROP TABLE t1;
 
 -- sync_slave_with_master
 
+--source include/rpl_end.inc

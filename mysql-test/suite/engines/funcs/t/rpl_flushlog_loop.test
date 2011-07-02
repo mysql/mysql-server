@@ -41,7 +41,8 @@ sleep 5;
 #
 #  Show status of slave
 #
---let status_items= Relay_Log_File
---source include/show_slave_status.inc
---source include/check_slave_is_running.inc
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 #
+--vertical_results
+SHOW SLAVE STATUS;
 STOP SLAVE;

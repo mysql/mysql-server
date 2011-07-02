@@ -41,8 +41,7 @@ eval ALTER TABLE $table_name RENAME to $orig_table_name;
 --echo # Compare original and recreated tables
 --echo # Recreated table: $table_name
 --echo # Original table: $orig_table_name
-let $diff_table_1 = $table_name;
-let $diff_table_2 = $orig_table_name;
+let $diff_tables = $table_name, $orig_table_name;
 --source include/diff_tables.inc
 --echo # Cleanup
 --remove_file $mysqldumpfile

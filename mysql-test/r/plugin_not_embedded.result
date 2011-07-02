@@ -8,3 +8,5 @@ ERROR 42000: DELETE command denied to user 'bug51770'@'localhost' for table 'plu
 GRANT DELETE ON mysql.plugin TO bug51770@localhost;
 UNINSTALL PLUGIN example;
 DROP USER bug51770@localhost;
+INSTALL PLUGIN example SONAME '../ha_example.so';
+ERROR HY000: No paths allowed for shared library

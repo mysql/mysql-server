@@ -373,6 +373,7 @@ typedef HANDLE	os_file_dir_t;	/*!< directory stream */
 typedef DIR*	os_file_dir_t;	/*!< directory stream */
 #endif
 
+#ifdef __WIN__
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
 @return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
@@ -381,6 +382,7 @@ UNIV_INTERN
 ulint
 os_get_os_version(void);
 /*===================*/
+#endif /* __WIN__ */
 #ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Creates the seek mutexes used in positioned reads and writes. */

@@ -15,6 +15,7 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 connection slave;
 call mtr.add_suppression("Master server does not support semi-sync");
 call mtr.add_suppression("Semi-sync slave .* reply");
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 enable_query_log;
 connection master;
 
@@ -58,7 +59,7 @@ echo [ on master ];
 
 disable_query_log;
 let $value = query_get_value(show variables like 'rpl_semi_sync_master_enabled', Value, 1);
-if (`select '$value' = 'No such row'`)
+if ($value == No such row)
 {
     set sql_log_bin=0;
     eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_SO';
@@ -123,7 +124,7 @@ echo [ on slave ];
 
 disable_query_log;
 let $value= query_get_value(show variables like 'rpl_semi_sync_slave_enabled', Value, 1);
-if (`select '$value' = 'No such row'`)
+if ($value == No such row)
 {
     set sql_log_bin=0;
     eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_SO';
@@ -609,6 +610,7 @@ UNINSTALL PLUGIN rpl_semi_sync_master;
 enable_warnings;
 
 connection slave;
+change master to master_user='root',master_password='';
 source include/start_slave.inc;
 
 connection master;
@@ -618,3 +620,4 @@ sync_slave_with_master;
 connection master;
 drop user rpl@127.0.0.1;
 flush privileges;
+--source include/rpl_end.inc

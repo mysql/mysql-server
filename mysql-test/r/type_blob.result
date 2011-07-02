@@ -975,4 +975,14 @@ SELECT LENGTH(c) FROM t2;
 LENGTH(c)
 65535
 DROP TABLE t1, t2;
+# Bug #52160: crash and inconsistent results when grouping
+#             by a function and column
+CREATE FUNCTION f1() RETURNS TINYBLOB RETURN 1;
+CREATE TABLE t1(a CHAR(1));
+INSERT INTO t1 VALUES ('0'), ('0');
+SELECT COUNT(*) FROM t1 GROUP BY f1(), a;
+COUNT(*)
+2
+DROP FUNCTION f1;
+DROP TABLE t1;
 End of 5.1 tests

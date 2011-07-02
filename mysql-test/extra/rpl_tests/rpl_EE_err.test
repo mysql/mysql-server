@@ -9,10 +9,6 @@
 # check if START SLAVE, RESET SLAVE, CHANGE MASTER reset Last_slave_error and
 # Last_slave_errno in SHOW SLAVE STATUS (1st and 3rd commands did not: bug 986).
 ####################################
-# Change Author: JBM
-# Change Date: 2006-01-11
-# Change: Split test per lars review
-####################################
 #"REQUIREMENT: A master DROP TABLE on a table with non-existing MYI
 # file must be correctly replicated to the slave"
 ####################################
@@ -23,8 +19,5 @@ flush tables;
 let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/test/t1.MYI ;
 drop table if exists t1;
-save_master_pos;
-connection slave;
-sync_with_master;
 
-# End of 4.1 tests
+--source include/rpl_end.inc

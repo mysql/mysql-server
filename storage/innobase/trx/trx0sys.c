@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,6 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0purge.h"
 #include "log0log.h"
 #include "log0recv.h"
@@ -946,6 +947,31 @@ trx_sysf_create(
 }
 
 /*****************************************************************//**
+Compare two trx_rseg_t instances on last_trx_no. */
+static
+int
+trx_rseg_compare_last_trx_no(
+/*=========================*/
+	const void*	p1,		/*!< in: elem to compare */
+	const void*	p2)		/*!< in: elem to compare */
+{
+	ib_int64_t	cmp;
+
+	const rseg_queue_t*	rseg_q1 = (const rseg_queue_t*) p1;
+	const rseg_queue_t*	rseg_q2 = (const rseg_queue_t*) p2;
+
+	cmp = rseg_q1->trx_no - rseg_q2->trx_no;
+
+	if (cmp < 0) {
+		return(-1);
+	} else if (cmp > 0) {
+		return(1);
+	}
+
+	return(0);
+}
+
+/*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started. */
 UNIV_INTERN
@@ -958,6 +984,7 @@ trx_sys_init_at_db_start(void)
 	const char*	unit		= "";
 	trx_t*		trx;
 	mtr_t		mtr;
+	ib_bh_t*	ib_bh;
 
 	mtr_start(&mtr);
 
@@ -965,11 +992,19 @@ trx_sys_init_at_db_start(void)
 
 	mutex_enter(&kernel_mutex);
 
-	trx_sys = mem_alloc(sizeof(trx_sys_t));
+	/* We create the min binary heap here and pass ownership to
+	purge when we init the purge sub-system. Purge is responsible
+	for freeing the binary heap. */
+
+	ib_bh = ib_bh_create(
+		trx_rseg_compare_last_trx_no,
+		sizeof(rseg_queue_t), TRX_SYS_N_RSEGS);
+
+	trx_sys = mem_zalloc(sizeof(*trx_sys));
 
 	sys_header = trx_sysf_get(&mtr);
 
-	trx_rseg_list_and_array_init(sys_header, &mtr);
+	trx_rseg_list_and_array_init(sys_header, ib_bh, &mtr);
 
 	trx_sys->latest_rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
 
@@ -1023,7 +1058,8 @@ trx_sys_init_at_db_start(void)
 
 	UT_LIST_INIT(trx_sys->view_list);
 
-	trx_purge_sys_create();
+	/* Transfer ownership to purge. */
+	trx_purge_sys_create(ib_bh);
 
 	mutex_exit(&kernel_mutex);
 
@@ -1160,7 +1196,7 @@ trx_sys_file_format_max_check(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: highest supported file format is %s.\n",
+		" InnoDB: highest supported file format is %s.\n",
 		trx_sys_file_format_id_to_name(DICT_TF_FORMAT_MAX));
 
 	if (format_id > DICT_TF_FORMAT_MAX) {
@@ -1169,7 +1205,7 @@ trx_sys_file_format_max_check(
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: %s: the system tablespace is in a file "
+			" InnoDB: %s: the system tablespace is in a file "
 			"format that this version doesn't support - %s\n",
 			((max_format_id <= DICT_TF_FORMAT_MAX)
 				? "Error" : "Warning"),
@@ -1582,10 +1618,12 @@ void
 trx_sys_close(void)
 /*===============*/
 {
+	trx_t*		trx;
 	trx_rseg_t*	rseg;
 	read_view_t*	view;
 
 	ut_ad(trx_sys != NULL);
+	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
 	/* Check that all read views are closed except read view owned
 	by a purge. */
@@ -1616,6 +1654,13 @@ trx_sys_close(void)
 	mutex_free(&trx_doublewrite->mutex);
 	mem_free(trx_doublewrite);
 	trx_doublewrite = NULL;
+
+	/* Only prepared transactions may be left in the system. Free them. */
+	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == trx_n_prepared);
+
+	while ((trx = UT_LIST_GET_FIRST(trx_sys->trx_list)) != NULL) {
+		trx_free_prepared(trx);
+	}
 
 	/* There can't be any active transactions. */
 	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);

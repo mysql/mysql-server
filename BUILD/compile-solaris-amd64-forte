@@ -10,6 +10,9 @@
 # After installing, add /opt/SUNWspro/bin to your $PATH
 
 
+gmake -k maintainer-clean || true
+/bin/rm -f */.deps/*.P config.cache
+ 
 path=`dirname $0`
 . "$path/SETUP.sh"
 

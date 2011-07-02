@@ -617,7 +617,7 @@ rl_search_history (direction, invoking_key)
      int direction, invoking_key __attribute__((unused));
 {
   _rl_search_cxt *cxt;		/* local for now, but saved globally */
-  int c, r;
+  int r;
 
   RL_SETSTATE(RL_STATE_ISEARCH);
   cxt = _rl_isearch_init (direction);
@@ -632,7 +632,7 @@ rl_search_history (direction, invoking_key)
   r = -1;
   for (;;)
     {
-      c = _rl_search_getchar (cxt);
+      _rl_search_getchar (cxt);
       /* We might want to handle EOF here (c == 0) */
       r = _rl_isearch_dispatch (cxt, cxt->lastc);
       if (r <= 0)
@@ -655,9 +655,9 @@ int
 _rl_isearch_callback (cxt)
      _rl_search_cxt *cxt;
 {
-  int c, r;
+  int r;
 
-  c = _rl_search_getchar (cxt);
+  _rl_search_getchar (cxt);
   /* We might want to handle EOF here */
   r = _rl_isearch_dispatch (cxt, cxt->lastc);
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB & Sasha, 2008-2009 Sun Microsystems, Inc
+/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "rpl_filter.h"
 #include <my_dir.h>
 #include "rpl_handler.h"
+#include "debug_sync.h"
 
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
@@ -675,8 +676,11 @@ impossible position";
        file */
     if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
       goto err;
+
+    my_off_t prev_pos= pos;
     while (!(error = Log_event::read_log_event(&log, packet, log_lock)))
     {
+      prev_pos= my_b_tell(&log);
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
       {
@@ -693,6 +697,19 @@ impossible position";
         coord->pos= uint4korr(packet->ptr() + ev_offset + LOG_POS_OFFSET);
 
       event_type= (Log_event_type)((*packet)[LOG_EVENT_OFFSET+ev_offset]);
+      DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
+                      {
+                        if (event_type == XID_EVENT)
+                        {
+                          net_flush(net);
+                          const char act[]=
+                            "now "
+                            "wait_for signal.continue";
+                          DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                          DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                             STRING_WITH_LEN(act)));
+                        }
+                      });
       if (event_type == FORMAT_DESCRIPTION_EVENT)
       {
         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
@@ -717,6 +734,14 @@ impossible position";
 	my_errno= ER_UNKNOWN_ERROR;
 	goto err;
       }
+
+      DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
+                      {
+                        if (event_type == XID_EVENT)
+                        {
+                          net_flush(net);
+                        }
+                      });
 
       DBUG_PRINT("info", ("log event code %d", event_type));
       if (event_type == LOAD_EVENT)
@@ -745,8 +770,13 @@ impossible position";
       here we were reading binlog that was not closed properly (as a result
       of a crash ?). treat any corruption as EOF
     */
-    if (binlog_can_be_corrupted && error != LOG_READ_MEM)
+    if (binlog_can_be_corrupted &&
+        error != LOG_READ_MEM && error != LOG_READ_EOF)
+    {
+      my_b_seek(&log, prev_pos);
       error=LOG_READ_EOF;
+    }
+
     /*
       TODO: now that we are logging the offset, check to make sure
       the recorded offset and the actual match.
@@ -1460,7 +1490,7 @@ bool change_master(THD* thd, Master_info* mi)
     get_dynamic(&lex_mi->repl_ignore_server_ids, (uchar*) &s_id, i);
     if (s_id == ::server_id && replicate_same_server_id)
     {
-      my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), s_id);
+      my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), static_cast<int>(s_id));
       ret= TRUE;
       goto err;
     }
@@ -1662,23 +1692,6 @@ int reset_master(THD* thd)
     return 1;
   RUN_HOOK(binlog_transmit, after_reset_master, (thd, 0 /* flags */));
   return 0;
-}
-
-int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
-		   const char* log_file_name2, ulonglong log_pos2)
-{
-  int res;
-  size_t log_file_name1_len=  strlen(log_file_name1);
-  size_t log_file_name2_len=  strlen(log_file_name2);
-
-  //  We assume that both log names match up to '.'
-  if (log_file_name1_len == log_file_name2_len)
-  {
-    if ((res= strcmp(log_file_name1, log_file_name2)))
-      return res;
-    return (log_pos1 < log_pos2) ? -1 : (log_pos1 == log_pos2) ? 0 : 1;
-  }
-  return ((log_file_name1_len < log_file_name2_len) ? -1 : 1);
 }
 
 
@@ -1925,7 +1938,7 @@ bool show_binlogs(THD* thd)
 
   if (!mysql_bin_log.is_open())
   {
-    my_message(ER_NO_BINARY_LOGGING, ER(ER_NO_BINARY_LOGGING), MYF(0));
+    my_error(ER_NO_BINARY_LOGGING, MYF(0));
     DBUG_RETURN(TRUE);
   }
 

@@ -6,8 +6,9 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 }
 
 #
-# Check if the variable HA_EXAMPLE_SO is set
+# Check if the variable EXAMPLE_PLUGIN is set
 #
-if (`SELECT LENGTH('$HA_EXAMPLE_SO') = 0`) {
+if (!$HA_EXAMPLE_SO) {
   --skip Need example plugin
 }
+

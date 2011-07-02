@@ -33,11 +33,11 @@ INSERT INTO tt_2(ddl_case) VALUES(0);
 --echo #########################################################################
 SET AUTOCOMMIT= 0;
 let $ddl_cases= 41;
-while (`SELECT $ddl_cases >= 1`)
+while ($ddl_cases >= 1)
 {
   --echo -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-  let $in_temporary= "no";
-  let $ok= "yes";
+  let $in_temporary= no;
+  let $ok= yes;
   #
   # In SBR and MIXED modes, the commit event is usually the third event in the
   # binary log:
@@ -76,7 +76,7 @@ while (`SELECT $ddl_cases >= 1`)
   # 6: ROW EVENT
   # 7: COMMIT
   #
-  if (`select '$engine' = 'NDB'`)
+  if ($engine == NDB)
   {
     let $commit_event_row_number= 7;
   }
@@ -84,18 +84,18 @@ while (`SELECT $ddl_cases >= 1`)
   let $first_binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1);
   --enable_query_log
   eval INSERT INTO tt_1(ddl_case) VALUES ($ddl_cases);
-  if (`SELECT $ddl_cases = 41`)
+  if ($ddl_cases == 41)
   {
     let $cmd= LOAD INDEX INTO CACHE nt_1 IGNORE LEAVES;
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       # This seems to be related to epochs.
       # We need to check this against an updated version or avoid it.
-      let $ok= "no";
+      let $ok= no;
       let $commit_event_row_number= 6;
     }
   }
-  if (`SELECT $ddl_cases = 40`)
+  if ($ddl_cases == 40)
   {
     let $cmd= LOAD INDEX INTO CACHE tt_1, tt_2 IGNORE LEAVES;
     #
@@ -109,16 +109,16 @@ while (`SELECT $ddl_cases >= 1`)
     # 5: ROW EVENT
     # 6: COMMIT
     #
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       let $commit_event_row_number= 6;
     }
   }
-  if (`SELECT $ddl_cases = 39`)
+  if ($ddl_cases == 39)
   {
     let $cmd= ANALYZE TABLE nt_1;
   }
-  if (`SELECT $ddl_cases = 38`)
+  if ($ddl_cases == 38)
   {
     let $cmd= CHECK TABLE nt_1;
     #
@@ -132,20 +132,20 @@ while (`SELECT $ddl_cases >= 1`)
     # 5: ROW EVENT
     # 6: COMMIT
     #
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       let $commit_event_row_number= 6;
     }
   }
-  if (`SELECT $ddl_cases = 37`)
+  if ($ddl_cases == 37)
   {
     let $cmd= OPTIMIZE TABLE nt_1;
   }
-  if (`SELECT $ddl_cases = 36`)
+  if ($ddl_cases == 36)
   {
     let $cmd= REPAIR TABLE nt_1;
   }
-  if (`SELECT $ddl_cases = 35`)
+  if ($ddl_cases == 35)
   {
     let $cmd= LOCK TABLES tt_1 WRITE;
     #
@@ -159,12 +159,12 @@ while (`SELECT $ddl_cases >= 1`)
     # 5: ROW EVENT
     # 6: COMMIT
     #
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       let $commit_event_row_number= 6;
     }
   }
-  if (`SELECT $ddl_cases = 34`)
+  if ($ddl_cases == 34)
   {
     let $cmd= UNLOCK TABLES;
     #
@@ -178,20 +178,20 @@ while (`SELECT $ddl_cases >= 1`)
     # 5: ROW EVENT
     # 6: COMMIT
     #
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       let $commit_event_row_number= 6;
     }
   }
-  if (`SELECT $ddl_cases = 33`)
+  if ($ddl_cases == 33)
   {
     let $cmd= CREATE USER 'user'@'localhost';
   }
-  if (`SELECT $ddl_cases = 32`)
+  if ($ddl_cases == 32)
   {
     let $cmd= GRANT ALL ON *.* TO 'user'@'localhost';
   }
-  if (`SELECT $ddl_cases = 31`)
+  if ($ddl_cases == 31)
   {
     let $cmd= SET PASSWORD FOR 'user'@'localhost' = PASSWORD('newpass');
     #
@@ -231,35 +231,35 @@ while (`SELECT $ddl_cases >= 1`)
       let $commit_event_row_number= 7;
     }
   }
-  if (`SELECT $ddl_cases = 30`)
+  if ($ddl_cases == 30)
   {
     let $cmd= REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user'@'localhost';
   }
-  if (`SELECT $ddl_cases = 29`)
+  if ($ddl_cases == 29)
   {
     let $cmd= RENAME USER 'user'@'localhost' TO 'user_new'@'localhost';
   }
-  if (`SELECT $ddl_cases = 28`)
+  if ($ddl_cases == 28)
   {
     let $cmd= DROP USER 'user_new'@'localhost';
   }
-  if (`SELECT $ddl_cases = 27`)
+  if ($ddl_cases == 27)
   {
     let $cmd= CREATE EVENT evt ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT * FROM tt_1;
   }
-  if (`SELECT $ddl_cases = 26`)
+  if ($ddl_cases == 26)
   {
     let $cmd= ALTER EVENT evt COMMENT 'evt';
   }
-  if (`SELECT $ddl_cases = 25`)
+  if ($ddl_cases == 25)
   {
     let $cmd= DROP EVENT evt;
   }
-  if (`SELECT $ddl_cases = 24`)
+  if ($ddl_cases == 24)
   {
     let $cmd= CREATE TRIGGER tr AFTER INSERT ON tt_1 FOR EACH ROW UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case;
   }
-  if (`SELECT $ddl_cases = 23`)
+  if ($ddl_cases == 23)
   {
     let $cmd= DROP TRIGGER tr;
     #
@@ -277,43 +277,43 @@ while (`SELECT $ddl_cases >= 1`)
       let $commit_event_row_number= 5;
     }
   }
-  if (`SELECT $ddl_cases = 22`)
+  if ($ddl_cases == 22)
   {
     let $cmd= CREATE FUNCTION fc () RETURNS VARCHAR(64) RETURN "fc";
   }
-  if (`SELECT $ddl_cases = 21`)
+  if ($ddl_cases == 21)
   {
     let $cmd= ALTER FUNCTION fc COMMENT 'fc';
   }
-  if (`SELECT $ddl_cases = 20`)
+  if ($ddl_cases == 20)
   {
     let $cmd= DROP FUNCTION fc;
   }
-  if (`SELECT $ddl_cases = 19`)
+  if ($ddl_cases == 19)
   {
     let $cmd= CREATE PROCEDURE pc () UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case;
   }
-  if (`SELECT $ddl_cases = 18`)
+  if ($ddl_cases == 18)
   {
     let $cmd= ALTER PROCEDURE pc COMMENT 'pc';
   }
-  if (`SELECT $ddl_cases = 17`)
+  if ($ddl_cases == 17)
   {
     let $cmd= DROP PROCEDURE pc;
   }
-  if (`SELECT $ddl_cases = 16`)
+  if ($ddl_cases == 16)
   {
     let $cmd= CREATE VIEW v AS SELECT * FROM tt_1;
   }
-  if (`SELECT $ddl_cases = 15`)
+  if ($ddl_cases == 15)
   {
     let $cmd= ALTER VIEW v AS SELECT * FROM tt_1;
   }
-  if (`SELECT $ddl_cases = 14`)
+  if ($ddl_cases == 14)
   {
     let $cmd= DROP VIEW v;
   }
-  if (`SELECT $ddl_cases = 13`)
+  if ($ddl_cases == 13)
   {
     let $cmd= CREATE INDEX ix ON tt_1(ddl_case);
     #
@@ -328,12 +328,12 @@ while (`SELECT $ddl_cases >= 1`)
     # 6: COMMIT
     # 7: DDL EVENT which triggered the previous commmit.
     #
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       let $commit_event_row_number= 6;
     }
   }
-  if (`SELECT $ddl_cases = 12`)
+  if ($ddl_cases == 12)
   {
     let $cmd= DROP INDEX ix ON tt_1;
     #
@@ -348,15 +348,15 @@ while (`SELECT $ddl_cases >= 1`)
     # 6: COMMIT
     # 7: DDL EVENT which triggered the previous commmit.
     #
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       let $commit_event_row_number= 6;
     }
   }
-  if (`SELECT $ddl_cases = 11`)
+  if ($ddl_cases == 11)
   {
     let $cmd= CREATE TEMPORARY TABLE tt_xx (a int);
-    let $in_temporary= "yes";
+    let $in_temporary= yes;
     # In SBR and MIXED modes, the DDL statement is written to the binary log but
     # does not commit the current transaction.
     #
@@ -411,7 +411,7 @@ while (`SELECT $ddl_cases >= 1`)
       let $commit_event_row_number= 9;
     }
   }
-  if (`SELECT $ddl_cases = 10`)
+  if ($ddl_cases == 10)
   {
     let $cmd= ALTER TABLE tt_xx ADD COLUMN (b int);
     #
@@ -438,12 +438,12 @@ while (`SELECT $ddl_cases >= 1`)
     # 5: ROW EVENT
     # 6: COMMIT
     #
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       let $commit_event_row_number= 6;
     }
   }
-  if (`SELECT $ddl_cases = 9`)
+  if ($ddl_cases == 9)
   {
     let $cmd= ALTER TABLE tt_xx RENAME new_tt_xx;
     #
@@ -470,15 +470,15 @@ while (`SELECT $ddl_cases >= 1`)
     # 5: ROW EVENT
     # 6: COMMIT
     #
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       let $commit_event_row_number= 6;
     }
   }
-  if (`SELECT $ddl_cases = 8`)
+  if ($ddl_cases == 8)
   {
     let $cmd= DROP TEMPORARY TABLE IF EXISTS new_tt_xx;
-    let $in_temporary= "yes";
+    let $in_temporary= yes;
     #
     # In SBR and MIXED modes, the DDL statement is written to the binary log
     # but does not commit the current transaction:
@@ -528,7 +528,7 @@ while (`SELECT $ddl_cases >= 1`)
     # 8: ROW EVENT
     # 9: COMMIT
     #
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       let $commit_event_row_number= 9;
     }
@@ -551,27 +551,27 @@ while (`SELECT $ddl_cases >= 1`)
       let $commit_event_row_number= 9;
     }
   }
-  if (`SELECT $ddl_cases = 7`)
+  if ($ddl_cases == 7)
   {
     let $cmd= CREATE TABLE tt_xx (a int);
   }
-  if (`SELECT $ddl_cases = 6`)
+  if ($ddl_cases == 6)
   {
     let $cmd= ALTER TABLE tt_xx ADD COLUMN (b int);
   }
-  if (`SELECT $ddl_cases = 5`)
+  if ($ddl_cases == 5)
   {
     let $cmd= RENAME TABLE tt_xx TO new_tt_xx;
   }
-  if (`SELECT $ddl_cases = 4`)
+  if ($ddl_cases == 4)
   {
     let $cmd= TRUNCATE TABLE new_tt_xx;
   }
-  if (`SELECT $ddl_cases = 3`)
+  if ($ddl_cases == 3)
   {
     let $cmd= DROP TABLE IF EXISTS tt_xx, new_tt_xx;
   }
-  if (`SELECT $ddl_cases = 2`)
+  if ($ddl_cases == 2)
   {
     let $cmd= CREATE DATABASE db;
     #
@@ -586,12 +586,12 @@ while (`SELECT $ddl_cases >= 1`)
     # 6: COMMIT
     # 7: DDL EVENT which triggered the previous commmit.
     #
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       let $commit_event_row_number= 6;
     }
   }
-  if (`SELECT $ddl_cases = 1`)
+  if ($ddl_cases == 1)
   {
     let $cmd= DROP DATABASE IF EXISTS db;
     #
@@ -606,7 +606,7 @@ while (`SELECT $ddl_cases >= 1`)
     # 6: COMMIT
     # 7: DDL EVENT which triggered the previous commmit.
     #
-    if (`SELECT '$engine' = 'NDB'`)
+    if ($engine == NDB)
     {
       let $commit_event_row_number= 6;
     }
@@ -618,14 +618,14 @@ while (`SELECT $ddl_cases >= 1`)
   # commit. The flag in_temporary is used to avoid aborting the test in such
   # cases. Thus we force the commit.
   #
-  if (`SELECT $in_temporary = "yes"`)
+  if ($in_temporary == yes)
   {
     --eval COMMIT
   }
   let $event_commit= query_get_value("SHOW BINLOG EVENTS FROM $first_binlog_position", Info, $commit_event_row_number);
   if (`SELECT SUBSTRING("$event_commit",1,6) != "COMMIT"`)
   {
-    if (`SELECT $ok = "yes"`)
+    if ($ok == yes)
     {
       --echo it *does not* commit the current transaction.
       --echo $cmd
@@ -649,8 +649,7 @@ SET AUTOCOMMIT= 1;
 --echo ###################################################################################
 --sync_slave_with_master
 
---let $diff_table_1= master:test.tt_1
---let $diff_table_2= slave:test.tt_1
+--let $diff_tables= master:tt_1,slave:tt_1
 --source include/diff_tables.inc
 
 --echo ###################################################################################

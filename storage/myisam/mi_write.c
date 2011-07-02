@@ -60,7 +60,7 @@ int mi_write(MI_INFO *info, uchar *record)
   }
   if (_mi_readinfo(info,F_WRLCK,1))
     DBUG_RETURN(my_errno);
-  dont_break();				/* Dont allow SIGHUP or SIGINT */
+
   filepos= ((share->state.dellink != HA_OFFSET_ERROR &&
              !info->append_insert_at_end) ?
 	    share->state.dellink :
@@ -169,7 +169,6 @@ int mi_write(MI_INFO *info, uchar *record)
   if (share->is_log_table)
     mi_update_status((void*) info);
 
-  allow_break();				/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 
 err:
@@ -205,7 +204,7 @@ err:
         else
 	{
 	  uint key_length=_mi_make_key(info,i,buff,record,filepos);
-	  if (_mi_ck_delete(info,i,buff,key_length))
+	  if (share->keyinfo[i].ck_delete(info, i, buff, key_length))
 	  {
 	    if (local_lock_tree)
               mysql_rwlock_unlock(&share->key_root_lock[i]);
@@ -228,7 +227,6 @@ err2:
   save_errno=my_errno;
   myisam_log_record(MI_LOG_WRITE,info,record,filepos,my_errno);
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
-  allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(my_errno=save_errno);
 } /* mi_write */
 

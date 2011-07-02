@@ -5,20 +5,18 @@
 --source include/have_log_bin.inc
 --source include/not_embedded.inc
 
-connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
-connect (master1,127.0.0.1,root,,test,$MASTER_MYPORT,);
-connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
-connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
 
-connection slave;
-
---replace_result $MASTER_MYPORT MASTER_MYPORT
-eval CHANGE MASTER TO MASTER_USER='root',
-                      MASTER_CONNECT_RETRY=1,
-                      MASTER_HOST='127.0.0.1',
-                      MASTER_PORT=$MASTER_MYPORT;
+--connection slave
 START SLAVE;
+# Why 12???
+call mtr.add_suppression("Slave SQL.*Unable to use slave.s temporary directory.* Error_code: 12");
+--let $slave_sql_errno= 12
+source include/wait_for_slave_sql_error.inc;
 
-source include/wait_for_slave_sql_to_stop.inc;
-let $errno=query_get_value("show slave status", Last_SQL_Errno, 1);
-echo $errno;
+--source include/stop_slave_io.inc
+RESET SLAVE;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

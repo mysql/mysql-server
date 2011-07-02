@@ -1,4 +1,4 @@
-/* Copyright 2002-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
@@ -237,7 +237,6 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_EVENTS:
   case SQLCOM_SHOW_KEYS:
   case SQLCOM_SHOW_MASTER_STAT:
-  case SQLCOM_SHOW_NEW_MASTER:
   case SQLCOM_SHOW_OPEN_TABLES:
   case SQLCOM_SHOW_PRIVILEGES:
   case SQLCOM_SHOW_PROCESSLIST:
@@ -551,7 +550,7 @@ sp_head::operator delete(void *ptr, size_t size) throw()
 
 
 sp_head::sp_head()
-  :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
+  :Query_arena(&main_mem_root, STMT_INITIALIZED_FOR_SP),
    m_flags(0),
    m_sp_cache_version(0),
    unsafe_flags(0),
@@ -1069,7 +1068,7 @@ void sp_head::recursion_level_error(THD *thd)
   if (m_type == TYPE_ENUM_PROCEDURE)
   {
     my_error(ER_SP_RECURSION_LIMIT, MYF(0),
-             thd->variables.max_sp_recursion_depth,
+             static_cast<int>(thd->variables.max_sp_recursion_depth),
              m_name.str);
   }
   else
@@ -1178,10 +1177,17 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 /**
   Execute the routine. The main instruction jump loop is there.
   Assume the parameters already set.
+
+  @param thd                  Thread context.
+  @param merge_da_on_success  Flag specifying if Warning Info should be
+                              propagated to the caller on Completion
+                              Condition or not.
+
   @todo
     - Will write this SP statement into binlog separately
     (TODO: consider changing the condition to "not inside event union")
 
+  @return Error status.
   @retval
     FALSE  on success
   @retval
@@ -1189,7 +1195,7 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 */
 
 bool
-sp_head::execute(THD *thd)
+sp_head::execute(THD *thd, bool merge_da_on_success)
 {
   DBUG_ENTER("sp_head::execute");
   char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
@@ -1204,7 +1210,7 @@ sp_head::execute(THD *thd)
   Query_arena *old_arena;
   /* per-instruction arena */
   MEM_ROOT execute_mem_root;
-  Query_arena execute_arena(&execute_mem_root, INITIALIZED_FOR_SP),
+  Query_arena execute_arena(&execute_mem_root, STMT_INITIALIZED_FOR_SP),
               backup_arena;
   query_id_t old_query_id;
   TABLE *old_derived_tables;
@@ -1213,9 +1219,33 @@ sp_head::execute(THD *thd)
   String old_packet;
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
-  Warning_info *saved_warning_info, warning_info(thd->warning_info->warn_id());
+  Warning_info *saved_warning_info;
+  Warning_info warning_info(thd->warning_info->warn_id(), false);
 
-  /* Use some extra margin for possible SP recursion and functions */
+  /*
+    Just reporting a stack overrun error
+    (@sa check_stack_overrun()) requires stack memory for error
+    message buffer. Thus, we have to put the below check
+    relatively close to the beginning of the execution stack,
+    where available stack margin is still big. As long as the check
+    has to be fairly high up the call stack, the amount of memory
+    we "book" for has to stay fairly high as well, and hence
+    not very accurate. The number below has been calculated
+    by trial and error, and reflects the amount of memory necessary
+    to execute a single stored procedure instruction, be it either
+    an SQL statement, or, heaviest of all, a CALL, which involves
+    parsing and loading of another stored procedure into the cache
+    (@sa db_load_routine() and Bug#10100).
+    At the time of measuring, a recursive SP invocation required
+    3232 bytes of stack on 32 bit Linux, 6016 bytes on 64 bit Mac
+    and 11152 on 64 bit Solaris sparc.
+    The same with db_load_routine() required circa 7k bytes and
+    14k bytes accordingly. Hence, here we book the stack with some
+    reasonable margin.
+
+    Reverting back to 8 * STACK_MIN_SIZE until further fix.
+    8 * STACK_MIN_SIZE is required on some exotic platforms.
+  */
   if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (uchar*)&old_packet))
     DBUG_RETURN(TRUE);
 
@@ -1461,10 +1491,17 @@ sp_head::execute(THD *thd)
   thd->m_reprepare_observer= save_reprepare_observer;
 
   thd->stmt_arena= old_arena;
-  state= EXECUTED;
+  state= STMT_EXECUTED;
 
-  /* Restore the caller's original warning information area. */
-  saved_warning_info->merge_with_routine_info(thd, thd->warning_info);
+  /*
+    Restore the caller's original warning information area:
+      - warnings generated during trigger execution should not be
+        propagated to the caller on success;
+      - if there was an exception during execution, warning info should be
+        propagated to the caller in any case.
+  */
+  if (err_status || merge_da_on_success)
+    saved_warning_info->merge_with_routine_info(thd, thd->warning_info);
   thd->warning_info= saved_warning_info;
 
  done:
@@ -1478,7 +1515,7 @@ sp_head::execute(THD *thd)
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
   */
-  if (cur_db_changed && !thd->killed)
+  if (cur_db_changed && thd->killed != THD::KILL_CONNECTION)
   {
     /*
       Force switching back to the saved current database, because it may be
@@ -1612,7 +1649,7 @@ sp_head::execute_trigger(THD *thd,
   sp_rcontext *nctx = NULL;
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
 
   DBUG_ENTER("sp_head::execute_trigger");
@@ -1686,7 +1723,7 @@ sp_head::execute_trigger(THD *thd,
 
   thd->spcont= nctx;
 
-  err_status= execute(thd);
+  err_status= execute(thd, FALSE);
 
 err_with_cleanup:
   thd->restore_active_arena(&call_arena, &backup_arena);
@@ -1753,7 +1790,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
@@ -1903,7 +1940,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   */
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  err_status= execute(thd);
+  err_status= execute(thd, TRUE);
 
   thd->restore_active_arena(&call_arena, &backup_arena);
 
@@ -2109,6 +2146,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
     if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
       thd->mdl_context.release_transactional_locks();
+    else if (! thd->in_sub_stmt)
+      thd->mdl_context.release_statement_locks();
 
     thd->rollback_item_tree_changes();
 
@@ -2137,7 +2176,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 #endif
 
   if (!err_status)
-    err_status= execute(thd);
+    err_status= execute(thd, TRUE);
 
   if (save_log_general)
     thd->variables.option_bits &= ~OPTION_LOG_OFF;
@@ -2509,9 +2548,24 @@ void
 sp_head::restore_thd_mem_root(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_thd_mem_root");
-  Item *flist= free_list;       // The old list
+
+  /*
+   In some cases our parser detects a syntax error and calls
+   LEX::cleanup_lex_after_parse_error() method only after
+   finishing parsing the whole routine. In such a situation
+   sp_head::restore_thd_mem_root() will be called twice - the
+   first time as part of normal parsing process and the second
+   time by cleanup_lex_after_parse_error().
+   To avoid ruining active arena/mem_root state in this case we
+   skip restoration of old arena/mem_root if this method has been
+   already called for this routine.
+  */
+  if (!m_thd)
+    DBUG_VOID_RETURN;
+
+  Item *flist= free_list;	// The old list
   set_query_arena(thd);         // Get new free_list and mem_root
-  state= INITIALIZED_FOR_SP;
+  state= STMT_INITIALIZED_FOR_SP;
 
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
@@ -2946,6 +3000,8 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
     if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
       thd->mdl_context.release_transactional_locks();
+    else if (! thd->in_sub_stmt)
+      thd->mdl_context.release_statement_locks();
   }
 
   if (m_lex->query_tables_own_last)
@@ -2973,7 +3029,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
       (thd->stmt_da->sql_errno() != ER_CANT_REOPEN_TABLE &&
        thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE &&
        thd->stmt_da->sql_errno() != ER_UPDATE_TABLE_USED))
-    thd->stmt_arena->state= Query_arena::EXECUTED;
+    thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
 
   /*
     Merge here with the saved parent's values
@@ -3033,14 +3089,11 @@ int sp_instr::exec_core(THD *thd, uint *nextp)
 int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
-  char *query;
-  uint32 query_length;
   int res;
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
 
-  query= thd->query();
-  query_length= thd->query_length();
+  const CSET_STRING query_backup= thd->query_string;
 #if defined(ENABLED_PROFILING)
   /* This s-p instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
@@ -3061,7 +3114,12 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
       if (thd->stmt_da->is_eof())
+      {
+        /* Finalize server status flags after executing a statement. */
+        thd->update_server_status();
+
         thd->protocol->end_statement();
+      }
 
       query_cache_end_of_result(thd);
 
@@ -3070,7 +3128,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     }
     else
       *nextp= m_ip+1;
-    thd->set_query(query, query_length);
+    thd->set_query(query_backup);
     thd->query_name_consts= 0;
 
     if (!thd->is_error())
@@ -3118,7 +3176,7 @@ sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   MYSQL_QUERY_EXEC_START(thd->query(),
                          thd->thread_id,
                          (char *) (thd->db ? thd->db : ""),
-                         thd->security_ctx->priv_user,
+                         &thd->security_ctx->priv_user[0],
                          (char *)thd->security_ctx->host_or_ip,
                          3);
   int res= mysql_execute_command(thd);
@@ -4141,7 +4199,8 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       */
       table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                               table->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                              MDL_SHARED_WRITE : MDL_SHARED_READ);
+                              MDL_SHARED_WRITE : MDL_SHARED_READ,
+                              MDL_TRANSACTION);
 
       /* Everyting else should be zeroed */
 
@@ -4185,7 +4244,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   table->select_lex= lex->current_select;
   table->cacheable_table= 1;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                          mdl_type);
+                          mdl_type, MDL_TRANSACTION);
 
   lex->add_to_query_tables(table);
   return table;

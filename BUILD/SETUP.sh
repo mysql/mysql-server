@@ -1,5 +1,22 @@
 #!/bin/sh
 
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; version 2
+# of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU Library General Public
+# License along with this library; if not, write to the Free
+# Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+# MA 02111-1307, USA
+
 ########################################################################
 
 get_key_value()
@@ -14,6 +31,7 @@ Usage: $0 [-h|-n] [configure-options]
   -h, --help              Show this help message.
   -n, --just-print        Don't actually run any commands; just print them.
   -c, --just-configure    Stop after running configure.
+  --with-debug=full       Build with full debug(no optimizations, keep call stack).
   --warning-mode=[old|pedantic|maintainer]
                           Influences the debug flags. Old is default.
   --prefix=path           Build with prefix 'path'.
@@ -29,6 +47,8 @@ parse_options()
     case "$1" in
     --prefix=*)
       prefix=`get_key_value "$1"`;;
+    --with-debug=full)
+      full_debug="=full";;
     --warning-mode=*)
       warning_mode=`get_key_value "$1"`;;
     --extra-flags=*)
@@ -67,6 +87,7 @@ just_print=
 just_configure=
 warning_mode=
 maintainer_mode=
+full_debug=
 
 parse_options "$@"
 
@@ -119,7 +140,7 @@ else
 # C++ warnings
   cxx_warnings="$warnings -Wno-unused-parameter"
 # cxx_warnings="$cxx_warnings -Woverloaded-virtual -Wsign-promo"
-  cxx_warnings="$cxx_warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
+  cxx_warnings="$cxx_warnings -Wnon-virtual-dtor"
   debug_extra_cflags="-O0 -g3 -gdwarf-2"
 fi
 
@@ -145,7 +166,11 @@ base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 fast_cflags="-O3 -fno-omit-frame-pointer"
 
 debug_configs="--with-debug"
-debug_cflags="$debug_cflags $debug_extra_cflags"
+if [ -z "$full_debug" ]
+then
+  debug_cflags="$debug_cflags $debug_extra_cflags"
+fi
+
 
 static_link="--with-mysqld-ldflags=-all-static "
 static_link="$static_link --with-client-ldflags=-all-static"
@@ -237,7 +262,7 @@ gcov_compile_flags="$gcov_compile_flags -DMYSQL_SERVER_SUFFIX=-gcov -DHAVE_gcov"
 
 gcov_link_flags="-fprofile-arcs -ftest-coverage"
 
-gcov_configs="--disable-shared"
+gcov_configs="--with-gcov"
 
 # gprof
 

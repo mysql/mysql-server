@@ -208,14 +208,11 @@ charpos()   - calculates the offset of the given position in the string.
               Used in SQL functions LEFT(), RIGHT(), SUBSTRING(), 
               INSERT()
 
-well_formed_length()
-            - finds the length of correctly formed multi-byte beginning.
-              Used in INSERTs to cut a beginning of the given string
-              which is
-              a) "well formed" according to the given character set.
+well_formed_len()
+            - returns length of a given multi-byte string in bytes
+              Used in INSERTs to shorten the given string so it
+              a) is "well formed" according to the given character set
               b) can fit into the given data type
-              Terminates the string in the good position, taking in account
-              multi-byte character boundaries.
 
 lengthsp()  - returns the length of the given string without trailing spaces.
 

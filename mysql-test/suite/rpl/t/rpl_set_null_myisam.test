@@ -3,3 +3,4 @@
 
 -- let $engine= MyISAM
 -- source extra/rpl_tests/rpl_set_null.test
+--source include/rpl_end.inc

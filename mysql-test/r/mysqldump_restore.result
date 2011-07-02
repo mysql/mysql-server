@@ -20,7 +20,7 @@ ALTER TABLE test.t1 RENAME to test.t1_orig;
 # Compare original and recreated tables
 # Recreated table: test.t1
 # Original table: test.t1_orig
-Comparing tables test.t1 and test.t1_orig
+include/diff_tables.inc [test.t1, test.t1_orig]
 # Cleanup
 DROP TABLE test.t1, test.t1_orig;
 #
@@ -45,7 +45,7 @@ ALTER TABLE test.t1 RENAME to test.t1_orig;
 # Compare original and recreated tables
 # Recreated table: test.t1
 # Original table: test.t1_orig
-Comparing tables test.t1 and test.t1_orig
+include/diff_tables.inc [test.t1, test.t1_orig]
 # Cleanup
 DROP TABLE test.t1, test.t1_orig;
 #
@@ -63,7 +63,7 @@ ALTER TABLE test.t1 RENAME to test.t1_orig;
 # Compare original and recreated tables
 # Recreated table: test.t1
 # Original table: test.t1_orig
-Comparing tables test.t1 and test.t1_orig
+include/diff_tables.inc [test.t1, test.t1_orig]
 # Cleanup
 DROP TABLE test.t1, test.t1_orig;
 #
@@ -82,7 +82,7 @@ ALTER TABLE test.t2 RENAME to test.t2_orig;
 # Compare original and recreated tables
 # Recreated table: test.t2
 # Original table: test.t2_orig
-Comparing tables test.t2 and test.t2_orig
+include/diff_tables.inc [test.t2, test.t2_orig]
 # Cleanup
 DROP TABLE test.t2, test.t2_orig;
 DROP TABLE t1;
@@ -100,7 +100,7 @@ ALTER TABLE test.t1 RENAME to test.t1_orig;
 # Compare original and recreated tables
 # Recreated table: test.t1
 # Original table: test.t1_orig
-Comparing tables test.t1 and test.t1_orig
+include/diff_tables.inc [test.t1, test.t1_orig]
 # Cleanup
 DROP TABLE test.t1, test.t1_orig;
 # End tests

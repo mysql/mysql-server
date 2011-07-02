@@ -1,7 +1,4 @@
 source include/master-slave.inc;
---disable_warnings
-drop database if exists mysqltest;
---enable_warnings
 create database mysqltest;
 
 create table mysqltest.t1 ( n int);
@@ -18,3 +15,4 @@ drop database mysqltest;
 sync_slave_with_master;
 
 # End of 4.1 tests
+--source include/rpl_end.inc

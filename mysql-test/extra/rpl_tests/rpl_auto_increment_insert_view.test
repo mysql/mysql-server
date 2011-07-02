@@ -29,8 +29,7 @@ commit;
 sync_slave_with_master;
 --echo #Test if the results are consistent on master and slave
 --echo #for 'INSERT DATA INTO VIEW WHICH INVOKES TRIGGERS'
-let $diff_table_1=master:test.t3;
-let $diff_table_2=slave:test.t3;
+let $diff_tables= master:t3, slave:t3;
 source include/diff_tables.inc;
 
 connection master;

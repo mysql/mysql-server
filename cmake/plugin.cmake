@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,8 +27,24 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # [LINK_LIBRARIES lib1...libN]
 # [DEPENDENCIES target1...targetN]
 
+# Append collections files for the plugin to the common files
+# Make sure we don't copy twice if running cmake again
+
+MACRO(PLUGIN_APPEND_COLLECTIONS plugin)
+  SET(fcopied "${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/FilesCopied")
+  IF(NOT EXISTS ${fcopied})
+    FILE(GLOB collections ${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/*)
+    FOREACH(cfile ${collections})
+      FILE(READ ${cfile} contents)
+      GET_FILENAME_COMPONENT(fname ${cfile} NAME)
+      FILE(APPEND ${CMAKE_SOURCE_DIR}/mysql-test/collections/${fname} "${contents}")
+      FILE(APPEND ${fcopied} "${fname}\n")
+    ENDFOREACH()
+  ENDIF()
+ENDMACRO()
+
 MACRO(MYSQL_ADD_PLUGIN)
-  CMAKE_PARSE_ARGUMENTS(ARG
+  MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
     "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;RECOMPILE_FOR_EMBEDDED"
     ${ARGN}
@@ -123,7 +139,7 @@ MACRO(MYSQL_ADD_PLUGIN)
 
     # Update mysqld dependencies
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
-      ${target} CACHE INTERNAL "" FORCE)
+      ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
 
     IF(ARG_MANDATORY)
       SET(${with_var} ON CACHE INTERNAL "Link ${plugin} statically to the server" 
@@ -151,6 +167,7 @@ MACRO(MYSQL_ADD_PLUGIN)
       ENDIF()
     ENDIF()
 
+    ADD_VERSION_INFO(${target} MODULE SOURCES)
     ADD_LIBRARY(${target} MODULE ${SOURCES}) 
     DTRACE_INSTRUMENT(${target})
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
@@ -179,6 +196,10 @@ MACRO(MYSQL_ADD_PLUGIN)
     # Install dynamic library
     MYSQL_INSTALL_TARGETS(${target} DESTINATION ${INSTALL_PLUGINDIR} COMPONENT Server)
     INSTALL_DEBUG_TARGET(${target} DESTINATION ${INSTALL_PLUGINDIR}/debug)
+    # For internal testing in PB2, append collections files
+    IF(DEFINED ENV{PB2WORKDIR})
+      PLUGIN_APPEND_COLLECTIONS(${plugin})
+    ENDIF()
   ELSE()
     IF(WITHOUT_${plugin})
       # Update cache variable
@@ -206,4 +227,11 @@ MACRO(CONFIGURE_PLUGINS)
       ADD_SUBDIRECTORY(${dir})
     ENDIF()
   ENDFOREACH()
+  FOREACH(dir ${dirs_plugin})
+    IF (EXISTS ${dir}/.bzr)
+      MESSAGE(STATUS "Found repo ${dir}/.bzr")
+      LIST(APPEND PLUGIN_BZR_REPOS "${dir}")
+    ENDIF()
+  ENDFOREACH()
+  SET(PLUGIN_REPOS "${PLUGIN_BZR_REPOS}" CACHE INTERNAL "")
 ENDMACRO()

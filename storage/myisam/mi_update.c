@@ -179,7 +179,6 @@ int mi_update(register MI_INFO *info, const uchar *oldrec, uchar *newrec)
     there is no index change there could be data change.
   */
   (void) _mi_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
-  allow_break();				/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
   {
     DBUG_PRINT("info", ("invalidator... '%s' (update)", info->filename));
@@ -193,8 +192,8 @@ err:
   save_errno=my_errno;
   if (changed)
     key_changed|= HA_STATE_CHANGED;
-  if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_OUT_OF_MEM ||
-      my_errno == HA_ERR_RECORD_FILE_FULL)
+  if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_RECORD_FILE_FULL ||
+      my_errno == HA_ERR_NULL_IN_SPATIAL || my_errno == HA_ERR_OUT_OF_MEM)
   {
     info->errkey= (int) i;
     flag=0;
@@ -212,8 +211,9 @@ err:
 	{
 	  uint new_length=_mi_make_key(info,i,new_key,newrec,pos);
 	  uint old_length= _mi_make_key(info,i,old_key,oldrec,pos);
-	  if ((flag++ && _mi_ck_delete(info,i,new_key,new_length)) ||
-	      _mi_ck_write(info,i,old_key,old_length))
+	  if ((flag++ && 
+	       share->keyinfo[i].ck_delete(info, i, new_key, new_length)) ||
+	      share->keyinfo[i].ck_insert(info, i, old_key, old_length))
 	    break;
 	}
       }
@@ -230,7 +230,6 @@ err:
  err_end:
   myisam_log_record(MI_LOG_UPDATE,info,newrec,info->lastpos,my_errno);
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
-  allow_break();				/* Allow SIGHUP & SIGINT */
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
   {
     mi_print_error(info->s, HA_ERR_CRASHED);

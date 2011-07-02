@@ -33,4 +33,4 @@ drop table t1, t2;
 # MTR will restart server anyway, but by forcing it we avoid being warned
 # about the apparent side effect
 
-call mtr.force_restart();
+--source include/force_restart.inc

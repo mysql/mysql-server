@@ -4,7 +4,7 @@
 #
 -- echo ## case #1 - last_null_bit_pos==0 in record_compare without X bit
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 
 -- eval CREATE TABLE t1 (c1 bigint(20) DEFAULT 0, c2 bigint(20) DEFAULT 0, c3 bigint(20) DEFAULT 0, c4 varchar(1) DEFAULT '', c5 bigint(20) DEFAULT 0, c6 bigint(20) DEFAULT 0, c7 bigint(20) DEFAULT 0, c8 bigint(20) DEFAULT 0) ENGINE=$engine DEFAULT CHARSET=latin1
@@ -16,8 +16,7 @@ UPDATE t1 SET c5 = 'a';
 -- enable_warnings
 -- sync_slave_with_master
 
--- let $diff_table_1= master:test.t1
--- let $diff_table_2= slave:test.t1
+-- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 --connection master
@@ -26,7 +25,7 @@ DROP TABLE t1;
 
 -- echo ## case #1.1 - last_null_bit_pos==0 in record_compare with X bit
 -- echo ##             (1 column less and no varchar)
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 
 -- eval CREATE TABLE t1 (c1 bigint(20) DEFAULT 0, c2 bigint(20) DEFAULT 0, c3 bigint(20) DEFAULT 0, c4 bigint(20) DEFAULT 0, c5 bigint(20) DEFAULT 0, c6 bigint(20) DEFAULT 0, c7 bigint(20) DEFAULT 0) ENGINE=$engine DEFAULT CHARSET=latin1
@@ -38,8 +37,7 @@ UPDATE t1 SET c5 = 'a';
 -- enable_warnings
 -- sync_slave_with_master
 
--- let $diff_table_1= master:test.t1
--- let $diff_table_2= slave:test.t1
+-- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 --connection master
@@ -48,7 +46,7 @@ DROP TABLE t1;
 
 -- echo ## case #2 - X bit is wrongly set.
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 
 -- eval CREATE TABLE t1 (c1 int, c2 varchar(1) default '') ENGINE=$engine DEFAULT CHARSET= latin1
@@ -57,12 +55,31 @@ INSERT INTO t1(c1) VALUES (NULL);
 UPDATE t1 SET c1= 0;
 -- sync_slave_with_master
 
--- let $diff_table_1= master:test.t1
--- let $diff_table_2= slave:test.t1
+-- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 -- connection master
 DROP TABLE t1; 
 -- sync_slave_with_master
 
+#
+# BUG#11766865: 60091: RBR + NO PK + UPDATE NULL VALUE --> SLAVE BREAK WITH ERROR HA_ERR_END_OF_ 
+#
 
+--connection master
+--source include/rpl_reset.inc
+--connection master
+
+--eval CREATE TABLE t1 (c1 int(11) NOT NULL, c2 int(11) NOT NULL, c3 int(11) DEFAULT '-1') ENGINE=$engine DEFAULT CHARSET=latin1
+
+INSERT INTO t1 VALUES (1,2,NULL);
+UPDATE t1 SET c1=1, c2=2, c3=-1 WHERE c1=1 AND c2=2 AND ISNULL(c3);
+
+--sync_slave_with_master
+
+--let $diff_tables=master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--connection master
+DROP TABLE t1;
+--sync_slave_with_master

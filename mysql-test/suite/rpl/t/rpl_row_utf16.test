@@ -19,8 +19,10 @@ INSERT INTO t1 VALUES ();       # default value is inserted and encoded correctl
 --query_vertical SELECT c1, hex(c1) FROM t1
 
 # assertion: tables don't differ
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables=master:t1,slave:t1
 -- source include/diff_tables.inc
 
+--connection master
 DROP TABLE t1;
+
+--source include/rpl_end.inc

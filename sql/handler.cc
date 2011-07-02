@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,8 +30,6 @@
 #include "sql_cache.h"                   // query_cache, query_cache_*
 #include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
 #include "sql_table.h"                   // build_table_filename
-#include "lock.h"               // wait_if_global_read_lock,
-                                // start_waiting_global_read_lock
 #include "sql_parse.h"                          // check_stack_overrun
 #include "sql_acl.h"            // SUPER_ACL
 #include "sql_base.h"           // free_io_cache
@@ -42,7 +41,7 @@
 #include "transaction.h"
 #include "myisam.h"
 #include "probes_mysql.h"
-#include "sql_connect.h"
+#include "debug_sync.h"         // DEBUG_SYNC
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -279,7 +278,7 @@ handler *get_ha_partition(partition_info *part_info)
   }
   else
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(ha_partition));
+    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(ha_partition)));
   }
   DBUG_RETURN(((handler*) partition));
 }
@@ -358,6 +357,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_AUTOINC_READ_FAILED,    ER_DEFAULT(ER_AUTOINC_READ_FAILED));
   SETMSG(HA_ERR_AUTOINC_ERANGE,         ER_DEFAULT(ER_WARN_DATA_OUT_OF_RANGE));
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER_DEFAULT(ER_TOO_MANY_CONCURRENT_TRXS));
+  SETMSG(HA_ERR_INDEX_COL_TOO_LONG,	ER_DEFAULT(ER_INDEX_COLUMN_TOO_LONG));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -1168,8 +1168,9 @@ int ha_commit_trans(THD *thd, bool all)
   {
     uint rw_ha_count;
     bool rw_trans;
+    MDL_request mdl_request;
 
-    DBUG_EXECUTE_IF("crash_commit_before", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
     /* Close all cursors that can not survive COMMIT */
     if (is_real_trans)                          /* not a statement commit */
@@ -1179,11 +1180,27 @@ int ha_commit_trans(THD *thd, bool all)
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
-    if (rw_trans &&
-        thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, FALSE))
+    if (rw_trans)
     {
-      ha_rollback_trans(thd, all);
-      DBUG_RETURN(1);
+      /*
+        Acquire a metadata lock which will ensure that COMMIT is blocked
+        by an active FLUSH TABLES WITH READ LOCK (and vice versa:
+        COMMIT in progress blocks FTWRL).
+
+        We allow the owner of FTWRL to COMMIT; we assume that it knows
+        what it does.
+      */
+      mdl_request.init(MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+                       MDL_EXPLICIT);
+
+      if (thd->mdl_context.acquire_lock(&mdl_request,
+                                        thd->variables.lock_wait_timeout))
+      {
+        ha_rollback_trans(thd, all);
+        DBUG_RETURN(1);
+      }
+
+      DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
     }
 
     if (rw_trans &&
@@ -1221,7 +1238,7 @@ int ha_commit_trans(THD *thd, bool all)
         }
         status_var_increment(thd->status_var.ha_prepare_count);
       }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_ABORT(););
+      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
       if (error || (is_real_trans && xid &&
                     (error= !(cookie= tc_log->log_xid(thd, xid)))))
       {
@@ -1229,17 +1246,29 @@ int ha_commit_trans(THD *thd, bool all)
         error= 1;
         goto end;
       }
-      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_ABORT(););
+      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
     }
     error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
     if (cookie)
-      tc_log->unlog(cookie, xid);
-    DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
+      if(tc_log->unlog(cookie, xid))
+      {
+        error= 2;
+        goto end;
+      }
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
     RUN_HOOK(transaction, after_commit, (thd, FALSE));
 end:
-    if (rw_trans)
-      thd->global_read_lock.start_waiting_global_read_lock(thd);
+    if (rw_trans && mdl_request.ticket)
+    {
+      /*
+        We do not always immediately release transactional locks
+        after ha_commit_trans() (see uses of ha_enable_transaction()),
+        thus we release the commit blocker lock as soon as it's
+        not needed.
+      */
+      thd->mdl_context.release_lock(mdl_request.ticket);
+    }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   else if (is_real_trans)
@@ -1614,7 +1643,8 @@ int ha_recover(HASH *commit_list)
   }
   if (!info.list)
   {
-    sql_print_error(ER(ER_OUTOFMEMORY), info.len*sizeof(XID));
+    sql_print_error(ER(ER_OUTOFMEMORY),
+                    static_cast<int>(info.len*sizeof(XID)));
     DBUG_RETURN(1);
   }
 
@@ -2052,26 +2082,28 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 /****************************************************************************
 ** General handler functions
 ****************************************************************************/
-handler *handler::clone(MEM_ROOT *mem_root)
+handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
-
-  if (!new_handler)
-    return NULL;
-
+  handler *new_handler= get_new_handler(table->s, mem_root, ht);
   /*
     Allocate handler->ref here because otherwise ha_open will allocate it
     on this->table->mem_root and we will not be able to reclaim that memory 
     when the clone handler object is destroyed.
   */
-  if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
-    return NULL;
-  if (new_handler->ha_open(table,
-                           table->s->normalized_path.str,
-                           table->db_stat,
-                           HA_OPEN_IGNORE_IF_LOCKED))
-    return NULL;
-  new_handler->cloned= 1;                      // Marker for debugging
+  if (new_handler &&
+     !(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                             ALIGN_SIZE(ref_length)*2)))
+    new_handler= NULL;
+  /*
+    TODO: Implement a more efficient way to have more than one index open for
+    the same table instance. The ha_open call is not cachable for clone.
+  */
+  if (new_handler && new_handler->ha_open(table,
+                                          name,
+                                          table->db_stat,
+                                          HA_OPEN_IGNORE_IF_LOCKED))
+    new_handler= NULL;
+
   return new_handler;
 }
 
@@ -2217,7 +2249,8 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   computes the lowest number
   - strictly greater than "nr"
   - of the form: auto_increment_offset + N * auto_increment_increment
-
+  If overflow happened then return MAX_ULONGLONG value as an
+  indication of overflow.
   In most cases increment= offset= 1, in which case we get:
   @verbatim 1,2,3,4,5,... @endverbatim
     If increment=10 and offset=5 and previous number is 1, we get:
@@ -2226,13 +2259,23 @@ int handler::read_first_row(uchar * buf, uint primary_key)
 inline ulonglong
 compute_next_insert_id(ulonglong nr,struct system_variables *variables)
 {
+  const ulonglong save_nr= nr;
+
   if (variables->auto_increment_increment == 1)
-    return (nr+1); // optimization of the formula below
-  nr= (((nr+ variables->auto_increment_increment -
-         variables->auto_increment_offset)) /
-       (ulonglong) variables->auto_increment_increment);
-  return (nr* (ulonglong) variables->auto_increment_increment +
-          variables->auto_increment_offset);
+    nr= nr + 1; // optimization of the formula below
+  else
+  {
+    nr= (((nr+ variables->auto_increment_increment -
+           variables->auto_increment_offset)) /
+         (ulonglong) variables->auto_increment_increment);
+    nr= (nr* (ulonglong) variables->auto_increment_increment +
+         variables->auto_increment_offset);
+  }
+
+  if (unlikely(nr <= save_nr))
+    return ULONGLONG_MAX;
+
+  return nr;
 }
 
 
@@ -2443,7 +2486,7 @@ int handler::update_auto_increment()
                          variables->auto_increment_increment,
                          nb_desired_values, &nr,
                          &nb_reserved_values);
-      if (nr == ~(ulonglong) 0)
+      if (nr == ULONGLONG_MAX)
         DBUG_RETURN(HA_ERR_AUTOINC_READ_FAILED);  // Mark failure
 
       /*
@@ -2473,6 +2516,9 @@ int handler::update_auto_increment()
       DBUG_PRINT("info",("auto_increment: special not-first-in-index"));
     }
   }
+
+  if (unlikely(nr == ULONGLONG_MAX))
+      DBUG_RETURN(HA_ERR_AUTOINC_ERANGE); 
 
   DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
 
@@ -2701,6 +2747,7 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
+  case HA_ERR_RECORD_DELETED:
   case HA_ERR_END_OF_FILE:
     /*
       This errors is not not normally fatal (for example for reads). However
@@ -2867,6 +2914,9 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_TOO_MANY_CONCURRENT_TRXS:
     textno= ER_TOO_MANY_CONCURRENT_TRXS;
+    break;
+  case HA_ERR_INDEX_COL_TOO_LONG:
+    textno= ER_INDEX_COLUMN_TOO_LONG;
     break;
   default:
     {
@@ -3235,9 +3285,13 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
 
   mark_trx_read_write();
 
-  if ((result= repair(thd, check_opt)))
-    return result;
-  return update_frm_version(table);
+  result= repair(thd, check_opt);
+  DBUG_ASSERT(result == HA_ADMIN_NOT_IMPLEMENTED ||
+              ha_table_flags() & HA_CAN_REPAIR);
+
+  if (result == HA_ADMIN_OK)
+    result= update_frm_version(table);
+  return result;
 }
 
 
@@ -3269,6 +3323,21 @@ handler::ha_delete_all_rows()
   mark_trx_read_write();
 
   return delete_all_rows();
+}
+
+
+/**
+  Truncate table: public interface.
+
+  @sa handler::truncate()
+*/
+
+int
+handler::ha_truncate()
+{
+  mark_trx_read_write();
+
+  return truncate();
 }
 
 
@@ -4807,6 +4876,7 @@ int handler::ha_reset()
   free_io_cache(table);
   /* reset the bitmaps to point to defaults */
   table->default_column_bitmaps();
+  pushed_cond= NULL;
   DBUG_RETURN(reset());
 }
 

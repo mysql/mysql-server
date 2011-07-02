@@ -1,4 +1,20 @@
 # -*- cperl -*-
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; version 2
+# of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
 package My::ConfigFactory;
 
 use strict;
@@ -130,7 +146,11 @@ sub fix_tmpdir {
 sub fix_log_error {
   my ($self, $config, $group_name, $group)= @_;
   my $dir= $self->{ARGS}->{vardir};
-  return "$dir/log/$group_name.err";
+  if ( $::opt_valgrind and $::opt_debug ) {
+    return "$dir/log/$group_name.trace";
+  } else {
+    return "$dir/log/$group_name.err";
+  }
 }
 
 sub fix_log {

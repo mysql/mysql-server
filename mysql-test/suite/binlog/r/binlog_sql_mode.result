@@ -1,9 +1,3 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
 SET @old_sql_mode=  @@global.sql_mode;
 SET @old_binlog_format=@@session.binlog_format;
 SET SESSION sql_mode=8;
@@ -27,7 +21,7 @@ DO
 BEGIN
 UPDATE t1 SET id = id +1;
 END;|
-Chceck Result
+Check Result
 select
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog"))
 is not null;

@@ -20,6 +20,8 @@ SET @old_slave_exec_mode= @@global.slave_exec_mode;
 SET @@global.slave_exec_mode = 'STRICT';
 source extra/rpl_tests/rpl_conflicts.test;
 
+--source include/rpl_reset.inc
+
 
 --echo ######## Run with slave_exec_mode=IDEMPOTENT ########
 
@@ -28,4 +30,4 @@ source extra/rpl_tests/rpl_conflicts.test;
 
 
 SET @@global.slave_exec_mode= @old_slave_exec_mode;
-source include/master-slave-end.inc;
+--source include/rpl_end.inc

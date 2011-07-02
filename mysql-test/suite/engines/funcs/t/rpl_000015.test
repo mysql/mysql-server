@@ -11,25 +11,31 @@ save_master_pos;
 connection slave;
 stop slave;
 reset slave;
-let $status_items= Master_Log_File, Read_Master_Log_Pos, Relay_Master_Log_File, Exec_Master_Log_Pos;
-source include/show_slave_status.inc;
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 5 # 8 # 9 # 23 # 33 #
+show slave status;
 
 change master to master_host='127.0.0.1';
 # The following needs to be cleaned up when change master is fixed
-source include/show_slave_status.inc;
-
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 5 # 8 # 9 # 23 # 33 #
+show slave status;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$MASTER_MYPORT;
-source include/show_slave_status.inc;
-
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 5 # 8 # 9 # 23 # 33 #
+show slave status;
 start slave;
 sync_with_master;
-let $status_items= Master_Log_File, Relay_Master_Log_File;
-source include/show_slave_status.inc;
-source include/check_slave_is_running.inc;
-
 --vertical_results
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 5 # 8 # 9 # 23 # 33 #
+--replace_column 33 #
+show slave status;
 connection master;
 --disable_warnings
 drop table if exists t1;

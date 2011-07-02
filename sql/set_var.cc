@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,7 +117,8 @@ void sys_var_end()
   sys_var constructor
 
   @param chain     variables are linked into chain for mysql_add_sys_var_chain()
-  @param name_arg  the name of the variable. @sa my_option::name
+  @param name_arg  the name of the variable. Must be 0-terminated and exist
+                   for the liftime of the sys_var object. @sa my_option::name
   @param comment   shown in mysqld --help, @sa my_option::comment
   @param flags_arg or'ed flag_enum values
   @param off       offset of the global variable value from the
@@ -164,8 +165,8 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   */
   DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
 
-  name.str= name_arg;
-  name.length= strlen(name_arg);
+  name.str= name_arg;     // ER_NO_DEFAULT relies on 0-termination of name_arg
+  name.length= strlen(name_arg);                // and so does this.
   DBUG_ASSERT(name.length <= NAME_CHAR_LEN);
 
   bzero(&option, sizeof(option));
@@ -746,9 +747,9 @@ int set_var_password::check(THD *thd)
   }
   if (!user->user.str)
   {
-    DBUG_ASSERT(thd->security_ctx->priv_user);
-    user->user.str= (char *) thd->security_ctx->priv_user;
-    user->user.length= strlen(thd->security_ctx->priv_user);
+    DBUG_ASSERT(thd->security_ctx->user);
+    user->user.str= (char *) thd->security_ctx->user;
+    user->user.length= strlen(thd->security_ctx->user);
   }
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str,
@@ -776,7 +777,7 @@ int set_var_password::update(THD *thd)
 int set_var_collation_client::check(THD *thd)
 {
   /* Currently, UCS-2 cannot be used as a client character set */
-  if (character_set_client->mbminlen > 1)
+  if (!is_supported_parser_charset(character_set_client))
   {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
              character_set_client->csname);

@@ -25,6 +25,7 @@ Created 1/30/1994 Heikki Tuuri
 
 #include "univ.i"
 #include "ut0dbg.h"
+#include "ha_prototypes.h"
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
 #else
@@ -55,12 +56,13 @@ ut_dbg_assertion_failed(
 	ut_print_timestamp(stderr);
 #ifdef UNIV_HOTBACKUP
 	fprintf(stderr, "  InnoDB: Assertion failure in file %s line %lu\n",
-		file, line);
+		innobase_basename(file), line);
 #else /* UNIV_HOTBACKUP */
 	fprintf(stderr,
 		"  InnoDB: Assertion failure in thread %lu"
 		" in file %s line %lu\n",
-		os_thread_pf(os_thread_get_curr_id()), file, line);
+		os_thread_pf(os_thread_get_curr_id()),
+		innobase_basename(file), line);
 #endif /* UNIV_HOTBACKUP */
 	if (expr) {
 		fprintf(stderr,
@@ -74,7 +76,7 @@ ut_dbg_assertion_failed(
 	      " or crashes, even\n"
 	      "InnoDB: immediately after the mysqld startup, there may be\n"
 	      "InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
-	      "InnoDB: " REFMAN "forcing-recovery.html\n"
+	      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
 	      "InnoDB: about forcing recovery.\n", stderr);
 #if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 	ut_dbg_stop_threads = TRUE;
@@ -93,7 +95,8 @@ ut_dbg_stop_thread(
 {
 #ifndef UNIV_HOTBACKUP
 	fprintf(stderr, "InnoDB: Thread %lu stopped in file %s line %lu\n",
-		os_thread_pf(os_thread_get_curr_id()), file, line);
+		os_thread_pf(os_thread_get_curr_id()),
+		innobase_basename(file), line);
 	os_thread_sleep(1000000000);
 #endif /* !UNIV_HOTBACKUP */
 }

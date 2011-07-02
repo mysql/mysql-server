@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (id int, a int);
 CREATE TABLE t2 (id int, b int);
 CREATE TABLE t3 (id int, c int);
@@ -46,86 +42,55 @@ UPDATE t4 LEFT JOIN (t1, t2, t5) ON (t1.id=t4.id and t2.id=t4.id and t5.id=t4.id
 UPDATE t4 LEFT JOIN (t1, t6, t7) ON (t4.id=t1.id and t4.id=t6.id and t4.id=t7.id) SET a=0, d=0, f=0, g=0 where t4.id=1;
 UPDATE t7 LEFT JOIN (t4, t1, t2) ON (t7.id=t4.id and t7.id=t1.id and t7.id=t2.id) SET a=0, b=0, d=0, g=0 where t7.id=1;
 UPDATE t7 LEFT JOIN (t8, t4, t1) ON (t7.id=t8.id and t7.id=t4.id and t7.id=t1.id) SET a=0, d=0, g=0, h=0 where t7.id=1;
+call mtr.add_suppression("Slave SQL.*Error .Table .test.t[47]. doesn.t exist. on query.* Error_code: 1146");
 UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0 where t1.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0 where t1.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0 where t1.id=1''
 UPDATE t1 LEFT JOIN (t4, t7) ON (t1.id=t4.id and t1.id=t7.id) SET a=0 where t1.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t4, t7) ON (t1.id=t4.id and t1.id=t7.id) SET a=0 where t1.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t4, t7) ON (t1.id=t4.id and t1.id=t7.id) SET a=0 where t1.id=1''
 UPDATE t1 LEFT JOIN (t2, t4, t7) ON (t1.id=t2.id and t1.id=t4.id and t1.id=t7.id) SET a=0, b=0 where t1.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t2, t4, t7) ON (t1.id=t2.id and t1.id=t4.id and t1.id=t7.id) SET a=0, b=0 where t1.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t2, t4, t7) ON (t1.id=t2.id and t1.id=t4.id and t1.id=t7.id) SET a=0, b=0 where t1.id=1''
 UPDATE t1 LEFT JOIN (t2, t3, t7) ON (t1.id=t2.id and t1.id=t3.id and t1.id=t7.id) SET a=0, b=0, c=0 where t1.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t2, t3, t7) ON (t1.id=t2.id and t1.id=t3.id and t1.id=t7.id) SET a=0, b=0, c=0 where t1.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t2, t3, t7) ON (t1.id=t2.id and t1.id=t3.id and t1.id=t7.id) SET a=0, b=0, c=0 where t1.id=1''
 UPDATE t1 LEFT JOIN t7 ON (t1.id=t7.id) SET a=0, g=0 where t1.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN t7 ON (t1.id=t7.id) SET a=0, g=0 where t1.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN t7 ON (t1.id=t7.id) SET a=0, g=0 where t1.id=1''
 UPDATE t7 LEFT JOIN t1 ON (t1.id=t7.id) SET a=0, g=0 where t7.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t7 LEFT JOIN t1 ON (t1.id=t7.id) SET a=0, g=0 where t7.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t7 LEFT JOIN t1 ON (t1.id=t7.id) SET a=0, g=0 where t7.id=1''
 UPDATE t1 LEFT JOIN (t4, t5, t7) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t7.id) SET a=0, g=0 where t1.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t4, t5, t7) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t7.id) SET a=0, g=0 where t1.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t4, t5, t7) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t7.id) SET a=0, g=0 where t1.id=1''
 UPDATE t1 LEFT JOIN (t4, t7, t8) ON (t1.id=t4.id and t1.id=t7.id and t1.id=t8.id) SET a=0, g=0 where t1.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t4, t7, t8) ON (t1.id=t4.id and t1.id=t7.id and t1.id=t8.id) SET a=0, g=0 where t1.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t4, t7, t8) ON (t1.id=t4.id and t1.id=t7.id and t1.id=t8.id) SET a=0, g=0 where t1.id=1''
 UPDATE t1 LEFT JOIN (t7, t8, t9) ON (t1.id=t7.id and t1.id=t8.id and t1.id=t9.id) SET a=0, g=0, h=0, i=0 where t1.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t7, t8, t9) ON (t1.id=t7.id and t1.id=t8.id and t1.id=t9.id) SET a=0, g=0, h=0, i=0 where t1.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t7, t8, t9) ON (t1.id=t7.id and t1.id=t8.id and t1.id=t9.id) SET a=0, g=0, h=0, i=0 where t1.id=1''
 UPDATE t7 LEFT JOIN (t1, t2, t3) ON (t7.id=t1.id and t7.id=t2.id and t7.id=t3.id) SET g=0, a=0, b=0, c=0 where t7.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t7 LEFT JOIN (t1, t2, t3) ON (t7.id=t1.id and t7.id=t2.id and t7.id=t3.id) SET g=0, a=0, b=0, c=0 where t7.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t7 LEFT JOIN (t1, t2, t3) ON (t7.id=t1.id and t7.id=t2.id and t7.id=t3.id) SET g=0, a=0, b=0, c=0 where t7.id=1''
 UPDATE t7 LEFT JOIN (t4, t5, t3) ON (t7.id=t4.id and t7.id=t5.id and t7.id=t3.id) SET g=0, c=0 where t7.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t7 LEFT JOIN (t4, t5, t3) ON (t7.id=t4.id and t7.id=t5.id and t7.id=t3.id) SET g=0, c=0 where t7.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t7 LEFT JOIN (t4, t5, t3) ON (t7.id=t4.id and t7.id=t5.id and t7.id=t3.id) SET g=0, c=0 where t7.id=1''
 UPDATE t7 LEFT JOIN (t8, t9, t3) ON (t7.id=t8.id and t7.id=t9.id and t7.id=t3.id) SET g=0, h=0, i=0, c=0 where t7.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t7 LEFT JOIN (t8, t9, t3) ON (t7.id=t8.id and t7.id=t9.id and t7.id=t3.id) SET g=0, h=0, i=0, c=0 where t7.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t7 LEFT JOIN (t8, t9, t3) ON (t7.id=t8.id and t7.id=t9.id and t7.id=t3.id) SET g=0, h=0, i=0, c=0 where t7.id=1''
 UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0, d=0 where t1.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0, d=0 where t1.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0, d=0 where t1.id=1''
 UPDATE t1 LEFT JOIN (t4, t5, t6) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t6.id) SET a=0, d=0, e=0, f=0 where t1.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t4, t5, t6) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t6.id) SET a=0, d=0, e=0, f=0 where t1.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t1 LEFT JOIN (t4, t5, t6) ON (t1.id=t4.id and t1.id=t5.id and t1.id=t6.id) SET a=0, d=0, e=0, f=0 where t1.id=1''
 UPDATE t4 LEFT JOIN (t1, t5, t6) ON (t4.id=t1.id and t4.id=t5.id and t4.id=t6.id) SET a=0, e=0, f=0 where t4.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t4 LEFT JOIN (t1, t5, t6) ON (t4.id=t1.id and t4.id=t5.id and t4.id=t6.id) SET a=0, e=0, f=0 where t4.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t4' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t4 LEFT JOIN (t1, t5, t6) ON (t4.id=t1.id and t4.id=t5.id and t4.id=t6.id) SET a=0, e=0, f=0 where t4.id=1''
 UPDATE t7 LEFT JOIN (t1, t4, t2) ON (t7.id=t1.id and t7.id=t4.id and t7.id=t2.id) SET a=0, b=0, d=0, g=0 where t7.id=1;
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t7 LEFT JOIN (t1, t4, t2) ON (t7.id=t1.id and t7.id=t4.id and t7.id=t2.id) SET a=0, b=0, d=0, g=0 where t7.id=1'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
+Last_SQL_Error = 'Error 'Table 'test.t7' doesn't exist' on query. Default database: 'test'. Query: 'UPDATE t7 LEFT JOIN (t1, t4, t2) ON (t7.id=t1.id and t7.id=t4.id and t7.id=t2.id) SET a=0, b=0, d=0, g=0 where t7.id=1''
 [on slave]
 show tables like 't%';
 Tables_in_test (t%)
@@ -149,3 +114,4 @@ id	c
 3	3
 [on master]
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+include/rpl_end.inc

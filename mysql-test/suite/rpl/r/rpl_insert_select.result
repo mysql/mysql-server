@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1 (n int not null primary key);
 insert into t1 values (1);
 create table t2 (n int);
@@ -15,3 +11,4 @@ n
 1
 2
 drop table t1,t2;
+include/rpl_end.inc

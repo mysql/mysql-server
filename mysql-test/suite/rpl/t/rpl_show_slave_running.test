@@ -80,3 +80,4 @@ connection slave;
 eval set global debug= '$debug_saved';
 SET DEBUG_SYNC= 'RESET';
 --echo End of tests
+--source include/rpl_end.inc

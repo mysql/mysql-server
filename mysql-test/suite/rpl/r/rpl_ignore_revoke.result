@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 grant select on *.* to 'user_foo'@'%' identified by 'user_foopass';
 revoke select on *.* from 'user_foo'@'%';
 select select_priv from mysql.user where user='user_foo' /* master:must be N */;
@@ -28,3 +24,4 @@ Y
 revoke select on *.* FROM 'user_foo';
 delete from mysql.user where user="user_foo";
 delete from mysql.user where user="user_foo";
+include/rpl_end.inc

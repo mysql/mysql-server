@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -232,13 +232,6 @@
 #include <sys/types.h>
 #endif
 
-/* The client defines this to avoid all thread code */
-#if defined(MYSQL_CLIENT_NO_THREADS) || defined(UNDEF_THREADS_HACK)
-#undef THREAD
-#undef HAVE_LINUXTHREADS
-#undef HAVE_NPTL
-#endif
-
 #ifdef HAVE_THREADS_WITHOUT_SOCKETS
 /* MIT pthreads does not work with unix sockets */
 #undef HAVE_SYS_UN_H
@@ -281,7 +274,7 @@
 #endif
 #endif
 
-#if defined(THREAD) && !defined(__WIN__)
+#if !defined(__WIN__)
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
 #endif
@@ -302,7 +295,7 @@ C_MODE_END
 #if !defined(SCO) && !defined(_REENTRANT)
 #define _REENTRANT	1	/* Threads requires reentrant code */
 #endif
-#endif /* THREAD */
+#endif /* !defined(__WIN__) */
 
 /* Go around some bugs in different OS and compilers */
 #ifdef _AIX			/* By soren@t.dk */
@@ -312,7 +305,7 @@ C_MODE_END
 #define ulonglong2double(A) my_ulonglong2double(A)
 #define my_off_t2double(A)  my_ulonglong2double(A)
 C_MODE_START
-double my_ulonglong2double(unsigned long long A);
+inline double my_ulonglong2double(unsigned long long A) { return (double A); }
 C_MODE_END
 #endif /* _AIX */
 
@@ -328,9 +321,6 @@ C_MODE_END
 #undef HAVE_PWRITE
 #endif
 
-#ifdef UNDEF_HAVE_GETHOSTBYNAME_R		/* For OSF4.x */
-#undef HAVE_GETHOSTBYNAME_R
-#endif
 #ifdef UNDEF_HAVE_INITGROUPS			/* For AIX 4.3 */
 #undef HAVE_INITGROUPS
 #endif
@@ -438,7 +428,7 @@ C_MODE_END
 #include <sys/stream.h>		/* HPUX 10.20 defines ulong here. UGLY !!! */
 #define HAVE_ULONG
 #endif
-#if defined(HPUX10) && defined(_LARGEFILE64_SOURCE) && defined(THREAD)
+#if defined(HPUX10) && defined(_LARGEFILE64_SOURCE)
 /* Fix bug in setrlimit */
 #undef setrlimit
 #define setrlimit cma_setrlimit64
@@ -475,12 +465,14 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define LINT_INIT(var)
 #endif
 
+#ifndef SO_EXT
 #ifdef _WIN32
 #define SO_EXT ".dll"
 #elif defined(__APPLE__)
 #define SO_EXT ".dylib"
 #else
 #define SO_EXT ".so"
+#endif
 #endif
 
 /*
@@ -633,6 +625,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #ifdef _WIN32
 #define FN_LIBCHAR	'\\'
 #define FN_LIBCHAR2	'/'
+#define FN_DIRSEP       "/\\"               /* Valid directory separators */
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
@@ -640,6 +633,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #else
 #define FN_LIBCHAR	'/'
 #define FN_LIBCHAR2	'/'
+#define FN_DIRSEP       "/"     /* Valid directory separators */
 #define FN_ROOTDIR	"/"
 #endif
 
@@ -1377,28 +1371,6 @@ do { doubleget_union _tmp; \
 
 #endif /* WORDS_BIGENDIAN */
 
-/* sprintf does not always return the number of bytes :- */
-#ifdef SPRINTF_RETURNS_INT
-#define my_sprintf(buff,args) sprintf args
-#else
-#ifdef SPRINTF_RETURNS_PTR
-#define my_sprintf(buff,args) ((int)(sprintf args - buff))
-#else
-#define my_sprintf(buff,args) ((ulong) sprintf args, (ulong) strlen(buff))
-#endif
-#endif
-
-#ifndef THREAD
-#define thread_safe_increment(V,L) (V)++
-#define thread_safe_decrement(V,L) (V)--
-#define thread_safe_add(V,C,L)     (V)+=(C)
-#define thread_safe_sub(V,C,L)     (V)-=(C)
-#define statistic_increment(V,L)   (V)++
-#define statistic_decrement(V,L)   (V)--
-#define statistic_add(V,C,L)       (V)+=(C)
-#define statistic_sub(V,C,L)       (V)-=(C)
-#endif
-
 #ifdef HAVE_CHARSET_utf8
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
 #else
@@ -1413,21 +1385,28 @@ do { doubleget_union _tmp; \
 #define dlsym(lib, name) (void*)GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
+#ifndef HAVE_DLOPEN
 #define HAVE_DLOPEN
 #endif
+#endif
 
-#ifdef HAVE_DLOPEN
-#  if defined(HAVE_DLFCN_H)
-#    include <dlfcn.h>
-#  endif
-#  ifndef HAVE_DLERROR
-#    define dlerror() ""
-#  endif
+#if defined(HAVE_DLFCN_H)
+#include <dlfcn.h>
+#endif
+
+#ifndef HAVE_DLERROR
+#ifdef _WIN32
+static inline char *dlerror(void)
+{
+  static char win_errormsg[2048];
+  if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+                   0, GetLastError(), 0, win_errormsg, 2048, NULL))
+    return win_errormsg;
+  return "";
+}
 #else
-#  define dlerror() "No support for dynamic loading (static build?)"
-#  define dlopen(A,B) 0
-#  define dlsym(A,B) 0
-#  define dlclose(A) 0
+#define dlerror() "No support for dynamic loading (static build?)"
+#endif
 #endif
 
 /*
@@ -1546,10 +1525,8 @@ static inline double rint(double x)
 /* Things we don't need in the embedded version of MySQL */
 /* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
 
-#undef HAVE_PSTACK				/* No stacktrace */
 #undef HAVE_OPENSSL
 #undef HAVE_SMEM				/* No shared memory */
-#undef HAVE_NDBCLUSTER_DB /* No NDB cluster */
 
 #endif /* EMBEDDED_LIBRARY */
 

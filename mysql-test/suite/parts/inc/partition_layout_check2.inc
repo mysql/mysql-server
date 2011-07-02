@@ -28,9 +28,8 @@ DELETE FROM t0_definition WHERE state = 'new';
 let $MYSQLD_DATADIR= `select LEFT(@@datadir, LENGTH(@@datadir)-1)`;
 #echo MYSQLD_DATADIR: $MYSQLD_DATADIR;
 
-# Dump the current definition of the table t1 to tmp1
-let $show_file= $MYSQLD_DATADIR/test/tmp1;
---exec echo "SHOW CREATE TABLE t1; exit; " | $MYSQL_TEST > $show_file 2>&1
+# Save the current definition of the table t1
+let $show_create= `SHOW CREATE TABLE t1`;
 
 if ($do_file_tests)
 {
@@ -44,6 +43,9 @@ if ($do_file_tests)
     --list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-idx-dir t1*
   }
   eval SET @aux = load_file('$ls_file');
+
+  # clean up
+  --remove_file $ls_file
 }
 if (!$do_file_tests)
 {
@@ -52,7 +54,7 @@ if (!$do_file_tests)
 
 # Insert the current definition of the table t1 into t0_definition
 eval INSERT INTO t0_definition SET state = 'new',
-     create_command = load_file('$show_file'),
+     create_command = "$show_create",
      file_list      = @aux;
 
 # Print the old and new table layout, if they differ
@@ -65,7 +67,7 @@ let $run= `SELECT @aux`;
 if ($run)
 {
    --vertical_results
-   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR #p# #P# #sp# #SP#
    SELECT state,
    REPLACE(create_command,'\n',' ') AS "Table definition",
    REPLACE(file_list     ,'\n',' ') AS "File list"

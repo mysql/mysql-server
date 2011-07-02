@@ -24,23 +24,16 @@ sync_slave_with_master;
 --echo # Make sure relay logs was not be flushed 
 --echo # after execute 'flush error logs' statement.
 --error 1
-file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000004;
-
-
-# Test 'flush relay logs' statement.
---echo # Make sure the 'slave-relay-bin.000004' file does not
---echo # exist before execute 'flush relay logs' statement.
---error 1
-file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000004;
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000003;
 
 connection master;
 --echo # Test if support 'flush relay logs' statement.
 flush relay logs;
 
 sync_slave_with_master;
---echo # Check the 'slave-relay-bin.000004' file is created
+--echo # Check the 'slave-relay-bin.000003' file is created
 --echo # after executed 'flush relay logs' statement.
-file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000004;
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000003;
 
 connection master;
 --echo # Make sure binary logs was not be flushed
@@ -96,10 +89,10 @@ file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000001;
 
 # Test 'flush error logs, relay logs' statement
 sync_slave_with_master;
---echo # Make sure the 'slave-relay-bin.000007' file does not exist
+--echo # Make sure the 'slave-relay-bin.000006' file does not exist
 --echo # exist before execute 'flush error logs, relay logs' statement.
 --error 1
-file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000007;
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000006;
 
 connection master;
 
@@ -114,19 +107,19 @@ file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
 file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000003;
 
 sync_slave_with_master;
---echo # Check the 'slave-relay-bin.000007' file is created after
+--echo # Check the 'slave-relay-bin.000006' file is created after
 --echo # execute 'flush error logs, relay logs' statement.
-file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000007;
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000006;
 
 
 # Test 'flush logs' statement
---echo # Make sure the 'slave-relay-bin.000008' and 'slave-relay-bin.000009' 
---echo # files do not exist before execute 'flush error logs, relay logs' 
+--echo # Make sure the 'slave-relay-bin.000007' and 'slave-relay-bin.000008'
+--echo # files do not exist before execute 'flush error logs, relay logs'
 --echo # statement.
 --error 1
-file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000007;
 --error 1
-file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000009;
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
 
 connection master;
 
@@ -140,8 +133,9 @@ file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
 file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000003;
 
 sync_slave_with_master;
---echo # Check the 'slave-relay-bin.000008' and 'slave-relay-bin.000009' 
+--echo # Check the 'slave-relay-bin.000007' and 'slave-relay-bin.000008'
 --echo # files are created after execute 'flush logs' statement.
+file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000007;
 file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
-file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000009;
 
+--source include/rpl_end.inc

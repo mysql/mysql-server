@@ -1,23 +1,20 @@
-select * from performance_schema.COND_INSTANCES limit 1;
-NAME	OBJECT_INSTANCE_BEGIN
-#	#
-select * from performance_schema.COND_INSTANCES
+select * from performance_schema.cond_instances limit 1;
+select * from performance_schema.cond_instances
 where name='FOO';
-NAME	OBJECT_INSTANCE_BEGIN
-insert into performance_schema.COND_INSTANCES
+insert into performance_schema.cond_instances
 set name='FOO', object_instance_begin=12;
-ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'COND_INSTANCES'
-update performance_schema.COND_INSTANCES
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'cond_instances'
+update performance_schema.cond_instances
 set name='FOO';
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'COND_INSTANCES'
-delete from performance_schema.COND_INSTANCES
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'cond_instances'
+delete from performance_schema.cond_instances
 where name like "wait/%";
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'COND_INSTANCES'
-delete from performance_schema.COND_INSTANCES;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'COND_INSTANCES'
-LOCK TABLES performance_schema.COND_INSTANCES READ;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'COND_INSTANCES'
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'cond_instances'
+delete from performance_schema.cond_instances;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'cond_instances'
+LOCK TABLES performance_schema.cond_instances READ;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'cond_instances'
 UNLOCK TABLES;
-LOCK TABLES performance_schema.COND_INSTANCES WRITE;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'COND_INSTANCES'
+LOCK TABLES performance_schema.cond_instances WRITE;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'cond_instances'
 UNLOCK TABLES;

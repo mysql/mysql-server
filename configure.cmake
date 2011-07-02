@@ -269,6 +269,49 @@ ENDIF()
 #
 FIND_PACKAGE (Threads)
 
+FUNCTION(MY_CHECK_PTHREAD_ONCE_INIT)
+  CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR_FLAG)
+  IF(NOT HAVE_WERROR_FLAG)
+    RETURN()
+  ENDIF()
+  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
+  CHECK_C_SOURCE_COMPILES("
+    #include <pthread.h>
+    void foo(void) {}
+    int main()
+    {
+      pthread_once_t once_control = PTHREAD_ONCE_INIT;
+      pthread_once(&once_control, foo);
+      return 0;
+    }"
+    HAVE_PTHREAD_ONCE_INIT
+  )
+  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6611808
+  IF(NOT HAVE_PTHREAD_ONCE_INIT)
+    CHECK_C_SOURCE_COMPILES("
+      #include <pthread.h>
+      void foo(void) {}
+      int main()
+      {
+        pthread_once_t once_control = { PTHREAD_ONCE_INIT };
+        pthread_once(&once_control, foo);
+        return 0;
+      }"
+      HAVE_ARRAY_PTHREAD_ONCE_INIT
+    )
+  ENDIF()
+  IF(HAVE_PTHREAD_ONCE_INIT)
+    SET(PTHREAD_ONCE_INITIALIZER "PTHREAD_ONCE_INIT" PARENT_SCOPE)
+  ENDIF()
+  IF(HAVE_ARRAY_PTHREAD_ONCE_INIT)
+    SET(PTHREAD_ONCE_INITIALIZER "{ PTHREAD_ONCE_INIT }" PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
+
+IF(CMAKE_USE_PTHREADS_INIT)
+  MY_CHECK_PTHREAD_ONCE_INIT()
+ENDIF()
+
 #
 # Tests for functions
 #
@@ -299,14 +342,15 @@ CHECK_FUNCTION_EXISTS (dlopen HAVE_DLOPEN)
 CHECK_FUNCTION_EXISTS (fchmod HAVE_FCHMOD)
 CHECK_FUNCTION_EXISTS (fcntl HAVE_FCNTL)
 CHECK_FUNCTION_EXISTS (fconvert HAVE_FCONVERT)
-CHECK_SYMBOL_EXISTS(fdatasync "unistd.h" HAVE_FDATASYNC)
+CHECK_FUNCTION_EXISTS (fdatasync HAVE_FDATASYNC)
+CHECK_SYMBOL_EXISTS(fdatasync "unistd.h" HAVE_DECL_FDATASYNC)
 CHECK_FUNCTION_EXISTS (fesetround HAVE_FESETROUND)
+CHECK_FUNCTION_EXISTS (fedisableexcept HAVE_FEDISABLEEXCEPT)
 CHECK_FUNCTION_EXISTS (fpsetmask HAVE_FPSETMASK)
 CHECK_FUNCTION_EXISTS (fseeko HAVE_FSEEKO)
 CHECK_FUNCTION_EXISTS (fsync HAVE_FSYNC)
 CHECK_FUNCTION_EXISTS (getcwd HAVE_GETCWD)
 CHECK_FUNCTION_EXISTS (gethostbyaddr_r HAVE_GETHOSTBYADDR_R)
-CHECK_FUNCTION_EXISTS (gethostbyname_r HAVE_GETHOSTBYNAME_R)
 CHECK_FUNCTION_EXISTS (gethrtime HAVE_GETHRTIME)
 CHECK_FUNCTION_EXISTS (getnameinfo HAVE_GETNAMEINFO)
 CHECK_FUNCTION_EXISTS (getpass HAVE_GETPASS)
@@ -319,6 +363,10 @@ CHECK_FUNCTION_EXISTS (getwd HAVE_GETWD)
 CHECK_FUNCTION_EXISTS (gmtime_r HAVE_GMTIME_R)
 CHECK_FUNCTION_EXISTS (initgroups HAVE_INITGROUPS)
 CHECK_FUNCTION_EXISTS (issetugid HAVE_ISSETUGID)
+CHECK_FUNCTION_EXISTS (getuid HAVE_GETUID)
+CHECK_FUNCTION_EXISTS (geteuid HAVE_GETEUID)
+CHECK_FUNCTION_EXISTS (getgid HAVE_GETGID)
+CHECK_FUNCTION_EXISTS (getegid HAVE_GETEGID)
 CHECK_FUNCTION_EXISTS (ldiv HAVE_LDIV)
 CHECK_FUNCTION_EXISTS (localtime_r HAVE_LOCALTIME_R)
 CHECK_FUNCTION_EXISTS (longjmp HAVE_LONGJMP)
@@ -346,7 +394,6 @@ CHECK_FUNCTION_EXISTS (pthread_condattr_setclock HAVE_PTHREAD_CONDATTR_SETCLOCK)
 CHECK_FUNCTION_EXISTS (pthread_init HAVE_PTHREAD_INIT)
 CHECK_FUNCTION_EXISTS (pthread_key_delete HAVE_PTHREAD_KEY_DELETE)
 CHECK_FUNCTION_EXISTS (pthread_rwlock_rdlock HAVE_PTHREAD_RWLOCK_RDLOCK)
-CHECK_FUNCTION_EXISTS (pthread_rwlockattr_setkind_np HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP)
 CHECK_FUNCTION_EXISTS (pthread_sigmask HAVE_PTHREAD_SIGMASK)
 CHECK_FUNCTION_EXISTS (pthread_threadmask HAVE_PTHREAD_THREADMASK)
 CHECK_FUNCTION_EXISTS (pthread_yield_np HAVE_PTHREAD_YIELD_NP)
@@ -445,6 +492,7 @@ CHECK_SYMBOL_EXISTS(getpagesize "unistd.h" HAVE_GETPAGESIZE)
 CHECK_SYMBOL_EXISTS(TIOCGWINSZ "sys/ioctl.h" GWINSZ_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(FIONREAD "sys/ioctl.h" FIONREAD_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(TIOCSTAT "sys/ioctl.h" TIOCSTAT_IN_SYS_IOCTL)
+CHECK_SYMBOL_EXISTS(FIONREAD "sys/filio.h" FIONREAD_IN_SYS_FILIO)
 CHECK_SYMBOL_EXISTS(gettimeofday "sys/time.h" HAVE_GETTIMEOFDAY)
 
 CHECK_SYMBOL_EXISTS(finite  "math.h" HAVE_FINITE_IN_MATH_H)
@@ -531,6 +579,7 @@ MY_CHECK_TYPE_SIZE(uint32 UINT32)
 MY_CHECK_TYPE_SIZE(u_int32_t U_INT32_T)
 MY_CHECK_TYPE_SIZE(int64 INT64)
 MY_CHECK_TYPE_SIZE(uint64 UINT64)
+MY_CHECK_TYPE_SIZE(time_t TIME_T)
 SET (CMAKE_EXTRA_INCLUDE_FILES sys/types.h)
 MY_CHECK_TYPE_SIZE(bool  BOOL)
 SET(CMAKE_EXTRA_INCLUDE_FILES)
@@ -549,6 +598,16 @@ ENDIF()
 #
 # Code tests
 #
+
+# check whether time_t is unsigned
+CHECK_C_SOURCE_COMPILES("
+int main()
+{
+  int array[(((time_t)-1) > 0) ? 1 : -1];
+  return 0;
+}"
+TIME_T_UNSIGNED)
+
 
 CHECK_C_SOURCE_COMPILES("
 #ifdef _WIN32
@@ -866,44 +925,6 @@ CHECK_CXX_SOURCE_COMPILES("
     }
   "
   HAVE_SOLARIS_STYLE_GETHOST)
-
-CHECK_CXX_SOURCE_COMPILES("
-    #undef inline
-    #if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
-    #define _REENTRANT
-    #endif
-    #include <pthread.h>
-    #include <sys/types.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #include <netdb.h>
-    int main()
-    {
-       int ret = gethostbyname_r((const char *) 0,
-	(struct hostent*) 0, (char*) 0, 0, (struct hostent **) 0, (int *) 0);
-      return 0;
-    }"
-    HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
-
-CHECK_CXX_SOURCE_COMPILES("
-    #undef inline
-    #if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
-    #define _REENTRANT
-    #endif
-    #include <pthread.h>
-    #include <sys/types.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #include <netdb.h>
-    int main()
-    {
-      int ret = gethostbyname_r((const char *) 0, (struct hostent*) 0, (struct hostent_data*) 0);
-      return 0;
-    }"
-    HAVE_GETHOSTBYNAME_R_RETURN_INT)
-
 
 # Use of ALARMs to wakeup on timeout on sockets
 #

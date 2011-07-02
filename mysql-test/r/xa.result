@@ -131,3 +131,101 @@ XA START 'xid1';
 XA END 'xid1';
 XA ROLLBACK 'xid1';
 DROP TABLE t1;
+#
+# Bug#56448 Assertion failed: ! is_set() with second xa end
+#
+XA START 'x';
+XA END 'x';
+XA END 'x';
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+XA PREPARE 'x';
+XA PREPARE 'x';
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+XA ROLLBACK 'x';
+#
+# Bug#59986 Assert in Diagnostics_area::set_ok_status() for XA COMMIT
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a)) engine=InnoDB;
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+# Connection con1
+XA START 'a';
+UPDATE t1 SET b= 3 WHERE a=1;
+# Connection default
+XA START 'b';
+UPDATE t1 SET b=4 WHERE a=2;
+# Sending:
+UPDATE t1 SET b=5 WHERE a=1;
+# Connection con1
+UPDATE t1 SET b=6 WHERE a=2;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+XA COMMIT 'a';
+ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
+# Connection default
+# Reaping: UPDATE t1 SET b=5 WHERE a=1
+XA END 'b';
+XA ROLLBACK 'b';
+DROP TABLE t1;
+#
+# Bug#11766752 59936: multiple xa assertions - transactional
+#              statement fuzzer
+#
+CREATE TABLE t1 (a INT) engine=InnoDB;
+XA START 'a';
+INSERT INTO t1 VALUES (1);
+SAVEPOINT savep;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+XA END 'a';
+SELECT * FROM t1;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+INSERT INTO t1 VALUES (2);
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+SAVEPOINT savep;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+SET @a=(SELECT * FROM t1);
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+XA PREPARE 'a';
+SELECT * FROM t1;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+INSERT INTO t1 VALUES (2);
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+SAVEPOINT savep;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+SET @a=(SELECT * FROM t1);
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+UPDATE t1 SET a=1 WHERE a=2;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+XA COMMIT 'a';
+SELECT * FROM t1;
+a
+1
+DROP TABLE t1;
+#
+# Bug#12352846 - TRANS_XA_START(THD*):
+#                ASSERTION THD->TRANSACTION.XID_STATE.XID.IS_NULL()
+#                FAILED 
+#
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+# Connection con2
+XA START 'xid1';
+# Sending:
+INSERT INTO t2 SELECT a FROM t1;
+# Connection default
+# Waiting until INSERT ... is blocked
+DELETE FROM t1;
+COMMIT;
+# Connection con2
+# Reaping: INSERT INTO t2 SELECT a FROM t1
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+XA COMMIT 'xid1';
+ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+XA ROLLBACK 'xid1';
+# Connection default
+DROP TABLE t1, t2;

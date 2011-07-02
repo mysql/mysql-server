@@ -1,0 +1,1684 @@
+# FTWRL takes two global metadata locks -- a global shared
+# metadata lock and the commit blocker lock.
+# The first lock prevents DDL from taking place.
+# Let's say that all DDL statements that take metadata
+# locks form class #1 -- incompatible with FTWRL because
+# take incompatible MDL table locks.
+# The first global lock doesn't, however, prevent standalone
+# COMMITs (or implicit COMMITs) from taking place, since a
+# COMMIT doesn't take table locks. It doesn't prevent
+# DDL on temporary tables either, since they don't
+# take any table locks either.
+# Most DDL statements do not perform an implicit commit
+# if operate on a temporary table. Examples are CREATE
+# TEMPORARY TABLE and DROP TEMPORARY TABLE. 
+# Thus, these DDL statements can go through in presence
+# of FTWRL. This is class #2 -- compatible because
+# do not take incompatible MDL locks and do not issue
+# implicit commit..
+# (Although these operations do not commit, their effects
+# cannot be rolled back either.)
+# ALTER TABLE, ANALYZE, OPTIMIZE and some others always
+# issue an implicit commit, even if its argument is a
+# temporary table. 
+# *Howewer* an implicit commit is a no-op if all engines
+# used since the start of transactiona are non-
+# transactional. Thus, for non-transactional engines,
+# these operations are not blocked by FTWRL.
+# This is class #3 -- compatible because do not take
+# MDL table locks and are non-transactional. 
+# On the contrary, for transactional engines, there
+# is always a commit, regardless of whether a table
+# is temporary or not. Thus, for example, ALTER TABLE
+# for a transactional engine will wait for FTWRL, 
+# even if the subject table is temporary.
+# Thus ALTER TABLE <temporary> is incompatible
+# with FTWRL. This is class #4 -- incompatible
+# becuase issue implicit COMMIT which is not a no-op.
+# Finally, there are administrative statements (such as 
+# RESET SLAVE) that do not take any locks and do not
+# issue COMMIT.
+# This is class #5.
+# The goal of this coverage is to test statements
+# of all classes.
+# @todo: documents the effects of @@autocommit,
+# DML and temporary transactional tables.
+# Use MyISAM engine for the most of the tables
+# used in this test in order to be able to 
+# check that DDL statements on temporary tables
+# are compatible with FTRWL. 
+drop tables if exists t1_base, t2_base, t3_trans;
+drop tables if exists tm_base, tm_base_temp;
+drop database if exists mysqltest1;
+# We're going to test ALTER DATABASE UPGRADE
+drop database if exists `#mysql50#mysqltest-2`;
+drop procedure if exists p1;
+drop function if exists f1;
+drop view if exists v1;
+drop procedure if exists p2;
+drop function if exists f2_base;
+drop function if exists f2_temp;
+drop event if exists e1;
+drop event if exists e2;
+create table t1_base(i int) engine=myisam;
+create table t2_base(j int) engine=myisam;
+create table t3_trans(i int) engine=innodb;
+create temporary table t1_temp(i int) engine=myisam;
+create temporary table t2_temp(j int) engine=myisam;
+create temporary table t3_temp_trans(i int) engine=innodb;
+create database mysqltest1;
+create database `#mysql50#mysqltest-2`;
+create procedure p1() begin end;
+create function f1() returns int return 0;
+create view v1 as select 1 as i;
+create procedure p2(i int) begin end;
+create function f2_base() returns int
+begin
+insert into t1_base values (1);
+return 0;
+end|
+create function f2_temp() returns int
+begin
+insert into t1_temp values (1);
+return 0;
+end|
+create event e1 on schedule every 1 minute do begin end;
+#
+# Test compatibility of FLUSH TABLES WITH READ LOCK 
+# with various statements.
+#
+# These tests don't cover some classes of statements:
+# - Replication-related - CHANGE MASTER TO, START/STOP SLAVE and etc
+#   (all compatible with FTWRL).
+# - Plugin-related - INSTALL/UNINSTALL (incompatible with FTWRL,
+#   require plugin support).
+#
+# 1) ALTER variants.
+#
+# 1.1) ALTER TABLE
+# 
+# 1.1.a) For base table should be incompatible with FTWRL.
+#
+Success: Was not able to run 'alter table t1_base add column c1 int' under FTWRL.
+Success: 'alter table t1_base add column c1 int' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'alter table t1_base add column c1 int' is active in another connection.
+#
+# 1.1.b) For a temporary table should be compatible with FTWRL.
+#
+Success: Was able to run 'alter table t1_temp add column c1 int' under FTWRL.
+Success: Was able to run 'alter table t1_temp add column c1 int' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'alter table t1_temp add column c1 int' was active in another connection.
+#
+# 1.2) ALTER DATABASE should be incompatible with FTWRL.
+#
+Success: Was not able to run 'alter database mysqltest1 default character set utf8' under FTWRL.
+Success: 'alter database mysqltest1 default character set utf8' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'alter database mysqltest1 default character set utf8' is active in another connection.
+#
+# 1.3) ALTER DATABASE UPGRADE DATA DIRECTORY NAME should be
+#      incompatible with FTWRL.
+#
+Success: Was not able to run 'alter database `#mysql50#mysqltest-2` upgrade data directory name' under FTWRL.
+Success: 'alter database `#mysql50#mysqltest-2` upgrade data directory name' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'alter database `#mysql50#mysqltest-2` upgrade data directory name' is active in another connection.
+#
+# 1.4) ALTER PROCEDURE should be incompatible with FTWRL.
+#
+Success: Was not able to run 'alter procedure p1 comment 'a'' under FTWRL.
+Success: 'alter procedure p1 comment 'a'' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'alter procedure p1 comment 'a'' is active in another connection.
+#
+# 1.5) ALTER FUNCTION should be incompatible with FTWRL.
+#
+Success: Was not able to run 'alter function f1 comment 'a'' under FTWRL.
+Success: 'alter function f1 comment 'a'' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'alter function f1 comment 'a'' is active in another connection.
+#
+# 1.6) ALTER VIEW should be incompatible with FTWRL.
+#
+Success: Was not able to run 'alter view v1 as select 2 as j' under FTWRL.
+Success: 'alter view v1 as select 2 as j' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'alter view v1 as select 2 as j' is active in another connection.
+#
+# 1.7) ALTER EVENT should be incompatible with FTWRL.
+#
+Success: Was not able to run 'alter event e1 comment 'test'' under FTWRL.
+Success: 'alter event e1 comment 'test'' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'alter event e1 comment 'test'' is active in another connection.
+#
+# 1.x) The rest of ALTER statements (ALTER TABLESPACE,
+#      ALTER LOGFILE GROUP and ALTER SERVER) are too
+#      special to be tested here.
+#
+#
+# 2) ANALYZE TABLE statement is compatible with FTWRL.
+# See Bug#43336 ANALYZE and OPTIMIZE do not honour
+#  --read-only for a discussion why.
+#
+Success: Was able to run 'analyze table t1_base' under FTWRL.
+Success: Was able to run 'analyze table t1_base' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'analyze table t1_base' was active in another connection.
+#
+# 3) BEGIN, ROLLBACK and COMMIT statements.
+#    BEGIN and ROLLBACK are compatible with FTWRL.
+#    COMMIT is not.
+# 
+# We need a special test for these statements as
+# FTWRL commits a transaction and because COMMIT
+# is handled in a special way.
+flush tables with read lock;
+begin;
+# ROLLBACK is allowed under FTWRL although there
+# no much sense in it. FTWRL commits any previous
+# changes and doesn't allows any DML after it.
+# So such a ROLLBACK is always a no-op.
+rollback;
+# Although COMMIT is incompatible with FTWRL in
+# other senses it is still allowed under FTWRL.
+# This fact relied upon by some versions of
+# innobackup tool.
+# Similarly to ROLLBACK it is a no-op in this situation.
+commit;
+unlock tables;
+# Check that BEGIN/ROLLBACK are not blocked and 
+# COMMIT is blocked by active FTWRL in another
+# connection.
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+begin;
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+# Do some work so ROLLBACK is not a no-op.
+insert into t3_trans values (1);
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+rollback;
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+begin;
+# Do some work so COMMIT is not a no-op.
+insert into t3_trans values (1);
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+# Send:
+commit;
+# Switching to connection 'con1'.
+# Wait until COMMIT is blocked.
+unlock tables;
+# Switching to connection 'default'.
+# Reap COMMIT.
+delete from t3_trans;
+#
+# Check that COMMIT blocks FTWRL in another connection.
+begin;
+insert into t3_trans values (1);
+set debug_sync='RESET';
+set debug_sync='ha_commit_trans_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+commit;
+# Switching to connection 'con1'.
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+# Switching to connection 'con2'.
+# Wait until FTWRL is blocked.
+set debug_sync='now SIGNAL go';
+# Switching to connection 'default'.
+# Reap COMMIT.
+# Switching to connection 'con1'.
+# Reap FTWRL.
+unlock tables;
+# Switching to connection 'default'.
+delete from t3_trans;
+set debug_sync= "RESET";
+# We don't run similar test for BEGIN and ROLLBACK as
+# they release metadata locks in non-standard place.
+#
+# 4) BINLOG statement should be incompatible with FTWRL.
+#
+#
+# Provide format description BINLOG statement first.
+BINLOG '
+MfmqTA8BAAAAZwAAAGsAAAABAAQANS41LjctbTMtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAx+apMEzgNAAgAEgAEBAQEEgAAVAAEGggAAAAICAgCAA==
+';
+# Now test compatibility for BINLOG statement which is 
+# equivalent to INSERT INTO t1_base VALUES (1).
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was not able to run 'BINLOG '
+MfmqTBMBAAAALgAAAN0AAAAAACgAAAAAAAEABHRlc3QAB3QxX2Jhc2UAAQMAAQ==
+MfmqTBcBAAAAIgAAAP8AAAAAACgAAAAAAAEAAf/+AQAAAA==
+'' under FTWRL.
+Success: 'BINLOG '
+MfmqTBMBAAAALgAAAN0AAAAAACgAAAAAAAEABHRlc3QAB3QxX2Jhc2UAAQMAAQ==
+MfmqTBcBAAAAIgAAAP8AAAAAACgAAAAAAAEAAf/+AQAAAA==
+'' is blocked by FTWRL active in another connection.
+#
+# 5) CALL statement. This statement uses resources in two
+#    ways: through expressions used as parameters and through
+#    sub-statements. This test covers only usage through
+#    parameters as sub-statements do locking individually.
+#
+# 5.a) In simple cases a parameter expression should be
+#      compatible with FTWRL.
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was able to run 'call p2((select count(*) from t1_base))' under FTWRL.
+Success: Was able to run 'call p2((select count(*) from t1_base))' with FTWRL active in another connection.
+#
+# 5.b) In case when an expression uses function which updates
+#      base tables CALL should be incompatible with FTWRL.
+#
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was not able to run 'call p2(f2_base())' under FTWRL.
+Success: 'call p2(f2_base())' is blocked by FTWRL active in another connection.
+#
+# 5.c) If function used as argument updates temporary tables
+#      CALL statement should be compatible with FTWRL.
+#
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was able to run 'call p2(f2_temp())' under FTWRL.
+Success: Was able to run 'call p2(f2_temp())' with FTWRL active in another connection.
+#
+# 6) CHECK TABLE statement is compatible with FTWRL.
+#
+Success: Was able to run 'check table t1_base' under FTWRL.
+Success: Was able to run 'check table t1_base' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'check table t1_base' was active in another connection.
+#
+# 7) CHECKSUM TABLE statement is compatible with FTWRL.
+#
+Success: Was able to run 'checksum table t1_base' under FTWRL.
+Success: Was able to run 'checksum table t1_base' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'checksum table t1_base' was active in another connection.
+#
+# 8) CREATE variants.
+#
+# 8.1) CREATE TABLE statement.
+#
+# 8.1.a) CREATE TABLE is incompatible with FTWRL when
+#        base table is created.
+Success: Was not able to run 'create table t3_base(i int)' under FTWRL.
+Success: 'create table t3_base(i int)' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'create table t3_base(i int)' is active in another connection.
+# 8.1.b) CREATE TABLE is compatible with FTWRL when
+#        temporary table is created.
+Success: Was able to run 'create temporary table t3_temp(i int)' under FTWRL.
+Success: Was able to run 'create temporary table t3_temp(i int)' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'create temporary table t3_temp(i int)' was active in another connection.
+# 8.1.c) CREATE TABLE LIKE is incompatible with FTWRL when
+#        base table is created.
+Success: Was not able to run 'create table t3_base like t1_temp' under FTWRL.
+Success: 'create table t3_base like t1_temp' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'create table t3_base like t1_temp' is active in another connection.
+# 8.1.d) CREATE TABLE LIKE is compatible with FTWRL when
+#        temporary table is created.
+Success: Was able to run 'create temporary table t3_temp like t1_base' under FTWRL.
+Success: Was able to run 'create temporary table t3_temp like t1_base' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'create temporary table t3_temp like t1_base' was active in another connection.
+# 8.1.e) CREATE TABLE SELECT is incompatible with FTWRL when
+#        base table is created.
+Success: Was not able to run 'create table t3_base select 1 as i' under FTWRL.
+Success: 'create table t3_base select 1 as i' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'create table t3_base select 1 as i' is active in another connection.
+# 8.1.f) CREATE TABLE SELECT is compatible with FTWRL when
+#        temporary table is created.
+Success: Was able to run 'create temporary table t3_temp select 1 as i' under FTWRL.
+Success: Was able to run 'create temporary table t3_temp select 1 as i' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'create temporary table t3_temp select 1 as i' was active in another connection.
+# 8.2) CREATE INDEX statement.
+#
+# 8.2.a) CREATE INDEX is incompatible with FTWRL when
+#        applied to base table.
+Success: Was not able to run 'create index i on t1_base (i)' under FTWRL.
+Success: 'create index i on t1_base (i)' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'create index i on t1_base (i)' is active in another connection.
+# 8.2.b) CREATE INDEX is compatible with FTWRL when
+#        applied to temporary table.
+Success: Was able to run 'create index i on t1_temp (i)' under FTWRL.
+Success: Was able to run 'create index i on t1_temp (i)' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'create index i on t1_temp (i)' was active in another connection.
+#
+# 8.3) CREATE DATABASE is incompatible with FTWRL.
+#
+Success: Was not able to run 'create database mysqltest2' under FTWRL.
+Success: 'create database mysqltest2' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'create database mysqltest2' is active in another connection.
+#
+# 8.4) CREATE VIEW is incompatible with FTWRL.
+#
+Success: Was not able to run 'create view v2 as select 1 as j' under FTWRL.
+Success: 'create view v2 as select 1 as j' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'create view v2 as select 1 as j' is active in another connection.
+#
+# 8.5) CREATE TRIGGER is incompatible with FTWRL.
+#
+Success: Was not able to run 'create trigger t1_bi before insert on t1_base for each row begin end' under FTWRL.
+Success: 'create trigger t1_bi before insert on t1_base for each row begin end' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'create trigger t1_bi before insert on t1_base for each row begin end' is active in another connection.
+#
+# 8.6) CREATE FUNCTION is incompatible with FTWRL.
+#
+Success: Was not able to run 'create function f2() returns int return 0' under FTWRL.
+Success: 'create function f2() returns int return 0' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'create function f2() returns int return 0' is active in another connection.
+#
+# 8.7) CREATE PROCEDURE is incompatible with FTWRL.
+#
+Success: Was not able to run 'create procedure p3() begin end' under FTWRL.
+Success: 'create procedure p3() begin end' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'create procedure p3() begin end' is active in another connection.
+#
+# 8.8) CREATE EVENT should be incompatible with FTWRL.
+#
+Success: Was not able to run 'create event e2 on schedule every 1 minute do begin end' under FTWRL.
+Success: 'create event e2 on schedule every 1 minute do begin end' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'create event e2 on schedule every 1 minute do begin end' is active in another connection.
+#
+# 8.9) CREATE USER should be incompatible with FTWRL.
+#
+Success: Was not able to run 'create user mysqltest_u1' under FTWRL.
+Success: 'create user mysqltest_u1' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'create user mysqltest_u1' is active in another connection.
+#
+# 8.x) The rest of CREATE variants (CREATE LOGFILE GROUP,
+#      CREATE TABLESPACE and CREATE SERVER) are too special
+#      to test here.
+#
+#
+# 9) PREPARE, EXECUTE and DEALLOCATE PREPARE statements.
+#
+# 9.1) PREPARE statement is compatible with FTWRL as it
+#      doesn't change any data.
+# 
+# 9.1.a) Prepare of simple INSERT statement.
+#
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was able to run 'prepare stmt1 from 'insert into t1_base values (1)'' under FTWRL.
+Success: Was able to run 'prepare stmt1 from 'insert into t1_base values (1)'' with FTWRL active in another connection.
+#
+# 9.1.b) Prepare of multi-UPDATE. At some point such statements
+#        tried to acquire thr_lock.c locks during prepare phase.
+#        This no longer happens and thus it is compatible with
+#        FTWRL.
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was able to run 'prepare stmt1 from 'update t1_base, t2_base set t1_base.i= 1 where t1_base.i = t2_base.j'' under FTWRL.
+Success: Was able to run 'prepare stmt1 from 'update t1_base, t2_base set t1_base.i= 1 where t1_base.i = t2_base.j'' with FTWRL active in another connection.
+#
+# 9.1.c) Prepare of multi-DELETE. Again PREPARE of such
+#        statement should be compatible with FTWRL.
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was able to run 'prepare stmt1 from 'delete t1_base from t1_base, t2_base where t1_base.i = t2_base.j'' under FTWRL.
+Success: Was able to run 'prepare stmt1 from 'delete t1_base from t1_base, t2_base where t1_base.i = t2_base.j'' with FTWRL active in another connection.
+#
+# 9.2) Compatibility of EXECUTE statement depends on statement
+#     to be executed.
+#
+# 9.2.a) EXECUTE for statement which is itself compatible with
+#       FTWRL should be compatible.
+prepare stmt1 from 'select * from t1_base';
+Success: Was able to run 'execute stmt1' under FTWRL.
+Success: Was able to run 'execute stmt1' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'execute stmt1' was active in another connection.
+deallocate prepare stmt1;
+call mtr.add_suppression("Slave SQL.*Can.t execute the query because you have a conflicting read lock., Error_code: 1223");
+#
+# 9.2.b) EXECUTE for statement which is incompatible with FTWRL
+#        should be also incompatible.
+#
+# Check that EXECUTE is not allowed under FTWRL.
+prepare stmt1 from 'insert into t1_base values (1)';
+flush tables with read lock;
+execute stmt1;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+unlock tables;
+# Check that active FTWRL in another connection
+# blocks EXECUTE which changes data.
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+execute stmt1 ;
+# Switching to connection 'con1'.
+# Check that EXECUTE is blocked.
+unlock tables;
+# Switching to connection 'default'.
+# Reap EXECUTE.
+set debug_sync='RESET';
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+execute stmt1; ;
+# Switching to connection 'con1'.
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+# Switching to connection 'con2'.
+# Wait until FTWRL is blocked.
+set debug_sync='now SIGNAL go';
+# Switching to connection 'default'.
+# Reap EXECUTE.
+# Switching to connection 'con1'.
+# Reap FTWRL.
+unlock tables;
+# Switching to connection 'default'.
+set debug_sync= "RESET";
+delete from t1_base;
+deallocate prepare stmt1;
+#
+# 9.3) DEALLOCATE PREPARE is compatible with FTWRL.
+#
+prepare stmt1 from 'insert into t1_base values (1)';
+Success: Was able to run 'deallocate prepare stmt1' under FTWRL.
+Success: Was able to run 'deallocate prepare stmt1' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'deallocate prepare stmt1' was active in another connection.
+deallocate prepare stmt1;
+#
+# 10) DELETE variations.
+#
+# 10.1) Simple DELETE.
+# 
+# 10.1.a) Simple DELETE on base table is incompatible with FTWRL.
+Success: Was not able to run 'delete from t1_base' under FTWRL.
+Success: 'delete from t1_base' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'delete from t1_base' is active in another connection.
+# 
+# 10.1.b) Simple DELETE on temporary table is compatible with FTWRL.
+Success: Was able to run 'delete from t1_temp' under FTWRL.
+Success: Was able to run 'delete from t1_temp' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'delete from t1_temp' was active in another connection.
+#
+# 10.2) Multi DELETE.
+# 
+# 10.2.a) Multi DELETE on base tables is incompatible with FTWRL.
+Success: Was not able to run 'delete t1_base from t1_base, t2_base where t1_base.i = t2_base.j' under FTWRL.
+Success: 'delete t1_base from t1_base, t2_base where t1_base.i = t2_base.j' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'delete t1_base from t1_base, t2_base where t1_base.i = t2_base.j' is active in another connection.
+# 
+# 10.2.b) Multi DELETE on temporary tables is compatible with FTWRL.
+Success: Was able to run 'delete t1_temp from t1_temp, t2_temp where t1_temp.i = t2_temp.j' under FTWRL.
+Success: Was able to run 'delete t1_temp from t1_temp, t2_temp where t1_temp.i = t2_temp.j' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'delete t1_temp from t1_temp, t2_temp where t1_temp.i = t2_temp.j' was active in another connection.
+#
+# 11) DESCRIBE should be compatible with FTWRL.
+#
+Success: Was able to run 'describe t1_base' under FTWRL.
+Success: Was able to run 'describe t1_base' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'describe t1_base' was active in another connection.
+#
+# 12) Compatibility of DO statement with FTWRL depends on its
+#     expression.
+#
+# 12.a) DO with expression which does not change base table
+#       should be compatible with FTWRL.
+Success: Was able to run 'do (select count(*) from t1_base)' under FTWRL.
+Success: Was able to run 'do (select count(*) from t1_base)' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'do (select count(*) from t1_base)' was active in another connection.
+#
+# 12.b) DO which calls SF updating base table should be
+#       incompatible with FTWRL.
+Success: Was not able to run 'do f2_base()' under FTWRL.
+Success: 'do f2_base()' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'do f2_base()' is active in another connection.
+#
+# 12.c) DO which calls SF updating temporary table should be
+#       compatible with FTWRL.
+Success: Was able to run 'do f2_temp()' under FTWRL.
+Success: Was able to run 'do f2_temp()' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'do f2_temp()' was active in another connection.
+#
+# 13) DROP variants.
+#
+# 13.1) DROP TABLES.
+#
+# 13.1.a) DROP TABLES which affects base tables is incompatible
+#         with FTWRL.
+Success: Was not able to run 'drop table t2_base' under FTWRL.
+Success: 'drop table t2_base' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'drop table t2_base' is active in another connection.
+# 13.1.b) DROP TABLES which affects only temporary tables
+#         in theory can be compatible with FTWRL.
+#         In practice it is not yet.
+Success: Was not able to run 'drop table t2_temp' under FTWRL.
+Success: 'drop table t2_temp' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'drop table t2_temp' is active in another connection.
+#
+# 13.1.c) DROP TEMPORARY TABLES should be compatible with FTWRL.
+Success: Was able to run 'drop temporary table t2_temp' under FTWRL.
+Success: Was able to run 'drop temporary table t2_temp' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'drop temporary table t2_temp' was active in another connection.
+#
+# 13.2) DROP INDEX.
+#
+# 13.2.a) DROP INDEX on a base table is incompatible with FTWRL.
+create index i on t1_base (i);
+Success: Was not able to run 'drop index i on t1_base' under FTWRL.
+Success: 'drop index i on t1_base' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'drop index i on t1_base' is active in another connection.
+drop index i on t1_base;
+#
+# 13.2.b) DROP INDEX on a temporary table is compatible with FTWRL.
+create index i on t1_temp (i);
+Success: Was able to run 'drop index i on t1_temp' under FTWRL.
+Success: Was able to run 'drop index i on t1_temp' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'drop index i on t1_temp' was active in another connection.
+drop index i on t1_temp;
+#
+# 13.3) DROP DATABASE is incompatible with FTWRL
+#
+Success: Was not able to run 'drop database mysqltest1' under FTWRL.
+Success: 'drop database mysqltest1' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'drop database mysqltest1' is active in another connection.
+#
+# 13.4) DROP FUNCTION is incompatible with FTWRL.
+#
+Success: Was not able to run 'drop function f1' under FTWRL.
+Success: 'drop function f1' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'drop function f1' is active in another connection.
+#
+# 13.5) DROP PROCEDURE is incompatible with FTWRL.
+#
+Success: Was not able to run 'drop procedure p1' under FTWRL.
+Success: 'drop procedure p1' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'drop procedure p1' is active in another connection.
+#
+# 13.6) DROP USER should be incompatible with FTWRL.
+#
+create user mysqltest_u1;
+Success: Was not able to run 'drop user mysqltest_u1' under FTWRL.
+Success: 'drop user mysqltest_u1' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'drop user mysqltest_u1' is active in another connection.
+drop user mysqltest_u1;
+#
+# 13.7) DROP VIEW should be incompatible with FTWRL.
+#
+Success: Was not able to run 'drop view v1' under FTWRL.
+Success: 'drop view v1' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'drop view v1' is active in another connection.
+#
+# 13.8) DROP EVENT should be incompatible with FTWRL.
+#
+Success: Was not able to run 'drop event e1' under FTWRL.
+Success: 'drop event e1' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'drop event e1' is active in another connection.
+#
+# 13.9) DROP TRIGGER is incompatible with FTWRL.
+#
+create trigger t1_bi before insert on t1_base for each row begin end;
+Success: Was not able to run 'drop trigger t1_bi' under FTWRL.
+Success: 'drop trigger t1_bi' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'drop trigger t1_bi' is active in another connection.
+drop trigger t1_bi;
+#
+# 13.x) The rest of DROP variants (DROP TABLESPACE, DROP LOGFILE
+#       GROUP and DROP SERVER) are too special to test here.
+#
+#
+# 14) FLUSH variants.
+#
+# Test compatibility of _some_ important FLUSH variants with FTWRL.
+#
+# 14.1) FLUSH TABLES WITH READ LOCK is compatible with itself.
+# 
+# Check that FTWRL statements can be run while FTWRL
+# is active in another connection.
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# The second FTWRL in a row is allowed at the moment.
+# It does not make much sense as it does only flush.
+flush tables with read lock;
+unlock tables;
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+flush tables with read lock;
+unlock tables;
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+#
+# 14.2) FLUSH TABLES <list> WITH READ LOCK is not blocked by
+#       active FTWRL. But since the latter keeps tables open
+#       FTWRL is blocked by FLUSH TABLES <list> WITH READ LOCK.
+flush tables with read lock;
+# FT <list> WRL is allowed under FTWRL at the moment.
+# It does not make much sense though.
+flush tables t1_base, t2_base with read lock;
+unlock tables;
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+flush tables t1_base, t2_base with read lock;
+unlock tables;
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+flush tables t1_base, t2_base with read lock;
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'con2'.
+# Wait until FTWRL is blocked.
+# Switching to connection 'default'.
+unlock tables;
+# Switching to connection 'con1'.
+# Reap FTWRL.
+unlock tables;
+# Switching to connection 'default'.
+#
+# 14.3) FLUSH TABLES is compatible with FTWRL.
+Success: Was able to run 'flush tables' under FTWRL.
+Success: Was able to run 'flush tables' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'flush tables' was active in another connection.
+#
+# 14.4) FLUSH TABLES <list> is compatible with FTWRL.
+Success: Was able to run 'flush table t1_base, t2_base' under FTWRL.
+Success: Was able to run 'flush table t1_base, t2_base' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'flush table t1_base, t2_base' was active in another connection.
+#
+# 14.5) FLUSH PRIVILEGES is compatible with FTWRL.
+Success: Was able to run 'flush privileges' under FTWRL.
+Success: Was able to run 'flush privileges' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'flush privileges' was active in another connection.
+#
+# 15) GRANT statement should be incompatible with FTWRL.
+#
+Success: Was not able to run 'grant all privileges on t1_base to mysqltest_u1' under FTWRL.
+Success: 'grant all privileges on t1_base to mysqltest_u1' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'grant all privileges on t1_base to mysqltest_u1' is active in another connection.
+drop user mysqltest_u1;
+#
+# 16) All HANDLER variants are half-compatible with FTWRL.
+#     I.e. they are not blocked by active FTWRL. But since open
+#     HANDLER means open table instance FTWRL is blocked while
+#     HANDLER is not closed.
+#
+# Check that HANDLER statements succeed under FTWRL.
+flush tables with read lock;
+handler t1_base open;
+handler t1_base read first;
+i
+handler t1_base close;
+unlock tables;
+# Check that HANDLER statements can be run while FTWRL
+# is active in another connection.
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+handler t1_base open;
+handler t1_base read first;
+i
+handler t1_base close;
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+#
+# 17) HELP statement is compatible with FTWRL.
+#
+Success: Was able to run 'help no_such_topic' under FTWRL.
+Success: Was able to run 'help no_such_topic' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'help no_such_topic' was active in another connection.
+#
+# 18) INSERT statement.
+# 
+# 18.a) Ordinary INSERT into base table is incompatible with FTWRL.
+Success: Was not able to run 'insert into t1_base values (1)' under FTWRL.
+Success: 'insert into t1_base values (1)' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'insert into t1_base values (1)' is active in another connection.
+#
+# 18.b) Ordinary INSERT into temp table is compatible with FTWRL.
+Success: Was able to run 'insert into t1_temp values (1)' under FTWRL.
+Success: Was able to run 'insert into t1_temp values (1)' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'insert into t1_temp values (1)' was active in another connection.
+#
+# 18.c) INSERT DELAYED is incompatible with FTWRL.
+Success: Was not able to run 'insert delayed into t1_base values (1)' under FTWRL.
+Success: 'insert delayed into t1_base values (1)' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'insert delayed into t1_base values (1)' is active in another connection.
+delete from t1_base;
+# 
+# 18.d) INSERT SELECT into base table is incompatible with FTWRL.
+Success: Was not able to run 'insert into t1_base select * from t1_temp' under FTWRL.
+Success: 'insert into t1_base select * from t1_temp' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'insert into t1_base select * from t1_temp' is active in another connection.
+#
+# 18.e) INSERT SELECT into temp table is compatible with FTWRL.
+Success: Was able to run 'insert into t1_temp select * from t1_base' under FTWRL.
+Success: Was able to run 'insert into t1_temp select * from t1_base' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'insert into t1_temp select * from t1_base' was active in another connection.
+#
+# 19) KILL statement is compatible with FTWRL.
+#
+# Check that KILL can be run under FTWRL.
+flush tables with read lock;
+set @id:= connection_id();
+kill query @id;
+ERROR 70100: Query execution was interrupted
+unlock tables;
+# Check that KILL statements can be run while FTWRL
+# is active in another connection.
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+kill query @id;
+ERROR 70100: Query execution was interrupted
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+# Finally check that KILL doesn't block FTWRL
+set debug_sync='RESET';
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+kill query @id;
+# Switching to connection 'con1'.
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+unlock tables;
+set debug_sync='now SIGNAL go';
+# Switching to connection 'default'.
+# Reap KILL. 
+ERROR 70100: Query execution was interrupted
+set debug_sync='RESET';
+#
+# 20) LOAD DATA statement.
+# 
+# 20.a) LOAD DATA into base table is incompatible with FTWRL.
+Success: Was not able to run 'load data infile '../../std_data/rpl_loaddata.dat' into table t1_base (@dummy, i)' under FTWRL.
+Success: 'load data infile '../../std_data/rpl_loaddata.dat' into table t1_base (@dummy, i)' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'load data infile '../../std_data/rpl_loaddata.dat' into table t1_base (@dummy, i)' is active in another connection.
+# 
+# 20.b) LOAD DATA into temporary table is compatible with FTWRL.
+Success: Was able to run 'load data infile '../../std_data/rpl_loaddata.dat' into table t1_temp (@dummy, i)' under FTWRL.
+Success: Was able to run 'load data infile '../../std_data/rpl_loaddata.dat' into table t1_temp (@dummy, i)' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'load data infile '../../std_data/rpl_loaddata.dat' into table t1_temp (@dummy, i)' was active in another connection.
+#
+# 21) LOCK/UNLOCK TABLES statements.
+#
+# LOCK TABLES statement always (almost) blocks FTWRL as it
+# keeps tables open until UNLOCK TABLES.
+# Active FTWRL on the other hand blocks only those
+# LOCK TABLES which allow updating of base tables.
+#
+# 21.a) LOCK TABLES READ is allowed under FTWRL and
+#       is not blocked by active FTWRL.
+flush tables with read lock;
+lock tables t1_base read;
+unlock tables;
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+lock tables t1_base read;
+unlock tables;
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+#
+# 21.b) LOCK TABLES WRITE on a base table is disallowed
+#       under FTWRL and should be blocked by active FTWRL.
+flush tables with read lock;
+lock tables t1_base write;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+unlock tables;
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+lock tables t1_base write ;
+# Switching to connection 'con1'.
+# Check that LOCK TABLES WRITE is blocked.
+unlock tables;
+# Switching to connection 'default'.
+# Reap LOCK TABLES WRITE
+unlock tables;
+#
+# 21.c) LOCK TABLES WRITE on temporary table doesn't
+#       make much sense but is allowed under FTWRL
+#       and should not be blocked by active FTWRL.
+flush tables with read lock;
+lock tables t1_temp write;
+unlock tables;
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+lock tables t1_temp write;
+unlock tables;
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+#
+# 22) OPTIMIZE TABLE statement.
+#
+# 22.a) OPTIMIZE TABLE of base table is incompatible with FTWRL.
+flush tables with read lock;
+# OPTIMIZE statement returns errors as part of result-set.
+optimize table t1_base;
+Table	Op	Msg_type	Msg_text
+test.t1_base	optimize	Error	Can't execute the query because you have a conflicting read lock
+test.t1_base	optimize	error	Corrupt
+unlock tables;
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+optimize table t1_base;
+# Switching to connection 'con1'.
+# Check that OPTIMIZE TABLE is blocked.
+unlock tables;
+# Switching to connection 'default'.
+# Reap OPTIMIZE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1_base	optimize	status	OK
+# We don't check that active OPTIMIZE TABLE blocks
+# FTWRL as this one of statements releasing metadata
+# locks in non-standard place.
+#
+# 22.b) OPTIMIZE TABLE of temporary table is compatible with FTWRL.
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was able to run 'optimize table t1_temp' under FTWRL.
+Success: Was able to run 'optimize table t1_temp' with FTWRL active in another connection.
+#
+# 23) CACHE statement is compatible with FTWRL.
+#
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was able to run 'cache index t1_base in default' under FTWRL.
+Success: Was able to run 'cache index t1_base in default' with FTWRL active in another connection.
+#
+# 24) LOAD INDEX statement is compatible with FTWRL.
+#
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was able to run 'load index into cache t1_base' under FTWRL.
+Success: Was able to run 'load index into cache t1_base' with FTWRL active in another connection.
+#
+# 25) SAVEPOINT/RELEASE SAVEPOINT/ROLLBACK TO SAVEPOINT are
+#     compatible with FTWRL.
+#
+# Since manipulations on savepoint have to be done
+# inside transaction and FTWRL commits transaction we
+# need a special test for these statements.
+flush tables with read lock;
+begin;
+savepoint sv1;
+rollback to savepoint sv1;
+release savepoint sv1;
+unlock tables;
+commit;
+# Check that these statements are not blocked by
+# active FTWRL in another connection.
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+begin;
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+# Do some changes to avoid SAVEPOINT and friends
+# being almost no-ops.
+insert into t3_trans values (1);
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+savepoint sv1;
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+insert into t3_trans values (2);
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+rollback to savepoint sv1;
+release savepoint sv1;
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+rollback;
+# Check that these statements don't block FTWRL in
+# another connection.
+begin;
+# Do some changes to avoid SAVEPOINT and friends
+# being almost no-ops.
+insert into t3_trans values (1);
+set debug_sync='RESET';
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+savepoint sv1;
+# Switching to connection 'con1'.
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+unlock tables;
+set debug_sync='now SIGNAL go';
+# Switching to connection 'default'.
+# Reap SAVEPOINT
+insert into t3_trans values (2);
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+rollback to savepoint sv1;
+# Switching to connection 'con1'.
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+unlock tables;
+set debug_sync='now SIGNAL go';
+# Switching to connection 'default'.
+# Reap ROLLBACK TO SAVEPOINT
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+release savepoint sv1;
+# Switching to connection 'con1'.
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+unlock tables;
+set debug_sync='now SIGNAL go';
+# Switching to connection 'default'.
+# Reap RELEASE SAVEPOINT
+rollback;
+set debug_sync= "RESET";
+#
+# 26) RENAME variants.
+#
+# 26.1) RENAME TABLES is incompatible with FTWRL.
+Success: Was not able to run 'rename table t1_base to t3_base' under FTWRL.
+Success: 'rename table t1_base to t3_base' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'rename table t1_base to t3_base' is active in another connection.
+#
+# 26.2) RENAME USER is incompatible with FTWRL.
+create user mysqltest_u1;
+Success: Was not able to run 'rename user mysqltest_u1 to mysqltest_u2' under FTWRL.
+Success: 'rename user mysqltest_u1 to mysqltest_u2' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'rename user mysqltest_u1 to mysqltest_u2' is active in another connection.
+drop user mysqltest_u1;
+#
+# 27) REPAIR TABLE statement.
+#
+# 27.a) REPAIR TABLE of base table is incompatible with FTWRL.
+flush tables with read lock;
+# REPAIR statement returns errors as part of result-set.
+repair table t1_base;
+Table	Op	Msg_type	Msg_text
+test.t1_base	repair	Error	Can't execute the query because you have a conflicting read lock
+test.t1_base	repair	error	Corrupt
+unlock tables;
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+repair table t1_base;
+# Switching to connection 'con1'.
+# Check that REPAIR TABLE is blocked.
+unlock tables;
+# Switching to connection 'default'.
+# Reap REPAIR TABLE
+Table	Op	Msg_type	Msg_text
+test.t1_base	repair	status	OK
+# We don't check that active REPAIR TABLE blocks
+# FTWRL as this one of statements releasing metadata
+# locks in non-standard place.
+#
+# 27.b) REPAIR TABLE of temporary table is compatible with FTWRL.
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was able to run 'repair table t1_temp' under FTWRL.
+Success: Was able to run 'repair table t1_temp' with FTWRL active in another connection.
+#
+# 28) REPLACE statement.
+# 
+# 28.a) Ordinary REPLACE into base table is incompatible with FTWRL.
+Success: Was not able to run 'replace into t1_base values (1)' under FTWRL.
+Success: 'replace into t1_base values (1)' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'replace into t1_base values (1)' is active in another connection.
+#
+# 28.b) Ordinary REPLACE into temp table is compatible with FTWRL.
+Success: Was able to run 'replace into t1_temp values (1)' under FTWRL.
+Success: Was able to run 'replace into t1_temp values (1)' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'replace into t1_temp values (1)' was active in another connection.
+# 
+# 28.c) REPLACE SELECT into base table is incompatible with FTWRL.
+Success: Was not able to run 'replace into t1_base select * from t1_temp' under FTWRL.
+Success: 'replace into t1_base select * from t1_temp' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'replace into t1_base select * from t1_temp' is active in another connection.
+#
+# 28.d) REPLACE SELECT into temp table is compatible with FTWRL.
+Success: Was able to run 'replace into t1_temp select * from t1_base' under FTWRL.
+Success: Was able to run 'replace into t1_temp select * from t1_base' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'replace into t1_temp select * from t1_base' was active in another connection.
+#
+# 29) REVOKE variants.
+# 
+# 29.1) REVOKE privileges is incompatible with FTWRL. 
+grant all privileges on t1_base to mysqltest_u1;
+Success: Was not able to run 'revoke all privileges on t1_base from mysqltest_u1' under FTWRL.
+Success: 'revoke all privileges on t1_base from mysqltest_u1' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'revoke all privileges on t1_base from mysqltest_u1' is active in another connection.
+# 
+# 29.2) REVOKE ALL PRIVILEGES, GRANT OPTION is incompatible with FTWRL.
+Success: Was not able to run 'revoke all privileges, grant option from mysqltest_u1' under FTWRL.
+Success: 'revoke all privileges, grant option from mysqltest_u1' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'revoke all privileges, grant option from mysqltest_u1' is active in another connection.
+drop user mysqltest_u1;
+#
+# 30) Compatibility of SELECT statement with FTWRL depends on
+#     locking mode used and on functions being invoked by it.
+#
+# 30.a) Simple SELECT which does not change tables should be
+#       compatible with FTWRL.
+Success: Was able to run 'select count(*) from t1_base' under FTWRL.
+Success: Was able to run 'select count(*) from t1_base' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'select count(*) from t1_base' was active in another connection.
+# 30.b) SELECT ... FOR UPDATE is incompatible with FTWRL.
+Success: Was not able to run 'select count(*) from t1_base for update' under FTWRL.
+Success: 'select count(*) from t1_base for update' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'select count(*) from t1_base for update' is active in another connection.
+# 30.c) SELECT ... LOCK IN SHARE MODE is compatible with FTWRL.
+Success: Was able to run 'select count(*) from t1_base lock in share mode' under FTWRL.
+Success: Was able to run 'select count(*) from t1_base lock in share mode' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'select count(*) from t1_base lock in share mode' was active in another connection.
+#
+# 30.d) SELECT which calls SF updating base table should be
+#       incompatible with FTWRL.
+Success: Was not able to run 'select f2_base()' under FTWRL.
+Success: 'select f2_base()' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'select f2_base()' is active in another connection.
+#
+# 30.e) SELECT which calls SF updating temporary table should be
+#       compatible with FTWRL.
+Success: Was able to run 'select f2_temp()' under FTWRL.
+Success: Was able to run 'select f2_temp()' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'select f2_temp()' was active in another connection.
+#
+# 31) Compatibility of SET statement with FTWRL depends on its
+#     expression and on whether it is a special SET statement.
+#
+# 31.a) Ordinary SET with expression which does not
+#       changes base table should be compatible with FTWRL.
+# Skip last part of compatibility testing as our helper debug
+# sync-point doesn't work for SET statements.
+Success: Was able to run 'set @a:= (select count(*) from t1_base)' under FTWRL.
+Success: Was able to run 'set @a:= (select count(*) from t1_base)' with FTWRL active in another connection.
+#
+# 31.b) Ordinary SET which calls SF updating base table should
+#       be incompatible with FTWRL.
+# Skip last part of compatibility testing as our helper debug
+# sync-point doesn't work for SET statements.
+Success: Was not able to run 'set @a:= f2_base()' under FTWRL.
+Success: 'set @a:= f2_base()' is blocked by FTWRL active in another connection.
+#
+# 31.c) Ordinary SET which calls SF updating temporary table
+#       should be compatible with FTWRL.
+# Skip last part of compatibility testing as our helper debug
+# sync-point doesn't work for SET statements.
+Success: Was able to run 'set @a:= f2_temp()' under FTWRL.
+Success: Was able to run 'set @a:= f2_temp()' with FTWRL active in another connection.
+#
+# 31.d) Special SET variants have different compatibility with FTWRL.
+#
+# 31.d.I) SET PASSWORD is incompatible with FTWRL as it changes data.
+create user mysqltest_u1;
+# Skip last part of compatibility testing as our helper debug
+# sync-point doesn't work for SET statements.
+Success: Was not able to run 'set password for 'mysqltest_u1' = password('')' under FTWRL.
+Success: 'set password for 'mysqltest_u1' = password('')' is blocked by FTWRL active in another connection.
+drop user mysqltest_u1;
+#
+# 31.d.II) SET READ_ONLY is compatible with FTWRL (but has no
+#          effect when executed under it).
+# Skip last part of compatibility testing as our helper debug
+# sync-point doesn't work for SET statements.
+Success: Was able to run 'set global read_only= 1' under FTWRL.
+Success: Was able to run 'set global read_only= 1' with FTWRL active in another connection.
+#
+# 31.d.III) Situation with SET AUTOCOMMIT is complex.
+#           Turning auto-commit off is always compatible with FTWRL.
+#           Turning auto-commit on causes implicit commit and so
+#           is incompatible with FTWRL if there are changes to be
+#           committed.
+flush tables with read lock;
+set autocommit= 0;
+# Turning auto-commit on causes implicit commit so can
+# be incompatible with FTWRL if there is something to
+# commit. But since even in this case we allow commits
+# under active FTWRL such statement should always succeed.
+insert into t3_temp_trans values (1);
+set autocommit= 1;
+unlock tables;
+delete from t3_temp_trans;
+# Check that SET AUTOCOMMIT=0 is not blocked and 
+# SET AUTOCOMMIT=1 is blocked by active FTWRL in
+# another connection.
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+set autocommit= 0;
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+# Do some work so implicit commit in SET AUTOCOMMIT=1 
+# is not a no-op.
+insert into t3_trans values (1);
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+# Send:
+set autocommit= 1;
+# Switching to connection 'con1'.
+# Wait until SET AUTOCOMMIT=1 is blocked.
+unlock tables;
+# Switching to connection 'default'.
+# Reap SET AUTOCOMMIT=1.
+delete from t3_trans;
+#
+# Check that SET AUTOCOMMIT=1 blocks FTWRL in another connection.
+set autocommit= 0;
+insert into t3_trans values (1);
+set debug_sync='RESET';
+set debug_sync='ha_commit_trans_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+set autocommit= 1;
+# Switching to connection 'con1'.
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+# Switching to connection 'con2'.
+# Wait until FTWRL is blocked.
+set debug_sync='now SIGNAL go';
+# Switching to connection 'default'.
+# Reap SET AUTOCOMMIT=1.
+# Switching to connection 'con1'.
+# Reap FTWRL.
+unlock tables;
+# Switching to connection 'default'.
+delete from t3_trans;
+set debug_sync= "RESET";
+#
+# 32) SHOW statements are compatible with FTWRL.
+#     Let us test _some_ of them.
+#
+# 32.1) SHOW TABLES.
+Success: Was able to run 'show tables from test' under FTWRL.
+Success: Was able to run 'show tables from test' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'show tables from test' was active in another connection.
+#
+# 32.1) SHOW TABLES.
+Success: Was able to run 'show tables from test' under FTWRL.
+Success: Was able to run 'show tables from test' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'show tables from test' was active in another connection.
+#
+# 32.2) SHOW EVENTS.
+Success: Was able to run 'show events from test' under FTWRL.
+Success: Was able to run 'show events from test' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'show events from test' was active in another connection.
+#
+# 32.3) SHOW GRANTS.
+create user mysqltest_u1;
+Success: Was able to run 'show grants for mysqltest_u1' under FTWRL.
+Success: Was able to run 'show grants for mysqltest_u1' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'show grants for mysqltest_u1' was active in another connection.
+drop user mysqltest_u1;
+#
+# 32.4) SHOW CREATE TABLE.
+Success: Was able to run 'show create table t1_base' under FTWRL.
+Success: Was able to run 'show create table t1_base' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'show create table t1_base' was active in another connection.
+#
+# 32.5) SHOW CREATE FUNCTION.
+Success: Was able to run 'show create function f1' under FTWRL.
+Success: Was able to run 'show create function f1' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'show create function f1' was active in another connection.
+#
+# 33) SIGNAL statement is compatible with FTWRL.
+#
+# Note that we don't cover RESIGNAL as it requires
+# active handler context. 
+Success: Was able to run 'signal sqlstate '01000'' under FTWRL.
+Success: Was able to run 'signal sqlstate '01000'' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'signal sqlstate '01000'' was active in another connection.
+#
+# 34) TRUNCATE TABLE statement.
+# 
+# 34.a) TRUNCATE of base table is incompatible with FTWRL.
+Success: Was not able to run 'truncate table t1_base' under FTWRL.
+Success: 'truncate table t1_base' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'truncate table t1_base' is active in another connection.
+# 
+# 34.b) TRUNCATE of temporary table is compatible with FTWRL.
+Success: Was able to run 'truncate table t1_temp' under FTWRL.
+Success: Was able to run 'truncate table t1_temp' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'truncate table t1_temp' was active in another connection.
+#
+# 35) UPDATE variants.
+#
+# 35.1) Simple UPDATE.
+# 
+# 35.1.a) Simple UPDATE on base table is incompatible with FTWRL.
+Success: Was not able to run 'update t1_base set i= 1 where i = 0' under FTWRL.
+Success: 'update t1_base set i= 1 where i = 0' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'update t1_base set i= 1 where i = 0' is active in another connection.
+# 
+# 35.1.b) Simple UPDATE on temporary table is compatible with FTWRL.
+Success: Was able to run 'update t1_temp set i= 1 where i = 0' under FTWRL.
+Success: Was able to run 'update t1_temp set i= 1 where i = 0' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'update t1_temp set i= 1 where i = 0' was active in another connection.
+#
+# 35.2) Multi UPDATE.
+# 
+# 35.2.a) Multi UPDATE on base tables is incompatible with FTWRL.
+Success: Was not able to run 'update t1_base, t2_base set t1_base.i= 1 where t1_base.i = t2_base.j' under FTWRL.
+Success: 'update t1_base, t2_base set t1_base.i= 1 where t1_base.i = t2_base.j' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'update t1_base, t2_base set t1_base.i= 1 where t1_base.i = t2_base.j' is active in another connection.
+# 
+# 35.2.b) Multi UPDATE on temporary tables is compatible with FTWRL.
+Success: Was able to run 'update t1_temp, t2_temp set t1_temp.i= 1 where t1_temp.i = t2_temp.j' under FTWRL.
+Success: Was able to run 'update t1_temp, t2_temp set t1_temp.i= 1 where t1_temp.i = t2_temp.j' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'update t1_temp, t2_temp set t1_temp.i= 1 where t1_temp.i = t2_temp.j' was active in another connection.
+#
+# 36) USE statement is compatible with FTWRL.
+#
+Success: Was able to run 'use mysqltest1' under FTWRL.
+Success: Was able to run 'use mysqltest1' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'use mysqltest1' was active in another connection.
+#
+# 37) XA statements.
+#     
+# XA statements are similar to BEGIN/COMMIT/ROLLBACK.
+#
+# XA BEGIN, END, PREPARE, ROLLBACK and RECOVER are compatible
+# with FTWRL. XA COMMIT is not.
+flush tables with read lock;
+# Although all below statements are allowed under FTWRL they
+# are almost no-ops as FTWRL does commit and does not allows
+# any non-temporary DML under it.
+xa start 'test1';
+xa end 'test1';
+xa prepare 'test1';
+xa rollback 'test1';
+xa start 'test1';
+xa end 'test1';
+xa prepare 'test1';
+xa commit 'test1';
+xa recover;
+unlock tables;
+# Check that XA non-COMMIT statements are not and COMMIT is
+# blocked by active FTWRL in another connection
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+xa start 'test1';
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+insert into t3_trans values (1);
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+xa end 'test1';
+xa prepare 'test1';
+xa rollback 'test1';
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+xa start 'test1';
+insert into t3_trans values (1);
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+xa end 'test1';
+xa prepare 'test1';
+# Send:
+xa commit 'test1';;
+# Switching to connection 'con1'.
+# Wait until XA COMMIT is blocked.
+unlock tables;
+# Switching to connection 'default'.
+# Reap XA COMMIT.
+delete from t3_trans;
+#
+# Check that XA COMMIT blocks FTWRL in another connection.
+xa start 'test1';
+insert into t3_trans values (1);
+xa end 'test1';
+xa prepare 'test1';
+set debug_sync='RESET';
+set debug_sync='trans_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+xa commit 'test1';
+# Switching to connection 'con1'.
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+# Switching to connection 'con2'.
+# Wait until FTWRL is blocked.
+set debug_sync='now SIGNAL go';
+# Switching to connection 'default'.
+# Reap XA COMMIT.
+# Switching to connection 'con1'.
+# Reap FTWRL.
+unlock tables;
+# Switching to connection 'default'.
+delete from t3_trans;
+set debug_sync= "RESET";
+#
+# 38) Test effect of auto-commit mode for DML on transactional
+#     temporary tables.
+# 
+# 38.1) When auto-commit is on each such a statement ends with commit
+#       of changes to temporary tables. But since transactions doing
+#       such changes are considered read only [sic!/QQ] this commit
+#       is compatible with FTWRL.
+#
+#       Let us demostrate this fact for some common DML statements.
+Success: Was able to run 'delete from t3_temp_trans' under FTWRL.
+Success: Was able to run 'delete from t3_temp_trans' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'delete from t3_temp_trans' was active in another connection.
+Success: Was able to run 'insert into t3_temp_trans values (1)' under FTWRL.
+Success: Was able to run 'insert into t3_temp_trans values (1)' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'insert into t3_temp_trans values (1)' was active in another connection.
+Success: Was able to run 'update t3_temp_trans, t2_temp set t3_temp_trans.i= 1 where t3_temp_trans.i = t2_temp.j' under FTWRL.
+Success: Was able to run 'update t3_temp_trans, t2_temp set t3_temp_trans.i= 1 where t3_temp_trans.i = t2_temp.j' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'update t3_temp_trans, t2_temp set t3_temp_trans.i= 1 where t3_temp_trans.i = t2_temp.j' was active in another connection.
+# 
+# 38.2) When auto-commit is off DML on transaction temporary tables
+#       is compatible with FTWRL.
+#
+set autocommit= 0;
+Success: Was able to run 'delete from t3_temp_trans' under FTWRL.
+Success: Was able to run 'delete from t3_temp_trans' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'delete from t3_temp_trans' was active in another connection.
+Success: Was able to run 'insert into t3_temp_trans values (1)' under FTWRL.
+Success: Was able to run 'insert into t3_temp_trans values (1)' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'insert into t3_temp_trans values (1)' was active in another connection.
+Success: Was able to run 'update t3_temp_trans, t2_temp set t3_temp_trans.i= 1 where t3_temp_trans.i = t2_temp.j' under FTWRL.
+Success: Was able to run 'update t3_temp_trans, t2_temp set t3_temp_trans.i= 1 where t3_temp_trans.i = t2_temp.j' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'update t3_temp_trans, t2_temp set t3_temp_trans.i= 1 where t3_temp_trans.i = t2_temp.j' was active in another connection.
+set autocommit= 1;
+#
+# 39) Test effect of DDL on transactional tables.
+#
+# 39.1) Due to implicit commit at the end of statement some of DDL
+#       statements which are compatible with FTWRL in non-transactional
+#       case are not compatible in case of transactional tables.
+#
+# 39.1.a) ANALYZE TABLE for transactional table is incompatible with
+#         FTWRL.
+flush tables with read lock;
+# Implicit commits are allowed under FTWRL.
+analyze table t3_trans;
+Table	Op	Msg_type	Msg_text
+test.t3_trans	analyze	status	OK
+unlock tables;
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+analyze table t3_trans;
+# Switching to connection 'con1'.
+# Check that ANALYZE TABLE is blocked.
+unlock tables;
+# Switching to connection 'default'.
+# Reap ANALYZE TABLE
+Table	Op	Msg_type	Msg_text
+test.t3_trans	analyze	status	OK
+#
+# 39.1.b) CHECK TABLE for transactional table is compatible with FTWRL.
+#         Although it does implicit commit at the end of statement it
+#         is considered to be read-only operation.
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+Success: Was able to run 'check table t3_trans' under FTWRL.
+Success: Was able to run 'check table t3_trans' with FTWRL active in another connection.
+#
+# 39.2) Situation with DDL on temporary transactional tables is
+#       complex.
+#
+# 39.2.a) Some statements compatible with FTWRL since they don't
+#         do implicit commit.
+#
+# For example, CREATE TEMPORARY TABLE:
+Success: Was able to run 'create temporary table t4_temp_trans(i int) engine=innodb' under FTWRL.
+Success: Was able to run 'create temporary table t4_temp_trans(i int) engine=innodb' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'create temporary table t4_temp_trans(i int) engine=innodb' was active in another connection.
+#
+# Or DROP TEMPORARY TABLE:
+Success: Was able to run 'drop temporary tables t3_temp_trans' under FTWRL.
+Success: Was able to run 'drop temporary tables t3_temp_trans' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'drop temporary tables t3_temp_trans' was active in another connection.
+#
+# 39.2.b) Some statements do implicit commit but are considered
+#         read-only and so are compatible with FTWRL.
+#
+# For example, REPAIR TABLE:
+Success: Was able to run 'repair table t3_temp_trans' under FTWRL.
+Success: Was able to run 'repair table t3_temp_trans' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'repair table t3_temp_trans' was active in another connection.
+#
+# And ANALYZE TABLE:
+Success: Was able to run 'analyze table t3_temp_trans' under FTWRL.
+Success: Was able to run 'analyze table t3_temp_trans' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'analyze table t3_temp_trans' was active in another connection.
+#
+# 39.2.c) Some statements do implicit commit and not
+#         considered read-only. As result they are 
+#         not compatible with FTWRL.
+#
+flush tables with read lock;
+# Implicit commits are allowed under FTWRL.
+alter table t3_temp_trans add column c1 int;
+unlock tables;
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+alter table t3_temp_trans drop column c1;
+# Switching to connection 'con1'.
+# Check that ALTER TABLE is blocked.
+unlock tables;
+# Switching to connection 'default'.
+# Reap ALTER TABLE
+#
+# 40) Test effect of implicit commit for DDL which is otherwise
+#     compatible with FTWRL. Implicit commit at the start of DDL
+#     statement can make it incompatible with FTWRL if there are
+#     some changes to be commited even in case when DDL statement
+#     itself is compatible with FTWRL.
+#
+# For example CHECK TABLE for base non-transactional tables and
+# ALTER TABLE for temporary non-transactional tables are affected.
+begin;
+insert into t3_trans values (1);
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+check table t1_base;
+# Switching to connection 'con1'.
+# Check that CHECK TABLE is blocked.
+unlock tables;
+# Switching to connection 'default'.
+# Reap CHECK TABLE
+Table	Op	Msg_type	Msg_text
+test.t1_base	check	status	OK
+begin;
+delete from t3_trans;
+#
+# Switching to connection 'con1'.
+flush tables with read lock;
+# Switching to connection 'default'.
+alter table t1_temp add column c1 int;
+# Switching to connection 'con1'.
+# Check that ALTER TABLE is blocked.
+unlock tables;
+# Switching to connection 'default'.
+# Reap ALTER TABLE
+alter table t1_temp drop column c1;
+#
+# Check that FLUSH TABLES WITH READ LOCK is blocked by individual
+# statements and is not blocked in the presence of transaction which
+# has done some changes earlier but is idle now (or does only reads).
+# This allows to use this statement even on systems which has long
+# running transactions.
+#
+begin;
+insert into t1_base values (1);
+insert into t3_trans values (1);
+# Switching to connection 'con1'.
+# The below FTWRL should not be blocked by transaction in 'default'.
+flush tables with read lock;
+# Switching to connection 'default'.
+# Transaction still is able to read even with FTWRL active in another
+# connection.
+select * from t1_base;
+i
+1
+select * from t2_base;
+j
+select * from t3_trans;
+i
+1
+# Switching to connection 'con1'.
+unlock tables;
+# Switching to connection 'default'.
+commit;
+delete from t1_base;
+delete from t3_trans;
+#
+# Check that impending FTWRL blocks new DML statements and
+# so can't be starved by a constant flow of DML.
+# (a.k.a. test for bug #54673 "It takes too long to get
+# readlock for 'FLUSH TABLES WITH READ LOCK'").
+#
+set debug_sync='RESET';
+set debug_sync='execute_command_after_close_tables SIGNAL parked WAIT_FOR go';
+insert into t1_base values (1);
+# Switching to connection 'con1'.
+set debug_sync='now WAIT_FOR parked';
+flush tables with read lock;
+# Switching to connection 'con2'.
+# Wait until FTWRL is blocked.
+# Try to run another INSERT and see that it is blocked.
+insert into t2_base values (1);;
+# Switching to connection 'con3'.
+# Wait until new INSERT is blocked.
+# Unblock INSERT in the first connection.
+set debug_sync='now SIGNAL go';
+# Switching to connection 'default'.
+# Reap first INSERT.
+# Switching to connection 'con1'.
+# Reap FTWRL.
+unlock tables;
+# Switching to connection 'con2'.
+# Reap second INSERT.
+# Switching to connection 'default'.
+set debug_sync= "RESET";
+delete from t1_base;
+delete from t2_base;
+
+# Check that COMMIT thas is issued after
+# FLUSH TABLES WITH READ LOCK is not blocked by
+# FLUSH TABLES WITH READ LOCK from another connection.
+# This scenario is used in innobackup.pl. The COMMIT goes
+# through because the transaction started by FTWRL does
+# not modify any tables, and the commit blocker lock is
+# only taken when there were such modifications.
+
+flush tables with read lock;
+# Switching to connection 'con1'.
+# The below FTWRL should not be blocked by transaction in 'default'.
+flush tables with read lock;
+# Switching to connection 'default'.
+select * from t1_base;
+i
+select * from t3_trans;
+i
+commit;
+# Switching to connection 'con1'.
+select * from t1_base;
+i
+select * from t3_trans;
+i
+commit;
+unlock tables;
+# Switching to connection 'default'.
+unlock tables;
+#
+# Check how FLUSH TABLE WITH READ LOCK is handled for MERGE tables.
+# As usual there are tricky cases related to this type of tables.
+#
+#
+# 1) Most typical case - base MERGE table with base underlying tables.
+#    
+# 1.a) DML statements which change data should be incompatible with FTWRL.
+create table tm_base (i int) engine=merge union=(t1_base) insert_method=last;
+Success: Was not able to run 'insert into tm_base values (1)' under FTWRL.
+Success: 'insert into tm_base values (1)' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'insert into tm_base values (1)' is active in another connection.
+#
+# 1.b) DDL statement on such table should be incompatible with FTWRL as well.
+Success: Was not able to run 'alter table tm_base insert_method=first' under FTWRL.
+Success: 'alter table tm_base insert_method=first' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'alter table tm_base insert_method=first' is active in another connection.
+drop table tm_base;
+#
+# 2) Temporary MERGE table with base underlying tables.
+#
+# 2.a) DML statements which change data should be incompatible with FTWRL
+#      as they affect base tables.
+create temporary table tm_temp_base (i int) engine=merge union=(t1_base) insert_method=last;
+Success: Was not able to run 'insert into tm_temp_base values (1)' under FTWRL.
+Success: 'insert into tm_temp_base values (1)' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'insert into tm_temp_base values (1)' is active in another connection.
+#
+# 2.b) Some of DDL statements on such table can be compatible with FTWRL
+#      as they don't affect base tables.
+Success: Was able to run 'drop temporary tables tm_temp_base' under FTWRL.
+Success: Was able to run 'drop temporary tables tm_temp_base' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'drop temporary tables tm_temp_base' was active in another connection.
+#
+# 2.c) ALTER statement is incompatible with FTWRL. Even though it does
+#      not change data in base table it still acquires strong metadata
+#      locks on them.
+Success: Was not able to run 'alter table tm_temp_base insert_method=first' under FTWRL.
+Success: 'alter table tm_temp_base insert_method=first' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'alter table tm_temp_base insert_method=first' is active in another connection.
+drop table tm_temp_base;
+#
+# 3) Temporary MERGE table with temporary underlying tables.
+#
+# 3.a) DML statements should be compatible with FTWRL as
+#      no base table is going to be affected.
+create temporary table tm_temp_temp (i int) engine=merge union=(t1_temp) insert_method=last;
+Success: Was able to run 'insert into tm_temp_temp values (1)' under FTWRL.
+Success: Was able to run 'insert into tm_temp_temp values (1)' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'insert into tm_temp_temp values (1)' was active in another connection.
+#
+# 3.b) DDL statements should be compatible with FTWRL as well
+#      as no base table is going to be affected too.
+Success: Was able to run 'alter table tm_temp_temp union=(t1_temp) insert_method=first' under FTWRL.
+Success: Was able to run 'alter table tm_temp_temp union=(t1_temp) insert_method=first' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'alter table tm_temp_temp union=(t1_temp) insert_method=first' was active in another connection.
+drop table tm_temp_temp;
+#
+# 4) For the sake of completeness let us check that base MERGE tables
+#    with temporary underlying tables are not functional.
+create table tm_base_temp (i int) engine=merge union=(t1_temp) insert_method=last;
+select * from tm_base_temp;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+drop table tm_base_temp;
+#
+# Clean-up.
+#
+drop event e1;
+drop function f2_temp;
+drop function f2_base;
+drop procedure p2;
+drop view v1;
+drop function f1;
+drop procedure p1;
+drop database `#mysql50#mysqltest-2`;
+drop database mysqltest1;
+drop temporary tables t1_temp, t2_temp;
+drop tables t1_base, t2_base, t3_trans;

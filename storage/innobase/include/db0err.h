@@ -94,9 +94,6 @@ enum db_err {
 
 	DB_PRIMARY_KEY_IS_NULL,		/* a column in the PRIMARY KEY
 					was found to be NULL */
-	DB_FOREIGN_EXCEED_MAX_CASCADE,	/* Foreign key constraint related
-					cascading delete/update exceeds
-					maximum allowed depth */
 
 	DB_STATS_DO_NOT_EXIST,		/* an operation that requires the
 					persistent storage, used for recording
@@ -104,6 +101,17 @@ enum db_err {
 					requested but this storage does not
 					exist itself or the stats for a given
 					table do not exist */
+	DB_FOREIGN_EXCEED_MAX_CASCADE,	/* Foreign key constraint related
+					cascading delete/update exceeds
+					maximum allowed depth */
+	DB_CHILD_NO_INDEX,		/* the child (foreign) table does not
+					have an index that contains the
+					foreign keys as its prefix columns */
+	DB_PARENT_NO_INDEX,		/* the parent table does not
+					have an index that contains the
+					foreign keys as its prefix columns */
+	DB_TOO_BIG_INDEX_COL,		/* index column size exceeds maximum
+					limit */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

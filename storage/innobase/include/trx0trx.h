@@ -44,6 +44,9 @@ extern sess_t*	trx_dummy_sess;
 /** Number of transactions currently allocated for MySQL: protected by
 the kernel mutex */
 extern ulint	trx_n_mysql_transactions;
+/** Number of transactions currently in the XA PREPARED state: protected by
+the kernel mutex */
+extern ulint	trx_n_prepared;
 
 /********************************************************************//**
 Releases the search latch if trx has reserved it. */
@@ -107,6 +110,14 @@ void
 trx_free(
 /*=====*/
 	trx_t*	trx);	/*!< in, own: trx object */
+/********************************************************************//**
+At shutdown, frees a transaction object that is in the PREPARED state. */
+UNIV_INTERN
+void
+trx_free_prepared(
+/*==============*/
+	trx_t*	trx)	/*!< in, own: trx object */
+	UNIV_COLD __attribute__((nonnull));
 /********************************************************************//**
 Frees a transaction object for MySQL. */
 UNIV_INTERN
@@ -214,12 +225,12 @@ trx_recover_for_mysql(
 /*******************************************************************//**
 This function is used to find one X/Open XA distributed transaction
 which is in the prepared state
-@return	trx or NULL */
+@return	trx or NULL; on match, the trx->xid will be invalidated */
 UNIV_INTERN
 trx_t *
 trx_get_trx_by_xid(
 /*===============*/
-	XID*	xid);	/*!< in: X/Open XA transaction identification */
+	const XID*	xid);	/*!< in: X/Open XA transaction identifier */
 /**********************************************************************//**
 If required, flushes the log to disk if we called trx_commit_for_mysql()
 with trx->flush_log_later == TRUE.
@@ -470,6 +481,20 @@ struct trx_struct{
 					of view of concurrency control:
 					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
 					... */
+	/*------------------------------*/
+	/* MySQL has a transaction coordinator to coordinate two phase
+       	commit between multiple storage engines and the binary log. When
+       	an engine participates in a transaction, it's responsible for
+       	registering itself using the trans_register_ha() API. */
+	unsigned	is_registered:1;/* This flag is set to 1 after the
+				       	transaction has been registered with
+				       	the coordinator using the XA API, and
+				       	is set to 0 after commit or rollback. */
+	unsigned	owns_prepare_mutex:1;/* 1 if owns prepare mutex, if
+					this is set to 1 then registered should
+					also be set to 1. This is used in the
+					XA code */
+	/*------------------------------*/
 	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
 	ulint		check_foreigns;	/* normally TRUE, but if the user
 					wants to suppress foreign key checks,
@@ -500,9 +525,6 @@ struct trx_struct{
 					in that case we must flush the log
 					in trx_commit_complete_for_mysql() */
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
-	ulint		active_trans;	/*!< 1 - if a transaction in MySQL
-					is active. 2 - if prepare_commit_mutex
-					was taken */
 	ulint		has_search_latch;
 					/* TRUE if this trx has latched the
 					search system latch in S-mode */
@@ -558,11 +580,6 @@ struct trx_struct{
 	ib_int64_t	mysql_log_offset;/* if MySQL binlog is used, this field
 					contains the end offset of the binlog
 					entry */
-	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
-					with this transaction object */
-	ulint		mysql_process_no;/* since in Linux, 'top' reports
-					process id's and not thread id's, we
-					store the process number too */
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current

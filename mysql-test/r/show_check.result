@@ -663,6 +663,8 @@ flush tables;
 SHOW TABLE STATUS like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	NULL	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Incorrect information in file: './test/t1.frm'
+Warnings:
+Warning	1033	Incorrect information in file: './test/t1.frm'
 show create table t1;
 ERROR HY000: Incorrect information in file: './test/t1.frm'
 drop table if exists t1;
@@ -1323,8 +1325,20 @@ Tables_in_test	Table_type
 été	BASE TABLE
 drop table `été`;
 set names latin1;
+#
+# Bug#4374 SHOW TABLE STATUS FROM ignores collation_connection
+# Character set: Latin-1 (ISO-8859-1)
+#
+SET NAMES latin1;
+CREATE DATABASE `�`;
+CREATE TABLE `�`.`�` (a int) ENGINE=Memory;
+SHOW TABLE STATUS FROM `�` LIKE '�';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+�	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+DROP DATABASE `�`;
 show columns from `#mysql50#????????`;
 Got one of the listed errors
+call mtr.add_suppression("Can.t find file: '.\\\\test\\\\\\?{8}.frm'");
 DROP TABLE IF EXISTS t1;
 DROP PROCEDURE IF EXISTS p1;
 CREATE TABLE t1(c1 INT);
@@ -1514,3 +1528,27 @@ ALTER TABLE t1 CHARACTER SET = utf8;
 COMMIT;
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
+#
+# Bug#57306 SHOW PROCESSLIST does not display string literals well.
+#
+SET NAMES latin1;
+SELECT GET_LOCK('t', 1000);
+GET_LOCK('t', 1000)
+1
+SET NAMES latin1;
+SELECT GET_LOCK('t',1000) AS 'óóóó';;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+###	root	###	test	Query	###	###	SHOW PROCESSLIST
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'
+SET NAMES utf8;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+###	root	###	test	Query	###	###	SHOW PROCESSLIST
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'
+SELECT RELEASE_LOCK('t');
+RELEASE_LOCK('t')
+1
+óóóó
+1
+SET NAMES latin1;
