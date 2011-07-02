@@ -373,4 +373,23 @@ EXECUTE s;
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
 
+--echo #
+--echo # WL#4897: Add EXPLAIN INSERT/UPDATE/DELETE
+--echo # 
+--echo # Coverage tests after code refactoring
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 VALUES (3),(4),(5);
+
+# LIMIT <offset> is for SELECT, not for EXPLAIN OUTPUT:
+--echo # EXPLAIN must return 3 rows:
+EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
+
+DROP TABLE t1, t2;
+
+--echo # End WL#4897
+
 --echo End of 6.0 tests.
