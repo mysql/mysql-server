@@ -161,8 +161,6 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   DBUG_PRINT("enter", ("ptr: 0x%lx, sd: %d  ctx: 0x%lx",
                        (long) ptr, vio->sd, (long) ptr->ssl_context));
 
-  error_string[0]= 0;
-
   /* Set socket to blocking if not already set */
   vio_blocking(vio, 1, &was_blocking);
 

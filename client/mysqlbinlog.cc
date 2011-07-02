@@ -37,12 +37,11 @@
 #include "sql_common.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
-/* Needed for Rpl_filter */
-CHARSET_INFO* system_charset_info= &my_charset_utf8_general_ci;
-
 #include "sql_string.h"   // needed for Rpl_filter
 #include "sql_list.h"     // needed for Rpl_filter
 #include "rpl_filter.h"
+
+#include "mysqld.h"
 
 Rpl_filter *binlog_filter;
 
@@ -51,6 +50,9 @@ Rpl_filter *binlog_filter;
 
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
+
+/* Needed for Rpl_filter */
+CHARSET_INFO* system_charset_info= &my_charset_utf8_general_ci;
 
 char server_version[SERVER_VERSION_LENGTH];
 ulong server_id = 0;
@@ -66,7 +68,7 @@ static FILE *result_file;
 #ifndef DBUG_OFF
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
-static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
+static const char *load_groups[]= { "mysqlbinlog","client",0 };
 
 static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
@@ -89,7 +91,7 @@ static char* host = 0;
 static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
-static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+static char *opt_plugindir= 0, *opt_default_auth= 0;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name= 0;
@@ -449,7 +451,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   ptr= fname + target_dir_name_len;
   memcpy(ptr,bname,blen);
   ptr+= blen;
-  ptr+= my_sprintf(ptr, (ptr, "-%x", file_id));
+  ptr+= sprintf(ptr, "-%x", file_id);
 
   if ((file= create_unique_file(fname,ptr)) < 0)
   {
@@ -1069,7 +1071,7 @@ end:
 }
 
 
-static struct my_option my_long_options[] =
+static struct my_option my_options[] =
 {
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1139,7 +1141,7 @@ static struct my_option my_long_options[] =
   {"password", 'p', "Password to connect to remote server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-    &opt_plugin_dir, &opt_plugin_dir, 0,
+    &opt_plugindir, &opt_plugindir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -1327,8 +1329,8 @@ static void usage()
 Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client.\n\n");
   printf("Usage: %s [options] log-files\n", my_progname);
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  my_print_help(my_options);
+  my_print_variables(my_options);
 }
 
 
@@ -1482,7 +1484,7 @@ static int parse_args(int *argc, char*** argv)
   int ho_error;
 
   result_file = stdout;
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(argc, argv, my_options, get_one_option)))
     exit(ho_error);
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
@@ -1513,8 +1515,8 @@ static Exit_status safe_connect()
     return ERROR_STOP;
   }
 
-  if (opt_plugin_dir && *opt_plugin_dir)
-    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+  if (opt_plugindir && *opt_plugindir)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugindir);
 
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
@@ -2157,7 +2159,7 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  if (load_defaults("my", load_default_groups, &argc, &argv))
+  if (load_defaults("my", load_groups, &argc, &argv))
     exit(1);
 
   defaults_argv= argv;

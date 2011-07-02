@@ -776,13 +776,12 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 	str->append(hours_i < 12 ? "AM" : "PM",2);
 	break;
       case 'r':
-	length= my_sprintf(intbuff, 
-		   (intbuff, 
+	length= sprintf(intbuff, 
 		    ((l_time->hour % 24) < 12) ?
                     "%02d:%02d:%02d AM" : "%02d:%02d:%02d PM",
 		    (l_time->hour+11)%12+1,
 		    l_time->minute,
-		    l_time->second));
+		    l_time->second);
 	str->append(intbuff, length);
 	break;
       case 'S':
@@ -791,12 +790,11 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 	str->append_with_prefill(intbuff, length, 2, '0');
 	break;
       case 'T':
-	length= my_sprintf(intbuff, 
-		   (intbuff, 
+	length= sprintf(intbuff, 
 		    "%02d:%02d:%02d", 
 		    l_time->hour, 
 		    l_time->minute,
-		    l_time->second));
+		    l_time->second);
 	str->append(intbuff, length);
 	break;
       case 'U':
@@ -3135,8 +3133,7 @@ String *Item_func_maketime::val_str(String *str)
     ltime.second= TIME_MAX_SECOND;
     char buf[28];
     char *ptr= longlong10_to_str(hour, buf, args[0]->unsigned_flag ? 10 : -10);
-    int len = (int)(ptr - buf) +
-      my_sprintf(ptr, (ptr, ":%02u:%02u", (uint)minute, (uint)second));
+    int len = (int)(ptr - buf) + sprintf(ptr, ":%02u:%02u", (uint)minute, (uint)second);
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  buf, len, MYSQL_TIMESTAMP_TIME,
                                  NullS);

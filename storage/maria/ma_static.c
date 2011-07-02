@@ -39,10 +39,10 @@ my_bool maria_inited= FALSE;
 my_bool maria_in_ha_maria= FALSE; /* If used from ha_maria or not */
 my_bool maria_recovery_changed_data= 0, maria_recovery_verbose= 0;
 pthread_mutex_t THR_LOCK_maria;
-#if defined(THREAD) && !defined(DONT_USE_RW_LOCKS)
-ulong maria_concurrent_insert= 2;
-#else
+#ifdef DONT_USE_RW_LOCKS
 ulong maria_concurrent_insert= 0;
+#else
+ulong maria_concurrent_insert= 2;
 #endif
 my_off_t maria_max_temp_length= MAX_FILE_SIZE;
 ulong    maria_bulk_insert_tree_size=8192*1024;

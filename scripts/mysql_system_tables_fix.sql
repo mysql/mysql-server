@@ -617,9 +617,6 @@ ALTER TABLE user MODIFY Create_tablespace_priv enum('N','Y') COLLATE utf8_genera
 
 UPDATE user SET Create_tablespace_priv = Super_priv WHERE @hadCreateTablespacePriv = 0;
 
-ALTER TABLE user ADD plugin char(60) CHARACTER SET latin1 DEFAULT '' NOT NULL,  ADD auth_string TEXT NOT NULL;
-ALTER TABLE user MODIFY plugin char(60) CHARACTER SET latin1 DEFAULT '' NOT NULL;
-
 --
 -- Unlike 'performance_schema', the 'mysql' database is reserved already,
 -- so no user procedure is supposed to be there.
@@ -644,8 +641,8 @@ DROP PREPARE stmt;
 drop procedure mysql.die;
 
 ALTER TABLE user ADD plugin char(64) DEFAULT '',  ADD authentication_string TEXT;
-ALTER TABLE user MODIFY plugin char(64) DEFAULT '';
-ALTER TABLE user MODIFY authentication_string TEXT;
+ALTER TABLE user MODIFY plugin char(64) CHARACTER SET latin1 DEFAULT '' NOT NULL;
+ALTER TABLE user MODIFY authentication_string TEXT NOT NULL;
 
 -- Need to pre-fill mysql.proxies_priv with access for root even when upgrading from
 -- older versions

@@ -390,6 +390,12 @@
 
 #include <mysql/plugin.h>
 
+#ifdef I_AM_PARANOID
+#define MIN_PORT 1023
+#else
+#define MIN_PORT 0
+#endif
+
 /* Variables for federated share methods */
 static HASH federated_open_tables;              // To track open tables
 mysql_mutex_t federated_mutex;                // To init the hash
@@ -624,11 +630,7 @@ int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
   share->username= server->username;
   share->password= server->password;
   share->database= server->db;
-#ifndef I_AM_PARANOID
-  share->port= server->port > 0 && server->port < 65536 ? 
-#else
-  share->port= server->port > 1023 && server->port < 65536 ? 
-#endif
+  share->port= server->port > MIN_PORT && server->port < 65536 ? 
                (ushort) server->port : MYSQL_PORT;
   share->hostname= server->host;
   if (!(share->socket= server->socket) &&
@@ -3040,16 +3042,6 @@ int ha_federated::delete_all_rows()
   stats.deleted+= stats.records;
   stats.records= 0;
   DBUG_RETURN(0);
-}
-
-
-/*
-  Used to manually truncate the table via a delete of all rows in a table.
-*/
-
-int ha_federated::truncate()
-{
-  return delete_all_rows();
 }
 
 

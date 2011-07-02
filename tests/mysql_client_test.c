@@ -33,7 +33,7 @@
 #include <my_getopt.h>
 #include <m_string.h>
 #include <mysqld_error.h>
-#include <my_handler.h>
+#include <my_compare.h>
 #include <sql_common.h>
 #include <mysql/client_plugin.h>
 
@@ -2537,7 +2537,7 @@ static void test_prepare()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 100; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -2576,7 +2576,7 @@ static void test_prepare()
   /* now, execute the prepared statement to insert 10 records.. */
   for (o_tiny_data= 0; o_tiny_data < 100; o_tiny_data++)
   {
-    len= my_sprintf(data, (data, "MySQL%d", o_int_data));
+    len= sprintf(data, "MySQL%d", o_int_data);
 
     rc= mysql_stmt_fetch(stmt);
     check_execute(stmt, rc);
@@ -3976,7 +3976,7 @@ static void test_simple_update()
   my_bind[0].buffer= szData;                /* string data */
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "updated-data"));
+  length[0]= sprintf(szData, "updated-data");
 
   my_bind[1].buffer= (void *) &nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -4230,7 +4230,7 @@ static void test_long_data_str1()
 
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
-  length= my_sprintf(data, (data, "MySQL AB"));
+  length= sprintf(data, "MySQL AB");
 
   /* supply data in pieces */
   for (i= 0; i < 3; i++)
@@ -4545,7 +4545,7 @@ static void test_update()
   my_bind[0].buffer= szData;
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "inserted-data"));
+  length[0]= sprintf(szData, "inserted-data");
 
   my_bind[1].buffer= (void *)&nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -4574,7 +4574,7 @@ static void test_update()
   my_bind[0].buffer= szData;
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "updated-data"));
+  length[0]= sprintf(szData, "updated-data");
 
   my_bind[1].buffer= (void *)&nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -5143,7 +5143,7 @@ static void bind_fetch(int row_count)
     /* CHAR */
     {
       char buff[20];
-      long len= my_sprintf(buff, (buff, "%d", rc));
+      long len= sprintf(buff, "%d", rc);
       DIE_UNLESS(strcmp(s_data, buff) == 0);
       DIE_UNLESS(length[6] == (ulong) len);
     }
@@ -5736,7 +5736,7 @@ static void test_insert()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 3; tiny_data++)
   {
-    length= my_sprintf(str_data, (str_data, "MySQL%d", tiny_data));
+    length= sprintf(str_data, "MySQL%d", tiny_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
   }
@@ -18209,7 +18209,7 @@ static void test_wl4166_1()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 10; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -18232,7 +18232,7 @@ static void test_wl4166_1()
 
   for (tiny_data= 50; tiny_data < 60; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -19352,7 +19352,7 @@ static void test_bug47485()
 static void test_bug58036()
 {
   MYSQL *conn;
-  DBUG_ENTER("test_bug47485");
+  DBUG_ENTER("test_bug58036");
   myheader("test_bug58036");
 
   /* Part1: try to connect with ucs2 client character set */

@@ -6548,7 +6548,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (alter_info->keys_onoff != LEAVE_AS_IS ||
         table->file->indexes_are_disabled())
       need_lock_for_indexes= true;
-    if (!table->s->tmp_table &&
+    if (!table->s->tmp_table && need_lock_for_indexes &&
         wait_while_table_is_used(thd, table, extra_func))
       goto err_new_table_cleanup;
     thd_proc_info(thd, "manage keys");

@@ -44,7 +44,7 @@ ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 ## test correct default plugin
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
-plug@localhost	plug@%
+plug@localhost	plug_dest@%
 ## test no_auto_create_user sql mode with plugin users
 SET @@sql_mode=no_auto_create_user;
 GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server';
@@ -72,13 +72,12 @@ DROP TABLE t1;
 REVOKE ALL PRIVILEGES ON test_grant_db.* FROM new_grant_user;
 # try re-create existing user via GRANT IDENTIFIED BY
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
-IDENTIFIED BY 'unused_password';
-# make sure password doesn't take precendence
+IDENTIFIED BY 'new_password';
+connect(localhost,new_grant_user,plug_dest,test,MYSQL_PORT,MYSQL_SOCK);
 ERROR 28000: Access denied for user 'new_grant_user'@'localhost' (using password: YES)
-#make sure plugin auth still available
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
-new_grant_user@localhost	plug_dest@%
+new_grant_user@localhost	new_grant_user@%
 USE test_grant_db;
 CREATE TABLE t1 (a INT);
 DROP TABLE t1;
@@ -86,10 +85,8 @@ DROP USER new_grant_user;
 # try re-create existing user via GRANT IDENTIFIED WITH
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug already exists
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug_dest already exists
 REVOKE SELECT on test_grant_db.* FROM joro 
 INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'' at line 2
@@ -152,12 +149,12 @@ GRANT PROXY ON future_user TO grant_plug;
 in default connection
 SHOW GRANTS FOR grant_plug;
 Grants for grant_plug@%
-GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%' IDENTIFIED VIA test_plugin_server USING 'grant_plug_dest' WITH GRANT OPTION
 GRANT PROXY ON 'future_user'@'%' TO 'grant_plug'@'%'
 REVOKE PROXY ON future_user FROM grant_plug;
 SHOW GRANTS FOR grant_plug;
 Grants for grant_plug@%
-GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%' IDENTIFIED VIA test_plugin_server USING 'grant_plug_dest' WITH GRANT OPTION
 ## testing drop user
 CREATE USER test_drop@localhost;
 GRANT PROXY ON future_user TO test_drop@localhost;
@@ -286,31 +283,6 @@ REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost, u2@localhost;
 DROP USER u1@localhost,u2@localhost;
 # test if FLUSH PRIVILEGES works without the proxies_priv table
 FLUSH PRIVILEGES;
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
-mysql.columns_priv                                 OK
-mysql.db                                           OK
-mysql.event                                        OK
-mysql.func                                         OK
-mysql.general_log                                  OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
-mysql.host                                         OK
-mysql.ndb_binlog_index                             OK
-mysql.plugin                                       OK
-mysql.proc                                         OK
-mysql.procs_priv                                   OK
-mysql.servers                                      OK
-mysql.slow_log                                     OK
-mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
-mysql.user                                         OK
 SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv;
 Host	localhost
 User	root
@@ -390,6 +362,8 @@ VALUES (
 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
 'Y', 'Y',  'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 
 /*!50001 'Y', 'Y', 'Y', 'Y', 'Y', */'', '', '', '', '0', '0', '0');
+Warnings:
+Warning	1364	Field 'authentication_string' doesn't have a default value
 FLUSH PRIVILEGES;
 DROP USER inserttest@localhost;
 SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE 
@@ -398,8 +372,8 @@ TABLE_NAME='user' AND
 TABLE_SCHEMA='mysql'
 ORDER BY COLUMN_NAME;
 IS_NULLABLE	COLUMN_NAME
-YES	authentication_string
-YES	plugin
+NO	authentication_string
+NO	plugin
 #
 # Bug #11936829: diff. between mysql.user (authentication_string) 
 #   in fresh and upgraded 5.5.11
@@ -409,42 +383,16 @@ WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
 COLUMN_NAME IN ('plugin', 'authentication_string')
 ORDER BY COLUMN_NAME;
 IS_NULLABLE	COLUMN_NAME
-YES	authentication_string
-YES	plugin
+NO	authentication_string
+NO	plugin
 ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
 ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 Run mysql_upgrade on a 5.5.10 external authentication column layout
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
-mysql.columns_priv                                 OK
-mysql.db                                           OK
-mysql.event                                        OK
-mysql.func                                         OK
-mysql.general_log                                  OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
-mysql.host                                         OK
-mysql.ndb_binlog_index                             OK
-mysql.plugin                                       OK
-mysql.proc                                         OK
-mysql.procs_priv                                   OK
-mysql.proxies_priv                                 OK
-mysql.servers                                      OK
-mysql.slow_log                                     OK
-mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
-mysql.user                                         OK
 SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
 COLUMN_NAME IN ('plugin', 'authentication_string')
 ORDER BY COLUMN_NAME;
 IS_NULLABLE	COLUMN_NAME
-YES	authentication_string
-YES	plugin
+NO	authentication_string
+NO	plugin
 End of 5.5 tests

@@ -79,8 +79,7 @@ static int sort_delete_record(MI_SORT_PARAM *sort_param);
 static SORT_KEY_BLOCKS	*alloc_key_blocks(HA_CHECK *param, uint blocks,
 					  uint buffer_length);
 static ha_checksum mi_byte_checksum(const uchar *buf, uint length);
-static void set_data_file_type(SORT_INFO *sort_info, MYISAM_SHARE *share);
-static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a);
+static void set_data_file_type(MI_SORT_INFO *sort_info, MYISAM_SHARE *share);
 
 void myisamchk_init(HA_CHECK *param)
 {

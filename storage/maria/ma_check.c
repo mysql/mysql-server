@@ -4067,9 +4067,6 @@ err:
 int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
 			const char * name, my_bool rep_quick)
 {
-#ifndef THREAD
-  return maria_repair_by_sort(param, info, name, rep_quick);
-#else
   int got_error;
   uint i,key, total_key_length, istep;
   ha_rows start_records;
@@ -4546,7 +4543,6 @@ err:
   if (!got_error && (param->testflag & T_UNPACK))
     restore_data_file_type(share);
   DBUG_RETURN(got_error);
-#endif /* THREAD */
 }
 
 	/* Read next record and return next key */

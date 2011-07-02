@@ -138,7 +138,6 @@ int maria_delete_all_rows(MARIA_HA *info)
   if (share->file_map)
     _ma_dynmap_file(info, (my_off_t) 0);
 #endif
-  allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 
 err:
@@ -146,7 +145,6 @@ err:
     int save_errno=my_errno;
     _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
     info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
-    allow_break();			/* Allow SIGHUP & SIGINT */
     DBUG_RETURN(my_errno=save_errno);
   }
 } /* maria_delete_all_rows */

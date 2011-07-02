@@ -2042,7 +2042,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
 {
   Item *new_item;
 
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
   DBUG_ASSERT(arg_count == 2);
 
   /* Transform the left IN operand. */

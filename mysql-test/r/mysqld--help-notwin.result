@@ -374,6 +374,8 @@ The following options may be given as the first argument:
  Don't write queries to slow log that examine fewer rows
  than that
  --mrr-buffer-size=# Size of buffer to use when using MRR with range access
+ --multi-range-count=# 
+ Ignored. Use mrr_buffer_size instead
  --myisam-block-size=# 
  Block size to be used for MyISAM index pages
  --myisam-data-pointer-size=# 
@@ -907,6 +909,7 @@ max-write-lock-count 18446744073709551615
 memlock FALSE
 min-examined-row-limit 0
 mrr-buffer-size 262144
+multi-range-count 256
 myisam-block-size 1024
 myisam-data-pointer-size 6
 myisam-max-sort-file-size 9223372036853727232

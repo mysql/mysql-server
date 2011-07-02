@@ -1141,11 +1141,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->rec_buff_length= rec_buff_length;
   if (!(record= (uchar *) alloc_root(&share->mem_root,
                                      rec_buff_length)))
-    goto free_and_err;                          /* purecov: inspected */
+    goto err;                          /* purecov: inspected */
   share->default_values= record;
   if (mysql_file_pread(file, record, (size_t) share->reclength,
                        record_offset, MYF(MY_NABP)))
-    goto free_and_err;                          /* purecov: inspected */
+    goto err;                          /* purecov: inspected */
 
   mysql_file_seek(file, pos+288, MY_SEEK_SET, MYF(0));
 #ifdef HAVE_CRYPTED_FRM
@@ -1153,7 +1153,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     crypted->decode((char*) forminfo+256,288-256);
     if (sint2korr(forminfo+284) != 0)		// Should be 0
-      goto free_and_err;                        // Wrong password
+      goto err;                        // Wrong password
   }
 #endif
 
@@ -1186,14 +1186,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 			    keys+3)*sizeof(char *)+
 			   (n_length+int_length+com_length+
 			       vcol_screen_length)))))
-    goto free_and_err;                           /* purecov: inspected */
+    goto err;                           /* purecov: inspected */
 
   share->field= field_ptr;
   read_length=(uint) (share->fields * field_pack_length +
 		      pos+ (uint) (n_length+int_length+com_length+
 		                   vcol_screen_length));
   if (read_string(file,(uchar**) &disk_buff,read_length))
-    goto free_and_err;                           /* purecov: inspected */
+    goto err;                           /* purecov: inspected */
 #ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
@@ -1220,7 +1220,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   fix_type_pointers(&interval_array, &share->fieldnames, 1, &names);
   if (share->fieldnames.count != share->fields)
-    goto free_and_err;
+    goto err;
   fix_type_pointers(&interval_array, share->intervals, interval_count,
 		    &names);
 
@@ -1234,7 +1234,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       uint count= (uint) (interval->count + 1) * sizeof(uint);
       if (!(interval->type_lengths= (uint *) alloc_root(&share->mem_root,
                                                         count)))
-        goto free_and_err;
+        goto err;
       for (count= 0; count < interval->count; count++)
       {
         char *val= (char*) interval->type_names[count];
@@ -1250,7 +1250,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
  /* Allocate handler */
   if (!(handler_file= get_new_handler(share, thd->mem_root,
                                       share->db_type())))
-    goto free_and_err;
+    goto err;
 
   record= share->default_values-1;              /* Fieldstart = 1 */
   null_bits_are_used= share->null_fields != 0;
@@ -1313,7 +1313,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	charset= &my_charset_bin;
 #else
 	error= 4;  // unsupported field type
-	goto free_and_err;
+	goto err;
 #endif
       }
       else
@@ -1325,7 +1325,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         {
           error= 5; // Unknown or unavailable charset
           errarg= (int) csid;
-          goto free_and_err;
+          goto err;
         }
       }
 
@@ -1365,7 +1365,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if ((uint)vcol_screen_pos[0] != 1)
         {
           error= 4;
-          goto free_and_err;
+          goto err;
         }
         field_type= (enum_field_types) (uchar) vcol_screen_pos[1];
         fld_stored_in_db= (bool) (uint) vcol_screen_pos[2];
@@ -1374,7 +1374,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               (char *)memdup_root(&share->mem_root,
                                   vcol_screen_pos+(uint)FRM_VCOL_HEADER_SIZE,
                                   vcol_expr_length)))
-          goto free_and_err;
+          goto err;
         vcol_info->expr_str.length= vcol_expr_length;
         vcol_screen_pos+= vcol_info_length;
         share->vfields++;
@@ -1464,7 +1464,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (!reg_field)				// Not supported field type
     {
       error= 4;
-      goto free_and_err;			/* purecov: inspected */
+      goto err;			/* purecov: inspected */
     }
 
     reg_field->field_index= i;
@@ -1504,7 +1504,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           sent (OOM).
         */
         error= 8; 
-        goto free_and_err;
+        goto err;
       }
     }
     if (!reg_field->stored_in_db)
@@ -1581,7 +1581,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	if (!key_part->fieldnr)
         {
           error= 4;                             // Wrong file
-          goto free_and_err;
+          goto err;
         }
         field= key_part->field= share->field[key_part->fieldnr-1];
         key_part->type= field->key_type();
@@ -1743,11 +1743,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     DBUG_ASSERT(options_len);
     if (engine_table_options_frm_read(options, options_len, share))
-      goto free_and_err;
+      goto err;
   }
   if (parse_engine_table_options(thd, handler_file->partition_ht(), share))
-    goto free_and_err;
-  my_free(buff);
+    goto err;
 
   if (share->found_next_number_field)
   {
@@ -2059,7 +2058,7 @@ bool unpack_vcol_info_from_frm(THD *thd,
   vcol_arena= table->expr_arena;
   if (!vcol_arena)
   {
-    Query_arena expr_arena(&table->mem_root, Query_arena::INITIALIZED);
+    Query_arena expr_arena(&table->mem_root, Query_arena::STMT_INITIALIZED);
     if (!(vcol_arena= (Query_arena *) alloc_root(&table->mem_root,
                                                  sizeof(Query_arena))))
       goto err;
@@ -2145,12 +2144,12 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   bool error_reported= FALSE;
   uchar *record, *bitmaps;
   Field **field_ptr, **vfield_ptr;
-  bool save_view_prepare_mode= thd->lex->view_prepare_mode;
+  uint8 save_view_prepare_mode= thd->lex->context_analysis_only;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
 
-  thd->lex->view_prepare_mode= FALSE; // not a view
+  thd->lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_VIEW; // not a view
 
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
@@ -2480,7 +2479,7 @@ partititon_err:
                                HA_HAS_OWN_BINLOGGING);
   thd->status_var.opened_tables++;
 
-  thd->lex->view_prepare_mode= save_view_prepare_mode;
+  thd->lex->context_analysis_only= save_view_prepare_mode;
   DBUG_RETURN (0);
 
  err:
@@ -2493,7 +2492,7 @@ partititon_err:
 #endif
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
-  thd->lex->view_prepare_mode= save_view_prepare_mode;
+  thd->lex->context_analysis_only= save_view_prepare_mode;
   free_root(&outparam->mem_root, MYF(0));       // Safe to call on bzero'd root
   my_free((void *) outparam->alias);
   DBUG_RETURN (error);

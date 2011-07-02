@@ -116,9 +116,6 @@ my_bool _ma_cmp_static_record(register MARIA_HA *info,
 {
   DBUG_ENTER("_ma_cmp_static_record");
 
-  /* We are going to do changes; dont let anybody disturb */
-  dont_break();				/* Dont allow SIGHUP or SIGINT */
-
   if (info->opt_flag & WRITE_CACHE_USED)
   {
     if (flush_io_cache(&info->rec_cache))

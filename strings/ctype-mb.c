@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -683,6 +684,7 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
   char *min_end= min_str + res_length;
   char *max_end= max_str + res_length;
   size_t maxcharlen= res_length / cs->mbmaxlen;
+  my_bool have_contractions= my_cs_have_contractions(cs);
 
   for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
@@ -750,8 +752,8 @@ fill_max_and_min:
         'ab\min\min\min\min' and 'ab\max\max\max\max'.
 
       */
-      if (contraction_flags && ptr + 1 < end &&
-          contraction_flags[(uchar) *ptr])
+      if (have_contractions && ptr + 1 < end &&
+          my_cs_can_be_contraction_head(cs, (uchar) *ptr))
       {
         /* Ptr[0] is a contraction head. */
         
@@ -773,8 +775,8 @@ fill_max_and_min:
           is not a contraction, then we put only ptr[0],
           and continue with ptr[1] on the next loop.
         */
-        if (contraction_flags[(uchar) ptr[1]] &&
-            cs->contractions[(*ptr-0x40)*0x40 + ptr[1] - 0x40])
+        if (my_cs_can_be_contraction_tail(cs, (uchar) ptr[1]) &&
+            my_cs_contraction2_weight(cs, (uchar) ptr[0], (uchar) ptr[1]))
         {
           /* Contraction found */
           if (maxcharlen == 1 || min_str + 1 >= min_end)
@@ -911,7 +913,7 @@ my_like_range_generic(CHARSET_INFO *cs,
         my_cs_can_be_contraction_head(cs, wc) &&
         (res= cs->cset->mb_wc(cs, &wc2, (uchar*) ptr, (uchar*) end)) > 0)
     {
-      uint16 *weight;
+      const uint16 *weight;
       if ((wc2 == (my_wc_t) w_one || wc2 == (my_wc_t) w_many))
       {
         /* Contraction head followed by a wildcard */

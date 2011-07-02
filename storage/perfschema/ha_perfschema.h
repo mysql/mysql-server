@@ -124,8 +124,6 @@ public:
 
   int delete_all_rows(void);
 
-  int truncate();
-
   int delete_table(const char *from);
 
   int rename_table(const char * from, const char * to);

@@ -528,7 +528,6 @@ static void pagecache_debug_print _VARARGS((const char *fmt, ...));
 #endif /* defined(PAGECACHE_DEBUG_LOG) && defined(PAGECACHE_DEBUG) */
 
 #if defined(PAGECACHE_DEBUG) || !defined(DBUG_OFF)
-#ifdef THREAD
 static long pagecache_thread_id;
 #define KEYCACHE_THREAD_TRACE(l)                                              \
              KEYCACHE_DBUG_PRINT(l,("|thread %ld",pagecache_thread_id))
@@ -540,11 +539,6 @@ static long pagecache_thread_id;
 
 #define KEYCACHE_THREAD_TRACE_END(l)                                          \
             KEYCACHE_DBUG_PRINT(l,("]thread %ld",pagecache_thread_id))
-#else /* THREAD */
-#define KEYCACHE_THREAD_TRACE(l)        KEYCACHE_DBUG_PRINT(l,(""))
-#define KEYCACHE_THREAD_TRACE_BEGIN(l)  KEYCACHE_DBUG_PRINT(l,(""))
-#define KEYCACHE_THREAD_TRACE_END(l)    KEYCACHE_DBUG_PRINT(l,(""))
-#endif /* THREAD */
 #else
 #define KEYCACHE_THREAD_TRACE_BEGIN(l)
 #define KEYCACHE_THREAD_TRACE_END(l)
@@ -945,11 +939,9 @@ ulong resize_pagecache(PAGECACHE *pagecache,
                        uint age_threshold)
 {
   ulong blocks;
-#ifdef THREAD
   struct st_my_thread_var *thread;
   WQUEUE *wqueue;
 
-#endif
   DBUG_ENTER("resize_pagecache");
 
   if (!pagecache->inited)
@@ -963,7 +955,6 @@ ulong resize_pagecache(PAGECACHE *pagecache,
 
   mysql_mutex_lock(&pagecache->cache_lock);
 
-#ifdef THREAD
   wqueue= &pagecache->resize_queue;
   thread= my_thread_var;
   wqueue_link_into_queue(wqueue, thread);
@@ -972,7 +963,6 @@ ulong resize_pagecache(PAGECACHE *pagecache,
   {
     mysql_cond_wait(&thread->suspend, &pagecache->cache_lock);
   }
-#endif
 
   pagecache->resize_in_flush= 1;
   if (flush_all_key_blocks(pagecache))
@@ -985,16 +975,12 @@ ulong resize_pagecache(PAGECACHE *pagecache,
   }
   pagecache->resize_in_flush= 0;
   pagecache->can_be_used= 0;
-#ifdef THREAD
   while (pagecache->cnt_for_resize_op)
   {
     KEYCACHE_DBUG_PRINT("resize_pagecache: wait",
                         ("suspend thread %ld", thread->id));
     mysql_cond_wait(&thread->suspend, &pagecache->cache_lock);
   }
-#else
-  KEYCACHE_DBUG_ASSERT(pagecache->cnt_for_resize_op == 0);
-#endif
 
   end_pagecache(pagecache, 0);			/* Don't free mutex */
   /* The following will work even if use_mem is 0 */
@@ -1003,7 +989,6 @@ ulong resize_pagecache(PAGECACHE *pagecache,
                          pagecache->readwrite_flags);
 
 finish:
-#ifdef THREAD
   wqueue_unlink_from_queue(wqueue, thread);
   /* Signal for the next resize request to proceeed if any */
   if (wqueue->last_thread)
@@ -1012,7 +997,6 @@ finish:
                         ("thread %ld", wqueue->last_thread->next->id));
     mysql_cond_signal(&wqueue->last_thread->next->suspend);
   }
-#endif
   mysql_mutex_unlock(&pagecache->cache_lock);
   DBUG_RETURN(blocks);
 }
@@ -1034,7 +1018,6 @@ static inline void inc_counter_for_resize_op(PAGECACHE *pagecache)
 */
 static inline void dec_counter_for_resize_op(PAGECACHE *pagecache)
 {
-#ifdef THREAD
   struct st_my_thread_var *last_thread;
   if (!--pagecache->cnt_for_resize_op &&
       (last_thread= pagecache->resize_queue.last_thread))
@@ -1043,9 +1026,6 @@ static inline void dec_counter_for_resize_op(PAGECACHE *pagecache)
                         ("thread %ld", last_thread->next->id));
     mysql_cond_signal(&last_thread->next->suspend);
   }
-#else
-  pagecache->cnt_for_resize_op--;
-#endif
 }
 
 /*
@@ -1246,7 +1226,6 @@ static void link_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block,
 
   PCBLOCK_INFO(block);
   KEYCACHE_DBUG_ASSERT(! (block->hash_link && block->hash_link->requests));
-#ifdef THREAD
   if (!hot && pagecache->waiting_for_block.last_thread)
   {
     /* Signal that in the LRU warm sub-chain an available block has appeared */
@@ -1284,10 +1263,6 @@ static void link_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block,
 #endif
     return;
   }
-#else /* THREAD */
-  KEYCACHE_DBUG_ASSERT(! (!hot && pagecache->waiting_for_block.last_thread));
-  /* Condition not transformed using DeMorgan, to keep the text identical */
-#endif /* THREAD */
   ptr_ins= hot ? &pagecache->used_ins : &pagecache->used_last;
   ins= *ptr_ins;
   if (ins)
@@ -1485,12 +1460,8 @@ static inline void remove_reader(PAGECACHE_BLOCK_LINK *block)
   DBUG_ENTER("remove_reader");
   PCBLOCK_INFO(block);
   DBUG_ASSERT(block->hash_link->requests > 0);
-#ifdef THREAD
   if (! --block->hash_link->requests && block->condvar)
     mysql_cond_signal(block->condvar);
-#else
-  --block->hash_link->requests;
-#endif
   DBUG_VOID_RETURN;
 }
 
@@ -1504,7 +1475,6 @@ static inline void wait_for_readers(PAGECACHE *pagecache
                                     __attribute__((unused)),
                                     PAGECACHE_BLOCK_LINK *block)
 {
-#ifdef THREAD
   struct st_my_thread_var *thread= my_thread_var;
   while (block->hash_link->requests)
   {
@@ -1515,9 +1485,6 @@ static inline void wait_for_readers(PAGECACHE *pagecache
     mysql_cond_wait(&thread->suspend, &pagecache->cache_lock);
     block->condvar= NULL;
   }
-#else
-  KEYCACHE_DBUG_ASSERT(block->hash_link->requests == 0);
-#endif
 }
 
 
@@ -1549,7 +1516,6 @@ static void unlink_hash(PAGECACHE *pagecache, PAGECACHE_HASH_LINK *hash_link)
   if ((*hash_link->prev= hash_link->next))
     hash_link->next->prev= hash_link->prev;
   hash_link->block= NULL;
-#ifdef THREAD
   if (pagecache->waiting_for_hash_link.last_thread)
   {
     /* Signal that a free hash link has appeared */
@@ -1588,9 +1554,6 @@ static void unlink_hash(PAGECACHE *pagecache, PAGECACHE_HASH_LINK *hash_link)
               hash_link);
     return;
   }
-#else /* THREAD */
-  KEYCACHE_DBUG_ASSERT(! (pagecache->waiting_for_hash_link.last_thread));
-#endif /* THREAD */
   hash_link->next= pagecache->free_hash_list;
   pagecache->free_hash_list= hash_link;
 }
@@ -1702,7 +1665,6 @@ restart:
     }
     else
     {
-#ifdef THREAD
       /* Wait for a free hash link */
       struct st_my_thread_var *thread= my_thread_var;
       PAGECACHE_PAGE page;
@@ -1715,9 +1677,6 @@ restart:
                           ("suspend thread %ld", thread->id));
       mysql_cond_wait(&thread->suspend, &pagecache->cache_lock);
       thread->opt_info= NULL;
-#else
-      KEYCACHE_DBUG_ASSERT(0);
-#endif
       DBUG_PRINT("info", ("restarting..."));
       goto restart;
     }
@@ -1838,7 +1797,6 @@ restart:
     DBUG_ASSERT(hash_link->requests > 0);
     hash_link->requests--;
     {
-#ifdef THREAD
       struct st_my_thread_var *thread= my_thread_var;
       wqueue_add_to_queue(&block->wqueue[COND_FOR_SAVED], thread);
       do
@@ -1848,16 +1806,6 @@ restart:
         mysql_cond_wait(&thread->suspend, &pagecache->cache_lock);
       }
       while(thread->next);
-#else
-      KEYCACHE_DBUG_ASSERT(0);
-      /*
-        Given the use of "resize_in_flush", it seems impossible
-        that this whole branch is ever entered in single-threaded case
-        because "(wrmode && pagecache->resize_in_flush)" cannot be true.
-        TODO: Check this, and then put the whole branch into the
-        "#ifdef THREAD" guard.
-      */
-#endif
     }
     /* Invalidate page in the block if it has not been done yet */
     if (block->status)
@@ -1891,7 +1839,6 @@ restart:
       KEYCACHE_DBUG_PRINT("find_block",
                           ("request waiting for old page to be saved"));
       {
-#ifdef THREAD
         struct st_my_thread_var *thread= my_thread_var;
         /* Put the request into the queue of those waiting for the old page */
         wqueue_add_to_queue(&block->wqueue[COND_FOR_SAVED], thread);
@@ -1903,10 +1850,6 @@ restart:
           mysql_cond_wait(&thread->suspend, &pagecache->cache_lock);
         }
         while(thread->next);
-#else
-        KEYCACHE_DBUG_ASSERT(0);
-          /* No parallel requests in single-threaded case */
-#endif
       }
       KEYCACHE_DBUG_PRINT("find_block",
                           ("request for old page resubmitted"));
@@ -1974,7 +1917,6 @@ restart:
           all of them must get the same block
         */
 
-#ifdef THREAD
         if (! pagecache->used_last)
         {
           struct st_my_thread_var *thread= my_thread_var;
@@ -1989,9 +1931,6 @@ restart:
           while (thread->next);
           thread->opt_info= NULL;
         }
-#else
-        KEYCACHE_DBUG_ASSERT(pagecache->used_last);
-#endif
         block= hash_link->block;
         if (! block)
         {
@@ -2062,10 +2001,8 @@ restart:
             /* Remove the hash link for this page from the hash table */
             unlink_hash(pagecache, block->hash_link);
             /* All pending requests for this page must be resubmitted */
-#ifdef THREAD
             if (block->wqueue[COND_FOR_SAVED].last_thread)
               wqueue_release_queue(&block->wqueue[COND_FOR_SAVED]);
-#endif
           }
           link_to_file_list(pagecache, block, file,
                             (my_bool)(block->hash_link ? 1 : 0));
@@ -2230,7 +2167,6 @@ static my_bool pagecache_wait_lock(PAGECACHE *pagecache,
                                   uint lock_type)
 {
   /* Lock failed we will wait */
-#ifdef THREAD
   struct st_my_thread_var *thread= my_thread_var;
   DBUG_ENTER("pagecache_wait_lock");
   DBUG_PRINT("info", ("fail to lock, waiting... 0x%lx", (ulong)block));
@@ -2244,9 +2180,6 @@ static my_bool pagecache_wait_lock(PAGECACHE *pagecache,
     mysql_cond_wait(&thread->suspend, &pagecache->cache_lock);
   }
   while(thread->next);
-#else
-  DBUG_ASSERT(0);
-#endif
   PCBLOCK_INFO(block);
   if ((block->status & (PCBLOCK_REASSIGNED | PCBLOCK_IN_SWITCH)) ||
       file.file != block->hash_link->file.file ||
@@ -2398,11 +2331,9 @@ static void release_wrlock(PAGECACHE_BLOCK_LINK *block, my_bool read_lock)
   if (block->wlocks > 0)
     DBUG_VOID_RETURN;                      /* Multiple write locked */
   DBUG_PRINT("info", ("WR lock reset, block 0x%lx", (ulong)block));
-#ifdef THREAD
   /* release all threads waiting for read lock or one waiting for write */
   if (block->wqueue[COND_FOR_WRLOCK].last_thread)
     wqueue_release_one_locktype_from_queue(&block->wqueue[COND_FOR_WRLOCK]);
-#endif
   PCBLOCK_INFO(block);
   DBUG_VOID_RETURN;
 }
@@ -2436,11 +2367,9 @@ static void release_rdlock(PAGECACHE_BLOCK_LINK *block)
   if (block->rlocks > 0)
     DBUG_VOID_RETURN;                      /* Multiple write locked */
   DBUG_PRINT("info", ("RD lock reset, block 0x%lx", (ulong)block));
-#ifdef THREAD
   /* release all threads waiting for read lock or one waiting for write */
   if (block->wqueue[COND_FOR_WRLOCK].last_thread)
     wqueue_release_one_locktype_from_queue(&block->wqueue[COND_FOR_WRLOCK]);
-#endif
   PCBLOCK_INFO(block);
   DBUG_VOID_RETURN;
 }
@@ -2639,10 +2568,8 @@ static void read_block(PAGECACHE *pagecache,
     DBUG_PRINT("read_block",
                ("primary request: new page in cache"));
     /* Signal that all pending requests for this page now can be processed */
-#ifdef THREAD
     if (block->wqueue[COND_FOR_REQUESTED].last_thread)
       wqueue_release_queue(&block->wqueue[COND_FOR_REQUESTED]);
-#endif
   }
   else
   {
@@ -2651,7 +2578,6 @@ static void read_block(PAGECACHE *pagecache,
       that submitted secondary requests
     */
 
-#ifdef THREAD
       struct st_my_thread_var *thread= my_thread_var;
       /* Put the request into a queue and wait until it can be processed */
       wqueue_add_to_queue(&block->wqueue[COND_FOR_REQUESTED], thread);
@@ -2662,10 +2588,6 @@ static void read_block(PAGECACHE *pagecache,
         mysql_cond_wait(&thread->suspend, &pagecache->cache_lock);
       }
       while (thread->next);
-#else
-      KEYCACHE_DBUG_ASSERT(0);
-      /* No parallel requests in single-threaded case */
-#endif
     DBUG_PRINT("read_block",
                ("secondary request: new page in cache"));
   }
@@ -3941,11 +3863,9 @@ restart:
         }
         KEYCACHE_DBUG_PRINT("key_cache_insert",
                             ("Page injection"));
-#ifdef THREAD
         /* Signal that all pending requests for this now can be processed. */
         if (block->wqueue[COND_FOR_REQUESTED].last_thread)
           wqueue_release_queue(&block->wqueue[COND_FOR_REQUESTED]);
-#endif
       }
     }
     else
@@ -3960,11 +3880,9 @@ restart:
         block->status&= ~PCBLOCK_ERROR;
     }
 
-#ifdef THREAD
     if (need_page_ready_signal &&
         block->wqueue[COND_FOR_REQUESTED].last_thread)
       wqueue_release_queue(&block->wqueue[COND_FOR_REQUESTED]);
-#endif
 
     if (first_REDO_LSN_for_page)
     {
@@ -4114,11 +4032,9 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
   /* Keep track of the number of currently unused blocks. */
   pagecache->blocks_unused++;
 
-#ifdef THREAD
   /* All pending requests for this page must be resubmitted. */
   if (block->wqueue[COND_FOR_SAVED].last_thread)
     wqueue_release_queue(&block->wqueue[COND_FOR_SAVED]);
-#endif
 }
 
 
@@ -4246,14 +4162,12 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
         *first_errno= my_errno ? my_errno : -1;
       rc|= PCFLUSH_ERROR;
     }
-#ifdef THREAD
     /*
       Let to proceed for possible waiting requests to write to the block page.
       It might happen only during an operation to resize the key cache.
     */
     if (block->wqueue[COND_FOR_SAVED].last_thread)
       wqueue_release_queue(&block->wqueue[COND_FOR_SAVED]);
-#endif
     /* type will never be FLUSH_IGNORE_CHANGED here */
     if (! (type == FLUSH_KEEP || type == FLUSH_KEEP_LAZY ||
            type == FLUSH_FORCE_WRITE))
@@ -4348,7 +4262,6 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
     uint cnt= 0;
 #endif
 
-#ifdef THREAD
     struct st_file_in_flush us_flusher, *other_flusher;
     us_flusher.file= file->file;
     us_flusher.flush_queue.last_thread= NULL;
@@ -4400,7 +4313,6 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
       sleep(10);
       mysql_mutex_lock(&pagecache->cache_lock);
     }
-#endif
 
     if (type != FLUSH_IGNORE_CHANGED)
     {
@@ -4527,7 +4439,6 @@ restart:
 #endif
       block= first_in_switch;
       {
-#ifdef THREAD
         struct st_my_thread_var *thread= my_thread_var;
         wqueue_add_to_queue(&block->wqueue[COND_FOR_SAVED], thread);
         do
@@ -4538,10 +4449,6 @@ restart:
                                      &pagecache->cache_lock);
         }
         while (thread->next);
-#else
-        KEYCACHE_DBUG_ASSERT(0);
-        /* No parallel requests in single-threaded case */
-#endif
       }
 #if defined(PAGECACHE_DEBUG)
       cnt++;
@@ -4579,12 +4486,10 @@ restart:
         }
       }
     }
-#ifdef THREAD
     /* wake up others waiting to flush this file */
     my_hash_delete(&pagecache->files_in_flush, (uchar *)&us_flusher);
     if (us_flusher.flush_queue.last_thread)
       wqueue_release_queue(&us_flusher.flush_queue);
-#endif
   }
 
 #ifndef DBUG_OFF
@@ -4716,7 +4621,6 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
     of memory at most.
   */
   mysql_mutex_lock(&pagecache->cache_lock);
-#ifdef THREAD
   for (;;)
   {
     struct st_file_in_flush *other_flusher;
@@ -4751,7 +4655,6 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       while (thread->next);
     }
   }
-#endif
 
   /* Count how many dirty pages are interesting */
   for (file_hash= 0; file_hash < PAGECACHE_CHANGED_BLOCKS_HASH; file_hash++)

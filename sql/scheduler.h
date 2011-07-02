@@ -24,6 +24,8 @@
 #pragma interface
 #endif
 
+#include <my_global.h>
+
 class THD;
 
 /* Functions used when manipulating threads */
@@ -118,12 +120,5 @@ class thd_scheduler
 {};
 
 #endif
-
-void *thd_get_scheduler_data(THD *thd);
-void thd_set_scheduler_data(THD *thd, void *data);
-PSI_thread* thd_get_psi(THD *thd);
-void thd_set_psi(THD *thd, PSI_thread *psi);
-
-extern scheduler_functions *thread_scheduler;
 
 #endif

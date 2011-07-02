@@ -1,3 +1,4 @@
+#error don't use
 /*
   Copyright (C) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
 

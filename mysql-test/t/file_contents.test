@@ -11,7 +11,7 @@
 --perl
 print "\nChecking 'INFO_SRC' and 'INFO_BIN'\n";
 $dir_bin = $ENV{'MYSQL_BINDIR'};
-if ($dir_bin =~ m|/usr/|) {
+if ($dir_bin eq '/usr/') {
   # RPM package
   $dir_docs = $dir_bin;
   $dir_docs =~ s|/lib|/share/doc|;
@@ -22,7 +22,7 @@ if ($dir_bin =~ m|/usr/|) {
     # RedHat: version number in directory name
     $dir_docs = glob "$dir_docs/MySQL-server*";
   }
-} elsif ($dir_bin =~ m|/usr$|) {
+} elsif ($dir_bin eq '/usr') {
   # RPM build during development
   $dir_docs = "$dir_bin/share/doc";
   if(-d "$dir_docs/packages/MySQL-server") {

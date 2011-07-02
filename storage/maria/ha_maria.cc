@@ -300,7 +300,7 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
   THD *thd= (THD *) param->thd;
   Protocol *protocol= thd->protocol;
   uint length, msg_length;
-  char msgbuf[HA_MAX_MSG_BUF];
+  char msgbuf[MYSQL_ERRMSG_SIZE];
   char name[NAME_LEN * 2 + 2];
 
   msg_length= my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
@@ -827,15 +827,16 @@ int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                 HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
                 HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                 HA_FILE_BASED | HA_CAN_GEOMETRY | CANNOT_ROLLBACK_FLAG |
-                HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
+                HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS | HA_CAN_REPAIR |
                 HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
 can_enable_indexes(1), bulk_insert_single_undo(BULK_INSERT_NONE)
 {}
 
 
-handler *ha_maria::clone(MEM_ROOT *mem_root)
+handler *ha_maria::clone(const char *name, MEM_ROOT *mem_root)
 {
-  ha_maria *new_handler= static_cast <ha_maria *>(handler::clone(mem_root));
+  ha_maria *new_handler= static_cast <ha_maria *>(handler::clone(name,
+                                                                 mem_root));
   if (new_handler)
   {
     new_handler->file->state= file->state;
@@ -1937,8 +1938,8 @@ end:
 bool ha_maria::check_and_repair(THD *thd)
 {
   int error, crashed;
-  LEX_STRING old_query;
   HA_CHECK_OPT check_opt;
+  const CSET_STRING query_backup= thd->query_string;
   DBUG_ENTER("ha_maria::check_and_repair");
 
   check_opt.init();
@@ -1967,10 +1968,8 @@ bool ha_maria::check_and_repair(THD *thd)
   if (!file->state->del && (maria_recover_options & HA_RECOVER_QUICK))
     check_opt.flags |= T_QUICK;
 
-  old_query= thd->query_string;
-  mysql_mutex_lock(&LOCK_thread_count);
-  thd->query_string= table->s->table_name;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd->set_query(table->s->table_name.str,
+                 (uint) table->s->table_name.length, system_charset_info);
 
   if (!(crashed= maria_is_crashed(file)))
   {
@@ -1988,9 +1987,7 @@ bool ha_maria::check_and_repair(THD *thd)
     if (repair(thd, &check_opt))
       error= 1;
   }
-  mysql_mutex_lock(&LOCK_thread_count);
-  thd->query_string= old_query;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  thd->set_query(query_backup);
   DBUG_RETURN(error);
 }
 
@@ -2418,7 +2415,6 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       if (file->trn)
       {
         /* This can only happen with tables created with clone() */
-        DBUG_ASSERT(cloned);
         trnman_increment_locked_tables(file->trn);
       }
 

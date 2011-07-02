@@ -1227,11 +1227,11 @@ ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
 }
 
 
-int ha_myisammrg::truncate()
+int ha_myisammrg::delete_all_rows()
 {
   int err= 0;
   MYRG_TABLE *table;
-  DBUG_ENTER("ha_myisammrg::truncate");
+  DBUG_ENTER("ha_myisammrg::delete_all_rows");
 
   for (table= file->open_tables; table != file->end_table; table++)
   {

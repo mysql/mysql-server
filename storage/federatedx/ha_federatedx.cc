@@ -318,6 +318,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "sql_analyse.h"                        // append_escaped()
 #include "sql_show.h"                           // append_identifier()
 
+#ifdef I_AM_PARANOID
+#define MIN_PORT 1023
+#else
+#define MIN_PORT 0
+#endif
+
 /* Variables for federatedx share methods */
 static HASH federatedx_open_tables;             // To track open tables
 static HASH federatedx_open_servers;            // To track open servers
@@ -536,11 +542,7 @@ int get_connection(MEM_ROOT *mem_root, FEDERATEDX_SHARE *share)
   share->username= server->username;
   share->password= server->password;
   share->database= server->db;
-#ifndef I_AM_PARANOID
-  share->port= server->port > 0 && server->port < 65536 ? 
-#else
-  share->port= server->port > 1023 && server->port < 65536 ? 
-#endif
+  share->port= server->port > MIN_PORT && server->port < 65536 ? 
                (ushort) server->port : MYSQL_PORT;
   share->hostname= server->host;
   if (!(share->socket= server->socket) &&
@@ -557,9 +559,8 @@ int get_connection(MEM_ROOT *mem_root, FEDERATEDX_SHARE *share)
   DBUG_RETURN(0);
 
 error:
-  my_sprintf(error_buffer,
-             (error_buffer, "server name: '%s' doesn't exist!",
-              share->connection_string));
+  sprintf(error_buffer, "server name: '%s' doesn't exist!",
+          share->connection_string);
   my_error(error_num, MYF(0), error_buffer);
   DBUG_RETURN(error_num);
 }
@@ -2584,8 +2585,8 @@ int ha_federatedx::index_read_idx_with_result_set(uchar *buf, uint index,
 
   if (io->query(sql_query.ptr(), sql_query.length()))
   {
-    my_sprintf(error_buffer, (error_buffer, "error: %d '%s'",
-                              io->error_code(), io->error_str()));
+    sprintf(error_buffer, "error: %d '%s'",
+            io->error_code(), io->error_str());
     retval= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
     goto error;
   }
@@ -3308,9 +3309,8 @@ static int test_connection(MYSQL_THD thd, federatedx_io *io,
 
   if ((retval= io->query(str.ptr(), str.length())))
   {
-    my_sprintf(buffer, (buffer,
-               "database: '%s'  username: '%s'  hostname: '%s'",
-               share->database, share->username, share->hostname));
+    sprintf(buffer, "database: '%s'  username: '%s'  hostname: '%s'",
+            share->database, share->username, share->hostname);
     DBUG_PRINT("info", ("error-code: %d", io->error_code()));
     my_error(ER_CANT_CREATE_FEDERATED_TABLE, MYF(0), buffer);
   }

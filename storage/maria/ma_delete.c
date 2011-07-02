@@ -118,7 +118,6 @@ int maria_delete(MARIA_HA *info,const uchar *record)
 
   mi_sizestore(lastpos, info->cur_row.lastpos);
   _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
-  allow_break();			/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
   {
     DBUG_PRINT("info", ("invalidator... '%s' (delete)",
@@ -142,7 +141,6 @@ err:
   }
   _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
   info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
-  allow_break();			/* Allow SIGHUP & SIGINT */
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
   {
     maria_print_error(share, HA_ERR_CRASHED);

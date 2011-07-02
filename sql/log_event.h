@@ -2194,8 +2194,6 @@ public:        /* !!! Public in this patch to allow old usage */
 #endif
 };
 
-extern char server_version[SERVER_VERSION_LENGTH];
-
 /**
   @class Start_log_event_v3
 

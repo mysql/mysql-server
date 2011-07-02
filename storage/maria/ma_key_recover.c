@@ -1395,10 +1395,8 @@ my_bool _ma_lock_key_del(MARIA_HA *info, my_bool insert_at_end)
       info->key_del_used= 2;                  /* insert-with-append */
       return 1;
     }
-#ifdef THREAD
     while (share->key_del_used)
       pthread_cond_wait(&share->key_del_cond, &share->key_del_lock);
-#endif
     info->key_del_used= 1;
     share->key_del_used= 1;
     share->key_del_current= share->state.key_del;

@@ -281,8 +281,6 @@ my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_mysqltest= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
-our $opt_valgrind_mysqld= 0;
-my $opt_valgrind_mysqltest= 0;
 my $opt_strace= 0;
 my $opt_strace_client;
 my @strace_args;
@@ -431,6 +429,7 @@ sub main {
        template_path  => "include/default_my.cnf",
        master_opt     => [],
        slave_opt      => [],
+       suite          => 'main',
       );
     unshift(@$tests, $tinfo);
   }
@@ -475,19 +474,6 @@ sub main {
     resfile_init("$opt_vardir/mtr-results.txt");
     print_global_resfile();
   }
-
-  # --------------------------------------------------------------------------
-  # Read definitions from include/plugin.defs
-  #
-  read_plugin_defs("include/plugin.defs");
-
-  # Also read from any plugin local plugin.defs
-  for (glob "$basedir/plugin/*/tests/mtr/plugin.defs") {
-    read_plugin_defs($_);
-  }
-
-  # Simplify reference to semisync plugins
-  $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
 
   # Create child processes
   my %children;
@@ -586,8 +572,6 @@ sub main {
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
-  mtr_report_stats($prefix, $fail, $completed, $extra_warnings);
-
   if ($ctest_report) {
     print "$ctest_report\n";
     mtr_print_line();
@@ -595,7 +579,7 @@ sub main {
 
   print_total_times($opt_parallel) if $opt_report_times;
 
-  mtr_report_stats("Completed", $completed);
+  mtr_report_stats($prefix, $fail, $completed, $extra_warnings);
 
   if ( @$completed != $num_tests)
   {
@@ -811,6 +795,7 @@ sub run_test_server ($$$) {
             # Test failure due to warnings, force is off
             return ("Warnings in log", 1, $completed, $extra_warnings);
           }
+        }
 	elsif ($line =~ /^SPENT/) {
 	  add_total_times($line);
 	}
@@ -1652,17 +1637,14 @@ sub command_line_setup {
        $opt_dbx || $opt_client_dbx || $opt_manual_dbx ||
        $opt_debugger || $opt_client_debugger )
   {
-    # Indicate that we are using debugger
-    $glob_debugger= 1;
-    $opt_testcase_timeout= 60*60*24;  # Don't abort debugging with timeout
-    $opt_suite_timeout= $opt_testcase_timeout;
-    $opt_retry= 1;
-    $opt_retry_failure= 1;
-
     if ( using_extern() )
     {
       mtr_error("Can't use --extern when using debugger");
     }
+    # Indicate that we are using debugger
+    $glob_debugger= 1;
+    $opt_retry= 1;
+    $opt_retry_failure= 1;
     # Set one week timeout (check-testcase timeout will be 1/10th)
     $opt_testcase_timeout= 7 * 24 * 60;
     $opt_suite_timeout= 7 * 24 * 60;
@@ -1681,8 +1663,8 @@ sub command_line_setup {
   }
   if ($opt_debug)
   {
-    $opt_testcase_timeout= 60*60*24;  # Don't abort debugging with timeout
-    $opt_suite_timeout= $opt_testcase_timeout;
+    $opt_testcase_timeout= 7 * 24 * 60;
+    $opt_suite_timeout= 7 * 24 * 60;
     $opt_retry= 1;
     $opt_retry_failure= 1;
   }
@@ -2275,62 +2257,6 @@ sub find_plugin($$)
   return $lib_plugin;
 }
 
-#
-# Read plugin defintions file
-#
-
-sub read_plugin_defs($)
-{
-  my ($defs_file)= @_;
-  my $running_debug= 0;
-
-  open(PLUGDEF, '<', $defs_file)
-    or mtr_error("Can't read plugin defintions file $defs_file");
-
-  # Need to check if we will be running mysqld-debug
-  if ($opt_debug_server) {
-    $running_debug= 1 if find_mysqld($basedir) =~ /mysqld-debug/;
-  }
-
-  while (<PLUGDEF>) {
-    next if /^#/;
-    my ($plug_file, $plug_loc, $plug_var, $plug_names)= split;
-    # Allow empty lines
-    next unless $plug_file;
-    mtr_error("Lines in $defs_file must have 3 or 4 items") unless $plug_var;
-
-    # If running debug server, plugins will be in 'debug' subdirectory
-    $plug_file= "debug/$plug_file" if $running_debug;
-
-    my ($plugin)= find_plugin($plug_file, $plug_loc);
-
-    # Set env. variables that tests may use, set to empty if plugin
-    # listed in def. file but not found.
-
-    if ($plugin) {
-      $ENV{$plug_var}= basename($plugin);
-      $ENV{$plug_var.'_DIR'}= dirname($plugin);
-      $ENV{$plug_var.'_OPT'}= "--plugin-dir=".dirname($plugin);
-      if ($plug_names) {
-	my $lib_name= basename($plugin);
-	my $load_var= "--plugin_load=";
-	my $semi= '';
-	foreach my $plug_name (split (',', $plug_names)) {
-	  $load_var .= $semi . "$plug_name=$lib_name";
-	  $semi= ';';
-	}
-	$ENV{$plug_var.'_LOAD'}= $load_var;
-      }
-    } else {
-      $ENV{$plug_var}= "";
-      $ENV{$plug_var.'_DIR'}= "";
-      $ENV{$plug_var.'_OPT'}= "";
-      $ENV{$plug_var.'_LOAD'}= "" if $plug_names;
-    }
-  }
-  close PLUGDEF;
-}
-
 sub environment_setup {
 
   umask(022);
@@ -2499,7 +2425,7 @@ sub environment_setup {
   $ENV{'MYSQL'}=                    client_arguments("mysql");
   $ENV{'MYSQL_SLAVE'}=              client_arguments("mysql", ".2");
   $ENV{'MYSQL_UPGRADE'}=            client_arguments("mysql_upgrade");
-  $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
+  $ENV{'MYSQLADMIN'}=               client_arguments("mysqladmin");
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
 
@@ -2739,7 +2665,6 @@ sub setup_vardir() {
   if ($source_dist)
   {
     $plugindir="$opt_vardir/plugins";
-    unshift (@opt_extra_mysqld_opt, "--plugin-dir=$plugindir");
     mkpath($plugindir);
     if (IS_WINDOWS)
     {
@@ -2765,6 +2690,7 @@ sub setup_vardir() {
   }
   else
   {
+    $plugindir= $mysqld_variables{'plugin-dir'} || '.';
     # hm, what paths work for debs and for rpms ?
     for (<$basedir/lib/mysql/plugin/*.so>,
          <$basedir/lib/plugin/*.dll>)
@@ -3097,7 +3023,7 @@ sub ndbd_stop {
   # by sending "shutdown" to ndb_mgmd
 }
 
-my $exe_ndbmtd_counter= 0;
+our $exe_ndbmtd_counter= 0;
 
 sub ndbd_start {
   my ($cluster, $ndbd)= @_;
@@ -4136,7 +4062,7 @@ sub all_servers {
 }
 
 # Storage for changed environment variables
-my %old_env;
+our %old_env;
 
 sub resfile_report_test ($) {
   my $tinfo=  shift;
@@ -4598,7 +4524,7 @@ sub restore_error_log {
 # Keep track of last position in mysqld error log where we scanned for
 # warnings, so we can attribute any warnings found to the correct test
 # suite or server restart.
-my $last_warning_position= { };
+our $last_warning_position= { };
 
 # Called just before a mysqld server is started or a testcase is run,
 # to keep track of which tests have been run since last restart, and
@@ -4796,7 +4722,7 @@ sub extract_warning_lines ($) {
      qr|Table \./test/bug53592 has a primary key in InnoDB data dictionary, but not in MySQL|,
      qr|mysqld: Table '\./mtr/test_suppressions' is marked as crashed and should be repaired|,
      qr|InnoDB: Error: table 'test/bug39438'|,
-     qr|'user' entry '.*' ignored in --skip-name-resolve mode|,
+     qr| entry '.*' ignored in --skip-name-resolve mode|,
      qr|mysqld got signal 6|,
      qr|Error while setting value 'pool-of-threads' to 'thread_handling'|,
     );
@@ -5429,7 +5355,7 @@ sub mysqld_start ($$) {
   {
     ddd_arguments(\$args, \$exe, $mysqld->name());
   }
-  if ( $opt_dbx || $opt_manual_dbx ) {
+  elsif ( $opt_dbx || $opt_manual_dbx ) {
     dbx_arguments(\$args, \$exe, $mysqld->name());
   }
   elsif ( $opt_debugger )
@@ -6604,7 +6530,7 @@ sub time_format($) {
   sprintf '%d:%02d:%02d', $_[0]/3600, ($_[0]/60)%60, $_[0]%60;
 }
 
-my $num_tests;
+our $num_tests;
 
 sub xterm_stat {
   if (-t STDOUT and defined $ENV{TERM} and $ENV{TERM} =~ /xterm/) {

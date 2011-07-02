@@ -1578,7 +1578,7 @@ static ulong sum=0;
 /* The following functions is for WRITE_CONCURRENT_INSERT */
 
 static void test_get_status(void* param __attribute__((unused)),
-                            int concurrent_insert __attribute__((unused)))
+                            my_bool concurrent_insert __attribute__((unused)))
 {
 }
 

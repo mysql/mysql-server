@@ -19,12 +19,8 @@
 #include <myisampack.h>				/* packing of keys */
 #include <my_tree.h>
 #include <my_bitmap.h>
-#ifdef THREAD
 #include <my_pthread.h>
 #include <thr_lock.h>
-#else
-#include <my_no_pthread.h>
-#endif
 #include <hash.h>
 #include "ma_loghandler.h"
 #include "ma_control_file.h"
@@ -250,10 +246,8 @@ typedef struct st_maria_file_bitmap
   uint non_flushable;                  /**< 0 if bitmap and log are in sync */
   PAGECACHE_FILE file;		       /* datafile where bitmap is stored */
 
-#ifdef THREAD
   pthread_mutex_t bitmap_lock;
   pthread_cond_t bitmap_cond;          /**< When bitmap becomes flushable */
-#endif
   /* Constants, allocated when initiating bitmaps */
   uint sizes[8];                      /* Size per bit combination */
   uint total_size;		      /* Total usable size of bitmap page */
@@ -394,7 +388,6 @@ typedef struct st_maria_share
   my_bool have_versioning;
   my_bool key_del_used;                         /* != 0 if key_del is locked */
   my_bool deleting;                     /* we are going to delete this table */
-#ifdef THREAD
   THR_LOCK lock;
   void (*lock_restore_status)(void *);
   /**
@@ -411,7 +404,6 @@ typedef struct st_maria_share
     intern_lock, lock them in this order.
   */
   pthread_mutex_t close_lock;
-#endif
   my_off_t mmaped_length;
   uint nonmmaped_inserts;		/* counter of writing in
 						   non-mmaped area */
@@ -481,8 +473,6 @@ typedef struct st_maria_block_scan
   uint number_of_rows, bit_pos;
   MARIA_RECORD_POS row_base_page;
 } MARIA_BLOCK_SCAN;
-
-typedef ICP_RESULT (*index_cond_func_t)(void *param);
 
 struct st_maria_handler
 {
@@ -577,12 +567,10 @@ struct st_maria_handler
   my_bool once_flags;			/* For MARIA_MRG */
   /* For bulk insert enable/disable transactions control */
   my_bool switched_transactional;
-#ifdef __WIN__
+#ifdef _WIN32
   my_bool owned_by_merge;               /* This Maria table is part of a merge union */
 #endif
-#ifdef THREAD
   THR_LOCK_DATA lock;
-#endif
   uchar *maria_rtree_recursion_state;	/* For RTREE */
   uchar length_buff[5];			/* temp buff to store blob lengths */
   int maria_rtree_recursion_depth;
@@ -776,10 +764,8 @@ struct st_maria_handler
 #define MARIA_UNIQUE_HASH_TYPE	HA_KEYTYPE_ULONG_INT
 #define maria_unique_store(A,B)    mi_int4store((A),(B))
 
-#ifdef THREAD
 extern pthread_mutex_t THR_LOCK_maria;
-#endif
-#if !defined(THREAD) || defined(DONT_USE_RW_LOCKS)
+#ifdef DONT_USE_RW_LOCKS
 #define rw_wrlock(A) {}
 #define rw_rdlock(A) {}
 #define rw_unlock(A) {}
@@ -1200,9 +1186,7 @@ C_MODE_END
 int _ma_flush_pending_blocks(MARIA_SORT_PARAM *param);
 int _ma_sort_ft_buf_flush(MARIA_SORT_PARAM *sort_param);
 int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param);
-#ifdef THREAD
 pthread_handler_t _ma_thr_find_all_keys(void *arg);
-#endif
 
 int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param);
 int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,

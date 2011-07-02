@@ -750,8 +750,7 @@ static int handle_request_for_tables(char *tables, uint length)
   if (opt_all_in_1)
   {
     /* No backticks here as we added them before */
-    query_length= my_sprintf(query,
-			     (query, "%s TABLE %s %s", op, tables, options));
+    query_length= sprintf(query, "%s TABLE %s %s", op, tables, options);
   }
   else
   {

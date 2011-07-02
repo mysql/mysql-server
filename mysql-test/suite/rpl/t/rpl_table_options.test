@@ -29,3 +29,5 @@ drop table t1;
 set storage_engine=default;
 select 1;
 uninstall plugin example;
+
+source include/rpl_end.inc;

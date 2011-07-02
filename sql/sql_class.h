@@ -446,6 +446,7 @@ typedef struct system_variables
   ulong max_tmp_tables;
   ulong max_insert_delayed_threads;
   ulong min_examined_row_limit;
+  ulong multi_range_count;
   ulong net_buffer_length;
   ulong net_interactive_timeout;
   ulong net_read_timeout;
@@ -2103,7 +2104,6 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   bool       slave_thread, one_shot_set;
-  bool	     no_errors, password;
   bool       extra_port;                        /* If extra connection */
 
   bool	     no_errors;

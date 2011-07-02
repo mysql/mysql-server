@@ -71,6 +71,7 @@ class ha_myisam: public handler
             HA_READ_ORDER | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
   }
   uint max_supported_keys()          const { return MI_MAX_KEY; }
+  uint max_supported_key_parts()     const { return HA_MAX_KEY_SEG; }
   uint max_supported_key_length()    const { return HA_MAX_KEY_LENGTH; }
   uint max_supported_key_part_length() const { return HA_MAX_KEY_LENGTH; }
   uint checksum() const;
@@ -116,7 +117,6 @@ class ha_myisam: public handler
   int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  int truncate();
   int reset_auto_increment(ulonglong value);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);

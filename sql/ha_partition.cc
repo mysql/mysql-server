@@ -1078,7 +1078,7 @@ static bool print_admin_msg(THD* thd, const char* msg_type,
   va_list args;
   Protocol *protocol= thd->protocol;
   uint length, msg_length;
-  char msgbuf[HA_MAX_MSG_BUF];
+  char msgbuf[MYSQL_ERRMSG_SIZE];
   char name[SAFE_NAME_LEN*2+2];
 
   va_start(args, fmt);

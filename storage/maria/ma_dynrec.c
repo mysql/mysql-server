@@ -36,13 +36,11 @@ static my_bool delete_dynamic_record(MARIA_HA *info,MARIA_RECORD_POS filepos,
 static my_bool _ma_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
                               uint length);
 
-#ifdef THREAD
 /* Play it safe; We have a small stack when using threads */
 #undef my_alloca
 #undef my_afree
 #define my_alloca(A) my_malloc((A),MYF(0))
 #define my_afree(A) my_free((A))
-#endif
 
 	/* Interface function from MARIA_HA */
 
@@ -1596,9 +1594,6 @@ my_bool _ma_cmp_dynamic_record(register MARIA_HA *info,
   MARIA_BLOCK_INFO block_info;
   my_bool error= 1;
   DBUG_ENTER("_ma_cmp_dynamic_record");
-
-	/* We are going to do changes; dont let anybody disturb */
-  dont_break();				/* Dont allow SIGHUP or SIGINT */
 
   if (info->opt_flag & WRITE_CACHE_USED)
   {

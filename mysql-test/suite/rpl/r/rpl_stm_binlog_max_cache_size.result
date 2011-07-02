@@ -26,16 +26,29 @@ include/diff_tables.inc [master:t1,slave:t1]
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
+set default_storage_engine=innodb;
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+INSERT INTO t1 (a, data) VALUES (7, 's');;
+INSERT INTO t2 (a, data) VALUES (8, 's');;
+INSERT INTO t1 (a, data) VALUES (9, 's');;
+ALTER TABLE t3 ADD COLUMN d int;
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
+INSERT INTO t1 (a, data) VALUES (19, 's');;
+INSERT INTO t2 (a, data) VALUES (20, 's');;
+INSERT INTO t1 (a, data) VALUES (21, 's');;
+CREATE TABLE t4 SELECT * FROM t1;
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
+INSERT INTO t1 (a, data) VALUES (27, 's');;
+INSERT INTO t2 (a, data) VALUES (28, 's');;
+INSERT INTO t1 (a, data) VALUES (29, 's');;
+CREATE TABLE t5 (a int);
 include/diff_tables.inc [master:t1,slave:t1]
 ########################################################################################
 #                                     3 - BEGIN - COMMIT
@@ -97,6 +110,9 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+INSERT INTO t1 (a, data) VALUES (7, 's');;
+INSERT INTO t2 (a, data) VALUES (8, 's');;
+INSERT INTO t1 (a, data) VALUES (9, 's');;
 ROLLBACK TO sv;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -112,6 +128,10 @@ BEGIN;
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
+INSERT INTO t1 (a, data) VALUES (8, 's');;
+INSERT INTO t1 (a, data) VALUES (9, 's');;
+INSERT INTO t2 (a, data) VALUES (10, 's');;
+INSERT INTO t1 (a, data) VALUES (11, 's');;
 COMMIT;
 BEGIN;
 Got one of the listed errors

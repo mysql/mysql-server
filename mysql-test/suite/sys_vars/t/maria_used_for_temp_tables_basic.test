@@ -9,7 +9,9 @@ select @@global.maria_used_for_temp_tables, @@global.aria_used_for_temp_tables;
 select @@session.maria_used_for_temp_tables, @@session.aria_used_for_temp_tables;
 show global variables like '%aria_used_for_temp_tables';
 show session variables like '%aria_used_for_temp_tables';
+--sorted_result
 select * from information_schema.global_variables where variable_name like '%aria_used_for_temp_tables';
+--sorted_result
 select * from information_schema.session_variables where variable_name like '%aria_used_for_temp_tables';
 
 #

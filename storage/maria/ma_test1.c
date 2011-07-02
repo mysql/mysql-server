@@ -70,7 +70,7 @@ extern int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
 
 int main(int argc,char *argv[])
 {
-#if defined(SAFE_MUTEX) && defined(THREAD)
+#ifdef SAFE_MUTEX
   safe_mutex_deadlock_detector= 1;
 #endif
   MY_INIT(argv[0]);

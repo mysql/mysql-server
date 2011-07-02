@@ -1177,7 +1177,7 @@ void do_handle_one_connection(THD *thd_arg)
 
   thd->thr_create_utime= my_micro_time();
 
-  if (MYSQL_CALLBACK_ELSE(&thread_scheduler, init_new_connection_thread, (), 0))
+  if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_status);

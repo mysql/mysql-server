@@ -230,8 +230,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     order= simple_remove_const(order, conds);
 
     bool need_sort;
-    usable_index= get_index_for_order(order, table, select, limit,
-                                      &need_sort, &reverse);
+    if (select && select->quick && select->quick->unique_key_range())
+    { // Single row select (always "ordered")
+      need_sort= FALSE;
+      usable_index= MAX_KEY;
+    }
+    else
+      usable_index= get_index_for_order(order, table, select, limit,
+                                        &need_sort, &reverse);
     if (need_sort)
     {
       DBUG_ASSERT(usable_index == MAX_KEY);

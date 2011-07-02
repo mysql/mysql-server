@@ -167,7 +167,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 #endif
 
 end:
-  thd->restore_globals();
+  thd->reset_globals();
   return result;
 }
 

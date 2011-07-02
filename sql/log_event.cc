@@ -1661,11 +1661,11 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       int i, end;
       char buff[512], *pos;
       pos= buff;
-      pos+= my_sprintf(buff, (buff, "%s", dec.sign() ? "-" : ""));
+      pos+= sprintf(buff, "%s", dec.sign() ? "-" : "");
       end= ROUND_UP(dec.frac) + ROUND_UP(dec.intg)-1;
       for (i=0; i < end; i++)
-        pos+= my_sprintf(pos, (pos, "%09d.", dec.buf[i]));
-      pos+= my_sprintf(pos, (pos, "%09d", dec.buf[i]));
+        pos+= sprintf(pos, "%09d.", dec.buf[i]);
+      pos+= sprintf(pos, "%09d", dec.buf[i]);
       my_b_printf(file, "%s", buff);
       my_snprintf(typestr, typestr_length, "DECIMAL(%d,%d)",
                   precision, decimals);
@@ -6588,9 +6588,7 @@ void Append_block_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
   uint length;
-  length= (uint) my_sprintf(buf,
-			    (buf, ";file_id=%u;block_len=%u", file_id,
-			     block_len));
+  length= (uint) sprintf(buf, ";file_id=%u;block_len=%u", file_id, block_len);
   protocol->store(buf, length, &my_charset_bin);
 }
 
@@ -6746,7 +6744,7 @@ void Delete_file_log_event::pack_info(Protocol *protocol)
 {
   char buf[64];
   uint length;
-  length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
+  length= (uint) sprintf(buf, ";file_id=%u", (uint) file_id);
   protocol->store(buf, (int32) length, &my_charset_bin);
 }
 #endif
@@ -6844,7 +6842,7 @@ void Execute_load_log_event::pack_info(Protocol *protocol)
 {
   char buf[64];
   uint length;
-  length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
+  length= (uint) sprintf(buf, ";file_id=%u", (uint) file_id);
   protocol->store(buf, (int32) length, &my_charset_bin);
 }
 

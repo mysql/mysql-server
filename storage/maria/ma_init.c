@@ -70,7 +70,6 @@ int maria_init(void)
     _ma_init_block_record_data();
     trnman_end_trans_hook= _ma_trnman_end_trans_hook;
     maria_create_trn_hook= dummy_maria_create_trn_hook;
-    my_handler_error_register();
   }
   my_hash_init(&maria_stored_state, &my_charset_bin, 32,
             0, sizeof(LSN), 0, (my_hash_free_key) history_state_free, 0);

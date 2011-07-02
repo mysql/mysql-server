@@ -977,7 +977,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
     if (rc)
     {
-      my_free(thd->security_ctx->user);
+      /* authentication can fail before or after allocating new username */
+      if (thd->security_ctx->user != save_security_ctx.user)
+        my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
       thd->reset_db(save_db, save_db_length);

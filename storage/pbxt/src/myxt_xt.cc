@@ -2062,11 +2062,7 @@ static TABLE *my_open_table(XTThreadPtr self, XTDatabaseHPtr XT_UNUSED(db), XTPa
 		return NULL;
 	}
 
-#if MYSQL_VERSION_ID >= 50404
-	if ((error = open_table_from_share(thd, share, "", 0, (uint) READ_ALL, 0, table, OTM_OPEN)))
-#else
 	if ((error = open_table_from_share(thd, share, "", 0, (uint) READ_ALL, 0, table, FALSE)))
-#endif
 	{
 		xt_free(self, table);
 		lex_end(&new_lex);

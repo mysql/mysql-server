@@ -1197,7 +1197,7 @@ static Sys_var_harows Sys_sql_max_join_size(
        SESSION_VAR(max_join_size), NO_CMD_LINE,
        VALID_RANGE(1, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_max_join_size), DEPRECATED(70000, 0));
+       ON_UPDATE(fix_max_join_size), DEPRECATED(70000, "'@@max_join_size'"));
 
 static Sys_var_ulong Sys_max_long_data_size(
        "max_long_data_size",
@@ -1635,6 +1635,13 @@ static Sys_var_ulong Sys_range_alloc_block_size(
        SESSION_VAR(range_alloc_block_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(RANGE_ALLOC_BLOCK_SIZE, ULONG_MAX),
        DEFAULT(RANGE_ALLOC_BLOCK_SIZE), BLOCK_SIZE(1024));
+
+static Sys_var_ulong Sys_multi_range_count(
+       "multi_range_count", "Ignored. Use mrr_buffer_size instead",
+       SESSION_VAR(multi_range_count), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, ULONG_MAX), DEFAULT(256), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(50700, "'@@mrr_buffer_size'"));
 
 static bool fix_thd_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {

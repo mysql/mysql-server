@@ -356,7 +356,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     uint mrr_keyno= h->active_index;
 
     /* Create a separate handler object to do rndpos() calls. */
-    if (!(new_h2= h->clone(thd->mem_root)) || 
+    if (!(new_h2= h->clone(h->table->s->normalized_path.str, thd->mem_root)) || 
         new_h2->ha_external_lock(thd, F_RDLCK))
     {
       delete new_h2;

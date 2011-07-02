@@ -67,3 +67,5 @@ sync_with_master;
 #------------------------------------------------------------------------------#
 # Cleanup
 --source suite/vcol/inc/vcol_cleanup.inc
+--source include/rpl_end.inc
+

@@ -49,9 +49,7 @@ static uint nanoseq;
 static ulonglong uuid_time= 0;
 static uchar uuid_suffix[2+6]; /* clock_seq and node */
 
-#ifdef THREAD
 pthread_mutex_t LOCK_uuid_generator;
-#endif
 
 /*
   Number of 100-nanosecond intervals between

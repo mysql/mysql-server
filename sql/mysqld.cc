@@ -927,7 +927,9 @@ my_bool opt_use_ssl  = 0;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_cipher= NULL, *opt_ssl_key= NULL;
 
-scheduler_functions thread_scheduler, extra_thread_scheduler;
+static scheduler_functions thread_scheduler_struct, extra_thread_scheduler_struct;
+scheduler_functions *thread_scheduler= &thread_scheduler_struct,
+                    *extra_thread_scheduler= &extra_thread_scheduler_struct;
 
 #ifdef HAVE_OPENSSL
 #include <openssl/crypto.h>
@@ -1119,7 +1121,7 @@ static void close_connections(void)
       continue;
 
     tmp->killed= THD::KILL_CONNECTION;
-    MYSQL_CALLBACK(&thread_scheduler, post_kill_notification, (tmp));
+    MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (tmp));
     mysql_mutex_lock(&tmp->LOCK_thd_data);
     if (tmp->mysys_var)
     {
@@ -1544,7 +1546,7 @@ void clean_up(bool print_message)
   if (print_message && my_default_lc_messages && server_start_time)
     sql_print_information(ER_DEFAULT(ER_SHUTDOWN_COMPLETE),my_progname);
   cleanup_errmsgs();
-  MYSQL_CALLBACK(&thread_scheduler, end, ());
+  MYSQL_CALLBACK(thread_scheduler, end, ());
   mysql_library_end();
   finish_client_errs();
   (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
@@ -1585,7 +1587,10 @@ static void wait_for_signal_thread_to_end()
   for (i= 0 ; i < 100 && signal_thread_in_use; i++)
   {
     if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL) != ESRCH)
+    {
+      fprintf(stderr, "signal thread appears to be dead\n");
       break;
+    }
     my_sleep(100);				// Give it time to die
   }
 }
@@ -1950,7 +1955,7 @@ static void network_init(void)
   int	arg;
   DBUG_ENTER("network_init");
 
-  if (MYSQL_CALLBACK_ELSE(&thread_scheduler, init, (), 0))
+  if (MYSQL_CALLBACK_ELSE(thread_scheduler, init, (), 0))
     unireg_abort(1);			/* purecov: inspected */
 
   set_ports();
@@ -2125,7 +2130,7 @@ void thd_cleanup(THD *thd)
     dec_connection_count()
 */
 
-void dec_connection_count()
+void dec_connection_count(THD *thd)
 {
   mysql_mutex_lock(&LOCK_connection_count);
   (*thd->scheduler->connection_count)--;
@@ -2165,7 +2170,7 @@ void unlink_thd(THD *thd)
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
 
   thd_cleanup(thd);
-  dec_connection_count();
+  dec_connection_count(thd);
   mysql_mutex_lock(&LOCK_thread_count);
   /*
     Used by binlog_reset_master.  It would be cleaner to use
@@ -2545,7 +2550,7 @@ and this may fail.\n\n");
           (ulong) dflt_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
-  fprintf(stderr, "max_threads=%u\n", thread_scheduler.max_threads +
+  fprintf(stderr, "max_threads=%u\n", thread_scheduler->max_threads +
           (uint) extra_max_connections);
   fprintf(stderr, "thread_count=%u\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
@@ -2553,7 +2558,7 @@ key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
 bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
-		     (thread_scheduler.max_threads + extra_max_connections) +
+		     (thread_scheduler->max_threads + extra_max_connections) +
                      (max_connections + extra_max_connections)* sizeof(THD)) / 1024);
   fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
 
@@ -2805,7 +2810,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     This should actually be '+ max_number_of_slaves' instead of +10,
     but the +10 should be quite safe.
   */
-  init_thr_alarm(thread_scheduler.max_threads + extra_max_connections +
+  init_thr_alarm(thread_scheduler->max_threads + extra_max_connections +
 		 global_system_variables.max_insert_delayed_threads + 10);
   if (test_flags & TEST_SIGINT)
   {
@@ -2855,8 +2860,8 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     {
       DBUG_PRINT("quit",("signal_handler: calling my_thread_end()"));
       my_thread_end();
-      signal_thread_in_use= 0;
       DBUG_LEAVE;                               // Must match DBUG_ENTER()
+      signal_thread_in_use= 0;
       pthread_exit(0);				// Safety
       return 0;                                 // Avoid compiler warnings
     }
@@ -5499,7 +5504,7 @@ void handle_connections_sockets()
     if (sock == extra_ip_sock)
     {
       thd->extra_port= 1;
-      thd->scheduler= &extra_thread_scheduler;
+      thd->scheduler= extra_thread_scheduler;
     }
     create_new_thread(thd);
   }
@@ -7637,17 +7642,17 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     return 1;
 
 #ifdef EMBEDDED_LIBRARY
-  one_thread_scheduler(&thread_scheduler);
-  one_thread_scheduler(&extra_thread_scheduler);
+  one_thread_scheduler(thread_scheduler);
+  one_thread_scheduler(extra_thread_scheduler);
 #else
   if (thread_handling <= SCHEDULER_ONE_THREAD_PER_CONNECTION)
-    one_thread_per_connection_scheduler(&thread_scheduler, &max_connections,
+    one_thread_per_connection_scheduler(thread_scheduler, &max_connections,
                                         &connection_count);
   else if (thread_handling == SCHEDULER_NO_THREADS)
-    one_thread_scheduler(&thread_scheduler);
+    one_thread_scheduler(thread_scheduler);
   else
-    pool_of_threads_scheduler(&thread_scheduler);  /* purecov: tested */
-  one_thread_per_connection_scheduler(&extra_thread_scheduler,
+    pool_of_threads_scheduler(thread_scheduler);  /* purecov: tested */
+  one_thread_per_connection_scheduler(extra_thread_scheduler,
                                       &extra_max_connections,
                                       &extra_connection_count);
 #endif

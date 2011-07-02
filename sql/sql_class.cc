@@ -274,52 +274,6 @@ bool Foreign_key::validate(List<Create_field> &table_fields)
 ****************************************************************************/
 
 /**
-  Get reference to scheduler data object
-
-  @param thd            THD object
-
-  @retval               Scheduler data object on THD
-*/
-void *thd_get_scheduler_data(THD *thd)
-{
-  return thd->scheduler.data;
-}
-
-/**
-  Set reference to Scheduler data object for THD object
-
-  @param thd            THD object
-  @param psi            Scheduler data object to set on THD
-*/
-void thd_set_scheduler_data(THD *thd, void *data)
-{
-  thd->scheduler.data= data;
-}
-
-/**
-  Get reference to Performance Schema object for THD object
-
-  @param thd            THD object
-
-  @retval               Performance schema object for thread on THD
-*/
-PSI_thread *thd_get_psi(THD *thd)
-{
-  return thd->scheduler.m_psi;
-}
-
-/**
-  Set reference to Performance Schema object for THD object
-
-  @param thd            THD object
-  @param psi            Performance schema object for thread
-*/
-void thd_set_psi(THD *thd, PSI_thread *psi)
-{
-  thd->scheduler.m_psi= psi;
-}
-
-/**
   Set the state on connection to killed
 
   @param thd               THD object
@@ -405,13 +359,6 @@ THD *thd_get_current_thd()
 */
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server)
-    thd_set_psi(thd,
-                PSI_server->new_thread(key_thread_one_connection,
-                                       thd,
-                                       thd_get_thread_id((MYSQL_THD)thd)));
-#endif
   thd->set_time();
   thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
     my_micro_time();
@@ -837,7 +784,7 @@ THD::THD()
   init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   stmt_arena= this;
   thread_stack= 0;
-  scheduler= &thread_scheduler;                 // Will be fixed later
+  scheduler= thread_scheduler;                 // Will be fixed later
   extra_port= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();

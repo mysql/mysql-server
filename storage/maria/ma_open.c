@@ -200,9 +200,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, const char *name,
   bzero(info.rec_buff, share->base.default_rec_buff_size);
 
   *m_info=info;
-#ifdef THREAD
   thr_lock_data_init(&share->lock,&m_info->lock,(void*) m_info);
-#endif
   m_info->open_list.data=(void*) m_info;
   maria_open_list=list_add(maria_open_list,&m_info->open_list);
 
@@ -838,7 +836,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         share->state_history->next= 0;
       }
     }
-#ifdef THREAD
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->intern_lock, MY_MUTEX_INIT_FAST);
     pthread_mutex_init(&share->key_del_lock, MY_MUTEX_INIT_FAST);
@@ -906,7 +903,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         share->lock.start_trans=    _ma_block_start_trans_no_versioning;
       }
     }
-#endif
     /*
       Memory mapping can only be requested after initializing intern_lock.
     */

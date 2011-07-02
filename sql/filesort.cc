@@ -30,6 +30,7 @@
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"
+#include "sql_base.h"                           // update_virtual_fields
 #include "sql_test.h"                           // TEST_filesort
 #include "opt_range.h"                          // SQL_SELECT
 #include "log_slow.h"

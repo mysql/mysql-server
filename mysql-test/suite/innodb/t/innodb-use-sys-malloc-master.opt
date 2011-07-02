@@ -1,2 +1,0 @@
---default-storage-engine=MyISAM
---loose-innodb-use-sys-malloc=true

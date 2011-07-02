@@ -1334,7 +1334,7 @@ protected:
 class Create_func_like_range_min : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_like_range_min s_singleton;
 
@@ -1347,7 +1347,7 @@ protected:
 class Create_func_like_range_max : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_like_range_max s_singleton;
 
@@ -3868,7 +3868,7 @@ Create_func_length::create_1_arg(THD *thd, Item *arg1)
 Create_func_like_range_min Create_func_like_range_min::s_singleton;
 
 Item*
-Create_func_like_range_min::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_like_range_min::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_like_range_min(arg1, arg2);
 }
@@ -3877,7 +3877,7 @@ Create_func_like_range_min::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_like_range_max Create_func_like_range_max::s_singleton;
 
 Item*
-Create_func_like_range_max::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_like_range_max::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_like_range_max(arg1, arg2);
 }

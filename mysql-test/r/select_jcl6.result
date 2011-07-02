@@ -2226,20 +2226,20 @@ a
 select * from (t1 as t2 left join t1 as t3 using (a)) left outer join t1 on t1.a>1;
 a	a
 1	2
-2	2
-3	2
 1	3
+2	2
 2	3
+3	2
 3	3
 select * from t1 left outer join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 a	a
-2	1
-3	1
-2	2
-3	2
-2	3
-3	3
 1	NULL
+2	1
+2	2
+2	3
+3	1
+3	2
+3	3
 select * from (t1 as t2 left join t1 as t3 using (a)) left join t1 using ( a );
 a
 1
@@ -2967,26 +2967,26 @@ create view v2 (c) as select a1 from t1;
 select * from t1 natural left join t2;
 a1	a2
 1	1
-2	1
 1	2
+2	1
 2	2
 select * from t1 natural right join t2;
 a2	a1
 1	1
-2	1
 1	2
+2	1
 2	2
 select * from v2 natural left join t2;
 c	a2
 1	1
-2	1
 1	2
+2	1
 2	2
 select * from v2 natural right join t2;
 a2	c
 1	1
-2	1
 1	2
+2	1
 2	2
 drop table t1, t2;
 drop view v2;
@@ -3166,9 +3166,9 @@ id
 102
 select t1.id from t1 left join v3 using (id);
 id
-102
 100
 101
+102
 select * from t1 left join v2 using (id);
 id
 100
@@ -3181,9 +3181,9 @@ id
 102
 select * from t1 left join v3 using (id);
 id
-102
 100
 101
+102
 select v1.id from v1 left join v2 using (id);
 id
 100
@@ -3196,9 +3196,9 @@ id
 102
 select v1.id from v1 left join v3 using (id);
 id
-102
 100
 101
+102
 select * from v1 left join v2 using (id);
 id
 100
@@ -3211,9 +3211,9 @@ id
 102
 select * from v1 left join v3 using (id);
 id
-102
 100
 101
+102
 drop table t1, t2;
 drop view v1, v2, v3;
 create table t1 (id int(11) not null default '0');
@@ -4870,6 +4870,70 @@ SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 1
 1
 DROP TABLE t1;
+#
+# Bug #58422: Incorrect result when OUTER JOIN'ing 
+# with an empty table
+#
+CREATE TABLE t_empty(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+CREATE TABLE t1(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+CREATE TABLE t2(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+INSERT INTO t2 VALUES (1,1), (2,2), (3,3);
+EXPLAIN
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 INNER JOIN t_empty ON TRUE)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 INNER JOIN t_empty ON TRUE)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+pk	i	pk	i	pk	i
+EXPLAIN
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 CROSS JOIN t_empty)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 CROSS JOIN t_empty)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+pk	i	pk	i	pk	i
+EXPLAIN
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 INNER JOIN t_empty ON t_empty.i=t2.i)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 INNER JOIN t_empty ON t_empty.i=t2.i)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+pk	i	pk	i	pk	i
+DROP TABLE t1,t2,t_empty;
 End of 5.1 tests
 #
 # Bug#54515: Crash in opt_range.cc::get_best_group_min_max on 
@@ -4890,6 +4954,25 @@ col_int_key
 DROP VIEW view_t1;
 DROP TABLE t1;
 # End of test BUG#54515
+#
+# Bug #57203 Assertion `field_length <= 255' failed.
+#
+SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)"))))) 
+UNION ALL 
+SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)")))))
+AS foo
+;
+coalesce((avg(distinct (geomfromtext("point(25379 -22010)")))))
+0.0000
+0.0000
+CREATE table t1(a text);
+INSERT INTO t1 VALUES (''), ('');
+SELECT avg(distinct(t1.a)) FROM t1, t1 t2
+GROUP BY t2.a ORDER BY t1.a;
+avg(distinct(t1.a))
+0
+DROP TABLE t1;
+# End of test BUG#57203
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value

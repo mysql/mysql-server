@@ -39,15 +39,15 @@
 # define RTLD_DEFAULT GetModuleHandle(NULL)
 #endif
 
+#if !defined (_GNU_SOURCE)
+# define _GNU_SOURCE /* for RTLD_DEFAULT */
+#endif
+
 #include <mysql/plugin_auth.h>
 #include <mysql/client_plugin.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#if !defined (_GNU_SOURCE)
-# define _GNU_SOURCE /* for RTLD_DEFAULT */
-#endif
 
 /**
   first byte of the question string is the question "type".

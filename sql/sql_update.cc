@@ -1,4 +1,5 @@
 /* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -437,23 +438,37 @@ int mysql_update(THD *thd,
   table->update_const_key_parts(conds);
   order= simple_remove_const(order, conds);
         
-  used_index= get_index_for_order(order, table, select, limit,
-                                  &need_sort, &reverse);
-  if (need_sort)
-  { // Assign table scan index to check below for modified key fields:
-    used_index= table->file->key_used_on_scan;
+  if (select && select->quick && select->quick->unique_key_range())
+  { // Single row select (always "ordered"): Ok to use with key field UPDATE
+    need_sort= FALSE;
+    used_index= MAX_KEY;
+    used_key_is_modified= FALSE;
   }
-  if (used_index != MAX_KEY)
-  { // Check if we are modifying a key that we are used to search with:
-    used_key_is_modified= is_key_used(table, used_index, table->write_set);
+  else
+  {
+    used_index= get_index_for_order(order, table, select, limit,
+                                    &need_sort, &reverse);
+    if (select && select->quick)
+    {
+      DBUG_ASSERT(need_sort || used_index == select->quick->index);
+      used_key_is_modified= (!select->quick->unique_key_range() &&
+                             select->quick->is_keys_used(table->write_set));
+    }
+    else
+    {
+      if (need_sort)
+      { // Assign table scan index to check below for modified key fields:
+        used_index= table->file->key_used_on_scan;
+      }
+      if (used_index != MAX_KEY)
+      { // Check if we are modifying a key that we are used to search with:
+        used_key_is_modified= is_key_used(table, used_index, table->write_set);
+      }
+    }
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (used_key_is_modified || order ||
       partition_key_modified(table, table->write_set))
-#else
-  if (used_key_is_modified || order)
-#endif
   {
     /*
       We can't update table directly;  We must first search after all
@@ -2098,7 +2113,7 @@ int multi_update::do_updates()
       {
         if ((local_error=
              tbl->file->ha_rnd_pos(tbl->record[0],
-                                   (uchar*) tmp_table->field[field_num]->ptr)))
+                                   (uchar *) tmp_table->field[field_num]->ptr)))
         {
           err_table= tbl;
           goto err;

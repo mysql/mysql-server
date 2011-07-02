@@ -298,8 +298,7 @@ CHECK TABLE bug47205 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
 test.bug47205	check	error	Table upgrade required. Please do "REPAIR TABLE `bug47205`" or dump/reload to fix it!
 # Running mysqlcheck to check and upgrade
-test.bug47205
-error    : Table upgrade required. Please do "REPAIR TABLE `bug47205`" or dump/reload to fix it!
+test.bug47205                                      Needs upgrade
 
 Repairing tables
 test.bug47205                                      OK

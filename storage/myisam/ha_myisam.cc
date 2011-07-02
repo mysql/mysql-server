@@ -138,7 +138,7 @@ static void mi_check_print_msg(HA_CHECK *param,	const char* msg_type,
   THD* thd = (THD*)param->thd;
   Protocol *protocol= thd->protocol;
   size_t length, msg_length;
-  char msgbuf[HA_MAX_MSG_BUF];
+  char msgbuf[MYSQL_ERRMSG_SIZE];
   char name[NAME_LEN*2+2];
 
   msg_length= my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
@@ -1845,17 +1845,6 @@ int ha_myisam::delete_all_rows()
   return mi_delete_all_rows(file);
 }
 
-
-/*
-  Intended to support partitioning.
-  Allows a particular partition to be truncated.
-*/
-
-int ha_myisam::truncate()
-{
-  int error= delete_all_rows();
-  return error ? error : reset_auto_increment(0);
-}
 
 int ha_myisam::reset_auto_increment(ulonglong value)
 {

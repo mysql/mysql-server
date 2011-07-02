@@ -71,6 +71,24 @@ struct unicase_info_st
 extern MY_UNICASE_INFO *const my_unicase_default[256];
 extern MY_UNICASE_INFO *const my_unicase_turkish[256];
 
+#define MY_UCA_MAX_CONTRACTION 4
+#define MY_UCA_MAX_WEIGHT_SIZE 8
+
+typedef struct my_contraction_t
+{
+  my_wc_t ch[MY_UCA_MAX_CONTRACTION];   /* Character sequence              */
+  uint16 weight[MY_UCA_MAX_WEIGHT_SIZE];/* Its weight string, 0-terminated */
+} MY_CONTRACTION;
+
+
+typedef struct my_contraction_list_t
+{
+  size_t nitems;         /* Number of items in the list                  */
+  MY_CONTRACTION *item;  /* List of contractions                         */
+  char *flags;           /* Character flags, e.g. "is contraction head") */
+} MY_CONTRACTIONS;
+
+
 struct uni_ctype_st
 {
   uchar  pctype;
@@ -103,7 +121,7 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_BINSORT	16     /* if binary sort order           */
 #define MY_CS_PRIMARY	32     /* if primary collation           */
 #define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
-#define MY_CS_UNICODE	128    /* is a charset is BMP Unicode    */
+#define MY_CS_UNICODE	128    /* is a charset is full unicode   */
 #define MY_CS_READY	256    /* if a charset is initialized    */
 #define MY_CS_AVAILABLE	512    /* If either compiled-in or loaded*/
 #define MY_CS_CSSORT	1024   /* if case sensitive sort order   */	
@@ -283,7 +301,7 @@ struct charset_info_st
   const uchar *to_lower;
   const uchar *to_upper;
   const uchar *sort_order;
-  uint16      *contractions;
+  const MY_CONTRACTIONS *contractions;
   const uint16 *const *sort_order_big;
   const uint16 *tab_to_uni;
   MY_UNI_IDX   *tab_from_uni;
@@ -309,7 +327,7 @@ struct charset_info_st
 extern MYSQL_PLUGIN_IMPORT struct charset_info_st my_charset_bin;
 extern MYSQL_PLUGIN_IMPORT struct charset_info_st my_charset_latin1;
 extern MYSQL_PLUGIN_IMPORT struct charset_info_st my_charset_filename;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8_general_ci;
+extern MYSQL_PLUGIN_IMPORT struct charset_info_st my_charset_utf8_general_ci;
 
 extern struct charset_info_st my_charset_big5_bin;
 extern struct charset_info_st my_charset_big5_chinese_ci;
@@ -351,31 +369,11 @@ extern struct charset_info_st my_charset_utf8mb4_unicode_ci;
 #define MY_UTF8MB3                 "utf8"
 #define MY_UTF8MB4                 "utf8mb4"
 
-/* Helper functions to handle contraction */
-static inline my_bool
-my_cs_have_contractions(CHARSET_INFO *cs)
-{
-  return cs->contractions != NULL;
-}
-
-static inline my_bool
-my_cs_can_be_contraction_head(CHARSET_INFO *cs, my_wc_t wc)
-{
-  return ((const char *)cs->contractions)[0x40*0x40 + (wc & 0xFF)];
-}
-
-static inline my_bool
-my_cs_can_be_contraction_tail(CHARSET_INFO *cs, my_wc_t wc)
-{
-  return ((const char *)cs->contractions)[0x40*0x40 + (wc & 0xFF)];
-}
-
-static inline uint16*
-my_cs_contraction2_weight(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
-{
-  return &cs->contractions[(wc1 - 0x40) * 0x40 + wc2 - 0x40];
-}
-
+my_bool my_cs_have_contractions(CHARSET_INFO *cs);
+my_bool my_cs_can_be_contraction_head(CHARSET_INFO *cs, my_wc_t wc);
+my_bool my_cs_can_be_contraction_tail(CHARSET_INFO *cs, my_wc_t wc);
+const uint16 *my_cs_contraction2_weight(CHARSET_INFO *cs, my_wc_t wc1,
+                                         my_wc_t wc2);
 
 /* declarations for simple charsets */
 extern size_t my_strnxfrm_simple(CHARSET_INFO *, uchar *, size_t,

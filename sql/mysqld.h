@@ -349,6 +349,7 @@ extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
 extern MYSQL_PLUGIN_IMPORT pthread_key(THD*, THR_THD);
 
 #ifdef MYSQL_SERVER
+
 /**
   only options that need special treatment in get_one_option() deserve
   to be listed below
@@ -527,5 +528,5 @@ extern uint mysqld_extra_port;
 extern ulong extra_max_connections;
 extern ulonglong denied_connections;
 extern ulong thread_created;
-extern scheduler_functions thread_scheduler, extra_thread_scheduler;
+extern scheduler_functions *thread_scheduler, *extra_thread_scheduler;
 #endif /* MYSQLD_INCLUDED */

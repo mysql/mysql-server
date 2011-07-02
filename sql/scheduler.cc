@@ -21,13 +21,11 @@
 #pragma implementation
 #endif
 
-#include <sql_priv.h>
-#include "unireg.h"                    // REQUIRED: for other includes
-#include "scheduler.h"
 #include "sql_connect.h"         // init_new_connection_handler_thread
 #include "scheduler.h"
+#include "mysqld.h"
+#include "sql_class.h"
 #include "sql_callback.h"
-#include "sql_audit.h"
 
 /*
   End connection, in case when we are using 'no-threads'
@@ -51,7 +49,7 @@ extern "C"
 static void scheduler_wait_lock_begin(void) {
   THD *thd=current_thd;
   scheduler_functions *func= thd->scheduler;
-  MYSQL_CALLBACK(func, thd_wait_begin, (thd, THD_WAIT_ROW_TABLE_LOCK));
+  MYSQL_CALLBACK(func, thd_wait_begin, (thd, THD_WAIT_TABLE_LOCK));
 }
 
 static void scheduler_wait_lock_end(void) {

@@ -4323,7 +4323,7 @@ static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
 
     /* save it in MYSQL */
-    memcpy(mysql->scramble, pkt, pkt_len);
+    memmove(mysql->scramble, pkt, pkt_len);
     mysql->scramble[pkt_len] = 0;
   }
 
@@ -4354,102 +4354,5 @@ static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 						 strlen(mysql->passwd) + 1);
 
   return res ? CR_ERROR : CR_OK;
-}
-
-
-/**
-  client authentication plugin that does native MySQL authentication
-  using a 20-byte (4.1+) scramble
-*/
-
-static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
-{
-  int pkt_len;
-  uchar *pkt;
-
-  if (((MCPVIO_EXT *)vio)->mysql_change_user)
-  {
-    /*
-      in mysql_change_user() the client sends the first packet.
-      we use the old scramble.
-    */
-    pkt= (uchar*)mysql->scramble;
-    pkt_len= SCRAMBLE_LENGTH + 1;
-  }
-  else
-  {
-    /* read the scramble */
-    if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
-      return CR_ERROR;
-
-    if (pkt_len != SCRAMBLE_LENGTH + 1)
-      return CR_SERVER_HANDSHAKE_ERR;
-
-    /* save it in MYSQL */
-    memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
-    mysql->scramble[SCRAMBLE_LENGTH] = 0;
-  }
-
-  if (mysql->passwd[0])
-  {
-    char scrambled[SCRAMBLE_LENGTH + 1];
-    scramble(scrambled, (char*)pkt, mysql->passwd);
-    if (vio->write_packet(vio, (uchar*)scrambled, SCRAMBLE_LENGTH))
-      return CR_ERROR;
-  }
-  else
-    if (vio->write_packet(vio, 0, 0)) /* no password */
-      return CR_ERROR;
-
-  return CR_OK;
-}
-
-
-/**
-  client authentication plugin that does old MySQL authentication
-  using an 8-byte (4.0-) scramble
-*/
-
-static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
-{
-  uchar *pkt;
-  int pkt_len;
-
-  if (((MCPVIO_EXT *)vio)->mysql_change_user)
-  {
-    /*
-      in mysql_change_user() the client sends the first packet.
-      we use the old scramble.
-    */
-    pkt= (uchar*)mysql->scramble;
-    pkt_len= SCRAMBLE_LENGTH_323 + 1;
-  }
-  else
-  {
-    /* read the scramble */
-    if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
-      return CR_ERROR;
-
-    if (pkt_len != SCRAMBLE_LENGTH_323 + 1 &&
-        pkt_len != SCRAMBLE_LENGTH + 1)
-        return CR_SERVER_HANDSHAKE_ERR;
-
-    /* save it in MYSQL */
-    memcpy(mysql->scramble, pkt, pkt_len);
-    mysql->scramble[pkt_len] = 0;
-  }
-
-  if (mysql->passwd[0])
-  {
-    char scrambled[SCRAMBLE_LENGTH_323 + 1];
-    scramble_323(scrambled, (char*)pkt, mysql->passwd);
-    if (vio->write_packet(vio, (uchar*)scrambled, SCRAMBLE_LENGTH_323 + 1))
-      return CR_ERROR;
-  }
-  else
-    if (vio->write_packet(vio, 0, 0)) /* no password */
-      return CR_ERROR;
-
-  return CR_OK;
 }
 

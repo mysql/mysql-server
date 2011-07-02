@@ -513,7 +513,7 @@ static my_bool read_mysql_plugin_info(struct st_plugin_dl *plugin_dl,
     {
       free_plugin_mem(plugin_dl);
       report_error(report, ER_OUTOFMEMORY,
-                   static_cast<int>(plugin_dl.dl.length));
+                   static_cast<int>(plugin_dl->dl.length));
       DBUG_RETURN(TRUE);
     }
     /*
@@ -639,7 +639,7 @@ static my_bool read_maria_plugin_info(struct st_plugin_dl *plugin_dl,
       {
         free_plugin_mem(plugin_dl);
         report_error(report, ER_OUTOFMEMORY,
-                     static_cast<int>(plugin_dl.dl.length));
+                     static_cast<int>(plugin_dl->dl.length));
         DBUG_RETURN(TRUE);
       }
       /*

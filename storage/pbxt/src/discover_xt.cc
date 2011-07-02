@@ -1493,7 +1493,8 @@ static bool mysql_create_table_no_lock(THD *thd,
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     /* Open table and put in temporary table list */
-    if (!(open_temporary_table(thd, path, db, table_name, 1)))
+    TABLE *table= open_table_uncached(thd, path, db, table_name, TRUE);
+    if (!table)
     {
       (void) rm_temporary_table(create_info->db_type, path);
       goto unlock_and_end;

@@ -1285,7 +1285,7 @@ ch
 ALTER TABLE t1 MODIFY a VARCHAR(10) CHARACTER SET ucs2 COLLATE ucs2_croatian_ci;
 EXPLAIN SELECT * FROM t1 WHERE a LIKE 'd%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
+1	SIMPLE	t1	range	a	a	23	NULL	30	Using where; Using index
 SELECT hex(concat('d',_ucs2 0x017E,'%'));
 hex(concat('d',_ucs2 0x017E,'%'))
 0064017E0025

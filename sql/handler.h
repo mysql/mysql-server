@@ -1118,7 +1118,7 @@ typedef struct st_ha_create_information
 {
   CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
-  const char *password;
+  const char *password, *tablespace;
   LEX_STRING comment;
   const char *data_file_name, *index_file_name;
   const char *alias;
@@ -1147,6 +1147,7 @@ typedef struct st_ha_create_information
   enum ha_choice transactional;
   bool frm_only;                        ///< 1 if no ha_create_table()
   bool varchar;                         ///< 1 if table has a VARCHAR
+  enum ha_storage_media storage_media;  ///< DEFAULT, DISK or MEMORY
   enum ha_choice page_checksum;         ///< If we have page_checksums
   engine_option_value *option_list;     ///< list of table create options
   /* the following three are only for ALTER TABLE, check_if_incompatible_data() */
@@ -2555,14 +2556,16 @@ private:
     @remark The table is locked in exclusive mode.
   */
   virtual int truncate()
-  { return HA_ERR_WRONG_COMMAND; }
+  {
+    int error= delete_all_rows();
+    return error ? error : reset_auto_increment(0);
+  }
   /**
     Reset the auto-increment counter to the given value, i.e. the next row
-    inserted will get the given value. HA_ERR_WRONG_COMMAND is returned by
-    storage engines that don't support this operation.
+    inserted will get the given value.
   */
   virtual int reset_auto_increment(ulonglong value)
-  { return HA_ERR_WRONG_COMMAND; }
+  { return 0; }
   virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)

@@ -25,7 +25,7 @@ extern "C" {
 #include <my_sys.h>
 #include <m_ctype.h>
 #include "../storage/maria/ma_pagecache.h"
-#include "my_handler.h"
+#include "my_compare.h"
 #include "ft_global.h"
 #include <myisamchk.h>
 #include <mysql/plugin.h>
@@ -174,9 +174,7 @@ typedef struct st_maria_key                 /* Internal info about a key */
 typedef struct st_maria_keydef          /* Key definition with open & info */
 {
   struct st_maria_share *share;         /* Pointer to base (set in open) */
-#ifdef THREAD
   rw_lock_t root_lock;                  /* locking of tree */
-#endif
   uint16 keysegs;                       /* Number of key-segment */
   uint16 flag;                          /* NOSAME, PACK_USED */
 
@@ -356,11 +354,9 @@ typedef struct st_maria_bit_buff
 
 typedef struct st_maria_sort_info
 {
-#ifdef THREAD
   /* sync things */
   pthread_mutex_t mutex;
   pthread_cond_t cond;
-#endif
   MARIA_HA *info, *new_info;
   HA_CHECK *param;
   char *buff;

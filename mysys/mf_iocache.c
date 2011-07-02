@@ -1853,9 +1853,7 @@ int end_io_cache(IO_CACHE *info)
     info->type= TYPE_NOT_SET;
     mysql_mutex_destroy(&info->append_buffer_lock);
   }
-#ifdef THREAD
   info->share= 0;
-#endif
   DBUG_RETURN(error);
 } /* end_io_cache */
 

@@ -18,6 +18,8 @@
 
 #include "my_sys.h"                          /* pthread_handler_t */
 #include "mysql_com.h"                         /* enum_server_command */
+#include "structs.h"
+#include <hash.h>
 
 class THD;
 typedef struct st_lex_user LEX_USER;

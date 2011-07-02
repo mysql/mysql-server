@@ -23,6 +23,8 @@ character-set-server=      latin1
 # disconnects when test servers are put under load see BUG#28359
 connect-timeout=            60
 
+plugin-dir=@OPT.plugindir
+
 log-bin-trust-function-creators=1
 key_buffer_size=            1M
 sort_buffer=                256K

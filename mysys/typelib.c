@@ -43,12 +43,12 @@ int find_type_with_warning(const char *x, TYPELIB *typelib, const char *option)
 }
 
 
-uint find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
+int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 {
   int res;
   if ((res= find_type_with_warning(x, typelib, option)) <= 0)
     exit(1);
-  return (uint) res;
+  return res;
 }
 
 

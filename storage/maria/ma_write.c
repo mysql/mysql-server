@@ -108,7 +108,6 @@ int maria_write(MARIA_HA *info, uchar *record)
   }
   if (_ma_readinfo(info,F_WRLCK,1))
     DBUG_RETURN(my_errno);
-  dont_break();				/* Dont allow SIGHUP or SIGINT */
 
   if (share->base.reloc == (ha_rows) 1 &&
       share->base.records == (ha_rows) 1 &&
@@ -314,7 +313,6 @@ int maria_write(MARIA_HA *info, uchar *record)
   if (share->is_log_table)
     _ma_update_status((void*) info);
 
-  allow_break();				/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 
 err:
@@ -400,7 +398,6 @@ err2:
     save_errno= HA_ERR_INTERNAL_ERROR;          /* Should never happen */
   DBUG_PRINT("error", ("got error: %d", save_errno));
   _ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
-  allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(my_errno=save_errno);
 } /* maria_write */
 

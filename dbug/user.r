@@ -971,15 +971,6 @@ containing the macro causing the output.
 .LI i
 Mark each debugger output line with the PID (or thread ID) of the
 current process.
-.LI g,[functions]
-Enable profiling for the specified list of functions.
-Every function can be a
-.I glob(7)
-pattern.
-An empty list of functions enables profiling for all functions.
-See
-.B PROFILING\ WITH\ DBUG
-below.
 .LI L
 Mark each debugger output line with the source file line number of
 the macro causing the output.
@@ -1078,76 +1069,7 @@ all writes to a file are always followed by a flush.
 
 .SK
 .B
-PROFILING WITH DBUG
-.R
 
-.P
-With
-.I dbug
-one can do profiling in a machine independent fashion,
-without a need for profiled version of system libraries.
-For this,
-.I dbug
-can write out a file
-called
-.B dbugmon.out
-(by default).  This is an ascii file containing lines of the form:
-.DS CB N
-\fC<function-name> E <time-entered>
-<function-name> X <time-exited>
-.DE
-
-.P
-A second program (\fBanalyze\fR) reads this file, and produces a report on
-standard output.
-
-.P
-Profiling is enabled through the 
-.B g
-flag.  It can take a list of
-function names for which profiling is enabled.  By default, it
-profiles all functions.
-
-.P
-The profile file is opened for appending.  This
-is in order that one can run a program several times, and get the
-sum total of all the times, etc.
-
-.P
-An example of the report generated follows:
-.DS CB N
-\fC
-            Profile of Execution
-            Execution times are in milliseconds
-
-                Calls                        Time
-                -----                        ----
-            Times   Percentage   Time Spent    Percentage
-Function    Called  of total     in Function   of total    Importance
-========    ======  ==========   ===========   ==========  ==========
-factorial        5       83.33            30       100.00        8333
-main             1       16.67             0         0.00           0
-========    ======  ==========   ===========   ==========
-Totals           6      100.00            30       100.00
-.DE
-.P
-As you can see, it's quite self-evident.  The 
-.B Importance
-column is a
-metric obtained by multiplying the percentage of the calls and the percentage
-of the time.  Functions with higher 'importance' benefit the most from
-being sped up.
-
-.P
-As a limitation - setjmp/longjmp, or child processes, are ignored
-for the time being. Also, profiling does not work
-in a multi-threaded environment.
-
-.P
-Profiling code is (c) Binayak Banerjee.
-
-.SK
-.B
 HINTS AND MISCELLANEOUS
 .R
 

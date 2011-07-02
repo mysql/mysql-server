@@ -1319,11 +1319,11 @@ JOIN::optimize()
   */
   no_jbuf_after= 1 ? tables : make_join_orderinfo(this);
 
+  // Don't use join buffering when we use MATCH
   select_opts_for_readinfo=
     (select_options & (SELECT_DESCRIBE | SELECT_NO_JOIN_CACHE)) |
     (select_lex->ftfunc_list->elements ?  SELECT_NO_JOIN_CACHE : 0);
 
-  // No cache for MATCH == 'Don't use join buffering when we use MATCH'.
   if (make_join_readinfo(this, select_opts_for_readinfo, no_jbuf_after))
     DBUG_RETURN(1);
 
@@ -15639,18 +15639,16 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 			bool no_changes, const key_map *map)
 {
   int ref_key;
-  uint ref_key_parts;
+  uint UNINIT_VAR(ref_key_parts);
   int order_direction= 0;
   uint used_key_parts;
   TABLE *table=tab->table;
   SQL_SELECT *select=tab->select;
   key_map usable_keys;
-  QUICK_SELECT_I *save_quick= 0;
+  QUICK_SELECT_I *save_quick= select ? select->quick : 0;
   COND *orig_select_cond= 0;
   int best_key= -1;
-
   DBUG_ENTER("test_if_skip_sort_order");
-  LINT_INIT(ref_key_parts);
 
   /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
@@ -15683,7 +15681,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   else if (select && select->quick)		// Range found by opt_range
   {
     int quick_type= select->quick->get_type();
-    save_quick= select->quick;
     /* 
       assume results are not ordered when index merge is used 
       TODO: sergeyp: Results of all index merge selects actually are ordered 
@@ -15814,7 +15811,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                   join->select_options & OPTION_FOUND_ROWS ?
                                   HA_POS_ERROR :
                                   join->unit->select_limit_cnt,
-                                  TRUE, FALSE) > 0;
+                                  TRUE, FALSE);
       }
       order_direction= best_key_direction;
       /*
@@ -19877,16 +19874,6 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
 uint get_index_for_order(ORDER *order, TABLE *table, SQL_SELECT *select,
                          ha_rows limit, bool *need_sort, bool *reverse)
 {
-  if (select && select->quick && select->quick->unique_key_range())
-  { // Single row select (always "ordered"): Ok to use with key field UPDATE
-    *need_sort= FALSE;
-    /*
-      Returning of MAX_KEY here prevents updating of used_key_is_modified
-      in mysql_update(). Use quick select "as is".
-    */
-    return MAX_KEY;
-  }
-
   if (!order)
   {
     *need_sort= FALSE;

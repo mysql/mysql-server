@@ -113,7 +113,6 @@ int maria_close(register MARIA_HA *info)
       if (my_close(share->kfile.file, MYF(0)))
         error= my_errno;
     }
-#ifdef THREAD
     thr_lock_delete(&share->lock);
     (void) pthread_mutex_destroy(&share->key_del_lock);
     {
@@ -124,7 +123,6 @@ int maria_close(register MARIA_HA *info)
 	rwlock_destroy(&share->keyinfo[i].root_lock);
       }
     }
-#endif
     DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
     /*
       We assign -1 because checkpoint does not need to flush (in case we

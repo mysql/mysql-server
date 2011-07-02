@@ -40,7 +40,7 @@ extern "C" {
 */
 
 #define HA_MAX_KEY_LENGTH           1000        /* Max length in bytes */
-#define HA_MAX_KEY_SEG              16          /* Max segments for key */
+#define HA_MAX_KEY_SEG              32          /* Max segments for key */
 
 #define HA_MAX_POSSIBLE_KEY_BUFF    (HA_MAX_KEY_LENGTH + 24+ 6+6)
 #define HA_MAX_KEY_BUFF  (HA_MAX_KEY_LENGTH+HA_MAX_KEY_SEG*6+8+8)
@@ -106,10 +106,10 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
 #define clr_rec_bits(bit_ptr, bit_ofs, bit_len) \
   set_rec_bits(0, bit_ptr, bit_ofs, bit_len)
 
-extern int ha_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
-			   my_bool, my_bool);
-extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
-		      register uchar *b, uint key_length, uint nextflag,
+extern int ha_compare_text(CHARSET_INFO *, const uchar *, uint,
+                           const uchar *, uint , my_bool, my_bool);
+extern int ha_key_cmp(HA_KEYSEG *keyseg, const uchar *a,
+		      const uchar *b, uint key_length, uint nextflag,
 		      uint *diff_pos);
 extern HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, const uchar *a);
 
@@ -122,5 +122,29 @@ extern HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, const uchar *a);
 #ifdef	__cplusplus
 }
 #endif
+
+/**
+  Return values of index_cond_func_xxx functions.
+
+  0=ICP_NO_MATCH  - index tuple doesn't satisfy the pushed index condition (the
+                    engine should discard the tuple and go to the next one)
+  1=ICP_MATCH     - index tuple satisfies the pushed index condition (the
+                    engine should fetch and return the record)
+  2=ICP_OUT_OF_RANGE - index tuple is out range that we're scanning, e.g. this
+                      if we're scanning "t.key BETWEEN 10 AND 20" and got a
+                      "t.key=21" tuple (the engine should stop scanning and
+                      return HA_ERR_END_OF_FILE right away).
+ -1= ICP_ERROR    - Reserved for internal errors in engines. Should not be
+                    returned by index_cond_func_xxx
+*/
+
+typedef enum icp_result {
+  ICP_ERROR=-1,
+  ICP_NO_MATCH=0,
+  ICP_MATCH=1,
+  ICP_OUT_OF_RANGE=2
+} ICP_RESULT;
+
+typedef ICP_RESULT (*index_cond_func_t)(void *param);
 
 #endif /* _my_compare_h */

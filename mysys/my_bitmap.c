@@ -472,17 +472,19 @@ void bitmap_invert(MY_BITMAP *map)
 
 
 uint bitmap_bits_set(const MY_BITMAP *map)
-{  
-  uchar *m= (uchar*)map->bitmap;
-  uchar *end= m + no_bytes_in_map(map) - 1;
+{
+  my_bitmap_map *data_ptr= map->bitmap;
+  my_bitmap_map *end= map->last_word_ptr;
   uint res= 0;
-
   DBUG_ASSERT(map->bitmap);
-  while (m < end)
-    res+= my_count_bits_ushort(*m++);
-  return res + my_count_bits_ushort(*m & last_byte_mask(map->n_bits));
-}
 
+  for (; data_ptr < end; data_ptr++)
+    res+= my_count_bits_uint32(*data_ptr);
+
+  /*Reset last bits to zero*/
+  res+= my_count_bits_uint32(*map->last_word_ptr & ~map->last_word_mask);
+  return res;
+}
 
 void bitmap_copy(MY_BITMAP *map, const MY_BITMAP *map2)
 {

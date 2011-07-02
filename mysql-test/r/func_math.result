@@ -684,7 +684,7 @@ SELECT ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')));
 ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')))
 NULL
 Warnings:
-Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1366	Incorrect decimal value: '' for column '' at row 0
 #
 # Bug #59498 div function broken in mysql-trunk
 #

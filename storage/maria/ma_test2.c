@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
   char *blob_buffer;
   MARIA_CREATE_INFO create_info;
 
-#if defined(SAFE_MUTEX) && defined(THREAD)
+#ifdef SAFE_MUTEX
   safe_mutex_deadlock_detector= 1;
 #endif
   MY_INIT(argv[0]);

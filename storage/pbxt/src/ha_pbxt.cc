@@ -5819,7 +5819,7 @@ int ha_pbxt::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 			ref_tbl_name++;
 			ref_db_name++;
 
-			fk_info->forein_id = thd_make_lex_string(thd, 0,
+			fk_info->foreign_id = thd_make_lex_string(thd, 0,
 				fk->co_name, (uint) strlen(fk->co_name), 1);
 
 			fk_info->referenced_db = thd_make_lex_string(thd, 0,
