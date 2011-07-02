@@ -8447,7 +8447,8 @@ void JOIN::drop_unused_derived_keys()
         table->max_keys <= 1)
       continue;
     table->use_index(tab->ref.key);
-    tab->ref.key= 0;
+    if (table->s->keys)
+      tab->ref.key= 0;
   }
 }
 

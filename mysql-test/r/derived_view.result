@@ -765,3 +765,32 @@ a
 SET SESSION optimizer_switch=default;
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
+#
+# LP bug #804515: materialized derived + ORDER BY                      
+#                 
+CREATE TABLE t1 (f1 varchar(1), f2 varchar(1), KEY (f2));
+INSERT INTO t1 VALUES
+('r','x'), ('x','d'), ('x','r'), ('r','f'), ('x','x');
+CREATE TABLE t2 (f1 varchar(1), f2 varchar(1));
+INSERT INTO t2 VALUES ('s','x');
+CREATE TABLE t3 (f1 varchar(1), f2 varchar(1), KEY (f2));
+INSERT INTO t3 VALUES
+(NULL,'x'), (NULL,'f'), ('t','p'), (NULL,'j'), ('g','c');
+CREATE TABLE t4 (f1 int, f2 varchar(1), KEY (f2,f1)) ;
+INSERT INTO t4 VALUES (1,'x'), (5,'r');
+EXPLAIN
+SELECT t.f1 AS f 
+FROM (SELECT DISTINCT t1.* FROM t1,t2 WHERE t2.f2 = t1.f2) t,t3,t4
+WHERE t4.f2 = t3.f2  AND t4.f2 = t.f1 ORDER BY f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using where; Using filesort
+1	PRIMARY	t4	ref	f2	f2	4	t.f1	1	Using index
+1	PRIMARY	t3	ref	f2	f2	4	t.f1	2	Using index
+2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	Using temporary
+2	DERIVED	t1	ref	f2	f2	4	const	2	Using where
+SELECT t.f1 AS f 
+FROM (SELECT DISTINCT t1.* FROM t1,t2 WHERE t2.f2 = t1.f2) t,t3,t4
+WHERE t4.f2 = t3.f2  AND t4.f2 = t.f1 ORDER BY f;
+f
+x
+DROP TABLE t1,t2,t3,t4;
