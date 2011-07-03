@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -435,7 +435,9 @@ buf_flush_remove(
 	case BUF_BLOCK_ZIP_DIRTY:
 		buf_page_set_state(bpage, BUF_BLOCK_ZIP_PAGE);
 		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_LRU_insert_zip_clean(bpage);
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		break;
 	case BUF_BLOCK_FILE_PAGE:
 		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);

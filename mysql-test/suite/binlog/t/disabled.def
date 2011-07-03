@@ -9,5 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-binlog_truncate_innodb	: BUG#57291 2010-10-20 anitha Originally disabled due to BUG#42643. Product bug fixed, but test changes needed
-binlog_row_failure_mixing_engines : BUG#58416 2010-11-23 ramil Fails on win x86 debug_max
+binlog_truncate_innodb	: BUG#11764459 2010-10-20 anitha Originally disabled due to BUG#42643. Product bug fixed, but test changes needed
+binlog_row_failure_mixing_engines : BUG#11765446 2010-11-23 ramil Fails on win x86 debug_max

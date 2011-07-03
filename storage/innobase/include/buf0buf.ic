@@ -660,6 +660,6 @@ buf_page_dbg_add_level(
 	ulint		level __attribute__((unused))) /* in: latching order
 				level */
 {
-	sync_thread_add_level(&(buf_block_align(frame)->lock), level);
+	sync_thread_add_level(&(buf_block_align(frame)->lock), level, FALSE);
 }
 #endif /* UNIV_SYNC_DEBUG */

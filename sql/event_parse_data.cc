@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2008 MySQL AB
-   Use is subject to license terms.
+   Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,9 +48,8 @@ Event_parse_data::new_instance(THD *thd)
 
 Event_parse_data::Event_parse_data()
   :on_completion(Event_parse_data::ON_COMPLETION_DEFAULT),
-  status(Event_parse_data::ENABLED),
-  do_not_create(FALSE),
-  body_changed(FALSE),
+  status(Event_parse_data::ENABLED), status_changed(false),
+  do_not_create(FALSE), body_changed(FALSE),
   item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
   starts_null(TRUE), ends_null(TRUE), execute_at_null(TRUE),
   item_expression(NULL), expression(0)
@@ -143,6 +141,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
   else if (status == Event_parse_data::ENABLED)
   {
     status= Event_parse_data::DISABLED;
+    status_changed= true;
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_EVENT_EXEC_TIME_IN_THE_PAST,
                  ER(ER_EVENT_EXEC_TIME_IN_THE_PAST));
@@ -572,7 +571,10 @@ void Event_parse_data::check_originator_id(THD *thd)
     DBUG_PRINT("info", ("Invoked object status set to SLAVESIDE_DISABLED."));
     if ((status == Event_parse_data::ENABLED) ||
         (status == Event_parse_data::DISABLED))
-      status = Event_parse_data::SLAVESIDE_DISABLED;
+    {
+      status= Event_parse_data::SLAVESIDE_DISABLED;
+      status_changed= true;
+    }
     originator = thd->server_id;
   }
   else

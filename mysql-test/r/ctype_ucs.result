@@ -990,8 +990,8 @@ old_password(name)
 ????????
 select quote(name) from bug20536;
 quote(name)
-????????
-????????????????
+'test1'
+'\'test\\_2\''
 drop table bug20536;
 set names ucs2;
 ERROR 42000: Variable 'character_set_client' can't be set to the value of 'ucs2'
@@ -1238,4 +1238,15 @@ CREATE VIEW v1 AS SELECT 1 from t1
 WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#59648 my_strtoll10_mb2: Assertion `(*endptr - s) % 2 == 0' failed.
+#
+SELECT HEX(CHAR(COALESCE(NULL, CHAR(COUNT('%s') USING ucs2), 1, @@global.license, NULL) USING cp850));
+HEX(CHAR(COALESCE(NULL, CHAR(COUNT('%s') USING ucs2), 1, @@global.license, NULL) USING cp850))
+00
+SELECT CONVERT(QUOTE(CHAR(0xf5 using ucs2)), SIGNED);
+CONVERT(QUOTE(CHAR(0xf5 using ucs2)), SIGNED)
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
 End of 5.0 tests

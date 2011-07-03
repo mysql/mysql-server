@@ -1,7 +1,10 @@
 # This test should work in embedded server after mysqltest is fixed
 -- source include/not_embedded.inc
 
---echo Tests of syncronization of stored procedure execution.
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo Tests of synchronization of stored procedure execution.
 
 --source include/have_debug_sync.inc
 
@@ -54,5 +57,31 @@ connection default;
 DROP TABLE t1, t2;
 DROP PROCEDURE p1;
 
+--echo #
+--echo # test for bug#11756013
+--echo #
+--disable_warnings
+DROP SCHEMA IF EXISTS s1;
+--enable_warnings
+CREATE SCHEMA s1;
+CREATE PROCEDURE s1.p1() BEGIN END;
+
+connect (con3, localhost, root);
+SET DEBUG_SYNC='before_db_dir_check SIGNAL check_db WAIT_FOR dropped_schema';
+--send CALL s1.p1
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR check_db';
+DROP SCHEMA s1;
+SET DEBUG_SYNC='now SIGNAL dropped_schema';
+
+connection con3;
+--error ER_BAD_DB_ERROR
+--reap
+connection default;
+disconnect con3;
+
 SET DEBUG_SYNC = 'RESET';
 
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

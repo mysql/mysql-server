@@ -846,8 +846,7 @@ set session max_sort_length= 2180;
 --error 1038
 select * from t1 order by b;
 drop table t1;
-
-
+call mtr.add_suppression("Out of sort memory; increase server sort buffer size");
 --echo #
 --echo # Bug #39844: Query Crash Mysql Server 5.0.67
 --echo #
