@@ -918,6 +918,19 @@ ERROR HY000: Too big row
 alter table t1 row_format=compact;
 create index t1u on t1 (u(767));
 drop table t1;
+SET @r=REPEAT('a',500);
+CREATE TABLE t1(a INT,
+v1 VARCHAR(500), v2 VARCHAR(500), v3 VARCHAR(500),
+v4 VARCHAR(500), v5 VARCHAR(500), v6 VARCHAR(500),
+v7 VARCHAR(500), v8 VARCHAR(500), v9 VARCHAR(500),
+v10 VARCHAR(500), v11 VARCHAR(500), v12 VARCHAR(500),
+v13 VARCHAR(500), v14 VARCHAR(500), v15 VARCHAR(500),
+v16 VARCHAR(500), v17 VARCHAR(500), v18 VARCHAR(500)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+CREATE INDEX idx1 ON t1(a,v1);
+INSERT INTO t1 VALUES(9,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
+UPDATE t1 SET a=1000;
+DROP TABLE t1;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;
 set global innodb_file_format_max=Antelope;
@@ -1085,3 +1098,44 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
+CREATE TABLE t2 (a INT, b CHAR(1)) ENGINE=InnoDB;
+INSERT INTO t2 SELECT * FROM t1;
+BEGIN;
+SELECT * FROM t1;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+SET lock_wait_timeout=1;
+CREATE INDEX t1a ON t1(a);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+CREATE INDEX t2a ON t2(a);
+SELECT * FROM t2;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+SELECT * FROM t2 FORCE INDEX(t2a) ORDER BY a;
+ERROR HY000: Table definition has changed, please retry transaction
+SELECT * FROM t2;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+COMMIT;
+SELECT * FROM t2 FORCE INDEX(t2a) ORDER BY a;
+a	b
+0	d
+1	c
+1	e
+3	a
+3	b
+DROP TABLE t1,t2;
