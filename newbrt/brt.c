@@ -258,6 +258,7 @@ static long brtnode_memory_size (BRTNODE node);
 int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 		      UNLOCKERS unlockers,
 		      ANCESTORS ancestors, struct pivot_bounds const * const bounds,
+		      struct brtnode_fetch_extra *bfe,
 		      BRTNODE *node_p) {
     void *node_v;
     int r = toku_cachetable_get_and_pin_nonblocking(
@@ -271,8 +272,8 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
             toku_brtnode_pe_callback,
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,
-            brt->h, 
-            brt->h,
+            bfe, //read_extraargs 
+            brt->h, //write_extraargs
             unlockers);
     if (r==0) {
 	BRTNODE node = node_v;
@@ -288,6 +289,7 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 
 void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 				   ANCESTORS ancestors, struct pivot_bounds const * const bounds,
+                                   struct brtnode_fetch_extra *bfe,
 				   BRTNODE *node_p) {
     void *node_v;
     int r = toku_cachetable_get_and_pin(
@@ -301,7 +303,7 @@ void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullha
         toku_brtnode_pe_callback, 
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-        brt->h,
+        bfe,
         brt->h
         );
     assert(r==0);
@@ -394,8 +396,11 @@ fixup_child_estimates (BRTNODE node, int childnum_of_node, BRTNODE child, BOOL d
 	estimates.dsize += child_se->dsize;
 	if (!child_se->exact) estimates.exact = FALSE;
 	if (child->height>0) {
-            // only execute this if the child's partition is available, as checked above
-	    if (toku_fifo_n_entries(BNC_BUFFER(child,i))!=0) estimates.exact=FALSE;
+	    if (BP_STATE(child,i) != PT_AVAIL || 
+                toku_fifo_n_entries(BNC_BUFFER(child,i))!=0) 
+            {
+                estimates.exact=FALSE;
+	    }
 	}
     } 
     // We only call this function if we have reason to believe that the child changed.
@@ -418,6 +423,8 @@ toku_verify_estimates (BRT t, BRTNODE node) {
                 BLOCKNUM childblocknum = BP_BLOCKNUM(node, childnum);
                 u_int32_t fullhash = compute_child_fullhash(t->cf, node, childnum);
                 void *childnode_v;
+                struct brtnode_fetch_extra bfe;
+                fill_bfe_for_full_read(&bfe, t->h);
                 int r = toku_cachetable_get_and_pin(
                     t->cf, 
                     childblocknum, 
@@ -429,7 +436,7 @@ toku_verify_estimates (BRT t, BRTNODE node) {
                     toku_brtnode_pe_callback, 
                     toku_brtnode_pf_req_callback,
                     toku_brtnode_pf_callback,
-                    t->h, 
+                    &bfe, 
                     t->h
                     );
                 assert_zero(r);
@@ -506,6 +513,20 @@ next_dict_id(void) {
     return d;
 }
 
+u_int8_t 
+toku_brtnode_partition_state (struct brtnode_fetch_extra* bfe, int childnum)
+{
+    if (bfe->type == brtnode_fetch_all || 
+        (bfe->type == brtnode_fetch_subset && bfe->child_to_read == childnum))
+    {
+        return PT_AVAIL;
+    }
+    else {
+        return PT_COMPRESSED;
+    }
+}
+
+
 
 //fd is protected (must be holding fdlock)
 void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size __attribute__((unused)), BOOL write_me, BOOL keep_me, BOOL for_checkpoint) {
@@ -538,14 +559,16 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
 }
 
+
 //fd is protected (must be holding fdlock)
 int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM nodename, u_int32_t fullhash, 
 				 void **brtnode_pv, long *sizep, int *dirtyp, void *extraargs) {
     assert(extraargs);
     assert(*brtnode_pv == NULL);
-    struct brt_header *h = extraargs;
+    struct brtnode_fetch_extra *bfe = (struct brtnode_fetch_extra *)extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
-    int r = toku_deserialize_brtnode_from(fd, nodename, fullhash, result, h);
+    // TODO: (Zardosht) pass in bfe to toku_deserialize_brtnode_from so it can do the right thing
+    int r = toku_deserialize_brtnode_from(fd, nodename, fullhash, result, bfe);
     if (r == 0) {
 	*sizep = brtnode_memory_size(*result);
 	*dirtyp = (*result)->dirty;
@@ -562,17 +585,71 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_
     return 0;
 }
 
+
 // callback that sates if partially reading a node is necessary
 // could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
-BOOL toku_brtnode_pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
+BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
     // placeholder for now
-    return FALSE;
+    BOOL retval = FALSE;
+    BRTNODE node = brtnode_pv;
+    struct brtnode_fetch_extra *bfe = (struct brtnode_fetch_extra *)read_extraargs;
+    if (bfe->type == brtnode_fetch_none) {
+        retval = FALSE;
+    }
+    else if (bfe->type == brtnode_fetch_all) {
+        retval = FALSE;
+        for (int i = 0; i < node->n_children; i++) {
+            if (BP_STATE(node,i) != PT_AVAIL) {
+                retval = TRUE;
+                break;
+            }
+        }
+    }
+    else if (bfe->type == brtnode_fetch_subset) {
+        // we do not take into account prefetching yet
+        // as of now, if we need a subset, the only thing
+        // we can possibly require is a single basement node
+        // we find out what basement node the query cares about
+        // and check if it is available
+        assert(bfe->brt);
+        assert(bfe->search);
+        bfe->child_to_read = toku_brt_search_which_child(
+            bfe->brt,
+            node,
+            bfe->search
+            );
+        retval = (BP_STATE(node,bfe->child_to_read) != PT_AVAIL);
+    }
+    else {
+        // we have a bug. The type should be known
+        assert(FALSE);
+    }
+    return retval;
 }
 
 // callback for partially reading a node
 // could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
-int toku_brtnode_pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), long* UU(sizep)) {
-    assert(FALSE);
+int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, long* sizep) {
+    BRTNODE node = brtnode_pv;
+    struct brtnode_fetch_extra *bfe = (struct brtnode_fetch_extra *)read_extraargs;
+    // there must be a reason this is being called. If we get a garbage type or the type is brtnode_fetch_none,
+    // then something went wrong
+    assert((bfe->type == brtnode_fetch_subset) || (bfe->type == brtnode_fetch_all));
+    for (int i = 0; i < node->n_children; i++) {
+
+        if (BP_STATE(node,i) == PT_AVAIL) {
+            continue;
+        }
+        if (toku_brtnode_partition_state(bfe, i) == PT_AVAIL) {
+            assert(BP_STATE(node,i) == PT_COMPRESSED);
+            //
+            // decompress the subblock
+            //
+            toku_deserialize_bp_from_compressed(node, i);
+        }
+    }
+    *sizep = brtnode_memory_size(node);
+    return 0;
 }
 
 
@@ -761,6 +838,7 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, int n
     n->childkeys=0;
     n->bp = 0;
     n->n_children = num_children; 
+    n->bp_offset = 0;
 
     if (num_children > 0) {
 	MALLOC_N(num_children-1, n->childkeys);
@@ -1351,6 +1429,8 @@ brt_split_child (BRT t, BRTNODE node, int childnum, BOOL *did_react)
     {
 	void *childnode_v;
 	// For now, don't use toku_pin_brtnode since we aren't yet prepared to deal with the TRY_AGAIN, and we don't have to apply all the messages above to do this split operation.
+        struct brtnode_fetch_extra bfe;
+        fill_bfe_for_full_read(&bfe, t->h);
 	int r = toku_cachetable_get_and_pin(t->cf,
 					    BP_BLOCKNUM(node, childnum),
 					    compute_child_fullhash(t->cf, node, childnum),
@@ -1361,7 +1441,7 @@ brt_split_child (BRT t, BRTNODE node, int childnum, BOOL *did_react)
 					    toku_brtnode_pe_callback,
                                             toku_brtnode_pf_req_callback,
                                             toku_brtnode_pf_callback,
-					    t->h,
+					    &bfe,
 					    t->h);
 	assert(r==0);
 	child = childnode_v;
@@ -2271,6 +2351,8 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_react,
     {
 	void *childnode_v;
 	u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnuma);
+        struct brtnode_fetch_extra bfe;
+        fill_bfe_for_full_read(&bfe, t->h);
 	int r = toku_cachetable_get_and_pin(
             t->cf, 
             BP_BLOCKNUM(node, childnuma), 
@@ -2282,7 +2364,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_react,
             toku_brtnode_pe_callback, 
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,
-            t->h, 
+            &bfe, 
             t->h
             );
 	assert(r==0);
@@ -2291,6 +2373,8 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_react,
     {
 	void *childnode_v;
 	u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnumb);
+        struct brtnode_fetch_extra bfe;
+        fill_bfe_for_full_read(&bfe, t->h);
 	int r = toku_cachetable_get_and_pin(
             t->cf, 
             BP_BLOCKNUM(node, childnumb), 
@@ -2301,7 +2385,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_react,
             toku_brtnode_pe_callback, 
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,
-            t->h, 
+            &bfe, 
             t->h
             );
 	assert(r==0);
@@ -2474,7 +2558,9 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
     toku_verify_blocknum_allocated(t->h->blocktable, targetchild);
     u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnum);
     BRTNODE child;
-    toku_pin_brtnode_holding_lock(t, targetchild, childfullhash, &next_ancestors, &next_bounds, &child); // get that child node in, and apply the ancestor messages if it's a leaf.
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, t->h);
+    toku_pin_brtnode_holding_lock(t, targetchild, childfullhash, &next_ancestors, &next_bounds, &bfe, &child); // get that child node in, and apply the ancestor messages if it's a leaf.
 
     toku_assert_entire_node_in_memory(node);
     assert(child->thisnodename.b!=0);
@@ -2783,7 +2869,9 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
     rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
 
     // get the root node
-    toku_pin_brtnode_holding_lock(brt, *rootp, fullhash, NULL, &infinite_bounds, &node);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, brt->h);
+    toku_pin_brtnode_holding_lock(brt, *rootp, fullhash, NULL, &infinite_bounds, &bfe, &node);
     toku_assert_entire_node_in_memory(node);
     cmd->msn.msn = node->max_msn_applied_to_node_in_memory.msn + 1;
     // Note, the lower level function that filters messages based on msn, 
@@ -4927,7 +5015,19 @@ got_a_good_value:
 }
 
 static int
-brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, BOOL *doprefetch, BRT_CURSOR brtcursor, UNLOCKERS unlockers, ANCESTORS, struct pivot_bounds const * const bounds);
+brt_search_node (
+    BRT brt, 
+    BRTNODE node, 
+    brt_search_t *search, 
+    int child_to_search,
+    BRT_GET_CALLBACK_FUNCTION getf, 
+    void *getf_v, 
+    BOOL *doprefetch, 
+    BRT_CURSOR brtcursor, 
+    UNLOCKERS unlockers, 
+    ANCESTORS, 
+    struct pivot_bounds const * const bounds
+    );
 
 // the number of nodes to prefetch
 #define TOKU_DO_PREFETCH 0
@@ -4991,10 +5091,19 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
     BLOCKNUM childblocknum = BP_BLOCKNUM(node,childnum);
     u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
     BRTNODE childnode;
+
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_subset_read(
+        &bfe, 
+        brt->h,
+        brt,
+        search
+        );
     {
 	int rr = toku_pin_brtnode(brt, childblocknum, fullhash,
 				  unlockers,
 				  &next_ancestors, bounds,
+				  &bfe,
 				  &childnode);
 	if (rr==TOKUDB_TRY_AGAIN) return rr;
 	assert(rr==0);
@@ -5003,7 +5112,7 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
     struct unlock_brtnode_extra unlock_extra   = {brt,childnode};
     struct unlockers		next_unlockers = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, unlockers};
 
-    int r = brt_search_node(brt, childnode, search, getf, getf_v, doprefetch, brtcursor, &next_unlockers, &next_ancestors, bounds);
+    int r = brt_search_node(brt, childnode, search, bfe.child_to_read, getf, getf_v, doprefetch, brtcursor, &next_unlockers, &next_ancestors, bounds);
     if (r!=TOKUDB_TRY_AGAIN) {
 	// Even if r is reactive, we want to handle the maybe reactive child.
 
@@ -5017,14 +5126,23 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
 	toku_unpin_brtnode(brt, childnode); // unpin the childnode before handling the reactive child (because that may make the childnode disappear.)
     } else {
 	// try again.
-	assert(!next_unlockers.locked);
+
+        // there are two cases where we get TOKUDB_TRY_AGAIN
+        //  case 1 is when some later call to toku_pin_brtnode returned
+        //  that value and unpinned all the nodes anyway. case 2
+        //  is when brt_search_node had to stop its search because
+        //  some piece of a node that it needed was not in memory. In this case,
+        //  the node was not unpinned, so we unpin it here
+	if (next_unlockers.locked) {
+            toku_unpin_brtnode(brt, childnode);
+	}
     }
 
     return r;
 }
 
-static int
-brt_search_which_child(
+int
+toku_brt_search_which_child(
     BRT brt, 
     BRTNODE node, 
     brt_search_t *search
@@ -5075,7 +5193,8 @@ static int
 brt_search_node(
     BRT brt, 
     BRTNODE node, 
-    brt_search_t *search, 
+    brt_search_t *search,
+    int child_to_search,
     BRT_GET_CALLBACK_FUNCTION getf, 
     void *getf_v, 
     BOOL *doprefetch, 
@@ -5085,13 +5204,25 @@ brt_search_node(
     struct pivot_bounds const * const bounds
     )
 {   int r = 0;
-    int child_to_search = brt_search_which_child(brt, node, search);
+    // assert that we got a valid child_to_search
     assert(child_to_search >= 0 || child_to_search < node->n_children);
     //
     // At this point, we must have the necessary partition available to continue the search
     //
     assert(BP_STATE(node,child_to_search) == PT_AVAIL);
     while (child_to_search >= 0 && child_to_search < node->n_children) {
+        //
+        // Normally, the child we want to use is available, as we checked
+        // before entering this while loop. However, if we pass through 
+        // the loop once, getting DB_NOTFOUND for this first value
+        // of child_to_search, we enter the while loop again with a 
+        // child_to_search that may not be in memory. If it is not,
+        // we need to return TOKUDB_TRY_AGAIN so the query can
+        // read teh appropriate partition into memory
+        //
+        if (BP_STATE(node,child_to_search) != PT_AVAIL) {
+            return TOKUDB_TRY_AGAIN;
+        }
         const struct pivot_bounds next_bounds = next_pivot_keys(node, child_to_search, bounds);
         if (node->height > 0) {
             r = brt_search_child(
@@ -5149,8 +5280,7 @@ brt_search_node(
         else {
             child_to_search--;
         }
-    }
-    
+    }    
     return r;
 }
 
@@ -5172,7 +5302,14 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
 
     BRTNODE node;
 
-    toku_pin_brtnode_holding_lock(brt, *rootp, fullhash, NULL, &infinite_bounds, &node);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_subset_read(
+        &bfe, 
+        brt->h,
+        brt,
+        search
+        );
+    toku_pin_brtnode_holding_lock(brt, *rootp, fullhash, NULL, &infinite_bounds, &bfe, &node);
 
     struct unlock_brtnode_extra unlock_extra   = {brt,node};
     struct unlockers		unlockers      = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
@@ -5180,9 +5317,17 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
     {
 	BOOL doprefetch = FALSE;
 	//static int counter = 0;	 counter++;
-	r = brt_search_node(brt, node, search, getf, getf_v, &doprefetch, brtcursor, &unlockers, (ANCESTORS)NULL, &infinite_bounds);
+	r = brt_search_node(brt, node, search, bfe.child_to_read, getf, getf_v, &doprefetch, brtcursor, &unlockers, (ANCESTORS)NULL, &infinite_bounds);
 	if (r==TOKUDB_TRY_AGAIN) {
-	    assert(!unlockers.locked);
+            // there are two cases where we get TOKUDB_TRY_AGAIN
+            //  case 1 is when some later call to toku_pin_brtnode returned
+            //  that value and unpinned all the nodes anyway. case 2
+            //  is when brt_search_node had to stop its search because
+            //  some piece of a node that it needed was not in memory. In this case,
+            //  the node was not unpinned, so we unpin it here
+            if (unlockers.locked) {
+                toku_unpin_brtnode(brt, node);
+            }
 	    goto try_again;
 	} else {
 	    assert(unlockers.locked);
@@ -5658,6 +5803,9 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename,
     {
 	void *node_v;
 	//assert(fullhash == toku_cachetable_hash(brt->cf, nodename));
+        struct brtnode_fetch_extra bfe;
+        // TODO: (Zardosht) change this
+        fill_bfe_for_full_read(&bfe, brt->h);
 	int rr = toku_cachetable_get_and_pin(
 	    brt->cf, 
 	    nodename, 
@@ -5669,7 +5817,7 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename,
             toku_brtnode_pe_callback, 
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,
-            brt->h, 
+            &bfe, 
             brt->h
             );
 	assert_zero(rr);
@@ -5744,6 +5892,8 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
     CACHEKEY root = *rootp;
     void *node_v;
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_min_read(&bfe, brt->h);
     int r = toku_cachetable_get_and_pin(
         brt->cf, 
         root, 
@@ -5755,7 +5905,7 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
         toku_brtnode_pe_callback, 
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-        brt->h, 
+        &bfe, 
         brt->h
         );
     if (r!=0) return r;
@@ -5782,6 +5932,8 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
     BRTNODE node;
     void *node_v;
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, brt->h);
     int r = toku_cachetable_get_and_pin(
         brt->cf, 
         blocknum, 
@@ -5793,7 +5945,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
 	toku_brtnode_pe_callback, 
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-	brt->h, 
+	&bfe, 
 	brt->h
 	);
     assert_zero(r);
@@ -6097,6 +6249,8 @@ static BOOL is_empty_fast_iter (BRT brt, BRTNODE node) {
 		void *node_v;
 		BLOCKNUM childblocknum = BP_BLOCKNUM(node,childnum);
 		u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
+                struct brtnode_fetch_extra bfe;
+                fill_bfe_for_full_read(&bfe, brt->h);
 		int rr = toku_cachetable_get_and_pin(
                     brt->cf, 
                     childblocknum, 
@@ -6108,7 +6262,7 @@ static BOOL is_empty_fast_iter (BRT brt, BRTNODE node) {
                     toku_brtnode_pe_callback, 
                     toku_brtnode_pf_req_callback,
                     toku_brtnode_pf_callback,
-                    brt->h, 
+                    &bfe, 
                     brt->h
                     );
 		assert(rr ==0);
@@ -6140,6 +6294,8 @@ BOOL toku_brt_is_empty_fast (BRT brt)
     //assert(fullhash == toku_cachetable_hash(brt->cf, *rootp));
     {
 	void *node_v;
+        struct brtnode_fetch_extra bfe;
+        fill_bfe_for_full_read(&bfe, brt->h);
 	int rr = toku_cachetable_get_and_pin(
             brt->cf, 
             *rootp, 
@@ -6151,7 +6307,7 @@ BOOL toku_brt_is_empty_fast (BRT brt)
             toku_brtnode_pe_callback, 
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,
-            brt->h, 
+            &bfe,
             brt->h
             );
 	assert_zero(rr);

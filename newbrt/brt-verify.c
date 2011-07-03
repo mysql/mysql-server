@@ -113,6 +113,8 @@ toku_verify_brtnode (BRT brt,
     
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
     {
+        struct brtnode_fetch_extra bfe;
+        fill_bfe_for_full_read(&bfe, brt->h);
         int r = toku_cachetable_get_and_pin(
             brt->cf, 
             blocknum, 
@@ -124,7 +126,7 @@ toku_verify_brtnode (BRT brt,
             toku_brtnode_pe_callback, 
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,
-            brt->h, 
+            &bfe, 
             brt->h
             );
         assert_zero(r); // this is a bad failure if it happens.

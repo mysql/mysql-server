@@ -1544,8 +1544,12 @@ int toku_cachetable_get_and_pin (
                     cachetable_waittime += get_tnow() - t0;
                 }
 	        t0 = get_tnow();
+                long old_size = p->size;
                 long size = 0;
                 int r = pf_callback(p->value, read_extraargs, &size);
+                p->size = size;
+                ct->size_current += size;
+                ct->size_current -= old_size;
                 lazy_assert_zero(r);                
                 cachetable_waittime += get_tnow() - t0;
                 rwlock_write_unlock(&p->rwlock);
@@ -1816,11 +1820,18 @@ int toku_cachetable_get_and_pin_nonblocking (
                         if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
                         // Now wait for the I/O to occur.
                         rwlock_write_lock(&p->rwlock, ct->mutex);
+                        cachetable_unlock(ct);
+                        long old_size = p->size;
                         long size = 0;
                         int r = pf_callback(p->value, read_extraargs, &size);
                         lazy_assert_zero(r);
+                        cachetable_lock(ct);
+                        p->size = size;
+                        ct->size_current += size;
+                        ct->size_current -= old_size;
                         rwlock_write_unlock(&p->rwlock);
                         cachetable_unlock(ct);
+                        if (ct->ydb_lock_callback) ct->ydb_lock_callback();
                         return TOKUDB_TRY_AGAIN;
                     }
                     rwlock_read_lock(&p->rwlock, ct->mutex);

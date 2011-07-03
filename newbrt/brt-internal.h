@@ -80,6 +80,54 @@ add_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
     a->dsize += b->dsize;
 }
 
+enum brtnode_fetch_type {
+    brtnode_fetch_none=1, 
+    brtnode_fetch_subset,
+    brtnode_fetch_all
+};
+
+struct brtnode_fetch_extra {
+    enum brtnode_fetch_type type;
+    // needed for reading a node off disk
+    struct brt_header *h;
+    // used in the case where type == brtnode_fetch_extra
+    // parameters needed to find out which child needs to be decompressed (so it can be read)
+    brt_search_t* search;
+    BRT brt;
+    // this value will be set during the fetch_callback call by toku_brtnode_fetch_callback or toku_brtnode_pf_req_callback
+    // thi callbacks need to evaluate this anyway, so we cache it here so the search code does not reevaluate it
+    int child_to_read;
+};
+
+static inline void fill_bfe_for_full_read(struct brtnode_fetch_extra *bfe, struct brt_header *h) {
+    bfe->type = brtnode_fetch_all;
+    bfe->h = h;
+    bfe->search = NULL;
+    bfe->brt = NULL;
+    bfe->child_to_read = -1;
+};
+
+static inline void fill_bfe_for_subset_read(
+    struct brtnode_fetch_extra *bfe, 
+    struct brt_header *h,
+    BRT brt,
+    brt_search_t* search
+    ) 
+{
+    bfe->type = brtnode_fetch_subset;
+    bfe->h = h;
+    bfe->search = search;
+    bfe->brt = brt;
+    bfe->child_to_read = -1;
+};
+
+static inline void fill_bfe_for_min_read(struct brtnode_fetch_extra *bfe, struct brt_header *h) {
+    bfe->type = brtnode_fetch_none;
+    bfe->h = h;
+    bfe->search = NULL;
+    bfe->brt = NULL;
+    bfe->child_to_read = -1;
+};
 
 struct brtnode_nonleaf_childinfo {
     FIFO         buffer;
@@ -168,6 +216,7 @@ struct brtnode {
     unsigned int    totalchildkeylens;
     struct kv_pair **childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
                                                                         Child 1's keys are > childkeys[0]. */
+    u_int32_t bp_offset; // offset on disk to where the partitions start
     // array of brtnode partitions
     // each one is associated with a child
     // for internal nodes, the ith partition corresponds to the ith message buffer
@@ -274,7 +323,8 @@ int toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE
                                     struct brt_header *h, int n_workitems, int n_threads,
                                     BOOL for_checkpoint);
 int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *logp, struct brt_header *h);
-int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, struct brt_header *h);
+void toku_deserialize_bp_from_compressed(BRTNODE node, int childnum);
+int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, struct brtnode_fetch_extra* bfe);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
@@ -361,15 +411,25 @@ struct pivot_bounds {
     struct kv_pair const * const upper_bound_inclusive; // NULL to indicate negative or positive infinity (which are in practice exclusive since there are now transfinite keys in messages).
 };
 
+int
+toku_brt_search_which_child(
+    BRT brt, 
+    BRTNODE node, 
+    brt_search_t *search
+    );
+u_int8_t 
+toku_brtnode_partition_state (struct brtnode_fetch_extra* bfe, int childnum);
 // logs the memory allocation, but not the creation of the new node
 void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children);
 int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 		      UNLOCKERS unlockers,
 		      ANCESTORS ancestors, struct pivot_bounds const * const pbounds,
+                      struct brtnode_fetch_extra *bfe,
 		      BRTNODE *node_p)
     __attribute__((__warn_unused_result__));
 void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 				   ANCESTORS ancestors, struct pivot_bounds const * const pbounds,
+                                   struct brtnode_fetch_extra *bfe,
 				   BRTNODE *node_p);
 void toku_unpin_brtnode (BRT brt, BRTNODE node);
 unsigned int toku_brtnode_which_child (BRTNODE node , const DBT *k, BRT t)

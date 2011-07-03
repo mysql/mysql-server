@@ -160,7 +160,9 @@ test_serialize_leaf_with_large_pivots(void) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, brt_h);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, brt_h);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
     assert(r==0);
 
     assert(dn->thisnodename.b==20);
@@ -281,7 +283,9 @@ test_serialize_leaf_with_many_rows(void) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, brt_h);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, brt_h);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
     assert(r==0);
 
     assert(dn->thisnodename.b==20);
@@ -408,7 +412,9 @@ test_serialize_leaf_with_large_rows(void) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, brt_h);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, brt_h);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
     assert(r==0);
 
     assert(dn->thisnodename.b==20);
@@ -538,7 +544,9 @@ test_serialize_leaf_with_empty_basement_nodes(void) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, brt_h);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, brt_h);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
     assert(r==0);
 
     assert(dn->thisnodename.b==20);
@@ -667,7 +675,9 @@ test_serialize_leaf(void) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, brt_h);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, brt_h);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
     assert(r==0);
 
     assert(dn->thisnodename.b==20);
@@ -814,7 +824,9 @@ test_serialize_nonleaf(void) {
     assert(sn.max_msn_applied_to_node_in_memory.msn == TESTMSNMEMVAL);
     
 
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, brt_h);
+    struct brtnode_fetch_extra bfe;
+    fill_bfe_for_full_read(&bfe, brt_h);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
     assert(r==0);
 
     assert(dn->thisnodename.b==20);
