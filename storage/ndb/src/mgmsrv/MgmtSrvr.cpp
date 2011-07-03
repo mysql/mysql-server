@@ -886,7 +886,7 @@ MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
 
     default:
       report_unknown_signal(signal);
-      DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
+      DBUG_RETURN(false);
     }
   }
   // Should never come here
