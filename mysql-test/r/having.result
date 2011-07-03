@@ -545,4 +545,26 @@ FROM t1 JOIN t2 ON t2.f2 LIKE 'x'
 HAVING field1 < 7;
 field1
 DROP TABLE t1,t2;
+#
+# Bug#48916 Server incorrectly processing HAVING clauses with an ORDER BY clause
+#
+CREATE TABLE t1 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1, 0), (2, 1), (3, 2);
+CREATE TABLE t2 (f1 INT, f2 INT);
+SELECT t1.f1
+FROM t1
+HAVING (3, 2) IN (SELECT f1, f2 FROM t2) AND t1.f1  >= 0
+ORDER BY t1.f1;
+f1
+SELECT t1.f1
+FROM t1
+HAVING (3, 2) IN (SELECT 4, 2) AND t1.f1  >= 0
+ORDER BY t1.f1;
+f1
+SELECT t1.f1
+FROM t1
+HAVING 2 IN (SELECT f2 FROM t2) AND t1.f1  >= 0
+ORDER BY t1.f1;
+f1
+DROP TABLE t1,t2;
 End of 5.1 tests

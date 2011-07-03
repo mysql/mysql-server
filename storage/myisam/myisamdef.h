@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -425,6 +425,8 @@ typedef struct st_mi_sort_param
 }
 
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
+
+#define portable_sizeof_char_ptr 8
 
 #define MI_MIN_BLOCK_LENGTH	20	/* Because of delete-link */
 #define MI_EXTEND_BLOCK_LENGTH	20	/* Don't use to small record-blocks */

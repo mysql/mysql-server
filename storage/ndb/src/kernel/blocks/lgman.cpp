@@ -1,17 +1,19 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+   02110-1301  USA */
 
 #include "lgman.hpp"
 #include "diskpage.hpp"
@@ -2501,7 +2503,7 @@ Lgman::init_run_undo_log(Signal* signal)
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
     
     /**
-     * Insert in correct postion in list of logfile_group's
+     * Insert in correct position in list of logfile_group's
      */
     Ptr<Logfile_group> pos;
     for(tmp.first(pos); !pos.isNull(); tmp.next(pos))

@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2001-2007 MySQL AB, 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,6 +87,7 @@ enum options_client
   OPT_SLAP_POST_SYSTEM,
   OPT_SLAP_COMMIT,
   OPT_SLAP_DETACH,
+  OPT_SLAP_NO_DROP,
   OPT_MYSQL_REPLACE_INTO, OPT_BASE64_OUTPUT_MODE, OPT_SERVER_ID,
   OPT_FIX_TABLE_NAMES, OPT_FIX_DB_NAMES, OPT_SSL_VERIFY_SERVER_CERT,
   OPT_DEBUG_INFO, OPT_DEBUG_CHECK, OPT_COLUMN_TYPES, OPT_ERROR_LOG_FILE,

@@ -2798,10 +2798,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                  ("Found table '%s.%s' with different refresh version",
                   table_list->db, table_list->table_name));
 
-      /* Ignore FLUSH, but not name locks! */
+      /* Ignore FLUSH and pending name locks, but not acquired name locks! */
       if (flags & MYSQL_LOCK_IGNORE_FLUSH && !table->open_placeholder)
       {
-        DBUG_ASSERT(table->db_stat);
         /* Force close at once after usage */
         thd->version= table->s->version;
         continue;
@@ -4009,7 +4008,7 @@ retry:
      {
        /* Give right error message */
        thd->clear_error();
-       my_error(ER_NOT_KEYFILE, MYF(0), share->table_name.str, my_errno);
+       my_error(ER_NOT_KEYFILE, MYF(0), share->table_name.str);
        sql_print_error("Couldn't repair table: %s.%s", share->db.str,
                        share->table_name.str);
        if (entry->file)
@@ -7687,7 +7686,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
   }
   if (tablenr > MAX_TABLES)
   {
-    my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES);
+    my_error(ER_TOO_MANY_TABLES, MYF(0), static_cast<int>(MAX_TABLES));
     DBUG_RETURN(1);
   }
   for (table_list= tables;

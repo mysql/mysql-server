@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2000-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -196,8 +195,8 @@ err:
   save_errno=my_errno;
   if (changed)
     key_changed|= HA_STATE_CHANGED;
-  if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_OUT_OF_MEM ||
-      my_errno == HA_ERR_RECORD_FILE_FULL)
+  if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_RECORD_FILE_FULL ||
+      my_errno == HA_ERR_NULL_IN_SPATIAL || my_errno == HA_ERR_OUT_OF_MEM)
   {
     info->errkey= (int) i;
     flag=0;
@@ -215,8 +214,9 @@ err:
 	{
 	  uint new_length=_mi_make_key(info,i,new_key,newrec,pos);
 	  uint old_length= _mi_make_key(info,i,old_key,oldrec,pos);
-	  if ((flag++ && _mi_ck_delete(info,i,new_key,new_length)) ||
-	      _mi_ck_write(info,i,old_key,old_length))
+	  if ((flag++ && 
+	       share->keyinfo[i].ck_delete(info, i, new_key, new_length)) ||
+	      share->keyinfo[i].ck_insert(info, i, old_key, old_length))
 	    break;
 	}
       }

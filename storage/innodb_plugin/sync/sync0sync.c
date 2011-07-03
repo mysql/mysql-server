@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -656,7 +656,7 @@ mutex_set_debug_info(
 	ut_ad(mutex);
 	ut_ad(file_name);
 
-	sync_thread_add_level(mutex, mutex->level);
+	sync_thread_add_level(mutex, mutex->level, FALSE);
 
 	mutex->file_name = file_name;
 	mutex->line	 = line;
@@ -1083,8 +1083,9 @@ void
 sync_thread_add_level(
 /*==================*/
 	void*	latch,	/*!< in: pointer to a mutex or an rw-lock */
-	ulint	level)	/*!< in: level in the latching order; if
+	ulint	level,	/*!< in: level in the latching order; if
 			SYNC_LEVEL_VARYING, nothing is done */
+	ibool	relock)	/*!< in: TRUE if re-entering an x-lock */
 {
 	sync_level_t*	array;
 	sync_level_t*	slot;
@@ -1131,6 +1132,10 @@ sync_thread_add_level(
 	}
 
 	array = thread_slot->levels;
+
+	if (relock) {
+		goto levels_ok;
+	}
 
 	/* NOTE that there is a problem with _NODE and _LEAF levels: if the
 	B-tree height changes, then a leaf can change to an internal node
@@ -1269,6 +1274,7 @@ sync_thread_add_level(
 		ut_error;
 	}
 
+levels_ok:
 	for (i = 0; i < SYNC_THREAD_N_LEVELS; i++) {
 
 		slot = sync_thread_levels_get_nth(array, i);

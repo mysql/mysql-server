@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,6 +59,7 @@ ADD_DEFINITIONS(-D__NT__)
 
 IF(CYBOZU)
   ADD_DEFINITIONS(-DCYBOZU)
+  ADD_DEFINITIONS(-DHAVE_UTF8_GENERAL_CS)
 ENDIF(CYBOZU)
 
 IF(EXTRA_DEBUG)
