@@ -1,6 +1,6 @@
 #ifndef _EVENT_DB_REPOSITORY_H_
 #define _EVENT_DB_REPOSITORY_H_
-/* Copyright (C) 2004-2006 MySQL AB
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,7 +73,8 @@ public:
   Event_db_repository(){}
 
   bool
-  create_event(THD *thd, Event_parse_data *parse_data, my_bool create_if_not);
+  create_event(THD *thd, Event_parse_data *parse_data, bool create_if_not,
+               bool *event_already_exists);
 
   bool
   update_event(THD *thd, Event_parse_data *parse_data, LEX_STRING *new_dbname,

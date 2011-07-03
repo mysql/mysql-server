@@ -9859,3 +9859,5 @@ hex(convert(_eucjpms 0xA5FE41 using ucs2))
 select hex(convert(_eucjpms 0x8FABF841 using ucs2));
 hex(convert(_eucjpms 0x8FABF841 using ucs2))
 003F0041
+set global LC_TIME_NAMES=convert((convert((0x63) using eucjpms)) using utf8);
+ERROR HY000: Unknown locale: 'c'

@@ -36,6 +36,9 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
+#ifdef UNIV_BLOB_DEBUG
+# include "ut0rbt.h"
+#endif /* UNIV_BLOB_DEBUG */
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
@@ -316,6 +319,12 @@ dict_mem_index_free(
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+#ifdef UNIV_BLOB_DEBUG
+	if (index->blobs) {
+		mutex_free(&index->blobs_mutex);
+		rbt_free(index->blobs);
+	}
+#endif /* UNIV_BLOB_DEBUG */
 
 	mem_heap_free(index->heap);
 }

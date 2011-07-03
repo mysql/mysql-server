@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -612,16 +612,12 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
 
   switch (hybrid_type= item->result_type()) {
   case INT_RESULT:
-    max_length= 20;
-    break;
   case DECIMAL_RESULT:
+  case STRING_RESULT:
     max_length= item->max_length;
     break;
   case REAL_RESULT:
     max_length= float_length(decimals);
-    break;
-  case STRING_RESULT:
-    max_length= item->max_length;
     break;
   case ROW_RESULT:
   default:

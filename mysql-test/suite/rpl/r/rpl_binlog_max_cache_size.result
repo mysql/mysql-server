@@ -125,6 +125,7 @@ include/stop_slave.inc
 include/start_slave.inc
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
+CALL mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master. Message: error writing to the binary log");
 TRUNCATE t1;
 SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;
 SET GLOBAL binlog_cache_size= ORIGINAL_VALUE;

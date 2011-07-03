@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -685,12 +685,16 @@ page_copy_rec_list_end(
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {
 
+				btr_blob_dbg_remove(new_page, index,
+						    "copy_end_reorg_fail");
 				if (UNIV_UNLIKELY
 				    (!page_zip_decompress(new_page_zip,
 							  new_page, FALSE))) {
 					ut_error;
 				}
 				ut_ad(page_validate(new_page, index));
+				btr_blob_dbg_add(new_page, index,
+						 "copy_end_reorg_fail");
 				return(NULL);
 			} else {
 				/* The page was reorganized:
@@ -803,12 +807,16 @@ page_copy_rec_list_start(
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {
 
+				btr_blob_dbg_remove(new_page, index,
+						    "copy_start_reorg_fail");
 				if (UNIV_UNLIKELY
 				    (!page_zip_decompress(new_page_zip,
 							  new_page, FALSE))) {
 					ut_error;
 				}
 				ut_ad(page_validate(new_page, index));
+				btr_blob_dbg_add(new_page, index,
+						 "copy_start_reorg_fail");
 				return(NULL);
 			} else {
 				/* The page was reorganized:
@@ -1079,6 +1087,9 @@ page_delete_rec_list_end(
 
 	/* Remove the record chain segment from the record chain */
 	page_rec_set_next(prev_rec, page_get_supremum_rec(page));
+
+	btr_blob_dbg_op(page, rec, index, "delete_end",
+			btr_blob_dbg_remove_rec);
 
 	/* Catenate the deleted chain segment to the page free list */
 
@@ -1476,55 +1487,54 @@ page_dir_balance_slot(
 	}
 }
 
-#ifndef UNIV_HOTBACKUP
 /************************************************************//**
-Returns the middle record of the record list. If there are an even number
-of records in the list, returns the first record of the upper half-list.
-@return	middle record */
+Returns the nth record of the record list.
+This is the inverse function of page_rec_get_n_recs_before().
+@return	nth record */
 UNIV_INTERN
-rec_t*
-page_get_middle_rec(
-/*================*/
-	page_t*	page)	/*!< in: page */
+const rec_t*
+page_rec_get_nth_const(
+/*===================*/
+	const page_t*	page,	/*!< in: page */
+	ulint		nth)	/*!< in: nth record */
 {
-	page_dir_slot_t*	slot;
-	ulint			middle;
+	const page_dir_slot_t*	slot;
 	ulint			i;
 	ulint			n_owned;
-	ulint			count;
-	rec_t*			rec;
+	const rec_t*		rec;
 
-	/* This many records we must leave behind */
-	middle = (page_get_n_recs(page) + PAGE_HEAP_NO_USER_LOW) / 2;
-
-	count = 0;
+	ut_ad(nth < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
 
 	for (i = 0;; i++) {
 
 		slot = page_dir_get_nth_slot(page, i);
 		n_owned = page_dir_slot_get_n_owned(slot);
 
-		if (count + n_owned > middle) {
+		if (n_owned > nth) {
 			break;
 		} else {
-			count += n_owned;
+			nth -= n_owned;
 		}
 	}
 
 	ut_ad(i > 0);
 	slot = page_dir_get_nth_slot(page, i - 1);
-	rec = (rec_t*) page_dir_slot_get_rec(slot);
-	rec = page_rec_get_next(rec);
+	rec = page_dir_slot_get_rec(slot);
 
-	/* There are now count records behind rec */
-
-	for (i = 0; i < middle - count; i++) {
-		rec = page_rec_get_next(rec);
+	if (page_is_comp(page)) {
+		do {
+			rec = page_rec_get_next_low(rec, TRUE);
+			ut_ad(rec);
+		} while (nth--);
+	} else {
+		do {
+			rec = page_rec_get_next_low(rec, FALSE);
+			ut_ad(rec);
+		} while (nth--);
 	}
 
 	return(rec);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**
 Returns the number of records before the given record in chain.
@@ -1586,6 +1596,7 @@ page_rec_get_n_recs_before(
 	n--;
 
 	ut_ad(n >= 0);
+	ut_ad(n < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
 
 	return((ulint) n);
 }

@@ -1,6 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2008 MySQL AB, 2008 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,8 +27,6 @@ use My::Platform;
 
 use base qw(Exporter);
 our @EXPORT= qw(my_find_bin my_find_dir my_find_file NOT_REQUIRED);
-
-our $vs_config_dir;
 
 my $bin_extension= ".exe" if IS_WINDOWS;
 
@@ -159,7 +156,7 @@ sub my_find_paths {
   # User can select to look in a special build dir
   # which is a subdirectory of any of the paths
   my @extra_dirs;
-  my $build_dir= $vs_config_dir || $ENV{MTR_VS_CONFIG} || $ENV{MTR_BUILD_DIR};
+  my $build_dir= $::opt_vs_config || $ENV{MTR_VS_CONFIG} || $ENV{MTR_BUILD_DIR};
   push(@extra_dirs, $build_dir) if defined $build_dir;
 
   if (defined $extension){

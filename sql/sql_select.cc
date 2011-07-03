@@ -278,61 +278,65 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 }
 
 
-/*
+/**
   Fix fields referenced from inner selects.
 
-  SYNOPSIS
-    fix_inner_refs()
-    thd               Thread handle
-    all_fields        List of all fields used in select
-    select            Current select
-    ref_pointer_array Array of references to Items used in current select
-    group_list        GROUP BY list (is NULL by default)
+  @param thd               Thread handle
+  @param all_fields        List of all fields used in select
+  @param select            Current select
+  @param ref_pointer_array Array of references to Items used in current select
+  @param group_list        GROUP BY list (is NULL by default)
 
-  DESCRIPTION
-    The function serves 3 purposes - adds fields referenced from inner
-    selects to the current select list, resolves which class to use
-    to access referenced item (Item_ref of Item_direct_ref) and fixes
-    references (Item_ref objects) to these fields.
+  @details
+    The function serves 3 purposes
 
-    If a field isn't already in the select list and the ref_pointer_array
+    - adds fields referenced from inner query blocks to the current select list
+
+    - Decides which class to use to reference the items (Item_ref or
+      Item_direct_ref)
+
+    - fixes references (Item_ref objects) to these fields.
+
+    If a field isn't already on the select list and the ref_pointer_array
     is provided then it is added to the all_fields list and the pointer to
     it is saved in the ref_pointer_array.
 
     The class to access the outer field is determined by the following rules:
-    1. If the outer field isn't used under an aggregate function
-      then the Item_ref class should be used.
-    2. If the outer field is used under an aggregate function and this
-      function is aggregated in the select where the outer field was
-      resolved or in some more inner select then the Item_direct_ref
-      class should be used.
-      Also it should be used if we are grouping by a subquery containing
-      the outer field.
+
+    -#. If the outer field isn't used under an aggregate function then the
+        Item_ref class should be used.
+
+    -#. If the outer field is used under an aggregate function and this
+        function is, in turn, aggregated in the query block where the outer
+        field was resolved or some query nested therein, then the
+        Item_direct_ref class should be used. Also it should be used if we are
+        grouping by a subquery containing the outer field.
+
     The resolution is done here and not at the fix_fields() stage as
-    it can be done only after sum functions are fixed and pulled up to
-    selects where they are have to be aggregated.
+    it can be done only after aggregate functions are fixed and pulled up to
+    selects where they are to be aggregated.
+
     When the class is chosen it substitutes the original field in the
     Item_outer_ref object.
 
     After this we proceed with fixing references (Item_outer_ref objects) to
     this field from inner subqueries.
 
-  RETURN
-    TRUE  an error occured
-    FALSE ok
-*/
+  @return Status
+  @retval true An error occured.
+  @retval false OK.
+ */
 
 bool
 fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
                  Item **ref_pointer_array, ORDER *group_list)
 {
   Item_outer_ref *ref;
-  bool res= FALSE;
-  bool direct_ref= FALSE;
 
   List_iterator<Item_outer_ref> ref_it(select->inner_refs_list);
   while ((ref= ref_it++))
   {
+    bool direct_ref= false;
     Item *item= ref->outer_ref;
     Item **item_ref= ref->ref;
     Item_ref *new_ref;
@@ -404,7 +408,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
       return TRUE;
     thd->used_tables|= item->used_tables();
   }
-  return res;
+  return false;
 }
 
 /**
@@ -957,7 +961,7 @@ JOIN::optimize()
       If all items were resolved by opt_sum_query, there is no need to
       open any tables.
     */
-    if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
+    if ((res=opt_sum_query(thd, select_lex->leaf_tables, all_fields, conds)))
     {
       if (res == HA_ERR_KEY_NOT_FOUND)
       {
@@ -1925,7 +1929,11 @@ JOIN::exec()
     if (!curr_join->sort_and_group &&
         curr_join->const_tables != curr_join->tables)
       curr_join->join_tab[curr_join->const_tables].sorted= 0;
-    if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
+
+    Procedure *save_proc= curr_join->procedure;
+    tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0);
+    curr_join->procedure= save_proc;
+    if (tmp_error)
     {
       error= tmp_error;
       DBUG_VOID_RETURN;
@@ -2207,7 +2215,7 @@ JOIN::exec()
 
       Item* sort_table_cond= make_cond_for_table(curr_join->tmp_having,
 						 used_tables,
-						 used_tables);
+						 (table_map) 0);
       if (sort_table_cond)
       {
 	if (!curr_table->select)
@@ -12350,10 +12358,14 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     int error;
     if (join->having && join->having->val_int() == 0)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
-    error=0;
     if (join->procedure)
-      error=join->procedure->send_row(join->procedure_fields_list);
-    else if (join->do_send_rows)
+    {
+      if (join->procedure->send_row(join->procedure_fields_list))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+      DBUG_RETURN(NESTED_LOOP_OK);
+    }
+    error=0;
+    if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
     if (error)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
@@ -12840,6 +12852,42 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
   return 0;					// keep test
 }
 
+/**
+   Extract a condition that can be checked after reading given table
+
+   @param cond       Condition to analyze
+   @param tables     Tables for which "current field values" are available
+   @param used_table Table that we're extracting the condition for (may
+                     also include PSEUDO_TABLE_BITS, and may be zero)
+   @param exclude_expensive_cond  Do not push expensive conditions
+
+   @retval <>NULL Generated condition
+   @retval =NULL  Already checked, OR error
+
+   @details
+     Extract the condition that can be checked after reading the table
+     specified in 'used_table', given that current-field values for tables
+     specified in 'tables' bitmap are available.
+     If 'used_table' is 0
+     - extract conditions for all tables in 'tables'.
+     - extract conditions are unrelated to any tables
+       in the same query block/level(i.e. conditions
+       which have used_tables == 0).
+
+     The function assumes that
+     - Constant parts of the condition has already been checked.
+     - Condition that could be checked for tables in 'tables' has already
+     been checked.
+
+     The function takes into account that some parts of the condition are
+     guaranteed to be true by employed 'ref' access methods (the code that
+     does this is located at the end, search down for "EQ_FUNC").
+
+   @note
+     Make sure to keep the implementations of make_cond_for_table() and
+     make_cond_after_sjm() synchronized.
+     make_cond_for_info_schema() uses similar algorithm as well.
+*/ 
 
 static COND *
 make_cond_for_table(COND *cond, table_map tables, table_map used_table)

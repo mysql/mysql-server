@@ -172,12 +172,12 @@ static void getvolumeID(BYTE *volumeName);
 int initgroups(const char *,unsigned int);
 #endif
 
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
+#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
 #include <ieeefp.h>
 #ifdef HAVE_FP_EXCEPT				// Fix type conflict
 typedef fp_except fp_except_t;
 #endif
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
 #ifdef HAVE_SYS_FPU_H
 /* for IRIX to use set_fpc_csr() */
 #include <sys/fpu.h>
@@ -203,19 +203,24 @@ extern "C" my_bool reopen_fstreams(const char *filename,
 
 inline void setup_fpu()
 {
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
+#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
   /* We can't handle floating point exceptions with threads, so disable
      this on freebsd
-     Don't fall for overflow, underflow,divide-by-zero or loss of precision
+     Don't fall for overflow, underflow,divide-by-zero or loss of precision.
+     fpsetmask() is deprecated in favor of fedisableexcept() in C99.
   */
-#if defined(__i386__)
+#if defined(FP_X_DNML)
   fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL | FP_X_DZ |
 	      FP_X_IMP));
 #else
   fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
               FP_X_IMP));
-#endif /* __i386__ */
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+#endif /* FP_X_DNML */
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
+
+#ifdef HAVE_FEDISABLEEXCEPT
+  fedisableexcept(FE_ALL_EXCEPT);
+#endif
 
 #ifdef HAVE_FESETROUND
     /* Set FPU rounding mode to "round-to-nearest" */
@@ -410,6 +415,7 @@ TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
 
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
+static bool max_long_data_size_used= false;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
@@ -575,6 +581,11 @@ ulong delayed_insert_errors,flush_time;
 ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+/*
+  Maximum length of parameter value which can be set through
+  mysql_send_long_data() call.
+*/
+ulong max_long_data_size;
 uint  max_user_connections= 0;
 /**
   Limit of the total number of prepared statements in the server.
@@ -1898,6 +1909,12 @@ void unlink_thd(THD *thd)
   pthread_mutex_unlock(&LOCK_connection_count);
 
   (void) pthread_mutex_lock(&LOCK_thread_count);
+  /*
+    Used by binlog_reset_master.  It would be cleaner to use
+    DEBUG_SYNC here, but that's not possible because the THD's debug
+    sync feature has been shut down at this point.
+  */
+  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
   thread_count--;
   delete thd;
   DBUG_VOID_RETURN;
@@ -5801,7 +5818,8 @@ enum options_mysqld
   OPT_SLOW_QUERY_LOG_FILE,
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
-  OPT_DEFAULT_CHARACTER_SET_OLD
+  OPT_DEFAULT_CHARACTER_SET_OLD,
+  OPT_MAX_LONG_DATA_SIZE
 };
 
 
@@ -6881,6 +6899,13 @@ thread is in the relay logs.",
     &global_system_variables.max_length_for_sort_data,
     &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
+  {"max_long_data_size", OPT_MAX_LONG_DATA_SIZE,
+   "The maximum size of prepared statement parameter which can be provided "
+   "through mysql_send_long_data() API call. "
+   "Deprecated option; use max_allowed_packet instead.",
+   &max_long_data_size,
+   &max_long_data_size, 0, GET_ULONG,
+   REQUIRED_ARG, 1024*1024L, 1024, UINT_MAX32, MALLOC_OVERHEAD, 1, 0},
   {"max_prepared_stmt_count", OPT_MAX_PREPARED_STMT_COUNT,
    "Maximum number of prepared statements in the server.",
    &max_prepared_stmt_count, &max_prepared_stmt_count,
@@ -8689,6 +8714,10 @@ mysqld_get_one_option(int optid,
     }
     break;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+  case OPT_MAX_LONG_DATA_SIZE:
+    max_long_data_size_used= true;
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--max_long_data_size", "--max_allowed_packet");
+    break;
   }
   return 0;
 }
@@ -8778,6 +8807,14 @@ static int get_options(int *argc,char **argv)
        opt_log_slow_slave_statements) &&
       !opt_slow_log)
     sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log_slow_queries is not set");
+  if (global_system_variables.net_buffer_length > 
+      global_system_variables.max_allowed_packet)
+  {
+    sql_print_warning("net_buffer_length (%lu) is set to be larger "
+                      "than max_allowed_packet (%lu). Please rectify.",
+                      global_system_variables.net_buffer_length, 
+                      global_system_variables.max_allowed_packet);
+  }
 
 #if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
@@ -8850,6 +8887,14 @@ static int get_options(int *argc,char **argv)
   else
     pool_of_threads_scheduler(&thread_scheduler);  /* purecov: tested */
 #endif
+
+  /*
+    If max_long_data_size is not specified explicitly use
+    value of max_allowed_packet.
+  */
+  if (!max_long_data_size_used)
+    max_long_data_size= global_system_variables.max_allowed_packet;
+
   return 0;
 }
 
@@ -9019,6 +9064,7 @@ static int fix_paths(void)
   {
     if (*opt_secure_file_priv == 0)
     {
+      my_free(opt_secure_file_priv, MYF(0));
       opt_secure_file_priv= 0;
     }
     else

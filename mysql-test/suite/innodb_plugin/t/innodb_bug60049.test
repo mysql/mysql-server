@@ -1,0 +1,39 @@
+# Bug #60049 Verify that purge leaves no garbage in unique secondary indexes
+# This test requires a fresh server start-up and a slow shutdown.
+# This was a suspected bug (not a bug).
+
+-- source include/not_embedded.inc
+-- source include/have_innodb_plugin.inc
+
+CREATE TABLE t(a INT)ENGINE=InnoDB;
+RENAME TABLE t TO u;
+DROP TABLE u;
+SELECT @@innodb_fast_shutdown;
+let $MYSQLD_DATADIR=`select @@datadir`;
+
+# Shut down the server
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- shutdown_server 30
+-- source include/wait_until_disconnected.inc
+
+# Check the tail of ID_IND (SYS_TABLES.ID)
+let IBDATA1=$MYSQLD_DATADIR/ibdata1;
+perl;
+my $file = $ENV{'IBDATA1'};
+open(FILE, "<$file") || die "Unable to open $file";
+# Read DICT_HDR_TABLE_IDS, the root page number of ID_IND (SYS_TABLES.ID).
+seek(FILE, 7*16384+38+36, 0) || die "Unable to seek $file";
+die unless read(FILE, $_, 4) == 4;
+my $sys_tables_id_root = unpack("N", $_);
+print "Last record of ID_IND root page ($sys_tables_id_root):\n";
+# This should be the last record in ID_IND. Dump it in hexadecimal.
+seek(FILE, $sys_tables_id_root*16384 + 152, 0) || die "Unable to seek $file";
+read(FILE, $_, 32) || die "Unable to read $file";
+close(FILE);
+print unpack("H*", $_), "\n";
+EOF
+
+# Restart the server.
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc

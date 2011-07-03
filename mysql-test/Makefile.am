@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -80,7 +80,6 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	std_data/funcs_1 \
 	extra/binlog_tests/ extra/rpl_tests \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
-	suite/bugs suite/bugs/data suite/bugs/t suite/bugs/r \
 	suite/federated \
 	suite/funcs_1 suite/funcs_1/bitdata \
 	suite/funcs_1/include suite/funcs_1/lib suite/funcs_1/r \

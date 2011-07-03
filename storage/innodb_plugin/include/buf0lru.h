@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,18 +29,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "univ.i"
 #include "ut0byte.h"
 #include "buf0types.h"
-
-/** The return type of buf_LRU_free_block() */
-enum buf_lru_free_block_status {
-	/** freed */
-	BUF_LRU_FREED = 0,
-	/** not freed because the caller asked to remove the
-	uncompressed frame but the control block cannot be
-	relocated */
-	BUF_LRU_CANNOT_RELOCATE,
-	/** not freed because of some other reason */
-	BUF_LRU_NOT_FREED
-};
 
 /******************************************************************//**
 Tries to remove LRU flushed blocks from the end of the LRU list and put them
@@ -84,6 +72,7 @@ void
 buf_LRU_invalidate_tablespace(
 /*==========================*/
 	ulint	id);	/*!< in: space id */
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
 UNIV_INTERN
@@ -91,22 +80,22 @@ void
 buf_LRU_insert_zip_clean(
 /*=====================*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /******************************************************************//**
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns BUF_LRU_FREED, it will temporarily
+NOTE: If this function returns TRUE, it will temporarily
 release buf_pool_mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
 The caller must hold buf_pool_mutex and buf_page_get_mutex(bpage) and
 release these two mutexes after the call.  No other
 buf_page_get_mutex() may be held when calling this function.
-@return BUF_LRU_FREED if freed, BUF_LRU_CANNOT_RELOCATE or
-BUF_LRU_NOT_FREED otherwise. */
+@return TRUE if freed, FALSE otherwise. */
 UNIV_INTERN
-enum buf_lru_free_block_status
+ibool
 buf_LRU_free_block(
 /*===============*/
 	buf_page_t*	bpage,	/*!< in: block to be freed */

@@ -119,6 +119,7 @@ row_undo_mod_clust_low(
 			| BTR_KEEP_SYS_FLAG,
 			btr_cur, &dummy_big_rec, node->update,
 			node->cmpl_info, thr, mtr);
+		ut_ad(!dummy_big_rec);
 	}
 
 	return(err);
@@ -471,6 +472,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 				BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
 				btr_cur, &dummy_big_rec,
 				update, 0, thr, &mtr);
+			ut_ad(!dummy_big_rec);
 		}
 
 		mem_heap_free(heap);

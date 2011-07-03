@@ -92,4 +92,12 @@ INSERT INTO t1 VALUES (0x8372835E),(0x8352835E);
 SELECT hex(a), hex(lower(a)), hex(upper(a)) FROM t1 ORDER BY binary(a);
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#11766519 - Bug#59648: MY_STRTOLL10_MB2: ASSERTION `(*ENDPTR - S) % 2 == 0' FAILED.
+--echo #
+# In the below string backslash (0x5C) is a part of a multi-byte
+# character, so it should not be quoted.
+SELECT QUOTE('ƒ\');
+
+
 --echo # End of 5.1 tests

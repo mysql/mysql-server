@@ -1,8 +1,7 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
-Copyright (c) 2009, Sun Microsystems, Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -46,7 +45,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	15
+#define INNODB_VERSION_BUGFIX	17
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -194,6 +193,8 @@ this will break redo log file compatibility, but it may be useful when
 debugging redo log application problems. */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_IBUF_DEBUG				/* debug the insert buffer */
+#define UNIV_BLOB_DEBUG				/* track BLOB ownership;
+assumes that no BLOBs survive server restart */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */
