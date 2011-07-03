@@ -106,6 +106,7 @@ NEWBRT_O_FILES += brtloader.$(OEXT) quicklz.$(OEXT) compress.$(OEXT)
 brtloader.$(OEXT): $(DEPEND_COMPILE)
 
 $(NEWBRT_O_FILES): VISIBILITY=
+$(NEWBRT_SO): DISABLE_WARNING += 10237 # Do not complain about -lcilkrts being linked in dynamically, static library not available
 $(NEWBRT_SO): $(NEWBRT_O_FILES)
 	echo $(patsubst %,newbrt/%,$(NEWBRT_O_FILES)) > ../lib/newbrt.olist
 	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(GCOV_FLAGS) $(SKIP_WARNING) $(NEWBRT_O_FILES) -o$(NEWBRT_SO) $(LINUX_NOSTDLIB) $(LCILKRTS)

@@ -76,8 +76,8 @@ NEWBRT_OFILES = $(patsubst %,../%,$(shell cat ../lib/newbrt.olist))
 $(LIBRARY): LINK_FILES=$(OBJS) $(LOCKTREE) $(RANGETREE) $(NEWBRT_OFILES)
 ifeq ($(CC),icc)
  ifeq ($(HAVE_CILK),1)
-  ifeq (0,1)
-   #$(LIBRARY): LINK_FILES+=$(wildcard ../cilk_icc/*.o)
+  ifeq (0,0)
+   $(LIBRARY): LINK_FILES+=$(wildcard ../cilk_icc/*.o)
   else
    $(LIBRARY): LINK_FILES+=-lcilkrts
   endif
