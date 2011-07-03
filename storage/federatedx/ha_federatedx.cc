@@ -3368,15 +3368,13 @@ int ha_federatedx::create(const char *name, TABLE *table_arg,
   {
     FEDERATEDX_SERVER server;
 
-#ifdef NOT_YET
     /* 
       Bug#25679
       Ensure that we do not hold the LOCK_open mutex while attempting
       to establish FederatedX connection to guard against a trivial
       Denial of Service scenerio.
     */
-    safe_mutex_assert_not_owner(&LOCK_open);
-#endif
+    mysql_mutex_assert_not_owner(&LOCK_open);
 
     fill_server(thd->mem_root, &server, &tmp_share, create_info->table_charset);
 
