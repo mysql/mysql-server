@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1014,7 +1015,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       name.str= (char*) next_chunk + 2;
       name.length= str_db_type_length;
 
-      plugin_ref tmp_plugin= ha_resolve_by_name(thd, &name);
+      plugin_ref tmp_plugin= ha_resolve_by_name(thd, &name, FALSE);
       if (tmp_plugin != NULL && !plugin_equals(tmp_plugin, share->db_plugin))
       {
         if (legacy_db_type > DB_TYPE_UNKNOWN &&
@@ -3215,7 +3216,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
   if (gvisitor->m_lock_open_count++ == 0)
     mysql_mutex_lock(&LOCK_open);
 
-  I_P_List_iterator <TABLE, TABLE_share> tables_it(used_tables);
+  TABLE_SHARE::TABLE_list::Iterator tables_it(used_tables);
 
   /*
     In case of multiple searches running in parallel, avoid going

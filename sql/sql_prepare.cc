@@ -1294,7 +1294,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
         my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
         goto error;
       }
-      if (setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0))
+      if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_NONE, 0, 0))
         goto error;
     }
   }
@@ -1373,7 +1373,8 @@ static int mysql_test_update(Prepared_statement *stmt,
   table_list->register_want_access(want_privilege);
 #endif
   thd->lex->select_lex.no_wrap_view_item= TRUE;
-  res= setup_fields(thd, 0, select->item_list, MARK_COLUMNS_READ, 0, 0);
+  res= setup_fields(thd, Ref_ptr_array(),
+                    select->item_list, MARK_COLUMNS_READ, 0, 0);
   thd->lex->select_lex.no_wrap_view_item= FALSE;
   if (res)
     goto error;
@@ -1384,7 +1385,8 @@ static int mysql_test_update(Prepared_statement *stmt,
     (SELECT_ACL & ~table_list->table->grant.privilege);
   table_list->register_want_access(SELECT_ACL);
 #endif
-  if (setup_fields(thd, 0, stmt->lex->value_list, MARK_COLUMNS_NONE, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(),
+                   stmt->lex->value_list, MARK_COLUMNS_NONE, 0, 0))
     goto error;
   /* TODO: here we should send types of placeholders to the client. */
   DBUG_RETURN(0);
@@ -1530,7 +1532,8 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
 
   if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(TRUE);
-  DBUG_RETURN(setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0));
+  DBUG_RETURN(setup_fields(thd, Ref_ptr_array(),
+                           *values, MARK_COLUMNS_NONE, 0, 0));
 }
 
 

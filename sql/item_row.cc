@@ -113,7 +113,7 @@ void Item_row::cleanup()
 }
 
 
-void Item_row::split_sum_func(THD *thd, Item **ref_pointer_array,
+void Item_row::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                               List<Item> &fields)
 {
   Item **arg, **arg_end;
