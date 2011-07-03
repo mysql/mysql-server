@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -254,15 +254,6 @@ public:
   {
     return m_diagnostics_area.get_warning_info()->warn_count();
   }
-  /**
-    Get the server warnings as a result set.
-    The result set has fixed metadata:
-    The first column is the level.
-    The second is a numeric code.
-    The third is warning text.
-  */
-  List<MYSQL_ERROR> *get_warn_list()
-  { return &m_diagnostics_area.get_warning_info()->warn_list(); }
 
   /**
     The following members are only valid if execute_direct()

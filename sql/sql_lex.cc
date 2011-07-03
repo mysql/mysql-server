@@ -1759,7 +1759,7 @@ void st_select_lex::init_query()
   parent_lex->push_context(&context);
   cond_count= between_count= with_wild= 0;
   max_equal_elems= 0;
-  ref_pointer_array= 0;
+  ref_pointer_array.reset();
   select_n_where_fields= 0;
   select_n_having_items= 0;
   subquery_in_having= explicit_limit= 0;
@@ -2136,20 +2136,42 @@ ulong st_select_lex::get_table_join_options()
 
 bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 {
-  if (ref_pointer_array)
-    return 0;
+#ifdef DBUG_OFF
+  if (!ref_pointer_array.is_null())
+    return false;
+#endif
+
+  // find_order_in_list() may need some extra space, so multiply by two.
+  order_group_num*= 2;
 
   /*
     We have to create array in prepared statement memory if it is
     prepared statement
   */
   Query_arena *arena= thd->stmt_arena;
-  return (ref_pointer_array=
-          (Item **)arena->alloc(sizeof(Item*) * (n_child_sum_items +
-                                                 item_list.elements +
-                                                 select_n_having_items +
-                                                 select_n_where_fields +
-                                                 order_group_num)*5)) == 0;
+  const uint n_elems= (n_child_sum_items +
+                       item_list.elements +
+                       select_n_having_items +
+                       select_n_where_fields +
+                       order_group_num) * 5;
+  DBUG_PRINT("info", ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u",
+                      this,
+                      n_elems, // :
+                      n_sum_items,
+                      n_child_sum_items,
+                      item_list.elements,
+                      select_n_having_items,
+                      select_n_where_fields,
+                      order_group_num));
+  if (!ref_pointer_array.is_null())
+  {
+    DBUG_ASSERT(ref_pointer_array.size() == n_elems);
+    return false;
+  }
+  Item **array= static_cast<Item**>(arena->alloc(sizeof(Item*) * n_elems));
+  ref_pointer_array= Ref_ptr_array(array, n_elems);
+
+  return array == NULL;
 }
 
 
@@ -3091,12 +3113,12 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
     }
     if (*conds)
     {
-      prep_where= *conds;
+      prep_where= (*conds)->real_item();
       *conds= where= prep_where->copy_andor_structure(thd);
     }
     if (*having_conds)
     {
-      prep_having= *having_conds;
+      prep_having= (*having_conds)->real_item();
       *having_conds= having= prep_having->copy_andor_structure(thd);
     }
     fix_prepare_info_in_table_list(thd, table_list.first);
