@@ -7633,6 +7633,7 @@ static int fix_paths(void)
   {
     if (*opt_secure_file_priv == 0)
     {
+      my_free(opt_secure_file_priv);
       opt_secure_file_priv= 0;
     }
     else

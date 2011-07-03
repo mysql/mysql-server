@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,8 @@ Created 10/4/1994 Heikki Tuuri
 #include "buf0types.h"
 
 #ifdef UNIV_DEBUG
+# include "rem0cmp.h"
+
 /*********************************************************//**
 Gets pointer to the page frame where the cursor is positioned.
 @return	page */
@@ -268,6 +270,7 @@ page_cur_tuple_insert(
 					      index, rec, offsets, mtr);
 	}
 
+	ut_ad(!rec || !cmp_dtuple_rec(tuple, rec, offsets));
 	mem_heap_free(heap);
 	return(rec);
 }
