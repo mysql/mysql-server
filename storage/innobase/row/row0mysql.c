@@ -2015,41 +2015,13 @@ row_create_index_for_mysql(
 
 	trx_start_if_not_started(trx);
 
-	/* Check that the same column does not appear twice in the index.
-	Starting from 4.0.14, InnoDB should be able to cope with that, but
-	safer not to allow them. */
-
-	for (i = 0; i < dict_index_get_n_fields(index); i++) {
-		ulint		j;
-
-		for (j = 0; j < i; j++) {
-			if (0 == ut_strcmp(
-				    dict_index_get_nth_field(index, j)->name,
-				    dict_index_get_nth_field(index, i)->name)) {
-				ut_print_timestamp(stderr);
-
-				fputs("  InnoDB: Error: column ", stderr);
-				ut_print_name(stderr, trx, FALSE,
-					      dict_index_get_nth_field(
-						      index, i)->name);
-				fputs(" appears twice in ", stderr);
-				dict_index_name_print(stderr, trx, index);
-				fputs("\n"
-				      "InnoDB: This is not allowed"
-				      " in InnoDB.\n", stderr);
-
-				err = DB_COL_APPEARS_TWICE_IN_INDEX;
-
-				goto error_handling;
-			}
-		}
-
-		/* Check also that prefix_len and actual length
-		is less than that from DICT_MAX_FIELD_LEN_BY_FORMAT() */
+	for (i = 0; i < index->n_def; i++) {
+		/* Check that prefix_len and actual length
+		< DICT_MAX_INDEX_COL_LEN */
 
 		len = dict_index_get_nth_field(index, i)->prefix_len;
 
-		if (field_lengths) {
+		if (field_lengths && field_lengths[i]) {
 			len = ut_max(len, field_lengths[i]);
 		}
 
@@ -2057,6 +2029,7 @@ row_create_index_for_mysql(
 		if (len > (ulint) DICT_MAX_FIELD_LEN_BY_FORMAT(table)) {
 			err = DB_TOO_BIG_INDEX_COL;
 
+			dict_mem_index_free(index);
 			goto error_handling;
 		}
 	}
