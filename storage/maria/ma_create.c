@@ -677,7 +677,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
   share.state.dellink = HA_OFFSET_ERROR;
   share.state.first_bitmap_with_space= 0;
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
   share.state.process=	(ulong) getpid();
 #endif
   share.state.version=	(ulong) time((time_t*) 0);

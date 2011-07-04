@@ -1768,6 +1768,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
   {
     if (filepos >= info->state->data_file_length)
     {
+#ifdef MARIA_EXTERNAL_LOCKING
       if (!info_read)
       {						/* Check if changed */
 	info_read=1;
@@ -1780,6 +1781,10 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
 	my_errno= HA_ERR_END_OF_FILE;
 	goto err;
       }
+#else
+      my_errno= HA_ERR_END_OF_FILE;
+      goto err;
+#endif
     }
     if (info->opt_flag & READ_CACHE_USED)
     {

@@ -2777,6 +2777,7 @@ static void read_block(PAGECACHE *pagecache,
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
     if (error)
     {
+      DBUG_ASSERT(maria_in_recovery || !maria_assert_if_crashed_table);
       block->status|= PCBLOCK_ERROR;
       block->error=   (int16) my_errno;
       my_debug_put_break_here();
