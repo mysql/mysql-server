@@ -5363,7 +5363,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     {
       // set injector_ndb database/schema from table internal name
       int ret= ndb->setDatabaseAndSchemaName(ndbtab);
-      assert(ret == 0);
+      assert(ret == 0); NDB_IGNORE_VALUE(ret);
       op= ndb->createEventOperation(event_name);
       // reset to catch errors
       ndb->setDatabaseName("");
@@ -6672,7 +6672,7 @@ restart_cluster_failure:
       };
     int ret = inj->record_incident(thd, INCIDENT_LOST_EVENTS,
                                    msg[incident_id]);
-    assert(ret == 0);
+    assert(ret == 0); NDB_IGNORE_VALUE(ret);
     do_incident = false; // Don't report incident again, unless we get started
     break;
   }
@@ -7115,7 +7115,7 @@ restart_cluster_failure:
                                 table->s->fields));
             injector::transaction::table tbl(table, true);
             int ret = trans.use_table(::server_id, tbl);
-            assert(ret == 0);
+            assert(ret == 0); NDB_IGNORE_VALUE(ret);
           }
         }
         if (trans.good())
@@ -7129,7 +7129,7 @@ restart_cluster_failure:
 #endif
             injector::transaction::table tbl(apply_status_table, true);
             int ret = trans.use_table(::server_id, tbl);
-            assert(ret == 0);
+            assert(ret == 0); NDB_IGNORE_VALUE(ret);
 
             /* add the gci to the record */
             Field *field= apply_status_table->field[1];

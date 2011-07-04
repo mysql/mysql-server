@@ -135,7 +135,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 
 nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
 
-libndb_la_CPPFLAGS=	@ndbcluster_includes@
+libndb_la_CPPFLAGS=	@ndbcluster_includes@ @ndbcluster_sql_defines@
 libndb_la_SOURCES=	ha_ndbcluster.cc \
 			ha_ndbcluster_binlog.cc \
 			ha_ndbcluster_connection.cc \

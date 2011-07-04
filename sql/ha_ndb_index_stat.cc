@@ -486,7 +486,7 @@ ndb_index_stat_option_update(MYSQL_THD,
   DBUG_PRINT("index_stat", ("str: %s", str));
   Ndb_index_stat_opt& opt= ndb_index_stat_opt;
   int ret= ndb_index_stat_str2opt(str, opt);
-  assert(ret == 0);
+  assert(ret == 0); NDB_IGNORE_VALUE(ret);
   *(const char**)var_ptr= ndb_index_stat_opt.option;
   DBUG_VOID_RETURN;
 }
@@ -701,7 +701,7 @@ ndb_index_stat_list_to_error(Ndb_index_stat *st)
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
 
   assert(st != 0);
-  const int lt= st->lt;
+  const int lt= st->lt; NDB_IGNORE_VALUE(lt);
   assert(1 <= lt && lt < Ndb_index_stat::LT_Count);
   assert(lt != Ndb_index_stat::LT_Error);
 
