@@ -2496,18 +2496,21 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     args.put("nodetype", nodetype);
   }
 
-  if (check_version_ge(handle->mgmd_version(),
-                       NDB_MAKE_VERSION(7,1,16),
-                       NDB_MAKE_VERSION(7,0,27),
-                       0))
+  if (from_node != 0)
   {
-    args.put("from_node", from_node);
-  }
-  else
-  {
-    SET_ERROR(handle, NDB_MGM_GET_CONFIG_FAILED,
-              "The mgm server does not support getting config from_node");
-    DBUG_RETURN(0);
+    if (check_version_ge(handle->mgmd_version(),
+                         NDB_MAKE_VERSION(7,1,16),
+                         NDB_MAKE_VERSION(7,0,27),
+                         0))
+    {
+      args.put("from_node", from_node);
+    }
+    else
+    {
+      SET_ERROR(handle, NDB_MGM_GET_CONFIG_FAILED,
+                "The mgm server does not support getting config from_node");
+      DBUG_RETURN(0);
+    }
   }
 
   const ParserRow<ParserDummy> reply[] = {
