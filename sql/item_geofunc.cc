@@ -1014,7 +1014,10 @@ String *Item_func_spatial_operation::val_str(String *str_value)
 	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
 	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
 	g1->store_shapes(&trn) || g2->store_shapes(&trn))))
+  {
+    str_value= 0;
     goto exit;
+  }
 
   
   collector.prepare_operation();
