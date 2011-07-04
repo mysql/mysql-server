@@ -2570,8 +2570,8 @@ public:
   Field *get_tmp_table_field()
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd);
-  inline table_map used_tables() const;		
-  inline void update_used_tables(); 
+  table_map used_tables() const;		
+  void update_used_tables(); 
   bool const_item() const 
   {
     return (*ref)->const_item();
@@ -2713,9 +2713,6 @@ public:
   virtual void print(String *str, enum_query_type query_type)
   { ident->print(str, query_type); }
 
-  virtual Item* transform(Item_transformer transformer, uchar *arg);
-  virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
-                        Item_transformer transformer, uchar *arg_t);
 };
 
 

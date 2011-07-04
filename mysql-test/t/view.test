@@ -4192,3 +4192,24 @@ SELECT a, MIN(b) FROM v1 GROUP BY a;
 DROP VIEW v1;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # LP bug #804686: query over a derived table using a view 
+--echo #                 with a degenerated where condition
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,0), (1,0), (0,0), (1,1), (1,0);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+CREATE VIEW v2 AS SELECT a, MAX(b) AS b FROM t1 GROUP BY a;
+
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b<>0;
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b<>0;
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b;
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b;
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b;
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b;
+
+DROP VIEW v1,v2;
+DROP TABLE t1;
