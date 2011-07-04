@@ -722,6 +722,8 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
   case GSN_CREATE_INDX_REF:
   case GSN_DROP_INDX_CONF:
   case GSN_DROP_INDX_REF:
+  case GSN_INDEX_STAT_CONF:
+  case GSN_INDEX_STAT_REF:
   case GSN_CREATE_EVNT_CONF:
   case GSN_CREATE_EVNT_REF:
   case GSN_DROP_EVNT_CONF:

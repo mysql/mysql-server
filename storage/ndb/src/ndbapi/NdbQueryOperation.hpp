@@ -180,7 +180,15 @@ public:
   NdbTransaction* getNdbTransaction() const;
 
   /**
-   * Close query
+   * Close query.
+   *
+   * Will release most of the internally allocated objects owned 
+   * by this NdbQuery and detach itself from the NdbQueryDef
+   * used to instantiate it.
+   *
+   * The application may destruct the NdbQueryDef after 
+   * ::close() has been called on *all* NdbQuery objects
+   * instantiated from it.
    */
   void close(bool forceSend = false);
 

@@ -280,6 +280,8 @@ public:
 
   }
 
+  NdbMgmHandle handle() { return m_mgmd_client.handle(); }
+
 private:
 
   bool get_section_string(const Properties& config,
@@ -934,6 +936,220 @@ runBug56844(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static bool
+get_status(const char* connectstring,
+           Properties& status)
+{
+  NdbMgmd ndbmgmd;
+  if (!ndbmgmd.connect(connectstring))
+    return false;
+
+  Properties args;
+  if (!ndbmgmd.call("get status", args,
+                    "node status", status, NULL, true))
+  {
+    g_err << "fetch_mgmd_status: mgmd.call failed" << endl;
+    return false;
+  }
+  return true;
+}
+
+static bool
+value_equal(Properties& status,
+            int nodeid, const char* name,
+            const char* expected_value)
+{
+  const char* value;
+  BaseString key;
+  key.assfmt("node.%d.%s", nodeid, name);
+  if (!status.get(key.c_str(), &value))
+  {
+    g_err << "value_equal: no value found for '" << name
+          << "." << nodeid << "'" << endl;
+    return false;
+  }
+
+  if (strcmp(value, expected_value))
+  {
+    g_err << "value_equal: found unexpected value: '" << value
+          << "', expected: '" << expected_value << "'" <<endl;
+    return false;
+  }
+  g_info << "'" << value << "'=='" << expected_value << "'" << endl;
+  return true;
+}
+
+#include <ndb_version.h>
+
+int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
+{
+  BaseString version;
+  version.assfmt("%u", NDB_VERSION_D);
+  BaseString mysql_version;
+  mysql_version.assfmt("%u", NDB_MYSQL_VERSION_D);
+  BaseString address("127.0.0.1");
+
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
+
+  g_err << "** Create config.ini" << endl;
+  Properties config = ConfigFactory::create(2);
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+
+  MgmdProcessList mgmds;
+  const int nodeid1 = 1;
+  Mgmd* mgmd1 = new Mgmd(nodeid1);
+  mgmds.push_back(mgmd1);
+
+  const int nodeid2 = 2;
+  Mgmd* mgmd2 = new Mgmd(nodeid2);
+  mgmds.push_back(mgmd2);
+
+  // Start first mgmd
+  CHECK(mgmd1->start_from_config_ini(wd.path()));
+  CHECK(mgmd1->connect(config));
+
+  Properties status1;
+  CHECK(get_status(mgmd1->connectstring(config).c_str(), status1));
+  //status1.print();
+  // Check status for own mgm node, always CONNECTED
+  CHECK(value_equal(status1, nodeid1, "type", "MGM"));
+  CHECK(value_equal(status1, nodeid1, "status", "CONNECTED"));
+  CHECK(value_equal(status1, nodeid1, "version", version.c_str()));
+  CHECK(value_equal(status1, nodeid1, "mysql_version", mysql_version.c_str()));
+  CHECK(value_equal(status1, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status1, nodeid1, "startphase", "0"));
+  CHECK(value_equal(status1, nodeid1, "dynamic_id", "0"));
+  CHECK(value_equal(status1, nodeid1, "node_group", "0"));
+  CHECK(value_equal(status1, nodeid1, "connect_count", "0"));
+
+  // Check status for other mgm node
+  // not started yet -> NO_CONTACT, no address, no versions
+  CHECK(value_equal(status1, nodeid2, "type", "MGM"));
+  CHECK(value_equal(status1, nodeid2, "status", "NO_CONTACT"));
+  CHECK(value_equal(status1, nodeid2, "version", "0"));
+  CHECK(value_equal(status1, nodeid2, "mysql_version", "0"));
+  CHECK(value_equal(status1, nodeid2, "address", ""));
+  CHECK(value_equal(status1, nodeid2, "startphase", "0"));
+  CHECK(value_equal(status1, nodeid2, "dynamic_id", "0"));
+  CHECK(value_equal(status1, nodeid2, "node_group", "0"));
+  CHECK(value_equal(status1, nodeid2, "connect_count", "0"));
+
+  // Start second mgmd
+  CHECK(mgmd2->start_from_config_ini(wd.path()));
+  CHECK(mgmd2->connect(config));
+
+  // wait for confirmed config
+  for (unsigned i = 0; i < mgmds.size(); i++)
+    CHECK(mgmds[i]->wait_confirmed_config());
+
+  Properties status2;
+  CHECK(get_status(mgmd2->connectstring(config).c_str(), status2));
+  //status2.print();
+  // Check status for own mgm node, always CONNECTED
+  CHECK(value_equal(status2, nodeid2, "type", "MGM"));
+  CHECK(value_equal(status2, nodeid2, "status", "CONNECTED"));
+  CHECK(value_equal(status2, nodeid2, "version", version.c_str()));
+  CHECK(value_equal(status2, nodeid2, "mysql_version", mysql_version.c_str()));
+  CHECK(value_equal(status2, nodeid2, "address", address.c_str()));
+  CHECK(value_equal(status2, nodeid2, "startphase", "0"));
+  CHECK(value_equal(status2, nodeid2, "dynamic_id", "0"));
+  CHECK(value_equal(status2, nodeid2, "node_group", "0"));
+  CHECK(value_equal(status2, nodeid2, "connect_count", "0"));
+
+  // Check status for other mgm node
+  // both started now -> CONNECTED, address and versions filled in
+  CHECK(value_equal(status2, nodeid1, "type", "MGM"));
+  CHECK(value_equal(status2, nodeid1, "status", "CONNECTED"));
+  CHECK(value_equal(status2, nodeid1, "version", version.c_str()));
+  CHECK(value_equal(status2, nodeid1, "mysql_version", mysql_version.c_str()));
+  CHECK(value_equal(status2, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status2, nodeid1, "startphase", "0"));
+  CHECK(value_equal(status2, nodeid1, "dynamic_id", "0"));
+  CHECK(value_equal(status2, nodeid1, "node_group", "0"));
+  CHECK(value_equal(status2, nodeid1, "connect_count", "0"));
+
+  Properties status3;
+  CHECK(get_status(mgmd1->connectstring(config).c_str(), status3));
+  //status3.print();
+  // Check status for own mgm node, always CONNECTED
+  CHECK(value_equal(status3, nodeid1, "type", "MGM"));
+  CHECK(value_equal(status3, nodeid1, "status", "CONNECTED"));
+  CHECK(value_equal(status3, nodeid1, "version", version.c_str()));
+  CHECK(value_equal(status3, nodeid1, "mysql_version", mysql_version.c_str()));
+  CHECK(value_equal(status3, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status3, nodeid1, "startphase", "0"));
+  CHECK(value_equal(status3, nodeid1, "dynamic_id", "0"));
+  CHECK(value_equal(status3, nodeid1, "node_group", "0"));
+  CHECK(value_equal(status3, nodeid1, "connect_count", "0"));
+
+  // Check status for other mgm node
+  // both started now -> CONNECTED, address and versions filled in
+  CHECK(value_equal(status3, nodeid2, "type", "MGM"));
+  CHECK(value_equal(status3, nodeid2, "status", "CONNECTED"));
+  CHECK(value_equal(status3, nodeid2, "version", version.c_str()));
+  CHECK(value_equal(status3, nodeid2, "mysql_version", mysql_version.c_str()));
+  CHECK(value_equal(status3, nodeid2, "address", address.c_str()));
+  CHECK(value_equal(status3, nodeid2, "startphase", "0"));
+  CHECK(value_equal(status3, nodeid2, "dynamic_id", "0"));
+  CHECK(value_equal(status3, nodeid2, "node_group", "0"));
+  CHECK(value_equal(status3, nodeid2, "connect_count", "0"));
+
+  return NDBT_OK;
+
+}
+
+int
+runBug61607(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
+
+  // Create config.ini
+  const int cnt_mgmd = 1;
+  Properties config = ConfigFactory::create(cnt_mgmd);
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+  // Start ndb_mgmd(s)
+  MgmdProcessList mgmds;
+  for (int i = 1; i <= cnt_mgmd; i++)
+  {
+    Mgmd* mgmd = new Mgmd(i);
+    mgmds.push_back(mgmd);
+    CHECK(mgmd->start_from_config_ini(wd.path()));
+  }
+
+  // Connect the ndb_mgmd(s)
+  for (unsigned i = 0; i < mgmds.size(); i++)
+    CHECK(mgmds[i]->connect(config));
+
+  // wait for confirmed config
+  for (unsigned i = 0; i < mgmds.size(); i++)
+    CHECK(mgmds[i]->wait_confirmed_config());
+
+  // Check binary config files created
+  CHECK(file_exists(path(wd.path(),
+                         "ndb_1_config.bin.1",
+                         NULL).c_str()));
+
+  int no_of_nodes = 0;
+  int * node_ids = 0;
+  int initialstart = 0;
+  int nostart = 0;
+  int abort = 0;
+  int force = 0;
+  int need_disconnect = 0;
+  int res = ndb_mgm_restart4(mgmds[0]->handle(), no_of_nodes, node_ids,
+                             initialstart, nostart, abort, force,
+                             &need_disconnect);
+
+
+  return res == 0 ? NDBT_OK : NDBT_FAILED;
+}
+
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 
@@ -980,6 +1196,15 @@ TESTCASE("Bug56844",
          "Test that mgmd can be reloaded in parallel")
 {
   INITIALIZER(runBug56844);
+}
+TESTCASE("Bug12352191",
+         "Test mgmd status for other mgmd")
+{
+  INITIALIZER(runTestBug12352191);
+}
+TESTCASE("Bug61607", "")
+{
+  INITIALIZER(runBug61607);
 }
 
 NDBT_TESTSUITE_END(testMgmd);

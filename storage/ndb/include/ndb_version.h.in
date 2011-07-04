@@ -676,4 +676,21 @@ ndb_refresh_tuple(Uint32 x)
   }
 }
 
+#define NDBD_GET_CONFIG_SUPPORT_70 NDB_MAKE_VERSION(7,0,27)
+#define NDBD_GET_CONFIG_SUPPORT_71 NDB_MAKE_VERSION(7,1,16)
+
+static
+inline
+int
+ndbd_get_config_supported(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor == 0)
+    return x >= NDBD_GET_CONFIG_SUPPORT_70;
+
+  return x >= NDBD_GET_CONFIG_SUPPORT_71;
+}
+
 #endif

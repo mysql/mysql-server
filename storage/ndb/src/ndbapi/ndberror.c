@@ -317,7 +317,9 @@ ErrorBundle ErrorCodes[] = {
    */
   { 281,  HA_ERR_NO_CONNECTION, AE, "Operation not allowed due to cluster shutdown in progress" },
   { 299,  DMEC, AE, "Operation not allowed or aborted due to single user mode" },
-  { 763,  DMEC, AE, "Alter table requires cluster nodes to have exact same version" },
+  { 261,  DMEC, AE,
+    "DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction" },
+  { 763,  DMEC, AE, "DDL is not supported with mixed data-node versions" },
   { 823,  DMEC, AE, "Too much attrinfo from application in tuple manager" },
   { 829,  DMEC, AE, "Corrupt data received for insert/update" },
   { 831,  DMEC, AE, "Too many nullable/bitfields in table definition" },
@@ -540,12 +542,13 @@ ErrorBundle ErrorCodes[] = {
   /*
    * Index stats error codes
    */
-  { 4714, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " are invalid" },
+  { 4714, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " do not exist" },
   { 4715, DMEC, AE, "Index stats for specified index do not exist" },
   { 4716, DMEC, AE, "Index stats methods usage error" },
   { 4717, DMEC, AE, "Index stats cannot allocate memory" },
   { 4718, DMEC, IE, "Index stats memory cache is corrupted" },
   { 4719, DMEC, IE, "Index stats internal error" },
+  { 4720, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " partly missing or invalid" },
   
   /**
    * Still uncategorized

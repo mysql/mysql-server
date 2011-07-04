@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@ ADD_SUBDIRECTORY(signaldata)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_LIBRARY(ndbtrace STATIC
+ADD_CONVENIENCE_LIBRARY(ndbtrace
             SignalLoggerManager.cpp
             DebuggerNames.cpp
             BlockNames.cpp
@@ -26,4 +26,4 @@ ADD_LIBRARY(ndbtrace STATIC
             ${NDB_SOURCE_DIR}/src/kernel/error/ndbd_exit_codes.c
 )
 
-TARGET_LINK_LIBRARIES(ndbtrace ndblogger ndbgeneral)
+TARGET_LINK_LIBRARIES(ndbtrace ndbsignaldata ndblogger ndbgeneral)

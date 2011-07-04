@@ -226,9 +226,13 @@
  * counted as 1 word.  Values currently contain RIR (one word) and RPK
  * (one word for each key level).  The SAMPLEs table STAT_VALUE column
  * is longer to allow future changes.
+ *
+ * Stats tables are "lifted" to mysql level so for max key size use
+ * MAX_KEY_LENGTH/4 instead of the bigger MAX_KEY_SIZE_IN_WORDS.  The
+ * definition is not available by default, use 3072 directly now.
  */
 #define MAX_INDEX_STAT_KEY_COUNT    MAX_ATTRIBUTES_IN_INDEX
-#define MAX_INDEX_STAT_KEY_SIZE     (MAX_KEY_SIZE_IN_WORDS - 3 - 1)
+#define MAX_INDEX_STAT_KEY_SIZE     ((3072/4) - 3 - 1)
 #define MAX_INDEX_STAT_VALUE_COUNT  (1 + MAX_INDEX_STAT_KEY_COUNT)
 #define MAX_INDEX_STAT_VALUE_SIZE   MAX_INDEX_STAT_VALUE_COUNT
 #define MAX_INDEX_STAT_VALUE_CSIZE  512 /* Longvarbinary(2048) */

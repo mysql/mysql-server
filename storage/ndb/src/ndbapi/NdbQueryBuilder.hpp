@@ -24,7 +24,6 @@
 // skip includes...and require them to be included first
 // BUH!
 
-class Ndb;
 class NdbQueryDef;
 class NdbQueryDefImpl;
 class NdbQueryBuilderImpl;
@@ -358,9 +357,8 @@ private:
  *   build phase.
  *
  * - The NdbQueryDef produced by the ::prepare() method has a lifetime 
- *   determined by the Ndb object, or until it is explicit released by
- *   NdbQueryDef::release()
- *  
+ *   until it is explicit released by NdbQueryDef::release()
+ *
  */
 class NdbQueryBuilder 
 {
@@ -380,7 +378,7 @@ public:
    * Allocate an instance.
    * @return New instance, or NULL if allocation failed.
    */
-  static NdbQueryBuilder* create(Ndb& ndb);
+  static NdbQueryBuilder* create();
 
   /**
    * Release this object and any resources held by it.
@@ -478,17 +476,11 @@ private:
  * NdbQueryDef represents a ::prepare()'d object from NdbQueryBuilder.
  *
  * The NdbQueryDef is reusable in the sense that it may be executed multiple
- * times. Its lifetime is defined by the Ndb object which it was created with,
- * or it may be explicitely released() when no longer required.
+ * times. It is valid until it is explicitely released().
  *
  * The NdbQueryDef *must* be keept alive until the last thread
- * which executing a query based on this NdbQueryDef has completed execution 
- * *and* result handling. Used from multiple threads this implies either:
- *
- *  - Keep the NdbQueryDef until all threads terminates.
- *  - Implement reference counting on the NdbQueryDef.
- *  - Use the supplied copy constructor to give each thread its own copy
- *    of the NdbQueryDef.
+ * which executing a query based on this NdbQueryDef has called
+ * NdbQuery::close().
  *
  * A NdbQueryDef is scheduled for execution by appending it to an open 
  * transaction - optionally together with a set of parameters specifying 
@@ -501,6 +493,15 @@ class NdbQueryDef
 
 public:
 
+  /**
+   * The different types of query types supported
+   */
+  enum QueryType {
+    LookupQuery,     ///< All operations are PrimaryKey- or UniqueIndexAccess
+    SingleScanQuery, ///< Root is Table- or OrderedIndexScan, childs are 'lookup'
+    MultiScanQuery   ///< Root, and some childs are scans
+  };
+
   Uint32 getNoOfOperations() const;
 
   // Get a specific NdbQueryOperationDef by ident specified
@@ -511,6 +512,9 @@ public:
   // A scan query may return multiple rows, and may be ::close'ed when
   // the client has completed access to it.
   bool isScanQuery() const;
+
+  // Return the 'enum QueryType' as defined above.
+  QueryType getQueryType() const;
 
   // Remove this NdbQueryDef including operation and operands it contains
   void destroy() const;

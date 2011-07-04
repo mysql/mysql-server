@@ -1,5 +1,5 @@
-/* Copyright (c) 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/*
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef Defragger_H
 #define Defragger_H
@@ -61,7 +62,14 @@ class Defragger {
 
 public:
   Defragger() {};
-  ~Defragger() {};
+  ~Defragger()
+  {
+    for (size_t i = m_buffers.size(); i > 0; --i)
+    {
+      delete m_buffers[i-1]; // free the memory of the fragment
+    }
+    // m_buffers will be freed by ~Vector
+  };
 
   /*
     return true when complete signal received
@@ -113,13 +121,12 @@ public:
     clear any unassembled signal buffers from node
   */
   void node_failed(NodeId nodeId) {
-    for (size_t i = 0; i < m_buffers.size(); i++)
+    for (size_t i = m_buffers.size(); i > 0; --i)
     {
-      DefragBuffer* dbuf = m_buffers[i];
-      if (dbuf->m_node_id == nodeId)
+      if (m_buffers[i-1]->m_node_id == nodeId)
       {
-        delete dbuf; // MASV ?
-        m_buffers.erase(i);
+        delete m_buffers[i]; // free the memory of the signal fragment
+	m_buffers.erase(i); // remove the reference from the vector.
       }
     }
   }

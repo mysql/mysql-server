@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/mgmsrv
 )
 ADD_DEFINITIONS(-DNDB_MGMAPI)
-ADD_LIBRARY(ndbmgmapi STATIC
+ADD_CONVENIENCE_LIBRARY(ndbmgmapi
             mgmapi.cpp
             mgmapi_error.c
             ndb_logevent.cpp

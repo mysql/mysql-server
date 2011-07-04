@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ NdbBackup::clearOldBackups()
      * Clear old backup files
      */ 
     BaseString tmp;
-    tmp.assfmt("ssh -v %s rm -rf %s/BACKUP", host, path);
+    tmp.assfmt("ssh %s rm -rf %s/BACKUP", host, path);
   
     ndbout << "buf: "<< tmp.c_str() <<endl;
     int res = system(tmp.c_str());  
@@ -107,6 +107,7 @@ loop:
     {
       NdbSleep_SecSleep(3);
       _backup_id += 100;
+      user_backup_id += 100;
       goto loop;
     }
     

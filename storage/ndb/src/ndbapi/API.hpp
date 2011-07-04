@@ -35,6 +35,8 @@
 #include <NdbIndexOperation.hpp>
 #include <NdbScanOperation.hpp>
 #include <NdbIndexScanOperation.hpp>
+#include <NdbIndexStat.hpp>
+#include "NdbIndexStatImpl.hpp"
 #include <NdbRecAttr.hpp>
 #include <NdbReceiver.hpp>
 #include <NdbBlob.hpp>

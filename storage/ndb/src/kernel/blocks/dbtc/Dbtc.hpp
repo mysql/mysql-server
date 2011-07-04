@@ -140,6 +140,7 @@
 #define ZUNLOCKED_IVAL_TOO_HIGH 294
 #define ZUNLOCKED_OP_HAS_BAD_STATE 295 
 #define ZBAD_DIST_KEY 298
+#define ZTRANS_TOO_BIG 261
 #endif
 
 class Dbtc: public SimulatedBlock {
@@ -722,6 +723,7 @@ public:
     };
 
     Uint32 no_commit_ack_markers;
+    Uint32 m_write_count;
     ReturnSignal returnsignal;
     AbortState abortState;
 
@@ -2102,6 +2104,7 @@ private:
   Uint32 c_lastFailedApi;
 #endif
   Uint32 m_deferred_enabled;
+  Uint32 m_max_writes_per_trans;
 };
 
 #endif

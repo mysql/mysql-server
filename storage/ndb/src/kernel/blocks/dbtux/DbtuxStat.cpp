@@ -22,18 +22,6 @@
 // debug note: uses new-style debug macro "D" unlike rest of DBTUX
 // there is no filtering feature (yet) like "DebugStat"
 
-#ifdef VM_TRACE
-inline NdbOut&
-NdbOut::operator<<(double x)
-{
-  NdbOut& out = *this;
-  char buf[100];
-  snprintf(buf, sizeof(buf), "%.02f", x);
-  out << buf;
-  return out;
-}
-#endif
-
 void
 Dbtux::execREAD_PSEUDO_REQ(Signal* signal)
 {

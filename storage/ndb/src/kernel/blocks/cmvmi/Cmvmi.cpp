@@ -44,6 +44,7 @@
 #include <signaldata/Sync.hpp>
 #include <signaldata/AllocMem.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
+#include <signaldata/GetConfig.hpp>
 
 #include <EventLogger.hpp>
 #include <TimeQueue.hpp>
@@ -123,6 +124,8 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
   addRecSignal(GSN_ALLOC_MEM_REF, &Cmvmi::execALLOC_MEM_REF);
   addRecSignal(GSN_ALLOC_MEM_CONF, &Cmvmi::execALLOC_MEM_CONF);
+
+  addRecSignal(GSN_GET_CONFIG_REQ, &Cmvmi::execGET_CONFIG_REQ);
 
   subscriberPool.setSize(5);
   c_syncReqPool.setSize(5);
@@ -3170,4 +3173,58 @@ Cmvmi::execROUTE_ORD(Signal* signal)
   releaseSections(handle);
   warningEvent("Unable to route GSN: %d from %x to %x",
 	       gsn, srcRef, dstRef);
+}
+
+
+void Cmvmi::execGET_CONFIG_REQ(Signal *signal)
+{
+  jamEntry();
+  const GetConfigReq* const req = (const GetConfigReq *)signal->getDataPtr();
+
+  Uint32 error = 0;
+  Uint32 retRef = req->senderRef; // mgm servers ref
+
+  if (retRef != signal->header.theSendersBlockRef)
+  {
+    error = GetConfigRef::WrongSender;
+  }
+
+  if (req->nodeId != getOwnNodeId())
+  {
+    error = GetConfigRef::WrongNodeId;
+  }
+
+  const Uint32 config_length = m_ctx.m_config.m_clusterConfigPacked.length();
+  if (config_length == 0)
+  {
+    error = GetConfigRef::NoConfig;
+  }
+
+  if (error)
+  {
+    warningEvent("execGET_CONFIG_REQ: failed %u", error);
+    GetConfigRef *ref = (GetConfigRef *)signal->getDataPtrSend();
+    ref->error = error;
+    sendSignal(retRef, GSN_GET_CONFIG_REF, signal,
+               GetConfigRef::SignalLength, JBB);
+    return;
+  }
+
+  const Uint32 nSections= 1;
+  LinearSectionPtr ptr[3];
+  ptr[0].p = (Uint32*)(m_ctx.m_config.m_clusterConfigPacked.get_data());
+  ptr[0].sz = (config_length + 3) / 4;
+
+  GetConfigConf *conf = (GetConfigConf *)signal->getDataPtrSend();
+
+  conf->configLength = config_length;
+
+  sendFragmentedSignal(retRef,
+                       GSN_GET_CONFIG_CONF,
+                       signal,
+                       GetConfigConf::SignalLength,
+                       JBB,
+                       ptr,
+                       nSections,
+                       TheEmptyCallback);
 }

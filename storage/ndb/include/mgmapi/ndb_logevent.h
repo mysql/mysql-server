@@ -371,6 +371,7 @@ extern "C" {
     unsigned version;
   };
   struct ndb_logevent_STTORRYRecieved {
+    unsigned unused;
   };
   struct ndb_logevent_StartPhaseCompleted {
     unsigned phase;
@@ -407,6 +408,7 @@ extern "C" {
     unsigned extra;
   };
   struct ndb_logevent_NDBStopAborted {
+    unsigned _unused;
   };
   struct ndb_logevent_StartREDOLog {
     unsigned node;
@@ -436,8 +438,10 @@ extern "C" {
   
   /* NODERESTART */
   struct ndb_logevent_NR_CopyDict {
+    unsigned _unused;
   };
   struct ndb_logevent_NR_CopyDistr {
+    unsigned _unused;
   };
   struct ndb_logevent_NR_CopyFragsStarted {
     unsigned dest_node;
@@ -475,10 +479,13 @@ extern "C" {
     /* TODO */
   };
   struct ndb_logevent_GCP_TakeoverStarted {
+    unsigned _unused;
   };
   struct ndb_logevent_GCP_TakeoverCompleted {
+    unsigned _unused;
   };
   struct ndb_logevent_LCP_TakeoverStarted {
+    unsigned _unused;
   };
   struct ndb_logevent_LCP_TakeoverCompleted {
     unsigned state;
@@ -561,6 +568,7 @@ extern "C" {
   };
   struct ndb_logevent_WarningEvent {
     /* TODO */
+    unsigned _unused;
   };
 
   /* INFO */
@@ -572,6 +580,7 @@ extern "C" {
   };
   struct ndb_logevent_InfoEvent {
     /* TODO */
+    unsigned _unused;
   };
   struct ndb_logevent_EventBufferStatus {
     unsigned usage;
@@ -722,21 +731,21 @@ extern "C" {
     unsigned objectid;
     unsigned version;
     unsigned type;
-    unsigned node; // Node create object
+    unsigned node; /* Node create object */
   };
 
   struct ndb_logevent_AlterSchemaObject {
     unsigned objectid;
     unsigned version;
     unsigned type;
-    unsigned node; // Node create object
+    unsigned node; /* Node create object */
   };
 
   struct ndb_logevent_DropSchemaObject {
     unsigned objectid;
     unsigned version;
     unsigned type;
-    unsigned node; // Node create object
+    unsigned node; /* Node create object */
   };
 
   struct ndb_logevent_StartReadLCP {

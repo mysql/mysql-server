@@ -2348,6 +2348,30 @@ public:
      */
     int dropIndex(const char * indexName,
 		  const char * tableName);
+
+    /*
+     * Force update of ordered index stats.  Scans an assigned fragment
+     * in the kernel and updates result in stats tables.  This one-time
+     * update is independent of IndexStatAuto settings.  Common use case
+     * is mysql "analyze table".
+     */
+    int updateIndexStat(const Index&, const Table&);
+
+    /*
+     * Force update of ordered index stats where index is given by id.
+     */
+    int updateIndexStat(Uint32 indexId, Uint32 indexVersion, Uint32 tableId);
+
+    /*
+     * Delete ordered index stats.  If IndexStatAutoUpdate is set, also
+     * stops automatic updates, until another forced update is done.
+     */
+    int deleteIndexStat(const Index&, const Table&);
+
+    /*
+     * Delete ordered index stats where index is given by id.
+     */
+    int deleteIndexStat(Uint32 indexId, Uint32 indexVersion, Uint32 tableId);
     
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void removeCachedTable(const Table *table);
