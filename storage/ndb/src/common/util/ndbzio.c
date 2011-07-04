@@ -167,8 +167,10 @@ void ndbz_free(voidpf opaque, voidpf address)
 }
 
 #ifdef _WIN32
-/* Windows doesn't define ENOTSUP, define it same as Solaris */
+#ifndef ENOTSUP
+/* If Windows doesn't define ENOTSUP, define it same as Solaris */
 #define ENOTSUP 48
+#endif
 #endif
 
 #ifndef HAVE_POSIX_MEMALIGN

@@ -268,6 +268,10 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_INDEX_STAT_IMPL_REF, printINDEX_STAT_IMPL_REF }
   ,{ GSN_INDEX_STAT_REP, printINDEX_STAT_REP }
 
+  ,{ GSN_GET_CONFIG_REQ, printGET_CONFIG_REQ }
+  ,{ GSN_GET_CONFIG_REF, printGET_CONFIG_REF }
+  ,{ GSN_GET_CONFIG_CONF, printGET_CONFIG_CONF }
+
   ,{ 0, 0 }
 };
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,7 +94,8 @@ extern "C" {
   struct ndb_mgm_configuration *
   ndb_mgm_get_configuration2(NdbMgmHandle handle,
                              unsigned version,
-                             enum ndb_mgm_node_type nodetype);
+                             enum ndb_mgm_node_type nodetype,
+                             int from_node = 0);
 
 
 #ifdef __cplusplus

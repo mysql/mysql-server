@@ -42,7 +42,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/blocks/cmvmi
 )
 
 SET(NDBD_LIBS ndbblocks ndbkernel ndberror ndbtransport
-    ndbtrace ndbsignaldata ndblogger ndbmgmsrv ndbmgmapi
+    ndbtrace ndbsignaldata ndblogger ndbmgmcommon ndbmgmapi
     ndbportlib ndbgeneral dbug mysys strings
 )
 

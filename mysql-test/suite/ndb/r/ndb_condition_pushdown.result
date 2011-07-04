@@ -1910,7 +1910,7 @@ insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
 12:22:26');
 explain select * from NodeAlias where (aliasKey LIKE '491803%');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NodeAlias	range	NodeAlias_KeyIndex	NodeAlias_KeyIndex	48	NULL	2	Using where with pushed condition
+1	SIMPLE	NodeAlias	range	NodeAlias_KeyIndex	NodeAlias_KeyIndex	48	NULL	3	Using where with pushed condition
 select * from NodeAlias where (aliasKey LIKE '491803%') order by id;
 id	nodeId	displayName	aliasKey	objectVersion	changed
 7	8	491803%	491803%	0	2008-03-10 12:22:26
@@ -2105,46 +2105,46 @@ pk	x
 set engine_condition_pushdown = on;
 explain select * from t where x <> "aa";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	Using where
 select * from t where x <> "aa";
 pk	x
 0	a
 explain select * from t where "aa" <> x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	Using where
 select * from t where "aa" <> x;
 pk	x
 0	a
 explain select * from t where x between "" and "bb";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	Using where
 select * from t where x between "" and "bb";
 pk	x
 0	a
 explain select * from t where x not between "" and "bb";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	Using where
 select * from t where x not between "" and "bb";
 pk	x
 explain select * from t where x in ("","aa","b");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	Using where
 select * from t where x in ("","aa","b");
 pk	x
 explain select * from t where x not in ("","aa","b");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	Using where
 select * from t where x not in ("","aa","b");
 pk	x
 0	a
 explain select * from t where x like "aa?";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where with pushed condition
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	Using where with pushed condition
 select * from t where x like "aa?";
 pk	x
 explain select * from t where x not like "aa?";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	1	Using where with pushed condition
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	Using where with pushed condition
 select * from t where x not like "aa?";
 pk	x
 0	a
@@ -2201,8 +2201,8 @@ primary key (`a`,`b`)
 ) engine = ndb;
 explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`tx`.`c` = 1)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`t2`.`c` = 1); Using join buffer
+1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition: (`test`.`tx`.`c` = 1)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition: (`test`.`t2`.`c` = 1); Using join buffer
 Warnings:
 Note	1003	select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
 explain extended
@@ -2212,7 +2212,7 @@ join tx as t2 on t2.a = tx.a and t2.b = tx.b
 join tx as t3 on t3.a = tx.c and t3.b = tx.d
 join tx as t4 on t4.a = t3.b and t4.b = t2.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tx	ALL	PRIMARY	NULL	NULL	NULL	0	0.00	
+1	SIMPLE	tx	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.tx.a,test.tx.b	1	100.00	
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.tx.c,test.tx.d	1	100.00	
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.tx.d,test.t2.c	1	100.00	
@@ -2231,8 +2231,8 @@ Warnings:
 Note	1003	select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
 explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`tx`.`c` = 1)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`t2`.`c` = 1); Using join buffer
+1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition: (`test`.`tx`.`c` = 1)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition: (`test`.`t2`.`c` = 1); Using join buffer
 Warnings:
 Note	1003	select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
 explain extended
@@ -2256,7 +2256,7 @@ explain extended
 select * from t where exists
 (select * from t as subq where subq.i=3 and t.i=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	4	50.00	Using where
+1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 2	DEPENDENT SUBQUERY	subq	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where with pushed condition: (`test`.`subq`.`i` = 3)
 Warnings:
 Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
@@ -2266,7 +2266,7 @@ select * from t where exists
 (select * from subq where subq.i=3 and t.i=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-2	DEPENDENT SUBQUERY	subq	ALL	NULL	NULL	NULL	NULL	4	50.00	Using where with pushed condition: (`test`.`subq`.`i` = 3)
+2	DEPENDENT SUBQUERY	subq	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where with pushed condition: (`test`.`subq`.`i` = 3)
 Warnings:
 Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where exists(select 1 from `test`.`subq` where ((`test`.`subq`.`i` = 3) and (`test`.`t`.`i` = 3)))

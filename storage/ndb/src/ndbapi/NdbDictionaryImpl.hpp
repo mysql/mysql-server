@@ -641,6 +641,12 @@ public:
   int createIndex(class Ndb & ndb, const NdbIndexImpl &, const NdbTableImpl &,
                   bool offline);
   int dropIndex(const NdbIndexImpl &, const NdbTableImpl &);
+  int doIndexStatReq(class Ndb& ndb,
+                     const NdbIndexImpl&, const NdbTableImpl&,
+                     Uint32 requestType);
+  int doIndexStatReq(class Ndb& ndb,
+                     Uint32 indexId, Uint32 indexVersion, Uint32 tableId,
+                     Uint32 requestType);
   
   int createEvent(class Ndb & ndb, NdbEventImpl &, int getFlag);
   int dropEvent(const NdbEventImpl &);
@@ -735,6 +741,9 @@ private:
   void execCREATE_INDX_CONF(const NdbApiSignal *, const LinearSectionPtr p[3]);
   void execDROP_INDX_REF(const NdbApiSignal *, const LinearSectionPtr ptr[3]);
   void execDROP_INDX_CONF(const NdbApiSignal *, const LinearSectionPtr ptr[3]);
+
+  void execINDEX_STAT_CONF(const NdbApiSignal *, const LinearSectionPtr ptr[3]);
+  void execINDEX_STAT_REF(const NdbApiSignal *, const LinearSectionPtr ptr[3]);
 
   void execCREATE_EVNT_REF(const NdbApiSignal *, const LinearSectionPtr pr[3]);
   void execCREATE_EVNT_CONF(const NdbApiSignal *, const LinearSectionPtr p[3]);
@@ -845,6 +854,11 @@ public:
   int dropIndex(NdbIndexImpl &, const char * tableName);
   NdbTableImpl * getIndexTable(NdbIndexImpl * index, 
 			       NdbTableImpl * table);
+
+  int updateIndexStat(const NdbIndexImpl&, const NdbTableImpl&);
+  int updateIndexStat(Uint32 indexId, Uint32 indexVersion, Uint32 tableId);
+  int deleteIndexStat(const NdbIndexImpl&, const NdbTableImpl&);
+  int deleteIndexStat(Uint32 indexId, Uint32 indexVersion, Uint32 tableId);
 
   int createEvent(NdbEventImpl &);
   int createBlobEvents(NdbEventImpl &);

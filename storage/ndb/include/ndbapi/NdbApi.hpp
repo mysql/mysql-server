@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +27,7 @@
 #include "NdbScanOperation.hpp"
 #include "NdbIndexOperation.hpp"
 #include "NdbIndexScanOperation.hpp"
+#include "NdbIndexStat.hpp"
 #include "NdbInterpretedCode.hpp"
 #include "NdbScanFilter.hpp"
 #include "NdbRecAttr.hpp"

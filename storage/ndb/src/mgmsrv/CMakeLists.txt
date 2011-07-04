@@ -18,7 +18,7 @@ INCLUDE_DIRECTORIES(
   ${NDB_SOURCE_DIR}/src/ndbapi
   ${NDB_SOURCE_DIR}/src/mgmclient)
 
-ADD_LIBRARY(ndbconf
+ADD_CONVENIENCE_LIBRARY(ndbconf
                Config.cpp
                ConfigInfo.cpp
                InitConfigFileParser.cpp

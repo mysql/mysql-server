@@ -1694,50 +1694,50 @@ Trix::execINDEX_STAT_IMPL_REQ(Signal* signal)
 
 const Trix::SysColumn
 Trix::g_statMetaHead_column[] = {
-  { 0, "INDEX_ID",
+  { 0, "index_id",
     true
   },
-  { 1, "INDEX_VERSION",
+  { 1, "index_version",
     true
   },
-  { 2, "TABLE_ID",
+  { 2, "table_id",
     false
   },
-  { 3, "FRAG_COUNT",
+  { 3, "frag_count",
     false
   },
-  { 4, "VALUE_FORMAT",
+  { 4, "value_format",
     false
   },
-  { 5, "SAMPLE_VERSION",
+  { 5, "sample_version",
     false
   },
-  { 6, "LOAD_TIME",
+  { 6, "load_time",
     false
   },
-  { 7, "SAMPLE_COUNT",
+  { 7, "sample_count",
     false
   },
-  { 8, "KEY_BYTES",
+  { 8, "key_bytes",
     false
   }
 };
 
 const Trix::SysColumn
 Trix::g_statMetaSample_column[] = {
-  { 0, "INDEX_ID",
+  { 0, "index_id",
     true
   },
-  { 1, "INDEX_VERSION",
+  { 1, "index_version",
     true
   },
-  { 2, "SAMPLE_VERSION",
+  { 2, "sample_version",
     true
   },
-  { 3, "STAT_KEY",
+  { 3, "stat_key",
     true
   },
-  { 4, "STAT_VALUE",
+  { 4, "stat_value",
     false
   }
 };
@@ -1760,7 +1760,8 @@ Trix::g_statMetaSample = {
 
 const Trix::SysIndex
 Trix::g_statMetaSampleX1 = {
-  NDB_INDEX_STAT_DB "/" NDB_INDEX_STAT_SCHEMA "/%u/" NDB_INDEX_STAT_SAMPLE_INDEX1,
+  // indexes are always in "sys"
+  "sys" "/" NDB_INDEX_STAT_SCHEMA "/%u/" NDB_INDEX_STAT_SAMPLE_INDEX1,
   ~(Uint32)0,
   ~(Uint32)0
 };
