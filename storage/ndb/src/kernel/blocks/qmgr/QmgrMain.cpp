@@ -3562,7 +3562,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
       msg = "Start timeout";
       break;
     case FailRep::ZHEARTBEAT_FAILURE:
-      msg = "Hearbeat failure";
+      msg = "Heartbeat failure";
       break;
     case FailRep::ZLINK_FAILURE:
       msg = "Connection failure";

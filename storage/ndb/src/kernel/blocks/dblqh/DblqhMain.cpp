@@ -17202,6 +17202,31 @@ stepNext_2:
     {
       jam();
       logPartPtr.p->invalidatePageNo = logPartPtr.p->headPageNo;
+
+      if (! ((cstartType == NodeState::ST_INITIAL_START) ||
+             (cstartType == NodeState::ST_INITIAL_NODE_RESTART)))
+      {
+        jam();
+        if (logFilePtr.i == logPartPtr.p->lastLogfile)
+        {
+          jam();
+          Uint32 lastMbytePageNo =
+            logPartPtr.p->lastMbyte << ZTWOLOG_NO_PAGES_IN_MBYTE;
+          if (logPartPtr.p->invalidatePageNo < lastMbytePageNo)
+          {
+            jam();
+            if (DEBUG_REDO)
+            {
+              ndbout_c("readFileInInvalidate part: %u step: %u moving invalidatePageNo from %u to %u (lastMbyte)",
+                       logPartPtr.i,
+                       stepNext,
+                       logPartPtr.p->invalidatePageNo,
+                       lastMbytePageNo);
+            }
+            logPartPtr.p->invalidatePageNo = lastMbytePageNo;
+          }
+        }
+      }
       readFileInInvalidate(signal, 1);
       return;
     }
