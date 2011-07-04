@@ -4709,7 +4709,8 @@ requires_clust_rec:
 	    && !prebuilt->clust_index_was_generated
 	    && !prebuilt->used_in_HANDLER
 	    && prebuilt->template_type
-	    != ROW_MYSQL_DUMMY_TEMPLATE) {
+	    != ROW_MYSQL_DUMMY_TEMPLATE
+	    && !prebuilt->result) {
 
 		/* Inside an update, for example, we do not cache rows,
 		since we may use the cursor position to do the actual

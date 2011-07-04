@@ -10215,6 +10215,13 @@ ha_innobase::external_lock(
 
 			read_view_close_for_mysql(trx);
 		}
+
+		/* Make sure prebuilt->result is freed. It is usually freed
+		in innobase_fts_close_ranking(). */
+		if (prebuilt->result != NULL) {
+			fts_query_free_result(prebuilt->result);
+			prebuilt->result = NULL;
+		}
 	}
 
 	DBUG_RETURN(0);
