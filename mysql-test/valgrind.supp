@@ -891,3 +891,15 @@
    fun:packfrm
 }
 
+{
+   NDB packfrm case 2
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:compress
+   fun:my_compress_alloc
+   fun:my_compress
+   fun:packfrm
+}
+
