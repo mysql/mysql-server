@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1410,6 +1410,86 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runCloseRefresh(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb * pNdb = GETNDB(step);
+
+  const Uint32 codeWords= 1;
+  Uint32 codeSpace[ codeWords ];
+  NdbInterpretedCode code(NULL, // Table is irrelevant
+                          &codeSpace[0],
+                          codeWords);
+  if ((code.interpret_exit_last_row() != 0) ||
+      (code.finalise() != 0))
+  {
+    ERR(code.getNdbError());
+    return NDBT_FAILED;
+  }
+
+  const NdbDictionary::Table*  pTab = ctx->getTab();
+  NdbTransaction* pTrans = pNdb->startTransaction();
+  NdbScanOperation* pOp = pTrans->getNdbScanOperation(pTab->getName());
+  if (pOp == NULL)
+  {
+    ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  if (pOp->readTuples(NdbOperation::LM_CommittedRead) != 0)
+  {
+    ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  if (pOp->setInterpretedCode(&code) == -1 )
+  {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
+  {
+    ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  pTrans->execute(NdbTransaction::NoCommit);
+  pOp->close(); // close this
+
+  pOp = pTrans->getNdbScanOperation(pTab->getName());
+  if (pOp == NULL)
+  {
+    ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  if (pOp->readTuples(NdbOperation::LM_CommittedRead) != 0)
+  {
+    ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  if (pOp->setInterpretedCode(&code) == -1 )
+  {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
+  {
+    ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  pTrans->execute(NdbTransaction::NoCommit);
+  pTrans->refresh();
+  pTrans->close();
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -1935,6 +2015,10 @@ TESTCASE("Bug42559", "")
   FINALIZER(createOrderedPkIndex_Drop);
   FINALIZER(finalizeBug42559);
   FINALIZER(runClearTable);
+}
+TESTCASE("CloseRefresh", "")
+{
+  INITIALIZER(runCloseRefresh);
 }
 TESTCASE("Bug54945", "")
 {

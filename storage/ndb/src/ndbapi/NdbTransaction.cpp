@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -812,7 +812,10 @@ int NdbTransaction::refresh()
       scan_op != 0; scan_op = (NdbIndexScanOperation *) scan_op->theNext)
   {
     NdbTransaction* scan_trans = scan_op->theNdbCon;
-    scan_trans->sendTC_HBREP();
+    if (scan_trans)
+    {
+      scan_trans->sendTC_HBREP();
+    }
   }
   return sendTC_HBREP();
 }
