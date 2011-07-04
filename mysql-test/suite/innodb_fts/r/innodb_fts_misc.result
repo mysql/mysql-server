@@ -527,3 +527,107 @@ id	a	b
 5	aab MySQL vs. YourSQL	In the following database comparison ...
 6	aaa MySQL Security	When configured properly, MySQL ...
 DROP TABLE t1;
+drop table if exists t2,t1;
+set names utf8;
+CREATE TABLE t1 (
+id1 INT ,
+a1 VARCHAR(200) PRIMARY KEY,
+b1 TEXT ,
+FULLTEXT KEY (a1,b1)
+) CHARACTER SET = utf8 , ENGINE = InnoDB;
+CREATE TABLE t2 (
+id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a2 VARCHAR(200),
+b2 TEXT ,
+FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
+FULLTEXT KEY (b2,a2)
+) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+INSERT INTO t1 (id1,a1,b1) VALUES
+(1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+(2,'How To Use MySQL Well','After you went through a ...'),
+(3,'Optimizing MySQL','In this tutorial we will show ...');
+INSERT INTO t1 (id1,a1,b1) VALUES
+(4,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+(5,'MySQL vs. YourSQL','In the following database comparison ...'),
+(6,'MySQL Security','When configured properly, MySQL ...');
+INSERT INTO t2 (a2,b2) VALUES
+('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...');
+INSERT INTO t2 (a2,b2) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+INSERT INTO t2 (a2,b2) VALUES
+('MySQL Tricks','1. Never run mysqld as root. 2. ...');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
+DELETE FROM t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ;
+id1	a1	b1
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ;
+id2	a2	b2
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+id1	a1	b1
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+id2	a2	b2
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+id1	a1	b1
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+id2	a2	b2
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+id1	a1	b1
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+id2	a2	b2
+UPDATE t1 SET a1 = "changing column - on update cascade" , b1 = "to check foreign constraint" WHERE
+MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+id1	a1	b1
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+id2	a2	b2
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
+id1	a1	b1
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
+id2	a2	b2
+SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
+id2	a2	b2
+DROP TABLE t2 , t1;
+CREATE TABLE t1 (
+id1 INT ,
+a1 VARCHAR(200) PRIMARY KEY,
+b1 TEXT character set utf8 ,
+FULLTEXT KEY (a1,b1)
+) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+CREATE TABLE t2 (
+id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a2 VARCHAR(200),
+b2 TEXT character set utf8 ,
+FOREIGN KEY (a2) REFERENCES t1(a1) ON DELETE CASCADE,
+FULLTEXT KEY (b2,a2)
+) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+INSERT INTO t1 (id1,a1,b1) VALUES
+(1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+(2,'How To Use MySQL Well','After you went through a ...'),
+(3,'Optimizing MySQL','In this tutorial we will show ...'),
+(4,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+(5,'MySQL vs. YourSQL','In the following database comparison ...'),
+(6,'MySQL Security','When configured properly, MySQL ...');
+INSERT INTO t2 (a2,b2) VALUES
+('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+DELETE FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+id1	a1	b1
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+id2	a2	b2
+SELECT * FROM t1 WHERE a1 LIKE '%tutorial%';
+id1	a1	b1
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+SELECT * FROM t2 WHERE a2 LIKE '%tutorial%';
+id2	a2	b2
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+DROP TABLE t2 , t1;

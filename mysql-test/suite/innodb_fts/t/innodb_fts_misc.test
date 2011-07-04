@@ -503,3 +503,144 @@ select * from t1 where match(a,b) against ('aaa')
                 or    match(a,b) against ('aac'); 
 
 DROP TABLE t1;
+
+
+#------------------------------------------------------------------------------
+# FTS with FK and update casecade
+#-------------------------------------------------------------------------------
+--disable_warnings
+drop table if exists t2,t1;
+--enable_warnings
+
+set names utf8;
+
+# Create FTS table
+CREATE TABLE t1 (
+        id1 INT ,
+        a1 VARCHAR(200) PRIMARY KEY,
+        b1 TEXT ,
+        FULLTEXT KEY (a1,b1)
+        ) CHARACTER SET = utf8 , ENGINE = InnoDB;
+
+CREATE TABLE t2 (
+        id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a2 VARCHAR(200),
+        b2 TEXT ,
+        FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
+        FULLTEXT KEY (b2,a2)
+        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 (id1,a1,b1) VALUES
+        (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        (2,'How To Use MySQL Well','After you went through a ...'),
+        (3,'Optimizing MySQL','In this tutorial we will show ...');
+
+# Insert rows
+INSERT INTO t1 (id1,a1,b1) VALUES
+        (4,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        (5,'MySQL vs. YourSQL','In the following database comparison ...'),
+        (6,'MySQL Security','When configured properly, MySQL ...');
+
+# Insert rows in t2 fk table
+INSERT INTO t2 (a2,b2) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...');
+
+# Insert rows t2 fk table
+INSERT INTO t2 (a2,b2) VALUES
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+# error on violating fk constraint
+--error 1452
+INSERT INTO t2 (a2,b2) VALUES
+        ('MySQL Tricks','1. Never run mysqld as root. 2. ...');
+
+# error on delete from parent table
+--error 1451
+DELETE FROM t1;
+
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ;
+
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+
+
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+
+# Updating parent table hence child table should get updated due to 'update cascade' clause
+UPDATE t1 SET a1 = "changing column - on update cascade" , b1 = "to check foreign constraint" WHERE
+MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+
+# no records expected
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+# child table shows records which is incorrect
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+
+# it shows updated record
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
+# child table does not show the expected record
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
+
+DROP TABLE t2 , t1;
+
+
+#------------------------------------------------------------------------------
+# FTS with FK and delete casecade
+#------------------------------------------------------------------------------
+
+# Create FTS table
+CREATE TABLE t1 (
+        id1 INT ,
+        a1 VARCHAR(200) PRIMARY KEY,
+        b1 TEXT character set utf8 ,
+        FULLTEXT KEY (a1,b1)
+        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+
+CREATE TABLE t2 (
+        id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a2 VARCHAR(200),
+        b2 TEXT character set utf8 ,
+        FOREIGN KEY (a2) REFERENCES t1(a1) ON DELETE CASCADE,
+        FULLTEXT KEY (b2,a2)
+        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 (id1,a1,b1) VALUES
+        (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        (2,'How To Use MySQL Well','After you went through a ...'),
+        (3,'Optimizing MySQL','In this tutorial we will show ...'),
+        (4,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        (5,'MySQL vs. YourSQL','In the following database comparison ...'),
+        (6,'MySQL Security','When configured properly, MySQL ...');
+
+# Insert rows in t2
+INSERT INTO t2 (a2,b2) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...'),
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+# delete records from parent
+DELETE FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+
+# no records expected
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+
+SELECT * FROM t1 WHERE a1 LIKE '%tutorial%';
+SELECT * FROM t2 WHERE a2 LIKE '%tutorial%';
+
+DROP TABLE t2 , t1;
+
