@@ -2732,7 +2732,7 @@ Item_func_if::fix_length_and_dec()
   bool null1=args[1]->const_item() && args[1]->null_value;
   bool null2=args[2]->const_item() && args[2]->null_value;
 
-  if (null1)
+  if (null1 && args[2]->type() != NULL_ITEM)
   {
     cached_result_type= arg2_type;
     collation.set(args[2]->collation);
@@ -2741,7 +2741,7 @@ Item_func_if::fix_length_and_dec()
     return;
   }
 
-  if (null2)
+  if (null2 && args[1]->type() != NULL_ITEM)
   {
     cached_result_type= arg1_type;
     collation.set(args[1]->collation);

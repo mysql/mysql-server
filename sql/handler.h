@@ -1,7 +1,8 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -15,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-   02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Definitions for parameters to do with handler-routines */
 
@@ -2436,7 +2437,9 @@ extern ulong total_ha, total_ha_2pc;
 
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
-plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name);
+handlerton *ha_default_temp_handlerton(THD *thd);
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name, 
+                              bool is_temp_table);
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,

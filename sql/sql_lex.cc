@@ -3113,12 +3113,12 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
     }
     if (*conds)
     {
-      prep_where= *conds;
+      prep_where= (*conds)->real_item();
       *conds= where= prep_where->copy_andor_structure(thd);
     }
     if (*having_conds)
     {
-      prep_having= *having_conds;
+      prep_having= (*having_conds)->real_item();
       *having_conds= having= prep_having->copy_andor_structure(thd);
     }
     fix_prepare_info_in_table_list(thd, table_list.first);
