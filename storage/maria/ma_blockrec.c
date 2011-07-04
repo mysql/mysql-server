@@ -1019,7 +1019,7 @@ make_space_for_directory(MARIA_HA *info,
           UNDO of DELETE (in which case we know the row was on the
           page before) or if the bitmap told us there was space on page
         */
-        DBUG_ASSERT(0);
+        DBUG_ASSERT(!maria_assert_if_crashed_table);
         return(1);
       }
     }
@@ -1776,6 +1776,7 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
   DBUG_RETURN(0);
 
 crashed:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);  /* File crashed */
   DBUG_RETURN(1);
 }
@@ -1869,6 +1870,7 @@ static my_bool get_rowpos_in_head_or_tail_page(MARIA_HA *info,
   DBUG_RETURN(0);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);  /* File crashed */
   DBUG_RETURN(1);
 }
@@ -2755,7 +2757,7 @@ static my_bool write_block_record(MARIA_HA *info,
       DBUG_ASSERT(length <= column->length);
       break;
     default:                                    /* Wrong data */
-      DBUG_ASSERT(0);
+      DBUG_ASSERT(!maria_assert_if_crashed_table);
       length=0;
       break;
     }
@@ -3418,6 +3420,7 @@ static my_bool write_block_record(MARIA_HA *info,
   DBUG_RETURN(0);
 
 crashed:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   /* Something was wrong with data on page */
   _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
 
@@ -3812,6 +3815,7 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   DBUG_RETURN(0);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   DBUG_PRINT("error", ("errpos: %d", errpos));
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
@@ -3952,6 +3956,7 @@ static my_bool _ma_update_at_original_place(MARIA_HA *info,
   DBUG_RETURN(0);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   _ma_mark_file_crashed(share);
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
@@ -4333,6 +4338,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
   DBUG_RETURN(0);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   _ma_bitmap_flushable(info, -1);
   _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
   DBUG_RETURN(1);
@@ -4533,6 +4539,7 @@ static uchar *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
 
 
 crashed:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
   DBUG_PRINT("error", ("wrong extent information"));
   DBUG_RETURN(0);
@@ -4680,6 +4687,7 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
     if (!info->trn)
     {
       /* File crashed */
+      DBUG_ASSERT(!maria_assert_if_crashed_table);
       _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
       DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
     }
@@ -4961,6 +4969,7 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
   DBUG_RETURN(0);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   /* Something was wrong with data on record */
   DBUG_PRINT("error", ("Found record with wrong data"));
   _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
@@ -5100,6 +5109,7 @@ int _ma_read_block_record(MARIA_HA *info, uchar *record,
   DBUG_ASSERT((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == HEAD_PAGE);
   if (!(data= get_record_position(buff, block_size, offset, &end_of_data)))
   {
+    DBUG_ASSERT(!maria_assert_if_crashed_table);
     DBUG_PRINT("error", ("Wrong directory entry in data block"));
     my_errno= HA_ERR_RECORD_DELETED;           /* File crashed */
     DBUG_RETURN(HA_ERR_RECORD_DELETED);
@@ -5330,7 +5340,7 @@ restart_record_read:
 #ifdef SANITY_CHECKS
       if (info->scan.dir < info->scan.dir_end)
       {
-        DBUG_ASSERT(0);
+        DBUG_ASSERT(!maria_assert_if_crashed_table);
         goto err;
       }
 #endif
@@ -5442,7 +5452,7 @@ restart_bitmap_scan:
   /* Read next bitmap */
   info->scan.bitmap_page+= share->bitmap.pages_covered;
   filepos= (my_off_t) info->scan.bitmap_page * block_size;
-  if (unlikely(filepos >= share->state.state.data_file_length))
+  if (unlikely(info->scan.bitmap_page >= info->scan.max_page))
   {
     DBUG_PRINT("info", ("Found end of file"));
     DBUG_RETURN((my_errno= HA_ERR_END_OF_FILE));
@@ -5460,6 +5470,7 @@ restart_bitmap_scan:
   goto restart_bitmap_scan;
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   DBUG_PRINT("error", ("Wrong data on page"));
   _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
   DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
@@ -6391,7 +6402,7 @@ err:
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                              LSN_IMPOSSIBLE, 0, FALSE);
   _ma_mark_file_crashed(share);
-  DBUG_ASSERT(0); /* catch recovery errors early */
+  DBUG_ASSERT(!maria_assert_if_crashed_table); /* catch recovery error early */
   DBUG_RETURN((my_errno= error));
 }
 
@@ -6494,7 +6505,7 @@ err:
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                            LSN_IMPOSSIBLE, 0, FALSE);
   _ma_mark_file_crashed(share);
-  DBUG_ASSERT(0);
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   DBUG_RETURN((my_errno= error));
 
 }
@@ -6566,7 +6577,7 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info,
       {
         pthread_mutex_unlock(&share->bitmap.bitmap_lock);
         _ma_mark_file_crashed(share);
-        DBUG_ASSERT(0);
+        DBUG_ASSERT(!maria_assert_if_crashed_table);
         DBUG_RETURN(res);
       }
     }
@@ -6652,7 +6663,7 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
 
 err:
   _ma_mark_file_crashed(share);
-  DBUG_ASSERT(0);
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   DBUG_RETURN(1);
 }
 
@@ -6853,7 +6864,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
 
 err:
   _ma_mark_file_crashed(share);
-  DBUG_ASSERT(0);
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   DBUG_RETURN(1);
 }
 
@@ -6923,6 +6934,7 @@ end:
   DBUG_RETURN(res);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   res= 1;
   _ma_mark_file_crashed(share);
   goto end;
@@ -7161,6 +7173,7 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
   DBUG_RETURN(0);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   _ma_mark_file_crashed(share);
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
@@ -7336,6 +7349,7 @@ end:
   DBUG_RETURN(error);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   error= 1;
   _ma_mark_file_crashed(share);
   goto end;

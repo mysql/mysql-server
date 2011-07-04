@@ -273,6 +273,7 @@ typedef struct st_maria_file_bitmap
 typedef struct st_maria_share
 {					/* Shared between opens */
   MARIA_STATE_INFO state;
+  MARIA_STATE_INFO checkpoint_state;   /* Copy of saved state by checkpoint */
   MARIA_BASE_INFO base;
   MARIA_STATE_HISTORY *state_history;
   MARIA_KEYDEF ft2_keyinfo;		/* Second-level ft-key definition */

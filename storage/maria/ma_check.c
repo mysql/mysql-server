@@ -6088,7 +6088,7 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   (*org_info)->s->state.state.records= info.state->records;
   if (share.state.create_time)
     (*org_info)->s->state.create_time=share.state.create_time;
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
   (*org_info)->s->state.unique= (*org_info)->this_unique= share.state.unique;
 #endif
   (*org_info)->s->state.state.checksum= info.state->checksum;

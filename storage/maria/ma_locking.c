@@ -103,7 +103,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
               rw_unlock(&share->mmap_lock);
           }
 #endif
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
 	  share->state.update_count= info->last_loop= ++info->this_loop;
@@ -303,7 +303,7 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
     {					/* Two threads can't be here */
       olderror= my_errno;               /* Remember last error */
 
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
       /*
         The following only makes sense if we want to be allow two different
         processes access the same table at the same time
@@ -341,7 +341,7 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
 
 int _ma_test_if_changed(register MARIA_HA *info)
 {
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
   MARIA_SHARE *share= info->s;
   if (share->state.process != share->last_process ||
       share->state.unique  != info->last_unique ||

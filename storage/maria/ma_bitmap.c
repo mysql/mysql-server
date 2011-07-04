@@ -176,6 +176,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
                                  PAGECACHE_LOCK_LEFT_UNLOCKED,
                                  PAGECACHE_PIN_LEFT_UNPINNED,
                                  PAGECACHE_WRITE_DELAY, 0, LSN_IMPOSSIBLE);
+    DBUG_ASSERT(!res);
     DBUG_RETURN(res);
   }
   else
@@ -199,6 +200,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
     page_link.unlock= PAGECACHE_LOCK_LEFT_UNLOCKED;
     page_link.changed= 1;
     push_dynamic(&bitmap->pinned_pages, (const uchar*) (void*) &page_link);
+    DBUG_ASSERT(!res);
     DBUG_RETURN(res);
   }
 }
@@ -225,6 +227,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
   uint max_page_size;
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
   uint size= share->block_size;
+  pgcache_page_no_t first_bitmap_with_space;
 #ifndef DBUG_OFF
   /* We want to have a copy of the bitmap to be able to print differences */
   size*= 2;
@@ -266,13 +269,14 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
   pthread_mutex_init(&share->bitmap.bitmap_lock, MY_MUTEX_INIT_SLOW);
   pthread_cond_init(&share->bitmap.bitmap_cond, 0);
 
+  first_bitmap_with_space= share->state.first_bitmap_with_space;
   _ma_bitmap_reset_cache(share);
 
-  if (share->state.first_bitmap_with_space == ~(pgcache_page_no_t) 0)
-  {
-    /* Start scanning for free space from start of file */
-    share->state.first_bitmap_with_space = 0;
-  }
+  /* Restore first_bitmap_with_space if it's resonable */
+  if (first_bitmap_with_space <= (share->state.state.data_file_length /
+                                  share->block_size))
+    share->state.first_bitmap_with_space= first_bitmap_with_space;
+
   return 0;
 }
 
@@ -644,7 +648,8 @@ void _ma_bitmap_delete_all(MARIA_SHARE *share)
 
    @notes
    This is called after we have swapped file descriptors and we want
-   bitmap to forget all cached information
+   bitmap to forget all cached information.
+   It's also called directly after we have opened a file.
 */
 
 void _ma_bitmap_reset_cache(MARIA_SHARE *share)
@@ -660,13 +665,20 @@ void _ma_bitmap_reset_cache(MARIA_SHARE *share)
       We can't read a page yet, as in some case we don't have an active
       page cache yet.
       Pretend we have a dummy, full and not changed bitmap page in memory.
+
+      We set bitmap->page to a value so that if we use it in
+      move_to_next_bitmap() it will point to page 0.
+      (This can only happen if writing to a bitmap page fails)
     */
-    bitmap->page= ~(ulonglong) 0;
+    bitmap->page= ((pgcache_page_no_t) 0) - bitmap->pages_covered;
     bitmap->used_size= bitmap->total_size;
     bfill(bitmap->map, share->block_size, 255);
 #ifndef DBUG_OFF
     memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
 #endif
+
+    /* Start scanning for free space from start of file */
+    share->state.first_bitmap_with_space = 0;
   }
 }
 

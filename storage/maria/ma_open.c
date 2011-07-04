@@ -135,7 +135,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, const char *name,
   info.update= (short) (HA_STATE_NEXT_FOUND+HA_STATE_PREV_FOUND);
   info.opt_flag=READ_CHECK_USED;
   info.this_unique= (ulong) info.dfile.file; /* Uniq number in process */
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
   if (share->data_file_type == COMPRESSED_RECORD)
     info.this_unique= share->state.unique;
   info.this_loop=0;				/* Update counter */
@@ -815,7 +815,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
     _ma_set_index_pagecache_callbacks(&share->kfile, share);
     share->this_process=(ulong) getpid();
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
     share->last_process= share->state.process;
 #endif
     share->base.key_parts=key_parts;
@@ -1470,7 +1470,7 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
 uint _ma_state_info_read_dsk(File file __attribute__((unused)),
                              MARIA_STATE_INFO *state __attribute__((unused)))
 {
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
   uchar	buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
 
   /* trick to detect transactional tables */
