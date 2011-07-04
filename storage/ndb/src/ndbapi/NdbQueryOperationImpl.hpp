@@ -142,7 +142,8 @@ public:
   /** Close query: 
    *  - Release datanode resources,
    *  - Discard pending result sets,
-   *  - optionaly dealloc NdbQuery structures
+   *  - Delete internal buffer and structures for receiving results.
+   *  - Disconnect with NdbQueryDef - it might now be destructed .
    */
   int close(bool forceSend);
 
@@ -191,7 +192,10 @@ public:
 
   /** Get the (transaction independent) definition of this query. */
   const NdbQueryDefImpl& getQueryDef() const
-  { return m_queryDef; }
+  {
+    assert(m_queryDef);
+    return *m_queryDef;
+  }
 
   /** Process TCKEYCONF message. Return true if query is complete. */
   bool execTCKEYCONF();
@@ -213,7 +217,7 @@ public:
    */
   void setStartIndicator()
   { 
-    assert(!m_queryDef.isScanQuery());
+    assert(!getQueryDef().isScanQuery());
     m_startIndicator = true; 
   }
 
@@ -224,7 +228,7 @@ public:
    */
   void setCommitIndicator()
   {  
-    assert(!m_queryDef.isScanQuery());
+    assert(!getQueryDef().isScanQuery());
     m_commitIndicator = true; 
   }
 
@@ -415,7 +419,7 @@ private:
   /** Next query in same transaction.*/
   NdbQueryImpl* m_next;
   /** Definition of this query.*/
-  const NdbQueryDefImpl& m_queryDef;
+  const NdbQueryDefImpl* m_queryDef;
 
   /** Possible error status of this query.*/
   NdbError m_error;

@@ -66,13 +66,17 @@ Ndb_cluster_node_id	#
 Ndb_config_from_host	#
 Ndb_config_from_port	#
 Ndb_conflict_fn_max	#
+Ndb_conflict_fn_max_del_win	#
 Ndb_conflict_fn_old	#
 Ndb_connect_count	#
 Ndb_execute_count	#
+Ndb_index_stat_cache_clean	#
+Ndb_index_stat_cache_query	#
 Ndb_number_of_data_nodes	#
 Ndb_number_of_ready_data_nodes	#
 Ndb_pruned_scan_count	#
 Ndb_scan_count	#
+Ndb_slave_max_replicated_epoch	#
 SHOW GLOBAL VARIABLES LIKE 'ndb\_%';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
@@ -88,6 +92,7 @@ ndb_extra_logging	#
 ndb_force_send	#
 ndb_index_stat_cache_entries	#
 ndb_index_stat_enable	#
+ndb_index_stat_option	#
 ndb_index_stat_update_freq	#
 ndb_log_apply_status	#
 ndb_log_bin	#
@@ -898,8 +903,8 @@ drop table t10,t20;
 #
 # bug #39872 - explain causes segv
 # (ndb_index_stat_enable=1 must be set to trigger bug)
+# index stats v4: do not set, the v2 setting was local
 #
-set ndb_index_stat_enable=1;
 CREATE TABLE `t1` (
 `id` int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (`id`)
@@ -913,8 +918,8 @@ KEY `obj_id` (`obj_id`)
 # here we used to segv
 explain SELECT t1.id FROM t1 INNER JOIN t2 ON t1.id = t2.id WHERE t2.obj_id=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	id,obj_id	obj_id	5	const	1	Using where with pushed condition
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.id	1	
+1	SIMPLE	t2	ref	id,obj_id	obj_id	5	const	#	Using where with pushed condition
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.id	#	
 drop table t1, t2;
 #
 # Bug #47054 Cluster only deletes first matched row in delete with left join

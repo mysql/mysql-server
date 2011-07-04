@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -170,10 +170,12 @@ ConfigRetriever::getConfig(Uint32 nodeid) {
 ndb_mgm_configuration *
 ConfigRetriever::getConfig(NdbMgmHandle mgm_handle)
 {
+  const int from_node = 0;
   ndb_mgm_configuration * conf =
     ndb_mgm_get_configuration2(mgm_handle,
                                m_version,
-                               m_node_type);
+                               m_node_type,
+                               from_node);
   if(conf == 0)
   {
     BaseString tmp(ndb_mgm_get_latest_error_msg(mgm_handle));

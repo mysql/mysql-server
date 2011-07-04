@@ -22,6 +22,7 @@ import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.query.QueryDomainTypeImpl;
 import com.mysql.clusterj.core.query.QueryExecutionContextImpl;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.store.ResultData;
@@ -72,6 +73,11 @@ public class SQLExecutor {
     /** The query domain type for qualified SELECT and DELETE operations */
     protected QueryDomainTypeImpl<?> queryDomainType;
 
+    public SQLExecutor(DomainTypeHandlerImpl<?> domainTypeHandler, List<String> columnNames, int numberOfParameters) {
+        this(domainTypeHandler, columnNames);
+        this.numberOfParameters = numberOfParameters;
+    }
+
     public SQLExecutor(DomainTypeHandlerImpl<?> domainTypeHandler, List<String> columnNames) {
         this.domainTypeHandler = domainTypeHandler;
         this.columnNames  = columnNames;
@@ -108,7 +114,7 @@ public class SQLExecutor {
          * @return the result of executing the statement, or null
          * @throws SQLException
          */
-        ResultSetInternalMethods execute(SessionSPI session,
+        ResultSetInternalMethods execute(InterceptorImpl interceptor,
                 ParameterBindings parameterBindings) throws SQLException;
     }
 
@@ -117,7 +123,7 @@ public class SQLExecutor {
      */
     public static class Noop implements Executor {
 
-        public ResultSetInternalMethods execute(SessionSPI session,
+        public ResultSetInternalMethods execute(InterceptorImpl interceptor,
                 ParameterBindings parameterBindings) throws SQLException {
             return null;
         }
@@ -134,18 +140,18 @@ public class SQLExecutor {
             }
         }
 
-        public ResultSetInternalMethods execute(SessionSPI session,
+        public ResultSetInternalMethods execute(InterceptorImpl interceptor,
                 ParameterBindings parameterBindings) throws SQLException {
-            logParameterBindings(parameterBindings);
             // create value handler to copy data from parameters to ndb
             // count the parameters
             int count = countParameters(parameterBindings);
+            SessionSPI session = interceptor.getSession();
             Map<String, Object> parameters = createParameterMap(queryDomainType, parameterBindings, 0, count);
-            QueryExecutionContextImpl context = new QueryExecutionContextImpl(session, parameters);
+            QueryExecutionContext context = new QueryExecutionContextImpl(session, parameters);
             session.startAutoTransaction();
             try {
                 ResultData resultData = queryDomainType.getResultData(context);
-                session.endAutoTransaction();
+                // session.endAutoTransaction();
                 return new ResultSetInternalMethodsImpl(resultData, columnNumberToFieldNumberMap, 
                         columnNameToFieldNumberMap, session);
             } catch (Exception e) {
@@ -169,33 +175,33 @@ public class SQLExecutor {
             super(domainTypeHandler);
         }
 
-        public ResultSetInternalMethods execute(SessionSPI session,
+        public ResultSetInternalMethods execute(InterceptorImpl interceptor,
                 ParameterBindings parameterBindings) throws SQLException {
+            SessionSPI session = interceptor.getSession();
             if (queryDomainType == null) {
                 int rowsDeleted = session.deletePersistentAll(domainTypeHandler);
+                if (logger.isDebugEnabled()) logger.debug("deleteAll deleted: " + rowsDeleted);
                 return new ResultSetInternalMethodsUpdateCount(rowsDeleted);
             } else {
-                int totalRowsDeleted = 0;
                 int numberOfBoundParameters = countParameters(parameterBindings);
                 int numberOfStatements = numberOfBoundParameters / numberOfParameters;
-                int offset = 0;
+                long[] deleteResults = new long[numberOfStatements];
                 if (logger.isDebugEnabled()) logger.debug(
                         " numberOfParameters: " + numberOfParameters
                         + " numberOfBoundParameters: " + numberOfBoundParameters
                         + " numberOfStatements: " + numberOfStatements
                         );
+                QueryExecutionContextJDBCImpl context = 
+                    new QueryExecutionContextJDBCImpl(session, parameterBindings, numberOfParameters);
                 for (int i = 0; i < numberOfStatements; ++i) {
                     // this will execute each statement in the batch using different parameters
-                    Map<String, Object> parameters = createParameterMap(queryDomainType, parameterBindings,
-                            offset, numberOfParameters);
-                    offset += numberOfParameters;
-                    QueryExecutionContextImpl context = new QueryExecutionContextImpl(session, parameters);
                     int statementRowsDeleted = queryDomainType.deletePersistentAll(context);
-                    totalRowsDeleted += statementRowsDeleted;
                     if (logger.isDebugEnabled()) logger.debug("statement " + i
                             + " deleted " + statementRowsDeleted);
+                    deleteResults[i] = statementRowsDeleted;
+                    context.nextStatement();
                 }
-                return new ResultSetInternalMethodsUpdateCount(totalRowsDeleted);
+                return new ResultSetInternalMethodsUpdateCount(deleteResults);
             }
         }
     }
@@ -205,24 +211,24 @@ public class SQLExecutor {
     public static class Insert extends SQLExecutor implements Executor {
 
         public Insert(DomainTypeHandlerImpl<?> domainTypeHandler, List<String> columnNames) {
-            super(domainTypeHandler, columnNames);
+            super(domainTypeHandler, columnNames, columnNames.size());
         }
 
-        public ResultSetInternalMethods execute(SessionSPI session,
+        public ResultSetInternalMethods execute(InterceptorImpl interceptor,
                 ParameterBindings parameterBindings) throws SQLException {
-            int numberOfParameters = countParameters(parameterBindings);
-            int numberOfStatements = numberOfParameters / numberOfFields;
+            SessionSPI session = interceptor.getSession();
+            int numberOfBoundParameters = countParameters(parameterBindings);
+            int numberOfStatements = numberOfBoundParameters / numberOfParameters;
             if (logger.isDebugEnabled()) logger.debug("SQLExecutor.Insert.execute"
                     + " numberOfParameters: " + numberOfParameters
+                    + " numberOfBoundParameters: " + numberOfBoundParameters
                     + " numberOfFields: " + numberOfFields
                     + " numberOfStatements: " + numberOfStatements
                     );
             // interceptor.beforeClusterjStart();
             // session asks for values by field number which are converted to parameter number
-            int offset = 0;
-            for (int i = 0; i < numberOfParameters; i += numberOfFields) {
+            for (int offset = 0; offset < numberOfBoundParameters; offset += numberOfParameters) {
                 ValueHandler valueHandler = getValueHandler(parameterBindings, fieldNumberToColumnNumberMap, offset);
-                offset += numberOfFields;
                 session.insert(domainTypeHandler, valueHandler);
             }
             session.flush();
@@ -249,7 +255,8 @@ public class SQLExecutor {
         int last = offset + count + 1;
         for (int i = first; i < last; ++i) {
             Object placeholder = parameterBindings.getObject(i);
-            if (logger.isDetailEnabled()) logger.detail("Put placeholder " + i + " value: " + placeholder);
+            if (logger.isDetailEnabled())
+                logger.detail("Put placeholder " + i + " value: " + placeholder + " of type " + placeholder.getClass());
             result.put(String.valueOf(i), placeholder);
         }
         return result;
@@ -292,6 +299,20 @@ public class SQLExecutor {
                         Arrays.toString(fieldNames),
                         domainTypeHandler.getTableName()));
             }
+        }
+        if (logger.isDetailEnabled()) {
+            StringBuilder buffer = new StringBuilder();
+            for (int i = 0; i < fieldNumberToColumnNumberMap.length; ++i) {
+                int columnNumber = fieldNumberToColumnNumberMap[i];
+                buffer.append("field ");
+                buffer.append(i);
+                buffer.append(" mapped to ");
+                buffer.append(columnNumber);
+                buffer.append("[");
+                buffer.append(columnNumber == -1?"nothing":(columnNames.get(columnNumber - 1)));
+                buffer.append("];");
+            }
+            logger.detail(buffer.toString());
         }
     }
 
@@ -339,8 +360,9 @@ public class SQLExecutor {
                 // parameters are 1-origin per jdbc specification
                 Object objectValue = parameterBindings.getObject(i);
                 if (logger.isDetailEnabled()) {
-                    String stringValue = objectValue.toString();
-                    logger.detail("parameterBinding: parameter " + i + " has value: " + stringValue);
+                    logger.detail("parameterBinding: parameter " + i
+                            + " has value: " + objectValue
+                            + " of type " + objectValue.getClass());
                 }
             } catch (Exception e) {
                 // we don't know how many parameters are bound...

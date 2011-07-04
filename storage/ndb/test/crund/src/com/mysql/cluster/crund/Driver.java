@@ -1,7 +1,7 @@
 /* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
  *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
  *
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,9 +25,13 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.InputStream;
 
@@ -70,8 +74,7 @@ abstract public class Driver {
     protected boolean logRealTime;
     protected boolean logMemUsage;
     protected boolean includeFullGC;
-    protected int warmupRuns;
-    protected int hotRuns;
+    protected int nRuns;
 
     // driver resources
     protected PrintWriter log;
@@ -144,49 +147,7 @@ abstract public class Driver {
     public void run() {
         try {
             init();
-
-            if (warmupRuns > 0) {
-                out.println();
-                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-                out.println("warmup runs ...");
-                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-
-                for (int i = 0; i < warmupRuns; i++) {
-                    runTests();
-                }
-
-                // truncate log file, reset log buffers
-                closeLogFile();
-                openLogFile();
-                header = new StringBuilder();
-                rtimes = new StringBuilder();
-                musage = new StringBuilder();
-                logHeader = true;
-            }
-            
-            if (hotRuns > 0) {
-                out.println();
-                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-                out.println("hot runs ...");
-                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-
-                for (int i = 0; i < hotRuns; i++) {
-                    runTests();
-                }
-
-                // write log buffers
-                if (logRealTime) {
-                    log.println(descr + ", rtime[ms]"
-                                + header.toString() + endl
-                                + rtimes.toString() + endl + endl + endl);
-                }
-                if (logMemUsage) {
-                    log.println(descr + ", net musage[KiB]"
-                                + header.toString() + endl
-                                + musage.toString() + endl + endl + endl);
-                }
-            }
-            
+            runTests();
             close();
         } catch (Exception ex) {
             // end the program regardless of threads
@@ -250,18 +211,17 @@ abstract public class Driver {
         loadProperties();
         initProperties();
         printProperties();
+        writeProperties("logging.properties");
+        // setting this property allows implementations under test to use java.util.logging
+        System.setProperty("java.util.logging.config.file", "logging.properties");
         openLogFile();
-
-        // clear log buffers
-        logHeader = true;
-        header = new StringBuilder();
-        rtimes = new StringBuilder();
-        musage = new StringBuilder();
+        clearLogBuffers();
     }
 
     // releases the driver's resources.
     protected void close() throws Exception {
-        // clear log buffers
+        // release log buffers
+        logHeader = false;
         header = null;
         rtimes = null;
         musage = null;
@@ -319,16 +279,10 @@ abstract public class Driver {
         logMemUsage = parseBoolean("logMemUsage", false);
         includeFullGC = parseBoolean("includeFullGC", false);
 
-        warmupRuns = parseInt("warmupRuns", 0);
-        if (warmupRuns < 0) {
-            msg.append("[ignored] warmupRuns:           " + warmupRuns + eol);
-            warmupRuns = 0;
-        }
-
-        hotRuns = parseInt("hotRuns", 1);
-        if (hotRuns < 1) {
-            msg.append("[ignored] hotRuns:              " + hotRuns + eol);
-            hotRuns = 1;
+        nRuns = parseInt("nRuns", 1);
+        if (nRuns < 1) {
+            msg.append("[ignored] nRuns:                " + nRuns + eol);
+            nRuns = 1;
         }
 
         if (msg.length() == 0) {
@@ -346,10 +300,24 @@ abstract public class Driver {
         out.println("logRealTime:                    " + logRealTime);
         out.println("logMemUsage:                    " + logMemUsage);
         out.println("includeFullGC:                  " + includeFullGC);
-        out.println("warmupRuns:                     " + warmupRuns);
-        out.println("hotRuns:                        " + hotRuns);
+        out.println("nRuns:                          " + nRuns);
     }
 
+    protected void writeProperties(String fileName) {
+        File logger = new File(fileName);
+        OutputStream out;
+        try {
+            if (!logger.exists()) {
+                logger.createNewFile();
+            }
+            out = new FileOutputStream(logger);
+            props.store(out, "**** WARNING: DO NOT EDIT THIS FILE; IT IS GENERATED EACH RUN.");
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException("Unexpected exception opening file logger.properties.", e);
+        } catch (IOException e) {
+            throw new RuntimeException("Unexpected exception writing file logger.properties.", e);
+        }
+    }
     // opens the benchmark's data log file
     private void openLogFile() throws IOException {
         out.println();
@@ -359,6 +327,7 @@ abstract public class Driver {
 
     // closes the benchmark's data log file
     private void closeLogFile() throws IOException {
+        out.println();
         out.print("closing files ...");
         out.flush();
         if (log != null) {
@@ -373,6 +342,30 @@ abstract public class Driver {
     // ----------------------------------------------------------------------
 
     abstract protected void runTests() throws Exception;
+
+    protected void clearLogBuffers() {
+        logHeader = true;
+        header = new StringBuilder();
+        if (logRealTime) {
+            rtimes = new StringBuilder();
+        }
+        if (logMemUsage) {
+            musage = new StringBuilder();
+        }
+    }
+    
+    protected void writeLogBuffers(String descr) {
+        if (logRealTime) {
+            log.println(descr + ", rtime[ms]"
+                        + header.toString() + endl
+                        + rtimes.toString() + endl);
+        }
+        if (logMemUsage) {
+            log.println(descr + ", net musage[KiB]"
+                        + header.toString() + endl
+                        + musage.toString() + endl);
+        }
+    }
 
     protected void begin(String name) {
         out.println();

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -206,11 +206,13 @@ extern "C" {
     NDB_MGM_NODE_STATUS_SINGLEUSER    = 7,
     /** Resume mode*/
     NDB_MGM_NODE_STATUS_RESUME        = 8,
+    /** Node is connected */
+    NDB_MGM_NODE_STATUS_CONNECTED     = 9,
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /** Min valid value*/
     NDB_MGM_NODE_STATUS_MIN           = 0,
     /** Max valid value*/
-    NDB_MGM_NODE_STATUS_MAX           = 8
+    NDB_MGM_NODE_STATUS_MAX           = 9
 #endif
   };
 
@@ -707,6 +709,18 @@ extern "C" {
 			 const int * args,
 			 int num_args,
 			 struct ndb_mgm_reply* reply);
+
+  /**
+   * Get the current configuration from a node.
+   *
+   * @param handle the NDB management handle.
+   * @param nodeId of the node for which the configuration is requested.
+   * @return the current configuration from the requested node.
+   */
+  struct ndb_mgm_configuration *
+  ndb_mgm_get_configuration_from_node(NdbMgmHandle handle,
+                                      int nodeid);
+
 
   /** @} *********************************************************************/
   /**

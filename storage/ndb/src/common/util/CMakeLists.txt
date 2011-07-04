@@ -25,7 +25,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/logger)
 
 ADD_DEFINITIONS(-DNO_DUMMY_DECL)
-ADD_LIBRARY(ndbgeneral STATIC
+ADD_CONVENIENCE_LIBRARY(ndbgeneral
             ndbzio.c
             File.cpp
             md5_hash.cpp

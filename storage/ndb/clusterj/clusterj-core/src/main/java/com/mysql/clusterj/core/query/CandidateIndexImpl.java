@@ -21,6 +21,7 @@ import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.metadata.AbstractDomainFieldHandlerImpl;
 
 import com.mysql.clusterj.core.query.PredicateImpl.ScanType;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.Operation;
@@ -286,7 +287,7 @@ public class CandidateIndexImpl {
      * @param context the query execution context, containing the parameter values
      * @param op the index scan operation
      */
-    void operationSetBounds(QueryExecutionContextImpl context, IndexScanOperation op) {
+    void operationSetBounds(QueryExecutionContext context, IndexScanOperation op) {
         if (multiRange) {
             // find how many query terms are inPredicates
             List<Integer> parameterSizes = new ArrayList<Integer>();
@@ -333,7 +334,7 @@ public class CandidateIndexImpl {
         }
     }
 
-    void operationSetKeys(QueryExecutionContextImpl context,
+    void operationSetKeys(QueryExecutionContext context,
             Operation op) {
         for (CandidateColumnImpl candidateColumn:candidateColumns) {
             // execute the equal operation
@@ -369,11 +370,11 @@ public class CandidateIndexImpl {
          * @param context the query context
          * @param op the operation
          */
-        public void operationSetAllBounds(QueryExecutionContextImpl context, IndexScanOperation op) {
+        public void operationSetAllBounds(QueryExecutionContext context, IndexScanOperation op) {
             inPredicate.operationSetAllBounds(context, op);
         }
 
-        public int getParameterSize(QueryExecutionContextImpl context) {
+        public int getParameterSize(QueryExecutionContext context) {
             // TODO Auto-generated method stub
             return inPredicate.getParameterSize(context);
         }
@@ -425,7 +426,7 @@ public class CandidateIndexImpl {
          * @param boundStatus 
          */
         private int operationSetBounds(
-                QueryExecutionContextImpl context, IndexScanOperation op, int index, int boundStatus) {
+                QueryExecutionContext context, IndexScanOperation op, int index, int boundStatus) {
 
             if (logger.isDetailEnabled()) logger.detail("column: " + domainFieldHandler.getName() 
                     + " boundStatus: " + boundStatus
@@ -486,7 +487,7 @@ public class CandidateIndexImpl {
             return boundStatus;
         }
 
-        private void operationSetKeys(QueryExecutionContextImpl context, Operation op) {
+        private void operationSetKeys(QueryExecutionContext context, Operation op) {
             equalPredicate.operationEqual(context, op);
         }
 

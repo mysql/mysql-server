@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
+import com.mysql.jdbc.ResultSetInternalMethods;
 
 /** This class is part of the statement interceptor contract with the MySQL JDBC connection.
  * When a statement is intercepted and executed, an instance of this class is returned if there
@@ -38,19 +39,55 @@ public class ResultSetInternalMethodsUpdateCount extends
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory().getInstance(ResultSetInternalMethodsUpdateCount.class);
 
-    private long count;
+    /** Counts for multi-statement result */
+    private long[] counts;
+
+    /** The current result set for multi-statement results */
+    private int current = 0;
 
     /** Construct an instance with the count to be returned.
      * 
      * @param count the number of "rows affected"
      */
     public ResultSetInternalMethodsUpdateCount(long count) {
-        this.count = count;
+        this.counts = new long[1];
+        this.counts[0] = count;
+    }
+
+    /** Construct an instance with the count to be returned.
+     * 
+     * @param counts the number of "rows affected" for each row of a multi-statement result
+     */
+    public ResultSetInternalMethodsUpdateCount(long[] counts) {
+        this.counts = counts;
+    }
+
+    /**
+     * Returns the next ResultSet in a multi-resultset "chain", if any, 
+     * null if none exists.
+     * @return the next ResultSet
+     */
+    @Override
+    public ResultSetInternalMethods getNextResultSet() {
+        if (++current >= counts.length) {
+            return null;
+        } else {
+            return this;
+        }
+    }
+
+    /**
+     * Clears the reference to the next result set in a multi-result set
+     * "chain".
+     */
+    @Override
+    public void clearNextResult() {
+        // nothing to do
     }
 
     @Override
     public long getUpdateCount() {
-        return count;
+        return counts[current];
     }
 
     @Override

@@ -181,6 +181,7 @@
     <echo message="  run.ndbjtie"/>
     <echo message="  run.ndbj"/>
     <echo message="  run.clusterj"/>
+    <echo message="  run.clusterjdbc"/>
     <echo message="  run.mysql"/>
     <echo message="  run.derby"/>
     <echo message="  run.openjpa.clusterj"/>
@@ -630,7 +631,7 @@
   </target>
 
   <!-- runs the benchmark against Cluster/J -->
-  <target name="run.clusterj" depends="set.run,set.paths.clusterj.run">
+  <target name="run.clusterj" depends="set.run,compile.clusterj,set.paths.clusterj.run">
     <echo message="using:" />
     <echo message="  ndbjtie.libdir: ${ndbjtie.libdir}" />
     <echo message="  classpath.clusterj.run: ${toString:classpath.clusterj.run}" />
@@ -750,7 +751,7 @@
   <target name="compile.mysql.opt" depends="set.compile.opt,compile.mysql"/>
 
   <!-- runs the benchmark against MySQL JDBC -->
-  <target name="run.mysql" depends="set.run,set.paths.mysql.run">
+  <target name="run.mysql" depends="compile.mysql,set.run,set.paths.mysql.run">
     <echo message="using:" />
     <echo message="  classpath.mysql.run: ${toString:classpath.mysql.run}" />
     <echo message="" />
@@ -765,6 +766,60 @@
 
   <!-- runs the benchmark against MYSQL JDBC with optimizations -->
   <target name="run.mysql.opt" depends="set.compile.opt,set.run.opt,run.mysql"/>
+
+  <!-- #################################################################
+       # CLUSTERJDBC
+       ################################################################# -->
+
+  <!-- sets the paths for running against CLUSTERJDBC -->
+  <target name="set.paths.clusterjdbc.run" depends="set.paths.jdbc.compile,set.paths.clusterj.run">
+    <!-- check path to the Clusterjdbc jar -->
+    <condition property="clusterjdbc.jar" value="${CLUSTERJDBC_JAR}">
+      <not>
+	<equals arg1="${CLUSTERJDBC_JAR}" arg2="$${CLUSTERJDBC_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property CLUSTERJDBC_JAR not set!" unless="clusterjdbc.jar" />
+
+    <!-- check path to the antlr32 jar -->
+    <condition property="antlr32.jar" value="${ANTLR32_JAR}">
+      <not>
+	<equals arg1="${ANTLR32_JAR}" arg2="$${ANTLR32_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property ANTLR32_JAR not set!" unless="antlr32.jar" />
+
+    <!-- check path to the antlrruntime jar -->
+    <condition property="antlrruntime.jar" value="${ANTLRRUNTIME_JAR}">
+      <not>
+	<equals arg1="${ANTLRRUNTIME_JAR}" arg2="$${ANTLRRUNTIME_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property ANTLRRUNTIME_JAR not set!" unless="antlrruntime.jar" />
+
+    <path id="classpath.clusterjdbc.run">
+      <path refid="classpath.jdbc.compile"/>
+      <pathelement location="${MYSQL_JDBC_JAR}"/>
+      <pathelement location="${clusterj.jar}"/>
+      <pathelement location="${clusterjdbc.jar}"/>
+      <pathelement location="${antlr32.jar}"/>
+      <pathelement location="${antlrruntime.jar}"/>
+    </path>
+  </target>
+
+  <!-- runs the benchmark against MySQL CLUSTERJDBC -->
+  <target name="run.clusterjdbc" depends="compile.mysql,compile.clusterj,set.run,set.paths.clusterjdbc.run">
+    <echo message="using:" />
+    <echo message="  classpath.clusterjdbc.run: ${toString:classpath.clusterjdbc.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.JdbcLoad"
+     fork="true" failonerror="true" classpathref="classpath.clusterjdbc.run">
+      <jvmarg line="${jvmflags}"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundClusterjdbc.properties"/>
+    </java>
+  </target>
 
   <!-- #################################################################
        # Derby JDBC

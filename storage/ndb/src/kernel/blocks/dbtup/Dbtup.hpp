@@ -978,10 +978,10 @@ ArrayPool<TupTriggerData> c_triggerPool;
       subscriptionDeleteTriggers(triggerPool),
       subscriptionUpdateTriggers(triggerPool),
       constraintUpdateTriggers(triggerPool),
-      tuxCustomTriggers(triggerPool),
       deferredInsertTriggers(triggerPool),
+      deferredUpdateTriggers(triggerPool),
       deferredDeleteTriggers(triggerPool),
-      deferredUpdateTriggers(triggerPool)
+      tuxCustomTriggers(triggerPool)
       {}
     
     Bitmask<MAXNROFATTRIBUTESINWORDS> notNullAttributeMask;

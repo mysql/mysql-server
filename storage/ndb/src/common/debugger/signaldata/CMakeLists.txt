@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ADD_LIBRARY(ndbsignaldata STATIC
+ADD_CONVENIENCE_LIBRARY(ndbsignaldata
         AlterIndxImpl.cpp BuildIndxImpl.cpp BuildIndx.cpp
         CreateIndxImpl.cpp CreateTab.cpp
         CreateTable.cpp CreateTrigImpl.cpp #DihSwitchReplicaReq.cpp
@@ -45,5 +45,5 @@ ADD_LIBRARY(ndbsignaldata STATIC
         ScanFrag.cpp ApiVersion.cpp
         LocalRouteOrd.cpp
 	DbinfoScan.cpp NodePing.cpp
-	IndexStatSignal.cpp)
+	IndexStatSignal.cpp GetConfig.cpp)
 

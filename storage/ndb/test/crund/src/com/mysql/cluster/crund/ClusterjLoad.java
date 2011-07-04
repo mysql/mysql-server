@@ -92,14 +92,9 @@ public class ClusterjLoad extends CrundDriver {
     }
 
     @Override
-    protected void init() throws Exception {
-        super.init();
-
-        // load native library (better diagnostics doing it explicitely)
-        out.println();
-        //loadSystemLibrary("ndbj");
-
-        // instantiate NDB cluster singleton
+    protected void initLoad() throws Exception {
+        // XXX support generic load class
+        //super.init();
 
         out.println();
         out.print("creating SessionFactory ...");
@@ -109,7 +104,8 @@ public class ClusterjLoad extends CrundDriver {
     }
 
     @Override
-    protected void close() throws Exception {
+    protected void closeLoad() throws Exception {
+        out.println();
         out.print("closing SessionFactory ...");
         out.flush();
         if (sessionFactory != null)
@@ -117,7 +113,8 @@ public class ClusterjLoad extends CrundDriver {
         sessionFactory = null;
         out.println("      [ok]");
 
-        super.close();
+        // XXX support generic load class
+        //super.close();
     }
 
     // ----------------------------------------------------------------------
@@ -160,40 +157,60 @@ public class ClusterjLoad extends CrundDriver {
         out.print("initializing operations ...");
         out.flush();
 
+        for (CrundDriver.XMode m : xMode) {
+            // inner classes can only refer to a constant
+            final CrundDriver.XMode mode = m;
+
         ops.add(
-            new ClusterjOp("insA") {
+            new ClusterjOp("insA_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     for (int i = 0; i < nOps; i++) {
                         final IA o = session.newInstance(IA.class);
                         assert o != null;
                         o.setId(i);
                         session.persist(o);
+                        if (mode == CrundDriver.XMode.EACH) {
+                            session.flush();
+                        }
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
-            new ClusterjOp("insB0") {
+            new ClusterjOp("insB0_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     for (int i = 0; i < nOps; i++) {
                         final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
                         o.setId(i);
                         o.setCvarbinary_def(null);
                         session.persist(o);
+                        if (mode == CrundDriver.XMode.EACH) {
+                            session.flush();
+                        }
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
-            new ClusterjOp("setAByPK") {
+            new ClusterjOp("setAByPK_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
+                   for (int i = 0; i < nOps; i++) {
                         // blind update
                         final IA o = session.newInstance(IA.class);
                         o.setId(i);
@@ -203,15 +220,22 @@ public class ClusterjLoad extends CrundDriver {
                         o.setCfloat((float)i);
                         o.setCdouble((double)i);
                         session.updatePersistent(o);
+                        if (mode == CrundDriver.XMode.EACH) {
+                            session.flush();
+                        }
                     }
-                    commitTransaction();
+                   if (mode != CrundDriver.XMode.INDY) {
+                       commitTransaction();
+                   }
                 }
             });
 
         ops.add(
-            new ClusterjOp("setB0ByPK") {
+            new ClusterjOp("setB0ByPK_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     for (int i = 0; i < nOps; i++) {
                         // blind update
                         final IB0 o = session.newInstance(IB0.class);
@@ -222,40 +246,87 @@ public class ClusterjLoad extends CrundDriver {
                         o.setCfloat((float)i);
                         o.setCdouble((double)i);
                         session.updatePersistent(o);
+                        if (mode == CrundDriver.XMode.EACH) {
+                            session.flush();
+                        }
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
-            new ClusterjOp("getAByPK") {
+            new ClusterjOp("getAByPK_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final IA o = session.find(IA.class, i);
-                        assert o != null;
-                        final int id = o.getId();
-                        verify(id == i);
-                        final int j = checkFields(o);
-                        verify(j == id);
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.BULK) {
+                        for (int i = 0; i < nOps; i++) {
+                            final IA o = session.find(IA.class, i);
+                            assert o != null;
+                            final int id = o.getId();
+                            verify(id == i);
+                            final int j = checkFields(o);
+                            verify(j == id);
+                        }
+                    } else {
+                        IA[] objs = new IA[nOps];
+                        for (int i = 0; i < nOps; ++i) {
+                            final IA o = session.newInstance(IA.class, i);
+                            objs[i] =o;
+                        }
+                        session.load(objs);
+                        session.flush();
+                        for (int i = 0; i < nOps; ++i) {
+                            IA o = objs[i];
+                            final int id = o.getId();
+                            verify(id == i);
+                            final int j = checkFields(o);
+                            verify (j == id);
+                        }
+                    }
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
-            new ClusterjOp("getB0ByPK") {
+            new ClusterjOp("getB0ByPK_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
-                    for (int i = 0; i < nOps; i++) {
-                        final IB0 o = session.find(IB0.class, i);
-                        assert o != null;
-                        final int id = o.getId();
-                        verify(id == i);
-                        final int j = checkFields(o);
-                        verify(j == id);
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.BULK) {
+                        for (int i = 0; i < nOps; i++) {
+                            final IB0 o = session.find(IB0.class, i);
+                            assert o != null;
+                            final int id = o.getId();
+                            verify(id == i);
+                            final int j = checkFields(o);
+                            verify(j == id);
+                        }
+                    } else {
+                        IB0[] objs = new IB0[nOps];
+                        for (int i = 0; i < nOps; ++i) {
+                            final IB0 o = session.newInstance(IB0.class, i);
+                            objs[i] =o;
+                        }
+                        session.load(objs);
+                        session.flush();
+                        for (int i = 0; i < nOps; ++i) {
+                            IB0 o = objs[i];
+                            final int id = o.getId();
+                            verify(id == i);
+                            final int j = checkFields(o);
+                            verify (j == id);
+                        }
+                    }
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
@@ -264,9 +335,11 @@ public class ClusterjLoad extends CrundDriver {
             assert l == b.length;
 
             ops.add(
-                new ClusterjOp("setVarbinary" + l) {
+                new ClusterjOp("setVarbinary" + l + "_" + mode.toString().toLowerCase()) {
                     public void run(int nOps) {
-                        beginTransaction();
+                        if (mode != CrundDriver.XMode.INDY) {
+                            beginTransaction();
+                        }
                         for (int i = 0; i < nOps; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
@@ -274,28 +347,41 @@ public class ClusterjLoad extends CrundDriver {
                             assert o != null;
                             o.setCvarbinary_def(b);
                             session.updatePersistent(o);
+                            if (mode == CrundDriver.XMode.EACH) {
+                                session.flush();
+                            }
                         }
-                        commitTransaction();
+                        if (mode != CrundDriver.XMode.INDY) {
+                            commitTransaction();
+                        }
                     }
                 });
 
             ops.add(
-                new ClusterjOp("getVarbinary" + l) {
+                new ClusterjOp("getVarbinary" + l + "_" + mode.toString().toLowerCase()) {
+
+                    // TODO implement BULK using session.load
                     public void run(int nOps) {
-                        beginTransaction();
+                        if (mode != CrundDriver.XMode.INDY) {
+                            beginTransaction();
+                        }
                         for (int i = 0; i < nOps; i++) {
                             final IB0 o = session.find(IB0.class, i);
                             assert o != null;
                             verify(Arrays.equals(b, o.getCvarbinary_def()));
                         }
-                        commitTransaction();
-                    }
+                        if (mode != CrundDriver.XMode.INDY) {
+                            commitTransaction();
+                        }
+                   }
                 });
 
             ops.add(
-                new ClusterjOp("clearVarbinary" + l) {
+                new ClusterjOp("clearVarbinary" + l + "_" + mode.toString().toLowerCase()) {
                     public void run(int nOps) {
-                        beginTransaction();
+                        if (mode != CrundDriver.XMode.INDY) {
+                            beginTransaction();
+                        }
                         for (int i = 0; i < nOps; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
@@ -303,8 +389,13 @@ public class ClusterjLoad extends CrundDriver {
                             assert o != null;
                             o.setCvarbinary_def(null);
                             session.updatePersistent(o);
+                            if (mode == CrundDriver.XMode.EACH) {
+                                session.flush();
+                            }
                         }
-                        commitTransaction();
+                        if (mode != CrundDriver.XMode.INDY) {
+                            commitTransaction();
+                        }
                     }
                 });
         }
@@ -314,9 +405,11 @@ public class ClusterjLoad extends CrundDriver {
             assert l == s.length();
 
             ops.add(
-                new ClusterjOp("setVarchar" + l) {
+                new ClusterjOp("setVarchar" + l + "_" + mode.toString().toLowerCase()) {
                     public void run(int nOps) {
-                        beginTransaction();
+                        if (mode != CrundDriver.XMode.INDY) {
+                            beginTransaction();
+                        }
                         for (int i = 0; i < nOps; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
@@ -324,28 +417,41 @@ public class ClusterjLoad extends CrundDriver {
                             assert o != null;
                             o.setCvarchar_def(s);
                             session.updatePersistent(o);
+                            if (mode == CrundDriver.XMode.EACH) {
+                                session.flush();
+                            }
                         }
-                        commitTransaction();
+                        if (mode != CrundDriver.XMode.INDY) {
+                            commitTransaction();
+                        }
                     }
                 });
 
             ops.add(
-                new ClusterjOp("getVarchar" + l) {
+                new ClusterjOp("getVarchar" + l + "_" + mode.toString().toLowerCase()) {
+
+                    // TODO implement BULK using session.load
                     public void run(int nOps) {
-                        beginTransaction();
+                        if (mode != CrundDriver.XMode.INDY) {
+                            beginTransaction();
+                        }
                         for (int i = 0; i < nOps; i++) {
                             final IB0 o = session.find(IB0.class, i);
                             assert o != null;
                             verify(s.equals(o.getCvarchar_def()));
                         }
-                        commitTransaction();
+                        if (mode != CrundDriver.XMode.INDY) {
+                            commitTransaction();
+                        }
                     }
                 });
 
             ops.add(
-                new ClusterjOp("clearVarchar" + l) {
+                new ClusterjOp("clearVarchar" + l + "_" + mode.toString().toLowerCase()) {
                     public void run(int nOps) {
-                        beginTransaction();
+                        if (mode != CrundDriver.XMode.INDY) {
+                            beginTransaction();
+                        }
                         for (int i = 0; i < nOps; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
@@ -353,16 +459,23 @@ public class ClusterjLoad extends CrundDriver {
                             assert o != null;
                             o.setCvarchar_def(null);
                             session.updatePersistent(o);
+                            if (mode == CrundDriver.XMode.EACH) {
+                                session.flush();
+                            }
                         }
-                        commitTransaction();
+                        if (mode != CrundDriver.XMode.INDY) {
+                            commitTransaction();
+                        }
                     }
                 });
         }
 
         ops.add(
-            new ClusterjOp("setB0->A") {
+            new ClusterjOp("setB0->A_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     for (int i = 0; i < nOps; i++) {
                         // blind update
                         final IB0 b0 = session.newInstance(IB0.class);
@@ -371,15 +484,22 @@ public class ClusterjLoad extends CrundDriver {
                         final int aId = i % nOps;
                         b0.setAid(aId);
                         session.updatePersistent(b0);
+                        if (mode == CrundDriver.XMode.EACH) {
+                            session.flush();
+                        }
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
             new ClusterjOp("navB0->A") {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     for (int i = 0; i < nOps; i++) {
                         final IB0 b0 = session.find(IB0.class, i);
                         assert b0 != null;
@@ -391,7 +511,9 @@ public class ClusterjLoad extends CrundDriver {
                         final int j = checkFields(a);
                         verify(j == id);
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
@@ -409,7 +531,9 @@ public class ClusterjLoad extends CrundDriver {
                 }
 
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     // QueryBuilder is the sessionFactory for queries
                     final QueryBuilder builder
                         = session.getQueryBuilder();
@@ -436,14 +560,18 @@ public class ClusterjLoad extends CrundDriver {
                             verify(j == id);
                         }
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
             new ClusterjOp("nullB0->A") {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     for (int i = 0; i < nOps; i++) {
                         // blind update
                         final IB0 b0 = session.newInstance(IB0.class);
@@ -451,45 +579,66 @@ public class ClusterjLoad extends CrundDriver {
                         assert b0 != null;
                         b0.setAid(0);
                         session.updatePersistent(b0);
+                        if (mode == CrundDriver.XMode.EACH) {
+                            session.flush();
+                        }
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
-            new ClusterjOp("delB0ByPK") {
+            new ClusterjOp("delB0ByPK_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     for (int i = 0; i < nOps; i++) {
                         // blind delete
                         final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
                         o.setId(i);
                         session.remove(o);
+                        if (mode == CrundDriver.XMode.EACH) {
+                            session.flush();
+                        }
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
-            new ClusterjOp("delAByPK") {
+            new ClusterjOp("delAByPK_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     for (int i = 0; i < nOps; i++) {
                         // blind delete
                         final IA o = session.newInstance(IA.class);
                         assert o != null;
                         o.setId(i);
                         session.remove(o);
+                        if (mode == CrundDriver.XMode.EACH) {
+                            session.flush();
+                        }
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
-            new ClusterjOp("insA_attr") {
+            new ClusterjOp("insAattr_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     for (int i = 0; i < nOps; i++) {
                         final IA o = session.newInstance(IA.class);
                         assert o != null;
@@ -499,15 +648,22 @@ public class ClusterjLoad extends CrundDriver {
                         o.setCfloat((float)-i);
                         o.setCdouble((double)-i);
                         session.persist(o);
+                        if (mode == CrundDriver.XMode.EACH) {
+                            session.flush();
+                        }
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
-            new ClusterjOp("insB0_attr") {
+            new ClusterjOp("insB0attr_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     for (int i = 0; i < nOps; i++) {
                         final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
@@ -518,31 +674,45 @@ public class ClusterjLoad extends CrundDriver {
                         o.setCdouble((double)-i);
                         o.setCvarbinary_def(null);
                         session.persist(o);
+                        if (mode == CrundDriver.XMode.EACH) {
+                            session.flush();
+                        }
                     }
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
-            new ClusterjOp("delAllB0") {
+            new ClusterjOp("delAllB0_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     int del = session.deletePersistentAll(IB0.class);
                     assert del == nOps;
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
         ops.add(
-            new ClusterjOp("delAllA") {
+            new ClusterjOp("delAllA_" + mode.toString().toLowerCase()) {
                 public void run(int nOps) {
-                    beginTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        beginTransaction();
+                    }
                     int del = session.deletePersistentAll(IA.class);
                     assert del == nOps;
-                    commitTransaction();
+                    if (mode != CrundDriver.XMode.INDY) {
+                        commitTransaction();
+                    }
                 }
             });
 
+        }
         // prepare queries
         for (Iterator<CrundDriver.Op> i = ops.iterator(); i.hasNext();) {
             ((ClusterjOp)i.next()).init();
@@ -577,19 +747,21 @@ public class ClusterjLoad extends CrundDriver {
     // ----------------------------------------------------------------------
 
     protected void initConnection() {
-        out.print("creating Session ...");
+        out.println();
+        out.print("creating ClusterJ Session ...");
         out.flush();
         session = sessionFactory.getSession();
-        out.println("            [Session: 1]");
+        out.println("   [Session: 1]");
     }
 
     protected void closeConnection() {
-        out.print("closing Session ...");
+        out.println();
+        out.print("closing ClusterJ Session ...");
         out.flush();
         if (session != null)
             session.close();
         session = null;
-        out.println("             [ok]");
+        out.println("    [ok]");
     }
 
     protected void clearPersistenceContext() {

@@ -364,8 +364,14 @@ public:
 private:
   int guess_master_node(SignalSender&);
 
-  int versionNode(int nodeId, Uint32 &version,
-                  Uint32 &mysql_version, const char **address);
+  void status_api(int nodeId,
+                  ndb_mgm_node_status& node_status,
+                  Uint32& version, Uint32& mysql_version,
+                  const char **address);
+  void status_mgmd(NodeId node_id,
+                   ndb_mgm_node_status& node_status,
+                   Uint32& version, Uint32& mysql_version,
+                   const char **address);
 
   int sendVersionReq(int processId, Uint32 &version,
                      Uint32& mysql_version, const char **address);
@@ -480,6 +486,10 @@ private:
 public:
   /* Get copy of configuration packed with base64 */
   bool get_packed_config(ndb_mgm_node_type nodetype,
+                         BaseString& buf64, BaseString& error);
+
+  /* Get copy of configuration packed with base64 from node nodeid */
+  bool get_packed_config_from_node(NodeId nodeid,
                          BaseString& buf64, BaseString& error);
 
   void print_config(const char* section_filter = NULL,

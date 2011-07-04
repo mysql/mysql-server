@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +48,7 @@ public class LongIntStringFKOneOne extends LongIntStringConstants implements Ser
 
     @javax.persistence.Id
     @javax.persistence.Column(name="longpk")
-    private long longpk;
+    private Long longpk;
 
     @javax.persistence.Id
     @javax.persistence.Column(name="intpk")
@@ -74,11 +73,11 @@ public class LongIntStringFKOneOne extends LongIntStringConstants implements Ser
     public LongIntStringFKOneOne() {
     }
 
-    public long getLongpk() {
+    public Long getLongpk() {
         return longpk;
     }
 
-    public void setLongpk(long value) {
+    public void setLongpk(Long value) {
         longpk = value;
     }
 
@@ -131,8 +130,6 @@ public class LongIntStringFKOneOne extends LongIntStringConstants implements Ser
         result.append(stringpk);
         result.append("\"]: ");
         result.append(stringvalue);
-        result.append(" -> (");
-        result.append((longIntStringPKOneOne==null)?"null":longIntStringPKOneOne.toString());
         result.append(").");
         return result.toString();
     }

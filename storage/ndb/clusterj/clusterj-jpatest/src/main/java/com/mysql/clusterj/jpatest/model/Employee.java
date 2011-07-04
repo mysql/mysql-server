@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +27,7 @@ import javax.persistence.Table;
 public class Employee implements IdBase, Serializable {
 
     @Id
-    private int id;
+    private Integer id;
     private String name;
     private int magic;
     private Integer age;

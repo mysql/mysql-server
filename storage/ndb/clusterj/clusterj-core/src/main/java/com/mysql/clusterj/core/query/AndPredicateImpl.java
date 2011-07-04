@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 package com.mysql.clusterj.core.query;
 
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
@@ -90,7 +91,7 @@ public class AndPredicateImpl extends PredicateImpl {
      * @param op the operation
      */
     @Override
-    public void filterCmpValue(QueryExecutionContextImpl context,
+    public void filterCmpValue(QueryExecutionContext context,
             ScanOperation op) {
         try {
             ScanFilter filter = op.getScanFilter(context);
@@ -108,7 +109,7 @@ public class AndPredicateImpl extends PredicateImpl {
     /** Set the keys into the operation for each predicate.
      * Each predicate must be an equal predicate for a primary or unique key.
      */
-    public void operationEqual(QueryExecutionContextImpl context,
+    public void operationEqual(QueryExecutionContext context,
             Operation op) {
         for (PredicateImpl predicate: predicates) {
             if (!(predicate instanceof EqualPredicateImpl)) {
@@ -125,7 +126,7 @@ public class AndPredicateImpl extends PredicateImpl {
      * @return the best index
      */
     @Override
-    public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContextImpl context) {
+    public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContext context) {
         return getBestCandidateIndexFor(context, predicates.toArray(
                 new PredicateImpl[predicates.size()]));
     }

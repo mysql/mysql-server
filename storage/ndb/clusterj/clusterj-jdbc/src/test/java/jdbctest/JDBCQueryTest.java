@@ -34,6 +34,7 @@ public abstract class JDBCQueryTest extends AbstractClusterJModelTest {
     @Override
     public void localSetUp() {
         // initialize the jdbc driver
+        super.localSetUp();
         // delete instances
         deleteAll();
         // create instances

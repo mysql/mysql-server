@@ -685,6 +685,10 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   //ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_TRANSACTION_TAKEOVER, &val);
   set_no_parallel_takeover(val);
 
+  val = ~(Uint32)0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION, &val);
+  m_max_writes_per_trans = val;
+
   ctimeOutCheckDelay = 50; // 500ms
 }//Dbtc::execSIZEALT_REP()
 
@@ -1857,6 +1861,13 @@ start_failure:
     abortErrorLab(signal);
     return;
   }
+  case 65:
+  {
+    jam();
+    terrorCode = ZTRANS_TOO_BIG;
+    abortErrorLab(signal);
+    return;
+  }
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -2398,6 +2409,8 @@ void Dbtc::initApiConnectRec(Signal* signal,
 #ifdef ERROR_INSERT
   regApiPtr->continueBCount = 0;
 #endif
+
+  regApiPtr->m_write_count = 0;
 }//Dbtc::initApiConnectRec()
 
 int
@@ -3068,6 +3081,11 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     case ZWRITE:
     case ZREFRESH:
       jam();
+      if (unlikely((++ regApiPtr->m_write_count) > m_max_writes_per_trans))
+      {
+        TCKEY_abort(signal, 65);
+        return;
+      }
       break;
     default:
       TCKEY_abort(signal, 9);

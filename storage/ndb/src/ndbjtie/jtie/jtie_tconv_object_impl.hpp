@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -40,14 +40,10 @@
 // Defines the field info type for Wrapper.cdelegate.
 JTIE_DEFINE_FIELD_MEMBER_INFO(_Wrapper_cdelegate)
 
-// XXX fix and test _PRELOAD caching
-
-// Provides a (cached) access to field Id  of Wrapper.cdelegate.
+// Provides a (cached) access to field Id of Wrapper.cdelegate.
 //typedef JniMemberId< NO_CACHING, _Wrapper_cdelegate > Wrapper_cdelegate;
 typedef JniMemberId< WEAK_CACHING, _Wrapper_cdelegate > Wrapper_cdelegate;
 //typedef JniMemberId< STRONG_CACHING, _Wrapper_cdelegate > Wrapper_cdelegate;
-//typedef JniMemberId< WEAK_CACHING_PRELOAD, _Wrapper_cdelegate > Wrapper_cdelegate;
-//typedef JniMemberId< STRONG_CACHING_PRELOAD, _Wrapper_cdelegate > Wrapper_cdelegate;
 
 // XXX consider changing
 //template< typename C > struct ObjectParam< _jtie_Object *, C * > {

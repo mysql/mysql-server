@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import com.mysql.clusterj.Query;
 import com.mysql.clusterj.core.query.PredicateImpl.ScanType;
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.spi.ValueHandler;
 
@@ -143,7 +144,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * 
      * @return the results of executing the query
      */
-    public List<T> getResultList(QueryExecutionContextImpl context) {
+    public List<T> getResultList(QueryExecutionContext context) {
         assertAllParametersBound(context);
 
         SessionSPI session = context.getSession();
@@ -181,7 +182,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * @return the raw result data from the query
      * @throws ClusterJUserException if not all parameters are bound
      */
-    public ResultData getResultData(QueryExecutionContextImpl context) {
+    public ResultData getResultData(QueryExecutionContext context) {
 	SessionSPI session = context.getSession();
         // execute query based on what kind of scan is needed
         // if no where clause, scan the entire table
@@ -279,7 +280,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * @return the number of instances deleted
      * @throws ClusterJUserException if not all parameters are bound
      */
-    public int deletePersistentAll(QueryExecutionContextImpl context) {
+    public int deletePersistentAll(QueryExecutionContext context) {
                                 SessionSPI session = context.getSession();
         // calculate what kind of scan is needed
         // if no where clause, scan the entire table
@@ -386,7 +387,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * 
      * @param context the context, including bound parameters
      */
-    public void explain(QueryExecutionContextImpl context) {
+    public void explain(QueryExecutionContext context) {
         assertAllParametersBound(context);
         CandidateIndexImpl index = where==null?
                 CandidateIndexImpl.getIndexForNullWhereClause():
@@ -413,7 +414,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * @param context the context, including the parameter map
      * @throws ClusterJUserException if not all parameters are bound
      */
-    protected void assertAllParametersBound(QueryExecutionContextImpl context) {
+    protected void assertAllParametersBound(QueryExecutionContext context) {
         if (where != null) {
             // Make sure all marked parameters (used in the query) are bound.
             for (ParameterImpl param: parameters.values()) {

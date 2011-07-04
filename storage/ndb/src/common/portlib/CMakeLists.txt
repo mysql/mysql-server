@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/sql
 IF(WIN32)
   SET(EXTRA_SRC ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
 ENDIF(WIN32)
-ADD_LIBRARY(ndbportlib STATIC
+ADD_CONVENIENCE_LIBRARY(ndbportlib
             NdbCondition.c NdbMutex.c ndb_socket.cpp
             NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp
             NdbMem.c NdbConfig.c NdbTick.c NdbDir.cpp
@@ -40,5 +40,7 @@ TARGET_LINK_LIBRARIES(NdbDir-t ndbportlib)
 ADD_EXECUTABLE(NdbGetInAddr-t NdbTCP.cpp)
 SET_TARGET_PROPERTIES(NdbGetInAddr-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_NDBGETINADDR")
+TARGET_LINK_LIBRARIES(NdbGetInAddr-t ${LIBSOCKET} ${LIBNSL})
+
 
 

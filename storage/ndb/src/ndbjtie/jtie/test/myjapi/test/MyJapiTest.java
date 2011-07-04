@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -331,7 +331,7 @@ public class MyJapiTest {
             MyJapi.f311bb(f211bb);
             assert (nf211bb == f211bb.asReadOnlyBuffer().get());
             MyJapi.f311bb(MyJapi.f211bb());
-            assert (nf211bb - 1 == f211bb.asReadOnlyBuffer().get());
+            assert (nf211bb != f211bb.asReadOnlyBuffer().get());
 
             out.println("\ncalling f312bb(f212bb())");
             final ByteBuffer f212bb = MyJapi.f212bb().order(ByteOrder.nativeOrder());
@@ -425,7 +425,7 @@ public class MyJapiTest {
             final ByteBuffer f231bb = MyJapi.f231bb().order(ByteOrder.nativeOrder());
             final byte nf231bb = f231bb.asReadOnlyBuffer().get();
             MyJapi.f331bb(f231bb);
-            assert (nf231bb - 1 == f231bb.asReadOnlyBuffer().get());
+            assert (nf231bb != f231bb.asReadOnlyBuffer().get());
 
             out.println("\ncalling f332bb(f232bb())");
             final ByteBuffer f232bb = MyJapi.f232bb().order(ByteOrder.nativeOrder());
@@ -904,7 +904,7 @@ public class MyJapiTest {
             MyJapi.f511bb1(f411bb);
             assert (nf411bb == f411bb.asReadOnlyBuffer().get());
             MyJapi.f511bb1(MyJapi.f411bb1());
-            assert (nf411bb - 1 == f411bb.asReadOnlyBuffer().get());
+            assert (nf411bb != f411bb.asReadOnlyBuffer().get());
 
             out.println("\ncalling f512bb1(f412bb1())");
             final ByteBuffer f412bb = MyJapi.f412bb1().order(ByteOrder.nativeOrder());
@@ -998,7 +998,7 @@ public class MyJapiTest {
             final ByteBuffer f431bb = MyJapi.f431bb1().order(ByteOrder.nativeOrder());
             final byte nf431bb = f431bb.asReadOnlyBuffer().get();
             MyJapi.f531bb1(f431bb);
-            assert (nf431bb - 1 == f431bb.asReadOnlyBuffer().get());
+            assert (nf431bb != f431bb.asReadOnlyBuffer().get());
 
             out.println("\ncalling f532bb1(f432bb1())");
             final ByteBuffer f432bb = MyJapi.f432bb1().order(ByteOrder.nativeOrder());
@@ -1072,7 +1072,7 @@ public class MyJapiTest {
             MyJapi.f551bb1(f451bb);
             assert (nf451bb == f451bb.asReadOnlyBuffer().get());
             MyJapi.f551bb1(MyJapi.f451bb1());
-            assert (nf451bb - 1 == f451bb.asReadOnlyBuffer().get());
+            assert (nf451bb != f451bb.asReadOnlyBuffer().get());
 
             out.println("\ncalling f552bb1(f452bb1())");
             final ByteBuffer f452bb = MyJapi.f452bb1().order(ByteOrder.nativeOrder());
@@ -1166,7 +1166,7 @@ public class MyJapiTest {
             final ByteBuffer f471bb = MyJapi.f471bb1().order(ByteOrder.nativeOrder());
             final byte nf471bb = f471bb.asReadOnlyBuffer().get();
             MyJapi.f571bb1(f471bb);
-            assert (nf471bb - 1 == f471bb.asReadOnlyBuffer().get());
+            assert (nf471bb != f471bb.asReadOnlyBuffer().get());
 
             out.println("\ncalling f572bb1(f472bb1())");
             final ByteBuffer f472bb = MyJapi.f472bb1().order(ByteOrder.nativeOrder());

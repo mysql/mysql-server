@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +26,7 @@ import java.io.Serializable;
  */
 public class LongIntStringOid extends LongIntStringConstants implements Serializable {
 
-    public long longpk;
+    public Long longpk;
 
     public int intpk;
 
@@ -50,14 +49,14 @@ public class LongIntStringOid extends LongIntStringConstants implements Serializ
         if (obj == null || !this.getClass().equals(obj.getClass()))
             return false;
         LongIntStringOid o = (LongIntStringOid)obj;
-        return (this.longpk == o.longpk
+        return (this.longpk.equals(o.longpk)
                 && this.intpk == o.intpk
                 && this.stringpk.equals(o.stringpk));
     }
 
     @Override
     public int hashCode() {
-        return stringpk.hashCode() + (int)intpk + (int)longpk;
+        return stringpk.hashCode() + (int)intpk + longpk.intValue();
     }
 
     @Override

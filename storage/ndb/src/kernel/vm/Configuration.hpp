@@ -26,6 +26,7 @@
 #include <NdbMutex.h>
 #include <NdbThread.h>
 #include <util/SparseBitmask.hpp>
+#include <util/UtilBuffer.hpp>
 
 enum ThreadTypes
 {
@@ -147,6 +148,7 @@ private:
 
   ndb_mgm_configuration * m_ownConfig;
   ndb_mgm_configuration * m_clusterConfig;
+  UtilBuffer m_clusterConfigPacked;
 
   ndb_mgm_configuration_iterator * m_clusterConfigIter;
   ndb_mgm_configuration_iterator * m_ownConfigIterator;

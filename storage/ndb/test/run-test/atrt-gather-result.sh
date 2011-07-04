@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,12 +21,13 @@ mkdir -p result
 cd result
 rm -rf *
 
-if uname | grep -iq cygwin; then
+if [ `uname | grep -ic cygwin || true` -ne 0 ]
+then
   while [ $# -gt 0 ]
   do
     SAVE_IFS=$IFS
     IFS=":"
-    declare -a ARR=($1)
+    declare -a ARR="($1)"
     IFS=$SAVE_IFS
     DIR=`dirname "${ARR[1]}"`
     REMOTE_DIR=`cygpath -u $DIR`
