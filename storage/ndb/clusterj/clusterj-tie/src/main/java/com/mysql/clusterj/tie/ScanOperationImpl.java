@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ import com.mysql.ndbjtie.ndbapi.NdbOperation;
 import com.mysql.ndbjtie.ndbapi.NdbScanFilter;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
 
-import com.mysql.clusterj.core.query.QueryExecutionContextImpl;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
@@ -50,7 +50,7 @@ class ScanOperationImpl extends OperationImpl implements ScanOperation {
         handleError(returnCode, ndbScanOperation);
     }
 
-    public ScanFilter getScanFilter(QueryExecutionContextImpl context) {
+    public ScanFilter getScanFilter(QueryExecutionContext context) {
         NdbScanFilter ndbScanFilter = NdbScanFilter.create(ndbScanOperation);
         handleError(ndbScanFilter, ndbScanOperation);
         ScanFilter scanFilter = new ScanFilterImpl(ndbScanFilter);

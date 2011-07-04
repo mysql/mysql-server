@@ -1,4 +1,4 @@
-# Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 SUBDIRS = include src tools . @ndb_opt_subdirs@
 DIST_SUBDIRS = src tools include test docs clusterj
-EXTRA_DIST = config cmake ndbapi-examples plug.in CMakeLists.txt ndb_configure.cmake
+EXTRA_DIST = config cmake ndbapi-examples plug.in CMakeLists.txt ndb_configure.cmake compile-cluster
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am

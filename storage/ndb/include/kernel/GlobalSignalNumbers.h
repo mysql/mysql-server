@@ -111,9 +111,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CONFIG_CHECK_REF            52
 #define GSN_CONFIG_CHECK_CONF           53
 
-/* 54 unused */
-/* 55 unused */
-/* 56 unused */
+#define GSN_GET_CONFIG_REQ        54
+#define GSN_GET_CONFIG_REF        55
+#define GSN_GET_CONFIG_CONF       56
+
 /* 57 unused */
 /* 58 unused */
 /* 59 unused */

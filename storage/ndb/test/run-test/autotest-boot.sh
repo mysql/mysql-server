@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ VERSION="autotest-boot.sh version 1.01"
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
 then
-  if uname | grep -iq cygwin
+  if [ `uname | grep -ic cygwin || true` -ne 0 ]
   then
     HOST=`hostname`
   else
@@ -243,11 +243,11 @@ fi
 if [ "$build" ]
 then
     rm -rf $install_dir
-    
-	if [ -z "$clone1" ]
-	then
+    p=`pwd`
+    if [ -z "$clone1" ]
+    then
         cd $dst_place0
-        if uname | grep -iq cygwin
+        if [ `uname | grep -ic cygwin || true` -ne 0 ]
         then
             install_dir_dos=`cygpath -w $install_dir`
             cmd /c cscript win/configure.js WITH_NDBCLUSTER_STORAGE_ENGINE --without-plugins=archive,blackhole,example,federated
@@ -255,18 +255,19 @@ then
             cmd /c devenv.com MySql.sln /Build RelWithDebInfo
             cmd /c devenv.com MySql.sln /Project INSTALL /Build
         else
-	        BUILD/compile-ndb-autotest --prefix=$install_dir0
-	        make install
-        fi
-	else
-	    cd $dst_place0
 	    BUILD/compile-ndb-autotest --prefix=$install_dir0
 	    make install
-	    
-	    cd $dst_place1
-	    BUILD/compile-ndb-autotest --prefix=$install_dir1
-	    make install
-	fi
+        fi
+    else
+	cd $dst_place0
+	BUILD/compile-ndb-autotest --prefix=$install_dir0
+	make install
+	
+	cd $dst_place1
+	BUILD/compile-ndb-autotest --prefix=$install_dir1
+	make install
+    fi
+    cd $p
 fi
 
 

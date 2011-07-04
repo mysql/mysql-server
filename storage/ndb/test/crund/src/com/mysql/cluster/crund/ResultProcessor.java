@@ -55,6 +55,7 @@ public class ResultProcessor {
          * @param	avg	the relative standard deviations
          */
         void report(String tag,
+                    int nRuns,
                     int nTxOps,
                     String[] op,
                     double[] avg,
@@ -72,6 +73,7 @@ public class ResultProcessor {
          * 
          */
         public void report(String tag,
+                           int nRuns,
                            int nTxOps,
                            String[] op,
                            double[] avg,
@@ -79,6 +81,7 @@ public class ResultProcessor {
                            double[] rsdev) {
             out.println();
             out.println("tag    = " + tag);
+            out.println("nRuns  = " + nRuns);
             out.println("nTxOps = " + nTxOps);
             out.println();
 
@@ -126,7 +129,7 @@ public class ResultProcessor {
     protected ResultReporter reporter;
     protected String[] header;
     protected int nTxOps;
-    protected int nval;
+    protected int nRuns;
     protected double[] ravg;
     protected double[] rdev;
 
@@ -252,7 +255,7 @@ public class ResultProcessor {
                 header = line.split("\\t");
                 assert (header.length > 0);
 
-                nval = 0;
+                nRuns = 0;
                 nTxOps = 0;
                 ravg = new double[header.length];
                 rdev = new double[header.length];
@@ -268,7 +271,7 @@ public class ResultProcessor {
                               + ", found: " + values.length);
                 throw new ParseException(msg, 0);
             }
-            nval++;
+            nRuns++;
 
             // parse nTxOps
             int n;
@@ -279,7 +282,7 @@ public class ResultProcessor {
                               + ": " + e);
                 throw new ParseException(msg, 0);
             }
-            if (nval == 1) {
+            if (nRuns == 1) {
                 nTxOps = n;
             } else if (nTxOps != n) {
                 String msg = ("line # " + lineNo
@@ -290,8 +293,8 @@ public class ResultProcessor {
             }
 
             // skip warmup runs
-            if (nval <= nIgnored) {
-                nval--;
+            if (nRuns <= nIgnored) {
+                nRuns--;
                 nIgnored--;
                 continue;
             }
@@ -310,7 +313,7 @@ public class ResultProcessor {
                 // compute running averages and squared deviations
                 final double v = l;
                 final double oavg = ravg[i];
-                final double navg = oavg + (v - oavg) / nval;
+                final double navg = oavg + (v - oavg) / nRuns;
                 final double odev = rdev[i];
                 final double ndev = odev + (v - oavg) * (v - navg);
                 ravg[i] = navg;
@@ -331,12 +334,12 @@ public class ResultProcessor {
         for (int i = 1; i <= nops; i++) {
             op[i-1] = header[i];
             avg[i-1] = ravg[i];
-            sdev[i-1] = Math.sqrt(rdev[i] / nval);
+            sdev[i-1] = Math.sqrt(rdev[i] / nRuns);
             rsdev[i-1] = (sdev[i-1] * 100.0) / avg[i-1];
         }
         final String tag = header[0];
 
-        reporter.report(tag, nTxOps, op, avg, sdev, rsdev);
+        reporter.report(tag, nRuns, nTxOps, op, avg, sdev, rsdev);
     }
     
     // ----------------------------------------------------------------------

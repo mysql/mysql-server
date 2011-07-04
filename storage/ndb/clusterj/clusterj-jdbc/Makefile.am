@@ -1,4 +1,4 @@
-#   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+#   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 #
 #
 #   This program is free software; you can redistribute it and/or modify
@@ -38,6 +38,7 @@ clusterj_jdbc_java = \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/DomainFieldHandlerImpl.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/DomainTypeHandlerImpl.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/InterceptorImpl.java \
+  $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/QueryExecutionContextJDBCImpl.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/ResultSetInternalMethodsImpl.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/ResultSetInternalMethodsUpdateCount.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/SQLExecutor.java \

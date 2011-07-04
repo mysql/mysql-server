@@ -19,6 +19,7 @@ package com.mysql.clusterj.core.query;
 
 import com.mysql.clusterj.ClusterJException;
 
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
@@ -41,6 +42,8 @@ public class BetweenPredicateImpl extends PredicateImpl {
         this.lower = lower;
         this.upper = upper;
         this.property = property;
+        lower.setProperty(property);
+        upper.setProperty(property);
     }
 
     public void markParameters() {
@@ -53,16 +56,8 @@ public class BetweenPredicateImpl extends PredicateImpl {
         upper.unmark();
     }
 
-//    /** Return the name of the index.
-//     * Currently only primary key scans are supported.
-//     * @return the type of scan for the operation
-//     */
-//    public String getIndexName() {
-//        return property.getIndexName();
-//    }
-//
     @Override
-    public void markBoundsForCandidateIndices(QueryExecutionContextImpl context, CandidateIndexImpl[] candidateIndices) {
+    public void markBoundsForCandidateIndices(QueryExecutionContext context, CandidateIndexImpl[] candidateIndices) {
         if (lower.getParameterValue(context) == null || upper.getParameterValue(context) == null) {
             // null parameters cannot be used with index scans
             return;
@@ -78,7 +73,7 @@ public class BetweenPredicateImpl extends PredicateImpl {
      * @param op the index scan operation on which to set bounds
      */
     @Override
-    public void operationSetBounds(QueryExecutionContextImpl context,
+    public void operationSetBounds(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         property.operationSetBounds(lower.getParameterValue(context),
                 IndexScanOperation.BoundType.BoundLE, op);
@@ -93,7 +88,7 @@ public class BetweenPredicateImpl extends PredicateImpl {
      * @param op the index scan operation on which to set bounds
      */
     @Override
-    public void operationSetUpperBound(QueryExecutionContextImpl context,
+    public void operationSetUpperBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         property.operationSetBounds(upper.getParameterValue(context),
                 IndexScanOperation.BoundType.BoundGE, op);
@@ -106,7 +101,7 @@ public class BetweenPredicateImpl extends PredicateImpl {
      * @param op the index scan operation on which to set bounds
      */
     @Override
-    public void operationSetLowerBound(QueryExecutionContextImpl context,
+    public void operationSetLowerBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         property.operationSetBounds(lower.getParameterValue(context),
                 IndexScanOperation.BoundType.BoundLE, op);
@@ -118,7 +113,7 @@ public class BetweenPredicateImpl extends PredicateImpl {
      * @param op the operation
      */
     @Override
-    public void filterCmpValue(QueryExecutionContextImpl context,
+    public void filterCmpValue(QueryExecutionContext context,
             ScanOperation op) {
         try {
             ScanFilter filter = op.getScanFilter(context);
@@ -137,7 +132,7 @@ public class BetweenPredicateImpl extends PredicateImpl {
      * @param filter the filter
      */
     @Override
-    public void filterCmpValue(QueryExecutionContextImpl context,
+    public void filterCmpValue(QueryExecutionContext context,
             ScanOperation op, ScanFilter filter) {
         property.filterCmpValue(lower.getParameterValue(context),
                 ScanFilter.BinaryCondition.COND_GE, filter);

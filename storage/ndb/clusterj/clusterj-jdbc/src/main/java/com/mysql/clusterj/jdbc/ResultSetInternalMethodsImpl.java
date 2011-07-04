@@ -54,6 +54,8 @@ public class ResultSetInternalMethodsImpl extends AbstractResultSetInternalMetho
 
     private Map<String, Integer> columnNameToFieldNumberMap = new HashMap<String, Integer>();
 
+    private boolean autotransaction = true;
+
     public ResultSetInternalMethodsImpl(ResultData resultData, int[] columnIndexToFieldNumberMap, 
             Map<String, Integer> columnNameToFieldNumberMap, SessionSPI session) {
         this.columnIndexToFieldNumberMap = columnIndexToFieldNumberMap;
@@ -70,8 +72,11 @@ public class ResultSetInternalMethodsImpl extends AbstractResultSetInternalMetho
     @Override
     public boolean next() {
         boolean hasNext = resultData.next();
-        if (!hasNext) {
+        // startAutoTransaction was called in SQLExecutor.Select.execute and 
+        // endAutoTransaction must be called exactly once after all results have been read
+        if (autotransaction & !hasNext) {
             session.endAutoTransaction();
+            autotransaction = false;
         }
         if (logger.isDetailEnabled()) logger.detail("ResultSetInternalMethods.next returned: " + hasNext);
         return hasNext;
@@ -264,6 +269,11 @@ public class ResultSetInternalMethodsImpl extends AbstractResultSetInternalMetho
 
     @Override
     public void realClose(boolean arg0) throws SQLException {
+        // if next() was never called to end the autotransaction, do so now
+        if (autotransaction) {
+            session.endAutoTransaction();
+            autotransaction = false;
+        }
     }
 
     private int getFieldNumberForColumnName(String columnName) throws SQLException {

@@ -159,7 +159,9 @@ ELSE()
   IF(WITH_NDB_TEST)
     ADD_SUBDIRECTORY(src/cw/cpcd)
   ENDIF()
-  ADD_SUBDIRECTORY(clusterj)
+  IF (HAVE_JDK)
+    ADD_SUBDIRECTORY(clusterj)
+  ENDIF()
 
 ENDIF()
 
@@ -173,7 +175,9 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ha_ndbcluster_cond.cc
   ../../sql/ha_ndbcluster_connection.cc
   ../../sql/ha_ndbcluster_binlog.cc
-  ../../sql/ha_ndbinfo.cc)
+  ../../sql/ha_ndb_index_stat.cc
+  ../../sql/ha_ndbinfo.cc
+  ../../sql/ndb_mi.cc)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)

@@ -82,6 +82,14 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql
 ADD_CUSTOM_TARGET(ndbinfo_sql_run ALL
 				  DEPENDS ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql)
 
+MYSQL_ADD_EXECUTABLE(ndb_index_stat
+  ndb_index_stat.cpp
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_index_stat ndbNDBT ndbgeneral)
+
+ADD_EXECUTABLE(ndb_dump_frm_data
+  ndb_dump_frm_data.cpp)
+TARGET_LINK_LIBRARIES(ndb_dump_frm_data ndbNDBT ndbgeneral)
 
 IF (MYSQL_VERSION_ID LESS "50501")
   # Don't build or install this program anymore in 5.5+

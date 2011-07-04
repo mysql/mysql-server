@@ -56,6 +56,9 @@ public class InvocationHandlerImpl<T> implements InvocationHandler,
     /** The properties of the instance. */
     protected Object[] properties;
 
+    /** The number of fields */
+    protected int numberOfFields;
+
     /** The types of the properties. */
     protected Map<String, Class<?>> typemap = new HashMap<String, Class<?>>();
 
@@ -79,7 +82,7 @@ public class InvocationHandlerImpl<T> implements InvocationHandler,
 
     public InvocationHandlerImpl(DomainTypeHandlerImpl<T> domainTypeHandler) {
         this.domainTypeHandler = domainTypeHandler;
-        int numberOfFields = domainTypeHandler.getNumberOfFields();
+        numberOfFields = domainTypeHandler.getNumberOfFields();
         properties = new Object[numberOfFields];
         modifiedFields = new BitSet(numberOfFields);
         domainTypeHandler.initializeNotPersistentFields(this);

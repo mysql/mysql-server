@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.metadata.AbstractDomainFieldHandlerImpl;
 import com.mysql.clusterj.core.query.QueryDomainTypeImpl;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.store.IndexScanOperation;
@@ -225,13 +226,17 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 oidField = getFieldForOidClass(this, domainTypeHandler.getOidClass(), name);
                 indexNames.add("PRIMARY");
                 switch (javaType) {
-                    case JavaTypes.INT: 
-                    case JavaTypes.INT_OBJ: 
+                    case JavaTypes.INT:
                         this.objectOperationHandlerDelegate = objectOperationHandlerKeyInt;
                         break;
+                    case JavaTypes.INT_OBJ: 
+                        this.objectOperationHandlerDelegate = objectOperationHandlerKeyObjectInteger;
+                        break;
                     case JavaTypes.LONG:
-                    case JavaTypes.LONG_OBJ: 
                         this.objectOperationHandlerDelegate = objectOperationHandlerKeyLong;
+                        break;
+                    case JavaTypes.LONG_OBJ: 
+                        this.objectOperationHandlerDelegate = objectOperationHandlerKeyObjectLong;
                         break;
                    case JavaTypes.STRING: this.objectOperationHandlerDelegate =
                         objectOperationHandlerKeyString;
@@ -930,6 +935,9 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getObject(index);
+        }
     };
 
     static ObjectOperationHandler objectOperationHandlerRelationIntField =

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,8 +94,7 @@ static const char *ha_ndb_ext=".ndb";
 #define NDB_EXCEPTIONS_TABLE_SUFFIX "$EX"
 #define NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER "$ex"
 
-const uint error_conflict_fn_old_violation= 9998;
-const uint error_conflict_fn_max_violation= 9999;
+const uint error_conflict_fn_violation= 9999;
 #endif /* HAVE_NDB_BINLOG */
 
 
@@ -194,6 +193,8 @@ void ndbcluster_global_schema_lock_deinit();
 extern unsigned char g_node_id_map[max_ndb_nodes];
 extern pthread_mutex_t LOCK_ndb_util_thread;
 extern pthread_cond_t COND_ndb_util_thread;
+extern pthread_mutex_t LOCK_ndb_index_stat_thread;
+extern pthread_cond_t COND_ndb_index_stat_thread;
 extern pthread_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
 
@@ -235,6 +236,26 @@ int ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
 void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl, my_bool full);
 #ifdef HAVE_NDB_BINLOG
+int
+ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
+                                       const char* db,
+                                       const char* table_name,
+                                       uint server_id,
+                                       const TABLE *table,
+                                       Uint32* binlog_flags,
+                                       const st_conflict_fn_def** conflict_fn,
+                                       st_conflict_fn_arg* args,
+                                       Uint32* num_args);
+int
+ndbcluster_apply_binlog_replication_info(THD *thd,
+                                         NDB_SHARE *share,
+                                         const NDBTAB* ndbtab,
+                                         TABLE* table,
+                                         const st_conflict_fn_def* conflict_fn,
+                                         const st_conflict_fn_arg* args,
+                                         Uint32 num_args,
+                                         bool do_set_binlog_flags,
+                                         Uint32 binlog_flags);
 int
 ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    NDB_SHARE *share,

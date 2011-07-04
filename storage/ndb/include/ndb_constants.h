@@ -117,10 +117,10 @@
 #define NDB_INDEX_STAT_DB     "mysql"
 #define NDB_INDEX_STAT_SCHEMA "def"
 
-#define NDB_INDEX_STAT_HEAD_TABLE    "NDB$IS_HEAD"
-#define NDB_INDEX_STAT_SAMPLE_TABLE  "NDB$IS_SAMPLE"
-#define NDB_INDEX_STAT_SAMPLE_INDEX1 "NDB$IS_SAMPLE_X1"
+#define NDB_INDEX_STAT_HEAD_TABLE    "ndb_index_stat_head"
+#define NDB_INDEX_STAT_SAMPLE_TABLE  "ndb_index_stat_sample"
+#define NDB_INDEX_STAT_SAMPLE_INDEX1 "ndb_index_stat_sample_x1"
 
-#define NDB_INDEX_STAT_PREFIX        "NDB$IS"
+#define NDB_INDEX_STAT_PREFIX        "ndb_index_stat"
 
 #endif

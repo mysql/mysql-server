@@ -126,6 +126,7 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("version", Int, Mandatory, "Configuration version number"),
     MGM_ARG("node", Int, Optional, "Node ID"),
     MGM_ARG("nodetype", Int, Optional, "Type of requesting node"),
+    MGM_ARG("from_node", Int, Optional, "Node to get config from"),
 
   MGM_CMD("get nodeid", &MgmApiSession::get_nodeid, ""),
     MGM_ARG("version", Int, Mandatory, "Configuration version number"),
@@ -608,10 +609,12 @@ MgmApiSession::getConfig(Parser_t::Context &,
                          const class Properties &args)
 {
   Uint32 nodetype = NDB_MGM_NODE_TYPE_UNKNOWN;
+  Uint32 from_node = 0;
 
   // Ignoring mandatory parameter "version"
   // Ignoring optional parameter "node"
   args.get("nodetype", &nodetype);
+  args.get("from_node", &from_node);
 
   SLEEP_ERROR_INSERTED(1);
   m_output->println("get config reply");
@@ -619,8 +622,14 @@ MgmApiSession::getConfig(Parser_t::Context &,
   BaseString pack64, error;
 
   UtilBuffer packed;
-  if (!m_mgmsrv.get_packed_config((ndb_mgm_node_type)nodetype,
-                                  pack64, error))
+
+  bool success =
+   (from_node == 0 || from_node == m_mgmsrv.getOwnNodeId()) ?
+                m_mgmsrv.get_packed_config((ndb_mgm_node_type)nodetype,
+                                           pack64, error) :
+                m_mgmsrv.get_packed_config_from_node(from_node,
+                                                     pack64, error);
+  if (!success)
   {
     m_output->println("result: %s", error.c_str());
     m_output->print("\n");

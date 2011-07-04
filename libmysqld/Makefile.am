@@ -1,5 +1,4 @@
-# Copyright (c) 2001-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,6 +48,7 @@ noinst_HEADERS =	embedded_priv.h emb_qcache.h
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	     ha_ndbcluster.cc ha_ndbcluster_cond.cc \
 	ha_ndbcluster_connection.cc ha_ndbinfo.cc \
+	ha_ndb_index_stat.cc \
 	ha_ndbcluster_binlog.cc ha_partition.cc \
 	handler.cc sql_handler.cc \
 	hostname.cc init.cc password.c \
@@ -119,6 +119,9 @@ ha_ndbcluster_binlog.o: ha_ndbcluster_binlog.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbcluster_connection.o: ha_ndbcluster_connection.cc
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
+ha_ndb_index_stat.o: ha_ndb_index_stat.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbinfo.o: ha_ndbinfo.cc

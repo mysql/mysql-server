@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 package com.mysql.clusterj.core.query;
 
 import com.mysql.clusterj.ClusterJException;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
 import com.mysql.clusterj.core.store.ScanFilter.Group;
@@ -42,7 +43,7 @@ public class NotPredicateImpl extends PredicateImpl {
         // Nothing to do because "not" can't use indexes
     }
 
-    void markBoundsForCandidateIndices(QueryExecutionContextImpl context,
+    void markBoundsForCandidateIndices(QueryExecutionContext context,
             CandidateIndexImpl[] candidateIndices) {
         // Nothing to do because "not" can't use indexes
     }
@@ -52,7 +53,7 @@ public class NotPredicateImpl extends PredicateImpl {
      * @param context the query execution context with the parameter values
      * @param op the operation
      */
-    public void filterCmpValue(QueryExecutionContextImpl context,
+    public void filterCmpValue(QueryExecutionContext context,
             ScanOperation op) {
         try {
             ScanFilter filter = op.getScanFilter(context);
@@ -73,7 +74,7 @@ public class NotPredicateImpl extends PredicateImpl {
      * @param op the operation
      * @param filter the existing filter
      */
-    public void filterCmpValue(QueryExecutionContextImpl context,
+    public void filterCmpValue(QueryExecutionContext context,
             ScanOperation op, ScanFilter filter) {
         try {
             filter.begin(Group.GROUP_NAND);

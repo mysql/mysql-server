@@ -60,6 +60,7 @@ clusterj_core_java = \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/DomainFieldHandler.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/DomainTypeHandler.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/DomainTypeHandlerFactory.java \
+  $(clusterj_core_src)/com/mysql/clusterj/core/spi/QueryExecutionContext.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/SessionSPI.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/spi/ValueHandler.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/StateManager.java \

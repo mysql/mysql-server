@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ MACRO(ADD_FILES_TO_JAR TARGET)
     SET(CLASS_DIRS -C ${DIR} ${IT})
 
     ADD_CUSTOM_COMMAND( TARGET  ${TARGET}.jar POST_BUILD
-      COMMAND echo "${JAVA_ARCHIVE} ufv ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar ${CLASS_DIRS}"
+      COMMAND echo \"${JAVA_ARCHIVE} ufv ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar ${CLASS_DIRS}\"
       COMMAND ${JAVA_ARCHIVE} ufv ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar ${CLASS_DIRS}
       COMMENT "adding ${CLASS_DIRS} to target ${TARGET}-${JAVA_NDB_VERSION}.jar")
 
@@ -88,7 +88,7 @@ MACRO(CREATE_JAR_FROM_CLASSES TARGET)
   SET_JAVA_NDB_VERSION()
 
   ADD_CUSTOM_TARGET( ${TARGET}.jar ALL
-      COMMAND echo "${JAVA_ARCHIVE} cfvm ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar ${ARG_MANIFEST}"
+      COMMAND echo \"${JAVA_ARCHIVE} cfvm ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar ${ARG_MANIFEST}\"
       COMMAND ${JAVA_ARCHIVE} cfvm ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar ${ARG_MANIFEST} )
   FOREACH(DEP ${ARG_DEPENDENCIES})
     ADD_DEPENDENCIES(${TARGET}.jar ${DEP})
@@ -122,22 +122,38 @@ MACRO(CREATE_JAR)
   SET_JAVA_NDB_VERSION()
 
   ADD_CUSTOM_TARGET( ${TARGET}.jar ALL
-    COMMAND echo "${JAVA_ARCHIVE} cfv ${JAR_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar -C ${CLASS_DIR} ."
+    COMMAND echo \"${JAVA_ARCHIVE} cfv ${JAR_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar -C ${CLASS_DIR} .\"
     COMMAND ${JAVA_ARCHIVE} cfv ${JAR_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar -C ${CLASS_DIR} .)
+
+  # Concatenate the ARG_CLASSSPATH(a list of strings) into a string
+  # with platform specific separator
+  SET(separator) # Empty separator to start with
+  SET(classpath_str)
+  FOREACH(item ${ARG_CLASSPATH})
+    SET(classpath_str "${classpath_str}${separator}${item}")
+    IF (WIN32)
+      # Quote the semicolon since it's cmakes list separator
+      SET(separator "\;")
+    ELSE()
+      SET(separator ":")
+    ENDIF()
+  ENDFOREACH()
+  # MESSAGE(STATUS "classpath_str: ${classpath_str}")
+
 
   IF(EXISTS ${ARG_ENHANCE})
     MESSAGE(STATUS "enhancing ${TARGET}.jar")
     SET(ENHANCER org.apache.openjpa.enhance.PCEnhancer)
     ADD_CUSTOM_COMMAND( TARGET ${TARGET}.jar PRE_BUILD
-      COMMAND echo "${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${ARG_CLASSPATH} ${JAVA_FILES}"
-      COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath "${ARG_CLASSPATH}" ${JAVA_FILES}
-      COMMAND echo "${JAVA_RUNTIME} -classpath ${ARG_CLASSPATH}:${WITH_CLASSPATH} ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}"
-      COMMAND ${JAVA_RUNTIME} -classpath "${ARG_CLASSPATH};${WITH_CLASSPATH}" ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}
+      COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
+      COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}
+      COMMAND echo \"${JAVA_RUNTIME} -classpath ${classpath_str}${separator}${WITH_CLASSPATH} ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}\"
+      COMMAND ${JAVA_RUNTIME} -classpath "${classpath_str}${separator}${WITH_CLASSPATH}" ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}
     )
   ELSE()
     ADD_CUSTOM_COMMAND( TARGET ${TARGET}.jar PRE_BUILD
-      COMMAND echo "${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${ARG_CLASSPATH} ${JAVA_FILES}"
-      COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath "${ARG_CLASSPATH}" ${JAVA_FILES}
+      COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
+      COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
     )
   ENDIF()
 

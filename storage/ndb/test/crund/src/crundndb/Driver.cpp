@@ -1,7 +1,7 @@
 /* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
  *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
  *
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -114,32 +114,13 @@ void
 Driver::run() {
     init();
 
-    if (warmupRuns > 0) {
-        cout << endl
-             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
-             << "warmup runs ..." << endl
-             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
-
-        for (int i = 0; i < warmupRuns; i++) {
-            runTests();
-        }
-
-        // truncate log file, reset log buffers
-        closeLogFile();
-        openLogFile();
-        header.rdbuf()->str("");
-        rtimes.rdbuf()->str("");
-        ctimes.rdbuf()->str("");
-        logHeader = true;
-    }
-
-    if (hotRuns > 0) {
+    if (nRuns > 0) {
         cout << endl
              << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
              << "hot runs ..." << endl
              << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
 
-        for (int i = 0; i < hotRuns; i++) {
+        for (int i = 0; i < nRuns; i++) {
             runTests();
         }
 
@@ -201,18 +182,11 @@ Driver::initProperties() {
     logRealTime = toBool(props[L"logRealTime"], true);
     logCpuTime = toBool(props[L"logCpuTime"], false);
 
-    warmupRuns = toInt(props[L"warmupRuns"], 0, -1);
-    if (warmupRuns < 0) {
-        msg << "[ignored] warmupRuns:        '"
-            << toString(props[L"warmupRuns"]) << "'" << endl;
-        warmupRuns = 0;
-    }
-
-    hotRuns = toInt(props[L"hotRuns"], 1, -1);
-    if (hotRuns < 0) {
-        msg << "[ignored] hotRuns:           '"
-            << toString(props[L"hotRuns"]) << "'" << endl;
-        hotRuns = 1;
+    nRuns = toInt(props[L"nRuns"], 1, -1);
+    if (nRuns < 0) {
+        msg << "[ignored] nRuns:             '"
+            << toString(props[L"nRuns"]) << "'" << endl;
+        nRuns = 1;
     }
 
     //if (msg.tellp() == 0) // netbeans reports amibuities
@@ -233,8 +207,7 @@ Driver::printProperties() {
     cout << endl << "driver settings ..." << endl;
     cout << "logRealTime:                    " << logRealTime << endl;
     cout << "logCpuTime:                     " << logCpuTime << endl;
-    cout << "warmupRuns:                     " << warmupRuns << endl;
-    cout << "hotRuns:                        " << hotRuns << endl;
+    cout << "nRuns:                          " << nRuns << endl;
 
     cout.flags(f);
 }

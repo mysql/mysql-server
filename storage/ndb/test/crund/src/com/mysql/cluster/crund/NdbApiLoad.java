@@ -35,8 +35,9 @@ public class NdbApiLoad extends NdbBase {
     static protected native int ndbinit(String mgmd_host_portno);
     static protected native int ndbclose();
 
-    protected void init() throws Exception {
-        super.init();
+    protected void initLoad() throws Exception {
+        // XXX support generic load class
+        //super.init();
 
         // load dependent libs first
         out.println();
@@ -53,7 +54,7 @@ public class NdbApiLoad extends NdbBase {
         }
     }
 
-    protected void close() throws Exception {
+    protected void closeLoad() throws Exception {
         // release NDB resources
         final int ret = ndbclose();
         if (ret != 0) {
@@ -62,7 +63,9 @@ public class NdbApiLoad extends NdbBase {
             err.println(msg);
             throw new Exception(msg);
         }
-        super.close();
+
+        // XXX support generic load class
+        //super.close();
     }
 
     // ----------------------------------------------------------------------

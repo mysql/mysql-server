@@ -132,9 +132,9 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
 
   // SumaParticipant
   Uint32 noTables, noAttrs, maxBufferedEpochs;
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES,  
+  ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE,
 			    &noTables);
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES,  
+  ndb_mgm_get_int_parameter(p, CFG_DICT_ATTRIBUTE,
 			    &noAttrs);
   ndb_mgm_get_int_parameter(p, CFG_DB_MAX_BUFFERED_EPOCHS,
                             &maxBufferedEpochs);

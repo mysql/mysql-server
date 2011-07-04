@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,5 +19,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 		${CMAKE_SOURCE_DIR}/storage/ndb/include/util 
 		${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib )
 
-ADD_LIBRARY(mysqlutils decimal_utils.cpp CharsetMap.cpp CharsetMapImpl.cpp)
+ADD_CONVENIENCE_LIBRARY(mysqlutils
+  decimal_utils.cpp
+  CharsetMap.cpp
+  CharsetMapImpl.cpp)
 

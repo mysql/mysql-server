@@ -47,7 +47,7 @@ libsignaldataprint_la_SOURCES = \
  	  CreateIndxImpl.cpp DropIndxImpl.cpp AlterIndxImpl.cpp \
  	  BuildIndx.cpp BuildIndxImpl.cpp ApiVersion.cpp \
           LocalRouteOrd.cpp DbinfoScan.cpp NodePing.cpp \
-	  IndexStatSignal.cpp
+	  IndexStatSignal.cpp GetConfig.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
