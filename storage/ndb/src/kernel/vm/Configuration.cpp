@@ -32,6 +32,8 @@
 #include <mgmapi_configuration.hpp>
 #include <kernel_config_parameters.h>
 
+#include <util/ConfigValues.hpp>
+
 #include <ndbapi_limits.h>
 
 #include <EventLogger.hpp>
@@ -190,6 +192,9 @@ Configuration::fetch_configuration(const char* _connect_string,
     free(m_clusterConfig);
   
   m_clusterConfig = p;
+
+  const ConfigValues * cfg = (ConfigValues*)m_clusterConfig;
+  cfg->pack(m_clusterConfigPacked);
 
   {
     Uint32 generation;
