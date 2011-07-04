@@ -110,7 +110,8 @@ static plugin_ref ha_default_plugin(THD *thd)
 
 
 /** @brief
-  Return the default storage engine handlerton for thread
+  Return the default storage engine handlerton used for non-temp tables 
+  for thread
 
   SYNOPSIS
     ha_default_handlerton(thd)
@@ -129,6 +130,35 @@ handlerton *ha_default_handlerton(THD *thd)
 }
 
 
+static plugin_ref ha_default_temp_plugin(THD *thd)
+{
+  if (thd->variables.temp_table_plugin)
+    return thd->variables.temp_table_plugin;
+  return my_plugin_lock(thd, &global_system_variables.temp_table_plugin);
+}
+
+
+/** @brief
+  Return the default storage engine handlerton used for explicitly 
+  created temp tables for a thread
+
+  SYNOPSIS
+    ha_default_temp_handlerton(thd)
+    thd         current thread
+
+  RETURN
+    pointer to handlerton
+*/
+handlerton *ha_default_temp_handlerton(THD *thd)
+{
+  plugin_ref plugin= ha_default_temp_plugin(thd);
+  DBUG_ASSERT(plugin);
+  handlerton *hton= plugin_data(plugin, handlerton*);
+  DBUG_ASSERT(hton);
+  return hton;
+}
+
+
 /** @brief
   Return the storage engine handlerton for the supplied name
   
@@ -140,7 +170,8 @@ handlerton *ha_default_handlerton(THD *thd)
   RETURN
     pointer to storage engine plugin handle
 */
-plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name)
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name, 
+                              bool is_temp_table)
 {
   const LEX_STRING *table_alias;
   plugin_ref plugin;
@@ -150,7 +181,8 @@ redo:
   if (thd && !my_charset_latin1.coll->strnncoll(&my_charset_latin1,
                            (const uchar *)name->str, name->length,
                            (const uchar *)STRING_WITH_LEN("DEFAULT"), 0))
-    return ha_default_plugin(thd);
+    return is_temp_table ? 
+      ha_default_plugin(thd) : ha_default_temp_plugin(thd);
 
   if ((plugin= my_plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN)))
   {

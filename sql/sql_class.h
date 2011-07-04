@@ -490,6 +490,7 @@ typedef struct system_variables
   my_bool big_tables;
 
   plugin_ref table_plugin;
+  plugin_ref temp_table_plugin;
 
   /* Only charset part of these variables is sensible */
   const CHARSET_INFO *character_set_filesystem;
