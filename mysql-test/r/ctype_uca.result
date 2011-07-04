@@ -3102,6 +3102,93 @@ HEX(s1)
 0061000000000000000000000009
 0061
 DROP TABLE t1;
+create table t1 (a int, c1 varchar(200) collate utf8_croatian_ci, key (c1));
+insert into t1 values (1,'=> DZ'),(2,'=> Dz'),(3,'=> dz'),(4,'=> dZ');
+insert into t1 values (5,'=> DŽ'),(6,'=> Dž'),(7,'=> dž'),(8,'=> dŽ');
+insert into t1 values (9,'=> ǆ'),(10,'=> Ǆ');
+select c1 from t1;
+c1
+=> DZ
+=> Dz
+=> dz
+=> dZ
+=> dŽ
+=> DŽ
+=> Dž
+=> dž
+=> ǆ
+=> Ǆ
+select concat(c1) from t1 order by c1;
+concat(c1)
+=> DZ
+=> Dz
+=> dz
+=> dZ
+=> dŽ
+=> DŽ
+=> Dž
+=> dž
+=> ǆ
+=> Ǆ
+select * from t1 where c1 like '=> d%';
+a	c1
+1	=> DZ
+2	=> Dz
+3	=> dz
+4	=> dZ
+5	=> DŽ
+6	=> Dž
+7	=> dž
+8	=> dŽ
+select * from t1 where concat(c1) like '=> d%';
+a	c1
+1	=> DZ
+2	=> Dz
+3	=> dz
+4	=> dZ
+5	=> DŽ
+6	=> Dž
+7	=> dž
+8	=> dŽ
+select * from t1 where c1 like '=> dz%';
+a	c1
+1	=> DZ
+2	=> Dz
+3	=> dz
+4	=> dZ
+select * from t1 where concat(c1) like '=> dz%';
+a	c1
+1	=> DZ
+2	=> Dz
+3	=> dz
+4	=> dZ
+select * from t1 where c1 like '=> dž%';
+a	c1
+5	=> DŽ
+6	=> Dž
+7	=> dž
+8	=> dŽ
+select * from t1 where concat(c1) like '=> dž%';
+a	c1
+5	=> DŽ
+6	=> Dž
+7	=> dž
+8	=> dŽ
+select * from t1 where c1 = '=> dž';
+a	c1
+5	=> DŽ
+6	=> Dž
+7	=> dž
+9	=> ǆ
+10	=> Ǆ
+select * from t1 where concat(c1) = '=> dž';
+a	c1
+5	=> DŽ
+6	=> Dž
+7	=> dž
+9	=> ǆ
+10	=> Ǆ
+drop table t1;
 #
 # End of 5.5 tests
 #

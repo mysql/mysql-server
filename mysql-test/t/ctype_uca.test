@@ -560,6 +560,23 @@ SET collation_connection=utf8_czech_ci;
 SET collation_connection=ucs2_czech_ci;
 --source include/ctype_czech.inc
 --source include/ctype_like_ignorable.inc
+
+create table t1 (a int, c1 varchar(200) collate utf8_croatian_ci, key (c1));
+insert into t1 values (1,'=> DZ'),(2,'=> Dz'),(3,'=> dz'),(4,'=> dZ');
+insert into t1 values (5,'=> DŽ'),(6,'=> Dž'),(7,'=> dž'),(8,'=> dŽ');
+insert into t1 values (9,'=> ǆ'),(10,'=> Ǆ');
+select c1 from t1;
+select concat(c1) from t1 order by c1;
+select * from t1 where c1 like '=> d%';
+select * from t1 where concat(c1) like '=> d%';
+select * from t1 where c1 like '=> dz%';
+select * from t1 where concat(c1) like '=> dz%';
+select * from t1 where c1 like '=> dž%';
+select * from t1 where concat(c1) like '=> dž%';
+select * from t1 where c1 = '=> dž';
+select * from t1 where concat(c1) = '=> dž';
+drop table t1;
+
 --echo #
 --echo # End of 5.5 tests
 --echo #
