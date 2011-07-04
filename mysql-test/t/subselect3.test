@@ -2,7 +2,8 @@
 drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 --enable_warnings
 
-set @save_optimizer_switch=@@optimizer_switch;
+set @subselect3_tmp= @@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
 
 #
 # 1. Subquery with GROUP/HAVING
@@ -538,7 +539,6 @@ SELECT a, MAX(b),
 DROP TABLE t1, t2;
 
 # The next three test cases must be executed with the IN=>EXISTS strategy
-set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
 
 #
@@ -906,7 +906,8 @@ set @@optimizer_switch='firstmatch=off,materialization=off';
 insert into t0 values(2);
 explain select * from t1 where 2 in (select a from t0);
 select * from t1 where 2 in (select a from t0);
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch='materialization=off';
 explain select * from t1 where 2 in (select a from t0);
 select * from t1 where 2 in (select a from t0);
 set @@optimizer_switch=@save_optimizer_switch;
@@ -1160,7 +1161,7 @@ drop table t1,t2,t3;
 --echo # BUG#47367 Crash in Name_resolution_context::process_error
 --echo #
 
-SET SESSION optimizer_switch = 'default,semijoin=off';
+SET SESSION optimizer_switch = 'semijoin=off';
 CREATE TABLE t1 (f1 INTEGER);
 CREATE TABLE t2 LIKE t1;
 delimiter |;
@@ -1186,4 +1187,4 @@ DROP PROCEDURE p1;
 DROP TABLE t1, t2;
 
 # The following command must be the last one the file 
-set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch=@subselect3_tmp;

@@ -3,6 +3,10 @@
 # (WL#1110: Subquery optimization: materialization)
 #
 
+set @subselect_sj_mat_tmp= @@optimizer_switch;
+set optimizer_switch=ifnull(@subselect_mat_test_optimizer_switch_value, 'semijoin=on,firstmatch=on,loosescan=on');
+set @optimizer_switch_local_default= @@optimizer_switch;
+
 --disable_warnings
 drop table if exists t1, t2, t3, t1i, t2i, t3i;
 drop table if exists columns;
@@ -121,20 +125,26 @@ select * from t1 where (a1, a2) in (select b1, min(b2) from t2i limit 1,1);
 # test re-optimization/re-execution with different execution methods
 # prepare once, exec with different modes
 set @save_optimizer_switch=@@optimizer_switch;
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='semijoin=off';
 prepare st1 from
 "select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='materialization=off,in_to_exists=on';
 execute st1;
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='semijoin=off';
 execute st1;
 
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='materialization=off,in_to_exists=on';
 prepare st1 from
 "select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='semijoin=off';
 execute st1;
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='materialization=off,in_to_exists=on';
 execute st1;
 set @@optimizer_switch=@save_optimizer_switch;
 
@@ -826,18 +836,21 @@ explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 # Query with group by, executed via IN=>EXISTS
 set @save_optimizer_switch=@@optimizer_switch;
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='materialization=off,in_to_exists=on';
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 
 # Executed with materialization
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 select min(a1) from t1 where 7 in (select b1 from t2);
 # Executed with semi-join. Notice, this time we get a different result (NULL).
 # This is the only correct result of all four queries. This difference is
 # filed as BUG#40037.
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='materialization=off,in_to_exists=on';
 -- echo # with MariaDB and MWL#90, this particular case is solved:
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 select min(a1) from t1 where 7 in (select b1 from t2);
@@ -875,7 +888,8 @@ INSERT INTO t2 VALUES (1, 1.789);
 INSERT INTO t2 VALUES (13, 1.454);
 
 set @save_optimizer_switch=@@optimizer_switch;
-SET @@optimizer_switch='default,semijoin=on,materialization=on';
+set @@optimizer_switch=@optimizer_switch_local_default;
+SET @@optimizer_switch='semijoin=on,materialization=on';
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 set @@optimizer_switch= @save_optimizer_switch;
@@ -899,7 +913,8 @@ CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii'),(2,'f','ffff','ffff','ffff');
 
 set @save_optimizer_switch=@@optimizer_switch;
-SET @@optimizer_switch='default,semijoin=on,materialization=on';
+set @@optimizer_switch=@optimizer_switch_local_default;
+SET @@optimizer_switch='semijoin=on,materialization=on';
 EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 SELECT pk FROM t1 WHERE (b,c,d) IN (SELECT b,c,d FROM t2 WHERE pk > 0);
@@ -972,3 +987,6 @@ explain select left(a1,7), left(a2,7) from t1_1024 where (a1,3) in (select subst
 select left(a1,7), left(a2,7) from t1_1024 where (a1,3) in (select substring(b1,1,1024), count(*) from t2_1024 where b1 > '0');
 
 drop table t1_1024, t2_1024;
+
+set optimizer_switch=@subselect_sj_mat_tmp;
+

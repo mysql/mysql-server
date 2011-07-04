@@ -63,8 +63,8 @@ a	b	c
 3	-3	-3
 explain select * from t1 where b in (select c from t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	index	c	c	5	NULL	3	Using index
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+2	DEPENDENT SUBQUERY	t3	index_subquery	c	c	5	func	1	Using index
 # select_type=PRIMARY, type=range,ref
 select * from t1 where c in (select c from t3 where c between -2 and -1);
 a	b	c
@@ -73,8 +73,8 @@ a	b	c
 1	-1	-1
 explain select * from t1 where c in (select c from t3 where c between -2 and -1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	index	c	c	5	NULL	3	Using where; Using index
-1	PRIMARY	t1	ref	c	c	5	test.t3.c	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+2	DEPENDENT SUBQUERY	t3	index_subquery	c	c	5	func	1	Using index; Using where
 # select_type=UNION, type=system
 # select_type=UNION RESULT, type=<union1,2>
 select * from t1 union select * from t2;

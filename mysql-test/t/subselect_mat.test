@@ -5,9 +5,11 @@
 
 
 # force the use of materialization
-set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+set @subselect_mat_test_optimizer_switch_value='materialization=on,in_to_exists=off,semijoin=off';
 
 --source t/subselect_sj_mat.test
+set @subselect_mat_test_optimizer_switch_value=null;
+
 set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 #
 # Test that the contents of the temp table of a materialized subquery is

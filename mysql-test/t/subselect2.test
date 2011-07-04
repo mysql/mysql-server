@@ -8,6 +8,9 @@
 drop table if exists t1, t2, t3, t4;
 --enable_warnings
 
+set @subselect2_test_tmp=@@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on';
+
 CREATE TABLE t1
 (
 DOCID VARCHAR(32)BINARY NOT NULL
@@ -168,3 +171,6 @@ SELECT t1.* FROM t1 WHERE (SELECT COUNT(*) FROM t3,t2 WHERE t3.c=t2.a
                            and t2.a='1' AND t1.a=t3.b) > 0;
 
 DROP TABLE t1,t2,t3;
+
+set optimizer_switch=@subselect2_test_tmp;
+

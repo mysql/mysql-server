@@ -4,6 +4,7 @@ DROP DATABASE IF EXISTS world;
 --enable_warnings
 
 set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
 set @@optimizer_switch='semijoin_with_cache=on';
 set @@optimizer_switch='outer_join_with_cache=on';
 

@@ -615,10 +615,7 @@ enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
                                     OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
                                     OPTIMIZER_SWITCH_DERIVED_MERGE | \
                                     OPTIMIZER_SWITCH_DERIVED_WITH_KEYS | \
-                                    OPTIMIZER_SWITCH_FIRSTMATCH | \
-                                    OPTIMIZER_SWITCH_LOOSE_SCAN | \
                                     OPTIMIZER_SWITCH_IN_TO_EXISTS | \
-                                    OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
                                     OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
@@ -638,10 +635,7 @@ enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
                                     OPTIMIZER_SWITCH_DERIVED_MERGE | \
                                     OPTIMIZER_SWITCH_DERIVED_WITH_KEYS | \
                                     OPTIMIZER_SWITCH_TABLE_ELIMINATION | \
-                                    OPTIMIZER_SWITCH_FIRSTMATCH | \
-                                    OPTIMIZER_SWITCH_LOOSE_SCAN | \
                                     OPTIMIZER_SWITCH_IN_TO_EXISTS | \
-                                    OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
                                     OPTIMIZER_SWITCH_SUBQUERY_CACHE|\

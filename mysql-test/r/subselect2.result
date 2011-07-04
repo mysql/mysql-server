@@ -1,4 +1,6 @@
 drop table if exists t1, t2, t3, t4;
+set @subselect2_test_tmp=@@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on';
 CREATE TABLE t1
 (
 DOCID VARCHAR(32)BINARY NOT NULL
@@ -144,3 +146,4 @@ and t2.a='1' AND t1.a=t3.b) > 0;
 a
 2
 DROP TABLE t1,t2,t3;
+set optimizer_switch=@subselect2_test_tmp;

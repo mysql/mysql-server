@@ -12,8 +12,9 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 drop view if exists v2;
 --enable_warnings
 
-set @save_optimizer_switch=@@optimizer_switch;
-set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+set @subselect_tmp=@@optimizer_switch;
+set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_test,
+                              "semijoin=on,firstmatch=on,loosescan=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
 
 select (select 2);
 explain extended select (select 2);
@@ -4066,7 +4067,7 @@ SELECT 1 FROM t1 GROUP BY
   (SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
 DROP TABLE t1;
 
-set @@optimizer_switch=@save_optimizer_switch;
+#Seems to be not needed here: set @@optimizer_switch=@subselect_tmp;
 --echo #
 --echo # Bug #49512 : subquery with aggregate function crash 
 --echo #   subselect_single_select_engine::exec()
@@ -4402,3 +4403,4 @@ WHERE
 DROP TABLE t1,t2,t3;
 
 --echo End of 5.3 tests
+set optimizer_switch=@subselect_tmp;

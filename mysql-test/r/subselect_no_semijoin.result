@@ -1,8 +1,9 @@
-set optimizer_switch='semijoin=off';
+set @optimizer_switch_for_subselect_test='semijoin=off';
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 drop view if exists v2;
-set @save_optimizer_switch=@@optimizer_switch;
-set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+set @subselect_tmp=@@optimizer_switch;
+set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_test,
+"semijoin=on,firstmatch=on,loosescan=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
 select (select 2);
 (select 2)
 2
@@ -4804,7 +4805,6 @@ SELECT 1 FROM t1 GROUP BY
 1
 1
 DROP TABLE t1;
-set @@optimizer_switch=@save_optimizer_switch;
 #
 # Bug #49512 : subquery with aggregate function crash 
 #   subselect_single_select_engine::exec()
@@ -5128,4 +5128,5 @@ ON t2.f10 = t3.f10
 f1
 DROP TABLE t1,t2,t3;
 End of 5.3 tests
-set optimizer_switch=default;
+set optimizer_switch=@subselect_tmp;
+set @optimizer_switch_for_subselect_test=null;

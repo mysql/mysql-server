@@ -1,4 +1,5 @@
 set @save_optimizer_switch_jcl6=@@optimizer_switch;
+set @@optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
 set @@optimizer_switch='semijoin_with_cache=on';
 set @@optimizer_switch='outer_join_with_cache=on';
 set @@optimizer_switch='join_cache_hashed=off';
@@ -9,6 +10,8 @@ join_cache_level	6
 drop table if exists t0, t1, t2, t3, t4, t10, t11, t12;
 drop view if exists v1, v2;
 drop procedure if exists p1;
+set @subselect_sj_tmp= @@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
 set @save_optimizer_switch=@@optimizer_switch;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -1544,7 +1547,7 @@ AND t1.f1 = t2.f1 ;
 f1	f1
 DROP TABLE t1, t2;
 set optimizer_switch=@save_802965;
-set @@optimizer_switch=@save_optimizer_switch;
+set optimizer_switch=@subselect_sj_tmp;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
 #

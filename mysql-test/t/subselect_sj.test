@@ -7,6 +7,9 @@ drop view if exists v1, v2;
 drop procedure if exists p1;
 --enable_warnings
 
+set @subselect_sj_tmp= @@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+# The 'default' value within the scope of this test:
 set @save_optimizer_switch=@@optimizer_switch;
 
 #
@@ -1396,4 +1399,4 @@ DROP TABLE t1, t2;
 set optimizer_switch=@save_802965;
 
 # The following command must be the last one the file 
-set @@optimizer_switch=@save_optimizer_switch;
+set optimizer_switch=@subselect_sj_tmp;
