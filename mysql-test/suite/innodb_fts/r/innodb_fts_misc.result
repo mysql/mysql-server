@@ -631,3 +631,178 @@ SELECT * FROM t2 WHERE a2 LIKE '%tutorial%';
 id2	a2	b2
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 DROP TABLE t2 , t1;
+set global innodb_file_format="Barracuda";
+set global innodb_file_per_table=1;
+set global innodb_large_prefix=1;
+set names utf8;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) CHARACTER SET = utf8 , ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8, ENGINE = InnoDB;
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` varchar(200) DEFAULT NULL,
+  `b` text,
+  PRIMARY KEY (`id`),
+  FULLTEXT KEY `idx` (`a`,`b`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+3	Optimizing MySQL	In this tutorial we will show ...
+select * from t1 where MATCH(a,b) AGAINST("+tutorial +VÐƷWİ" IN BOOLEAN MODE);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+select * from t1 where MATCH(a,b) AGAINST("+-VÐƷWİ" IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST("+Mysql +(tricks never)" IN BOOLEAN MODE);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+select *, MATCH(a,b) AGAINST("mysql stands" IN BOOLEAN MODE) as x from t1;
+id	a	b	x
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...	0.6961383819580078
+2	How To Use MySQL Well	After you went through a ...	0.0906190574169159
+3	Optimizing MySQL	In this tutorial we will show ...	0.0906190574169159
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	0
+5	MySQL vs. YourSQL	In the following database comparison ...	0
+6	MySQL Security	When configured properly, MySQL ...	0
+select * from t1 where MATCH a,b AGAINST ("+database* +VÐƷW*" IN BOOLEAN MODE);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+select * from t1 where MATCH a,b AGAINST ('"security mysql"' IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST ("VÐƷWİ" WITH QUERY EXPANSION);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+3	Optimizing MySQL	In this tutorial we will show ...
+2	How To Use MySQL Well	After you went through a ...
+ALTER TABLE t1 DROP INDEX idx;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+3	Optimizing MySQL	In this tutorial we will show ...
+select * from t1 where MATCH(a,b) AGAINST("+tutorial +VÐƷWİ" IN BOOLEAN MODE);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+select * from t1 where MATCH(a,b) AGAINST("+dbms" IN BOOLEAN MODE);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+select * from t1 where MATCH(a,b) AGAINST("+Mysql +(tricks never)" IN BOOLEAN MODE);
+id	a	b
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+select * from t1 where MATCH(a,b) AGAINST("+mysql -(tricks never)" IN BOOLEAN MODE);
+id	a	b
+6	MySQL Security	When configured properly, MySQL ...
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+select *, MATCH(a,b) AGAINST("mysql VÐƷWİ" IN BOOLEAN MODE) as x from t1;
+id	a	b	x
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...	0.6055193543434143
+2	How To Use MySQL Well	After you went through a ...	1.0224660806113634e-20
+3	Optimizing MySQL	In this tutorial we will show ...	1.0224660806113634e-20
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	1.0224660806113634e-20
+5	MySQL vs. YourSQL	In the following database comparison ...	1.0224660806113634e-20
+6	MySQL Security	When configured properly, MySQL ...	2.0449321612227268e-20
+select * from t1 where MATCH a,b AGAINST ('"security mysql"' IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST ("VÐƷWİ" WITH QUERY EXPANSION);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
+3	Optimizing MySQL	In this tutorial we will show ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+6	MySQL Security	When configured properly, MySQL ...
+2	How To Use MySQL Well	After you went through a ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+INSERT INTO t1 (a,b) VALUES ('test query expansion','for database ...');
+INSERT INTO t1 (a,b) VALUES
+('test proximity search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO t1 (a,b) VALUES
+('test proximity fts search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO t1 (a,b) VALUES
+('test more proximity fts search, test, more proximity and phrase',
+'search, with proximity innodb');
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"more fts proximity"@09' IN BOOLEAN MODE);
+id	a	b
+UPDATE t1 SET a = UPPER(a) , b = UPPER(b) ;
+UPDATE t1 SET a = UPPER(a) , b = LOWER(b) ;
+select * from t1 where MATCH(a,b) AGAINST("+tutorial +dbms" IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST("+VÐƷWİ" IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+SELECT * FROM t1;
+id	a	b
+1	MYSQL TUTORIAL	dbms stands for database vðʒwi...
+2	HOW TO USE MYSQL WELL	after you went through a ...
+3	OPTIMIZING MYSQL	in this tutorial we will show ...
+4	1001 MYSQL TRICKS	1. never run mysqld as root. 2. ...
+5	MYSQL VS. YOURSQL	in the following database comparison ...
+6	MYSQL SECURITY	when configured properly, mysql ...
+7	TEST QUERY EXPANSION	for database ...
+8	TEST PROXIMITY SEARCH, TEST, PROXIMITY AND PHRASE	search, with proximity innodb
+9	TEST PROXIMITY FTS SEARCH, TEST, PROXIMITY AND PHRASE	search, with proximity innodb
+10	TEST MORE PROXIMITY FTS SEARCH, TEST, MORE PROXIMITY AND PHRASE	search, with proximity innodb
+DROP TABLE t1;
+SET GLOBAL innodb_file_format=Antelope;
+SET GLOBAL innodb_file_per_table=0;
+SET GLOBAL innodb_file_format_max=Antelope;
+SET GLOBAL innodb_large_prefix=0;
