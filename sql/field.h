@@ -1906,7 +1906,13 @@ public:
   int  store(longlong nr, bool unsigned_val);
   int  store_decimal(const my_decimal *);
   uint size_of() const { return sizeof(*this); }
-  int  reset(void) { return !maybe_null() || Field_blob::reset(); }
+
+  /**
+    Non-nullable GEOMETRY types cannot have defaults,
+    but the underlying blob must still be reset.
+   */
+  int reset(void) { return Field_blob::reset() || !maybe_null(); }
+
   geometry_type get_geometry_type() { return geom_type; };
 };
 #endif /*HAVE_SPATIAL*/
