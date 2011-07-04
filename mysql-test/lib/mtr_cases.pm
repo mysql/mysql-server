@@ -647,9 +647,9 @@ sub optimize_cases {
       if (defined $default_temp_engine){
 
 	#print " $tinfo->{name}\n";
-	#print " - The test asked to use '$default_engine'\n";
+	#print " - The test asked to use '$default_temp_engine' as temp engine\n";
 
-	#my $engine_value= $::mysqld_variables{$default_engine};
+	#my $engine_value= $::mysqld_variables{$default_temp_engine};
 	#print " - The mysqld_variables says '$engine_value'\n";
 
 	if ( ! exists $::mysqld_variables{$default_temp_engine} and
