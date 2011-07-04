@@ -132,7 +132,7 @@ struct ByteBufferPtrParam {
                     } else {
                         // ok
                         s = 0;
-                        c = static_cast<C *>(a);
+                        c = static_cast< C * >(a);
                     }
                 }
             }
@@ -333,7 +333,7 @@ getBufferPosition(jtie_j_n_ByteBuffer jbb, JNIEnv * env) {
 inline void *
 getByteBufferAddress(jtie_j_n_ByteBuffer jbb, JNIEnv * env) {
     // get the internal buffer address of direct ByteBuffer
-    char * a = static_cast<char *>(env->GetDirectBufferAddress(jbb));
+    char * a = static_cast< char * >(env->GetDirectBufferAddress(jbb));
     if (a == NULL) {
 #ifndef JTIE_BYTEBUFFER_NO_ZERO_CAPACITY_MAPPING
         // check for direct ByteBuffer of zero-capacity
