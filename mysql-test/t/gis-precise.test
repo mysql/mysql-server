@@ -114,3 +114,6 @@ SELECT astext(ST_UNION (
 
 #bug 801189 ST_BUFFER asserts if radius = 0
 SELECT astext(ST_BUFFER(LineStringFromText('LINESTRING(0 0,1 1)'),0));
+
+#buf 801199 Infinite recursion in Gcalc_function::count_internal with ST_BUFFER over MULTIPOINT
+SELECT Round(ST_Area(ST_BUFFER(MultipointFromText('MULTIPOINT(7 7,3 7,7 2,7 4 ,7 7)'), 3)), 5);

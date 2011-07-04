@@ -212,3 +212,6 @@ GEOMETRYCOLLECTION(POLYGON((0 0,1 9,8 2,0 0),(2 2,2 7,3 2,2 2)),LINESTRING(0 0,5
 SELECT astext(ST_BUFFER(LineStringFromText('LINESTRING(0 0,1 1)'),0));
 astext(ST_BUFFER(LineStringFromText('LINESTRING(0 0,1 1)'),0))
 LINESTRING(0 0,1 1)
+SELECT Round(ST_Area(ST_BUFFER(MultipointFromText('MULTIPOINT(7 7,3 7,7 2,7 4 ,7 7)'), 3)), 5);
+Round(ST_Area(ST_BUFFER(MultipointFromText('MULTIPOINT(7 7,3 7,7 2,7 4 ,7 7)'), 3)), 5)
+78.68426

@@ -26,6 +26,7 @@
 #endif
 
 #include "gcalc_slicescan.h"
+#include "gcalc_tools.h"
 
 class Item_geometry_func: public Item_str_func
 {
@@ -298,18 +299,28 @@ protected:
     int add_last_edge_buffer();
     int add_point_buffer(double x, double y);
     int complete();
-  public:
     int m_nshapes;
+    Gcalc_function::op_type buffer_op;
+    int last_shape_pos;
+    bool skip_line;
+
+  public:
     Transporter(Gcalc_function *fn, Gcalc_heap *heap, double d) :
-      Gcalc_operation_transporter(fn, heap), m_npoints(0), m_d(d), m_nshapes(0)
+      Gcalc_operation_transporter(fn, heap), m_npoints(0), m_d(d),
+      m_nshapes(0), buffer_op((d > 0.0) ? Gcalc_function::op_union :
+                                          Gcalc_function::op_difference),
+      skip_line(FALSE)
     {}
     int single_point(double x, double y);
     int start_line();
     int complete_line();
     int start_poly();
+    int complete_poly();
     int start_ring();
     int complete_ring();
     int add_point(double x, double y);
+
+    int start_collection(int n_objects);
   };
   Gcalc_heap collector;
   Gcalc_function func;

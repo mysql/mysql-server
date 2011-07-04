@@ -1284,6 +1284,18 @@ int Item_func_buffer::Transporter::add_point_buffer(double x, double y)
 
 int Item_func_buffer::Transporter::start_line()
 {
+  if (buffer_op == Gcalc_function::op_difference)
+  {
+    skip_line= TRUE;
+    return 0;
+  }
+  
+  m_nshapes= 0;
+
+  if (m_fn->reserve_op_buffer(2))
+    return 1;
+  last_shape_pos= m_fn->get_next_operation_pos();
+  m_fn->add_operation(buffer_op, 0);
   m_npoints= 0;
   int_start_line();
   return 0;
@@ -1292,8 +1304,22 @@ int Item_func_buffer::Transporter::start_line()
 
 int Item_func_buffer::Transporter::start_poly()
 {
-  ++m_nshapes;
+  m_nshapes= 1;
+
+  if (m_fn->reserve_op_buffer(2))
+    return 1;
+  last_shape_pos= m_fn->get_next_operation_pos();
+  m_fn->add_operation(buffer_op, 0);
   return Gcalc_operation_transporter::start_poly();
+}
+
+
+int Item_func_buffer::Transporter::complete_poly()
+{
+  if (Gcalc_operation_transporter::complete_poly())
+    return 1;
+  m_fn->add_operands_to_op(last_shape_pos, m_nshapes);
+  return 0;
 }
 
 
@@ -1304,8 +1330,20 @@ int Item_func_buffer::Transporter::start_ring()
 }
 
 
+int Item_func_buffer::Transporter::start_collection(int n_objects)
+{
+  if (m_fn->reserve_op_buffer(1))
+    return 1;
+  m_fn->add_operation(Gcalc_function::op_union, n_objects);
+  return 0;
+}
+
+
 int Item_func_buffer::Transporter::add_point(double x, double y)
 {
+  if (skip_line)
+    return 0;
+
   if (m_npoints && x == x2 && y == y2)
     return 0;
 
@@ -1374,9 +1412,14 @@ int Item_func_buffer::Transporter::complete()
 
 int Item_func_buffer::Transporter::complete_line()
 {
-  if (complete())
-    return 1;
-  int_complete_line();
+  if (!skip_line)
+  {
+    if (complete())
+      return 1;
+    int_complete_line();
+    m_fn->add_operands_to_op(last_shape_pos, m_nshapes);
+  }
+  skip_line= FALSE;
   return 0;
 }
 
@@ -1396,7 +1439,6 @@ String *Item_func_buffer::val_str(String *str_value)
   double dist= args[1]->val_real();
   Geometry_buffer buffer;
   Geometry *g;
-  uint32 union_pos;
   uint32 srid= 0;
   String *str_result= NULL;
   Transporter trn(&func, &collector, dist);
@@ -1418,17 +1460,9 @@ String *Item_func_buffer::val_str(String *str_value)
     goto mem_error;
   }
 
-  if (func.reserve_op_buffer(2))
-    goto mem_error;
-  /* will specify operands later */
-  union_pos= func.get_next_operation_pos();
-  func.add_operation((dist > 0.0) ? Gcalc_function::op_union :
-                                    Gcalc_function::op_difference, 0);
-
   if (g->store_shapes(&trn))
     goto mem_error;
 
-  func.add_operands_to_op(union_pos, trn.m_nshapes);
   collector.prepare_operation();
   if (func.alloc_states())
     goto mem_error;
