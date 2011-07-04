@@ -891,6 +891,7 @@ MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
   }
   // Should never come here
   require(false);
+  DBUG_RETURN(false);
 }
 
 MgmtSrvr::~MgmtSrvr()
