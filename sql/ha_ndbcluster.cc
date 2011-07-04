@@ -635,8 +635,8 @@ static int check_slave_state(THD* thd)
 
           const Uint32 server_id_col_num = 0;
           const Uint32 epoch_col_num = 1;
-          NdbRecAttr* server_id_ra;
-          NdbRecAttr* epoch_ra;
+          NdbRecAttr* server_id_ra = 0;
+          NdbRecAttr* epoch_ra = 0;
 
           if (unlikely((sop->readTuples(NdbOperation::LM_CommittedRead) != 0)   ||
                        ((server_id_ra = sop->getValue(server_id_col_num)) == NULL)  ||
@@ -5938,7 +5938,7 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
           my_bitmap_map *old_map=
             dbug_tmp_use_all_columns(table, table->write_set);
           int res = field_bit->store(value, true);
-          assert(res == 0);
+          assert(res == 0); NDB_IGNORE_VALUE(res);
           dbug_tmp_restore_column_map(table->write_set, old_map);
           field->move_field_offset(-dst_offset);
         }
@@ -9907,7 +9907,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
                              share->key, share->use_count));
     ndbcluster_prepare_rename_share(share, to);
     int ret = ndbcluster_rename_share(thd, share);
-    assert(ret == 0);
+    assert(ret == 0); NDB_IGNORE_VALUE(ret);
   }
 
   NdbDictionary::Table new_tab= *orig_tab;
@@ -9918,7 +9918,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     if (share)
     {
       int ret = ndbcluster_undo_rename_share(thd, share);
-      assert(ret == 0);
+      assert(ret == 0); NDB_IGNORE_VALUE(ret);
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                share->key, share->use_count));

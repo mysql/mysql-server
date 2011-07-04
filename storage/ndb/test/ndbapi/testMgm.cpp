@@ -23,6 +23,7 @@
 #include <InputStream.hpp>
 #include <signaldata/EventReport.hpp>
 #include <NdbRestarter.hpp>
+#include <random.h>
 
 /*
   Tests that only need the mgmd(s) started
@@ -709,6 +710,174 @@ int runGetConfigUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
   int result= NDBT_OK;
   while(!ctx->isTestStopped() &&
         (result= runGetConfig(ctx, step)) == NDBT_OK)
+    ;
+  return result;
+}
+
+
+// Find a random node of a given type.
+
+static bool
+get_nodeid_of_type(NdbMgmd& mgmd, ndb_mgm_node_type type, int *nodeId)
+{
+  ndb_mgm_node_type
+    node_types[2] = { type,
+                      NDB_MGM_NODE_TYPE_UNKNOWN };
+
+  ndb_mgm_cluster_state *cs = ndb_mgm_get_status2(mgmd.handle(), node_types);
+  if (cs == NULL)
+  {
+    g_err << "ndb_mgm_get_status2 failed, error: "
+            << ndb_mgm_get_latest_error(mgmd.handle()) << " "
+            << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl;
+    return false;
+  }
+
+  int noOfNodes = cs->no_of_nodes;
+  int randomnode = myRandom48(noOfNodes);
+  ndb_mgm_node_state *ns = cs->node_states + randomnode;
+  assert(ns->node_type == (Uint32)type);
+  assert(ns->node_id);
+
+  *nodeId = ns->node_id;
+  g_info << "Got node id " << *nodeId << " of type " << type << endl;
+
+  free(cs);
+  return true;
+}
+
+
+// Ensure getting config from an illegal node fails.
+// Return true in that case.
+
+static bool
+get_config_from_illegal_node(NdbMgmd& mgmd, int nodeId)
+{
+  struct ndb_mgm_configuration* conf=
+      ndb_mgm_get_configuration_from_node(mgmd.handle(), nodeId);
+
+  // Get conf from an illegal node should fail.
+  if (ndb_mgm_get_latest_error(mgmd.handle()) != NDB_MGM_GET_CONFIG_FAILED)
+  {
+      g_err << "ndb_mgm_get_configuration from illegal node "
+            << nodeId << " not failed, error: "
+            << ndb_mgm_get_latest_error(mgmd.handle()) << " "
+            << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl;
+      return false;
+  }
+
+  if (conf)
+  {
+    // Should not get a conf from an illegal node.
+    g_err << "ndb_mgm_get_configuration from illegal node: "
+          << nodeId << ", error: "
+          << ndb_mgm_get_latest_error(mgmd.handle()) << " "
+          << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl;
+    free(conf);
+    return false;
+  }
+  return true;
+}
+
+
+// Check get_config from a non-existing node fails.
+
+static bool
+check_get_config_illegal_node(NdbMgmd& mgmd)
+{
+  // Find a node that does not exist
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return false;
+
+  int nodeId = 0;
+  for(Uint32 i= 1; i < MAX_NODES; i++){
+    ConfigIter iter(&conf, CFG_SECTION_NODE);
+    if (iter.find(CFG_NODE_ID, i) != 0){
+      nodeId = i;
+      break;
+    }
+  }
+  if (nodeId == 0)
+    return true; // All nodes probably defined
+
+  return get_config_from_illegal_node(mgmd, nodeId);
+}
+
+
+
+// Check get_config from a non-NDB/MGM node type fails
+
+static bool
+check_get_config_wrong_type(NdbMgmd& mgmd)
+{
+  int nodeId = 0;
+
+  if (get_nodeid_of_type(mgmd, NDB_MGM_NODE_TYPE_API, &nodeId))
+  {
+    return get_config_from_illegal_node(mgmd, nodeId);
+  }
+  // No API nodes found.
+  return true;
+}
+
+/* Find management node or a random data node, and get config from it.
+ * Also ensure failure when getting config from
+ * an illegal node (a non-NDB/MGM type, nodeid not defined,
+ * or nodeid > MAX_NODES).
+ */
+int runGetConfigFromNode(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  if (!check_get_config_wrong_type(mgmd) ||
+      !check_get_config_illegal_node(mgmd) ||
+      !get_config_from_illegal_node(mgmd, MAX_NODES + 2))
+  {
+    return NDBT_FAILED;
+  }
+
+  int loops= ctx->getNumLoops();
+  for (int l= 0; l < loops; l++)
+  {
+    /* Get config from a node of type:
+     * NDB_MGM_NODE_TYPE_NDB or NDB_MGM_NODE_TYPE_MGM
+     */
+    int myChoice = myRandom48(2);
+    ndb_mgm_node_type randomAllowedType = (myChoice) ?
+                                          NDB_MGM_NODE_TYPE_NDB :
+                                          NDB_MGM_NODE_TYPE_MGM;
+    int nodeId = 0;
+    if (get_nodeid_of_type(mgmd, randomAllowedType, &nodeId))
+    {
+      struct ndb_mgm_configuration* conf =
+        ndb_mgm_get_configuration_from_node(mgmd.handle(), nodeId);
+      if (!conf)
+      {
+        g_err << "ndb_mgm_get_configuration_from_node "
+              << nodeId << " failed, error: "
+              << ndb_mgm_get_latest_error(mgmd.handle()) << " "
+              << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl;
+        return NDBT_FAILED;
+      }
+      free(conf);
+    }
+    else
+    {
+      // ignore
+    }
+  }
+  return NDBT_OK;
+}
+
+
+int runGetConfigFromNodeUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result= NDBT_OK;
+  while(!ctx->isTestStopped() &&
+        (result= runGetConfigFromNode(ctx, step)) == NDBT_OK)
     ;
   return result;
 }
@@ -2659,6 +2828,7 @@ TESTCASE("Stress",
   STEP(runTestGetNodeIdUntilStopped);
   STEP(runSetConfigUntilStopped);
   STEPS(runGetConfigUntilStopped, 10);
+  STEPS(runGetConfigFromNodeUntilStopped, 10);
   STEPS(runTestStatusUntilStopped, 10);
   STEPS(runTestGetVersionUntilStopped, 5);
   STEP(runSleepAndStop);
@@ -2668,6 +2838,7 @@ TESTCASE("Stress2",
   STEP(runTestGetNodeIdUntilStopped);
   STEPS(runTestSetConfigParallelUntilStopped, 5);
   STEPS(runGetConfigUntilStopped, 10);
+  STEPS(runGetConfigFromNodeUntilStopped, 10);
   STEPS(runTestStatusUntilStopped, 10);
   STEPS(runTestGetVersionUntilStopped, 5);
   STEP(runSleepAndStop);

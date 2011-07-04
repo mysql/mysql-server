@@ -21,6 +21,7 @@
 #include "ndb_mgmd_error.h"
 #include "Services.hpp"
 #include "ConfigManager.hpp"
+#include "Defragger.hpp"
 
 #include <NdbOut.hpp>
 #include <NdbApiSignal.hpp>
@@ -43,6 +44,7 @@
 #include <signaldata/CreateNodegroup.hpp>
 #include <signaldata/DropNodegroup.hpp>
 #include <signaldata/Sync.hpp>
+#include <signaldata/GetConfig.hpp>
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include <EventLogger.hpp>
@@ -737,6 +739,159 @@ MgmtSrvr::get_packed_config(ndb_mgm_node_type node_type,
   return m_config_manager->get_packed_config(node_type, &buf64, error);
 }
 
+bool
+MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
+                            BaseString& buf64, BaseString& error)
+{
+  DBUG_ENTER("get_packed_config_from_node");
+
+  if (nodeId >= MAX_NODES_ID)
+  {
+    error.assfmt("Nodeid %d is greater than max nodeid %d. ",
+                 nodeId, MAX_NODES_ID);
+    DBUG_RETURN(false);
+  }
+
+  if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_UNKNOWN)
+  {
+    error.assfmt("Nodeid %d does not exist. ", nodeId);
+    DBUG_RETURN(false);
+  }
+
+  if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_NDB)
+  {
+    error.assfmt("Node %d is not an NDB node. ", nodeId);
+    DBUG_RETURN(false);
+  }
+
+  trp_node node = getNodeInfo(nodeId);
+
+  if (!node.m_alive)
+  {
+    error.assfmt("Data node %d is not alive. ", nodeId);
+    DBUG_RETURN(false);
+  }
+
+  const Uint32 version = node.m_info.m_version;
+
+  if (!ndbd_get_config_supported(version))
+  {
+    error.assfmt("Data node %d (version %d.%d.%d) does not support getting config. ",
+                 nodeId, ndbGetMajor(version),
+                 ndbGetMinor(version), ndbGetBuild(version));
+    DBUG_RETURN(false);
+  }
+
+  INIT_SIGNAL_SENDER(ss,nodeId);
+
+  SimpleSignal ssig;
+  GetConfigReq* req = CAST_PTR(GetConfigReq, ssig.getDataPtrSend());
+  req->senderRef = ss.getOwnRef();
+  req->nodeId = nodeId;
+
+  g_eventLogger->debug("Sending GET_CONFIG_REQ to %d", nodeId);
+
+  ssig.set(ss, TestOrd::TraceAPI, CMVMI, GSN_GET_CONFIG_REQ,
+           GetConfigReq::SignalLength);
+  if ((ss.sendSignal(nodeId, &ssig)) != SEND_OK)
+  {
+    DBUG_RETURN(false);
+  }
+
+  Defragger defragger;
+  while (true)
+  {
+    SimpleSignal *signal = ss.waitFor();
+    int gsn = signal->readSignalNumber();
+
+    switch (gsn)
+    {
+    case GSN_GET_CONFIG_CONF:
+    {
+      if (refToNode(signal->header.theSendersBlockRef) != nodeId)
+      {
+        error.assfmt("Internal Error: Reply from wrong node %d, expected from %d. ",
+                     refToNode(signal->header.theSendersBlockRef),
+                     nodeId);
+        DBUG_RETURN(false);
+      }
+
+      const GetConfigConf * const conf =
+	CAST_CONSTPTR(GetConfigConf, signal->getDataPtr());
+
+      if (signal->header.m_noOfSections != 1)
+      {
+        error.assfmt("Internal Error: Wrong number of sections %d received, expected %d. ",
+                     signal->header.m_noOfSections, 1);
+        DBUG_RETURN(false);
+      }
+
+      if (defragger.defragment(signal))
+      {
+        ConfigValuesFactory cf;
+        require(cf.unpack(signal->ptr[0].p, conf->configLength));
+
+        Config received_config(cf.getConfigValues());
+        if (!received_config.pack64(buf64))
+        {
+          error.assign("Failed to pack64");
+          DBUG_RETURN(false);
+        }
+        DBUG_RETURN(true);
+      }
+      // wait until all fragments are received
+      continue;
+    }
+
+    case GSN_GET_CONFIG_REF:
+    {
+      if (refToNode(ssig.header.theSendersBlockRef) != nodeId)
+      {
+        error.assfmt("Internal Error: Reply from wrong node %d, expected from %d. ",
+                     refToNode(signal->header.theSendersBlockRef),
+                     nodeId);
+        DBUG_RETURN(false);
+      }
+      const GetConfigRef * const ref =
+	CAST_CONSTPTR(GetConfigRef, signal->getDataPtr());
+      error.assfmt("Error in retrieving config from node %d: Internal error: %d",
+                   nodeId, ref->error);
+
+      DBUG_RETURN(false);
+    }
+
+    case GSN_NF_COMPLETEREP:
+    {
+      const NFCompleteRep * rep = CAST_CONSTPTR(NFCompleteRep,
+                                                signal->getDataPtr());
+      if (rep->failedNodeId == nodeId)
+      {
+        error.assfmt("Node %d is not available", nodeId);
+        DBUG_RETURN(false);
+      }
+      continue;
+    }
+
+    case GSN_NODE_FAILREP:
+    {
+      // Wait until GSN_NODE_COMPLETEREP is received.
+      continue;
+    }
+
+    case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
+      // Ignore
+      continue;
+
+    default:
+      report_unknown_signal(signal);
+      DBUG_RETURN(false);
+    }
+  }
+  // Should never come here
+  require(false);
+}
 
 MgmtSrvr::~MgmtSrvr()
 {
@@ -3957,7 +4112,7 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
     case GSN_NF_COMPLETEREP:
     {
       NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
-      msg.assign("Node %d failed uring configuration change", nodeId);
+      msg.assign("Node %d failed during configuration change", nodeId);
       return false;
       break;
     }
