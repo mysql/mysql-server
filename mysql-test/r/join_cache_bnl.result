@@ -35,9 +35,6 @@ COUNT(*)
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	4
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 

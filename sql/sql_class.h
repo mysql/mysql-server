@@ -1897,7 +1897,7 @@ public:
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
   /** Tells whether the given optimizer_switch flag is on */
-  inline bool optimizer_switch_flag(ulonglong flag)
+  inline bool optimizer_switch_flag(ulonglong flag) const
   {
     return (variables.optimizer_switch & flag);
   }

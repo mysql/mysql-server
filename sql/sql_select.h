@@ -362,9 +362,8 @@ public:
   ha_rows       limit; 
   TABLE_REF	ref;
   /**
-    Join buffering strategy (same as return code of check_join_cache_level().
-    During optimization, this contains allowed join buffering strategies,
-    after optimization it contains chosen join buffering strategy (if any).
+    Join buffering strategy.
+    After optimization it contains chosen join buffering strategy (if any).
    */
   uint          use_join_cache;
   JOIN_CACHE	*cache;
@@ -1005,8 +1004,8 @@ public:
     buff= 0;
   }   
 
-  /** Bits describing cache's type @sa check_join_cache_usage() */
-  enum {ALG_NONE= 0, ALG_BNL= 2, ALG_BKA= 4, ALG_BKA_UNIQUE= 8};
+  /** Bits describing cache's type @sa setup_join_buffering() */
+  enum {ALG_NONE= 0, ALG_BNL= 1, ALG_BKA= 2, ALG_BKA_UNIQUE= 4};
 
   friend class JOIN_CACHE_BNL;
   friend class JOIN_CACHE_BKA;

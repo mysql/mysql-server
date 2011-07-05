@@ -33,8 +33,7 @@ if (`select locate('mrr', @@optimizer_switch) > 0`)
 --echo #
 
 SET @@default_storage_engine='innodb';
-SET @@optimizer_switch='semijoin=on,materialization=off,firstmatch=on,loosescan=off';
-SET @@optimizer_join_cache_level=0;
+SET @@optimizer_switch='semijoin=on,materialization=off,firstmatch=on,loosescan=off,block_nested_loop=off,batch_key_access=off';
 
 CREATE TABLE t0(a INTEGER);
 
