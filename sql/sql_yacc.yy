@@ -696,7 +696,11 @@ bool setup_select_in_parentheses(LEX *lex)
   return FALSE;
 }
 
+#ifndef MCP_WL3749
+static bool add_create_index_prepare (LEX *lex, Table_ident *table, enum ha_build_method method)
+#else
 static bool add_create_index_prepare (LEX *lex, Table_ident *table)
+#endif
 {
   lex->sql_command= SQLCOM_CREATE_INDEX;
   if (!lex->current_select->add_table_to_list(lex->thd, table, NULL,
@@ -706,6 +710,9 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
     return TRUE;
   lex->alter_info.reset();
   lex->alter_info.flags= ALTER_ADD_INDEX;
+#ifndef MCP_WL3749
+  lex->alter_info.build_method= method;
+#endif
   lex->col_list.empty();
   lex->change= NullS;
   return FALSE;
@@ -770,6 +777,9 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   sp_head *sphead;
   struct p_elem_val *p_elem_value;
   enum index_hint_type index_hint;
+#ifndef MCP_WL3749
+  enum ha_build_method build_method;
+#endif
   enum enum_filetype filetype;
   enum Foreign_key::fk_option m_fk_option;
   enum enum_yes_no_unknown m_yes_no_unk;
@@ -1151,11 +1161,17 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  NUM
 %token  NUMERIC_SYM                   /* SQL-2003-R */
 %token  NVARCHAR_SYM
+/* #ifndef MCP_WL3749  */
+%token  OFFLINE_SYM
+/* #endif */
 %token  OFFSET_SYM
 %token  OLD_PASSWORD
 %token  ON                            /* SQL-2003-R */
 %token  ONE_SHOT_SYM
 %token  ONE_SYM
+/* #ifndef MCP_WL3749  */
+%token  ONLINE_SYM
+/* #endif */
 %token  OPEN_SYM                      /* SQL-2003-R */
 %token  OPTIMIZE
 %token  OPTIONS_SYM
@@ -1561,6 +1577,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         query_expression_body
 
 %type <boolfunc2creator> comp_op
+
+/* #ifndef MCP_WL3749 */
+%type <build_method> build_method
+/* #endif */
 
 %type <NONE>
         query verb_clause create change select do drop insert replace insert2
@@ -2094,36 +2114,80 @@ create:
             }
             create_table_set_open_action_and_adjust_tables(lex);
           }
+/* #ifndef MCP_WL3749 */
+        | CREATE build_method opt_unique INDEX_SYM ident key_alg ON table_ident
+/* #else
         | CREATE opt_unique INDEX_SYM ident key_alg ON table_ident
+   #endif
+*/
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index_prepare(Lex, $8, $2))
+/* #else
             if (add_create_index_prepare(Lex, $7))
+   #endif
+*/
               MYSQL_YYABORT;
           }
           '(' key_list ')' normal_key_options
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index(Lex, $3, $5))
+/* #else
             if (add_create_index(Lex, $2, $4))
-              MYSQL_YYABORT;
+   #endif
+*/              MYSQL_YYABORT;
           }
+/* #ifndef MCP_WL3749 */
+        | CREATE build_method fulltext INDEX_SYM ident init_key_options ON
+/* #else
         | CREATE fulltext INDEX_SYM ident init_key_options ON
+   #endif
+*/
           table_ident
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index_prepare(Lex, $8, $2))
+/* #else
             if (add_create_index_prepare(Lex, $7))
+   #endif
+*/
               MYSQL_YYABORT;
           }
           '(' key_list ')' fulltext_key_options
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index(Lex, $3, $5))
+/* #else
             if (add_create_index(Lex, $2, $4))
+   #endif
+*/
               MYSQL_YYABORT;
           }
+/* #ifndef MCP_WL3749 */
+        | CREATE build_method spatial INDEX_SYM ident init_key_options ON
+/* #else
         | CREATE spatial INDEX_SYM ident init_key_options ON
+   #endif
+*/
           table_ident
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index_prepare(Lex, $8, $2))
+/* #else
             if (add_create_index_prepare(Lex, $7))
+   #endif
+*/
               MYSQL_YYABORT;
           }
           '(' key_list ')' spatial_key_options
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index(Lex, $3, $5))
+/* #else
             if (add_create_index(Lex, $2, $4))
+   #endif
+*/
               MYSQL_YYABORT;
           }
         | CREATE DATABASE opt_if_not_exists ident
@@ -5141,6 +5205,9 @@ create_table_option:
           {
             Lex->create_info.row_type= $3;
             Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT;
+#ifndef MCP_WL3749
+            Lex->alter_info.flags|= ALTER_ROW_FORMAT;
+#endif
           }
         | UNION_SYM opt_equal
           {
@@ -5698,7 +5765,13 @@ opt_attribute_list:
 attribute:
           NULL_SYM { Lex->type&= ~ NOT_NULL_FLAG; }
         | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
-        | DEFAULT now_or_signed_literal { Lex->default_value=$2; }
+        | DEFAULT now_or_signed_literal
+          {       
+            Lex->default_value=$2;
+/* #ifndef MCP_WL3749 */
+            Lex->alter_info.flags|= ALTER_COLUMN_DEFAULT;
+/* #endif */
+          }
         | ON UPDATE_SYM NOW_SYM optional_braces
           {
             Item *item= new (YYTHD->mem_root) Item_func_now_local();
@@ -6276,7 +6349,12 @@ string_list:
 */
 
 alter:
+/* #ifndef MCP_WL3749 */
+          ALTER build_method opt_ignore TABLE_SYM table_ident
+/* #else
           ALTER opt_ignore TABLE_SYM table_ident
+   #endif
+*/
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -6284,7 +6362,12 @@ alter:
             lex->name.length= 0;
             lex->sql_command= SQLCOM_ALTER_TABLE;
             lex->duplicates= DUP_ERROR; 
+/* #ifndef MCP_WL3749 */
+            if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
+/* #else
             if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
+   #endif
+*/
                                                    TL_OPTION_UPDATING,
                                                    TL_READ_NO_INSERT,
                                                    MDL_SHARED_NO_WRITE))
@@ -6299,6 +6382,9 @@ alter:
             lex->alter_info.reset();
             lex->no_write_to_binlog= 0;
             lex->create_info.storage_media= HA_SM_DEFAULT;
+/* #ifndef MCP_WL3749 */
+            lex->alter_info.build_method= $2;
+/* #endif */
             lex->create_last_non_select_table= lex->last_table();
             DBUG_ASSERT(!lex->m_sql_cmd);
           }
@@ -6627,6 +6713,23 @@ alter_commands:
           }
         ;
 
+/* #ifndef MCP_WL3749 */
+build_method:
+        /* empty */
+          {
+            $$= HA_BUILD_DEFAULT;
+          }
+        | ONLINE_SYM
+          {
+            $$= HA_BUILD_ONLINE;
+          }
+        | OFFLINE_SYM
+          {
+            $$= HA_BUILD_OFFLINE;
+          }
+        ;
+/* #else */
+
 remove_partitioning:
           REMOVE_SYM PARTITIONING_SYM
           {
@@ -6836,7 +6939,12 @@ alter_list_item:
             if (ac == NULL)
               MYSQL_YYABORT;
             lex->alter_info.alter_list.push_back(ac);
+/* #ifndef MCP_WL3749 */
+            lex->alter_info.flags|= ALTER_COLUMN_DEFAULT;
+/* #else
             lex->alter_info.flags|= ALTER_CHANGE_COLUMN_DEFAULT;
+   #endif
+*/
           }
         | ALTER opt_column field_ident DROP DEFAULT
           {
@@ -6845,7 +6953,12 @@ alter_list_item:
             if (ac == NULL)
               MYSQL_YYABORT;
             lex->alter_info.alter_list.push_back(ac);
+/* #ifndef MCP_WL3749 */
+            lex->alter_info.flags|= ALTER_COLUMN_DEFAULT;
+/* #else
             lex->alter_info.flags|= ALTER_CHANGE_COLUMN_DEFAULT;
+   #endif
+*/
           }
         | RENAME opt_to table_ident
           {
@@ -6921,8 +7034,22 @@ opt_restrict:
 
 opt_place:
           /* empty */ {}
+/* #ifndef MCP_WL3749 */
+        | AFTER_SYM ident
+          {
+            store_position_for_column($2.str);
+            Lex->alter_info.flags|= ALTER_COLUMN_ORDER;
+          }
+        | FIRST_SYM
+          {
+            store_position_for_column(first_keyword);
+            Lex->alter_info.flags|= ALTER_COLUMN_ORDER;
+          }
+/* #else
         | AFTER_SYM ident { store_position_for_column($2.str); }
         | FIRST_SYM  { store_position_for_column(first_keyword); }
+   #endif
+*/
         ;
 
 opt_to:
@@ -10398,17 +10525,35 @@ drop:
           }
           table_list opt_restrict
           {}
+/* #ifndef MCP_WL3749 */
+        | DROP build_method INDEX_SYM ident ON table_ident {}
+/* #else
         | DROP INDEX_SYM ident ON table_ident {}
+   #endif
+*/
           {
             LEX *lex=Lex;
+/* #ifndef MCP_WL3749 */
+            Alter_drop *ad= new Alter_drop(Alter_drop::KEY, $4.str);
+/* #else
             Alter_drop *ad= new Alter_drop(Alter_drop::KEY, $3.str);
+   #endif
+*/
             if (ad == NULL)
               MYSQL_YYABORT;
             lex->sql_command= SQLCOM_DROP_INDEX;
             lex->alter_info.reset();
             lex->alter_info.flags= ALTER_DROP_INDEX;
+/* #ifndef MCP_WL3749 */
+            lex->alter_info.build_method= $2;
+/* #endif */
             lex->alter_info.drop_list.push_back(ad);
+/* #ifndef MCP_WL3749 */
+            if (!lex->current_select->add_table_to_list(lex->thd, $6, NULL,
+/* #else
             if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
+   #endif
+*/
                                                         TL_OPTION_UPDATING,
                                                         TL_READ_NO_INSERT,
                                                         MDL_SHARED_NO_WRITE))
@@ -12789,8 +12934,14 @@ keyword_sp:
         | NONE_SYM                 {}
         | NVARCHAR_SYM             {}
         | OFFSET_SYM               {}
+/* #ifndef MCP_WL3749 */
+        | OFFLINE_SYM              {}
+/* #endif */
         | OLD_PASSWORD             {}
         | ONE_SYM                  {}
+/* #ifndef MCP_WL3749 */
+        | ONLINE_SYM               {}
+/* #endif */
         | PACK_KEYS_SYM            {}
         | PAGE_SYM                 {}
         | PARTIAL                  {}

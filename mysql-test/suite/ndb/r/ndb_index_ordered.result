@@ -702,7 +702,7 @@ ERROR 42000: Table 'nationaldish' uses an extension that doesn't exist in this M
 drop table nationaldish;
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 create table t1(c1 varchar(20) primary key, c2 char(20)) engine=ndbcluster;
 insert into t1(c1,c2) values ('ddd','jg');
 select * from t1 where  (c2 < 'b' AND c1 <> 'g')  OR  (c2 <> 'a' AND c1 <> 'd');

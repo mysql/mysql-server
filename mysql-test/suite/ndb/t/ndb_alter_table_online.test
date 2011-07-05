@@ -540,7 +540,7 @@ DROP TABLE t1;
 --echo * Disk Data error testing
 --echo *********************************
 
-set storage_engine=ndb;
+set default_storage_engine=ndb;
 
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'

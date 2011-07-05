@@ -3644,6 +3644,249 @@ handler::ha_prepare_for_alter()
   prepare_for_alter();
 }
 
+#ifndef MCP_WL3749
+/*
+   Default implementation to support fast alter table
+   and old online add/drop index interface
+*/
+int
+handler::check_if_supported_alter(TABLE *altered_table,
+                                  HA_CREATE_INFO *create_info,
+                                  Alter_info *alter_info,
+                                  HA_ALTER_FLAGS *alter_flags,
+                                  uint table_changes)
+{
+  DBUG_ENTER("check_if_supported_alter");
+  int result= HA_ALTER_NOT_SUPPORTED;
+  ulong handler_alter_flags= table->file->alter_table_flags(0);
+  HA_ALTER_FLAGS supported_alter_operations;
+  supported_alter_operations=
+    supported_alter_operations |
+    HA_ADD_INDEX |
+    HA_DROP_INDEX |
+    HA_ADD_UNIQUE_INDEX |
+    HA_DROP_UNIQUE_INDEX |
+    HA_ADD_PK_INDEX |
+    HA_DROP_PK_INDEX;
+  HA_ALTER_FLAGS not_supported= ~(supported_alter_operations);
+  DBUG_PRINT("info", ("handler_alter_flags: %lu", handler_alter_flags));
+#ifndef DBUG_OFF
+  {
+    char dbug_string[HA_MAX_ALTER_FLAGS+1];
+    alter_flags->print(dbug_string);
+    DBUG_PRINT("info", ("alter_flags: %s", dbug_string));
+    not_supported.print(dbug_string);
+    DBUG_PRINT("info", ("not_supported: %s", dbug_string));
+  }
+#endif
+  /* Check the old alter table flags */
+  if ((*alter_flags & not_supported).is_set())
+  {
+    /* Not adding/dropping index check if supported as fast alter */
+    DBUG_PRINT("info", ("alter_info->change_level %u", alter_info->change_level));
+    if (alter_info->change_level == ALTER_TABLE_METADATA_ONLY &&
+        table->file->check_if_incompatible_data(create_info, table_changes)
+        != COMPATIBLE_DATA_NO) 
+      DBUG_RETURN(HA_ALTER_SUPPORTED_WAIT_LOCK);
+    else
+      DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+  }
+  else
+  {
+    /* Add index */
+    if ((*alter_flags & HA_ADD_INDEX).is_set())
+    {
+      if (handler_alter_flags & HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
+        result= HA_ALTER_SUPPORTED_WAIT_LOCK;
+      else if (handler_alter_flags & HA_INPLACE_ADD_INDEX_NO_WRITE)
+        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
+          HA_ALTER_SUPPORTED_WAIT_LOCK
+          : HA_ALTER_SUPPORTED_NO_LOCK;
+      else
+        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
+    /* Drop index */
+    if ((*alter_flags & HA_DROP_INDEX).is_set())
+    {
+      if (handler_alter_flags & HA_INPLACE_DROP_INDEX_NO_READ_WRITE)
+        result= HA_ALTER_SUPPORTED_WAIT_LOCK;
+      else if (handler_alter_flags & HA_INPLACE_DROP_INDEX_NO_WRITE)
+        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
+          HA_ALTER_SUPPORTED_WAIT_LOCK
+          : HA_ALTER_SUPPORTED_NO_LOCK;
+      else
+        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
+    /* Add unique index */
+    if ((*alter_flags & HA_ADD_UNIQUE_INDEX).is_set())
+    {
+      if (handler_alter_flags & HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE)
+        result= HA_ALTER_SUPPORTED_WAIT_LOCK;
+      else if (handler_alter_flags & HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE)
+        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
+          HA_ALTER_SUPPORTED_WAIT_LOCK
+          : HA_ALTER_SUPPORTED_NO_LOCK;
+      else
+        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
+    /* Drop unique index */
+    if ((*alter_flags & HA_DROP_UNIQUE_INDEX).is_set())
+    {
+      if (handler_alter_flags & HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE)
+        result= HA_ALTER_SUPPORTED_WAIT_LOCK;
+      else if (handler_alter_flags &HA_INPLACE_DROP_PK_INDEX_NO_WRITE)
+        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
+          HA_ALTER_SUPPORTED_WAIT_LOCK
+          : HA_ALTER_SUPPORTED_NO_LOCK;
+      else
+        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
+    /* Add primary key */
+    if ((*alter_flags & HA_ADD_PK_INDEX).is_set())
+    {
+      if (handler_alter_flags & HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE)
+        result= HA_ALTER_SUPPORTED_WAIT_LOCK;
+      else if (handler_alter_flags & HA_INPLACE_ADD_PK_INDEX_NO_WRITE)
+        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
+          HA_ALTER_SUPPORTED_WAIT_LOCK
+          : HA_ALTER_SUPPORTED_NO_LOCK;
+      else
+        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
+    /* Drop primary key */
+    if ((*alter_flags & HA_DROP_PK_INDEX).is_set())
+    {
+      if (handler_alter_flags & HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE)
+        result= HA_ALTER_SUPPORTED_WAIT_LOCK;
+      else if (handler_alter_flags &HA_INPLACE_DROP_PK_INDEX_NO_WRITE)
+        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
+          HA_ALTER_SUPPORTED_WAIT_LOCK
+          : HA_ALTER_SUPPORTED_NO_LOCK;
+      else
+        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    }
+  }
+  DBUG_RETURN(result);
+}
+
+/*
+  Default implementation to support old online add/drop index
+ */
+int
+handler::alter_table_phase1(THD *thd,
+                            TABLE *altered_table,
+                            HA_CREATE_INFO *create_info,
+                            HA_ALTER_INFO *alter_info,
+                            HA_ALTER_FLAGS *alter_flags)
+{
+  DBUG_ENTER("alter_table_phase1");
+  int error= 0;
+  HA_ALTER_FLAGS adding;
+  HA_ALTER_FLAGS dropping;
+
+  adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX | HA_ADD_PK_INDEX;
+  dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
+
+  if ((*alter_flags & adding).is_set())
+  {
+    KEY           *key_info;
+    KEY           *key;
+    uint          *idx_p;
+    uint          *idx_end_p;
+    KEY_PART_INFO *key_part;
+    KEY_PART_INFO *part_end;
+    key_info= (KEY*) thd->alloc(sizeof(KEY) * alter_info->index_add_count);
+    key= key_info;
+    for (idx_p=  alter_info->index_add_buffer,
+         idx_end_p= idx_p + alter_info->index_add_count;
+         idx_p < idx_end_p;
+         idx_p++, key++)
+     {
+      /* Copy the KEY struct. */
+       *key= alter_info->key_info_buffer[*idx_p];
+      /* Fix the key parts. */
+      part_end= key->key_part + key->key_parts;
+      for (key_part= key->key_part; key_part < part_end; key_part++)
+        key_part->field= table->field[key_part->fieldnr];
+     }
+    /* Add the indexes. */
+    if ((error= add_index(table, key_info,
+                          alter_info->index_add_count)))
+    {
+      /*
+        Exchange the key_info for the error message. If we exchange
+        key number by key name in the message later, we need correct info.
+      */
+      KEY *save_key_info= table->key_info;
+      table->key_info= key_info;
+      table->file->print_error(error, MYF(0));
+      table->key_info= save_key_info;
+      DBUG_RETURN(error);
+    }
+  }
+
+  if ((*alter_flags & dropping).is_set())
+  {
+    uint          *key_numbers;
+    uint          *keyno_p;
+    uint          *idx_p;
+    uint          *idx_end_p;
+    DBUG_PRINT("info", ("Renumbering indexes"));
+    /* The prepare_drop_index() method takes an array of key numbers. */
+    key_numbers= (uint*) thd->alloc(sizeof(uint) * alter_info->index_drop_count);
+    keyno_p= key_numbers;
+    /* Get the number of each key. */
+    for (idx_p= alter_info->index_drop_buffer,
+         idx_end_p= idx_p + alter_info->index_drop_count;
+         idx_p < idx_end_p;
+         idx_p++, keyno_p++)
+      *keyno_p= *idx_p;
+    if ((error= prepare_drop_index(table, key_numbers,
+                                   alter_info->index_drop_count)))
+    {
+      table->file->print_error(error, MYF(0));
+      DBUG_RETURN(error);
+    }
+  }
+
+  DBUG_RETURN(0);
+}
+
+int
+handler::alter_table_phase2(THD *thd,
+                                TABLE *altered_table,
+                                HA_CREATE_INFO *create_info,
+                                HA_ALTER_INFO *alter_info,
+                                HA_ALTER_FLAGS *alter_flags)
+{
+  DBUG_ENTER("alter_table_phase2");
+  int error= 0;
+  HA_ALTER_FLAGS dropping;
+
+  dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
+
+  if ((*alter_flags & dropping).is_set())
+  {
+    if ((error= final_drop_index(table)))
+    {
+      print_error(error, MYF(0));
+      DBUG_RETURN(error);
+    }
+  }
+
+  DBUG_RETURN(0);
+}
+
+int
+handler::alter_table_phase3(THD *thd, TABLE *table,
+                            HA_CREATE_INFO *create_info,
+                            HA_ALTER_INFO *alter_info,
+                            HA_ALTER_FLAGS *alter_flags)
+{
+  DBUG_ENTER("alter_table_phase3");
+  DBUG_RETURN(0);
+}
+#endif
 
 /**
   Rename table: public interface.
@@ -3921,7 +4164,11 @@ int ha_create_table(THD *thd, const char *path,
 #endif
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
+#ifndef MCP_WL3749
+                            OTM_CREATE))
+#else
                             TRUE))
+#endif
     goto err;
 
   if (update_create_info)
@@ -3999,7 +4246,11 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   */
 #endif
 
+#ifndef MCP_WL3749
+  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, OTM_OPEN))
+#else
   if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE))
+#endif
   {
     free_table_share(&share);
     DBUG_RETURN(3);

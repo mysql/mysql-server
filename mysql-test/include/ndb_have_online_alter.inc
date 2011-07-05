@@ -6,9 +6,9 @@
 --disable_result_log
 let $have_online_alter = 1;
 CREATE TABLE check_online_alter(a int primary key);
---error 0,1064
+--error 0,ER_PARSE_ERROR, ER_NOT_SUPPORTED_YET
 ALTER ONLINE TABLE check_online_alter ADD COLUMN b int;
-if($mysql_errno)
+if (`SELECT '$mysql_errno' = '1064'`)
 {
   let $have_online_alter= 0;
 }
