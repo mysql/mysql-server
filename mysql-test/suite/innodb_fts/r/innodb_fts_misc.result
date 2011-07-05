@@ -806,3 +806,107 @@ SET GLOBAL innodb_file_format=Antelope;
 SET GLOBAL innodb_file_per_table=0;
 SET GLOBAL innodb_file_format_max=Antelope;
 SET GLOBAL innodb_large_prefix=0;
+set names utf8;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) CHARACTER SET = utf8, ENGINE=InnoDB;
+INSERT INTO t1 (a,b) VALUES
+('Я могу есть стекло', 'оно мне не вредит'),
+('Мога да ям стъкло', 'то не ми вреди'),
+('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
+('Příliš žluťoučký kůň', 'úpěl ďábelské kódy'),
+('Sævör grét', 'áðan því úlpan var ónýt'),
+('うゐのおくやま','けふこえて'),
+('いろはにほへど　ちりぬる','あさきゆめみじ　ゑひもせず');
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','request docteam@oraclehelp.com ...')  ,
+('Trial version','query performace @1255 minute on 2.1Hz Memory 2GB...')  ,
+('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("вредит χωρὶς");
+id	a	b
+1	Я могу есть стекло	оно мне не вредит
+3	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("оно" WITH QUERY EXPANSION);
+id	a	b
+1	Я могу есть стекло	оно мне не вредит
+2	Мога да ям стъкло	то не ми вреди
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE);
+id	a	b
+1	Я могу есть стекло	оно мне не вредит
+2	Мога да ям стъкло	то не ми вреди
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+γυαλιὰ +tutorial" IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+tutorial +(Мога τίποτα)" IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("ちりぬる" WITH QUERY EXPANSION);
+id	a	b
+7	いろはにほへど　ちりぬる	あさきゆめみじ　ゑひもせず
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("+あさきゆめみじ　+ゑひもせず" IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("うゐのおく*" IN BOOLEAN MODE);
+id	a	b
+6	うゐのおくやま	けふこえて
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
+id	a	b
+5	Sævör grét	áðan því úlpan var ónýt
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"γυαλιὰ χωρὶς"@21' IN BOOLEAN MODE);
+id	a	b
+3	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"query performace"@06' IN BOOLEAN MODE);
+id	a	b
+9	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"πάθω τίποτα"@18' IN BOOLEAN MODE);
+id	a	b
+3	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"あさきゆめみじ　ゑひもせず"@50' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"あさきゆめみじ　ゑひもせず"@6' IN BOOLEAN MODE);
+id	a	b
+ALTER TABLE t1 DROP INDEX idx;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+id	a	b
+UPDATE t1 SET a = "Pchnąć w tę łódź jeża" , b = "lub osiem skrzyń fig" WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+UPDATE t1 SET a = "В чащах юга жил-был цитрус? Да", b = "но фальшивый экземпляр! ёъ" WHERE MATCH(a,b) AGAINST ("вред*" IN BOOLEAN MODE);
+DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("łódź osiem");
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("фальшив*" IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"łódź jeża"@15' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1;
+id	a	b
+1	В чащах юга жил-был цитрус? Да	но фальшивый экземпляр! ёъ
+2	В чащах юга жил-был цитрус? Да	но фальшивый экземпляр! ёъ
+3	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
+4	Příliš žluťoučký kůň	úpěl ďábelské kódy
+6	うゐのおくやま	けふこえて
+7	いろはにほへど　ちりぬる	あさきゆめみじ　ゑひもせず
+8	MySQL Tutorial	request docteam@oraclehelp.com ...
+9	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
+10	when To Use MySQL Well	for free faq  mail@xyz.com ...
+DROP TABLE t1;
