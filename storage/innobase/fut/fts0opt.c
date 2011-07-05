@@ -490,7 +490,8 @@ fts_index_fetch_nodes(
 
 		ut_a(fts_table->type == FTS_INDEX_TABLE);
 
-		selected = fts_select_index(*word->utf8);
+		selected = fts_select_index(fts_table->charset,
+					    word->utf8, word->len);
 
 		fts_table->suffix = fts_get_suffix(selected);
 
@@ -796,8 +797,9 @@ fts_index_fetch_words(
 		fts_zip_initialize(optim->zip);
 	}
 
-	for (selected = fts_select_index(*word->utf8);
-	     fts_index_selector[selected].ch;
+	for (selected = fts_select_index(
+		optim->fts_index_table.charset, word->utf8, word->len);
+	     fts_index_selector[selected].value;
 	     selected++) {
 
 		optim->fts_index_table.suffix = fts_get_suffix(selected);
@@ -1409,10 +1411,12 @@ fts_optimize_write_word(
 
 	info = pars_info_create();
 
+	ut_ad(fts_table->charset);
+
 	pars_info_bind_varchar_literal(
 		info, "word", word->utf8, word->len);
 
-	selected = fts_select_index(*word->utf8);
+	selected = fts_select_index(fts_table->charset, word->utf8, word->len);
 
 	fts_table->suffix = fts_get_suffix(selected);
 
@@ -1744,6 +1748,7 @@ fts_optimize_words(
 	fts_fetch_t	fetch;
 	ib_time_t	start_time;
 	que_t*		graph = NULL;
+	CHARSET_INFO*	charset = optim->fts_index_table.charset;
 
 	ut_a(!optim->done);
 
@@ -1766,11 +1771,12 @@ fts_optimize_words(
 
 		ut_a(ib_vector_size(optim->words) == 0);
 
-		selected = fts_select_index(*word->utf8);
+		selected = fts_select_index(charset, word->utf8, word->len);
 
 		/* Read the index records to optimize. */
 		error = fts_index_fetch_nodes(
-			trx, &graph, &optim->fts_index_table, word, &fetch);
+			trx, &graph, &optim->fts_index_table, word,
+			&fetch);
 
 		if (error == DB_SUCCESS) {
 			/* There must be some nodes to read. */
@@ -1794,7 +1800,8 @@ fts_optimize_words(
 				if (!fts_zip_read_word(optim->zip, word)) {
 					optim->done = TRUE;
 				} else if (selected
-					   != fts_select_index(*word->utf8)
+					   != fts_select_index(
+						charset, word->utf8, word->len)
 					  && graph) {
 					fts_que_graph_free(graph);
 					graph = NULL;
@@ -1821,21 +1828,22 @@ fts_optimize_words(
 }
 
 /********************************************************************
-Select the FTS index to search. */
+Select the FTS index to search.
+@return TRUE if last index */
 static
 ibool
 fts_optimize_set_next_word(
 /*=======================*/
-				/* out: TRUE if last index */
-	fts_string_t*	word)	/* in: current last word */
+	CHARSET_INFO*	charset,/*!< in: charset */
+	fts_string_t*	word)	/*!< in: current last word */
 {
 	ulint		selected;
 	ibool		last = FALSE;
 
-	selected = fts_select_next_index(*word->utf8);
+	selected = fts_select_next_index(charset, word->utf8, word->len);
 
 	/* If this was the last index then reset to start. */
-	if (fts_index_selector[selected].ch == 0) {
+	if (fts_index_selector[selected].value == 0) {
 		/* Reset the last optimized word to '' if no
 		more words could be read from the FTS index. */
 		word->len = 0;
@@ -1845,7 +1853,7 @@ fts_optimize_set_next_word(
 	} else {
 		/* Set to the first character of the next slot. */
 		word->len = 1;
-		*word->utf8 = fts_index_selector[selected].ch;
+		*word->utf8 = fts_index_selector[selected].value;
 	}
 
 	return(last);
@@ -1932,7 +1940,9 @@ fts_optimize_index_read_words(
 				break;
 			} else {
 
-				fts_optimize_set_next_word(word);
+				fts_optimize_set_next_word(
+					optim->fts_index_table.charset,
+					word);
 
 				if (word->len == 0) {
 					break;
@@ -1961,6 +1971,7 @@ fts_optimize_index(
 
 	/* Set the current index that we have to optimize. */
 	optim->fts_index_table.index_id = index->id;
+	optim->fts_index_table.charset = fts_index_get_charset(index);
 
 	optim->done = FALSE; /* Optimize until !done */
 

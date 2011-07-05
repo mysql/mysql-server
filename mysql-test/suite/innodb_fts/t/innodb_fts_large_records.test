@@ -75,6 +75,8 @@ SELECT * FROM t1
 UPDATE t1 SET a = "using update" , b = "changing fulltext index record" 
 WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
 
+select sleep(1);
+
 select a,b from t1 where MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
 select a,b from t1 where MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN MODE);
 select a,b from t1 where MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
@@ -244,6 +246,8 @@ select count(*) from t1 where MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN 
 select count(*) from t1 where MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
 
 DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+select sleep(1);
+
 select count(*) from t1 where MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
 
 ALTER TABLE t1 DROP INDEX idx;
@@ -319,6 +323,8 @@ select count(*) from t1 where MATCH(a,b) AGAINST ("samerowword" WITH QUERY EXPAN
 
 UPDATE t1 SET a = "using update" , b = "changing fulltext index record" 
 WHERE MATCH(a,b) AGAINST("+samerowword +1050" IN BOOLEAN MODE);
+
+select sleep(1);
 
 select count(*) from t1 where MATCH(a,b) AGAINST("+samerowword +1050" IN BOOLEAN MODE);
 select count(*) from t1 where MATCH(a,b) AGAINST("+samerowword" IN BOOLEAN MODE);

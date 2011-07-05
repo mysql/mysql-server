@@ -1913,114 +1913,6 @@ fts_query_terms_in_document(
 }
 #endif
 
-#if 0
-/********************************************************************
-Filter out the documents that don't contain all the words in the
-matched vector. */
-static
-ulint
-fts_query_filter_documents(
-/*=======================*/
-					/* out: TRUE if matches else FALSE */
-	fts_query_t*	query,		/* in/out: The query state */
-	ib_vector_t*	tokens)		/* in: phrase tokens */
-{
-	ulint		i;
-	ib_vector_t*	matched;
-	que_t**		graph = NULL;
-	ulint		error = DB_SUCCESS;
-
-	matched = query->matched;
-
-	// FIXME: Perhaps use the fts_query_t::heap and/or preallocate
-	graph = (que_t**) ut_malloc(sizeof(*graph) * fts_get_n_selectors());
-	memset(graph, 0x0, sizeof(*graph) * fts_get_n_selectors());
-
-	for (i = 0; i < ib_vector_size(matched) && error == DB_SUCCESS; ++i) {
-		ulint		j;
-		fts_match_t*	match;
-		ulint		min_pos;
-
-		match = ib_vector_get(matched, i);
-
-		/* All subsequent tokens must be in position greater
-		this min_pos value. */
-		min_pos = *(ulint*)ib_vector_get(match->positions, 0);
-
-		// FIXME: We are scanning the ilist multiple times.
-
-		/* We already have the doc ids that match the first
-		word in the phrase, we now want to filter out the doc
-		ids that don't contain the other words in the phrase. */
-		for (j = 1; j < ib_vector_size(tokens); ++j) {
-			ulint		index;
-			fts_string_t*	token;
-			ibool		found = FALSE;
-
-			token = ib_vector_get(tokens, j);
-
-			index = fts_select_index(*token->utf8);
-
-			/* Check if the ilist contains the doc id and the
-			token offset is greater than min_pos. This function
-			will also update the min_pos and set it to the
-			min_pos required for the next token, if there was
-			a match. */
-			error = fts_query_find_term(
-				query, &graph[index],
-				token, match->doc_id, &min_pos, &found);
-
-			if (!found) {
-				match->doc_id = 0;
-				break;
-			} else {
-				/* Add the word to the documents
-				matched RB tree. */
-				fts_query_add_word_to_document(
-					query, match->doc_id, token->utf8);
-			}
-
-			if (error != DB_SUCCESS) {
-				break;
-			}
-		}
-
-		/* If all the tokens matched then we set the index from
-		where we start the phrase text match to the one that is
-		closest to the last token position. */
-		if (error == DB_SUCCESS && j == ib_vector_size(tokens)) {
-			lint		j;
-			ib_vector_t*	positions;
-
-			ut_a(match->start == 0);
-
-			positions = match->positions;
-
-			for (j = ib_vector_size(positions) - 1; j >= 0; --j) {
-				ulint	pos;
-
-				pos = *(ulint*) ib_vector_get(positions, j);
-
-				if (min_pos > pos) {
-					match->start = j;
-					break;
-				}
-			}
-		}
-	}
-
-	for (i = 0; i < fts_get_n_selectors(); ++i) {
-		if (graph[i]) {
-			fts_que_graph_free(graph[i]);
-		}
-	}
-
-	ut_free(graph);
-
-	return(error);
-}
-#endif
-
 /********************************************************************
 Retrieve the document and match the phrase tokens. */
 static
@@ -3200,12 +3092,14 @@ fts_query(
 	query.fts_common_table.table_id = index->table->id;
 	query.fts_common_table.parent = index->table->name;
 
+	charset = fts_index_get_charset(index);
+
 	query.fts_index_table.type = FTS_INDEX_TABLE;
 	query.fts_index_table.index_id = index->id;
 	query.fts_index_table.table_id = index->table->id;
 	query.fts_index_table.parent = index->table->name;
+	query.fts_index_table.charset = charset;
 
-	charset = fts_index_get_charset(index);
 
 	/* Setup the RB tree that will be used to collect per term
 	statistics. */

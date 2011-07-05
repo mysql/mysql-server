@@ -381,24 +381,40 @@ fts_read_object_id(
 	return(sscanf(str, "%llu", id) == 2);
 }
 
+/******************************************************************//**
+compare two character string according to their charset. */
+extern
+ulint
+innobase_strnxfrm(
+/*==============*/
+        const CHARSET_INFO*     
+                        cs,             /*!< in: Character set */
+        uchar*          p2,
+        ulint           len2);
+
 /********************************************************************
-Select the FTS auxiliary index for the given character. */
+Select the FTS auxiliary index for the given character.
+@return the index to use for the string */
 UNIV_INLINE
 ulint
 fts_select_index(
 /*=============*/
-	byte		ch)	/* in: First character of a word */
+	const CHARSET_INFO*	cs,	/*!< Charset */
+	byte*			str,	/*!< in: string */
+	ulint			len)	/*!< in: string length */
 {
+	ulint		value;
 	ulint		selected = 0;
 
-	// FIXME: Make this UTF-8 compatible.
-	while (fts_index_selector[selected].ch != 0) {
+	value = innobase_strnxfrm(cs, str, len);
 
-		if (fts_index_selector[selected].ch == ch) {
+	while (fts_index_selector[selected].value != 0) {
+
+		if (fts_index_selector[selected].value == value) {
 
 			return(selected);
 
-		} else if (fts_index_selector[selected].ch > ch) {
+		} else if (fts_index_selector[selected].value > value) {
 
 			return(selected > 0 ? selected - 1 : 0);
 		}
@@ -406,27 +422,34 @@ fts_select_index(
 		++selected;
 	}
 
+	ut_ad(selected > 1);
+
 	return(selected - 1);
 }
 
 /********************************************************************
-Select the next FTS auxiliary index for the given character. */
+Select the next FTS auxiliary index for the given character.
+@return the next index to use for character */
 UNIV_INLINE
 ulint
 fts_select_next_index(
 /*==================*/
-	byte		ch)	/* in: First character of a word */
+	const CHARSET_INFO*	cs,	/*!< Charset */
+	byte*			str,	/*!< in: string */
+	ulint			len)	/*!< in: string length */
 {
+	ulint		value;
 	ulint		selected = 0;
 
-	// FIXME: Make this UTF-8 compatible.
-	while (fts_index_selector[selected].ch != 0) {
+	value = innobase_strnxfrm(cs, str, len);
 
-		if (fts_index_selector[selected].ch == ch) {
+	while (fts_index_selector[selected].value != 0) {
+
+		if (fts_index_selector[selected].value == value) {
 
 			return(selected + 1);
 
-		} else if (fts_index_selector[selected].ch > ch) {
+		} else if (fts_index_selector[selected].value > value) {
 
 			return(selected);
 		}
@@ -434,7 +457,9 @@ fts_select_next_index(
 		++selected;
 	}
 
-	return(selected);
+	ut_ad(selected > 0);
+
+	return((ulint) selected);
 }
 
 /********************************************************************
@@ -459,7 +484,7 @@ fts_get_n_selectors(void)
 	ulint	i = 0;
 
 	// FIXME: This is a hack
-	while (fts_index_selector[i].ch != 0) {
+	while (fts_index_selector[i].value != 0) {
 		++i;
 	}
 

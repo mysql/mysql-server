@@ -543,13 +543,6 @@ fts_read_object_id(
 	ullint*		id,		/* out: a dulint id */
 	const char*	str);		/* in: buffer to read from */
 /********************************************************************
-Select the FTS aux index using the character. */
-UNIV_INLINE
-ulint
-fts_select_index(
-/*=============*/
-	byte		ch);		/* in: First character of a word */
-/********************************************************************
 Get the table id. */
 
 int

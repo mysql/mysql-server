@@ -6513,7 +6513,7 @@ ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
   eng "Unknown trigger has an error in its body: '%-.256s'"
 
 ER_TABLE_HAS_NO_FT
-  eng "The table do not have FULLTEXT index to support this query"
+  eng "The table does not have FULLTEXT index to support this query"
 
 ER_INNODB_FT_LIMIT
   eng "InnoDB presently supports one FULLTEXT index per table"

@@ -233,10 +233,10 @@ static const char* fts_common_tables[] = {
 // FIXME: Make this UTF-8 conformant
 /* FTS auxiliary INDEX split intervals. */
 const  fts_index_selector_t fts_index_selector[] = {
-	{ '9', "INDEX_1" },
-	{ 'a', "INDEX_2" },
-	{ 'o', "INDEX_3" },
-	{ 'z', "INDEX_4" },
+	{ 9, "INDEX_1" },
+	{ 65, "INDEX_2" },
+	{ 79, "INDEX_3" },
+	{ 255, "INDEX_4" },
 	{  0 , NULL	 }
 };
 
@@ -515,7 +515,7 @@ fts_index_cache_init(
 	index_cache->doc_stats = ib_vector_create(
 		allocator, sizeof(fts_doc_stats_t), 4);
 
-	for (i = 0; fts_index_selector[i].ch; ++i) {
+	for (i = 0; fts_index_selector[i].value; ++i) {
 		ut_a(index_cache->ins_graph[i] == NULL);
 		ut_a(index_cache->sel_graph[i] == NULL);
 	}
@@ -803,7 +803,7 @@ fts_cache_clear(
 
 		index_cache->words = NULL;
 
-		for (j = 0; fts_index_selector[j].ch; ++j) {
+		for (j = 0; fts_index_selector[j].value; ++j) {
 
 			if (index_cache->ins_graph[j] != NULL) {
 
@@ -1219,7 +1219,7 @@ fts_drop_index_split_tables(
 
 	FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
 
-	for (i = 0; fts_index_selector[i].ch; ++i) {
+	for (i = 0; fts_index_selector[i].value; ++i) {
 		ulint	err;
 		char*	table_name;
 
@@ -1558,7 +1558,7 @@ fts_create_index_tables_low(
 	error = fts_eval_sql(trx, graph);
 	que_graph_free(graph);
 
-	for (i = 0; fts_index_selector[i].ch && error == DB_SUCCESS; ++i) {
+	for (i = 0; fts_index_selector[i].value && error == DB_SUCCESS; ++i) {
 
 		/* Create the FTS auxiliary tables that are specific
 		to an FTS index. We need to preserve the table_id %s
@@ -2479,7 +2479,7 @@ fts_delete(
 	doc_id_t	write_doc_id;
 	dict_table_t*	table = ftt->table;
 	doc_id_t	doc_id = row->doc_id;
-	trx_t*		trx = trx_allocate_for_background();
+	trx_t*		trx = ftt->fts_trx->trx;
 	pars_info_t*	info = pars_info_create();
 	fts_cache_t*	cache = table->fts->cache;
 
@@ -2580,18 +2580,13 @@ fts_delete(
 	/* Increment the total deleted count, this is used to calculate the
 	number of documents indexed. */
 	if (error == DB_SUCCESS) {
-		fts_sql_commit(trx);
-
 		mutex_enter(&table->fts->cache->deleted_lock);
 
 		++table->fts->cache->deleted;
 
 		mutex_exit(&table->fts->cache->deleted_lock);
-	} else {
-                fts_sql_rollback(trx);
-        }
+	}
 
-        trx_free_for_background(trx);
 
 	return(error);
 }
@@ -2674,8 +2669,11 @@ fts_commit_table(
 	ib_rbt_t*		rows;
 	ulint			error = DB_SUCCESS;
 	fts_cache_t*		cache = ftt->table->fts->cache;
+	trx_t*			trx = trx_allocate_for_background();
 
 	rows = ftt->rows;
+
+	ftt->fts_trx->trx = trx;
 
 	rw_lock_x_lock(&cache->lock);
 	if (cache->get_docs == NULL) {
@@ -2706,6 +2704,10 @@ fts_commit_table(
 			ut_error;
 		}
 	}
+
+	fts_sql_commit(trx);
+
+        trx_free_for_background(trx);
 
 	return(error);
 }
@@ -3368,7 +3370,9 @@ fts_sync_write_words(
 
 		word = rbt_value(fts_tokenizer_word_t, rbt_node);
 
-		selected = fts_select_index(*word->text.utf8);
+		selected = fts_select_index(index_cache->charset,
+					    word->text.utf8,
+					    word->text.len);
 
 		fts_table.suffix = fts_get_suffix(selected);
 
@@ -5664,7 +5668,7 @@ fts_is_aux_table_name(
 		len = end - ptr;
 
 		/* Search the FT index specific array. */
-		for (i = 0; fts_index_selector[i].ch; ++i) {
+		for (i = 0; fts_index_selector[i].value; ++i) {
 
 			if (strncmp(ptr, fts_get_suffix(i), len) == 0) {
 				return(TRUE);

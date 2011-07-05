@@ -3245,7 +3245,8 @@ i_s_fts_index_table_fill_one_index(
 
 	/* Iterate through each auxiliary table as described in
 	fts_index_selector */
-	for (ulint selected = 0; fts_index_selector[selected].ch; selected++) {
+	for (ulint selected = 0; fts_index_selector[selected].value;
+	     selected++) {
 		i_s_fts_index_table_fill_selected(index, words, selected);
 	}
 
