@@ -596,6 +596,8 @@ stress-gc.tdbrun: VGRIND=
 insert-dup-prelock: VGRIND=
 test_update_broadcast_stress.tdbrun: VGRIND=
 test_update_stress.tdbrun: VGRIND=
+stress-test.tdbrun: VGRIND=
+stress-test.bdbrun: VGRIND=
 
 
 libs:
