@@ -332,6 +332,16 @@ ndbcluster_partition_flags()
           HA_CAN_PARTITION_UNIQUE | HA_USE_AUTO_PARTITION);
 }
 
+#ifndef MCP_WL3749
+static uint
+ndbcluster_alter_table_flags(uint flags)
+{
+  if (flags & ALTER_DROP_PARTITION)
+    return 0;
+  else
+    return (HA_PARTITION_FUNCTION_SUPPORTED);
+}
+#else
 #ifndef NDB_WITHOUT_ONLINE_ALTER
 static uint
 ndbcluster_alter_partition_flags()
@@ -363,6 +373,7 @@ ndbcluster_alter_table_flags(uint flags)
 
   return f;
 }
+#endif
 #endif
 
 #define NDB_AUTO_INCREMENT_RETRIES 100
@@ -8907,18 +8918,6 @@ int ha_ndbcluster::create(const char *name,
     else
       tab.setTablespaceName("DEFAULT-TS");
   }
-  else if (create_info->tablespace && 
-           create_info->storage_media == HA_SM_MEMORY)
-  {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_ILLEGAL_HA_CREATE_OPTION,
-                        ER(ER_ILLEGAL_HA_CREATE_OPTION),
-                        ndbcluster_hton_name,
-                        "TABLESPACE currently only supported for "
-                        "STORAGE DISK"); 
-    result= HA_ERR_UNSUPPORTED;
-    goto abort_return;
-  }
 
   // Save the table level storage media setting
   switch(create_info->storage_media)
@@ -11316,12 +11315,17 @@ static int ndbcluster_init(void *p)
     h->show_status=      ndbcluster_show_status;    /* Show status */
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
+#ifndef MCP_WL3749
+    h->alter_table_flags=
+      ndbcluster_alter_table_flags;                 /* Alter table flags */
+#else
 #ifndef NDB_WITHOUT_ONLINE_ALTER
     h->alter_partition_flags=
       ndbcluster_alter_partition_flags;             /* Alter partition flags */
 #else
     h->alter_table_flags=
       ndbcluster_alter_table_flags;                 /* Alter table flags */
+#endif
 #endif
 #if MYSQL_VERSION_ID >= 50501
     h->fill_is_table=    ndbcluster_fill_is_table;
@@ -11832,8 +11836,12 @@ ulonglong ha_ndbcluster::table_flags(void) const
     HA_HAS_OWN_BINLOGGING |
     HA_BINLOG_ROW_CAPABLE |
     HA_HAS_RECORDS |
+#ifndef MCP_WL3749
+    HA_ONLINE_ALTER |
+#else
 #ifndef NDB_WITHOUT_ONLINE_ALTER
     HA_ONLINE_ALTER |
+#endif
 #endif
     0;
 
@@ -14953,7 +14961,7 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   DBUG_RETURN(0);
 }
 
-#ifndef NDB_WITHOUT_ONLINE_ALTER
+#ifndef MCP_WL3749
 static
 HA_ALTER_FLAGS supported_alter_operations()
 {
@@ -14973,6 +14981,7 @@ HA_ALTER_FLAGS supported_alter_operations()
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
                                             HA_CREATE_INFO *create_info,
+                                            Alter_info *alter_info,
                                             HA_ALTER_FLAGS *alter_flags,
                                             uint table_changes)
 {
@@ -14988,7 +14997,7 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
   add_column= add_column | HA_ADD_COLUMN;
   adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX;
   dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
-  partition_info *part_info= table->part_info;
+  partition_info *part_info= altered_table->part_info;
   const NDBTAB *old_tab= m_table;
 
   if (THDVAR(thd, use_copying_alter_table))
@@ -15010,7 +15019,7 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
       sql_partition.cc tries to compute what is going on
       and sets flags...that we clear
     */
-    if (part_info->use_default_no_partitions)
+    if (part_info->use_default_num_partitions)
     {
       alter_flags->clear_bit(HA_COALESCE_PARTITION);
       alter_flags->clear_bit(HA_ADD_PARTITION);
@@ -15095,7 +15104,8 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
      }
      else if (alter_flags->is_set(HA_ADD_PARTITION))
      {
-       new_tab.setFragmentCount(part_info->no_parts);
+       DBUG_PRINT("info", ("Adding partition (%u)", part_info->num_parts));
+       new_tab.setFragmentCount(part_info->num_parts);
      }
 
      NDB_Modifiers table_modifiers(ndb_table_modifiers);
@@ -15273,6 +15283,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
 {
   int error= 0;
   uint i;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
   ndb->setDatabaseName(m_dbname);
@@ -15286,9 +15297,8 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
   adding=  adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX;
   dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
 
-  if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
-    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
-                (thd, "ha_ndbcluster::alter_table_phase1"));
+  if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::alter_table_phase1"))
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
   if (!(alter_data= new NDB_ALTER_DATA(dict, m_table)))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -15424,8 +15434,8 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
     }
     else if (alter_flags->is_set(HA_ADD_PARTITION))
     {
-      partition_info *part_info= table->part_info;
-      new_tab->setFragmentCount(part_info->no_parts);
+      partition_info *part_info= altered_table->part_info;
+      new_tab->setFragmentCount(part_info->num_parts);
     }
 
     int res= dict->prepareHashMap(*old_tab, *new_tab);
@@ -15515,6 +15525,7 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
 
 {
   int error= 0;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) alter_info->data;
   NDBDICT *dict= alter_data->dictionary;
   HA_ALTER_FLAGS dropping;
@@ -15522,10 +15533,9 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
   DBUG_ENTER("alter_table_phase2");
   dropping= dropping  | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
 
-  if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
+  if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::alter_table_phase2"))
   {
-    error= ndbcluster_no_global_schema_lock_abort
-      (thd, "ha_ndbcluster::alter_table_phase2");
+    error= HA_ERR_NO_CONNECTION;
     goto err;
   }
 
@@ -15590,15 +15600,15 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table,
                                       HA_ALTER_INFO *alter_info,
                                       HA_ALTER_FLAGS *alter_flags)
 {
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   DBUG_ENTER("alter_table_phase3");
 
   NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) alter_info->data;
-  if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
+  if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::alter_table_phase3"))
   {
     delete alter_data;
     alter_info->data= 0;
-    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
-                (thd, "ha_ndbcluster::alter_table_phase3"));
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 
   const char *db= table->s->db.str;

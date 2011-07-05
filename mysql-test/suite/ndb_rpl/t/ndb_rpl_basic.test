@@ -198,7 +198,7 @@ connection slave;
 # verify with show slave status
 # 1205 = ER_LOCK_WAIT_TIMEOUT 
 --let $slave_sql_errno= 1205 
---let $show_slave_sql_error= 1 
+--let $show_slave_sql_error= 0
 --source include/wait_for_slave_sql_error.inc
 
 # now set max retries high enough to succeed, and start slave again

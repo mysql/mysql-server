@@ -3647,7 +3647,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     if ((thd && !(thd->variables.option_bits & OPTION_BIN_LOG)) ||
 	(thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
          thd->lex->sql_command != SQLCOM_SAVEPOINT &&
-         (!event_info->is_no_filter_event() && 
+         (!event_info->is_no_filter_event() &&
           !binlog_filter->db_ok(local_db))))
       DBUG_RETURN(0);
 #endif /* HAVE_REPLICATION */
@@ -4877,6 +4877,10 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
 
   if (binlog_table_maps == 0)
     binlog_start_trans_and_stmt();
+
+#ifndef MCP_BUG11799583
+  the_event.flags |= LOG_EVENT_NO_FILTER_F;
+#endif
 
   binlog_cache_mngr *const cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
