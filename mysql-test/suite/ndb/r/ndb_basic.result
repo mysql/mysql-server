@@ -14,7 +14,7 @@ Ndb_pruned_scan_count	#
 Ndb_cluster_connection_pool	#
 Ndb_conflict_fn_max	#
 Ndb_conflict_fn_old	#
-SHOW GLOBAL VARIABLES LIKE 'ndb%';
+SHOW GLOBAL VARIABLES LIKE 'ndb\_%';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
 ndb_batch_size	#

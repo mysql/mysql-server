@@ -7829,13 +7829,50 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   Delete table from NDB Cluster.
 */
 
+static
+void
+delete_table_drop_share(NDB_SHARE* share, const char * path)
+{
+  if (share)
+  {
+    pthread_mutex_lock(&ndbcluster_mutex);
+do_drop:
+    if (share->state != NSS_DROPPED)
+    {
+      /*
+        The share kept by the server has not been freed, free it
+      */
+      share->state= NSS_DROPPED;
+      /* ndb_share reference create free */
+      DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
+                               share->key, share->use_count));
+      free_share(&share, TRUE);
+    }
+    /* ndb_share reference temporary free */
+    DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
+                             share->key, share->use_count));
+    free_share(&share, TRUE);
+    pthread_mutex_unlock(&ndbcluster_mutex);
+  }
+  else if (path)
+  {
+    pthread_mutex_lock(&ndbcluster_mutex);
+    share= get_share(path, 0, FALSE, TRUE);
+    if (share)
+    {
+      goto do_drop;
+    }
+    pthread_mutex_unlock(&ndbcluster_mutex);
+  }
+}
+
 /* static version which does not need a handler */
 
 int
-ha_ndbcluster::delete_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
-                            const char *path,
-                            const char *db,
-                            const char *table_name)
+ha_ndbcluster::drop_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
+                          const char *path,
+                          const char *db,
+                          const char *table_name)
 {
   DBUG_ENTER("ha_ndbcluster::ndbcluster_delete_table");
   NDBDICT *dict= ndb->getDictionary();
@@ -7931,26 +7968,7 @@ retry_temporary_error1:
   if (res)
   {
     /* the drop table failed for some reason, drop the share anyways */
-    if (share)
-    {
-      pthread_mutex_lock(&ndbcluster_mutex);
-      if (share->state != NSS_DROPPED)
-      {
-        /*
-          The share kept by the server has not been freed, free it
-        */
-        share->state= NSS_DROPPED;
-        /* ndb_share reference create free */
-        DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
-                                 share->key, share->use_count));
-        free_share(&share, TRUE);
-      }
-      /* ndb_share reference temporary free */
-      DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                               share->key, share->use_count));
-      free_share(&share, TRUE);
-      pthread_mutex_unlock(&ndbcluster_mutex);
-    }
+    delete_table_drop_share(share, 0);
     DBUG_RETURN(res);
   }
 
@@ -7990,26 +8008,7 @@ retry_temporary_error1:
                              SOT_DROP_TABLE, 0, 0, 1);
   }
 
-  if (share)
-  {
-    pthread_mutex_lock(&ndbcluster_mutex);
-    if (share->state != NSS_DROPPED)
-    {
-      /*
-        The share kept by the server has not been freed, free it
-      */
-      share->state= NSS_DROPPED;
-      /* ndb_share reference create free */
-      DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
-                               share->key, share->use_count));
-      free_share(&share, TRUE);
-    }
-    /* ndb_share reference temporary free */
-    DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                             share->key, share->use_count));
-    free_share(&share, TRUE);
-    pthread_mutex_unlock(&ndbcluster_mutex);
-  }
+  delete_table_drop_share(share, 0);
   DBUG_RETURN(0);
 }
 
@@ -8030,6 +8029,7 @@ int ha_ndbcluster::delete_table(const char *name)
       dropped inside ndb.
       Just drop local files.
     */
+    delete_table_drop_share(0, name);
     DBUG_RETURN(handler::delete_table(name));
   }
 
@@ -8064,8 +8064,8 @@ int ha_ndbcluster::delete_table(const char *name)
     If it was already gone it might have been dropped
     remotely, give a warning and then drop .ndb file.
    */
-  if (!(error= delete_table(thd, this, ndb, name,
-                            m_dbname, m_tabname)) ||
+  if (!(error= drop_table(thd, this, ndb, name,
+                          m_dbname, m_tabname)) ||
       error == HA_ERR_NO_SUCH_TABLE)
   {
     /* Call ancestor function to delete .ndb file */
@@ -8986,7 +8986,7 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
   {
     tablename_to_filename(tabname, tmp, FN_REFLEN - (tmp - full_path)-1);
     pthread_mutex_lock(&LOCK_open);
-    if (ha_ndbcluster::delete_table(thd, 0, ndb, full_path, dbname, tabname))
+    if (ha_ndbcluster::drop_table(thd, 0, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
       if (err.code != 709 && err.code != 723)
@@ -9611,6 +9611,24 @@ ndbcluster_init_error:
   DBUG_RETURN(TRUE);
 }
 
+#ifndef DBUG_OFF
+static
+const char*
+get_share_state_string(NDB_SHARE_STATE s)
+{
+  switch(s) {
+  case NSS_INITIAL:
+    return "NSS_INITIAL";
+  case NSS_ALTERED:
+    return "NSS_ALTERED";
+  case NSS_DROPPED:
+    return "NSS_DROPPED";
+  }
+  assert(false);
+  return "<unknown>";
+}
+#endif
+
 int ndbcluster_binlog_end(THD *thd);
 
 static int ndbcluster_end(handlerton *hton, ha_panic_function type)
@@ -9626,17 +9644,22 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 
   {
     pthread_mutex_lock(&ndbcluster_mutex);
+    uint save = ndbcluster_open_tables.records;
     while (ndbcluster_open_tables.records)
     {
       NDB_SHARE *share=
         (NDB_SHARE*) my_hash_element(&ndbcluster_open_tables, 0);
 #ifndef DBUG_OFF
-      fprintf(stderr, "NDB: table share %s with use_count %d not freed\n",
-              share->key, share->use_count);
+      fprintf(stderr,
+              "NDB: table share %s with use_count %d state: %s(%u) not freed\n",
+              share->key, share->use_count,
+              get_share_state_string(share->state),
+              (uint)share->state);
 #endif
       ndbcluster_real_free_share(&share);
     }
     pthread_mutex_unlock(&ndbcluster_mutex);
+    DBUG_ASSERT(save == 0);
   }
   my_hash_free(&ndbcluster_open_tables);
 
@@ -11760,8 +11783,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 
   if (ndb_extra_logging && ndb_binlog_running)
     sql_print_information("NDB Binlog: Ndb tables initially read only.");
-  /* create tables needed by the replication */
-  ndbcluster_setup_binlog_table_shares(thd);
 
   set_timespec(abstime, 0);
   for (;;)
@@ -13716,6 +13737,54 @@ SHOW_VAR ndb_status_variables_export[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
+#ifndef DBUG_OFF
+
+static
+void
+dbug_check_shares(THD*, st_mysql_sys_var*, void*, const void*)
+{
+  sql_print_information("dbug_check_shares");
+  for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+  {
+    NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables, i);
+    sql_print_information("  %s.%s: state: %s(%u) use_count: %u",
+                          share->db, share->table_name,
+                          get_share_state_string(share->state),
+                          (unsigned)share->state,
+                          share->use_count);
+  }
+
+  /**
+   * Only shares in mysql database may be open...
+   */
+  for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+  {
+    NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables, i);
+    DBUG_ASSERT(strcmp(share->db, "mysql") == 0);
+  }
+}
+
+static MYSQL_THDVAR_UINT(
+  check_shares,              /* name */
+  PLUGIN_VAR_RQCMDARG,
+  "Debug, only...check that no shares are lingering...",
+  NULL,                              /* check func */
+  dbug_check_shares,                 /* update func */
+  0,                                 /* default */
+  0,                                 /* min */
+  1,                                 /* max */
+  0                                  /* block */
+);
+
+#endif
+
+static struct st_mysql_sys_var* system_variables[]= {
+#ifndef DBUG_OFF
+  MYSQL_SYSVAR(check_shares),
+#endif
+  NULL
+};
+
 struct st_mysql_storage_engine ndbcluster_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
@@ -13731,7 +13800,7 @@ mysql_declare_plugin(ndbcluster)
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   ndb_status_variables_export,/* status variables                */
-  NULL,                       /* system variables                */
+  system_variables,           /* system variables                */
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;

@@ -16,7 +16,7 @@ drop database if exists mysqltest;
 --replace_column 2 #
 SHOW GLOBAL STATUS LIKE 'ndb%';
 --replace_column 2 #
-SHOW GLOBAL VARIABLES LIKE 'ndb%';
+SHOW GLOBAL VARIABLES LIKE 'ndb\_%';
 
 #
 # Create a normal table with primary key
