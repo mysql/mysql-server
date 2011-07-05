@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -471,8 +472,7 @@ void TABLE_SHARE::destroy()
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely(PSI_server && m_psi))
-    PSI_server->release_table_share(m_psi);
+  PSI_CALL(release_table_share)(m_psi);
 #endif
 
   /*
@@ -1014,7 +1014,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       name.str= (char*) next_chunk + 2;
       name.length= str_db_type_length;
 
-      plugin_ref tmp_plugin= ha_resolve_by_name(thd, &name);
+      plugin_ref tmp_plugin= ha_resolve_by_name(thd, &name, FALSE);
       if (tmp_plugin != NULL && !plugin_equals(tmp_plugin, share->db_plugin))
       {
         if (legacy_db_type > DB_TYPE_UNKNOWN &&
