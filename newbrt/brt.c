@@ -881,33 +881,32 @@ toku_brtheader_free (struct brt_header *h) {
     brtheader_free(h);
 }
 
-static void
-initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, int num_children)
+void
+toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num_children, int layout_version, unsigned int nodesize, unsigned int flags)
 // Effect: Fill in N as an empty brtnode.
 {
-    n->max_msn_applied_to_node_on_disk = MIN_MSN;  // correct value for root node, harmless for others
+    assert(layout_version != 0);
+    assert(height >= 0);
+
+    n->max_msn_applied_to_node_on_disk = MIN_MSN;    // correct value for root node, harmless for others
     n->max_msn_applied_to_node_in_memory = MIN_MSN;  // correct value for root node, harmless for others
-    n->nodesize = t->h->nodesize;
-    n->flags = t->flags;
+    n->nodesize = nodesize;
+    n->flags = flags;
     n->thisnodename = nodename;
-    assert(t->h->layout_version != 0);
-    n->layout_version	       = t->h->layout_version;
-    n->layout_version_original = t->h->layout_version;
-    n->layout_version_read_from_disk = t->h->layout_version;
-    n->height	    = height;
+    n->layout_version	       = layout_version;
+    n->layout_version_original = layout_version;
+    n->layout_version_read_from_disk = layout_version;
+    n->height = height;
     n->dirty = 1;
-    assert(height>=0);
     n->totalchildkeylens = 0;
-    n->childkeys=0;
+    n->childkeys = 0;
     n->bp = 0;
     n->n_children = num_children; 
     n->bp_offset = 0;
 
     if (num_children > 0) {
-	MALLOC_N(num_children-1, n->childkeys);
-	assert(n->childkeys);
-        MALLOC_N(num_children, n->bp);
-        assert(n->bp);
+        XMALLOC_N(num_children-1, n->childkeys);
+        XMALLOC_N(num_children, n->bp);
 	for (int i = 0; i < num_children; i++) {
             BP_FULLHASH(n,i)=0;
             BP_HAVE_FULLHASH(n,i)=FALSE;
@@ -921,11 +920,11 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, int n
                 n->bp[i].ptr = toku_malloc(sizeof(struct brtnode_nonleaf_childinfo));
                 memset(n->bp[i].ptr, 0, sizeof(struct brtnode_nonleaf_childinfo));
                 int r = toku_fifo_create(&BNC_BUFFER(n,i));
-                assert(r==0);
+                assert_zero(r);
                 BNC_NBYTESINBUF(n,i) = 0;
             }
             else {
-                n->bp[i].ptr = toku_malloc(sizeof(struct brtnode_leaf_basement_node));
+                n->bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
                 BASEMENTNODE bn = (BASEMENTNODE)n->bp[i].ptr;
                 memset(bn, 0, sizeof(struct brtnode_leaf_basement_node));
                 toku_setup_empty_bn(bn);
@@ -941,14 +940,14 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
 //  Unpin nodea and nodeb.
 //  Leave the new root pinned.
 {
-    BRTNODE MALLOC(newroot);
+    BRTNODE XMALLOC(newroot);
     int new_height = nodea->height+1;
     BLOCKNUM newroot_diskoff;
     toku_allocate_blocknum(brt->h->blocktable, &newroot_diskoff, brt->h);
     assert(newroot);
     *rootp=newroot_diskoff;
     assert(new_height > 0);
-    initialize_empty_brtnode (brt, newroot, newroot_diskoff, new_height, 2);
+    toku_initialize_empty_brtnode (newroot, newroot_diskoff, new_height, 2, brt->h->layout_version, brt->h->nodesize, brt->flags);
     //printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
     //printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
     newroot->childkeys[0] = splitk.data;
@@ -978,26 +977,27 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     *newrootp = newroot;
 }
 
-// logs the memory allocation, but not the creation of the new node
-void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children) {
-    BRTNODE MALLOC(n);
-    int r;
+void 
+toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children) {
+    assert(t->h->nodesize > 0);
+    if (height == 0) 
+        assert(n_children > 0);
+
     BLOCKNUM name;
     toku_allocate_blocknum(t->h->blocktable, &name, t->h);
-    if (height == 0) { assert(n_children > 0); }
-    assert(n);
-    assert(t->h->nodesize>0);
-    initialize_empty_brtnode(t, n, name, height, n_children);
-    *result = n;
-    assert(n->nodesize>0);
-    //	  n->brt	    = t;
-    //printf("%s:%d putting %p (%lld)\n", __FILE__, __LINE__, n, n->thisnodename);
+
+    BRTNODE XMALLOC(n);
+    toku_initialize_empty_brtnode(n, name, height, n_children, t->h->layout_version, t->h->nodesize, t->flags);
+    assert(n->nodesize > 0);
+
     u_int32_t fullhash = toku_cachetable_hash(t->cf, n->thisnodename);
     n->fullhash = fullhash;
-    r=toku_cachetable_put(t->cf, n->thisnodename, fullhash,
-			  n, brtnode_memory_size(n),
-			  toku_brtnode_flush_callback, toku_brtnode_pe_callback, t->h);
+    int r = toku_cachetable_put(t->cf, n->thisnodename, fullhash,
+                            n, brtnode_memory_size(n),
+                            toku_brtnode_flush_callback, toku_brtnode_pe_callback, t->h);
     assert_zero(r);
+
+    *result = n;
 }
 
 static void
@@ -3391,23 +3391,20 @@ int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize, 
 }
 
 static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum) {
-    int r;
-    BRTNODE MALLOC(node);
-    assert(node);
-    //printf("%s:%d\n", __FILE__, __LINE__);
-    initialize_empty_brtnode(t, node, blocknum, 0, 1);
+    BRTNODE XMALLOC(node);
+    toku_initialize_empty_brtnode(node, blocknum, 0, 1, t->h->layout_version, t->h->nodesize, t->flags);
     BP_STATE(node,0) = PT_AVAIL;
+
     u_int32_t fullhash = toku_cachetable_hash(t->cf, blocknum);
     node->fullhash = fullhash;
-    r=toku_cachetable_put(t->cf, blocknum, fullhash,
-			  node, brtnode_memory_size(node),
-			  toku_brtnode_flush_callback, toku_brtnode_pe_callback, t->h);
-    if (r!=0) {
+    int r = toku_cachetable_put(t->cf, blocknum, fullhash,
+                                node, brtnode_memory_size(node),
+                                toku_brtnode_flush_callback, toku_brtnode_pe_callback, t->h);
+    if (r != 0)
 	toku_free(node);
-	return r;
-    }
-    toku_unpin_brtnode(t, node);
-    return 0;
+    else
+        toku_unpin_brtnode(t, node);
+    return r;
 }
 
 // open a file for use by the brt

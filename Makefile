@@ -32,6 +32,9 @@ db-benchmark-test-cxx.dir: cxx.dir
 
 build: $(patsubst %,%.dir, $(BUILDDIRS))
 
+%.build:
+	cd $(patsubst %.build, %,$@) && $(MAKE) build
+
 %.local:
 	cd $(patsubst %.local, %,$@) && $(MAKE) local
 

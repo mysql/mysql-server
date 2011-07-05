@@ -195,25 +195,25 @@ int test_main (int argc, const char *argv[]) {
     const char *progname=argv[0];
     argc--; argv++;
     while (argc>0) {
-	if (strcmp(argv[0],"-h")==0) {
+	if (strcmp(argv[0], "-h") == 0 || strcmp(argv[0], "--help") == 0) {
 	    return usage(progname);
-        } else if (strcmp(argv[0],"-v")==0) {
+        } else if (strcmp(argv[0], "-v") == 0 || strcmp(argv[0], "--verbose") == 0) {
 	    verbose=1;
-	} else if (strcmp(argv[0],"-q")==0) {
+	} else if (strcmp(argv[0], "-q") == 0) {
 	    verbose=0;
-        } else if (strcmp(argv[0],"-r") == 0) {
+        } else if (strcmp(argv[0], "-r") == 0) {
             argc--; argv++;
             nrows = atoi(argv[0]);
-        } else if (strcmp(argv[0],"-s") == 0) {
+        } else if (strcmp(argv[0], "-s") == 0) {
             toku_brtloader_set_size_factor(1);
-	} else if (argc!=1) {
+	} else if (argv[0][0] == '-' || argc != 1) {
             return usage(progname);
 	} else {
             break;
         }
 	argc--; argv++;
     }
-    assert(argc==1); // argv[1] is the directory in which to do the test.
+    assert(argc == 1); // argv[1] is the directory in which to do the test.
     const char* directory = argv[0];
     char unlink_all[strlen(directory)+20];
     snprintf(unlink_all, strlen(directory)+20, "rm -rf %s", directory);
@@ -234,9 +234,10 @@ int test_main (int argc, const char *argv[]) {
 
     test_write_dbfile(template, nrows, output_name);
 
+#if 0
     r = system(unlink_all);
     CKERR(r);
-
+#endif
     return 0;
 }
 

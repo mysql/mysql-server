@@ -602,11 +602,6 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
                           /*out*/ size_t *n_bytes_to_write,
                           /*out*/ char  **bytes_to_write)
 {
-
-    
-
-    char* data = NULL;
-    char* curr_ptr = NULL;
     toku_assert_entire_node_in_memory(node);
 
     if (node->height == 0) {
@@ -658,8 +653,8 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     //
     node->bp_offset = serialize_node_header_size(node) + sb_node_info.compressed_size + 4;
     
-    data = toku_xmalloc(total_node_size);
-    curr_ptr = data;
+    char *data = toku_xmalloc(total_node_size);
+    char *curr_ptr = data;
     // now create the final serialized node
 
     // write the header

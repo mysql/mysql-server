@@ -435,10 +435,19 @@ toku_brt_search_which_child(
     BRTNODE node, 
     brt_search_t *search
     );
+
 u_int8_t 
 toku_brtnode_partition_state (struct brtnode_fetch_extra* bfe, int childnum);
-// logs the memory allocation, but not the creation of the new node
+
+// allocate a block number
+// allocate and initialize a brtnode
+// put the brtnode into the cache table
 void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children);
+
+// Effect: Fill in N as an empty brtnode.
+void toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num_children, 
+                                    int layout_version, unsigned int nodesize, unsigned int flags);
+
 int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 		      UNLOCKERS unlockers,
 		      ANCESTORS ancestors, struct pivot_bounds const * const pbounds,

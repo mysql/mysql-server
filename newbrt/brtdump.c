@@ -143,24 +143,23 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     printf(" n_children=%d\n", n->n_children);
     printf(" total_childkeylens=%u\n", n->totalchildkeylens);
 
-    int i;
     printf(" subleafentry_estimates={");
-    for (i=0; i<n->n_children; i++) {
+    for (int i=0; i<n->n_children; i++) {
         if (i>0) printf(" ");
         struct subtree_estimates *est = &BP_SUBTREE_EST(n,i);
         printf("{nkey=%" PRIu64 " ndata=%" PRIu64 " dsize=%" PRIu64 " %s }", est->nkeys, est->ndata, est->dsize, est->exact ? "T" : "F");
     }
     printf("}\n");
     printf(" pivots:\n");
-    for (i=0; i<n->n_children-1; i++) {
+    for (int i=0; i<n->n_children-1; i++) {
         struct kv_pair *piv = n->childkeys[i];
-        printf("  pivot %d:", i);
+        printf("  pivot %2d:", i);
         assert(n->flags == 0);
         print_item(kv_pair_key_const(piv), kv_pair_keylen(piv));
         printf("\n");
     }
     printf(" children:\n");
-    for (i=0; i<n->n_children; i++) {
+    for (int i=0; i<n->n_children; i++) {
         if (n->height > 0) {
             printf("   child %d: %" PRId64 "\n", i, BP_BLOCKNUM(n, i).b);
             unsigned int n_bytes = BNC_NBYTESINBUF(n, i); 
@@ -203,9 +202,9 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 			     );
 	    }
 	} else {
-	    printf(" optimized_for_upgrade=%u\n", BLB_OPTIMIZEDFORUPGRADE(n, i));
-	    printf(" n_bytes_in_buffer=%u\n", BLB_NBYTESINBUF(n, i));
-	    printf(" items_in_buffer  =%u\n", toku_omt_size(BLB_BUFFER(n, i)));
+	    printf("  bn %2d: optimized_for_upgrade=%u", i, BLB_OPTIMIZEDFORUPGRADE(n, i));
+	    printf(" n_bytes_in_buffer=%u", BLB_NBYTESINBUF(n, i));
+	    printf(" items_in_buffer=%u\n", toku_omt_size(BLB_BUFFER(n, i)));
 	    if (dump_data) toku_omt_iterate(BLB_BUFFER(n, i), print_le, 0);
 	}
     }
