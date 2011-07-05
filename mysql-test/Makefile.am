@@ -101,6 +101,7 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/ndb_binlog suite/ndb_binlog/t suite/ndb_binlog/r \
 	suite/ndb_team suite/ndb_team/t suite/ndb_team/r \
 	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
+	suite/ndb/include \
 	suite/parts suite/parts/t suite/parts/r suite/parts/inc \
 	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include \
         suite/innodb_plugin suite/innodb_plugin/t suite/innodb_plugin/r \
