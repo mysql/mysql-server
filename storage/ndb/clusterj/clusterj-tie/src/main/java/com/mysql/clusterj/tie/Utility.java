@@ -17,6 +17,7 @@
 
 package com.mysql.clusterj.tie;
 
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
@@ -107,7 +108,7 @@ public class Utility {
             return Class.forName(className);
         } catch (ClassNotFoundException e) {
             // TODO Auto-generated catch block
-            throw new ClusterJFatalInternalException(local.message("ERR_Loading_Native_Class", className), e);
+            throw new ClusterJUserException(local.message("ERR_Loading_Native_Class", className), e);
         }
     }
 
@@ -116,7 +117,27 @@ public class Utility {
     * actually a collation number. The CharsetMap interface thus has methods like
     * getCharsetNumber(String charsetName) but what is returned is actually a collation number.
     */
-    static CharsetMap charsetMap = CharsetMap.create();
+    static CharsetMap charsetMap = createCharsetMap();
+
+    // TODO: this is intended to investigate a class loader issue with Sparc java
+    // The idea is to create the CharsetMap create method in a try/catch block to report the exact error
+    static CharsetMap createCharsetMap() {
+        StringBuilder builder = new StringBuilder();
+        CharsetMap result = null;
+        try {
+            return CharsetMap.create();
+        } catch (Throwable t1) {
+            builder.append("CharsetMap.create() threw " + t1.getClass().getName() + ":" + t1.getMessage());
+            try {
+                Method charsetMapCreateMethod = charsetMapClass.getMethod("create", (Class[])null);
+                result = (CharsetMap)charsetMapCreateMethod.invoke(null, (Object[])null);
+                builder.append("charsetMapCreateMethod.invoke() succeeded:" + result);
+            } catch (Throwable t2) {
+                builder.append("charsetMapCreateMethod.invoke() threw " + t2.getClass().getName() + ":" + t2.getMessage());
+            }
+            throw new ClusterJUserException(builder.toString());
+        }
+    }
 
     /** The maximum mysql collation (charset) number. This is hard coded in <mysql>/include/my_sys.h */
     static int MAXIMUM_MYSQL_COLLATION_NUMBER = 256;
