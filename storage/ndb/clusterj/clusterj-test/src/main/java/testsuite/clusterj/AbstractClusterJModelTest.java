@@ -152,12 +152,16 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
         columnDescriptors = getColumnDescriptors();
     }
 
+    protected boolean getCleanupAfterTest() {
+        return true;
+    }
+
     @Override
     public void localSetUp() {
         createSessionFactory();
         session = sessionFactory.getSession();
         setAutoCommit(connection, false);
-        if (getModelClass() != null) {
+        if (getModelClass() != null && getCleanupAfterTest()) {
             addTearDownClasses(getModelClass());
         }
     }
@@ -455,6 +459,10 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
      * @param actuals the actual results
      */
     protected void verify(String where, List<Object[]> expecteds, List<Object[]> actuals) {
+        if (expecteds.size() != actuals.size()) {
+            error(where + " failure on size of results: expected: " + expecteds.size() + " actual: " + actuals.size());
+            return;
+        }
         for (int i = 0; i < expecteds.size(); ++i) {
             Object[] expected = expecteds.get(i);
             Object[] actual = actuals.get(i);
