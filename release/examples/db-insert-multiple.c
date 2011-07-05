@@ -106,29 +106,29 @@ static int my_generate_row_for_put(DB *dest_db, DB *src_db, DBT *dest_key, DBT *
     case 1:
         // dest_key = b,a
         dest_key->size = 2 * 8;
-        memcpy(dest_key->data + 0, src_val->data + 0, 8);
-        memcpy(dest_key->data + 8, src_key->data + 0, 8);
+        memcpy((char *)dest_key->data + 0, (char *)src_val->data + 0, 8);
+        memcpy((char *)dest_key->data + 8, (char *)src_key->data + 0, 8);
         // dest_val = null
         dest_val->size = 0;
         break;
     case 2:
         // dest_key = c,d,a
         dest_key->size = 3 * 8;
-        memcpy(dest_key->data + 0, src_val->data + 8, 8);
-        memcpy(dest_key->data + 8, src_val->data + 16, 8);
-        memcpy(dest_key->data + 16, src_key->data + 0, 8);
+        memcpy((char *)dest_key->data + 0, (char *)src_val->data + 8, 8);
+        memcpy((char *)dest_key->data + 8, (char *)src_val->data + 16, 8);
+        memcpy((char *)dest_key->data + 16, (char *)src_key->data + 0, 8);
         // dest_val = null
         dest_val->size = 0;
         break;
     case 3:
         // dest_key = d,a
         dest_key->size = 2 * 8;
-        memcpy(dest_key->data + 0, src_val->data + 16, 8);
-        memcpy(dest_key->data + 8, src_key->data + 0, 8);
+        memcpy((char *)dest_key->data + 0, (char *)src_val->data + 16, 8);
+        memcpy((char *)dest_key->data + 8, (char *)src_key->data + 0, 8);
         // dest_val = b,c
         dest_val->size = 2 * 8;
-        memcpy(dest_val->data + 0, src_val->data + 0, 8);
-        memcpy(dest_val->data + 8, src_val->data + 8, 8);
+        memcpy((char *)dest_val->data + 0, (char *)src_val->data + 0, 8);
+        memcpy((char *)dest_val->data + 8, (char *)src_val->data + 8, 8);
         break;
     default:
         assert(0);
@@ -151,23 +151,23 @@ static int my_secondary_key(DB *db, const DBT *src_key, const DBT *src_val, DBT 
     case 1:
         // dest_key = b,a
         dest_key->size = 2 * 8;
-        memcpy(dest_key->data + 0, src_val->data + 0, 8);
-        memcpy(dest_key->data + 8, src_key->data + 0, 8);
+        memcpy((char *)dest_key->data + 0, (char *)src_val->data + 0, 8);
+        memcpy((char *)dest_key->data + 8, (char *)src_key->data + 0, 8);
         break;
     case 2:
         // dest_key = c,d,a
         dest_key->size = 3 * 8;
-        memcpy(dest_key->data + 0, src_val->data + 8, 8);
-        memcpy(dest_key->data + 8, src_val->data + 16, 8);
-        memcpy(dest_key->data + 16, src_key->data + 0, 8);
+        memcpy((char *)dest_key->data + 0, (char *)src_val->data + 8, 8);
+        memcpy((char *)dest_key->data + 8, (char *)src_val->data + 16, 8);
+        memcpy((char *)dest_key->data + 16, (char *)src_key->data + 0, 8);
         break;
     case 3:
         // dest_key = d,a,b,c
         dest_key->size = 4 * 8;
-        memcpy(dest_key->data + 0, src_val->data + 16, 8);
-        memcpy(dest_key->data + 8, src_key->data + 0, 8);
-        memcpy(dest_key->data + 16, src_val->data + 0, 8);
-        memcpy(dest_key->data + 24, src_val->data + 8, 8);
+        memcpy((char *)dest_key->data + 0, (char *)src_val->data + 16, 8);
+        memcpy((char *)dest_key->data + 8, (char *)src_key->data + 0, 8);
+        memcpy((char *)dest_key->data + 16, (char *)src_val->data + 0, 8);
+        memcpy((char *)dest_key->data + 24, (char *)src_val->data + 8, 8);
         break;
     default:
         assert(0);
