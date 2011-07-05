@@ -651,7 +651,6 @@ or row lock! */
 					trx_i_s_cache_t::last_read_mutex */
 #define SYNC_FILE_FORMAT_TAG	1200	/* Used to serialize access to the
 					file format tag */
-#define SYNC_FTS_CACHE          1100	// FIXME: is this correct number, test
 #define	SYNC_DICT_OPERATION	1001	/* table create, drop, etc. reserve
 					this in X-mode; implicit or backround
 					operations purge, rollback, foreign
@@ -699,6 +698,7 @@ or row lock! */
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
 #define SYNC_RECV		168
+#define SYNC_FTS_CACHE		166
 #define SYNC_FTS_BG_THREADS	165
 #define SYNC_FTS_OPTIMIZE       164     // FIXME: is this correct number, test
 #define	SYNC_WORK_QUEUE		162

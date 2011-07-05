@@ -86,7 +86,7 @@ row_merge_create_fts_sort_index(
 	field->name = NULL;
 	field->prefix_len = 0;
 	field->col = mem_heap_alloc(new_index->heap, sizeof(dict_col_t));
-	field->col->len = FTS_MAX_WORD_LEN;
+	field->col->len = fts_max_token_size;
 
 	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
 		field->col->mtype = DATA_VARCHAR;
@@ -293,7 +293,7 @@ row_merge_fts_doc_tokenize(
 	ulint		i;
 	ulint		inc;
 	fts_string_t	str;
-	byte		str_buf[FTS_MAX_WORD_LEN + 1];
+	byte		str_buf[fts_max_token_size + 1];
 	dfield_t*	field;
 	ulint		data_size[FTS_NUM_AUX_INDEX];
 	ulint		len;
@@ -356,8 +356,8 @@ row_merge_fts_doc_tokenize(
 
 		ut_a(inc > 0);
 
-		if (str.len < FTS_MIN_TOKEN_SIZE
-		    || str.len > FTS_MAX_WORD_LEN) {
+		if (str.len < fts_min_token_size 
+		    || str.len > fts_max_token_size) {
 			*processed_len += inc;
 			continue;
 		}
@@ -368,7 +368,7 @@ row_merge_fts_doc_tokenize(
 		t_str.utf8 = (byte*) &str_buf;
 		t_str.len = strlen((char*) t_str.utf8);
 
-		/* Ignore string len smaller than "FTS_MIN_TOKEN_SIZE", or
+		/* Ignore string len smaller than "fts_min_token_size", or
 		if "cached_stopword" is defined, ingore words in the
 		stopword list */
 		if (cached_stopword
@@ -400,7 +400,7 @@ row_merge_fts_doc_tokenize(
 
 		field->type.mtype = word_dtype->mtype;
 		field->type.prtype = word_dtype->prtype | DATA_NOT_NULL;
-		field->type.len = FTS_MAX_WORD_LEN;
+		field->type.len = fts_max_token_size;
 		field->type.mbminmaxlen = word_dtype->mbminmaxlen;
 		cur_len += len;
 		dfield_dup(field, buf->heap);
@@ -432,8 +432,7 @@ row_merge_fts_doc_tokenize(
 		dfield_dup(field, buf->heap);
 
 		/* One variable length column, word with its lenght less than
-		FTS_MAX_WORD_LEN (default 84) bytes, add one extra size
-		and one extra byte */
+		fts_max_token_size, add one extra size and one extra byte */
 		cur_len += 2;
 
 		/* Reserve one byte for the end marker of row_merge_block_t. */

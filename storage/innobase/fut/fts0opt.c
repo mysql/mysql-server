@@ -2758,9 +2758,9 @@ fts_optimize_need_sync(
 		ulint	deleted = table->fts->cache->deleted;
 
 		if (table->fts->cache->added
-		    >= FTS_OPTIMIZE_ADD_THRESHOLD) {
+		    >= fts_optimize_add_threshold) {
 			fts_sync_table(table);
-		} else if (deleted >= FTS_OPTIMIZE_DEL_THRESHOLD) {
+		} else if (deleted >= fts_optimize_delete_threshold) {
 			fts_optimize_do_table(table);
 
 			mutex_enter(&table->fts->cache->deleted_lock);

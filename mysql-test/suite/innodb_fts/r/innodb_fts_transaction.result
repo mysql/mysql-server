@@ -3,7 +3,7 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) ENGINE= <default_engine>;
+) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
@@ -124,7 +124,7 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) ENGINE= <default_engine>;
+) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
@@ -235,7 +235,7 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) ENGINE= <default_engine>;
+) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
