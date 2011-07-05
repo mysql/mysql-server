@@ -547,8 +547,8 @@ DROP TABLE t1, t2;
 #
 # Bug#12321461: CRASH IN DSMRR_IMPL::DSMRR_INIT ON SELECT STRAIGHT_JOIN
 #
-set @save_join_cache_level= @@optimizer_join_cache_level;
-set optimizer_join_cache_level=0;
+set @save_optimizer_switch = @@optimizer_switch;
+set optimizer_switch='block_nested_loop=off,batch_key_access=off';
 CREATE TABLE t1 (
 pk INTEGER,
 c1 VARCHAR(1) NOT NULL,
@@ -569,6 +569,6 @@ FROM t1 RIGHT OUTER JOIN t2 ON t1.c1 = t2.c1
 WHERE t1.pk > 176;
 c1
 DROP TABLE t1,t2;
-set optimizer_join_cache_level= @save_join_cache_level;
+set optimizer_switch= @save_optimizer_switch;
 set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
 set optimizer_switch=default;

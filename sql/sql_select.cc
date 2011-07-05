@@ -253,6 +253,7 @@ static
 bool types_allow_materialization(Item *outer, Item *inner);
 static
 bool resolve_subquery(THD *thd, JOIN *join);
+static uint join_buffer_alg(const THD *thd);
 int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl);
@@ -339,7 +340,6 @@ private:
                            const JOIN_TAB *tab);
   void optimize_straight_join(table_map join_tables);
   bool greedy_search(table_map remaining_tables);
-  void set_join_buffer_properties();
   bool best_extension_by_limited_search(table_map remaining_tables,
                                         uint idx,
                                         double record_count,
@@ -1350,14 +1350,14 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
    join buffering might be used, but potentially also some cases where
    join buffering will not be used.
 
-   @param join_cache_level     The join cache level
+   @param join_buffer_alg      Bitmap with possible join buffer algorithms
    @param sj_tab               Table that might be joined by BNL/BKA
 
    @return                     
       true if join buffering might be used, false otherwise
 
  */
-bool might_do_join_buffering(uint join_cache_level, 
+bool might_do_join_buffering(uint join_buffer_alg, 
                              const JOIN_TAB *sj_tab) 
 {
   /* 
@@ -1366,8 +1366,10 @@ bool might_do_join_buffering(uint join_cache_level,
   int sj_tabno= sj_tab - sj_tab->join->join_tab;
   return (sj_tabno >= (int)sj_tab->join->const_tables && // (1)
           sj_tab->use_quick != QS_DYNAMIC_RANGE && 
-          ((join_cache_level != 0 && sj_tab->type == JT_ALL) ||
-           (join_cache_level > 4 && 
+          (((join_buffer_alg & JOIN_CACHE::ALG_BNL) && 
+            sj_tab->type == JT_ALL) ||
+           ((join_buffer_alg & 
+             (JOIN_CACHE::ALG_BKA | JOIN_CACHE::ALG_BKA_UNIQUE)) && 
             (sj_tab->type == JT_REF || 
              sj_tab->type == JT_EQ_REF ||
              sj_tab->type == JT_CONST))));
@@ -1619,7 +1621,6 @@ bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           other duplicate elimination methods. 
         */
         uint first_table= tableno;
-        uint join_cache_level= join->thd->variables.optimizer_join_cache_level;
         for (uint sj_tableno= tableno; 
              sj_tableno < tableno + pos->n_sj_tables; 
              sj_tableno++)
@@ -1646,7 +1647,7 @@ bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           */
 
           if (sj_tableno <= no_jbuf_after &&
-              might_do_join_buffering(join_cache_level, 
+              might_do_join_buffering(join_buffer_alg(thd), 
                                       join->join_tab + sj_tableno))
 
           {
@@ -7090,11 +7091,12 @@ best_access_path(JOIN      *join,
   /*
     Cannot use join buffering if either
      1. This is the first table in the join sequence, or
-     2. Join buffering impossible for this table
+     2. Join buffering is not enabled
+        (Only Block Nested Loop is considered in this context)
   */
   disable_jbuf= disable_jbuf ||
-      idx == join->const_tables ||                                     // 1
-      s->use_join_cache == JOIN_CACHE::ALG_NONE;                       // 2
+    idx == join->const_tables ||                                     // 1
+    !thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BNL);               // 2
 
   Loose_scan_opt loose_scan_opt;
   DBUG_ENTER("best_access_path");
@@ -7672,8 +7674,6 @@ bool Optimize_table_order::choose_table_order()
   reset_nj_counters(join->join_list);
   qsort2_cmp jtab_sort_func;
 
-  set_join_buffer_properties();
-
   const bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
   table_map join_tables;      ///< The tables involved in order selection
 
@@ -7727,35 +7727,26 @@ bool Optimize_table_order::choose_table_order()
 
 
 /**
-  Set static join buffer properties for the tables involved in a join,
-  regardless of access methods and join order.
-  The property is pre-computed here and later used in best_access_path().
+   Returns which join buffer algorithms are enabled for this session.
+
+   @param thd the @c THD for this session
+
+   @return bitmap with available join buffer algorithms
 */
 
-void Optimize_table_order::set_join_buffer_properties()
+uint join_buffer_alg(const THD *thd)
 {
-  for (uint tableno= 0; tableno < join->tables; tableno++)
-  {
-    JOIN_TAB   *const tab= join->join_tab + tableno;
-    /*
-      Cannot use join buffering if either
-       1. Join buffering is disabled by the user, or
-       2. Outer joined table, and join buffering disabled for outer join, or
-       3. Semi-joined table, and join buffering disabled for semi-join, or
-    */
-    if (thd->variables.optimizer_join_cache_level == 0 ||              // 1
-        ((tab->table->map & join->outer_join) &&                       // 2
-         thd->variables.optimizer_join_cache_level <= 2) ||            // 2
-        (tab->emb_sj_nest != NULL &&                                   // 3
-         thd->variables.optimizer_join_cache_level <= 2))              // 3
-      tab->use_join_cache= JOIN_CACHE::ALG_NONE;
-    else if (thd->variables.optimizer_join_cache_level <= 4)
-      tab->use_join_cache= JOIN_CACHE::ALG_BNL;
-    else if (thd->variables.optimizer_join_cache_level <= 6)
-      tab->use_join_cache= JOIN_CACHE::ALG_BNL | JOIN_CACHE::ALG_BKA;
-    else if (thd->variables.optimizer_join_cache_level <= 8)
-      tab->use_join_cache= JOIN_CACHE::ALG_BNL | JOIN_CACHE::ALG_BKA_UNIQUE;
-  }
+  // Cannot use join buffering if it is disabled by the user
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BNL))
+    return JOIN_CACHE::ALG_NONE;
+  else if (thd->variables.optimizer_join_cache_level <= 4)
+    return JOIN_CACHE::ALG_BNL;
+  else if (thd->variables.optimizer_join_cache_level <= 6)
+    return (JOIN_CACHE::ALG_BNL | JOIN_CACHE::ALG_BKA);
+  else if (thd->variables.optimizer_join_cache_level <= 8)
+    return JOIN_CACHE::ALG_BNL | JOIN_CACHE::ALG_BKA_UNIQUE;
+
+  return JOIN_CACHE::ALG_NONE;
 }
 
 
@@ -10821,12 +10812,13 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
   ha_rows rows;
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache=0;
+  const bool bnl_on= join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BNL);
   const uint cache_level= join->thd->variables.optimizer_join_cache_level;
   const uint tableno= tab - join->join_tab;
   const uint tab_sj_strategy= tab->get_sj_strategy();
   *icp_other_tables_ok= TRUE;
 
-  if (cache_level == 0 || tableno == join->const_tables)
+  if (!(bnl_on || cache_level > 4) || tableno == join->const_tables)
   {
     DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
     return false;
@@ -10890,19 +10882,18 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
   prev_cache= tab[-1].cache;
   switch (tab->type) {
   case JT_ALL:
-    /* Outer joined and semi-joined tables require join cache level > 2 */
-    if (cache_level <= 2 &&
-        (tab->first_inner || tab_sj_strategy == SJ_OPT_FIRST_MATCH))
+    if (!bnl_on)
     {
       DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
       goto no_join_cache;
     }
+
     if ((options & SELECT_DESCRIBE) ||
         ((tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache)) &&
          !tab->cache->init()))
     {
       *icp_other_tables_ok= FALSE;
-      DBUG_ASSERT(might_do_join_buffering(cache_level, tab));
+      DBUG_ASSERT(might_do_join_buffering(join_buffer_alg(join->thd), tab));
       tab->use_join_cache= JOIN_CACHE::ALG_BNL;
       return false;
     }
@@ -10930,7 +10921,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
             (tab->cache= new JOIN_CACHE_BKA_UNIQUE(join, tab, flags, prev_cache)))
            ) && !tab->cache->init())))
     {
-      DBUG_ASSERT(might_do_join_buffering(cache_level, tab));
+      DBUG_ASSERT(might_do_join_buffering(join_buffer_alg(join->thd), tab));
       if (cache_level <= 6)
         tab->use_join_cache= JOIN_CACHE::ALG_BKA;
       else
@@ -10942,7 +10933,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
   }
 
 no_join_cache:
-  if (cache_level > 2)
+  if (bnl_on || cache_level > 4)
     revise_cache_usage(tab);
   tab->use_join_cache= JOIN_CACHE::ALG_NONE;
   return false;

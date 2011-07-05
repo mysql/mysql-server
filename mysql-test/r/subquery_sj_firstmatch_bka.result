@@ -5653,8 +5653,7 @@ DROP TABLE t1, t2;
 #           certain query plans
 #
 SET @@default_storage_engine='innodb';
-SET @@optimizer_switch='semijoin=on,materialization=off,firstmatch=on,loosescan=off';
-SET @@optimizer_join_cache_level=0;
+SET @@optimizer_switch='semijoin=on,materialization=off,firstmatch=on,loosescan=off,block_nested_loop=off,batch_key_access=off';
 CREATE TABLE t0(a INTEGER);
 CREATE TABLE t1(a INTEGER);
 INSERT INTO t1 VALUES(1);

@@ -25,8 +25,6 @@ SELECT COUNT(*) FROM CountryLanguage;
 
 show variables like 'join_buffer_size';
 
-show variables like 'optimizer_join_cache_level';
-
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 

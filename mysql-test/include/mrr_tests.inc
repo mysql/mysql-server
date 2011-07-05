@@ -382,9 +382,9 @@ DROP TABLE t1, t2;
 --echo # Bug#12321461: CRASH IN DSMRR_IMPL::DSMRR_INIT ON SELECT STRAIGHT_JOIN
 --echo #
 
-# This test should run with join cache level 0
-set @save_join_cache_level= @@optimizer_join_cache_level;
-set optimizer_join_cache_level=0;
+# This test should run without join buffering
+set @save_optimizer_switch = @@optimizer_switch;
+set optimizer_switch='block_nested_loop=off,batch_key_access=off';
 
 CREATE TABLE t1 (
   pk INTEGER,
@@ -408,5 +408,5 @@ eval $query;
 
 DROP TABLE t1,t2;
 
-# Restore join cache level to its original value
-set optimizer_join_cache_level= @save_join_cache_level;
+# Restore join buffer settings to their original values
+set optimizer_switch= @save_optimizer_switch;
