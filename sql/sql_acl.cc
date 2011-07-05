@@ -8313,7 +8313,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
 
   if (!mpvio->acl_user)
   {
-    login_failed_error(mpvio, 0);
+    login_failed_error(mpvio, mpvio->auth_info.password_used);
     DBUG_RETURN (1);
   }
 
@@ -8760,6 +8760,14 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     if (db == NULL)
       return packet_error;
   }
+
+  /*
+    Set the default for the password supplied flag for non-existing users
+    as the default plugin (native passsword authentication) would do it
+    for compatibility reasons.
+  */
+  if (passwd_len)
+    mpvio->auth_info.password_used= PASSWORD_USED_YES;
 
   size_t client_plugin_len= 0;
   char *client_plugin= get_string(&end, &bytes_remaining_in_packet,
