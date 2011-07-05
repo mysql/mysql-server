@@ -274,6 +274,7 @@ void my_parameter_handler(const wchar_t * expression, const wchar_t * function,
 {
   DBUG_PRINT("my",("Expression: %s  function: %s  file: %s, line: %d",
 		   expression, function, file, line));
+  __debugbreak();
 }
 
 
@@ -298,7 +299,7 @@ int handle_rtc_failure(int err_type, const char *file, int line,
   fprintf(stderr, " At %s:%d\n", file, line);
   va_end(args);
   (void) fflush(stderr);
-
+  __debugbreak();
   return 0; /* Error is handled */
 }
 #pragma runtime_checks("", restore)

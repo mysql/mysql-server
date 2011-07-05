@@ -89,6 +89,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../mysys/ma_dyncol.c
                      ../mysys/my_symlink2.c ../mysys/my_thr_init.c  ../sql-common/my_time.c 
                      ../strings/my_vsnprintf.c ../mysys/my_wincond.c ../mysys/my_winthread.c 
+                     ../mysys/my_wincond.c ../mysys/my_winthread.c ../mysys/my_winfile.c ../mysys/my_winerr.c
                      ../mysys/my_write.c ../sql/net_serv.cc ../sql-common/pack.c ../sql/password.c 
                      ../mysys/safemalloc.c ../mysys/sha1.c ../strings/str2int.c
                      ../strings/str_alloc.c ../strings/strcend.c ../strings/strcont.c ../strings/strend.c 

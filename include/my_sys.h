@@ -342,11 +342,12 @@ enum file_type
 
 struct st_my_file_info
 {
-  char *		name;
-  enum file_type	type;
-#if defined(THREAD) && !defined(HAVE_PREAD)
-  pthread_mutex_t	mutex;
+  char  *name;
+#ifdef _WIN32
+  HANDLE fhandle;   /* win32 file handle */
+  int    oflag;     /* open flags, e.g O_APPEND */
 #endif
+  enum   file_type	type;
 };
 
 extern struct st_my_file_info *my_file_info;
@@ -652,12 +653,12 @@ extern void *my_memmem(const void *haystack, size_t haystacklen,
                        const void *needle, size_t needlelen);
 
 
-#ifdef __WIN__
-extern int my_access(const char *path, int amode);
-extern File my_sopen(const char *path, int oflag, int shflag, int pmode);
+#ifdef _WIN32
+extern int      my_access(const char *path, int amode);
 #else
 #define my_access access
 #endif
+
 extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
 
@@ -666,6 +667,13 @@ extern int nt_share_delete(const char *name,myf MyFlags);
 #define my_delete_allow_opened(fname,flags)  nt_share_delete((fname),(flags))
 #else
 #define my_delete_allow_opened(fname,flags)  my_delete((fname),(flags))
+#endif
+
+#ifdef _WIN32
+/* Windows-only functions (CRT equivalents)*/
+extern File     my_sopen(const char *path, int oflag, int shflag, int pmode);
+extern HANDLE   my_get_osfhandle(File fd);
+extern void     my_osmaperr(unsigned long last_error);
 #endif
 
 #ifndef TERMINATE
@@ -677,6 +685,7 @@ extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);
 extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
 extern FILE *my_freopen(const char *path, const char *mode, FILE *stream);
 extern int my_fclose(FILE *fd,myf MyFlags);
+extern File my_fileno(FILE *fd);
 extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
 extern int my_chmod(const char *name, mode_t mode, myf my_flags);
 extern int my_sync(File fd, myf my_flags);

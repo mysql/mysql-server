@@ -44,7 +44,12 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
   for (;;)
   {
     errno= 0;					/* Linux, Windows don't reset this on EOF/success */
-    if ((readbytes= read(Filedes, Buffer, (uint) Count)) != Count)
+#ifdef _WIN32
+    readbytes= my_win_read(Filedes, Buffer, Count);
+#else
+    readbytes= read(Filedes, Buffer, Count);
+#endif
+    if (readbytes != Count)
     {
       my_errno= errno;
       if (errno == 0 || (readbytes != (size_t) -1 &&

@@ -56,11 +56,11 @@ size_t my_fread(FILE *stream, uchar *Buffer, size_t Count, myf MyFlags)
     {
       if (ferror(stream))
 	my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
-		 my_filename(fileno(stream)),errno);
+		 my_filename(my_fileno(stream)),errno);
       else
       if (MyFlags & (MY_NABP | MY_FNABP))
 	my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
-		 my_filename(fileno(stream)),errno);
+		 my_filename(my_fileno(stream)),errno);
     }
     my_errno=errno ? errno : -1;
     if (ferror(stream) || MyFlags & (MY_NABP | MY_FNABP))
@@ -142,7 +142,7 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
 	if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
 	{
 	  my_error(EE_WRITE, MYF(ME_BELL+ME_WAITTANG),
-		   my_filename(fileno(stream)),errno);
+		   my_filename(my_fileno(stream)),errno);
 	}
 	writtenbytes= (size_t) -1;        /* Return that we got error */
 	break;
@@ -182,3 +182,14 @@ my_off_t my_ftell(FILE *stream, myf MyFlags __attribute__((unused)))
   DBUG_PRINT("exit",("ftell: %lu",(ulong) pos));
   DBUG_RETURN((my_off_t) pos);
 } /* my_ftell */
+
+
+/* Get a File corresponding to the stream*/
+int my_fileno(FILE *f)
+{
+#ifdef _WIN32
+  return my_win_fileno(f);
+#else
+ return fileno(f);
+#endif
+}

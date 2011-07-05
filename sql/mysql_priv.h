@@ -413,7 +413,6 @@ protected:
 #define DELAYED_LIMIT		100		/**< pause after xxx inserts */
 #define DELAYED_QUEUE_SIZE	1000
 #define DELAYED_WAIT_TIMEOUT	5*60		/**< Wait for delayed insert */
-#define FLUSH_TIME		0		/**< Don't flush tables */
 #define MAX_CONNECT_ERRORS	10		///< errors before disabling host
 
 #ifdef __NETWARE__
@@ -423,8 +422,6 @@ protected:
 #endif
 
 #if defined(__WIN__)
-#undef	FLUSH_TIME
-#define FLUSH_TIME	1800			/**< Flush every half hour */
 
 #define INTERRUPT_PRIOR -2
 #define CONNECT_PRIOR	-1
