@@ -465,7 +465,7 @@ int mysql_update(THD *thd,
     available in select->quick, but where?)
   */
   bool read_removal= false;
-  if (select && select->quick &&
+  if (select && select->quick && select->quick->index != MAX_KEY &&
       !ignore &&
       !using_limit &&
       table->file->read_before_write_removal_supported())
