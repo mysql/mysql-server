@@ -799,3 +799,96 @@ eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 eval SET GLOBAL innodb_file_format_max=$innodb_file_format_max_orig;
 eval SET GLOBAL innodb_large_prefix=$innodb_large_prefix_orig;
 
+#------------------------------------------------------------------------------
+# FTS index with utf8 character testcase
+#------------------------------------------------------------------------------
+set names utf8;
+
+# Create FTS table
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) CHARACTER SET = utf8, ENGINE=InnoDB;
+
+
+# Insert rows from different languages
+INSERT INTO t1 (a,b) VALUES
+('Я могу есть стекло', 'оно мне не вредит'),
+('Мога да ям стъкло', 'то не ми вреди'),
+('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
+('Příliš žluťoučký kůň', 'úpěl ďábelské kódy'),
+('Sævör grét', 'áðan því úlpan var ónýt'),
+('うゐのおくやま','けふこえて'),
+('いろはにほへど　ちりぬる','あさきゆめみじ　ゑひもせず');
+
+# insert english text
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','request docteam@oraclehelp.com ...')  ,
+        ('Trial version','query performace @1255 minute on 2.1Hz Memory 2GB...')  ,
+        ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+# FTS Queries
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("вредит χωρὶς");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("оно" WITH QUERY EXPANSION);
+
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+γυαλιὰ +tutorial" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+tutorial +(Мога τίποτα)" IN BOOLEAN MODE);
+
+# Innodb error - no result returned (update result of query once fixed)
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("ちりぬる" WITH QUERY EXPANSION);
+
+# Innodb error - no result returned (update result of query once fixed)
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("+あさきゆめみじ　+ゑひもせず" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("うゐのおく*" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"γυαλιὰ χωρὶς"@21' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"query performace"@06' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"πάθω τίποτα"@18' IN BOOLEAN MODE);
+
+# Innodb error - no result returned (update result of query once fixed)
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"あさきゆめみじ　ゑひもせず"@50' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"あさきゆめみじ　ゑひもせず"@6' IN BOOLEAN MODE);
+
+ALTER TABLE t1 DROP INDEX idx;
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+# Update fails because where condition do not succeed which is incorrect (update result of query once fixed)
+UPDATE t1 SET a = "Pchnąć w tę łódź jeża" , b = "lub osiem skrzyń fig" WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+UPDATE t1 SET a = "В чащах юга жил-был цитрус? Да", b = "но фальшивый экземпляр! ёъ" WHERE MATCH(a,b) AGAINST ("вред*" IN BOOLEAN MODE);
+DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
+
+# Innodb error - no result returned
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("łódź osiem");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("фальшив*" IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"łódź jeża"@15' IN BOOLEAN MODE);
+
+SELECT * FROM t1;
+DROP TABLE t1;
