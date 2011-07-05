@@ -177,6 +177,10 @@ struct brtnode_partition {
     //         a struct brtnode_leaf_basement_node for leaf nodes
     //
     void* ptr;
+
+    // clock count used to for pe_callback to determine if a node should be evicted or not
+    // for now, saturating the count at 1
+    u_int8_t clock_count;
 };
 
 // brtnode partition macros
@@ -186,6 +190,19 @@ struct brtnode_partition {
 #define BP_STATE(node,i) ((node)->bp[i].state)
 #define BP_OFFSET(node,i) ((node)->bp[i].offset)
 #define BP_SUBTREE_EST(node,i) ((node)->bp[i].subtree_estimates)
+
+//
+// macros for managing a node's clock
+// Should be managed by brt.c, NOT by serialize/deserialize
+//
+#define BP_TOUCH_CLOCK(node, i) ((node)->bp[i].clock_count = 1)
+#define BP_SWEEP_CLOCK(node, i) ((node)->bp[i].clock_count = 0)
+#define BP_SHOULD_EVICT(node, i) ((node)->bp[i].clock_count == 0)
+// not crazy about having these two here, one is for the case where we create new
+// nodes, such as in splits and creating new roots, and the other is for when 
+// we are deserializing a node and not all bp's are touched
+#define BP_INIT_TOUCHED_CLOCK(node, i) ((node)->bp[i].clock_count = 1)
+#define BP_INIT_UNTOUCHED_CLOCK(node, i) ((node)->bp[i].clock_count = 0)
 
 // internal node macros
 #define BNC_BUFFER(node,i) (((struct brtnode_nonleaf_childinfo*)((node)->bp[i].ptr))->buffer)
@@ -323,6 +340,7 @@ int toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE
                                     struct brt_header *h, int n_workitems, int n_threads,
                                     BOOL for_checkpoint);
 int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *logp, struct brt_header *h);
+void toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode_fetch_extra* bfe);
 void toku_deserialize_bp_from_compressed(BRTNODE node, int childnum);
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, struct brtnode_fetch_extra* bfe);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
@@ -363,7 +381,7 @@ extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM n
 extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, int*dirty, void*extraargs);
 extern int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_freed, void *extraargs);
 extern BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs);
-extern int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, long* sizep);
+int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, long* sizep);
 extern int toku_brt_alloc_init_header(BRT t, TOKUTXN txn);
 extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, LSN max_acceptable_lsn, struct brt_header **header, BOOL* was_open);
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);

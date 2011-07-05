@@ -171,7 +171,7 @@ static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
     return FALSE;
 }
 
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), long* UU(sizep)) {
+static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
     assert(FALSE);
 }
 
