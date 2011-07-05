@@ -1,7 +1,8 @@
 #ifndef MYSQLD_SUFFIX_INCLUDED
 #define MYSQLD_SUFFIX_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2004, 2006, 2007 MySQL AB, 2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

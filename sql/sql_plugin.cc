@@ -1,4 +1,5 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1315,15 +1316,19 @@ int plugin_init(int *argc, char **argv, int flags)
       if (is_myisam)
       {
         DBUG_ASSERT(!global_system_variables.table_plugin);
+        DBUG_ASSERT(!global_system_variables.temp_table_plugin);
         global_system_variables.table_plugin=
           my_intern_plugin_lock(NULL, plugin_int_to_ref(plugin_ptr));
-        DBUG_ASSERT(plugin_ptr->ref_count == 1);
+        global_system_variables.temp_table_plugin=
+          my_intern_plugin_lock(NULL, plugin_int_to_ref(plugin_ptr));
+        DBUG_ASSERT(plugin_ptr->ref_count == 2);
       }
     }
   }
 
   /* should now be set to MyISAM storage engine */
   DBUG_ASSERT(global_system_variables.table_plugin);
+  DBUG_ASSERT(global_system_variables.temp_table_plugin);
 
   mysql_mutex_unlock(&LOCK_plugin);
 
@@ -2605,13 +2610,16 @@ static char **mysql_sys_var_str(THD* thd, int offset)
 void plugin_thdvar_init(THD *thd, bool enable_plugins)
 {
   plugin_ref old_table_plugin= thd->variables.table_plugin;
+  plugin_ref old_temp_table_plugin= thd->variables.temp_table_plugin;
   DBUG_ENTER("plugin_thdvar_init");
   
   thd->variables.table_plugin= NULL;
+  thd->variables.temp_table_plugin= NULL;
   cleanup_variables(thd, &thd->variables);
   
   thd->variables= global_system_variables;
   thd->variables.table_plugin= NULL;
+  thd->variables.temp_table_plugin= NULL;
 
   /* we are going to allocate these lazily */
   thd->variables.dynamic_variables_version= 0;
@@ -2624,6 +2632,9 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
     thd->variables.table_plugin=
       my_intern_plugin_lock(NULL, global_system_variables.table_plugin);
     intern_plugin_unlock(NULL, old_table_plugin);
+    thd->variables.temp_table_plugin=
+      my_intern_plugin_lock(NULL, global_system_variables.temp_table_plugin);
+    intern_plugin_unlock(NULL, old_temp_table_plugin);
     mysql_mutex_unlock(&LOCK_plugin);
   }
   DBUG_VOID_RETURN;
@@ -2636,7 +2647,9 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
 static void unlock_variables(THD *thd, struct system_variables *vars)
 {
   intern_plugin_unlock(NULL, vars->table_plugin);
+  intern_plugin_unlock(NULL, vars->temp_table_plugin);
   vars->table_plugin= NULL;
+  vars->temp_table_plugin= NULL;
 }
 
 
@@ -2677,6 +2690,7 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   DBUG_ASSERT(vars->table_plugin == NULL);
+  DBUG_ASSERT(vars->temp_table_plugin == NULL);
 
   my_free(vars->dynamic_variables_ptr);
   vars->dynamic_variables_ptr= NULL;

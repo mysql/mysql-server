@@ -338,6 +338,7 @@ static char *lc_time_names_name;
 char *my_bind_addr_str;
 static char *default_collation_name;
 char *default_storage_engine;
+char *default_temp_storage_engine;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
 static bool binlog_format_used= false;
@@ -2128,8 +2129,7 @@ static bool cache_thread()
       Delete the instrumentation for the job that just completed,
       before parking this pthread in the cache (blocked on COND_thread_cache).
     */
-    if (likely(PSI_server != NULL))
-      PSI_server->delete_current_thread();
+    PSI_CALL(delete_current_thread)();
 #endif
 
     while (!abort_loop && ! wake_thread && ! kill_cached_threads)
@@ -2150,13 +2150,9 @@ static bool cache_thread()
         Create new instrumentation for the new THD job,
         and attach it to this running pthread.
       */
-      if (likely(PSI_server != NULL))
-      {
-        PSI_thread *psi= PSI_server->new_thread(key_thread_one_connection,
-                                                thd, thd->thread_id);
-        if (likely(psi != NULL))
-          PSI_server->set_thread(psi);
-      }
+      PSI_thread *psi= PSI_CALL(new_thread)(key_thread_one_connection,
+                                            thd, thd->thread_id);
+      PSI_CALL(set_thread)(psi);
 #endif
 
       /*
@@ -2786,8 +2782,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 	abort_loop=1;				// mark abort for threads
 #ifdef HAVE_PSI_THREAD_INTERFACE
         /* Delete the instrumentation for the signal thread */
-        if (likely(PSI_server != NULL))
-          PSI_server->delete_current_thread();
+        PSI_CALL(delete_current_thread)();
 #endif
 #ifdef USE_ONE_SIGNAL_HAND
 	pthread_t tmp;
@@ -3338,6 +3333,7 @@ int init_common_variables()
 #else
   default_storage_engine= const_cast<char *>("InnoDB");
 #endif
+  default_temp_storage_engine= default_storage_engine;
 
   /*
     Add server status variables to the dynamic list of
@@ -4046,6 +4042,44 @@ err:
   DBUG_RETURN(1);
 }
 
+
+static bool
+initialize_storage_engine(char *se_name, const char *se_kind,
+                          plugin_ref *dest_plugin)
+{
+  LEX_STRING name= { se_name, strlen(se_name) };
+  plugin_ref plugin;
+  handlerton *hton;
+  if ((plugin= ha_resolve_by_name(0, &name, FALSE)))
+    hton= plugin_data(plugin, handlerton*);
+  else
+  {
+    sql_print_error("Unknown/unsupported storage engine: %s", se_name);
+    return true;
+  }
+  if (!ha_storage_engine_is_enabled(hton))
+  {
+    if (!opt_bootstrap)
+    {
+      sql_print_error("Default%s storage engine (%s) is not available",
+                      se_kind, se_name);
+      return true;
+    }
+    DBUG_ASSERT(*dest_plugin);
+  }
+  else
+  {
+    /*
+      Need to unlock as global_system_variables.table_plugin
+      was acquired during plugin_init()
+    */
+    plugin_unlock(0, *dest_plugin);
+    *dest_plugin= plugin;
+  }
+  return false;
+}
+
+
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
@@ -4353,38 +4387,14 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 #endif
 
   /*
-    Set the default storage engine
+    Set the default storage engines
   */
-  LEX_STRING name= { default_storage_engine, strlen(default_storage_engine) };
-  plugin_ref plugin;
-  handlerton *hton;
-  if ((plugin= ha_resolve_by_name(0, &name)))
-    hton= plugin_data(plugin, handlerton*);
-  else
-  {
-    sql_print_error("Unknown/unsupported storage engine: %s",
-                    default_storage_engine);
+  if (initialize_storage_engine(default_storage_engine, "",
+                                &global_system_variables.table_plugin))
     unireg_abort(1);
-  }
-  if (!ha_storage_engine_is_enabled(hton))
-  {
-    if (!opt_bootstrap)
-    {
-      sql_print_error("Default storage engine (%s) is not available",
-                      default_storage_engine);
-      unireg_abort(1);
-    }
-    DBUG_ASSERT(global_system_variables.table_plugin);
-  }
-  else
-  {
-    /*
-      Need to unlock as global_system_variables.table_plugin
-      was acquired during plugin_init()
-    */
-    plugin_unlock(0, global_system_variables.table_plugin);
-    global_system_variables.table_plugin= plugin;
-  }
+  if (initialize_storage_engine(default_temp_storage_engine, " temp",
+                                &global_system_variables.temp_table_plugin))
+    unireg_abort(1);
 
   tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
                                (TC_LOG *) &mysql_bin_log :
@@ -4673,27 +4683,29 @@ int mysqld_main(int argc, char **argv)
     if available.
   */
   if (PSI_hook)
-    PSI_server= (PSI*) PSI_hook->get_interface(PSI_CURRENT_VERSION);
-
-  if (PSI_server)
   {
-    /*
-      Now that we have parsed the command line arguments, and have initialized
-      the performance schema itself, the next step is to register all the
-      server instruments.
-    */
-    init_server_psi_keys();
-    /* Instrument the main thread */
-    PSI_thread *psi= PSI_server->new_thread(key_thread_main, NULL, 0);
-    if (psi)
-      PSI_server->set_thread(psi);
+    PSI *psi_server= (PSI*) PSI_hook->get_interface(PSI_CURRENT_VERSION);
+    if (likely(psi_server != NULL))
+    {
+      set_psi_server(psi_server);
 
-    /*
-      Now that some instrumentation is in place,
-      recreate objects which were initialised early,
-      so that they are instrumented as well.
-    */
-    my_thread_global_reinit();
+      /*
+        Now that we have parsed the command line arguments, and have initialized
+        the performance schema itself, the next step is to register all the
+        server instruments.
+      */
+      init_server_psi_keys();
+      /* Instrument the main thread */
+      PSI_thread *psi= PSI_CALL(new_thread)(key_thread_main, NULL, 0);
+      PSI_CALL(set_thread)(psi);
+
+      /*
+        Now that some instrumentation is in place,
+        recreate objects which were initialised early,
+        so that they are instrumented as well.
+      */
+      my_thread_global_reinit();
+    }
   }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -4994,8 +5006,7 @@ int mysqld_main(int argc, char **argv)
     Disable the main thread instrumentation,
     to avoid recording events during the shutdown.
   */
-  if (PSI_server)
-    PSI_server->delete_current_thread();
+  PSI_CALL(delete_current_thread)();
 #endif
 
   /* Wait until cleanup is done */
@@ -6143,6 +6154,10 @@ struct my_option my_long_options[]=
      to a compiler bug in Sun Studio compiler. */
   {"default-storage-engine", 0, "The default storage engine for new tables",
    &default_storage_engine, 0, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0 },
+  {"default-temp-storage-engine", 0, 
+    "The default storage engine for new explict temporary tables",
+   &default_temp_storage_engine, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0 },
   {"default-time-zone", 0, "Set the default time zone.",
    &default_tz_name, &default_tz_name,
@@ -8039,6 +8054,7 @@ static int fix_paths(void)
   {
     if (*opt_secure_file_priv == 0)
     {
+      my_free(opt_secure_file_priv);
       opt_secure_file_priv= 0;
     }
     else

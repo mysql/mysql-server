@@ -236,23 +236,19 @@ pfs_mutex_enter_func(
 	const char*	file_name,	/*!< in: file name where locked */
 	ulint		line)		/*!< in: line where locked */
 {
-	struct PSI_mutex_locker*	locker = NULL;
+	struct PSI_mutex_locker*	locker;
 	PSI_mutex_locker_state		state;
-	int	result = 0;
 
-	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
-		locker = PSI_server->get_thread_mutex_locker(
-				&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
-		if (locker) {
-			PSI_server->start_mutex_wait(locker, file_name, line);
-		}
+	locker = PSI_CALL(get_thread_mutex_locker)(
+			&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
+	if (locker) {
+		PSI_CALL(start_mutex_wait)(locker, file_name, line);
+		mutex_enter_func(mutex, file_name, line);
+		PSI_CALL(end_mutex_wait)(locker, 0);
+		return;
 	}
 
 	mutex_enter_func(mutex, file_name, line);
-
-	if (locker) {
-		PSI_server->end_mutex_wait(locker, result);
-	}
 }
 /********************************************************************//**
 NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
@@ -270,24 +266,19 @@ pfs_mutex_enter_nowait_func(
 	ulint		line)		/*!< in: line where requested */
 {
 	ulint	ret;
-	struct PSI_mutex_locker*	locker = NULL;
+	struct PSI_mutex_locker*	locker;
 	PSI_mutex_locker_state		state;
-	int	result = 0;
 
-	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
-		locker = PSI_server->get_thread_mutex_locker(
-				&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
-		if (locker) {
-			PSI_server->start_mutex_wait(locker, file_name, line);
-		}
+	locker = PSI_CALL(get_thread_mutex_locker)(
+			&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
+	if (UNIV_LIKELY(locker != NULL)) {
+		PSI_CALL(start_mutex_wait)(locker, file_name, line);
+		ret = mutex_enter_nowait_func(mutex, file_name, line);
+		PSI_CALL(end_mutex_wait)(locker, 0);
+		return(ret);
 	}
 
 	ret = mutex_enter_nowait_func(mutex, file_name, line);
-
-	if (locker) {
-		PSI_server->end_mutex_wait(locker, result);
-	}
-
 	return(ret);
 }
 /******************************************************************//**
@@ -301,9 +292,7 @@ pfs_mutex_exit_func(
 /*================*/
 	mutex_t*	mutex)	/*!< in: pointer to mutex */
 {
-	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
-		PSI_server->unlock_mutex(mutex->pfs_psi);
-	}
+	PSI_CALL(unlock_mutex)(mutex->pfs_psi);
 
 	mutex_exit_func(mutex);
 }
@@ -329,9 +318,7 @@ pfs_mutex_create_func(
 	const char*	cfile_name,	/*!< in: file name where created */
 	ulint		cline)		/*!< in: file line where created */
 {
-	mutex->pfs_psi = (PSI_server && PFS_IS_INSTRUMENTED(key))
-				? PSI_server->init_mutex(key, mutex)
-				: NULL;
+	mutex->pfs_psi = PSI_CALL(init_mutex)(key, mutex);
 
 	mutex_create_func(mutex,
 # ifdef UNIV_DEBUG
@@ -354,10 +341,8 @@ pfs_mutex_free_func(
 /*================*/
 	mutex_t*	mutex)	/*!< in: mutex */
 {
-	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
-		PSI_server->destroy_mutex(mutex->pfs_psi);
-		mutex->pfs_psi = NULL;
-	}
+	PSI_CALL(destroy_mutex)(mutex->pfs_psi);
+	mutex->pfs_psi = NULL;
 
 	mutex_free_func(mutex);
 }
