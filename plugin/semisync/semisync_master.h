@@ -1,6 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB
-   Copyright (C) 2009 Sun Microsystems, Inc
+   Copyright (c) 2008 MySQL AB, 2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
