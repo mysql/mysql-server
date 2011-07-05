@@ -419,17 +419,16 @@ int Gcalc_result_receiver::get_result_typeid()
 
 
 int Gcalc_result_receiver::move_hole(uint32 dest_position, uint32 source_position,
-                                     uint32 *new_dest_position)
+                                     uint32 *position_shift)
 {
   char *ptr;
   int source_len;
-  if (dest_position == source_position)
-  {
-    *new_dest_position= position();
-    return 0;
-  }
 
-  source_len= buffer.length() - source_position;
+  *position_shift= source_len= buffer.length() - source_position;
+
+  if (dest_position == source_position)
+    return 0;
+
   if (buffer.reserve(source_len, MY_ALIGN(source_len, 512)))
     return 1;
 
@@ -437,7 +436,6 @@ int Gcalc_result_receiver::move_hole(uint32 dest_position, uint32 source_positio
   memmove(ptr + dest_position + source_len, ptr + dest_position,
           buffer.length() - dest_position);
   memcpy(ptr + dest_position, ptr + buffer.length(), source_len);
-  *new_dest_position= dest_position + source_len;
   return 0;
 }
 
@@ -1098,6 +1096,8 @@ int Gcalc_operation_reducer::get_line_result(res_point *cur,
 
 int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
 {
+  poly_instance *polygons= NULL;
+
   *m_res_hook= NULL;
   while (m_result)
   {
@@ -1112,19 +1112,28 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
     {
       if (m_result->outer_poly)
       {
-        uint32 *insert_position, hole_position;
-        insert_position= &m_result->outer_poly->first_poly_node->poly_position;
-        DBUG_ASSERT(*insert_position);
+        uint32 insert_position, hole_position, position_shift;
+        poly_instance *cur_poly;
+        insert_position= m_result->outer_poly->first_poly_node->poly_position;
+        DBUG_ASSERT(insert_position);
         hole_position= storage->position();
         storage->start_shape(Gcalc_function::shape_hole);
         if (get_polygon_result(m_result, storage) ||
-            storage->move_hole(*insert_position, hole_position,
-                               insert_position))
+            storage->move_hole(insert_position, hole_position,
+                               &position_shift))
           return 1;
+        for (cur_poly= polygons;
+             cur_poly && *cur_poly->after_poly_position >= insert_position;
+             cur_poly= cur_poly->get_next())
+          *cur_poly->after_poly_position+= position_shift;
       }
       else
       {
         uint32 *poly_position= &m_result->poly_position;
+        poly_instance *p= new_poly();
+        p->after_poly_position= poly_position;
+        p->next= polygons;
+        polygons= p;
         storage->start_shape(Gcalc_function::shape_polygon);
         if (get_polygon_result(m_result, storage))
           return 1;

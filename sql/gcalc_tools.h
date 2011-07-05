@@ -170,7 +170,7 @@ public:
   int get_result_typeid();
   uint32 position() { return buffer.length(); }
   int move_hole(uint32 dest_position, uint32 source_position,
-                uint32 *new_dest_position);
+                uint32 *position_shift);
 };
 
 
@@ -233,6 +233,13 @@ public:
     active_thread *get_next() { return (active_thread *)next; }
   };
 
+  class poly_instance : public Gcalc_dyn_list::Item
+  {
+  public:
+    uint32 *after_poly_position;
+    poly_instance *get_next() { return (poly_instance *)next; }
+  };
+
 protected:
   Gcalc_function *m_fn;
   Gcalc_dyn_list::Item **m_res_hook;
@@ -252,6 +259,8 @@ protected:
   }
 
   active_thread *new_active_thread() { return (active_thread *)new_item(); }
+
+  poly_instance *new_poly() { return (poly_instance *) new_item(); }
 
 private:
   int continue_range(active_thread *t, const Gcalc_heap::Info *p);
