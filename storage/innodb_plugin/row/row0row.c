@@ -156,8 +156,6 @@ row_build_index_entry(
 			each off-page column. */
 			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 			len -= BTR_EXTERN_FIELD_REF_SIZE;
-			ut_a(ind_field->prefix_len <= len
-			     || dict_index_is_clust(index));
 		}
 
 		/* If a column prefix index, take only the prefix. */

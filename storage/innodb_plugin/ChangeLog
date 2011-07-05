@@ -37,6 +37,11 @@
 	* row/row0row.c, row/row0vers.c, trx/trx0rec.c:
 	Instrumentation for Bug#12612184 Race condition in row_upd_clust_rec()
 
+2011-05-19	The InnoDB Team
+
+	* row/row0row.c:
+	Fix Bug#12429576 Assertion failure on purge of column prefix index
+
 2011-04-07	The InnoDB Team
 
 	* handler/ha_innodb.cc, handler/ha_innodb.h, handler/handler0alter.cc:
