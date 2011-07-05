@@ -1500,11 +1500,11 @@ fts_create_one_index_table(
 
 	dict_mem_table_add_col(new_table, heap, "first_doc_id", DATA_INT,
 			       DATA_NOT_NULL | DATA_UNSIGNED,
-			       sizeof(fts_doc_ids_t));
+			       sizeof(doc_id_t));
 
 	dict_mem_table_add_col(new_table, heap, "last_doc_id", DATA_INT,
 			       DATA_NOT_NULL | DATA_UNSIGNED,
-			       sizeof(fts_doc_ids_t));
+			       sizeof(doc_id_t));
 
 	dict_mem_table_add_col(new_table, heap, "doc_count", DATA_INT,
 			       DATA_NOT_NULL | DATA_UNSIGNED, 4);
