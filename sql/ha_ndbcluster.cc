@@ -9644,7 +9644,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 
   {
     pthread_mutex_lock(&ndbcluster_mutex);
-    uint save = ndbcluster_open_tables.records;
+    uint save = ndbcluster_open_tables.records; (void)save;
     while (ndbcluster_open_tables.records)
     {
       NDB_SHARE *share=
