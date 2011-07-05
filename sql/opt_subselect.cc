@@ -1493,6 +1493,25 @@ void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist)
 }
 
 
+static void set_emb_join_nest(List<TABLE_LIST> *tables, TABLE_LIST *emb_sj_nest)
+{
+  List_iterator<TABLE_LIST> it(*tables);
+  TABLE_LIST *tbl;
+  while ((tbl= it++))
+  {
+    /*
+      Note: check for nested_join first. 
+       derived-merged tables have tbl->table!=NULL &&
+       tbl->table->reginfo==NULL.
+    */
+    if (tbl->nested_join)
+      set_emb_join_nest(&tbl->nested_join->join_list, emb_sj_nest);
+    else if (tbl->table)
+      tbl->table->reginfo.join_tab->emb_sj_nest= emb_sj_nest;
+
+  }
+}
+
 /*
   Pull tables out of semi-join nests, if possible
 
@@ -1548,10 +1567,34 @@ int pull_out_semijoin_tables(JOIN *join)
   /* Try pulling out of the each of the semi-joins */
   while ((sj_nest= sj_list_it++))
   {
-    /* Action #1: Mark the constant tables to be pulled out */
-    table_map pulled_tables= 0;
     List_iterator<TABLE_LIST> child_li(sj_nest->nested_join->join_list);
     TABLE_LIST *tbl;
+
+    /*
+      Don't do table pull-out for nested joins (if we get nested joins here, it
+      means these are outer joins. It is theoretically possible to do pull-out
+      for some of the outer tables but we dont support this currently.
+    */
+    bool have_join_nest_children= FALSE;
+
+    set_emb_join_nest(&sj_nest->nested_join->join_list, sj_nest);
+
+    while ((tbl= child_li++))
+    {
+      if (tbl->nested_join)
+      {
+        have_join_nest_children= TRUE;
+        break;
+      }
+    }
+    
+    
+    table_map pulled_tables= 0;
+    if (have_join_nest_children)
+      goto skip;
+
+    /* Action #1: Mark the constant tables to be pulled out */
+    child_li.rewind();
     while ((tbl= child_li++))
     {
       if (tbl->table)
@@ -1623,6 +1666,7 @@ int pull_out_semijoin_tables(JOIN *join)
     } while (pulled_a_table);
  
     child_li.rewind();
+  skip:
     /*
       Action #3: Move the pulled out TABLE_LIST elements to the parents.
     */

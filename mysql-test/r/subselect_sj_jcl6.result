@@ -1544,6 +1544,30 @@ AND t1.f1 = t2.f1 ;
 f1	f1
 DROP TABLE t1, t2;
 set optimizer_switch=@save_802965;
+#
+# BUG#803365: Crash in pull_out_semijoin_tables with outer join + semijoin + derived tables in maria-5.3 with WL#106
+#
+CREATE TABLE t1 ( f1 int) ;
+INSERT INTO t1 VALUES (1),(1);
+CREATE TABLE t2 ( f2 int) ;
+INSERT INTO t2 VALUES (1),(1);
+CREATE TABLE t3 ( f3 int) ;
+INSERT INTO t3 VALUES (1),(1);
+SELECT *
+FROM t1
+WHERE t1.f1 IN (
+SELECT t2.f2
+FROM t2
+LEFT JOIN (
+SELECT *
+FROM t3
+) AS alias1
+ON alias1.f3 = t2.f2
+);
+f1
+1
+1
+DROP TABLE t1,t2,t3;
 set @@optimizer_switch=@save_optimizer_switch;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
