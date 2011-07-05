@@ -52,7 +52,20 @@ Completed by Sunny Bains and Jimmy Yang
 
 /* This is maximum FTS cache for each table and would be
 a configurable variable */
-UNIV_INTERN ulint	fts_max_cache_size = 50000000;
+UNIV_INTERN ulint	fts_max_cache_size;
+
+/* Variable specifying the maximum FTS max token size */
+UNIV_INTERN ulint	fts_max_token_size;
+
+/* Variable specifying the minimum FTS max token size */
+UNIV_INTERN ulint	fts_min_token_size;
+
+/* Variable specifying the threshold that optimizer will be activated */
+UNIV_INTERN ulint	fts_optimize_add_threshold;
+
+/* Variable specifying the threshold that optimizer will be activated */
+UNIV_INTERN ulint	fts_optimize_delete_threshold;
+
 
 // FIXME: testing
 ib_time_t elapsed_time = 0;
@@ -3166,7 +3179,7 @@ fts_write_node(
 		info = pars_info_create();
 	}
 
-	ut_a(word->len <= FTS_MAX_WORD_LEN);
+	ut_a(word->len <= fts_max_token_size);
 
 	pars_info_bind_varchar_literal(info, "token", word->utf8, word->len);
 
@@ -3809,7 +3822,7 @@ fts_sync(
 
 	mutex_exit(&cache->deleted_lock);
 
-	threshold = FTS_OPTIMIZE_ADD_THRESHOLD + FTS_OPTIMIZE_DEL_THRESHOLD;
+	threshold = fts_optimize_add_threshold + fts_optimize_delete_threshold;
 
 	if (error == DB_SUCCESS && !sync->interrupted && total >= threshold) {
 
@@ -3848,122 +3861,6 @@ fts_sync_table(
 	}
 
 	return(error);
-}
-
-/********************************************************************
-Get the next token from the given string and store it in *token. If no token
-was found, token->len is set to 0. */
-UNIV_INTERN
-ulint
-fts_get_next_token(
-/*===============*/
-						/* out: number of characters
-						handled in this call */
-	byte*		start,			/* in: start of text */
-	byte*		end,			/* in: one character past end of
-						text */
-	fts_string_t*	token,			/* out: token's text */
-	ulint*		offset)			/* out: offset to token,
-						measured as characters from
-						'start' */
-{
-	const byte*	s;
-	ulint		len = 0;
-	ulint		prev_ch = 0;
-	const byte*	word_start = NULL;
-	ibool		in_number = FALSE;
-
-	token->len = 0;
-
-	/* Find the start of the token. */
-	for (s = start; s < end; /* No op */) {
-		ulint		ch;
-		const byte*	ptr = s;
-
-		ch = fts_utf8_decode(&ptr);
-
-		if (ch != UTF8_ERROR) {
-			in_number = fts_utf8_isdigit(ch);
-
-			if (ch == '_' || fts_utf8_isalpha(ch) || in_number) {
-				prev_ch = ch;
-				word_start = s;
-				*offset = word_start - start;
-				s = ptr;
-				break;
-			}
-		} else {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Error: decoding UTF-8 "
-				"text\n");
-		}
-
-		s = ptr;
-		prev_ch = ch;
-	}
-
-	if (!word_start) {
-		/* Ingore the text read so for */
-		goto end;
-	}
-
-	len = 1;
-
-	/* Find the end of the token. We accept letters, digits
-	and single ' characters. */
-	while (s < end) {
-		ulint		ch;
-		const byte*	ptr = s;
-
-		ch = fts_utf8_decode(&ptr);
-
-		if (ch == UTF8_ERROR) {
-			/* Skip */
-			fprintf(stderr, "InnoDB: Error decoding UTF-8 text\n");
-		} else if (in_number && ch == '.') {
-			/* ut_ad(fts_utf8_isdigit(prev_ch)); */
-		} else if (fts_utf8_isdigit(ch)) {
-			/* Process digit. */
-		} else if (fts_utf8_isalpha(ch)
-			   || ch == '_'
-			   || (ch == '\'' && prev_ch != '\'')) {
-
-			/* In this case treat '.' as punctiation. */
-			if (in_number && prev_ch == '.') {
-				break;
-			}
-
-			in_number = FALSE;
-		} else {
-			break;
-		}
-
-		s = ptr;
-		prev_ch = ch;
-		++len;		/* For counting the number of characters. */
-	}
-
-	if (len <= FTS_MAX_WORD_LEN) {
-		token->len = ut_min(FTS_MAX_WORD_LEN, s - word_start);
-		memcpy(token->utf8, word_start, token->len);
-
-		/* The string can't end on a ' character. */
-		if (token->utf8[token->len - 1] == '\'') {
-			--token->len;
-		}
-
-		token->utf8[token->len] = 0;
-
-		if (!in_number) {
-			fts_utf8_tolower(token);
-		}
-	} else {
-		ut_a(token->len == 0);
-	}
-
-	token->utf8[token->len] = 0;
-end:
-	return(s - start);
 }
 
 /*************************************************************//**
@@ -4009,20 +3906,12 @@ fts_process_token(
 	/* Determine where to save the result. */
 	result_doc = (result) ? result : doc;
 
-#ifdef	FTS_CHARSET_DEBUG
-	/* We will switch to more generic parsing function
-	"innobase_mysql_fts_get_token" for non-utf8 character support */
-	ret = fts_get_next_token(
-		doc->text.utf8 + start_pos,
-		doc->text.utf8 + doc->text.len, &str, &offset);
-#endif /* FTS_CHARSET_DEBUG */
-
 	ret = innobase_mysql_fts_get_token(doc->charset,
 					   doc->text.utf8 + start_pos,
 					   doc->text.utf8 + doc->text.len,
 					   &str, &offset);
 
-	if (str.len >= FTS_MIN_TOKEN_SIZE && str.len <= FTS_MAX_WORD_LEN) {
+	if (str.len >= fts_min_token_size && str.len <= fts_max_token_size) {
 		fts_token_t*	token;
 		ib_rbt_bound_t	parent;
 		mem_heap_t*	heap = result_doc->self_heap->arg;

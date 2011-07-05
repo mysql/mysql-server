@@ -53,6 +53,14 @@ UNIQUE INDEX kodoboru (kodoboru),
 FULLTEXT KEY obor (obor),
 FULLTEXT KEY aobor (aobor)
 ) ENGINE = InnoDB;
+ERROR HY000: InnoDB presently supports one FULLTEXT index per table
+CREATE TABLE t1 (
+kodoboru varchar(10) default NULL,
+obor tinytext,
+aobor tinytext,
+UNIQUE INDEX kodoboru (kodoboru),
+FULLTEXT KEY obor (obor)
+) ENGINE = InnoDB;
 INSERT INTO t1 VALUES ('0101000000','aaa','AAA');
 INSERT INTO t1 VALUES ('0102000000','bbb','BBB');
 INSERT INTO t1 VALUES ('0103000000','ccc','CCC');
@@ -107,7 +115,7 @@ drop table t1, t2;
 CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('abcd');
 SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
-ERROR HY000: The used table type doesn't support FULLTEXT indexes
+ERROR HY000: The table do not have FULLTEXT index to support this query
 DROP TABLE t1;
 create table t1 (a varchar(10), key(a), fulltext (a)) ENGINE = InnoDB;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");

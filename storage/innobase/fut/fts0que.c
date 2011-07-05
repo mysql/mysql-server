@@ -1196,8 +1196,14 @@ fts_query_union(
 	fprintf(stderr, "UNION: Searching: '%.*s'\n",
 		(int) token->len, token->utf8);
 
+	query->error = DB_SUCCESS;
+
 	if (query->doc_ids) {
 		n_doc_ids = rbt_size(query->doc_ids);
+	}
+
+	if (token->len == 0) {
+		return(query->error);
 	}
 
 	fts_query_cache(query, token);
@@ -3428,7 +3434,9 @@ fts_expand_query(
 	/* Init "result_doc", to hold words from the first search pass */
 	fts_doc_init(&result_doc);
 
+	rw_lock_x_lock(&index->table->fts->cache->lock);
 	index_cache = fts_find_index_cache(index->table->fts->cache, index);
+	rw_lock_x_unlock(&index->table->fts->cache->lock);
 
 	ut_a(index_cache);
 

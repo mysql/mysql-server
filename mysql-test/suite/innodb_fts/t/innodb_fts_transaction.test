@@ -10,18 +10,15 @@
 drop table if exists t1;
 --enable_warnings
 
-let $default_engine = `select @@SESSION.default_storage_engine`;
---replace_result $default_engine <default_engine>
 #------------------------------------------------------------------------------
 # FTS with transaction
 #------------------------------------------------------------------------------
 # Create FTS table
---replace_result $default_engine <default_engine>
 EVAL CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) ENGINE= $default_engine;
+        ) ENGINE = InnoDB;
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -144,12 +141,11 @@ DROP TABLE t1;
 # FTS with rollback
 #------------------------------------------------------------------------------
 # Create FTS table
---replace_result $default_engine <default_engine>
 EVAL CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) ENGINE= $default_engine;
+        ) ENGINE = InnoDB;
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -261,12 +257,11 @@ DROP TABLE t1;
 # update such records in active transaction
 #------------------------------------------------------------------------------
 # Create FTS table
---replace_result $default_engine <default_engine>
 EVAL CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) ENGINE= $default_engine;
+        ) ENGINE = InnoDB;
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);

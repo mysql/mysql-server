@@ -39,10 +39,6 @@ Created 2006-02-15 Osku Salerma
 FIC. Three fields are sort: (word, doc_id, position) */
 #define FTS_NUM_FIELDS_SORT		3
 
-/* Minimum token size, when less than this size, we will
-exclude it from FT index */
-#define FTS_MIN_TOKEN_SIZE		3
-
 /* Number of FTS index table*/
 #define FTS_NUM_INDEX_TABLE		4
 
@@ -71,14 +67,6 @@ those defined in mysql file ft_global.h */
 #define FTS_PHRASE	16
 
 #define FTS_INDEX_TABLE_IND_NAME	"FTS_INDEX_TABLE_IND"
-
-/* Signal an optimize when the number of added documents
-exceeds this threshold. */
-static const ulint FTS_OPTIMIZE_ADD_THRESHOLD = 1000;
-
-/* Signal an optimize when the number of deleted documents
-exceeds this threshold. */
-static const ulint FTS_OPTIMIZE_DEL_THRESHOLD = 100;
 
 /* FTS rank type, which will be between 0 .. 1 inclusive */
 typedef float fts_rank_t;

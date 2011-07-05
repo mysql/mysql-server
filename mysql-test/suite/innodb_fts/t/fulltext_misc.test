@@ -44,6 +44,7 @@ DROP TABLE t1;
 drop table if exists t1;
 --enable_warnings
 
+--error 1740
 CREATE TABLE t1 (
   kodoboru varchar(10) default NULL,
   obor tinytext,
@@ -51,6 +52,14 @@ CREATE TABLE t1 (
   UNIQUE INDEX kodoboru (kodoboru),
   FULLTEXT KEY obor (obor),
   FULLTEXT KEY aobor (aobor)
+) ENGINE = InnoDB;
+
+CREATE TABLE t1 (
+  kodoboru varchar(10) default NULL,
+  obor tinytext,
+  aobor tinytext,
+  UNIQUE INDEX kodoboru (kodoboru),
+  FULLTEXT KEY obor (obor)
 ) ENGINE = InnoDB;
 INSERT INTO t1 VALUES ('0101000000','aaa','AAA');
 INSERT INTO t1 VALUES ('0102000000','bbb','BBB');
@@ -127,7 +136,7 @@ CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('abcd');
 
 # INNODB_FTS: Please Note this table do not have FTS. InnoDB return 1214 error
---error 1214
+--error 1739
 SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
 DROP TABLE t1;
 

@@ -906,7 +906,7 @@ ha_innobase::add_index(
 						to be created */
 	handler_add_index**	add)		/*!< out: context */
 {
-	dict_index_t**	index;		/*!< Index to be created */
+	dict_index_t**	index = NULL;	/*!< Index to be created */
 	dict_index_t*	fts_index = NULL;/*!< FTS Index to be created */
 	dict_table_t*	indexed_table;	/*!< Table where indexes are created */
 	merge_index_def_t* index_defs;	/*!< Index definitions */
@@ -956,7 +956,6 @@ ha_innobase::add_index(
 	error = innobase_check_index_keys(key_info, num_of_keys, prebuilt->table);
 
 	if (UNIV_UNLIKELY(error)) {
-err_exit:
 		dict_table_close(prebuilt->table, FALSE);
 		DBUG_RETURN(error);
 	}
@@ -1010,8 +1009,9 @@ err_exit:
 	TODO: this restriction will be removed */
 	if ((dict_table_has_fts_index(prebuilt->table) && num_fts_index > 0)
 	    || num_fts_index > 1) {
-		error = -1;
-		goto err_exit;
+		error = DB_UNSUPPORTED;
+		my_error(ER_INNODB_FT_LIMIT, MYF(0));
+		goto error;
 	}
 
 	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
@@ -1212,8 +1212,10 @@ error:
 				dict_locked = TRUE;
 			}
 
-			row_merge_drop_indexes(trx, indexed_table,
-					       index, num_created);
+			if (index) {
+				row_merge_drop_indexes(trx, indexed_table,
+						       index, num_created);
+			}
 		}
 	}
 

@@ -7018,8 +7018,8 @@ ha_innobase::ft_init_ext(
 	table = prebuilt->table;
 
 	/* Table do not have FTS index */
-	if (!table->fts) {
-		my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
+	if (!table->fts || ib_vector_is_empty(table->fts->indexes)) {
+		my_error(ER_TABLE_HAS_NO_FT, MYF(0));
 		return(NULL);
 	}
 
@@ -7031,7 +7031,7 @@ ha_innobase::ft_init_ext(
 	}
 
 	if (!index || index->type != DICT_FTS) {
-		my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
+		my_error(ER_TABLE_HAS_NO_FT, MYF(0));
 		return NULL;
 	}
 
@@ -7849,9 +7849,14 @@ ha_innobase::create(
 			tables. */
 			if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 
-				/* FIX_ME_XY */
+				my_error(ER_INNODB_NO_FT_TEMP_TABLE, MYF(0));
 				DBUG_RETURN(-1);
 			}
+		}
+
+		if (fts_indexes > 1) {
+			my_error(ER_INNODB_FT_LIMIT, MYF(0));
+			 DBUG_RETURN(-1);
 		}
 	}
 
@@ -13269,6 +13274,32 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
 
+static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "InnoDB Fulltext search cache size in bytes",
+  NULL, NULL, 32000000, 16000000, 80000000, 0);
+
+static MYSQL_SYSVAR_ULONG(ft_min_token_size, fts_min_token_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "InnoDB Fulltext search minimum token size in bytes",
+  NULL, NULL, 3, 0, 16, 0);
+
+static MYSQL_SYSVAR_ULONG(ft_max_token_size, fts_max_token_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "InnoDB Fulltext search maximum token size in bytes",
+  NULL, NULL, HA_FT_MAXCHARLEN, 10, FTS_MAX_WORD_LEN , 0);
+
+static MYSQL_SYSVAR_ULONG(ft_optimize_add_threshold, fts_optimize_add_threshold,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of inserts that InnoDB Fulltext optimization will be activated",
+  NULL, NULL, 20000, 1000, 500000, 0);
+
+static MYSQL_SYSVAR_ULONG(ft_optimize_delete_threshold,
+		          fts_optimize_delete_threshold,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of deletes that InnoDB Fulltext optimization will be activated",
+  NULL, NULL, 20000, 1000, 500000, 0);
+
 static MYSQL_SYSVAR_ULONG(read_io_threads, innobase_read_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of background read I/O threads in InnoDB.",
@@ -13458,6 +13489,11 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
+  MYSQL_SYSVAR(ft_cache_size),
+  MYSQL_SYSVAR(ft_max_token_size),
+  MYSQL_SYSVAR(ft_min_token_size),
+  MYSQL_SYSVAR(ft_optimize_add_threshold),
+  MYSQL_SYSVAR(ft_optimize_delete_threshold),
   MYSQL_SYSVAR(large_prefix),
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
   MYSQL_SYSVAR(lock_wait_timeout),

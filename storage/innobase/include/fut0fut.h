@@ -41,14 +41,29 @@ typedef struct fts_stopword_struct	fts_stopword_t;
 #define STOPWORD_FROM_DEFAULT           0x4
 #define STOPWORD_USER_TABLE             0x8
 
-/* Maximum token length in bytes(for UTF8)*/
-#define FTS_MAX_WORD_LEN		ft_max_word_len
-
 extern const char*	fts_default_stopword[];
 
 /* Variable specifying the maximum FTS cache size for each table */
 extern ulint		fts_max_cache_size;
 
+/* Variable specifying the maximum FTS max token size */
+extern ulint		fts_max_token_size;
+
+/* Variable specifying the minimum FTS max token size */
+extern ulint		fts_min_token_size;
+
+/* Variable specifying the threshold that optimizer will be activated */
+extern ulint		fts_optimize_add_threshold;
+
+/* Variable specifying the threshold that optimizer will be activated */
+extern ulint		fts_optimize_delete_threshold;
+
+
+/* Maximum possible Fulltext word length */
+#define FTS_MAX_WORD_LEN	2 * HA_FT_MAXCHARLEN
+
+/* Variable specifying the table that has Fulltext index to display its
+content through information schema table */
 extern char*		fts_internal_tbl_name;
 
 #define	fts_que_graph_free(graph)			\
@@ -101,22 +116,6 @@ fts_load_stopword(
 	ibool		reload);		/*!< in: Whether it is during
 						reload of FTS table */
 
-/********************************************************************
-Get the next token from the given string and store it in *token. If no token
-was found, token->len is set to 0. */
-UNIV_INTERN
-ulint
-fts_get_next_token(
-/*===============*/
-                                                /* out: number of characters
-                                                handled in this call */
-        byte*           start,                  /* in: start of text */
-        byte*           end,                    /* in: one character past end of
-                                                text */
-        fts_string_t*   token,                  /* out: token's text */
-        ulint*          offset);                /* out: offset to token,
-                                                measured as characters from
-                                                'start' */
 /****************************************************************//**
 Create the vector of fts_get_doc_t instances.
 @return vector of fts_get_doc_t instances */
