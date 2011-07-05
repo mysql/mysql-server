@@ -201,7 +201,12 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 CREATE TABLE t2 (a2 VARCHAR(10));
 INSERT INTO t2 VALUES (1), (2), (3), (4), (5);
 SET @save_optimizer_switch= @@optimizer_switch;
-SET @@optimizer_switch= 'semijoin=off';
+--disable_query_log
+if (`select locate('semijoin', @@optimizer_switch) > 0`)
+{
+  SET @@optimizer_switch= 'semijoin=off';
+}
+--enable_query_log
 --let $query =  DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2)
 --let $select = SELECT * FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2)
 --source include/explain_utils.inc
