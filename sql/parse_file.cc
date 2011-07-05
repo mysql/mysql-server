@@ -381,7 +381,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
     DBUG_RETURN(0);
   }
 
-  if (!(parser->buff= (char*) alloc_root(mem_root, stat_info.st_size+1)))
+  if (!(parser->buff= (char*) alloc_root(mem_root, (size_t)(stat_info.st_size+1))))
   {
     DBUG_RETURN(0);
   }
@@ -392,7 +392,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
   }
   
   if ((len= my_read(file, (uchar *)parser->buff,
-                    stat_info.st_size, MYF(MY_WME))) ==
+                    (size_t) stat_info.st_size, MYF(MY_WME))) ==
       MY_FILE_ERROR)
   {
     my_close(file, MYF(MY_WME));

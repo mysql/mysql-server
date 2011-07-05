@@ -9540,7 +9540,7 @@ double JOIN_TAB::scan_time()
   else
   {
     found_records= records=table->file->stats.records;
-    read_time= found_records ? found_records: 10;// TODO:fix this stub
+    read_time= found_records ? (double)found_records: 10.0;// TODO:fix this stub
     res= read_time;
   }
   return res;
