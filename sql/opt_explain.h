@@ -49,7 +49,7 @@ class JOIN;
 class select_result;
 class select_result_interceptor;
 class SQL_SELECT;
-class TABLE;
+struct TABLE;
 class THD;
 
 #include "my_base.h"
