@@ -722,11 +722,11 @@ id	a	b
 select *, MATCH(a,b) AGAINST("mysql VÐƷWİ" IN BOOLEAN MODE) as x from t1;
 id	a	b	x
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...	0.6055193543434143
-2	How To Use MySQL Well	After you went through a ...	1.0224660806113634e-20
-3	Optimizing MySQL	In this tutorial we will show ...	1.0224660806113634e-20
-4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	1.0224660806113634e-20
-5	MySQL vs. YourSQL	In the following database comparison ...	1.0224660806113634e-20
-6	MySQL Security	When configured properly, MySQL ...	2.0449321612227268e-20
+2	How To Use MySQL Well	After you went through a ...	0.000000001885928302414186
+3	Optimizing MySQL	In this tutorial we will show ...	0.000000001885928302414186
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	0.000000001885928302414186
+5	MySQL vs. YourSQL	In the following database comparison ...	0.000000001885928302414186
+6	MySQL Security	When configured properly, MySQL ...	0.000000003771856604828372
 select * from t1 where MATCH a,b AGAINST ('"security mysql"' IN BOOLEAN MODE);
 id	a	b
 select * from t1 where MATCH(a,b) AGAINST ("VÐƷWİ" WITH QUERY EXPANSION);

@@ -2878,11 +2878,8 @@ fts_query_calculate_idf(
 				a match. Since Log10(1) = 0, we cannot
 				make IDF a zero value if do find a
 				word in all documents. So let's make
-				it an very samll number */
-				word_freq->idf = log10(
-					(double) ULINT_MAX
-					/ (double)(ULINT_MAX - 1));
-
+				it an arbitrary very small number */
+				word_freq->idf = log10(1.0001);
 			} else {
 				word_freq->idf = log10(
 					total_docs
