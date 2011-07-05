@@ -2479,7 +2479,7 @@ fts_delete(
 	doc_id_t	write_doc_id;
 	dict_table_t*	table = ftt->table;
 	doc_id_t	doc_id = row->doc_id;
-	trx_t*		trx = ftt->fts_trx->trx;
+	trx_t*		trx = trx_allocate_for_background();
 	pars_info_t*	info = pars_info_create();
 	fts_cache_t*	cache = table->fts->cache;
 
@@ -2580,12 +2580,18 @@ fts_delete(
 	/* Increment the total deleted count, this is used to calculate the
 	number of documents indexed. */
 	if (error == DB_SUCCESS) {
+		fts_sql_commit(trx);
+
 		mutex_enter(&table->fts->cache->deleted_lock);
 
 		++table->fts->cache->deleted;
 
 		mutex_exit(&table->fts->cache->deleted_lock);
-	}
+	} else {
+                fts_sql_rollback(trx);
+        }
+
+        trx_free_for_background(trx);
 
 	return(error);
 }
