@@ -442,14 +442,14 @@ toku_verify_estimates (BRT t, BRTNODE node) {
                 assert_zero(r);
                 BRTNODE childnode = childnode_v;
                 for (int i=0; i<childnode->n_children; i++) {
-            	    child_estimate += childnode->bp[i].subtree_estimates.ndata;
+            	    child_estimate += BP_SUBTREE_EST(childnode, i).ndata;
                 }
                 toku_unpin_brtnode(t, childnode);
             }
             else {
                 child_estimate = toku_omt_size(BLB_BUFFER(node, childnum));
             }
-            assert(node->bp[childnum].subtree_estimates.ndata==child_estimate);
+            assert(BP_SUBTREE_EST(node,childnum).ndata==child_estimate);
         }
     }
 }
@@ -478,13 +478,13 @@ brtnode_memory_size (BRTNODE node)
             continue;
         }
         else if (BP_STATE(node,i) == PT_COMPRESSED) {
-            struct sub_block* sb = (struct sub_block*)node->bp[i].ptr;
+            struct sub_block* sb = node->bp[i].ptr;
             retval += sizeof(*sb);
             retval += sb->compressed_size;
         }
         else if (BP_STATE(node,i) == PT_AVAIL) {
             if (node->height > 0) {
-                NONLEAF_CHILDINFO childinfo = (NONLEAF_CHILDINFO)node->bp[i].ptr;
+                NONLEAF_CHILDINFO childinfo = node->bp[i].ptr;
                 retval += sizeof(*childinfo);
                 retval += toku_fifo_memory_size(BNC_BUFFER(node, i));
             }
@@ -608,7 +608,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_
         for (int i = 0; i < node->n_children; i++) {
             // Get rid of compressed stuff no matter what.
             if (BP_STATE(node,i) == PT_COMPRESSED) {
-                struct sub_block* sb = (struct sub_block*)node->bp[i].ptr;
+                struct sub_block* sb = node->bp[i].ptr;
                 toku_free(sb->compressed_ptr);
                 toku_free(node->bp[i].ptr);
                 node->bp[i].ptr = NULL;
@@ -617,7 +617,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_
             else if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
                     // free the basement node
-                    BASEMENTNODE bn = (BASEMENTNODE)node->bp[i].ptr;
+                    BASEMENTNODE bn = node->bp[i].ptr;
                     OMT curr_omt = BLB_BUFFER(node, i);
                     toku_omt_free_items(curr_omt);
                     destroy_basement_node(bn);
@@ -649,7 +649,7 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
     // placeholder for now
     BOOL retval = FALSE;
     BRTNODE node = brtnode_pv;
-    struct brtnode_fetch_extra *bfe = (struct brtnode_fetch_extra *)read_extraargs;
+    struct brtnode_fetch_extra *bfe = read_extraargs;
     if (bfe->type == brtnode_fetch_none) {
         retval = FALSE;
     }
@@ -659,7 +659,6 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
             BP_TOUCH_CLOCK(node,i);
         }
         for (int i = 0; i < node->n_children; i++) {
-            BP_TOUCH_CLOCK(node,i);
             // if we find a partition that is not available,
             // then a partial fetch is required because
             // the entire node must be made available
@@ -696,7 +695,7 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
 // could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
 int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, long* sizep) {
     BRTNODE node = brtnode_pv;
-    struct brtnode_fetch_extra *bfe = (struct brtnode_fetch_extra *)read_extraargs;
+    struct brtnode_fetch_extra *bfe = read_extraargs;
     // there must be a reason this is being called. If we get a garbage type or the type is brtnode_fetch_none,
     // then something went wrong
     assert((bfe->type == brtnode_fetch_subset) || (bfe->type == brtnode_fetch_all));
@@ -788,12 +787,12 @@ void toku_destroy_brtnode_internals(BRTNODE node)
                 }
             }
             else {
-                BASEMENTNODE bn = (BASEMENTNODE)node->bp[i].ptr;
+                BASEMENTNODE bn = node->bp[i].ptr;
                 destroy_basement_node(bn);
             }
         }
         else if (BP_STATE(node,i) == PT_COMPRESSED) {
-            struct sub_block* sb = (struct sub_block*)node->bp[i].ptr;
+            struct sub_block* sb = node->bp[i].ptr;
             toku_free(sb->compressed_ptr);
         }
         else {
@@ -925,7 +924,7 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
             }
             else {
                 n->bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
-                BASEMENTNODE bn = (BASEMENTNODE)n->bp[i].ptr;
+                BASEMENTNODE bn = n->bp[i].ptr;
                 memset(bn, 0, sizeof(struct brtnode_leaf_basement_node));
                 toku_setup_empty_bn(bn);
             }
@@ -1114,12 +1113,12 @@ exit:
     return;
 }
 
-// TODO: (Zardosht) possibly get rid of this function and use toku_omt_split_at in 
+// TODO: (Zardosht) possibly get rid of this function and use toku_omt_split_at in
 // brtleaf_split
 static void
 move_leafentries(
-    OMT* dest_omt, 
-    OMT src_omt, 
+    OMT* dest_omt,
+    OMT src_omt,
     u_int32_t lbi, //lower bound inclusive
     u_int32_t ube, //upper bound exclusive
     SUBTREE_EST se_diff,
@@ -1129,10 +1128,9 @@ move_leafentries(
 {
     OMTVALUE *MALLOC_N(ube-lbi, new_le);
     u_int32_t i = 0;
-    u_int32_t curr_index=0;
     *num_bytes_moved = 0;
-    for (i = lbi; i < ube; i++, curr_index++) {
-	LEAFENTRY curr_le = NULL;	 
+    for (i = lbi; i < ube; i++) {
+	LEAFENTRY curr_le = NULL;
 	curr_le = fetch_from_buf(src_omt, i);
 
 	se_diff->nkeys++;
@@ -1142,9 +1140,9 @@ move_leafentries(
 	*num_bytes_moved += OMT_ITEM_OVERHEAD + leafentry_disksize(curr_le);
 	new_le[i-lbi] = curr_le;
     }
-    
+
     int r = toku_omt_create_steal_sorted_array(
-	dest_omt, 
+	dest_omt,
 	&new_le,
 	ube-lbi,
 	ube-lbi
@@ -1196,16 +1194,16 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 	// the left node, node, will have split_node+1 basement nodes
 	// the right node, B, will have n_children-split_node basement nodes
 	// the pivots of node will be the first split_node pivots that originally exist
-	// the pivots of B will be the last (n_children - split_node) pivots that originally exist
+	// the pivots of B will be the last (n_children - 1 - split_node) pivots that originally exist
 
 	//set up the basement nodes in the new node
 	int num_children_in_node = split_node + 1;
 	int num_children_in_b = node->n_children - split_node;
 	if (create_new_node) {
 	    toku_create_new_brtnode(
-		t, 
-		&B, 
-		0, 
+		t,
+		&B,
+		0,
 		num_children_in_b
 		);
 	    assert(B->nodesize>0);
@@ -1222,7 +1220,7 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
                 BP_HAVE_FULLHASH(B,i) = FALSE;
                 BP_SUBTREE_EST(B,i)= zero_estimates;
                 B->bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
-                BASEMENTNODE bn = (BASEMENTNODE)B->bp[i].ptr;
+                BASEMENTNODE bn = B->bp[i].ptr;
                 toku_setup_empty_bn(bn);
             }
 	}

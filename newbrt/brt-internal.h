@@ -90,7 +90,7 @@ struct brtnode_fetch_extra {
     enum brtnode_fetch_type type;
     // needed for reading a node off disk
     struct brt_header *h;
-    // used in the case where type == brtnode_fetch_extra
+    // used in the case where type == brtnode_fetch_subset
     // parameters needed to find out which child needs to be decompressed (so it can be read)
     brt_search_t* search;
     BRT brt;
