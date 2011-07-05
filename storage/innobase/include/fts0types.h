@@ -223,7 +223,7 @@ struct fts_fetch_struct {
 
 /* For horizontally splitting an FTS auxiliary index */
 struct fts_index_selector_struct {
-	byte		ch;		/* Character at which to split */
+	ulint		value;		/* Character value at which to split */
 
 	const char*	suffix;		/* FTS aux index suffix */
 };
@@ -433,27 +433,28 @@ ulint
 fts_get_n_selectors(void);
 /*=====================*/
 
-/********************************************************************
-Select the FTS auxiliary index for the given character. */
+/******************************************************************//**
+Select the FTS auxiliary index for the given string.
+@return the index to use for the string */
 UNIV_INLINE
 ulint
 fts_select_index(
 /*=============*/
-						/* out: the index
-						to use for character */
-	byte		ch);			/* in: First character
-						of a word */
+	const CHARSET_INFO*	cs,	/*!< Charset */
+	byte*			str,	/*!< in: word string */
+	ulint			len);	/*!< in: string length */
 
 /********************************************************************
-Select the next FTS auxiliary index for the given character. */
+Select the next FTS auxiliary index for the given character.
+@return the next index to use for character */
 UNIV_INLINE
 ulint
 fts_select_next_index(
 /*==================*/
-						/* out: the next index
-						to use for character */
-	byte		ch);			/* in: First character of
-						a word */
+	const CHARSET_INFO*	cs,	/*!< Charset */
+	byte*			str,	/*!< in: string */
+	ulint			len);	/*!< in: string length */
+
 #ifndef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"

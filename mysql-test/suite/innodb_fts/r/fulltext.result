@@ -334,9 +334,9 @@ insert into t2 values (1, 1, 'xxfoo');
 insert into t2 values (2, 1, 'xxbar');
 insert into t2 values (3, 1, 'xxbuz');
 select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('xxfoo' in boolean mode);
-ERROR HY000: The table do not have FULLTEXT index to support this query
+ERROR HY000: The table does not have FULLTEXT index to support this query
 select * from t2 where match name against ('*a*b*c*d*e*f*' in boolean mode);
-ERROR HY000: The table do not have FULLTEXT index to support this query
+ERROR HY000: The table does not have FULLTEXT index to support this query
 drop table t1,t2;
 create table t1 (a text, fulltext key (a)) ENGINE = InnoDB;
 insert into t1 select "xxxx yyyy zzzz";

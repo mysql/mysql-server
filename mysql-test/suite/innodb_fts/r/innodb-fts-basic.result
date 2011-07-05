@@ -11,9 +11,6 @@ INSERT INTO articles (title,body) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('MySQL Security','When configured properly, MySQL ...');
-SELECT sleep(1);
-sleep(1)
-0
 SELECT * FROM articles
 WHERE MATCH (title,body)
 AGAINST ('Database' IN NATURAL LANGUAGE MODE);

@@ -380,7 +380,8 @@ row_merge_fts_doc_tokenize(
 		/* There are FTS_NUM_AUX_INDEX auxiliary tables, find
 		out which sort buffer to put this word record in */
 		if (FTS_PLL_ENABLED) {
-			*buf_used = fts_select_index(*t_str.utf8);
+			*buf_used = fts_select_index(
+				doc->charset, t_str.utf8, t_str.len);
 
 			buf = sort_buf[*buf_used];
 
@@ -728,12 +729,13 @@ row_merge_write_fts_word(
 	fts_node_t*	fts_node __attribute__((unused)),
 					/*!< in: fts node for FTS
 					INDEX table */
-	fts_table_t*	fts_table)	/*!< in: fts aux table instance */
+	fts_table_t*	fts_table,	/*!< in: fts aux table instance */
+	CHARSET_INFO*	charset)	/*!< in: charset */
 {
 	ulint	selected;
 	ulint	ret = DB_SUCCESS;	
 
-	selected = fts_select_index(*word->text.utf8);
+	selected = fts_select_index(charset, word->text.utf8, word->text.len);
 	fts_table->suffix = fts_get_suffix(selected);
 
 	/* Pop out each fts_node in word->nodes write them to auxiliary table */
@@ -805,7 +807,7 @@ row_fts_insert_tuple(
 
 			/* Write out the current word */
 			row_merge_write_fts_word(trx, ins_graph, word,
-						 fts_node, fts_table);
+						 fts_node, fts_table, charset);
 
 		}
 
@@ -835,7 +837,7 @@ row_fts_insert_tuple(
 
 		/* Write out the current word */
 		row_merge_write_fts_word(trx, ins_graph, word,
-					 fts_node, fts_table);
+					 fts_node, fts_table, charset);
 
 		/* Copy the new word */
 		fts_utf8_string_dup(&word->text, &token_word, heap);

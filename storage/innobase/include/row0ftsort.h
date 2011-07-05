@@ -238,7 +238,8 @@ row_merge_write_fts_word(
 					word */
 	fts_node_t*	fts_node,	/*!< in: fts node for FTS
 					INDEX table */
-	fts_table_t*	fts_table);	/*!< in: fts aux table instance */
+	fts_table_t*	fts_table,	/*!< in: fts aux table instance */
+	CHARSET_INFO*	charset);	/*!< in: charset */
 /********************************************************************//**
 Read sorted FTS data files and insert data tuples to auxillary tables.
 @return DB_SUCCESS or error number */

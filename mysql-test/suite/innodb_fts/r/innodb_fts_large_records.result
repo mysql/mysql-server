@@ -52,6 +52,9 @@ AGAINST ('"row5col2word48 row5col2word49"@10' IN BOOLEAN MODE);
 FTS_DOC_ID	a	b
 UPDATE t1 SET a = "using update" , b = "changing fulltext index record" 
 WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+select sleep(1);
+sleep(1)
+0
 select a,b from t1 where MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
 a	b
 select a,b from t1 where MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN MODE);
@@ -190,6 +193,9 @@ select count(*) from t1 where MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN 
 count(*)
 5000
 DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
+select sleep(1);
+sleep(1)
+0
 select count(*) from t1 where MATCH(a,b) AGAINST("+chang* +fulltext" IN BOOLEAN MODE);
 count(*)
 0
@@ -239,6 +245,9 @@ count(*)
 5000
 UPDATE t1 SET a = "using update" , b = "changing fulltext index record" 
 WHERE MATCH(a,b) AGAINST("+samerowword +1050" IN BOOLEAN MODE);
+select sleep(1);
+sleep(1)
+0
 select count(*) from t1 where MATCH(a,b) AGAINST("+samerowword +1050" IN BOOLEAN MODE);
 count(*)
 0

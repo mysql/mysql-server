@@ -4533,6 +4533,33 @@ innobase_fts_text_cmp(
 			       s2->utf8, s2->len, 0, 0));
 }
 /******************************************************************//**
+Get the first character's code position for FTS index partition. */
+extern "C" UNIV_INTERN
+ulint
+innobase_strnxfrm(
+/*==============*/
+	const CHARSET_INFO*
+			cs,		/*!< in: Character set */
+	uchar*		str,		/*!< in: string */
+	ulint		len)		/*!< in: string length */
+{
+	uchar		mystr[2];
+	int16_t		value;
+
+	if (!str || len == 0) {
+		return(0);
+	}
+
+	my_strnxfrm(cs, (uchar*)mystr, 2, str, len);
+
+	value = mach_read_from_2(mystr);
+
+	ut_ad(value >=0);
+
+	return((ulint)value);
+}
+
+/******************************************************************//**
 compare two character string according to their charset. */
 extern "C" UNIV_INTERN
 int

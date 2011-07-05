@@ -728,6 +728,8 @@ struct fts_table_struct {
 					everywhere (yet) */
 	const dict_table_t*
 			table;		/* Parent table */
+	CHARSET_INFO*	charset;	/* charset info if it is for FTS
+					index auxiliary table */
 };
 
 enum	fts_status {
