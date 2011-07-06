@@ -556,7 +556,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	100.00	Using index
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	select 3 AS `numreponse` from `test`.`t1` where ((3 = 3))
+Note	1003	select 3 AS `numreponse` from `test`.`t1` where ((3 = (select max(`test`.`t1`.`numreponse`) from `test`.`t1` where multiple equal(1, `test`.`t1`.`numeropost`))))
 drop table t1;
 CREATE TABLE t1 (a int(1));
 INSERT INTO t1 VALUES (1);
@@ -1241,7 +1241,7 @@ create table t1 (id int not null auto_increment primary key, salary int, key(sal
 insert into t1 (salary) values (100),(1000),(10000),(10),(500),(5000),(50000);
 explain extended SELECT id FROM t1 where salary = (SELECT MAX(salary) FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ref	salary	salary	5	const	1	100.00	Using index condition
+1	PRIMARY	t1	ref	salary	salary	5	const	0	0.00	Using index condition
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	select `test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`salary` = (select max(`test`.`t1`.`salary`) from `test`.`t1`))
@@ -4035,7 +4035,7 @@ CREATE TABLE t1 (a int, b int, KEY (a));
 INSERT INTO t1 VALUES (1,1),(2,1);
 EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT COUNT(*) FROM t1 GROUP BY b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ref	a	a	5	const	1	Using where; Using index
+1	PRIMARY	t1	ref	a	a	5	const	0	Using where; Using index
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
 DROP TABLE t1;
 CREATE TABLE t1 (id int NOT NULL, st CHAR(2), INDEX idx(id));

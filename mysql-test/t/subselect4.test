@@ -1419,4 +1419,46 @@ WHERE t2.f1 = (
 
 drop table t1, t2, t3;
 
+--echo #
+--echo # LP BUG#802979 Assertion `table->key_read == 0' in close_thread_table
+--echo #
+
+CREATE TABLE t1 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t1 VALUES (1,0),(5,0);
+CREATE TABLE t2 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t2 VALUES (1,0),(5,0);
+CREATE TABLE t3 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t3 VALUES (1,0),(5,0);
+CREATE TABLE t4 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t4 VALUES (1,0),(5,0);
+
+EXPLAIN
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+               WHERE EXISTS (SELECT DISTINCT f1 FROM t4))
+  AND t2.f2 = t1.f1;
+
+-- error ER_SUBQUERY_NO_1_ROW
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+               WHERE EXISTS (SELECT DISTINCT f1 FROM t4))
+  AND t2.f2 = t1.f1;
+
+EXPLAIN
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+               WHERE EXISTS (SELECT DISTINCT f1 FROM t4) LIMIT 1)
+  AND t2.f2 = t1.f1;
+
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+               WHERE EXISTS (SELECT DISTINCT f1 FROM t4) LIMIT 1)
+  AND t2.f2 = t1.f1;
+
+drop table t1,t2,t3,t4;
+
 set optimizer_switch=@subselect4_tmp;

@@ -7292,7 +7292,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
   case Item_func::MULT_EQUAL_FUNC:
   {
     Item_equal *item_equal= (Item_equal *) cond;    
-    if (!(value= item_equal->get_const()))
+    if (!(value= item_equal->get_const()) || value->is_expensive())
       DBUG_RETURN(0);
     Item_equal_fields_iterator it(*item_equal);
     ref_tables= value->used_tables();
@@ -7325,6 +7325,9 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
     }
     else
       DBUG_RETURN(0);
+    if (value && value->is_expensive())
+      DBUG_RETURN(0);
+
     ftree= get_full_func_mm_tree(param, cond_func, field_item, value, inv);
   }
 

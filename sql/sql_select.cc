@@ -9689,8 +9689,7 @@ void JOIN::join_free()
     Optimization: if not EXPLAIN and we are done with the JOIN,
     free all tables.
   */
-  bool full= (!(select_lex->uncacheable) &&
-              !thd->lex->describe);
+  bool full= !(select_lex->uncacheable);
   bool can_unlock= full;
   DBUG_ENTER("JOIN::join_free");
 
@@ -11541,8 +11540,8 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
     {
       Item_func_eq *func=(Item_func_eq*) cond;
       Item **args= func->arguments();
-      bool left_const= args[0]->const_item();
-      bool right_const= args[1]->const_item();
+      bool left_const= args[0]->const_item() && !args[0]->is_expensive();
+      bool right_const= args[1]->const_item() && !args[1]->is_expensive();
       if (!(left_const && right_const) &&
           args[0]->result_type() == args[1]->result_type())
       {
