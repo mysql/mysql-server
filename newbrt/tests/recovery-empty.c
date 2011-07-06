@@ -1,3 +1,4 @@
+#ident "$Id$"
 // test recovery from a log that exist but has no log entries
 
 #include "test.h"

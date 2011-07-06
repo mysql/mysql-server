@@ -1,3 +1,4 @@
+#ident "$Id$"
 // test recovery with a fopen that references a missing file
 
 #include "test.h"

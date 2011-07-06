@@ -1,3 +1,4 @@
+#ident "$Id$"
 // test recovery of "hello" comments
 
 #include "test.h"
