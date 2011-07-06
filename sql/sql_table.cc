@@ -6051,7 +6051,6 @@ int mysql_fast_or_online_alter_table(THD *thd,
    /*
       Tell the handler to prepare for the online alter
     */
-    table->file->ha_prepare_for_alter();
     if ((error= table->file->alter_table_phase1(thd,
                                                 altered_table,
                                                 create_info,
