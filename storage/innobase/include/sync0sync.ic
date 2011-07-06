@@ -240,8 +240,8 @@ pfs_mutex_enter_func(
 	PSI_mutex_locker_state		state;
 
 	locker = PSI_CALL(get_thread_mutex_locker)(
-			&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
-	if (locker) {
+		&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
+	if (UNIV_LIKELY(locker != NULL)) {
 		PSI_CALL(start_mutex_wait)(locker, file_name, line);
 		mutex_enter_func(mutex, file_name, line);
 		PSI_CALL(end_mutex_wait)(locker, 0);
