@@ -2776,7 +2776,6 @@ CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
 CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('1'), (NULL);
 INSERT INTO t2 VALUES (1, '1');
-set optimizer_join_cache_level=1;
 EXPLAIN
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2786,7 +2785,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 b
 1
-set optimizer_join_cache_level=default;
 DROP TABLE t1,t2;
 #
 # BUG#48093: 6.0 Server not processing equivalent IN clauses properly 

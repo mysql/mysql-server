@@ -2363,5 +2363,4 @@ t1a	t1b	t2a	t2b
 
 DROP TABLE t1,t2;
 set @@join_buffer_size=default;
-set optimizer_join_cache_level = default;
 set optimizer_switch = default;

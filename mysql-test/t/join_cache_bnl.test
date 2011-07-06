@@ -7,5 +7,4 @@ if (`select locate('mrr_cost_based', @@optimizer_switch) > 0`)
 
 --source include/join_cache.inc
 
-set optimizer_join_cache_level = default;
 set optimizer_switch = default;

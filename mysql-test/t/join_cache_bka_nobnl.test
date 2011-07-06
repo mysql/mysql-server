@@ -2,5 +2,4 @@ set optimizer_switch='batch_key_access=on,block_nested_loop=off,mrr_cost_based=o
 
 --source include/join_cache.inc
 
-set optimizer_join_cache_level = default;
 set optimizer_switch = default;
