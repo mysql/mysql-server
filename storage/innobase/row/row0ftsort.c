@@ -98,9 +98,7 @@ row_merge_create_fts_sort_index(
 	field->col->mbminmaxlen = idx_field->col->mbminmaxlen;
 	field->fixed_len = 0;
 
-	/* The second field is on the Doc ID. To reduce the
-	sort record size, we use 4 bytes field instead of Doc ID's
-	8 byte fields. */
+	/* Doc ID */
 	field = dict_index_get_nth_field(new_index, 1);
 	field->name = NULL;
 	field->prefix_len = 0;
@@ -148,12 +146,18 @@ row_fts_psort_info_init(
 	fts_psort_info_t*	psort_info = NULL;
 	fts_psort_info_t*	merge_info;
 	os_event_t		sort_event;
+	ibool			ret = TRUE;
 
-	*psort = psort_info = mem_alloc(
+	*psort = psort_info = mem_zalloc(
 		 FTS_PARALLEL_DEGREE * sizeof *psort_info);
+
+	if (!psort_info) {
+		return FALSE;
+	}
 
 	sort_event = os_event_create(NULL);
 
+	/* Common Info for each sort thread */
 	common_info = mem_alloc(sizeof *common_info);
 
 	common_info->table = table;
@@ -163,7 +167,8 @@ row_fts_psort_info_init(
 	common_info->all_info = psort_info;
 	common_info->sort_event = sort_event;
 
-	if (!psort_info || !common_info) {
+	if (!common_info) {
+		mem_free(psort_info);
 		return FALSE;
 	}
 
@@ -173,11 +178,12 @@ row_fts_psort_info_init(
 
 		for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 
-			psort_info[j].merge_file[i] = mem_alloc(
+			psort_info[j].merge_file[i] = mem_zalloc(
 				sizeof(merge_file_t));
 
 			if (!psort_info[j].merge_file[i]) {
-				return FALSE;
+				ret = FALSE;
+				goto func_exit;
 			}
 
 			psort_info[j].merge_buf[i] = row_merge_buf_create(
@@ -189,7 +195,8 @@ row_fts_psort_info_init(
 				&block_size);
 
 			if (!psort_info[j].merge_block[i]) {
-				return FALSE;
+				ret = FALSE;
+				goto func_exit;
 			}
 		}
 
@@ -210,10 +217,16 @@ row_fts_psort_info_init(
 		merge_info[j].psort_common = common_info;
 	}
 
-	return(TRUE);
+func_exit:
+	if (!ret) {
+		row_fts_psort_info_destroy(psort_info, merge_info);
+	}
+
+	return(ret);
 }
+
 /*********************************************************************//**
-Clean up and deallocate FTS parallel sort structures, and close
+Clean up and deallocate FTS parallel sort structures, and close the
 merge sort files  */
 UNIV_INTERN
 void
@@ -229,11 +242,16 @@ row_fts_psort_info_destroy(
 	if (psort_info) {
 		for (j = 0; j < FTS_PARALLEL_DEGREE; j++) {
 			for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
-				row_merge_file_destroy(
-					psort_info[j].merge_file[i]);
-				os_mem_free_large(
-					psort_info[j].merge_block[i],
-					block_size);
+				if (psort_info[j].merge_file[i]) {
+					row_merge_file_destroy(
+						psort_info[j].merge_file[i]);
+				}
+
+				if (psort_info[j].merge_block[i]) {
+					os_mem_free_large(
+						psort_info[j].merge_block[i],
+						block_size);
+				}
 			}
 		}
 
@@ -265,10 +283,11 @@ row_fts_free_pll_merge_buf(
 			row_merge_buf_free(psort_info[j].merge_buf[i]);
 		}
 	}
+
+	return;
 }
 /*********************************************************************//**
 Tokenize incoming text data and add to the sort buffer.
-FIXME: Consider running out of buffer in the middle of string parsing.
 @return	TRUE if the record passed, FALSE if out of space */
 UNIV_INTERN
 ibool
@@ -293,7 +312,7 @@ row_merge_fts_doc_tokenize(
 	ulint		i;
 	ulint		inc;
 	fts_string_t	str;
-	byte		str_buf[fts_max_token_size + 1];
+	byte		str_buf[FTS_MAX_WORD_LEN + 1];
 	dfield_t*	field;
 	ulint		data_size[FTS_NUM_AUX_INDEX];
 	ulint		len;
@@ -463,6 +482,7 @@ row_merge_fts_doc_tokenize(
 	} else {
 		sort_buf[0]->total_size += data_size[0];
 		sort_buf[0]->n_tuples += n_tuple[0];
+		*rows_added = n_tuple[0];
 	}
 
 	if (!buf_full) {
