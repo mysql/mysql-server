@@ -293,7 +293,6 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
         BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long) random())<<32);
         BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
 	set_BLB(&sn, i, toku_create_empty_bn()); 
-        r = toku_omt_create(&BLB_BUFFER(&sn, i)); assert(r==0);
         BLB_OPTIMIZEDFORUPGRADE(&sn, i) = BRT_LAYOUT_VERSION;
     }
     BLB_NBYTESINBUF(&sn, 0) = 0;
