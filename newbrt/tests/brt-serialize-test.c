@@ -112,11 +112,11 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
             for (int i = 0; i < (*dn)->n_children; i++) {
                 if ((*dn)->height == 0) {
                     assert(BP_STATE(*dn,i) == PT_ON_DISK);
-                    assert((*dn)->bp[i].ptr == NULL);
+		    assert(is_BNULL(*dn, i));
                 }
                 else {
                     assert(BP_STATE(*dn,i) == PT_COMPRESSED);
-                    assert((*dn)->bp[i].ptr != NULL);
+		    assert(is_BNULL(*dn, i));
                 }
             }
         }
@@ -175,11 +175,8 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
         BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long) random())<<32);
         BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long) random())<<32);
         BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
-        sn.bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
-        r = toku_omt_create(&BLB_BUFFER(&sn, i)); assert(r==0);
+	set_BLB(&sn, i, toku_create_empty_bn());
         BLB_OPTIMIZEDFORUPGRADE(&sn, i) = BRT_LAYOUT_VERSION;
-        BLB_SOFTCOPYISUPTODATE(&sn, i) = TRUE;
-        BLB_SEQINSERT(&sn, i) = 0;
     }
     for (int i = 0; i < nrows; ++i) {
         r = toku_omt_insert(BLB_BUFFER(&sn, i), les[i], omt_cmp, les[i], NULL); assert(r==0);
@@ -245,15 +242,12 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
     for (int i = 0; i < sn.n_children-1; ++i) {
         kv_pair_free(sn.childkeys[i]);
     }
-    for (int i = 0; i < sn.n_children; ++i) {
-        toku_omt_destroy(&BLB_BUFFER(&sn, i));
-    }
     for (int i = 0; i < nrows; ++i) {
         toku_free(les[i]);
     }
     toku_free(sn.childkeys);
     for (int i = 0; i < sn.n_children; i++) {
-        toku_free(sn.bp[i].ptr);
+	destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
 
@@ -299,11 +293,9 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
         BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long) random())<<32);
         BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long) random())<<32);
         BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
-        sn.bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
+	set_BLB(&sn, i, toku_create_empty_bn()); 
         r = toku_omt_create(&BLB_BUFFER(&sn, i)); assert(r==0);
         BLB_OPTIMIZEDFORUPGRADE(&sn, i) = BRT_LAYOUT_VERSION;
-        BLB_SOFTCOPYISUPTODATE(&sn, i) = TRUE;
-        BLB_SEQINSERT(&sn, i) = 0;
     }
     BLB_NBYTESINBUF(&sn, 0) = 0;
     for (int i = 0; i < nrows; ++i) {
@@ -366,14 +358,11 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
     for (int i = 0; i < sn.n_children-1; ++i) {
         kv_pair_free(sn.childkeys[i]);
     }
-    for (int i = 0; i < sn.n_children; ++i) {
-        toku_omt_destroy(&BLB_BUFFER(&sn, i));
-    }
     for (int i = 0; i < nrows; ++i) {
         toku_free(les[i]);
     }
     for (int i = 0; i < sn.n_children; i++) {
-        toku_free(sn.bp[i].ptr);
+        destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
     toku_free(sn.childkeys);
@@ -425,11 +414,8 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
         BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long) random())<<32);
         BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long) random())<<32);
         BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
-        sn.bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
-        r = toku_omt_create(&BLB_BUFFER(&sn, i)); assert(r==0);
+	set_BLB(&sn, i, toku_create_empty_bn());
         BLB_OPTIMIZEDFORUPGRADE(&sn, i) = BRT_LAYOUT_VERSION;
-        BLB_SOFTCOPYISUPTODATE(&sn, i) = TRUE;
-        BLB_SEQINSERT(&sn, i) = 0;
     }
     BLB_NBYTESINBUF(&sn, 0) = 0;
     for (int i = 0; i < 7; ++i) {
@@ -492,14 +478,11 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
     for (int i = 0; i < sn.n_children-1; ++i) {
         kv_pair_free(sn.childkeys[i]);
     }
-    for (int i = 0; i < sn.n_children; ++i) {
-        toku_omt_destroy(&BLB_BUFFER(&sn, i));
-    }
     for (int i = 0; i < 7; ++i) {
         toku_free(les[i]);
     }
     for (int i = 0; i < sn.n_children; i++) {
-        toku_free(sn.bp[i].ptr);
+        destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
     toku_free(sn.childkeys);
@@ -549,10 +532,8 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
         BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long)random())<<32);
         BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long)random())<<32);
         BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
-        sn.bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
-        r = toku_omt_create(&BLB_BUFFER(&sn, i)); assert(r==0);
+	set_BLB(&sn, i, toku_create_empty_bn());
         BLB_OPTIMIZEDFORUPGRADE(&sn, i) = BRT_LAYOUT_VERSION;
-        BLB_SOFTCOPYISUPTODATE(&sn, i) = TRUE;
         BLB_SEQINSERT(&sn, i) = 0;
     }
     r = toku_omt_insert(BLB_BUFFER(&sn, 1), elts[0], omt_cmp, elts[0], NULL); assert(r==0);
@@ -622,14 +603,11 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
     for (int i = 0; i < sn.n_children-1; ++i) {
         kv_pair_free(sn.childkeys[i]);
     }
-    for (int i = 0; i < sn.n_children; ++i) {
-        toku_omt_destroy(&BLB_BUFFER(&sn, i));
-    }
     for (int i = 0; i < 3; ++i) {
         toku_free(elts[i]);
     }
     for (int i = 0; i < sn.n_children; i++) {
-        toku_free(sn.bp[i].ptr);
+        destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
     toku_free(sn.childkeys);
@@ -672,11 +650,8 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
         BP_SUBTREE_EST(&sn,i).nkeys = random() + (((long long)random())<<32);
         BP_SUBTREE_EST(&sn,i).dsize = random() + (((long long)random())<<32);
         BP_SUBTREE_EST(&sn,i).exact =  (BOOL)(random()%2 != 0);
-        sn.bp[i].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
-        r = toku_omt_create(&BLB_BUFFER(&sn, i)); assert(r==0);
+	set_BLB(&sn, i, toku_create_empty_bn());
         BLB_OPTIMIZEDFORUPGRADE(&sn, i) = BRT_LAYOUT_VERSION;
-        BLB_SOFTCOPYISUPTODATE(&sn, i) = TRUE;
-        BLB_SEQINSERT(&sn, i) = 0;
     }
     BLB_NBYTESINBUF(&sn, 0) = 0*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 0));
     BLB_NBYTESINBUF(&sn, 1) = 0*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 1));
@@ -739,11 +714,8 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     for (int i = 0; i < sn.n_children-1; ++i) {
         kv_pair_free(sn.childkeys[i]);
     }
-    for (int i = 0; i < sn.n_children; ++i) {
-        toku_omt_destroy(&BLB_BUFFER(&sn, i));
-    }
     for (int i = 0; i < sn.n_children; i++) {
-        toku_free(sn.bp[i].ptr);
+        destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
     toku_free(sn.childkeys);
@@ -793,10 +765,8 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
     BP_SUBTREE_EST(&sn,1).exact =  (BOOL)(random()%2 != 0);
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
-    sn.bp[0].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
-    sn.bp[1].ptr = toku_xmalloc(sizeof(struct brtnode_leaf_basement_node));
-    r = toku_omt_create(&BLB_BUFFER(&sn, 0)); assert(r==0);
-    r = toku_omt_create(&BLB_BUFFER(&sn, 1)); assert(r==0);
+    set_BLB(&sn, 0, toku_create_empty_bn());
+    set_BLB(&sn, 1, toku_create_empty_bn());
     r = toku_omt_insert(BLB_BUFFER(&sn, 0), elts[0], omt_cmp, elts[0], NULL); assert(r==0);
     r = toku_omt_insert(BLB_BUFFER(&sn, 0), elts[1], omt_cmp, elts[1], NULL); assert(r==0);
     r = toku_omt_insert(BLB_BUFFER(&sn, 1), elts[2], omt_cmp, elts[2], NULL); assert(r==0);
@@ -804,8 +774,6 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
     BLB_NBYTESINBUF(&sn, 1) = 1*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 1));
     for (int i = 0; i < 2; ++i) {
         BLB_OPTIMIZEDFORUPGRADE(&sn, i) = BRT_LAYOUT_VERSION;
-        BLB_SOFTCOPYISUPTODATE(&sn, i) = TRUE;
-        BLB_SEQINSERT(&sn, i) = 0;
     }
 
     struct brt *XMALLOC(brt);
@@ -867,14 +835,11 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
     for (int i = 0; i < sn.n_children-1; ++i) {
         kv_pair_free(sn.childkeys[i]);
     }
-    for (int i = 0; i < sn.n_children; ++i) {
-        toku_omt_destroy(&BLB_BUFFER(&sn, i));
-    }
     for (int i = 0; i < 3; ++i) {
         toku_free(elts[i]);
     }
     for (int i = 0; i < sn.n_children; i++) {
-        toku_free(sn.bp[i].ptr);
+        destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
     toku_free(sn.childkeys);
@@ -927,10 +892,8 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     BP_SUBTREE_EST(&sn,1).exact =  (BOOL)(random()%2 != 0);
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
-    sn.bp[0].ptr = toku_xmalloc(sizeof(struct brtnode_nonleaf_childinfo));
-    sn.bp[1].ptr = toku_xmalloc(sizeof(struct brtnode_nonleaf_childinfo));
-    r = toku_fifo_create(&BNC_BUFFER(&sn,0)); assert(r==0);
-    r = toku_fifo_create(&BNC_BUFFER(&sn,1)); assert(r==0);
+    set_BNC(&sn, 0, toku_create_empty_nl());
+    set_BNC(&sn, 1, toku_create_empty_nl());
     //Create XIDS
     XIDS xids_0 = xids_get_root_xids();
     XIDS xids_123;
@@ -1000,10 +963,8 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
 
     kv_pair_free(sn.childkeys[0]);
     toku_free(hello_string);
-    toku_fifo_free(&BNC_BUFFER(&sn,0));
-    toku_fifo_free(&BNC_BUFFER(&sn,1));
-    toku_free(sn.bp[0].ptr);
-    toku_free(sn.bp[1].ptr);
+    destroy_nonleaf_childinfo(BNC(&sn, 0));
+    destroy_nonleaf_childinfo(BNC(&sn, 1));
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 

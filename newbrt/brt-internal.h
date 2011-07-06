@@ -50,7 +50,7 @@ enum { BUFFER_HEADER_SIZE = (4 // height//
 			     + TREE_FANOUT * 8 // children
 			     ) };
 
-struct subtree_estimates {
+struct __attribute__((__packed__)) subtree_estimates {
     // estimate number of rows in the tree by counting the number of rows
     // in the leaves.  The stuff in the internal nodes is likely to be off O(1).
     u_int64_t nkeys;  // number of distinct keys (obsolete with removal of dupsort, but not worth removing)
@@ -140,6 +140,7 @@ struct brtnode_leaf_basement_node {
     OMT buffer;
     unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
     unsigned int seqinsert;         /* number of sequential inserts to this leaf */
+    MSN max_msn_applied;
 };
 
 #define PT_INVALID 0
@@ -147,8 +148,25 @@ struct brtnode_leaf_basement_node {
 #define PT_COMPRESSED 2
 #define PT_AVAIL 3
 
+enum brtnode_child_tag {
+    BCT_INVALID = 0,
+    BCT_NULL,
+    BCT_SUBBLOCK,
+    BCT_LEAF,
+    BCT_NONLEAF
+};
+    
+typedef struct __attribute__((__packed__)) brtnode_child_pointer {
+    u_int8_t tag;
+    union {
+	struct sub_block *subblock;
+	struct brtnode_nonleaf_childinfo *nonleaf;
+	struct brtnode_leaf_basement_node *leaf;
+    } u;
+} BRTNODE_CHILD_POINTER;
+
 // a brtnode partition represents 
-struct brtnode_partition {
+struct   __attribute__((__packed__)) brtnode_partition {
     BLOCKNUM     blocknum;
     BOOL         have_fullhash;     // do we have the full hash?
     u_int32_t    fullhash;          // the fullhash of the child
@@ -176,44 +194,15 @@ struct brtnode_partition {
     //         a struct brtnode_nonleaf_childinfo for internal nodes, 
     //         a struct brtnode_leaf_basement_node for leaf nodes
     //
-    void* ptr;
+    struct brtnode_child_pointer ptr;
 
     // clock count used to for pe_callback to determine if a node should be evicted or not
     // for now, saturating the count at 1
     u_int8_t clock_count;
+
+    // How many bytes worth of work was performed by messages in each buffer.
+    uint64_t     workdone;
 };
-
-// brtnode partition macros
-#define BP_BLOCKNUM(node,i) ((node)->bp[i].blocknum)
-#define BP_HAVE_FULLHASH(node,i) ((node)->bp[i].have_fullhash)
-#define BP_FULLHASH(node,i) ((node)->bp[i].fullhash)
-#define BP_STATE(node,i) ((node)->bp[i].state)
-#define BP_OFFSET(node,i) ((node)->bp[i].offset)
-#define BP_SUBTREE_EST(node,i) ((node)->bp[i].subtree_estimates)
-
-//
-// macros for managing a node's clock
-// Should be managed by brt.c, NOT by serialize/deserialize
-//
-#define BP_TOUCH_CLOCK(node, i) ((node)->bp[i].clock_count = 1)
-#define BP_SWEEP_CLOCK(node, i) ((node)->bp[i].clock_count = 0)
-#define BP_SHOULD_EVICT(node, i) ((node)->bp[i].clock_count == 0)
-// not crazy about having these two here, one is for the case where we create new
-// nodes, such as in splits and creating new roots, and the other is for when 
-// we are deserializing a node and not all bp's are touched
-#define BP_INIT_TOUCHED_CLOCK(node, i) ((node)->bp[i].clock_count = 1)
-#define BP_INIT_UNTOUCHED_CLOCK(node, i) ((node)->bp[i].clock_count = 0)
-
-// internal node macros
-#define BNC_BUFFER(node,i) (((struct brtnode_nonleaf_childinfo*)((node)->bp[i].ptr))->buffer)
-#define BNC_NBYTESINBUF(node,i) (((struct brtnode_nonleaf_childinfo*)((node)->bp[i].ptr))->n_bytes_in_buffer)
-
-// leaf node macros
-#define BLB_OPTIMIZEDFORUPGRADE(node,i) (((struct brtnode_leaf_basement_node*)((node)->bp[i].ptr))->optimized_for_upgrade)
-#define BLB_SOFTCOPYISUPTODATE(node,i) (((struct brtnode_leaf_basement_node*)((node)->bp[i].ptr))->soft_copy_is_up_to_date)
-#define BLB_BUFFER(node,i) (((struct brtnode_leaf_basement_node*)((node)->bp[i].ptr))->buffer)
-#define BLB_NBYTESINBUF(node,i) (((struct brtnode_leaf_basement_node*)((node)->bp[i].ptr))->n_bytes_in_buffer)
-#define BLB_SEQINSERT(node,i) (((struct brtnode_leaf_basement_node*)((node)->bp[i].ptr))->seqinsert)
 
 struct brtnode {
     MSN      max_msn_applied_to_node_in_memory; // max msn that has been applied to this node (for root node, this is max msn for the tree)
@@ -240,6 +229,86 @@ struct brtnode {
     // for leaf nodes, the ith partition corresponds to the ith basement node
     struct brtnode_partition *bp;
 };
+
+// brtnode partition macros
+#define BP_BLOCKNUM(node,i) ((node)->bp[i].blocknum)
+#define BP_HAVE_FULLHASH(node,i) ((node)->bp[i].have_fullhash)
+#define BP_FULLHASH(node,i) ((node)->bp[i].fullhash)
+#define BP_STATE(node,i) ((node)->bp[i].state)
+#define BP_OFFSET(node,i) ((node)->bp[i].offset)
+#define BP_SUBTREE_EST(node,i) ((node)->bp[i].subtree_estimates)
+#define BP_WORKDONE(node, i)((node)->bp[i].workdone)
+
+//
+// macros for managing a node's clock
+// Should be managed by brt.c, NOT by serialize/deserialize
+//
+#define BP_TOUCH_CLOCK(node, i) ((node)->bp[i].clock_count = 1)
+#define BP_SWEEP_CLOCK(node, i) ((node)->bp[i].clock_count = 0)
+#define BP_SHOULD_EVICT(node, i) ((node)->bp[i].clock_count == 0)
+// not crazy about having these two here, one is for the case where we create new
+// nodes, such as in splits and creating new roots, and the other is for when 
+// we are deserializing a node and not all bp's are touched
+#define BP_INIT_TOUCHED_CLOCK(node, i) ((node)->bp[i].clock_count = 1)
+#define BP_INIT_UNTOUCHED_CLOCK(node, i) ((node)->bp[i].clock_count = 0)
+
+// internal node macros
+static inline void set_BNULL(BRTNODE node, int i) {
+    assert(0<=i && i<node->n_children);
+    node->bp[i].ptr.tag = BCT_NULL;
+}
+static inline bool is_BNULL (BRTNODE node, int i) {
+    assert(0<=i && i<node->n_children);
+    return node->bp[i].ptr.tag == BCT_NULL;
+}
+static inline NONLEAF_CHILDINFO BNC(BRTNODE node, int i) {
+    assert(0<=i && i<node->n_children);
+    BRTNODE_CHILD_POINTER p = node->bp[i].ptr;
+    assert(p.tag==BCT_NONLEAF);
+    return p.u.nonleaf;
+}
+static inline void set_BNC(BRTNODE node, int i, NONLEAF_CHILDINFO nl) {
+    assert(0<=i && i<node->n_children);
+    BRTNODE_CHILD_POINTER *p = &node->bp[i].ptr;
+    p->tag = BCT_NONLEAF;
+    p->u.nonleaf = nl;
+}
+static inline BASEMENTNODE BLB(BRTNODE node, int i) {
+    assert(0<=i && i<node->n_children);
+    BRTNODE_CHILD_POINTER p = node->bp[i].ptr;
+    assert(p.tag==BCT_LEAF);
+    return p.u.leaf;
+}
+static inline void set_BLB(BRTNODE node, int i, BASEMENTNODE bn) {
+    assert(0<=i && i<node->n_children);
+    BRTNODE_CHILD_POINTER *p = &node->bp[i].ptr;
+    p->tag = BCT_LEAF;
+    p->u.leaf = bn;
+}
+
+static inline SUB_BLOCK BSB(BRTNODE node, int i) {
+    assert(0<=i && i<node->n_children);
+    BRTNODE_CHILD_POINTER p = node->bp[i].ptr;
+    assert(p.tag==BCT_SUBBLOCK);
+    return p.u.subblock;
+}
+static inline void set_BSB(BRTNODE node, int i, SUB_BLOCK sb) {
+    assert(0<=i && i<node->n_children);
+    BRTNODE_CHILD_POINTER *p = &node->bp[i].ptr;
+    p->tag = BCT_SUBBLOCK;
+    p->u.subblock = sb;
+}
+
+#define BNC_BUFFER(node,i) (BNC(node,i)->buffer)
+#define BNC_NBYTESINBUF(node,i) (BNC(node,i)->n_bytes_in_buffer)
+#define BNC_NBYTESINBUF(node,i) (BNC(node,i)->n_bytes_in_buffer)
+
+// leaf node macros
+#define BLB_OPTIMIZEDFORUPGRADE(node,i) (BLB(node,i)->optimized_for_upgrade)
+#define BLB_SOFTCOPYISUPTODATE(node,i) (BLB(node,i)->soft_copy_is_up_to_date)
+#define BLB_BUFFER(node,i) (BLB(node,i)->buffer)
+#define BLB_NBYTESINBUF(node,i) (BLB(node,i)->n_bytes_in_buffer)
+#define BLB_SEQINSERT(node,i) (BLB(node,i)->seqinsert)
 
 /* pivot flags  (must fit in 8 bits) */
 enum {
@@ -354,7 +423,11 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int6
 int toku_deserialize_brtheader_from (int fd, LSN max_acceptable_lsn, struct brt_header **brth);
 int toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
 void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
-void toku_setup_empty_bn(BASEMENTNODE bn);
+BASEMENTNODE toku_create_empty_bn(void);
+BASEMENTNODE toku_create_empty_bn_no_buffer(void); // create a basement node with a null buffer.
+NONLEAF_CHILDINFO toku_create_empty_nl(void);
+void destroy_basement_node (BASEMENTNODE bn);
+void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl);
 void toku_destroy_brtnode_internals(BRTNODE node);
 void toku_brtnode_free (BRTNODE *node);
 void toku_assert_entire_node_in_memory(BRTNODE node);
@@ -420,9 +493,9 @@ struct brt_cursor {
 
 typedef struct ancestors *ANCESTORS;
 struct ancestors {
-    BRTNODE   node;
-    int       childnum; // which buffer holds our ancestors.
-    ANCESTORS next;
+    BRTNODE   node;     // This is the root node if next is NULL.
+    int       childnum; // which buffer holds messages destined to the node whose ancestors this list represents.
+    ANCESTORS next;     // Parent of this node (so next->node.(next->childnum) refers to this node).
 };
 struct pivot_bounds {
     struct kv_pair const * const lower_bound_exclusive;
@@ -536,11 +609,13 @@ brt_leaf_apply_cmd_once (
     const BRT_MSG cmd,
     u_int32_t idx, 
     LEAFENTRY le, 
-    TOKULOGGER logger
+    TOKULOGGER logger,
+    uint64_t *workdonep
     );
+void brt_leaf_put_cmd (BRT t, BASEMENTNODE bn, SUBTREE_EST se, BRT_MSG cmd, bool *made_change, uint64_t *workdonep);
 
 void 
-toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, int *made_change);
+toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change, uint64_t *workdonep);
 
 void toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created);
 // Reset the root_xid_that_created field to the given value.  

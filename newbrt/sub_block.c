@@ -13,9 +13,14 @@
 #include "threadpool.h"
 #include "sub_block.h"
 #include "compress.h"
+#include "memory.h"
 
-void 
-sub_block_init(struct sub_block *sub_block) {
+SUB_BLOCK sub_block_creat(void) {
+    SUB_BLOCK XMALLOC(sb);
+    sub_block_init(sb);
+    return sb;
+}
+void sub_block_init(SUB_BLOCK sub_block) {
     sub_block->uncompressed_ptr = 0;
     sub_block->uncompressed_size = 0;
 
@@ -25,7 +30,7 @@ sub_block_init(struct sub_block *sub_block) {
 
     sub_block->xsum = 0;
 }
-
+    
 // get the size of the compression header
 size_t 
 sub_block_header_size(int n_sub_blocks) {
@@ -203,6 +208,8 @@ size_t
 compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *uncompressed_ptr, char *compressed_ptr, int num_cores, struct toku_thread_pool *pool) {
     char *compressed_base_ptr = compressed_ptr;
     size_t compressed_len;
+
+    // This is a complex way to write a parallel loop.  Cilk would be better.
 
     if (n_sub_blocks == 1) {
         // single sub-block 

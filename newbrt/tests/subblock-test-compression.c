@@ -23,7 +23,8 @@ test_sub_block_compression(void *buf, int total_size, int my_max_sub_blocks, int
     if (verbose)
         printf("%s:%d %d %d\n", __FUNCTION__, __LINE__, sub_block_size, n_sub_blocks);
 
-    struct sub_block sub_blocks[n_sub_blocks];
+    struct sub_block *sub_blocks[n_sub_blocks];
+    for (int i=0; i<n_sub_blocks; i++) sub_blocks[i] = sub_block_create();
     set_all_sub_block_sizes(total_size, sub_block_size, n_sub_blocks, sub_blocks);
 
     size_t cbuf_size_bound = get_sum_compressed_size_bound(n_sub_blocks, sub_blocks);
@@ -41,6 +42,7 @@ test_sub_block_compression(void *buf, int total_size, int my_max_sub_blocks, int
 
     assert(memcmp(buf, ubuf, total_size) == 0);
 
+    for (int i=0; i<n_sub_blocks; i++) sub_block_destroy(sub_blocks[i]);
     toku_free(ubuf);
     toku_free(cbuf);
 }

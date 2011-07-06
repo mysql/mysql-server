@@ -6,6 +6,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <compress.h>
+#include "brttypes.h"
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 extern "C" {
@@ -37,8 +38,8 @@ struct stored_sub_block {
     u_int32_t xsum;
 };
 
-void 
-sub_block_init(struct sub_block *sub_block);
+void sub_block_init(SUB_BLOCK);
+SUB_BLOCK sub_block_creat(void);
 
 // get the size of the compression header
 size_t 
