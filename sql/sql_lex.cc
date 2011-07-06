@@ -3413,7 +3413,9 @@ bool SELECT_LEX::merge_subquery(TABLE_LIST *derived, SELECT_LEX *subq_select,
          in_subq++)
     {
       join->sj_subselects.append(join->thd->mem_root, *in_subq);
-      (*in_subq)->emb_on_expr_nest= derived;
+      DBUG_ASSERT((*in_subq)->emb_on_expr_nest != NULL);
+      if ((*in_subq)->emb_on_expr_nest == NO_JOIN_NEST)
+        (*in_subq)->emb_on_expr_nest= derived;
     }
   }
   /*

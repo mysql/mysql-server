@@ -1424,5 +1424,40 @@ WHERE t1.f1 IN (
 
 DROP TABLE t1,t2,t3;
 
+
+--echo #
+--echo # BUG#611704: Crash in replace_where_subcondition with nested subquery and semijoin=on
+--echo # 
+
+CREATE TABLE t1 ( f1 int) ;
+CREATE TABLE t2 ( f1 int) ;
+CREATE TABLE t3 ( f1 int) ;
+
+SELECT * FROM (
+        SELECT t3.*
+        FROM t2 STRAIGHT_JOIN t3
+        ON t3.f1
+        AND (t3.f1 ) IN (
+                SELECT t1.f1
+                FROM t1
+        )
+) AS alias1;
+DROP TABLE t1,t2,t3;
+
+--echo # BUG#611704: another testcase:
+CREATE TABLE t1 ( f1 int(11), f3 varchar(1), f4 varchar(1)) ;
+CREATE TABLE t2 ( f2 int(11), KEY (f2));
+CREATE TABLE t3 ( f4 varchar(1)) ;
+
+PREPARE st1 FROM '
+SELECT *
+FROM t1
+STRAIGHT_JOIN ( t2 STRAIGHT_JOIN t3 ON t2.f2 )
+ON (t1.f3) IN ( SELECT f4 FROM t1 )
+';
+EXECUTE st1;
+DROP TABLE t1,t2,t3;
+
+
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;
