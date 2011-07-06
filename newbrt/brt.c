@@ -2930,7 +2930,6 @@ static u_int32_t get_roothash (BRT brt) {
     return rh->fullhash;
 }
 
-// apply a single message, stored in root's buffer(s), to all relevant leaves that are in memory
 static void apply_cmd_to_in_memory_non_root_leaves (
     BRT t, 
     CACHEKEY nodenum, 
@@ -2940,13 +2939,15 @@ static void apply_cmd_to_in_memory_non_root_leaves (
     BRTNODE parent, 
     int parents_childnum,
     uint64_t * workdone_this_childpath_p
-    ) 
-{
-    void *node_v;
-    int r = toku_cachetable_get_and_pin_if_in_memory(t->cf, nodenum, fullhash, &node_v);
-    if (r) { goto exit; }
+    );
 
-    BRTNODE node = node_v;
+static void apply_cmd_to_in_memory_non_root_leaves_starting_at_node (BRT t, 
+								     BRTNODE node,
+								     BRT_MSG cmd, 
+								     BOOL is_root, 
+								     BRTNODE parent, 
+								     int parents_childnum,
+								     uint64_t * workdone_this_childpath_p)  {
     // internal node
     if (node->height>0) {
 	if (brt_msg_applies_once(cmd)) {
@@ -2974,6 +2975,26 @@ static void apply_cmd_to_in_memory_non_root_leaves (
     if (parent) {
 	fixup_child_estimates(parent, parents_childnum, node, FALSE);
     }
+}
+
+// apply a single message, stored in root's buffer(s), to all relevant leaves that are in memory
+static void apply_cmd_to_in_memory_non_root_leaves (
+    BRT t, 
+    CACHEKEY nodenum, 
+    u_int32_t fullhash, 
+    BRT_MSG cmd, 
+    BOOL is_root, 
+    BRTNODE parent, 
+    int parents_childnum,
+    uint64_t * workdone_this_childpath_p
+    )
+{
+    void *node_v;
+    int r = toku_cachetable_get_and_pin_if_in_memory(t->cf, nodenum, fullhash, &node_v);
+    if (r) { goto exit; }
+
+    BRTNODE node = node_v;
+    apply_cmd_to_in_memory_non_root_leaves_starting_at_node(t, node, cmd, is_root, parent, parents_childnum, workdone_this_childpath_p);
     
     toku_unpin_brtnode(t, node);
 exit:
@@ -3021,7 +3042,7 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
     // verify that msn of latest message was captured in root node (push_something_at_root() did not release ydb lock)
     invariant(cmd->msn.msn == node->max_msn_applied_to_node_in_memory.msn);
 
-    apply_cmd_to_in_memory_non_root_leaves(brt, *rootp, fullhash, cmd, TRUE, NULL, -1, NULL);
+    apply_cmd_to_in_memory_non_root_leaves_starting_at_node(brt, node, cmd, TRUE, NULL, -1, NULL);
     if (node->height > 0 && nonleaf_node_is_gorged(node)) {
 	// No need for a loop here.  We only inserted one message, so flushing a single child suffices.
 	flush_some_child(brt, node, TRUE, TRUE,
