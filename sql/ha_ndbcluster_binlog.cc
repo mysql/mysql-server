@@ -4515,6 +4515,7 @@ ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
   build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
   if (find_files(thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
   {
+    thd->clear_error();
     DBUG_PRINT("info", ("Failed to find files"));
     DBUG_RETURN(true);
   }

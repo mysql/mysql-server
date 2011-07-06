@@ -89,6 +89,7 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
         should_ignore_error(ignore_mysql_errors, last_errno))
     {
       /* MySQL level error suppressed -> return success */
+      m_thd->clear_error();
       DBUG_RETURN(false);
     }
 
@@ -100,6 +101,7 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
          suppressor->should_ignore_error(con))
     {
       /* Error suppressed -> return sucess */
+      m_thd->clear_error();
       DBUG_RETURN(false);
     }
 
