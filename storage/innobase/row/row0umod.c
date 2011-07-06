@@ -574,8 +574,15 @@ row_undo_mod_upd_del_sec(
 	     mem_heap_empty(heap),
 		     node->index = dict_table_get_next_index(node->index)) {
 		dict_index_t*	index	= node->index;
-		dtuple_t*	entry	= row_build_index_entry(
+		dtuple_t*	entry;
+
+		if (index->type & DICT_FTS) {
+			continue;
+		}
+
+		entry = row_build_index_entry(
 			node->row, node->ext, index, heap);
+
 		if (UNIV_UNLIKELY(!entry)) {
 			/* The database must have crashed after
 			inserting a clustered index record but before
