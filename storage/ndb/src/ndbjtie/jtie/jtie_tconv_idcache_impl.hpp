@@ -197,9 +197,17 @@ struct MemberId {
         assert(env->ExceptionCheck() == JNI_OK);
         jclass cls = env->FindClass(C::class_name);
         if (cls == NULL) { // break out for better diagnostics
-            // XXX better handle error diagnostocs
-            printf("JTie: failed to find Java class '%s'\n", C::class_name);
             assert(env->ExceptionCheck() != JNI_OK); // exception pending
+
+//#ifndef NDEBUG // XXX for debugging
+            // print error diagnostics
+            char m[256];
+            snprintf(m, 256, "JTie: failed to find Java class '%s'\n",
+                     (C::class_name == NULL ? "NULL" : C::class_name));
+            fprintf(stderr, m);
+            env->ExceptionDescribe();
+            env->FatalError(m); // XXX for debugging
+//#endif // NDEBUG
         } else {
             assert(env->ExceptionCheck() == JNI_OK); // ok
         }
@@ -338,7 +346,6 @@ struct MemberIdStrongCache : MemberIdCache< C > {
             } else {
                 setClass(env, cls);
             }
-            setClass(env, cls);
         }
         return cls;
     }
