@@ -1087,13 +1087,6 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 extern Item **not_found_item;
 
 /*
-  A set of constants used for checking non aggregated fields and sum
-  functions mixture in the ONLY_FULL_GROUP_BY_MODE.
-*/
-#define NON_AGG_FIELD_USED  1
-#define SUM_FUNC_USED       2
-
-/*
   This enumeration type is used only by the function find_item_in_list
   to return the info on how an item has been resolved against a list
   of possibly aliased items.
@@ -1264,6 +1257,8 @@ bool init_errmessage(void);
 
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
+bool is_secure_file_path(char *path);
+
 File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
 
