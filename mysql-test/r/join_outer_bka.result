@@ -1,8 +1,4 @@
-set optimizer_join_cache_level=6;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	6
-set optimizer_switch='mrr_cost_based=off';
+set optimizer_switch='batch_key_access=on,mrr_cost_based=off';
 drop table if exists t0,t1,t2,t3,t4,t5;
 CREATE TABLE t1 (
 grp int(11) default NULL,
@@ -1745,5 +1741,4 @@ execute prep_stmt_9846;
 field1
 deallocate prepare prep_stmt_9846;
 drop table t1;
-set optimizer_join_cache_level=default;
 set optimizer_switch=default;

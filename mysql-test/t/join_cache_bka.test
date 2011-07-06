@@ -1,5 +1,4 @@
-set optimizer_switch='batch_key_access=on';
-set optimizer_switch='mrr_cost_based=off';
+set optimizer_switch='batch_key_access=on,mrr_cost_based=off';
 
 --source include/join_cache.inc
 

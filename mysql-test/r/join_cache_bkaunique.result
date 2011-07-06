@@ -1,5 +1,5 @@
-set optimizer_join_cache_level = 7;;
-set optimizer_switch='mrr_cost_based=off';
+SET debug= '+d,test_bka_unique';
+set optimizer_switch='batch_key_access=on,mrr_cost_based=off';
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
 set names utf8;
@@ -2363,5 +2363,4 @@ t1a	t1b	t2a	t2b
 
 DROP TABLE t1,t2;
 set @@join_buffer_size=default;
-set optimizer_join_cache_level = default;
 set optimizer_switch = default;

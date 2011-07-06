@@ -1635,10 +1635,6 @@ static bool fix_optimizer_switch(sys_var *self, THD *thd,
   sv->engine_condition_pushdown= 
     test(sv->optimizer_switch & OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
 
-  if ((sv->optimizer_switch & OPTIMIZER_SWITCH_BKA) &&
-      (sv->optimizer_join_cache_level < 6))
-    sv->optimizer_join_cache_level = 6;
-
   return false;
 }
 static Sys_var_flagset Sys_optimizer_switch(

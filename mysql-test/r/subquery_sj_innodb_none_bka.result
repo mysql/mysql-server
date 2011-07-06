@@ -1,7 +1,4 @@
-set optimizer_join_cache_level=6;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	6
+set optimizer_switch='batch_key_access=on,mrr_cost_based=off';
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (
@@ -165,4 +162,4 @@ AND i = 2;
 i
 DROP TABLE t1, t2;
 set optimizer_switch=default;
-set optimizer_join_cache_level=default;
+set optimizer_switch=default;
