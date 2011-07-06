@@ -24,7 +24,6 @@ connection server1;
 create table t3 (a int primary key) engine=ndbcluster;
 
 connection server2;
-begin;
 insert into t3 values (1);
 
 connection server1;
@@ -36,7 +35,6 @@ connection server2;
 ## This should work as transaction is ongoing...
 #delete from t3;
 #insert into t3 values (1);
-commit; 
 
 # This should fail as its a new transaction
 --error 1146
