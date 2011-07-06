@@ -232,12 +232,10 @@ static void fill_rowset (struct rowset *rows,
 			 uint64_t *size_est) {
     init_rowset(rows, toku_brtloader_get_rowset_budget_for_testing());
     for (int i=0; i<n; i++) {
-	DBT key = {.size=sizeof(keys[i]),
-		   .data=&keys[i]};
-	DBT val = {.size=strlen(vals[i]),
-		   .data=(void *)vals[i]};
+	DBT key = {.size=sizeof(keys[i]), .data=&keys[i]};
+	DBT val = {.size=strlen(vals[i]), .data=(void *)vals[i]};
 	add_row(rows, &key, &val);
-	*size_est += key.size + val.size + disksize_row_overhead;
+	*size_est += brtloader_leafentry_size(key.size, val.size, TXNID_NONE);
     }
 }
 

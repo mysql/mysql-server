@@ -91,15 +91,15 @@ struct __attribute__ ((__packed__)) leafentry {
 #pragma pack(pop)
 #endif
 
-#define LE_CLEAN_MEMSIZE(keylen, vallen)                         \
-    (sizeof(((LEAFENTRY)NULL)->type)      /* num_uxrs */   \
+#define LE_CLEAN_MEMSIZE(_keylen, _vallen)                       \
+    (sizeof(((LEAFENTRY)NULL)->type)            /* type */       \
     +sizeof(((LEAFENTRY)NULL)->keylen)          /* keylen */     \
     +sizeof(((LEAFENTRY)NULL)->u.clean.vallen)  /* vallen */     \
-    +keylen                                     /* actual key */ \
-    +vallen)                                    /* actual val */
+    +(_keylen)                                    /* actual key */     \
+    +(_vallen))                                   /* actual val */
 
 #define LE_MVCC_COMMITTED_HEADER_MEMSIZE                          \
-    (sizeof(((LEAFENTRY)NULL)->type)      /* num_uxrs */    \
+    (sizeof(((LEAFENTRY)NULL)->type)            /* type */        \
     +sizeof(((LEAFENTRY)NULL)->keylen)          /* keylen */      \
     +sizeof(((LEAFENTRY)NULL)->u.mvcc.num_cxrs) /* committed */   \
     +sizeof(((LEAFENTRY)NULL)->u.mvcc.num_pxrs) /* provisional */ \
@@ -107,10 +107,10 @@ struct __attribute__ ((__packed__)) leafentry {
     +sizeof(uint32_t)                           /* length+bit */  \
     +sizeof(uint32_t))                          /* length+bit */ 
 
-#define LE_MVCC_COMMITTED_MEMSIZE(keylen, vallen)    \
+#define LE_MVCC_COMMITTED_MEMSIZE(_keylen, _vallen)    \
     (LE_MVCC_COMMITTED_HEADER_MEMSIZE                \
-    +keylen                        /* actual key */  \
-    +vallen)                       /* actual val */
+    +(_keylen)                        /* actual key */ \
+    +(_vallen))                       /* actual val */
 
 
 typedef struct leafentry *LEAFENTRY;

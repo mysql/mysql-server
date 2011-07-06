@@ -65,7 +65,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
 	DBT val = {.size=sizeof i,
 		   .data=&i};
 	add_row(&aset, &key, &val);
-	size_est += key.size + val.size + disksize_row_overhead;
+	size_est += brtloader_leafentry_size(key.size, val.size, TXNID_NONE);
     }
 
     toku_brt_loader_set_n_rows(&bl, n);
@@ -102,7 +102,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
 	    assert(row->klen==sizeof(int));
 	    assert(row->vlen==sizeof(int));
 	    assert((int)(num_found+i)==*(int*)(rs->data+row->off));
-	    found_size_est += row->klen + row->vlen + disksize_row_overhead; 
+	    found_size_est += brtloader_leafentry_size(row->klen, row->vlen, TXNID_NONE);
 	}
 
 	num_found += rs->n_rows;
