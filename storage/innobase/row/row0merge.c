@@ -252,8 +252,9 @@ row_merge_buf_add(
 	dfield_t*		field;
 	const dict_field_t*	ifield;
 	ulint			n_row_added = 0;
-        ulint			init_pos = 0;
+	ulint			init_pos = 0;
 	ulint			bucket = 0;
+	ulint			zip_size;
 
 	if (buf->n_tuples >= buf->max_tuples) {
 		return(FALSE);
@@ -267,6 +268,8 @@ row_merge_buf_add(
 	index = (buf->index->type & DICT_FTS) ? fts_index : buf->index;
 
 	n_fields = dict_index_get_n_fields(index);
+
+	zip_size = dict_table_zip_size(index->table);
 
 	entry = mem_heap_alloc(buf->heap, n_fields * sizeof *entry);
 	buf->tuples[buf->n_tuples] = entry;
@@ -355,21 +358,39 @@ row_merge_buf_add(
 						doc_item);
 					n_row_added = 1;
 					continue;
-				}
-
-				n_row_added += row_merge_fts_doc_tokenize(
-					&buf, row_field, *doc_id, NULL, NULL,
-					0, NULL, NULL, FALSE, &init_pos,
-					NULL, NULL, NULL);
-
-				if (!n_row_added) {
-					/* Not enough space */
-					return(0);
 				} else {
-					/* Already processed this
-					field, proceed to the next
-					field */
-					continue;
+					dtype_t		w_dtype;
+					fts_doc_t	doc;
+					ibool		processed;
+
+					doc.charset = fts_index_get_charset(
+						(dict_index_t*) index);
+
+					w_dtype.prtype =
+						ifield->col->prtype;
+					w_dtype.mbminmaxlen =
+						ifield->col->mbminmaxlen;
+					w_dtype.mtype =
+						(strcmp(doc.charset->name,
+						 "latin1_swedish_ci") == 0)
+							? DATA_VARCHAR
+							: DATA_VARMYSQL;
+
+					processed = row_merge_fts_doc_tokenize(
+						&buf, row_field, *doc_id,
+						&doc, NULL, zip_size, buf->heap,
+						NULL, &w_dtype, &init_pos,
+						NULL, &n_row_added, NULL);
+
+					if (!processed) {
+						/* Not enough space */
+						return(0);
+					} else {
+						/* Already processed this
+						field, proceed to the next
+						field */
+						continue;
+					}
 				}
 			}
 		}

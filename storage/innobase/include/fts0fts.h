@@ -742,7 +742,7 @@ enum	fts_status {
 	ADD_THREAD_STARTED = 4,	/* TRUE if the FTS add thread started */
 	ADDED_TABLE_SYNCED = 8,	/* TRUE if the ADDED table record is sync-ed
 				after crash recovery */
-	TABLE_DICT_LOCKED = 16,	/* Set if the table has dict_sys->mutex */
+	TABLE_DICT_LOCKED = 16	/* Set if the table has dict_sys->mutex */
 };
 
 typedef	enum fts_status	fts_status_t;

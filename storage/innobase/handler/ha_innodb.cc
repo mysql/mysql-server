@@ -4544,7 +4544,7 @@ innobase_strnxfrm(
 	ulint		len)		/*!< in: string length */
 {
 	uchar		mystr[2];
-	int16_t		value;
+	ulint		value;
 
 	if (!str || len == 0) {
 		return(0);
@@ -4554,9 +4554,11 @@ innobase_strnxfrm(
 
 	value = mach_read_from_2(mystr);
 
-	ut_ad(value >=0);
+	if (value > 255) {
+		value = value / 256;
+	}
 
-	return((ulint)value);
+	return(value);
 }
 
 /******************************************************************//**
