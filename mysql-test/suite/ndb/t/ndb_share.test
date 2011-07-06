@@ -2,6 +2,10 @@
 -- source include/have_ndb.inc
 -- source include/have_log_bin.inc
 
+-- disable_query_log
+call mtr.add_suppression('.*You need to use --log-bin to make --binlog-format work.*');
+-- enable_query_log
+
 connect (server1,127.0.0.1,root,,test,$MYSQLD1_PORT,);
 connect (server2,127.0.0.1,root,,test,$MYSQLD2_PORT,);
 connect (server3,127.0.0.1,root,,test,$MYSQLD3_PORT,);
