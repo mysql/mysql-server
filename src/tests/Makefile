@@ -44,7 +44,7 @@ FAIL3312C_SRCS = filesize.c test_update_broadcast_stress.c test3529.c
 # and patch out loader-stress-test3 (see below)
 #SRCS = $(sort $(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(wildcard *.c)))
 # To patch out tests failing on 3312c branch (including upgrade tests), use this:
-SRCS = $(sort $(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(filter-out $(FAIL3312C_SRCS),$(wildcard *.c))))
+SRCS = $(sort $(filter-out test_thread_stack.c,$(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(filter-out $(FAIL3312C_SRCS),$(wildcard *.c)))))
 
 
 #end
