@@ -83,7 +83,8 @@ Ndb_scan_count	#
 Ndb_schema_locks_count	#
 Ndb_slave_max_replicated_epoch	#
 Ndb_sorted_scan_count	#
-SHOW GLOBAL VARIABLES LIKE 'ndb\_%';
+SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and 
+Variable_name NOT LIKE 'ndb_check_shares';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
 ndb_batch_size	#
