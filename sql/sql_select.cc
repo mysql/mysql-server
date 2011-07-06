@@ -10747,22 +10747,18 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     depend on:
       - the access method to access rows of the joined table
       - whether the join table is an inner table of an outer join or semi-join
-      - the join cache level set for the query
+      - the optimizer_switch settings for join buffering
       - the join 'options'.
     In any case join buffer is not used if the number of the joined table is
-    greater than 'no_jbuf_after'. It's also never used if the value of
-    join_cache_level is equal to 0.
-    The other valid settings of join_cache_level lay in the interval 1..8.
-    If join_cache_level==1|2 then join buffer is used only for inner joins
-    with 'JT_ALL' access method.  
-    If join_cache_level==3|4 then join buffer is used for any join operation
-    (inner join, outer join, semi-join) with 'JT_ALL' access method.
-    If 'JT_ALL' access method is used to read rows of the joined table then
-    always a JOIN_CACHE_BNL object is employed.
-    If an index is used to access rows of the joined table and the value of
-    join_cache_level==5|6 then a JOIN_CACHE_BKA object is employed. 
-    If an index is used to access rows of the joined table and the value of
-    join_cache_level==7|8 then a JOIN_CACHE_BKA_UNIQUE object is employed. 
+    greater than 'no_jbuf_after'. It's also never used if the optimizer
+    switches block_nested_loop and batch_key_access is both turned off.
+    If block_nested_loop is turned on (default), then join buffer is used 
+    for any join operation (inner join, outer join, semi-join) with 'JT_ALL' 
+    access method.  In that case, a JOIN_CACHE_BNL object is always employed.
+    If an index is used to access rows of the joined table and batch_key_access
+    is on then a JOIN_CACHE_BKA object is employed. (Unless debug flag,
+    test_bka unique is set, then a JOIN_CACHE_BKA_UNIQUE object is employed
+    instead.) 
     If the function decides that a join buffer can be used to join the table
     'tab' then it sets the value of tab->use_join_buffer to TRUE and assigns
     the selected join cache object to the field 'cache' of the previous
@@ -10778,10 +10774,6 @@ void revise_cache_usage(JOIN_TAB *join_tab)
   @note
     For a nested outer join/semi-join, currently, we either use join buffers for
     all inner tables or for none of them. 
-    Some engines (e.g. Falcon) currently allow to use only a join cache
-    of the type JOIN_CACHE_BKA_UNIQUE when the joined table is accessed through
-    an index. For these engines setting the value of join_cache_level to 5 or 6
-    results in that no join buffer is used to join the table. 
    
   @todo
     Support BKA inside SJ-Materialization nests. When doing this, we'll need

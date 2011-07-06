@@ -5725,7 +5725,6 @@ a	a
 DROP TABLE t0, t1, t2, t6, t8;
 SET @@default_storage_engine=default;
 SET @@optimizer_switch=default;
-SET @@optimizer_join_cache_level=default;
 # End of bug#51457
 set optimizer_switch=default;
 set optimizer_switch=default;

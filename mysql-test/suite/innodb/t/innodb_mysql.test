@@ -932,14 +932,10 @@ CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('1'), (NULL);
 INSERT INTO t2 VALUES (1, '1');
  
-set optimizer_join_cache_level=1;
-
 EXPLAIN
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
-
-set optimizer_join_cache_level=default;
 
 DROP TABLE t1,t2;
 

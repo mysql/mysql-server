@@ -89,5 +89,4 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
 
 DROP TABLE t5,t6,t7,t8;
 
-set optimizer_join_cache_level=default;
 set optimizer_switch=default;
