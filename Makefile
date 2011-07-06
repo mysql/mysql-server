@@ -38,8 +38,7 @@ build: $(patsubst %,%.dir, $(BUILDDIRS))
 %.local:
 	cd $(patsubst %.local, %,$@) && $(MAKE) local
 
-release: linux.local newbrt.local src.local
-	cd release && $(MAKE) setup
+release: linux.local newbrt.local src.local release.local
 
 CHECKS = $(patsubst %,%.checkdir,$(SRCDIRS))
 
