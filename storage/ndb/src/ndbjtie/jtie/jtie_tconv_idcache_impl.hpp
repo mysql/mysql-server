@@ -201,7 +201,11 @@ struct MemberId {
 //#ifndef NDEBUG // XXX for debugging
             // print error diagnostics
             char m[256];
+#ifndef _WIN32
             snprintf(m, 256, "JTie: failed to find Java class '%s'\n",
+#else
+            _snprintf(m, 256, "JTie: failed to find Java class '%s'\n",
+#endif
                      (C::class_name == NULL ? "NULL" : C::class_name));
             fprintf(stderr, m);
             env->ExceptionDescribe();
