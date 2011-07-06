@@ -1,12 +1,9 @@
-let $requires_join_cache_level = 7;
---source include/have_join_cache_level.inc
+--source include/have_debug.inc
+SET debug= '+d,test_bka_unique';
 
---eval set optimizer_join_cache_level = $requires_join_cache_level;
-
-set optimizer_switch='mrr_cost_based=off';
+set optimizer_switch='batch_key_access=on,mrr_cost_based=off';
 
 --source include/join_cache.inc
 
-set optimizer_join_cache_level = default;
 set optimizer_switch = default;
 

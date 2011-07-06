@@ -1,12 +1,8 @@
 # 
 # Run subquery_sj_firstmatch.test with BKA enabled 
 #
-let $requires_join_cache_level = 6;
---source include/have_join_cache_level.inc
-
-set optimizer_join_cache_level=6;
-show variables like 'optimizer_join_cache_level';
+set optimizer_switch='batch_key_access=on,mrr_cost_based=off';
 
 --source t/subquery_sj_firstmatch.test
 
-set optimizer_join_cache_level=default;
+set optimizer_switch=default;

@@ -7736,17 +7736,23 @@ bool Optimize_table_order::choose_table_order()
 
 uint join_buffer_alg(const THD *thd)
 {
-  // Cannot use join buffering if it is disabled by the user
-  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BNL))
-    return JOIN_CACHE::ALG_NONE;
-  else if (thd->variables.optimizer_join_cache_level <= 4)
-    return JOIN_CACHE::ALG_BNL;
-  else if (thd->variables.optimizer_join_cache_level <= 6)
-    return (JOIN_CACHE::ALG_BNL | JOIN_CACHE::ALG_BKA);
-  else if (thd->variables.optimizer_join_cache_level <= 8)
-    return JOIN_CACHE::ALG_BNL | JOIN_CACHE::ALG_BKA_UNIQUE;
+  uint alg= JOIN_CACHE::ALG_NONE;
 
-  return JOIN_CACHE::ALG_NONE;
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BNL))
+    alg|= JOIN_CACHE::ALG_BNL;
+
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BKA))
+  {
+    bool use_bka_unique= false;
+    DBUG_EXECUTE_IF("test_bka_unique", use_bka_unique= true;);
+    
+    if (use_bka_unique)
+      alg|= JOIN_CACHE::ALG_BKA_UNIQUE;
+    else
+      alg|= JOIN_CACHE::ALG_BKA;
+  }
+
+  return alg;
 }
 
 
@@ -10813,12 +10819,14 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache=0;
   const bool bnl_on= join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BNL);
-  const uint cache_level= join->thd->variables.optimizer_join_cache_level;
+  const bool bka_on= join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BKA);
   const uint tableno= tab - join->join_tab;
   const uint tab_sj_strategy= tab->get_sj_strategy();
+  bool use_bka_unique= false;
+  DBUG_EXECUTE_IF("test_bka_unique", use_bka_unique= true;);
   *icp_other_tables_ok= TRUE;
 
-  if (!(bnl_on || cache_level > 4) || tableno == join->const_tables)
+  if (!(bnl_on || bka_on) || tableno == join->const_tables)
   {
     DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
     return false;
@@ -10902,7 +10910,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
   case JT_CONST:
   case JT_REF:
   case JT_EQ_REF:
-    if (cache_level <= 4)
+    if (!bka_on)
     {
       DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
       goto no_join_cache;
@@ -10912,28 +10920,41 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
       flags|= HA_MRR_INDEX_ONLY;
     rows= tab->table->file->multi_range_read_info(tab->ref.key, 10, 20,
                                                   &bufsz, &flags, &cost);
-    if ((rows != HA_POS_ERROR) && !(flags & HA_MRR_USE_DEFAULT_IMPL) &&
-        (!(flags & HA_MRR_NO_ASSOCIATION) || cache_level > 6) &&
-        ((options & SELECT_DESCRIBE) ||
-         (((cache_level <= 6 && 
-            (tab->cache= new JOIN_CACHE_BKA(join, tab, flags, prev_cache))) ||
-           (cache_level > 6 &&  
-            (tab->cache= new JOIN_CACHE_BKA_UNIQUE(join, tab, flags, prev_cache)))
-           ) && !tab->cache->init())))
+    /*
+      Cannot use BKA/BKA_UNIQUE if
+      1. MRR scan cannot be performed, or
+      2. MRR default implementation is used
+      Cannot use BKA if
+      3. HA_MRR_NO_ASSOCIATION flag is set
+    */
+    if ((rows == HA_POS_ERROR) ||                               // 1
+        (flags & HA_MRR_USE_DEFAULT_IMPL) ||                    // 2
+        ((flags & HA_MRR_NO_ASSOCIATION) && !use_bka_unique))   // 3
+      goto no_join_cache;
+
+    if (!(options & SELECT_DESCRIBE))
     {
-      DBUG_ASSERT(might_do_join_buffering(join_buffer_alg(join->thd), tab));
-      if (cache_level <= 6)
-        tab->use_join_cache= JOIN_CACHE::ALG_BKA;
+      if (use_bka_unique)
+        tab->cache= new JOIN_CACHE_BKA_UNIQUE(join, tab, flags, prev_cache);
       else
-        tab->use_join_cache= JOIN_CACHE::ALG_BKA_UNIQUE;
-      return false;
+        tab->cache= new JOIN_CACHE_BKA(join, tab, flags, prev_cache);
+
+      if (!tab->cache || tab->cache->init())
+        goto no_join_cache;
     }
-    goto no_join_cache;
+     
+    DBUG_ASSERT(might_do_join_buffering(join_buffer_alg(join->thd), tab));
+    if (use_bka_unique)
+      tab->use_join_cache= JOIN_CACHE::ALG_BKA_UNIQUE;
+    else
+      tab->use_join_cache= JOIN_CACHE::ALG_BKA;
+
+    return false;
   default : ;
   }
 
 no_join_cache:
-  if (bnl_on || cache_level > 4)
+  if (bnl_on || bka_on)
     revise_cache_usage(tab);
   tab->use_join_cache= JOIN_CACHE::ALG_NONE;
   return false;

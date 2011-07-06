@@ -1,7 +1,4 @@
-set optimizer_join_cache_level=6;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	6
+set optimizer_switch='batch_key_access=on,mrr_cost_based=off';
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 drop table if exists t0, t1, t2, t10, t11, t12;
 create table t1 (a int not null, b int, primary key (a));
@@ -5649,4 +5646,4 @@ c	13
 DROP TABLE t1, t2;
 # End of bug#12603200
 set optimizer_switch=default;
-set optimizer_join_cache_level=default;
+set optimizer_switch=default;

@@ -1,8 +1,4 @@
-set optimizer_switch='mrr_cost_based=off';
-set optimizer_join_cache_level=6;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	6
+set optimizer_switch='batch_key_access=on,mrr_cost_based=off';
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
 CREATE TABLE t0 (a int, b int, c int);
 CREATE TABLE t1 (a int, b int, c int);
