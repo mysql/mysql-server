@@ -36,6 +36,8 @@ struct row_setup_consumers
   LEX_STRING m_name;
   /** Column ENABLED. */
   bool *m_enabled_ptr;
+  /** Hidden column, refresh. */
+  bool m_refresh;
 };
 
 /** Table PERFORMANCE_SCHEMA.SETUP_CONSUMERS. */
