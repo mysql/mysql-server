@@ -2151,10 +2151,6 @@ sub environment_setup {
 		  ["storage/ndb/tools", "bin"],
 		  "ndb_show_tables"));
 
-    $ENV{'NDB_TOOLS_DIR'}=
-      native_path(my_find_dir($basedir,
-		  ["storage/ndb/tools", "bin"]));
-
     $ENV{'NDB_EXAMPLES_DIR'}=
       native_path(my_find_dir($basedir,
 		  ["storage/ndb/ndbapi-examples", "bin"]));

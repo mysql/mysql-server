@@ -1,0 +1,166 @@
+-- source include/have_multi_ndb.inc
+
+
+#
+# alter - rename
+#
+connection server1;
+create table t1 ( a int ) engine = ndb;
+
+connection server2;
+begin;
+insert into t1 values(1);
+
+connection server1;
+alter table t1 rename t2;
+
+connection server2;
+commit;
+
+connection server1;
+drop table t2;
+
+connection server1;
+--error 0,1193
+set global ndb_check_shares=1;
+
+connection server2;
+--error 0,1193
+set global ndb_check_shares=1;
+
+#
+# alter online add column
+#
+connection server1;
+create table t1 ( a int primary key) engine = ndb;
+
+connection server2;
+begin;
+insert into t1 values(1);
+
+connection server1;
+alter online table t1 add column b int column_format dynamic;
+
+connection server2;
+commit;
+
+connection server1;
+drop table t1;
+
+connection server1;
+--error 0,1193
+set global ndb_check_shares=1;
+
+connection server2;
+--error 0,1193
+set global ndb_check_shares=1;
+
+#
+# alter offline add column
+#
+connection server1;
+create table t1 ( a int primary key) engine = ndb;
+
+connection server2;
+begin;
+insert into t1 values(1);
+
+connection server1;
+--error ER_LOCK_WAIT_TIMEOUT
+alter offline table t1 add column b int column_format dynamic;
+
+connection server2;
+commit;
+
+connection server1;
+drop table t1;
+
+connection server1;
+--error 0,1193
+set global ndb_check_shares=1;
+
+connection server2;
+--error 0,1193
+set global ndb_check_shares=1;
+
+#
+# online create index
+#
+connection server1;
+create table t1 ( a int primary key, b int) engine = ndb;
+
+connection server2;
+begin;
+insert into t1 values(1, 1);
+
+connection server1;
+create online index ind_b on t1(b);
+
+connection server2;
+commit;
+
+connection server1;
+drop table t1;
+
+connection server1;
+--error 0,1193
+set global ndb_check_shares=1;
+
+connection server2;
+--error 0,1193
+set global ndb_check_shares=1;
+
+#
+# online drop index
+#
+connection server1;
+create table t1 ( a int primary key, b int, index ind_b (b)) engine = ndb;
+
+connection server2;
+begin;
+insert into t1 values(1, 1);
+
+connection server1;
+drop index ind_b on t1;
+
+connection server2;
+commit;
+
+connection server1;
+drop table t1;
+
+connection server1;
+--error 0,1193
+set global ndb_check_shares=1;
+
+connection server2;
+--error 0,1193
+set global ndb_check_shares=1;
+
+#
+# alter db
+#
+connection server1;
+create database testdb;
+create table testdb.t1 (a int) engine = ndb;
+
+connection server2;
+begin;
+insert into testdb.t1 values(1);
+
+connection server1;
+alter database testdb charset = latin1;
+
+connection server2;
+commit;
+
+connection server1;
+drop database testdb;
+
+connection server1;
+--error 0,1193
+set global ndb_check_shares=1;
+
+connection server2;
+--error 0,1193
+set global ndb_check_shares=1;
