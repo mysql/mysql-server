@@ -1232,6 +1232,8 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
 }
 
 void st_select_lex::init_select()
@@ -1266,7 +1268,8 @@ void st_select_lex::init_select()
   non_agg_fields.empty();
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
-  full_group_by_flag= 0;
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
 }
 
 /*
