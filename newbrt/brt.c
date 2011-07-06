@@ -4919,6 +4919,7 @@ static int
 apply_buffer_messages_to_basement_node (
     BRT t, 
     BASEMENTNODE bn, 
+    SUBTREE_EST se, 
     BRTNODE ancestor, 
     int childnum, 
     struct pivot_bounds const * const bounds,
@@ -4962,7 +4963,7 @@ apply_buffer_messages_to_basement_node (
 											   toku_fill_dbt(&hv, val, vallen)} };
 			 uint64_t workdone_this_leaf = 0;
 			 brt_leaf_put_cmd(t,
-					  bn, &BP_SUBTREE_EST(ancestor, childnum),
+					  bn, se,
 					  &brtcmd, made_change, &workdone_this_leaf);
 			 BP_WORKDONE(ancestor, childnum) += workdone_this_leaf;
 			 workdone_this_leaf_total += workdone_this_leaf;
@@ -5067,7 +5068,7 @@ maybe_flush_pinned_node(BRT t, BRTNODE node, int childnum, BRTNODE child) {
 
 
 static void
-apply_ancestors_messages_to_leafnode_and_maybe_flush (BRT t, BASEMENTNODE bm, ANCESTORS ancestors, BRTNODE child,
+apply_ancestors_messages_to_leafnode_and_maybe_flush (BRT t, BASEMENTNODE bm, SUBTREE_EST se, ANCESTORS ancestors, BRTNODE child,
 						      const struct pivot_bounds const *bounds, bool *made_change)
 // Effect: Go through ancestors list applying messages from first ancestor (height one), then next, until
 //  all messages have been applied.
@@ -5085,8 +5086,8 @@ apply_ancestors_messages_to_leafnode_and_maybe_flush (BRT t, BASEMENTNODE bm, AN
 //   With background flushing we will be able to back to a simpler loop (since the recursion will be tail recursion).
 {
     if (ancestors) {
-	apply_buffer_messages_to_basement_node(t, bm, ancestors->node, ancestors->childnum, bounds, made_change); 
-	apply_ancestors_messages_to_leafnode_and_maybe_flush(t, bm, ancestors->next, ancestors->node, bounds, made_change);
+	apply_buffer_messages_to_basement_node(t, bm, se, ancestors->node, ancestors->childnum, bounds, made_change); 
+	apply_ancestors_messages_to_leafnode_and_maybe_flush(t, bm, se, ancestors->next, ancestors->node, bounds, made_change);
 	maybe_flush_pinned_node(t, ancestors->node, ancestors->childnum, child);
     } else {
 	// have just applied messages stored in root
@@ -5115,6 +5116,7 @@ maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors
 	update_stats = TRUE;
 	int height = 0;
 	BASEMENTNODE curr_bn = BLB(node, i);
+        SUBTREE_EST curr_se = &BP_SUBTREE_EST(node,i);
 	ANCESTORS curr_ancestors = ancestors;
 	struct pivot_bounds curr_bounds = next_pivot_keys(node, i, bounds);
 	BRTNODE child = node;
@@ -5123,6 +5125,7 @@ maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors
 	    apply_ancestors_messages_to_leafnode_and_maybe_flush(
 		t,
 		curr_bn,
+		curr_se,
 		curr_ancestors,
 		child,
 		&curr_bounds,
