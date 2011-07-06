@@ -19,13 +19,13 @@
   <parent>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-aggregate</artifactId>
-    <version>7.1.15-SNAPSHOT</version>
+    <version>7.1.16-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>clusterj</groupId>
   <artifactId>clusterj-jdbc</artifactId>
   <name>ClusterJ JDBC Plugin</name>
-  <version>7.1.15-SNAPSHOT</version>
+  <version>7.1.16-SNAPSHOT</version>
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
@@ -52,7 +52,7 @@
     <dependency>
       <groupId>mysql</groupId>
       <artifactId>mysql-connector-java</artifactId>
-      <scope>provided</scope>
+      <scope>compile</scope>
     </dependency>
     <dependency>
     	<groupId>com.mysql.clusterj</groupId>

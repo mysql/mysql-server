@@ -1005,8 +1005,6 @@ ndb_schema_table__create(THD *thd)
   DBUG_RETURN(res);
 }
 
-
-
 class Thd_ndb_options_guard
 {
 public:
@@ -7027,6 +7025,58 @@ restart_cluster_failure:
     Thd_ndb::release(thd_ndb);
     thd_set_thd_ndb(thd, NULL);
     thd_ndb= NULL;
+  }
+
+  /**
+   * release all extra references from tables
+   */
+  {
+    if (opt_ndb_extra_logging > 9)
+      sql_print_information("NDB Binlog: Release extra share references");
+
+    pthread_mutex_lock(&ndbcluster_mutex);
+    for (uint i= 0; i < ndbcluster_open_tables.records;)
+    {
+      NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,
+                                                      i);
+      if (share->state != NSS_DROPPED)
+      {
+        /*
+          The share kept by the server has not been freed, free it
+        */
+        share->state= NSS_DROPPED;
+        /* ndb_share reference create free */
+        DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
+                                 share->key, share->use_count));
+        free_share(&share, TRUE);
+
+        /**
+         * This might have altered hash table...not sure if it's stable..
+         *   so we'll restart instead
+         */
+        i = 0;
+      }
+      else
+      {
+        i++;
+      }
+    }
+    pthread_mutex_unlock(&ndbcluster_mutex);
+  }
+
+  close_cached_tables((THD*) 0, (TABLE_LIST*) 0, FALSE, FALSE, FALSE);
+  if (opt_ndb_extra_logging > 15)
+  {
+    sql_print_information("NDB Binlog: remaining open tables: ");
+    for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+    {
+      NDB_SHARE* share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,i);
+      sql_print_information("  %s.%s state: %u use_count: %u",
+                            share->db,
+                            share->table_name,
+                            (uint)share->state,
+                            share->use_count);
+    }
   }
 
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)
