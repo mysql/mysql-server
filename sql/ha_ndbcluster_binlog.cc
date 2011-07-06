@@ -1296,7 +1296,12 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
                    " end_pos BIGINT UNSIGNED NOT NULL, "
                    " PRIMARY KEY USING HASH (server_id) ) ENGINE=NDB CHARACTER SET latin1");
 
-  const int no_print_error[6]= {ER_TABLE_EXISTS_ERROR,
+  const int no_print_error[]= { ER_TABLE_EXISTS_ERROR,
+                                /**
+                                 * 157(no-connection) has no special ER_
+                                 *   but simply gives ER_CANT_CREATE_TABLE
+                                 */
+                                ER_CANT_CREATE_TABLE,
                                 701,
                                 702,
                                 721, // Table already exist
@@ -1373,7 +1378,12 @@ static int ndbcluster_create_schema_table(THD *thd)
                    " type INT UNSIGNED NOT NULL,"
                    " PRIMARY KEY USING HASH (db,name) ) ENGINE=NDB CHARACTER SET latin1");
 
-  const int no_print_error[6]= {ER_TABLE_EXISTS_ERROR,
+  const int no_print_error[]= { ER_TABLE_EXISTS_ERROR,
+                                /**
+                                 * 157(no-connection) has no special ER_
+                                 *   but simply gives ER_CANT_CREATE_TABLE
+                                 */
+                                ER_CANT_CREATE_TABLE,
                                 701,
                                 702,
                                 721, // Table already exist
@@ -7415,6 +7425,58 @@ restart_cluster_failure:
     ha_ndbcluster::release_thd_ndb(thd_ndb);
     set_thd_ndb(thd, NULL);
     thd_ndb= NULL;
+  }
+
+  /**
+   * release all extra references from tables
+   */
+  {
+    if (opt_ndb_extra_logging > 9)
+      sql_print_information("NDB Binlog: Release extra share references");
+
+    pthread_mutex_lock(&ndbcluster_mutex);
+    for (uint i= 0; i < ndbcluster_open_tables.records;)
+    {
+      NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,
+                                                      i);
+      if (share->state != NSS_DROPPED)
+      {
+        /*
+          The share kept by the server has not been freed, free it
+        */
+        share->state= NSS_DROPPED;
+        /* ndb_share reference create free */
+        DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
+                                 share->key, share->use_count));
+        free_share(&share, TRUE);
+
+        /**
+         * This might have altered hash table...not sure if it's stable..
+         *   so we'll restart instead
+         */
+        i = 0;
+      }
+      else
+      {
+        i++;
+      }
+    }
+    pthread_mutex_unlock(&ndbcluster_mutex);
+  }
+
+  close_cached_tables((THD*) 0, (TABLE_LIST*) 0, FALSE, FALSE, FALSE);
+  if (opt_ndb_extra_logging > 15)
+  {
+    sql_print_information("NDB Binlog: remaining open tables: ");
+    for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+    {
+      NDB_SHARE* share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,i);
+      sql_print_information("  %s.%s state: %u use_count: %u",
+                            share->db,
+                            share->table_name,
+                            (uint)share->state,
+                            share->use_count);
+    }
   }
 
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)
