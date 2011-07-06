@@ -1708,6 +1708,36 @@ int toku_cachetable_get_and_pin_if_in_memory (CACHEFILE cachefile, CACHEKEY key,
     return r;
 }
 
+//Used by shortcut query path.
+//Same as toku_cachetable_maybe_get_and_pin except that we don't care if the node is clean or dirty (return the node regardless).
+//All other conditions remain the same.
+int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value) {
+    CACHETABLE ct = cachefile->cachetable;
+    PAIR p;
+    int count = 0;
+    int r = -1;
+    cachetable_lock(ct);
+    cachetable_maybe_get_and_pins++;
+    for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
+	count++;
+	if (p->key.b==key.b && p->cachefile==cachefile) {
+            if (p->state == CTPAIR_IDLE && //If not idle, will require a stall and/or might be GONE once not idle
+                !p->checkpoint_pending &&  //If checkpoint pending, we would need to first write it, which would make it clean (if the pin would be used for writes.  If would be used for read-only we could return it, but that would increase complexity)
+                rwlock_try_prefer_read_lock(&p->rwlock, ct->mutex) == 0 //Grab read lock only if no stall required
+            ) {
+                cachetable_maybe_get_and_pin_hits++;
+                *value = p->value;
+                r = 0;
+                //printf("%s:%d cachetable_maybe_get_and_pin_clean(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
+            }
+            break;
+	}
+    }
+    note_hash_count(count);
+    cachetable_unlock(ct);
+    return r;
+}
+
 static int
 toku_cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, enum cachetable_dirty dirty, long size, BOOL have_ct_lock)
 // size==0 means that the size didn't change.

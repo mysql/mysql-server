@@ -472,6 +472,8 @@ struct brt_cursor_leaf_info_to_be {
 
 // Values to be used to pin a leaf for shortcut searches
 struct brt_cursor_leaf_info {
+    BLOCKNUM  blocknumber;
+    u_int32_t fullhash;
     struct brt_cursor_leaf_info_to_be  to_be;
 };
 
