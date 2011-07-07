@@ -60,6 +60,9 @@ DELETE FROM t2_purge;
 DELETE FROM t3_purge;
 DELETE FROM t4_purge;
 
+SELECT sleep(10);
+drop table t1_purge, t2_purge, t3_purge, t4_purge;
+
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;
 
