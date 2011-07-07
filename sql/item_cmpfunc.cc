@@ -434,7 +434,7 @@ static bool convert_const_to_int(THD *thd, Item_field *field_item,
       field_item->field_type() != MYSQL_TYPE_YEAR)
     return 1;
 
-  if ((*item)->const_item())
+  if ((*item)->const_item() && !(*item)->is_expensive())
   {
     TABLE *table= field->table;
     ulong orig_sql_mode= thd->variables.sql_mode;
