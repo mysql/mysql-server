@@ -54,4 +54,20 @@ TEST_F(DecimalTest, CopyAndCompare)
   EXPECT_EQ(1, my_decimal_cmp(&d1, &d3));
 }
 
+
+TEST_F(DecimalTest, Swap)
+{
+  ulonglong val1= 1;
+  ulonglong val2= 2;
+  EXPECT_EQ(0, ulonglong2decimal(val1, &d1));
+  EXPECT_EQ(0, ulonglong2decimal(val2, &d2));
+  my_decimal d1copy(d1);
+  my_decimal d2copy(d2);
+  EXPECT_EQ(0, my_decimal_cmp(&d1, &d1copy));
+  EXPECT_EQ(0, my_decimal_cmp(&d2, &d2copy));
+  d1.swap(d2);
+  EXPECT_EQ(0, my_decimal_cmp(&d2, &d1copy));
+  EXPECT_EQ(0, my_decimal_cmp(&d1, &d2copy));
+}
+
 }

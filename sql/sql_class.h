@@ -3371,6 +3371,14 @@ public:
   */
   virtual void cleanup();
   void set_thd(THD *thd_arg) { thd= thd_arg; }
+
+  /**
+    If we execute EXPLAIN SELECT ... LIMIT (or any other EXPLAIN query)
+    we have to ignore offset value sending EXPLAIN output rows since
+    offset value belongs to the underlying query, not to the whole EXPLAIN.
+  */
+  void reset_offset_limit_cnt() { unit->offset_limit_cnt= 0; }
+
 #ifdef EMBEDDED_LIBRARY
   virtual void begin_dataset() {}
 #else
@@ -4078,6 +4086,11 @@ public:
 */
 #define CF_WRITE_RPL_INFO_COMMAND (1U << 12)
 
+/**
+  Identifies statements that can be explained with EXPLAIN.
+*/
+#define CF_CAN_BE_EXPLAINED       (1U << 13)
+
 /* Bits in server_command_flags */
 
 /**
@@ -4100,14 +4113,6 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);
-
-/*
-  This prototype is placed here instead of in item_func.h because it
-  depends on the definition of enum_sql_command, which is in this
-  file.
- */
-int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                        LEX_STRING &name, user_var_entry **out_entry);
 
 /* Inline functions */
 
