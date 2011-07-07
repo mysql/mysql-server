@@ -1574,6 +1574,9 @@ static void unlock_rwlock_v1(PSI_rwlock *rwlock)
       aggregate_single_stat_chain(&pfs_rwlock->m_read_lock_stat, locked_time);
     }
   }
+#else
+  (void) last_reader;
+  (void) last_writer;
 #endif
 }
 

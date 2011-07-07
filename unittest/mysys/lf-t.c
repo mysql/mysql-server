@@ -34,8 +34,7 @@ int with_my_thread_init=0;
 */
 pthread_handler_t test_lf_pinbox(void *arg)
 {
-  int    m= *(int *)arg;
-  int32 x= 0;
+  int m= *(int *)arg;
   LF_PINS *pins;
 
   if (with_my_thread_init)
@@ -43,7 +42,7 @@ pthread_handler_t test_lf_pinbox(void *arg)
 
   pins= lf_pinbox_get_pins(&lf_allocator.pinbox);
 
-  for (x= ((int)(intptr)(&m)); m ; m--)
+  for (; m ; m--)
   {
     lf_pinbox_put_pins(pins);
     pins= lf_pinbox_get_pins(&lf_allocator.pinbox);
