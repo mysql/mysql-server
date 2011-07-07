@@ -206,11 +206,12 @@ uint_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
 }
 
 #include <stdbool.h>
+#ifndef TRUE
 // typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
 #define TRUE true
 #define FALSE false
 typedef bool BOOL;
-
+#endif
 
 #ifdef USE_TDB
 #define SET_TRACE_FILE(x) toku_set_trace_file(x)

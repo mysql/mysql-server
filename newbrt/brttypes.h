@@ -77,10 +77,12 @@ typedef struct {
 } FILENUMS;
 
 #include <stdbool.h>
+#ifndef TRUE
 // In the future, use the stdbool bool and constants (true false), rather than BOOL, TRUE, and FALSE.
 #define TRUE true
 #define FALSE false
 typedef bool BOOL;
+#endif
 
 typedef struct tokulogger *TOKULOGGER;
 #define NULL_LOGGER ((TOKULOGGER)0)
