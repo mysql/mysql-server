@@ -308,9 +308,10 @@ public:
   Next_select_func next_select;
   READ_RECORD	read_record;
   /* 
-    Currently the following two fields are used only for a [NOT] IN subquery
-    if it is executed by an alternative full table scan when the left operand of
+    The following two fields are used for a [NOT] IN subquery if it is
+    executed by an alternative full table scan when the left operand of
     the subquery predicate is evaluated to NULL.
+    save_read_first_record is also used by semi-join materialization strategy.
   */  
   READ_RECORD::Setup_func save_read_first_record;/* to save read_first_record */
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
@@ -361,7 +362,11 @@ public:
   */ 
   ha_rows       limit; 
   TABLE_REF	ref;
-  /** Join cache type (same as return code of check_join_cache_level() */
+  /**
+    Join buffering strategy (same as return code of check_join_cache_level().
+    During optimization, this contains allowed join buffering strategies,
+    after optimization it contains chosen join buffering strategy (if any).
+   */
   uint          use_join_cache;
   JOIN_CACHE	*cache;
   /*
@@ -556,7 +561,7 @@ st_join_table::st_join_table()
 
     limit(0),
     ref(),
-    use_join_cache(FALSE),
+    use_join_cache(0),
     cache(NULL),
 
     cache_idx_cond(NULL),
@@ -2065,10 +2070,17 @@ public:
   void clear();
   bool save_join_tab();
   bool init_save_join_tab();
+  /**
+     Send a row even if the join produced no rows if:
+     - there is an aggregate function (sum_func_count!=0), and
+     - the query is not grouped, and
+     - a possible HAVING clause evaluates to TRUE.
+  */
   bool send_row_on_empty_set()
   {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-	    !group_list && select_lex->having_value != Item::COND_FALSE);
+	    group_list == NULL && !group_optimized_away &&
+            select_lex->having_value != Item::COND_FALSE);
   }
   bool change_result(select_result *result);
   bool is_top_level_join() const
@@ -2077,16 +2089,6 @@ public:
                                         select_lex == unit->fake_select_lex));
   }
   void cache_const_exprs();
-  /* 
-    Return the table for which an index scan can be used to satisfy 
-    the sort order needed by the ORDER BY/(implicit) GROUP BY clause 
-  */
-  JOIN_TAB *get_sort_by_join_tab()
-  {
-    return (!sort_by_table || skip_sort_order ||
-            ((group || tmp_table_param.sum_func_count) && !group_list)) ?
-              NULL : join_tab+const_tables;
-  }
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
@@ -2320,8 +2322,6 @@ bool mysql_select(THD *thd,
                   select_result *result, SELECT_LEX_UNIT *unit, 
                   SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
-bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
-                         select_result *result);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
                         Field **def_field,

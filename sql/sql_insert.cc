@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,9 +11,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Insert of records */
 
@@ -76,6 +77,7 @@
 #include "transaction.h"
 #include "sql_audit.h"
 #include "debug_sync.h"
+#include "opt_explain.h"
 
 #ifndef EMBEDDED_LIBRARY
 static bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
@@ -454,11 +456,12 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
         the statement indirectly via a stored function or trigger:
         if it is used, that will lead to a deadlock between the
         client connection and the delayed thread.
+      - we're running the EXPLAIN INSERT command
     */
     if (specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE) ||
         thd->variables.max_insert_delayed_threads == 0 ||
         thd->locked_tables_mode > LTM_LOCK_TABLES ||
-        thd->lex->uses_stored_routines())
+        thd->lex->uses_stored_routines() || thd->lex->describe)
     {
       *lock_type= TL_WRITE;
       return;
@@ -499,6 +502,7 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
         thread may be old and use the before-the-change value.
       */
       *lock_type= TL_WRITE;
+      return;
     }
   }
 }
@@ -658,6 +662,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 		  bool ignore)
 {
   int error, res;
+  bool err= true;
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   bool was_insert_delayed= (table_list->lock_type ==  TL_WRITE_DELAYED);
@@ -730,7 +735,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                            !ignore && (thd->variables.sql_mode &
                                        (MODE_STRICT_TRANS_TABLES |
                                         MODE_STRICT_ALL_TABLES))))
-    goto abort;
+    goto exit_without_my_ok;
 
   /* mysql_prepare_insert set table_list->table if it was not set */
   table= table_list->table;
@@ -761,15 +766,26 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (values->elements != value_count)
     {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
-      goto abort;
+      goto exit_without_my_ok;
     }
     if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_READ, 0, 0))
-      goto abort;
+      goto exit_without_my_ok;
   }
   its.rewind ();
  
   /* Restore the current context. */
   ctx_state.restore_state(context, table_list);
+
+  if (thd->lex->describe)
+  {
+    /*
+      Send "No tables used" and stop execution here since
+      there is no SELECT to explain.
+    */
+
+    err= explain_no_table(thd, "No tables used");
+    goto exit_without_my_ok;
+  }
 
   /*
     Fill in the given fields and dump it to the table file
@@ -798,7 +814,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       (info.handle_duplicates == DUP_UPDATE) &&
       (table->next_number_field != NULL) &&
       rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
-    goto abort;
+    goto exit_without_my_ok;
 #endif
 
   error=0;
@@ -1069,7 +1085,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
   if (error)
-    goto abort;
+    goto exit_without_my_ok;
   if (values_list.elements == 1 && (!(thd->variables.option_bits & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
   {
@@ -1097,7 +1113,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
 
-abort:
+exit_without_my_ok:
 #ifndef EMBEDDED_LIBRARY
   if (lock_type == TL_WRITE_DELAYED)
     end_delayed_insert(thd);
@@ -1107,7 +1123,7 @@ abort:
   if (!joins_freed)
     free_underlaid_joins(thd, &thd->lex->select_lex);
   thd->abort_on_warning= 0;
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(err);
 }
 
 
@@ -3329,7 +3345,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
   else if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-           thd->locked_tables_mode <= LTM_LOCK_TABLES)
+           thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+           !thd->lex->describe)
   {
     /*
       We must not yet prepare the result table if it is the same as one of the 
@@ -3395,7 +3412,8 @@ int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
   if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
-      thd->locked_tables_mode <= LTM_LOCK_TABLES)
+      thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+      !thd->lex->describe)
     table->file->ha_start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
 }

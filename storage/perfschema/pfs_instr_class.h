@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -76,16 +76,12 @@ extern uint wait_class_max;
 /** Information for all instrumentation. */
 struct PFS_instr_class
 {
-  /** Instrument name. */
-  char m_name[PFS_MAX_INFO_NAME_LENGTH];
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
-  /** Instrument flags. */
-  int m_flags;
   /** True if this instrument is enabled. */
   bool m_enabled;
   /** True if this instrument is timed. */
   bool m_timed;
+  /** Instrument flags. */
+  int m_flags;
   /**
     Instrument name index.
     Self index in:
@@ -94,6 +90,10 @@ struct PFS_instr_class
     - EVENTS_STATEMENTS_SUMMARY_*_BY_EVENT_NAME for statements
   */
   uint m_event_name_index;
+  /** Instrument name. */
+  char m_name[PFS_MAX_INFO_NAME_LENGTH];
+  /** Length in bytes of @c m_name. */
+  uint m_name_length;
 
   bool is_singleton() const
   {
@@ -114,8 +114,6 @@ struct PFS_mutex_class : public PFS_instr_class
     This statistic is not exposed in user visible tables yet.
   */
   PFS_single_stat m_lock_stat;
-  /** Self index in @c mutex_class_array. */
-  uint m_index;
   /** Singleton instance. */
   PFS_mutex *m_singleton;
 };
@@ -135,8 +133,6 @@ struct PFS_rwlock_class : public PFS_instr_class
     This statistic is not exposed in user visible tables yet.
   */
   PFS_single_stat m_write_lock_stat;
-  /** Self index in @c rwlock_class_array. */
-  uint m_index;
   /** Singleton instance. */
   PFS_rwlock *m_singleton;
 };
@@ -151,8 +147,6 @@ struct PFS_cond_class : public PFS_instr_class
     This statistic is not exposed in user visible tables yet.
   */
   PFS_cond_stat m_cond_stat;
-  /** Self index in @c cond_class_array. */
-  uint m_index;
   /** Singleton instance. */
   PFS_cond *m_singleton;
 };
@@ -160,14 +154,14 @@ struct PFS_cond_class : public PFS_instr_class
 /** Instrumentation metadata of a thread. */
 struct PFS_thread_class
 {
-  /** Thread instrument name. */
-  char m_name[PFS_MAX_INFO_NAME_LENGTH];
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
   /** True if this thread instrument is enabled. */
   bool m_enabled;
   /** Singleton instance. */
   PFS_thread *m_singleton;
+  /** Thread instrument name. */
+  char m_name[PFS_MAX_INFO_NAME_LENGTH];
+  /** Length in bytes of @c m_name. */
+  uint m_name_length;
 };
 
 /** Key identifying a table share. */
@@ -236,18 +230,18 @@ public:
 
   void refresh_setup_object_flags(PFS_thread *thread);
 
-  /**
-    Setup object refresh version.
-    Cache version used when computing the enabled / timed flags.
-    @sa setup_objects_version
-    @sa m_io_enabled
-    @sa m_lock_enabled
-    @sa m_io_timed
-    @sa m_lock_timed
-  */
-  uint m_setup_objects_version;
   /** Internal lock. */
   pfs_lock m_lock;
+  /**
+    True if table instrumentation is enabled.
+    This flag is computed from the content of table setup_objects.
+  */
+  bool m_enabled;
+  /**
+    True if table instrumentation is timed.
+    This flag is computed from the content of table setup_objects.
+  */
+  bool m_timed;
   /** Search key. */
   PFS_table_share_key m_key;
   /** Schema name. */
@@ -258,18 +252,10 @@ public:
   const char *m_table_name;
   /** Length in bytes of @c m_table_name. */
   uint m_table_name_length;
-  /** True if table io instrumentation is enabled. */
-  bool m_io_enabled;
-  /** True if table lock instrumentation is enabled. */
-  bool m_lock_enabled;
-  /** True if table io instrumentation is timed. */
-  bool m_io_timed;
-  /** True if table lock instrumentation is timed. */
-  bool m_lock_timed;
-  /** Table statistics. */
-  PFS_table_stat m_table_stat;
   /** Number of indexes. */
   uint m_key_count;
+  /** Table statistics. */
+  PFS_table_stat m_table_stat;
   /** Index names. */
   PFS_table_key m_keys[MAX_KEY];
 
@@ -297,8 +283,6 @@ struct PFS_file_class : public PFS_instr_class
 {
   /** File usage statistics. */
   PFS_file_stat m_file_stat;
-  /** Self index in @c file_class_array. */
-  uint m_index;
   /** Singleton instance. */
   PFS_file *m_singleton;
 };
@@ -308,15 +292,11 @@ struct PFS_stage_class : public PFS_instr_class
 {
   /** Stage usage statistics. */
   PFS_stage_stat m_stage_stat;
-  /** Self index in @c stage_class_array. */
-  uint m_index;
 };
 
 /** Instrumentation metadata for a statement. */
 struct PFS_statement_class : public PFS_instr_class
 {
-  /** Self index in @c statement_class_array. */
-  uint m_index;
 };
 
 void init_event_name_sizing(const PFS_global_param *param);
@@ -416,6 +396,9 @@ extern PFS_file_class *file_class_array;
 extern PFS_table_share *table_share_array;
 
 void reset_file_class_io();
+
+/** Update derived flags for all table shares. */
+void update_table_share_derived_flags(PFS_thread *thread);
 
 /** @} */
 #endif

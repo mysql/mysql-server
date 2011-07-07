@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -53,6 +53,10 @@ struct PFS_instr
 {
   /** Internal lock. */
   pfs_lock m_lock;
+  /** Enabled flag. */
+  bool m_enabled;
+  /** Timed flag. */
+  bool m_timed;
   /** Instrument wait statistics. */
   PFS_single_stat m_wait_stat;
 };
@@ -141,6 +145,27 @@ struct PFS_file : public PFS_instr
 /** Instrumented table implementation. @see PSI_table. */
 struct PFS_table
 {
+  /**
+    True if table io instrumentation is enabled.
+    This flag is computed.
+  */
+  bool m_io_enabled;
+  /**
+    True if table lock instrumentation is enabled.
+    This flag is computed.
+  */
+  bool m_lock_enabled;
+  /**
+    True if table io instrumentation is timed.
+    This flag is computed.
+  */
+  bool m_io_timed;
+  /**
+    True if table lock instrumentation is timed.
+    This flag is computed.
+  */
+  bool m_lock_timed;
+
 public:
   /**
     Aggregate this table handle statistics to the parents.
@@ -281,6 +306,12 @@ struct PFS_thread : PFS_connection_slice
 {
   static PFS_thread* get_current_thread(void);
 
+  /** Thread instrumentation flag. */
+  bool m_enabled;
+  /** Size of @c m_events_waits_stack. */
+  uint m_events_waits_count;
+  /** Event ID counter */
+  ulonglong m_event_id;
   /** Internal lock. */
   pfs_lock m_lock;
   /** Pins for filename_hash. */
@@ -297,10 +328,6 @@ struct PFS_thread : PFS_connection_slice
   LF_PINS *m_user_hash_pins;
   /** Pins for account_hash. */
   LF_PINS *m_account_hash_pins;
-  /** Event ID counter */
-  ulonglong m_event_id;
-  /** Thread instrumentation flag. */
-  bool m_enabled;
   /** Internal thread identifier, unique. */
   ulong m_thread_internal_id;
   /** Parent internal thread identifier. */
@@ -309,8 +336,6 @@ struct PFS_thread : PFS_connection_slice
   ulong m_thread_id;
   /** Thread class. */
   PFS_thread_class *m_class;
-  /** Size of @c m_events_waits_stack. */
-  uint m_events_waits_count;
   /**
     Stack of events waits.
     This member holds the data for the table PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT.
@@ -505,6 +530,19 @@ void aggregate_thread_stages(PFS_thread *thread);
 void aggregate_thread_statements(PFS_thread *thread);
 void clear_thread_account(PFS_thread *thread);
 void set_thread_account(PFS_thread *thread);
+
+/** Update derived flags for all mutex instances. */
+void update_mutex_derived_flags();
+/** Update derived flags for all rwlock instances. */
+void update_rwlock_derived_flags();
+/** Update derived flags for all condition instances. */
+void update_cond_derived_flags();
+/** Update derived flags for all file handles. */
+void update_file_derived_flags();
+/** Update derived flags for all table handles. */
+void update_table_derived_flags();
+/** Update derived flags for all instruments. */
+void update_instruments_derived_flags();
 
 /** @} */
 #endif
