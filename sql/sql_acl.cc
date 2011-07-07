@@ -7565,20 +7565,14 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
                    (uchar)(*passwd++) : strlen(passwd);
 
-  if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
-  {
-    db= db + passwd_len + 1;
-    /* strlen() can't be easily deleted without changing protocol */
-    db_len= strlen(db);
-  }
-  else
-  {
-    db= 0;
-    db_len= 0;
-  }
+  db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
+    db + passwd_len + 1 : 0;
 
-  if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
+  if (passwd + passwd_len + test(db) > (char *)net->read_pos + pkt_len)
     return packet_error;
+
+  /* strlen() can't be easily deleted without changing protocol */
+  db_len= db ? strlen(db) : 0;
 
   char *client_plugin= passwd + passwd_len + (db ? db_len + 1 : 0);
 
@@ -7646,8 +7640,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
 
   if (thd->client_capabilities & CLIENT_PLUGIN_AUTH)
   {
-    if ((client_plugin + strlen(client_plugin)) > 
-          (char *)net->read_pos + pkt_len)
+    if (client_plugin >= (char *)net->read_pos + pkt_len)
       return packet_error;
     client_plugin= fix_plugin_ptr(client_plugin);
   }
