@@ -5499,6 +5499,9 @@ void handle_connections_sockets()
 
   DBUG_ENTER("handle_connections_sockets");
 
+  (void) ip_flags;
+  (void) socket_flags;
+
 #ifndef HAVE_POLL
   FD_ZERO(&clientFDs);
 #endif
