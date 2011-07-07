@@ -2266,7 +2266,13 @@ dict_stats_update(
 
 		if (strchr(table->name, '/') == NULL
 		    || strcmp(table->name, INDEX_STATS_NAME) == 0
-		    || strcmp(table->name, TABLE_STATS_NAME) == 0) {
+		    || strcmp(table->name, TABLE_STATS_NAME) == 0
+		    || (ut_strcount(table->name, "FTS") > 0
+		        && (ut_strcount(table->name, "CONFIG") > 0
+			    || ut_strcount(table->name, "INDEX") > 0
+			    || ut_strcount(table->name, "DELETED") > 0
+			    || ut_strcount(table->name, "DOC_ID") > 0
+			    || ut_strcount(table->name, "ADDED") > 0))) {
 			/* Use the quick transient stats method for
 			InnoDB internal tables, because we know the
 			persistent stats storage does not contain data

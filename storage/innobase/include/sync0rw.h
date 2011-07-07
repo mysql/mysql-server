@@ -120,6 +120,7 @@ extern	mysql_pfs_key_t	dict_operation_lock_key;
 extern	mysql_pfs_key_t	checkpoint_lock_key;
 extern	mysql_pfs_key_t	fil_space_latch_key;
 extern	mysql_pfs_key_t	fts_cache_rw_lock_key;
+extern	mysql_pfs_key_t	fts_cache_init_rw_lock_key;
 extern	mysql_pfs_key_t	index_tree_rw_lock_key;
 extern	mysql_pfs_key_t	trx_i_s_cache_lock_key;
 extern	mysql_pfs_key_t	trx_purge_latch_key;

@@ -981,6 +981,7 @@ dict_load_columns(
 		shared by all FTS indexes on a table. */
 		if (innobase_strcasecmp(name,
 					FTS_DOC_ID_COL_NAME) == 0) {
+			dict_col_t*	col;
 			/* As part of normal loading of tables the
 			table->flag is not set for tables with FTS
 			till after the FTS indexes are loaded. So we
@@ -994,6 +995,15 @@ dict_load_columns(
 			}
 
 			ut_a(table->fts->doc_col == ULINT_UNDEFINED);
+
+			col = dict_table_get_nth_col(table, i);
+
+			ut_ad(col->len == sizeof(doc_id_t));
+
+			if (col->prtype & DATA_FTS_DOC_ID) {
+				DICT_TF2_FLAG_SET(
+					table, DICT_TF2_FTS_HAS_DOC_ID);
+			}
 
 			table->fts->doc_col = i;
 		}
