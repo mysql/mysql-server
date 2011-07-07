@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "sql_priv.h"
 #include "unireg.h"
@@ -756,6 +758,43 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
 }
 
 
+class Bad_db_error_handler : public Internal_error_handler
+{
+public:
+  Bad_db_error_handler()
+    :m_error_caught(false)
+  {}
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* message,
+                                MYSQL_ERROR ** cond_hdl);
+
+  bool error_caught() const { return m_error_caught; }
+
+private:
+  bool m_error_caught;
+};
+
+bool
+Bad_db_error_handler::handle_condition(THD *thd,
+                                       uint sql_errno,
+                                       const char* sqlstate,
+                                       MYSQL_ERROR::enum_warning_level level,
+                                       const char* message,
+                                       MYSQL_ERROR ** cond_hdl)
+{
+  if (sql_errno == ER_BAD_DB_ERROR)
+  {
+    m_error_caught= true;
+    return true;
+  }
+  return false;
+}
+
+
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 sql_mode_t sql_mode, const char *params, const char *returns,
@@ -769,7 +808,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;
-  
+  Bad_db_error_handler db_not_exists_handler;
   char definer_user_name_holder[USERNAME_LENGTH + 1];
   LEX_STRING definer_user_name= { definer_user_name_holder,
                                   USERNAME_LENGTH };
@@ -808,6 +847,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     goto end;
   }
 
+  thd->push_internal_handler(&db_not_exists_handler);
   /*
     Change the current database (if needed).
 
@@ -818,6 +858,15 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                           &cur_db_changed))
   {
     ret= SP_INTERNAL_ERROR;
+    thd->pop_internal_handler();
+    goto end;
+  }
+  thd->pop_internal_handler();
+  if (db_not_exists_handler.error_caught())
+  {
+    ret= SP_INTERNAL_ERROR;
+    my_error(ER_BAD_DB_ERROR, MYF(0), name->m_db.str);
+
     goto end;
   }
 

@@ -24,6 +24,7 @@
 #include "sql_trigger.h"
 #include "item.h"               /* From item_subselect.h: subselect_union_engine */
 #include "thr_lock.h"                  /* thr_lock_type, TL_UNLOCK */
+#include "sql_array.h"
 #include "mem_root_array.h"
 
 /* YACC and LEX Definitions */
@@ -604,6 +605,7 @@ public:
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
+typedef Bounds_checked_array<Item*> Ref_ptr_array;
 
 /*
   SELECT_LEX - store information of parsed SELECT statment
@@ -666,8 +668,9 @@ public:
   SQL_I_List<ORDER> order_list;   /* ORDER clause */
   SQL_I_List<ORDER> *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
-  // Arrays of pointers to top elements of all_fields list
-  Item **ref_pointer_array;
+
+  /// Array of pointers to top elements of all_fields list
+  Ref_ptr_array ref_pointer_array;
 
   /*
     number of items in select_list and HAVING clause used to get number
@@ -677,7 +680,7 @@ public:
   uint select_n_having_items;
   uint cond_count;    /* number of arguments of and/or/xor in where/having/on */
   uint between_count; /* number of between predicates in where/having/on      */
-  uint max_equal_elems; /* maximal number of elements in multiple equalities  */   
+  uint max_equal_elems; /* maximal number of elements in multiple equalities  */
   /*
     Number of fields used in select list or where clause of current select
     and all inner subselects.

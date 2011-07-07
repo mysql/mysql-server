@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -205,6 +205,7 @@ ENDIF()
 # Add tests (link them with gunit library) 
 SET(TESTS
   bounded_queue
+  bounds_checked_array
   dbug
   dynarray
   mdl

@@ -961,6 +961,7 @@ int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *ac, char ***
 
 #ifdef HAVE_PSI_INTERFACE
 extern MYSQL_PLUGIN_IMPORT struct PSI_bootstrap *PSI_hook;
+extern void set_psi_server(PSI *psi);
 void my_init_mysys_psi_keys(void);
 #endif
 

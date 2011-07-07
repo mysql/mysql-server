@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 --source include/not_embedded.inc
 
 #
-# Test based on mysql-test/suite/sys_vars/all_vars.test,
+# Test based on mysql-test/suite/sys_vars/t/all_vars.test
 # and adapted for the performance schema tables.
 #
 # This test verifies that *all* performance schema tables are tested
@@ -46,7 +46,7 @@ drop table if exists t2;
 
 create table t1 (test_name text);
 create table t2 (test_name text);
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval load data infile "$MYSQLTEST_VARDIR/tmp/perfschema-all_tests.txt" into table t1;
 
 insert into t2 select concat('ddl_', table_name, '.test') from information_schema.tables
@@ -76,3 +76,4 @@ select test_name as `MISSING DDL/DML TESTS` from t2;
 drop table t1;
 drop table t2;
 
+--remove_file $MYSQLTEST_VARDIR/tmp/perfschema-all_tests.txt

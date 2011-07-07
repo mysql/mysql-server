@@ -101,12 +101,27 @@ row_build_index_entry(
 
 		dfield_copy(dfield, dfield2);
 
-		if (dfield_is_null(dfield) || ind_field->prefix_len == 0) {
+		if (dfield_is_null(dfield)) {
 			continue;
 		}
 
-		/* If a column prefix index, take only the prefix.
-		Prefix-indexed columns may be externally stored. */
+		if (ind_field->prefix_len == 0
+		    && (!dfield_is_ext(dfield)
+			|| dict_index_is_clust(index))) {
+			/* The dfield_copy() above suffices for
+			columns that are stored in-page, or for
+			clustered index record columns that are not
+			part of a column prefix in the PRIMARY KEY. */
+			continue;
+		}
+
+		/* If the column is stored externally (off-page) in
+		the clustered index, it must be an ordering field in
+		the secondary index.  In the Antelope format, only
+		prefix-indexed columns may be stored off-page in the
+		clustered index record. In the Barracuda format, also
+		fully indexed long CHAR or VARCHAR columns may be
+		stored off-page. */
 		ut_ad(col->ord_part);
 
 		if (UNIV_LIKELY_NULL(ext)) {
@@ -119,11 +134,32 @@ row_build_index_entry(
 				}
 				dfield_set_data(dfield, buf, len);
 			}
+
+			if (ind_field->prefix_len == 0) {
+				/* In the Barracuda format
+				(ROW_FORMAT=DYNAMIC or
+				ROW_FORMAT=COMPRESSED), we can have a
+				secondary index on an entire column
+				that is stored off-page in the
+				clustered index. As this is not a
+				prefix index (prefix_len == 0),
+				include the entire off-page column in
+				the secondary index record. */
+				continue;
+			}
 		} else if (dfield_is_ext(dfield)) {
+			/* This table should be in Antelope format
+			(ROW_FORMAT=REDUNDANT or ROW_FORMAT=COMPACT).
+			In that format, the maximum column prefix
+			index length is 767 bytes, and the clustered
+			index record contains a 768-byte prefix of
+			each off-page column. */
 			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 			len -= BTR_EXTERN_FIELD_REF_SIZE;
 		}
 
+		/* If a column prefix index, take only the prefix. */
+		ut_ad(ind_field->prefix_len);
 		len = dtype_get_at_most_n_mbchars(
 			col->prtype, col->mbminmaxlen,
 			ind_field->prefix_len, len, dfield_get_data(dfield));
@@ -192,6 +228,10 @@ row_build(
 
 	ut_ad(index && rec && heap);
 	ut_ad(dict_index_is_clust(index));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
@@ -200,13 +240,21 @@ row_build(
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
 
-#if 0 && defined UNIV_BLOB_NULL_DEBUG
-	/* This one can fail in trx_rollback_active() if
-	the server crashed during an insert before the
-	btr_store_big_rec_extern_fields() did mtr_commit()
-	all BLOB pointers to the clustered index record. */
-	ut_a(!rec_offs_any_null_extern(rec, offsets));
-#endif /* 0 && UNIV_BLOB_NULL_DEBUG */
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	/* This condition can occur during crash recovery before
+	trx_rollback_active() has completed execution.
+
+	This condition is possible if the server crashed
+	during an insert or update before
+	btr_store_big_rec_extern_fields() did mtr_commit() all
+	BLOB pointers to the clustered index record.
+
+	If the record contains a null BLOB pointer, look up the
+	transaction that holds the implicit lock on this record, and
+	assert that it was recovered (and will soon be rolled back). */
+	ut_a(!rec_offs_any_null_extern(rec, offsets)
+	     || trx_assert_recovered(row_get_rec_trx_id(rec, index, offsets)));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 	if (type != ROW_COPY_POINTERS) {
 		/* Take a copy of rec to heap */
@@ -391,10 +439,10 @@ row_rec_to_index_entry(
 		rec = rec_copy(buf, rec, offsets);
 		/* Avoid a debug assertion in rec_offs_validate(). */
 		rec_offs_make_valid(rec, index, offsets);
-#ifdef UNIV_BLOB_NULL_DEBUG
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 	} else {
 		ut_a(!rec_offs_any_null_extern(rec, offsets));
-#endif /* UNIV_BLOB_NULL_DEBUG */
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 	}
 
 	entry = row_rec_to_index_entry_low(rec, index, offsets, n_ext, heap);

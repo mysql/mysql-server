@@ -582,8 +582,9 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   share->ref_count++;				// Mark in use
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely(PSI_server != NULL))
-    share->m_psi= PSI_server->get_table_share(false, share);
+  share->m_psi= PSI_CALL(get_table_share)(false, share);
+#else
+  share->m_psi= NULL;
 #endif
 
   DBUG_PRINT("exit", ("share: 0x%lx  ref_count: %u",
@@ -5962,8 +5963,9 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   }
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely(PSI_server != NULL))
-    share->m_psi= PSI_server->get_table_share(true, share);
+  share->m_psi= PSI_CALL(get_table_share)(true, share);
+#else
+  share->m_psi= NULL;
 #endif
 
   if (open_table_from_share(thd, share, table_name,
@@ -6879,29 +6881,9 @@ find_field_in_tables(THD *thd, Item_ident *item,
   if (last_table)
     last_table= last_table->next_name_resolution_table;
 
-#ifndef DBUG_OFF
-  uint loop_count= 0;
-  TABLE_LIST *one_node;
-#endif
   for (; cur_table != last_table ;
        cur_table= cur_table->next_name_resolution_table)
   {
-#ifndef DBUG_OFF
-    ++loop_count;
-    if (loop_count == 1000) // not normal, record one node we meet
-      one_node= cur_table;
-    if ((loop_count > 1000) && (one_node == cur_table))
-    {
-      /*
-        Meeting same node again: cycle, infinite loop. Raise an error which
-        doesn't stop RQG, so that Roel can continue working while we fix the
-        bug. We cannot continue the statement though.
-      */
-      my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0),
-               "HITTING BUG#12567331 INFINITE LOOP DETECTED - ASK GUILHEM AND ROEL");
-      return NULL;
-    }
-#endif
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, length,
                                               item->name, db, table_name, ref,
                                               (thd->lex->sql_command ==
@@ -8025,7 +8007,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 ** Check that all given fields exists and fill struct with current data
 ****************************************************************************/
 
-bool setup_fields(THD *thd, Item **ref_pointer_array,
+bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &fields, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func)
 {
@@ -8055,8 +8037,11 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     TODO: remove it when (if) we made one list for allfields and
     ref_pointer_array
   */
-  if (ref_pointer_array)
-    memset(ref_pointer_array, 0, sizeof(Item *) * fields.elements);
+  if (!ref_pointer_array.is_null())
+  {
+    DBUG_ASSERT(ref_pointer_array.size() >= fields.elements);
+    memset(ref_pointer_array.array(), 0, sizeof(Item *) * fields.elements);
+  }
 
   /*
     We call set_entry() there (before fix_fields() of the whole list of field
@@ -8074,7 +8059,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   while ((var= li++))
     var->set_entry(thd, FALSE);
 
-  Item **ref= ref_pointer_array;
+  Ref_ptr_array ref= ref_pointer_array;
   thd->lex->current_select->cur_pos_in_select_list= 0;
   while ((item= it++))
   {
@@ -8087,8 +8072,11 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
       DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
       DBUG_RETURN(TRUE); /* purecov: inspected */
     }
-    if (ref)
-      *(ref++)= item;
+    if (!ref.is_null())
+    {
+      ref[0]= item;
+      ref.pop_front();
+    }
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);

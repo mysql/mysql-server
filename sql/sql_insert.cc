@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,9 +11,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Insert of records */
 
@@ -256,7 +257,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     */
     table_list->next_local= 0;
     context->resolve_in_table_list_only(table_list);
-    res= setup_fields(thd, 0, fields, MARK_COLUMNS_WRITE, 0, 0);
+    res= setup_fields(thd, Ref_ptr_array(), fields, MARK_COLUMNS_WRITE, 0, 0);
 
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
@@ -347,7 +348,8 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
   }
 
   /* Check the fields we are going to modify */
-  if (setup_fields(thd, 0, update_fields, MARK_COLUMNS_WRITE, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(),
+                   update_fields, MARK_COLUMNS_WRITE, 0, 0))
     return -1;
 
   if (insert_table_list->effective_algorithm == VIEW_ALGORITHM_MERGE &&
@@ -762,7 +764,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
       goto abort;
     }
-    if (setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_READ, 0, 0))
       goto abort;
   }
   its.rewind ();
@@ -1377,7 +1379,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     table_list->next_local= 0;
     context->resolve_in_table_list_only(table_list);
 
-    res= (setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0) ||
+    res= (setup_fields(thd, Ref_ptr_array(),
+                       *values, MARK_COLUMNS_READ, 0, 0) ||
           check_insert_fields(thd, context->table_list, fields, *values,
                               !insert_into_view, 0, &map));
 
@@ -1393,7 +1396,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     }
 
    if (!res)
-     res= setup_fields(thd, 0, update_values, MARK_COLUMNS_READ, 0, 0);
+     res= setup_fields(thd, Ref_ptr_array(),
+                       update_values, MARK_COLUMNS_READ, 0, 0);
 
     if (!res && duplic == DUP_UPDATE)
     {
@@ -3234,7 +3238,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   /* Errors during check_insert_fields() should not be ignored. */
   lex->current_select->no_error= FALSE;
-  res= (setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0) ||
+  res= (setup_fields(thd, Ref_ptr_array(), values, MARK_COLUMNS_READ, 0, 0) ||
         check_insert_fields(thd, table_list, *fields, values,
                             !insert_into_view, 1, &map));
 
@@ -3282,7 +3286,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       table_list->next_name_resolution_table= 
         ctx_state.get_first_name_resolution_table();
 
-    res= res || setup_fields(thd, 0, *info.update_values,
+    res= res || setup_fields(thd, Ref_ptr_array(), *info.update_values,
                              MARK_COLUMNS_READ, 0, 0);
     if (!res)
     {

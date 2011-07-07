@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -2540,7 +2542,8 @@ String *Item_func_elt::val_str(String *str)
 }
 
 
-void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
+void Item_func_make_set::split_sum_func(THD *thd,
+                                        Ref_ptr_array ref_pointer_array,
 					List<Item> &fields)
 {
   item->split_sum_func2(thd, ref_pointer_array, fields, &item, TRUE);
