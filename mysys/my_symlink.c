@@ -144,24 +144,23 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
     result= -1;
   }
   DBUG_RETURN(result);
-#else
-#ifdef _WIN32
-  int ret= GetFullPathName(filename,FN_REFLEN,
-                           to,
-                           NULL);
+#elif defined(_WIN32)
+  int ret= GetFullPathName(filename,FN_REFLEN, to, NULL);
   if (ret == 0 || ret > FN_REFLEN)
   {
-    if (ret > FN_REFLEN)
-      my_errno= ENAMETOOLONG;
-    else
-      my_errno= EACCES;
+    my_errno= (ret > FN_REFLEN) ? ENAMETOOLONG : GetLastError();
     if (MyFlags & MY_WME)
       my_error(EE_REALPATH, MYF(0), filename, my_errno);
-	  return -1;
+    /* 
+      GetFullPathName didn't work : use my_load_path() which is a poor 
+      substitute original name but will at least be able to resolve 
+      paths that starts with '.'.
+    */  
+    my_load_path(to, filename, NullS);
+    return -1;
   }
 #else
   my_load_path(to, filename, NullS);
 #endif
   return 0;
-#endif
 }

@@ -79,6 +79,17 @@ table_setup_objects::m_share=
   false /* checked */
 };
 
+int update_derived_flags()
+{
+  PFS_thread *thread= PFS_thread::get_current_thread();
+  if (unlikely(thread == NULL))
+    return HA_ERR_OUT_OF_MEM;
+
+  update_table_share_derived_flags(thread);
+  update_table_derived_flags();
+  return 0;
+}
+
 PFS_engine_table* table_setup_objects::create(void)
 {
   return new table_setup_objects();
@@ -87,6 +98,7 @@ PFS_engine_table* table_setup_objects::create(void)
 int table_setup_objects::write_row(TABLE *table, unsigned char *buf,
                                    Field **fields)
 {
+  int result;
   Field *f;
   enum_object_type object_type= OBJECT_TYPE_TABLE;
   String object_schema_data("%", 1, &my_charset_utf8_bin);
@@ -130,13 +142,19 @@ int table_setup_objects::write_row(TABLE *table, unsigned char *buf,
   if (object_type != OBJECT_TYPE_TABLE)
     return HA_ERR_NO_REFERENCED_ROW;
 
-  return insert_setup_object(object_type, object_schema, object_name,
-                             enabled, timed);
+  result= insert_setup_object(object_type, object_schema, object_name,
+                              enabled, timed);
+  if (result == 0)
+    result= update_derived_flags();
+  return result;
 }
 
 int table_setup_objects::delete_all_rows(void)
 {
-  return reset_setup_object();
+  int result= reset_setup_object();
+  if (result == 0)
+    result= update_derived_flags();
+  return result;
 }
 
 ha_rows table_setup_objects::get_row_count(void)
@@ -269,6 +287,7 @@ int table_setup_objects::update_row_values(TABLE *table,
                                            unsigned char *,
                                            Field **fields)
 {
+  int result;
   Field *f;
   enum_yes_no value;
 
@@ -296,14 +315,15 @@ int table_setup_objects::update_row_values(TABLE *table,
     }
   }
 
-  setup_objects_version++;
-  return 0;
+  result= update_derived_flags();
+  return result;
 }
 
 int table_setup_objects::delete_row_values(TABLE *table,
                                            const unsigned char *buf,
                                            Field **fields)
 {
+  int result;
   Field *f;
   enum_object_type object_type= OBJECT_TYPE_TABLE;
   String object_schema_data("", 0, &my_charset_utf8_bin);
@@ -338,6 +358,9 @@ int table_setup_objects::delete_row_values(TABLE *table,
   DBUG_ASSERT(object_schema != NULL);
   DBUG_ASSERT(object_name != NULL);
 
-  return delete_setup_object(object_type, object_schema, object_name);
+  result= delete_setup_object(object_type, object_schema, object_name);
+  if (result == 0)
+    result= update_derived_flags();
+  return result;
 }
 

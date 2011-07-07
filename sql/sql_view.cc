@@ -1278,8 +1278,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       underlying tables.
       Skip this step if we are opening view for prelocking only.
     */
-    if (!table->prelocking_placeholder &&
-        (old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
+    if (!table->prelocking_placeholder && old_lex->describe &&
+        is_explainable_query(old_lex->sql_command))
     {
       if (check_table_access(thd, SELECT_ACL, view_tables, FALSE,
                              UINT_MAX, TRUE) &&
