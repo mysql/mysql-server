@@ -701,7 +701,8 @@ handle_lines_intersection(active_thread *t0, active_thread *t1,
 			  double x, double y)
 {
   m_fn->invert_state(p0->shape);
-  m_fn->invert_state(p1->shape);
+  if (p0->shape != p1->shape)
+    m_fn->invert_state(p1->shape);
   int intersection_state= m_fn->count();
   if ((t0->result_range | t1->result_range) == intersection_state)
     return 0;

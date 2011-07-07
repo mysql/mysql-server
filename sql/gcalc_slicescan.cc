@@ -510,6 +510,8 @@ int Gcalc_scan_iterator::normal_scan()
 }
 
 
+#define INTERSECTION_ZERO 0.000000000001
+
 int Gcalc_scan_iterator::add_intersection(const point *a, const point *b,
 				   int isc_kind, Gcalc_dyn_list::Item ***p_hook)
 {
@@ -536,6 +538,9 @@ int Gcalc_scan_iterator::add_intersection(const point *a, const point *b,
   {
     double dk= a0->dx_dy - b0->dx_dy;
     double dy= (b0->x - a0->x)/dk;
+
+    if (fabs(dk) < INTERSECTION_ZERO)
+      dy= 0.0;
     isc->y= m_y0 + dy;
     isc->x= a0->x + dy*a0->dx_dy;
     return 0;
