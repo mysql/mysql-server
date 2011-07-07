@@ -4,15 +4,19 @@
 mysqld=,,,
 
 [mysqld.1.1]
+new
 log-bin=mysqld-bin
 
 [mysqld.2.1]
+new
 log-bin=mysqld-bin
 
 [mysqld.3.1]
+new
 skip-log-bin
 
 [mysqld.4.1]
+new
 skip-log-bin
 
 [ENV]
