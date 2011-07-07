@@ -7104,10 +7104,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                             db, table_name, path,
 #ifndef MCP_WL3749
                             &table_for_fast_alter_partition,
-                            &is_fast_alter_partitioning))
+                            &is_fast_alter_partitioning
 #else
-                            &table_for_fast_alter_partition))
+                            &table_for_fast_alter_partition
 #endif
+                            ))
     goto err;
 #endif
   /*
@@ -7134,13 +7135,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 #endif
   set_table_default_charset(thd, create_info, db);
 
+#ifdef MCP_WL3749
   if (thd->variables.old_alter_table
       || (table->s->db_type() != create_info->db_type)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       || partition_changed
 #endif
-     )
-#ifdef MCP_WL3749
+      )
     need_copy_table= ALTER_TABLE_DATA_CHANGED;
   else
   {
@@ -7995,6 +7996,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 #ifndef MCP_WL3749
   } /* else */
 end_online:
+#endif
+
+#ifndef MCP_WL3749
+  if (table_for_fast_alter_partition)
+    close_temporary(table_for_fast_alter_partition, 1, 0);
 #endif
 
   if (thd->locked_tables_list.reopen_tables(thd))
