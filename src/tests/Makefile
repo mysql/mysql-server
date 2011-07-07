@@ -240,6 +240,7 @@ BDB_DONTRUN_TESTS = \
         test_dbremove_old \
         test_dupsort_get_both_range_reverse \
         test_dupsort_set_range_reverse \
+	test_large_update_broadcast_small_cachetable \
         test_logflush \
         test_transactional_descriptor \
         test_trans_desc_during_chkpt \
@@ -594,6 +595,7 @@ test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
 diskfull.tdbrun: VGRIND=
 stress-gc.tdbrun: VGRIND=
 insert-dup-prelock: VGRIND=
+test_large_update_broadcast_small_cachetable.tdbrun: VGRIND=
 test_update_broadcast_stress.tdbrun: VGRIND=
 test_update_stress.tdbrun: VGRIND=
 stress-test.tdbrun: VGRIND=
