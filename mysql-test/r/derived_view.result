@@ -821,3 +821,30 @@ a	b	a	b
 SET SESSION optimizer_switch=default;
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# LP bug #806477: left join over merged join with                    
+#                 where condition containing f=f
+#
+CREATE TABLE t1 (a int NOT NULL);
+INSERT INTO t1 VALUES (1), (50), (0);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (76,2), (1,NULL);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT t3.b, v1.a 
+FROM t3 LEFT JOIN (t2, v1) ON t3.a <> 0
+WHERE v1.a = v1.a OR t3.b <> 0;
+b	a
+2	NULL
+EXPLAIN EXTENDED
+SELECT t3.b, v1.a 
+FROM t3 LEFT JOIN (t2, v1) ON t3.a <> 0
+WHERE v1.a = v1.a OR t3.b <> 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t3`.`b` AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t3` left join (`test`.`t2` join `test`.`t1`) on((`test`.`t3`.`a` <> 0)) where ((`test`.`t1`.`a` = `test`.`t1`.`a`) or (`test`.`t3`.`b` <> 0))
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;

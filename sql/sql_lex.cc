@@ -3472,6 +3472,12 @@ void SELECT_LEX::update_used_tables()
   List_iterator<TABLE_LIST> ti(leaf_tables);
   while ((tl= ti++))
   {
+    for (embedding= tl;
+         !tl->table->maybe_null && embedding;
+         embedding= embedding->embedding)
+    {
+      tl->table->maybe_null= embedding->outer_join;
+    }
     if (tl->on_expr)
     {
       tl->on_expr->update_used_tables();

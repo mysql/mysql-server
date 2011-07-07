@@ -435,3 +435,28 @@ SET SESSION optimizer_switch=default;
 DROP VIEW v1;
 DROP TABLE t1;
 
+--echo #
+--echo # LP bug #806477: left join over merged join with                    
+--echo #                 where condition containing f=f
+--echo #
+
+CREATE TABLE t1 (a int NOT NULL);
+INSERT INTO t1 VALUES (1), (50), (0);
+
+CREATE TABLE t2 (a int);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (76,2), (1,NULL);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT t3.b, v1.a 
+  FROM t3 LEFT JOIN (t2, v1) ON t3.a <> 0
+    WHERE v1.a = v1.a OR t3.b <> 0;
+EXPLAIN EXTENDED
+SELECT t3.b, v1.a 
+  FROM t3 LEFT JOIN (t2, v1) ON t3.a <> 0
+    WHERE v1.a = v1.a OR t3.b <> 0;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
