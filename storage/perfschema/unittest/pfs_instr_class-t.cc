@@ -80,10 +80,10 @@ void test_no_registration()
   file_key= register_file_class("FOO", 3, 0);
   ok(file_key == 0, "no file registered");
 
+#ifdef LATER
   PFS_thread fake_thread;
   fake_thread.m_table_share_hash_pins= NULL;
 
-#ifdef LATER
   table= find_or_create_table_share(& fake_thread, false, "foo_db", 6, "foo_table", 9);
   ok(table == NULL, "not created");
   table= find_or_create_table_share(& fake_thread, false, "bar_db", 6, "bar_table", 9);

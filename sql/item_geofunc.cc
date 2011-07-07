@@ -661,7 +661,7 @@ static double distance_points(const Gcalc_heap::Info *a,
 static int calc_distance(double *result, Gcalc_heap *collector, uint obj2_si,
                          Gcalc_function *func, Gcalc_scan_iterator *scan_it)
 {
-  bool above_cur_point, cur_point_edge;
+  bool cur_point_edge;
   const Gcalc_scan_iterator::point *evpos;
   const Gcalc_heap::Info *cur_point, *dist_point;
   Gcalc_scan_events ev;
@@ -670,7 +670,6 @@ static int calc_distance(double *result, Gcalc_heap *collector, uint obj2_si,
 
   DBUG_ENTER("calc_distance");
 
-  above_cur_point= false;
   distance= DBL_MAX;
 
   while (scan_it->more_points())
@@ -781,7 +780,6 @@ mem_error:
 
 int Item_func_spatial_rel::func_touches()
 {
-  bool above_cur_point;
   double x1, x2, y1, y2, ex, ey;
   double distance, area;
   int result= 0;
@@ -836,7 +834,6 @@ int Item_func_spatial_rel::func_touches()
   scan_it.reset();
   scan_it.init(&collector);
 
-  above_cur_point= false;
   distance= DBL_MAX;
 
   while (scan_it.more_trapezoids())
@@ -1677,7 +1674,7 @@ longlong Item_func_srid::val_int()
 
 double Item_func_distance::val_real()
 {
-  bool above_cur_point, cur_point_edge;
+  bool cur_point_edge;
   const Gcalc_scan_iterator::point *evpos;
   const Gcalc_heap::Info *cur_point, *dist_point;
   Gcalc_scan_events ev;
@@ -1724,7 +1721,6 @@ double Item_func_distance::val_real()
   collector.prepare_operation();
   scan_it.init(&collector);
 
-  above_cur_point= false;
   distance= DBL_MAX;
   while (scan_it.more_points())
   {
