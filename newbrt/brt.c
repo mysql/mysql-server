@@ -2911,8 +2911,8 @@ static void apply_cmd_to_in_memory_non_root_leaves_starting_at_node (BRT t,
 	}
 	else if (brt_msg_applies_all(cmd)) {
 	    for (int childnum=0; childnum<node->n_children; childnum++) {
-		assert(BP_HAVE_FULLHASH(node, childnum));
-		apply_cmd_to_in_memory_non_root_leaves(t, BP_BLOCKNUM(node, childnum), BP_FULLHASH(node, childnum), cmd, FALSE, node, childnum, workdone_this_childpath_p);
+                u_int32_t child_fullhash = compute_child_fullhash(t->cf, node, childnum);
+		apply_cmd_to_in_memory_non_root_leaves(t, BP_BLOCKNUM(node, childnum), child_fullhash, cmd, FALSE, node, childnum, workdone_this_childpath_p);
 	    }
 	}
     }
