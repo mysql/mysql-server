@@ -794,3 +794,30 @@ WHERE t4.f2 = t3.f2  AND t4.f2 = t.f1 ORDER BY f;
 f
 x
 DROP TABLE t1,t2,t3,t4;
+#
+# LP bug #806431: join over materialized derived with key                    
+#             
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,0),(3,0),(1,0);
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT a,b FROM t1 ;
+SET SESSION optimizer_switch='derived_with_keys=off';
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+a	b	a	b
+0	0	0	0
+0	0	3	0
+0	0	1	0
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t.a	2	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+a	b	a	b
+0	0	1	0
+0	0	3	0
+0	0	0	0
+SET SESSION optimizer_switch=default;
+DROP VIEW v1;
+DROP TABLE t1;
