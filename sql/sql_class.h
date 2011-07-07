@@ -4101,14 +4101,6 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);
 
-/*
-  This prototype is placed here instead of in item_func.h because it
-  depends on the definition of enum_sql_command, which is in this
-  file.
- */
-int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                        LEX_STRING &name, user_var_entry **out_entry);
-
 /* Inline functions */
 
 inline bool add_item_to_list(THD *thd, Item *item)
