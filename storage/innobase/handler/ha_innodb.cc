@@ -990,7 +990,6 @@ convert_error_code_to_mysql(
 						misleading, a new MySQL error
 						code should be introduced */
 
-	case DB_COL_APPEARS_TWICE_IN_INDEX:
 	case DB_CORRUPTION:
 		return(HA_ERR_CRASHED);
 

@@ -8796,4 +8796,60 @@ DROP TABLE t1, t2, t3;
 DROP PROCEDURE p1;
 --echo
 
+
+--echo
+--echo # --
+--echo # -- Bug#12652769 - 61470: case operator in stored routine retains old
+--echo # -- value of input parameter
+--echo # --- 
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET utf8);
+INSERT INTO t1 VALUES ('a');
+
+delimiter |;
+
+CREATE PROCEDURE p1(dt DATETIME, i INT)
+BEGIN
+  SELECT
+    CASE
+      WHEN i = 1 THEN 2
+      ELSE dt
+    END AS x1;
+
+  SELECT
+    CASE _latin1'a'
+      WHEN _utf8'a' THEN 'A'
+    END AS x2;
+
+  SELECT
+    CASE _utf8'a'
+      WHEN _latin1'a' THEN _utf8'A'
+    END AS x3;
+
+  SELECT
+    CASE s1
+      WHEN _latin1'a' THEN _latin1'b'
+      ELSE _latin1'c'
+    END AS x4
+  FROM t1;
+END|
+
+delimiter ;|
+
+--echo
+CALL p1('2011-04-03 05:14:10', 1);
+CALL p1('2011-04-03 05:14:11', 2);
+CALL p1('2011-04-03 05:14:12', 2);
+CALL p1('2011-04-03 05:14:13', 2);
+
+--echo
+DROP TABLE t1;
+DROP PROCEDURE p1;
+--echo
+
 --echo # End of 5.5 test
