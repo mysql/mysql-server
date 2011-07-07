@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1447,7 +1448,7 @@ bool get_interval_value(Item *args,interval_type int_type,
   else
   {
     String *res;
-    if (!(res=args->val_str(str_value)))
+    if (!(res= args->val_str_ascii(str_value)))
       return (1);
 
     /* record negative intervalls in interval->neg */

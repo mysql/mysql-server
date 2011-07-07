@@ -1,7 +1,8 @@
 #ifndef SQL_TRIGGER_INCLUDED
 #define SQL_TRIGGER_INCLUDED
 
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

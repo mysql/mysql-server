@@ -1,1 +1,3 @@
---default-storage-engine=MyISAM --skip-innodb
+--default-storage-engine=MyISAM 
+--default-temp-storage-engine=MyISAM 
+--skip-innodb 

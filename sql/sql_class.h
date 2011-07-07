@@ -490,6 +490,7 @@ typedef struct system_variables
   my_bool big_tables;
 
   plugin_ref table_plugin;
+  plugin_ref temp_table_plugin;
 
   /* Only charset part of these variables is sensible */
   const CHARSET_INFO *character_set_filesystem;
@@ -2631,26 +2632,23 @@ public:
     else
       start_utime= utime_after_lock= my_micro_time_and_time(&start_time);
 
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   inline void set_current_time()
   {
     start_time= my_time(MY_WME);
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   inline void set_time(time_t t)
   {
     start_time= user_time= t;
     start_utime= utime_after_lock= my_micro_time();
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
@@ -3024,9 +3022,9 @@ public:
     }
     db_length= db ? new_db_len : 0;
     result= new_db && !db;
-#ifdef HAVE_PSI_INTERFACE
-    if (result && PSI_server)
-      PSI_server->set_thread_db(new_db, new_db_len);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    if (result)
+      PSI_CALL(set_thread_db)(new_db, new_db_len);
 #endif
     return result;
   }
@@ -3046,9 +3044,8 @@ public:
   {
     db= new_db;
     db_length= new_db_len;
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_db(new_db, new_db_len);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_db)(new_db, new_db_len);
 #endif
   }
   /*
@@ -4116,14 +4113,6 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);
-
-/*
-  This prototype is placed here instead of in item_func.h because it
-  depends on the definition of enum_sql_command, which is in this
-  file.
- */
-int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                        LEX_STRING &name, user_var_entry **out_entry);
 
 /* Inline functions */
 
