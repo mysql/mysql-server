@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2272,7 +2272,7 @@ btr_attach_half_pages(
 /*==================*/
 	dict_index_t*	index,		/*!< in: the index tree */
 	buf_block_t*	block,		/*!< in/out: page to be split */
-	rec_t*		split_rec,	/*!< in: first record on upper
+	const rec_t*	split_rec,	/*!< in: first record on upper
 					half page */
 	buf_block_t*	new_block,	/*!< in/out: the new half page */
 	ulint		direction,	/*!< in: FSP_UP or FSP_DOWN */
@@ -2964,15 +2964,16 @@ btr_node_ptr_delete(
 	ut_a(err == DB_SUCCESS);
 
 	if (!compressed) {
-		btr_cur_compress_if_useful(&cursor, mtr);
+		btr_cur_compress_if_useful(&cursor, FALSE, mtr);
 	}
 }
 
 /*************************************************************//**
 If page is the only on its level, this function moves its records to the
-father page, thus reducing the tree height. */
+father page, thus reducing the tree height.
+@return father block */
 static
-void
+buf_block_t*
 btr_lift_page_up(
 /*=============*/
 	dict_index_t*	index,	/*!< in: index tree */
@@ -3089,6 +3090,8 @@ btr_lift_page_up(
 	}
 	ut_ad(page_validate(father_page, index));
 	ut_ad(btr_check_node_ptr(index, father_block, mtr));
+
+	return(father_block);
 }
 
 /*************************************************************//**
@@ -3105,11 +3108,13 @@ UNIV_INTERN
 ibool
 btr_compress(
 /*=========*/
-	btr_cur_t*	cursor,	/*!< in: cursor on the page to merge or lift;
-				the page must not be empty: in record delete
-				use btr_discard_page if the page would become
-				empty */
-	mtr_t*		mtr)	/*!< in: mtr */
+	btr_cur_t*	cursor,	/*!< in/out: cursor on the page to merge
+				or lift; the page must not be empty:
+				when deleting records, use btr_discard_page()
+				if the page would become empty */
+	ibool		adjust,	/*!< in: TRUE if should adjust the
+				cursor position even if compression occurs */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	dict_index_t*	index;
 	ulint		space;
@@ -3127,12 +3132,14 @@ btr_compress(
 	ulint*		offsets;
 	ulint		data_size;
 	ulint		n_recs;
+	ulint		nth_rec = 0; /* remove bogus warning */
 	ulint		max_ins_size;
 	ulint		max_ins_size_reorg;
 
 	block = btr_cur_get_block(cursor);
 	page = btr_cur_get_page(cursor);
 	index = btr_cur_get_index(cursor);
+
 	ut_a((ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
@@ -3152,6 +3159,10 @@ btr_compress(
 	heap = mem_heap_create(100);
 	offsets = btr_page_get_father_block(NULL, heap, index, block, mtr,
 					    &father_cursor);
+
+	if (adjust) {
+		nth_rec = page_rec_get_n_recs_before(btr_cur_get_rec(cursor));
+	}
 
 	/* Decide the page to which we try to merge and which will inherit
 	the locks */
@@ -3179,9 +3190,9 @@ btr_compress(
 	} else {
 		/* The page is the only one on the level, lift the records
 		to the father */
-		btr_lift_page_up(index, block, mtr);
-		mem_heap_free(heap);
-		return(TRUE);
+
+		merge_block = btr_lift_page_up(index, block, mtr);
+		goto func_exit;
 	}
 
 	n_recs = page_get_n_recs(page);
@@ -3263,6 +3274,10 @@ err_exit:
 
 		btr_node_ptr_delete(index, block, mtr);
 		lock_update_merge_left(merge_block, orig_pred, block);
+
+		if (adjust) {
+			nth_rec += page_rec_get_n_recs_before(orig_pred);
+		}
 	} else {
 		rec_t*		orig_succ;
 #ifdef UNIV_BTR_DEBUG
@@ -3327,7 +3342,6 @@ err_exit:
 	}
 
 	btr_blob_dbg_remove(page, index, "btr_compress");
-	mem_heap_free(heap);
 
 	if (!dict_index_is_clust(index) && page_is_leaf(merge_page)) {
 		/* Update the free bits of the B-tree page in the
@@ -3379,6 +3393,16 @@ err_exit:
 	btr_page_free(index, block, mtr);
 
 	ut_ad(btr_check_node_ptr(index, merge_block, mtr));
+func_exit:
+	mem_heap_free(heap);
+
+	if (adjust) {
+		btr_cur_position(
+			index,
+			page_rec_get_nth(merge_block->frame, nth_rec),
+			merge_block, cursor);
+	}
+
 	return(TRUE);
 }
 
