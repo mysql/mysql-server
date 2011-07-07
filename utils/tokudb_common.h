@@ -11,11 +11,7 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <memory.h>
-
-typedef u_int8_t bool;
-
-#define true ((bool)1)
-#define false ((bool)0)
+#include <stdbool.h>
 
 #define SET_BITS(bitvector, bits)      ((bitvector) |= (bits))
 #define REMOVE_BITS(bitvector, bits)   ((bitvector) &= ~(bits))
