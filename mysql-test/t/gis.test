@@ -820,5 +820,23 @@ CREATE TABLE t3 (
 # cleanup
 DROP TABLE t0, t1, t2;
 
+--echo #
+--echo # Bug#11908153: CRASH AND/OR VALGRIND ERRORS IN FIELD_BLOB::GET_KEY_IMAGE
+--echo #
+
+CREATE TABLE g1
+(a geometry NOT NULL, UNIQUE KEY i (a(151))) engine=myisam;
+
+INSERT INTO g1 VALUES (geomfromtext('point(1 1)'));
+INSERT INTO g1 VALUES (geomfromtext('point(1 2)'));
+
+FLUSH TABLES;
+
+SELECT 1 FROM g1 
+FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
+;
+
+DROP TABLE g1;
+
 
 --echo End of 5.5 tests
