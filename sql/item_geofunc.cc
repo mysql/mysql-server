@@ -1395,7 +1395,7 @@ int Item_func_buffer::Transporter::complete()
     }
     else
     {
-      if (x2 != x00 && y2 != y00)
+      if (x2 != x00 || y2 != y00)
       {
         if (add_edge_buffer(x00, y00, false, false))
           return 1;

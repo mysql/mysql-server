@@ -151,3 +151,8 @@ SELECT ST_NUMGEOMETRIES((ST_UNION(ST_UNION(
                                        ((7 7,8 7,3 7,7 7,7 7)),
                                        ((0 5,3 5,3 4,1 4,1 3,3 3,3 0,0 0,0 5), (1 1,2 1,2 2,1 2,1 1)))'))));
 
+#bug #805860 Second assertion Assertion `n > 0 && n < SINUSES_CALCULATED*2+1' in get_n_sinco
+
+SELECT Round(ST_AREA(ST_BUFFER( ST_UNION(
+         POLYGONFROMTEXT('POLYGON((7 7, 7 7, 7 4, 7 7, 7 7))'),
+         POLYGONFROMTEXT('POLYGON((7 7, 4 7, 2 9, 7 6, 7 7))')), 1)), 6);
