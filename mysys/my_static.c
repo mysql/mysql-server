@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Static variables for mysys library. All definied here for easy making of
@@ -105,31 +105,4 @@ my_bool my_disable_locking=0;
 my_bool my_disable_async_io=0;
 my_bool my_disable_flush_key_blocks=0;
 my_bool my_disable_symlinks=0;
-
-/*
-  Note that PSI_hook and PSI_server are unconditionally
-  (no ifdef HAVE_PSI_INTERFACE) defined.
-  This is to ensure binary compatibility between the server and plugins,
-  in the case when:
-  - the server is not compiled with HAVE_PSI_INTERFACE
-  - a plugin is compiled with HAVE_PSI_INTERFACE
-  See the doxygen documentation for the performance schema.
-*/
-
-/**
-  Hook for the instrumentation interface.
-  Code implementing the instrumentation interface should register here.
-*/
-struct PSI_bootstrap *PSI_hook= NULL;
-
-/**
-  Instance of the instrumentation interface for the MySQL server.
-  @todo This is currently a global variable, which is handy when
-  compiling instrumented code that is bundled with the server.
-  When dynamic plugin are truly supported, this variable will need
-  to be replaced by a macro, so that each XYZ plugin can have it's own
-  xyz_psi_server variable, obtained from PSI_bootstrap::get_interface()
-  with the version used at compile time for plugin XYZ.
-*/
-PSI *PSI_server= NULL;
 

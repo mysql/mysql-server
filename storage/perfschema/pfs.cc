@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1352,6 +1352,10 @@ init_mutex_v1(PSI_mutex_key key, const void *identity)
 static void destroy_mutex_v1(PSI_mutex* mutex)
 {
   PFS_mutex *pfs= reinterpret_cast<PFS_mutex*> (mutex);
+
+  if (unlikely(pfs == NULL))
+    return;
+
   destroy_mutex(pfs);
 }
 
@@ -1372,6 +1376,10 @@ init_rwlock_v1(PSI_rwlock_key key, const void *identity)
 static void destroy_rwlock_v1(PSI_rwlock* rwlock)
 {
   PFS_rwlock *pfs= reinterpret_cast<PFS_rwlock*> (rwlock);
+
+  if (unlikely(pfs == NULL))
+    return;
+
   destroy_rwlock(pfs);
 }
 
@@ -1392,6 +1400,10 @@ init_cond_v1(PSI_cond_key key, const void *identity)
 static void destroy_cond_v1(PSI_cond* cond)
 {
   PFS_cond *pfs= reinterpret_cast<PFS_cond*> (cond);
+
+  if (unlikely(pfs == NULL))
+    return;
+
   destroy_cond(pfs);
 }
 
@@ -1417,9 +1429,11 @@ get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
 */
 static void release_table_share_v1(PSI_table_share* share)
 {
-  DBUG_ASSERT(share != NULL);
-  PFS_table_share* pfs;
-  pfs= reinterpret_cast<PFS_table_share*> (share);
+  PFS_table_share* pfs= reinterpret_cast<PFS_table_share*> (share);
+
+  if (unlikely(pfs == NULL))
+    return;
+
   release_table_share(pfs);
 }
 
@@ -1447,7 +1461,10 @@ static PSI_table*
 open_table_v1(PSI_table_share *share, const void *identity)
 {
   PFS_table_share *pfs_table_share= reinterpret_cast<PFS_table_share*> (share);
-  DBUG_ASSERT(pfs_table_share);
+
+  if (unlikely(pfs_table_share == NULL))
+    return NULL;
+
   PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(thread == NULL))
     return NULL;
@@ -1472,7 +1489,8 @@ open_table_v1(PSI_table_share *share, const void *identity)
 static void close_table_v1(PSI_table *table)
 {
   PFS_table *pfs= reinterpret_cast<PFS_table*> (table);
-  DBUG_ASSERT(pfs);
+  if (unlikely(pfs == NULL))
+    return;
   pfs->aggregate();
   destroy_table(pfs);
 }
@@ -1632,8 +1650,9 @@ new_thread_v1(PSI_thread_key key, const void *identity, ulong thread_id)
 */
 static void set_thread_id_v1(PSI_thread *thread, unsigned long id)
 {
-  DBUG_ASSERT(thread);
   PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
+  if (unlikely(pfs == NULL))
+    return;
   pfs->m_thread_id= id;
 }
 
@@ -1890,7 +1909,10 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
   DBUG_ASSERT((int) op >= 0);
   DBUG_ASSERT((uint) op < array_elements(mutex_operation_map));
   DBUG_ASSERT(state != NULL);
-  DBUG_ASSERT(pfs_mutex != NULL);
+
+  if (unlikely(pfs_mutex == NULL))
+    return NULL;
+
   DBUG_ASSERT(pfs_mutex->m_class != NULL);
 
   if (! flag_global_instrumentation)
@@ -1978,7 +2000,10 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(rwlock_operation_map));
   DBUG_ASSERT(state != NULL);
-  DBUG_ASSERT(pfs_rwlock != NULL);
+
+  if (unlikely(pfs_rwlock == NULL))
+    return NULL;
+
   DBUG_ASSERT(pfs_rwlock->m_class != NULL);
 
   if (! flag_global_instrumentation)
@@ -2078,7 +2103,10 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(cond_operation_map));
   DBUG_ASSERT(state != NULL);
-  DBUG_ASSERT(pfs_cond != NULL);
+
+  if (unlikely(pfs_cond == NULL))
+    return NULL;
+
   DBUG_ASSERT(pfs_cond->m_class != NULL);
 
   if (! flag_global_instrumentation)
@@ -2213,7 +2241,10 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(table_io_operation_map));
   DBUG_ASSERT(state != NULL);
   PFS_table *pfs_table= reinterpret_cast<PFS_table*> (table);
-  DBUG_ASSERT(pfs_table != NULL);
+
+  if (unlikely(pfs_table == NULL))
+    return NULL;
+
   DBUG_ASSERT(pfs_table->m_share != NULL);
 
   if (! flag_global_instrumentation)
@@ -2300,7 +2331,10 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
 {
   DBUG_ASSERT(state != NULL);
   PFS_table *pfs_table= reinterpret_cast<PFS_table*> (table);
-  DBUG_ASSERT(pfs_table != NULL);
+
+  if (unlikely(pfs_table == NULL))
+    return NULL;
+
   DBUG_ASSERT(pfs_table->m_share != NULL);
 
   DBUG_ASSERT((op == PSI_TABLE_LOCK) || (op == PSI_TABLE_EXTERNAL_LOCK));
@@ -2488,11 +2522,13 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
                                  PSI_file *file, PSI_file_operation op)
 {
   PFS_file *pfs_file= reinterpret_cast<PFS_file*> (file);
-  DBUG_ASSERT(pfs_file != NULL);
-  DBUG_ASSERT(pfs_file->m_class != NULL);
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(file_operation_map));
   DBUG_ASSERT(state != NULL);
+
+  if (unlikely(pfs_file == NULL))
+    return NULL; 
+  DBUG_ASSERT(pfs_file->m_class != NULL);
 
   if (! flag_global_instrumentation)
     return NULL;
@@ -2677,7 +2713,9 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
 static void unlock_mutex_v1(PSI_mutex *mutex)
 {
   PFS_mutex *pfs_mutex= reinterpret_cast<PFS_mutex*> (mutex);
-  DBUG_ASSERT(pfs_mutex != NULL);
+
+  if (unlikely(pfs_mutex == NULL))
+    return;
 
   /*
     Note that this code is still protected by the instrumented mutex,
@@ -2720,6 +2758,10 @@ static void unlock_mutex_v1(PSI_mutex *mutex)
 static void unlock_rwlock_v1(PSI_rwlock *rwlock)
 {
   PFS_rwlock *pfs_rwlock= reinterpret_cast<PFS_rwlock*> (rwlock);
+
+  if (unlikely(pfs_rwlock == NULL))
+    return;
+
   DBUG_ASSERT(pfs_rwlock != NULL);
   bool last_writer= false;
   bool last_reader= false;
@@ -2790,6 +2832,9 @@ static void unlock_rwlock_v1(PSI_rwlock *rwlock)
       aggregate_single_stat_chain(&pfs_rwlock->m_read_lock_stat, locked_time);
     }
   }
+#else
+  (void) last_reader;
+  (void) last_writer;
 #endif
 }
 
@@ -2800,7 +2845,9 @@ static void unlock_rwlock_v1(PSI_rwlock *rwlock)
 static void signal_cond_v1(PSI_cond* cond)
 {
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
-  DBUG_ASSERT(pfs_cond != NULL);
+
+  if (unlikely(pfs_cond == NULL))
+    return;
 
   pfs_cond->m_cond_stat.m_signal_count++;
 }
@@ -2812,7 +2859,9 @@ static void signal_cond_v1(PSI_cond* cond)
 static void broadcast_cond_v1(PSI_cond* cond)
 {
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
-  DBUG_ASSERT(pfs_cond != NULL);
+
+  if (unlikely(pfs_cond == NULL))
+    return;
 
   pfs_cond->m_cond_stat.m_broadcast_count++;
 }
@@ -3940,7 +3989,8 @@ static void set_statement_text_v1(PSI_statement_locker *locker,
 #define SET_STATEMENT_ATTR_BODY(LOCKER, ATTR, VALUE)                    \
   PSI_statement_locker_state *state;                                    \
   state= reinterpret_cast<PSI_statement_locker_state*> (LOCKER);        \
-  DBUG_ASSERT(state != NULL);                                           \
+  if (unlikely(state == NULL))                                          \
+    return;                                                             \
   if (state->m_discarded)                                               \
     return;                                                             \
   state->ATTR= VALUE;                                                   \
@@ -3956,7 +4006,8 @@ static void set_statement_text_v1(PSI_statement_locker *locker,
 #define INC_STATEMENT_ATTR_BODY(LOCKER, ATTR, VALUE)                    \
   PSI_statement_locker_state *state;                                    \
   state= reinterpret_cast<PSI_statement_locker_state*> (LOCKER);        \
-  DBUG_ASSERT(state != NULL);                                           \
+  if (unlikely(state == NULL))                                          \
+    return;                                                             \
   if (state->m_discarded)                                               \
     return;                                                             \
   state->ATTR+= VALUE;                                                  \
