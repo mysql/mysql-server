@@ -559,19 +559,18 @@ inline int setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
   int res;
   nesting_map save_allow_sum_func=thd->lex->allow_sum_func ;
   /* 
-    Need to save the value, so we can turn off only the new NON_AGG_FIELD
+    Need to save the value, so we can turn off only any new non_agg_field_used
     additions coming from the WHERE
   */
-  uint8 saved_flag= thd->lex->current_select->full_group_by_flag;
+  const bool saved_non_agg_field_used=
+    thd->lex->current_select->non_agg_field_used();
   DBUG_ENTER("setup_without_group");
 
   thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
   res= setup_conds(thd, tables, leaves, conds);
 
   /* it's not wrong to have non-aggregated columns in a WHERE */
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-    thd->lex->current_select->full_group_by_flag= saved_flag |
-      (thd->lex->current_select->full_group_by_flag & ~NON_AGG_FIELD_USED);
+  thd->lex->current_select->set_non_agg_field_used(saved_non_agg_field_used);
 
   thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
@@ -782,7 +781,8 @@ JOIN::prepare(TABLE_LIST *tables_init,
     aggregate functions with implicit grouping (there is no GROUP BY).
   */
   if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY && !group_list &&
-      select_lex->full_group_by_flag == (NON_AGG_FIELD_USED | SUM_FUNC_USED))
+      select_lex->non_agg_field_used() &&
+      select_lex->agg_func_used())
   {
     my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
                ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
@@ -1908,7 +1908,8 @@ JOIN::optimize()
     conds= simplify_joins(this, join_list, conds, TRUE, FALSE);
     build_bitmap_for_nested_joins(join_list, 0);
 
-    sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
+    sel->prep_where=
+      conds ? conds->real_item()->copy_andor_structure(thd) : NULL;
 
     if (arena)
       thd->restore_active_arena(arena, &backup);
