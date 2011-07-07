@@ -73,6 +73,7 @@ SET(SQL_SHARED_SOURCES
   mf_iocache.cc
   my_decimal.cc
   net_serv.cc
+  opt_explain.cc
   opt_range.cc
   opt_sum.cc 
   parse_file.cc
