@@ -110,7 +110,8 @@ static plugin_ref ha_default_plugin(THD *thd)
 
 
 /** @brief
-  Return the default storage engine handlerton for thread
+  Return the default storage engine handlerton used for non-temp tables 
+  for thread
 
   SYNOPSIS
     ha_default_handlerton(thd)
@@ -129,6 +130,35 @@ handlerton *ha_default_handlerton(THD *thd)
 }
 
 
+static plugin_ref ha_default_temp_plugin(THD *thd)
+{
+  if (thd->variables.temp_table_plugin)
+    return thd->variables.temp_table_plugin;
+  return my_plugin_lock(thd, &global_system_variables.temp_table_plugin);
+}
+
+
+/** @brief
+  Return the default storage engine handlerton used for explicitly 
+  created temp tables for a thread
+
+  SYNOPSIS
+    ha_default_temp_handlerton(thd)
+    thd         current thread
+
+  RETURN
+    pointer to handlerton
+*/
+handlerton *ha_default_temp_handlerton(THD *thd)
+{
+  plugin_ref plugin= ha_default_temp_plugin(thd);
+  DBUG_ASSERT(plugin);
+  handlerton *hton= plugin_data(plugin, handlerton*);
+  DBUG_ASSERT(hton);
+  return hton;
+}
+
+
 /** @brief
   Return the storage engine handlerton for the supplied name
   
@@ -140,7 +170,8 @@ handlerton *ha_default_handlerton(THD *thd)
   RETURN
     pointer to storage engine plugin handle
 */
-plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name)
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name, 
+                              bool is_temp_table)
 {
   const LEX_STRING *table_alias;
   plugin_ref plugin;
@@ -150,7 +181,8 @@ redo:
   if (thd && !my_charset_latin1.coll->strnncoll(&my_charset_latin1,
                            (const uchar *)name->str, name->length,
                            (const uchar *)STRING_WITH_LEN("DEFAULT"), 0))
-    return ha_default_plugin(thd);
+    return is_temp_table ? 
+      ha_default_plugin(thd) : ha_default_temp_plugin(thd);
 
   if ((plugin= my_plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
@@ -2081,8 +2113,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   delete file;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely((error == 0) && (PSI_server != NULL)))
-    PSI_server->drop_table_share(db, strlen(db), alias, strlen(alias));
+  if (likely(error == 0))
+    PSI_CALL(drop_table_share)(db, strlen(db), alias, strlen(alias));
 #endif
 
   DBUG_RETURN(error);
@@ -2181,12 +2213,8 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
 #ifdef HAVE_PSI_TABLE_INTERFACE
-    if (likely(PSI_server != NULL))
-    {    
-      PSI_table_share *share_psi= ha_table_share_psi(table_share);
-      if (likely(share_psi != NULL))
-        m_psi= PSI_server->open_table(share_psi, this);
-    }    
+    PSI_table_share *share_psi= ha_table_share_psi(table_share);
+    m_psi= PSI_CALL(open_table)(share_psi, this);
 #endif
 
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
@@ -2210,11 +2238,8 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 int handler::ha_close(void)
 {
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely(PSI_server && m_psi))
-  {
-    PSI_server->close_table(m_psi);
-    m_psi= NULL; /* instrumentation handle, invalid after close_table() */
-  }
+  PSI_CALL(close_table)(m_psi);
+  m_psi= NULL; /* instrumentation handle, invalid after close_table() */
 #endif
   DBUG_ASSERT(m_psi == NULL);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
@@ -3905,10 +3930,9 @@ int ha_create_table(THD *thd, const char *path,
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely(PSI_server != NULL))
   {
     my_bool temp= (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
-    share.m_psi= PSI_server->get_table_share(temp, &share);
+    share.m_psi= PSI_CALL(get_table_share)(temp, &share);
   }
 #endif
 

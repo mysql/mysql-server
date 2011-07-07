@@ -2,7 +2,7 @@ drop table if exists t1;
 drop table if exists t2;
 create table t1 (test_name text);
 create table t2 (test_name text);
-load data infile "MYSQLTEST_VARDIR/tmp/perfschema-all_tests.txt" into table t1;
+load data infile "<MYSQLTEST_VARDIR>/tmp/perfschema-all_tests.txt" into table t1;
 insert into t2 select concat('ddl_', table_name, '.test') from information_schema.tables
 where table_schema='performance_schema';
 insert into t2 select concat('dml_', table_name, '.test') from information_schema.tables

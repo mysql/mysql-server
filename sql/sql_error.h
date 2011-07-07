@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -259,8 +259,8 @@ class Warning_info
 private:
   Warning_info(const Warning_info &rhs); /* Not implemented */
   Warning_info& operator=(const Warning_info &rhs); /* Not implemented */
-public:
 
+public:
   Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings);
   ~Warning_info();
 
@@ -295,19 +295,15 @@ public:
       clear_warning_info(query_id);
   }
 
-  void append_warning_info(THD *thd, Warning_info *source)
-  {
-    append_warnings(thd, & source->m_warn_list);
-  }
-
   /**
     Concatenate the list of warnings.
     It's considered tolerable to lose a warning.
   */
-  void append_warnings(THD *thd, List *src)
+  void append_warning_info(THD *thd, const Warning_info *source)
   {
-    MYSQL_ERROR *err;
-    Iterator it(*src);
+    const MYSQL_ERROR *err;
+    Const_iterator it(source->m_warn_list);
+
     /*
       Don't use ::push_warning() to avoid invocation of condition
       handlers or escalation of warnings to errors.
@@ -319,7 +315,7 @@ public:
   /**
     Conditional merge of related warning information areas.
   */
-  void merge_with_routine_info(THD *thd, Warning_info *source);
+  void merge_with_routine_info(THD *thd, const Warning_info *source);
 
   /**
     Reset between two COM_ commands. Warnings are preserved

@@ -8020,7 +8020,6 @@ walk_up_n_right:
   RANGE_SEQ_ENTRY *cur= &seq->stack[seq->i];
   uint min_key_length= cur->min_key - seq->param->min_key;
   
-  range->ptr= (char*)(int)(key_tree->part);
   if (cur->min_key_flag & GEOM_FLAG)
   {
     range->range_flag= cur->min_key_flag;
@@ -11299,6 +11298,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   int result;
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
+  seen_first_key= false;
   head->set_keyread(TRUE); /* We need only the key attributes */
   /*
     Request ordered index access as usage of ::index_last(), 
