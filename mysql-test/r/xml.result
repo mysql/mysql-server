@@ -1144,5 +1144,23 @@ SELECT UPDATEXML(CONVERT('' USING swe7), TRUNCATE('',1), 0);
 UPDATEXML(CONVERT('' USING swe7), TRUNCATE('',1), 0)
 NULL
 #
+# Bug#12375190: UPDATEXML CRASHES ON SIMPLE INPUTS
+#
+SELECT UPDATEXML('','(a)/a','');
+UPDATEXML('','(a)/a','')
+
+SELECT UPDATEXML('<a><a>x</a></a>','(a)/a','<b />');
+UPDATEXML('<a><a>x</a></a>','(a)/a','<b />')
+<a><b /></a>
+SELECT UPDATEXML('<a><c><a>x</a></c></a>','(a)/a','<b />');
+UPDATEXML('<a><c><a>x</a></c></a>','(a)/a','<b />')
+<a><c><a>x</a></c></a>
+SELECT UPDATEXML('<a><c><a>x</a></c></a>','(a)//a','<b />');
+UPDATEXML('<a><c><a>x</a></c></a>','(a)//a','<b />')
+<a><c><b /></c></a>
+SELECT ExtractValue('<a><a>aa</a><b>bb</b></a>','(a)/a|(a)/b');
+ExtractValue('<a><a>aa</a><b>bb</b></a>','(a)/a|(a)/b')
+aa bb
+#
 # End of 5.5 tests
 #
