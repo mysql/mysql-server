@@ -457,6 +457,13 @@ IS_NULLABLE	COLUMN_NAME
 YES	authentication_string
 YES	plugin
 #
+# Bug #12610784: SET PASSWORD INCORRECTLY KEEP AN OLD EMPTY PASSWORD
+#
+CREATE USER bug12610784@localhost;
+SET PASSWORD FOR bug12610784@localhost = PASSWORD('secret');
+ERROR 28000: Access denied for user 'bug12610784'@'localhost' (using password: NO)
+DROP USER bug12610784@localhost;
+#
 # Bug # 11766641: 59792: BIN/MYSQL -UUNKNOWN -PUNKNOWN 
 #  .-> USING PASSWORD: NO 
 #
