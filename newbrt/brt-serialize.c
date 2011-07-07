@@ -804,7 +804,6 @@ BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
     bn->n_bytes_in_buffer = 0;
     bn->seqinsert = 0;
     bn->optimized_for_upgrade = 0;
-    bn->max_msn_applied = ZERO_MSN;
     return bn;
 }
 
@@ -1017,6 +1016,7 @@ setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* bfe) {
     for (int i = 0; i < node->n_children; i++) {
         BP_INIT_UNTOUCHED_CLOCK(node,i);
         BP_STATE(node,i) = toku_brtnode_partition_state(bfe, i);
+        BP_WORKDONE(node,i) = 0;
         if (BP_STATE(node,i) == PT_AVAIL) {
             setup_available_brtnode_partition(node, i);
             BP_TOUCH_CLOCK(node,i);
