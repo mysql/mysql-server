@@ -39,6 +39,10 @@ DELETE FROM t1_purge;
 DELETE FROM t2_purge;
 DELETE FROM t3_purge;
 DELETE FROM t4_purge;
+SELECT sleep(10);
+sleep(10)
+0
+drop table t1_purge, t2_purge, t3_purge, t4_purge;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
