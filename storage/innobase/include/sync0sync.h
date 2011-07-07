@@ -651,6 +651,7 @@ or row lock! */
 					trx_i_s_cache_t::last_read_mutex */
 #define SYNC_FILE_FORMAT_TAG	1200	/* Used to serialize access to the
 					file format tag */
+#define SYNC_FTS_CACHE_INIT	1100	/* Used for FTS cache initialization */
 #define	SYNC_DICT_OPERATION	1001	/* table create, drop, etc. reserve
 					this in X-mode; implicit or backround
 					operations purge, rollback, foreign

@@ -88,6 +88,7 @@ static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
 
 #ifdef UNIV_PFS_RWLOCK
 UNIV_INTERN mysql_pfs_key_t	fts_cache_rw_lock_key;
+UNIV_INTERN mysql_pfs_key_t	fts_cache_init_rw_lock_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
@@ -298,6 +299,7 @@ fts_is_word_in_index(
 	fts_table_t*	fts_table,	/*!< in: table instance */
 	const fts_string_t* word,	/*!< in: the word to check */
 	ibool*		found);		/*!< out: TRUE if exists */
+
 /********************************************************************
 Check if we should stop. */
 UNIV_INLINE
@@ -571,6 +573,8 @@ fts_cache_create(
 	cache->cache_heap = heap;
 
 	rw_lock_create(fts_cache_rw_lock_key, &cache->lock, SYNC_FTS_CACHE);
+	rw_lock_create(fts_cache_init_rw_lock_key, &cache->init_lock,
+		       SYNC_FTS_CACHE_INIT);
 
 	mutex_create(fts_delete_mutex_key, &cache->deleted_lock,
 		     SYNC_FTS_OPTIMIZE);
@@ -872,6 +876,7 @@ fts_cache_destroy(
 	fts_cache_t*	cache)			/*!< in: cache*/
 {
 	rw_lock_free(&cache->lock);
+	rw_lock_free(&cache->init_lock);
 	mutex_free(&cache->optimize_lock);
 	mutex_free(&cache->deleted_lock);
 	rbt_free(cache->stopword_info.cached_stopword);
@@ -2219,12 +2224,13 @@ retry:
         cache->synced_doc_id = ut_max(doc_id_cmp, *doc_id);
 
         cache->next_doc_id = cache->synced_doc_id + 1;
-        *doc_id = cache->next_doc_id;
         
         if (doc_id_cmp > *doc_id) {
                 error = fts_update_sync_doc_id(table, table->name,
                                                cache->synced_doc_id, trx);
         }
+
+        *doc_id = cache->next_doc_id;
 
 func_exit:
 
@@ -2380,7 +2386,6 @@ fts_add_doc_id(
 	yet be sync-ed */
 	if (!(ftt->table->fts->fts_status & ADDED_TABLE_SYNCED)) {
 		fts_init_index(ftt->table);
-		ftt->table->fts->fts_status |= ADDED_TABLE_SYNCED;
 	}
 
 	/* Get the document, parse them and add to FTS ADD table
@@ -3123,7 +3128,8 @@ fts_doc_fetch_by_doc_id(
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
 					" SELECT %s, %s FROM %s"
-					" WHERE %s > :doc_id;\n"
+					" WHERE %s > :doc_id"
+					" ORDER BY %s;\n"
 					"BEGIN\n"
 					""
 					"OPEN c;\n"
@@ -3136,6 +3142,7 @@ fts_doc_fetch_by_doc_id(
 					"CLOSE c;",
 					FTS_DOC_ID_COL_NAME,
 					select_str, index->table_name,
+					FTS_DOC_ID_COL_NAME,
 					FTS_DOC_ID_COL_NAME));
 		}
 		if (get_doc) {
@@ -6176,7 +6183,7 @@ fts_init_recover_doc(
 	fts_cache_add_doc(cache, get_doc->index_cache,
 			  doc_id, doc.tokens);
 
-	if (doc_id > cache->next_doc_id) {
+	if (doc_id >= cache->next_doc_id) {
 		cache->next_doc_id = doc_id + 1;
 	}
 
@@ -6204,6 +6211,20 @@ fts_init_index(
 	dict_index_t*   index;
 	fts_doc_t	doc;
 
+	/* First check cache->get_docs is initialized */
+	rw_lock_x_lock(&cache->lock);
+	if (cache->get_docs == NULL) {
+		cache->get_docs = fts_get_docs_create(cache);
+	}
+	rw_lock_x_unlock(&cache->lock);
+
+	rw_lock_x_lock(&cache->init_lock);
+
+	if (table->fts->fts_status & ADDED_TABLE_SYNCED) {
+		rw_lock_x_unlock(&cache->init_lock);
+		return(TRUE);
+	}
+
 	fts_doc_init(&doc);
 
 	start_doc = cache->synced_doc_id;
@@ -6212,16 +6233,11 @@ fts_init_index(
 		error = fts_cmp_set_sync_doc_id(table, 0, TRUE, &start_doc);
 	}
 
-	rw_lock_x_lock(&cache->lock);
-	if (cache->get_docs == NULL) {
-		cache->get_docs = fts_get_docs_create(cache);
-	}
-	rw_lock_x_unlock(&cache->lock);
-
 	/* No FTS index, this is the case when previous FTS index
 	dropped, and we re-initialize the Doc ID system for subsequent
 	insertion */
 	if (ib_vector_is_empty(cache->get_docs)) {
+		rw_lock_x_unlock(&cache->init_lock);
 		return(TRUE);
 	}
 
@@ -6243,6 +6259,10 @@ fts_init_index(
 
 	/* Register the table with the optimize thread. */
 	fts_optimize_add_table(table);
+
+	table->fts->fts_status |= ADDED_TABLE_SYNCED;
+
+	rw_lock_x_unlock(&cache->init_lock);
 
 	return(TRUE);
 }

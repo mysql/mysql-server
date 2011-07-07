@@ -123,6 +123,10 @@ struct fts_cache_struct {
 					memory buffer. FIXME: this needs to
 					be our new upgrade-capable rw-lock */
 
+	rw_lock_t	init_lock;	/* lock used for the cache
+					intialization, it has different
+					SYNC level as above cache lock */
+
 	mutex_t		optimize_lock;	/* Lock for OPTIMIZE */
 
 	mutex_t		deleted_lock;	/* Lock covering deleted_doc_ids */

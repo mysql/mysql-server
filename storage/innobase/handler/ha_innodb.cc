@@ -340,6 +340,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	{&fil_space_latch_key, "fil_space_latch", 0},
 	{&checkpoint_lock_key, "checkpoint_lock", 0},
 	{&fts_cache_rw_lock_key, "fts_cache_rw_lock", 0},
+	{&fts_cache_init_rw_lock_key, "fts_cache_init_rw_lock", 0},
 	{&trx_i_s_cache_lock_key, "trx_i_s_cache_lock", 0},
 	{&trx_purge_latch_key, "trx_purge_latch", 0},
 	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
@@ -8841,7 +8842,7 @@ match. In this case, we have to take into account if we generated a
 default clustered index for the table
 @return the key number used inside MySQL */
 static
-unsigned int
+int
 innobase_get_mysql_key_number_for_index(
 /*====================================*/
 	INNOBASE_SHARE*		share,	/*!< in: share structure for index
@@ -8904,9 +8905,22 @@ innobase_get_mysql_key_number_for_index(
 		}
 	}
 
+        /* Loop through each index of the table and lock them */
+        for (ind = dict_table_get_first_index(ib_table);
+             ind != NULL;
+             ind = dict_table_get_next_index(ind)) {
+		if (index == ind) {
+			sql_print_error("Find index %s in InnoDB index list "
+					"but not its MySQL index number "
+					"It could be an InnoDB internal index.",
+					index->name);
+			return(-1);
+		}
+        }
+
 	ut_error;
 
-	return(0);
+	return(-1);
 }
 
 /*********************************************************************//**
