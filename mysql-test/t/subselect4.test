@@ -1558,4 +1558,40 @@ drop table t1, t2;
 
 set @@optimizer_switch = @old_optimizer_switch;
 
+
+--echo #
+--echo # LP BUG#612543 Crash in Item_field::used_tables() with view + subquery + prepared statements
+--echo #
+
+CREATE TABLE t1 ( f1 int(11), f2 varchar(1));
+CREATE TABLE t2 ( f3 varchar(1));
+insert into t1 values (2,'x'), (5,'y');
+insert into t2 values ('x'), ('z');
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+set @old_optimizer_switch = @@optimizer_switch;
+
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 );
+PREPARE st1 FROM "SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 )";
+EXECUTE st1;
+EXECUTE st1;
+
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 );
+PREPARE st2 FROM "SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 )";
+EXECUTE st2;
+EXECUTE st2;
+
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 );
+PREPARE st3 FROM "SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 )";
+EXECUTE st3;
+EXECUTE st3;
+
+set @@optimizer_switch = @old_optimizer_switch;
+
+drop table t1, t2;
+drop view v2;
+
 set optimizer_switch=@subselect4_tmp;
