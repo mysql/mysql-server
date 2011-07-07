@@ -893,15 +893,16 @@ static int check_connection(THD *thd)
     (uchar)(*passwd++) : strlen(passwd);
   db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
     db + passwd_len + 1 : 0;
-  /* strlen() can't be easily deleted without changing protocol */
-  uint db_len= db ? strlen(db) : 0;
 
-  if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
+  if (passwd + passwd_len + test(db) > (char *)net->read_pos + pkt_len)
   {
     inc_host_errors(&thd->remote.sin_addr);
     my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
     return 1;
   }
+
+  /* strlen() can't be easily deleted without changing protocol */
+  uint db_len= db ? strlen(db) : 0;
 
   /* Since 4.1 all database names are stored in utf8 */
   if (db)
