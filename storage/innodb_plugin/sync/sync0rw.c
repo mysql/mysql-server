@@ -766,7 +766,9 @@ rw_lock_add_debug_info(
 	rw_lock_debug_mutex_exit();
 
 	if ((pass == 0) && (lock_type != RW_LOCK_WAIT_EX)) {
-		sync_thread_add_level(lock, lock->level);
+		sync_thread_add_level(lock, lock->level,
+				      lock_type == RW_LOCK_EX
+				      && lock->lock_word < 0);
 	}
 }
 
