@@ -795,7 +795,9 @@ void toku_destroy_brtnode_internals(BRTNODE node)
 		destroy_basement_node(BLB(node, i));
             }
         } else if (BP_STATE(node,i) == PT_COMPRESSED) {
-	    toku_free(BSB(node,i));
+            SUB_BLOCK sb = BSB(node,i);
+            toku_free(sb->compressed_ptr);
+	    toku_free(sb);
         } else {
 	    assert(is_BNULL(node, i));
         }
