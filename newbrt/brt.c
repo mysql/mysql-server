@@ -249,17 +249,19 @@ static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnu
     assert(node->height>0 && childnum<node->n_children);
     switch (BP_HAVE_FULLHASH(node, childnum)) {
     case TRUE:
-	{
-	    assert(BP_FULLHASH(node, childnum)==toku_cachetable_hash(cf, BP_BLOCKNUM(node, childnum)));
-	    return BP_FULLHASH(node, childnum);
-	}
-    case FALSE:
-	{
+        {
+#ifdef SLOW
+            assert(BP_FULLHASH(node, childnum)==toku_cachetable_hash(cf, BP_BLOCKNUM(node, childnum)));
+#endif
+            return BP_FULLHASH(node, childnum);
+        }
+    case FALSE: 
+        {
 	    u_int32_t child_fullhash = toku_cachetable_hash(cf, BP_BLOCKNUM(node, childnum));
 	    BP_HAVE_FULLHASH(node, childnum) = TRUE;
 	    BP_FULLHASH(node, childnum) = child_fullhash;
 	    return child_fullhash;
-	}
+        }
     }
     abort(); return 0;
 }
