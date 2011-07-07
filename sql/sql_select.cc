@@ -8342,17 +8342,29 @@ bool generate_derived_keys_for_table(KEYUSE *keyuse, uint count, uint keys)
     return TRUE;
   uint keyno= 0;
   KEYUSE *first_keyuse= keyuse;
-  uint prev_part= (uint) (-1);
+  uint prev_part= keyuse->keypart;
   uint parts= 0;
   uint i= 0;
-  do
+
+  for ( ; i < count && keyno < keys; )
   {
-    keyuse->key= keyno;
-    keyuse->keypart_map= (key_part_map) (1 << parts);
-    keyuse++;
-    if (++i == count || keyuse->used_tables != first_keyuse->used_tables)
+    do
     {
-      if (table->add_tmp_key(keyno, ++parts, 
+      keyuse->key= keyno;
+      keyuse->keypart_map= (key_part_map) (1 << parts);     
+      keyuse++;
+      i++;
+    } 
+    while (i < count && keyuse->used_tables == first_keyuse->used_tables &&
+           keyuse->keypart == prev_part);
+    parts++;
+    if (i < count && keyuse->used_tables == first_keyuse->used_tables)
+    {
+      prev_part= keyuse->keypart;
+    }
+    else
+    {
+      if (table->add_tmp_key(keyno, parts, 
                              get_next_field_for_derived_key, 
                              (uchar *) &first_keyuse,
                              FALSE))
@@ -8361,14 +8373,10 @@ bool generate_derived_keys_for_table(KEYUSE *keyuse, uint count, uint keys)
       first_keyuse= keyuse;
       keyno++;
       parts= 0;
-      prev_part= (uint) (-1);
-    }
-    else if (keyuse->keypart != prev_part)
-    {
-      parts++;
       prev_part= keyuse->keypart;
     }
-  } while (keyno < keys);
+  }             
+
   return FALSE;
 }
    

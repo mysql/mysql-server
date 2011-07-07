@@ -414,3 +414,24 @@ SELECT t.f1 AS f
 
 DROP TABLE t1,t2,t3,t4;
 
+--echo #
+--echo # LP bug #806431: join over materialized derived with key                    
+--echo #             
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,0),(3,0),(1,0);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT a,b FROM t1 ;
+
+SET SESSION optimizer_switch='derived_with_keys=off';
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+
+SET SESSION optimizer_switch=default;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
