@@ -123,6 +123,9 @@ The following options may be given as the first argument:
  The DATETIME format (ignored)
  --default-storage-engine=name 
  The default storage engine for new tables
+ --default-temp-storage-engine=name 
+ The default storage engine for new explict temporary
+ tables
  --default-time-zone=name 
  Set the default time zone.
  --default-week-format=# 
@@ -790,6 +793,7 @@ console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
 default-storage-engine InnoDB
+default-temp-storage-engine InnoDB
 default-time-zone (No default value)
 default-week-format 0
 delay-key-write ON

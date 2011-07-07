@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2434,6 +2434,12 @@ static Sys_var_plugin Sys_default_storage_engine(
        "default_storage_engine", "The default storage engine for new tables",
        SESSION_VAR(table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
+
+static Sys_var_plugin Sys_default_temp_storage_engine(
+       "default_temp_storage_engine", "The default storage engine for new explict temporary tables",
+       SESSION_VAR(temp_table_plugin), NO_CMD_LINE,
+       MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_temp_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
 
 //  Alias for @@default_storage_engine
