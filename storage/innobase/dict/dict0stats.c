@@ -1358,6 +1358,10 @@ dict_stats_update_persistent(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
+		if (index->type & DICT_FTS) {
+			continue;
+		}
+
 		dict_stats_analyze_index(index);
 
 		table->stat_sum_of_other_index_sizes
@@ -2187,6 +2191,16 @@ dict_stats_update(
 	case DICT_STATS_RECALC_PERSISTENT_SILENT:
 		/* Persistent recalculation requested, called from
 		ANALYZE TABLE or from TRUNCATE TABLE */
+
+		/* FTS auxiliary tables do not need persistent stats */
+		if ((ut_strcount(table->name, "FTS") > 0
+		&& (ut_strcount(table->name, "CONFIG") > 0
+		    || ut_strcount(table->name, "INDEX") > 0
+		    || ut_strcount(table->name, "DELETED") > 0
+		    || ut_strcount(table->name, "DOC_ID") > 0
+		    || ut_strcount(table->name, "ADDED") > 0))) {
+			goto transient;
+		}
 
 		/* check if the persistent statistics storage exists
 		before calling the potentially slow function
