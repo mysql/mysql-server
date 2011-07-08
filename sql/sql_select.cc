@@ -10822,26 +10822,24 @@ void revise_cache_usage(JOIN_TAB *join_tab)
       - the optimizer_switch settings for join buffering
       - the join 'options'.
     In any case join buffer is not used if the number of the joined table is
-    greater than 'no_jbuf_after'. It's also never used if the optimizer
-    switches block_nested_loop and batch_key_access is both turned off.
-    If block_nested_loop is turned on (default), then join buffer is used 
+    greater than 'no_jbuf_after'. 
+
+    If block_nested_loop is turned on, and if all other criteria for using
+    join buffering is fulfilled (see below), then join buffer is used 
     for any join operation (inner join, outer join, semi-join) with 'JT_ALL' 
     access method.  In that case, a JOIN_CACHE_BNL object is always employed.
-    If an index is used to access rows of the joined table and batch_key_access
-    is on then a JOIN_CACHE_BKA object is employed. (Unless debug flag,
-    test_bka unique is set, then a JOIN_CACHE_BKA_UNIQUE object is employed
-    instead.) 
-    If the function decides that a join buffer can be used to join the table
-    'tab' then it sets the value of tab->use_join_buffer to TRUE and assigns
-    the selected join cache object to the field 'cache' of the previous
-    join table. 
-    If the function creates a join cache object it tries to initialize it. The
-    failure to do this results in an invocation of the function that destructs
-    the created object.
 
-    Bitmap describing the chosen algorithm is assigned to
-    tab->use_join_cache (JOIN_CACHE::ALG_NONE, JOIN_CACHE::ALG_BNL,
-    JOIN_CACHE::ALG_BKA, JOIN_CACHE::ALG_BKA_UNIQUE)
+    If an index is used to access rows of the joined table and batch_key_access
+    is on, then a JOIN_CACHE_BKA object is employed. (Unless debug flag,
+    test_bka unique, is set, then a JOIN_CACHE_BKA_UNIQUE object is employed
+    instead.) 
+
+    If the function decides that a join buffer can be used to join the table
+    'tab' then it sets @c tab->use_join_cache to reflect the chosen algorithm 
+    and assigns the selected join cache object to the field 'cache' of the 
+    previous join table.  After creating a join cache object, it will be 
+    initialized. Failure to do so, will cause the decision to use join
+    buffering to be reverted.
  
   @note
     For a nested outer join/semi-join, currently, we either use join buffers for
