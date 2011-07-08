@@ -18601,11 +18601,8 @@ static void test_bug38486(void)
 static void test_bug33831(void)
 {
   MYSQL *l_mysql;
-  my_bool error;
 
   DBUG_ENTER("test_bug33831");
-  
-  error= 0;
 
   if (!(l_mysql= mysql_client_init(NULL)))
   {
@@ -18628,9 +18625,8 @@ static void test_bug33831(void)
     DIE_UNLESS(0);
   }
 
-
   mysql_close(l_mysql);
-  
+
   DBUG_VOID_RETURN;
 }
 

@@ -21,6 +21,7 @@
 #include "my_global.h"
 #include "my_pthread.h"
 #include "pfs_instr_class.h"
+#include "pfs_instr.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "table_setup_instruments.h"
@@ -245,16 +246,45 @@ int table_setup_instruments::update_row_values(TABLE *table,
         return HA_ERR_WRONG_COMMAND;
       case 1: /* ENABLED */
         value= (enum_yes_no) get_field_enum(f);
-        PFS_instr_class::set_enabled(m_row.m_instr_class, (value == ENUM_YES) ? true : false);
+        m_row.m_instr_class->m_enabled= (value == ENUM_YES) ? true : false;
         break;
       case 2: /* TIMED */
         value= (enum_yes_no) get_field_enum(f);
-        PFS_instr_class::set_timed(m_row.m_instr_class, (value == ENUM_YES) ? true : false);
+        m_row.m_instr_class->m_timed= (value == ENUM_YES) ? true : false;
         break;
       default:
         DBUG_ASSERT(false);
       }
     }
+  }
+
+  switch (m_pos.m_index_1)
+  {
+    case pos_setup_instruments::VIEW_MUTEX:
+      update_mutex_derived_flags();
+      break;
+    case pos_setup_instruments::VIEW_RWLOCK:
+      update_rwlock_derived_flags();
+      break;
+    case pos_setup_instruments::VIEW_COND:
+      update_cond_derived_flags();
+      break;
+    case pos_setup_instruments::VIEW_THREAD:
+      /* Not used yet  */
+      break;
+    case pos_setup_instruments::VIEW_FILE:
+      update_file_derived_flags();
+      break;
+    case pos_setup_instruments::VIEW_TABLE:
+      update_table_derived_flags();
+      break;
+    case pos_setup_instruments::VIEW_STAGE:
+    case pos_setup_instruments::VIEW_STATEMENT:
+      /* No flag to update. */
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
   }
 
   return 0;

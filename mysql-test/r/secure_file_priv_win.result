@@ -1,0 +1,38 @@
+CREATE TABLE t1 (c1 longtext);
+INSERT INTO t1 values ('a');
+SELECT * FROM t1 INTO OUTFILE 'MYSQL_TMP_DIR/B11764517.tmp';
+show global variables like 'secure_file_priv';
+Variable_name	Value
+secure_file_priv	MYSQL_TMP_DIR/
+SELECT load_file('MYSQL_TMP_DIR\\B11764517.tmp') AS x;
+x
+a
+
+SELECT load_file('MYSQL_TMP_DIR/B11764517.tmp') AS x;
+x
+a
+
+SELECT load_file('MYSQL_TMP_DIR_UCASE/B11764517.tmp') AS x;
+x
+a
+
+SELECT load_file('MYSQL_TMP_DIR_LCASE/B11764517.tmp') AS x;
+x
+a
+
+SELECT load_file('MYSQL_TMP_DIR\\..a..\\..\\..\\B11764517.tmp') AS x;
+x
+NULL
+LOAD DATA INFILE 'MYSQL_TMP_DIR\\B11764517.tmp' INTO TABLE t1;
+LOAD DATA INFILE 'MYSQL_TMP_DIR/B11764517.tmp' INTO TABLE t1;
+LOAD DATA INFILE 'MYSQL_TMP_DIR_UCASE/B11764517.tmp' INTO TABLE t1;
+LOAD DATA INFILE 'MYSQL_TMP_DIR_LCASE/B11764517.tmp' INTO TABLE t1;
+LOAD DATA INFILE "MYSQL_TMP_DIR\\..a..\\..\\..\\B11764517.tmp" into table t1;
+ERROR HY000: The MySQL server is running with the --secure-file-priv option so it cannot execute this statement
+SELECT * FROM t1 INTO OUTFILE 'MYSQL_TMP_DIR\\..a..\\..\\..\\B11764517-2.tmp';
+ERROR HY000: The MySQL server is running with the --secure-file-priv option so it cannot execute this statement
+SELECT * FROM t1 INTO OUTFILE 'MYSQL_TMP_DIR\\B11764517-2.tmp';
+SELECT * FROM t1 INTO OUTFILE 'MYSQL_TMP_DIR/B11764517-3.tmp';
+SELECT * FROM t1 INTO OUTFILE 'MYSQL_TMP_DIR_UCASE/B11764517-4.tmp';
+SELECT * FROM t1 INTO OUTFILE 'MYSQL_TMP_DIR_LCASE/B11764517-5.tmp';
+DROP TABLE t1;

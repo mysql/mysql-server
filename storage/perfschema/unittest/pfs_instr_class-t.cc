@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -91,10 +91,10 @@ void test_no_registration()
   socket_key= register_socket_class("FOO", 3, 0);
   ok(socket_key == 0, "no socket registered");
 
+#ifdef LATER
   PFS_thread fake_thread;
   fake_thread.m_table_share_hash_pins= NULL;
 
-#ifdef LATER
   table= find_or_create_table_share(& fake_thread, false, "foo_db", 6, "foo_table", 9);
   ok(table == NULL, "not created");
   table= find_or_create_table_share(& fake_thread, false, "bar_db", 6, "bar_table", 9);

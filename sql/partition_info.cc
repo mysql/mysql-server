@@ -636,12 +636,11 @@ char *partition_info::find_duplicate_name()
   HASH partition_names;
   uint max_names;
   const uchar *curr_name= NULL;
-  size_t length;
   List_iterator<partition_element> parts_it(partitions);
-  partition_element *p_elem;  
+  partition_element *p_elem;
 
   DBUG_ENTER("partition_info::find_duplicate_name");
-  
+
   /*
     TODO: If table->s->ha_part_data->partition_name_hash.elements is > 0,
     then we could just return NULL, but that has not been verified.
@@ -661,7 +660,6 @@ char *partition_info::find_duplicate_name()
   while ((p_elem= (parts_it++)))
   {
     curr_name= (const uchar*) p_elem->partition_name;
-    length= strlen(p_elem->partition_name);
     if (my_hash_insert(&partition_names, curr_name))
       goto error;
 
@@ -676,7 +674,7 @@ char *partition_info::find_duplicate_name()
           goto error;
       }
     }
-  } 
+  }
   my_hash_free(&partition_names);
   DBUG_RETURN(NULL);
 error:

@@ -132,6 +132,7 @@ struct PSI_bootstrap
   @sa DISABLE_PSI_RWLOCK
   @sa DISABLE_PSI_COND
   @sa DISABLE_PSI_FILE
+  @sa DISABLE_PSI_THREAD
   @sa DISABLE_PSI_TABLE
   @sa DISABLE_PSI_STAGE
   @sa DISABLE_PSI_STATEMENT
@@ -171,9 +172,14 @@ struct PSI_bootstrap
 #define HAVE_PSI_FILE_INTERFACE
 #endif
 
-/* No flag to disable the thread instrumentation. */
-
+/**
+  @def DISABLE_PSI_THREAD
+  Compiling option to disable the thread instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+#ifndef DISABLE_PSI_THREAD
 #define HAVE_PSI_THREAD_INTERFACE
+#endif
 
 /**
   @def DISABLE_PSI_TABLE
@@ -718,6 +724,8 @@ struct PSI_mutex_locker_state_v1
 {
   /** Internal state. */
   uint m_flags;
+  /** Current operation. */
+  enum PSI_mutex_operation m_operation;
   /** Current mutex. */
   struct PSI_mutex *m_mutex;
   /** Current thread. */
@@ -726,12 +734,6 @@ struct PSI_mutex_locker_state_v1
   ulonglong m_timer_start;
   /** Timer function. */
   ulonglong (*m_timer)(void);
-  /** Current operation. */
-  enum PSI_mutex_operation m_operation;
-  /** Source file. */
-  const char* m_src_file;
-  /** Source line number. */
-  int m_src_line;
   /** Internal data. */
   void *m_wait;
 };
@@ -749,6 +751,8 @@ struct PSI_rwlock_locker_state_v1
 {
   /** Internal state. */
   uint m_flags;
+  /** Current operation. */
+  enum PSI_rwlock_operation m_operation;
   /** Current rwlock. */
   struct PSI_rwlock *m_rwlock;
   /** Current thread. */
@@ -757,12 +761,6 @@ struct PSI_rwlock_locker_state_v1
   ulonglong m_timer_start;
   /** Timer function. */
   ulonglong (*m_timer)(void);
-  /** Current operation. */
-  enum PSI_rwlock_operation m_operation;
-  /** Source file. */
-  const char* m_src_file;
-  /** Source line number. */
-  int m_src_line;
   /** Internal data. */
   void *m_wait;
 };
@@ -780,6 +778,8 @@ struct PSI_cond_locker_state_v1
 {
   /** Internal state. */
   uint m_flags;
+  /** Current operation. */
+  enum PSI_cond_operation m_operation;
   /** Current condition. */
   struct PSI_cond *m_cond;
   /** Current mutex. */
@@ -790,12 +790,6 @@ struct PSI_cond_locker_state_v1
   ulonglong m_timer_start;
   /** Timer function. */
   ulonglong (*m_timer)(void);
-  /** Current operation. */
-  enum PSI_cond_operation m_operation;
-  /** Source file. */
-  const char* m_src_file;
-  /** Source line number. */
-  int m_src_line;
   /** Internal data. */
   void *m_wait;
 };
@@ -815,6 +809,8 @@ struct PSI_file_locker_state_v1
 {
   /** Internal state. */
   uint m_flags;
+  /** Current operation. */
+  enum PSI_file_operation m_operation;
   /** Current file. */
   struct PSI_file *m_file;
   /** Current thread. */
@@ -825,12 +821,6 @@ struct PSI_file_locker_state_v1
   ulonglong m_timer_start;
   /** Timer function. */
   ulonglong (*m_timer)(void);
-  /** Current operation. */
-  enum PSI_file_operation m_operation;
-  /** Source file. */
-  const char* m_src_file;
-  /** Source line number. */
-  int m_src_line;
   /** Internal data. */
   void *m_wait;
 };
@@ -850,6 +840,8 @@ struct PSI_table_locker_state_v1
 {
   /** Internal state. */
   uint m_flags;
+  /** Current io operation. */
+  enum PSI_table_io_operation m_io_operation;
   /** Current table handle. */
   struct PSI_table *m_table;
   /** Current table share. */
@@ -860,20 +852,14 @@ struct PSI_table_locker_state_v1
   ulonglong m_timer_start;
   /** Timer function. */
   ulonglong (*m_timer)(void);
-  /** Current io operation. */
-  enum PSI_table_io_operation m_io_operation;
+  /** Internal data. */
+  void *m_wait;
   /**
     Implementation specific.
     For table io, the table io index.
     For table lock, the lock type.
   */
   uint m_index;
-  /** Source file. */
-  const char* m_src_file;
-  /** Source line number. */
-  int m_src_line;
-  /** Internal data. */
-  void *m_wait;
 };
 
 /**
@@ -888,6 +874,12 @@ struct PSI_table_locker_state_v1
 */
 struct PSI_statement_locker_state_v1
 {
+  /** Discarded flag. */
+  my_bool m_discarded;
+  /** Metric, no index used flag. */
+  uchar m_no_index_used;
+  /** Metric, no good index used flag. */
+  uchar m_no_good_index_used;
   /** Internal state. */
   uint m_flags;
   /** Instrumentation class. */
@@ -898,14 +890,8 @@ struct PSI_statement_locker_state_v1
   ulonglong m_timer_start;
   /** Timer function. */
   ulonglong (*m_timer)(void);
-  /** Source file. */
-  const char* m_src_file;
-  /** Source line number. */
-  int m_src_line;
   /** Internal data. */
   void *m_statement;
-  /** Discarded flag. */
-  my_bool m_discarded;
   /** Locked time. */
   ulonglong m_lock_time;
   /** Rows sent. */
@@ -913,31 +899,27 @@ struct PSI_statement_locker_state_v1
   /** Rows examined. */
   ulonglong m_rows_examined;
   /** Metric, temporary tables created on disk. */
-  ulonglong m_created_tmp_disk_tables;
+  ulong m_created_tmp_disk_tables;
   /** Metric, temporary tables created. */
-  ulonglong m_created_tmp_tables;
+  ulong m_created_tmp_tables;
   /** Metric, number of select full join. */
-  ulonglong m_select_full_join;
+  ulong m_select_full_join;
   /** Metric, number of select full range join. */
-  ulonglong m_select_full_range_join;
+  ulong m_select_full_range_join;
   /** Metric, number of select range. */
-  ulonglong m_select_range;
+  ulong m_select_range;
   /** Metric, number of select range check. */
-  ulonglong m_select_range_check;
+  ulong m_select_range_check;
   /** Metric, number of select scan. */
-  ulonglong m_select_scan;
+  ulong m_select_scan;
   /** Metric, number of sort merge passes. */
-  ulonglong m_sort_merge_passes;
+  ulong m_sort_merge_passes;
   /** Metric, number of sort merge. */
-  ulonglong m_sort_range;
+  ulong m_sort_range;
   /** Metric, number of sort rows. */
-  ulonglong m_sort_rows;
+  ulong m_sort_rows;
   /** Metric, number of sort scans. */
-  ulonglong m_sort_scan;
-  /** Metric, number of no index used. */
-  ulonglong m_no_index_used;
-  /** Metric, number of no good index used. */
-  ulonglong m_no_good_index_used;
+  ulong m_sort_scan;
 };
 
 /**
@@ -2246,6 +2228,8 @@ typedef struct PSI_stage_info_none PSI_stage_info;
 #endif /* HAVE_PSI_INTERFACE */
 
 extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
+
+#define PSI_CALL(M) PSI_server->M
 
 /** @} */
 
