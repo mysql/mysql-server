@@ -46,6 +46,8 @@ Created 1/20/1994 Heikki Tuuri
 #include <ctype.h>
 #endif
 
+#include <stdarg.h> /* for va_list */
+
 /** Index name prefix in fast index creation */
 #define	TEMP_INDEX_PREFIX	'\377'
 /** Index name prefix in fast index creation, as a string constant */
@@ -373,6 +375,22 @@ ut_copy_file(
 
 #ifdef __WIN__
 /**********************************************************************//**
+A substitute for vsnprintf(3), formatted output conversion into
+a limited buffer. Note: this function DOES NOT return the number of
+characters that would have been printed if the buffer was unlimited because
+VC's _vsnprintf() returns -1 in this case and we would need to call
+_vscprintf() in addition to estimate that but we would need another copy
+of "ap" for that and VC does not provide va_copy(). */
+UNIV_INTERN
+void
+ut_vsnprintf(
+/*=========*/
+	char*		str,	/*!< out: string */
+	size_t		size,	/*!< in: str size */
+	const char*	fmt,	/*!< in: format */
+	va_list		ap);	/*!< in: format values */
+
+/**********************************************************************//**
 A substitute for snprintf(3), formatted output conversion into
 a limited buffer.
 @return number of characters that would have been printed if the size
@@ -386,6 +404,15 @@ ut_snprintf(
 	const char*	fmt,	/*!< in: format */
 	...);			/*!< in: format values */
 #else
+/**********************************************************************//**
+A wrapper for vsnprintf(3), formatted output conversion into
+a limited buffer. Note: this function DOES NOT return the number of
+characters that would have been printed if the buffer was unlimited because
+VC's _vsnprintf() returns -1 in this case and we would need to call
+_vscprintf() in addition to estimate that but we would need another copy
+of "ap" for that and VC does not provide va_copy(). */
+# define ut_vsnprintf(buf, size, fmt, ap)	\
+	((void) vsnprintf(buf, size, fmt, ap))
 /**********************************************************************//**
 A wrapper for snprintf(3), formatted output conversion into
 a limited buffer. */

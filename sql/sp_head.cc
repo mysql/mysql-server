@@ -1141,15 +1141,15 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
   if (thd->is_error())
   {
     ctx->find_handler(thd,
-                      thd->stmt_da->sql_errno(),
-                      thd->stmt_da->get_sqlstate(),
+                      thd->get_stmt_da()->sql_errno(),
+                      thd->get_stmt_da()->get_sqlstate(),
                       MYSQL_ERROR::WARN_LEVEL_ERROR,
-                      thd->stmt_da->message());
+                      thd->get_stmt_da()->message());
   }
-  else if (thd->warning_info->statement_warn_count())
+  else if (thd->get_stmt_wi()->statement_warn_count())
   {
-    List_iterator<MYSQL_ERROR> it(thd->warning_info->warn_list());
-    MYSQL_ERROR *err;
+    Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
+    const MYSQL_ERROR *err;
     while ((err= it++))
     {
       if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_WARN &&
@@ -1214,8 +1214,9 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   String old_packet;
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
+  Diagnostics_area *da= thd->get_stmt_da();
   Warning_info *saved_warning_info;
-  Warning_info warning_info(thd->warning_info->warn_id(), false);
+  Warning_info warning_info(thd->get_stmt_wi()->warn_id(), false);
 
   /*
     Just reporting a stack overrun error
@@ -1286,9 +1287,9 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   old_arena= thd->stmt_arena;
 
   /* Push a new warning information area. */
-  warning_info.append_warning_info(thd, thd->warning_info);
-  saved_warning_info= thd->warning_info;
-  thd->warning_info= &warning_info;
+  warning_info.append_warning_info(thd, thd->get_stmt_wi());
+  saved_warning_info= thd->get_stmt_wi();
+  da->set_warning_info(&warning_info);
 
   /*
     Switch query context. This has to be done early as this is sometimes
@@ -1388,7 +1389,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     }
 
     /* Reset number of warnings for this query. */
-    thd->warning_info->reset_for_next_command();
+    thd->get_stmt_wi()->reset_for_next_command();
 
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
@@ -1496,8 +1497,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
         propagated to the caller in any case.
   */
   if (err_status || merge_da_on_success)
-    saved_warning_info->merge_with_routine_info(thd, thd->warning_info);
-  thd->warning_info= saved_warning_info;
+    saved_warning_info->merge_with_routine_info(thd, thd->get_stmt_wi());
+  da->set_warning_info(saved_warning_info);
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",
@@ -2129,9 +2130,9 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
     if (!thd->in_sub_stmt)
     {
-      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->can_overwrite_status= TRUE;
       thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-      thd->stmt_da->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->can_overwrite_status= FALSE;
     }
 
     thd_proc_info(thd, "closing tables");
@@ -2540,7 +2541,22 @@ void
 sp_head::restore_thd_mem_root(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_thd_mem_root");
-  Item *flist= free_list;       // The old list
+
+  /*
+   In some cases our parser detects a syntax error and calls
+   LEX::cleanup_lex_after_parse_error() method only after
+   finishing parsing the whole routine. In such a situation
+   sp_head::restore_thd_mem_root() will be called twice - the
+   first time as part of normal parsing process and the second
+   time by cleanup_lex_after_parse_error().
+   To avoid ruining active arena/mem_root state in this case we
+   skip restoration of old arena/mem_root if this method has been
+   already called for this routine.
+  */
+  if (!m_thd)
+    DBUG_VOID_RETURN;
+
+  Item *flist= free_list;	// The old list
   set_query_arena(thd);         // Get new free_list and mem_root
   state= STMT_INITIALIZED_FOR_SP;
 
@@ -2569,7 +2585,7 @@ sp_head::restore_thd_mem_root(THD *thd)
 bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
 {
   TABLE_LIST tables;
-  bzero((char*) &tables,sizeof(tables));
+  memset(&tables, 0, sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
   *full_access= (!check_table_access(thd, SELECT_ACL, &tables, FALSE,
@@ -2968,9 +2984,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     /* Here we also commit or rollback the current statement. */
     if (! thd->in_sub_stmt)
     {
-      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->can_overwrite_status= TRUE;
       thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-      thd->stmt_da->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->can_overwrite_status= FALSE;
     }
     thd_proc_info(thd, "closing tables");
     close_thread_tables(thd);
@@ -3004,9 +3020,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     open_tables stage.
   */
   if (!res || !thd->is_error() ||
-      (thd->stmt_da->sql_errno() != ER_CANT_REOPEN_TABLE &&
-       thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE &&
-       thd->stmt_da->sql_errno() != ER_UPDATE_TABLE_USED))
+      (thd->get_stmt_da()->sql_errno() != ER_CANT_REOPEN_TABLE &&
+       thd->get_stmt_da()->sql_errno() != ER_NO_SUCH_TABLE &&
+       thd->get_stmt_da()->sql_errno() != ER_UPDATE_TABLE_USED))
     thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
 
   /*
@@ -3092,7 +3108,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     {
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
-      if (thd->stmt_da->is_eof())
+      if (thd->get_stmt_da()->is_eof())
       {
         /* Finalize server status flags after executing a statement. */
         thd->update_server_status();
@@ -3111,7 +3127,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     thd->query_name_consts= 0;
 
     if (!thd->is_error())
-      thd->stmt_da->reset_diagnostics_area();
+      thd->get_stmt_da()->reset_diagnostics_area();
   }
   DBUG_RETURN(res || thd->is_error());
 }

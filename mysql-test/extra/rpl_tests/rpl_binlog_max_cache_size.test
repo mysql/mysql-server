@@ -423,10 +423,6 @@ COMMIT;
 
 --connection slave
 --let $slave_sql_errno= 1197
-if (`SELECT @@binlog_format = 'ROW'`)
-{
-  --let $slave_sql_errno= 1534
-}
 source include/wait_for_slave_sql_error.inc;
 
 SELECT count(*) FROM t1;

@@ -325,7 +325,7 @@ int		excompat;	/* \( \) operators like in unix ex */
     r = (regexp *) malloc(sizeof(regexp) + (unsigned) regsize);
     if (r == (regexp *) NULL)
 	FAIL("out of space");
-    (void) bzero(r, sizeof(regexp) + (unsigned)regsize);
+    memset(r, 0, sizeof(regexp) + (unsigned)regsize);
 
     /* Second pass: emit code. */
     regparse = exp2;

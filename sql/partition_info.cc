@@ -115,11 +115,11 @@ bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
   do
   {
     String *part_name_str= partition_names_it++;
-    const char *part_name= part_name_str->c_ptr_safe();
+    const char *part_name= part_name_str->c_ptr();
     PART_NAME_DEF *part_def;
     part_def= (PART_NAME_DEF*) my_hash_search(part_name_hash,
                                               (const uchar*) part_name,
-                                              strlen(part_name));
+                                              part_name_str->length());
     if (!part_def)
     {
       my_error(ER_NO_SUCH_PARTITION, MYF(0), part_name);
@@ -1518,7 +1518,7 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
   char *buf_ptr= (char*)&buf;
   TABLE_LIST table_list;
 
-  bzero(&table_list, sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
   table_list.db= table_arg->s->db.str;
   table_list.table_name= table_arg->s->table_name.str;
 

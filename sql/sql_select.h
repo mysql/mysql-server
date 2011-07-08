@@ -308,9 +308,10 @@ public:
   Next_select_func next_select;
   READ_RECORD	read_record;
   /* 
-    Currently the following two fields are used only for a [NOT] IN subquery
-    if it is executed by an alternative full table scan when the left operand of
+    The following two fields are used for a [NOT] IN subquery if it is
+    executed by an alternative full table scan when the left operand of
     the subquery predicate is evaluated to NULL.
+    save_read_first_record is also used by semi-join materialization strategy.
   */  
   READ_RECORD::Setup_func save_read_first_record;/* to save read_first_record */
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
@@ -583,10 +584,10 @@ st_join_table::st_join_table()
 {
   /**
     @todo Add constructor to READ_RECORD.
-    All users do init_read_record(), which does bzero(),
+    All users do init_read_record(), which does memset(),
     rather than invoking a constructor.
   */
-  bzero(&read_record, sizeof(read_record));
+  memset(&read_record, 0, sizeof(read_record));
 }
 
 
@@ -1600,12 +1601,14 @@ typedef struct st_position : public Sql_alloc
 } POSITION;
 
 
+typedef Bounds_checked_array<Item_null_result*> Item_null_array;
+
 typedef struct st_rollup
 {
   enum State { STATE_NONE, STATE_INITED, STATE_READY };
   State state;
-  Item_null_result **null_items;
-  Item ***ref_pointer_arrays;
+  Item_null_array null_items;
+  Ref_ptr_array *ref_pointer_arrays;
   List<Item> *fields;
 } ROLLUP;
 
@@ -1881,10 +1884,19 @@ public:
     FirstMatch strategy.
   */
   JOIN_TAB *return_tab;
-  Item **ref_pointer_array; ///<used pointer reference for this select
-  // Copy of above to be used with different lists
-  Item **items0, **items1, **items2, **items3, **current_ref_pointer_array;
-  uint ref_pointer_array_size; ///< size of above in bytes
+
+  /*
+    Used pointer reference for this select.
+    select_lex->ref_pointer_array contains five "slices" of the same length:
+    |========|========|========|========|========|
+     ref_ptrs items0   items1   items2   items3
+   */
+  Ref_ptr_array ref_ptrs;
+  // Copy of the initial slice above, to be used with different lists
+  Ref_ptr_array items0, items1, items2, items3;
+  // Used by rollup, to restore ref_ptrs after overwriting it.
+  Ref_ptr_array current_ref_ptrs;
+
   const char *zero_result_cause; ///< not 0 if exec must return zero result
   
   bool union_part; ///< this subselect is part of union 
@@ -1960,8 +1972,11 @@ public:
     hidden_group_fields= 0; /*safety*/
     error= 0;
     return_tab= 0;
-    ref_pointer_array= items0= items1= items2= items3= 0;
-    ref_pointer_array_size= 0;
+    ref_ptrs.reset();
+    items0.reset();
+    items1.reset();
+    items2.reset();
+    items3.reset();
     zero_result_cause= 0;
     optimized= 0;
     cond_equal= 0;
@@ -1981,7 +1996,7 @@ public:
     first_select= sub_select;
   }
 
-  int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
+  int prepare(TABLE_LIST *tables, uint wind_num,
 	      Item *conds, uint og_num, ORDER *order, ORDER *group,
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit);
@@ -1996,16 +2011,42 @@ public:
   bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
 			  bool before_group_by, bool recompute= FALSE);
 
-  inline void set_items_ref_array(Item **ptr)
+  /// Initialzes a slice, see comments for ref_ptrs above.
+  Ref_ptr_array ref_ptr_array_slice(size_t slice_num)
   {
-    memcpy((char*) ref_pointer_array, (char*) ptr, ref_pointer_array_size);
-    current_ref_pointer_array= ptr;
+    size_t slice_sz= select_lex->ref_pointer_array.size() / 5U;
+    DBUG_ASSERT(select_lex->ref_pointer_array.size() % 5 == 0);
+    DBUG_ASSERT(slice_num < 5U);
+    return Ref_ptr_array(&select_lex->ref_pointer_array[slice_num * slice_sz],
+                         slice_sz);
   }
-  inline void init_items_ref_array()
+
+  /**
+     Overwrites one slice with the contents of another slice.
+     In the normal case, dst and src have the same size().
+     However: the rollup slices may have smaller size than slice_sz.
+   */
+  void copy_ref_ptr_array(Ref_ptr_array dst_arr, Ref_ptr_array src_arr)
   {
-    items0= ref_pointer_array + all_fields.elements;
-    memcpy(items0, ref_pointer_array, ref_pointer_array_size);
-    current_ref_pointer_array= items0;
+    DBUG_ASSERT(dst_arr.size() >= src_arr.size());
+    void *dest= dst_arr.array();
+    const void *src= src_arr.array();
+    memcpy(dest, src, src_arr.size() * src_arr.element_size());
+  }
+
+  /// Overwrites 'ref_ptrs' and remembers the the source as 'current'.
+  void set_items_ref_array(Ref_ptr_array src_arr)
+  {
+    copy_ref_ptr_array(ref_ptrs, src_arr);
+    current_ref_ptrs= src_arr;
+  }
+
+  /// Initializes 'items0' and remembers that it is 'current'.
+  void init_items_ref_array()
+  {
+    items0= ref_ptr_array_slice(1);
+    copy_ref_ptr_array(items0, ref_ptrs);
+    current_ref_ptrs= items0;
   }
 
   bool rollup_init();
@@ -2027,10 +2068,17 @@ public:
   void clear();
   bool save_join_tab();
   bool init_save_join_tab();
+  /**
+     Send a row even if the join produced no rows if:
+     - there is an aggregate function (sum_func_count!=0), and
+     - the query is not grouped, and
+     - a possible HAVING clause evaluates to TRUE.
+  */
   bool send_row_on_empty_set()
   {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-	    !group_list && select_lex->having_value != Item::COND_FALSE);
+	    group_list == NULL && !group_optimized_away &&
+            select_lex->having_value != Item::COND_FALSE);
   }
   bool change_result(select_result *result);
   bool is_top_level_join() const
@@ -2039,16 +2087,6 @@ public:
                                         select_lex == unit->fake_select_lex));
   }
   void cache_const_exprs();
-  /* 
-    Return the table for which an index scan can be used to satisfy 
-    the sort order needed by the ORDER BY/(implicit) GROUP BY clause 
-  */
-  JOIN_TAB *get_sort_by_join_tab()
-  {
-    return (!sort_by_table || skip_sort_order ||
-            ((group || tmp_table_param.sum_func_count) && !group_list)) ?
-              NULL : join_tab+const_tables;
-  }
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
@@ -2076,7 +2114,7 @@ void free_tmp_table(THD *thd, TABLE *entry);
 void count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
                        List<Item> &fields, bool reset_with_sum_func);
 bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
-		       Item **ref_pointer_array,
+		       Ref_ptr_array ref_pointer_array,
 		       List<Item> &new_list1, List<Item> &new_list2,
 		       uint elements, List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
@@ -2265,25 +2303,23 @@ Item *remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value);
 int get_quick_record(SQL_SELECT *select);
 SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length,
                                   SORT_FIELD *sortorder);
-int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
+int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List <Item> &all_fields, ORDER *order);
-int setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
+int setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order,
 		bool *hidden_group_fields);
 bool fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
-                   Item **ref_pointer_array, ORDER *group_list= NULL);
+                   Ref_ptr_array ref_pointer_array, ORDER *group_list= NULL);
 
 bool handle_select(THD *thd, LEX *lex, select_result *result,
                    ulong setup_tables_done_option);
-bool mysql_select(THD *thd, Item ***rref_pointer_array,
+bool mysql_select(THD *thd,
                   TABLE_LIST *tables, uint wild_num,  List<Item> &list,
                   Item *conds, uint og_num, ORDER *order, ORDER *group,
                   Item *having, ORDER *proc_param, ulonglong select_type, 
                   select_result *result, SELECT_LEX_UNIT *unit, 
                   SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
-bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
-                         select_result *result);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
                         Field **def_field,

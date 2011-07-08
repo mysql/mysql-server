@@ -1008,7 +1008,7 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
       ds_control->ds_action= (st_debug_sync_action*) new_action;
       ds_control->ds_allocated= new_alloc;
       /* Clear memory as we do not run string constructors here. */
-      bzero((uchar*) (ds_control->ds_action + dsp_idx),
+      memset((ds_control->ds_action + dsp_idx), 0,
             (new_alloc - dsp_idx) * sizeof(st_debug_sync_action));
     }
     DBUG_PRINT("debug_sync", ("added action idx: %u", dsp_idx));
@@ -1395,7 +1395,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str)
 
   /*
     Now check for actions that define a new action.
-    Initialize action. Do not use bzero(). Strings may have malloced.
+    Initialize action. Do not use memset(). Strings may have malloced.
   */
   action->activation_count= 0;
   action->hit_limit= 0;

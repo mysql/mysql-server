@@ -201,6 +201,7 @@ static char *opt_plugin_dir= 0;
 static my_regex_t ps_re;     /* the query can be run using PS protocol */
 static my_regex_t sp_re;     /* the query can be run as a SP */
 static my_regex_t view_re;   /* the query can be run as a view*/
+static my_regex_t explain_re;/* the query can be converted to EXPLAIN */
 
 static void init_re(void);
 static int match_re(my_regex_t *, char *);
@@ -542,7 +543,7 @@ class LogFile {
   size_t m_bytes_written;
 public:
   LogFile() : m_file(NULL), m_bytes_written(0) {
-    bzero(m_file_name, sizeof(m_file_name));
+    memset(m_file_name, 0, sizeof(m_file_name));
   }
 
   ~LogFile() {
@@ -6391,7 +6392,8 @@ static struct my_option my_long_options[] =
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
    &view_protocol, &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"explain-protocol", OPT_EXPLAIN_PROTOCOL, "Explains all select.",
+  {"explain-protocol", OPT_EXPLAIN_PROTOCOL,
+   "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements",
    &explain_protocol, &explain_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT,
@@ -6399,7 +6401,7 @@ static struct my_option my_long_options[] =
    &opt_connect_timeout, &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
    120, 0, 3600 * 12, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+    &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -7882,7 +7884,7 @@ void run_explain(struct st_connection *cn, struct st_command *command, int flags
 {
   if (explain_protocol_enabled &&
       !command->expected_errors.count &&
-      match_re(&view_re, command->query))
+      match_re(&explain_re, command->query))
   {
     st_command save_command= *command;
     DYNAMIC_STRING query_str;
@@ -7892,6 +7894,7 @@ void run_explain(struct st_connection *cn, struct st_command *command, int flags
     init_dynamic_string(&query_str, "EXPLAIN EXTENDED ", 256, 256);
     dynstr_append_mem(&query_str, command->query,
                       command->end - command->query);
+    
     command->query= query_str.str;
     command->query_len= query_str.length;
     command->end= strend(command->query);
@@ -7965,9 +7968,16 @@ void init_re(void)
     "^("
     "[[:space:]]*SELECT[[:space:]])";
 
+
+  /* Filter for queries that can be converted to EXPLAIN */
+  const char *explain_re_str =
+    "^("
+    "[[:space:]]*(SELECT|DELETE|UPDATE|INSERT|REPLACE)[[:space:]])";
+
   init_re_comp(&ps_re, ps_re_str);
   init_re_comp(&sp_re, sp_re_str);
   init_re_comp(&view_re, view_re_str);
+  init_re_comp(&explain_re, explain_re_str);
 }
 
 
@@ -8631,8 +8641,14 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
 	  save_file[0]= 0;
 	}
-	run_query(cur_con, command, flags);
+        /*
+          We run EXPLAIN _before_ the query. If query is UPDATE/DELETE is
+          matters: a DELETE may delete rows, and then EXPLAIN DELETE will
+          usually terminate quickly with "no matching rows". To make it more
+          interesting, EXPLAIN is now first.
+        */
 	run_explain(cur_con, command, flags);
+	run_query(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
 
@@ -9057,8 +9073,8 @@ void do_get_replace(struct st_command *command)
 
   free_replace();
 
-  bzero((char*) &to_array,sizeof(to_array));
-  bzero((char*) &from_array,sizeof(from_array));
+  memset(&to_array, 0, sizeof(to_array));
+  memset(&from_array, 0, sizeof(from_array));
   if (!*from)
     die("Missing argument in %s", command->query);
   start= buff= (char*)my_malloc(strlen(from)+1,MYF(MY_WME | MY_FAE));
@@ -9264,7 +9280,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
   /* for each regexp substitution statement */
   while (p < expr_end)
   {
-    bzero(&reg,sizeof(reg));
+    memset(&reg, 0, sizeof(reg));
     /* find the start of the statement */
     while (p < expr_end)
     {
@@ -9717,7 +9733,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
     if (len > max_length)
       max_length=len;
   }
-  bzero((char*) is_word_end,sizeof(is_word_end));
+  memset(is_word_end, 0, sizeof(is_word_end));
   for (i=0 ; word_end_chars[i] ; i++)
     is_word_end[(uchar) word_end_chars[i]]=1;
 
@@ -9808,7 +9824,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
       or_bits(sets.set+used_sets,sets.set);	/* Can restart from start */
 
     /* Find all chars that follows current sets */
-    bzero((char*) used_chars,sizeof(used_chars));
+    memset(used_chars, 0, sizeof(used_chars));
     for (i= (uint) ~0; (i=get_next_bit(sets.set+used_sets,i)) ;)
     {
       used_chars[follow[i].chr]=1;
@@ -9942,7 +9958,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
 
 int init_sets(REP_SETS *sets,uint states)
 {
-  bzero((char*) sets,sizeof(*sets));
+  memset(sets, 0, sizeof(*sets));
   sets->size_of_bits=((states+7)/8);
   if (!(sets->set_buffer=(REP_SET*) my_malloc(sizeof(REP_SET)*SET_MALLOC_HUNC,
 					      MYF(MY_WME))))
@@ -9973,8 +9989,8 @@ REP_SET *make_new_set(REP_SETS *sets)
   {
     sets->extra--;
     set=sets->set+ sets->count++;
-    bzero((char*) set->bits,sizeof(uint)*sets->size_of_bits);
-    bzero((char*) &set->next[0],sizeof(set->next[0])*LAST_CHAR_CODE);
+    memset(set->bits, 0, sizeof(uint)*sets->size_of_bits);
+    memset(&set->next[0], 0, sizeof(set->next[0])*LAST_CHAR_CODE);
     set->found_offset=0;
     set->found_len=0;
     set->table_offset= (uint) ~0;

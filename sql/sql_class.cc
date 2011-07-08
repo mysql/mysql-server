@@ -596,7 +596,7 @@ int thd_tx_isolation(const THD *thd)
 extern "C"
 void thd_inc_row_count(THD *thd)
 {
-  thd->warning_info->inc_current_row_for_warning();
+  thd->get_stmt_wi()->inc_current_row_for_warning();
 }
 
 
@@ -738,8 +738,6 @@ THD::THD(bool enable_plugins)
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    m_examined_row_count(0),
-   warning_info(&main_warning_info),
-   stmt_da(&main_da),
    m_statement_psi(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
@@ -755,7 +753,8 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
-   main_warning_info(0, false)
+   main_da(0, false),
+   m_stmt_da(&main_da)
 {
   ulong tmp;
 
@@ -793,14 +792,14 @@ THD::THD(bool enable_plugins)
   utime_after_lock= 0L;
   current_linfo =  0;
   slave_thread = 0;
-  bzero(&variables, sizeof(variables));
+  memset(&variables, 0, sizeof(variables));
   thread_id= 0;
   one_shot_set= 0;
   file_id = 0;
   query_id= 0;
   query_name_consts= 0;
   db_charset= global_system_variables.collation_database;
-  bzero(ha_data, sizeof(ha_data));
+  memset(ha_data, 0, sizeof(ha_data));
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
@@ -851,7 +850,7 @@ THD::THD(bool enable_plugins)
     my_init_dynamic_array(&user_var_events,
 			  sizeof(BINLOG_USER_VAR_EVENT *), 16, 16);
   else
-    bzero((char*) &user_var_events, sizeof(user_var_events));
+    memset(&user_var_events, 0, sizeof(user_var_events));
 
   /* Protocol */
   protocol= &protocol_text;			// Default protocol
@@ -1010,6 +1009,8 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
                                   MYSQL_ERROR::enum_warning_level level,
                                   const char* msg)
 {
+  Diagnostics_area *da= get_stmt_da();
+  Warning_info *wi= da->get_warning_info();
   MYSQL_ERROR *cond= NULL;
   DBUG_ENTER("THD::raise_condition");
 
@@ -1017,7 +1018,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
       (level == MYSQL_ERROR::WARN_LEVEL_NOTE))
     DBUG_RETURN(NULL);
 
-  warning_info->opt_clear_warning_info(query_id);
+  wi->opt_clear_warning_info(query_id);
 
   /*
     TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
@@ -1077,10 +1078,10 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
     }
     else
     {
-      if (! stmt_da->is_error())
+      if (!da->is_error())
       {
         set_row_count_func(-1);
-        stmt_da->set_error_status(this, sql_errno, msg, sqlstate);
+        da->set_error_status(this, sql_errno, msg, sqlstate);
       }
     }
   }
@@ -1090,7 +1091,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(NULL););
 
-  cond= warning_info->push_warning(this, sql_errno, sqlstate, level, msg);
+  cond= wi->push_warning(this, sql_errno, sqlstate, level, msg);
   DBUG_RETURN(cond);
 }
 
@@ -1173,7 +1174,7 @@ void THD::init(void)
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   update_charset();
   reset_current_stmt_binlog_format_row();
-  bzero((char *) &status_var, sizeof(status_var));
+  memset(&status_var, 0, sizeof(status_var));
 
   if (variables.sql_log_bin)
     variables.option_bits|= OPTION_BIN_LOG;
@@ -2632,7 +2633,7 @@ bool select_export::send_data(List<Item> &items)
 	if (!space_inited)
 	{
 	  space_inited=1;
-	  bfill(space,sizeof(space),' ');
+	  memset(space, ' ', sizeof(space));
 	}
 	uint length=item->max_length-used_length;
 	for (; length > sizeof(space) ; length-=sizeof(space))
@@ -3287,15 +3288,9 @@ void thd_increment_bytes_received(ulong length)
 }
 
 
-void thd_increment_net_big_packet_count(ulong length)
-{
-  current_thd->status_var.net_big_packet_count+= length;
-}
-
-
 void THD::set_status_var_init()
 {
-  bzero((char*) &status_var, sizeof(status_var));
+  memset(&status_var, 0, sizeof(status_var));
 }
 
 
@@ -3979,16 +3974,24 @@ void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
 
 void THD::leave_locked_tables_mode()
 {
+  if (locked_tables_mode == LTM_LOCK_TABLES)
+  {
+    /*
+      When leaving LOCK TABLES mode we have to change the duration of most
+      of the metadata locks being held, except for HANDLER and GRL locks,
+      to transactional for them to be properly released at UNLOCK TABLES.
+    */
+    mdl_context.set_transaction_duration_for_all_locks();
+    /*
+      Make sure we don't release the global read lock and commit blocker
+      when leaving LTM.
+    */
+    global_read_lock.set_explicit_lock_duration(this);
+    /* Also ensure that we don't release metadata locks for open HANDLERs. */
+    if (handler_tables_hash.records)
+      mysql_ha_set_explicit_lock_duration(this);
+  }
   locked_tables_mode= LTM_NONE;
-  mdl_context.set_transaction_duration_for_all_locks();
-  /*
-    Make sure we don't release the global read lock and commit blocker
-    when leaving LTM.
-  */
-  global_read_lock.set_explicit_lock_duration(this);
-  /* Also ensure that we don't release metadata locks for open HANDLERs. */
-  if (handler_tables_hash.records)
-    mysql_ha_set_explicit_lock_duration(this);
 }
 
 void THD::get_definer(LEX_USER *definer)

@@ -1052,7 +1052,9 @@ public:
     They are used for on-line/fast alter table add/drop index:
     -------------------------------------------------------------------------
   */
-  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+                        handler_add_index **add);
+  virtual int final_add_index(handler_add_index *add, bool commit);
   virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
                                  uint num_of_keys);
   virtual int final_drop_index(TABLE *table_arg);

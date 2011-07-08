@@ -15,7 +15,7 @@
 
 #include "item_inetfunc.h"
 
-#include "violite.h"  // vio_getnameinfo()
+#include "my_net.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -70,8 +70,8 @@ longlong Item_func_inet_aton::val_int()
   if (c != '.')                                 // IP number can't end on '.'
   {
     /*
-      Attempt to support short-form addresses (i.e. classful addresses).
-      The current code does not support full range of classful addresses.
+      Attempt to support short forms of IP-addresses. It's however pretty
+      basic one comparing to the BSD support.
       Examples:
         127     -> 0.0.0.127
         127.255 -> 127.0.0.255
@@ -310,7 +310,7 @@ static bool str_to_ipv4(const char *str, int str_length, in_addr *ipv4_address)
   if (dot_count != 3)
   {
     DBUG_PRINT("error", ("str_to_ipv4(%.*s): invalid IPv4 address: "
-                         "classful address (too few groups).",
+                         "too few groups.",
                          str_length, str));
     return false;
   }
@@ -358,7 +358,7 @@ static bool str_to_ipv6(const char *str, int str_length, in6_addr *ipv6_address)
     return false;
   }
 
-  bzero(ipv6_address, IN6_ADDR_SIZE);
+  memset(ipv6_address, 0, IN6_ADDR_SIZE);
 
   const char *p= str;
 
@@ -531,7 +531,7 @@ static bool str_to_ipv6(const char *str, int str_length, in6_addr *ipv6_address)
                   It must be at least of INET_ADDRSTRLEN.
 
   @note The problem with inet_ntop() is that it is available starting from
-  Windows Vista, but out the minimum supported version is Windows 2000.
+  Windows Vista, but the minimum supported version is Windows 2000.
 */
 
 static void ipv4_to_str(const in_addr *ipv4, char *str)

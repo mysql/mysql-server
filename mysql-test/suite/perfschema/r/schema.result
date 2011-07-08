@@ -44,7 +44,7 @@ show create table cond_instances;
 Table	Create Table
 cond_instances	CREATE TABLE `cond_instances` (
   `NAME` varchar(128) NOT NULL,
-  `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_stages_current;
 Table	Create Table
@@ -122,7 +122,7 @@ events_statements_current	CREATE TABLE `events_statements_current` (
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_NAME` varchar(64) DEFAULT NULL,
-  `OBJECT_INSTANCE_BEGIN` bigint(20) DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned DEFAULT NULL,
   `MYSQL_ERRNO` int(11) DEFAULT NULL,
   `RETURNED_SQLSTATE` varchar(5) DEFAULT NULL,
   `MESSAGE_TEXT` varchar(128) DEFAULT NULL,
@@ -163,7 +163,7 @@ events_statements_history	CREATE TABLE `events_statements_history` (
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_NAME` varchar(64) DEFAULT NULL,
-  `OBJECT_INSTANCE_BEGIN` bigint(20) DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned DEFAULT NULL,
   `MYSQL_ERRNO` int(11) DEFAULT NULL,
   `RETURNED_SQLSTATE` varchar(5) DEFAULT NULL,
   `MESSAGE_TEXT` varchar(128) DEFAULT NULL,
@@ -204,7 +204,7 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_NAME` varchar(64) DEFAULT NULL,
-  `OBJECT_INSTANCE_BEGIN` bigint(20) DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned DEFAULT NULL,
   `MYSQL_ERRNO` int(11) DEFAULT NULL,
   `RETURNED_SQLSTATE` varchar(5) DEFAULT NULL,
   `MESSAGE_TEXT` varchar(128) DEFAULT NULL,
@@ -303,11 +303,11 @@ events_waits_current	CREATE TABLE `events_waits_current` (
   `OBJECT_NAME` varchar(512) DEFAULT NULL,
   `INDEX_NAME` varchar(64) DEFAULT NULL,
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
-  `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `OPERATION` varchar(32) NOT NULL,
-  `NUMBER_OF_BYTES` bigint(20) unsigned DEFAULT NULL,
+  `NUMBER_OF_BYTES` bigint(20) DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_waits_history;
@@ -325,11 +325,11 @@ events_waits_history	CREATE TABLE `events_waits_history` (
   `OBJECT_NAME` varchar(512) DEFAULT NULL,
   `INDEX_NAME` varchar(64) DEFAULT NULL,
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
-  `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `OPERATION` varchar(32) NOT NULL,
-  `NUMBER_OF_BYTES` bigint(20) unsigned DEFAULT NULL,
+  `NUMBER_OF_BYTES` bigint(20) DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_waits_history_long;
@@ -347,18 +347,18 @@ events_waits_history_long	CREATE TABLE `events_waits_history_long` (
   `OBJECT_NAME` varchar(512) DEFAULT NULL,
   `INDEX_NAME` varchar(64) DEFAULT NULL,
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
-  `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `OPERATION` varchar(32) NOT NULL,
-  `NUMBER_OF_BYTES` bigint(20) unsigned DEFAULT NULL,
+  `NUMBER_OF_BYTES` bigint(20) DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_waits_summary_by_instance;
 Table	Create Table
 events_waits_summary_by_instance	CREATE TABLE `events_waits_summary_by_instance` (
   `EVENT_NAME` varchar(128) NOT NULL,
-  `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
   `COUNT_STAR` bigint(20) unsigned NOT NULL,
   `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
   `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
@@ -399,8 +399,8 @@ file_summary_by_event_name	CREATE TABLE `file_summary_by_event_name` (
   `EVENT_NAME` varchar(128) NOT NULL,
   `COUNT_READ` bigint(20) unsigned NOT NULL,
   `COUNT_WRITE` bigint(20) unsigned NOT NULL,
-  `SUM_NUMBER_OF_BYTES_READ` bigint(20) unsigned NOT NULL,
-  `SUM_NUMBER_OF_BYTES_WRITE` bigint(20) unsigned NOT NULL
+  `SUM_NUMBER_OF_BYTES_READ` bigint(20) NOT NULL,
+  `SUM_NUMBER_OF_BYTES_WRITE` bigint(20) NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table file_summary_by_instance;
 Table	Create Table
@@ -409,14 +409,14 @@ file_summary_by_instance	CREATE TABLE `file_summary_by_instance` (
   `EVENT_NAME` varchar(128) NOT NULL,
   `COUNT_READ` bigint(20) unsigned NOT NULL,
   `COUNT_WRITE` bigint(20) unsigned NOT NULL,
-  `SUM_NUMBER_OF_BYTES_READ` bigint(20) unsigned NOT NULL,
-  `SUM_NUMBER_OF_BYTES_WRITE` bigint(20) unsigned NOT NULL
+  `SUM_NUMBER_OF_BYTES_READ` bigint(20) NOT NULL,
+  `SUM_NUMBER_OF_BYTES_WRITE` bigint(20) NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table mutex_instances;
 Table	Create Table
 mutex_instances	CREATE TABLE `mutex_instances` (
   `NAME` varchar(128) NOT NULL,
-  `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
   `LOCKED_BY_THREAD_ID` int(11) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table objects_summary_global_by_type;
@@ -443,7 +443,7 @@ show create table rwlock_instances;
 Table	Create Table
 rwlock_instances	CREATE TABLE `rwlock_instances` (
   `NAME` varchar(128) NOT NULL,
-  `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
   `WRITE_LOCKED_BY_THREAD_ID` int(11) DEFAULT NULL,
   `READ_LOCKED_BY_COUNT` int(10) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8

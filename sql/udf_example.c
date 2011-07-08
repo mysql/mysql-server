@@ -132,7 +132,6 @@ typedef long long longlong;
 /* when compiled as standalone */
 #include <string.h>
 #define strmov(a,b) stpcpy(a,b)
-#define bzero(a,b) memset(a,0,b)
 #endif
 #endif
 #include <mysql.h>
@@ -653,7 +652,7 @@ my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
     strmov(message,"Couldn't allocate memory");
     return 1;
   }
-  bzero(initid->ptr,sizeof(longlong));
+  memset(initid->ptr, 0, sizeof(longlong));
   /* 
     sequence() is a non-deterministic function : it has different value 
     even if called with the same arguments.

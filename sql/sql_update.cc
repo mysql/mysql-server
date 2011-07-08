@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@
 #include "records.h"                            // init_read_record,
                                                 // end_read_record
 #include "filesort.h"                           // filesort
+#include "opt_explain.h"
 #include "sql_derived.h" // mysql_derived_prepare,
                          // mysql_handle_derived,
                          // mysql_derived_filling
@@ -262,10 +263,12 @@ int mysql_update(THD *thd,
   bool		safe_update= test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
   bool          used_key_is_modified= FALSE, transactional_table, will_batch;
   int           res;
-  int		error, loc_error;
+  int           error= 1;
+  int           loc_error;
   uint          used_index, dup_key_found;
   bool          need_sort= TRUE;
   bool          reverse= FALSE;
+  bool          using_filesort;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -273,7 +276,7 @@ int mysql_update(THD *thd,
   ha_rows	updated, found;
   key_map	old_covering_keys;
   TABLE		*table;
-  SQL_SELECT	*select;
+  SQL_SELECT	*select= NULL;
   READ_RECORD	info;
   SELECT_LEX    *select_lex= &thd->lex->select_lex;
   ulonglong     id;
@@ -305,7 +308,8 @@ int mysql_update(THD *thd,
     mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
     DBUG_RETURN(1);
   }
-  mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
+  if (!thd->lex->describe)
+    mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
 
   THD_STAGE_INFO(thd, stage_init);
   table= table_list->table;
@@ -328,7 +332,8 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
   table_list->register_want_access(want_privilege);
 #endif
-  if (setup_fields_with_no_wrap(thd, 0, fields, MARK_COLUMNS_WRITE, 0, 0))
+  if (setup_fields_with_no_wrap(thd, Ref_ptr_array(),
+                                fields, MARK_COLUMNS_WRITE, 0, 0))
     DBUG_RETURN(1);                     /* purecov: inspected */
   if (table_list->view && check_fields(thd, fields))
   {
@@ -359,7 +364,7 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege=
     (SELECT_ACL & ~table->grant.privilege);
 #endif
-  if (setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(), values, MARK_COLUMNS_READ, 0, 0))
   {
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(1);				/* purecov: inspected */
@@ -392,7 +397,14 @@ int mysql_update(THD *thd,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (prune_partitions(thd, table, conds))
-  {
+  { // No matching records
+    if (thd->lex->describe)
+    {
+      error= explain_no_table(thd,
+                              "No matching rows after partition pruning");
+      goto exit_without_my_ok;
+    }
+
     free_underlaid_joins(thd, select_lex);
     my_ok(thd);				// No matching records
     DBUG_RETURN(0);
@@ -406,6 +418,12 @@ int mysql_update(THD *thd,
   if (error || !limit ||
       (select && select->check_quick(thd, safe_update, limit)))
   {
+    if (thd->lex->describe && !error && !thd->is_error())
+    {
+      error= explain_no_table(thd, "Impossible WHERE");
+      goto exit_without_my_ok;
+    }
+    
     delete select;
     free_underlaid_joins(thd, select_lex);
     /*
@@ -431,7 +449,7 @@ int mysql_update(THD *thd,
     {
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
 		 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
-      goto err;
+      goto exit_without_my_ok;
     }
   }
   init_ftfuncs(thd, select_lex, 1);
@@ -451,11 +469,21 @@ int mysql_update(THD *thd,
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (used_key_is_modified || order ||
-      partition_key_modified(table, table->write_set))
-#else
-  if (used_key_is_modified || order)
+  used_key_is_modified|= partition_key_modified(table, table->write_set);
 #endif
+
+  using_filesort= order && (need_sort||used_key_is_modified);
+  if (thd->lex->describe)
+  {
+    const bool using_tmp_table= !using_filesort &&
+                                (used_key_is_modified || order);
+    error= explain_single_table_modification(thd, table, select, used_index,
+                                             limit, using_tmp_table,
+                                             using_filesort);
+    goto exit_without_my_ok;
+  }
+
+  if (used_key_is_modified || order)
   {
     /*
       We can't update table directly;  We must first search after all
@@ -469,7 +497,7 @@ int mysql_update(THD *thd,
     }
 
     /* note: We avoid sorting if we sort on the used index */
-    if (order && (need_sort || used_key_is_modified))
+    if (using_filesort)
     {
       /*
 	Doing an ORDER BY;  Let filesort find and sort the rows we are going
@@ -490,7 +518,7 @@ int mysql_update(THD *thd,
                                                &examined_rows, &found_rows))
           == HA_POS_ERROR)
       {
-	goto err;
+        goto exit_without_my_ok;
       }
       thd->inc_examined_row_count(examined_rows);
       /*
@@ -511,11 +539,11 @@ int mysql_update(THD *thd,
       IO_CACHE tempfile;
       if (open_cached_file(&tempfile, mysql_tmpdir,TEMP_PREFIX,
 			   DISK_BUFFER_SIZE, MYF(MY_WME)))
-	goto err;
+        goto exit_without_my_ok;
 
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
-        goto err;
+        goto exit_without_my_ok;
       table->file->try_semi_consistent_read(1);
 
       /*
@@ -591,7 +619,7 @@ int mysql_update(THD *thd,
 	error=1; /* purecov: inspected */
       select->file=tempfile;			// Read row ptrs from this file
       if (error >= 0)
-	goto err;
+        goto exit_without_my_ok;
     }
     if (table->key_read)
       table->restore_column_maps_after_mark_index();
@@ -601,7 +629,7 @@ int mysql_update(THD *thd,
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   
   if (select && select->quick && select->quick->reset())
-    goto err;
+    goto exit_without_my_ok;
   table->file->try_semi_consistent_read(1);
   init_read_record(&info, thd, table, select, 0, 1, FALSE);
 
@@ -791,7 +819,7 @@ int mysql_update(THD *thd,
     }
     else
       table->file->unlock_row();
-    thd->warning_info->inc_current_row_for_warning();
+    thd->get_stmt_wi()->inc_current_row_for_warning();
     if (thd->is_error())
     {
       error= 1;
@@ -897,7 +925,7 @@ int mysql_update(THD *thd,
     char buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
-                (ulong) thd->warning_info->statement_warn_count());
+                (ulong) thd->get_stmt_wi()->statement_warn_count());
     my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
           id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
@@ -908,12 +936,12 @@ int mysql_update(THD *thd,
   *updated_return= updated;
   DBUG_RETURN((error >= 0 || thd->is_error()) ? 1 : 0);
 
-err:
+exit_without_my_ok:
   delete select;
   free_underlaid_joins(thd, select_lex);
   table->set_keyread(FALSE);
   thd->abort_on_warning= 0;
-  DBUG_RETURN(1);
+  DBUG_RETURN(error);
 }
 
 /*
@@ -1069,17 +1097,27 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
             return true;
           }
 
-          if (primkey_clustered &&
-              (bitmap_is_set(table1->write_set, table1->s->primary_key) ||
-               bitmap_is_set(table2->write_set, table2->s->primary_key)))
+          if (primkey_clustered)
           {
-            // Clustered primary key is updated
-            my_error(ER_MULTI_UPDATE_KEY_CONFLICT, MYF(0),
-                     tl->belong_to_view ? tl->belong_to_view->alias
-                                        : tl->alias,
-                     tl2->belong_to_view ? tl2->belong_to_view->alias
-                                         : tl2->alias);
-            return true;
+            // The primary key can cover multiple columns
+            KEY key_info= table1->key_info[table1->s->primary_key];
+            KEY_PART_INFO *key_part= key_info.key_part;
+            KEY_PART_INFO *key_part_end= key_part + key_info.key_parts;
+
+            for (;key_part != key_part_end; ++key_part)
+            {
+              if (bitmap_is_set(table1->write_set, key_part->fieldnr-1) ||
+                  bitmap_is_set(table2->write_set, key_part->fieldnr-1))
+              {
+                // Clustered primary key is updated
+                my_error(ER_MULTI_UPDATE_KEY_CONFLICT, MYF(0),
+                         tl->belong_to_view ? tl->belong_to_view->alias
+                         : tl->alias,
+                         tl2->belong_to_view ? tl2->belong_to_view->alias
+                         : tl2->alias);
+                return true;
+              }
+            }
           }
         }
       }
@@ -1148,7 +1186,8 @@ int mysql_multi_update_prepare(THD *thd)
                                     UPDATE_ACL, SELECT_ACL))
     DBUG_RETURN(TRUE);
 
-  if (setup_fields_with_no_wrap(thd, 0, *fields, MARK_COLUMNS_WRITE, 0, 0))
+  if (setup_fields_with_no_wrap(thd, Ref_ptr_array(),
+                                *fields, MARK_COLUMNS_WRITE, 0, 0))
     DBUG_RETURN(TRUE);
 
   for (tl= table_list; tl ; tl= tl->next_local)
@@ -1298,7 +1337,8 @@ int mysql_multi_update_prepare(THD *thd)
     mysql_handle_derived(lex, &mysql_derived_cleanup);
     DBUG_RETURN(TRUE);
   }
-  mysql_handle_derived(lex, &mysql_derived_cleanup);
+  if (!thd->lex->describe)
+    mysql_handle_derived(lex, &mysql_derived_cleanup);
 
   DBUG_RETURN (FALSE);
 }
@@ -1335,24 +1375,29 @@ bool mysql_multi_update(THD *thd,
                               (MODE_STRICT_TRANS_TABLES |
                                MODE_STRICT_ALL_TABLES));
 
-  List<Item> total_list;
-
-  res= mysql_select(thd, &select_lex->ref_pointer_array,
-                    table_list, select_lex->with_wild,
-                    total_list,
-                    conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
-                    (ORDER *)NULL,
-                    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                    OPTION_SETUP_TABLES_DONE,
-                    *result, unit, select_lex);
-
-  DBUG_PRINT("info",("res: %d  report_error: %d", res, (int) thd->is_error()));
-  res|= thd->is_error();
-  if (unlikely(res))
+  if (thd->lex->describe)
+    res= explain_multi_table_modification(thd, *result);
+  else
   {
-    /* If we had a another error reported earlier then this will be ignored */
-    (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
-    (*result)->abort_result_set();
+    List<Item> total_list;
+
+    res= mysql_select(thd,
+                      table_list, select_lex->with_wild,
+                      total_list,
+                      conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
+                      (ORDER *)NULL,
+                      options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
+                      OPTION_SETUP_TABLES_DONE,
+                      *result, unit, select_lex);
+
+    DBUG_PRINT("info",("res: %d  report_error: %d",res, (int) thd->is_error()));
+    res|= thd->is_error();
+    if (unlikely(res))
+    {
+      /* If we had a another error reported earlier then this will be ignored */
+      (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
+      (*result)->abort_result_set();
+    }
   }
   thd->abort_on_warning= 0;
   DBUG_RETURN(res);
@@ -1422,7 +1467,8 @@ int multi_update::prepare(List<Item> &not_used_values,
     reference tables
   */
 
-  int error= setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0);
+  int error= setup_fields(thd, Ref_ptr_array(),
+                          *values, MARK_COLUMNS_READ, 0, 0);
 
   for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
@@ -1728,7 +1774,7 @@ loop_end:
     temp_fields.concat(fields_for_table[cnt]);
 
     /* Make an unique key over the first field to avoid duplicated updates */
-    bzero((char*) &group, sizeof(group));
+    memset(&group, 0, sizeof(group));
     group.direction= ORDER::ORDER_ASC;
     group.item= (Item**) temp_fields.head_ref();
 

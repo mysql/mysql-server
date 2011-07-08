@@ -434,7 +434,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
   head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, 
                                 MYF(MY_ZEROFILL|MY_FAE|MY_WME));
 
-  bzero(&conclusion, sizeof(conclusions));
+  memset(&conclusion, 0, sizeof(conclusions));
 
   if (auto_actual_queries)
     client_limit= auto_actual_queries;
@@ -592,7 +592,7 @@ static struct my_option my_long_options[] =
    &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", 'F',
     "Delimiter to use in SQL statements supplied in file or command line.",
@@ -636,7 +636,7 @@ static struct my_option my_long_options[] =
     NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", &opt_mysql_port,
     &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,

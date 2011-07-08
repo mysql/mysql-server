@@ -11,6 +11,8 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
@@ -42,6 +44,8 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
@@ -73,6 +77,8 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
@@ -106,6 +112,8 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
@@ -143,6 +151,8 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
@@ -183,6 +193,8 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK

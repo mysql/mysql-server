@@ -2070,7 +2070,7 @@ create:
             lex->alter_info.reset();
             lex->col_list.empty();
             lex->change=NullS;
-            bzero((char*) &lex->create_info,sizeof(lex->create_info));
+            memset(&lex->create_info, 0, sizeof(lex->create_info));
             lex->create_info.options=$2 | $4;
             lex->create_info.db_type= ha_default_handlerton(thd);
             lex->create_info.default_table_charset= NULL;
@@ -2262,16 +2262,19 @@ opt_ev_status:
         | ENABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::ENABLED;
+            Lex->event_parse_data->status_changed= true;
             $$= 1;
           }
         | DISABLE_SYM ON SLAVE
           {
             Lex->event_parse_data->status= Event_parse_data::SLAVESIDE_DISABLED;
+            Lex->event_parse_data->status_changed= true; 
             $$= 1;
           }
         | DISABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::DISABLED;
+            Lex->event_parse_data->status_changed= true;
             $$= 1;
           }
         ;
@@ -2365,7 +2368,7 @@ ev_sql_stmt:
 
             lex->sphead->m_type= TYPE_ENUM_PROCEDURE;
 
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
 
             lex->sphead->set_body_start(thd, lip->get_cpp_ptr());
@@ -2412,7 +2415,7 @@ clear_privileges:
            lex->select_lex.db= 0;
            lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
            lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
-           bzero((char *)&(lex->mqh),sizeof(lex->mqh));
+           memset(&(lex->mqh), 0, sizeof(lex->mqh));
          }
         ;
 
@@ -6262,7 +6265,7 @@ alter:
             lex->col_list.empty();
             lex->select_lex.init_order();
             lex->select_lex.db= (lex->select_lex.table_list.first)->db;
-            bzero((char*) &lex->create_info,sizeof(lex->create_info));
+            memset(&lex->create_info, 0, sizeof(lex->create_info));
             lex->create_info.db_type= 0;
             lex->create_info.default_table_charset= NULL;
             lex->create_info.row_type= ROW_TYPE_NOT_USED;
@@ -6318,7 +6321,7 @@ alter:
               my_error(ER_SP_NO_DROP_SP, MYF(0), "PROCEDURE");
               MYSQL_YYABORT;
             }
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
           sp_a_chistics
           {
@@ -6336,7 +6339,7 @@ alter:
               my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
               MYSQL_YYABORT;
             }
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
           sp_a_chistics
           {
@@ -11027,10 +11030,12 @@ show:
             lex->wild=0;
             mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
-            bzero((char*) &lex->create_info,sizeof(lex->create_info));
+            memset(&lex->create_info, 0, sizeof(lex->create_info));
           }
           show_param
-          {}
+          {
+            Select->parsing_place= NO_MATTER;
+          }
         ;
 
 show_param:
@@ -11206,7 +11211,7 @@ show_param:
             LEX_USER *curr_user;
             if (!(curr_user= (LEX_USER*) lex->thd->alloc(sizeof(st_lex_user))))
               MYSQL_YYABORT;
-            bzero(curr_user, sizeof(st_lex_user));
+            memset(curr_user, 0, sizeof(st_lex_user));
             lex->grant_user= curr_user;
           }
         | GRANTS FOR_SYM user
@@ -11372,14 +11377,22 @@ describe:
             if (prepare_schema_table(YYTHD, lex, $2, SCH_COLUMNS))
               MYSQL_YYABORT;
           }
-          opt_describe_column {}
+          opt_describe_column
+          {
+            Select->parsing_place= NO_MATTER;
+          }
         | describe_command opt_extended_describe
           { Lex->describe|= DESCRIBE_NORMAL; }
+          explanable_command
+          { Lex->select_lex.options|= SELECT_DESCRIBE; }
+        ;
+
+explanable_command:
           select
-          {
-            LEX *lex=Lex;
-            lex->select_lex.options|= SELECT_DESCRIBE;
-          }
+        | insert
+        | replace
+        | update
+        | delete
         ;
 
 describe_command:
@@ -12528,7 +12541,7 @@ user:
               will be handled in the  get_current_user() function
               later
             */
-            bzero($$, sizeof(LEX_USER));
+            memset($$, 0, sizeof(LEX_USER));
           }
         ;
 
@@ -14439,7 +14452,7 @@ trigger_tail:
             lex->sphead= sp;
             lex->spname= $3;
 
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
             lex->sphead->set_body_start(thd, lip->get_cpp_ptr());
           }
@@ -14583,7 +14596,7 @@ sf_tail:
                                           &sp->m_return_field_def))
               MYSQL_YYABORT;
 
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
           sp_c_chistics /* $13 */
           { /* $14 */
@@ -14689,7 +14702,7 @@ sp_tail:
             LEX *lex= thd->lex;
 
             lex->sphead->m_param_end= YYLIP->get_cpp_tok_start();
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
           sp_c_chistics
           {

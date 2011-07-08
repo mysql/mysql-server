@@ -261,9 +261,9 @@ bool servers_reload(THD *thd)
       Execution might have been interrupted; only print the error message
       if an error condition has been raised.
     */
-    if (thd->stmt_da->is_error())
+    if (thd->get_stmt_da()->is_error())
       sql_print_error("Can't open and lock privilege tables: %s",
-                      thd->stmt_da->message());
+                      thd->get_stmt_da()->message());
     return_val= FALSE;
     goto end;
   }
