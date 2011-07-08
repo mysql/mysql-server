@@ -8388,7 +8388,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     /**
      * No share present...we must create one
      */
-    if (opt_ndb_extra_logging > 19)
+    if (ndb_extra_logging > 19)
     {
       sql_print_information("Calling ndbcluster_create_binlog_setup(%s) in ::open",
                             name);
