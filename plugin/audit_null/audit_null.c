@@ -81,11 +81,12 @@ static int audit_null_plugin_deinit(void *arg __attribute__((unused)))
 */
 
 static void audit_null_notify(MYSQL_THD thd __attribute__((unused)),
-                              const struct mysql_event *event)
+                              unsigned int event_class,
+                              const void *event)
 {
   /* prone to races, oh well */
   number_of_calls++;
-  if (event->event_class == MYSQL_AUDIT_GENERAL_CLASS)
+  if (event_class == MYSQL_AUDIT_GENERAL_CLASS)
   {
     const struct mysql_event_general *event_general=
       (const struct mysql_event_general *) event;

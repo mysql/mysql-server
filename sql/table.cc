@@ -332,7 +332,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                        &path_buff, path_length + 1,
                        NULL))
   {
-    bzero((char*) share, sizeof(*share));
+    memset(share, 0, sizeof(*share));
 
     share->set_table_cache_key(key_buff, key, key_length);
 
@@ -396,7 +396,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_ENTER("init_tmp_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
-  bzero((char*) share, sizeof(*share));
+  memset(share, 0, sizeof(*share));
   init_sql_alloc(&share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   share->table_category=         TABLE_CATEGORY_TEMPORARY;
   share->tmp_table=              INTERNAL_TMP_TABLE;
@@ -892,7 +892,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!(keyinfo = (KEY*) alloc_root(&share->mem_root,
 				    n_length + uint2korr(disk_buff+4))))
     goto err;                                   /* purecov: inspected */
-  bzero((char*) keyinfo,n_length);
+  memset(keyinfo, 0, n_length);
   share->key_info= keyinfo;
   key_part= reinterpret_cast<KEY_PART_INFO*>(keyinfo+keys);
   strpos=disk_buff+6;
@@ -1434,7 +1434,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       else
         charset= share->table_charset;
-      bzero((char*) &comment, sizeof(comment));
+      memset(&comment, 0, sizeof(comment));
     }
 
     if (interval_nr && charset->mbminlen > 1)
@@ -1731,8 +1731,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     /* Old file format with default as not null */
     uint null_length= (share->null_fields+7)/8;
-    bfill(share->default_values + (null_flags - (uchar*) record),
-          null_length, 255);
+    memset(share->default_values + (null_flags - (uchar*) record), 255,
+           null_length);
   }
 
   if (share->found_next_number_field)
@@ -1860,7 +1860,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                       share->table_name.str, (long) outparam));
 
   error= 1;
-  bzero((char*) outparam, sizeof(*outparam));
+  memset(outparam, 0, sizeof(*outparam));
   outparam->in_use= thd;
   outparam->s= share;
   outparam->db_stat= db_stat;
@@ -2143,7 +2143,7 @@ partititon_err:
   }
 
 #if defined(HAVE_purify) && !defined(DBUG_OFF)
-  bzero((char*) bitmaps, bitmap_size*3);
+  memset(bitmaps, 0, bitmap_size*3);
 #endif
 
   outparam->no_replicate= outparam->file &&
@@ -2163,7 +2163,7 @@ partititon_err:
 #endif
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
-  free_root(&outparam->mem_root, MYF(0));       // Safe to call on bzero'd root
+  free_root(&outparam->mem_root, MYF(0));
   my_free((void *) outparam->alias);
   DBUG_RETURN (error);
 }
@@ -2363,7 +2363,7 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 	DBUG_RETURN(0);
       endpos-=bufflength; bufflength=IO_SIZE;
     }
-    bzero(buff,IO_SIZE);			/* Null new block */
+    memset(buff, 0, IO_SIZE);			/* Null new block */
     mysql_file_seek(file, (ulong) maxlength, MY_SEEK_SET, MYF(0));
     if (mysql_file_write(file, buff, bufflength, MYF(MY_NABP+MY_WME)))
 	DBUG_RETURN(0L);
@@ -2682,7 +2682,7 @@ File create_frm(THD *thd, const char *name, const char *db,
                                name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
     uint key_length, tmp_key_length, tmp, csid;
-    bzero((char*) fileinfo,64);
+    memset(fileinfo, 0, 64);
     /* header */
     fileinfo[0]=(uchar) 254;
     fileinfo[1]= 1;
@@ -2756,7 +2756,7 @@ File create_frm(THD *thd, const char *name, const char *db,
       61 for default_part_db_type
     */
     int2store(fileinfo+62, create_info->key_block_size);
-    bzero(fill,IO_SIZE);
+    memset(fill, 0, IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
       if (mysql_file_write(file, fill, IO_SIZE, MYF(MY_WME | MY_NABP)))
@@ -3215,7 +3215,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
   if (gvisitor->m_lock_open_count++ == 0)
     mysql_mutex_lock(&LOCK_open);
 
-  I_P_List_iterator <TABLE, TABLE_share> tables_it(used_tables);
+  TABLE_SHARE::TABLE_list::Iterator tables_it(used_tables);
 
   /*
     In case of multiple searches running in parallel, avoid going
@@ -3841,26 +3841,32 @@ void TABLE_LIST::hide_view_error(THD *thd)
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
 
-  if (thd->stmt_da->sql_errno() == ER_BAD_FIELD_ERROR ||
-      thd->stmt_da->sql_errno() == ER_SP_DOES_NOT_EXIST ||
-      thd->stmt_da->sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
-      thd->stmt_da->sql_errno() == ER_PROCACCESS_DENIED_ERROR ||
-      thd->stmt_da->sql_errno() == ER_COLUMNACCESS_DENIED_ERROR ||
-      thd->stmt_da->sql_errno() == ER_TABLEACCESS_DENIED_ERROR ||
-      thd->stmt_da->sql_errno() == ER_TABLE_NOT_LOCKED ||
-      thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
-  {
-    TABLE_LIST *top= top_table();
-    thd->clear_error();
-    my_error(ER_VIEW_INVALID, MYF(0), top->view_db.str, top->view_name.str);
-  }
-  else if (thd->stmt_da->sql_errno() == ER_NO_DEFAULT_FOR_FIELD)
-  {
-    TABLE_LIST *top= top_table();
-    thd->clear_error();
-    // TODO: make correct error message
-    my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
-             top->view_db.str, top->view_name.str);
+  switch (thd->get_stmt_da()->sql_errno()) {
+    case ER_BAD_FIELD_ERROR:
+    case ER_SP_DOES_NOT_EXIST:
+    case ER_FUNC_INEXISTENT_NAME_COLLISION:
+    case ER_PROCACCESS_DENIED_ERROR:
+    case ER_COLUMNACCESS_DENIED_ERROR:
+    case ER_TABLEACCESS_DENIED_ERROR:
+    case ER_TABLE_NOT_LOCKED:
+    case ER_NO_SUCH_TABLE:
+    {
+      TABLE_LIST *top= top_table();
+      thd->clear_error();
+      my_error(ER_VIEW_INVALID, MYF(0),
+               top->view_db.str, top->view_name.str);
+      break;
+    }
+
+    case ER_NO_DEFAULT_FOR_FIELD:
+    {
+      TABLE_LIST *top= top_table();
+      thd->clear_error();
+      // TODO: make correct error message
+      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
+               top->view_db.str, top->view_name.str);
+      break;
+    }
   }
 }
 
@@ -4803,7 +4809,7 @@ void TABLE::clear_column_bitmaps()
     bitmap_clear_all(&table->def_read_set);
     bitmap_clear_all(&table->def_write_set);
   */
-  bzero((char*) def_read_set.bitmap, s->column_bitmap_size*2);
+  memset(def_read_set.bitmap, 0, s->column_bitmap_size*2);
   column_bitmaps_set(&def_read_set, &def_write_set);
 }
 
@@ -5460,7 +5466,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
 
 bool TABLE::update_const_key_parts(Item *conds)
 {
-  bzero((char*) const_key_parts, sizeof(key_part_map) * s->keys);
+  memset(const_key_parts, 0, sizeof(key_part_map) * s->keys);
 
   if (conds == NULL)
     return FALSE;

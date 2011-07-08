@@ -1278,8 +1278,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       underlying tables.
       Skip this step if we are opening view for prelocking only.
     */
-    if (!table->prelocking_placeholder &&
-        (old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
+    if (!table->prelocking_placeholder && old_lex->describe &&
+        is_explainable_query(old_lex->sql_command))
     {
       if (check_table_access(thd, SELECT_ACL, view_tables, FALSE,
                              UINT_MAX, TRUE) &&
@@ -1979,7 +1979,7 @@ mysql_rename_view(THD *thd,
       view definition parsing or use temporary 'view_def'
       object for it.
     */
-    bzero(&view_def, sizeof(view_def));
+    memset(&view_def, 0, sizeof(view_def));
     view_def.timestamp.str= view_def.timestamp_buffer;
     view_def.view_suid= TRUE;
 

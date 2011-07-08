@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,7 +113,7 @@ void Item_row::cleanup()
 }
 
 
-void Item_row::split_sum_func(THD *thd, Item **ref_pointer_array,
+void Item_row::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                               List<Item> &fields)
 {
   Item **arg, **arg_end;
@@ -126,11 +126,13 @@ void Item_row::update_used_tables()
 {
   used_tables_cache= 0;
   const_item_cache= 1;
+  with_subselect= false;
   for (uint i= 0; i < arg_count; i++)
   {
     items[i]->update_used_tables();
     used_tables_cache|= items[i]->used_tables();
     const_item_cache&= items[i]->const_item();
+    with_subselect|= items[i]->has_subquery();
   }
 }
 

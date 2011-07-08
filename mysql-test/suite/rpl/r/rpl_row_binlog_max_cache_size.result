@@ -150,7 +150,7 @@ SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;
 BEGIN;
 Repeat statement 'INSERT INTO t1 VALUES($n, repeat("a", 32))' 128 times
 COMMIT;
-include/wait_for_slave_sql_error.inc [errno=1534]
+include/wait_for_slave_sql_error.inc [errno=1197]
 SELECT count(*) FROM t1;
 count(*)
 0

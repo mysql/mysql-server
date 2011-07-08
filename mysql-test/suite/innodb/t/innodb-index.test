@@ -367,36 +367,36 @@ create table t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,h blob,
 		i blob,j blob,k blob,l blob,m blob,n blob,o blob,p blob,
 		q blob,r blob,s blob,t blob,u blob)
 	engine=innodb row_format=dynamic;
-create index t1a on t1 (a(1));
-create index t1b on t1 (b(1));
-create index t1c on t1 (c(1));
-create index t1d on t1 (d(1));
-create index t1e on t1 (e(1));
-create index t1f on t1 (f(1));
-create index t1g on t1 (g(1));
-create index t1h on t1 (h(1));
-create index t1i on t1 (i(1));
-create index t1j on t1 (j(1));
-create index t1k on t1 (k(1));
-create index t1l on t1 (l(1));
-create index t1m on t1 (m(1));
-create index t1n on t1 (n(1));
-create index t1o on t1 (o(1));
-create index t1p on t1 (p(1));
-create index t1q on t1 (q(1));
-create index t1r on t1 (r(1));
-create index t1s on t1 (s(1));
-create index t1t on t1 (t(1));
+create index t1a on t1 (a(767));
+create index t1b on t1 (b(767));
+create index t1c on t1 (c(767));
+create index t1d on t1 (d(767));
+create index t1e on t1 (e(767));
+create index t1f on t1 (f(767));
+create index t1g on t1 (g(767));
+create index t1h on t1 (h(767));
+create index t1i on t1 (i(767));
+create index t1j on t1 (j(767));
+create index t1k on t1 (k(767));
+create index t1l on t1 (l(767));
+create index t1m on t1 (m(767));
+create index t1n on t1 (n(767));
+create index t1o on t1 (o(767));
+create index t1p on t1 (p(767));
+create index t1q on t1 (q(767));
+create index t1r on t1 (r(767));
+create index t1s on t1 (s(767));
+create index t1t on t1 (t(767));
 --error 139
-create index t1u on t1 (u(1));
+create index t1u on t1 (u(767));
 --error 139
-create index t1ut on t1 (u(1), t(1));
-create index t1st on t1 (s(1), t(1));
+create index t1ut on t1 (u(767), t(767));
+create index t1st on t1 (s(767), t(767));
 show create table t1;
 --error 139
-create index t1u on t1 (u(1));
+create index t1u on t1 (u(767));
 alter table t1 row_format=compact;
-create index t1u on t1 (u(1));
+create index t1u on t1 (u(767));
 
 drop table t1;
 eval set global innodb_file_per_table=$per_table;
@@ -514,34 +514,35 @@ SHOW CREATE TABLE t2;
 DROP TABLE t2;
 DROP TABLE t1;
 
-# The following tests are disabled because of the introduced timeouts for
-# metadata locks at the MySQL level as part of the fix for
-# Bug#45225 Locking: hang if drop table with no timeout
-# The following CREATE INDEX t1a ON t1(a); causes a lock wait timeout
-# start disabled45225_2
-#connect (a,localhost,root,,);
-#connect (b,localhost,root,,);
-#connection a;
-#CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
-#INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
-#connection b;
-#BEGIN;
-#SELECT * FROM t1;
-#connection a;
-#CREATE INDEX t1a ON t1(a);
-#connection b;
-#SELECT * FROM t1;
-#--error ER_TABLE_DEF_CHANGED
-#SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
-#SELECT * FROM t1;
-#COMMIT;
-#SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
-#connection default;
-#disconnect a;
-#disconnect b;
-#
-#DROP TABLE t1;
-# end disabled45225_2
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
+CREATE TABLE t2 (a INT, b CHAR(1)) ENGINE=InnoDB;
+INSERT INTO t2 SELECT * FROM t1;
+connection b;
+BEGIN;
+# This acquires a MDL lock on t1 until commit.
+SELECT * FROM t1;
+connection a;
+# This times out before of the MDL lock held by connection b.
+SET lock_wait_timeout=1;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE INDEX t1a ON t1(a);
+CREATE INDEX t2a ON t2(a);
+connection b;
+SELECT * FROM t2;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t2 FORCE INDEX(t2a) ORDER BY a;
+SELECT * FROM t2;
+COMMIT;
+SELECT * FROM t2 FORCE INDEX(t2a) ORDER BY a;
+connection default;
+disconnect a;
+disconnect b;
+
+DROP TABLE t1,t2;
 
 #
 # restore environment to the state it was before this test execution

@@ -229,12 +229,13 @@ public:
   int new_file();
 
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
-
-  bool write_incident(THD *thd, bool lock);
+  bool write(THD *thd, IO_CACHE *cache, bool incident, bool prepared);
   int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
+  bool write_incident(THD *thd, bool lock);
+  bool write_incident(Incident_log_event *ev, bool lock);
 
   void start_union_events(THD *thd, query_id_t query_id_param);
   void stop_union_events(THD *thd);
@@ -320,7 +321,6 @@ extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 
 bool trans_has_updated_trans_table(const THD* thd);
 bool stmt_has_updated_trans_table(const THD *thd);
-bool use_trans_cache(const THD* thd, bool is_transactional);
 bool ending_trans(THD* thd, const bool all);
 bool ending_single_stmt_trans(THD* thd, const bool all);
 bool trans_cannot_safely_rollback(const THD* thd);

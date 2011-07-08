@@ -90,7 +90,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
   until_log_name[0]= ign_master_log_name_end[0]= 0;
-  bzero((char*) &cache_buf, sizeof(cache_buf));
+  memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
   mysql_mutex_init(key_relay_log_info_log_space_lock,
                    &log_space_lock, MY_MUTEX_INIT_FAST);
@@ -417,7 +417,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     DBUG_RETURN(-2);
 
   DBUG_PRINT("enter",("log_name: '%s'  log_pos: %lu  timeout: %lu",
-                      log_name->c_ptr(), (ulong) log_pos, (ulong) timeout));
+                      log_name->c_ptr_safe(), (ulong) log_pos, (ulong) timeout));
 
   set_timespec(abstime,timeout);
   mysql_mutex_lock(&data_lock);
@@ -878,7 +878,7 @@ void Relay_log_info::cached_charset_invalidate()
   DBUG_ENTER("Relay_log_info::cached_charset_invalidate");
 
   /* Full of zeroes means uninitialized. */
-  bzero(cached_charset, sizeof(cached_charset));
+  memset(cached_charset, 0, sizeof(cached_charset));
   DBUG_VOID_RETURN;
 }
 
@@ -1004,9 +1004,9 @@ void Relay_log_info::clear_tables_to_lock()
 
 void Relay_log_info::slave_close_thread_tables(THD *thd)
 {
-  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->can_overwrite_status= TRUE;
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-  thd->stmt_da->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->can_overwrite_status= FALSE;
 
   close_thread_tables(thd);
   /*
