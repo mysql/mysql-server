@@ -126,6 +126,7 @@ enum enum_conflict_fn_type
   ,CFT_NDB_MAX
   ,CFT_NDB_OLD
   ,CFT_NDB_MAX_DEL_WIN
+  ,CFT_NDB_EPOCH
   ,CFT_NUMBER_OF_CFTS /* End marker */
 };
 
@@ -136,6 +137,7 @@ enum enum_conflict_fn_arg_type
 {
   CFAT_END
   ,CFAT_COLUMN_NAME
+  ,CFAT_EXTRA_GCI_BITS
 };
 
 struct st_conflict_fn_arg
@@ -143,7 +145,11 @@ struct st_conflict_fn_arg
   enum_conflict_fn_arg_type type;
   const char *ptr;
   uint32 len;
-  uint32 fieldno; // CFAT_COLUMN_NAME
+  union
+  {
+    uint32 fieldno;      // CFAT_COLUMN_NAME
+    uint32 extraGciBits; // CFAT_EXTRA_GCI_BITS
+  };
 };
 
 struct st_conflict_fn_arg_def
@@ -197,9 +203,10 @@ struct Ndb_exceptions_data {
   enum_conflicting_op_type op_type;
 };
 
-enum enum_conflict_fn_flags
+enum enum_conflict_fn_table_flags
 {
-  CFF_NONE = 0
+  CFF_NONE         = 0,
+  CFF_REFRESH_ROWS = 1
 };
 
 typedef struct st_ndbcluster_conflict_fn_share {
