@@ -185,6 +185,9 @@ struct fts_phrase_struct {
 
 	ulint		distance;	/* For matching on proximity
 					distance. Can be 0 for exact match */
+	CHARSET_INFO*	charset;	/* Phrase match charset */
+	mem_heap_t*     heap;		/* Heap for word processing */
+	ulint		zip_size;	/* row zip size */
 };
 
 /* For storing the frequncy of a word/term in a document */
@@ -231,6 +234,16 @@ fts_query_filter_doc_ids(
 	void*		data,		/* in: doc id ilist */
 	ulint		len,		/* in: doc id ilist size */
 	ibool		calc_doc_count);/* in: whether to remember doc count */
+
+/******************************************************************//**
+compare two character string case insensitively according to their charset. */
+extern
+int
+innobase_fts_text_case_cmp(
+/*=======================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*	p1,		/*!< in: key */
+	const void*	p2);		/*!< in: node */
 
 #if 0
 /********************************************************************
@@ -492,7 +505,6 @@ fts_tolower(
 
 	return(lc_str);
 }
-#endif
 
 /********************************************************************
 Do a case insensitive search. Doesn't check for NUL byte end marker
@@ -529,6 +541,7 @@ fts_utf8_strcmp(
 
 	return(memcmp(str1->utf8, str2->utf8, str2->len));
 }
+#endif
 
 /********************************************************************
 Add a word if it doesn't exist, to the term freq RB tree. We store
@@ -1375,8 +1388,9 @@ fts_query_match_phrase_terms(
 					make this const becase we need to
 					first convert the string to
 					lowercase */
-	const byte*	end)		/* in: pointer to the end of
+	const byte*	end,		/* in: pointer to the end of
 					the string to search */
+	mem_heap_t*	heap)		/* heap */
 {
 	ulint			i;
 	byte*			ptr = *start;
@@ -1387,19 +1401,24 @@ fts_query_match_phrase_terms(
 	must have matched otherwise we wouldn't be here. */
 	for (i = 1; ptr < end && i < ib_vector_size(tokens); /* No op */) {
 		fts_string_t		match;
+		fts_string_t		cmp_str;
 		const fts_string_t*	token;
 		int			result;
+		ulint			ret;
+		ulint			offset;
 
-		ptr = fts_query_skip_whitespace(ptr, end);
+		ret = innobase_mysql_fts_get_token(
+			phrase->charset, ptr, (byte *) end,
+			&match, &offset);
 
-		if (ptr < end) {
+		if (match.len > 0) {
 			/* Get next token to match. */
 			token = ib_vector_get_const(tokens, i);
 
-			match.utf8 = (byte*) ptr;
-			match.len = ut_min(token->len, end - ptr);
+			fts_utf8_string_dup(&cmp_str, &match, heap);
 
-			result = fts_utf8_strcmp(token, &match);
+			result = innobase_fts_text_case_cmp(
+				phrase->charset, token, &cmp_str);
 
 			/* Skip the rest of the tokens if this one doesn't
 			match and the proximity distance is exceeded. */
@@ -1414,7 +1433,7 @@ fts_query_match_phrase_terms(
 			if (result == 0) {
 				/* Advance the text to search by the length
 				of the last token. */
-				ptr += match.len;
+				ptr += ret;
 
 				/* Advance to the next token. */
 				++i;
@@ -1457,8 +1476,9 @@ fts_query_match_phrase(
 					this const becase we need to first
 					convert the string to lowercase */
 	ulint		cur_len,	/* in: length of text */
-	ulint		prev_len)	/* in: total length for searched
-					doc fields */
+	ulint		prev_len,	/* in: total length for searched
+					doc fields*/
+	mem_heap_t*	heap)		/* heap */
 {
 	ulint			i;
 	const fts_string_t*	first;
@@ -1478,7 +1498,10 @@ fts_query_match_phrase(
 	for (i = phrase->match->start; i < ib_vector_size(positions); ++i) {
 		ulint		pos;
 		fts_string_t	match;
+		fts_string_t	cmp_str;
 		byte*		ptr = start;
+		ulint		ret;
+		ulint		offset;
 
 		pos = *(ulint*) ib_vector_get_const(positions, i);
 
@@ -1488,10 +1511,24 @@ fts_query_match_phrase(
 		phrases. */
 		pos -= prev_len;
 		ptr = match.utf8 = start + pos;
-		match.len = ut_min(first->len, end - ptr);
 
 		/* Within limits ? */
-		if (ptr < end && fts_utf8_strcmp(first, &match) == 0) {
+		if (ptr >= end) {
+			break;
+		}
+
+		ret = innobase_mysql_fts_get_token(
+			phrase->charset, start + pos, (byte*) end,
+			&match, &offset);
+
+		if (match.len == 0) {
+			break;
+		}
+
+		fts_utf8_string_dup(&cmp_str, &match, heap);
+
+		if (innobase_fts_text_case_cmp(
+			phrase->charset, first, &cmp_str) == 0) {
 
 			/* This is the case for the single word
 			in the phrase. */
@@ -1500,10 +1537,11 @@ fts_query_match_phrase(
 				break;
 			}
 
-			ptr += match.len;
+			ptr += ret;
 
 			/* Match the remaining terms in the phrase. */
-			if (fts_query_match_phrase_terms(phrase, &ptr, end)) {
+			if (fts_query_match_phrase_terms(phrase, &ptr,
+							 end, heap)) {
 				break;
 			}
 		}
@@ -1534,13 +1572,23 @@ fts_query_fetch_document(
 
 	while (exp) {
 		dfield_t*	dfield = que_node_get_val(exp);
-		void*		data = dfield_get_data(dfield);
-		ulint		cur_len = dfield_get_len(dfield);
+		void*		data; 
+		ulint		cur_len;
+
+		if (dfield_is_ext(dfield)) {
+			data = btr_copy_externally_stored_field(
+				&cur_len, data, phrase->zip_size,
+				dfield_get_len(dfield), phrase->heap);
+		} else {
+			data = dfield_get_data(dfield);
+			cur_len = dfield_get_len(dfield);
+		}
 
 		if (cur_len != UNIV_SQL_NULL && cur_len != 0) {
 			phrase->found =
 				fts_query_match_phrase(phrase, data,
-						       cur_len, prev_len);
+						       cur_len, prev_len,
+						       phrase->heap);
 		}
 
 		if (phrase->found) {
@@ -1934,6 +1982,10 @@ fts_query_match_document(
 	phrase.match = match;		/* Positions to match */
 	phrase.tokens = tokens;		/* Tokens to match */
 	phrase.distance = distance;
+	phrase.charset = get_doc->index_cache->charset;
+	phrase.zip_size = dict_table_zip_size(
+		get_doc->index_cache->index->table);
+	phrase.heap = mem_heap_create(512);
 
 	*found = phrase.found = FALSE;
 
@@ -1948,6 +2000,8 @@ fts_query_match_document(
 	} else {
 		*found = phrase.found;
 	}
+
+	mem_heap_free(phrase.heap);
 
 	return(error);
 }
