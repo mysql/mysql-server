@@ -4534,6 +4534,28 @@ innobase_fts_text_cmp(
 			       s2->utf8, s2->len, 0, 0));
 }
 /******************************************************************//**
+compare two character string case insensitively according to their charset. */
+extern "C" UNIV_INTERN
+int
+innobase_fts_text_case_cmp(
+/*=======================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*     p1,		/*!< in: key */
+        const void*     p2)		/*!< in: node */
+{
+	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
+	const fts_string_t*	s1 = (const fts_string_t*) p1;
+	const fts_string_t*	s2 = (const fts_string_t*) p2;
+	ulint			newlen;
+
+	my_casedn_str(charset, (char*) s2->utf8);
+
+	newlen = strlen((const char*) s2->utf8);
+
+	return(ha_compare_text(charset, s1->utf8, s1->len,
+			       s2->utf8, newlen, 0, 0));
+}
+/******************************************************************//**
 Get the first character's code position for FTS index partition. */
 extern "C" UNIV_INTERN
 ulint
@@ -4595,10 +4617,11 @@ innobase_fts_string_cmp(
         const void*     p2)		/*!< in: node */
 {
 	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
-        uchar*		s1 = (uchar*) p1;
-        uchar*		s2 = *(uchar**) p2;
+	uchar*			s1 = (uchar*) p1;
+	uchar*			s2 = *(uchar**) p2;
 
-        return(ha_compare_text(charset, s1, strlen((const char*)s1), s2, strlen((const char*)s2), 0, 0));
+	return(ha_compare_text(charset, s1, strlen((const char*)s1),
+			       s2, strlen((const char*)s2), 0, 0));
 }
 /******************************************************************//**
 Makes all characters in a string lower case. */
