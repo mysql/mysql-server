@@ -375,20 +375,14 @@ extern mysql_pfs_key_t	srv_purge_thread_key;
 schema */
 #  define pfs_register_thread(key)			\
 do {								\
-	if (PSI_server) {					\
-		struct PSI_thread* psi = PSI_server->new_thread(key, NULL, 0);\
-		if (psi) {					\
-			PSI_server->set_thread(psi);		\
-		}						\
-	}							\
+	struct PSI_thread* psi = PSI_CALL(new_thread)(key, NULL, 0);\
+	PSI_CALL(set_thread)(psi);				\
 } while (0)
 
 /* This macro delist the current thread from performance schema */
 #  define pfs_delete_thread()				\
 do {								\
-	if (PSI_server) {					\
-		PSI_server->delete_current_thread();		\
-	}							\
+	PSI_CALL(delete_current_thread)();			\
 } while (0)
 # endif /* UNIV_PFS_THREAD */
 

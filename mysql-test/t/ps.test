@@ -3327,6 +3327,31 @@ FROM (SELECT 1 UNION SELECT 2) t;
 --echo #
 --echo # End of 5.5 tests.
 
+--echo #
+--echo # Bug#12603141: JOIN::flatten_subqueries asrt/simplify_joins sig11/...
+--echo # Bug#12603457: SEGFAULT IN REINIT_STMT_BEFORE_USE
+--echo #
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+
+PREPARE stmt FROM '
+SELECT (SELECT 1 FROM t2 WHERE ot.a) AS d
+FROM t1 AS ot
+GROUP BY d';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+INSERT INTO t1 VALUES (0),(1),(2);
+INSERT INTO t2 VALUES (1);
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1, t2;
+
 ###########################################################################
 
 
