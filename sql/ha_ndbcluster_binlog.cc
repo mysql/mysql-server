@@ -5240,9 +5240,14 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                       "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
                       event_name.c_ptr());
       /* a warning has been issued to the client */
-      DBUG_RETURN(0);
+      break;
     }
     DBUG_RETURN(0);
+  }
+
+  if (share)
+  {
+    free_share(&share);
   }
   DBUG_RETURN(-1);
 }
