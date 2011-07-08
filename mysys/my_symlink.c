@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
@@ -144,24 +144,23 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
     result= -1;
   }
   DBUG_RETURN(result);
-#else
-#ifdef _WIN32
-  int ret= GetFullPathName(filename,FN_REFLEN,
-                           to,
-                           NULL);
+#elif defined(_WIN32)
+  int ret= GetFullPathName(filename,FN_REFLEN, to, NULL);
   if (ret == 0 || ret > FN_REFLEN)
   {
-    if (ret > FN_REFLEN)
-      my_errno= ENAMETOOLONG;
-    else
-      my_errno= EACCES;
+    my_errno= (ret > FN_REFLEN) ? ENAMETOOLONG : GetLastError();
     if (MyFlags & MY_WME)
       my_error(EE_REALPATH, MYF(0), filename, my_errno);
-	  return -1;
+    /* 
+      GetFullPathName didn't work : use my_load_path() which is a poor 
+      substitute original name but will at least be able to resolve 
+      paths that starts with '.'.
+    */  
+    my_load_path(to, filename, NullS);
+    return -1;
   }
 #else
   my_load_path(to, filename, NullS);
 #endif
   return 0;
-#endif
 }
