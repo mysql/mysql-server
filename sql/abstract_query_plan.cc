@@ -20,11 +20,8 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "rpl_filter.h"
-#include <myisampack.h>
-#include <errno.h>
+#include "sql_priv.h"
 #include "sql_select.h"
-
 #include "abstract_query_plan.h"
 
 

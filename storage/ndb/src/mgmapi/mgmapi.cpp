@@ -2068,6 +2068,15 @@ ndb_mgm_dump_state(NdbMgmHandle handle, int nodeId, const int * _args,
 }
 
 extern "C"
+struct ndb_mgm_configuration *
+ndb_mgm_get_configuration_from_node(NdbMgmHandle handle,
+                                    int nodeid)
+{
+  return ndb_mgm_get_configuration2(handle, 0,
+                                    NDB_MGM_NODE_TYPE_UNKNOWN, nodeid);
+}
+
+extern "C"
 int 
 ndb_mgm_start_signallog(NdbMgmHandle handle, int nodeId, 
 			struct ndb_mgm_reply* reply) 
@@ -2466,7 +2475,7 @@ ndb_mgm_abort_backup(NdbMgmHandle handle, unsigned int backupId,
 extern "C"
 struct ndb_mgm_configuration *
 ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
-                           enum ndb_mgm_node_type nodetype)
+                           enum ndb_mgm_node_type nodetype, int from_node)
 {
   DBUG_ENTER("ndb_mgm_get_configuration2");
 
@@ -2485,6 +2494,23 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
   if (getConfigUsingNodetype)
   {
     args.put("nodetype", nodetype);
+  }
+
+  if (from_node != 0)
+  {
+    if (check_version_ge(handle->mgmd_version(),
+                         NDB_MAKE_VERSION(7,1,16),
+                         NDB_MAKE_VERSION(7,0,27),
+                         0))
+    {
+      args.put("from_node", from_node);
+    }
+    else
+    {
+      SET_ERROR(handle, NDB_MGM_GET_CONFIG_FAILED,
+                "The mgm server does not support getting config from_node");
+      DBUG_RETURN(0);
+    }
   }
 
   const ParserRow<ParserDummy> reply[] = {

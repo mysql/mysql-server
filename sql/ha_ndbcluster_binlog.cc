@@ -44,6 +44,7 @@ extern my_bool opt_ndb_log_updated_only;
 extern my_bool opt_ndb_log_binlog_index;
 extern my_bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
+extern st_ndb_slave_state g_ndb_slave_state;
 
 bool ndb_log_empty_epochs(void);
 
@@ -782,6 +783,8 @@ static void ndbcluster_reset_slave(THD *thd)
     error = 1;
   }
 
+  g_ndb_slave_state.atResetSlave();
+
   // pending fix for bug#59844 will make this function return int
   DBUG_VOID_RETURN;
 }
@@ -1001,8 +1004,6 @@ ndb_schema_table__create(THD *thd)
                              "ENGINE=NDB CHARACTER SET latin1");
   DBUG_RETURN(res);
 }
-
-
 
 class Thd_ndb_options_guard
 {
@@ -4376,7 +4377,7 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
                                  tmp_buf,
                                  sizeof(tmp_buf)) != 0)
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_CONFLICT_FN_PARSE_ERROR,
                             ER(ER_CONFLICT_FN_PARSE_ERROR),
                             tmp_buf);
@@ -4424,7 +4425,7 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
                           args,
                           num_args) != 0)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_CONFLICT_FN_PARSE_ERROR,
                           ER(ER_CONFLICT_FN_PARSE_ERROR),
                           tmp_buf);
@@ -4514,6 +4515,7 @@ ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
   build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
   if (find_files(thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
   {
+    thd->clear_error();
     DBUG_PRINT("info", ("Failed to find files"));
     DBUG_RETURN(true);
   }
@@ -4970,7 +4972,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     {
       // set injector_ndb database/schema from table internal name
       int ret= ndb->setDatabaseAndSchemaName(ndbtab);
-      assert(ret == 0);
+      assert(ret == 0); NDB_IGNORE_VALUE(ret);
       op= ndb->createEventOperation(event_name);
       // reset to catch errors
       ndb->setDatabaseName("");
@@ -6280,7 +6282,7 @@ restart_cluster_failure:
       };
     int ret = inj->record_incident(thd, INCIDENT_LOST_EVENTS,
                                    msg[incident_id]);
-    assert(ret == 0);
+    assert(ret == 0); NDB_IGNORE_VALUE(ret);
     do_incident = false; // Don't report incident again, unless we get started
     break;
   }
@@ -6723,7 +6725,7 @@ restart_cluster_failure:
                                 table->s->fields));
             injector::transaction::table tbl(table, true);
             int ret = trans.use_table(::server_id, tbl);
-            assert(ret == 0);
+            assert(ret == 0); NDB_IGNORE_VALUE(ret);
           }
         }
         if (trans.good())
@@ -6737,7 +6739,7 @@ restart_cluster_failure:
 #endif
             injector::transaction::table tbl(apply_status_table, true);
             int ret = trans.use_table(::server_id, tbl);
-            assert(ret == 0);
+            assert(ret == 0); NDB_IGNORE_VALUE(ret);
 
             /* add the gci to the record */
             Field *field= apply_status_table->field[1];
@@ -7024,6 +7026,58 @@ restart_cluster_failure:
     Thd_ndb::release(thd_ndb);
     thd_set_thd_ndb(thd, NULL);
     thd_ndb= NULL;
+  }
+
+  /**
+   * release all extra references from tables
+   */
+  {
+    if (opt_ndb_extra_logging > 9)
+      sql_print_information("NDB Binlog: Release extra share references");
+
+    pthread_mutex_lock(&ndbcluster_mutex);
+    for (uint i= 0; i < ndbcluster_open_tables.records;)
+    {
+      NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,
+                                                      i);
+      if (share->state != NSS_DROPPED)
+      {
+        /*
+          The share kept by the server has not been freed, free it
+        */
+        share->state= NSS_DROPPED;
+        /* ndb_share reference create free */
+        DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
+                                 share->key, share->use_count));
+        free_share(&share, TRUE);
+
+        /**
+         * This might have altered hash table...not sure if it's stable..
+         *   so we'll restart instead
+         */
+        i = 0;
+      }
+      else
+      {
+        i++;
+      }
+    }
+    pthread_mutex_unlock(&ndbcluster_mutex);
+  }
+
+  close_cached_tables((THD*) 0, (TABLE_LIST*) 0, FALSE, FALSE, FALSE);
+  if (opt_ndb_extra_logging > 15)
+  {
+    sql_print_information("NDB Binlog: remaining open tables: ");
+    for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+    {
+      NDB_SHARE* share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,i);
+      sql_print_information("  %s.%s state: %u use_count: %u",
+                            share->db,
+                            share->table_name,
+                            (uint)share->state,
+                            share->use_count);
+    }
   }
 
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)

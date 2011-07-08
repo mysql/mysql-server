@@ -195,6 +195,21 @@ foreach my $option (@ARGV)
     $cmakeargs = $cmakeargs." \"-DWITH_COMMENT=".substr($option,13)."\""; 
     next;
   }
+  if ($option =~ /with-classpath=/)
+  {
+    $cmakeargs = $cmakeargs." \"-DWITH_CLASSPATH=".substr($option,15)."\"";
+    next;
+  }
+  if ($option =~ /with-debug=/)
+  {
+    $cmakeargs = $cmakeargs." -DWITH_DEBUG=1";
+    next;
+  }
+  if ($option =~ /with-ndb-ccflags=/)
+  {
+    $cmakeargs = $cmakeargs." \"-DWITH_NDB_CCFLAGS=".substr($option,17)."\"";
+    next;
+  }
 
   $option = uc($option);
   $option =~ s/-/_/g;

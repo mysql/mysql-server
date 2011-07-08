@@ -32,7 +32,11 @@ static my_bool verbose, print_all_codes;
 
 #include "../include/my_base.h"
 #include "../mysys/my_handler_errors.h"
+#ifndef MCP_BUG61709
+/* #include "../include/my_compare.h" */
+#else
 // #include "../include/my_compare.h"
+#endif
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 static my_bool ndb_code;

@@ -19,16 +19,26 @@ ADD_LIBRARY(ndbbank STATIC
             Bank.cpp BankLoad.cpp)
 
 ADD_EXECUTABLE(testBank testBank.cpp)
-TARGET_LINK_LIBRARIES(testBank ndbbank)
 ADD_EXECUTABLE(bankSumAccounts bankSumAccounts.cpp)
-TARGET_LINK_LIBRARIES(bankSumAccounts ndbbank)
 ADD_EXECUTABLE(bankValidateAllGLs bankValidateAllGLs.cpp)
-TARGET_LINK_LIBRARIES(bankValidateAllGLs ndbbank)
 ADD_EXECUTABLE(bankMakeGL bankMakeGL.cpp)
-TARGET_LINK_LIBRARIES(bankMakeGL ndbbank)
 ADD_EXECUTABLE(bankTransactionMaker bankTransactionMaker.cpp)
-TARGET_LINK_LIBRARIES(bankTransactionMaker ndbbank)
 ADD_EXECUTABLE(bankCreator bankCreator.cpp)
-TARGET_LINK_LIBRARIES(bankCreator ndbbank)
 ADD_EXECUTABLE(bankTimer bankTimer.cpp)
-TARGET_LINK_LIBRARIES(bankTimer ndbbank)
+
+SET(BINS
+    testBank
+    bankSumAccounts
+    bankValidateAllGLs
+    bankMakeGL
+    bankTransactionMaker
+    bankCreator
+    bankTimer)
+
+FOREACH(B ${BINS})
+  TARGET_LINK_LIBRARIES(${B} ndbbank)
+  TARGET_LINK_LIBRARIES(${B} ndbNDBT)
+  TARGET_LINK_LIBRARIES(${B} ndbclient_so)
+ENDFOREACH()
+
+INSTALL(TARGETS ${BINS} DESTINATION bin)

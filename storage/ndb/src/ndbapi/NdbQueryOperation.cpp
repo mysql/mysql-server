@@ -507,7 +507,7 @@ void NdbBulkAllocator::reset(){
   // Overwrite with 0xff bytes to detect accidental use of released memory.
   assert(m_buffer == NULL || 
          memset(m_buffer, 0xff, m_maxObjs * m_objSize) != NULL);
-  delete m_buffer;
+  delete [] m_buffer;
   m_buffer = NULL;
   m_nextObjNo = 0;
   m_maxObjs = 0;
@@ -4771,17 +4771,11 @@ NdbQueryOperationImpl::setOrdering(NdbQueryOptions::ScanOrdering ordering)
   /* Check if query is sorted and has multiple scan operations. This 
    * combination is not implemented.
    */
-  if (ordering != NdbQueryOptions::ScanOrdering_unordered)
+  if (ordering != NdbQueryOptions::ScanOrdering_unordered &&
+      getQueryDef().getQueryType() == NdbQueryDef::MultiScanQuery)
   {
-    for (Uint32 i = 1; i < getQuery().getNoOfOperations(); i++)
-    {
-      if (getQuery().getQueryOperation(i).getQueryOperationDef()
-          .isScanOperation())
-      {
-        getQuery().setErrorCode(QRY_MULTIPLE_SCAN_SORTED);
-        return -1;
-      }
-    }
+    getQuery().setErrorCode(QRY_MULTIPLE_SCAN_SORTED);
+    return -1;
   }
   
   m_ordering = ordering;

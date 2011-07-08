@@ -27,7 +27,7 @@ import java.io.Serializable;
  */
 public class LongIntStringOid extends LongIntStringConstants implements Serializable {
 
-    public long longpk;
+    public Long longpk;
 
     public int intpk;
 
@@ -50,14 +50,14 @@ public class LongIntStringOid extends LongIntStringConstants implements Serializ
         if (obj == null || !this.getClass().equals(obj.getClass()))
             return false;
         LongIntStringOid o = (LongIntStringOid)obj;
-        return (this.longpk == o.longpk
+        return (this.longpk.equals(o.longpk)
                 && this.intpk == o.intpk
                 && this.stringpk.equals(o.stringpk));
     }
 
     @Override
     public int hashCode() {
-        return stringpk.hashCode() + (int)intpk + (int)longpk;
+        return stringpk.hashCode() + (int)intpk + longpk.intValue();
     }
 
     @Override

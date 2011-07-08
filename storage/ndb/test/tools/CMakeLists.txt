@@ -22,13 +22,9 @@ ADD_EXECUTABLE(hugoLoad hugoLoad.cpp)
 ADD_EXECUTABLE(hugoLockRecords hugoLockRecords.cpp)
 ADD_EXECUTABLE(hugoPkDelete hugoPkDelete.cpp)
 ADD_EXECUTABLE(hugoPkRead hugoPkRead.cpp)
-ADD_DEPENDENCIES(hugoPkRead ndbclient)
 
 ADD_EXECUTABLE(hugoPkReadRecord hugoPkReadRecord.cpp)
-ADD_DEPENDENCIES(hugoPkReadRecord ndbclient)
-ADD_DEPENDENCIES(hugoPkRead ndbclient)
 ADD_EXECUTABLE(hugoPkUpdate hugoPkUpdate.cpp)
-ADD_DEPENDENCIES(hugoPkUpdate ndbNDBT)
 ADD_EXECUTABLE(hugoScanRead hugoScanRead.cpp)
 ADD_EXECUTABLE(hugoScanUpdate hugoScanUpdate.cpp)
 ADD_EXECUTABLE(restart restart.cpp)
@@ -38,4 +34,26 @@ ADD_EXECUTABLE(create_index create_index.cpp)
 ADD_EXECUTABLE(ndb_cpcc cpcc.cpp)
 ADD_EXECUTABLE(hugoJoin hugoJoin.cpp)
 
-INSTALL(TARGETS ndb_cpcc DESTINATION bin)
+SET(BINS
+    hugoFill
+    hugoLoad
+    hugoLockRecords
+    hugoPkDelete
+    hugoPkRead
+    hugoPkReadRecord
+    hugoPkUpdate
+    hugoScanRead
+    hugoScanUpdate
+    restart
+    verify_index
+    copy_tab
+    create_index
+    ndb_cpcc
+    hugoJoin)
+
+FOREACH(B ${BINS})
+  TARGET_LINK_LIBRARIES(${B} ndbNDBT)
+  TARGET_LINK_LIBRARIES(${B} ndbclient_so)
+ENDFOREACH()
+
+INSTALL(TARGETS ${BINS} DESTINATION bin)

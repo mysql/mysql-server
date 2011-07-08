@@ -43,7 +43,12 @@
 
 #define MAX_DROP_TABLE_Q_LEN      1024
 
+#ifdef MCP_BUG44529
 const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", NullS};
+#else
+const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", ".ndb", NullS};
+#endif
+
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
 

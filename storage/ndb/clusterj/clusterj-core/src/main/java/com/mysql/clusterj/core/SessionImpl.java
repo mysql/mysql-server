@@ -406,7 +406,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             op = clusterTransaction.getInsertOperation(storeTable);
             // set all values in the operation, keys first
             domainTypeHandler.operationSetKeys(valueHandler, op);
-            domainTypeHandler.operationSetNonPKValues(valueHandler, op);
+            domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
             // reset modified bits in instance
             domainTypeHandler.objectResetModified(valueHandler);
         } catch (ClusterJUserException cjuex) {

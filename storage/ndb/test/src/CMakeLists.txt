@@ -29,6 +29,7 @@ ADD_LIBRARY(ndbNDBT STATIC
         NDBT_ResultRow.cpp
         NDBT_Test.cpp
         NDBT_Thread.cpp
+        NDBT_Find.cpp
         NdbMixRestarter.cpp
         HugoCalculator.cpp
         HugoOperations.cpp
