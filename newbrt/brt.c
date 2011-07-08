@@ -250,9 +250,7 @@ static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnu
     switch (BP_HAVE_FULLHASH(node, childnum)) {
     case TRUE:
         {
-#ifdef SLOW
             assert(BP_FULLHASH(node, childnum)==toku_cachetable_hash(cf, BP_BLOCKNUM(node, childnum)));
-#endif
             return BP_FULLHASH(node, childnum);
         }
     case FALSE: 
