@@ -125,7 +125,7 @@ check_brtloader-test-extractor-errors-2: brtloader-test-extractor-errors$(BINSUF
 
 check_brtloader-test-open$(BINSUF): EXTRA_ARGS=dir_$@
 
-check_brtloader-test-writer$(BINSUF): $(patsubst %,check_brtloader-test-writer-%, 1 1000 100000 1000000 1-42 1000-42 100000-42 1000000-42)
+check_brtloader-test-writer$(BINSUF): $(patsubst %,check_brtloader-test-writer-%, 1 1000 100000 1000000 1-x 1000-x 100000-x 1000000-x)
 	true $(SUMMARIZE_CMD)
 check_brtloader-test-writer-1: brtloader-test-writer$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -r 1 -s dir.$@ $(SUMMARIZE_CMD)
@@ -136,13 +136,13 @@ check_brtloader-test-writer-100000: brtloader-test-writer$(BINSUF)
 check_brtloader-test-writer-1000000: brtloader-test-writer$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -r 1000000 -s dir.$@ $(SUMMARIZE_CMD)
 
-check_brtloader-test-writer-1-42: brtloader-test-writer$(BINSUF)
+check_brtloader-test-writer-1-x: brtloader-test-writer$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -r 1 -s -x 42 dir.$@ $(SUMMARIZE_CMD)
-check_brtloader-test-writer-1000-42: brtloader-test-writer$(BINSUF)
+check_brtloader-test-writer-1000-x: brtloader-test-writer$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -r 1000 -s -x 42 dir.$@ $(SUMMARIZE_CMD)
-check_brtloader-test-writer-100000-42: brtloader-test-writer$(BINSUF)
+check_brtloader-test-writer-100000-x: brtloader-test-writer$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -r 100000 -s -x 42 dir.$@ $(SUMMARIZE_CMD)
-check_brtloader-test-writer-1000000-42: brtloader-test-writer$(BINSUF)
+check_brtloader-test-writer-1000000-x: brtloader-test-writer$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -r 1000000 -s -x 42 dir.$@ $(SUMMARIZE_CMD)
 
 check_brtloader-test-writer-errors$(BINSUF): $(patsubst %,check_brtloader-test-writer-errors-%, 1 2 3 4)
@@ -184,12 +184,22 @@ cilkscreen_brtloader-test-extractor-2: brtloader-test-extractor$(BINSUF)
 cilkscreen_brtloader-test-extractor-3: brtloader-test-extractor$(BINSUF)
 	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 100 --rowsets 100 dir.$@ $(SUMMARIZE_CMD)
 
-cilkscreen_brtloader-writer-tests: $(patsubst %,cilkscreen_brtloader-test-writer-%, 1 2)
+cilkscreen_brtloader-writer-tests: $(patsubst %,cilkscreen_brtloader-test-writer-%, 1000 10000 1000-x 10000-x)
 	true $(SUMMARIZE_CMD)
 cilkscreen_brtloader-test-writer-1: brtloader-test-writer$(BINSUF)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 1 dir.$@ $(SUMMARIZE_CMD)
+cilkscreen_brtloader-test-writer-1000: brtloader-test-writer$(BINSUF)
 	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 1000 dir.$@ $(SUMMARIZE_CMD)
-cilkscreen_brtloader-test-writer-2: brtloader-test-writer$(BINSUF)
+cilkscreen_brtloader-test-writer-10000: brtloader-test-writer$(BINSUF)
 	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 10000 dir.$@ $(SUMMARIZE_CMD)
+cilkscreen_brtloader-test-writer-1000000: brtloader-test-writer$(BINSUF)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 1000000 dir.$@ $(SUMMARIZE_CMD)
+
+cilkscreen_brtloader-test-writer-1000-x: brtloader-test-writer$(BINSUF)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 1000 -x 42 dir.$@ $(SUMMARIZE_CMD)
+cilkscreen_brtloader-test-writer-10000-x: brtloader-test-writer$(BINSUF)
+	$(CILKSCREEN) ./$< $(VERBVERBOSE) -s -r 10000 -x 42 dir.$@ $(SUMMARIZE_CMD)
+
 
 # this test sometimes crashes cilkscreen 8503, omit for now
 cilkscreen_brtloader-test-writer-3: brtloader-test-writer$(BINSUF)
