@@ -1093,7 +1093,8 @@ fts_cache_add_doc(
 		}
 
 		if (fts_node == NULL
-		    || fts_node->ilist_size > FTS_ILIST_MAX_SIZE) {
+		    || fts_node->ilist_size > FTS_ILIST_MAX_SIZE
+		    || doc_id < fts_node->last_doc_id) {
 
 			fts_node = ib_vector_push(word->nodes, NULL);
 
@@ -2966,7 +2967,8 @@ fts_add_doc_by_id(
 		rec = btr_pcur_get_rec(&pcur);
 
 		/* Doc could be deleted */
-		if (rec_get_deleted_flag(
+		if (page_rec_is_infimum(rec)
+		    || rec_get_deleted_flag(
 			rec, dict_table_is_comp(table))) {
 			doc->found = FALSE;
 			goto func_exit;
@@ -6188,6 +6190,8 @@ fts_init_recover_doc(
 	}
 
 	fts_doc_free(&doc);
+
+	cache->added++;
 
 	return(TRUE);
 }
