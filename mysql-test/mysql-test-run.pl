@@ -2222,7 +2222,9 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   if ( !$opt_skip_ndbcluster )
   {
-    push(@ld_library_paths,  "$basedir/storage/ndb/src/.libs");
+    push(@ld_library_paths,  
+	 "$basedir/storage/ndb/src/.libs",
+	 "$basedir/storage/ndb/src");
   }
 
   # Plugin settings should no longer be added here, instead
@@ -2352,10 +2354,6 @@ sub environment_setup {
       my_find_bin($bindir,
 		  ["storage/ndb/tools", "bin"],
 		  "ndb_show_tables");
-
-    $ENV{'NDB_TOOLS_DIR'}=
-      my_find_dir($bindir,
-		  ["storage/ndb/tools", "bin"]);
 
     $ENV{'NDB_EXAMPLES_DIR'}=
       my_find_dir($basedir,

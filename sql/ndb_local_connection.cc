@@ -57,6 +57,7 @@ should_ignore_error(const uint* ignore_error_list, uint error)
 
 class Suppressor {
 public:
+  virtual ~Suppressor() {}
   virtual bool should_ignore_error(Ed_connection& con) const = 0;
 };
 
@@ -88,6 +89,7 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
         should_ignore_error(ignore_mysql_errors, last_errno))
     {
       /* MySQL level error suppressed -> return success */
+      m_thd->clear_error();
       DBUG_RETURN(false);
     }
 
@@ -99,6 +101,7 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
          suppressor->should_ignore_error(con))
     {
       /* Error suppressed -> return sucess */
+      m_thd->clear_error();
       DBUG_RETURN(false);
     }
 
@@ -274,6 +277,7 @@ Ndb_local_connection::delete_rows(const char* db, size_t db_length,
 class Create_sys_table_suppressor : public Suppressor
 {
 public:
+  virtual ~Create_sys_table_suppressor() {}
   virtual bool should_ignore_error(Ed_connection& con) const
   {
     const uint last_errno = con.get_last_errno();

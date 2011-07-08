@@ -21,10 +21,8 @@ a	b	c
 2	two	two
 drop table t1;
 create table t3 (a int primary key) engine=ndbcluster;
-begin;
 insert into t3 values (1);
 alter table t3 rename t4;
-commit;
 select * from t3;
 ERROR 42S02: Table 'test.t3' doesn't exist
 select * from t4;

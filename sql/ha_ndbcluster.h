@@ -27,6 +27,8 @@
 #include <ndbapi/ndbapi_limits.h>
 #include <kernel/ndb_limits.h>
 
+#define NDB_IGNORE_VALUE(x) (void)x
+
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
 class Ndb;             // Forward declaration
@@ -179,13 +181,23 @@ struct st_ndb_slave_state
   /* Counter values for current slave transaction */
   Uint32 current_conflict_defined_op_count;
   Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
+  Uint64 current_master_server_epoch;
+  Uint64 current_max_rep_epoch;
 
   /* Cumulative counter values */
   Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
+  Uint64 max_rep_epoch;
+  Uint32 sql_run_id;
 
   /* Methods */
   void atTransactionCommit();
   void atTransactionAbort();
+  void atResetSlave();
+
+  void atApplyStatusWrite(Uint32 master_server_id,
+                          Uint32 row_server_id,
+                          Uint64 row_epoch,
+                          bool is_row_server_id_local);
 
   st_ndb_slave_state();
 };
@@ -473,10 +485,11 @@ private:
                                       NDB_SHARE *share);
 
   void check_read_before_write_removal();
-  static int delete_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
-			  const char *path,
-			  const char *db,
-			  const char *table_name);
+  static int drop_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
+                        const char *path,
+                        const char *db,
+                        const char *table_name);
+
   int add_index_impl(THD *thd, TABLE *table_arg,
                      KEY *key_info, uint num_of_keys);
   int create_ndb_index(THD *thd, const char *name, KEY *key_info, bool unique);
@@ -505,11 +518,12 @@ private:
   bool has_null_in_unique_index(uint idx_no) const;
   bool check_index_fields_not_null(KEY *key_info);
 
-  bool check_if_pushable(const NdbQueryOperationTypeWrapper& type,
-                         uint idx= 0,
-			 bool rootSorted= false) const;
+  bool check_if_pushable(int type, //NdbQueryOperationDef::Type,
+                         uint idx= MAX_KEY,
+                         bool rootSorted= false) const;
   bool check_is_pushed() const;
-  int create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs= 0);
+  int create_pushed_join(const NdbQueryParamValue* keyFieldParams=NULL,
+                         uint paramCnt= 0);
 
   int set_up_partition_info(partition_info *part_info,
                             NdbDictionary::Table&) const;
@@ -781,6 +795,7 @@ private:
 
   int update_stats(THD *thd, bool do_read_stat, bool have_lock= FALSE,
                    uint part_id= ~(uint)0);
+  int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
 };
 
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,

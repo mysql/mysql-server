@@ -4749,7 +4749,11 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           without any changes at all.
         */
 #ifndef MCP_WL3749
-        *is_fast_alter_partitioning= TRUE;
+        flags= new_table->file->alter_table_flags(alter_info->flags);
+        if ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0)
+        {
+          *is_fast_alter_partitioning= TRUE;
+        }
 #else
         *fast_alter_table= new_table;
 #endif
@@ -4786,6 +4790,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 #else
       *fast_alter_table= new_table;
 #endif
+
 #ifndef MCP_WL3749
     DBUG_PRINT("info", ("*is_fast_alter_partitioning: %u  flags: 0x%x",
                         *is_fast_alter_partitioning, flags));

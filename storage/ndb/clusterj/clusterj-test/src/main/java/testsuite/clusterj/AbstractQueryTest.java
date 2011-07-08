@@ -76,10 +76,6 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         autotransaction = b;
     }
 
-    protected boolean getCleanupAfterTest() {
-        return true;
-    }
-
     class QueryHolder {
         public QueryBuilder builder;
         public QueryDomainType<?> dobj;

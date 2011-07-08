@@ -631,7 +631,7 @@
   </target>
 
   <!-- runs the benchmark against Cluster/J -->
-  <target name="run.clusterj" depends="set.run,set.paths.clusterj.run">
+  <target name="run.clusterj" depends="set.run,compile.clusterj,set.paths.clusterj.run">
     <echo message="using:" />
     <echo message="  ndbjtie.libdir: ${ndbjtie.libdir}" />
     <echo message="  classpath.clusterj.run: ${toString:classpath.clusterj.run}" />

@@ -2389,6 +2389,11 @@ select * from t where exists
 select * from t where exists
   (select * from subq where subq.i=3 and t.i=3);
 
+# extra test of subquery
+explain extended
+select * from t
+where i = (select max(i) from t);
+
 drop table t,subq;
 
 set @@session.optimizer_switch = @old_ecpd;

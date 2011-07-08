@@ -21,6 +21,7 @@
 
 #include "sql_bitmap.h"
 
+class NdbTransaction;
 class NdbQueryBuilder;
 class NdbQueryOperand;
 class NdbQueryOperationDef;
@@ -96,6 +97,20 @@ public:
   
   ~ndb_pushed_join(); 
 
+  /**
+   * Check that this prepared pushed query matches the type
+   * of operation specified by the arguments.
+   */
+  bool match_definition(int type, //NdbQueryOperationDef::Type, 
+                        const NDB_INDEX_DATA* idx,
+                        bool needSorted) const;
+
+  /** Create an executable instance of this defined query. */
+  NdbQuery* make_query_instance(
+                        NdbTransaction* trans,
+                        const NdbQueryParamValue* keyFieldParams,
+                        uint paramCnt) const;
+
   /** Get the number of pushed table access operations.*/
   uint get_operation_count() const
   { return m_operation_count; }
@@ -107,14 +122,6 @@ public:
    */
   uint get_field_referrences_count() const
   { return m_field_count; }
-
-  /** Get the no'th referred field of table access operations that executes
-   * prior to the pushed join.*/
-  Field* get_field_ref(uint no) const
-  { 
-    DBUG_ASSERT(no < m_field_count);
-    return m_referred_fields[no]; 
-  }
 
   const NdbQueryDef& get_query_def() const
   { return *m_query_def; }

@@ -2191,6 +2191,7 @@ static void test_wl4435_3()
 
   puts("");
 
+#ifdef MCP_BUG61709
   // The following types are not supported:
   //   - ENUM
   //   - SET
@@ -2207,6 +2208,7 @@ static void test_wl4435_3()
   //   - MYSQL_TYPE_YEAR (use MYSQL_TYPE_SHORT instead);
   //   - MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB
   //     (use MYSQL_TYPE_BLOB instead);
+#endif
 
   WL4435_TEST("TINYINT", "127",
               MYSQL_TYPE_TINY, MYSQL_TYPE_TINY,

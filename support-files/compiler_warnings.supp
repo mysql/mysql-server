@@ -98,3 +98,12 @@ mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-
 #
 .* : .*no matching operator delete found; memory will not be freed if initialization throws an exception.*
 ctype-simple.c : .*unary minus operator applied to unsigned type, result still unsigned.*
+
+#
+# 5.5-mainline
+# 
+extra/perror.c : .*strerror.*
+plugin/semisync/semisync_master.cc : .*may be used uninitialized in this function.*
+storage/innobase/.* : .*
+client/mysqldump.c : .*may be used uninitialized in this function.*
+

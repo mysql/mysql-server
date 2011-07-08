@@ -226,13 +226,17 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 oidField = getFieldForOidClass(this, domainTypeHandler.getOidClass(), name);
                 indexNames.add("PRIMARY");
                 switch (javaType) {
-                    case JavaTypes.INT: 
-                    case JavaTypes.INT_OBJ: 
+                    case JavaTypes.INT:
                         this.objectOperationHandlerDelegate = objectOperationHandlerKeyInt;
                         break;
+                    case JavaTypes.INT_OBJ: 
+                        this.objectOperationHandlerDelegate = objectOperationHandlerKeyObjectInteger;
+                        break;
                     case JavaTypes.LONG:
-                    case JavaTypes.LONG_OBJ: 
                         this.objectOperationHandlerDelegate = objectOperationHandlerKeyLong;
+                        break;
+                    case JavaTypes.LONG_OBJ: 
+                        this.objectOperationHandlerDelegate = objectOperationHandlerKeyObjectLong;
                         break;
                    case JavaTypes.STRING: this.objectOperationHandlerDelegate =
                         objectOperationHandlerKeyString;

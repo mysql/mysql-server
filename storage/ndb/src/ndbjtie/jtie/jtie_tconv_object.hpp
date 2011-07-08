@@ -44,6 +44,13 @@ struct _jtie_Object : _jobject {
 // XXX, document: type specifying an Object mapping with a class name
 
 // trait type wrapping named-parametrized Object mappings for specialization
+// XXX make use of
+//   JTIE_DEFINE_METHOD_MEMBER_INFO( _jtie_ObjectMapper< T > )
+// to replace
+//   static const char * const class_name;
+//   static const char * const member_name;
+//   static const char * const member_descriptor;
+//   typedef _jmethodID * memberID_t;
 template< typename J >
 struct _jtie_ObjectMapper : _jtie_Object {
     // the name of the Java peer class in the JVM format (i.e., '/'-separated)
@@ -55,11 +62,10 @@ struct _jtie_ObjectMapper : _jtie_Object {
     typedef _jmethodID * memberID_t;
 };
 
-// XXX can/should these definitions be moves to _lib ?
-
+// XXX static initialization <-> multiple compilation units <-> jtie_lib.hpp
 template< typename J >
 const char * const _jtie_ObjectMapper< J >::class_name
-    = J::class_name;
+    = J::class_name; // XXX static initialization order dependency?
 
 template< typename J >
 const char * const _jtie_ObjectMapper< J >::member_name
@@ -214,6 +220,13 @@ const char * const _jtie_ObjectMapper< J >::member_descriptor
 #endif // XXX cleanup this unsupported mapping
 
 // XXX to document
+// XXX static initialization <-> multiple compilation units <-> jtie_lib.hpp
+// XXX replace
+//   template struct MemberId< _jtie_ObjectMapper< T > >;
+//   template struct MemberIdCache< _jtie_ObjectMapper< T > >;
+// with
+//   JTIE_INSTANTIATE_CLASS_MEMBER_INFO_X(_jtie_ObjectMapper< T >,
+//                                        JCN, "<init>", "()V")
 #define JTIE_INSTANTIATE_PEER_CLASS_MAPPING( T, JCN )           \
     const char * const T::class_name = JCN;                     \
     template struct _jtie_ObjectMapper< T >;                    \

@@ -53,6 +53,7 @@ IF(NOT SYSTEM_TYPE)
 ENDIF()
 
 
+IF(MCP_BUG12713957)
 # Always enable -Wall for gnu C/C++
 IF(CMAKE_COMPILER_IS_GNUCXX)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-parameter")
@@ -60,6 +61,7 @@ ENDIF()
 IF(CMAKE_COMPILER_IS_GNUCC)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 ENDIF()
+ENDIF(MCP_BUG12713957)
 
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
@@ -779,7 +781,12 @@ IF(NOT C_HAS_inline)
   static __inline int foo(){return 0;}
   int main(int argc, char *argv[]){return 0;}"
                             C_HAS___inline)
-  SET(C_INLINE __inline)
+  # MCP_BUG61708
+  IF (C_HAS___inline)
+    SET(C_INLINE __inline)
+  ELSE()
+    SET(C_INLINE)
+  ENDIF()
 ENDIF()
 
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
