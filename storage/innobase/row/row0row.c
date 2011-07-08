@@ -148,22 +148,27 @@ row_build_index_entry(
 				continue;
 			}
 		} else if (dfield_is_ext(dfield)) {
-			/* This table should be in Antelope format
-			(ROW_FORMAT=REDUNDANT or ROW_FORMAT=COMPACT).
-			In that format, the maximum column prefix
+			/* This table is either in Antelope format
+			(ROW_FORMAT=REDUNDANT or ROW_FORMAT=COMPACT)
+			or a purge record where the ordered part of
+			the field is not external.
+			In Antelope, the maximum column prefix
 			index length is 767 bytes, and the clustered
 			index record contains a 768-byte prefix of
 			each off-page column. */
 			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 			len -= BTR_EXTERN_FIELD_REF_SIZE;
+			dfield_set_len(dfield, len);
 		}
 
 		/* If a column prefix index, take only the prefix. */
-		ut_ad(ind_field->prefix_len);
-		len = dtype_get_at_most_n_mbchars(
-			col->prtype, col->mbminmaxlen,
-			ind_field->prefix_len, len, dfield_get_data(dfield));
-		dfield_set_len(dfield, len);
+		if (ind_field->prefix_len) {
+			len = dtype_get_at_most_n_mbchars(
+				col->prtype, col->mbminmaxlen,
+				ind_field->prefix_len, len,
+				dfield_get_data(dfield));
+			dfield_set_len(dfield, len);
+		}
 	}
 
 	ut_ad(dtuple_check_typed(entry));
