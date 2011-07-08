@@ -3762,10 +3762,84 @@ row_conflict_fn_max_del_win(NDB_CONFLICT_FN_SHARE* cfn_share,
   }
 };
 
+
+/**
+  CFT_NDB_EPOCH
+
+*/
+
+int
+row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE* cfn_share,
+                      enum_conflicting_op_type op_type,
+                      const uchar* old_data,
+                      const uchar* new_data,
+                      const MY_BITMAP* write_set,
+                      NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_epoch");
+  switch(op_type)
+  {
+  case WRITE_ROW:
+    abort();
+    DBUG_RETURN(1);
+  case UPDATE_ROW:
+  case DELETE_ROW:
+  {
+    const uint label_0= 0;
+    const Uint32
+      RegAuthor= 1, RegZero= 2,
+      RegMaxRepEpoch= 1, RegRowEpoch= 2;
+    int r;
+
+    r= code->load_const_u32(RegZero, 0);
+    assert(r == 0);
+    r= code->read_attr(RegAuthor, NdbDictionary::Column::ROW_AUTHOR);
+    assert(r == 0);
+    /* If last author was not local, assume no conflict */
+    r= code->branch_ne(RegZero, RegAuthor, label_0);
+    assert(r == 0);
+
+    /*
+     * Load registers RegMaxRepEpoch and RegRowEpoch
+     */
+    r= code->load_const_u64(RegMaxRepEpoch, g_ndb_slave_state.max_rep_epoch);
+    assert(r == 0);
+    r= code->read_attr(RegRowEpoch, NdbDictionary::Column::ROW_GCI64);
+    assert(r == 0);
+
+    /*
+     * if RegRowEpoch <= RegMaxRepEpoch goto label_0
+     * else raise error for this row
+     */
+    r= code->branch_le(RegRowEpoch, RegMaxRepEpoch, label_0);
+    assert(r == 0);
+    r= code->interpret_exit_nok(error_conflict_fn_violation);
+    assert(r == 0);
+    r= code->def_label(label_0);
+    assert(r == 0);
+    r= code->interpret_exit_ok();
+    assert(r == 0);
+    r= code->finalise();
+    assert(r == 0);
+    DBUG_RETURN(r);
+  }
+  default:
+    abort();
+    DBUG_RETURN(1);
+  }
+};
+
 static const st_conflict_fn_arg_def resolve_col_args[]=
 {
   /* Arg type              Optional */
   { CFAT_COLUMN_NAME,      false },
+  { CFAT_END,              false }
+};
+
+static const st_conflict_fn_arg_def epoch_fn_args[]=
+{
+  /* Arg type              Optional */
+  { CFAT_EXTRA_GCI_BITS,   true  },
   { CFAT_END,              false }
 };
 
@@ -3777,6 +3851,8 @@ static const st_conflict_fn_def conflict_fns[]=
     &resolve_col_args[0], row_conflict_fn_max         },
   { "NDB$OLD",            CFT_NDB_OLD,
     &resolve_col_args[0], row_conflict_fn_old         },
+  { "NDB$EPOCH",          CFT_NDB_EPOCH,
+    &epoch_fn_args[0],    row_conflict_fn_epoch       }
 };
 
 static unsigned n_conflict_fns=
@@ -3906,6 +3982,24 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
         }
         break;
       }
+      case CFAT_EXTRA_GCI_BITS:
+      {
+        /* Map string to number and check it's in range etc */
+        char* end_of_arg = (char*) end_arg;
+        Uint32 bits = strtoul(start_arg, &end_of_arg, 0);
+        DBUG_PRINT("info", ("Using %u as the number of extra bits", bits));
+
+        if (bits > 31)
+        {
+          arg_processing_error= true;
+          error_str= "Too many extra Gci bits";
+          DBUG_PRINT("info", ("%s", error_str));
+          break;
+        }
+        /* Num bits seems ok */
+        args[no_args].extraGciBits = bits;
+        break;
+      }
       case CFAT_END:
         abort();
       }
@@ -4009,6 +4103,57 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
                              table->s->table_name.str,
                              conflict_fn->name,
                              table->s->field[args[0].fieldno]->field_name);
+    }
+    break;
+  }
+  case CFT_NDB_EPOCH:
+  {
+    if (num_args > 1)
+    {
+      my_snprintf(msg, msg_len,
+                  "Too many arguments to conflict function");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    /* Check that table doesn't have Blobs as we don't support that */
+    if (share->flags & NSF_BLOB_FLAG)
+    {
+      my_snprintf(msg, msg_len, "Table has Blob column(s), not suitable for NDB$EPOCH.");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    /* Check that table has required extra meta-columns */
+    /* Todo : Could warn if extra gcibits is insufficient to
+     * represent SavePeriod/EpochPeriod
+     */
+    if (ndbtab->getExtraRowGciBits() == 0)
+      sql_print_information("Ndb Slave : CFT_NDB_EPOCH, low epoch resolution");
+
+    if (ndbtab->getExtraRowAuthorBits() == 0)
+    {
+      my_snprintf(msg, msg_len, "No extra row author bits in table.");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    if (slave_set_resolve_fn(thd, share, ndbtab,
+                             0, // field_no
+                             0, // resolve_col_sz
+                             conflict_fn, table, CFF_REFRESH_ROWS))
+    {
+      my_snprintf(msg, msg_len,
+                  "unable to setup conflict resolution");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+    if (opt_ndb_extra_logging)
+    {
+      sql_print_information("NDB Slave: Table %s.%s using conflict_fn %s.",
+                            table->s->db.str,
+                            table->s->table_name.str,
+                            conflict_fn->name);
     }
     break;
   }
@@ -4695,9 +4840,14 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                       "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
                       event_name.c_ptr());
       /* a warning has been issued to the client */
-      DBUG_RETURN(0);
+      break;
     }
     DBUG_RETURN(0);
+  }
+
+  if (share)
+  {
+    free_share(&share);
   }
   DBUG_RETURN(-1);
 }
