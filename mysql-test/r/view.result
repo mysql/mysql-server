@@ -2134,12 +2134,12 @@ INSERT INTO t1 VALUES (2, 'foo2');
 INSERT INTO t1 VALUES (1, 'foo1');
 SELECT * FROM v1;
 id	f
-2	foo2
 1	foo1
+2	foo2
 SELECT * FROM v1;
 id	f
-2	foo2
 1	foo1
+2	foo2
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (pk int PRIMARY KEY, b int);

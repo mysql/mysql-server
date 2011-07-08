@@ -6,6 +6,8 @@
 drop table if exists t0, t1, t2, t3;
 --enable_warnings
 
+set @myisam_mrr_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set @mrr_buffer_size_save= @@mrr_buffer_size;
 set mrr_buffer_size=79;
 
@@ -216,5 +218,6 @@ where
 
 set join_cache_level= @save_join_cache_level;
 set join_buffer_size= @save_join_buffer_size;
+set optimizer_switch= @myisam_mrr_tmp;
 drop table t1;
 

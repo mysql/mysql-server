@@ -11,6 +11,7 @@ set @subselect_mat_test_optimizer_switch_value='materialization=on,in_to_exists=
 set @subselect_mat_test_optimizer_switch_value=null;
 
 set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 #
 # Test that the contents of the temp table of a materialized subquery is
 # cleaned up between PS re-executions.

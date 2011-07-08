@@ -7,6 +7,9 @@ drop table if exists t1,t2,t3,t4;
 set @save_storage_engine= @@storage_engine;
 set storage_engine=InnoDB;
 
+set @innodb_mrr_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
 --source include/mrr_tests.inc 
 
 set storage_engine= @save_storage_engine;
@@ -454,4 +457,5 @@ select count(*) from (
 ) X;
 
 set join_cache_level=@_save_join_cache_level;
+set optimizer_switch= @innodb_mrr_tmp;
 drop table t1;

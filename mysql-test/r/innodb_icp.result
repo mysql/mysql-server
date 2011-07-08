@@ -1,5 +1,7 @@
 set @save_storage_engine= @@storage_engine;
 set storage_engine=InnoDB;
+set @innodb_icp_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 #
 # Bug#36981 - "innodb crash when selecting for update"
 #
@@ -200,4 +202,5 @@ COUNT(*)
 12
 DROP PROCEDURE insert_data;
 DROP TABLE t1, t2, t3;
+set optimizer_switch=@innodb_icp_tmp;
 set storage_engine= @save_storage_engine;

@@ -7,7 +7,9 @@ set @save_optimizer_switch=@@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
 set @@optimizer_switch='semijoin_with_cache=on';
 set @@optimizer_switch='outer_join_with_cache=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 
+set @local_join_cache_test_optimizer_switch_default=@@optimizer_switch;
 set names utf8;
 
 CREATE DATABASE world;
@@ -2981,7 +2983,7 @@ SELECT * FROM t1,t2
   WHERE t1.f1 = t2.f4 AND (t1.f3 = 1 AND t2.f3 = 4 OR t1.f3 = 2 AND t2.f3 = 6);
 
 SET SESSION join_cache_level = DEFAULT;
-SET SESSION optimizer_switch = DEFAULT;
+SET SESSION optimizer_switch = @local_join_cache_test_optimizer_switch_default;
 
 DROP TABLE t1,t2;
 
@@ -3007,7 +3009,7 @@ EXPLAIN SELECT * FROM t1,t2
   WHERE t2.f3 = t1.f2 AND t1.f1 IN (9, 0, 100) ORDER BY t1.f2 LIMIT 1;
 SELECT * FROM t1,t2 
   WHERE t2.f3 = t1.f2 AND t1.f1 IN (9, 0 ,100) ORDER BY t1.f2 LIMIT 1;
-SET SESSION optimizer_switch = DEFAULT;
+SET SESSION optimizer_switch = @local_join_cache_test_optimizer_switch_default;
 
 SET SESSION optimizer_switch = 'index_condition_pushdown=on';
 EXPLAIN SELECT * FROM t1,t2 
@@ -3015,7 +3017,7 @@ EXPLAIN SELECT * FROM t1,t2
 SELECT * FROM t1,t2 
   WHERE t2.f3 = t1.f2 AND t1.f1 IN (9, 0 ,100) ORDER BY t1.f2 LIMIT 1;
 
-SET SESSION optimizer_switch = DEFAULT;
+SET SESSION optimizer_switch = @local_join_cache_test_optimizer_switch_default;
 
 DROP TABLE t1,t2;
 
@@ -3133,8 +3135,6 @@ SELECT * FROM (SELECT DISTINCT * FROM t1) t
 SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1, t2;
-
-SET SESSION optimizer_switch=default;
 
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

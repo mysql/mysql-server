@@ -13,6 +13,9 @@
 #    switches, data distribution, available indexes, and typical queries.
 #
 
+set @subselect_mat_cost=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
 
 -- echo TEST GROUP 1:
 -- echo Typical cases of in-to-exists and materialization subquery strategies
@@ -415,3 +418,5 @@ drop database world;
 #(IN_EXIST transformation is applied to it)
 #   inner subqyery is materialized while the outer subquery  is not (
 #IN_EXIST transformation is applied to it)
+
+set optimizer_switch=@subselect_mat_cost;

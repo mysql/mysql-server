@@ -15,6 +15,12 @@
 
 -- source include/have_innodb.inc
 
+set @innodb_test_tmp=@@optimizer_switch;
+set optimizer_switch = 
+  if(@innodb_test_dont_touch_optimizer_switch, 
+     @@optimizer_switch, 
+     'mrr=on,mrr_sort_keys=on,index_condition_pushdown=on');
+
 # Save the original values of some variables in order to be able to
 # estimate how much they have changed during the tests. Previously this
 # test assumed that e.g. rows_deleted is 0 here and after deleting 23
@@ -2548,6 +2554,8 @@ CONNECTION default;
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log
+
+set optimizer_switch=@innodb_test_tmp;
 
 #######################################################################
 #                                                                     #

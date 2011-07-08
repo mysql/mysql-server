@@ -1,6 +1,7 @@
 set @subselect_mat_test_optimizer_switch_value='materialization=on,in_to_exists=off,semijoin=off';
 set @subselect_sj_mat_tmp= @@optimizer_switch;
 set optimizer_switch=ifnull(@subselect_mat_test_optimizer_switch_value, 'semijoin=on,firstmatch=on,loosescan=on');
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set @optimizer_switch_local_default= @@optimizer_switch;
 drop table if exists t1, t2, t3, t1i, t2i, t3i;
 drop table if exists columns;
@@ -1337,6 +1338,7 @@ drop table t1_1024, t2_1024;
 set optimizer_switch=@subselect_sj_mat_tmp;
 set @subselect_mat_test_optimizer_switch_value=null;
 set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 create table t0 (a int);
 insert into t0 values (0),(1),(2);
 create table t1 (a int);
@@ -1454,7 +1456,7 @@ EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
-2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Rowid-ordered scan
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using where
 SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 pk
 2

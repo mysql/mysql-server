@@ -1,4 +1,6 @@
 drop table if exists t0, t1, t2, t3;
+set @myisam_mrr_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set @mrr_buffer_size_save= @@mrr_buffer_size;
 set mrr_buffer_size=79;
 Warnings:
@@ -507,4 +509,5 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	table3	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.table2.col_varchar_key	3	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 set join_cache_level= @save_join_cache_level;
 set join_buffer_size= @save_join_buffer_size;
+set optimizer_switch= @myisam_mrr_tmp;
 drop table t1;

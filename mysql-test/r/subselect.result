@@ -3,6 +3,7 @@ drop view if exists v2;
 set @subselect_tmp=@@optimizer_switch;
 set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_test,
 "semijoin=on,firstmatch=on,loosescan=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 select (select 2);
 (select 2)
 2
