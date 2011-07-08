@@ -1594,4 +1594,37 @@ set @@optimizer_switch = @old_optimizer_switch;
 drop table t1, t2;
 drop view v2;
 
+
+--echo #
+--echo # LP BUG#611396 RQG: crash in Item_field::register_field_in_read_map with semijoin=off
+--echo # and prepared statements and materialization
+
+CREATE TABLE t1 ( f1 int(11), f2 int(11)) ;
+CREATE TABLE t2 ( f1 int(11), f4 varchar(1), PRIMARY KEY (f1)) ;
+INSERT INTO t2 VALUES ('23','j'),('24','e');
+CREATE TABLE t3 ( f1 int(11), f4 varchar(1)) ;
+INSERT INTO t3 VALUES ('8','j');
+
+set @old_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+
+EXPLAIN
+SELECT t2.f1, (SELECT f2 FROM t1 WHERE (7) IN (SELECT f1 FROM t1))
+FROM t2 JOIN t3 ON t3.f4 = t2.f4
+WHERE t3.f1 = 8
+GROUP BY 1, 2;
+
+PREPARE st1 FROM "
+SELECT t2.f1, (SELECT f2 FROM t1 WHERE (7) IN (SELECT f1 FROM t1))
+FROM t2 JOIN t3 ON t3.f4 = t2.f4
+WHERE t3.f1 = 8
+GROUP BY 1, 2";
+
+EXECUTE st1;
+EXECUTE st1;
+
+set @@optimizer_switch = @old_optimizer_switch;
+
+drop table t1, t2, t3;
+
 set optimizer_switch=@subselect4_tmp;
