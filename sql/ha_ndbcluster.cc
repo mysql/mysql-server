@@ -1453,7 +1453,8 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
     my_free(pack_data, MYF(MY_ALLOW_ZERO_PTR));
     DBUG_RETURN(1);
   }
-    
+
+  ndb->setDatabaseName(m_dbname);
   Ndb_table_guard ndbtab_g(dict, m_tabname);
   if (!(tab= ndbtab_g.get_table()))
     ERR_RETURN(dict->getNdbError());
@@ -8371,26 +8372,47 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     m_key_fields[i]= NULL;
   }
 
-  // Init table lock structure 
-  /* ndb_share reference handler */
-  if (!(m_share=get_share(name, table)))
-  {
-    local_close(thd, FALSE);
-    DBUG_RETURN(1);
-  }
-  DBUG_PRINT("NDB_SHARE", ("%s handler  use_count: %u",
-                           m_share->key, m_share->use_count));
-  thr_lock_data_init(&m_share->lock,&m_lock,(void*) 0);
-  
   set_dbname(name);
   set_tabname(name);
-  
-  if ((res= check_ndb_connection(thd)) ||
-      (res= get_metadata(thd, name)))
+
+  if ((res= check_ndb_connection(thd)) != 0)
   {
     local_close(thd, FALSE);
     DBUG_RETURN(res);
   }
+
+  // Init table lock structure
+  /* ndb_share reference handler */
+  if ((m_share=get_share(name, table, FALSE)) == 0)
+  {
+    /**
+     * No share present...we must create one
+     */
+    if (opt_ndb_extra_logging > 19)
+    {
+      sql_print_information("Calling ndbcluster_create_binlog_setup(%s) in ::open",
+                            name);
+    }
+    Ndb* ndb= check_ndb_in_thd(thd);
+    ndbcluster_create_binlog_setup(thd, ndb, name, strlen(name),
+                                   m_dbname, m_tabname, FALSE);
+    if ((m_share=get_share(name, table, FALSE)) == 0)
+    {
+      local_close(thd, FALSE);
+      DBUG_RETURN(1);
+    }
+  }
+
+  DBUG_PRINT("NDB_SHARE", ("%s handler  use_count: %u",
+                           m_share->key, m_share->use_count));
+  thr_lock_data_init(&m_share->lock,&m_lock,(void*) 0);
+
+  if ((res= get_metadata(thd, name)))
+  {
+    local_close(thd, FALSE);
+    DBUG_RETURN(res);
+  }
+
   if ((res= update_stats(thd, 1, true)) ||
       (res= info(HA_STATUS_CONST)))
   {
