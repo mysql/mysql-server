@@ -460,3 +460,46 @@ SELECT t3.b, v1.a
 
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #806510: subquery with outer reference
+--echo #                 to a derived_table/view                    
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (4), (NULL);
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (8), (0);
+
+CREATE TABLE t3 (a int, b int) ;
+INSERT INTO t3 VALUES (7,8);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT * FROM  t1 t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+EXPLAIN
+SELECT * FROM  t1 t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+
+SELECT * FROM (SELECT * FROM t1) t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+EXPLAIN
+SELECT * FROM (SELECT * FROM t1) t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+
+SELECT * FROM v1 t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+EXPLAIN
+SELECT * FROM v1 t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;

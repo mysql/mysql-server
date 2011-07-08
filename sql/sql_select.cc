@@ -7383,7 +7383,7 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 			       maybe_null ? key_buff : 0,
 			       key_part->length,
 			       ((Item_field*) keyuse->val->real_item())->field,
-			       keyuse->val->full_name());
+			       keyuse->val->real_item()->full_name());
   return new store_key_item(thd,
 			    key_part->field,
 			    key_buff + maybe_null,
@@ -16512,7 +16512,8 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
     }
 
     Item *ref_item=part_of_refkey(field->table,field);
-    if (ref_item && ref_item->eq(right_item,1))
+    if (ref_item && (ref_item->eq(right_item,1) || 
+		     ref_item->real_item()->eq(right_item,1)))
     {
       right_item= right_item->real_item();
       if (right_item->type() == Item::FIELD_ITEM)
