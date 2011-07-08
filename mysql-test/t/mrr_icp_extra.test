@@ -189,24 +189,17 @@ use world;
 --enable_result_log
 --enable_query_log
 
-explain
-SELECT  * FROM City 
-WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
-(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
-
-SELECT  * FROM City 
-WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
-(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
-
 SELECT * FROM City
 WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
 AND (Population > 101000 AND Population < 102000);
 
+--replace_column 9 #
 explain
 SELECT * FROM City
 WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
 AND (Population > 101000 AND Population < 102000);
 
+--replace_column 9 #
 explain
 SELECT  * FROM City 
 WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
@@ -219,16 +212,19 @@ WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
 SELECT * FROM City
 WHERE Name LIKE 'M%' AND Population > 7000000;
 
+--replace_column 9 #
 explain
 SELECT * FROM City
 WHERE Name LIKE 'M%' AND Population > 7000000;
 
+--replace_column 6 # 7 # 9 #
 explain 
 SELECT * FROM City 
 WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';
 SELECT * FROM City 
 WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';
 
+--replace_column 6 # 7 # 9 #
 explain
 SELECT * FROM City 
 WHERE  Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
