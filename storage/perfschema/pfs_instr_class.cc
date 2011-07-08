@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -122,36 +122,6 @@ PFS_table_share *table_share_array= NULL;
 PFS_instr_class global_table_io_class;
 PFS_instr_class global_table_lock_class;
 PFS_instr_class global_idle_class;
-
-void PFS_instr_class::set_enabled(PFS_instr_class *pfs, bool enabled)
-{
-  pfs->m_enabled= enabled;
-
-  /*
-    When the table instruments are changed,
-    the cache on top of SETUP_OBJECTS is invalidated.
-  */
-  if ((pfs == & global_table_io_class) ||
-      (pfs == & global_table_lock_class))
-  {
-    setup_objects_version++;
-  }
-}
-
-void PFS_instr_class::set_timed(PFS_instr_class *pfs, bool timed)
-{
-  pfs->m_timed= timed;
-
-  /*
-    When the table instruments are changed,
-    the cache on top of SETUP_OBJECTS is invalidated.
-  */
-  if ((pfs == & global_table_io_class) ||
-      (pfs == & global_table_lock_class))
-  {
-    setup_objects_version++;
-  }
-}
 
 /**
   Hash index for instrumented table shares.
@@ -460,20 +430,11 @@ static void set_table_share_key(PFS_table_share_key *key,
 
 void PFS_table_share::refresh_setup_object_flags(PFS_thread *thread)
 {
-  bool enabled;
-  bool timed;
-  m_setup_objects_version= setup_objects_version;
   lookup_setup_object(thread,
                       OBJECT_TYPE_TABLE,
                       m_schema_name, m_schema_name_length,
                       m_table_name, m_table_name_length,
-                      &enabled, &timed);
-
-  m_io_enabled= enabled && global_table_io_class.m_enabled;
-  m_io_timed= timed && global_table_io_class.m_timed;
-
-  m_lock_enabled= enabled && global_table_lock_class.m_enabled;
-  m_lock_timed= timed && global_table_lock_class.m_timed;
+                      &m_enabled, &m_timed);
 }
 
 /**
@@ -691,7 +652,6 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
     entry= &mutex_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_MUTEX);
     entry->m_lock_stat.reset();
-    entry->m_index= index;
     entry->m_event_name_index= mutex_class_start + index;
     entry->m_singleton= NULL;
     /*
@@ -753,7 +713,6 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_RWLOCK);
     entry->m_read_lock_stat.reset();
     entry->m_write_lock_stat.reset();
-    entry->m_index= index;
     entry->m_event_name_index= rwlock_class_start + index;
     entry->m_singleton= NULL;
     PFS_atomic::add_u32(&rwlock_class_allocated_count, 1);
@@ -787,7 +746,6 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
   {
     entry= &cond_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_COND);
-    entry->m_index= index;
     entry->m_event_name_index= cond_class_start + index;
     entry->m_singleton= NULL;
     PFS_atomic::add_u32(&cond_class_allocated_count, 1);
@@ -926,7 +884,6 @@ PFS_file_key register_file_class(const char *name, uint name_length,
   {
     entry= &file_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_FILE);
-    entry->m_index= index;
     entry->m_event_name_index= file_class_start + index;
     entry->m_singleton= NULL;
     PFS_atomic::add_u32(&file_class_allocated_count, 1);
@@ -960,7 +917,6 @@ PFS_stage_key register_stage_class(const char *name, uint name_length,
   {
     entry= &stage_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_STAGE);
-    entry->m_index= index;
     entry->m_event_name_index= index;
     PFS_atomic::add_u32(&stage_class_allocated_count, 1);
 
@@ -994,7 +950,6 @@ PFS_statement_key register_statement_class(const char *name, uint name_length,
   {
     entry= &statement_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_STATEMENT);
-    entry->m_index= index;
     entry->m_event_name_index= index;
     PFS_atomic::add_u32(&statement_class_allocated_count, 1);
 
@@ -1205,12 +1160,9 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
 
   PFS_table_share **entry;
   uint retry_count= 0;
-  uint version= 0;
   const uint retry_max= 3;
-  bool io_enabled= true;
-  bool lock_enabled= true;
-  bool io_timed= true;
-  bool lock_timed= true;
+  bool enabled= true;
+  bool timed= true;
 
 search:
   entry= reinterpret_cast<PFS_table_share**>
@@ -1233,21 +1185,11 @@ search:
 
   if (retry_count == 0)
   {
-    bool enabled;
-    bool timed;
-    version= setup_objects_version;
     lookup_setup_object(thread,
                         OBJECT_TYPE_TABLE,
                         schema_name, schema_name_length,
                         table_name, table_name_length,
                         &enabled, &timed);
-
-    io_enabled= enabled && global_table_io_class.m_enabled;
-    io_timed= timed && global_table_io_class.m_timed;
-
-    lock_enabled= enabled && global_table_lock_class.m_enabled;
-    lock_timed= timed && global_table_lock_class.m_timed;
-
     /*
       Even when enabled is false, a record is added in the dictionary:
       - It makes enabling a table already in the table cache possible,
@@ -1271,16 +1213,13 @@ search:
       {
         if (pfs->m_lock.free_to_dirty())
         {
-          pfs->m_setup_objects_version= version;
           pfs->m_key= key;
           pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
           pfs->m_schema_name_length= schema_name_length;
           pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
           pfs->m_table_name_length= table_name_length;
-          pfs->m_io_enabled= io_enabled;
-          pfs->m_lock_enabled= lock_enabled;
-          pfs->m_io_timed= io_timed;
-          pfs->m_lock_timed= lock_timed;
+          pfs->m_enabled= enabled;
+          pfs->m_timed= timed;
           pfs->init_refcount();
           pfs->m_table_stat.reset();
           set_keys(pfs, share);
@@ -1473,6 +1412,17 @@ void reset_socket_class_io(void)
 
   for ( ; pfs < pfs_last; pfs++)
     pfs->m_socket_stat.m_io_stat.reset();
+}
+
+void update_table_share_derived_flags(PFS_thread *thread)
+{
+  PFS_table_share *pfs= table_share_array;
+  PFS_table_share *pfs_last= table_share_array + table_share_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    pfs->refresh_setup_object_flags(thread);
+  }
 }
 
 /** @} */

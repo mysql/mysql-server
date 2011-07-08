@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1169,6 +1169,7 @@ void test_locker_disabled()
   cond_class_A->m_enabled= true;
   file_class_A->m_enabled= true;
   socket_class_A->m_enabled= true;
+  update_instruments_derived_flags();
 
   mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker (global disabled)");
@@ -1201,6 +1202,7 @@ void test_locker_disabled()
   file_class_A->m_timed= false;
   socket_class_A->m_enabled= true;
   socket_class_A->m_timed= false;
+  update_instruments_derived_flags();
 
   mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker (global counted)");
@@ -1237,6 +1239,7 @@ void test_locker_disabled()
   cond_class_A->m_enabled= false;
   file_class_A->m_enabled= false;
   socket_class_A->m_enabled= false;
+  update_instruments_derived_flags();
 
   mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker");
@@ -1270,6 +1273,7 @@ void test_locker_disabled()
   file_class_A->m_timed= true;
   socket_class_A->m_enabled= true;
   socket_class_A->m_timed= true;
+  update_instruments_derived_flags();
 
   mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker != NULL, "locker");
@@ -1320,6 +1324,7 @@ void test_locker_disabled()
   cond_class_A->m_enabled= true;
   file_class_A->m_enabled= true;
   socket_class_A->m_enabled= true;
+  update_instruments_derived_flags();
 
   mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker");

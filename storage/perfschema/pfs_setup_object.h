@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PFS_SETUP_OBJECT_H
 #define PFS_SETUP_OBJECT_H
@@ -69,22 +69,6 @@ struct PFS_setup_object
   /** TIMED flag. */
   bool m_timed;
 };
-
-/**
-  Version number of the SETUP_OBJECTS cache.
-  The content of the SETUP_OBJECTS table,
-  and the content of SETUP_INSTRUMENTS table for instruments that apply to objects :
-  - wait/io/table/sql/handler
-  - wait/lock/table/sql/handler
-  is cached once for each object,
-  to avoid evaluating the object ENABLED and TIMED flags too frequently.
-  Incrementing @c setup_objects_version invalidates the cache.
-  @sa global_table_io_class
-  @sa global_table_lock_class
-  @sa PFS_table_share::refresh_setup_objects_flags
-  @sa PFS_table_share::m_setup_objects_version
-*/
-extern uint setup_objects_version;
 
 int init_setup_object(const PFS_global_param *param);
 void cleanup_setup_object(void);
