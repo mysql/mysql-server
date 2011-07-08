@@ -319,6 +319,11 @@ int Gcalc_result_receiver::complete_shape()
   {
     if (cur_shape != Gcalc_function::shape_point)
     {
+      if (cur_shape == Gcalc_function::shape_hole)
+      {
+        buffer.length(shape_pos);
+        return 0;
+      }
       cur_shape= Gcalc_function::shape_point;
       buffer.length(buffer.length()-4);
     }
