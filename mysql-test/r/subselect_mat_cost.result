@@ -1,3 +1,5 @@
+set @subselect_mat_cost=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 TEST GROUP 1:
 Typical cases of in-to-exists and materialization subquery strategies
 =====================================================================
@@ -557,3 +559,4 @@ TEST GROUP 2:
 Tests of various combinations of optimizer switches, types of queries,
 available indexes, column nullability, constness of tables/predicates.
 =====================================================================
+set optimizer_switch=@subselect_mat_cost;

@@ -17,6 +17,9 @@
 drop table if exists t0,t1,t2,t3;
 --enable_warnings
 
+set @innodb_mrr_cpk_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
 set @save_join_cache_level=@@join_cache_level;
 set join_cache_level=6;
 
@@ -133,5 +136,6 @@ drop table t1,t2;
 
 set @@join_cache_level= @save_join_cache_level;
 set storage_engine=@save_storage_engine;
+set optimizer_switch=@innodb_mrr_cpk_tmp;
 drop table t0;
 

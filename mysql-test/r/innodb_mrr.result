@@ -1,6 +1,8 @@
 drop table if exists t1,t2,t3,t4;
 set @save_storage_engine= @@storage_engine;
 set storage_engine=InnoDB;
+set @innodb_mrr_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 create table t1(a int);
 show create table t1;
 Table	Create Table
@@ -764,4 +766,5 @@ t1 AS alias3 FORCE KEY (f2) ON alias3.f2 = alias2.f2 AND alias3.f4 = alias2.f3
 count(*)
 361
 set join_cache_level=@_save_join_cache_level;
+set optimizer_switch= @innodb_mrr_tmp;
 drop table t1;

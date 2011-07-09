@@ -5,6 +5,7 @@
 
 set @subselect_sj2_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 --disable_warnings
 drop table if exists t0, t1, t2, t3;
 drop view if exists v1;

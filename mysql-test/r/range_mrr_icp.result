@@ -1,3 +1,5 @@
+set @mrr_icp_extra_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 drop table if exists t1, t2, t3;
 CREATE TABLE t1 (
 event_date date DEFAULT '0000-00-00' NOT NULL,
@@ -81,7 +83,6 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 repair table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	repair	status	OK
 drop table t1;
 CREATE TABLE t1 (
@@ -222,27 +223,27 @@ update t1 set y=x;
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	1	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x >= 7 and t2.x <= t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	1	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	1	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	1	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	1	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	1	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select count(*) from t1 where x in (1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	x	x	5	const	1	Using index
@@ -256,13 +257,13 @@ CREATE TABLE t2 (keya int(11) NOT NULL default '0', KEY j1 (keya));
 INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	i1	i1	4	NULL	1	Using where; Using index
 1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
+1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer (flat, BNL join)
 explain select * from t1 force index(i1), t2 force index(j1) where 
 (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	i1	i1	4	NULL	1	Using where; Using index
 1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
+1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer (flat, BNL join)
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 a int(11) default NULL,
@@ -277,7 +278,7 @@ INSERT INTO t1 VALUES
 (33,5),(33,5),(33,5),(33,5),(34,5),(35,5);
 EXPLAIN SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a,b	a	5	NULL	2	Using where
+1	SIMPLE	t1	range	a,b	a	5	NULL	2	Using index condition; Using where; Rowid-ordered scan
 SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 a	b
 DROP TABLE t1;
@@ -362,7 +363,6 @@ name char(1) not null,
 uid int not null,
 primary key (id),
 index uid_index (uid));
-begin;
 insert into t1(id, uid, name) values(1, 0, ' ');
 insert into t1(uid, name) values(0, ' ');
 insert into t2(uid, name) select uid, name from t1;
@@ -411,7 +411,6 @@ insert into t2(uid, name) values
 insert into t1(uid, name) select uid, name from t2 order by uid;
 delete from t2;
 insert into t2(id, uid, name) select id, uid, name from t1;
-commit;
 select count(*) from t1;
 count(*)
 1026
@@ -421,23 +420,23 @@ count(*)
 analyze table t1,t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-test.t2	analyze	status	OK
-explain select straight_join * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
+test.t2	analyze	status	Table is already up to date
+explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	#	Using where
-1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	#	
-explain select straight_join * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using index condition; Rowid-ordered scan
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
+explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	#	Using where
-1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	#	
-explain select straight_join * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using index condition; Rowid-ordered scan
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
+explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	#	Using where
-1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	#	
-explain select straight_join * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using index condition; Rowid-ordered scan
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
+explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	#	Using where
-1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	#	
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using index condition; Rowid-ordered scan
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	name	uid	id	name	uid
 1001	A	1	1001	A	1
@@ -618,13 +617,13 @@ INSERT INTO t1 (a) VALUES
 ('111'),('222'),('222'),('222'),('222'),('444'),('aaa'),('AAA'),('bbb');
 explain select * from t1 where a='aaa';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	11	const	1	Using where
+1	SIMPLE	t1	ref	a	a	11	const	2	Using index condition
 explain select * from t1 where a=binary 'aaa';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	11	NULL	1	Using where
+1	SIMPLE	t1	range	a	a	11	NULL	2	Using index condition; Rowid-ordered scan
 explain select * from t1 where a='aaa' collate latin1_bin;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	11	NULL	1	Using where
+1	SIMPLE	t1	range	a	a	11	NULL	2	Using index condition; Rowid-ordered scan
 explain select * from t1 where a='aaa' collate latin1_german1_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	9	Using where
@@ -672,10 +671,194 @@ create table t1(a char(2), key(a(1)));
 insert into t1 values ('x'), ('xx');
 explain select a from t1 where a > 'x';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	2	NULL	1	Using where
+1	SIMPLE	t1	range	a	a	2	NULL	2	Using where
 select a from t1 where a > 'x';
 a
 xx
+drop table t1;
+CREATE TABLE t1 (
+OXID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '',
+OXPARENTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT 'oxrootid',
+OXLEFT int NOT NULL DEFAULT '0',
+OXRIGHT int NOT NULL DEFAULT '0',
+OXROOTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '',
+PRIMARY KEY  (OXID),
+KEY OXNID (OXID),
+KEY OXLEFT (OXLEFT),
+KEY OXRIGHT (OXRIGHT),
+KEY OXROOTID (OXROOTID)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci;
+INSERT INTO t1 VALUES
+('d8c4177d09f8b11f5.52725521','oxrootid',1,40,'d8c4177d09f8b11f5.52725521'),
+('d8c4177d151affab2.81582770','d8c4177d09f8b11f5.52725521',2,3,
+'d8c4177d09f8b11f5.52725521'),
+('d8c4177d206a333d2.74422679','d8c4177d09f8b11f5.52725521',4,5,
+'d8c4177d09f8b11f5.52725521'),
+('d8c4177d225791924.30714720','d8c4177d09f8b11f5.52725521',6,7,
+'d8c4177d09f8b11f5.52725521'),
+('d8c4177d2380fc201.39666693','d8c4177d09f8b11f5.52725521',8,9,
+'d8c4177d09f8b11f5.52725521'),
+('d8c4177d24ccef970.14957924','d8c4177d09f8b11f5.52725521',10,11,
+'d8c4177d09f8b11f5.52725521');
+EXPLAIN
+SELECT s.oxid FROM t1 v, t1 s 
+WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
+s.oxleft > v.oxleft AND s.oxleft < v.oxright;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	v	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	Using index condition
+1	SIMPLE	s	ALL	OXLEFT	NULL	NULL	NULL	6	Range checked for each record (index map: 0x4)
+SELECT s.oxid FROM t1 v, t1 s 
+WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
+s.oxleft > v.oxleft AND s.oxleft < v.oxright;
+oxid
+d8c4177d151affab2.81582770
+d8c4177d206a333d2.74422679
+d8c4177d225791924.30714720
+d8c4177d2380fc201.39666693
+d8c4177d24ccef970.14957924
+DROP TABLE t1;
+create table t1 (
+c1  char(10), c2  char(10), c3  char(10), c4  char(10),
+c5  char(10), c6  char(10), c7  char(10), c8  char(10),
+c9  char(10), c10 char(10), c11 char(10), c12 char(10),
+c13 char(10), c14 char(10), c15 char(10), c16 char(10),
+index(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,c13,c14,c15,c16)
+);
+insert into t1 (c1) values ('1'),('1'),('1'),('1');
+select * from t1 where
+c1 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4",
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c2 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c3 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c4 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5", 
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c5 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4",
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c6 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4",
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c7 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c8 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c9 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+and c10 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+"abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+"abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+"abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+"abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+"abcdefg5", "123456785", "qwertyui5", "asddfg5",
+"abcdefg6", "123456786", "qwertyui6", "asddfg6",
+"abcdefg7", "123456787", "qwertyui7", "asddfg7",
+"abcdefg8", "123456788", "qwertyui8", "asddfg8",
+"abcdefg9", "123456789", "qwertyui9", "asddfg9",
+"abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+"abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+"abcdefgC", "12345678C", "qwertyuiC", "asddfgC");
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16
 drop table t1;
 End of 4.1 tests
 CREATE TABLE t1 (
@@ -697,10 +880,10 @@ INSERT INTO t1 VALUES
 (55,'C'), (56,'C'), (57,'C'), (58,'C'), (59,'C'), (60,'C');
 EXPLAIN SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	3	Using where
+1	SIMPLE	t1	range	status	status	23	NULL	11	Using index condition; Rowid-ordered scan
 EXPLAIN SELECT * FROM t1 WHERE status NOT IN ('A','B');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	3	Using where
+1	SIMPLE	t1	range	status	status	23	NULL	11	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
 id	status
 53	C
@@ -723,16 +906,16 @@ id	status
 60	C
 EXPLAIN SELECT status FROM t1 WHERE status <> 'A' AND status <> 'B';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	status	status	23	NULL	11	Using where; Using index
 EXPLAIN SELECT status FROM t1 WHERE status NOT IN ('A','B');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	status	status	23	NULL	11	Using where; Using index
 EXPLAIN SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	2	Using where
+1	SIMPLE	t1	range	status	status	23	NULL	10	Using index condition; Rowid-ordered scan
 EXPLAIN SELECT * FROM t1 WHERE status < 'A' OR status > 'B';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	2	Using where
+1	SIMPLE	t1	range	status	status	23	NULL	10	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
 id	status
 53	C
@@ -760,16 +943,16 @@ INSERT INTO  t1 VALUES
 CREATE VIEW v1 as SELECT a,b FROM t1 WHERE b=3;
 EXPLAIN SELECT a,b FROM t1 WHERE a < 2 and b=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using where; Using index
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index
 EXPLAIN SELECT a,b FROM v1 WHERE a < 2 and b=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using where; Using index
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index
 EXPLAIN SELECT a,b FROM t1 WHERE a < 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using where; Using index
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index
 EXPLAIN SELECT a,b FROM v1 WHERE a < 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using where; Using index
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index
 SELECT a,b FROM t1 WHERE a < 2 and b=3;
 a	b
 1	3
@@ -833,20 +1016,20 @@ create table t2 (a varchar(10), filler char(200), key(a));
 insert into t2 select * from t1;
 explain select * from t1 where a between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	#	Using where
+1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition; Rowid-ordered scan
 explain select * from t1 where a = 'a' or a='a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	#	Using where
+1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition; Rowid-ordered scan
 explain select * from t2 where a between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	a	a	13	const	#	Using where
+1	SIMPLE	t2	ref	a	a	13	const	#	Using index condition
 explain select * from t2 where a = 'a' or a='a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	a	a	13	const	#	Using where
+1	SIMPLE	t2	ref	a	a	13	const	#	Using index condition
 update t1 set a='b' where a<>'a';
 explain select * from t1 where a not between 'b' and 'b';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	#	Using where
+1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition; Rowid-ordered scan
 select a, hex(filler) from t1 where a not between 'b' and 'b';
 a	hex(filler)
 a	0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -890,10 +1073,10 @@ id	b	c
 0	3	4
 EXPLAIN  SELECT * FROM t1 WHERE b<=3 AND 3<=c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx1,idx2	idx1	4	NULL	1	Using where
+1	SIMPLE	t1	range	idx1,idx2	idx2	4	NULL	3	Using index condition; Using where; Rowid-ordered scan
 EXPLAIN  SELECT * FROM t1 WHERE 3 BETWEEN b AND c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx1,idx2	idx1	4	NULL	1	Using where
+1	SIMPLE	t1	range	idx1,idx2	idx2	4	NULL	3	Using where; Rowid-ordered scan
 SELECT * FROM t1 WHERE 0 < b OR 0 > c;
 id	b	c
 0	3	4
@@ -904,10 +1087,10 @@ id	b	c
 0	3	4
 EXPLAIN SELECT * FROM t1 WHERE 0 < b OR 0 > c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	idx1,idx2	idx1,idx2	4,4	NULL	2	Using sort_union(idx1,idx2); Using where
+1	SIMPLE	t1	index_merge	idx1,idx2	idx1,idx2	4,4	NULL	4	Using sort_union(idx1,idx2); Using where
 EXPLAIN SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	idx1,idx2	idx1,idx2	4,4	NULL	2	Using sort_union(idx1,idx2); Using where
+1	SIMPLE	t1	index_merge	idx1,idx2	idx1,idx2	4,4	NULL	4	Using sort_union(idx1,idx2); Using where
 DROP TABLE t1;
 CREATE TABLE t1 (                                      
 item char(20) NOT NULL default '',                          
@@ -922,7 +1105,7 @@ INSERT INTO t1 VALUES
 ('A2','2005-12-01 08:00:00',1000);
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY	PRIMARY	20	const	2	Using where
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	20	const	2	Using index condition
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 item	started	price
 Warnings:
@@ -944,6 +1127,76 @@ item	started	price
 A1	2005-11-01 08:00:00	1000.000
 A1	2005-11-15 00:00:00	2000.000
 DROP TABLE t1;
+
+BUG#32198 "Comparison of DATE with DATETIME still not using indexes correctly"
+
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+dateval date default NULL,
+PRIMARY KEY  (id),
+KEY dateval (dateval)
+) AUTO_INCREMENT=173;
+INSERT INTO t1 VALUES
+(1,'2007-01-01'),(2,'2007-01-02'),(3,'2007-01-03'),(4,'2007-01-04'),
+(5,'2007-01-05'),(6,'2007-01-06'),(7,'2007-01-07'),(8,'2007-01-08'),
+(9,'2007-01-09'),(10,'2007-01-10'),(11,'2007-01-11');
+This must use range access:
+explain select * from t1 where dateval >= '2007-01-01 00:00:00' and dateval <= '2007-01-02 23:59:59';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	dateval	dateval	4	NULL	2	Using index condition; Rowid-ordered scan
+drop table t1;
+CREATE TABLE t1 (
+a varchar(32), index (a)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
+INSERT INTO t1 VALUES
+('B'), ('A'), ('A'), ('C'), ('B'), ('A'), ('A');
+SELECT a FROM t1 WHERE a='b' OR a='B';
+a
+B
+B
+EXPLAIN SELECT a FROM t1 WHERE a='b' OR a='B';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	35	NULL	3	Using where; Using index
+DROP TABLE t1;
+CREATE TABLE t1 (f1 TINYINT(11) UNSIGNED NOT NULL, PRIMARY KEY (f1));
+INSERT INTO t1 VALUES (127),(254),(0),(1),(255);
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256;
+COUNT(*)
+5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256.0;
+COUNT(*)
+5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 255;
+COUNT(*)
+4
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < -1;
+COUNT(*)
+0
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -1;
+COUNT(*)
+5
+DROP TABLE t1;
+CREATE TABLE t1 ( f1 TINYINT(11) NOT NULL, PRIMARY KEY (f1));
+INSERT INTO t1 VALUES (127),(126),(0),(-128),(-127);
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128;
+COUNT(*)
+5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128.0;
+COUNT(*)
+5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 127;
+COUNT(*)
+4
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129;
+COUNT(*)
+5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129.0;
+COUNT(*)
+5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -128;
+COUNT(*)
+4
+DROP TABLE t1;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, filler char(100));
@@ -956,5 +1209,560 @@ Z
 In following EXPLAIN the access method should be ref, #rows~=500 (and not 2)
 explain select * from t2 where a=1000 and b<11;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	10	NULL	2	Using where
+1	SIMPLE	t2	ref	a	a	5	const	502	Using index condition
 drop table t1, t2;
+CREATE TABLE t1( a INT, b INT, KEY( a, b ) );
+CREATE TABLE t2( a INT, b INT, KEY( a, b ) );
+CREATE TABLE t3( a INT, b INT, KEY( a, b ) );
+INSERT INTO t1( a, b ) 
+VALUES (0, 1), (1, 2), (1, 4), (2, 3), (5, 0), (9, 7);
+INSERT INTO t2( a, b ) 
+VALUES ( 1, 1), ( 2, 1), ( 3, 1), ( 4, 1), ( 5, 1),
+( 6, 1), ( 7, 1), ( 8, 1), ( 9, 1), (10, 1), 
+(11, 1), (12, 1), (13, 1), (14, 1), (15, 1),
+(16, 1), (17, 1), (18, 1), (19, 1), (20, 1);
+INSERT INTO t2 SELECT a, 2 FROM t2 WHERE b = 1;
+INSERT INTO t2 SELECT a, 3 FROM t2 WHERE b = 1;
+INSERT INTO t2 SELECT -1, -1 FROM t2;
+INSERT INTO t2 SELECT -1, -1 FROM t2;
+INSERT INTO t2 SELECT -1, -1 FROM t2;
+INSERT INTO t3
+VALUES (1, 0), (2, 0), (3, 0), (4, 0), (5, 0),
+(6, 0), (7, 0), (8, 0), (9, 0), (10, 0);
+INSERT INTO t3 SELECT * FROM t3 WHERE a = 10;
+INSERT INTO t3 SELECT * FROM t3 WHERE a = 10;
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 < a AND b = 3 OR
+3 <= a;
+a	b
+5	0
+9	7
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 < a AND b = 3 OR
+3 <= a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	3	Using where; Using index
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+a	b
+5	0
+9	7
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	4	Using where; Using index
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+a	b
+5	0
+9	7
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	3	Using where; Using index
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+3 <= a;
+a	b
+5	0
+9	7
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+3 <= a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	3	Using where; Using index
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 1 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+a	b
+1	1
+2	1
+3	1
+4	1
+5	1
+6	1
+7	1
+8	1
+9	1
+10	1
+11	1
+12	1
+13	1
+14	1
+15	1
+15	3
+16	1
+16	3
+17	1
+17	3
+18	1
+18	3
+19	1
+19	3
+20	1
+EXPLAIN
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 1 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	10	NULL	50	Using where; Using index
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 2 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+a	b
+1	1
+2	1
+3	1
+4	1
+5	1
+5	2
+6	1
+6	2
+7	1
+7	2
+8	1
+8	2
+9	1
+9	2
+10	1
+11	1
+12	1
+13	1
+14	1
+15	1
+15	3
+16	1
+16	3
+17	1
+17	3
+18	1
+18	3
+19	1
+19	3
+20	1
+EXPLAIN
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 2 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	10	NULL	50	Using where; Using index
+SELECT * FROM t3 WHERE
+5 <= a AND a < 10 AND b = 3 OR 
+a < 5 OR
+a < 10;
+a	b
+1	0
+2	0
+3	0
+4	0
+5	0
+6	0
+7	0
+8	0
+9	0
+EXPLAIN
+SELECT * FROM t3 WHERE
+5 <= a AND a < 10 AND b = 3 OR 
+a < 5 OR
+a < 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	a	a	5	NULL	8	Using where; Using index
+DROP TABLE t1, t2, t3;
+#
+# Bug #47123: Endless 100% CPU loop with STRAIGHT_JOIN
+#
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1 VALUES (1), (NULL);
+SELECT * FROM t1 WHERE a <> NULL and (a <> NULL or a <= NULL);
+a
+DROP TABLE t1;
+#
+# Bug#47925: regression of range optimizer and date comparison in 5.1.39!
+#
+CREATE TABLE t1 ( a DATE,     KEY ( a ) );
+CREATE TABLE t2 ( a DATETIME, KEY ( a ) );
+# Make optimizer choose range scan
+INSERT INTO t1 VALUES ('2009-09-22'), ('2009-09-22'), ('2009-09-22');
+INSERT INTO t1 VALUES ('2009-09-23'), ('2009-09-23'), ('2009-09-23');
+INSERT INTO t2 VALUES ('2009-09-22 12:00:00'), ('2009-09-22 12:00:00'),
+('2009-09-22 12:00:00');
+INSERT INTO t2 VALUES ('2009-09-23 12:00:00'), ('2009-09-23 12:00:00'),
+('2009-09-23 12:00:00');
+# DATE vs DATE
+EXPLAIN
+SELECT * FROM t1 WHERE a >= '2009/09/23';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+X	X	X	range	a	a	X	X	X	X
+SELECT * FROM t1 WHERE a >= '2009/09/23';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '20090923';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >=  20090923;
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009-9-23';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009.09.23';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009:09:23';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+# DATE vs DATETIME
+EXPLAIN
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+X	X	X	range	a	a	X	X	X	X
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '20090923';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >=  20090923;
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009-9-23';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009.09.23';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009:09:23';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+# DATETIME vs DATETIME
+EXPLAIN
+SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+X	X	X	range	a	a	X	X	X	X
+SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '20090923120000';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >=  20090923120000;
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009-9-23 12:00:00';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009.09.23 12:00:00';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+SELECT * FROM t2 WHERE a >= '2009:09:23 12:00:00';
+a
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+2009-09-23 12:00:00
+# DATETIME vs DATE
+EXPLAIN
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+X	X	X	range	a	a	X	X	X	X
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '20090923000000';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >=  20090923000000;
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009-9-23 00:00:00';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009.09.23 00:00:00';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+SELECT * FROM t1 WHERE a >= '2009:09:23 00:00:00';
+a
+2009-09-23
+2009-09-23
+2009-09-23
+# Test of the new get_date_from_str implementation
+# Behavior differs slightly between the trunk and mysql-pe.
+# The former may give errors for the truncated values, while the latter
+# gives warnings. The purpose of this test is not to interfere, and only
+# preserve existing behavior.
+SELECT str_to_date('2007-10-00', '%Y-%m-%d') >= '' AND 
+str_to_date('2007-10-00', '%Y-%m-%d') <= '2007/10/20';
+str_to_date('2007-10-00', '%Y-%m-%d') >= '' AND 
+str_to_date('2007-10-00', '%Y-%m-%d') <= '2007/10/20'
+1
+Warnings:
+Warning	1292	Incorrect datetime value: ''
+SELECT str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND 
+str_to_date('2007-20-00', '%Y-%m-%d') <= '';
+str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND 
+str_to_date('2007-20-00', '%Y-%m-%d') <= ''
+NULL
+Warnings:
+Error	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
+Error	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
+SELECT str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20';
+str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20'
+1
+Warnings:
+Warning	1292	Incorrect datetime value: ''
+SELECT str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND '';
+str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND ''
+NULL
+Warnings:
+Error	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
+SELECT str_to_date('', '%Y-%m-%d');
+str_to_date('', '%Y-%m-%d')
+0000-00-00
+DROP TABLE t1, t2;
+#
+# Bug#48459: valgrind errors with query using 'Range checked for each 
+# record'
+#
+CREATE TABLE t1 (
+a INT,
+b CHAR(2),
+c INT,
+d INT,
+KEY ( c ),
+KEY ( d, a, b ( 2 ) ),
+KEY ( b ( 1 ) )
+);
+INSERT INTO t1 VALUES ( NULL, 'a', 1, 2 ), ( NULL, 'a', 1, 2 ),
+( 1,    'a', 1, 2 ), ( 1,    'a', 1, 2 );
+CREATE TABLE t2 (
+a INT,
+c INT,
+e INT,
+KEY ( e )
+);
+INSERT INTO t2 VALUES ( 1, 1, NULL ), ( 1, 1, NULL );
+# Should not give Valgrind warnings
+SELECT 1
+FROM t1, t2
+WHERE t1.d <> '1' AND t1.b > '1'
+AND t1.a = t2.a AND t1.c = t2.c;
+1
+1
+1
+1
+1
+DROP TABLE t1, t2;
+#
+# Bug #48665: sql-bench's insert test fails due to wrong result
+#
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a));
+INSERT INTO t1 VALUES (0,0), (1,1);
+EXPLAIN 
+SELECT * FROM t1 FORCE INDEX (PRIMARY) 
+WHERE (a>=1 AND a<=2) OR (a>=4 AND a<=5) OR (a>=0 AND a <=10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+@	@	@	range	@	@	@	@	@	@
+# Should return 2 rows
+SELECT * FROM t1 FORCE INDEX (PRIMARY) 
+WHERE (a>=1 AND a<=2) OR (a>=4 AND a<=5) OR (a>=0 AND a <=10);
+a	b
+0	0
+1	1
+DROP TABLE t1;
+#
+# Bug #54802: 'NOT BETWEEN' evaluation is incorrect
+#
+CREATE TABLE t1 (c_key INT, c_notkey INT, KEY(c_key));
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+EXPLAIN SELECT * FROM t1 WHERE 2 NOT BETWEEN c_notkey AND c_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	c_key	NULL	NULL	NULL	3	Using where
+SELECT * FROM t1 WHERE 2 NOT BETWEEN c_notkey AND c_key;
+c_key	c_notkey
+1	1
+3	3
+DROP TABLE t1;
+#
+# Bug #57030: 'BETWEEN' evaluation is incorrect
+#
+CREATE TABLE t1(pk INT PRIMARY KEY, i4 INT);
+CREATE UNIQUE INDEX i4_uq ON t1(i4);
+INSERT INTO t1 VALUES (1,10), (2,20), (3,30);
+EXPLAIN
+SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	i4_uq	i4_uq	5	const	1	
+SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
+pk	i4
+1	10
+EXPLAIN
+SELECT * FROM t1 WHERE 10 BETWEEN i4 AND i4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	i4_uq	i4_uq	5	const	1	
+SELECT * FROM t1 WHERE 10 BETWEEN i4 AND i4;
+pk	i4
+1	10
+EXPLAIN
+SELECT * FROM t1 WHERE 10 BETWEEN 10 AND i4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	3	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE 10 BETWEEN 10 AND i4;
+pk	i4
+1	10
+2	20
+3	30
+EXPLAIN
+SELECT * FROM t1 WHERE 10 BETWEEN i4 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE 10 BETWEEN i4 AND 10;
+pk	i4
+1	10
+EXPLAIN
+SELECT * FROM t1 WHERE 10 BETWEEN 10 AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+SELECT * FROM t1 WHERE 10 BETWEEN 10 AND 10;
+pk	i4
+1	10
+2	20
+3	30
+EXPLAIN
+SELECT * FROM t1 WHERE 10 BETWEEN 11 AND 11;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+SELECT * FROM t1 WHERE 10 BETWEEN 11 AND 11;
+pk	i4
+EXPLAIN
+SELECT * FROM t1 WHERE 10 BETWEEN 100 AND 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+SELECT * FROM t1 WHERE 10 BETWEEN 100 AND 0;
+pk	i4
+EXPLAIN
+SELECT * FROM t1 WHERE i4 BETWEEN 100 AND 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE i4 BETWEEN 100 AND 0;
+pk	i4
+EXPLAIN
+SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 99999999999999999;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	2	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 99999999999999999;
+pk	i4
+1	10
+2	20
+3	30
+EXPLAIN
+SELECT * FROM t1 WHERE i4 BETWEEN 999999999999999 AND 30;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE i4 BETWEEN 999999999999999 AND 30;
+pk	i4
+EXPLAIN
+SELECT * FROM t1 WHERE i4 BETWEEN 10 AND '20';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE i4 BETWEEN 10 AND '20';
+pk	i4
+1	10
+2	20
+EXPLAIN
+SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	i4_uq	NULL	NULL	NULL	3	
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	Using index condition
+SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
+pk	i4	pk	i4
+EXPLAIN
+SELECT * FROM t1, t1 as t2 WHERE t1.i4 BETWEEN t2.pk AND t2.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	i4_uq	NULL	NULL	NULL	3	
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	Using index condition
+SELECT * FROM t1, t1 as t2 WHERE t1.i4 BETWEEN t2.pk AND t2.pk;
+pk	i4	pk	i4
+DROP TABLE t1;
+End of 5.1 tests
+create table t1 (f1 datetime, key (f1));
+insert into t1 values ('2000-03-09 15:56:59'),('2000-05-05 23:24:28'),('2000-06-13 13:12:06');
+select  min(f1)  from t1 where f1 >= '2006-05-25 07:00:20' and f1 between '2003-11-23 10:00:09' and '2010-01-01 01:01:01' and f1 > '2001-01-01 01:01:01';
+min(f1)
+NULL
+drop table t1;
+set optimizer_switch=@mrr_icp_extra_tmp;

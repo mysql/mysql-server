@@ -368,7 +368,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
 explain select * from t1 force index (a) where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	4	NULL	4	Using index condition; Rowid-ordered scan
+1	SIMPLE	t1	range	a	a	4	NULL	4	Using where
 explain select * from t1 where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	c,c_2	c	5	const	1	
@@ -1230,7 +1230,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using index condition
+1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using where
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -1406,7 +1406,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	303	const	#	Using index condition
+1	SIMPLE	t1	ref	v	v	303	const	#	Using where
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1

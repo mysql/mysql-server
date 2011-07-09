@@ -4146,7 +4146,8 @@ INSERT INTO t3 VALUES
   (4,'z'), (3,'zzz'), (5,'zzzzz'), (3,'z'), (4,'zzz'), (3,'zzzz'),
   (9,'zzzzz'), (2,'zzz'), (1,'zzzz'), (9,'zzz'), (1,'zzzz'), (5,'zzzzz'),
   (4,'zzz'), (3,'zzzz'), (5,'zzzz'), (3,'zzz'), (4,'zz'), (3,'zzzzz');
-  
+
+set @tmp= @@optimizer_switch;
 SET SESSION optimizer_switch='index_condition_pushdown=off';
 
 EXPLAIN SELECT * from t1,t2,t3 WHERE t3.a3=t1.a1 AND t2.a2=t1.a1;
@@ -4166,7 +4167,7 @@ SELECT * FROM t1,t2,t3
   WHERE t2.a2=t1.a1 AND t3.a3=t2.a2 AND
         LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
 
-SET SESSION optimizer_switch=DEFAULT;
+SET SESSION optimizer_switch=@tmp;
 
 DROP TABLE t1,t2,t3;
 

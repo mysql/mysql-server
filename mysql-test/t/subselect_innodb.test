@@ -1,5 +1,7 @@
 -- source include/have_innodb.inc
 
+set @subselect_innodb_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
@@ -238,3 +240,6 @@ call p1();
 call p1();
 drop procedure p1;
 drop tables t1,t2,t3;
+
+set optimizer_switch=@subselect_innodb_tmp;
+

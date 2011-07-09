@@ -1,4 +1,6 @@
 drop table if exists t1,t2,t3,t4;
+set @maria_mrr_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set @mrr_buffer_size_save= @@mrr_buffer_size;
 set @save_storage_engine= @@storage_engine;
 set storage_engine=aria;
@@ -426,4 +428,5 @@ alias2.f3 < 0;
 f2	f3	f4	f5	f2
 set join_cache_level=@_save_join_cache_level;
 set join_buffer_size=@_save_join_buffer_size;
+set optimizer_switch=@maria_mrr_tmp;
 drop table t1;

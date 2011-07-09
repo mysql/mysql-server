@@ -591,44 +591,19 @@ protected:
 #define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED         (1ULL << 22)
 #define OPTIMIZER_SWITCH_JOIN_CACHE_BKA            (1ULL << 23)
 #define OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE (1ULL << 24)
-#ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST                    (1ULL << 25)
-#else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION       (1ULL << 25)
-#  define OPTIMIZER_SWITCH_LAST                    (1ULL << 26)
-#endif
+#define OPTIMIZER_SWITCH_TABLE_ELIMINATION         (1ULL << 25)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 26)
 
-#ifdef DBUG_OFF 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
 /*
 TODO: Materialization is off by default to mimic 5.1/5.2 behavior.
 Once cost based choice between materialization and in-to-exists should be
 enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
 */
-#  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
+#define OPTIMIZER_SWITCH_DEFAULT   (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                    OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
-                                    OPTIMIZER_SWITCH_DERIVED_MERGE | \
-                                    OPTIMIZER_SWITCH_DERIVED_WITH_KEYS | \
-                                    OPTIMIZER_SWITCH_IN_TO_EXISTS | \
-                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
-                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
-                                    OPTIMIZER_SWITCH_MRR|\
-                                    OPTIMIZER_SWITCH_MRR_SORT_KEYS|\
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE | \
-                                    OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
-                                    OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
-                                    OPTIMIZER_SWITCH_JOIN_CACHE_BKA | \
-                                    OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE)
-#else
-#  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
-                                    OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
-                                    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
-                                    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                    OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
                                     OPTIMIZER_SWITCH_DERIVED_MERGE | \
                                     OPTIMIZER_SWITCH_DERIVED_WITH_KEYS | \
                                     OPTIMIZER_SWITCH_TABLE_ELIMINATION | \
@@ -636,13 +611,10 @@ enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
                                     OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
-                                    OPTIMIZER_SWITCH_MRR|\
-                                    OPTIMIZER_SWITCH_MRR_SORT_KEYS|\
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_BKA | \
                                     OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE)
-#endif
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
