@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2000-2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1297,7 +1296,12 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
                    " end_pos BIGINT UNSIGNED NOT NULL, "
                    " PRIMARY KEY USING HASH (server_id) ) ENGINE=NDB CHARACTER SET latin1");
 
-  const int no_print_error[6]= {ER_TABLE_EXISTS_ERROR,
+  const int no_print_error[]= { ER_TABLE_EXISTS_ERROR,
+                                /**
+                                 * 157(no-connection) has no special ER_
+                                 *   but simply gives ER_CANT_CREATE_TABLE
+                                 */
+                                ER_CANT_CREATE_TABLE,
                                 701,
                                 702,
                                 721, // Table already exist
@@ -1374,7 +1378,12 @@ static int ndbcluster_create_schema_table(THD *thd)
                    " type INT UNSIGNED NOT NULL,"
                    " PRIMARY KEY USING HASH (db,name) ) ENGINE=NDB CHARACTER SET latin1");
 
-  const int no_print_error[6]= {ER_TABLE_EXISTS_ERROR,
+  const int no_print_error[]= { ER_TABLE_EXISTS_ERROR,
+                                /**
+                                 * 157(no-connection) has no special ER_
+                                 *   but simply gives ER_CANT_CREATE_TABLE
+                                 */
+                                ER_CANT_CREATE_TABLE,
                                 701,
                                 702,
                                 721, // Table already exist
@@ -4154,10 +4163,84 @@ row_conflict_fn_max_del_win(st_ndbcluster_conflict_fn_share* cfn_share,
   }
 };
 
+
+/**
+  CFT_NDB_EPOCH
+
+*/
+
+int
+row_conflict_fn_epoch(st_ndbcluster_conflict_fn_share* cfn_share,
+                      enum_conflicting_op_type op_type,
+                      const uchar* old_data,
+                      const uchar* new_data,
+                      const MY_BITMAP* write_set,
+                      NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_epoch");
+  switch(op_type)
+  {
+  case WRITE_ROW:
+    abort();
+    DBUG_RETURN(1);
+  case UPDATE_ROW:
+  case DELETE_ROW:
+  {
+    const uint label_0= 0;
+    const Uint32
+      RegAuthor= 1, RegZero= 2,
+      RegMaxRepEpoch= 1, RegRowEpoch= 2;
+    int r;
+
+    r= code->load_const_u32(RegZero, 0);
+    assert(r == 0);
+    r= code->read_attr(RegAuthor, NdbDictionary::Column::ROW_AUTHOR);
+    assert(r == 0);
+    /* If last author was not local, assume no conflict */
+    r= code->branch_ne(RegZero, RegAuthor, label_0);
+    assert(r == 0);
+
+    /*
+     * Load registers RegMaxRepEpoch and RegRowEpoch
+     */
+    r= code->load_const_u64(RegMaxRepEpoch, g_ndb_slave_state.max_rep_epoch);
+    assert(r == 0);
+    r= code->read_attr(RegRowEpoch, NdbDictionary::Column::ROW_GCI64);
+    assert(r == 0);
+
+    /*
+     * if RegRowEpoch <= RegMaxRepEpoch goto label_0
+     * else raise error for this row
+     */
+    r= code->branch_le(RegRowEpoch, RegMaxRepEpoch, label_0);
+    assert(r == 0);
+    r= code->interpret_exit_nok(error_conflict_fn_violation);
+    assert(r == 0);
+    r= code->def_label(label_0);
+    assert(r == 0);
+    r= code->interpret_exit_ok();
+    assert(r == 0);
+    r= code->finalise();
+    assert(r == 0);
+    DBUG_RETURN(r);
+  }
+  default:
+    abort();
+    DBUG_RETURN(1);
+  }
+};
+
 static const st_conflict_fn_arg_def resolve_col_args[]=
 {
   /* Arg type              Optional */
   { CFAT_COLUMN_NAME,      false },
+  { CFAT_END,              false }
+};
+
+static const st_conflict_fn_arg_def epoch_fn_args[]=
+{
+  /* Arg type              Optional */
+  { CFAT_EXTRA_GCI_BITS,   true  },
   { CFAT_END,              false }
 };
 
@@ -4169,6 +4252,8 @@ static const st_conflict_fn_def conflict_fns[]=
     &resolve_col_args[0], row_conflict_fn_max         },
   { "NDB$OLD",            CFT_NDB_OLD,
     &resolve_col_args[0], row_conflict_fn_old         },
+  { "NDB$EPOCH",          CFT_NDB_EPOCH,
+    &epoch_fn_args[0],    row_conflict_fn_epoch       }
 };
 
 static unsigned n_conflict_fns=
@@ -4298,6 +4383,24 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
         }
         break;
       }
+      case CFAT_EXTRA_GCI_BITS:
+      {
+        /* Map string to number and check it's in range etc */
+        char* end_of_arg = (char*) end_arg;
+        Uint32 bits = strtoul(start_arg, &end_of_arg, 0);
+        DBUG_PRINT("info", ("Using %u as the number of extra bits", bits));
+
+        if (bits > 31)
+        {
+          arg_processing_error= true;
+          error_str= "Too many extra Gci bits";
+          DBUG_PRINT("info", ("%s", error_str));
+          break;
+        }
+        /* Num bits seems ok */
+        args[no_args].extraGciBits = bits;
+        break;
+      }
       case CFAT_END:
         abort();
       }
@@ -4401,6 +4504,57 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
                              table->s->table_name.str,
                              conflict_fn->name,
                              table->s->field[args[0].fieldno]->field_name);
+    }
+    break;
+  }
+  case CFT_NDB_EPOCH:
+  {
+    if (num_args > 1)
+    {
+      my_snprintf(msg, msg_len,
+                  "Too many arguments to conflict function");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    /* Check that table doesn't have Blobs as we don't support that */
+    if (share->flags & NSF_BLOB_FLAG)
+    {
+      my_snprintf(msg, msg_len, "Table has Blob column(s), not suitable for NDB$EPOCH.");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    /* Check that table has required extra meta-columns */
+    /* Todo : Could warn if extra gcibits is insufficient to
+     * represent SavePeriod/EpochPeriod
+     */
+    if (ndbtab->getExtraRowGciBits() == 0)
+      sql_print_information("Ndb Slave : CFT_NDB_EPOCH, low epoch resolution");
+
+    if (ndbtab->getExtraRowAuthorBits() == 0)
+    {
+      my_snprintf(msg, msg_len, "No extra row author bits in table.");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    if (slave_set_resolve_fn(thd, share, ndbtab,
+                             0, // field_no
+                             0, // resolve_col_sz
+                             conflict_fn, table, CFF_REFRESH_ROWS))
+    {
+      my_snprintf(msg, msg_len,
+                  "unable to setup conflict resolution");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+    if (opt_ndb_extra_logging)
+    {
+      sql_print_information("NDB Slave: Table %s.%s using conflict_fn %s.",
+                            table->s->db.str,
+                            table->s->table_name.str,
+                            conflict_fn->name);
     }
     break;
   }
@@ -5086,9 +5240,14 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                       "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
                       event_name.c_ptr());
       /* a warning has been issued to the client */
-      DBUG_RETURN(0);
+      break;
     }
     DBUG_RETURN(0);
+  }
+
+  if (share)
+  {
+    free_share(&share);
   }
   DBUG_RETURN(-1);
 }
@@ -7416,6 +7575,58 @@ restart_cluster_failure:
     ha_ndbcluster::release_thd_ndb(thd_ndb);
     set_thd_ndb(thd, NULL);
     thd_ndb= NULL;
+  }
+
+  /**
+   * release all extra references from tables
+   */
+  {
+    if (opt_ndb_extra_logging > 9)
+      sql_print_information("NDB Binlog: Release extra share references");
+
+    pthread_mutex_lock(&ndbcluster_mutex);
+    for (uint i= 0; i < ndbcluster_open_tables.records;)
+    {
+      NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,
+                                                      i);
+      if (share->state != NSS_DROPPED)
+      {
+        /*
+          The share kept by the server has not been freed, free it
+        */
+        share->state= NSS_DROPPED;
+        /* ndb_share reference create free */
+        DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
+                                 share->key, share->use_count));
+        free_share(&share, TRUE);
+
+        /**
+         * This might have altered hash table...not sure if it's stable..
+         *   so we'll restart instead
+         */
+        i = 0;
+      }
+      else
+      {
+        i++;
+      }
+    }
+    pthread_mutex_unlock(&ndbcluster_mutex);
+  }
+
+  close_cached_tables((THD*) 0, (TABLE_LIST*) 0, FALSE, FALSE, FALSE);
+  if (opt_ndb_extra_logging > 15)
+  {
+    sql_print_information("NDB Binlog: remaining open tables: ");
+    for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+    {
+      NDB_SHARE* share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,i);
+      sql_print_information("  %s.%s state: %u use_count: %u",
+                            share->db,
+                            share->table_name,
+                            (uint)share->state,
+                            share->use_count);
+    }
   }
 
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)
