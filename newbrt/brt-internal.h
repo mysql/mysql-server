@@ -369,6 +369,8 @@ struct brt_header {
     struct toku_list live_brts;
     struct toku_list zombie_brts;
     struct toku_list checkpoint_before_commit_link;
+
+    DSN curr_dsn;
 };
 
 struct brt {
@@ -395,8 +397,6 @@ struct brt {
     int was_closed; //True when this brt was closed, but is being kept around for transactions (or checkpoint).
     int (*close_db)(DB*, u_int32_t);
     u_int32_t close_flags;
-
-    DSN curr_dsn;
 
     struct toku_list live_brt_link;
     struct toku_list zombie_brt_link;

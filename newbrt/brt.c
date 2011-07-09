@@ -149,8 +149,8 @@ toku_assert_entire_node_in_memory(BRTNODE node) {
 //
 static void
 set_new_DSN_for_node(BRTNODE node, BRT t) {
-    node->dsn = t->curr_dsn;
-    t->curr_dsn++;
+    node->dsn = t->h->curr_dsn;
+    t->h->curr_dsn++;
 }
 
 static u_int32_t
@@ -3667,6 +3667,8 @@ brt_alloc_init_header(BRT t, TOKUTXN txn) {
 
     memset(&t->h->descriptor, 0, sizeof(t->h->descriptor));
 
+    t->h->curr_dsn = MIN_DSN + 1; // start at MIN_DSN + 1, as MIN_DSN is reserved for basement nodes
+
     r = brt_init_header(t, txn);
     if (r != 0) goto died2;
     return r;
@@ -4650,7 +4652,6 @@ int toku_brt_create(BRT *brt_ptr) {
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
     brt->compare_fun = toku_builtin_compare_fun;
     brt->update_fun = NULL;
-    brt->curr_dsn = 1; // start at 1, as 0 is reserved for basement nodes
     int r = toku_omt_create(&brt->txns);
     if (r!=0) { toku_free(brt); return r; }
     *brt_ptr = brt;
