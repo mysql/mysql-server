@@ -1766,6 +1766,7 @@ struct TABLE_LIST
    */
   char *get_table_name() { return view != NULL ? view_name.str : table_name; }
   bool is_active_sjm();
+  bool is_jtbm() { return test(jtbm_subselect!=NULL); }
   st_select_lex_unit *get_unit();
   st_select_lex *get_single_select();
   void wrap_into_nested_join(List<TABLE_LIST> &join_list);

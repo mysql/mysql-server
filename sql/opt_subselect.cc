@@ -1215,6 +1215,8 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   {
     tl->table->tablenr= table_no;
     tl->table->map= ((table_map)1) << table_no;
+    if (tl->is_jtbm())
+      tl->jtbm_table_no= tl->table->map;
     SELECT_LEX *old_sl= tl->select_lex;
     tl->select_lex= parent_join->select_lex; 
     for (TABLE_LIST *emb= tl->embedding;
@@ -3106,11 +3108,15 @@ bool setup_sj_materialization_part2(JOIN_TAB *sjm_tab)
       if (item_eq)
       {
         List_iterator<Item> it(item_eq->equal_items);
+        /* We're interested in field items only */
+        if (item_eq->get_const())
+          it++;
         Item *item;
         while ((item= it++))
         {
           if (!(item->used_tables() & ~emb_sj_nest->sj_inner_tables))
           {
+            DBUG_ASSERT(item->real_item()->type() == Item::FIELD_ITEM);
             copy_to= ((Item_field *) (item->real_item()))->field;
             break;
           }
