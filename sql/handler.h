@@ -1390,10 +1390,14 @@ public:
   }
   void add_io(double add_io_cnt, double add_avg_cost)
   {
-    double io_count_sum= io_count + add_io_cnt;
-    avg_io_cost= (io_count * avg_io_cost + 
-                  add_io_cnt * add_avg_cost) / io_count_sum;
-    io_count= io_count_sum;
+    /* In edge cases add_io_cnt may be zero */
+    if (add_io_cnt > 0)
+    {
+      double io_count_sum= io_count + add_io_cnt;
+      avg_io_cost= (io_count * avg_io_cost + 
+                    add_io_cnt * add_avg_cost) / io_count_sum;
+      io_count= io_count_sum;
+    }
   }
 
   /*
