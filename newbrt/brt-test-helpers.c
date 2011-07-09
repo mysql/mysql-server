@@ -156,6 +156,8 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
 	r = toku_omt_insert(BLB_BUFFER(node, 0), leafentry, toku_cmd_leafval_heaviside, &be, 0);
 	assert(r==0);
     }
+    // hack to get tests passing. These tests should not be directly inserting into buffers
+    BLB(node, 0)->max_msn_applied = msn;
 
     BLB_NBYTESINBUF(node, 0) += OMT_ITEM_OVERHEAD + disksize;
 
@@ -202,6 +204,10 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
     MSN msn = next_dummymsn();
     r = toku_fifo_enq(BNC_BUFFER(node, childnum), key, keylen, val, vallen, cmdtype, msn, xids_0);
     assert(r==0);
+    // Hack to get the test working. The problem is that this test
+    // is directly queueing something in a FIFO instead of 
+    // using brt APIs.
+    node->max_msn_applied_to_node_on_disk = msn;
     int sizediff = keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids_0);
     BNC_NBYTESINBUF(node, childnum) += sizediff;
     node->dirty = 1;
