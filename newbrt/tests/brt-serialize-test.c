@@ -146,7 +146,6 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.max_msn_applied_to_node_in_memory.msn = 0;
     sn.nodesize = 4*(1<<20);
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -154,6 +153,7 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
     sn.n_children = nrows;
+    sn.dirty = 1;
     
     LEAFENTRY les[nrows];
     {
@@ -267,7 +267,6 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.max_msn_applied_to_node_in_memory.msn = 0;
     sn.nodesize = 4*(1<<20);
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -275,6 +274,7 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
     sn.n_children = 1;
+    sn.dirty = 1;
 
     LEAFENTRY les[nrows];
     {
@@ -382,7 +382,6 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.max_msn_applied_to_node_in_memory.msn = 0;
     sn.nodesize = 4*(1<<20);
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -390,6 +389,7 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
     sn.n_children = 1;
+    sn.dirty = 1;
     
     LEAFENTRY les[7];
     {
@@ -503,7 +503,6 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
     int r;
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.max_msn_applied_to_node_in_memory.msn = 0;
     sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -511,6 +510,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
     sn.n_children = 7;
+    sn.dirty = 1;
     LEAFENTRY elts[3];
     elts[0] = le_malloc("a", "aval");
     elts[1] = le_malloc("b", "bval");
@@ -628,7 +628,6 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     int r;
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.max_msn_applied_to_node_in_memory.msn = 0;
     sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -636,6 +635,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
     sn.n_children = 4;
+    sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
     sn.childkeys[0] = kv_pair_malloc("A", 2, 0, 0);
@@ -737,7 +737,6 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
     int r;
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.max_msn_applied_to_node_in_memory.msn = 0;
     sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -745,6 +744,7 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
     sn.n_children = 2;
+    sn.dirty = 1;
     LEAFENTRY elts[3];
     elts[0] = le_malloc("a", "aval");
     elts[1] = le_malloc("b", "bval");
@@ -862,10 +862,9 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
 
     //    source_brt.fd=fd;
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.max_msn_applied_to_node_in_memory.msn = 0;
     char *hello_string;
     sn.max_msn_applied_to_node_on_disk.msn = TESTMSNDSKVAL;
-    sn.max_msn_applied_to_node_in_memory.msn = TESTMSNMEMVAL;
+    //sn.max_msn_applied_to_node_in_memory.msn = TESTMSNMEMVAL;
     sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -873,6 +872,7 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 1;
     sn.n_children = 2;
+    sn.dirty = 1;
     hello_string = toku_strdup("hello");
     MALLOC_N(2, sn.bp);
     MALLOC_N(1, sn.childkeys);
@@ -938,14 +938,14 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    assert(sn.max_msn_applied_to_node_on_disk.msn == TESTMSNMEMVAL);
-    assert(sn.max_msn_applied_to_node_in_memory.msn == TESTMSNMEMVAL);
+    //assert(sn.max_msn_applied_to_node_on_disk.msn == TESTMSNMEMVAL);
+    //assert(sn.max_msn_applied_to_node_in_memory.msn == TESTMSNMEMVAL);
     
     setup_dn(bft, fd, brt_h, &dn);
 
     assert(dn->thisnodename.b==20);
-    assert(dn->max_msn_applied_to_node_on_disk.msn == TESTMSNMEMVAL);
-    assert(dn->max_msn_applied_to_node_in_memory.msn == TESTMSNMEMVAL);
+    //assert(dn->max_msn_applied_to_node_on_disk.msn == TESTMSNMEMVAL);
+    //assert(dn->max_msn_applied_to_node_in_memory.msn == TESTMSNMEMVAL);
 
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);

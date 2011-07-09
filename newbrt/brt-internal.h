@@ -136,10 +136,11 @@ struct brtnode_nonleaf_childinfo {
 
 struct brtnode_leaf_basement_node {
     uint32_t optimized_for_upgrade;   // version number to which this leaf has been optimized, zero if never optimized for upgrade
-    BOOL soft_copy_is_up_to_date;        // the data in the OMT reflects the softcopy state.
     OMT buffer;
     unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
     unsigned int seqinsert;         /* number of sequential inserts to this leaf */
+    MSN max_msn_applied;
+    DSN max_dsn_applied; // max deserialization sequence number applied
 };
 
 #define PT_INVALID 0
@@ -204,8 +205,8 @@ struct   __attribute__((__packed__)) brtnode_partition {
 };
 
 struct brtnode {
-    MSN      max_msn_applied_to_node_in_memory; // max msn that has been applied to this node (for root node, this is max msn for the tree)
-    MSN      max_msn_applied_to_node_on_disk; // same as above, but for data on disk, only meaningful if node is clean
+    MSN      max_msn_applied_to_node_on_disk; // max_msn_applied that will be written to disk
+    DSN dsn; // deserialization sequence number
     unsigned int nodesize;
     unsigned int flags;
     BLOCKNUM thisnodename;   // Which block number is this node?
@@ -303,7 +304,8 @@ static inline void set_BSB(BRTNODE node, int i, SUB_BLOCK sb) {
 
 // leaf node macros
 #define BLB_OPTIMIZEDFORUPGRADE(node,i) (BLB(node,i)->optimized_for_upgrade)
-#define BLB_SOFTCOPYISUPTODATE(node,i) (BLB(node,i)->soft_copy_is_up_to_date)
+#define BLB_MAX_MSN_APPLIED(node,i) (BLB(node,i)->max_msn_applied)
+#define BLB_MAX_DSN_APPLIED(node,i) (BLB(node,i)->max_dsn_applied)
 #define BLB_BUFFER(node,i) (BLB(node,i)->buffer)
 #define BLB_NBYTESINBUF(node,i) (BLB(node,i)->n_bytes_in_buffer)
 #define BLB_SEQINSERT(node,i) (BLB(node,i)->seqinsert)
@@ -393,6 +395,8 @@ struct brt {
     int was_closed; //True when this brt was closed, but is being kept around for transactions (or checkpoint).
     int (*close_db)(DB*, u_int32_t);
     u_int32_t close_flags;
+
+    DSN curr_dsn;
 
     struct toku_list live_brt_link;
     struct toku_list zombie_brt_link;
@@ -521,6 +525,11 @@ void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children
 void toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num_children, 
                                     int layout_version, unsigned int nodesize, unsigned int flags);
 
+int toku_pin_brtnode_if_clean(
+    BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
+    ANCESTORS ancestors, struct pivot_bounds const * const bounds,
+    BRTNODE *node_p
+    ); 
 int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 		      UNLOCKERS unlockers,
 		      ANCESTORS ancestors, struct pivot_bounds const * const pbounds,

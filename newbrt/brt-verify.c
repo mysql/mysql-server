@@ -134,7 +134,7 @@ toku_verify_brtnode (BRT brt,
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node = node_v;
     toku_assert_entire_node_in_memory(node);
-    thismsn = node->max_msn_applied_to_node_in_memory;
+    thismsn = node->max_msn_applied_to_node_on_disk;
     if (rootmsn.msn == ZERO_MSN.msn) {
         assert(parentmsn.msn == ZERO_MSN.msn);
         rootmsn = thismsn;
