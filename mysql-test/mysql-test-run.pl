@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -2150,10 +2150,6 @@ sub environment_setup {
       native_path(my_find_bin($basedir,
 		  ["storage/ndb/tools", "bin"],
 		  "ndb_show_tables"));
-
-    $ENV{'NDB_TOOLS_DIR'}=
-      native_path(my_find_dir($basedir,
-		  ["storage/ndb/tools", "bin"]));
 
     $ENV{'NDB_EXAMPLES_DIR'}=
       native_path(my_find_dir($basedir,
