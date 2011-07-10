@@ -201,11 +201,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 #endif
   }
 
-  if (!(infoflag & MY_DONT_FREE_DBUG))
-  {
-    DBUG_END();                /* Must be done before my_thread_end */
-  }
-
   my_thread_end();
   my_thread_global_end();
   my_mutex_end();
@@ -222,6 +217,9 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   if (have_tcpip)
     WSACleanup();
 #endif /* __WIN__ */
+
+  if (!(infoflag & MY_DONT_FREE_DBUG))
+    DBUG_END();                /* Must be done as late as possible */
 
   my_init_done=0;
 } /* my_end */

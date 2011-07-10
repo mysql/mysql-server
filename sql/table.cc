@@ -3748,7 +3748,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   DBUG_ASSERT(key_read == 0);
 
   /* mark the record[0] uninitialized */
-  TRASH(table->record[0], table->s->reclength);
+  TRASH(record[0], s->reclength);
 
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));

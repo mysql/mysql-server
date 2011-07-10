@@ -366,10 +366,7 @@ void my_thread_end(void)
       tmp->dbug=0;
     }
 #endif
-#if !defined(__bsdi__) && !defined(__OpenBSD__)
- /* bsdi and openbsd 3.5 dumps core here */
     mysql_cond_destroy(&tmp->suspend);
-#endif
     mysql_mutex_destroy(&tmp->mutex);
 
     /*

@@ -126,7 +126,7 @@ static struct my_option my_long_options[] =
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host",'h', "Connect to host.", &current_host,
-   &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extended-check, but only finds 99.99 percent of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -351,8 +351,7 @@ static int get_options(int *argc, char ***argv)
     exit(0);
   }
 
-  if ((ho_error= load_defaults("my", load_default_groups, argc, argv)) ||
-      (ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
   if (!what_to_do)
@@ -432,6 +431,7 @@ static int process_all_databases()
     if (process_one_db(row[0]))
       result = 1;
   }
+  mysql_free_result(tableres);
   return result;
 }
 /* process_all_databases */
@@ -879,10 +879,10 @@ static int dbConnect(char *host, char *user, char *passwd)
          NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
   {
     DBerror(&mysql_connection, "when trying to connect");
-    return 1;
+    DBUG_RETURN(1);
   }
   mysql_connection.reconnect= 1;
-  return 0;
+  DBUG_RETURN(0);
 } /* dbConnect */
 
 
@@ -918,34 +918,36 @@ static void safe_exit(int error)
 
 int main(int argc, char **argv)
 {
+  int ret= EX_USAGE;
+  char **defaults_argv;
+
   MY_INIT(argv[0]);
+  mysql_library_init(-1, 0, 0);
   /*
   ** Check out the args
   */
-  if (get_options(&argc, &argv))
-  {
-    my_end(my_end_arg);
-    exit(EX_USAGE);
-  }
-  if (dbConnect(current_host, current_user, opt_password))
-    exit(EX_MYSQLERR);
+  if (load_defaults("my", load_default_groups, &argc, &argv))
+    goto end1;
 
+  defaults_argv= argv;
+  if (get_options(&argc, &argv))
+    goto end1;
+
+  ret= EX_MYSQLERR;
+  if (dbConnect(current_host, current_user, opt_password))
+    goto end1;
+
+  ret= 1;
   if (!opt_write_binlog)
   {
     if (disable_binlog())
-    {
-      first_error= 1;
       goto end;
-    }
   }
 
   if (opt_auto_repair &&
       (my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64) ||
        my_init_dynamic_array(&tables4rebuild, sizeof(char)*(NAME_LEN*2+2),16,64)))
-  {
-    first_error = 1;
     goto end;
-  }
 
   if (opt_alldbs)
     process_all_databases();
@@ -970,6 +972,8 @@ int main(int argc, char **argv)
     for (i = 0; i < tables4rebuild.elements ; i++)
       rebuild_table((char*) dynamic_array_ptr(&tables4rebuild, i));
   }
+  ret= test(first_error);
+
  end:
   dbDisconnect(current_host);
   if (opt_auto_repair)
@@ -977,10 +981,13 @@ int main(int argc, char **argv)
     delete_dynamic(&tables4repair);
     delete_dynamic(&tables4rebuild);
   }
+ end1:
   my_free(opt_password);
 #ifdef HAVE_SMEM
   my_free(shared_memory_base_name);
 #endif
+  mysql_library_end();
+  free_defaults(defaults_argv);
   my_end(my_end_arg);
-  return(first_error!=0);
+  return ret;
 } /* main */

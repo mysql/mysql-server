@@ -237,6 +237,8 @@ extern char *master_ssl_cipher, *master_ssl_key;
        
 extern I_List<THD> threads;
 
+#else
+#define close_active_mi() /* no-op */
 #endif /* HAVE_REPLICATION */
 
 /* masks for start/stop operations on io and sql slave threads */

@@ -1319,6 +1319,15 @@ void free_used_memory()
 static void cleanup_and_exit(int exit_code)
 {
   free_used_memory();
+  /*
+    mysqltest is fundamentally written in a way that makes impossible
+    to free all memory before exit (consider memory allocated
+    for frame local DYNAMIC_STRING's and die() invoked down the stack.
+
+    We close stderr here to stop unavoidable safemalloc reports
+    from polluting the output.
+  */
+  fclose(stderr);
   my_end(my_end_arg);
 
   if (!silent) {

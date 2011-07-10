@@ -833,7 +833,7 @@ static int run_sql_fix_privilege_tables(void)
   }
 
   dynstr_free(&ds_result);
-  return found_real_errors;
+  DBUG_RETURN(found_real_errors);
 }
 
 

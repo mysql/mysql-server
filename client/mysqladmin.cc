@@ -462,6 +462,7 @@ int main(int argc,char *argv[])
   }                                             /* got connection */
 
   mysql_close(&mysql);
+  mysql_library_end();
   my_free(opt_password);
   my_free(user);
 #ifdef HAVE_SMEM

@@ -1423,6 +1423,7 @@ static void free_resources()
     dynstr_free(&insert_pat);
   if (defaults_argv)
     free_defaults(defaults_argv);
+  mysql_library_end();
   my_end(my_end_arg);
 }
 

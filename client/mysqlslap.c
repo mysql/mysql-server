@@ -421,6 +421,7 @@ int main(int argc, char **argv)
   my_free(shared_memory_base_name);
 #endif
   free_defaults(defaults_argv);
+  mysql_library_end();
   my_end(my_end_arg);
 
   return 0;

@@ -336,8 +336,7 @@ static PSI_rwlock_key key_rwlock_openssl;
 static bool lower_case_table_names_used= 0;
 static bool max_long_data_size_used= false;
 static bool volatile select_thread_in_use, signal_thread_in_use;
-/* See Bug#56666 and Bug#56760 */;
-volatile bool ready_to_exit;
+static volatile bool ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static my_bool opt_sync= 0;
@@ -1185,7 +1184,6 @@ static void close_connections(void)
   }
   mysql_mutex_unlock(&LOCK_thread_count);
 
-  close_active_mi();
   DBUG_PRINT("quit",("close_connections thread"));
   DBUG_VOID_RETURN;
 }
@@ -1445,13 +1443,9 @@ static void mysqld_exit(int exit_code)
   mysql_audit_finalize();
   clean_up_mutexes();
   clean_up_error_log_mutex();
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  /*
-    Bug#56666 needs to be fixed before calling:
-    shutdown_performance_schema();
-  */
-#endif
-  my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  my_end((opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0) | MY_DONT_FREE_DBUG);
+  shutdown_performance_schema();        // we do it as late as possible
+  DBUG_END();                           // but this - even later
   exit(exit_code); /* purecov: inspected */
 }
 
@@ -1463,6 +1457,7 @@ void clean_up(bool print_message)
   if (cleanup_done++)
     return; /* purecov: inspected */
 
+  close_active_mi();
   stop_handle_manager();
   release_ddl_log();
 
@@ -1553,6 +1548,7 @@ void clean_up(bool print_message)
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
   logger.cleanup_end();
+  sys_var_end();
   my_atomic_rwlock_destroy(&global_query_id_lock);
   my_atomic_rwlock_destroy(&thread_running_lock);
   mysql_mutex_lock(&LOCK_thread_count);
@@ -1561,7 +1557,6 @@ void clean_up(bool print_message)
   /* do the broadcast inside the lock to ensure that my_end() is not called */
   mysql_cond_broadcast(&COND_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
-  sys_var_end();
 
   /*
     The following lines may never be executed as the main thread may have
@@ -1586,11 +1581,8 @@ static void wait_for_signal_thread_to_end()
   */
   for (i= 0 ; i < 100 && signal_thread_in_use; i++)
   {
-    if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL) != ESRCH)
-    {
-      fprintf(stderr, "signal thread appears to be dead\n");
+    if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL) == ESRCH)
       break;
-    }
     my_sleep(100);				// Give it time to die
   }
 }
@@ -4826,7 +4818,6 @@ int mysqld_main(int argc, char **argv)
       CloseHandle(hEventShutdown);
   }
 #endif
-  clean_up(1);
   mysqld_exit(0);
 }
 

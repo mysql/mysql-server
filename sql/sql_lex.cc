@@ -534,6 +534,8 @@ void lex_end(LEX *lex)
   delete lex->sphead;
   lex->sphead= NULL;
 
+  lex->mi.reset();
+
   DBUG_VOID_RETURN;
 }
 
@@ -2505,6 +2507,7 @@ LEX::LEX()
                          INITIAL_LEX_PLUGIN_LIST_SIZE, 
                          INITIAL_LEX_PLUGIN_LIST_SIZE);
   reset_query_tables_list(TRUE);
+  mi.init();
 }
 
 

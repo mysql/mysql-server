@@ -3170,11 +3170,7 @@ To turn it on again: fix the cause, \
 shutdown the MySQL server and restart it.", name, errno);
   if (file >= 0)
     mysql_file_close(file, MYF(0));
-  end_io_cache(&log_file);
-  end_io_cache(&index_file);
-  my_free(name);
-  name= NULL;
-  log_state= LOG_CLOSED;
+  close(LOG_CLOSE_INDEX);
   DBUG_RETURN(1);
 }
 

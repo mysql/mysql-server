@@ -2189,6 +2189,7 @@ mysql_autodetect_character_set(MYSQL *mysql)
   }
 #endif
 
+  my_free(mysql->options.charset_name);
   if (!(mysql->options.charset_name= my_strdup(csname, MYF(MY_WME))))
     return 1;
   return 0;

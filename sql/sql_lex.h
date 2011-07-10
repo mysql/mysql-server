@@ -278,24 +278,41 @@ typedef struct st_lex_server_options
   would better be renamed to st_lex_replication_info).  Some fields,
   e.g., delay, are saved in Relay_log_info, not in Master_info.
 */
-typedef struct st_lex_master_info
+struct LEX_MASTER_INFO
 {
+  DYNAMIC_ARRAY repl_ignore_server_ids;
   char *host, *user, *password, *log_file_name;
+  char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
+  char *relay_log_name;
+  ulonglong pos;
+  ulong relay_log_pos;
+  ulong server_id;
   uint port, connect_retry;
   float heartbeat_period;
-  ulonglong pos;
-  ulong server_id;
   /*
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value
    */
   enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
     ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt;
-  char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
-  char *relay_log_name;
-  ulong relay_log_pos;
-  DYNAMIC_ARRAY repl_ignore_server_ids;
-} LEX_MASTER_INFO;
+
+  void init()
+  {
+    bzero(this, sizeof(*this));
+    my_init_dynamic_array(&repl_ignore_server_ids,
+                          sizeof(::server_id), 0, 16);
+  }
+  void reset()
+  {
+    delete_dynamic(&repl_ignore_server_ids);
+    host= user= password= log_file_name= ssl_key= ssl_cert= ssl_ca=
+      ssl_capath= ssl_cipher= relay_log_name= 0;
+    pos= relay_log_pos= server_id= port= connect_retry= 0;
+    heartbeat_period= 0;
+    ssl= ssl_verify_server_cert= heartbeat_opt=
+      repl_ignore_server_ids_opt= LEX_MI_UNCHANGED;
+  }
+};
 
 
 enum sub_select_type

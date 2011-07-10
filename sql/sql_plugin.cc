@@ -1057,10 +1057,6 @@ static bool plugin_add(MEM_ROOT *tmp_root,
       mysql_del_sys_var_chain(tmp.system_vars);
       restore_pluginvar_names(tmp.system_vars);
       goto err;
-
-      /* plugin was disabled */
-      plugin_dl_del(dl);
-      DBUG_RETURN(FALSE);
     }
   }
   report_error(report, ER_CANT_FIND_DL_ENTRY, name->str);
@@ -1899,7 +1895,8 @@ void plugin_shutdown(void)
       if (plugins[i]->ref_count)
         sql_print_error("Plugin '%s' has ref_count=%d after shutdown.",
                         plugins[i]->name.str, plugins[i]->ref_count);
-      if (plugins[i]->state & PLUGIN_IS_UNINITIALIZED)
+      if (plugins[i]->state & PLUGIN_IS_UNINITIALIZED ||
+          plugins[i]->state & PLUGIN_IS_DISABLED)
         plugin_del(plugins[i]);
     }
 
@@ -2221,6 +2218,7 @@ err:
 #undef MYSQL_SYSVAR_NAME
 #define MYSQL_SYSVAR_NAME(name) name
 #define PLUGIN_VAR_TYPEMASK 0x007f
+#define PLUGIN_VAR_BOOKMARK_KEY (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_MEMALLOC)
 
 #define EXTRA_OPTIONS 3 /* options for: 'foo', 'plugin-foo' and NULL */
 
@@ -2574,7 +2572,7 @@ static st_bookmark *find_bookmark(const char *plugin, const char *name,
   else
     memcpy(varname + 1, name, namelen + 1);
 
-  varname[0]= flags & PLUGIN_VAR_TYPEMASK;
+  varname[0]= flags & PLUGIN_VAR_BOOKMARK_KEY;
 
   result= (st_bookmark*) my_hash_search(&bookmark_hash,
                                         (const uchar*) varname, length - 1);
@@ -2632,7 +2630,7 @@ static st_bookmark *register_var(const char *plugin, const char *name,
   {
     result= (st_bookmark*) alloc_root(&plugin_mem_root,
                                       sizeof(struct st_bookmark) + length-1);
-    varname[0]= flags & PLUGIN_VAR_TYPEMASK;
+    varname[0]= flags & PLUGIN_VAR_BOOKMARK_KEY;
     memcpy(result->key, varname, length);
     result->name_len= length - 2;
     result->offset= -1;
@@ -2748,10 +2746,12 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
       sys_var *var;
       st_bookmark *v= (st_bookmark*) my_hash_element(&bookmark_hash,idx);
 
-      if (v->version <= thd->variables.dynamic_variables_version ||
-          !(var= intern_find_sys_var(v->key + 1, v->name_len)) ||
+      if (v->version <= thd->variables.dynamic_variables_version)
+        continue; /* already in thd->variables */
+
+      if (!(var= intern_find_sys_var(v->key + 1, v->name_len)) ||
           !(pi= var->cast_pluginvar()) ||
-          v->key[0] != (pi->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
+          v->key[0] != (pi->plugin_var->flags & PLUGIN_VAR_BOOKMARK_KEY))
         continue;
 
       /* Here we do anything special that may be required of the data types */
@@ -2870,27 +2870,22 @@ static void unlock_variables(THD *thd, struct system_variables *vars)
 static void cleanup_variables(THD *thd, struct system_variables *vars)
 {
   st_bookmark *v;
-  sys_var_pluginvar *pivar;
-  sys_var *var;
-  int flags;
   uint idx;
 
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   for (idx= 0; idx < bookmark_hash.records; idx++)
   {
     v= (st_bookmark*) my_hash_element(&bookmark_hash, idx);
-    if (v->version > vars->dynamic_variables_version ||
-        !(var= intern_find_sys_var(v->key + 1, v->name_len)) ||
-        !(pivar= var->cast_pluginvar()) ||
-        v->key[0] != (pivar->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
-      continue;
 
-    flags= pivar->plugin_var->flags;
+    if (v->version > vars->dynamic_variables_version)
+      continue; /* not in vars */
 
-    if ((flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
-        flags & PLUGIN_VAR_THDLOCAL && flags & PLUGIN_VAR_MEMALLOC)
+    DBUG_ASSERT((uint)v->offset <= vars->dynamic_variables_head);
+
+    if ((v->key[0] & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
+         v->key[0] & PLUGIN_VAR_MEMALLOC)
     {
-      char **ptr= (char**) pivar->real_value_ptr(thd, OPT_SESSION);
+      char **ptr= (char**)(vars->dynamic_variables_ptr + v->offset);
       my_free(*ptr);
       *ptr= NULL;
     }

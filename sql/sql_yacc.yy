@@ -1879,15 +1879,7 @@ help:
 change:
           CHANGE MASTER_SYM TO_SYM
           {
-            LEX *lex = Lex;
-            lex->sql_command = SQLCOM_CHANGE_MASTER;
-            bzero((char*) &lex->mi, sizeof(lex->mi));
-            /*
-              resetting flags that can left from the previous CHANGE MASTER
-            */
-            lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
-            my_init_dynamic_array(&Lex->mi.repl_ignore_server_ids,
-                                  sizeof(::server_id), 16, 16);
+            Lex->sql_command = SQLCOM_CHANGE_MASTER;
           }
           master_defs
           {}
@@ -7008,8 +7000,6 @@ slave:
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
-            /* We'll use mi structure for UNTIL options */
-            bzero((char*) &lex->mi, sizeof(lex->mi));
             /* If you change this code don't forget to update SLAVE START too */
           }
           slave_until
@@ -7026,8 +7016,6 @@ slave:
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
-            /* We'll use mi structure for UNTIL options */
-            bzero((char*) &lex->mi, sizeof(lex->mi));
           }
           slave_until
           {}
