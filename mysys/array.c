@@ -44,7 +44,7 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
                             void *init_buffer, uint init_alloc, 
                             uint alloc_increment)
 {
-  DBUG_ENTER("init_dynamic_array");
+  DBUG_ENTER("init_dynamic_array2");
   if (!alloc_increment)
   {
     alloc_increment=max((8192-MALLOC_OVERHEAD)/element_size,16);

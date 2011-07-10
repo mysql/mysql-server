@@ -158,14 +158,20 @@ typedef struct st_log_info
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   mysql_mutex_t lock;
-  st_log_info()
-    : index_file_offset(0), index_file_start_offset(0),
+  st_log_info() : index_file_offset(0), index_file_start_offset(0),
       pos(0), fatal(0)
-    {
-      log_file_name[0] = '\0';
-      mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
-    }
-  ~st_log_info() { mysql_mutex_destroy(&lock);}
+  {
+    DBUG_ENTER("LOG_INFO");
+    log_file_name[0] = '\0';
+    mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
+    DBUG_VOID_RETURN;
+  }
+  ~st_log_info()
+  {
+    DBUG_ENTER("~LOG_INFO");
+    mysql_mutex_destroy(&lock);
+    DBUG_VOID_RETURN;
+  }
 } LOG_INFO;
 
 /*

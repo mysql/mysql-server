@@ -4050,7 +4050,7 @@ mysql_fetch_lengths(MYSQL_RES *res)
 int STDCALL
 mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 {
-  DBUG_ENTER("mysql_option");
+  DBUG_ENTER("mysql_options");
   DBUG_PRINT("enter",("option: %d",(int) option));
   switch (option) {
   case MYSQL_OPT_CONNECT_TIMEOUT:

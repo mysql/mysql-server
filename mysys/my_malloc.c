@@ -115,9 +115,11 @@ void my_free(void *ptr)
 void *my_memdup(const void *from, size_t length, myf my_flags)
 {
   void *ptr;
+  DBUG_ENTER("my_memdup");
+
   if ((ptr= my_malloc(length,my_flags)) != 0)
     memcpy(ptr, from, length);
-  return ptr;
+  DBUG_RETURN(ptr);
 }
 
 
@@ -125,20 +127,24 @@ char *my_strdup(const char *from, myf my_flags)
 {
   char *ptr;
   size_t length= strlen(from)+1;
+  DBUG_ENTER("my_strdup");
+
   if ((ptr= (char*) my_malloc(length, my_flags)))
     memcpy(ptr, from, length);
-  return ptr;
+  DBUG_RETURN(ptr);
 }
 
 
 char *my_strndup(const char *from, size_t length, myf my_flags)
 {
   char *ptr;
+  DBUG_ENTER("my_strndup");
+
   if ((ptr= (char*) my_malloc(length+1, my_flags)))
   {
     memcpy(ptr, from, length);
     ptr[length]= 0;
   }
-  return ptr;
+  DBUG_RETURN(ptr);
 }
 

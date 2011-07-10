@@ -2811,6 +2811,7 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
 void LEX::set_trg_event_type_for_tables()
 {
   uint8 new_trg_event_map= 0;
+  DBUG_ENTER("LEX::set_trg_event_type_for_tables");
 
   /*
     Some auxiliary operations
@@ -2930,6 +2931,7 @@ void LEX::set_trg_event_type_for_tables()
       tables->trg_event_map= new_trg_event_map;
     tables= tables->next_local;
   }
+  DBUG_VOID_RETURN;
 }
 
 

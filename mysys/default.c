@@ -1198,10 +1198,11 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   const char **dirs;
   char *env;
   int errors= 0;
+  DBUG_ENTER("init_default_directories");
 
   dirs= (const char **)alloc_root(alloc, DEFAULT_DIRS_SIZE * sizeof(char *));
   if (dirs == NULL)
-    return NULL;
+    DBUG_RETURN(NULL);
   bzero((char *) dirs, DEFAULT_DIRS_SIZE * sizeof(char *));
 
 #ifdef __WIN__
@@ -1242,5 +1243,5 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   errors += add_directory(alloc, "~/", dirs);
 #endif
 
-  return (errors > 0 ? NULL : dirs);
+  DBUG_RETURN(errors > 0 ? NULL : dirs);
 }

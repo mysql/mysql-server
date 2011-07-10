@@ -77,6 +77,7 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
               my_hash_get_key get_key,
               void (*free_element)(void*), uint flags)
 {
+  my_bool res;
   DBUG_ENTER("my_hash_init");
   DBUG_PRINT("enter",("hash: 0x%lx  size: %u", (long) hash, (uint) size));
 
@@ -88,8 +89,9 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
   hash->free=free_element;
   hash->flags=flags;
   hash->charset=charset;
-  DBUG_RETURN(my_init_dynamic_array_ci(&hash->array, 
-                                       sizeof(HASH_LINK), size, growth_size));
+  res= my_init_dynamic_array_ci(&hash->array, 
+                                sizeof(HASH_LINK), size, growth_size);
+  DBUG_RETURN(res);
 }
 
 

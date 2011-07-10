@@ -1723,6 +1723,7 @@ void THD::reset_globals()
 
 void THD::cleanup_after_query()
 {
+  DBUG_ENTER("THD::cleanup_after_query");
   /*
     Reset rand_used so that detection of calls to rand() will save random 
     seeds if needed by the slave.
@@ -1756,6 +1757,7 @@ void THD::cleanup_after_query()
   /* reset table map for multi-table update */
   table_map_for_update= 0;
   m_binlog_invoker= FALSE;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3035,6 +3037,7 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 
 void THD::end_statement()
 {
+  DBUG_ENTER("THD::end_statement");
   /* Cleanup SQL processing state to reuse this statement in next query. */
   lex_end(lex);
   delete lex->result;
@@ -3045,6 +3048,7 @@ void THD::end_statement()
     Don't free mem_root, as mem_root is freed in the end of dispatch_command
     (once for any command).
   */
+  DBUG_VOID_RETURN;
 }
 
 

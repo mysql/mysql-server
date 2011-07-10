@@ -3827,8 +3827,7 @@ int MYSQL_BIN_LOG::close_purge_index_file()
 
 bool MYSQL_BIN_LOG::is_inited_purge_index_file()
 {
-  DBUG_ENTER("MYSQL_BIN_LOG::is_inited_purge_index_file");
-  DBUG_RETURN (my_b_inited(&purge_index_file));
+  return my_b_inited(&purge_index_file);
 }
 
 int MYSQL_BIN_LOG::sync_purge_index_file()
@@ -3864,12 +3863,11 @@ int MYSQL_BIN_LOG::register_create_index_entry(const char *entry)
 int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                                      bool need_mutex)
 {
+  DBUG_ENTER("MYSQL_BIN_LOG:purge_index_entry");
   MY_STAT s;
   int error= 0;
   LOG_INFO log_info;
   LOG_INFO check_log_info;
-
-  DBUG_ENTER("MYSQL_BIN_LOG:purge_index_entry");
 
   DBUG_ASSERT(my_b_inited(&purge_index_file));
 

@@ -1125,7 +1125,7 @@ static void plugin_deinitialize(struct st_plugin_int *plugin, bool ref_check)
 
 static void plugin_del(struct st_plugin_int *plugin)
 {
-  DBUG_ENTER("plugin_del(plugin)");
+  DBUG_ENTER("plugin_del");
   mysql_mutex_assert_owner(&LOCK_plugin);
   /* Free allocated strings before deleting the plugin. */
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
@@ -2703,11 +2703,12 @@ static void restore_pluginvar_names(sys_var *first)
 */
 static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
 {
+  DBUG_ENTER("intern_sys_var_ptr");
   DBUG_ASSERT(offset >= 0);
   DBUG_ASSERT((uint)offset <= global_system_variables.dynamic_variables_head);
 
   if (!thd)
-    return (uchar*) global_system_variables.dynamic_variables_ptr + offset;
+    DBUG_RETURN((uchar*) global_system_variables.dynamic_variables_ptr + offset);
 
   /*
     dynamic_variables_head points to the largest valid offset
@@ -2779,7 +2780,7 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
 
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
   }
-  return (uchar*)thd->variables.dynamic_variables_ptr + offset;
+  DBUG_RETURN((uchar*)thd->variables.dynamic_variables_ptr + offset);
 }
 
 

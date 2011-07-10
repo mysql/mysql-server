@@ -98,20 +98,21 @@ my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
 			  size_t length)
 {
   char *new_ptr;
+  DBUG_ENTER("dynstr_append_mem");
   if (str->length+length >= str->max_length)
   {
     size_t new_length=(str->length+length+str->alloc_increment)/
       str->alloc_increment;
     new_length*=str->alloc_increment;
     if (!(new_ptr=(char*) my_realloc(str->str,new_length,MYF(MY_WME))))
-      return TRUE;
+      DBUG_RETURN(TRUE);
     str->str=new_ptr;
     str->max_length=new_length;
   }
   memcpy(str->str + str->length,append,length);
   str->length+=length;
   str->str[str->length]=0;			/* Safety for C programs */
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 

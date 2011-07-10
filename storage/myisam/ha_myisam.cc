@@ -1339,6 +1339,7 @@ int ha_myisam::disable_indexes(uint mode)
 int ha_myisam::enable_indexes(uint mode)
 {
   int error;
+  DBUG_ENTER("ha_myisam::enable_indexes");
 
   DBUG_EXECUTE_IF("wait_in_enable_indexes",
                   debug_wait_for_kill("wait_in_enable_indexes"); );
@@ -1346,7 +1347,7 @@ int ha_myisam::enable_indexes(uint mode)
   if (mi_is_all_keys_active(file->s->state.key_map, file->s->base.keys))
   {
     /* All indexes are enabled already. */
-    return 0;
+    DBUG_RETURN(0);
   }
 
   if (mode == HA_KEY_SWITCH_ALL)
@@ -1365,7 +1366,7 @@ int ha_myisam::enable_indexes(uint mode)
     const char *save_proc_info=thd->proc_info;
 
     if (!&param)
-      return HA_ADMIN_INTERNAL_ERROR;
+      DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
 
     thd_proc_info(thd, "Creating index");
     myisamchk_init(&param);
@@ -1407,7 +1408,7 @@ int ha_myisam::enable_indexes(uint mode)
     /* mode not implemented */
     error= HA_ERR_WRONG_COMMAND;
   }
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -1500,6 +1501,7 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
 
 int ha_myisam::end_bulk_insert()
 {
+  DBUG_ENTER("ha_myisam::end_bulk_insert");
   mi_end_bulk_insert(file);
   int err=mi_extra(file, HA_EXTRA_NO_CACHE, 0);
   if (!err && !file->s->deleting)
@@ -1522,7 +1524,7 @@ int ha_myisam::end_bulk_insert()
       }
     } 
   }
-  return err;
+  DBUG_RETURN(err);
 }
 
 

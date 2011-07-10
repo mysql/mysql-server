@@ -68,13 +68,15 @@ static pthread_mutex_t LOCK_load_client_plugin;
 
 static int is_not_initialized(MYSQL *mysql, const char *name)
 {
+  DBUG_ENTER("is_not_initialized");
+
   if (initialized)
-    return 0;
+    DBUG_RETURN(0);
 
   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD,
                            unknown_sqlstate, ER(CR_AUTH_PLUGIN_CANNOT_LOAD),
                            name, "not initialized");
-  return 1;
+  DBUG_RETURN(1);
 }
 
 /**
@@ -91,18 +93,19 @@ static struct st_mysql_client_plugin *
 find_plugin(const char *name, int type)
 {
   struct st_client_plugin_int *p;
+  DBUG_ENTER("find_plugin");
 
   DBUG_ASSERT(initialized);
   DBUG_ASSERT(type >= 0 && type < MYSQL_CLIENT_MAX_PLUGINS);
   if (type < 0 || type >= MYSQL_CLIENT_MAX_PLUGINS)
-    return 0;
+    DBUG_RETURN(0);
 
   for (p= plugin_list[type]; p; p= p->next)
   {
     if (strcmp(p->plugin->name, name) == 0)
-      return p->plugin;
+      DBUG_RETURN(p->plugin);
   }
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 /**
@@ -124,6 +127,7 @@ add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
   const char *errmsg;
   struct st_client_plugin_int plugin_int, *p;
   char errbuf[1024];
+  DBUG_ENTER("add_plugin");
 
   DBUG_ASSERT(initialized);
 
@@ -166,7 +170,7 @@ add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
   plugin_list[plugin->type]= p;
   net_clear_error(&mysql->net);
 
-  return plugin;
+  DBUG_RETURN(plugin);
 
 err2:
   if (plugin->deinit)
@@ -177,7 +181,7 @@ err1:
                            errmsg);
   if (dlhandle)
     dlclose(dlhandle);
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 /**
@@ -198,10 +202,11 @@ err1:
 static void load_env_plugins(MYSQL *mysql)
 {
   char *plugs, *free_env, *s= getenv("LIBMYSQL_PLUGINS");
+  DBUG_ENTER("load_env_plugins");
 
   /* no plugins to load */
   if (!s)
-    return;
+    DBUG_VOID_RETURN;
 
   free_env= plugs= my_strdup(s, MYF(MY_WME));
 
@@ -213,6 +218,7 @@ static void load_env_plugins(MYSQL *mysql)
   } while (s);
 
   my_free(free_env);
+  DBUG_VOID_RETURN;
 }
 
 /********** extern functions to be used by libmysql *********************/
@@ -229,9 +235,10 @@ int mysql_client_plugin_init()
 {
   MYSQL mysql;
   struct st_mysql_client_plugin **builtin;
+  DBUG_ENTER("mysql_client_plugin_init");
 
   if (initialized)
-    return 0;
+    DBUG_RETURN(0);
 
   bzero(&mysql, sizeof(mysql)); /* dummy mysql for set_mysql_extended_error */
 
@@ -251,7 +258,7 @@ int mysql_client_plugin_init()
 
   load_env_plugins(&mysql);
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /**
@@ -263,9 +270,10 @@ void mysql_client_plugin_deinit()
 {
   int i;
   struct st_client_plugin_int *p;
+  DBUG_ENTER("mysql_client_plugin_deinit");
 
   if (!initialized)
-    return;
+    DBUG_VOID_RETURN;
 
   for (i=0; i < MYSQL_CLIENT_MAX_PLUGINS; i++)
     for (p= plugin_list[i]; p; p= p->next)
@@ -280,6 +288,7 @@ void mysql_client_plugin_deinit()
   initialized= 0;
   free_root(&mem_root, MYF(0));
   pthread_mutex_destroy(&LOCK_load_client_plugin);
+  DBUG_VOID_RETURN;
 }
 
 /************* public facing functions, for client consumption *********/
@@ -289,8 +298,10 @@ struct st_mysql_client_plugin *
 mysql_client_register_plugin(MYSQL *mysql,
                              struct st_mysql_client_plugin *plugin)
 {
+  DBUG_ENTER("mysql_client_register_plugin");
+
   if (is_not_initialized(mysql, plugin->name))
-    return NULL;
+    DBUG_RETURN(NULL);
 
   pthread_mutex_lock(&LOCK_load_client_plugin);
 
@@ -306,7 +317,7 @@ mysql_client_register_plugin(MYSQL *mysql,
     plugin= add_plugin(mysql, plugin, 0, 0, 0);
 
   pthread_mutex_unlock(&LOCK_load_client_plugin);
-  return plugin;
+  DBUG_RETURN(plugin);
 }
 
 /* see <mysql/client_plugin.h> for a full description */
@@ -318,8 +329,8 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
   char dlpath[FN_REFLEN+1];
   void *sym, *dlhandle;
   struct st_mysql_client_plugin *plugin;
+  DBUG_ENTER("mysql_load_plugin_v");
 
-  DBUG_ENTER ("mysql_load_plugin_v");
   DBUG_PRINT ("entry", ("name=%s type=%d int argc=%d", name, type, argc));
   if (is_not_initialized(mysql, name))
   {
@@ -399,10 +410,12 @@ mysql_load_plugin(MYSQL *mysql, const char *name, int type, int argc, ...)
 {
   struct st_mysql_client_plugin *p;
   va_list args;
+  DBUG_ENTER("mysql_load_plugin");
+
   va_start(args, argc);
   p= mysql_load_plugin_v(mysql, name, type, argc, args);
   va_end(args);
-  return p;
+  DBUG_RETURN(p);
 }
 
 /* see <mysql/client_plugin.h> for a full description */
@@ -410,8 +423,8 @@ struct st_mysql_client_plugin *
 mysql_client_find_plugin(MYSQL *mysql, const char *name, int type)
 {
   struct st_mysql_client_plugin *p;
+  DBUG_ENTER("mysql_client_find_plugin");
 
-  DBUG_ENTER ("mysql_client_find_plugin");
   DBUG_PRINT ("entry", ("name=%s, type=%d", name, type));
   if (is_not_initialized(mysql, name))
     DBUG_RETURN (NULL);

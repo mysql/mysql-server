@@ -224,6 +224,7 @@ static void print_version(void)
 
 static void usage(void)
 {
+  DBUG_ENTER("usage");
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
   printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
@@ -247,6 +248,7 @@ static void usage(void)
   print_defaults("my", load_default_groups);
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
+  DBUG_VOID_RETURN;
 } /* usage */
 
 
@@ -255,6 +257,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   int orig_what_to_do= what_to_do;
+  DBUG_ENTER("get_one_option");
 
   switch(optid) {
   case 'a':
@@ -335,15 +338,16 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   {
     fprintf(stderr, "Error:  %s doesn't support multiple contradicting commands.\n",
             my_progname);
-    return 1;
+    DBUG_RETURN(1);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
 static int get_options(int *argc, char ***argv)
 {
   int ho_error;
+  DBUG_ENTER("get_options");
 
   if (*argc == 1)
   {
@@ -385,21 +389,21 @@ static int get_options(int *argc, char ***argv)
       !get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME)))
   {
     printf("Unsupported character set: %s\n", default_charset);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (*argc > 0 && opt_alldbs)
   {
     printf("You should give only options, no arguments at all, with option\n");
     printf("--all-databases. Please see %s --help for more information.\n",
 	   my_progname);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (*argc < 1 && !opt_alldbs)
   {
     printf("You forgot to give the arguments! Please see %s --help\n",
 	   my_progname);
     printf("for more information.\n");
-    return 1;
+    DBUG_RETURN(1);
   }
   if (tty_password)
     opt_password = get_tty_password(NullS);
@@ -407,7 +411,7 @@ static int get_options(int *argc, char ***argv)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
     my_end_arg= MY_CHECK_ERROR;
-  return(0);
+  DBUG_RETURN((0));
 } /* get_options */
 
 
@@ -416,13 +420,14 @@ static int process_all_databases()
   MYSQL_ROW row;
   MYSQL_RES *tableres;
   int result = 0;
+  DBUG_ENTER("process_all_databases");
 
   if (mysql_query(sock, "SHOW DATABASES") ||
       !(tableres = mysql_store_result(sock)))
   {
     my_printf_error(0, "Error: Couldn't execute 'SHOW DATABASES': %s",
 		    MYF(0), mysql_error(sock));
-    return 1;
+    DBUG_RETURN(1);
   }
   if (verbose)
     printf("Processing databases\n");
@@ -432,7 +437,7 @@ static int process_all_databases()
       result = 1;
   }
   mysql_free_result(tableres);
-  return result;
+  DBUG_RETURN(result);
 }
 /* process_all_databases */
 
@@ -440,6 +445,8 @@ static int process_all_databases()
 static int process_databases(char **db_names)
 {
   int result = 0;
+  DBUG_ENTER("process_databases");
+
   if (verbose)
     printf("Processing databases\n");
   for ( ; *db_names ; db_names++)
@@ -447,14 +454,16 @@ static int process_databases(char **db_names)
     if (process_one_db(*db_names))
       result = 1;
   }
-  return result;
+  DBUG_RETURN(result);
 } /* process_databases */
 
 
 static int process_selected_tables(char *db, char **table_names, int tables)
 {
+  DBUG_ENTER("process_selected_tables");
+
   if (use_db(db))
-    return 1;
+    DBUG_RETURN(1);
   if (opt_all_in_1 && what_to_do != DO_UPGRADE)
   {
     /* 
@@ -471,7 +480,7 @@ static int process_selected_tables(char *db, char **table_names, int tables)
 
     if (!(table_names_comma_sep = (char *)
 	  my_malloc((sizeof(char) * tot_length) + 4, MYF(MY_WME))))
-      return 1;
+      DBUG_RETURN(1);
 
     for (end = table_names_comma_sep + 1; tables > 0;
 	 tables--, table_names++)
@@ -486,7 +495,7 @@ static int process_selected_tables(char *db, char **table_names, int tables)
   else
     for (; tables > 0; tables--, table_names++)
       handle_request_for_tables(*table_names, fixed_name_length(*table_names));
-  return 0;
+  DBUG_RETURN(0);
 } /* process_selected_tables */
 
 
@@ -494,20 +503,24 @@ static uint fixed_name_length(const char *name)
 {
   const char *p;
   uint extra_length= 2;  /* count the first/last backticks */
-  
+  DBUG_ENTER("fixed_name_length");
+
   for (p= name; *p; p++)
   {
     if (*p == '`')
       extra_length++;
     else if (*p == '.')
       extra_length+= 2;
+
   }
-  return (uint) ((p - name) + extra_length);
+  DBUG_RETURN((uint) ((p - name) + extra_length));
 }
 
 
 static char *fix_table_name(char *dest, char *src)
 {
+  DBUG_ENTER("fix_table_name");
+
   *dest++= '`';
   for (; *src; src++)
   {
@@ -525,27 +538,28 @@ static char *fix_table_name(char *dest, char *src)
     }
   }
   *dest++= '`';
-  return dest;
+
+  DBUG_RETURN(dest);
 }
 
 
 static int process_all_tables_in_db(char *database)
 {
-  MYSQL_RES *res;
+  MYSQL_RES *UNINIT_VAR(res);
   MYSQL_ROW row;
   uint num_columns;
   my_bool system_database= 0;
+  DBUG_ENTER("process_all_tables_in_db");
 
-  LINT_INIT(res);
   if (use_db(database))
-    return 1;
+    DBUG_RETURN(1);
   if ((mysql_query(sock, "SHOW /*!50002 FULL*/ TABLES") &&
        mysql_query(sock, "SHOW TABLES")) ||
       !(res= mysql_store_result(sock)))
   {
     my_printf_error(0, "Error: Couldn't get table list for database %s: %s",
 		    MYF(0), database, mysql_error(sock));
-    return 1;
+    DBUG_RETURN(1);
   }
 
   if (!strcmp(database, "mysql") || !strcmp(database, "MYSQL"))
@@ -571,7 +585,7 @@ static int process_all_tables_in_db(char *database)
     if (!(tables=(char *) my_malloc(sizeof(char)*tot_length+4, MYF(MY_WME))))
     {
       mysql_free_result(res);
-      return 1;
+      DBUG_RETURN(1);
     }
     for (end = tables + 1; (row = mysql_fetch_row(res)) ;)
     {
@@ -602,7 +616,7 @@ static int process_all_tables_in_db(char *database)
     }
   }
   mysql_free_result(res);
-  return 0;
+  DBUG_RETURN(0);
 } /* process_all_tables_in_db */
 
 
@@ -611,8 +625,10 @@ static int fix_table_storage_name(const char *name)
 {
   char qbuf[100 + NAME_LEN*4];
   int rc= 0;
+  DBUG_ENTER("fix_table_storage_name");
+
   if (strncmp(name, "#mysql50#", 9))
-    return 1;
+    DBUG_RETURN(1);
   sprintf(qbuf, "RENAME TABLE `%s` TO `%s`", name, name + 9);
   if (mysql_query(sock, qbuf))
   {
@@ -622,15 +638,17 @@ static int fix_table_storage_name(const char *name)
   }
   if (verbose)
     printf("%-50s %s\n", name, rc ? "FAILED" : "OK");
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 static int fix_database_storage_name(const char *name)
 {
   char qbuf[100 + NAME_LEN*4];
   int rc= 0;
+  DBUG_ENTER("fix_database_storage_name");
+
   if (strncmp(name, "#mysql50#", 9))
-    return 1;
+    DBUG_RETURN(1);
   sprintf(qbuf, "ALTER DATABASE `%s` UPGRADE DATA DIRECTORY NAME", name);
   if (mysql_query(sock, qbuf))
   {
@@ -640,17 +658,19 @@ static int fix_database_storage_name(const char *name)
   }
   if (verbose)
     printf("%-50s %s\n", name, rc ? "FAILED" : "OK");
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 static int rebuild_table(char *name)
 {
   char *query, *ptr;
   int rc= 0;
+  DBUG_ENTER("rebuild_table");
+
   query= (char*)my_malloc(sizeof(char) * (12 + fixed_name_length(name) + 6 + 1),
                           MYF(MY_WME));
   if (!query)
-    return 1;
+    DBUG_RETURN(1);
   ptr= strmov(query, "ALTER TABLE ");
   ptr= fix_table_name(ptr, name);
   ptr= strxmov(ptr, " FORCE", NullS);
@@ -661,11 +681,13 @@ static int rebuild_table(char *name)
     rc= 1;
   }
   my_free(query);
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 static int process_one_db(char *database)
 {
+  DBUG_ENTER("process_one_db");
+
   if (verbose)
     puts(database);
   if (what_to_do == DO_UPGRADE)
@@ -677,38 +699,42 @@ static int process_one_db(char *database)
       database+= 9;
     }
     if (rc || !opt_fix_table_names)
-      return rc;
+      DBUG_RETURN(rc);
   }
-  return process_all_tables_in_db(database);
+  DBUG_RETURN(process_all_tables_in_db(database));
 }
 
 
 static int use_db(char *database)
 {
+  DBUG_ENTER("use_db");
+
   if (mysql_get_server_version(sock) >= FIRST_INFORMATION_SCHEMA_VERSION &&
       !my_strcasecmp(&my_charset_latin1, database, INFORMATION_SCHEMA_DB_NAME))
-    return 1;
+    DBUG_RETURN(1);
   if (mysql_get_server_version(sock) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
       !my_strcasecmp(&my_charset_latin1, database, PERFORMANCE_SCHEMA_DB_NAME))
-    return 1;
+    DBUG_RETURN(1);
   if (mysql_select_db(sock, database))
   {
     DBerror(sock, "when selecting the database");
-    return 1;
+    DBUG_RETURN(1);
   }
-  return 0;
+  DBUG_RETURN(0);
 } /* use_db */
 
 static int disable_binlog()
 {
   const char *stmt= "SET SQL_LOG_BIN=0";
+  DBUG_ENTER("disable_binlog");
+
   if (mysql_query(sock, stmt))
   {
     fprintf(stderr, "Failed to %s\n", stmt);
     fprintf(stderr, "Error: %s\n", mysql_error(sock));
-    return 1;
+    DBUG_RETURN(1);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 static int handle_request_for_tables(char *tables, uint length)
@@ -716,6 +742,7 @@ static int handle_request_for_tables(char *tables, uint length)
   char *query, *end, options[100], message[100];
   uint query_length= 0;
   const char *op = 0;
+  DBUG_ENTER("handle_request_for_tables");
 
   options[0] = 0;
   end = options;
@@ -742,11 +769,11 @@ static int handle_request_for_tables(char *tables, uint length)
     op= (opt_write_binlog) ? "OPTIMIZE" : "OPTIMIZE NO_WRITE_TO_BINLOG";
     break;
   case DO_UPGRADE:
-    return fix_table_storage_name(tables);
+    DBUG_RETURN(fix_table_storage_name(tables));
   }
 
   if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
-    return 1;
+    DBUG_RETURN(1);
   if (opt_all_in_1)
   {
     /* No backticks here as we added them before */
@@ -765,11 +792,11 @@ static int handle_request_for_tables(char *tables, uint length)
   {
     sprintf(message, "when executing '%s TABLE ... %s'", op, options);
     DBerror(sock, message);
-    return 1;
+    DBUG_RETURN(1);
   }
   print_result();
   my_free(query);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -780,6 +807,7 @@ static void print_result()
   char prev[(NAME_LEN+9)*2+2];
   uint i;
   my_bool found_error=0, table_rebuild=0;
+  DBUG_ENTER("print_result");
 
   res = mysql_use_result(sock);
 
@@ -843,6 +871,7 @@ static void print_result()
       insert_dynamic(&tables4repair, (uchar*) prev);
   }
   mysql_free_result(res);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -888,9 +917,11 @@ static int dbConnect(char *host, char *user, char *passwd)
 
 static void dbDisconnect(char *host)
 {
+  DBUG_ENTER("dbDisconnect");
   if (verbose > 1)
     fprintf(stderr, "# Disconnecting from %s...\n", host ? host : "localhost");
   mysql_close(sock);
+  DBUG_VOID_RETURN;
 } /* dbDisconnect */
 
 
@@ -906,13 +937,15 @@ static void DBerror(MYSQL *mysql, const char *when)
 
 static void safe_exit(int error)
 {
+  DBUG_ENTER("safe_exit");
   if (!first_error)
     first_error= error;
   if (ignore_errors)
-    return;
+    DBUG_VOID_RETURN;
   if (sock)
     mysql_close(sock);
   exit(error);
+  DBUG_VOID_RETURN;
 }
 
 

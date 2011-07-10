@@ -7342,6 +7342,7 @@ bool parse_sql(THD *thd,
                Object_creation_ctx *creation_ctx)
 {
   bool ret_value;
+  DBUG_ENTER("parse_sql");
   DBUG_ASSERT(thd->m_parser_state == NULL);
   DBUG_ASSERT(thd->lex->m_stmt == NULL);
 
@@ -7389,7 +7390,7 @@ bool parse_sql(THD *thd,
 
   ret_value= mysql_parse_status || thd->is_fatal_error;
   MYSQL_QUERY_PARSE_DONE(ret_value);
-  return ret_value;
+  DBUG_RETURN(ret_value);
 }
 
 /**

@@ -1715,13 +1715,17 @@ public:
   int ha_repair(THD* thd, HA_CHECK_OPT* check_opt);
   void ha_start_bulk_insert(ha_rows rows)
   {
+    DBUG_ENTER("handler::ha_start_bulk_insert");
     estimation_rows_to_insert= rows;
     start_bulk_insert(rows);
+    DBUG_VOID_RETURN;
   }
   int ha_end_bulk_insert()
   {
+    DBUG_ENTER("handler::ha_end_bulk_insert");
     estimation_rows_to_insert= 0;
-    return end_bulk_insert();
+    int ret= end_bulk_insert();
+    DBUG_RETURN(ret);
   }
   int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                          uint *dup_key_found);
