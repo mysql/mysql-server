@@ -278,7 +278,7 @@ my_bool my_thread_init(void)
   my_bool error=0;
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_init(): thread_id: 0x%lx\n",
+  fprintf(stderr,"my_thread_init(): pthread_self: 0x%lx\n",
           (ulong) pthread_self());
 #endif  
 

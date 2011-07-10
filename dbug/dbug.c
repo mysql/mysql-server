@@ -138,26 +138,16 @@
 #define BOOLEAN my_bool
 
 /*
- *      Make it easy to change storage classes if necessary.
- */
-
-#define IMPORT extern           /* Names defined externally */
-#define EXPORT                  /* Allocated here, available globally */
-#define AUTO auto               /* Names to be allocated on stack */
-#define REGISTER register       /* Names to be placed in registers */
-
-#ifdef M_I386           /* predefined by xenix 386 compiler */
-#define AUTOS_REVERSE 1
-#else
-#define AUTOS_REVERSE 0
-#endif
-
-/*
  *      Externally supplied functions.
  */
 
 #ifndef HAVE_PERROR
-static void perror();          /* Fake system/library error print routine */
+static void perror(char *s)
+{
+  if (s && *s != '\0')
+    (void) fprintf(stderr, "%s: ", s);
+  (void) fprintf(stderr, "<unknown system error>\n");
+}
 #endif
 
 /*
@@ -1718,7 +1708,7 @@ BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 
 static void Indent(CODE_STATE *cs, int indent)
 {
-  REGISTER int count;
+  int count;
 
   indent= max(indent-1-cs->stack->sub_level,0)*INDENT;
   for (count= 0; count < indent ; count++)
@@ -1750,7 +1740,7 @@ static void Indent(CODE_STATE *cs, int indent)
 
 static void FreeList(struct link *linkp)
 {
-  REGISTER struct link *old;
+  struct link *old;
 
   while (linkp != NULL)
   {
@@ -1849,8 +1839,8 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
 static void DBUGOpenFile(CODE_STATE *cs,
                          const char *name,const char *end,int append)
 {
-  REGISTER FILE *fp;
-  REGISTER BOOLEAN newfile;
+  FILE *fp;
+  BOOLEAN newfile;
 
   if (name != NULL)
   {
@@ -1976,7 +1966,7 @@ static void DbugExit(const char *why)
 
 static char *DbugMalloc(size_t size)
 {
-  register char *new_malloc;
+  char *new_malloc;
 
   if (!(new_malloc= (char*) malloc(size)))
     DbugExit("out of memory");
@@ -2017,7 +2007,7 @@ static const char *DbugStrTok(const char *s)
 
 static const char *BaseName(const char *pathname)
 {
-  register const char *base;
+  const char *base;
 
   base= strrchr(pathname, FN_LIBCHAR);
   if (base++ == NullS)
@@ -2054,8 +2044,8 @@ static const char *BaseName(const char *pathname)
 
 static BOOLEAN Writable(const char *pathname)
 {
-  REGISTER BOOLEAN granted;
-  REGISTER char *lastslash;
+  BOOLEAN granted;
+  char *lastslash;
 
   granted= FALSE;
   if (EXISTS(pathname))
@@ -2079,105 +2069,11 @@ static BOOLEAN Writable(const char *pathname)
 }
 #endif
 
-
 /*
- *  FUNCTION
- *
- *      _db_setjmp_    save debugger environment
- *
- *  SYNOPSIS
- *
- *      VOID _db_setjmp_()
- *
- *  DESCRIPTION
- *
- *      Invoked as part of the user's DBUG_SETJMP macro to save
- *      the debugger environment in parallel with saving the user's
- *      environment.
- *
- */
-
-#ifdef HAVE_LONGJMP
-
-EXPORT void _db_setjmp_()
-{
-  CODE_STATE *cs;
-  get_code_state_or_return;
-
-  cs->jmplevel= cs->level;
-  cs->jmpfunc= cs->func;
-  cs->jmpfile= cs->file;
-}
-
-/*
- *  FUNCTION
- *
- *      _db_longjmp_    restore previously saved debugger environment
- *
- *  SYNOPSIS
- *
- *      VOID _db_longjmp_()
- *
- *  DESCRIPTION
- *
- *      Invoked as part of the user's DBUG_LONGJMP macro to restore
- *      the debugger environment in parallel with restoring the user's
- *      previously saved environment.
- *
- */
-
-EXPORT void _db_longjmp_()
-{
-  CODE_STATE *cs;
-  get_code_state_or_return;
-
-  cs->level= cs->jmplevel;
-  if (cs->jmpfunc)
-    cs->func= cs->jmpfunc;
-  if (cs->jmpfile)
-    cs->file= cs->jmpfile;
-}
-#endif
-
-/*
- *  FUNCTION
- *
- *      perror    perror simulation for systems that don't have it
- *
- *  SYNOPSIS
- *
- *      static VOID perror(s)
- *      char *s;
- *
- *  DESCRIPTION
- *
- *      Perror produces a message on the standard error stream which
- *      provides more information about the library or system error
- *      just encountered.  The argument string s is printed, followed
- *      by a ':', a blank, and then a message and a newline.
- *
- *      An undocumented feature of the unix perror is that if the string
- *      's' is a null string (NOT a NULL pointer!), then the ':' and
- *      blank are not printed.
- *
- *      This version just complains about an "unknown system error".
- *
- */
-
-#ifndef HAVE_PERROR
-static void perror(s)
-char *s;
-{
-  if (s && *s != '\0')
-    (void) fprintf(stderr, "%s: ", s);
-  (void) fprintf(stderr, "<unknown system error>\n");
-}
-#endif /* HAVE_PERROR */
-
-
-        /* flush dbug-stream, free mutex lock & wait delay */
-        /* This is because some systems (MSDOS!!) dosn't flush fileheader */
-        /* and dbug-file isn't readable after a system crash !! */
+  flush dbug-stream, free mutex lock & wait delay
+  This is because some systems (MSDOS!!) dosn't flush fileheader
+  and dbug-file isn't readable after a system crash !!
+*/
 
 static void DbugFlush(CODE_STATE *cs)
 {
