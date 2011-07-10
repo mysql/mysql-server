@@ -202,7 +202,7 @@ enum options_mc {
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
   OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG,
-  OPT_SKIP_SAFEMALLOC, OPT_ZEROFILL_KEEP_LSN, OPT_REQUIRE_CONTROL_FILE,
+  OPT_ZEROFILL_KEEP_LSN, OPT_REQUIRE_CONTROL_FILE,
   OPT_LOG_DIR, OPT_DATADIR, OPT_WARNING_FOR_WRONG_TRANSID
 };
 
@@ -322,13 +322,6 @@ static struct my_option my_long_options[] =
   {"silent", 's',
    "Only print errors. One can use two -s to make aria_chk very silent.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
-#ifdef SAFEMALLOC
-  {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
-   "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-   0, 0, 0, 0, 0, 0},
-#endif
-#endif
   {"sort-index", 'S',
    "Sort index blocks. This speeds up 'read-next' in applications.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -773,11 +766,6 @@ get_one_option(int optid,
   case '#':
     DBUG_SET_INITIAL(argument ? argument : "d:t:o,/tmp/aria_chk.trace");
     opt_debug= 1;
-    break;
-  case OPT_SKIP_SAFEMALLOC:
-#ifdef SAFEMALLOC
-    sf_malloc_quick=1;
-#endif
     break;
   case 'V':
     print_version();
