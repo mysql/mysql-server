@@ -66,6 +66,9 @@ extern  void _db_unlock_file_(void);
 extern  FILE *_db_fp_(void);
 extern  void _db_flush_();
 extern  const char* _db_get_func_(void);
+extern  void *_db_malloc_(size_t size);
+extern  void *_db_realloc_(void *ptr, size_t size);
+extern  void _db_free_(void *ptr);
 
 #define DBUG_ENTER(a) struct _db_stack_frame_ _db_stack_frame_; \
         _db_enter_ (a,__FILE__,__LINE__,&_db_stack_frame_)
@@ -98,6 +101,10 @@ extern  const char* _db_get_func_(void);
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
+#define DBUG_MALLOC(SIZE)               _db_malloc_(SIZE)
+#define DBUG_REALLOC(PTR,SIZE)          _db_realloc_(PTR,SIZE)
+#define DBUG_FREE(PTR)                  _db_free_(PTR)
+
 #ifndef __WIN__
 #define DBUG_ABORT()                    (_db_flush_(), abort())
 #else
@@ -163,6 +170,9 @@ extern void _db_suicide_();
 #define DBUG_EXPLAIN_INITIAL(buf,len)
 #define DEBUGGER_OFF                    do { } while(0)
 #define DEBUGGER_ON                     do { } while(0)
+#define DBUG_MALLOC(SIZE)               malloc(SIZE)
+#define DBUG_REALLOC(PTR,SIZE)          realloc(PTR,SIZE)
+#define DBUG_FREE(PTR)                  free(PTR)
 #define DBUG_ABORT()                    do { } while(0)
 #define DBUG_CRASH_ENTER(func)
 #define DBUG_CRASH_RETURN(val)          do { return(val); } while(0)

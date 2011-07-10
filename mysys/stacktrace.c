@@ -117,12 +117,8 @@ static int safe_print_str(const char *addr, int max_len)
       break;
   }
 
-  /* Output a new line if something was printed. */
-  if (total != (size_t) max_len)
-    fputc('\n', stderr);
-
   if (nbytes == -1)
-    fprintf(stderr, "Can't read from address %p: %m.\n", addr);
+    fprintf(stderr, "Can't read from address %p: %m.", addr);
 
   close(fd);
 
@@ -144,13 +140,12 @@ void my_safe_print_str(const char* val, int max_len)
 
   if (!PTR_SANE(val))
   {
-    fprintf(stderr, "is an invalid pointer\n");
+    fprintf(stderr, "is an invalid pointer");
     return;
   }
 
   for (; max_len && PTR_SANE(val) && *val; --max_len)
     fputc(*val++, stderr);
-  fputc('\n', stderr);
 }
 
 #if defined(HAVE_PRINTSTACK)
@@ -704,11 +699,11 @@ void my_safe_print_str(const char *val, int len)
 {
   __try
   {
-    fprintf(stderr, "%.*s\n", len, val);
+    fprintf(stderr, "%.*s", len, val);
   }
   __except(EXCEPTION_EXECUTE_HANDLER)
   {
-    fprintf(stderr, "is an invalid string pointer\n");
+    fprintf(stderr, "is an invalid string pointer");
   }
 }
 #endif /*__WIN__*/

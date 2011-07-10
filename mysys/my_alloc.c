@@ -235,6 +235,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
     mem_root->used= next;
     mem_root->first_block_usage= 0;
   }
+  TRASH_ALLOC(point, length);
   DBUG_PRINT("exit",("ptr: 0x%lx", (ulong) point));
   DBUG_RETURN((void*) point);
 #endif

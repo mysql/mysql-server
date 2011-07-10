@@ -28,24 +28,7 @@ typedef struct my_aio_result {
 } my_aio_result;
 #endif
 
-#ifdef HAVE_valgrind
-#define IF_VALGRIND(A,B) A
-#else
-#define IF_VALGRIND(A,B) B
-#endif
-
-#if defined(HAVE_valgrind) && defined(HAVE_VALGRIND_MEMCHECK_H)
-# include <valgrind/memcheck.h>
-# define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
-# define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
-# define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
-# define MEM_CHECK_DEFINED(a,len) VALGRIND_CHECK_MEM_IS_DEFINED(a,len)
-#else /* HAVE_VALGRIND */
-# define MEM_UNDEFINED(a,len) ((void) 0)
-# define MEM_NOACCESS(a,len) ((void) 0)
-# define MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
-# define MEM_CHECK_DEFINED(a,len) ((void) 0)
-#endif /* HAVE_VALGRIND */
+#include <my_valgrind.h>
 
 #include <my_pthread.h>
 
@@ -168,12 +151,6 @@ extern void *my_memdup(const void *from,size_t length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
 extern char *my_strndup(const char *from, size_t length,
 				   myf MyFlags);
-#ifdef SAFEMALLOC
-#define TRASH(A,B) do { bfill(A, B, 0x8F); MEM_UNDEFINED(A, B); } while (0)
-#else
-#define TRASH(A,B) do{MEM_CHECK_ADDRESSABLE(A,B);MEM_UNDEFINED(A,B);} while (0)
-#endif
-
 #if defined(ENABLED_DEBUG_SYNC)
 extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #define DEBUG_SYNC_C(_sync_point_name_) do {                            \

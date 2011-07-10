@@ -35,10 +35,10 @@ void *my_malloc(size_t size, myf my_flags)
   if (!size)
     size=1;
 
-  point= malloc(size);
+  point= DBUG_MALLOC(size);
   DBUG_EXECUTE_IF("simulate_out_of_memory",
                   {
-                    free(point);
+                    my_free(point);
                     point= NULL;
                   });
 
@@ -81,7 +81,7 @@ void *my_realloc(void *oldpoint, size_t size, myf my_flags)
   DBUG_ASSERT(size > 0);
   if (!oldpoint && (my_flags & MY_ALLOW_ZERO_PTR))
     DBUG_RETURN(my_malloc(size, my_flags));
-  if ((point= realloc(oldpoint, size)) == NULL)
+  if ((point= DBUG_REALLOC(oldpoint, size)) == NULL)
   {
     if (my_flags & MY_FREE_ON_ERROR)
       my_free(oldpoint);
@@ -107,7 +107,7 @@ void my_free(void *ptr)
 {
   DBUG_ENTER("my_free");
   DBUG_PRINT("my",("ptr: %p", ptr));
-  free(ptr);
+  DBUG_FREE(ptr);
   DBUG_VOID_RETURN;
 }
 

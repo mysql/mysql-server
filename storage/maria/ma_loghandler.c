@@ -7653,9 +7653,7 @@ static void translog_force_current_buffer_to_finish()
         we can not copy it and will not overwrite later
       */
       new_buffer->skipped_data= current_page_fill;
-#ifndef DBUG_OFF
-      memset(new_buffer->buffer, 0xa5, current_page_fill);
-#endif
+      TRASH_ALLOC(new_buffer->buffer, current_page_fill);
       DBUG_ASSERT(new_buffer->skipped_data < TRANSLOG_PAGE_SIZE);
     }
   }
