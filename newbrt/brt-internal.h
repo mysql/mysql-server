@@ -80,12 +80,24 @@ add_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
     a->dsize += b->dsize;
 }
 
+//
+// Field in brtnode_fetch_extra that tells the 
+// partial fetch callback what piece of the node
+// is needed by the ydb
+//
 enum brtnode_fetch_type {
-    brtnode_fetch_none=1, 
-    brtnode_fetch_subset,
-    brtnode_fetch_all
+    brtnode_fetch_none=1, // no partitions needed.  
+    brtnode_fetch_subset, // some subset of partitions needed
+    brtnode_fetch_all // every partition is needed
 };
 
+//
+// An extra parameter passed to cachetable functions 
+// That is used in all types of fetch callbacks.
+// The contents help the partial fetch and fetch
+// callbacks retrieve the pieces of a node necessary
+// for the ensuing operation (flush, query, ...)
+//
 struct brtnode_fetch_extra {
     enum brtnode_fetch_type type;
     // needed for reading a node off disk
@@ -99,6 +111,12 @@ struct brtnode_fetch_extra {
     int child_to_read;
 };
 
+//
+// Helper function to fill a brtnode_fetch_extra with data
+// that will tell the fetch callback that the entire node is
+// necessary. Used in cases where the entire node
+// is required, such as for flushes.
+//
 static inline void fill_bfe_for_full_read(struct brtnode_fetch_extra *bfe, struct brt_header *h) {
     bfe->type = brtnode_fetch_all;
     bfe->h = h;
@@ -107,6 +125,12 @@ static inline void fill_bfe_for_full_read(struct brtnode_fetch_extra *bfe, struc
     bfe->child_to_read = -1;
 };
 
+//
+// Helper function to fill a brtnode_fetch_extra with data
+// that will tell the fetch callback that some subset of the node
+// necessary. Used in cases where some of the node is required
+// such as for a point query.
+//
 static inline void fill_bfe_for_subset_read(
     struct brtnode_fetch_extra *bfe, 
     struct brt_header *h,
@@ -121,6 +145,12 @@ static inline void fill_bfe_for_subset_read(
     bfe->child_to_read = -1;
 };
 
+//
+// Helper function to fill a brtnode_fetch_extra with data
+// that will tell the fetch callback that no partitions are
+// necessary, only the pivots and/or subtree estimates.
+// Currently used for stat64.
+//
 static inline void fill_bfe_for_min_read(struct brtnode_fetch_extra *bfe, struct brt_header *h) {
     bfe->type = brtnode_fetch_none;
     bfe->h = h;
@@ -129,17 +159,19 @@ static inline void fill_bfe_for_min_read(struct brtnode_fetch_extra *bfe, struct
     bfe->child_to_read = -1;
 };
 
+// data of an available partition of a nonleaf brtnode
 struct brtnode_nonleaf_childinfo {
     FIFO         buffer;
     unsigned int n_bytes_in_buffer; /* How many bytes are in each buffer (including overheads for the disk-representation) */
 };
 
+// data of an available partition of a leaf brtnode
 struct brtnode_leaf_basement_node {
     uint32_t optimized_for_upgrade;   // version number to which this leaf has been optimized, zero if never optimized for upgrade
     OMT buffer;
     unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
     unsigned int seqinsert;         /* number of sequential inserts to this leaf */
-    MSN max_msn_applied;
+    MSN max_msn_applied; // max message sequence number applied
     DSN max_dsn_applied; // max deserialization sequence number applied
 };
 
@@ -165,13 +197,16 @@ typedef struct __attribute__((__packed__)) brtnode_child_pointer {
     } u;
 } BRTNODE_CHILD_POINTER;
 
-// a brtnode partition represents 
+// a brtnode partition, associated with a child of a node
 struct   __attribute__((__packed__)) brtnode_partition {
-    BLOCKNUM     blocknum;
+    // the following three variables are used for nonleaf nodes
+    // for leaf nodes, they are meaningless
+    BLOCKNUM     blocknum; // blocknum of child 
     BOOL         have_fullhash;     // do we have the full hash?
     u_int32_t    fullhash;          // the fullhash of the child
 
-    struct subtree_estimates subtree_estimates; //estimates for a child, for leaf nodes, are estimates of basement nodes
+    //estimates for a child, for leaf nodes, are estimates of basement nodes
+    struct subtree_estimates subtree_estimates; 
     //
     // at any time, the partitions may be in one of the following three states (stored in pt_state):
     //   PT_INVALID - means that the partition was just initialized
@@ -223,7 +258,8 @@ struct brtnode {
     struct kv_pair **childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
                                                                         Child 1's keys are > childkeys[0]. */
     u_int32_t bp_offset; // offset on disk to where the partitions start
-    // array of brtnode partitions
+
+    // array of size n_children, consisting of brtnode partitions
     // each one is associated with a child
     // for internal nodes, the ith partition corresponds to the ith message buffer
     // for leaf nodes, the ith partition corresponds to the ith basement node
@@ -231,6 +267,7 @@ struct brtnode {
 };
 
 // brtnode partition macros
+// BP stands for brtnode_partition
 #define BP_BLOCKNUM(node,i) ((node)->bp[i].blocknum)
 #define BP_HAVE_FULLHASH(node,i) ((node)->bp[i].have_fullhash)
 #define BP_FULLHASH(node,i) ((node)->bp[i].fullhash)
@@ -299,10 +336,11 @@ static inline void set_BSB(BRTNODE node, int i, SUB_BLOCK sb) {
     p->u.subblock = sb;
 }
 
+// macros for brtnode_nonleaf_childinfo
 #define BNC_BUFFER(node,i) (BNC(node,i)->buffer)
 #define BNC_NBYTESINBUF(node,i) (BNC(node,i)->n_bytes_in_buffer)
 
-// leaf node macros
+// brtnode leaf basementnode macros, 
 #define BLB_OPTIMIZEDFORUPGRADE(node,i) (BLB(node,i)->optimized_for_upgrade)
 #define BLB_MAX_MSN_APPLIED(node,i) (BLB(node,i)->max_msn_applied)
 #define BLB_MAX_DSN_APPLIED(node,i) (BLB(node,i)->max_dsn_applied)
