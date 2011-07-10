@@ -1033,7 +1033,7 @@ setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* bfe) {
     //
     for (int i = 0; i < node->n_children; i++) {
         BP_INIT_UNTOUCHED_CLOCK(node,i);
-        BP_STATE(node,i) = toku_brtnode_partition_state(bfe, i);
+        BP_STATE(node,i) = toku_bfe_wants_child_available(bfe,i) ? PT_AVAIL : PT_COMPRESSED;
         BP_WORKDONE(node,i) = 0;
         if (BP_STATE(node,i) == PT_AVAIL) {
             setup_available_brtnode_partition(node, i);

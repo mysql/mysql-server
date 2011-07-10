@@ -551,8 +551,8 @@ toku_brt_search_which_child(
     brt_search_t *search
     );
 
-u_int8_t 
-toku_brtnode_partition_state (struct brtnode_fetch_extra* bfe, int childnum);
+bool 
+toku_bfe_wants_child_available (struct brtnode_fetch_extra* bfe, int childnum);
 
 // allocate a block number
 // allocate and initialize a brtnode
