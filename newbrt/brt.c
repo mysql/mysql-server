@@ -149,6 +149,7 @@ toku_assert_entire_node_in_memory(BRTNODE node) {
 //
 static void
 set_new_DSN_for_node(BRTNODE node, BRT t) {
+    assert(t->h->curr_dsn > MIN_DSN);
     node->dsn = t->h->curr_dsn;
     t->h->curr_dsn++;
 }

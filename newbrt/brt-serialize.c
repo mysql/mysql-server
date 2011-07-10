@@ -1681,6 +1681,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->dirty=0;
     h->panic = 0;
     h->panic_string = 0;
+    h->curr_dsn = MIN_DSN+1;
     toku_list_init(&h->live_brts);
     toku_list_init(&h->zombie_brts);
     toku_list_init(&h->checkpoint_before_commit_link);
