@@ -15,7 +15,7 @@ static void test_flat (u_int64_t limit) {
     unlink(fname);
     CACHETABLE ct;
     // set the cachetable to size 1 so that things won't fit.
-    int r = toku_brt_create_cachetable(&ct, 1, ZERO_LSN, NULL_LOGGER);                                assert(r==0);
+    int r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                                assert(r==0);
     BRT t;
     r = toku_open_brt(fname, 1, &t, 1<<12, ct, null_txn, toku_builtin_compare_fun, null_db);   assert(r==0);
     u_int64_t i;
