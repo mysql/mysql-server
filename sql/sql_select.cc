@@ -880,6 +880,8 @@ JOIN::optimize()
 
   if (select_lex->first_cond_optimization)
   {
+    if (!select_lex->outer_select())
+      thd->used_tables= 0; 
     //Do it only for the first execution
     /* Merge all mergeable derived tables/views in this SELECT. */
     if (select_lex->handle_derived(thd->lex, DT_MERGE))
@@ -893,6 +895,8 @@ JOIN::optimize()
 
   if (select_lex->first_cond_optimization)
   {
+    if (!select_lex->outer_select())
+      thd->used_tables= 0;
     /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
     if (convert_join_subqueries_to_semijoins(this))
       DBUG_RETURN(1); /* purecov: inspected */

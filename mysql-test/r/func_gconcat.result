@@ -985,8 +985,8 @@ EXPLAIN EXTENDED SELECT 1 FROM
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (flat, BNL join)
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-2	DERIVED	td	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (flat, BNL join)
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort; Distinct
+2	DERIVED	td	ALL	NULL	NULL	NULL	NULL	2	100.00	Distinct; Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select 1 AS `1` from (select distinct group_concat(`test`.`td`.`f1` separator ',') AS `GROUP_CONCAT(td.f1)` from `test`.`t1` join `test`.`t1` `td` group by `test`.`td`.`f1`) `d` join `test`.`t1`
 SELECT 1 FROM

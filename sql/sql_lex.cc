@@ -3501,6 +3501,33 @@ void SELECT_LEX::update_used_tables()
     join->conds->update_used_tables();
     join->conds->walk(&Item::eval_not_null_tables, 0, NULL);
   }
+  if (join->having)
+  {
+    join->having->update_used_tables();
+  }
+
+  Item *item;
+  List_iterator_fast<Item> it(join->fields_list);
+  while ((item= it++))
+  {
+    item->update_used_tables();
+    join->thd->used_tables|= item->used_tables();
+  }
+  Item_outer_ref *ref;
+  List_iterator_fast<Item_outer_ref> ref_it(inner_refs_list);
+  while ((ref= ref_it++))
+  {
+    item= ref->outer_ref;
+    item->update_used_tables();
+    join->thd->used_tables|= item->used_tables();
+  }
+  for (ORDER *order= group_list.first; order; order= order->next)
+    (*order->item)->update_used_tables();
+  if (!master_unit()->is_union())
+  {
+    for (ORDER *order= order_list.first; order; order= order->next)
+      (*order->item)->update_used_tables();
+  }      
 }
 
 
