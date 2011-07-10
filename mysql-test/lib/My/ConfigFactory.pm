@@ -236,7 +236,6 @@ my @mysqld_rules=
  { 'pid-file' => \&fix_pidfile },
  { '#host' => \&fix_host },
  { 'port' => \&fix_port },
- { '#extra-port' => \&fix_port },
  { 'socket' => \&fix_socket },
  { '#log-error' => \&fix_log_error },
  { 'general-log' => sub { return 1; } },

@@ -3,11 +3,11 @@
 [mysqld.1]
 loose-thread-handling=   pool-of-threads
 loose-thread_pool_size=  2
-extra-port=        @mysqld.1.#extra-port
+extra-port=        @ENV.MASTER_EXTRA_PORT
 extra-max-connections=1
 
 [client]
 connect-timeout=   2
 
 [ENV]
-MASTER_EXTRA_PORT= @mysqld.1.#extra-port
+MASTER_EXTRA_PORT= @OPT.port
