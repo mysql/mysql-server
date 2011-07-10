@@ -1,0 +1,11 @@
+install plugin example soname 'ha_example.so';
+create table t1(a int) engine=example;
+drop table t1;
+alter table mysql.plugin engine=innodb;
+restart
+create table t1(a int) engine=example;
+select * from t1;
+a
+drop table t1;
+alter table mysql.plugin engine=myisam;
+uninstall plugin example;

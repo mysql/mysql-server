@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3;
+drop view if exists v1,v2;
 CREATE TABLE t1 (S1 INT);
 CREATE TABLE t2 (S1 INT);
 INSERT INTO t1 VALUES (1);
@@ -1220,4 +1221,22 @@ f1
 2
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+#
+# Bug LP:798597: Incorrect "Duplicate entry" error with views and
+#                GROUP BY
+#
+CREATE TABLE t1 ( f1 int NOT NULL , f2 int NOT NULL ) ;
+INSERT INTO t1 VALUES (214,0),(6,6);
+CREATE TABLE t2 ( f2 int) ;
+INSERT INTO t2 VALUES (88),(88);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0) ;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0 or t1.f2 is null) ;
+SELECT f1 , MIN(f2) FROM v1 GROUP BY f1;
+f1	MIN(f2)
+214	88
+SELECT f1 , MIN(f2) FROM v2 GROUP BY f1;
+f1	MIN(f2)
+214	88
+drop table t1,t2;
+drop view v1,v2;
 End of 5.1 tests
