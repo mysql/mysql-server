@@ -531,7 +531,7 @@ rebalance_brtnode_leaf(BRTNODE node)
     for (int i = 0; i < node->n_children; i++) {
         DSN curr_dsn = BLB_MAX_DSN_APPLIED(node,i);
         MSN curr_msn = BLB_MAX_MSN_APPLIED(node,i);
-        min_dsn = (curr_dsn < min_dsn) ? curr_dsn : min_dsn;
+        min_dsn = (curr_dsn.dsn < min_dsn.dsn) ? curr_dsn : min_dsn;
         max_msn = (curr_msn.msn > max_msn.msn) ? curr_msn : max_msn;
     }
     
@@ -813,7 +813,7 @@ BASEMENTNODE toku_create_empty_bn(void) {
 
 BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
     BASEMENTNODE XMALLOC(bn);
-    bn->max_dsn_applied = 0;
+    bn->max_dsn_applied.dsn = 0;
     bn->max_msn_applied.msn = 0;
     bn->buffer = NULL;
     bn->n_bytes_in_buffer = 0;
@@ -1005,7 +1005,7 @@ setup_available_brtnode_partition(BRTNODE node, int i) {
     if (node->height == 0) {
 	set_BLB(node, i, toku_create_empty_bn());
         BLB_MAX_MSN_APPLIED(node,i) = node->max_msn_applied_to_node_on_disk;
-        BLB_MAX_DSN_APPLIED(node,i) = 0;
+        BLB_MAX_DSN_APPLIED(node,i).dsn = 0;
     }
     else {
 	set_BNC(node, i, toku_create_empty_nl());
@@ -1681,7 +1681,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->dirty=0;
     h->panic = 0;
     h->panic_string = 0;
-    h->curr_dsn = MIN_DSN+1;
+    h->curr_dsn.dsn = MIN_DSN.dsn+1;
     toku_list_init(&h->live_brts);
     toku_list_init(&h->zombie_brts);
     toku_list_init(&h->checkpoint_before_commit_link);
