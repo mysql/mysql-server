@@ -1,3 +1,5 @@
+#ident "$Id$"
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 /* The goal of this test:  Make sure that when we aggressively promote 
  * that we don't get a fencepost error on the size.  (#399, I think)
 

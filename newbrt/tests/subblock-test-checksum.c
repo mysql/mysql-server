@@ -1,4 +1,6 @@
 // test that corrupt checksums are detected
+#ident "$Id$"
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 
 #include <toku_portability.h>
 #include "test.h"

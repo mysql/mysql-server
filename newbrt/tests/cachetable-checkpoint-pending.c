@@ -1,6 +1,6 @@
 // Make sure that the pending stuff gets checkpointed, but subsequent changes don't, even with concurrent updates.
-
-
+#ident "$Id$"
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 
 #include "test.h"
 #include <stdio.h>

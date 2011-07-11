@@ -1,3 +1,5 @@
+#ident "$Id$"
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>

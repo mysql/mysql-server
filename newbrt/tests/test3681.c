@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
-#ident "Id:"
+#ident "$Id$"
 
 // Test for #3681: iibench hangs.  The scenario is
 //  * Thread 1 calls root_put_cmd, get_and_pin_root, 1 holds read lock on the root.

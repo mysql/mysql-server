@@ -2,6 +2,8 @@
 
 // verify that the cache table checkpoint with prefetched blocks active works.
 // the blocks in the reading state should be ignored.
+#ident "$Id$"
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #include "test.h"
 #include <stdio.h>
 #include <unistd.h>

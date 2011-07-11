@@ -2,6 +2,8 @@
 
 // verify that cachetable prefetch multiple blocks hits the cachetable size limit
 // and flushes eventually happen.
+#ident "$Id$"
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 
 #include "includes.h"
 #include "test.h"
