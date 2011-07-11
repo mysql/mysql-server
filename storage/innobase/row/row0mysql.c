@@ -2178,6 +2178,8 @@ row_create_index_for_mysql(
 		dict_index_t*	idx;
 
 		idx = dict_table_get_index_on_name(table, index->name);
+
+		ut_ad(idx);
 		err = fts_create_index_tables(trx, idx);
 	}
 

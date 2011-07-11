@@ -713,7 +713,7 @@ fts_cache_index_cache_create(
 
 	ut_a(cache != NULL);
 
-	rw_lock_x_lock(&cache->lock);
+	rw_lock_x_lock(&cache->init_lock);
 
 	/* Must not already exist in the cache vector. */
 	ut_a(fts_find_index_cache(cache, index) == NULL);
@@ -736,7 +736,7 @@ fts_cache_index_cache_create(
 
 	fts_index_cache_init(cache->sync_heap, index_cache);
 
-	rw_lock_x_unlock(&cache->lock);
+	rw_lock_x_unlock(&cache->init_lock);
 }
 
 /********************************************************************
@@ -850,7 +850,8 @@ fts_get_index_cache(
 	ulint			i;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_EX)
+	      || rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_EX));
 #endif
 
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
@@ -1069,7 +1070,7 @@ fts_cache_add_doc(
 		return;
 	}
 
-	rw_lock_x_lock(&cache->lock);
+	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
 
 	n_words = rbt_size(tokens);
 
@@ -1126,8 +1127,6 @@ fts_cache_add_doc(
 	if (cache->total_size > fts_max_cache_size) {
 		fts_sync(cache->sync);
 	}
- 
-	rw_lock_x_unlock(&cache->lock);
 }
 
 /********************************************************************
@@ -3323,7 +3322,7 @@ fts_sync_add_deleted_cache(
 	graph = fts_parse_sql(
 		&fts_table,
 		info,
-		"INSERT INTO %s VALUES (:doc_id)");
+		"BEGIN INSERT INTO %s VALUES (:doc_id);");
 
 	for (i = 0; i < n_elems && error == DB_SUCCESS; ++i) {
 		fts_update_t*	update;
@@ -3750,7 +3749,6 @@ fts_sync_commit(
 	/* Get the list of deleted documents that are either in the
 	cache or were headed there but were deleted before the add
 	thread got to them. */
-	mutex_enter(&cache->deleted_lock);
 
 	if (error == DB_SUCCESS && ib_vector_size(cache->deleted_doc_ids) > 0) {
 
@@ -3764,8 +3762,6 @@ fts_sync_commit(
 	all resources. */
 	fts_cache_clear(cache, FALSE);
 	fts_cache_init(cache);
-
-	mutex_exit(&cache->deleted_lock);
 
 	if (error == DB_SUCCESS) {
 
@@ -4046,9 +4042,11 @@ fts_add_doc(
 	fts_add_doc_by_id(get_doc, doc_id, &doc);
 
 	if (doc.found) {
+		rw_lock_x_lock(&table->fts->cache->lock);
 		fts_cache_add_doc(
 			table->fts->cache,
 			get_doc->index_cache, doc_id, doc.tokens);
+		rw_lock_x_unlock(&table->fts->cache->lock);
 	} else {
 		/* This can happen where the transaction that added/updated
 		the row was rolled back. */
@@ -6182,8 +6180,7 @@ fts_init_recover_doc(
 		field_no++;
 	}
 
-	fts_cache_add_doc(cache, get_doc->index_cache,
-			  doc_id, doc.tokens);
+	fts_cache_add_doc(cache, get_doc->index_cache, doc_id, doc.tokens);
 
 	if (doc_id >= cache->next_doc_id) {
 		cache->next_doc_id = doc_id + 1;
@@ -6220,12 +6217,9 @@ fts_init_index(
 	if (cache->get_docs == NULL) {
 		cache->get_docs = fts_get_docs_create(cache);
 	}
-	rw_lock_x_unlock(&cache->lock);
-
-	rw_lock_x_lock(&cache->init_lock);
 
 	if (table->fts->fts_status & ADDED_TABLE_SYNCED) {
-		rw_lock_x_unlock(&cache->init_lock);
+		rw_lock_x_unlock(&cache->lock);
 		return(TRUE);
 	}
 
@@ -6241,7 +6235,7 @@ fts_init_index(
 	dropped, and we re-initialize the Doc ID system for subsequent
 	insertion */
 	if (ib_vector_is_empty(cache->get_docs)) {
-		rw_lock_x_unlock(&cache->init_lock);
+		rw_lock_x_unlock(&cache->lock);
 		return(TRUE);
 	}
 
@@ -6266,7 +6260,7 @@ fts_init_index(
 
 	table->fts->fts_status |= ADDED_TABLE_SYNCED;
 
-	rw_lock_x_unlock(&cache->init_lock);
+	rw_lock_x_unlock(&cache->lock);
 
 	return(TRUE);
 }

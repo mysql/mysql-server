@@ -7529,6 +7529,8 @@ create_index(
 	if (ind_type != DICT_FTS) {
 		field_lengths = (ulint*) my_malloc(
 			sizeof(ulint) * n_fields, MYF(MY_FAE));
+
+		ut_ad(!(index->type & DICT_FTS));
 	}
 
 	for (i = 0; i < n_fields; i++) {
@@ -7596,6 +7598,8 @@ create_index(
 		dict_mem_index_add_field(index,
 			(char*) key_part->field->field_name, prefix_len);
 	}
+
+	ut_ad(key->flags & HA_FULLTEXT || !(index->type & DICT_FTS));
 
 	/* Even though we've defined max_supported_key_part_length, we
 	still do our own checking using field_lengths to be absolutely
