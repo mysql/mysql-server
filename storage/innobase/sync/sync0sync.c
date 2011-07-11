@@ -1053,7 +1053,7 @@ sync_thread_levels_nonempty_gen(
 		    && (!dict_mutex_allowed
 			|| (slot->level != SYNC_DICT
 			    && slot->level != SYNC_DICT_OPERATION
-			    && slot->level != SYNC_FTS_CACHE_INIT))) {
+			    && slot->level != SYNC_FTS_CACHE))) {
 
 			mutex_exit(&sync_thread_mutex);
 			ut_error;
