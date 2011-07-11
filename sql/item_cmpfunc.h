@@ -391,6 +391,22 @@ public:
   }
 };
 
+/**
+  XOR inherits from Item_bool_func2 because it is not optimized yet.
+  Later, when XOR is optimized, it needs to inherit from
+  Item_cond instead. See WL#5800. 
+*/
+class Item_func_xor :public Item_bool_func2
+{
+public:
+  Item_func_xor(Item *i1, Item *i2) :Item_bool_func2(i1, i2) {}
+  enum Functype functype() const { return XOR_FUNC; }
+  const char *func_name() const { return "xor"; }
+  longlong val_int();
+  void top_level_item() {}
+  Item *neg_transformer(THD *thd);
+};
+
 class Item_func_not :public Item_bool_func
 {
 public:
@@ -1816,45 +1832,6 @@ inline bool is_cond_or(Item *item)
   Item_cond *cond_item= (Item_cond*) item;
   return (cond_item->functype() == Item_func::COND_OR_FUNC);
 }
-
-/*
-  XOR is Item_cond, not an Item_int_func because we could like to
-  optimize (a XOR b) later on. It's low prio, though
-*/
-
-class Item_cond_xor :public Item_cond
-{
-public:
-  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) 
-  {
-    /* 
-      Items must be stored in args[] as well because this Item_cond is
-      treated as a FUNC_ITEM (see type()). I.e., users of it will get
-      it's children by calling arguments(), not argument_list(). This
-      is a temporary solution until XOR is optimized and treated like
-      a full Item_cond citizen.
-     */
-    arg_count= 2;
-    args= tmp_arg;
-    args[0]= i1; 
-    args[1]= i2;
-  }
-  enum Functype functype() const { return COND_XOR_FUNC; }
-  /* TODO: remove the next line when implementing XOR optimization */
-  enum Type type() const { return FUNC_ITEM; }
-  longlong val_int();
-  const char *func_name() const { return "xor"; }
-  void top_level_item() {}
-  /* Since child Items are stored in args[], Items cannot be added.
-     However, since Item_cond_xor is treated as a FUNC_ITEM (see
-     type()), the methods below should never be called. 
-  */
-  bool add(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
-  bool add_at_head(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
-  bool add_at_head(List<Item> *nlist) { DBUG_ASSERT(FALSE); return FALSE; }
-  void copy_andor_arguments(THD *thd, Item_cond *item) { DBUG_ASSERT(FALSE); }
-};
-
 
 /* Some useful inline functions */
 
