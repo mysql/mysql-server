@@ -176,6 +176,20 @@ void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec d
 		 f(key,keylen,data,datalen,type,msn,xids, arg));
 }
 
+void toku_fifo_size_is_stabilized(FIFO fifo) {
+    if (fifo->memory_used < fifo->memory_size/2) {
+	char *old_memory = fifo->memory;
+	int new_memory_size = fifo->memory_used*2;
+	char *new_memory = toku_xmalloc(new_memory_size);
+	memcpy(new_memory, old_memory+fifo->memory_start, fifo->memory_used);
+	fifo->memory       = new_memory;
+	fifo->memory_start = 0;
+	fifo->memory_size  = new_memory_size;
+	toku_free(old_memory);
+    }
+}
+
 unsigned long toku_fifo_memory_size(FIFO fifo) {
     return sizeof(*fifo)+fifo->memory_size;
 }
+
