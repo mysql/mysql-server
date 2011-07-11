@@ -1259,6 +1259,11 @@ static void flush_and_maybe_remove (CACHETABLE ct, PAIR p) {
 
 static int maybe_flush_some (CACHETABLE ct, long size) {
     int r = 0;
+    //
+    // this is the data that cannot be accessed right now, because it has a user
+    // If all the data is unattainable, we get into an infinite loop, so we count it with
+    // the limit
+    //
     u_int32_t unattainable_data = 0;
     
     while ((ct->head) && (size + ct->size_current > ct->size_limit + unattainable_data)) {
@@ -1269,7 +1274,6 @@ static int maybe_flush_some (CACHETABLE ct, long size) {
             flush_dirty_pair(ct, curr_in_clock);
         }
         if (curr_in_clock->count > 0) {
-            // TODO: (Zardosht), this is where the callback function for node level eviction will happen
             if (curr_in_clock->state == CTPAIR_IDLE && !rwlock_users(&curr_in_clock->rwlock)) {
                 curr_in_clock->count--;
                 // call the partial eviction callback
