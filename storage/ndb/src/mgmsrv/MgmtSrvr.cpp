@@ -886,11 +886,12 @@ MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
 
     default:
       report_unknown_signal(signal);
-      DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
+      DBUG_RETURN(false);
     }
   }
   // Should never come here
   require(false);
+  DBUG_RETURN(false);
 }
 
 MgmtSrvr::~MgmtSrvr()
@@ -2958,6 +2959,7 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
       Uint32 theData[25];
       EventReport repData;
     };
+    bzero(theData, sizeof(theData));
     EventReport * event = &repData;
     event->setEventType(NDB_LE_Disconnected);
     event->setNodeId(_ownNodeId);

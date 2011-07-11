@@ -1,8 +1,8 @@
 #ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_H
 #define INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_H
 /*
-   Copyright (C) 2004 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2004-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

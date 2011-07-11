@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2000-2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -127,6 +126,7 @@ enum enum_conflict_fn_type
   ,CFT_NDB_MAX
   ,CFT_NDB_OLD
   ,CFT_NDB_MAX_DEL_WIN
+  ,CFT_NDB_EPOCH
   ,CFT_NUMBER_OF_CFTS /* End marker */
 };
 
@@ -137,6 +137,7 @@ enum enum_conflict_fn_arg_type
 {
   CFAT_END
   ,CFAT_COLUMN_NAME
+  ,CFAT_EXTRA_GCI_BITS
 };
 
 struct st_conflict_fn_arg
@@ -144,7 +145,11 @@ struct st_conflict_fn_arg
   enum_conflict_fn_arg_type type;
   const char *ptr;
   uint32 len;
-  uint32 fieldno; // CFAT_COLUMN_NAME
+  union
+  {
+    uint32 fieldno;      // CFAT_COLUMN_NAME
+    uint32 extraGciBits; // CFAT_EXTRA_GCI_BITS
+  };
 };
 
 struct st_conflict_fn_arg_def
@@ -198,9 +203,10 @@ struct Ndb_exceptions_data {
   enum_conflicting_op_type op_type;
 };
 
-enum enum_conflict_fn_flags
+enum enum_conflict_fn_table_flags
 {
-  CFF_NONE = 0
+  CFF_NONE         = 0,
+  CFF_REFRESH_ROWS = 1
 };
 
 typedef struct st_ndbcluster_conflict_fn_share {
@@ -709,10 +715,11 @@ private:
                                       NDB_SHARE *share);
 
   void check_read_before_write_removal();
-  static int delete_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
-			  const char *path,
-			  const char *db,
-			  const char *table_name);
+  static int drop_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
+                        const char *path,
+                        const char *db,
+                        const char *table_name);
+
   int add_index_impl(THD *thd, TABLE *table_arg,
                      KEY *key_info, uint num_of_keys);
   int create_ndb_index(THD *thd, const char *name, KEY *key_info, bool unique);

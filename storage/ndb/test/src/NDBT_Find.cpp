@@ -1,7 +1,5 @@
 /*
-   Copyright 2009 Sun Microsystems, Inc.
-
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,11 +46,22 @@ NDBT_find_binary(BaseString& name, const char* binary_name,
     {
       // Sucess, found the binary. Convert path to absolute and return it
       char realpath_buf[PATH_MAX];
+#ifndef _WIN32
       if (realpath(path.c_str(), realpath_buf) == NULL)
       {
         fprintf(stderr, "Could not convert '%s' to realpath\n", path.c_str());
         abort();
       }
+#else
+      int ret= GetFullPathName(path.c_str(), sizeof(realpath_buf),
+                               realpath_buf, NULL);
+      if (ret == 0 || ret >= sizeof(realpath_buf))
+      {
+        fprintf(stderr, "Could not convert '%s' with GetFullPathName\n",
+                path.c_str());
+        abort();
+      }
+#endif
 
       name.assign(realpath_buf);
       return;
