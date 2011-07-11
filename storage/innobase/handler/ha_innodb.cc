@@ -7156,6 +7156,8 @@ ha_innobase::ft_read(
 			rbt_next(result->rankings_by_rank, result->current));
 	}
 
+next_record:
+
 	if (result->current != NULL) {
 		dict_index_t*	index;
 		dtuple_t*	tuple = prebuilt->search_tuple;
@@ -7190,8 +7192,16 @@ ha_innobase::ft_read(
 
 		} else if (ret == DB_RECORD_NOT_FOUND) {
 
-			error = HA_ERR_KEY_NOT_FOUND;
-			table->status = STATUS_NOT_FOUND;
+			result->current = const_cast<ib_rbt_node_t*>(
+				rbt_next(result->rankings_by_rank,
+					 result->current));
+
+			if (!result->current) {
+				error = HA_ERR_KEY_NOT_FOUND;
+				table->status = STATUS_NOT_FOUND;
+			} else {
+				goto next_record;
+			}
 
 		} else if (ret == DB_END_OF_INDEX) {
 

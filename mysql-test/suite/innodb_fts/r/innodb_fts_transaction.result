@@ -676,6 +676,7 @@ id	a	b
 7	Sævör grét	áðan því úlpan var ónýt
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
 id	a	b
+6	Мога да ям стъкло	то не ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
@@ -704,6 +705,7 @@ id	a	b
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
 id	a	b
+6	Мога да ям стъкло	то не ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
