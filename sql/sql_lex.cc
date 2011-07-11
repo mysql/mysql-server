@@ -2120,6 +2120,9 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
   if (ref_pointer_array)
     return 0;
 
+  // find_order_in_list() may need some extra space, so multiply by two.
+  order_group_num*= 2;
+
   /*
     We have to create array in prepared statement memory if it is
     prepared statement
