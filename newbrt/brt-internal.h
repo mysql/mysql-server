@@ -641,13 +641,19 @@ typedef struct le_status {
 
 void toku_le_get_status(LE_STATUS);
 
-typedef struct update_status {
+typedef struct brt_status {
     u_int64_t updates;
     u_int64_t updates_broadcast;
     u_int64_t descriptor_set;
-} UPDATE_STATUS_S, *UPDATE_STATUS;
+    u_int64_t partial_fetch_hit;        // node partition is present
+    u_int64_t partial_fetch_miss;       // node is present but partition is absent
+    u_int64_t partial_fetch_compressed; // node partition is present but compressed
+    u_int64_t msn_discards;             // how many messages were ignored by leaf because of msn
+    u_int64_t max_workdone;             // max workdone value of any buffer
+    u_int64_t dsn_gap;                  // dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read)
+} BRT_STATUS_S, *BRT_STATUS;
 
-void toku_update_get_status(UPDATE_STATUS);
+void toku_brt_get_status(BRT_STATUS);
 
 void
 brt_leaf_apply_cmd_once (
