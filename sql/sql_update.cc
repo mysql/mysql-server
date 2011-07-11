@@ -1038,8 +1038,9 @@ reopen_tables:
     call in setup_tables()).
   */
   //We need to merge for insert prior to prepare.
-  if (mysql_handle_list_of_derived(lex, table_list, DT_MERGE_FOR_INSERT))
-    DBUG_RETURN(1);
+  if (mysql_handle_derived(lex, DT_MERGE_FOR_INSERT))
+    DBUG_RETURN(TRUE);
+
   if (mysql_handle_derived(lex, DT_PREPARE))
     DBUG_RETURN(TRUE);
 
@@ -1237,6 +1238,9 @@ reopen_tables:
     further check in multi_update::prepare whether to use record cache.
   */
   lex->select_lex.exclude_from_table_unique_test= FALSE;
+
+  if (lex->select_lex.save_prep_leaf_tables(thd))
+    DBUG_RETURN(TRUE);
  
   DBUG_RETURN (FALSE);
 }

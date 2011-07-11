@@ -1601,6 +1601,8 @@ public:
   */ 
   bool create_tmp_table_for_derived;
 
+  bool save_prep_leaf_list;
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 

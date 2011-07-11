@@ -639,6 +639,8 @@ public:
   */
   List<TABLE_LIST> leaf_tables;
   List<TABLE_LIST> leaf_tables_exec;
+  List<TABLE_LIST> leaf_tables_prep;
+  bool is_prep_leaf_list_saved;
   uint insert_tables;
   st_select_lex *merged_into; /* select which this select is merged into */
                               /* (not 0 only for views/derived tables)   */
@@ -899,6 +901,7 @@ public:
   void mark_const_derived(bool empty);
 
   bool save_leaf_tables(THD *thd);
+  bool save_prep_leaf_tables(THD *thd);
 
 private:  
   /* current index hint kind. used in filling up index_hints */

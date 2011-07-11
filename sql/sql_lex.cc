@@ -1604,6 +1604,7 @@ void st_select_lex::init_query()
   top_join_list.empty();
   join_list= &top_join_list;
   embedding= 0;
+  leaf_tables_prep.empty();
   leaf_tables.empty();
   item_list.empty();
   join= 0;
@@ -1672,6 +1673,7 @@ void st_select_lex::init_select()
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
   full_group_by_flag= 0;
+  is_prep_leaf_list_saved= FALSE;
   insert_tables= 0;
   merged_into= 0;
 }
@@ -3624,6 +3626,7 @@ void SELECT_LEX::mark_const_derived(bool empty)
   }
 }
 
+
 bool st_select_lex::save_leaf_tables(THD *thd)
 {
   Query_arena *arena= thd->stmt_arena, backup;
@@ -3641,6 +3644,33 @@ bool st_select_lex::save_leaf_tables(THD *thd)
     table->tablenr_exec= table->table->tablenr;
     table->map_exec= table->table->map;
   }
+  if (arena)
+    thd->restore_active_arena(arena, &backup);
+
+  return 0;
+}
+
+
+bool st_select_lex::save_prep_leaf_tables(THD *thd)
+{
+  if (!thd->save_prep_leaf_list)
+    return 0;
+
+  Query_arena *arena= thd->stmt_arena, backup;
+  if (arena->is_conventional())
+    arena= 0;                                  
+  else
+    thd->set_n_backup_active_arena(arena, &backup);
+
+  List_iterator_fast<TABLE_LIST> li(leaf_tables);
+  TABLE_LIST *table;
+  while ((table= li++))
+  {
+    if (leaf_tables_prep.push_back(table))
+      return 1;
+  }
+  thd->lex->select_lex.is_prep_leaf_list_saved= TRUE; 
+  thd->save_prep_leaf_list= FALSE;
   if (arena)
     thd->restore_active_arena(arena, &backup);
 

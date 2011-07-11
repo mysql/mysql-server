@@ -237,6 +237,30 @@ DROP VIEW v1;
 DROP TABLE t1,t2;
 
 --echo #
+--echo #  LP bug #794890: abort failure on multi-update with view
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (20), (7);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (7), (9), (7);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT a FROM t1;
+
+CREATE VIEW v2 AS SELECT t2.a FROM t2, v1 WHERE t2.a=t2.a;
+UPDATE v2 SET a = 2;
+SELECT * FROM t2;
+
+UPDATE t1,v2 SET t1.a = 3;
+SELECT * FROM t1;
+
+DELETE t1 FROM t1,v2;
+SELECT * FROM t1; 
+
+DROP VIEW v1,v2;
+DROP TABLE t1,t2;
+
+--echo #
 --echo #  LP bug #802023: MIN/MAX optimization 
 --echo #                  for mergeable derived tables and views
 --echo #

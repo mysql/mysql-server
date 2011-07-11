@@ -61,8 +61,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
 
-  if (mysql_handle_list_of_derived(thd->lex, table_list, DT_MERGE_FOR_INSERT) ||
-      mysql_handle_list_of_derived(thd->lex, table_list, DT_PREPARE))
+  if (mysql_handle_list_of_derived(thd->lex, table_list, DT_MERGE_FOR_INSERT))
+    DBUG_RETURN(TRUE);
+  if (mysql_handle_list_of_derived(thd->lex, table_list, DT_PREPARE))
     DBUG_RETURN(TRUE);
 
   if (!table_list->updatable)
@@ -550,7 +551,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
     DBUG_RETURN(TRUE);
 
-  select_lex->fix_prepare_information(thd, conds, &fake_conds);
+  select_lex->fix_prepare_information(thd, conds, &fake_conds); 
   DBUG_RETURN(FALSE);
 }
 
@@ -586,10 +587,11 @@ int mysql_multi_delete_prepare(THD *thd)
   TABLE_LIST *target_tbl;
   DBUG_ENTER("mysql_multi_delete_prepare");
 
-  TABLE_LIST *tables= lex->query_tables;
-  if (mysql_handle_derived(lex, DT_INIT) ||
-      mysql_handle_list_of_derived(lex, tables, DT_MERGE_FOR_INSERT) ||
-      mysql_handle_list_of_derived(lex, tables, DT_PREPARE))
+  if (mysql_handle_derived(lex, DT_INIT))
+    DBUG_RETURN(TRUE);
+  if (mysql_handle_derived(lex, DT_MERGE_FOR_INSERT))
+    DBUG_RETURN(TRUE);
+  if (mysql_handle_derived(lex, DT_PREPARE))
     DBUG_RETURN(TRUE);
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will not do it second
@@ -616,7 +618,8 @@ int mysql_multi_delete_prepare(THD *thd)
        target_tbl= target_tbl->next_local)
   {
 
-    if (!(target_tbl->table= target_tbl->correspondent_table->table))
+    target_tbl->table= target_tbl->correspondent_table->table;
+    if (target_tbl->correspondent_table->is_multitable())
     {
        my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
                 target_tbl->correspondent_table->view_db.str,
@@ -651,6 +654,10 @@ int mysql_multi_delete_prepare(THD *thd)
     with further calls to unique_table
   */
   lex->select_lex.exclude_from_table_unique_test= FALSE;
+  
+  if (lex->select_lex.save_prep_leaf_tables(thd))
+    DBUG_RETURN(TRUE);
+  
   DBUG_RETURN(FALSE);
 }
 
