@@ -490,6 +490,7 @@ typedef struct system_variables
   my_bool big_tables;
 
   plugin_ref table_plugin;
+  plugin_ref temp_table_plugin;
 
   /* Only charset part of these variables is sensible */
   const CHARSET_INFO *character_set_filesystem;
@@ -2631,26 +2632,23 @@ public:
     else
       start_utime= utime_after_lock= my_micro_time_and_time(&start_time);
 
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   inline void set_current_time()
   {
     start_time= my_time(MY_WME);
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   inline void set_time(time_t t)
   {
     start_time= user_time= t;
     start_utime= utime_after_lock= my_micro_time();
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
@@ -2891,7 +2889,7 @@ public:
   inline void send_kill_message() const
   {
     int err= killed_errno();
-    if (err)
+    if (err && !get_stmt_da()->is_set())
     {
       if ((err == KILL_CONNECTION) && !shutdown_in_progress)
         err = KILL_QUERY;
@@ -3024,9 +3022,9 @@ public:
     }
     db_length= db ? new_db_len : 0;
     result= new_db && !db;
-#ifdef HAVE_PSI_INTERFACE
-    if (result && PSI_server)
-      PSI_server->set_thread_db(new_db, new_db_len);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    if (result)
+      PSI_CALL(set_thread_db)(new_db, new_db_len);
 #endif
     return result;
   }
@@ -3046,9 +3044,8 @@ public:
   {
     db= new_db;
     db_length= new_db_len;
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_db(new_db, new_db_len);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_db)(new_db, new_db_len);
 #endif
   }
   /*
@@ -3202,7 +3199,19 @@ public:
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
 
-    mdl_context.set_explicit_duration_for_all_locks();
+    if (mode_arg == LTM_LOCK_TABLES)
+    {
+      /*
+        When entering LOCK TABLES mode we should set explicit duration
+        for all metadata locks acquired so far in order to avoid releasing
+        them till UNLOCK TABLES statement.
+        We don't do this when entering prelocked mode since sub-statements
+        don't release metadata locks and restoring status-quo after leaving
+        prelocking mode gets complicated.
+      */
+      mdl_context.set_explicit_duration_for_all_locks();
+    }
+
     locked_tables_mode= mode_arg;
   }
   void leave_locked_tables_mode();
@@ -3362,6 +3371,14 @@ public:
   */
   virtual void cleanup();
   void set_thd(THD *thd_arg) { thd= thd_arg; }
+
+  /**
+    If we execute EXPLAIN SELECT ... LIMIT (or any other EXPLAIN query)
+    we have to ignore offset value sending EXPLAIN output rows since
+    offset value belongs to the underlying query, not to the whole EXPLAIN.
+  */
+  void reset_offset_limit_cnt() { unit->offset_limit_cnt= 0; }
+
 #ifdef EMBEDDED_LIBRARY
   virtual void begin_dataset() {}
 #else
@@ -4069,6 +4086,11 @@ public:
 */
 #define CF_WRITE_RPL_INFO_COMMAND (1U << 12)
 
+/**
+  Identifies statements that can be explained with EXPLAIN.
+*/
+#define CF_CAN_BE_EXPLAINED       (1U << 13)
+
 /* Bits in server_command_flags */
 
 /**
@@ -4091,14 +4113,6 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);
-
-/*
-  This prototype is placed here instead of in item_func.h because it
-  depends on the definition of enum_sql_command, which is in this
-  file.
- */
-int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                        LEX_STRING &name, user_var_entry **out_entry);
 
 /* Inline functions */
 

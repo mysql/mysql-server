@@ -20,7 +20,7 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_acl.h"                        // fill_schema_*_privileges
-#include "sql_select.h"                         // For select_describe
+#include "sql_select.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_show.h"
 #include "sql_table.h"                        // filename_to_tablename,
@@ -6830,9 +6830,8 @@ static bool do_fill_table(THD *thd,
   // Filter out warnings with WARN_LEVEL_ERROR level, because they
   // correspond to the errors which were filtered out in fill_table().
 
-
-  List_iterator_fast<MYSQL_ERROR> it(wi_tmp.warn_list());
-  MYSQL_ERROR *err;
+  Warning_info::Const_iterator it= wi_tmp.iterator();
+  const MYSQL_ERROR *err;
 
   while ((err= it++))
   {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -286,7 +286,7 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 	first_select->options&= ~OPTION_FOUND_ROWS;
 
       lex->current_select= first_select;
-      res= mysql_select(thd, &first_select->ref_pointer_array,
+      res= mysql_select(thd,
 			first_select->table_list.first,
 			first_select->with_wild,
 			first_select->item_list, first_select->where,

@@ -63,7 +63,6 @@
                               // sp_grant_privileges, ...
 #include "sql_test.h"         // mysql_print_status
 #include "sql_select.h"       // handle_select, mysql_select,
-                              // mysql_explain_union
 #include "sql_load.h"         // mysql_load
 #include "sql_servers.h"      // create_servers, alter_servers,
                               // drop_servers, servers_reload
@@ -95,6 +94,7 @@
 #include "set_var.h"
 #include "mysql/psi/mysql_statement.h"
 #include "sql_bootstrap.h"
+#include "opt_explain.h"
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -323,22 +323,31 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_BE_EXPLAINED |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_BE_EXPLAINED |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_BE_EXPLAINED |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_BE_EXPLAINED |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_BE_EXPLAINED |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_BE_EXPLAINED |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_BE_EXPLAINED |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_BE_EXPLAINED |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_BE_EXPLAINED |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE |
@@ -515,6 +524,13 @@ bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_CHANGES_DATA) != 0;
+}
+
+
+bool is_explainable_query(enum enum_sql_command command)
+{
+  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
+  return (sql_command_flags[command] & CF_CAN_BE_EXPLAINED) != 0;
 }
 
 /**
@@ -882,7 +898,7 @@ out:
 
   This is a helper function to mysql_execute_command.
 
-  @note SQLCOM_MULTI_UPDATE is an exception and delt with elsewhere.
+  @note SQLCOM_UPDATE_MULTI is an exception and delt with elsewhere.
 
   @see mysql_execute_command
   @returns Status code
@@ -1444,7 +1460,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     length= my_snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
                         "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
-                        "Open tables: %u  Queries per second avg: %u.%u",
+                        "Open tables: %u  Queries per second avg: %u.%03u",
                         uptime,
                         (int) thread_count, (ulong) thd->query_id,
                         current_global_status_var.long_query_count,
@@ -1527,6 +1543,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   /* Finalize server status flags after executing a command. */
   thd->update_server_status();
+  if (thd->killed)
+    thd->send_kill_message();
   thd->protocol->end_statement();
   query_cache_end_of_result(thd);
 
@@ -1960,7 +1978,7 @@ err:
   @todo
     - Invalidate the table in the query cache if something changed
     after unlocking when changes become visible.
-    TODO: this is workaround. right way will be move invalidating in
+    @todo: this is workaround. right way will be move invalidating in
     the unlock procedure.
     - TODO: use check_change_password()
 
@@ -1989,6 +2007,7 @@ mysql_execute_command(THD *thd)
   bool have_table_map_for_update= FALSE;
 #endif
   DBUG_ENTER("mysql_execute_command");
+  DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command));
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
@@ -2171,6 +2190,11 @@ mysql_execute_command(THD *thd)
   */
   if (stmt_causes_implicit_commit(thd, CF_IMPLICT_COMMIT_BEGIN))
   {
+    /*
+      Note that this should never happen inside of stored functions
+      or triggers as all such statements prohibited there.
+    */
+    DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
     /* Commit the normal transaction if one is active. */
@@ -3035,7 +3059,7 @@ end_with_restore_list:
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:
   {
-    select_result *sel_result;
+    select_insert *sel_result;
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= insert_precheck(thd, all_tables)))
       break;
@@ -3066,21 +3090,26 @@ end_with_restore_list:
                                                  lex->duplicates,
                                                  lex->ignore)))
       {
-	res= handle_select(thd, lex, sel_result, OPTION_SETUP_TABLES_DONE);
-        /*
-          Invalidate the table in the query cache if something changed
-          after unlocking when changes become visible.
-          TODO: this is workaround. right way will be move invalidating in
-          the unlock procedure.
-        */
-        if (!res && first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
-            thd->lock)
+        if (lex->describe)
+          res= explain_multi_table_modification(thd, sel_result);
+        else
         {
-          /* INSERT ... SELECT should invalidate only the very first table */
-          TABLE_LIST *save_table= first_table->next_local;
-          first_table->next_local= 0;
-          query_cache_invalidate3(thd, first_table, 1);
-          first_table->next_local= save_table;
+          res= handle_select(thd, lex, sel_result, OPTION_SETUP_TABLES_DONE);
+          /*
+            Invalidate the table in the query cache if something changed
+            after unlocking when changes become visible.
+            TODO: this is workaround. right way will be move invalidating in
+            the unlock procedure.
+          */
+          if (!res && first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
+              thd->lock)
+          {
+            /* INSERT ... SELECT should invalidate only the very first table */
+            TABLE_LIST *save_table= first_table->next_local;
+            first_table->next_local= 0;
+            query_cache_invalidate3(thd, first_table, 1);
+            first_table->next_local= save_table;
+          }
         }
         delete sel_result;
       }
@@ -3144,21 +3173,26 @@ end_with_restore_list:
     if (!thd->is_fatal_error &&
         (del_result= new multi_delete(aux_tables, lex->table_count)))
     {
-      res= mysql_select(thd, &select_lex->ref_pointer_array,
-			select_lex->get_table_list(),
-			select_lex->with_wild,
-			select_lex->item_list,
-			select_lex->where,
-			0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
-			(ORDER *)NULL,
-			(select_lex->options | thd->variables.option_bits |
-			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                        OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
-			del_result, unit, select_lex);
-      res|= thd->is_error();
+      if (lex->describe)
+        res= explain_multi_table_modification(thd, del_result);
+      else
+      {
+        res= mysql_select(thd,
+                          select_lex->get_table_list(),
+                          select_lex->with_wild,
+                          select_lex->item_list,
+                          select_lex->where,
+                          0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
+                          (ORDER *)NULL,
+                          (select_lex->options | thd->variables.option_bits |
+                          SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
+                          OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
+                          del_result, unit, select_lex);
+        res|= thd->is_error();
+        if (res)
+          del_result->abort_result_set();
+      }
       MYSQL_MULTI_DELETE_DONE(res, del_result->num_deleted());
-      if (res)
-        del_result->abort_result_set();
       delete del_result;
     }
     else
@@ -4526,10 +4560,7 @@ finish:
   {
     /* report error issued during command execution */
     if (thd->killed_errno())
-    {
-      if (! thd->get_stmt_da()->is_set())
-        thd->send_kill_message();
-    }
+      thd->send_kill_message();
     if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
     {
       thd->killed= THD::NOT_KILLED;
@@ -4592,7 +4623,7 @@ finish:
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 {
   LEX	*lex= thd->lex;
-  select_result *result=lex->result;
+  select_result *result= lex->result;
   bool res;
   /* assign global limit variable if limit is not given */
   {
@@ -4614,30 +4645,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       */
       if (!(result= new select_send()))
         return 1;                               /* purecov: inspected */
-      thd->send_explain_fields(result);
-      res= mysql_explain_union(thd, &thd->lex->unit, result);
-      /*
-        The code which prints the extended description is not robust
-        against malformed queries, so skip it if we have an error.
-      */
-      if (!res && (lex->describe & DESCRIBE_EXTENDED))
-      {
-        char buff[1024];
-        String str(buff,(uint32) sizeof(buff), system_charset_info);
-        str.length(0);
-        /*
-          The warnings system requires input in utf8, @see
-          mysqld_show_warnings().
-        */
-        thd->lex->unit.print(&str, QT_TO_SYSTEM_CHARSET);
-        str.append('\0');
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                     ER_YES, str.ptr());
-      }
-      if (res)
-        result->abort_result_set();
-      else
-        result->send_eof();
+      res= explain_query_expression(thd, result);
       delete result;
     }
     else

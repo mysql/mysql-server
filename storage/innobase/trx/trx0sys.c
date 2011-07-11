@@ -413,6 +413,9 @@ start_again:
 		/* Flush the modified pages to disk and make a checkpoint */
 		log_make_checkpoint_at(LSN_MAX, TRUE);
 
+		/* Remove doublewrite pages from LRU */
+		buf_pool_invalidate();
+
 		fprintf(stderr, "InnoDB: Doublewrite buffer created\n");
 
 		trx_sys_multiple_tablespace_format = TRUE;

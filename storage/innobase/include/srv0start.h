@@ -30,6 +30,12 @@ Created 10/10/1995 Heikki Tuuri
 #include "log0log.h"
 #include "ut0byte.h"
 
+#ifdef __WIN__
+#define SRV_PATH_SEPARATOR	'\\'
+#else
+#define SRV_PATH_SEPARATOR	'/'
+#endif
+
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
 UNIV_INTERN

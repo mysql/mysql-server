@@ -216,7 +216,6 @@ trx_purge_add_update_undo_to_history(
 	trx_rseg_t*	rseg;
 	trx_rsegf_t*	rseg_header;
 	trx_ulogf_t*	undo_header;
-	trx_upagef_t*	page_header;
 
 	undo = trx->update_undo;
 	rseg = undo->rseg;
@@ -226,7 +225,6 @@ trx_purge_add_update_undo_to_history(
 		mtr);
 
 	undo_header = undo_page + undo->hdr_offset;
-	page_header = undo_page + TRX_UNDO_PAGE_HDR;
 
 	if (undo->state != TRX_UNDO_CACHED) {
 		ulint		hist_size;
@@ -559,7 +557,6 @@ trx_purge_rseg_get_next_history_log(
 	const void*	ptr;
 	page_t*		undo_page;
 	trx_ulogf_t*	log_hdr;
-	trx_usegf_t*	seg_hdr;
 	fil_addr_t	prev_log_addr;
 	trx_id_t	trx_no;
 	ibool		del_marks;
@@ -580,7 +577,6 @@ trx_purge_rseg_get_next_history_log(
 		rseg->space, rseg->zip_size, rseg->last_page_no, &mtr);
 
 	log_hdr = undo_page + rseg->last_offset;
-	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
 
 	/* Increase the purge page count by one for every handled log */
 

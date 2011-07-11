@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -581,6 +581,8 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
         {
           pfs->m_identity= identity;
           pfs->m_class= klass;
+          pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+          pfs->m_timed= klass->m_timed;
           pfs->m_wait_stat.reset();
           pfs->m_lock_stat.reset();
           pfs->m_owner= NULL;
@@ -640,6 +642,8 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
         {
           pfs->m_identity= identity;
           pfs->m_class= klass;
+          pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+          pfs->m_timed= klass->m_timed;
           pfs->m_wait_stat.reset();
           pfs->m_lock.dirty_to_allocated();
           pfs->m_read_lock_stat.reset();
@@ -702,6 +706,8 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
         {
           pfs->m_identity= identity;
           pfs->m_class= klass;
+          pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+          pfs->m_timed= klass->m_timed;
           pfs->m_cond_stat.m_signal_count= 0;
           pfs->m_cond_stat.m_broadcast_count= 0;
           pfs->m_wait_stat.reset();
@@ -1098,6 +1104,8 @@ search:
         if (pfs->m_lock.free_to_dirty())
         {
           pfs->m_class= klass;
+          pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+          pfs->m_timed= klass->m_timed;
           strncpy(pfs->m_filename, normalized_filename, normalized_length);
           pfs->m_filename[normalized_length]= '\0';
           pfs->m_filename_length= normalized_length;
@@ -1207,6 +1215,12 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
         {
           pfs->m_identity= identity;
           pfs->m_share= share;
+          pfs->m_io_enabled= share->m_enabled &&
+            flag_global_instrumentation && global_table_io_class.m_enabled;
+          pfs->m_io_timed= share->m_timed && global_table_io_class.m_timed;
+          pfs->m_lock_enabled= share->m_enabled &&
+            flag_global_instrumentation && global_table_lock_class.m_enabled;
+          pfs->m_lock_timed= share->m_timed && global_table_lock_class.m_timed;
           share->inc_refcount();
           pfs->m_table_stat.reset();
           pfs->m_opening_thread= opening_thread;
@@ -1397,12 +1411,10 @@ void aggregate_all_event_names(PFS_single_stat *from_array,
   PFS_single_stat *from;
   PFS_single_stat *from_last;
   PFS_single_stat *to;
-  PFS_single_stat *to_last;
 
   from= from_array;
   from_last= from_array + wait_class_max;
   to= to_array;
-  to_last= to_array + wait_class_max;
 
   for ( ; from < from_last ; from++, to++)
   {
@@ -1421,16 +1433,12 @@ void aggregate_all_event_names(PFS_single_stat *from_array,
   PFS_single_stat *from;
   PFS_single_stat *from_last;
   PFS_single_stat *to_1;
-  PFS_single_stat *to_1_last;
   PFS_single_stat *to_2;
-  PFS_single_stat *to_2_last;
 
   from= from_array;
   from_last= from_array + wait_class_max;
   to_1= to_array_1;
-  to_1_last= to_array_1 + wait_class_max;
   to_2= to_array_2;
-  to_2_last= to_array_2 + wait_class_max;
 
   for ( ; from < from_last ; from++, to_1++, to_2++)
   {
@@ -1449,12 +1457,10 @@ void aggregate_all_stages(PFS_stage_stat *from_array,
   PFS_stage_stat *from;
   PFS_stage_stat *from_last;
   PFS_stage_stat *to;
-  PFS_stage_stat *to_last;
 
   from= from_array;
   from_last= from_array + stage_class_max;
   to= to_array;
-  to_last= to_array + stage_class_max;
 
   for ( ; from < from_last ; from++, to++)
   {
@@ -1472,12 +1478,10 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
   PFS_statement_stat *from;
   PFS_statement_stat *from_last;
   PFS_statement_stat *to;
-  PFS_statement_stat *to_last;
 
   from= from_array;
   from_last= from_array + statement_class_max;
   to= to_array;
-  to_last= to_array + statement_class_max;
 
   for ( ; from < from_last ; from++, to++)
   {
@@ -1523,6 +1527,132 @@ void aggregate_thread_statements(PFS_thread *thread)
   */
   aggregate_all_statements(thread->m_instr_class_statements_stats,
                            global_instr_class_statements_array);
+}
+
+void update_mutex_derived_flags()
+{
+  PFS_mutex *pfs= mutex_array;
+  PFS_mutex *pfs_last= mutex_array + mutex_max;
+  PFS_mutex_class *klass;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    klass= sanitize_mutex_class(pfs->m_class);
+    if (likely(klass != NULL))
+    {
+      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+      pfs->m_timed= klass->m_timed;
+    }
+    else
+    {
+      pfs->m_enabled= false;
+      pfs->m_timed= false;
+    }
+  }
+}
+
+void update_rwlock_derived_flags()
+{
+  PFS_rwlock *pfs= rwlock_array;
+  PFS_rwlock *pfs_last= rwlock_array + rwlock_max;
+  PFS_rwlock_class *klass;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    klass= sanitize_rwlock_class(pfs->m_class);
+    if (likely(klass != NULL))
+    {
+      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+      pfs->m_timed= klass->m_timed;
+    }
+    else
+    {
+      pfs->m_enabled= false;
+      pfs->m_timed= false;
+    }
+  }
+}
+
+void update_cond_derived_flags()
+{
+  PFS_cond *pfs= cond_array;
+  PFS_cond *pfs_last= cond_array + cond_max;
+  PFS_cond_class *klass;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    klass= sanitize_cond_class(pfs->m_class);
+    if (likely(klass != NULL))
+    {
+      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+      pfs->m_timed= klass->m_timed;
+    }
+    else
+    {
+      pfs->m_enabled= false;
+      pfs->m_timed= false;
+    }
+  }
+}
+
+void update_file_derived_flags()
+{
+  PFS_file *pfs= file_array;
+  PFS_file *pfs_last= file_array + file_max;
+  PFS_file_class *klass;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    klass= sanitize_file_class(pfs->m_class);
+    if (likely(klass != NULL))
+    {
+      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+      pfs->m_timed= klass->m_timed;
+    }
+    else
+    {
+      pfs->m_enabled= false;
+      pfs->m_timed= false;
+    }
+  }
+}
+
+void update_table_derived_flags()
+{
+  PFS_table *pfs= table_array;
+  PFS_table *pfs_last= table_array + table_max;
+  PFS_table_share *share;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    share= sanitize_table_share(pfs->m_share);
+    if (likely(share != NULL))
+    {
+      pfs->m_io_enabled= share->m_enabled &&
+        flag_global_instrumentation && global_table_io_class.m_enabled;
+      pfs->m_io_timed= share->m_timed && global_table_io_class.m_timed;
+      pfs->m_lock_enabled= share->m_enabled &&
+        flag_global_instrumentation && global_table_lock_class.m_enabled;
+      pfs->m_lock_timed= share->m_timed && global_table_lock_class.m_timed;
+    }
+    else
+    {
+      pfs->m_io_enabled= false;
+      pfs->m_io_timed= false;
+      pfs->m_lock_enabled= false;
+      pfs->m_lock_timed= false;
+    }
+  }
+}
+
+void update_instruments_derived_flags()
+{
+  update_mutex_derived_flags();
+  update_rwlock_derived_flags();
+  update_cond_derived_flags();
+  update_file_derived_flags();
+  update_table_derived_flags();
+  /* nothing for stages and statements (no instances) */
 }
 
 /** @} */

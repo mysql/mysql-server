@@ -559,6 +559,26 @@ ut_copy_file(
 #ifdef __WIN__
 # include <stdarg.h>
 /**********************************************************************//**
+A substitute for vsnprintf(3), formatted output conversion into
+a limited buffer. Note: this function DOES NOT return the number of
+characters that would have been printed if the buffer was unlimited because
+VC's _vsnprintf() returns -1 in this case and we would need to call
+_vscprintf() in addition to estimate that but we would need another copy
+of "ap" for that and VC does not provide va_copy(). */
+UNIV_INTERN
+void
+ut_vsnprintf(
+/*=========*/
+	char*		str,	/*!< out: string */
+	size_t		size,	/*!< in: str size */
+	const char*	fmt,	/*!< in: format */
+	va_list		ap)	/*!< in: format values */
+{
+	_vsnprintf(str, size, fmt, ap);
+	str[size - 1] = '\0';
+}
+
+/**********************************************************************//**
 A substitute for snprintf(3), formatted output conversion into
 a limited buffer.
 @return number of characters that would have been printed if the size
@@ -654,8 +674,6 @@ ut_strerr(
 		return("Cannot add constraint");
 	case DB_CORRUPTION:
 		return("Data structure corruption");
-	case DB_COL_APPEARS_TWICE_IN_INDEX:
-		return("Column appears twice in index");
 	case DB_CANNOT_DROP_CONSTRAINT:
 		return("Cannot drop constraint");
 	case DB_NO_SAVEPOINT:
