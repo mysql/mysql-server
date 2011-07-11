@@ -4277,3 +4277,21 @@ Warnings:
 Note	1003	select `v2`.`b` AS `b` from `test`.`v2` where 0
 DROP VIEW v1,v2;
 DROP TABLE t1;
+#
+# LP bug #793386: unexpected 'Duplicate column name ''' error
+#                 at the second execution of a PS using a view 
+#
+CREATE TABLE t1 (f1 int, f2 int, f3 int, f4 int);
+CREATE VIEW v1 AS
+SELECT t.f1, t.f2, s.f3, s.f4 FROM t1 t, t1 s
+WHERE t.f4 >= s.f2 AND s.f3 < 0;
+PREPARE stmt1 FROM 
+"SELECT s.f1 AS f1, s.f2 AS f2, s.f3 AS f3, t.f4 AS f4
+    FROM v1 AS t LEFT JOIN v1 AS s ON t.f4=s.f4 WHERE t.f2 <> 1225";
+EXECUTE stmt1;
+f1	f2	f3	f4
+EXECUTE stmt1;
+f1	f2	f3	f4
+DEALLOCATE PREPARE stmt1;
+DROP VIEW v1;
+DROP TABLE t1;
