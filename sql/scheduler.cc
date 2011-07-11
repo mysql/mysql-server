@@ -60,13 +60,13 @@ static void scheduler_wait_lock_end(void) {
 
 static void scheduler_wait_sync_begin(void) {
   THD *thd=current_thd;
-  scheduler_functions *func= thd->scheduler;
+  scheduler_functions *func= thd ? thd->scheduler : thread_scheduler;
   MYSQL_CALLBACK(func, thd_wait_begin, (thd, THD_WAIT_TABLE_LOCK));
 }
 
 static void scheduler_wait_sync_end(void) {
   THD *thd=current_thd;
-  scheduler_functions *func= thd->scheduler;
+  scheduler_functions *func= thd ? thd->scheduler : thread_scheduler;
   MYSQL_CALLBACK(func, thd_wait_end, (thd));
 }
 };

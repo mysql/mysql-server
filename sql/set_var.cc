@@ -137,7 +137,6 @@ void sys_var_end()
   @param deprecated_version if not 0 - when this variable will go away
   @param substitute if not 0 - what one should use instead when this
                    deprecated variable
-  @param parse_flag either PARSE_EARLY or PARSE_NORMAL
 */
 sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  const char *comment, int flags_arg, ptrdiff_t off,
@@ -146,11 +145,10 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  PolyLock *lock, enum binlog_status_enum binlog_status_arg,
                  on_check_function on_check_func,
                  on_update_function on_update_func,
-                 uint deprecated_version, const char *substitute,
-                 int parse_flag) :
+                 uint deprecated_version, const char *substitute) :
   next(0),
   binlog_status(binlog_status_arg),
-  flags(flags_arg), m_parse_flag(parse_flag), show_val_type(show_val_type_arg),
+  flags(flags_arg), show_val_type(show_val_type_arg),
   guard(lock), offset(off), on_check(on_check_func), on_update(on_update_func),
   is_os_charset(FALSE)
 {
@@ -163,7 +161,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
     in the first (PARSE_EARLY) stage.
     See handle_options() for details.
   */
-  DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
+  DBUG_ASSERT(!(flags & PARSE_EARLY) || getopt_id <= 0 || getopt_id >= 255);
 
   name.str= name_arg;     // ER_NO_DEFAULT relies on 0-termination of name_arg
   name.length= strlen(name_arg);                // and so does this.

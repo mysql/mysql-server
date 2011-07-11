@@ -59,9 +59,7 @@ public:
   sys_var *next;
   LEX_CSTRING name;
   enum flag_enum { GLOBAL, SESSION, ONLY_SESSION, SCOPE_MASK=1023,
-                   READONLY=1024, ALLOCATED=2048 };
-  static const int PARSE_EARLY= 1;
-  static const int PARSE_NORMAL= 2;
+                   READONLY=1024, ALLOCATED=2048, PARSE_EARLY=4096 };
   /**
     Enumeration type to indicate for a system variable whether
     it will be written to the binlog or not.
@@ -74,7 +72,6 @@ protected:
   typedef bool (*on_update_function)(sys_var *self, THD *thd, enum_var_type type);
 
   int flags;            ///< or'ed flag_enum values
-  int m_parse_flag;     ///< either PARSE_EARLY or PARSE_NORMAL.
   const SHOW_TYPE show_val_type; ///< what value_ptr() returns for sql_show.cc
   my_option option;     ///< min, max, default values are stored here
   PolyLock *guard;      ///< *second* lock that protects the variable
@@ -90,7 +87,7 @@ public:
           enum get_opt_arg_type getopt_arg_type, SHOW_TYPE show_val_type_arg,
           longlong def_val, PolyLock *lock, enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
-          uint deprecated_version, const char *substitute, int parse_flag);
+          uint deprecated_version, const char *substitute);
 
   virtual ~sys_var() {}
 
@@ -133,7 +130,7 @@ public:
   }
   bool register_option(DYNAMIC_ARRAY *array, int parse_flags)
   {
-    return (option.id != -1) && (m_parse_flag & parse_flags) &&
+    return (option.id != -1) && ((flags & PARSE_EARLY) == parse_flags) &&
            insert_dynamic(array, (uchar*)&option);
   }
 

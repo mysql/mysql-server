@@ -6180,6 +6180,10 @@ struct my_option my_long_options[]=
      option if compiled with valgrind support.
    */
    IF_VALGRIND(0,1), 0, 0, 0, 0, 0},
+  {"sync_sys", 0,
+   "Enable/disable system sync calls. Should only be turned off when running "
+   "tests or debugging!!",
+   &opt_sync, &opt_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"sysdate-is-now", 0,
    "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. "
    "Since 5.0, SYSDATE() returns a `dynamic' value different for different "
@@ -7496,7 +7500,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
        opt < my_long_options + array_elements(my_long_options) - 1;
        opt++)
     insert_dynamic(&all_options, (uchar*) opt);
-  sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
+  sys_var_add_options(&all_options, 0);
   add_terminator(&all_options);
 
   /* Skip unknown options so that they may be processed later by plugins */

@@ -61,136 +61,117 @@
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
-#define PFS_TRAILING_PROPERTIES \
-  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), \
-  0, NULL, sys_var::PARSE_EARLY
-
 static Sys_var_mybool Sys_pfs_enabled(
        "performance_schema",
        "Enable the performance schema.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_enabled),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
-       PFS_TRAILING_PROPERTIES);
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_pfs_events_waits_history_long_size(
        "performance_schema_events_waits_history_long_size",
        "Number of rows in EVENTS_WAITS_HISTORY_LONG.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_events_waits_history_long_sizing),
+       PARSED_EARLY READ_ONLY
+       GLOBAL_VAR(pfs_param.m_events_waits_history_long_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
-       DEFAULT(PFS_WAITS_HISTORY_LONG_SIZE),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_WAITS_HISTORY_LONG_SIZE), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_events_waits_history_size(
        "performance_schema_events_waits_history_size",
        "Number of rows per thread in EVENTS_WAITS_HISTORY.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_events_waits_history_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_events_waits_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
-       DEFAULT(PFS_WAITS_HISTORY_SIZE),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_WAITS_HISTORY_SIZE), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_cond_classes(
        "performance_schema_max_cond_classes",
        "Maximum number of condition instruments.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_cond_class_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_cond_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT(PFS_MAX_COND_CLASS),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_COND_CLASS), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_cond_instances(
        "performance_schema_max_cond_instances",
        "Maximum number of instrumented condition objects.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_cond_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_cond_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
-       DEFAULT(PFS_MAX_COND),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_COND), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_file_classes(
        "performance_schema_max_file_classes",
        "Maximum number of file instruments.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_file_class_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_file_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT(PFS_MAX_FILE_CLASS),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_FILE_CLASS), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_file_handles(
        "performance_schema_max_file_handles",
        "Maximum number of opened instrumented files.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_file_handle_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_file_handle_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
-       DEFAULT(PFS_MAX_FILE_HANDLE),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_FILE_HANDLE), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_file_instances(
        "performance_schema_max_file_instances",
        "Maximum number of instrumented files.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_file_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_file_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
-       DEFAULT(PFS_MAX_FILE),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_FILE), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_mutex_classes(
        "performance_schema_max_mutex_classes",
        "Maximum number of mutex instruments.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_class_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT(PFS_MAX_MUTEX_CLASS),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_MUTEX_CLASS), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_mutex_instances(
        "performance_schema_max_mutex_instances",
        "Maximum number of instrumented MUTEX objects.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100*1024*1024),
-       DEFAULT(PFS_MAX_MUTEX),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_MUTEX), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_rwlock_classes(
        "performance_schema_max_rwlock_classes",
        "Maximum number of rwlock instruments.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_class_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT(PFS_MAX_RWLOCK_CLASS),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_RWLOCK_CLASS), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_rwlock_instances(
        "performance_schema_max_rwlock_instances",
        "Maximum number of instrumented RWLOCK objects.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100*1024*1024),
-       DEFAULT(PFS_MAX_RWLOCK),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_RWLOCK), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_table_handles(
        "performance_schema_max_table_handles",
        "Maximum number of opened instrumented tables.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_table_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_table_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
-       DEFAULT(PFS_MAX_TABLE),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_TABLE), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_table_instances(
        "performance_schema_max_table_instances",
        "Maximum number of instrumented tables.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_table_share_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_table_share_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
-       DEFAULT(PFS_MAX_TABLE_SHARE),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_TABLE_SHARE), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_thread_classes(
        "performance_schema_max_thread_classes",
        "Maximum number of thread instruments.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_thread_class_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_thread_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT(PFS_MAX_THREAD_CLASS),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_THREAD_CLASS), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pfs_max_thread_instances(
        "performance_schema_max_thread_instances",
        "Maximum number of instrumented threads.",
-       READ_ONLY GLOBAL_VAR(pfs_param.m_thread_sizing),
+       PARSED_EARLY READ_ONLY GLOBAL_VAR(pfs_param.m_thread_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
-       DEFAULT(PFS_MAX_THREAD),
-       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+       DEFAULT(PFS_MAX_THREAD), BLOCK_SIZE(1));
 
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
@@ -1029,8 +1010,7 @@ static bool session_readonly(sys_var *self, THD *thd, set_var *var)
   return true;
 }
 
-static bool
-check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
+static bool check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
 {
   longlong val;
   if (session_readonly(self, thd, var))
@@ -1285,8 +1265,7 @@ static Sys_var_mybool Sys_named_pipe(
 #endif
 
 
-static bool 
-check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
+static bool check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
 {
   longlong val;
   if (session_readonly(self, thd, var))
@@ -1894,7 +1873,7 @@ static Sys_var_enum Slave_exec_mode(
        "between the master and the slave",
        GLOBAL_VAR(slave_exec_mode_options), CMD_LINE(REQUIRED_ARG),
        slave_exec_mode_names, DEFAULT(SLAVE_EXEC_MODE_STRICT));
-const char *slave_type_conversions_name[]= {"ALL_LOSSY", "ALL_NON_LOSSY", 0};
+static const char *slave_type_conversions_name[]= {"ALL_LOSSY", "ALL_NON_LOSSY", 0};
 static Sys_var_set Slave_type_conversions(
        "slave_type_conversions",
        "Set of slave type conversions that are enabled. Legal values are:"
@@ -2127,32 +2106,6 @@ static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
   }
   return FALSE;
 }
-
-
-bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
-{
-  if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
-    return TRUE;
-  if (var->type == OPT_DEFAULT || !thd->in_active_multi_stmt_transaction())
-  {
-    /*
-      Update the isolation level of the next transaction.
-      I.e. if one did:
-      COMMIT;
-      SET SESSION ISOLATION LEVEL ...
-      BEGIN; <-- this transaction has the new isolation
-      Note, that in case of:
-      COMMIT;
-      SET TRANSACTION ISOLATION LEVEL ...
-      SET SESSION ISOLATION LEVEL ...
-      BEGIN; <-- the session isolation level is used, not the
-      result of SET TRANSACTION statement.
-     */
-    thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
-  }
-  return FALSE;
-}
-
 
 // NO_CMD_LINE - different name of the option
 static Sys_var_tx_isolation Sys_tx_isolation(
@@ -3323,11 +3276,6 @@ static Sys_var_ulong Sys_mrr_buffer_size(
        "Size of buffer to use when using MRR with range access",
        SESSION_VAR(mrr_buff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE*2, INT_MAX32), DEFAULT(256*1024), BLOCK_SIZE(1));
-
-/*  {"sync_sys", OPT_SYNC,
-   "Enable/disable system sync calls. Should only be turned off when running "
-   "tests or debugging!!",
-   &opt_sync, &opt_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},*/
 
 static Sys_var_ulong Sys_rowid_merge_buff_size(
        "rowid_merge_buff_size",

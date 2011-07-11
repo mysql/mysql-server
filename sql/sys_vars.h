@@ -53,6 +53,7 @@
 #define READ_ONLY sys_var::READONLY+
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED+
+#define PARSED_EARLY sys_var::PARSE_EARLY+
 /*
   Sys_var_bit meaning is reversed, like in
   @@foreign_key_checks <-> OPTION_NO_FOREIGN_KEY_CHECKS
@@ -109,12 +110,10 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          uint deprecated_version=0, const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOWT, def_val, lock, binlog_status_arg,
-              on_check_func, on_update_func, deprecated_version,
-              substitute, parse_flag)
+              on_check_func, on_update_func, deprecated_version, substitute)
   {
     option.var_type= ARGT;
     option.min_value= min_val;
@@ -197,11 +196,11 @@ public:
           ulonglong def_val, PolyLock *lock,
           enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
-          uint deprecated_version, const char *substitute, int parse_flag= PARSE_NORMAL)
+          uint deprecated_version, const char *substitute)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, show_val_type_arg, def_val, lock,
               binlog_status_arg, on_check_func,
-              on_update_func, deprecated_version, substitute, parse_flag)
+              on_update_func, deprecated_version, substitute)
   {
     for (typelib.count= 0; values[typelib.count]; typelib.count++) /*no-op */;
     typelib.name="";
@@ -311,12 +310,11 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          uint deprecated_version=0, const char *substitute=0)
     : Sys_var_typelib(name_arg, comment, flag_args, off, getopt,
                       SHOW_MY_BOOL, bool_values, def_val, lock,
                       binlog_status_arg, on_check_func, on_update_func,
-                      deprecated_version, substitute, parse_flag)
+                      deprecated_version, substitute)
   {
     option.var_type= GET_BOOL;
     global_var(my_bool)= def_val;
@@ -367,12 +365,11 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          uint deprecated_version=0, const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR_PTR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute, parse_flag)
+              deprecated_version, substitute)
   {
     is_os_charset= is_os_charset_arg == IN_FS_CHARSET;
     /*
@@ -461,7 +458,7 @@ public:
     : sys_var(&all_sys_vars, name_arg, comment,
               sys_var::READONLY+sys_var::ONLY_SESSION, 0, -1,
               NO_ARG, SHOW_CHAR, 0, NULL, VARIABLE_NOT_IN_BINLOG,
-              NULL, NULL, 0, NULL, PARSE_NORMAL)
+              NULL, NULL, 0, NULL)
   {
     is_os_charset= is_os_charset_arg == IN_FS_CHARSET;
     option.var_type= GET_STR;
@@ -574,12 +571,11 @@ public:
                enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
                on_check_function on_check_func=0,
                on_update_function on_update_func=0,
-               uint deprecated_version=0, const char *substitute=0,
-               int parse_flag= PARSE_NORMAL)
+               uint deprecated_version=0, const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, 0, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute, parse_flag)
+              deprecated_version, substitute)
   { option.var_type= GET_NO_ARG; }
   bool do_check(THD *thd, set_var *var)
   {
@@ -819,12 +815,11 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          uint deprecated_version=0, const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_DOUBLE, (longlong) double2ulonglong(def_val),
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute, parse_flag)
+              deprecated_version, substitute)
   {
     option.var_type= GET_DOUBLE;
     option.min_value= (longlong) double2ulonglong(min_val);
@@ -1142,12 +1137,11 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          uint deprecated_version=0, const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute, parse_flag),
+              deprecated_version, substitute),
     plugin_type(plugin_type_arg)
   {
     option.var_type= GET_STR;
@@ -1256,12 +1250,11 @@ public:
                enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
                on_check_function on_check_func=0,
                on_update_function on_update_func=0,
-               uint deprecated_version=0, const char *substitute=0,
-               int parse_flag= PARSE_NORMAL)
+               uint deprecated_version=0, const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, 0, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute, parse_flag)
+              deprecated_version, substitute)
   {
     DBUG_ASSERT(scope() == ONLY_SESSION);
     option.var_type= GET_NO_ARG;
@@ -1475,12 +1468,11 @@ public:
                enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
                on_check_function on_check_func=0,
                on_update_function on_update_func=0,
-               uint deprecated_version=0, const char *substitute=0,
-               int parse_flag= PARSE_NORMAL)
+               uint deprecated_version=0, const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, 0,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute, parse_flag)
+              deprecated_version, substitute)
   {
     DBUG_ASSERT(scope() == GLOBAL);
     DBUG_ASSERT(getopt.id == -1);
@@ -1544,12 +1536,11 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          uint deprecated_version=0, const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          uint deprecated_version=0, const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute, parse_flag),
+              deprecated_version, substitute),
       name_offset(name_off)
   {
     option.var_type= GET_STR;
@@ -1617,12 +1608,11 @@ public:
              enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
              on_check_function on_check_func=0,
              on_update_function on_update_func=0,
-             uint deprecated_version=0, const char *substitute=0,
-             int parse_flag= PARSE_NORMAL)
+             uint deprecated_version=0, const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              deprecated_version, substitute, parse_flag)
+              deprecated_version, substitute)
   {
     DBUG_ASSERT(getopt.id == -1);
     DBUG_ASSERT(size == sizeof(Time_zone *));
@@ -1684,7 +1674,16 @@ public:
   { return type != STRING_RESULT; }
 };
 
+/**
+  Special implementation for transaction isolation, that
+  distingushes between
 
+  SET GLOBAL TRANSACTION ISOLATION (stored in global_system_variables)
+  SET SESSION TRANSACTION ISOLATION (stored in thd->variables)
+  SET TRANSACTION ISOLATION (stored in thd->tx_isolation)
+
+  where the last statement sets isolation level for the next transaction only
+*/
 class Sys_var_tx_isolation: public Sys_var_enum
 {
 public:
@@ -1697,7 +1696,14 @@ public:
     :Sys_var_enum(name_arg, comment, flag_args, off, size, getopt,
                   values, def_val, lock, binlog_status_arg, on_check_func)
   {}
-  virtual bool session_update(THD *thd, set_var *var);
+  bool session_update(THD *thd, set_var *var)
+  {
+    if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
+      return TRUE;
+    if (var->type == OPT_DEFAULT || !thd->in_active_multi_stmt_transaction())
+      thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
+    return FALSE;
+  }
 };
 
 /****************************************************************************
