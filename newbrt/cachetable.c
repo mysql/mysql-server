@@ -2438,7 +2438,9 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             }
         }
         rwlock_write_unlock(&ct->pending_lock);
-        if (0) fprintf(stderr, "%s:%d %u %u\n", __FUNCTION__, __LINE__, npending, ct->n_in_table);
+        if (0 && (npending > 0 || ct->checkpoint_num_files > 0 || ct->checkpoint_num_txns > 0)) {
+            fprintf(stderr, "%s:%d pending=%u %u files=%u txns=%u\n", __FUNCTION__, __LINE__, npending, ct->n_in_table, ct->checkpoint_num_files, ct->checkpoint_num_txns);
+        }
 
         //begin_checkpoint_userdata must be called AFTER all the pairs are marked as pending.
         //Once marked as pending, we own write locks on the pairs, which means the writer threads can't conflict.
