@@ -24,6 +24,7 @@
 #include "sql_trigger.h"
 #include "item.h"               /* From item_subselect.h: subselect_union_engine */
 #include "thr_lock.h"                  /* thr_lock_type, TL_UNLOCK */
+#include "sql_array.h"
 #include "mem_root_array.h"
 
 /* YACC and LEX Definitions */
@@ -604,6 +605,7 @@ public:
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
+typedef Bounds_checked_array<Item*> Ref_ptr_array;
 
 /*
   SELECT_LEX - store information of parsed SELECT statment
@@ -666,8 +668,9 @@ public:
   SQL_I_List<ORDER> order_list;   /* ORDER clause */
   SQL_I_List<ORDER> *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
-  // Arrays of pointers to top elements of all_fields list
-  Item **ref_pointer_array;
+
+  /// Array of pointers to top elements of all_fields list
+  Ref_ptr_array ref_pointer_array;
 
   /*
     number of items in select_list and HAVING clause used to get number
@@ -677,7 +680,7 @@ public:
   uint select_n_having_items;
   uint cond_count;    /* number of arguments of and/or/xor in where/having/on */
   uint between_count; /* number of between predicates in where/having/on      */
-  uint max_equal_elems; /* maximal number of elements in multiple equalities  */   
+  uint max_equal_elems; /* maximal number of elements in multiple equalities  */
   /*
     Number of fields used in select list or where clause of current select
     and all inner subselects.
@@ -751,16 +754,7 @@ public:
     joins on the right.
   */
   List<String> *prev_join_using;
-  /*
-    Bitmap used in the ONLY_FULL_GROUP_BY_MODE to prevent mixture of aggregate
-    functions and non aggregated fields when GROUP BY list is absent.
-    Bits:
-      0 - non aggregated fields are used in this select,
-          defined as NON_AGG_FIELD_USED.
-      1 - aggregate functions are used in this select,
-          defined as SUM_FUNC_USED.
-  */
-  uint8 full_group_by_flag;
+
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();
@@ -875,7 +869,23 @@ public:
 
   void clear_index_hints(void) { index_hints= NULL; }
   bool is_part_of_union() { return master_unit()->is_union(); }
-private:  
+
+  /*
+    For MODE_ONLY_FULL_GROUP_BY we need to maintain two flags:
+     - Non-aggregated fields are used in this select.
+     - Aggregate functions are used in this select.
+    In MODE_ONLY_FULL_GROUP_BY only one of these may be true.
+  */
+  bool non_agg_field_used() const { return m_non_agg_field_used; }
+  bool agg_func_used()      const { return m_agg_func_used; }
+
+  void set_non_agg_field_used(bool val) { m_non_agg_field_used= val; }
+  void set_agg_func_used(bool val)      { m_agg_func_used= val; }
+
+private:
+  bool m_non_agg_field_used;
+  bool m_agg_func_used;
+
   /* current index hint kind. used in filling up index_hints */
   enum index_hint_type current_index_hint_type;
   index_clause_map current_index_hint_clause;

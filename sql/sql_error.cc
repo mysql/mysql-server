@@ -1,4 +1,4 @@
-/* Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -499,9 +499,9 @@ Warning_info::~Warning_info()
 void Warning_info::clear_warning_info(ulonglong warn_id_arg)
 {
   m_warn_id= warn_id_arg;
+  m_warn_list.empty();
   free_root(&m_warn_root, MYF(0));
   memset(m_warn_count, 0, sizeof(m_warn_count));
-  m_warn_list.empty();
   m_statement_warn_count= 0;
   m_current_row_for_warning= 1; /* Start counting from the first row */
 }
@@ -510,7 +510,7 @@ void Warning_info::clear_warning_info(ulonglong warn_id_arg)
   Append warnings only if the original contents of the routine
   warning info was replaced.
 */
-void Warning_info::merge_with_routine_info(THD *thd, Warning_info *source)
+void Warning_info::merge_with_routine_info(THD *thd, const Warning_info *source)
 {
   /*
     If a routine body is empty or if a routine did not
@@ -559,13 +559,13 @@ MYSQL_ERROR *Warning_info::push_warning(THD *thd,
   if (! m_read_only)
   {
     if (m_allow_unlimited_warnings ||
-        m_warn_list.elements < thd->variables.max_error_count)
+        m_warn_list.elements() < thd->variables.max_error_count)
     {
       cond= new (& m_warn_root) MYSQL_ERROR(& m_warn_root);
       if (cond)
       {
         cond->set(sql_errno, sqlstate, level, msg);
-        m_warn_list.push_back(cond, &m_warn_root);
+        m_warn_list.push_back(cond);
       }
     }
     m_warn_count[(uint) level]++;
@@ -692,7 +692,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
                                  Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  MYSQL_ERROR *err;
+  const MYSQL_ERROR *err;
   SELECT_LEX *sel= &thd->lex->select_lex;
   SELECT_LEX_UNIT *unit= &thd->lex->unit;
   ulonglong idx= 0;
@@ -700,7 +700,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 
   unit->set_limit(sel);
 
-  List_iterator_fast<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
+  Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
   while ((err= it++))
   {
     /* Skip levels that the user is not interested in */

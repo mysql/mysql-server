@@ -227,6 +227,7 @@ SET(INNOBASE_SOURCES
 	btr/btr0sea.c
 	buf/buf0buddy.c
 	buf/buf0buf.c
+	buf/buf0dump.c
 	buf/buf0flu.c
 	buf/buf0lru.c
 	buf/buf0rea.c

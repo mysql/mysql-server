@@ -2732,7 +2732,7 @@ Item_func_if::fix_length_and_dec()
   bool null1=args[1]->const_item() && args[1]->null_value;
   bool null2=args[2]->const_item() && args[2]->null_value;
 
-  if (null1)
+  if (null1 && args[2]->type() != NULL_ITEM)
   {
     cached_result_type= arg2_type;
     collation.set(args[2]->collation);
@@ -2741,7 +2741,7 @@ Item_func_if::fix_length_and_dec()
     return;
   }
 
-  if (null2)
+  if (null2 && args[1]->type() != NULL_ITEM)
   {
     cached_result_type= arg1_type;
     collation.set(args[1]->collation);
@@ -3102,11 +3102,35 @@ void Item_func_case::agg_num_lengths(Item *arg)
 }
 
 
+/**
+  Check if (*place) and new_value points to different Items and call
+  THD::change_item_tree() if needed.
+
+  This function is a workaround for implementation deficiency in
+  Item_func_case. The problem there is that the 'args' attribute contains
+  Items from different expressions.
+ 
+  The function must not be used elsewhere and will be remove eventually.
+*/
+
+static void change_item_tree_if_needed(THD *thd,
+                                       Item **place,
+                                       Item *new_value)
+{
+  if (*place == new_value)
+    return;
+
+  thd->change_item_tree(place, new_value);
+}
+
+
 void Item_func_case::fix_length_and_dec()
 {
   Item **agg;
   uint nagg;
   uint found_types= 0;
+  THD *thd= current_thd;
+
   if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
     return;
   
@@ -3131,9 +3155,10 @@ void Item_func_case::fix_length_and_dec()
       Some of the items might have been changed to Item_func_conv_charset.
     */
     for (nagg= 0 ; nagg < ncases / 2 ; nagg++)
-      args[nagg * 2 + 1]= agg[nagg];
+      change_item_tree_if_needed(thd, &args[nagg * 2 + 1], agg[nagg]);
+
     if (else_expr_num != -1)
-      args[else_expr_num]= agg[nagg++];
+      change_item_tree_if_needed(thd, &args[else_expr_num], agg[nagg++]);
   }
   else
     collation.set_numeric();
@@ -3193,9 +3218,10 @@ void Item_func_case::fix_length_and_dec()
         arrray, because some of the items might have been changed to converters
         (e.g. Item_func_conv_charset, or Item_string for constants).
       */
-      args[first_expr_num]= agg[0];
+      change_item_tree_if_needed(thd, &args[first_expr_num], agg[0]);
+
       for (nagg= 0; nagg < ncases / 2; nagg++)
-        args[nagg * 2]= agg[nagg + 1];
+        change_item_tree_if_needed(thd, &args[nagg * 2], agg[nagg + 1]);
     }
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
@@ -4591,7 +4617,7 @@ void Item_cond::traverse_cond(Cond_traverser traverser,
     that have or refer (HAVING) to a SUM expression.
 */
 
-void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
+void Item_cond::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                                List<Item> &fields)
 {
   List_iterator<Item> li(list);

@@ -324,7 +324,7 @@ trx_list_get_min_trx_id_low(void)
 /*=============================*/
 {
 	trx_id_t	id;
-	trx_t*		trx;
+	const trx_t*	trx;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
@@ -337,6 +337,28 @@ trx_list_get_min_trx_id_low(void)
 
 	return(id);
 }
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/***********************************************************//**
+Assert that a transaction has been recovered.
+@return TRUE */
+UNIV_INLINE
+ibool
+trx_assert_recovered(
+/*=================*/
+	trx_id_t	trx_id)		/*!< in: transaction identifier */
+{
+	const trx_t*	trx;
+
+	rw_lock_s_lock(&trx_sys->lock);
+	trx = trx_get_on_id(trx_id);
+	ut_a(trx);
+	ut_a(trx->is_recovered);
+	rw_lock_s_unlock(&trx_sys->lock);
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 /****************************************************************//**
 Returns the minimum trx id in trx list. This is the smallest id for which

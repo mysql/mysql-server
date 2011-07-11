@@ -82,6 +82,8 @@ UNIV_INTERN ulint	srv_dml_needed_delay = 0;
 UNIV_INTERN ibool	srv_monitor_active = FALSE;
 UNIV_INTERN ibool	srv_error_monitor_active = FALSE;
 
+UNIV_INTERN ibool	srv_buf_dump_thread_active = FALSE;
+
 UNIV_INTERN const char*	srv_main_thread_op_info = "";
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
@@ -584,6 +586,17 @@ UNIV_INTERN os_event_t	srv_monitor_event;
 /** Event to signal the error thread */
 UNIV_INTERN os_event_t	srv_error_event;
 
+/** Event to signal the buffer pool dump/load thread */
+UNIV_INTERN os_event_t	srv_buf_dump_event;
+
+/** The buffer pool dump/load file name */
+UNIV_INTERN char*	srv_buf_dump_filename;
+
+/** Boolean config knobs that tell InnoDB to dump the buffer pool at shutdown
+and/or load it during startup. */
+UNIV_INTERN char	srv_buffer_pool_dump_at_shutdown = FALSE;
+UNIV_INTERN char	srv_buffer_pool_load_at_startup = FALSE;
+
 /***********************************************************************
 Prints counters for work done by srv_master_thread. */
 static
@@ -901,6 +914,8 @@ srv_init(void)
 
 	srv_monitor_event = os_event_create(NULL);
 
+	srv_buf_dump_event = os_event_create("buf_dump_event");
+
 	UT_LIST_INIT(srv_sys->tasks);
 
 	/* Create dummy indexes for infimum and supremum records */
@@ -928,6 +943,9 @@ srv_free(void)
 	srv_sys = NULL;
 
 	trx_i_s_cache_free(trx_i_s_cache);
+
+	os_event_free(srv_buf_dump_event);
+	srv_buf_dump_event = NULL;
 }
 
 /*********************************************************************//**
@@ -1666,11 +1684,14 @@ srv_any_background_threads_are_active(void)
 		thread_active = "srv_lock_timeout thread";
 	} else if (srv_monitor_active) {
 		thread_active = "srv_monitor_thread";
+	} else if (srv_buf_dump_thread_active) {
+		thread_active = "buf_dump_thread";
 	}
 
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);
 	os_event_set(srv_timeout_event);
+	os_event_set(srv_buf_dump_event);
 
 	return(thread_active);
 }

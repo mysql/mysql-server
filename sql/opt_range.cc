@@ -321,7 +321,9 @@ public:
   uchar *min_value,*max_value;			// Pointer to range
 
   /*
-    eq_tree() requires that left == right == 0 if the type is MAYBE_KEY.
+    eq_tree(), first(), last() etc require that left == right == NULL
+    if the type is MAYBE_KEY. Todo: fix this so SEL_ARGs without R-B
+    children are handled consistently. See related WL#5894.
    */
   SEL_ARG *left,*right;   /* R-B tree children */
   SEL_ARG *next,*prev;    /* Links for bi-directional interval list */
@@ -337,10 +339,17 @@ public:
   SEL_ARG(Field *,const uchar *, const uchar *);
   SEL_ARG(Field *field, uint8 part, uchar *min_value, uchar *max_value,
 	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag);
+  /*
+    Used to construct MAYBE_KEY and IMPOSSIBLE SEL_ARGs. left and
+    right is NULL, so this ctor must not be used to create other
+    SEL_ARG types. See todo for left/right pointers.
+  */
   SEL_ARG(enum Type type_arg)
-    :min_flag(0),elements(1),use_count(1),left(0),right(0),next_key_part(0),
-    color(BLACK), type(type_arg)
-  {}
+    :min_flag(0),elements(1),use_count(1),left(NULL),right(NULL),
+     next_key_part(0), color(BLACK), type(type_arg)
+  {
+    DBUG_ASSERT(type_arg == MAYBE_KEY || type_arg == IMPOSSIBLE);
+  }
   inline bool is_same(SEL_ARG *arg)
   {
     if (type != arg->type || part != arg->part)
@@ -1724,6 +1733,9 @@ QUICK_RANGE::QUICK_RANGE()
 
 SEL_ARG::SEL_ARG(SEL_ARG &arg) :Sql_alloc()
 {
+  DBUG_ASSERT(arg.type != MAYBE_KEY);  // Would need left=right=NULL
+  left=right= &null_element;
+  prev=next= NULL;
   type=arg.type;
   min_flag=arg.min_flag;
   max_flag=arg.max_flag;
@@ -1742,7 +1754,7 @@ inline void SEL_ARG::make_root()
 {
   left=right= &null_element;
   color=BLACK;
-  next=prev=0;
+  next=prev= NULL;
   use_count=0; elements=1;
 }
 
@@ -1750,8 +1762,8 @@ SEL_ARG::SEL_ARG(Field *f,const uchar *min_value_arg,
                  const uchar *max_value_arg)
   :min_flag(0), max_flag(0), maybe_flag(0), maybe_null(f->real_maybe_null()),
    elements(1), use_count(1), field(f), min_value((uchar*) min_value_arg),
-   max_value((uchar*) max_value_arg), next(0),prev(0),
-   next_key_part(0),color(BLACK),type(KEY_RANGE)
+   max_value((uchar*) max_value_arg), next(NULL), prev(NULL),
+   next_key_part(0), color(BLACK), type(KEY_RANGE)
 {
   left=right= &null_element;
 }
@@ -1762,7 +1774,7 @@ SEL_ARG::SEL_ARG(Field *field_,uint8 part_,
   :min_flag(min_flag_),max_flag(max_flag_),maybe_flag(maybe_flag_),
    part(part_),maybe_null(field_->real_maybe_null()), elements(1),use_count(1),
    field(field_), min_value(min_value_), max_value(max_value_),
-   next(0),prev(0),next_key_part(0),color(BLACK),type(KEY_RANGE)
+   next(NULL), prev(NULL), next_key_part(0), color(BLACK), type(KEY_RANGE)
 {
   left=right= &null_element;
 }
@@ -6466,7 +6478,9 @@ and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
   }
   if (key1->type == SEL_ARG::MAYBE_KEY)
   {
-    key1->right= key1->left= &null_element;
+    // See todo for left/right pointers
+    DBUG_ASSERT(!key1->left);
+    DBUG_ASSERT(!key1->right);
     key1->next= key1->prev= 0;
   }
   for (next=key1->first(); next ; next=next->next)
@@ -8020,7 +8034,6 @@ walk_up_n_right:
   RANGE_SEQ_ENTRY *cur= &seq->stack[seq->i];
   uint min_key_length= cur->min_key - seq->param->min_key;
   
-  range->ptr= (char*)(int)(key_tree->part);
   if (cur->min_key_flag & GEOM_FLAG)
   {
     range->range_flag= cur->min_key_flag;
@@ -11299,6 +11312,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   int result;
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
+  seen_first_key= false;
   head->set_keyread(TRUE); /* We need only the key attributes */
   /*
     Request ordered index access as usage of ::index_last(), 

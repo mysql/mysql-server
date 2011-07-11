@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ static void print_cached_tables(void)
   {
     share= (TABLE_SHARE*) my_hash_element(&table_def_cache, idx);
 
-    I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
+    TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
     while ((entry= it++))
     {
       printf("%-14.14s %-32s%6ld%8ld%6d  %s\n",

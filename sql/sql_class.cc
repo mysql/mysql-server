@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,9 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
 
 /*****************************************************************************
 **
@@ -331,11 +334,10 @@ THD *thd_get_current_thd()
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
 #ifdef HAVE_PSI_INTERFACE
-  if (PSI_server)
-    thd_set_psi(thd,
-                PSI_server->new_thread(key_thread_one_connection,
-                                       thd,
-                                       thd_get_thread_id((MYSQL_THD)thd)));
+  thd_set_psi(thd,
+              PSI_CALL(new_thread)(key_thread_one_connection,
+                                   thd,
+                                   thd->thread_id));
 #endif
   thd->set_time();
   thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
@@ -507,8 +509,7 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
 #endif
   thd->proc_info= info;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (likely(PSI_server != NULL))
-    PSI_server->set_thread_state(info);
+  PSI_CALL(set_thread_state)(info);
 #endif
   return old_info;
 }
@@ -3801,8 +3802,7 @@ void THD::inc_status_created_tmp_disk_tables()
 {
   status_var_increment(status_var.created_tmp_disk_tables);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_created_tmp_disk_tables(m_statement_psi, 1);
+  PSI_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
 #endif
 }
 
@@ -3810,8 +3810,7 @@ void THD::inc_status_created_tmp_tables()
 {
   status_var_increment(status_var.created_tmp_tables);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_created_tmp_tables(m_statement_psi, 1);
+  PSI_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif
 }
 
@@ -3819,8 +3818,7 @@ void THD::inc_status_select_full_join()
 {
   status_var_increment(status_var.select_full_join_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_select_full_join(m_statement_psi, 1);
+  PSI_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
 #endif
 }
 
@@ -3828,8 +3826,7 @@ void THD::inc_status_select_full_range_join()
 {
   status_var_increment(status_var.select_full_range_join_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_select_full_range_join(m_statement_psi, 1);
+  PSI_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
 #endif
 }
 
@@ -3837,8 +3834,7 @@ void THD::inc_status_select_range()
 {
   status_var_increment(status_var.select_range_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_select_range(m_statement_psi, 1);
+  PSI_CALL(inc_statement_select_range)(m_statement_psi, 1);
 #endif
 }
 
@@ -3846,8 +3842,7 @@ void THD::inc_status_select_range_check()
 {
   status_var_increment(status_var.select_range_check_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_select_range_check(m_statement_psi, 1);
+  PSI_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
 #endif
 }
 
@@ -3855,8 +3850,7 @@ void THD::inc_status_select_scan()
 {
   status_var_increment(status_var.select_scan_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_select_scan(m_statement_psi, 1);
+  PSI_CALL(inc_statement_select_scan)(m_statement_psi, 1);
 #endif
 }
 
@@ -3864,8 +3858,7 @@ void THD::inc_status_sort_merge_passes()
 {
   status_var_increment(status_var.filesort_merge_passes);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_sort_merge_passes(m_statement_psi, 1);
+  PSI_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
 #endif
 }
 
@@ -3873,8 +3866,7 @@ void THD::inc_status_sort_range()
 {
   status_var_increment(status_var.filesort_range_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_sort_range(m_statement_psi, 1);
+  PSI_CALL(inc_statement_sort_range)(m_statement_psi, 1);
 #endif
 }
 
@@ -3882,8 +3874,7 @@ void THD::inc_status_sort_rows(ha_rows count)
 {
   statistic_add(status_var.filesort_rows, count, &LOCK_status);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_sort_rows(m_statement_psi, count);
+  PSI_CALL(inc_statement_sort_rows)(m_statement_psi, count);
 #endif
 }
 
@@ -3891,8 +3882,7 @@ void THD::inc_status_sort_scan()
 {
   status_var_increment(status_var.filesort_scan_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_sort_scan(m_statement_psi, 1);
+  PSI_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
 #endif
 }
 
@@ -3900,8 +3890,7 @@ void THD::set_status_no_index_used()
 {
   server_status|= SERVER_QUERY_NO_INDEX_USED;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->set_statement_no_index_used(m_statement_psi);
+  PSI_CALL(set_statement_no_index_used)(m_statement_psi);
 #endif
 }
 
@@ -3909,8 +3898,7 @@ void THD::set_status_no_good_index_used()
 {
   server_status|= SERVER_QUERY_NO_GOOD_INDEX_USED;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->set_statement_no_good_index_used(m_statement_psi);
+  PSI_CALL(set_statement_no_good_index_used)(m_statement_psi);
 #endif
 }
 
@@ -3918,8 +3906,7 @@ void THD::set_command(enum enum_server_command command)
 {
   m_command= command;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (likely(PSI_server != NULL))
-    PSI_server->set_thread_command(m_command);
+  PSI_CALL(set_thread_command)(m_command);
 #endif
 }
 
@@ -3933,8 +3920,7 @@ void THD::set_query(const CSET_STRING &string_arg)
   mysql_mutex_unlock(&LOCK_thd_data);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (likely(PSI_server != NULL))
-    PSI_server->set_thread_info(query(), query_length());
+  PSI_CALL(set_thread_info)(query(), query_length());
 #endif
 }
 
@@ -3974,16 +3960,24 @@ void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
 
 void THD::leave_locked_tables_mode()
 {
+  if (locked_tables_mode == LTM_LOCK_TABLES)
+  {
+    /*
+      When leaving LOCK TABLES mode we have to change the duration of most
+      of the metadata locks being held, except for HANDLER and GRL locks,
+      to transactional for them to be properly released at UNLOCK TABLES.
+    */
+    mdl_context.set_transaction_duration_for_all_locks();
+    /*
+      Make sure we don't release the global read lock and commit blocker
+      when leaving LTM.
+    */
+    global_read_lock.set_explicit_lock_duration(this);
+    /* Also ensure that we don't release metadata locks for open HANDLERs. */
+    if (handler_tables_hash.records)
+      mysql_ha_set_explicit_lock_duration(this);
+  }
   locked_tables_mode= LTM_NONE;
-  mdl_context.set_transaction_duration_for_all_locks();
-  /*
-    Make sure we don't release the global read lock and commit blocker
-    when leaving LTM.
-  */
-  global_read_lock.set_explicit_lock_duration(this);
-  /* Also ensure that we don't release metadata locks for open HANDLERs. */
-  if (handler_tables_hash.records)
-    mysql_ha_set_explicit_lock_duration(this);
 }
 
 void THD::get_definer(LEX_USER *definer)
