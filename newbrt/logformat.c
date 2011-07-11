@@ -129,6 +129,7 @@ const struct logtype logtypes[] = {
 			{"u_int32_t",  "mode",  "0%o"},
                         {"u_int32_t",  "treeflags", 0},
                         {"u_int32_t", "nodesize", 0},
+                        {"u_int32_t", "basementnodesize", 0},
 			NULLFIELD}},
     //TODO: #2037 Add dname
     {"fopen",   'O', FA{{"BYTESTRING", "iname", 0},

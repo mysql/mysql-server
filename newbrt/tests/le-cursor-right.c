@@ -49,7 +49,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     assert(error == 0);
 
     BRT brt = NULL;
-    error = toku_open_brt(fname, 1, &brt, 1<<12, ct, txn, test_keycompare, null_db);
+    error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, txn, test_keycompare, null_db);
     assert(error == 0);
 
     error = toku_txn_commit_txn(txn, TRUE, txn_yield, NULL, NULL, NULL);
@@ -101,7 +101,7 @@ test_neg_infinity(const char *fname, int n) {
     assert(error == 0);
 
     BRT brt = NULL;
-    error = toku_open_brt(fname, 1, &brt, 1<<12, ct, null_txn, test_keycompare, null_db);
+    error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_keycompare, null_db);
     assert(error == 0);
 
     // position the cursor at -infinity
@@ -138,7 +138,7 @@ test_pos_infinity(const char *fname, int n) {
     assert(error == 0);
 
     BRT brt = NULL;
-    error = toku_open_brt(fname, 1, &brt, 1<<12, ct, null_txn, test_keycompare, null_db);
+    error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_keycompare, null_db);
     assert(error == 0);
 
     // position the LE_CURSOR at +infinity
@@ -199,7 +199,7 @@ test_between(const char *fname, int n) {
     assert(error == 0);
 
     BRT brt = NULL;
-    error = toku_open_brt(fname, 1, &brt, 1<<12, ct, null_txn, test_keycompare, null_db);
+    error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_keycompare, null_db);
     assert(error == 0);
 
     // position the LE_CURSOR at +infinity

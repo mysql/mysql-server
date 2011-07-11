@@ -221,7 +221,7 @@ static void recover_env_cleanup (RECOVER_ENV renv, BOOL recovery_succeeded) {
     assert(r==0);
     r = toku_logger_close(&renv->logger);
     assert(r == 0);
-    
+
     r = toku_cachetable_close(&renv->ct);
     assert(r == 0);
 
@@ -240,8 +240,8 @@ static void recover_yield(voidfp f, void *fpthunk, void *UU(yieldthunk)) {
 }
 
 // Open the file if it is not already open.  If it is already open, then do nothing.
-static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create, int mode, BYTESTRING *bs_iname, FILENUM filenum, u_int32_t treeflags, 
-                                               TOKUTXN txn, uint32_t nodesize, LSN max_acceptable_lsn) {
+static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create, int mode, BYTESTRING *bs_iname, FILENUM filenum, u_int32_t treeflags,
+                                              TOKUTXN txn, uint32_t nodesize, uint32_t basementnodesize, LSN max_acceptable_lsn) {
     int r;
     char *iname = fixup_fname(bs_iname);
 
@@ -254,6 +254,11 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
 
     if (nodesize != 0) {
         r = toku_brt_set_nodesize(brt, nodesize);
+        assert(r == 0);
+    }
+
+    if (basementnodesize != 0) {
+        r = toku_brt_set_basementnodesize(brt, basementnodesize);
         assert(r == 0);
     }
 
@@ -412,19 +417,19 @@ static int toku_recover_fassociate (struct logtype_fassociate *l, RECOVER_ENV re
         // Open it if it exists.
 	// If rollback file, specify which checkpointed version of file we need (not just the latest)
 	// because we cannot use a rollback log that is later than the last complete checkpoint.  See #3113.
-	{
-	    BOOL rollback_file = !strcmp(fname, ROLLBACK_CACHEFILE_NAME);
-	    LSN max_acceptable_lsn = MAX_LSN;
-	    if (rollback_file)
-		max_acceptable_lsn = renv->ss.checkpoint_begin_lsn;
-	    r = internal_recover_fopen_or_fcreate(renv, FALSE, 0, &l->iname, l->filenum, l->treeflags, NULL, 0, max_acceptable_lsn);
-	    if (r==0 && rollback_file) {
-		//Load rollback cachefile
-		r = file_map_find(&renv->fmap, l->filenum, &tuple);
-		assert(r==0);
-		renv->logger->rollback_cachefile = tuple->brt->cf;
-	    }
-	}
+        {
+            BOOL rollback_file = !strcmp(fname, ROLLBACK_CACHEFILE_NAME);
+            LSN max_acceptable_lsn = MAX_LSN;
+            if (rollback_file)
+                max_acceptable_lsn = renv->ss.checkpoint_begin_lsn;
+            r = internal_recover_fopen_or_fcreate(renv, FALSE, 0, &l->iname, l->filenum, l->treeflags, NULL, 0, 0, max_acceptable_lsn);
+            if (r==0 && rollback_file) {
+                //Load rollback cachefile
+                r = file_map_find(&renv->fmap, l->filenum, &tuple);
+                assert(r==0);
+                renv->logger->rollback_cachefile = tuple->brt->cf;
+            }
+        }
         break;
     case FORWARD_NEWER_CHECKPOINT_END:
         if (r == 0) { //IF it is open
@@ -646,7 +651,7 @@ static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
     toku_free(iname);
 
     BOOL must_create = TRUE;
-    r = internal_recover_fopen_or_fcreate(renv, must_create, l->mode, &l->iname, l->filenum, l->treeflags, txn, l->nodesize, MAX_LSN);
+    r = internal_recover_fopen_or_fcreate(renv, must_create, l->mode, &l->iname, l->filenum, l->treeflags, txn, l->nodesize, l->basementnodesize, MAX_LSN);
     return r;
 }
 
@@ -671,7 +676,7 @@ static int toku_recover_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
 
     if (strcmp(fname, ROLLBACK_CACHEFILE_NAME)) {
         //Rollback cachefile can only be opened via fassociate.
-        r = internal_recover_fopen_or_fcreate(renv, must_create, 0, &l->iname, l->filenum, l->treeflags, txn, 0, MAX_LSN);
+        r = internal_recover_fopen_or_fcreate(renv, must_create, 0, &l->iname, l->filenum, l->treeflags, txn, 0, 0, MAX_LSN);
     }
     toku_free(fname);
     return r;

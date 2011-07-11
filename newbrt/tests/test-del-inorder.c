@@ -28,7 +28,7 @@ doit (void) {
     snprintf(fname, fnamelen, "%s.brt", __FILE__);
     r = toku_brt_create_cachetable(&ct, 16*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
-    r = toku_open_brt(fname, 1, &t, NODESIZE, ct, null_txn, toku_builtin_compare_fun, null_db);
+    r = toku_open_brt(fname, 1, &t, NODESIZE, NODESIZE, ct, null_txn, toku_builtin_compare_fun, null_db);
     assert(r==0);
     toku_free(fname);
 

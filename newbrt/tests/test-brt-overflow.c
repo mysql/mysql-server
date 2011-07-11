@@ -20,7 +20,7 @@ test_overflow (void) {
     int r;
     unlink(fname);
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
-    r = toku_open_brt(fname, 1, &t, nodesize, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
+    r = toku_open_brt(fname, 1, &t, nodesize, nodesize / 8, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
 
     DBT k,v;
     u_int32_t vsize = nodesize/8;

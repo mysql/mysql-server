@@ -100,7 +100,7 @@ test_make_tree(int height, int fanout, int nperleaf, uint64_t subtree_size) {
     TOKUTXN null_txn = NULL;
     DB *null_db = NULL;
     BRT brt = NULL;
-    r = toku_open_brt(fname, 1, &brt, 1024, ct, null_txn, toku_builtin_compare_fun, null_db);
+    r = toku_open_brt(fname, 1, &brt, 1024, 256, ct, null_txn, toku_builtin_compare_fun, null_db);
     assert(r == 0);
 
     // make a tree

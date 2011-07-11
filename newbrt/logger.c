@@ -846,12 +846,12 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn)
 }
 
 // fname is the iname
-int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t treeflags, u_int32_t nodesize) {
+int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t treeflags, u_int32_t nodesize, u_int32_t basementnodesize) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
     BYTESTRING bs_fname = { .len=strlen(fname), .data = (char *) fname };
     // fsync log on fcreate
-    int r = toku_log_fcreate (txn->logger, (LSN*)0, 1, toku_txn_get_txnid(txn), filenum, bs_fname, mode, treeflags, nodesize);
+    int r = toku_log_fcreate (txn->logger, (LSN*)0, 1, toku_txn_get_txnid(txn), filenum, bs_fname, mode, treeflags, nodesize, basementnodesize);
     return r;
 }
 
