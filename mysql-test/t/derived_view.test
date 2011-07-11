@@ -531,3 +531,30 @@ SELECT DISTINCT v1.a FROM t1 LEFT JOIN v1 ON t1.b = 0;
 
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #806504: right join over a view/derived table           
+--echo #
+
+CREATE TABLE t1 (a int, b int) ;
+INSERT IGNORE INTO t1 VALUES (0,0);
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (0), (0);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT * FROM t2 RIGHT JOIN (SELECT * FROM t1) AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+EXPLAIN EXTENDED
+SELECT * FROM t2 RIGHT JOIN (SELECT * FROM t1) AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+
+SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+EXPLAIN EXTENDED
+SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
