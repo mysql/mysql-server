@@ -6598,10 +6598,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if ((error= table->file->add_index(table, key_info, index_add_count,
                                          &add)))
       {
-#ifdef MERGE_MONTY_ADDITION_THAT_BREAKS_5_5_TESTS
         /* Only report error if handler has not already reported an error */
-        if (!thd->main_da.is_error())
-#endif
+        if (!thd->is_error())
         {
         /*
           Exchange the key_info for the error message. If we exchange

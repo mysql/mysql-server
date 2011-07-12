@@ -6181,8 +6181,7 @@ struct my_option my_long_options[]=
    */
    IF_VALGRIND(0,1), 0, 0, 0, 0, 0},
   {"sync_sys", 0,
-   "Enable/disable system sync calls. Should only be turned off when running "
-   "tests or debugging!!",
+   "Enable system sync calls. Disable only when running tests or debugging!",
    &opt_sync, &opt_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"sysdate-is-now", 0,
    "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. "

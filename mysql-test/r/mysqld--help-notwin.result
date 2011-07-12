@@ -733,6 +733,9 @@ The following options may be given as the first argument:
  Synchronously flush relay log info to disk after every
  #th transaction. Use 0 (default) to disable synchronous
  flushing
+ --sync-sys          Enable system sync calls. Disable only when running tests
+ or debugging!
+ (Defaults to on; use --skip-sync-sys to disable.)
  --sysdate-is-now    Non-default option to alias SYSDATE() to NOW() to make it
  safe-replicable. Since 5.0, SYSDATE() returns a `dynamic'
  value different for different invocations, even within
@@ -1005,6 +1008,7 @@ sync-frm FALSE
 sync-master-info 0
 sync-relay-log 0
 sync-relay-log-info 0
+sync-sys TRUE
 sysdate-is-now FALSE
 table-cache 400
 table-definition-cache 400

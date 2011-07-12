@@ -29,8 +29,7 @@ user()
 plug_user@localhost
 Tables_in_test_user_db
 t1
-REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
-                         IDENTIFIED WITH test_plugin_server AS 'plug_dest';
+REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user';
 2)
 current_user()
 plug_dest@%
@@ -55,8 +54,7 @@ user()
 plug_user@localhost
 Tables_in_test_user_db
 t1
-REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
-                         IDENTIFIED WITH test_plugin_server AS 'plug_dest';
+REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user';
 DROP USER plug_user,plug_dest;
 ========== test 1.2 ========================================
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user

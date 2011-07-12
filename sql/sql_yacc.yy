@@ -13563,13 +13563,13 @@ revoke:
         ;
 
 revoke_command:
-          grant_privileges ON opt_table grant_ident FROM grant_list
+          grant_privileges ON opt_table grant_ident FROM user_list
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_REVOKE;
             lex->type= 0;
           }
-        | grant_privileges ON FUNCTION_SYM grant_ident FROM grant_list
+        | grant_privileges ON FUNCTION_SYM grant_ident FROM user_list
           {
             LEX *lex= Lex;
             if (lex->columns.elements)
@@ -13580,7 +13580,7 @@ revoke_command:
             lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_FUNCTION;
           }
-        | grant_privileges ON PROCEDURE_SYM grant_ident FROM grant_list
+        | grant_privileges ON PROCEDURE_SYM grant_ident FROM user_list
           {
             LEX *lex= Lex;
             if (lex->columns.elements)
@@ -13591,11 +13591,11 @@ revoke_command:
             lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_PROCEDURE;
           }
-        | ALL opt_privileges ',' GRANT OPTION FROM grant_list
+        | ALL opt_privileges ',' GRANT OPTION FROM user_list
           {
             Lex->sql_command = SQLCOM_REVOKE_ALL;
           }
-        | PROXY_SYM ON user FROM grant_list
+        | PROXY_SYM ON user FROM user_list
           {
             LEX *lex= Lex;
             lex->users_list.push_front ($3);
@@ -13844,8 +13844,6 @@ grant_user:
           user IDENTIFIED_SYM BY TEXT_STRING
           {
             $$=$1; $1->password=$4;
-            if (Lex->sql_command == SQLCOM_REVOKE)
-              MYSQL_YYABORT;
             if ($4.length)
             {
               if (YYTHD->variables.old_passwords)
@@ -13872,23 +13870,17 @@ grant_user:
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
           { 
-            if (Lex->sql_command == SQLCOM_REVOKE)
-              MYSQL_YYABORT;
             $$= $1; 
             $1->password= $5; 
           }
         | user IDENTIFIED_SYM via_or_with ident_or_text
           {
-            if (Lex->sql_command == SQLCOM_REVOKE)
-              MYSQL_YYABORT;
             $$= $1;
             $1->plugin= $4;
             $1->auth= empty_lex_str;
           }
         | user IDENTIFIED_SYM via_or_with ident_or_text using_or_as TEXT_STRING_sys
           {
-            if (Lex->sql_command == SQLCOM_REVOKE)
-              MYSQL_YYABORT;
             $$= $1;
             $1->plugin= $4;
             $1->auth= $6;
