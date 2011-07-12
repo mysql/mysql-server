@@ -881,6 +881,20 @@ Modifying
 .I initial
 value does not affect threads that are already running. Obviously,
 these macros are only useful in the multi-threaded environment.
+.SP 1
+.LI DBUG_MALLOC\ 
+.LI DBUG_REALLOC\ 
+.LI DBUG_FREE\ 
+When these macros are used instead of system malloc(), realloc(), and free(),
+.I dbug
+built-in memory debugger performs checks for memory overwrites, underwrites,
+memory leaks, and accesses to uninitialized or freed memory. Memory leaks are
+found as memory not deallocated at shutdown. Memory overwrites and underwrites
+are detected when this memory is about to be freed (by
+.B DBUG_FREE
+macro), unless
+.B S
+flag is present in the debug control string (see below).
 .LE
 
 .SK
@@ -989,9 +1003,11 @@ Most useful with
 macros used to temporarily alter the
 debugger state.
 .LI S
-When compiled with
-.I safemalloc
-this flag invokes "sanity" memory checks (for overwrites/underwrites)
+Check the memory allocated with 
+.B DBUG_MALLOC
+and
+.B DBUG_REALLOC
+for overwrites/underwrites
 on each
 .B DBUG_ENTER
 and
