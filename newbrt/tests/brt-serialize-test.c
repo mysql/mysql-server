@@ -6,9 +6,6 @@
 
 #include "includes.h"
 
-#define TESTMSNDSKVAL 0x1234567890123456    // arbitrary number
-#define TESTMSNMEMVAL 0x6543210987654321    // arbitrary number
-
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 static int omt_int_cmp(OMTVALUE p, void *q)
@@ -139,6 +136,143 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
 }
 
 static void
+test_serialize_leaf_check_msn(enum brtnode_verify_type bft) {
+    //    struct brt source_brt;
+    const int nodesize = 1024;
+    struct brtnode sn, *dn;
+
+    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+
+    int r;
+
+#define PRESERIALIZE_MSN_ON_DISK ((MSN) { MIN_MSN.msn + 42 })
+#define POSTSERIALIZE_MSN_ON_DISK ((MSN) { MIN_MSN.msn + 84 })
+
+    sn.max_msn_applied_to_node_on_disk = PRESERIALIZE_MSN_ON_DISK;
+    sn.nodesize = nodesize;
+    sn.flags = 0x11223344;
+    sn.thisnodename.b = 20;
+    sn.layout_version = BRT_LAYOUT_VERSION;
+    sn.layout_version_original = BRT_LAYOUT_VERSION;
+    sn.height = 0;
+    sn.n_children = 2;
+    sn.dirty = 1;
+    LEAFENTRY elts[3];
+    elts[0] = le_malloc("a", "aval");
+    elts[1] = le_malloc("b", "bval");
+    elts[2] = le_malloc("x", "xval");
+    MALLOC_N(sn.n_children, sn.bp);
+    MALLOC_N(1, sn.childkeys);
+    sn.childkeys[0] = kv_pair_malloc("b", 2, 0, 0);
+    sn.totalchildkeylens = 2;
+    BP_SUBTREE_EST(&sn,0).ndata = random() + (((long long)random())<<32);
+    BP_SUBTREE_EST(&sn,1).ndata = random() + (((long long)random())<<32);
+    BP_SUBTREE_EST(&sn,0).nkeys = random() + (((long long)random())<<32);
+    BP_SUBTREE_EST(&sn,1).nkeys = random() + (((long long)random())<<32);
+    BP_SUBTREE_EST(&sn,0).dsize = random() + (((long long)random())<<32);
+    BP_SUBTREE_EST(&sn,1).dsize = random() + (((long long)random())<<32);
+    BP_SUBTREE_EST(&sn,0).exact =  (BOOL)(random()%2 != 0);
+    BP_SUBTREE_EST(&sn,1).exact =  (BOOL)(random()%2 != 0);
+    BP_STATE(&sn,0) = PT_AVAIL;
+    BP_STATE(&sn,1) = PT_AVAIL;
+    set_BLB(&sn, 0, toku_create_empty_bn());
+    set_BLB(&sn, 1, toku_create_empty_bn());
+    r = toku_omt_insert(BLB_BUFFER(&sn, 0), elts[0], omt_cmp, elts[0], NULL); assert(r==0);
+    r = toku_omt_insert(BLB_BUFFER(&sn, 0), elts[1], omt_cmp, elts[1], NULL); assert(r==0);
+    r = toku_omt_insert(BLB_BUFFER(&sn, 1), elts[2], omt_cmp, elts[2], NULL); assert(r==0);
+    BLB_NBYTESINBUF(&sn, 0) = 2*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 0));
+    BLB_NBYTESINBUF(&sn, 1) = 1*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(&sn, 1));
+    BLB_MAX_MSN_APPLIED(&sn, 0) = ((MSN) { MIN_MSN.msn + 73 });
+    BLB_MAX_MSN_APPLIED(&sn, 1) = POSTSERIALIZE_MSN_ON_DISK;
+    for (int i = 0; i < 2; ++i) {
+        BLB_OPTIMIZEDFORUPGRADE(&sn, i) = BRT_LAYOUT_VERSION;
+    }
+
+    struct brt *XMALLOC(brt);
+    struct brt_header *XCALLOC(brt_h);
+    brt->h = brt_h;
+    brt_h->type = BRTHEADER_CURRENT;
+    brt_h->panic = 0; brt_h->panic_string = 0;
+    brt_h->basementnodesize = 128*1024;
+    toku_blocktable_create_new(&brt_h->blocktable);
+    //Want to use block #20
+    BLOCKNUM b = make_blocknum(0);
+    while (b.b < 20) {
+        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+    }
+    assert(b.b == 20);
+
+    {
+        DISKOFF offset;
+        DISKOFF size;
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+
+        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+        assert(size   == 100);
+    }
+
+    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
+    assert(r==0);
+
+    setup_dn(bft, fd, brt_h, &dn);
+
+    assert(dn->thisnodename.b==20);
+
+    assert(dn->layout_version ==BRT_LAYOUT_VERSION);
+    assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
+    assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
+    assert(dn->height == 0);
+    assert(dn->n_children>=1);
+    assert(dn->bp_offset > 0);
+    assert(dn->max_msn_applied_to_node_on_disk.msn == POSTSERIALIZE_MSN_ON_DISK.msn);
+    {
+        const u_int32_t npartitions = dn->n_children;
+        assert(dn->totalchildkeylens==(2*(npartitions-1)));
+        struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
+        u_int32_t last_i = 0;
+        for (u_int32_t i = 0; i < npartitions; ++i) {
+            assert(BLB_MAX_MSN_APPLIED(dn, i).msn == POSTSERIALIZE_MSN_ON_DISK.msn);
+            assert(dn->bp[i].offset > 0);
+            if (i > 0) {
+                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+            }
+            toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
+            u_int32_t keylen;
+            if (i < npartitions-1) {
+                assert(strcmp(kv_pair_key(dn->childkeys[i]), le_key_and_len(elts[extra.i-1], &keylen))==0);
+            }
+            assert(BLB_OPTIMIZEDFORUPGRADE(dn, i) == BRT_LAYOUT_VERSION);
+            // don't check soft_copy_is_up_to_date or seqinsert
+            assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(dn, i)));
+            last_i = extra.i;
+        }
+        assert(extra.i == 3);
+    }
+    toku_brtnode_free(&dn);
+
+    for (int i = 0; i < sn.n_children-1; ++i) {
+        kv_pair_free(sn.childkeys[i]);
+    }
+    for (int i = 0; i < 3; ++i) {
+        toku_free(elts[i]);
+    }
+    for (int i = 0; i < sn.n_children; i++) {
+        destroy_basement_node(BLB(&sn, i));
+    }
+    toku_free(sn.bp);
+    toku_free(sn.childkeys);
+
+    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&brt_h->blocktable);
+    toku_free(brt_h);
+    toku_free(brt);
+
+    r = close(fd); assert(r != -1);
+}
+
+static void
 test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
     int r;
     struct brtnode sn, *dn;
@@ -155,7 +289,7 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
     sn.height = 0;
     sn.n_children = nrows;
     sn.dirty = 1;
-    
+
     LEAFENTRY les[nrows];
     {
         char key[keylens], val[vallens];
@@ -222,13 +356,17 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
 
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
-
+    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(keylens*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
+            assert(dn->bp[i].offset > 0);
+            if (i > 0) {
+                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+            }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             assert(BLB_OPTIMIZEDFORUPGRADE(dn, i) == BRT_LAYOUT_VERSION);
@@ -337,13 +475,17 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
 
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
-
+    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(sizeof(int)*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_int_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
+            assert(dn->bp[i].offset > 0);
+            if (i > 0) {
+                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+            }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             assert(BLB_OPTIMIZEDFORUPGRADE(dn, i) == BRT_LAYOUT_VERSION);
@@ -458,7 +600,7 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
 
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
-
+    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(npartitions == 7);
@@ -466,6 +608,10 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
         struct check_leafentries_struct extra = { .nelts = 7, .elts = les, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
+            assert(dn->bp[i].offset > 0);
+            if (i > 0) {
+                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+            }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             assert(BLB_OPTIMIZEDFORUPGRADE(dn, i) == BRT_LAYOUT_VERSION);
@@ -586,12 +732,17 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
     assert(dn->n_children>0);
+    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
+            assert(dn->bp[i].offset > 0);
+            if (i > 0) {
+                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+            }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             assert(BLB_OPTIMIZEDFORUPGRADE(dn, i) == BRT_LAYOUT_VERSION);
@@ -698,12 +849,17 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
     assert(dn->n_children == 1);
+    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = 0, .elts = NULL, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
+            assert(dn->bp[i].offset > 0);
+            if (i > 0) {
+                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+            }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) == 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             assert(BLB_OPTIMIZEDFORUPGRADE(dn, i) == BRT_LAYOUT_VERSION);
@@ -817,12 +973,17 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
     assert(dn->n_children>=1);
+    assert(dn->bp_offset > 0);
     {
         const u_int32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
+            assert(dn->bp[i].offset > 0);
+            if (i > 0) {
+                assert(dn->bp[i].offset > dn->bp[i-1].offset);
+            }
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             u_int32_t keylen;
             if (i < npartitions-1) {
@@ -870,8 +1031,6 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     //    source_brt.fd=fd;
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     char *hello_string;
-    sn.max_msn_applied_to_node_on_disk.msn = TESTMSNDSKVAL;
-    //sn.max_msn_applied_to_node_in_memory.msn = TESTMSNMEMVAL;
     sn.nodesize = nodesize;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
@@ -946,14 +1105,9 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
     assert(r==0);
 
-    //assert(sn.max_msn_applied_to_node_on_disk.msn == TESTMSNMEMVAL);
-    //assert(sn.max_msn_applied_to_node_in_memory.msn == TESTMSNMEMVAL);
-    
     setup_dn(bft, fd, brt_h, &dn);
 
     assert(dn->thisnodename.b==20);
-    //assert(dn->max_msn_applied_to_node_on_disk.msn == TESTMSNMEMVAL);
-    //assert(dn->max_msn_applied_to_node_in_memory.msn == TESTMSNMEMVAL);
 
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
@@ -1010,8 +1164,13 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     test_serialize_leaf_with_large_pivots(read_all);
     test_serialize_leaf_with_large_pivots(read_compressed);
 
+    test_serialize_leaf_check_msn(read_none);
+    test_serialize_leaf_check_msn(read_all);
+    test_serialize_leaf_check_msn(read_compressed);
+
     test_serialize_nonleaf(read_none);
     test_serialize_nonleaf(read_all);
     test_serialize_nonleaf(read_compressed);
+
     return 0;
 }
