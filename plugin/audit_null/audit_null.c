@@ -1,9 +1,9 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; version 2 of
-   the License.
+   modify it under the terms of the GNU General Public License as
+   published by the Free Software Foundation; version 2 of the
+   License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
 #include <stdio.h>
 #include <mysql/plugin.h>
@@ -23,9 +23,15 @@
 #endif
 
 static volatile int number_of_calls; /* for SHOW STATUS, see below */
+/* Count MYSQL_AUDIT_GENERAL_CLASS event instances */
 static volatile int number_of_calls_general_log;
 static volatile int number_of_calls_general_error;
 static volatile int number_of_calls_general_result;
+static volatile int number_of_calls_general_status;
+/* Count MYSQL_AUDIT_CONNECTION_CLASS event instances */
+static volatile int number_of_calls_connection_connect;
+static volatile int number_of_calls_connection_disconnect;
+static volatile int number_of_calls_connection_change_user;
 
 
 /*
@@ -48,6 +54,10 @@ static int audit_null_plugin_init(void *arg __attribute__((unused)))
   number_of_calls_general_log= 0;
   number_of_calls_general_error= 0;
   number_of_calls_general_result= 0;
+  number_of_calls_general_status= 0;
+  number_of_calls_connection_connect= 0;
+  number_of_calls_connection_disconnect= 0;
+  number_of_calls_connection_change_user= 0;
   return(0);
 }
 
@@ -102,6 +112,28 @@ static void audit_null_notify(MYSQL_THD thd __attribute__((unused)),
     case MYSQL_AUDIT_GENERAL_RESULT:
       number_of_calls_general_result++;
       break;
+    case MYSQL_AUDIT_GENERAL_STATUS:
+      number_of_calls_general_status++;
+      break;
+    default:
+      break;
+    }
+  }
+  else if (event_class == MYSQL_AUDIT_CONNECTION_CLASS)
+  {
+    const struct mysql_event_connection *event_connection=
+      (const struct mysql_event_connection *) event;
+    switch (event_connection->event_subclass)
+    {
+    case MYSQL_AUDIT_CONNECTION_CONNECT:
+      number_of_calls_connection_connect++;
+      break;
+    case MYSQL_AUDIT_CONNECTION_DISCONNECT:
+      number_of_calls_connection_disconnect++;
+      break;
+    case MYSQL_AUDIT_CONNECTION_CHANGE_USER:
+      number_of_calls_connection_change_user++;
+      break;
     default:
       break;
     }
@@ -118,7 +150,8 @@ static struct st_mysql_audit audit_null_descriptor=
   MYSQL_AUDIT_INTERFACE_VERSION,                    /* interface version    */
   NULL,                                             /* release_thd function */
   audit_null_notify,                                /* notify function      */
-  { (unsigned long) MYSQL_AUDIT_GENERAL_CLASSMASK } /* class mask           */
+  { (unsigned long) MYSQL_AUDIT_GENERAL_CLASSMASK |
+                    MYSQL_AUDIT_CONNECTION_CLASSMASK } /* class mask           */
 };
 
 /*
@@ -127,11 +160,29 @@ static struct st_mysql_audit audit_null_descriptor=
 
 static struct st_mysql_show_var simple_status[]=
 {
-  { "Audit_null_called", (char *) &number_of_calls, SHOW_INT },
-  { "Audit_null_general_log", (char *) &number_of_calls_general_log, SHOW_INT },
-  { "Audit_null_general_error", (char *) &number_of_calls_general_error,
+  { "Audit_null_called",
+    (char *) &number_of_calls,
     SHOW_INT },
-  { "Audit_null_general_result", (char *) &number_of_calls_general_result,
+  { "Audit_null_general_log",
+    (char *) &number_of_calls_general_log,
+    SHOW_INT },
+  { "Audit_null_general_error",
+    (char *) &number_of_calls_general_error,
+    SHOW_INT },
+  { "Audit_null_general_result",
+    (char *) &number_of_calls_general_result,
+    SHOW_INT },
+  { "Audit_null_general_status",
+    (char *) &number_of_calls_general_status,
+    SHOW_INT },
+  { "Audit_null_connection_connect",
+    (char *) &number_of_calls_connection_connect,
+    SHOW_INT },
+  { "Audit_null_connection_disconnect",
+    (char *) &number_of_calls_connection_disconnect,
+    SHOW_INT },
+  { "Audit_null_connection_change_user",
+    (char *) &number_of_calls_connection_change_user,
     SHOW_INT },
   { 0, 0, 0}
 };
@@ -151,7 +202,7 @@ mysql_declare_plugin(audit_null)
   PLUGIN_LICENSE_GPL,
   audit_null_plugin_init,     /* init function (when loaded)     */
   audit_null_plugin_deinit,   /* deinit function (when unloaded) */
-  0x0002,                     /* version                         */
+  0x0003,                     /* version                         */
   simple_status,              /* status variables                */
   NULL,                       /* system variables                */
   NULL
