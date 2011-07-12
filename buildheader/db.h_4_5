@@ -144,6 +144,12 @@ typedef struct __toku_engine_status {
   u_int64_t        le_updates;              /* leafentry update operations                        */ 
   u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ 
   u_int64_t        descriptor_set;          /* descriptor set operations              */ 
+  u_int64_t        partial_fetch_hit;        /* node partition is present             */ 
+  u_int64_t        partial_fetch_miss;       /* node is present but partition is absent */ 
+  u_int64_t        partial_fetch_compressed; /* node partition is present but compressed  */ 
+  u_int64_t        msn_discards;             /* how many messages were ignored by leaf because of msn */ 
+  u_int64_t        max_workdone;             /* max workdone value of any buffer  */ 
+  u_int64_t        dsn_gap;                  /* dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read) */ 
   u_int64_t        point_queries;           /* ydb point queries                      */ 
   u_int64_t        sequential_queries;      /* ydb sequential queries                 */ 
   u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ 
