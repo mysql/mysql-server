@@ -1930,6 +1930,12 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->le_updates = brt_stat.updates;
 	    engstat->le_updates_broadcast = brt_stat.updates_broadcast;
 	    engstat->descriptor_set = brt_stat.descriptor_set;
+	    engstat->partial_fetch_hit = brt_stat.partial_fetch_hit;
+	    engstat->partial_fetch_miss = brt_stat.partial_fetch_miss;
+	    engstat->partial_fetch_compressed = brt_stat.partial_fetch_compressed;
+	    engstat->msn_discards = brt_stat.msn_discards;
+	    engstat->max_workdone = brt_stat.max_workdone;
+	    engstat->dsn_gap = brt_stat.dsn_gap;	    
 	}
 	{
 	    u_int64_t fsync_count, fsync_time;
@@ -2117,6 +2123,12 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "le_updates                       %"PRIu64"\n", engstat.le_updates);
 	n += snprintf(buff + n, bufsiz - n, "le_updates_broadcast             %"PRIu64"\n", engstat.le_updates_broadcast);
 	n += snprintf(buff + n, bufsiz - n, "descriptor_set                   %"PRIu64"\n", engstat.descriptor_set);
+	n += snprintf(buff + n, bufsiz - n, "partial_fetch_hit                %"PRIu64"\n", engstat.partial_fetch_hit);
+	n += snprintf(buff + n, bufsiz - n, "partial_fetch_miss               %"PRIu64"\n", engstat.partial_fetch_miss);
+	n += snprintf(buff + n, bufsiz - n, "partial_fetch_compressed         %"PRIu64"\n", engstat.partial_fetch_compressed);
+	n += snprintf(buff + n, bufsiz - n, "msn_discards                     %"PRIu64"\n", engstat.msn_discards);
+	n += snprintf(buff + n, bufsiz - n, "max_workdone                     %"PRIu64"\n", engstat.max_workdone);
+	n += snprintf(buff + n, bufsiz - n, "dsn_gap                          %"PRIu64"\n", engstat.dsn_gap);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts                    %"PRIu64"\n", engstat.multi_inserts);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts_fail               %"PRIu64"\n", engstat.multi_inserts_fail);
 	n += snprintf(buff + n, bufsiz - n, "multi_deletes                    %"PRIu64"\n", engstat.multi_deletes);
