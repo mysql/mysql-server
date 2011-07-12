@@ -167,9 +167,9 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create)
     BRT t = NULL;   // Note, there is no DB associated with this BRT.
 
     r = toku_brt_create(&t);
-    assert(r==0);
+    assert_zero(r);
     r = toku_brt_open(t, ROLLBACK_CACHEFILE_NAME, create, create, cachetable, NULL_TXN, NULL);
-    assert(r==0);
+    assert_zero(r);
     logger->rollback_cachefile = t->cf;
     toku_brtheader_lock(t->h);
     //Verify it is empty
@@ -199,7 +199,7 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
             toku_brtheader_lock(h);
             if (!h->panic && recovery_failed) {
                 r = toku_brt_header_set_panic(h, EINVAL, "Recovery failed");
-		assert(r==0);
+		assert_zero(r);
             }
             //Verify it is safe to close it.
             if (!h->panic) { //If paniced, it is safe to close.
@@ -322,7 +322,7 @@ wait_till_output_available (TOKULOGGER logger)
 {
     while (!logger->output_is_available) {
 	int r = toku_pthread_cond_wait(&logger->output_condition, &logger->output_condition_lock);
-	assert(r==0);
+	assert_zero(r);
     }
 }
 
@@ -333,7 +333,7 @@ grab_output(TOKULOGGER logger, LSN *fsynced_lsn)
 // Exit:  Hold permission to modify output (but none of the locks).
 {
     int r;
-    r = toku_pthread_mutex_lock(&logger->output_condition_lock);   assert(r==0);
+    r = toku_pthread_mutex_lock(&logger->output_condition_lock);   assert_zero(r);
     logger->output_condition_lock_ctr++;
     wait_till_output_available(logger);
     logger->output_is_available = FALSE;
@@ -341,7 +341,7 @@ grab_output(TOKULOGGER logger, LSN *fsynced_lsn)
 	*fsynced_lsn = logger->fsynced_lsn;
     }
     logger->output_condition_lock_ctr++;
-    r = toku_pthread_mutex_unlock(&logger->output_condition_lock); assert(r==0);
+    r = toku_pthread_mutex_unlock(&logger->output_condition_lock); assert_zero(r);
 }
 
 static BOOL
@@ -354,7 +354,7 @@ wait_till_output_already_written_or_output_buffer_available (TOKULOGGER logger, 
 // Exit: Hold the output permission if returns false.
 {
     BOOL result;
-    { int r = toku_pthread_mutex_lock(&logger->output_condition_lock);  logger->output_condition_lock_ctr++;  assert(r==0); }
+    { int r = toku_pthread_mutex_lock(&logger->output_condition_lock);  logger->output_condition_lock_ctr++;  assert_zero(r); }
     while (1) {
 	if (logger->fsynced_lsn.lsn >= lsn.lsn) { // we can look at the fsynced lsn since we have the lock.
 	    result = TRUE;
@@ -367,10 +367,10 @@ wait_till_output_already_written_or_output_buffer_available (TOKULOGGER logger, 
 	}
 	// otherwise wait for a good time to look again.
 	int r = toku_pthread_cond_wait(&logger->output_condition, &logger->output_condition_lock);
-	assert(r==0);
+	assert_zero(r);
     }
     *fsynced_lsn = logger->fsynced_lsn;
-    { logger->output_condition_lock_ctr++;  int r = toku_pthread_mutex_unlock(&logger->output_condition_lock);  assert(r==0); }
+    { logger->output_condition_lock_ctr++;  int r = toku_pthread_mutex_unlock(&logger->output_condition_lock);  assert_zero(r); }
     return result;
 }
 
@@ -381,15 +381,15 @@ release_output (TOKULOGGER logger, LSN fsynced_lsn)
 // Exit: Holds neither locks nor output permission.
 {
     int r;
-    r = toku_pthread_mutex_lock(&logger->output_condition_lock);        assert(r==0);
+    r = toku_pthread_mutex_lock(&logger->output_condition_lock);        assert_zero(r);
     logger->output_condition_lock_ctr++;
     logger->output_is_available = TRUE;
     if (logger->fsynced_lsn.lsn < fsynced_lsn.lsn) {
 	logger->fsynced_lsn = fsynced_lsn;
     }
-    r = toku_pthread_cond_broadcast(&logger->output_condition);    assert(r==0);
+    r = toku_pthread_cond_broadcast(&logger->output_condition);    assert_zero(r);
     logger->output_condition_lock_ctr++;
-    r = toku_pthread_mutex_unlock(&logger->output_condition_lock); assert(r==0);
+    r = toku_pthread_mutex_unlock(&logger->output_condition_lock); assert_zero(r);
 }
     
 static void
@@ -420,7 +420,7 @@ write_outbuf_to_logfile (TOKULOGGER logger, LSN *fsynced_lsn)
     // If the file got too big, then open a new file.
     if (logger->n_in_file > logger->lg_max) {
 	int r = close_and_open_logfile(logger, fsynced_lsn);
-	assert(r==0);
+	assert_zero(r);
     }
 }
 
@@ -482,7 +482,7 @@ int toku_logger_fsync (TOKULOGGER logger)
 {
     int r;
     if (logger->is_panicked) return EINVAL;
-    r = ml_lock(&logger->input_lock);        assert(r==0);
+    r = ml_lock(&logger->input_lock);        assert_zero(r);
     logger->input_lock_ctr++;
     r = toku_logger_maybe_fsync(logger, logger->inbuf.max_lsn_in_buf, TRUE);
     if (r!=0) {
@@ -496,7 +496,7 @@ toku_logger_fsync_if_lsn_not_fsynced (TOKULOGGER logger, LSN lsn) {
     int r = 0;
     if (logger->is_panicked) r = EINVAL;
     else if (logger->write_log_files) {
-        r = ml_lock(&logger->input_lock);        assert(r==0);
+        r = ml_lock(&logger->input_lock);        assert_zero(r);
         logger->input_lock_ctr++;
         r = toku_logger_maybe_fsync(logger, lsn, TRUE);
         if (r!=0) {
@@ -749,21 +749,21 @@ int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
     if (do_fsync) {
 	// reacquire the locks (acquire output permission first)
 	logger->input_lock_ctr++;
-	r = ml_unlock(&logger->input_lock);    assert(r==0);
+	r = ml_unlock(&logger->input_lock);    assert_zero(r);
 	LSN  fsynced_lsn;
 	BOOL already_done = wait_till_output_already_written_or_output_buffer_available(logger, lsn, &fsynced_lsn);
 	if (already_done) return 0;
 
 	// otherwise we now own the output permission, and our lsn isn't outputed.
 
-	r = ml_lock(&logger->input_lock);      assert(r==0);
+	r = ml_lock(&logger->input_lock);      assert_zero(r);
 	logger->input_lock_ctr++;
     
 	swap_inbuf_outbuf(logger);
 
 	logger->input_lock_ctr++;
 	r = ml_unlock(&logger->input_lock); // release the input lock now, so other threads can fill the inbuf.  (Thus enabling group commit.)
-	assert(r==0);
+	assert_zero(r);
 
 	write_outbuf_to_logfile(logger, &fsynced_lsn);
 	if (fsynced_lsn.lsn < lsn.lsn) {
@@ -785,7 +785,7 @@ int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
     } else {
 	logger->input_lock_ctr++;
 	r = ml_unlock(&logger->input_lock);
-	assert(r==0);
+	assert_zero(r);
     }
     return 0;
 }
@@ -798,7 +798,7 @@ toku_logger_write_buffer (TOKULOGGER logger, LSN *fsynced_lsn)
 // Note: Only called during single-threaded activity from toku_logger_restart, so locks aren't really needed.
 {
     swap_inbuf_outbuf(logger);
-    { logger->input_lock_ctr++;  int r = ml_unlock(&logger->input_lock);  assert(r==0); }
+    { logger->input_lock_ctr++;  int r = ml_unlock(&logger->input_lock);  assert_zero(r); }
     write_outbuf_to_logfile(logger, fsynced_lsn);
     if (logger->write_log_files) {
 	int r = toku_file_fsync_without_accounting(logger->fd);

@@ -164,7 +164,6 @@ toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync);
 //        fsync
 //        release the outlock
 
-
 typedef struct logger_status {
     u_int64_t ilock_ctr;
     u_int64_t olock_ctr;
@@ -179,7 +178,7 @@ int toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, 
 int toku_delete_all_logs_of_version(const char *log_dir, uint32_t version_to_delete);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
-};
+}
 #endif
 
 #endif
