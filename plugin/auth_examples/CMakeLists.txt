@@ -14,7 +14,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-MYSQL_ADD_PLUGIN(auth dialog.c 
+MYSQL_ADD_PLUGIN(dialog_examples dialog_examples.c 
   MODULE_ONLY)
 MYSQL_ADD_PLUGIN(auth_test_plugin test_plugin.c 
   MODULE_ONLY)
@@ -27,15 +27,5 @@ MYSQL_ADD_PLUGIN(qa_auth_server qa_auth_server.c
 MYSQL_ADD_PLUGIN(qa_auth_client qa_auth_client.c
   MODULE_ONLY)
 
-CHECK_CXX_SOURCE_COMPILES(
-"#define _GNU_SOURCE
-#include <sys/socket.h>
-int main() {
-  struct ucred cred;
-  getsockopt(0, SOL_SOCKET, SO_PEERCRED, &cred, 0);
-}" HAVE_PEERCRED)
-
-IF(HAVE_PEERCRED)
-  MYSQL_ADD_PLUGIN(auth_socket auth_socket.c
-    MODULE_ONLY)
-ENDIF()
+MYSQL_ADD_PLUGIN(mysql_clear_password clear_password_client.c
+  MODULE_ONLY)

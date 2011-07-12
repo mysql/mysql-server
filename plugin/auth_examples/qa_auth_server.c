@@ -21,16 +21,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/**
-  first byte of the question string is the question "type".
-  It can be a "ordinary" or a "password" question.
-  The last bit set marks a last question in the authentication exchange.
-*/
-#define ORDINARY_QUESTION       "\2"
-#define LAST_QUESTION           "\3"
-#define LAST_PASSWORD           "\4"
-#define PASSWORD_QUESTION       "\5"
-
 /********************* SERVER SIDE ****************************************/
 
 static int qa_auth_interface (MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)

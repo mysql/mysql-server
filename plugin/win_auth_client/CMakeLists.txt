@@ -13,21 +13,22 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-# Configuration for building Windows Authentication Plugin (client-side)
-#
+IF(WIN32)
+  #
+  # Configuration for building Windows Authentication Plugin (client-side)
+  #
 
-ADD_DEFINITIONS(-DSECURITY_WIN32)
-ADD_DEFINITIONS(-DDEBUG_ERRROR_LOG)  # no error logging in production builds
-ADD_DEFINITIONS(-DWINAUTH_USE_DBUG_LIB)      # it is OK to use dbug library in statically
-                                             # linked plugin
+  ADD_DEFINITIONS(-DSECURITY_WIN32)
+  ADD_DEFINITIONS(-DDEBUG_ERRROR_LOG)  # no error logging in production builds
+  #ADD_DEFINITIONS(-DWINAUTH_USE_DBUG_LIB)      # it is OK to use dbug library in statically
+  #                                             # linked plugin
 
-SET(HEADERS common.h handshake.h)
-SET(PLUGIN_SOURCES plugin_client.cc handshake_client.cc log_client.cc common.cc handshake.cc)
+  SET(HEADERS common.h handshake.h)
+  SET(PLUGIN_SOURCES plugin_client.cc handshake_client.cc
+      log_client.cc common.cc handshake.cc)
 
-ADD_CONVENIENCE_LIBRARY(auth_win_client ${PLUGIN_SOURCES} ${HEADERS})
-TARGET_LINK_LIBRARIES(auth_win_client Secur32)
+  MYSQL_ADD_PLUGIN(authentication_windows_client ${PLUGIN_SOURCES} ${HEADERS}
+    LINK_LIBRARUES Secur32
+    MODULE_ONLY)
 
-# In IDE, group headers in a separate folder.
-
-SOURCE_GROUP(Headers REGULAR_EXPRESSION ".*h$")
+ENDIF(WIN32)

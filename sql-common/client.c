@@ -2272,7 +2272,6 @@ typedef struct st_mysql_client_plugin_AUTHENTICATION auth_plugin_t;
 static int client_mpvio_write_packet(struct st_plugin_vio*, const uchar*, int);
 static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
-static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 
 static auth_plugin_t native_password_client_plugin=
 {
@@ -2306,38 +2305,12 @@ static auth_plugin_t old_password_client_plugin=
   old_password_auth_client
 };
 
-static auth_plugin_t clear_password_client_plugin=
-{
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
-  "mysql_clear_password",
-  "Georgi Kodinov",
-  "Clear password authentication plugin",
-  {0,1,0},
-  "GPL",
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  clear_password_auth_client
-};
-
-#ifdef AUTHENTICATION_WIN
-extern auth_plugin_t win_auth_client_plugin;
-#endif
-
 struct st_mysql_client_plugin *mysql_client_builtins[]=
 {
   (struct st_mysql_client_plugin *)&native_password_client_plugin,
   (struct st_mysql_client_plugin *)&old_password_client_plugin,
-  (struct st_mysql_client_plugin *)&clear_password_client_plugin,
-#ifdef AUTHENTICATION_WIN
-  (struct st_mysql_client_plugin *)&win_auth_client_plugin,
-#endif
   0
 };
-
-
 
 /* this is a "superset" of MYSQL_PLUGIN_VIO, in C++ I use inheritance */
 typedef struct {
@@ -4340,20 +4313,5 @@ static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       DBUG_RETURN(CR_ERROR);
 
   DBUG_RETURN(CR_OK);
-}
-
-/**
-  The main function of the mysql_clear_password authentication plugin.
-*/
-
-static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
-{
-  int res;
-
-  /* send password in clear text */
-  res= vio->write_packet(vio, (const unsigned char *) mysql->passwd, 
-						 strlen(mysql->passwd) + 1);
-
-  return res ? CR_ERROR : CR_OK;
 }
 

@@ -23,6 +23,30 @@
 */
 #define MYSQL_CLIENT_PLUGIN_INCLUDED
 
+/*
+  On Windows, exports from DLL need to be declared
+  Also, plugin needs to be declared as extern "C" because MSVC 
+  unlike other compilers, uses C++ mangling for variables not only
+  for functions.
+*/
+#if defined(_MSC_VER)
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+  #ifdef __cplusplus
+    #define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
+  #else
+    #define MYSQL_PLUGIN_EXPORT __declspec(dllexport)
+  #endif
+#else /* MYSQL_DYNAMIC_PLUGIN */
+  #ifdef __cplusplus
+    #define  MYSQL_PLUGIN_EXPORT extern "C"
+  #else
+    #define MYSQL_PLUGIN_EXPORT 
+  #endif
+#endif /*MYSQL_DYNAMIC_PLUGIN */
+#else /*_MSC_VER */
+#define MYSQL_PLUGIN_EXPORT
+#endif
+
 #ifndef MYSQL_ABI_CHECK
 #include <stdarg.h>
 #include <stdlib.h>
@@ -74,24 +98,8 @@ struct st_mysql_client_plugin_AUTHENTICATION
   int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct st_mysql *mysql);
 };
 
-/**
-  type of the mysql_authentication_dialog_ask function
+#include <mysql/auth_dialog_client.h>
 
-  @param mysql          mysql
-  @param type           type of the input
-                        1 - ordinary string input
-                        2 - password string
-  @param prompt         prompt
-  @param buf            a buffer to store the use input
-  @param buf_len        the length of the buffer
-
-  @retval               a pointer to the user input string.
-                        It may be equal to 'buf' or to 'mysql->password'.
-                        In all other cases it is assumed to be an allocated
-                        string, and the "dialog" plugin will free() it.
-*/
-typedef char *(*mysql_authentication_dialog_ask_t)(struct st_mysql *mysql,
-                      int type, const char *prompt, char *buf, int buf_len);
 /******** using plugins ************/
 
 /**

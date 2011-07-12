@@ -134,12 +134,6 @@ CACHE INTERNAL "Functions exported by client API"
 
 )
 
-IF(WIN32)
-  ADD_SUBDIRECTORY(authentication_win)
-  SET(WITH_AUTHENTICATION_WIN 1)
-  ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
-ENDIF(WIN32)
-
 SET(CLIENT_SOURCES
   get_password.c 
   libmysql.c

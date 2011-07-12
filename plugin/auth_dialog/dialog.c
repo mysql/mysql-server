@@ -43,138 +43,13 @@
 # define _GNU_SOURCE /* for RTLD_DEFAULT */
 #endif
 
-#include <mysql/plugin_auth.h>
 #include <mysql/client_plugin.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <mysql.h>
+#include <dlfcn.h>
 
-/**
-  first byte of the question string is the question "type".
-  It can be an "ordinary" or a "password" question.
-  The last bit set marks a last question in the authentication exchange.
-*/
-#define ORDINARY_QUESTION       "\2"
-#define LAST_QUESTION           "\3"
-#define PASSWORD_QUESTION       "\4"
-#define LAST_PASSWORD           "\5"
-
-/********************* SERVER SIDE ****************************************/
-
-/**
-  dialog demo with two questions, one password and one, the last, ordinary.
-*/
-static int two_questions(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
-{
-  unsigned char *pkt;
-  int pkt_len;
-
-  /* send a password question */
-  if (vio->write_packet(vio,
-                        (const unsigned char *) PASSWORD_QUESTION "Password, please:",
-                        18))
-    return CR_ERROR;
-
-  /* read the answer */
-  if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
-    return CR_ERROR;
-
-  info->password_used= PASSWORD_USED_YES;
-
-  /* fail if the password is wrong */
-  if (strcmp((const char *) pkt, info->auth_string))
-    return CR_ERROR;
-
-  /* send the last, ordinary, question */
-  if (vio->write_packet(vio,
-                        (const unsigned char *) LAST_QUESTION "Are you sure ?",
-                        15))
-    return CR_ERROR;
-
-  /* read the answer */
-  if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
-    return CR_ERROR;
-
-  /* check the reply */
-  return strcmp((const char *) pkt, "yes, of course") ? CR_ERROR : CR_OK;
-}
-
-static struct st_mysql_auth two_handler=
-{
-  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-  "dialog", /* requires dialog client plugin */
-  two_questions
-};
-
-/* dialog demo where the number of questions is not known in advance */
-static int three_attempts(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
-{
-  unsigned char *pkt;
-  int pkt_len, i;
-
-  for (i= 0; i < 3; i++)
-  {
-    /* send the prompt */
-    if (vio->write_packet(vio, 
-		(const unsigned char *) PASSWORD_QUESTION "Password, please:", 18))
-      return CR_ERROR;
-
-    /* read the password */
-    if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
-      return CR_ERROR;
-
-    info->password_used= PASSWORD_USED_YES;
-
-    /*
-      finish, if the password is correct.
-      note, that we did not mark the prompt packet as "last"
-    */
-    if (strcmp((const char *) pkt, info->auth_string) == 0)
-      return CR_OK;
-  }
-
-  return CR_ERROR;
-}
-
-static struct st_mysql_auth three_handler=
-{
-  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-  "dialog", /* requires dialog client plugin */
-  three_attempts 
-};
-
-mysql_declare_plugin(dialog)
-{
-  MYSQL_AUTHENTICATION_PLUGIN,
-  &two_handler,
-  "two_questions",
-  "Sergei Golubchik",
-  "Dialog plugin demo 1",
-  PLUGIN_LICENSE_GPL,
-  NULL,
-  NULL,
-  0x0100,
-  NULL,
-  NULL,
-  NULL
-},
-{
-  MYSQL_AUTHENTICATION_PLUGIN,
-  &three_handler,
-  "three_attempts",
-  "Sergei Golubchik",
-  "Dialog plugin demo 2",
-  PLUGIN_LICENSE_GPL,
-  NULL,
-  NULL,
-  0x0100,
-  NULL,
-  NULL,
-  NULL
-}
-mysql_declare_plugin_end;
-
-/********************* CLIENT SIDE ***************************************/
 /*
   This plugin performs a dialog with the user, asking questions and
   reading answers. Depending on the client it may be desirable to do it
@@ -186,9 +61,6 @@ mysql_declare_plugin_end;
   dialog plugin will use it for communication with the user. Otherwise
   a default fgets() based implementation will be used.
 */
-#include <mysql.h>
-#include <dlfcn.h>
-
 static mysql_authentication_dialog_ask_t ask;
 
 static char *builtin_ask(MYSQL *mysql __attribute__((unused)),

@@ -14,6 +14,17 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
+/**
+  @file
+
+  Test driver for the mysql-test/t/plugin_auth.test
+
+  This is a set of test plugins used to test the external authentication 
+  implementation.
+  See the above test file for more details.
+  This test plugin is based on the dialog plugin example.
+*/
+
 #include <my_global.h>
 #include <mysql/plugin_auth.h>
 #include <mysql/client_plugin.h>
@@ -21,15 +32,107 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/********************* SERVER SIDE ****************************************/
+
 /**
-  first byte of the question string is the question "type".
-  It can be a "ordinary" or a "password" question.
-  The last bit set marks a last question in the authentication exchange.
+  dialog test plugin mimicking the ordinary auth mechanism. Used to test the auth plugin API
 */
-#define ORDINARY_QUESTION       "\2"
-#define LAST_QUESTION           "\3"
-#define LAST_PASSWORD           "\4"
-#define PASSWORD_QUESTION       "\5"
+static int auth_test_plugin(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
+{
+  unsigned char *pkt;
+  int pkt_len;
+
+  /* send a password question */
+  if (vio->write_packet(vio, (const unsigned char *) PASSWORD_QUESTION, 1))
+    return CR_ERROR;
+
+  /* read the answer */
+  if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
+    return CR_ERROR;
+
+  info->password_used= PASSWORD_USED_YES;
+
+  /* fail if the password is wrong */
+  if (strcmp((const char *) pkt, info->auth_string))
+    return CR_ERROR;
+
+  /* copy auth string as a destination name to check it */
+  strcpy (info->authenticated_as, info->auth_string);
+
+  /* copy something into the external user name */
+  strcpy (info->external_user, info->auth_string);
+
+  return CR_OK;
+}
+
+static struct st_mysql_auth auth_test_handler=
+{
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+  "auth_test_plugin", /* requires test_plugin client's plugin */
+  auth_test_plugin
+};
+
+/**
+  dialog test plugin mimicking the ordinary auth mechanism. Used to test the clear text plugin API
+*/
+static int auth_cleartext_plugin(MYSQL_PLUGIN_VIO *vio, 
+                                 MYSQL_SERVER_AUTH_INFO *info)
+{
+  unsigned char *pkt;
+  int pkt_len;
+
+  /* read the password */
+  if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
+    return CR_ERROR;
+
+  info->password_used= PASSWORD_USED_YES;
+
+  /* fail if the password is wrong */
+  if (strcmp((const char *) pkt, info->auth_string))
+    return CR_ERROR;
+
+  return CR_OK;
+}
+
+
+static struct st_mysql_auth auth_cleartext_handler=
+{
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+  "mysql_clear_password", /* requires the clear text plugin */
+  auth_cleartext_plugin
+};
+
+mysql_declare_plugin(test_plugin)
+{
+  MYSQL_AUTHENTICATION_PLUGIN,
+  &auth_test_handler,
+  "test_plugin_server",
+  "Georgi Kodinov",
+  "plugin API test plugin",
+  PLUGIN_LICENSE_GPL,
+  NULL,
+  NULL,
+  0x0100,
+  NULL,
+  NULL,
+  NULL
+},
+{
+  MYSQL_AUTHENTICATION_PLUGIN,
+  &auth_cleartext_handler,
+  "cleartext_plugin_server",
+  "Georgi Kodinov",
+  "cleartext plugin API test plugin",
+  PLUGIN_LICENSE_GPL,
+  NULL,
+  NULL,
+  0x0100,
+  NULL,
+  NULL,
+  NULL
+}
+mysql_declare_plugin_end;
+
 
 /********************* CLIENT SIDE ***************************************/
 /*
@@ -72,10 +175,10 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         in mysql_change_user() the client sends the first packet, so
         the first vio->read_packet() does nothing (pkt == 0).
 
-        We send the "password", assuming the client knows what its doing.
+        We send the "password", assuming the client knows what it's doing.
         (in other words, the dialog plugin should be only set as a default
         authentication plugin on the client if the first question
-        asks for a password - which will be sent in cleat text, by the way)
+        asks for a password - which will be sent in clear text, by the way)
       */
       reply= mysql->passwd;
     }
@@ -114,8 +217,8 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
 
 mysql_declare_client_plugin(AUTHENTICATION)
-  "qa_auth_client",
-  "Horst Hunger",
+  "auth_test_plugin",
+  "Georgi Kodinov",
   "Dialog Client Authentication Plugin",
   {0,1,0},
   "GPL",
