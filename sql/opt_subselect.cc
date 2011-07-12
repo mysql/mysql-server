@@ -183,7 +183,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred);
 static bool convert_subq_to_jtbm(JOIN *parent_join, 
                                  Item_in_subselect *subq_pred, bool *remove);
 static TABLE_LIST *alloc_join_nest(THD *thd);
-static uint get_tmp_table_rec_length(List<Item> &items);
+static uint get_tmp_table_rec_length(Item **p_list, uint elements);
 static double get_tmp_table_lookup_cost(THD *thd, double row_count,
                                         uint row_size);
 static double get_tmp_table_write_cost(THD *thd, double row_count,
@@ -1805,9 +1805,12 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
 
         sjm->materialization_cost.convert_from_cost(subjoin_read_time);
         sjm->rows= subjoin_out_rows;
-
-        List<Item> &right_expr_list= 
-          sj_nest->sj_subq_pred->unit->first_select()->item_list;
+        
+        // Don't use the following list because it has "stale" items. use
+        // ref_pointer_array instead:
+        //
+        //List<Item> &right_expr_list= 
+        //  sj_nest->sj_subq_pred->unit->first_select()->item_list;
         /*
           Adjust output cardinality estimates. If the subquery has form
 
@@ -1825,17 +1828,20 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
           
           See also get_post_group_estimate().
         */
+        SELECT_LEX *subq_select= sj_nest->sj_subq_pred->unit->first_select();
         {
           for (uint i=0 ; i < join->const_tables + sjm->tables ; i++)
           {
             JOIN_TAB *tab= join->best_positions[i].table;
             join->map2table[tab->table->tablenr]= tab;
           }
-          List_iterator<Item> it(right_expr_list);
-          Item *item;
+          //List_iterator<Item> it(right_expr_list);
+          Item **ref_array= subq_select->ref_pointer_array;
+          Item **ref_array_end= ref_array + subq_select->item_list.elements; 
           table_map map= 0;
-          while ((item= it++))
-            map |= item->used_tables();
+          //while ((item= it++))
+          for (;ref_array < ref_array_end; ref_array++)
+            map |= (*ref_array)->used_tables();
           map= map & ~PSEUDO_TABLE_BITS;
           Table_map_iterator tm_it(map);
           int tableno;
@@ -1850,7 +1856,8 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
         /*
           Calculate temporary table parameters and usage costs
         */
-        uint rowlen= get_tmp_table_rec_length(right_expr_list);
+        uint rowlen= get_tmp_table_rec_length(subq_select->ref_pointer_array,
+                                              subq_select->item_list.elements);
         double lookup_cost= get_tmp_table_lookup_cost(join->thd,
                                                       subjoin_out_rows, rowlen);
         double write_cost= get_tmp_table_write_cost(join->thd,
@@ -1897,13 +1904,15 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
     Length of the temptable record, in bytes
 */
 
-static uint get_tmp_table_rec_length(List<Item> &items)
+static uint get_tmp_table_rec_length(Item **p_items, uint elements)
 {
   uint len= 0;
   Item *item;
-  List_iterator<Item> it(items);
-  while ((item= it++))
+  //List_iterator<Item> it(items);
+  Item **p_item;
+  for (p_item= p_items; p_item < p_items + elements ; p_item++)
   {
+    item = *p_item;
     switch (item->result_type()) {
     case REAL_RESULT:
       len += sizeof(double);
@@ -2908,19 +2917,23 @@ bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab)
   SJ_MATERIALIZATION_INFO *sjm= emb_sj_nest->sj_mat_info;
   THD *thd= tab->join->thd;
   /* First the calls come to the materialization function */
-  List<Item> &item_list= emb_sj_nest->sj_subq_pred->unit->first_select()->item_list;
+  //List<Item> &item_list= emb_sj_nest->sj_subq_pred->unit->first_select()->item_list;
   
   DBUG_ASSERT(sjm->is_used);
   /* 
     Set up the table to write to, do as select_union::create_result_table does
   */
   sjm->sjm_table_param.init();
-  sjm->sjm_table_param.field_count= item_list.elements;
   sjm->sjm_table_param.bit_fields_as_long= TRUE;
-  List_iterator<Item> it(item_list);
-  Item *right_expr;
-  while((right_expr= it++))
-    sjm->sjm_table_cols.push_back(right_expr);
+  //List_iterator<Item> it(item_list);
+  SELECT_LEX *subq_select= emb_sj_nest->sj_subq_pred->unit->first_select();
+  Item **p_item= subq_select->ref_pointer_array;
+  Item **p_end= p_item + subq_select->item_list.elements;
+  //while((right_expr= it++))
+  for(;p_item != p_end; p_item++)
+    sjm->sjm_table_cols.push_back(*p_item);
+
+  sjm->sjm_table_param.field_count= subq_select->item_list.elements;
 
   if (!(sjm->table= create_tmp_table(thd, &sjm->sjm_table_param, 
                                      sjm->sjm_table_cols, (ORDER*) 0, 
@@ -2952,8 +2965,8 @@ bool setup_sj_materialization_part2(JOIN_TAB *sjm_tab)
   SJ_MATERIALIZATION_INFO *sjm= emb_sj_nest->sj_mat_info;
   THD *thd= tab->join->thd;
   uint i;
-  List<Item> &item_list= emb_sj_nest->sj_subq_pred->unit->first_select()->item_list;
-  List_iterator<Item> it(item_list);
+  //List<Item> &item_list= emb_sj_nest->sj_subq_pred->unit->first_select()->item_list;
+  //List_iterator<Item> it(item_list);
 
   if (!sjm->is_sj_scan)
   {
@@ -3069,11 +3082,13 @@ bool setup_sj_materialization_part2(JOIN_TAB *sjm_tab)
     */
     sjm->copy_field= new Copy_field[sjm->sjm_table_cols.elements];
     //it.rewind();
+    Item **p_item= emb_sj_nest->sj_subq_pred->unit->first_select()->ref_pointer_array;
     for (uint i=0; i < sjm->sjm_table_cols.elements; i++)
     {
       bool dummy;
       Item_equal *item_eq;
-      Item *item= (it++)->real_item();
+      //Item *item= (it++)->real_item();
+      Item *item= (*(p_item++))->real_item();
       DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
       Field *copy_to= ((Item_field*)item)->field;
       /*
@@ -4513,7 +4528,9 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
       C. Compute execution costs.
     */
     /* C.1 Compute the cost of the materialization strategy. */
-    uint rowlen= get_tmp_table_rec_length(unit->first_select()->item_list);
+    //uint rowlen= get_tmp_table_rec_length(unit->first_select()->item_list);
+    uint rowlen= get_tmp_table_rec_length(ref_pointer_array, 
+                                          select_lex->item_list.elements);
     /* The cost of writing one row into the temporary table. */
     double write_cost= get_tmp_table_write_cost(thd, inner_record_count_1,
                                                 rowlen);

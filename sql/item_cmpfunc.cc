@@ -5065,23 +5065,21 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
     very fast to use.
 */
 
-longlong Item_cond_xor::val_int()
+longlong Item_func_xor::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  List_iterator<Item> li(list);
-  Item *item;
-  int result=0;	
-  null_value=0;
-  while ((item=li++))
+  int result= 0;
+  null_value= false;
+  for (uint i= 0; i < arg_count; i++)
   {
-    result^= (item->val_int() != 0);
-    if (item->null_value)
+    result^= (args[i]->val_int() != 0);
+    if (args[i]->null_value)
     {
-      null_value=1;
+      null_value= true;
       return 0;
     }
   }
-  return (longlong) result;
+  return result;
 }
 
 /**
@@ -5120,6 +5118,33 @@ Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 {
   Item *item= negated_item();
   return item;
+}
+
+/**
+  XOR can be negated by negating one of the operands:
+
+  NOT (a XOR b)  => (NOT a) XOR b
+                 => a       XOR (NOT b)
+
+  @param thd     Thread handle
+  @return        New negated item
+*/
+Item *Item_func_xor::neg_transformer(THD *thd)
+{
+  Item *neg_operand;
+  Item_func_xor *new_item;
+  if ((neg_operand= args[0]->neg_transformer(thd)))
+    // args[0] has neg_tranformer
+    new_item= new(thd->mem_root) Item_func_xor(neg_operand, args[1]);
+  else if ((neg_operand= args[1]->neg_transformer(thd)))
+    // args[1] has neg_tranformer
+    new_item= new(thd->mem_root) Item_func_xor(args[0], neg_operand);
+  else
+  {
+    neg_operand= new(thd->mem_root) Item_func_not(args[0]);
+    new_item= new(thd->mem_root) Item_func_xor(neg_operand, args[1]);
+  }
+  return new_item;
 }
 
 
