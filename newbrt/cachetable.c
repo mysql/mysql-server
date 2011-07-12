@@ -1907,7 +1907,7 @@ int toku_cachetable_get_and_pin_nonblocking (
     int r = cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs);
     cachetable_unlock(ct);
     if (ct->ydb_lock_callback) ct->ydb_lock_callback();
-    if (r!=0) { assert(!p->checkpoint_pending); return r; }
+    if (r!=0) return r;
     else return TOKUDB_TRY_AGAIN;
 }
 
