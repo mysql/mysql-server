@@ -177,6 +177,7 @@ static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_large_prefix			= FALSE;
+static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 
 static char*	internal_innobase_data_file_path	= NULL;
@@ -9370,7 +9371,6 @@ ha_innobase::optimize(
 	THD*		thd,		/*!< in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
-#if 0
 	/*FTS-FIXME: Since MySQL doesn't support engine-specific commands,
 	we have to hijack some existing command in order to be able to test
 	the new admin commands added in InnoDB's FTS support. For now, we
@@ -9380,14 +9380,15 @@ ha_innobase::optimize(
 	This works OK otherwise, but MySQL locks the entire table during
 	calls to OPTIMIZE, which is undesirable. */
 
-	if (prebuilt->table->fts && prebuilt->table->fts->cache) {
-		fts_optimize_table(prebuilt->table);
-
+	if (innodb_optimize_fulltext_only) {
+		if (prebuilt->table->fts && prebuilt->table->fts->cache) {
+			fts_optimize_table(prebuilt->table);
+		}
 		return(HA_ADMIN_OK);
-	}
-#endif
+	} else {
 
-	return(HA_ADMIN_TRY_ALTER);
+		return(HA_ADMIN_TRY_ALTER);
+	}
 }
 
 /*******************************************************************//**
@@ -13468,7 +13469,7 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
 static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "InnoDB Fulltext search cache size in bytes",
-  NULL, NULL, 32000000, 16000000, 80000000, 0);
+  NULL, NULL, 32000000, 1600000, 80000000, 0);
 
 static MYSQL_SYSVAR_ULONG(ft_min_token_size, fts_min_token_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -13480,16 +13481,10 @@ static MYSQL_SYSVAR_ULONG(ft_max_token_size, fts_max_token_size,
   "InnoDB Fulltext search maximum token size in bytes",
   NULL, NULL, HA_FT_MAXCHARLEN, 10, FTS_MAX_WORD_LEN , 0);
 
-static MYSQL_SYSVAR_ULONG(ft_optimize_add_threshold, fts_optimize_add_threshold,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Number of inserts that InnoDB Fulltext optimization will be activated",
-  NULL, NULL, 20000, 1000, 500000, 0);
-
-static MYSQL_SYSVAR_ULONG(ft_optimize_delete_threshold,
-		          fts_optimize_delete_threshold,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Number of deletes that InnoDB Fulltext optimization will be activated",
-  NULL, NULL, 20000, 1000, 500000, 0);
+static MYSQL_SYSVAR_BOOL(optimize_fulltext_only, innodb_optimize_fulltext_only,
+  PLUGIN_VAR_NOCMDARG,
+  "Only optimize the Fulltext index of the table",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONG(read_io_threads, innobase_read_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -13689,8 +13684,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(ft_cache_size),
   MYSQL_SYSVAR(ft_max_token_size),
   MYSQL_SYSVAR(ft_min_token_size),
-  MYSQL_SYSVAR(ft_optimize_add_threshold),
-  MYSQL_SYSVAR(ft_optimize_delete_threshold),
   MYSQL_SYSVAR(large_prefix),
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
   MYSQL_SYSVAR(lock_wait_timeout),
@@ -13709,6 +13702,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(old_blocks_pct),
   MYSQL_SYSVAR(old_blocks_time),
   MYSQL_SYSVAR(open_files),
+  MYSQL_SYSVAR(optimize_fulltext_only),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(server_stopword_table),
   MYSQL_SYSVAR(fts_internal_tbl_name),

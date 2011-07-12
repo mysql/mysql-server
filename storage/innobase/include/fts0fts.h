@@ -68,6 +68,9 @@ those defined in mysql file ft_global.h */
 
 #define FTS_INDEX_TABLE_IND_NAME	"FTS_INDEX_TABLE_IND"
 
+/* Threshold where our optimize thread automatically kicks in */
+#define FTS_OPTIMIZE_THRESHOLD		10000000
+
 /* FTS rank type, which will be between 0 .. 1 inclusive */
 typedef float fts_rank_t;
 
@@ -403,6 +406,16 @@ void
 fts_free(
 /*=====*/
 	dict_table_t*   table);		/* in/out: table with FTS indexes */
+
+/*********************************************************************//**
+Run OPTIMIZE on the given table.
+@return DB_SUCCESS if all OK */
+UNIV_INTERN
+ulint
+fts_optimize_table(
+/*===============*/
+	dict_table_t*	table);		/*!< in: table to optimiza */
+
 /**********************************************************************//**
 Startup the optimize thread and create the work queue. */
 UNIV_INTERN
