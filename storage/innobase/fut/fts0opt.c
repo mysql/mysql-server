@@ -2356,16 +2356,15 @@ fts_optimize_reset_start_time(
 }
 
 /*********************************************************************//**
-Run OPTIMIZE on the given table.
+Run OPTIMIZE on the given table by a background thread.
 @return DB_SUCCESS if all OK */
-
+static
 ulint
-fts_optimize_table(
-/*===============*/
+fts_optimize_table_bk(
+/*==================*/
 	fts_slot_t*	slot)	/*!< in: table to optimiza */
 {
 	ulint		error = DB_SUCCESS;
-	fts_optimize_t*	optim = NULL;
 	dict_table_t*	table = slot->table;
 	fts_t*		fts = table->fts;
 
@@ -2375,6 +2374,36 @@ fts_optimize_table(
 
 		return(DB_SUCCESS);
 	}
+
+	if (fts->cache && fts->cache->deleted < FTS_OPTIMIZE_THRESHOLD) {
+		return(DB_SUCCESS);
+	}
+
+	error = fts_optimize_table(table);
+
+	if (error == DB_SUCCESS) {
+		slot->state = FTS_STATE_DONE;
+		slot->last_run = 0;
+		slot->completed = ut_time();
+	}
+
+	/* Note time this run completed. */
+	slot->last_run = ut_time();
+
+	return(error);
+}
+/*********************************************************************//**
+Run OPTIMIZE on the given table.
+@return DB_SUCCESS if all OK */
+UNIV_INTERN
+ulint
+fts_optimize_table(
+/*===============*/
+	dict_table_t*	table)	/*!< in: table to optimiza */
+{
+	ulint		error = DB_SUCCESS;
+	fts_optimize_t*	optim = NULL;
+	fts_t*		fts = table->fts;
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr, "  InnoDB: FTS start optimize %s\n", table->name);
@@ -2440,19 +2469,11 @@ fts_optimize_table(
 				so that optimize can be restarted. */
 				error = fts_optimize_reset_start_time(optim);
 			}
-
-			if (error == DB_SUCCESS) {
-				slot->state = FTS_STATE_DONE;
-				slot->last_run = 0;
-				slot->completed = ut_time();
-			}
 		}
 	}
 
 	fts_optimize_free(optim);
 
-	/* Note time this run completed. */
-	slot->last_run = ut_time();
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr, "  InnoDB: FTS end optimize %s\n", table->name);
@@ -2833,7 +2854,7 @@ fts_optimize_thread(
 
 				slot->state = FTS_STATE_RUNNING;
 
-				error = fts_optimize_table(slot);
+				error = fts_optimize_table_bk(slot);
 			}
 
 			++current;

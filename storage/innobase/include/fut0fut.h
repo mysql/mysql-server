@@ -52,13 +52,6 @@ extern ulint		fts_max_token_size;
 /* Variable specifying the minimum FTS max token size */
 extern ulint		fts_min_token_size;
 
-/* Variable specifying the threshold that optimizer will be activated */
-extern ulint		fts_optimize_add_threshold;
-
-/* Variable specifying the threshold that optimizer will be activated */
-extern ulint		fts_optimize_delete_threshold;
-
-
 /* Maximum possible Fulltext word length */
 #define FTS_MAX_WORD_LEN	2 * HA_FT_MAXCHARLEN
 

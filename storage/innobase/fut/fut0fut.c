@@ -60,12 +60,6 @@ UNIV_INTERN ulint	fts_max_token_size;
 /* Variable specifying the minimum FTS max token size */
 UNIV_INTERN ulint	fts_min_token_size;
 
-/* Variable specifying the threshold that optimizer will be activated */
-UNIV_INTERN ulint	fts_optimize_add_threshold;
-
-/* Variable specifying the threshold that optimizer will be activated */
-UNIV_INTERN ulint	fts_optimize_delete_threshold;
-
 
 // FIXME: testing
 ib_time_t elapsed_time = 0;
@@ -1070,7 +1064,9 @@ fts_cache_add_doc(
 		return;
 	}
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+#endif
 
 	n_words = rbt_size(tokens);
 
@@ -3237,6 +3233,7 @@ fts_write_node(
 	return(error);
 }
 
+#ifdef FTS_ADD_DEBUG
 /********************************************************************
 Delete rows from the ADDED table that are indexed in the cache. */
 static
@@ -3252,7 +3249,6 @@ fts_sync_delete_from_added(
 	fts_table_t	fts_table;
 	doc_id_t	write_last;
 	doc_id_t	write_first;
-	doc_id_t	last_doc_id;
 
 	ut_a(sync->max_doc_id >= sync->min_doc_id);
 
@@ -3281,13 +3277,9 @@ fts_sync_delete_from_added(
 
 	fts_que_graph_free_check_lock(&fts_table, NULL, graph);
 
-	/* After each Sync, update the CONFIG table about the max doc id
-	we just sync-ed to index table */
-	fts_cmp_set_sync_doc_id(sync->table, sync->max_doc_id, FALSE,
-				&last_doc_id);
-
 	return(error);
 }
+#endif
 
 /********************************************************************
 Add rows to the DELETED_CACHE table.*/
@@ -3740,11 +3732,15 @@ fts_sync_commit(
 	ulint		error;
 	trx_t*		trx = sync->trx;
 	fts_cache_t*	cache = sync->table->fts->cache;
+	doc_id_t	last_doc_id;
 
 	trx->op_info = "doing SYNC commit";
 
-	/* Delete deleted Dod ID from ADD table */
-	error = fts_sync_delete_from_added(sync);
+	/* After each Sync, update the CONFIG table about the max doc id
+	we just sync-ed to index table */
+	error = fts_cmp_set_sync_doc_id(sync->table, sync->max_doc_id, FALSE,
+					&last_doc_id);
+
 
 	/* Get the list of deleted documents that are either in the
 	cache or were headed there but were deleted before the add
@@ -3799,10 +3795,6 @@ fts_sync(
 	fts_sync_t*	sync)		/*!< in: sync state */
 {
 	ulint		i;
-	ulint		total;
-	ulint		added;
-	ulint		deleted;
-	ulint		threshold;
 	ulint		error = DB_SUCCESS;
 	fts_cache_t*	cache = sync->table->fts->cache;
 
@@ -3831,28 +3823,10 @@ fts_sync(
 	lock for longer than is needed. */
 	mutex_enter(&cache->deleted_lock);
 
-	added = cache->added;
-	deleted = cache->deleted;
-	total = added + deleted;
+	cache->added = 0;
+	cache->deleted = 0;
 
 	mutex_exit(&cache->deleted_lock);
-
-	threshold = fts_optimize_add_threshold + fts_optimize_delete_threshold;
-
-	if (error == DB_SUCCESS && !sync->interrupted && total >= threshold) {
-
-		fts_optimize_do_table(sync->table);
-
-		mutex_enter(&cache->deleted_lock);
-
-		ut_a(cache->added >= added);
-		cache->added -= added;
-
-		ut_a(cache->deleted >= deleted);
-		cache->deleted -= deleted;
-
-		mutex_exit(&cache->deleted_lock);
-	}
 
 	return(error);
 }
