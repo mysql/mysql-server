@@ -1148,6 +1148,18 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("leafentry broadcast updates", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.descriptor_set);
       STATPRINT("descriptor_set", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_fetch_hit);
+      STATPRINT("partial_fetch_hit", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_fetch_miss);
+      STATPRINT("partial_fetch_miss", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_fetch_compressed);
+      STATPRINT("partial_fetch_compressed", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.msn_discards);
+      STATPRINT("msn_discards", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.max_workdone);
+      STATPRINT("max_workdone", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.dsn_gap);
+      STATPRINT("dsn_gap", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts);
       STATPRINT("dictionary inserts multi", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.multi_inserts_fail);
