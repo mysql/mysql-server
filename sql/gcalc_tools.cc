@@ -879,7 +879,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
     if (!new_t)
       return 1;
     m_fn->invert_state(pi.get_shape());
-    new_t->result_range= prev_state ^ m_fn->count();
+    new_t->result_range= ~prev_state & m_fn->count();
     new_t->next= *at_hook;
     *at_hook= new_t;
     if (new_t->result_range &&
@@ -891,12 +891,17 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
   {
     active_thread *new_t0, *new_t1;
     int fn_result;
+    const Gcalc_heap::Info *p= pi.get_pi();
+    bool line= m_fn->get_shape_kind(p->shape) == Gcalc_function::shape_line;
     if (!(new_t0= new_active_thread()) || !(new_t1= new_active_thread()))
       return 1;
     
     m_fn->invert_state(pi.get_shape());
     fn_result= m_fn->count();
-    new_t0->result_range= new_t1->result_range= prev_state ^ fn_result;
+    if (line)
+      new_t0->result_range= new_t1->result_range= ~prev_state & fn_result;
+    else
+      new_t0->result_range= new_t1->result_range= prev_state ^ fn_result;
     new_t1->next= *at_hook;
     new_t0->next= new_t1;
     *at_hook= new_t0;

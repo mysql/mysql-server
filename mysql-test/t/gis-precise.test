@@ -158,7 +158,7 @@ SELECT Round(ST_AREA(ST_BUFFER( ST_UNION(
          POLYGONFROMTEXT('POLYGON((7 7, 4 7, 2 9, 7 6, 7 7))')), 1)), 6);
 
 
-#buf #804259 Second assertion in Gis_geometry_collection::init_from_opresult
+#bug #804259 Second assertion in Gis_geometry_collection::init_from_opresult
 
 SELECT AsText(ST_UNION(MultiPolygonFromText('
         MULTIPOLYGON(((2 2, 2 8, 8 8, 8 2, 2 2), (4 4, 4 6, 6 6, 6 4, 4 4)),
@@ -168,3 +168,12 @@ MultiPolygonFromText(' MULTIPOLYGON(((0 0, 1 9, 4 6, 0 0)),
                      ((0 5, 3 5, 3 4, 1 4, 1 3, 3 3, 3 0, 0 0, 0 5), (1 1, 2 1, 2 2, 1 2, 1 1)),
                      ((7 7, 4 7, 6 3, 7 2, 7 7)),
                      ((0 5, 3 5, 3 4, 1 4, 1 3, 3 3, 3 0, 0 0, 0 5), (1 1, 2 1, 2 2, 1 2, 1 1))) ')));
+
+
+#bug 801217 Assertion `t1->result_range' in Gcalc_operation_reducer::end_couple
+
+SELECT AsText(ST_SYMDIFFERENCE(
+        MultiLineStringFromText('MULTILINESTRING((7 7, 1 7, 8 5, 7 8, 7 7),
+                                                 (6 3, 3 4, 1 1, 9 9, 9 0, 8 4, 9 9))'),
+        Envelope(GeometryFromText('MULTIPOINT(7 9, 0 0, 3 7, 1 6, 0 0)'))));
+
