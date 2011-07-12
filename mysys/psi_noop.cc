@@ -25,6 +25,8 @@
 #include "my_sys.h"
 #include "mysql/psi/psi.h"
 
+C_MODE_START
+
 static void register_mutex_noop(const char *category,
                                 PSI_mutex_info *info,
                                 int count)
@@ -619,8 +621,6 @@ static PSI PSI_noop=
   set_statement_no_good_index_used_noop,
   end_statement_noop
 };
-
-C_MODE_START
 
 /**
   Hook for the instrumentation interface.
