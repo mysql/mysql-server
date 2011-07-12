@@ -128,6 +128,16 @@ static MYSQL_THDVAR_UINT(block_size,
   ~0L,   // max
   1      // blocksize???
   );
+static MYSQL_THDVAR_UINT(read_block_size,
+  0,
+  "fractal tree read block size",
+  NULL, 
+  NULL, 
+  128*1024, // default
+  4096,  // min
+  ~0L,   // max
+  1      // blocksize???
+  );
 
 void tokudb_checkpoint_lock(THD * thd);
 void tokudb_checkpoint_unlock(THD * thd);
@@ -593,6 +603,10 @@ bool get_prelock_empty(THD* thd) {
 
 uint get_tokudb_block_size(THD* thd) {
     return THDVAR(thd, block_size);
+}
+
+uint get_tokudb_read_block_size(THD* thd) {
+    return THDVAR(thd, read_block_size);
 }
 
 typedef struct txn_progress_info {
@@ -1546,6 +1560,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(fs_reserve_percent),
     MYSQL_SYSVAR(tmp_dir),
     MYSQL_SYSVAR(block_size),
+    MYSQL_SYSVAR(read_block_size),
     NULL
 };
 

@@ -19,6 +19,7 @@ bool get_disable_slow_alter(THD* thd);
 bool get_create_index_online(THD* thd);
 bool get_prelock_empty(THD* thd);
 uint get_tokudb_block_size(THD* thd);
+uint get_tokudb_read_block_size(THD* thd);
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
