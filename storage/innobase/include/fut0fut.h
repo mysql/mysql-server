@@ -44,13 +44,13 @@ typedef struct fts_stopword_struct	fts_stopword_t;
 extern const char*	fts_default_stopword[];
 
 /* Variable specifying the maximum FTS cache size for each table */
-extern ulint		fts_max_cache_size;
+extern ulong		fts_max_cache_size;
 
 /* Variable specifying the maximum FTS max token size */
-extern ulint		fts_max_token_size;
+extern ulong		fts_max_token_size;
 
 /* Variable specifying the minimum FTS max token size */
-extern ulint		fts_min_token_size;
+extern ulong		fts_min_token_size;
 
 /* Maximum possible Fulltext word length */
 #define FTS_MAX_WORD_LEN	2 * HA_FT_MAXCHARLEN

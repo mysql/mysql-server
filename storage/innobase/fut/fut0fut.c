@@ -52,13 +52,13 @@ Completed by Sunny Bains and Jimmy Yang
 
 /* This is maximum FTS cache for each table and would be
 a configurable variable */
-UNIV_INTERN ulint	fts_max_cache_size;
+UNIV_INTERN ulong	fts_max_cache_size;
 
 /* Variable specifying the maximum FTS max token size */
-UNIV_INTERN ulint	fts_max_token_size;
+UNIV_INTERN ulong	fts_max_token_size;
 
 /* Variable specifying the minimum FTS max token size */
-UNIV_INTERN ulint	fts_min_token_size;
+UNIV_INTERN ulong	fts_min_token_size;
 
 
 // FIXME: testing
