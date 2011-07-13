@@ -94,14 +94,11 @@ int maria_delete_table(const char *name)
   }
 
   fn_format(from,name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  if (my_delete_with_symlink(from, MYF(MY_WME | sync_dir)))
+  if (mysql_file_delete_with_symlink(key_file_kfile, from,
+                                     MYF(MY_WME | sync_dir)))
     DBUG_RETURN(my_errno);
   fn_format(from,name,"",MARIA_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-#ifdef USE_RAID
-  if (raid_type)
-    DBUG_RETURN(my_raid_delete(from, raid_chunks, MYF(MY_WME | sync_dir)) ?
-                my_errno : 0);
-#endif
-  DBUG_RETURN(my_delete_with_symlink(from, MYF(MY_WME | sync_dir)) ?
+  DBUG_RETURN(mysql_file_delete_with_symlink(key_file_dfile,
+                                             from, MYF(MY_WME | sync_dir)) ?
               my_errno : 0);
 }

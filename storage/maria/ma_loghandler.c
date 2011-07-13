@@ -21,14 +21,14 @@
 #include "ma_servicethread.h"
 
 /*
-  On Windows, neither my_open() nor my_sync() work for directories.
+  On Windows, neither my_open() nor mysql_file_sync() work for directories.
   Also there is no need to flush filesystem changes ,i.e to sync()
   directories.
 */
 #ifdef __WIN__
 #define sync_dir(A,B) 0
 #else
-#define sync_dir(A,B) my_sync(A,B)
+#define sync_dir(A,B) mysql_file_sync(A,B)
 #endif
 
 /**
@@ -49,9 +49,9 @@
 #endif
 
 /** @brief protects checkpoint_in_progress */
-static pthread_mutex_t LOCK_soft_sync;
+static mysql_mutex_t LOCK_soft_sync;
 /** @brief for killing the background checkpoint thread */
-static pthread_cond_t  COND_soft_sync;
+static mysql_cond_t  COND_soft_sync;
 /** @brief control structure for checkpoint background thread */
 static MA_SERVICE_THREAD_CONTROL soft_sync_control=
   {THREAD_DEAD, FALSE, &LOCK_soft_sync, &COND_soft_sync};
@@ -155,7 +155,7 @@ struct st_translog_buffer
   /* File handler for this buffer */
   TRANSLOG_FILE *file;
   /* Threads which are waiting for buffer filling/freeing */
-  pthread_cond_t waiting_filling_buffer;
+  mysql_cond_t waiting_filling_buffer;
   /* Number of records which are in copy progress */
   uint copy_to_buffer_in_progress;
   /* list of waiting buffer ready threads */
@@ -190,7 +190,7 @@ struct st_translog_buffer
    Because of above and number of buffers equal 5 we can't get dead lock (it is
    impossible to get all 5 buffers locked simultaneously).
   */
-  pthread_mutex_t mutex;
+  mysql_mutex_t mutex;
   /*
     Some thread is going to close the buffer and it should be
     done only by that thread
@@ -208,7 +208,7 @@ struct st_translog_buffer
     (we have to keep it in this buffer to lock buffers only in one direction).
   */
   TRANSLOG_ADDRESS prev_sent_to_disk;
-  pthread_cond_t prev_sent_to_disk_cond;
+  mysql_cond_t prev_sent_to_disk_cond;
 };
 
 
@@ -283,7 +283,7 @@ struct st_translog_descriptor
   /* min/max number of file in the array */
   uint32 max_file, min_file;
   /* the opened files list guard */
-  rw_lock_t open_files_lock;
+  mysql_rwlock_t open_files_lock;
 
   /*
     File descriptor of the directory where we store log files for syncing
@@ -295,7 +295,7 @@ struct st_translog_descriptor
   /* Mask where 1 in position N mean that buffer N is not flushed */
   dirty_buffer_mask_t dirty_buffer_mask;
   /* The above variable protection */
-  pthread_mutex_t dirty_buffer_mask_lock;
+  mysql_mutex_t dirty_buffer_mask_lock;
   /*
      horizon - visible end of the log (here is absolute end of the log:
      position where next chunk can start
@@ -321,23 +321,23 @@ struct st_translog_descriptor
   /* All what is after this address is not sent to disk yet */
   TRANSLOG_ADDRESS in_buffers_only;
   /* protection of sent_to_disk and in_buffers_only */
-  pthread_mutex_t sent_to_disk_lock;
+  mysql_mutex_t sent_to_disk_lock;
   /*
     Protect flushed (see above) and for flush serialization (will
     be removed in v1.5
   */
-  pthread_mutex_t log_flush_lock;
-  pthread_cond_t log_flush_cond;
-  pthread_cond_t new_goal_cond;
+  mysql_mutex_t log_flush_lock;
+  mysql_cond_t log_flush_cond;
+  mysql_cond_t new_goal_cond;
 
   /* Protects changing of headers of finished files (max_lsn) */
-  pthread_mutex_t file_header_lock;
+  mysql_mutex_t file_header_lock;
 
   /*
     Sorted array (with protection) of files where we started writing process
     and so we can't give last LSN yet
   */
-  pthread_mutex_t unfinished_files_lock;
+  mysql_mutex_t unfinished_files_lock;
   DYNAMIC_ARRAY unfinished_files;
 
   /*
@@ -348,7 +348,7 @@ struct st_translog_descriptor
   /* Purger data: minimum file in the log (or 0 if unknown) */
   uint32 min_file_number;
   /* Protect purger from many calls and it's data */
-  pthread_mutex_t purger_lock;
+  mysql_mutex_t purger_lock;
   /* last low water mark checked */
   LSN last_lsn_checked;
   /**
@@ -444,9 +444,9 @@ LOG_DESC log_record_type_descriptor[LOGREC_NUMBER_OF_TYPES];
 #ifndef DBUG_OFF
 
 #define translog_buffer_lock_assert_owner(B) \
-  safe_mutex_assert_owner(&(B)->mutex)
+  mysql_mutex_assert_owner(&(B)->mutex)
 #define translog_lock_assert_owner() \
-  safe_mutex_assert_owner(&log_descriptor.bc.buffer->mutex)
+  mysql_mutex_assert_owner(&log_descriptor.bc.buffer->mutex)
 void translog_lock_handler_assert_owner()
 {
   translog_lock_assert_owner();
@@ -937,8 +937,9 @@ static File create_logfile_by_number_no_cache(uint32 file_no)
      DBUG_RETURN(-1);
 
   /* TODO: add O_DIRECT to open flags (when buffer is aligned) */
-  if ((file= my_create(translog_filename_by_fileno(file_no, path),
-                       0, O_BINARY | O_RDWR, MYF(MY_WME))) < 0)
+  if ((file= mysql_file_create(key_file_translog,
+                               translog_filename_by_fileno(file_no, path),
+                               0, O_BINARY | O_RDWR, MYF(MY_WME))) < 0)
   {
     DBUG_PRINT("error", ("Error %d during creating file '%s'", errno, path));
     translog_stop_writing();
@@ -973,9 +974,10 @@ static File open_logfile_by_number_no_cache(uint32 file_no)
 
   /* TODO: add O_DIRECT to open flags (when buffer is aligned) */
   /* TODO: use my_create() */
-  if ((file= my_open(translog_filename_by_fileno(file_no, path),
-                     log_descriptor.open_flags,
-                     MYF(MY_WME))) < 0)
+  if ((file= mysql_file_open(key_file_translog,
+                             translog_filename_by_fileno(file_no, path),
+                             log_descriptor.open_flags,
+                             MYF(MY_WME))) < 0)
   {
     DBUG_PRINT("error", ("Error %d during opening file '%s'", errno, path));
     DBUG_RETURN(-1);
@@ -998,12 +1000,12 @@ static TRANSLOG_FILE *get_logfile_by_number(uint32 file_no)
 {
   TRANSLOG_FILE *file;
   DBUG_ENTER("get_logfile_by_number");
-  rw_rdlock(&log_descriptor.open_files_lock);
+  mysql_rwlock_rdlock(&log_descriptor.open_files_lock);
   if (log_descriptor.max_file - file_no >=
       log_descriptor.open_files.elements)
   {
     DBUG_PRINT("info", ("File #%u is not opened", file_no));
-    rw_unlock(&log_descriptor.open_files_lock);
+    mysql_rwlock_unlock(&log_descriptor.open_files_lock);
     DBUG_RETURN(NULL);
   }
   DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
@@ -1013,7 +1015,7 @@ static TRANSLOG_FILE *get_logfile_by_number(uint32 file_no)
 
   file= *dynamic_element(&log_descriptor.open_files,
                          log_descriptor.max_file - file_no, TRANSLOG_FILE **);
-  rw_unlock(&log_descriptor.open_files_lock);
+  mysql_rwlock_unlock(&log_descriptor.open_files_lock);
   DBUG_PRINT("info", ("File 0x%lx File no: %lu, File handler: %d",
                       (ulong)file, (ulong)file_no,
                       (file ? file->handler.file : -1)));
@@ -1032,7 +1034,7 @@ static TRANSLOG_FILE *get_current_logfile()
 {
   TRANSLOG_FILE *file;
   DBUG_ENTER("get_current_logfile");
-  rw_rdlock(&log_descriptor.open_files_lock);
+  mysql_rwlock_rdlock(&log_descriptor.open_files_lock);
   DBUG_PRINT("info", ("max_file: %lu  min_file: %lu  open_files: %lu",
                       (ulong) log_descriptor.max_file,
                       (ulong) log_descriptor.min_file,
@@ -1040,7 +1042,7 @@ static TRANSLOG_FILE *get_current_logfile()
   DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
               log_descriptor.open_files.elements);
   file= *dynamic_element(&log_descriptor.open_files, 0, TRANSLOG_FILE **);
-  rw_unlock(&log_descriptor.open_files_lock);
+  mysql_rwlock_unlock(&log_descriptor.open_files_lock);
   DBUG_RETURN(file);
 }
 
@@ -1138,7 +1140,7 @@ static my_bool translog_max_lsn_to_header(File file, LSN lsn)
                  LSN_STORE_SIZE,
                  (LOG_HEADER_DATA_SIZE - LSN_STORE_SIZE),
                  log_write_flags) != 0 ||
-       my_sync(file, MYF(MY_WME)) != 0);
+       mysql_file_sync(file, MYF(MY_WME)) != 0);
   /*
     We should not increase counter in case of error above, but it is so
     unlikely that we can ignore this case
@@ -1212,7 +1214,7 @@ my_bool translog_read_file_header(LOGHANDLER_FILE_INFO *desc, File file)
   uchar page_buff[LOG_HEADER_DATA_SIZE];
   DBUG_ENTER("translog_read_file_header");
 
-  if (my_pread(file, page_buff,
+  if (mysql_file_pread(file, page_buff,
                sizeof(page_buff), 0, MYF(MY_FNABP | MY_WME)))
   {
     DBUG_PRINT("info", ("log read fail error: %d", my_errno));
@@ -1270,7 +1272,7 @@ static my_bool translog_set_lsn_for_files(uint32 from_file, uint32 to_file,
     translog_unlock();
 
   /* Checks finished files if they are */
-  pthread_mutex_lock(&log_descriptor.file_header_lock);
+  mysql_mutex_lock(&log_descriptor.file_header_lock);
   for (file= from_file; file <= to_file; file++)
   {
     LOGHANDLER_FILE_INFO info;
@@ -1282,13 +1284,13 @@ static my_bool translog_set_lsn_for_files(uint32 from_file, uint32 to_file,
         ((translog_read_file_header(&info, fd) ||
           (cmp_translog_addr(lsn, info.max_lsn) > 0 &&
            translog_max_lsn_to_header(fd, lsn))) |
-          my_close(fd, MYF(MY_WME))))
+          mysql_file_close(fd, MYF(MY_WME))))
     {
       translog_stop_writing();
       DBUG_RETURN(1);
     }
   }
-  pthread_mutex_unlock(&log_descriptor.file_header_lock);
+  mysql_mutex_unlock(&log_descriptor.file_header_lock);
 
   DBUG_RETURN(0);
 }
@@ -1317,7 +1319,7 @@ static void translog_mark_file_unfinished(uint32 file)
   DBUG_PRINT("enter", ("file: %lu", (ulong) file));
 
   fc.file= file; fc.counter= 1;
-  pthread_mutex_lock(&log_descriptor.unfinished_files_lock);
+  mysql_mutex_lock(&log_descriptor.unfinished_files_lock);
 
   if (log_descriptor.unfinished_files.elements == 0)
   {
@@ -1368,7 +1370,7 @@ static void translog_mark_file_unfinished(uint32 file)
                          place + 1, struct st_file_counter *),
          &fc, sizeof(struct st_file_counter));
 end:
-  pthread_mutex_unlock(&log_descriptor.unfinished_files_lock);
+  mysql_mutex_unlock(&log_descriptor.unfinished_files_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -1388,7 +1390,7 @@ static void translog_mark_file_finished(uint32 file)
 
   LINT_INIT(fc_ptr);
 
-  pthread_mutex_lock(&log_descriptor.unfinished_files_lock);
+  mysql_mutex_lock(&log_descriptor.unfinished_files_lock);
 
   DBUG_ASSERT(log_descriptor.unfinished_files.elements > 0);
   for (i= 0;
@@ -1406,7 +1408,7 @@ static void translog_mark_file_finished(uint32 file)
 
   if (! --fc_ptr->counter)
     delete_dynamic_element(&log_descriptor.unfinished_files, i);
-  pthread_mutex_unlock(&log_descriptor.unfinished_files_lock);
+  mysql_mutex_unlock(&log_descriptor.unfinished_files_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -1430,7 +1432,7 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
 
-  pthread_mutex_lock(&log_descriptor.unfinished_files_lock);
+  mysql_mutex_lock(&log_descriptor.unfinished_files_lock);
 
   /* find file with minimum file number "in progress" */
   if (log_descriptor.unfinished_files.elements > 0)
@@ -1440,7 +1442,7 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
                             0, struct st_file_counter *);
     limit= fc_ptr->file; /* minimal file number "in progress" */
   }
-  pthread_mutex_unlock(&log_descriptor.unfinished_files_lock);
+  mysql_mutex_unlock(&log_descriptor.unfinished_files_lock);
 
   /*
     if there is no "in progress file" then unfinished file is in progress
@@ -1464,7 +1466,7 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
 
     fd= open_logfile_by_number_no_cache(file);
     if ((fd < 0) ||
-        (translog_read_file_header(&info, fd) | my_close(fd, MYF(MY_WME))))
+        (translog_read_file_header(&info, fd) | mysql_file_close(fd, MYF(MY_WME))))
     {
       DBUG_PRINT("error", ("Can't read file header"));
       DBUG_RETURN(LSN_ERROR);
@@ -1507,7 +1509,8 @@ static my_bool translog_buffer_init(struct st_translog_buffer *buffer, int num)
   buffer->size= 0;
   buffer->skipped_data= 0;
   /* cond of thread which is waiting for buffer filling */
-  if (pthread_cond_init(&buffer->waiting_filling_buffer, 0))
+  if (mysql_cond_init(key_TRANSLOG_BUFFER_waiting_filling_buffer,
+                      &buffer->waiting_filling_buffer, 0))
     DBUG_RETURN(1);
   /* Number of records which are in copy progress */
   buffer->copy_to_buffer_in_progress= 0;
@@ -1527,8 +1530,10 @@ static my_bool translog_buffer_init(struct st_translog_buffer *buffer, int num)
     possible problems which include this mutexes.
   */
 
-  if (pthread_mutex_init(&buffer->mutex, MY_MUTEX_INIT_FAST) ||
-      pthread_cond_init(&buffer->prev_sent_to_disk_cond, 0))
+  if (mysql_mutex_init(key_TRANSLOG_BUFFER_mutex,
+                       &buffer->mutex, MY_MUTEX_INIT_FAST) ||
+      mysql_cond_init(key_TRANSLOG_BUFFER_prev_sent_to_disk_cond,
+                      &buffer->prev_sent_to_disk_cond, 0))
     DBUG_RETURN(1);
   buffer->is_closing_buffer= 0;
   buffer->prev_sent_to_disk= LSN_IMPOSSIBLE;
@@ -1559,10 +1564,10 @@ static my_bool translog_close_log_file(TRANSLOG_FILE *file)
   */
   if (!file->is_sync)
   {
-    rc= my_sync(file->handler.file, MYF(MY_WME));
+    rc= mysql_file_sync(file->handler.file, MYF(MY_WME));
     translog_syncs++;
   }
-  rc|= my_close(file->handler.file, MYF(MY_WME));
+  rc|= mysql_file_close(file->handler.file, MYF(MY_WME));
   my_free(file);
   return test(rc);
 }
@@ -1633,7 +1638,7 @@ static my_bool translog_create_new_file()
   if (translog_max_lsn_to_header(old->handler.file, log_descriptor.max_lsn))
     goto error;
 
-  rw_wrlock(&log_descriptor.open_files_lock);
+  mysql_rwlock_wrlock(&log_descriptor.open_files_lock);
   DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
               log_descriptor.open_files.elements);
   DBUG_ASSERT(file_no == log_descriptor.max_file + 1);
@@ -1659,7 +1664,7 @@ static my_bool translog_create_new_file()
   set_dynamic(&log_descriptor.open_files, (uchar*)&file, 0);
   DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
               log_descriptor.open_files.elements);
-  rw_unlock(&log_descriptor.open_files_lock);
+  mysql_rwlock_unlock(&log_descriptor.open_files_lock);
 
   DBUG_PRINT("info", ("file_no: %lu", (ulong)file_no));
 
@@ -1677,7 +1682,7 @@ static my_bool translog_create_new_file()
   DBUG_RETURN(0);
 
 error_lock:
-  rw_unlock(&log_descriptor.open_files_lock);
+  mysql_rwlock_unlock(&log_descriptor.open_files_lock);
 error:
   translog_stop_writing();
   DBUG_RETURN(1);
@@ -1701,7 +1706,7 @@ static void translog_buffer_lock(struct st_translog_buffer *buffer)
   DBUG_PRINT("enter",
              ("Lock buffer #%u: (0x%lx)", (uint) buffer->buffer_no,
               (ulong) buffer));
-  pthread_mutex_lock(&buffer->mutex);
+  mysql_mutex_lock(&buffer->mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -1724,7 +1729,7 @@ static void translog_buffer_unlock(struct st_translog_buffer *buffer)
   DBUG_PRINT("enter", ("Unlock buffer... #%u (0x%lx)",
                        (uint) buffer->buffer_no, (ulong) buffer));
 
-  pthread_mutex_unlock(&buffer->mutex);
+  mysql_mutex_unlock(&buffer->mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -1985,7 +1990,7 @@ static void translog_wait_for_closing(struct st_translog_buffer *buffer)
     DBUG_PRINT("info", ("wait for writers... buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
     DBUG_ASSERT(buffer->file != NULL);
-    pthread_cond_wait(&buffer->waiting_filling_buffer, &buffer->mutex);
+    mysql_cond_wait(&buffer->waiting_filling_buffer, &buffer->mutex);
     DBUG_PRINT("info", ("wait for writers done buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
   }
@@ -2017,7 +2022,7 @@ static void translog_wait_for_writers(struct st_translog_buffer *buffer)
     DBUG_PRINT("info", ("wait for writers... buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
     DBUG_ASSERT(buffer->file != NULL);
-    pthread_cond_wait(&buffer->waiting_filling_buffer, &buffer->mutex);
+    mysql_cond_wait(&buffer->waiting_filling_buffer, &buffer->mutex);
     DBUG_PRINT("info", ("wait for writers done buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
   }
@@ -2061,7 +2066,7 @@ static void translog_wait_for_buffer_free(struct st_translog_buffer *buffer)
   {
     DBUG_PRINT("info", ("wait for writers... buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
-    pthread_cond_wait(&buffer->waiting_filling_buffer, &buffer->mutex);
+    mysql_cond_wait(&buffer->waiting_filling_buffer, &buffer->mutex);
     DBUG_PRINT("info", ("wait for writers done. buffer: #%u  0x%lx",
                         (uint) buffer->buffer_no, (ulong) buffer));
   }
@@ -2135,9 +2140,9 @@ static void translog_start_buffer(struct st_translog_buffer *buffer,
                       cursor->chaser, (ulong) cursor->buffer->size,
                       (ulong) (cursor->ptr - cursor->buffer->buffer)));
   translog_check_cursor(cursor);
-  pthread_mutex_lock(&log_descriptor.dirty_buffer_mask_lock);
+  mysql_mutex_lock(&log_descriptor.dirty_buffer_mask_lock);
   log_descriptor.dirty_buffer_mask|= (1 << buffer->buffer_no);
-  pthread_mutex_unlock(&log_descriptor.dirty_buffer_mask_lock);
+  mysql_mutex_unlock(&log_descriptor.dirty_buffer_mask_lock);
 
   DBUG_VOID_RETURN;
 }
@@ -2244,7 +2249,7 @@ static void translog_set_sent_to_disk(struct st_translog_buffer *buffer)
   TRANSLOG_ADDRESS in_buffers= buffer->next_buffer_offset;
 
   DBUG_ENTER("translog_set_sent_to_disk");
-  pthread_mutex_lock(&log_descriptor.sent_to_disk_lock);
+  mysql_mutex_lock(&log_descriptor.sent_to_disk_lock);
   DBUG_PRINT("enter", ("lsn: (%lu,0x%lx) in_buffers: (%lu,0x%lx)  "
                        "in_buffers_only: (%lu,0x%lx)  start: (%lu,0x%lx)  "
                        "sent_to_disk: (%lu,0x%lx)",
@@ -2267,7 +2272,7 @@ static void translog_set_sent_to_disk(struct st_translog_buffer *buffer)
     log_descriptor.in_buffers_only= in_buffers;
     DBUG_PRINT("info", ("set new in_buffers_only"));
   }
-  pthread_mutex_unlock(&log_descriptor.sent_to_disk_lock);
+  mysql_mutex_unlock(&log_descriptor.sent_to_disk_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -2284,7 +2289,7 @@ static void translog_set_sent_to_disk(struct st_translog_buffer *buffer)
 static void translog_set_only_in_buffers(TRANSLOG_ADDRESS in_buffers)
 {
   DBUG_ENTER("translog_set_only_in_buffers");
-  pthread_mutex_lock(&log_descriptor.sent_to_disk_lock);
+  mysql_mutex_lock(&log_descriptor.sent_to_disk_lock);
   DBUG_PRINT("enter", ("in_buffers: (%lu,0x%lx)  "
                        "in_buffers_only: (%lu,0x%lx)",
                        LSN_IN_PARTS(in_buffers),
@@ -2297,7 +2302,7 @@ static void translog_set_only_in_buffers(TRANSLOG_ADDRESS in_buffers)
     log_descriptor.in_buffers_only= in_buffers;
     DBUG_PRINT("info", ("set new in_buffers_only"));
   }
-  pthread_mutex_unlock(&log_descriptor.sent_to_disk_lock);
+  mysql_mutex_unlock(&log_descriptor.sent_to_disk_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -2316,9 +2321,9 @@ static TRANSLOG_ADDRESS translog_only_in_buffers()
 {
   register TRANSLOG_ADDRESS addr;
   DBUG_ENTER("translog_only_in_buffers");
-  pthread_mutex_lock(&log_descriptor.sent_to_disk_lock);
+  mysql_mutex_lock(&log_descriptor.sent_to_disk_lock);
   addr= log_descriptor.in_buffers_only;
-  pthread_mutex_unlock(&log_descriptor.sent_to_disk_lock);
+  mysql_mutex_unlock(&log_descriptor.sent_to_disk_lock);
   DBUG_RETURN(addr);
 }
 
@@ -2337,10 +2342,10 @@ static LSN translog_get_sent_to_disk()
 {
   register LSN lsn;
   DBUG_ENTER("translog_get_sent_to_disk");
-  pthread_mutex_lock(&log_descriptor.sent_to_disk_lock);
+  mysql_mutex_lock(&log_descriptor.sent_to_disk_lock);
   lsn= log_descriptor.sent_to_disk;
   DBUG_PRINT("info", ("sent to disk up to (%lu,0x%lx)", LSN_IN_PARTS(lsn)));
-  pthread_mutex_unlock(&log_descriptor.sent_to_disk_lock);
+  mysql_mutex_unlock(&log_descriptor.sent_to_disk_lock);
   DBUG_RETURN(lsn);
 }
 
@@ -2566,7 +2571,7 @@ my_bool translog_prev_buffer_flush_wait(struct st_translog_buffer *buffer)
   if (buffer->prev_buffer_offset != buffer->prev_sent_to_disk)
   {
     do {
-      pthread_cond_wait(&buffer->prev_sent_to_disk_cond, &buffer->mutex);
+      mysql_cond_wait(&buffer->prev_sent_to_disk_cond, &buffer->mutex);
       if (buffer->file != file || buffer->offset != offset ||
           buffer->ver != ver)
       {
@@ -2709,7 +2714,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
       translog_buffer_lock(next_buffer);
       next_buffer->prev_sent_to_disk= buffer->offset;
       translog_buffer_unlock(next_buffer);
-      pthread_cond_broadcast(&next_buffer->prev_sent_to_disk_cond);
+      mysql_cond_broadcast(&next_buffer->prev_sent_to_disk_cond);
     }
     else
     {
@@ -2725,10 +2730,10 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
   buffer->file= NULL;
   buffer->overlay= 0;
   buffer->ver++;
-  pthread_mutex_lock(&log_descriptor.dirty_buffer_mask_lock);
+  mysql_mutex_lock(&log_descriptor.dirty_buffer_mask_lock);
   log_descriptor.dirty_buffer_mask&= ~(1 << buffer->buffer_no);
-  pthread_mutex_unlock(&log_descriptor.dirty_buffer_mask_lock);
-  pthread_cond_broadcast(&buffer->waiting_filling_buffer);
+  mysql_mutex_unlock(&log_descriptor.dirty_buffer_mask_lock);
+  mysql_cond_broadcast(&buffer->waiting_filling_buffer);
   DBUG_RETURN(0);
 }
 
@@ -3264,7 +3269,7 @@ static my_bool translog_get_last_page_addr(TRANSLOG_ADDRESS *addr,
       requested log file have to be opened and can't be freed after
       returning pointer on it (file_size).
     */
-    file_size= my_seek(file->handler.file, 0, SEEK_END, MYF(0));
+    file_size= mysql_file_seek(file->handler.file, 0, SEEK_END, MYF(0));
   }
   else
   {
@@ -3273,16 +3278,17 @@ static my_bool translog_get_last_page_addr(TRANSLOG_ADDRESS *addr,
       when files are not opened.
     */
     File fd;
-    if ((fd= my_open(translog_filename_by_fileno(file_no, path),
-                     O_RDONLY, (no_errors ? MYF(0) : MYF(MY_WME)))) < 0)
+    if ((fd= mysql_file_open(key_file_translog,
+                             translog_filename_by_fileno(file_no, path),
+                             O_RDONLY, (no_errors ? MYF(0) : MYF(MY_WME)))) < 0)
     {
       my_errno= errno;
       DBUG_PRINT("error", ("Error %d during opening file #%d",
                            errno, file_no));
       DBUG_RETURN(1);
     }
-    file_size= my_seek(fd, 0, SEEK_END, MYF(0));
-    my_close(fd, MYF(0));
+    file_size= mysql_file_seek(fd, 0, SEEK_END, MYF(0));
+    mysql_file_close(fd, MYF(0));
   }
   DBUG_PRINT("info", ("File size: %s", llstr(file_size, buff)));
   if (file_size == MY_FILEPOS_ERROR)
@@ -3418,7 +3424,8 @@ static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
   DBUG_ASSERT(cmp_translog_addr(addr, log_descriptor.horizon) < 0);
   /* remove files between the address and horizon */
   for (i= LSN_FILE_NO(addr) + 1; i <= LSN_FILE_NO(log_descriptor.horizon); i++)
-    if (my_delete(translog_filename_by_fileno(i, path),  MYF(MY_WME)))
+    if (mysql_file_delete(key_file_translog,
+                          translog_filename_by_fileno(i, path),  MYF(MY_WME)))
     {
       translog_unlock();
       DBUG_RETURN(1);
@@ -3432,12 +3439,12 @@ static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
   page_rest= next_page_offset - LSN_OFFSET(addr);
   memset(page_buff, TRANSLOG_FILLER, page_rest);
   rc= ((fd= open_logfile_by_number_no_cache(LSN_FILE_NO(addr))) < 0 ||
-       ((my_chsize(fd, next_page_offset, TRANSLOG_FILLER, MYF(MY_WME)) ||
+       ((mysql_file_chsize(fd, next_page_offset, TRANSLOG_FILLER, MYF(MY_WME)) ||
          (page_rest && my_pwrite(fd, page_buff, page_rest, LSN_OFFSET(addr),
                                  log_write_flags)) ||
-         my_sync(fd, MYF(MY_WME)))));
+         mysql_file_sync(fd, MYF(MY_WME)))));
   translog_syncs++;
-  rc|= (fd > 0 && my_close(fd, MYF(MY_WME)));
+  rc|= (fd > 0 && mysql_file_close(fd, MYF(MY_WME)));
   if (sync_log_dir >= TRANSLOG_SYNC_DIR_ALWAYS)
   {
     rc|= sync_dir(log_descriptor.directory_fd, MYF(MY_WME | MY_IGNORE_BADFD));
@@ -3621,22 +3628,24 @@ my_bool translog_init_with_table(const char *directory,
     log_descriptor.open_flags= O_BINARY | O_RDONLY;
   else
     log_descriptor.open_flags= O_BINARY | O_RDWR;
-  if (pthread_mutex_init(&log_descriptor.sent_to_disk_lock,
-                         MY_MUTEX_INIT_FAST) ||
-      pthread_mutex_init(&log_descriptor.file_header_lock,
-                         MY_MUTEX_INIT_FAST) ||
-      pthread_mutex_init(&log_descriptor.unfinished_files_lock,
-                         MY_MUTEX_INIT_FAST) ||
-      pthread_mutex_init(&log_descriptor.purger_lock,
-                         MY_MUTEX_INIT_FAST) ||
-      pthread_mutex_init(&log_descriptor.log_flush_lock,
-                         MY_MUTEX_INIT_FAST) ||
-      pthread_mutex_init(&log_descriptor.dirty_buffer_mask_lock,
-                         MY_MUTEX_INIT_FAST) ||
-      pthread_cond_init(&log_descriptor.log_flush_cond, 0) ||
-      pthread_cond_init(&log_descriptor.new_goal_cond, 0) ||
-      my_rwlock_init(&log_descriptor.open_files_lock,
-                     NULL) ||
+  if (mysql_mutex_init(key_TRANSLOG_BUFFER_mutex,
+                       &log_descriptor.sent_to_disk_lock, MY_MUTEX_INIT_FAST) ||
+      mysql_mutex_init(key_TRANSLOG_DESCRIPTOR_file_header_lock,
+                       &log_descriptor.file_header_lock, MY_MUTEX_INIT_FAST) ||
+      mysql_mutex_init(key_TRANSLOG_DESCRIPTOR_unfinished_files_lock,
+                       &log_descriptor.unfinished_files_lock, MY_MUTEX_INIT_FAST) ||
+      mysql_mutex_init(key_TRANSLOG_DESCRIPTOR_purger_lock,
+                       &log_descriptor.purger_lock, MY_MUTEX_INIT_FAST) ||
+      mysql_mutex_init(key_TRANSLOG_DESCRIPTOR_log_flush_lock,
+                       &log_descriptor.log_flush_lock, MY_MUTEX_INIT_FAST) ||
+      mysql_mutex_init(key_TRANSLOG_DESCRIPTOR_dirty_buffer_mask_lock,
+                       &log_descriptor.dirty_buffer_mask_lock, MY_MUTEX_INIT_FAST) ||
+      mysql_cond_init(key_TRANSLOG_DESCRIPTOR_log_flush_cond,
+                      &log_descriptor.log_flush_cond, 0) ||
+      mysql_cond_init(key_TRANSLOG_DESCRIPTOR_new_goal_cond,
+                      &log_descriptor.new_goal_cond, 0) ||
+      mysql_rwlock_init(key_TRANSLOG_DESCRIPTOR_open_files_lock,
+                        &log_descriptor.open_files_lock) ||
       my_init_dynamic_array(&log_descriptor.open_files,
                             sizeof(TRANSLOG_FILE*), 10, 10) ||
       my_init_dynamic_array(&log_descriptor.unfinished_files,
@@ -3798,7 +3807,7 @@ my_bool translog_init_with_table(const char *directory,
         if (file == NULL ||
             (file->handler.file=
              open_logfile_by_number_no_cache(i)) < 0 ||
-            my_seek(file->handler.file, 0, SEEK_END, MYF(0)) >=
+            mysql_file_seek(file->handler.file, 0, SEEK_END, MYF(0)) >=
             ULL(0xffffffff))
         {
           int j;
@@ -3807,7 +3816,7 @@ my_bool translog_init_with_table(const char *directory,
             TRANSLOG_FILE *el=
               *dynamic_element(&log_descriptor.open_files, j,
                                TRANSLOG_FILE **);
-            my_close(el->handler.file, MYF(MY_WME));
+            mysql_file_close(el->handler.file, MYF(MY_WME));
             my_free(el);
           }
           if (file)
@@ -4238,8 +4247,8 @@ static void translog_buffer_destroy(struct st_translog_buffer *buffer)
     translog_buffer_unlock(buffer);
   }
   DBUG_PRINT("info", ("Destroy mutex: 0x%lx", (ulong) &buffer->mutex));
-  pthread_mutex_destroy(&buffer->mutex);
-  pthread_cond_destroy(&buffer->waiting_filling_buffer);
+  mysql_mutex_destroy(&buffer->mutex);
+  mysql_cond_destroy(&buffer->waiting_filling_buffer);
   DBUG_VOID_RETURN;
 }
 
@@ -4281,20 +4290,20 @@ void translog_destroy()
   /* close files */
   while ((file= (TRANSLOG_FILE **)pop_dynamic(&log_descriptor.open_files)))
     translog_close_log_file(*file);
-  pthread_mutex_destroy(&log_descriptor.sent_to_disk_lock);
-  pthread_mutex_destroy(&log_descriptor.file_header_lock);
-  pthread_mutex_destroy(&log_descriptor.unfinished_files_lock);
-  pthread_mutex_destroy(&log_descriptor.purger_lock);
-  pthread_mutex_destroy(&log_descriptor.log_flush_lock);
-  pthread_mutex_destroy(&log_descriptor.dirty_buffer_mask_lock);
-  pthread_cond_destroy(&log_descriptor.log_flush_cond);
-  pthread_cond_destroy(&log_descriptor.new_goal_cond);
-  rwlock_destroy(&log_descriptor.open_files_lock);
+  mysql_mutex_destroy(&log_descriptor.sent_to_disk_lock);
+  mysql_mutex_destroy(&log_descriptor.file_header_lock);
+  mysql_mutex_destroy(&log_descriptor.unfinished_files_lock);
+  mysql_mutex_destroy(&log_descriptor.purger_lock);
+  mysql_mutex_destroy(&log_descriptor.log_flush_lock);
+  mysql_mutex_destroy(&log_descriptor.dirty_buffer_mask_lock);
+  mysql_cond_destroy(&log_descriptor.log_flush_cond);
+  mysql_cond_destroy(&log_descriptor.new_goal_cond);
+  mysql_rwlock_destroy(&log_descriptor.open_files_lock);
   delete_dynamic(&log_descriptor.open_files);
   delete_dynamic(&log_descriptor.unfinished_files);
 
   if (log_descriptor.directory_fd >= 0)
-    my_close(log_descriptor.directory_fd, MYF(MY_WME));
+    mysql_file_close(log_descriptor.directory_fd, MYF(MY_WME));
   my_atomic_rwlock_destroy(&LOCK_id_to_share);
   if (id_to_share != NULL)
     my_free(id_to_share + 1);
@@ -4586,7 +4595,7 @@ static void translog_buffer_decrease_writers(struct st_translog_buffer *buffer)
               (uint) buffer->buffer_no, (ulong) buffer,
               buffer->copy_to_buffer_in_progress));
   if (buffer->copy_to_buffer_in_progress == 0)
-    pthread_cond_broadcast(&buffer->waiting_filling_buffer);
+    mysql_cond_broadcast(&buffer->waiting_filling_buffer);
   DBUG_VOID_RETURN;
 }
 
@@ -7639,7 +7648,7 @@ static void translog_force_current_buffer_to_finish()
   old_buffer->is_closing_buffer= 0;
   DBUG_PRINT("enter", ("Buffer #%u 0x%lx  is_closing_buffer cleared",
                        (uint) old_buffer->buffer_no, (ulong) old_buffer));
-  pthread_cond_broadcast(&old_buffer->waiting_filling_buffer);
+  mysql_cond_broadcast(&old_buffer->waiting_filling_buffer);
 
   if (left)
   {
@@ -7678,9 +7687,9 @@ void  translog_flush_wait_for_end(LSN lsn)
 {
   DBUG_ENTER("translog_flush_wait_for_end");
   DBUG_PRINT("enter", ("LSN: (%lu,0x%lx)", LSN_IN_PARTS(lsn)));
-  safe_mutex_assert_owner(&log_descriptor.log_flush_lock);
+  mysql_mutex_assert_owner(&log_descriptor.log_flush_lock);
   while (cmp_translog_addr(log_descriptor.flushed, lsn) < 0)
-    pthread_cond_wait(&log_descriptor.log_flush_cond,
+    mysql_cond_wait(&log_descriptor.log_flush_cond,
                       &log_descriptor.log_flush_lock);
   DBUG_VOID_RETURN;
 }
@@ -7698,16 +7707,16 @@ void translog_flush_set_new_goal_and_wait(TRANSLOG_ADDRESS lsn)
   int flush_no= log_descriptor.flush_no;
   DBUG_ENTER("translog_flush_set_new_goal_and_wait");
   DBUG_PRINT("enter", ("LSN: (%lu,0x%lx)", LSN_IN_PARTS(lsn)));
-  safe_mutex_assert_owner(&log_descriptor.log_flush_lock);
+  mysql_mutex_assert_owner(&log_descriptor.log_flush_lock);
   if (cmp_translog_addr(lsn, log_descriptor.next_pass_max_lsn) > 0)
   {
     log_descriptor.next_pass_max_lsn= lsn;
     log_descriptor.max_lsn_requester= pthread_self();
-    pthread_cond_broadcast(&log_descriptor.new_goal_cond);
+    mysql_cond_broadcast(&log_descriptor.new_goal_cond);
   }
   while (flush_no == log_descriptor.flush_no)
   {
-    pthread_cond_wait(&log_descriptor.log_flush_cond,
+    mysql_cond_wait(&log_descriptor.log_flush_cond,
                       &log_descriptor.log_flush_lock);
   }
   DBUG_VOID_RETURN;
@@ -7746,7 +7755,7 @@ static my_bool translog_sync_files(uint32 min, uint32 max,
     DBUG_ASSERT(file != NULL);
     if (!file->is_sync)
     {
-      if (my_sync(file->handler.file, MYF(MY_WME)))
+      if (mysql_file_sync(file->handler.file, MYF(MY_WME)))
       {
         rc= 1;
         translog_stop_writing();
@@ -7937,12 +7946,12 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
   LINT_INIT(sent_to_disk);
   LINT_INIT(flush_interval);
 
-  pthread_mutex_lock(&log_descriptor.log_flush_lock);
+  mysql_mutex_lock(&log_descriptor.log_flush_lock);
   DBUG_PRINT("info", ("Everything is flushed up to (%lu,0x%lx)",
                       LSN_IN_PARTS(log_descriptor.flushed)));
   if (cmp_translog_addr(log_descriptor.flushed, lsn) >= 0)
   {
-    pthread_mutex_unlock(&log_descriptor.log_flush_lock);
+    mysql_mutex_unlock(&log_descriptor.log_flush_lock);
     DBUG_RETURN(0);
   }
   if (log_descriptor.flush_in_progress)
@@ -7960,7 +7969,7 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
         waiting then acquire it again
       */
       translog_flush_wait_for_end(lsn);
-      pthread_mutex_unlock(&log_descriptor.log_flush_lock);
+      mysql_mutex_unlock(&log_descriptor.log_flush_lock);
       DBUG_RETURN(0);
     }
     log_descriptor.next_pass_max_lsn= LSN_IMPOSSIBLE;
@@ -7969,7 +7978,7 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
   flush_horizon= log_descriptor.previous_flush_horizon;
   DBUG_PRINT("info", ("flush_in_progress is set, flush_horizon: (%lu,0x%lx)",
                       LSN_IN_PARTS(flush_horizon)));
-  pthread_mutex_unlock(&log_descriptor.log_flush_lock);
+  mysql_mutex_unlock(&log_descriptor.log_flush_lock);
 
   hgroup_commit_at_start= hard_group_commit;
   if (hgroup_commit_at_start)
@@ -7980,7 +7989,7 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
   {
     DBUG_PRINT("info", ("everything is flushed"));
     translog_unlock();
-    pthread_mutex_lock(&log_descriptor.log_flush_lock);
+    mysql_mutex_lock(&log_descriptor.log_flush_lock);
     goto out;
   }
 
@@ -7994,20 +8003,20 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
 
 retest:
     /*
-      We do not check time here because pthread_mutex_lock rarely takes
+      We do not check time here because mysql_mutex_lock rarely takes
       a lot of time so we can sacrifice a bit precision to performance
       (taking into account that my_micro_time() might be expensive call).
     */
     if (flush_interval == 0)
       break;  /* flush pass is ended */
 
-    pthread_mutex_lock(&log_descriptor.log_flush_lock);
+    mysql_mutex_lock(&log_descriptor.log_flush_lock);
     if (log_descriptor.next_pass_max_lsn == LSN_IMPOSSIBLE)
     {
       if (flush_interval == 0 ||
           (time_spent= (my_micro_time() - flush_start)) >= flush_interval)
       {
-        pthread_mutex_unlock(&log_descriptor.log_flush_lock);
+        mysql_mutex_unlock(&log_descriptor.log_flush_lock);
         break;
       }
       DBUG_PRINT("info", ("flush waits: %llu  interval: %llu  spent: %llu",
@@ -8015,10 +8024,10 @@ retest:
                           flush_interval, time_spent));
       /* wait time or next goal */
       set_timespec_nsec(abstime, flush_interval - time_spent);
-      pthread_cond_timedwait(&log_descriptor.new_goal_cond,
+      mysql_cond_timedwait(&log_descriptor.new_goal_cond,
                              &log_descriptor.log_flush_lock,
                              &abstime);
-      pthread_mutex_unlock(&log_descriptor.log_flush_lock);
+      mysql_mutex_unlock(&log_descriptor.log_flush_lock);
       DBUG_PRINT("info", ("retest conditions"));
       goto retest;
     }
@@ -8030,7 +8039,7 @@ retest:
     log_descriptor.max_lsn_requester= pthread_self();
     DBUG_PRINT("info", ("flush took next goal: (%lu,0x%lx)",
                         LSN_IN_PARTS(lsn)));
-    pthread_mutex_unlock(&log_descriptor.log_flush_lock);
+    mysql_mutex_unlock(&log_descriptor.log_flush_lock);
 
     /* next flush pass */
     DBUG_PRINT("info", ("next flush pass"));
@@ -8056,7 +8065,7 @@ retest:
                                TRANSLOG_PAGE_SIZE)))))
     {
       sent_to_disk= LSN_IMPOSSIBLE;
-      pthread_mutex_lock(&log_descriptor.log_flush_lock);
+      mysql_mutex_lock(&log_descriptor.log_flush_lock);
       goto out;
     }
     /* keep values for soft sync() and forced sync() actual */
@@ -8074,7 +8083,7 @@ retest:
 
   DBUG_ASSERT(flush_horizon <= log_descriptor.horizon);
 
-  pthread_mutex_lock(&log_descriptor.log_flush_lock);
+  mysql_mutex_lock(&log_descriptor.log_flush_lock);
   log_descriptor.previous_flush_horizon= flush_horizon;
 out:
   if (sent_to_disk != LSN_IMPOSSIBLE)
@@ -8082,8 +8091,8 @@ out:
   log_descriptor.flush_in_progress= 0;
   log_descriptor.flush_no++;
   DBUG_PRINT("info", ("flush_in_progress is dropped"));
-  pthread_mutex_unlock(&log_descriptor.log_flush_lock);
-  pthread_cond_broadcast(&log_descriptor.log_flush_cond);
+  mysql_mutex_unlock(&log_descriptor.log_flush_lock);
+  mysql_cond_broadcast(&log_descriptor.log_flush_cond);
   DBUG_RETURN(rc);
 }
 
@@ -8114,7 +8123,7 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
   */
   DBUG_ASSERT(share->data_file_type == BLOCK_RECORD);
   /* re-check under mutex to avoid having 2 ids for the same share */
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
   if (unlikely(share->id == 0))
   {
     LSN lsn;
@@ -8162,11 +8171,11 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, log_data, NULL)))
     {
-      pthread_mutex_unlock(&share->intern_lock);
+      mysql_mutex_unlock(&share->intern_lock);
       return 1;
     }
   }
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
   return 0;
 }
 
@@ -8189,7 +8198,7 @@ void translog_deassign_id_from_share(MARIA_SHARE *share)
     happening. But a Checkpoint may be reading share->id, so we require this
     mutex:
   */
-  safe_mutex_assert_owner(&share->intern_lock);
+  mysql_mutex_assert_owner(&share->intern_lock);
   my_atomic_rwlock_rdlock(&LOCK_id_to_share);
   my_atomic_storeptr((void **)&id_to_share[share->id], 0);
   my_atomic_rwlock_rdunlock(&LOCK_id_to_share);
@@ -8223,8 +8232,9 @@ my_bool translog_is_file(uint file_no)
 {
   MY_STAT stat_buff;
   char path[FN_REFLEN];
-  return (test(my_stat(translog_filename_by_fileno(file_no, path),
-                       &stat_buff, MYF(0))));
+  return (test(mysql_file_stat(key_file_translog,
+                               translog_filename_by_fileno(file_no, path),
+                               &stat_buff, MYF(0))));
 }
 
 
@@ -8243,14 +8253,14 @@ static uint32 translog_first_file(TRANSLOG_ADDRESS horizon, int is_protected)
   uint min_file= 0, max_file;
   DBUG_ENTER("translog_first_file");
   if (!is_protected)
-    pthread_mutex_lock(&log_descriptor.purger_lock);
+    mysql_mutex_lock(&log_descriptor.purger_lock);
   if (log_descriptor.min_file_number &&
       translog_is_file(log_descriptor.min_file_number))
   {
     DBUG_PRINT("info", ("cached %lu",
                         (ulong) log_descriptor.min_file_number));
     if (!is_protected)
-      pthread_mutex_unlock(&log_descriptor.purger_lock);
+      mysql_mutex_unlock(&log_descriptor.purger_lock);
     DBUG_RETURN(log_descriptor.min_file_number);
   }
 
@@ -8271,7 +8281,7 @@ static uint32 translog_first_file(TRANSLOG_ADDRESS horizon, int is_protected)
   }
   log_descriptor.min_file_number= max_file;
   if (!is_protected)
-    pthread_mutex_unlock(&log_descriptor.purger_lock);
+    mysql_mutex_unlock(&log_descriptor.purger_lock);
   DBUG_PRINT("info", ("first file :%lu", (ulong) max_file));
   DBUG_ASSERT(max_file >= 1);
   DBUG_RETURN(max_file);
@@ -8470,7 +8480,7 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
     DBUG_PRINT("info", ("last_need_file set to %lu", (ulong)last_need_file));
   }
 
-  pthread_mutex_lock(&log_descriptor.purger_lock);
+  mysql_mutex_lock(&log_descriptor.purger_lock);
   DBUG_PRINT("info", ("last_lsn_checked file: %lu:",
                       (ulong) log_descriptor.last_lsn_checked));
   if (LSN_FILE_NO(log_descriptor.last_lsn_checked) < last_need_file)
@@ -8502,7 +8512,7 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
       if (i >= log_descriptor.min_file)
       {
         TRANSLOG_FILE *file;
-        rw_wrlock(&log_descriptor.open_files_lock);
+        mysql_rwlock_wrlock(&log_descriptor.open_files_lock);
         DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
                     log_descriptor.open_files.elements);
         DBUG_ASSERT(log_descriptor.min_file == i);
@@ -8512,14 +8522,15 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
         log_descriptor.min_file++;
         DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
                     log_descriptor.open_files.elements);
-        rw_unlock(&log_descriptor.open_files_lock);
+        mysql_rwlock_unlock(&log_descriptor.open_files_lock);
         translog_close_log_file(file);
       }
       if (log_purge_type == TRANSLOG_PURGE_IMMIDIATE)
       {
         char path[FN_REFLEN], *file_name;
         file_name= translog_filename_by_fileno(i, path);
-        rc= test(my_delete(file_name, MYF(MY_WME)));
+        rc= test(mysql_file_delete(key_file_translog,
+                                   file_name, MYF(MY_WME)));
       }
     }
     if (unlikely(rc == 1))
@@ -8528,7 +8539,7 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
       log_descriptor.min_need_file= i;
   }
 
-  pthread_mutex_unlock(&log_descriptor.purger_lock);
+  mysql_mutex_unlock(&log_descriptor.purger_lock);
   DBUG_RETURN(rc);
 }
 
@@ -8565,12 +8576,12 @@ my_bool translog_purge_at_flush()
     DBUG_RETURN(0);
   }
 
-  pthread_mutex_lock(&log_descriptor.purger_lock);
+  mysql_mutex_lock(&log_descriptor.purger_lock);
 
   if (unlikely(log_descriptor.min_need_file == 0))
   {
     DBUG_PRINT("info", ("No info about min need file => exit"));
-    pthread_mutex_unlock(&log_descriptor.purger_lock);
+    mysql_mutex_unlock(&log_descriptor.purger_lock);
     DBUG_RETURN(0);
   }
 
@@ -8581,10 +8592,11 @@ my_bool translog_purge_at_flush()
     char path[FN_REFLEN], *file_name;
     DBUG_PRINT("info", ("purge file %lu\n", (ulong) i));
     file_name= translog_filename_by_fileno(i, path);
-    rc= test(my_delete(file_name, MYF(MY_WME)));
+    rc= test(mysql_file_delete(key_file_translog,
+                               file_name, MYF(MY_WME)));
   }
 
-  pthread_mutex_unlock(&log_descriptor.purger_lock);
+  mysql_mutex_unlock(&log_descriptor.purger_lock);
   DBUG_RETURN(rc);
 }
 
@@ -8614,9 +8626,9 @@ uint32 translog_get_first_file(TRANSLOG_ADDRESS horizon)
 uint32 translog_get_first_needed_file()
 {
   uint32 file_no;
-  pthread_mutex_lock(&log_descriptor.purger_lock);
+  mysql_mutex_lock(&log_descriptor.purger_lock);
   file_no= log_descriptor.min_need_file;
-  pthread_mutex_unlock(&log_descriptor.purger_lock);
+  mysql_mutex_unlock(&log_descriptor.purger_lock);
   return file_no;
 }
 
@@ -8835,7 +8847,8 @@ int translog_soft_sync_start(void)
   soft_need_sync= 1;
 
   if (!(res= ma_service_thread_control_init(&soft_sync_control)))
-    if (!(res= pthread_create(&th, NULL, ma_soft_sync_background, NULL)))
+    if (!(res= mysql_thread_create(key_thread_soft_sync,
+                                   &th, NULL, ma_soft_sync_background, NULL)))
       soft_sync_control.status= THREAD_RUNNING;
   DBUG_RETURN(res);
 }
@@ -9272,7 +9285,7 @@ int main(int argc, char **argv)
             opt_file, my_errno);
     goto err;
   }
-  if (my_seek(handler, opt_offset, SEEK_SET, MYF(MY_WME)) !=
+  if (mysql_file_seek(handler, opt_offset, SEEK_SET, MYF(MY_WME)) !=
       opt_offset)
   {
      fprintf(stderr, "Can't set position %lld  file: '%s'  errno: %d\n",
@@ -9283,7 +9296,7 @@ int main(int argc, char **argv)
        opt_pages;
        opt_offset+= TRANSLOG_PAGE_SIZE, opt_pages--)
   {
-    if (my_pread(handler, buffer, TRANSLOG_PAGE_SIZE, opt_offset,
+    if (mysql_file_pread(handler, buffer, TRANSLOG_PAGE_SIZE, opt_offset,
                  MYF(MY_NABP)))
     {
       if (my_errno == HA_ERR_FILE_TOO_SHORT)

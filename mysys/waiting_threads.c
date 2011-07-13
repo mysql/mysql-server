@@ -193,6 +193,8 @@ uint32 wt_success_stats;
 
 static my_atomic_rwlock_t cycle_stats_lock, wait_stats_lock, success_stats_lock;
 
+extern PSI_cond_key key_WT_RESOURCE_cond;
+
 #ifdef SAFE_STATISTICS
 #define incr(VAR, LOCK)                           \
   do {                                            \
@@ -253,7 +255,7 @@ struct st_wt_resource {
   uint            waiter_count;
   enum { ACTIVE, FREE } state;
 #ifndef DBUG_OFF
-  pthread_mutex_t  *cond_mutex; /* a mutex for the 'cond' below */
+  mysql_mutex_t  *cond_mutex; /* a mutex for the 'cond' below */
 #endif
   /*
     before the 'lock' all elements are mutable, after (and including) -
@@ -301,7 +303,7 @@ struct st_wt_resource {
 #else
   rw_lock_t lock;
 #endif
-  pthread_cond_t   cond; /* the corresponding mutex is provided by the caller */
+  mysql_cond_t   cond; /* the corresponding mutex is provided by the caller */
   DYNAMIC_ARRAY    owners;
 };
 
@@ -398,7 +400,7 @@ static void wt_resource_init(uchar *arg)
 
   bzero(rc, sizeof(*rc));
   rc_rwlock_init(rc);
-  pthread_cond_init(&rc->cond, 0);
+  mysql_cond_init(key_WT_RESOURCE_cond, &rc->cond, 0);
   my_init_dynamic_array(&rc->owners, sizeof(WT_THD *), 0, 5);
   DBUG_VOID_RETURN;
 }
@@ -416,7 +418,7 @@ static void wt_resource_destroy(uchar *arg)
 
   DBUG_ASSERT(rc->owners.elements == 0);
   rc_rwlock_destroy(rc);
-  pthread_cond_destroy(&rc->cond);
+  mysql_cond_destroy(&rc->cond);
   delete_dynamic(&rc->owners);
   DBUG_VOID_RETURN;
 }
@@ -795,7 +797,7 @@ static int deadlock(WT_THD *thd, WT_THD *blocker, uint depth,
   {
     DBUG_PRINT("wt", ("killing %s", arg.victim->name));
     arg.victim->killed= 1;
-    pthread_cond_broadcast(&arg.victim->waiting_for->cond);
+    mysql_cond_broadcast(&arg.victim->waiting_for->cond);
     rc_unlock(arg.victim->waiting_for);
     ret= WT_OK;
   }
@@ -1029,11 +1031,11 @@ retry:
   called by a *waiter* (thd) to start waiting
 
   It's supposed to be a drop-in replacement for
-  pthread_cond_timedwait(), and it takes mutex as an argument.
+  mysql_cond_timedwait(), and it takes mutex as an argument.
 
   @return one of WT_TIMEOUT, WT_DEADLOCK, WT_OK
 */
-int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
+int wt_thd_cond_timedwait(WT_THD *thd, mysql_mutex_t *mutex)
 {
   int ret= WT_TIMEOUT;
   struct timespec timeout;
@@ -1047,7 +1049,7 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
     DBUG_ASSERT(rc->cond_mutex == mutex);
   else
     rc->cond_mutex= mutex;
-  safe_mutex_assert_owner(mutex);
+  mysql_mutex_assert_owner(mutex);
 #endif
 
   before= starttime= my_getsystime();
@@ -1074,7 +1076,7 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
 
   set_timespec_time_nsec(timeout, starttime, (*thd->timeout_short)*ULL(1000));
   if (ret == WT_TIMEOUT && !thd->killed)
-    ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
+    ret= mysql_cond_timedwait(&rc->cond, mutex, &timeout);
   if (ret == WT_TIMEOUT && !thd->killed)
   {
     int r= deadlock(thd, thd, 0, *thd->deadlock_search_depth_long);
@@ -1086,7 +1088,7 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
     {
       set_timespec_time_nsec(timeout, starttime, (*thd->timeout_long)*ULL(1000));
       if (!thd->killed)
-        ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
+        ret= mysql_cond_timedwait(&rc->cond, mutex, &timeout);
     }
   }
   after= my_getsystime();
@@ -1132,10 +1134,10 @@ void wt_thd_release(WT_THD *thd, const WT_RESOURCE_ID *resid)
       delete_dynamic_element(&rc->owners, j);
       if (rc->owners.elements == 0)
       {
-        pthread_cond_broadcast(&rc->cond);
+        mysql_cond_broadcast(&rc->cond);
 #ifndef DBUG_OFF
         if (rc->cond_mutex)
-          safe_mutex_assert_owner(rc->cond_mutex);
+          mysql_mutex_assert_owner(rc->cond_mutex);
 #endif
       }
       unlock_lock_and_free_resource(thd, rc);

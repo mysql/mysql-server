@@ -242,8 +242,10 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
   bitmap->sizes[6]= max_page_size - max_page_size * 80 / 100;
   bitmap->sizes[7]= 0;
 
-  pthread_mutex_init(&share->bitmap.bitmap_lock, MY_MUTEX_INIT_SLOW);
-  pthread_cond_init(&share->bitmap.bitmap_cond, 0);
+  mysql_mutex_init(key_SHARE_BITMAP_lock,
+                   &share->bitmap.bitmap_lock, MY_MUTEX_INIT_SLOW);
+  mysql_cond_init(key_SHARE_BITMAP_cond,
+                  &share->bitmap.bitmap_cond, 0);
 
   _ma_bitmap_reset_cache(share);
 
@@ -267,9 +269,9 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
 my_bool _ma_bitmap_end(MARIA_SHARE *share)
 {
   my_bool res= _ma_bitmap_flush(share);
-  safe_mutex_assert_owner(&share->close_lock);
-  pthread_mutex_destroy(&share->bitmap.bitmap_lock);
-  pthread_cond_destroy(&share->bitmap.bitmap_cond);
+  mysql_mutex_assert_owner(&share->close_lock);
+  mysql_mutex_destroy(&share->bitmap.bitmap_lock);
+  mysql_cond_destroy(&share->bitmap.bitmap_cond);
   delete_dynamic(&share->bitmap.pinned_pages);
   my_free(share->bitmap.map);
   share->bitmap.map= 0;
@@ -309,13 +311,13 @@ my_bool _ma_bitmap_flush(MARIA_SHARE *share)
   DBUG_ENTER("_ma_bitmap_flush");
   if (share->bitmap.changed)
   {
-    pthread_mutex_lock(&share->bitmap.bitmap_lock);
+    mysql_mutex_lock(&share->bitmap.bitmap_lock);
     if (share->bitmap.changed)
     {
       res= write_changed_bitmap(share, &share->bitmap);
       share->bitmap.changed= 0;
     }
-    pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+    mysql_mutex_unlock(&share->bitmap.bitmap_lock);
   }
   DBUG_RETURN(res);
 }
@@ -353,7 +355,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
   my_bool res= 0;
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
   DBUG_ENTER("_ma_bitmap_flush_all");
-  pthread_mutex_lock(&bitmap->bitmap_lock);
+  mysql_mutex_lock(&bitmap->bitmap_lock);
   if (bitmap->changed || bitmap->changed_not_flushed)
   {
     bitmap->flush_all_requested++;
@@ -361,7 +363,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
     while (bitmap->non_flushable > 0)
     {
       DBUG_PRINT("info", ("waiting for bitmap to be flushable"));
-      pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
+      mysql_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
     }
 #endif
     DBUG_ASSERT(bitmap->flush_all_requested == 1);
@@ -399,9 +401,9 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
       become false, wake them up.
     */
     DBUG_PRINT("info", ("bitmap flusher waking up others"));
-    pthread_cond_broadcast(&bitmap->bitmap_cond);
+    mysql_cond_broadcast(&bitmap->bitmap_cond);
   }
-  pthread_mutex_unlock(&bitmap->bitmap_lock);
+  mysql_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_RETURN(res);
 }
 
@@ -429,19 +431,19 @@ void _ma_bitmap_lock(MARIA_SHARE *share)
   if (!share->now_transactional)
     DBUG_VOID_RETURN;
 
-  pthread_mutex_lock(&bitmap->bitmap_lock);
+  mysql_mutex_lock(&bitmap->bitmap_lock);
   bitmap->flush_all_requested++;
   while (bitmap->non_flushable)
   {
     DBUG_PRINT("info", ("waiting for bitmap to be flushable"));
-    pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
+    mysql_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
   }
   /*
     Ensure that _ma_bitmap_flush_all() and _ma_bitmap_lock() are blocked.
     ma_bitmap_flushable() is blocked thanks to 'flush_all_requested'.
   */
   bitmap->non_flushable= 1;
-  pthread_mutex_unlock(&bitmap->bitmap_lock);
+  mysql_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_VOID_RETURN;
 }
   
@@ -461,11 +463,11 @@ void _ma_bitmap_unlock(MARIA_SHARE *share)
     DBUG_VOID_RETURN;
   DBUG_ASSERT(bitmap->flush_all_requested > 0 && bitmap->non_flushable == 1);
 
-  pthread_mutex_lock(&bitmap->bitmap_lock);
+  mysql_mutex_lock(&bitmap->bitmap_lock);
   bitmap->flush_all_requested--;
   bitmap->non_flushable= 0;
-  pthread_mutex_unlock(&bitmap->bitmap_lock);
-  pthread_cond_broadcast(&bitmap->bitmap_cond);
+  mysql_mutex_unlock(&bitmap->bitmap_lock);
+  mysql_cond_broadcast(&bitmap->bitmap_cond);
   DBUG_VOID_RETURN;
 }
 
@@ -1768,7 +1770,7 @@ my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
   info->bitmap_blocks.elements= ELEMENTS_RESERVED_FOR_MAIN_PART;
   max_page_size= (share->block_size - PAGE_OVERHEAD_SIZE);
 
-  pthread_mutex_lock(&share->bitmap.bitmap_lock);
+  mysql_mutex_lock(&share->bitmap.bitmap_lock);
 
   if (row->total_length <= max_page_size)
   {
@@ -1830,7 +1832,7 @@ end:
   res= 0;
 
 abort:
-  pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+  mysql_mutex_unlock(&share->bitmap.bitmap_lock);
   DBUG_RETURN(res);
 }
 
@@ -1874,7 +1876,7 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
   row->extents_count= 0;
   info->bitmap_blocks.elements= ELEMENTS_RESERVED_FOR_MAIN_PART;
 
-  pthread_mutex_lock(&share->bitmap.bitmap_lock);
+  mysql_mutex_lock(&share->bitmap.bitmap_lock);
 
   /*
     First allocate all blobs (so that we can find out the needed size for
@@ -1926,7 +1928,7 @@ end:
   res= 0;
 
 abort:
-  pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+  mysql_mutex_unlock(&share->bitmap.bitmap_lock);
   DBUG_RETURN(res);
 }
 
@@ -2067,7 +2069,7 @@ my_bool _ma_bitmap_reset_full_page_bits(MARIA_HA *info,
   uchar *data;
   DBUG_ENTER("_ma_bitmap_reset_full_page_bits");
   DBUG_PRINT("enter", ("page: %lu  page_count: %u", (ulong) page, page_count));
-  safe_mutex_assert_owner(&info->s->bitmap.bitmap_lock);
+  mysql_mutex_assert_owner(&info->s->bitmap.bitmap_lock);
 
   bitmap_page= page - page % bitmap->pages_covered;
   DBUG_ASSERT(page != bitmap_page);
@@ -2145,7 +2147,7 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
   uchar *data;
   DBUG_ENTER("_ma_bitmap_set_full_page_bits");
   DBUG_PRINT("enter", ("page: %lu  page_count: %u", (ulong) page, page_count));
-  safe_mutex_assert_owner(&info->s->bitmap.bitmap_lock);
+  mysql_mutex_assert_owner(&info->s->bitmap.bitmap_lock);
 
   bitmap_page= page - page % bitmap->pages_covered;
   if (page == bitmap_page ||
@@ -2234,7 +2236,7 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
     DBUG_VOID_RETURN;
 
   bitmap= &share->bitmap;
-  pthread_mutex_lock(&bitmap->bitmap_lock);
+  mysql_mutex_lock(&bitmap->bitmap_lock);
 
   if (non_flushable_inc == -1)
   {
@@ -2251,11 +2253,11 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
       if (unlikely(bitmap->flush_all_requested))
       {
         DBUG_PRINT("info", ("bitmap flushable waking up flusher"));
-        pthread_cond_broadcast(&bitmap->bitmap_cond);
+        mysql_cond_broadcast(&bitmap->bitmap_cond);
       }
     }
     DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
-    pthread_mutex_unlock(&bitmap->bitmap_lock);
+    mysql_mutex_unlock(&bitmap->bitmap_lock);
     info->non_flushable_state= 0;
     DBUG_VOID_RETURN;
   }
@@ -2275,11 +2277,11 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
       here.
     */
     DBUG_PRINT("info", ("waiting for bitmap flusher"));
-    pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
+    mysql_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
   }
   bitmap->non_flushable++;
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
-  pthread_mutex_unlock(&bitmap->bitmap_lock);
+  mysql_mutex_unlock(&bitmap->bitmap_lock);
   info->non_flushable_state= 1;
   DBUG_VOID_RETURN;
 }
@@ -2329,7 +2331,7 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
   */
   current_bitmap_value= FULL_HEAD_PAGE;
 
-  pthread_mutex_lock(&bitmap->bitmap_lock);
+  mysql_mutex_lock(&bitmap->bitmap_lock);
 
   /* First handle head block */
   if (block->used & BLOCKUSED_USED)
@@ -2409,17 +2411,17 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
       if (unlikely(bitmap->flush_all_requested))
       {
         DBUG_PRINT("info", ("bitmap flushable waking up flusher"));
-        pthread_cond_broadcast(&bitmap->bitmap_cond);
+        mysql_cond_broadcast(&bitmap->bitmap_cond);
       }
     }
   }
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
 
-  pthread_mutex_unlock(&bitmap->bitmap_lock);
+  mysql_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_RETURN(0);
 
 err:
-  pthread_mutex_unlock(&bitmap->bitmap_lock);
+  mysql_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_RETURN(1);
 }
 
@@ -2448,7 +2450,7 @@ my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
   MARIA_FILE_BITMAP *bitmap= &info->s->bitmap;
   DBUG_ENTER("_ma_bitmap_free_full_pages");
 
-  pthread_mutex_lock(&bitmap->bitmap_lock);
+  mysql_mutex_lock(&bitmap->bitmap_lock);
   for (; count--; extents+= ROW_EXTENT_SIZE)
   {
     pgcache_page_no_t page=  uint5korr(extents);
@@ -2462,12 +2464,12 @@ my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
                                  page_count, PAGECACHE_LOCK_WRITE, 1) ||
           _ma_bitmap_reset_full_page_bits(info, bitmap, page, page_count))
       {
-        pthread_mutex_unlock(&bitmap->bitmap_lock);
+        mysql_mutex_unlock(&bitmap->bitmap_lock);
         DBUG_RETURN(1);
       }
     }
   }
-  pthread_mutex_unlock(&bitmap->bitmap_lock);
+  mysql_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_RETURN(0);
 }
 
@@ -2497,12 +2499,12 @@ my_bool _ma_bitmap_set(MARIA_HA *info, pgcache_page_no_t page, my_bool head,
   DBUG_PRINT("enter", ("page: %lu  head: %d  empty_space: %u",
                        (ulong) page, head, empty_space));
 
-  pthread_mutex_lock(&info->s->bitmap.bitmap_lock);
+  mysql_mutex_lock(&info->s->bitmap.bitmap_lock);
   bits= (head ?
          _ma_free_size_to_head_pattern(bitmap, empty_space) :
          free_size_to_tail_pattern(bitmap, empty_space));
   res= set_page_bits(info, bitmap, page, bits);
-  pthread_mutex_unlock(&info->s->bitmap.bitmap_lock);
+  mysql_mutex_unlock(&info->s->bitmap.bitmap_lock);
   DBUG_RETURN(res);
 }
 
@@ -2619,8 +2621,8 @@ int _ma_bitmap_create_first(MARIA_SHARE *share)
   */
   int4store(marker, MARIA_NO_CRC_BITMAP_PAGE);
 
-  if (my_chsize(file, block_size - sizeof(marker),
-                0, MYF(MY_WME)) ||
+  if (mysql_file_chsize(file, block_size - sizeof(marker),
+                        0, MYF(MY_WME)) ||
       my_pwrite(file, marker, sizeof(marker),
                 block_size - sizeof(marker),
                 MYF(MY_NABP | MY_WME)))

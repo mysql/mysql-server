@@ -98,8 +98,8 @@ int maria_delete_all_rows(MARIA_HA *info)
 
   if (_ma_flush_table_files(info, MARIA_FLUSH_DATA|MARIA_FLUSH_INDEX,
                             FLUSH_IGNORE_CHANGED, FLUSH_IGNORE_CHANGED) ||
-      my_chsize(info->dfile.file, 0, 0, MYF(MY_WME)) ||
-      my_chsize(share->kfile.file, share->base.keystart, 0, MYF(MY_WME)))
+      mysql_file_chsize(info->dfile.file, 0, 0, MYF(MY_WME)) ||
+      mysql_file_chsize(share->kfile.file, share->base.keystart, 0, MYF(MY_WME)))
     goto err;
 
   if (_ma_initialize_data_file(share, info->dfile.file))

@@ -107,18 +107,14 @@ int maria_rename(const char *old_name, const char *new_name)
 
   fn_format(from,old_name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   fn_format(to,new_name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  if (my_rename_with_symlink(from, to, MYF(MY_WME | sync_dir)))
+  if (mysql_file_rename_with_symlink(key_file_kfile, from, to,
+                                     MYF(MY_WME | sync_dir)))
     DBUG_RETURN(my_errno);
   fn_format(from,old_name,"",MARIA_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   fn_format(to,new_name,"",MARIA_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-#ifdef USE_RAID
-  if (raid_type)
-    data_file_rename_error= my_raid_rename(from, to, raid_chunks,
-                                           MYF(MY_WME | sync_dir));
-  else
-#endif
-    data_file_rename_error=
-      my_rename_with_symlink(from, to, MYF(MY_WME | sync_dir));
+  data_file_rename_error=
+      mysql_file_rename_with_symlink(key_file_dfile, from, to,
+                                     MYF(MY_WME | sync_dir));
   if (data_file_rename_error)
   {
     /*
@@ -128,7 +124,8 @@ int maria_rename(const char *old_name, const char *new_name)
     data_file_rename_error= my_errno;
     fn_format(from, old_name, "", MARIA_NAME_IEXT, MYF(MY_UNPACK_FILENAME|MY_APPEND_EXT));
     fn_format(to, new_name, "", MARIA_NAME_IEXT, MYF(MY_UNPACK_FILENAME|MY_APPEND_EXT));
-    my_rename_with_symlink(to, from, MYF(MY_WME | sync_dir));
+    mysql_file_rename_with_symlink(key_file_kfile, to, from,
+                                   MYF(MY_WME | sync_dir));
   }
   DBUG_RETURN(data_file_rename_error);
 

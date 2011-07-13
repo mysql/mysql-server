@@ -280,7 +280,7 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
   DBUG_ASSERT(lo->waiting_for == 0);
   DBUG_ASSERT(lo->waiting_for_loid == 0);
 
-  pthread_mutex_lock(& table->mutex);
+  mysql_mutex_lock(& table->mutex);
   /* do we already have a lock on this resource ? */
   old= find_by_loid(table, lo->loid);
 
@@ -296,16 +296,16 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
   }
 
   /* no, placing a new lock. first - take a free lock structure from the pool */
-  pthread_mutex_lock(& lm->pool_mutex);
+  mysql_mutex_lock(& lm->pool_mutex);
   new= lm->pool;
   if (new)
   {
     lm->pool= new->next;
-    pthread_mutex_unlock(& lm->pool_mutex);
+    mysql_mutex_unlock(& lm->pool_mutex);
   }
   else
   {
-    pthread_mutex_unlock(& lm->pool_mutex);
+    mysql_mutex_unlock(& lm->pool_mutex);
     new= (TABLE_LOCK *)my_malloc(sizeof(*new), MYF(MY_WME));
     if (unlikely(!new))
     {
@@ -441,13 +441,13 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
       and we must release table's mutex.
       note that blocker's mutex is locked _before_ table's mutex is released
     */
-    pthread_mutex_lock(wait_for->mutex);
-    pthread_mutex_unlock(& table->mutex);
+    mysql_mutex_lock(wait_for->mutex);
+    mysql_mutex_unlock(& table->mutex);
 
     /* now really wait */
     i= pthread_cond_timedwait(wait_for->cond, wait_for->mutex, & timeout);
 
-    pthread_mutex_unlock(wait_for->mutex);
+    mysql_mutex_unlock(wait_for->mutex);
 
     if (i == ETIMEDOUT || i == ETIME)
     {
@@ -456,7 +456,7 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
       goto ret2;
     }
 
-    pthread_mutex_lock(& table->mutex);
+    mysql_mutex_lock(& table->mutex);
 
     /* ... and repeat from the beginning */
   }
@@ -491,7 +491,7 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
   res= getlock_result[lock][lock];
 
 ret:
-  pthread_mutex_unlock(& table->mutex);
+  mysql_mutex_unlock(& table->mutex);
 ret2:
   DBUG_ASSERT(res);
   return res;
@@ -518,7 +518,7 @@ void tablockman_release_locks(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
   if ((lock= lo->waiting_lock))
   {
     DBUG_ASSERT(lock->loid == lo->loid);
-    pthread_mutex_lock(& lock->table->mutex);
+    mysql_mutex_lock(& lock->table->mutex);
     remove_from_wait_queue(lock, lock->table);
 
     /*
@@ -542,13 +542,13 @@ void tablockman_release_locks(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
     if (lock->next &&
         lock_compatibility_matrix[lock->next->lock_type][lock->lock_type])
     {
-      pthread_mutex_lock(lo->waiting_for->mutex);
+      mysql_mutex_lock(lo->waiting_for->mutex);
       pthread_cond_broadcast(lo->waiting_for->cond);
-      pthread_mutex_unlock(lo->waiting_for->mutex);
+      mysql_mutex_unlock(lo->waiting_for->mutex);
     }
     lo->waiting_for= 0;
     lo->waiting_for_loid= 0;
-    pthread_mutex_unlock(& lock->table->mutex);
+    mysql_mutex_unlock(& lock->table->mutex);
 
     lock->next= local_pool;
     local_pool= lock;
@@ -559,14 +559,14 @@ void tablockman_release_locks(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
   while (lock)
   {
     TABLE_LOCK *cur= lock;
-    pthread_mutex_t *mutex= & lock->table->mutex;
+    mysql_mutex_t *mutex= & lock->table->mutex;
     DBUG_ASSERT(cur->loid == lo->loid);
 
     DBUG_ASSERT(lock != lock->next_in_lo);
     lock= lock->next_in_lo;
 
     /* TODO ? group locks by table to reduce the number of mutex locks */
-    pthread_mutex_lock(mutex);
+    mysql_mutex_lock(mutex);
     my_hash_delete(& cur->table->latest_locks, (uchar *)cur);
 
     if (cur->prev)
@@ -579,7 +579,7 @@ void tablockman_release_locks(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
     cur->next= local_pool;
     local_pool= cur;
 
-    pthread_mutex_unlock(mutex);
+    mysql_mutex_unlock(mutex);
   }
 
   lo->waiting_lock= lo->active_locks= 0;
@@ -588,15 +588,15 @@ void tablockman_release_locks(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo)
     okay, all locks released. now signal that we're leaving,
     in case somebody's waiting for it
   */
-  pthread_mutex_lock(lo->mutex);
+  mysql_mutex_lock(lo->mutex);
   pthread_cond_broadcast(lo->cond);
-  pthread_mutex_unlock(lo->mutex);
+  mysql_mutex_unlock(lo->mutex);
 
   /* and push all freed locks to the lockman's pool */
-  pthread_mutex_lock(& lm->pool_mutex);
+  mysql_mutex_lock(& lm->pool_mutex);
   local_pool_end->next= lm->pool;
   lm->pool= local_pool;
-  pthread_mutex_unlock(& lm->pool_mutex);
+  mysql_mutex_unlock(& lm->pool_mutex);
 }
 
 void tablockman_init(TABLOCKMAN *lm, loid_to_tlo_func *func, uint timeout)
@@ -604,7 +604,7 @@ void tablockman_init(TABLOCKMAN *lm, loid_to_tlo_func *func, uint timeout)
   lm->pool= 0;
   lm->loid_to_tlo= func;
   lm->lock_timeout= timeout;
-  pthread_mutex_init(& lm->pool_mutex, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(& lm->pool_mutex, MY_MUTEX_INIT_FAST);
   my_getsystime(); /* ensure that my_getsystime() is initialized */
 }
 
@@ -616,7 +616,7 @@ void tablockman_destroy(TABLOCKMAN *lm)
     lm->pool= tmp->next;
     my_free(tmp);
   }
-  pthread_mutex_destroy(& lm->pool_mutex);
+  mysql_mutex_destroy(& lm->pool_mutex);
 }
 
 /*
@@ -629,7 +629,7 @@ void tablockman_destroy(TABLOCKMAN *lm)
 void tablockman_init_locked_table(LOCKED_TABLE *lt, int initial_hash_size)
 {
   bzero(lt, sizeof(*lt));
-  pthread_mutex_init(& lt->mutex, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(& lt->mutex, MY_MUTEX_INIT_FAST);
   my_hash_init(& lt->latest_locks, & my_charset_bin, initial_hash_size,
             offsetof(TABLE_LOCK, loid),
             sizeof(((TABLE_LOCK*)0)->loid), 0, 0, 0);
@@ -646,7 +646,7 @@ void tablockman_destroy_locked_table(LOCKED_TABLE *lt)
      DBUG_ASSERT(lt->active_locks[i] == 0);
 
   my_hash_free(& lt->latest_locks);
-  pthread_mutex_destroy(& lt->mutex);
+  mysql_mutex_destroy(& lt->mutex);
 }
 
 #ifdef EXTRA_DEBUG

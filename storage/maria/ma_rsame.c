@@ -62,11 +62,11 @@ int maria_rsame(MARIA_HA *info, uchar *record, int inx)
                          info->cur_row.lastpos,
                          info->cur_row.trid);
     if (info->s->lock_key_trees)
-      rw_rdlock(&keyinfo->root_lock);
+      mysql_rwlock_rdlock(&keyinfo->root_lock);
     _ma_search(info, &info->last_key, SEARCH_SAME,
 		    info->s->state.key_root[inx]);
     if (info->s->lock_key_trees)
-      rw_unlock(&keyinfo->root_lock);
+      mysql_rwlock_unlock(&keyinfo->root_lock);
   }
 
   if (!(*info->read_record)(info, record, info->cur_row.lastpos))

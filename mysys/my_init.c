@@ -479,7 +479,7 @@ PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_THR_LOCK_isam, key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
   key_THR_LOCK_open, key_THR_LOCK_threads,
-  key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
+  key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap, key_LOCK_uuid_generator;
 
 static PSI_mutex_info all_mysys_mutexes[]=
 {
@@ -506,12 +506,13 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_THR_LOCK_open, "THR_LOCK_open", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_threads, "THR_LOCK_threads", PSI_FLAG_GLOBAL},
   { &key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL}
+  { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL},
+  { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL }
 };
 
 PSI_cond_key key_COND_alarm, key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
-  key_THR_COND_threads;
+  key_THR_COND_threads, key_WT_RESOURCE_cond;
 
 static PSI_cond_info all_mysys_conds[]=
 {
@@ -519,7 +520,15 @@ static PSI_cond_info all_mysys_conds[]=
   { &key_IO_CACHE_SHARE_cond, "IO_CACHE_SHARE::cond", 0},
   { &key_IO_CACHE_SHARE_cond_writer, "IO_CACHE_SHARE::cond_writer", 0},
   { &key_my_thread_var_suspend, "my_thread_var::suspend", 0},
-  { &key_THR_COND_threads, "THR_COND_threads", 0}
+  { &key_THR_COND_threads, "THR_COND_threads", PSI_FLAG_GLOBAL},
+  { &key_WT_RESOURCE_cond, "WT_RESOURCE::cond", 0}
+};
+
+PSI_rwlock_key key_SAFEHASH_mutex;
+
+static PSI_rwlock_info all_mysys_rwlocks[]=
+{
+  { &key_SAFEHASH_mutex, "SAFE_HASH::mutex", 0}
 };
 
 #ifdef USE_ALARM_THREAD
@@ -558,6 +567,9 @@ void my_init_mysys_psi_keys()
 
   count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
   PSI_server->register_cond(category, all_mysys_conds, count);
+
+  count= sizeof(all_mysys_rwlocks)/sizeof(all_mysys_rwlocks[0]);
+  PSI_server->register_rwlock(category, all_mysys_rwlocks, count);
 
 #ifdef USE_ALARM_THREAD
   count= sizeof(all_mysys_threads)/sizeof(all_mysys_threads[0]);

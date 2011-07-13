@@ -80,7 +80,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
   if (fast_ma_readinfo(info))
     goto err;
   if (share->lock_key_trees)
-    rw_rdlock(&keyinfo->root_lock);
+    mysql_rwlock_rdlock(&keyinfo->root_lock);
 
   nextflag= maria_read_vec[search_flag] | key.flag;
   if (search_flag != HA_READ_KEY_EXACT ||
@@ -165,7 +165,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
     }
   }
   if (share->lock_key_trees)
-    rw_unlock(&keyinfo->root_lock);
+    mysql_rwlock_unlock(&keyinfo->root_lock);
 
   if (info->cur_row.lastpos == HA_OFFSET_ERROR || (icp_res != 1))
   {

@@ -80,17 +80,17 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 #if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
     if ((share->options & HA_OPTION_COMPRESS_RECORD))
     {
-      pthread_mutex_lock(&share->intern_lock);
+      mysql_mutex_lock(&share->intern_lock);
       if (_ma_memmap_file(info))
       {
 	/* We don't nead MADV_SEQUENTIAL if small file */
 	madvise((char*) share->file_map, share->state.state.data_file_length,
 		share->state.state.data_file_length <= RECORD_CACHE_SIZE*16 ?
 		MADV_RANDOM : MADV_SEQUENTIAL);
-	pthread_mutex_unlock(&share->intern_lock);
+	mysql_mutex_unlock(&share->intern_lock);
 	break;
       }
-      pthread_mutex_unlock(&share->intern_lock);
+      mysql_mutex_unlock(&share->intern_lock);
     }
 #endif
     if (info->opt_flag & WRITE_CACHE_USED)
@@ -232,10 +232,10 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     break;
   case HA_EXTRA_NO_KEYS:
     /* we're going to modify pieces of the state, stall Checkpoint */
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->intern_lock);
     if (info->lock_type == F_UNLCK)
     {
-      pthread_mutex_unlock(&share->intern_lock);
+      mysql_mutex_unlock(&share->intern_lock);
       error= 1;					/* Not possibly if not lock */
       break;
     }
@@ -276,7 +276,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
                                   MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
                                   MA_STATE_INFO_WRITE_FULL_INFO);
     }
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
     break;
   case HA_EXTRA_FORCE_REOPEN:
     /*
@@ -290,19 +290,19 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
                                  FLUSH_FORCE_WRITE, FLUSH_FORCE_WRITE);
     if (!error && share->changed)
     {
-      pthread_mutex_lock(&share->intern_lock);
+      mysql_mutex_lock(&share->intern_lock);
       if (!(error= _ma_state_info_write(share,
                                         MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET|
                                         MA_STATE_INFO_WRITE_FULL_INFO)))
         share->changed= 0;
-      pthread_mutex_unlock(&share->intern_lock);
+      mysql_mutex_unlock(&share->intern_lock);
     }
-    pthread_mutex_lock(&THR_LOCK_maria);
-    pthread_mutex_lock(&share->intern_lock); /* protect against Checkpoint */
+    mysql_mutex_lock(&THR_LOCK_maria);
+    mysql_mutex_lock(&share->intern_lock); /* protect against Checkpoint */
     /* this makes the share not be re-used next time the table is opened */
     share->last_version= 0L;			/* Impossible version */
-    pthread_mutex_unlock(&share->intern_lock);
-    pthread_mutex_unlock(&THR_LOCK_maria);
+    mysql_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&THR_LOCK_maria);
     break;
   case HA_EXTRA_PREPARE_FOR_DROP:
     /* Signals about intent to delete this table */
@@ -315,7 +315,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   {
     my_bool do_flush= test(function != HA_EXTRA_PREPARE_FOR_DROP);
     enum flush_type type;
-    pthread_mutex_lock(&THR_LOCK_maria);
+    mysql_mutex_lock(&THR_LOCK_maria);
     /*
       This share, to have last_version=0, needs to save all its data/index
       blocks to disk if this is not for a DROP TABLE. Otherwise they would be
@@ -336,7 +336,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       call it as in that case the automatic repair on open will add
       the missing index entries
     */
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->intern_lock);
     if (share->kfile.file >= 0 && function != HA_EXTRA_PREPARE_FOR_DROP)
       _ma_decrement_open_count(info);
     if (info->trn)
@@ -368,7 +368,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
              _ma_state_info_write(share,
                                   MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
                                   MA_STATE_INFO_WRITE_FULL_INFO)) ||
-            my_sync(share->kfile.file, MYF(0)))
+            mysql_file_sync(share->kfile.file, MYF(0)))
           error= my_errno;
         else
           share->changed= 0;
@@ -382,23 +382,23 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (share->data_file_type == BLOCK_RECORD &&
         share->bitmap.file.file >= 0)
     {
-      if (do_flush && my_sync(share->bitmap.file.file, MYF(0)))
+      if (do_flush && mysql_file_sync(share->bitmap.file.file, MYF(0)))
         error= my_errno;
     }
     /* For protection against Checkpoint, we set under intern_lock: */
     share->last_version= 0L;			/* Impossible version */
-    pthread_mutex_unlock(&share->intern_lock);
-    pthread_mutex_unlock(&THR_LOCK_maria);
+    mysql_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&THR_LOCK_maria);
     break;
   }
   case HA_EXTRA_PREPARE_FOR_FORCED_CLOSE:
     if (info->trn)
     {
-      pthread_mutex_lock(&share->intern_lock);
+      mysql_mutex_lock(&share->intern_lock);
       _ma_remove_table_from_trnman(share, info->trn);
       /* Ensure we don't point to the deleted data in trn */
       info->state= info->state_start= &share->state.state;
-      pthread_mutex_unlock(&share->intern_lock);    
+      mysql_mutex_unlock(&share->intern_lock);    
     }
     break;
   case HA_EXTRA_FLUSH:
@@ -442,7 +442,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 #ifdef HAVE_MMAP
     if (block_records)
       break;                                    /* Not supported */
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->intern_lock);
     /*
       Memory map the data file if it is not already mapped. It is safe
       to memory map a file while other threads are using file I/O on it.
@@ -463,13 +463,13 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
         share->file_write= _ma_mmap_pwrite;
       }
     }
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
 #endif
     break;
   case HA_EXTRA_MARK_AS_LOG_TABLE:
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->intern_lock);
     share->is_log_table= TRUE;
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
     break;
   case HA_EXTRA_KEY_CACHE:
   case HA_EXTRA_NO_KEY_CACHE:
@@ -564,8 +564,8 @@ int maria_reset(MARIA_HA *info)
 
 int _ma_sync_table_files(const MARIA_HA *info)
 {
-  return (my_sync(info->dfile.file, MYF(MY_WME)) ||
-          my_sync(info->s->kfile.file, MYF(MY_WME)));
+  return (mysql_file_sync(info->dfile.file, MYF(MY_WME)) ||
+          mysql_file_sync(info->s->kfile.file, MYF(MY_WME)));
 }
 
 
@@ -614,9 +614,9 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
       }
       else
       {
-        pthread_mutex_lock(&share->bitmap.bitmap_lock);
+        mysql_mutex_lock(&share->bitmap.bitmap_lock);
         share->bitmap.changed= 0;
-        pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+        mysql_mutex_unlock(&share->bitmap.bitmap_lock);
       }
       if (flush_pagecache_blocks(share->pagecache, &info->dfile,
                                  flush_type_for_data))

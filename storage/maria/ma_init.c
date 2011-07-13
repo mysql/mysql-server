@@ -66,7 +66,7 @@ int maria_init(void)
   if (!maria_inited)
   {
     maria_inited= TRUE;
-    pthread_mutex_init(&THR_LOCK_maria,MY_MUTEX_INIT_SLOW);
+    mysql_mutex_init(key_THR_LOCK_maria, &THR_LOCK_maria, MY_MUTEX_INIT_SLOW);
     _ma_init_block_record_data();
     trnman_end_trans_hook= _ma_trnman_end_trans_hook;
     maria_create_trn_hook= dummy_maria_create_trn_hook;
@@ -108,7 +108,7 @@ void maria_end(void)
     end_pagecache(maria_log_pagecache, TRUE);
     end_pagecache(maria_pagecache, TRUE);
     ma_control_file_end();
-    pthread_mutex_destroy(&THR_LOCK_maria);
+    mysql_mutex_destroy(&THR_LOCK_maria);
     my_hash_free(&maria_stored_state);
   }
 }
@@ -166,7 +166,8 @@ my_bool maria_upgrade()
         char old_logname[FN_REFLEN], new_logname[FN_REFLEN];
         fn_format(old_logname, file, maria_data_root, "", MYF(0));
         fn_format(new_logname, file+1, maria_data_root, "", MYF(0));
-        if (my_rename(old_logname, new_logname, MYF(MY_WME)))
+        if (mysql_file_rename(key_file_translog, old_logname,
+                              new_logname, MYF(MY_WME)))
         {
           my_dirend(dir);
           DBUG_RETURN(1);
@@ -176,7 +177,7 @@ my_bool maria_upgrade()
     my_dirend(dir);
     
     fn_format(new_name, CONTROL_FILE_BASE_NAME, maria_data_root, "", MYF(0));
-    if (my_rename(name, new_name, MYF(MY_WME)))
+    if (mysql_file_rename(key_file_control, name, new_name, MYF(MY_WME)))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);

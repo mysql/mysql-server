@@ -60,7 +60,7 @@ ha_rows maria_records_in_range(MARIA_HA *info, int inx, key_range *min_key,
   info->update&= (HA_STATE_CHANGED+HA_STATE_ROW_CHANGED);
   keyinfo= share->keyinfo + inx;
   if (share->lock_key_trees)
-    rw_rdlock(&keyinfo->root_lock);
+    mysql_rwlock_rdlock(&keyinfo->root_lock);
 
   switch (keyinfo->key_alg) {
 #ifdef HAVE_RTREE_KEYS
@@ -109,7 +109,7 @@ ha_rows maria_records_in_range(MARIA_HA *info, int inx, key_range *min_key,
   }
 
   if (share->lock_key_trees)
-    rw_unlock(&keyinfo->root_lock);
+    mysql_rwlock_unlock(&keyinfo->root_lock);
   fast_ma_writeinfo(info);
 
   /**

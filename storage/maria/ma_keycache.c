@@ -97,7 +97,7 @@ int maria_assign_to_pagecache(MARIA_HA *info,
     ensure that setting the key cache and changing the multi_pagecache
     is done atomicly
   */
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
   /*
     Tell all threads to use the new key cache
     This should be seen at the lastes for the next call to an maria function.
@@ -109,7 +109,7 @@ int maria_assign_to_pagecache(MARIA_HA *info,
                           share->unique_file_name.length,
 			  share->pagecache))
     error= my_errno;
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
   DBUG_RETURN(error);
 }
 
@@ -144,7 +144,7 @@ void maria_change_pagecache(PAGECACHE *old_pagecache,
   /*
     Lock list to ensure that no one can close the table while we manipulate it
   */
-  pthread_mutex_lock(&THR_LOCK_maria);
+  mysql_mutex_lock(&THR_LOCK_maria);
   for (pos=maria_open_list ; pos ; pos=pos->next)
   {
     MARIA_HA *info= (MARIA_HA*) pos->data;
@@ -159,6 +159,6 @@ void maria_change_pagecache(PAGECACHE *old_pagecache,
     open a new table that will be associted with the old key cache
   */
   multi_pagecache_change(old_pagecache, new_pagecache);
-  pthread_mutex_unlock(&THR_LOCK_maria);
+  mysql_mutex_unlock(&THR_LOCK_maria);
   DBUG_VOID_RETURN;
 }

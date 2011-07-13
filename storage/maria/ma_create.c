@@ -774,7 +774,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   if (! (flags & HA_DONT_TOUCH_DATA))
     share.state.create_time= time((time_t*) 0);
 
-  pthread_mutex_lock(&THR_LOCK_maria);
+  mysql_mutex_lock(&THR_LOCK_maria);
 
   /*
     NOTE: For test_if_reopen() we need a real path name. Hence we need
@@ -848,8 +848,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     goto err;
   }
 
-  if ((file= my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
-				    MYF(MY_WME|create_flag))) < 0)
+  if ((file= mysql_file_create_with_symlink(key_file_kfile, linkname_ptr,
+                                            filename, 0, create_mode,
+                                            MYF(MY_WME|create_flag))) < 0)
     goto err;
   errpos=1;
 
@@ -860,7 +861,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     goto err;
   DBUG_PRINT("info", ("base_pos: %d  base_info_size: %d",
                       base_pos, MARIA_BASE_INFO_SIZE));
-  DBUG_ASSERT(my_tell(file,MYF(0)) == base_pos+ MARIA_BASE_INFO_SIZE);
+  DBUG_ASSERT(mysql_file_tell(file,MYF(0)) == base_pos+ MARIA_BASE_INFO_SIZE);
 
   /* Write key and keyseg definitions */
   DBUG_PRINT("info", ("write key and keyseg definitions"));
@@ -984,7 +985,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   if (_ma_column_nr_write(file, column_array, columns))
     goto err;
 
-  if ((kfile_size_before_extension= my_tell(file,MYF(0))) == MY_FILEPOS_ERROR)
+  if ((kfile_size_before_extension= mysql_file_tell(file,MYF(0))) == MY_FILEPOS_ERROR)
     goto err;
 #ifndef DBUG_OFF
   if (kfile_size_before_extension != info_length)
@@ -1008,7 +1009,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     /* we are needing maybe 64 kB, so don't use the stack */
     log_data= my_malloc(log_array[TRANSLOG_INTERNAL_PARTS + 1].length, MYF(0));
     if ((log_data == NULL) ||
-        my_pread(file, 1 + 2 + 2 + log_data,
+        mysql_file_pread(file, 1 + 2 + 2 + log_data,
                  (size_t) kfile_size_before_extension, 0, MYF(MY_NABP)))
       goto err;
     /*
@@ -1124,8 +1125,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       create_flag= (flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
     }
     if ((dfile=
-         my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
-                                MYF(MY_WME | create_flag | sync_dir))) < 0)
+         mysql_file_create_with_symlink(key_file_dfile, linkname_ptr,
+                                        filename, 0, create_mode,
+                                        MYF(MY_WME | create_flag | sync_dir))) < 0)
       goto err;
     errpos=3;
 
@@ -1136,50 +1138,53 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 	/* Enlarge files */
   DBUG_PRINT("info", ("enlarge to keystart: %lu",
                       (ulong) share.base.keystart));
-  if (my_chsize(file,(ulong) share.base.keystart,0,MYF(0)))
+  if (mysql_file_chsize(file,(ulong) share.base.keystart,0,MYF(0)))
     goto err;
 
-  if (sync_dir && my_sync(file, MYF(0)))
+  if (sync_dir && mysql_file_sync(file, MYF(0)))
     goto err;
 
   if (! (flags & HA_DONT_TOUCH_DATA))
   {
 #ifdef USE_RELOC
-    if (my_chsize(dfile,share.base.min_pack_length*ci->reloc_rows,0,MYF(0)))
+    if (mysql_file_chsize(key_file_dfile, dfile,
+                          share.base.min_pack_length*ci->reloc_rows,0,MYF(0)))
       goto err;
 #endif
-    if (sync_dir && my_sync(dfile, MYF(0)))
+    if (sync_dir && mysql_file_sync(dfile, MYF(0)))
       goto err;
-    if (my_close(dfile,MYF(0)))
+    if (mysql_file_close(dfile,MYF(0)))
       goto err;
   }
-  pthread_mutex_unlock(&THR_LOCK_maria);
+  mysql_mutex_unlock(&THR_LOCK_maria);
   res= 0;
   my_free((char*) rec_per_key_part);
   errpos=0;
-  if (my_close(file,MYF(0)))
+  if (mysql_file_close(file,MYF(0)))
     res= my_errno;
   DBUG_RETURN(res);
 
 err:
-  pthread_mutex_unlock(&THR_LOCK_maria);
+  mysql_mutex_unlock(&THR_LOCK_maria);
 
 err_no_lock:
   save_errno=my_errno;
   switch (errpos) {
   case 3:
-    my_close(dfile, MYF(0));
+    mysql_file_close(dfile, MYF(0));
     /* fall through */
   case 2:
   if (! (flags & HA_DONT_TOUCH_DATA))
-    my_delete_with_symlink(fn_format(filename,name,"",MARIA_NAME_DEXT,
+    mysql_file_delete_with_symlink(key_file_dfile,
+                                   fn_format(filename,name,"",MARIA_NAME_DEXT,
                                      MY_UNPACK_FILENAME | MY_APPEND_EXT),
 			   sync_dir);
     /* fall through */
   case 1:
-    my_close(file, MYF(0));
+    mysql_file_close(file, MYF(0));
     if (! (flags & HA_DONT_TOUCH_DATA))
-      my_delete_with_symlink(fn_format(filename,name,"",MARIA_NAME_IEXT,
+      mysql_file_delete_with_symlink(key_file_kfile,
+                                     fn_format(filename,name,"",MARIA_NAME_IEXT,
                                        MY_UNPACK_FILENAME | MY_APPEND_EXT),
 			     sync_dir);
   }
@@ -1320,10 +1325,10 @@ int _ma_update_state_lsns(MARIA_SHARE *share, LSN lsn, TrID create_trid,
                           my_bool do_sync, my_bool update_create_rename_lsn)
 {
   int res;
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
   res= _ma_update_state_lsns_sub(share, lsn, create_trid, do_sync,
                                  update_create_rename_lsn);
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
   return res;
 }
 
@@ -1412,7 +1417,7 @@ int _ma_update_state_lsns_sub(MARIA_SHARE *share, LSN lsn, TrID create_trid,
           my_pwrite(file, trid_buff, sizeof(trid_buff),
                     sizeof(share->state.header) +
                     MARIA_FILE_CREATE_TRID_OFFSET, MYF(MY_NABP)) ||
-          (do_sync && my_sync(file, MYF(0))));
+          (do_sync && mysql_file_sync(file, MYF(0))));
 }
 #if (_MSC_VER == 1310)
 #pragma optimize("",on)

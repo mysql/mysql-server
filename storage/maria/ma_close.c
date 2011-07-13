@@ -35,7 +35,7 @@ int maria_close(register MARIA_HA *info)
   /* Check that we have unlocked key delete-links properly */
   DBUG_ASSERT(info->key_del_used == 0);
 
-  pthread_mutex_lock(&THR_LOCK_maria);
+  mysql_mutex_lock(&THR_LOCK_maria);
   if (info->lock_type == F_EXTRA_LCK)
     info->lock_type=F_UNLCK;			/* HA_EXTRA_NO_USER_CHANGE */
 
@@ -47,8 +47,8 @@ int maria_close(register MARIA_HA *info)
     if (maria_lock_database(info,F_UNLCK))
       error=my_errno;
   }
-  pthread_mutex_lock(&share->close_lock);
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->close_lock);
+  mysql_mutex_lock(&share->intern_lock);
 
   if (share->options & HA_OPTION_READ_ONLY_DATA)
   {
@@ -108,19 +108,19 @@ int maria_close(register MARIA_HA *info)
         File must be synced as it is going out of the maria_open_list and so
         becoming unknown to future Checkpoints.
       */
-      if (share->now_transactional && my_sync(share->kfile.file, MYF(MY_WME)))
+      if (share->now_transactional && mysql_file_sync(share->kfile.file, MYF(MY_WME)))
         error= my_errno;
-      if (my_close(share->kfile.file, MYF(0)))
+      if (mysql_file_close(share->kfile.file, MYF(0)))
         error= my_errno;
     }
     thr_lock_delete(&share->lock);
-    (void) pthread_mutex_destroy(&share->key_del_lock);
+    (void) mysql_mutex_destroy(&share->key_del_lock);
     {
       int i,keys;
       keys = share->state.header.keys;
-      rwlock_destroy(&share->mmap_lock);
+      mysql_rwlock_destroy(&share->mmap_lock);
       for(i=0; i<keys; i++) {
-	rwlock_destroy(&share->keyinfo[i].root_lock);
+	mysql_rwlock_destroy(&share->keyinfo[i].root_lock);
       }
     }
     DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
@@ -136,9 +136,9 @@ int maria_close(register MARIA_HA *info)
       We have to unlock share->intern_lock then lock it after
       LOCK_trn_list (trnman_lock()) to avoid dead locks.
     */
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
     _ma_remove_not_visible_states_with_lock(share, TRUE);
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->intern_lock);
 
     if (share->in_checkpoint & MARIA_CHECKPOINT_LOOKS_AT_ME)
     {
@@ -168,14 +168,14 @@ int maria_close(register MARIA_HA *info)
       share->state_history= 0;
     }
   }
-  pthread_mutex_unlock(&THR_LOCK_maria);
-  pthread_mutex_unlock(&share->intern_lock);
-  pthread_mutex_unlock(&share->close_lock);
+  mysql_mutex_unlock(&THR_LOCK_maria);
+  mysql_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->close_lock);
   if (share_can_be_freed)
   {
-    (void) pthread_mutex_destroy(&share->intern_lock);
-    (void) pthread_mutex_destroy(&share->close_lock);
-    (void) pthread_cond_destroy(&share->key_del_cond);
+    (void) mysql_mutex_destroy(&share->intern_lock);
+    (void) mysql_mutex_destroy(&share->close_lock);
+    (void) mysql_cond_destroy(&share->key_del_cond);
     my_free(share);
     /*
       If share cannot be freed, it's because checkpoint has previously
@@ -190,7 +190,7 @@ int maria_close(register MARIA_HA *info)
       This is outside of mutex so would confuse a concurrent
       Checkpoint. Fortunately in BLOCK_RECORD we close earlier under mutex.
     */
-    if (my_close(info->dfile.file, MYF(0)))
+    if (mysql_file_close(info->dfile.file, MYF(0)))
       error= my_errno;
   }
 

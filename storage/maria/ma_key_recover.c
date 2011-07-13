@@ -131,7 +131,7 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
     (first intern_lock then transactional log  buffer lock)
   */
   if (undo_type == LOGREC_UNDO_BULK_INSERT)
-    pthread_mutex_lock(&info->s->intern_lock);
+    mysql_mutex_lock(&info->s->intern_lock);
 
   res= translog_write_record(res_lsn, LOGREC_CLR_END,
                              info->trn, info,
@@ -140,7 +140,7 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
                              TRANSLOG_INTERNAL_PARTS + 1, log_array,
                              log_data + LSN_STORE_SIZE, &msg);
   if (undo_type == LOGREC_UNDO_BULK_INSERT)
-    pthread_mutex_unlock(&info->s->intern_lock);
+    mysql_mutex_unlock(&info->s->intern_lock);
   DBUG_RETURN(res);
 }
 
@@ -190,7 +190,7 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
   case LOGREC_UNDO_KEY_DELETE:
     break;
   case LOGREC_UNDO_BULK_INSERT:
-    safe_mutex_assert_owner(&share->intern_lock);
+    mysql_mutex_assert_owner(&share->intern_lock);
     error= (maria_enable_indexes(tbl_info) ||
             /* we enabled indices, need '2' below */
             _ma_state_info_write(share,
@@ -1388,19 +1388,19 @@ my_bool _ma_lock_key_del(MARIA_HA *info, my_bool insert_at_end)
   */
   if (info->key_del_used != 1)
   {
-    pthread_mutex_lock(&share->key_del_lock);
+    mysql_mutex_lock(&share->key_del_lock);
     if (share->state.key_del == HA_OFFSET_ERROR && insert_at_end)
     {
-      pthread_mutex_unlock(&share->key_del_lock);
+      mysql_mutex_unlock(&share->key_del_lock);
       info->key_del_used= 2;                  /* insert-with-append */
       return 1;
     }
     while (share->key_del_used)
-      pthread_cond_wait(&share->key_del_cond, &share->key_del_lock);
+      mysql_cond_wait(&share->key_del_cond, &share->key_del_lock);
     info->key_del_used= 1;
     share->key_del_used= 1;
     share->key_del_current= share->state.key_del;
-    pthread_mutex_unlock(&share->key_del_lock);
+    mysql_mutex_unlock(&share->key_del_lock);
   }
   return share->key_del_current == HA_OFFSET_ERROR;
 }
@@ -1420,11 +1420,11 @@ void _ma_unlock_key_del(MARIA_HA *info)
   if (info->key_del_used == 1)                  /* Ignore insert-with-append */
   {
     MARIA_SHARE *share= info->s;
-    pthread_mutex_lock(&share->key_del_lock);
+    mysql_mutex_lock(&share->key_del_lock);
     share->key_del_used= 0;
     share->state.key_del= share->key_del_current;
-    pthread_mutex_unlock(&share->key_del_lock);
-    pthread_cond_signal(&share->key_del_cond);
+    mysql_mutex_unlock(&share->key_del_lock);
+    mysql_cond_signal(&share->key_del_cond);
   }
   info->key_del_used= 0;
 }

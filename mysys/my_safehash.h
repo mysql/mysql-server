@@ -39,7 +39,7 @@ typedef struct st_safe_hash_entry
 
 typedef struct st_safe_hash_with_default
 {
-  rw_lock_t mutex;
+  mysql_rwlock_t mutex;
   HASH hash;
   uchar *default_value;
   SAFE_HASH_ENTRY *root;

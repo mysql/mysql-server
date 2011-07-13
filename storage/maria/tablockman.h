@@ -51,12 +51,12 @@ typedef struct st_table_lock_owner {
   TABLE_LOCK *waiting_lock;                  /* waiting lock (one lock only) */
   struct st_table_lock_owner *waiting_for; /* transaction we're waiting for  */
   pthread_cond_t  *cond;      /* transactions waiting for us, wait on 'cond' */
-  pthread_mutex_t *mutex;                 /* mutex is required to use 'cond' */
+  mysql_mutex_t *mutex;                 /* mutex is required to use 'cond' */
   uint16    loid, waiting_for_loid;                 /* Lock Owner IDentifier */
 } TABLE_LOCK_OWNER;
 
 typedef struct st_locked_table {
-  pthread_mutex_t mutex;                        /* mutex for everything below */
+  mysql_mutex_t mutex;                        /* mutex for everything below */
   HASH latest_locks;                                /* latest locks in a hash */
   TABLE_LOCK *active_locks[LOCK_TYPES];          /* dl-list of locks per type */
   TABLE_LOCK *wait_queue_in, *wait_queue_out; /* wait deque (double-end queue)*/
@@ -65,7 +65,7 @@ typedef struct st_locked_table {
 typedef TABLE_LOCK_OWNER *loid_to_tlo_func(uint16);
 
 typedef struct {
-  pthread_mutex_t pool_mutex;
+  mysql_mutex_t pool_mutex;
   TABLE_LOCK *pool;                                /* lifo pool of free locks */
   uint lock_timeout;                          /* lock timeout in milliseconds */
   loid_to_tlo_func *loid_to_tlo;      /* for mapping loid to TABLE_LOCK_OWNER */

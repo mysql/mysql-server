@@ -394,18 +394,18 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
 
   if (_ma_lock_key_del(info, 1))
   {
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->intern_lock);
     pos= share->state.state.key_file_length;
     if (pos >= share->base.max_key_file_length - block_size)
     {
       my_errno=HA_ERR_INDEX_FILE_FULL;
-      pthread_mutex_unlock(&share->intern_lock);
+      mysql_mutex_unlock(&share->intern_lock);
       DBUG_RETURN(HA_OFFSET_ERROR);
     }
     share->state.state.key_file_length+= block_size;
     /* Following is for not transactional tables */
     info->state->key_file_length= share->state.state.key_file_length;
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
     (*page_link)->changed= 0;
     (*page_link)->write_lock= PAGECACHE_LOCK_WRITE;
   }

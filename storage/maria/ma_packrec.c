@@ -184,7 +184,7 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
     maria_quick_table_bits=MAX_QUICK_TABLE_BITS;
 
   my_errno=0;
-  if (my_read(file, header, sizeof(header), MYF(MY_NABP)))
+  if (mysql_file_read(file, header, sizeof(header), MYF(MY_NABP)))
   {
     if (!my_errno)
       my_errno=HA_ERR_END_OF_FILE;
@@ -252,7 +252,7 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
   tmp_buff=share->decode_tables+length;
   disk_cache=(uchar*) (tmp_buff+OFFSET_TABLE_SIZE);
 
-  if (my_read(file,disk_cache,
+  if (mysql_file_read(file,disk_cache,
 	      (uint) (share->pack.header_length-sizeof(header)),
 	      MYF(MY_NABP)))
     goto err2;
@@ -752,7 +752,7 @@ int _ma_read_pack_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
                               &info->rec_buff, &info->rec_buff_size, file,
                               filepos))
     goto err;
-  if (my_read(file, info->rec_buff + block_info.offset ,
+  if (mysql_file_read(file, info->rec_buff + block_info.offset ,
 	      block_info.rec_len - block_info.offset, MYF(MY_NABP)))
     goto panic;
   info->update|= HA_STATE_AKTIV;
@@ -1385,7 +1385,7 @@ int _ma_read_rnd_pack_record(MARIA_HA *info,
   }
   else
   {
-    if (my_read(info->dfile.file, info->rec_buff + block_info.offset,
+    if (mysql_file_read(info->dfile.file, info->rec_buff + block_info.offset,
 		block_info.rec_len-block_info.offset,
 		MYF(MY_NABP)))
       goto err;
@@ -1420,8 +1420,8 @@ uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
       We can't use my_pread() here because _ma_read_rnd_pack_record assumes
       position is ok
     */
-    my_seek(file,filepos,MY_SEEK_SET,MYF(0));
-    if (my_read(file, header,ref_length,MYF(MY_NABP)))
+    mysql_file_seek(file,filepos,MY_SEEK_SET,MYF(0));
+    if (mysql_file_read(file, header,ref_length,MYF(MY_NABP)))
       return BLOCK_FATAL_ERROR;
     DBUG_DUMP("header", header, ref_length);
   }
@@ -1546,7 +1546,7 @@ my_bool _ma_memmap_file(MARIA_HA *info)
 
   if (!info->s->file_map)
   {
-    if (my_seek(info->dfile.file, 0L, MY_SEEK_END, MYF(0)) <
+    if (mysql_file_seek(info->dfile.file, 0L, MY_SEEK_END, MYF(0)) <
         share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN)
     {
       DBUG_PRINT("warning",("File isn't extended for memmap"));

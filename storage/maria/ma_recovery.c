@@ -864,15 +864,16 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   linkname_ptr= NULL;
   create_flag= MY_DELETE_OLD;
   tprint(tracef, "Table '%s' creating as '%s'\n", name, filename);
-  if ((kfile= my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
-                                     MYF(MY_WME|create_flag))) < 0)
+  if ((kfile= mysql_file_create_with_symlink(key_file_kfile, linkname_ptr,
+                                             filename, 0, create_mode,
+                                             MYF(MY_WME|create_flag))) < 0)
   {
     eprint(tracef, "Failed to create index file");
     goto end;
   }
   if (my_pwrite(kfile, kfile_header,
                 kfile_size_before_extension, 0, MYF(MY_NABP|MY_WME)) ||
-      my_chsize(kfile, keystart, 0, MYF(MY_WME)))
+      mysql_file_chsize(kfile, keystart, 0, MYF(MY_WME)))
   {
     eprint(tracef, "Failed to write to index file");
     goto end;
@@ -884,9 +885,10 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     linkname_ptr= NULL;
     create_flag=MY_DELETE_OLD;
     if (((dfile=
-          my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
-                                 MYF(MY_WME | create_flag))) < 0) ||
-        my_close(dfile, MYF(MY_WME)))
+          mysql_file_create_with_symlink(key_file_dfile, linkname_ptr,
+                                         filename, 0, create_mode,
+                                         MYF(MY_WME | create_flag))) < 0) ||
+        mysql_file_close(dfile, MYF(MY_WME)))
     {
       eprint(tracef, "Failed to create data file");
       goto end;
@@ -907,7 +909,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   error= 0;
 end:
   if (kfile >= 0)
-    error|= my_close(kfile, MYF(MY_WME));
+    error|= mysql_file_close(kfile, MYF(MY_WME));
   if (info != NULL)
     error|= maria_close(info);
   DBUG_RETURN(error);
@@ -1387,8 +1389,8 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
   /* don't log any records for this work */
   _ma_tmp_disable_logging_for_table(info, FALSE);
   /* execution of some REDO records relies on data_file_length */
-  dfile_len= my_seek(info->dfile.file, 0, SEEK_END, MYF(MY_WME));
-  kfile_len= my_seek(info->s->kfile.file, 0, SEEK_END, MYF(MY_WME));
+  dfile_len= mysql_file_seek(info->dfile.file, 0, SEEK_END, MYF(MY_WME));
+  kfile_len= mysql_file_seek(info->s->kfile.file, 0, SEEK_END, MYF(MY_WME));
   if ((dfile_len == MY_FILEPOS_ERROR) ||
       (kfile_len == MY_FILEPOS_ERROR))
   {
@@ -3341,7 +3343,7 @@ static int close_all_tables(void)
   TRANSLOG_ADDRESS addr;
   DBUG_ENTER("close_all_tables");
 
-  pthread_mutex_lock(&THR_LOCK_maria);
+  mysql_mutex_lock(&THR_LOCK_maria);
   if (maria_open_list == NULL)
     goto end;
   tprint(tracef, "Closing all tables\n");
@@ -3372,7 +3374,7 @@ static int close_all_tables(void)
       break;
     next_open= list_element->next;
     info= (MARIA_HA*)list_element->data;
-    pthread_mutex_unlock(&THR_LOCK_maria); /* ok, UNDO phase not online yet */
+    mysql_mutex_unlock(&THR_LOCK_maria); /* ok, UNDO phase not online yet */
     /*
       Tables which we see here are exactly those which were open at time of
       crash. They might have open_count>0 as Checkpoint maybe flushed their
@@ -3387,10 +3389,10 @@ static int close_all_tables(void)
     }
     prepare_table_for_close(info, addr);
     error|= maria_close(info);
-    pthread_mutex_lock(&THR_LOCK_maria);
+    mysql_mutex_lock(&THR_LOCK_maria);
   }
 end:
-  pthread_mutex_unlock(&THR_LOCK_maria);
+  mysql_mutex_unlock(&THR_LOCK_maria);
   DBUG_RETURN(error);
 }
 

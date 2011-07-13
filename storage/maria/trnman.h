@@ -45,7 +45,7 @@ struct st_ma_transaction
 {
   LF_PINS              *pins;
   WT_THD               *wt;
-  pthread_mutex_t      state_lock;
+  mysql_mutex_t         state_lock;
   void                 *used_tables;  /**< Tables used by transaction */
   TRN                  *next, *prev;
   TrID                 trid, min_read_from, commit_trid;
@@ -60,6 +60,10 @@ struct st_ma_transaction
 #define MAX_TRID (~(TrID)0)
 
 extern WT_RESOURCE_TYPE ma_rc_dup_unique;
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_LOCK_trn_list, key_TRN_state_lock;
+#endif
 
 C_MODE_END
 

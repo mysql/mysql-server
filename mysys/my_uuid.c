@@ -49,7 +49,7 @@ static uint nanoseq;
 static ulonglong uuid_time= 0;
 static uchar uuid_suffix[2+6]; /* clock_seq and node */
 
-pthread_mutex_t LOCK_uuid_generator;
+mysql_mutex_t LOCK_uuid_generator;
 
 /*
   Number of 100-nanosecond intervals between
@@ -112,7 +112,7 @@ void my_uuid_init(ulong seed1, ulong seed2)
   }
   my_rnd_init(&uuid_rand, (ulong) (seed1 + now), (ulong) (now/2+ getpid()));
   set_clock_seq();
-  pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_uuid_generator, &LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
 }
 
 
@@ -131,7 +131,7 @@ void my_uuid(uchar *to)
 
   DBUG_ASSERT(my_uuid_inited);
 
-  pthread_mutex_lock(&LOCK_uuid_generator);
+  mysql_mutex_lock(&LOCK_uuid_generator);
   tv= my_getsystime() + UUID_TIME_OFFSET + nanoseq;
 
   if (likely(tv > uuid_time))
@@ -192,7 +192,7 @@ void my_uuid(uchar *to)
   }
 
   uuid_time=tv;
-  pthread_mutex_unlock(&LOCK_uuid_generator);
+  mysql_mutex_unlock(&LOCK_uuid_generator);
 
   time_low=            (uint32) (tv & 0xFFFFFFFF);
   time_mid=            (uint16) ((tv >> 32) & 0xFFFF);
@@ -236,6 +236,6 @@ void my_uuid_end()
   if (my_uuid_inited)
   {
     my_uuid_inited= 0;
-    pthread_mutex_destroy(&LOCK_uuid_generator);
+    mysql_mutex_destroy(&LOCK_uuid_generator);
   }
 }

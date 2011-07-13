@@ -440,9 +440,9 @@ my_bool _ma_once_end_block_record(MARIA_SHARE *share)
       becoming unknown to Checkpoint.
     */
     if (share->now_transactional &&
-        my_sync(share->bitmap.file.file, MYF(MY_WME)))
+        mysql_file_sync(share->bitmap.file.file, MYF(MY_WME)))
       res= 1;
-    if (my_close(share->bitmap.file.file, MYF(MY_WME)))
+    if (mysql_file_close(share->bitmap.file.file, MYF(MY_WME)))
       res= 1;
     /*
       Trivial assignment to guard against multiple invocations
@@ -2367,10 +2367,10 @@ static my_bool extent_to_bitmap_blocks(MARIA_HA *info,
     else
     {
       my_bool res;
-      pthread_mutex_lock(&share->bitmap.bitmap_lock);
+      mysql_mutex_lock(&share->bitmap.bitmap_lock);
       res= _ma_bitmap_set_full_page_bits(info, &share->bitmap,
                                          block->page, page_count);
-      pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+      mysql_mutex_unlock(&share->bitmap.bitmap_lock);
       if (res)
         DBUG_RETURN(1);
       block->used= BLOCKUSED_USED;
@@ -2532,10 +2532,10 @@ static my_bool free_full_page_range(MARIA_HA *info, pgcache_page_no_t page,
                               log_data, NULL))
       res= 1;
   }
-  pthread_mutex_lock(&share->bitmap.bitmap_lock);
+  mysql_mutex_lock(&share->bitmap.bitmap_lock);
   if (_ma_bitmap_reset_full_page_bits(info, &share->bitmap, page, count))
     res= 1;
-  pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+  mysql_mutex_unlock(&share->bitmap.bitmap_lock);
   DBUG_RETURN(res);
 }
 
@@ -6518,10 +6518,10 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info,
     DBUG_PRINT("info", ("page: %lu  pages: %u", (long) page, page_range));
 
     /** @todo leave bitmap lock to the bitmap code... */
-    pthread_mutex_lock(&share->bitmap.bitmap_lock);
+    mysql_mutex_lock(&share->bitmap.bitmap_lock);
     res= _ma_bitmap_reset_full_page_bits(info, &share->bitmap, start_page,
                                          page_range);
-    pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+    mysql_mutex_unlock(&share->bitmap.bitmap_lock);
     if (res)
     {
       _ma_mark_file_crashed(share);
@@ -6600,9 +6600,9 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
     push_dynamic(&info->pinned_pages, (void*) &page_link);
   }
   /** @todo leave bitmap lock to the bitmap code... */
-  pthread_mutex_lock(&share->bitmap.bitmap_lock);
+  mysql_mutex_lock(&share->bitmap.bitmap_lock);
   res= _ma_bitmap_reset_full_page_bits(info, &share->bitmap, page, 1);
-  pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+  mysql_mutex_unlock(&share->bitmap.bitmap_lock);
   if (res)
     goto err;
   DBUG_RETURN(0);
@@ -6795,10 +6795,10 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
           goto err;
       }
       /** @todo leave bitmap lock to the bitmap code... */
-      pthread_mutex_lock(&share->bitmap.bitmap_lock);
+      mysql_mutex_lock(&share->bitmap.bitmap_lock);
       res= _ma_bitmap_set_full_page_bits(info, &share->bitmap, start_page,
                                          page_range);
-      pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+      mysql_mutex_unlock(&share->bitmap.bitmap_lock);
       if (res)
         goto err;
     }

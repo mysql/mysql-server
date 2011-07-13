@@ -161,7 +161,7 @@ int maria_write(MARIA_HA *info, uchar *record)
                                   is_tree_inited(&info->bulk_insert[i])));
       if (local_lock_tree)
       {
-	rw_wrlock(&keyinfo->root_lock);
+	mysql_rwlock_wrlock(&keyinfo->root_lock);
 	keyinfo->version++;
       }
       if (keyinfo->flag & HA_FULLTEXT )
@@ -169,7 +169,7 @@ int maria_write(MARIA_HA *info, uchar *record)
         if (_ma_ft_add(info,i, buff,record,filepos))
         {
 	  if (local_lock_tree)
-	    rw_unlock(&keyinfo->root_lock);
+	    mysql_rwlock_unlock(&keyinfo->root_lock);
           DBUG_PRINT("error",("Got error: %d on write",my_errno));
           goto err;
         }
@@ -196,7 +196,7 @@ int maria_write(MARIA_HA *info, uchar *record)
           if (info->dup_key_trid == info->trn->trid ||
               my_errno != HA_ERR_FOUND_DUPP_KEY)
           {
-	    rw_unlock(&keyinfo->root_lock);
+	    mysql_rwlock_unlock(&keyinfo->root_lock);
             goto err;
           }
           /* Different TrIDs: table must be transactional */
@@ -219,11 +219,11 @@ int maria_write(MARIA_HA *info, uchar *record)
           if (!blocker || blocker->commit_trid != ~(TrID)0)
           { /* committed */
             if (blocker)
-              pthread_mutex_unlock(& blocker->state_lock);
-            rw_unlock(&keyinfo->root_lock);
+              mysql_mutex_unlock(& blocker->state_lock);
+            mysql_rwlock_unlock(&keyinfo->root_lock);
             goto err;
           }
-          rw_unlock(&keyinfo->root_lock);
+          mysql_rwlock_unlock(&keyinfo->root_lock);
           {
             /* running. now we wait */
             WT_RESOURCE_ID rc;
@@ -236,7 +236,7 @@ int maria_write(MARIA_HA *info, uchar *record)
             res= wt_thd_will_wait_for(info->trn->wt, blocker->wt, & rc);
             if (res != WT_OK)
             {
-              pthread_mutex_unlock(& blocker->state_lock);
+              mysql_mutex_unlock(& blocker->state_lock);
               my_errno= HA_ERR_LOCK_DEADLOCK;
               goto err;
             }
@@ -246,7 +246,7 @@ int maria_write(MARIA_HA *info, uchar *record)
             res= wt_thd_cond_timedwait(info->trn->wt, & blocker->state_lock);
             proc_info_hook(0, old_proc_info, __func__, __FILE__, __LINE__);
 
-            pthread_mutex_unlock(& blocker->state_lock);
+            mysql_mutex_unlock(& blocker->state_lock);
             if (res != WT_OK)
             {
               my_errno= res == WT_TIMEOUT ? HA_ERR_LOCK_WAIT_TIMEOUT
@@ -254,7 +254,7 @@ int maria_write(MARIA_HA *info, uchar *record)
               goto err;
             }
           }
-          rw_wrlock(&keyinfo->root_lock);
+          mysql_rwlock_wrlock(&keyinfo->root_lock);
 #ifndef MARIA_CANNOT_ROLLBACK
           keyinfo->version++;
 #endif
@@ -265,7 +265,7 @@ int maria_write(MARIA_HA *info, uchar *record)
       info->update&= ~HA_STATE_RNEXT_SAME;
 
       if (local_lock_tree)
-        rw_unlock(&keyinfo->root_lock);
+        mysql_rwlock_unlock(&keyinfo->root_lock);
     }
   }
   if (share->calc_write_checksum)
@@ -347,7 +347,7 @@ err:
                                     is_tree_inited(&info->bulk_insert[i])));
         keyinfo= share->keyinfo + i;
 	if (local_lock_tree)
-	  rw_wrlock(&keyinfo->root_lock);
+	  mysql_rwlock_wrlock(&keyinfo->root_lock);
         /**
            @todo RECOVERY BUG
            The key deletes below should generate CLR_ENDs
@@ -357,7 +357,7 @@ err:
           if (_ma_ft_del(info,i,buff,record,filepos))
 	  {
 	    if (local_lock_tree)
-	      rw_unlock(&keyinfo->root_lock);
+	      mysql_rwlock_unlock(&keyinfo->root_lock);
             break;
 	  }
         }
@@ -369,12 +369,12 @@ err:
                                                  filepos, info->trn->trid)))
 	  {
 	    if (local_lock_tree)
-	      rw_unlock(&keyinfo->root_lock);
+	      mysql_rwlock_unlock(&keyinfo->root_lock);
 	    break;
 	  }
 	}
 	if (local_lock_tree)
-	  rw_unlock(&keyinfo->root_lock);
+	  mysql_rwlock_unlock(&keyinfo->root_lock);
       }
     }
   }
@@ -1671,7 +1671,7 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
   case free_init:
     if (share->lock_key_trees)
     {
-      rw_wrlock(&keyinfo->root_lock);
+      mysql_rwlock_wrlock(&keyinfo->root_lock);
       keyinfo->version++;
     }
     return 0;
@@ -1692,7 +1692,7 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
     return _ma_ck_write_btree(param->info, &tmp_key);
   case free_end:
     if (share->lock_key_trees)
-      rw_unlock(&keyinfo->root_lock);
+      mysql_rwlock_unlock(&keyinfo->root_lock);
     return 0;
   }
   return 1;

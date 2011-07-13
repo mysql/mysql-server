@@ -41,7 +41,7 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
 
   keyinfo= info->s->keyinfo+inx;
   if (info->s->lock_key_trees)
-    rw_rdlock(&keyinfo->root_lock);
+    mysql_rwlock_rdlock(&keyinfo->root_lock);
 
   switch (keyinfo->key_alg) {
 #ifdef HAVE_RTREE_KEYS
@@ -87,7 +87,7 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
       }
   }
   if (info->s->lock_key_trees)
-    rw_unlock(&keyinfo->root_lock);
+    mysql_rwlock_unlock(&keyinfo->root_lock);
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_NEXT_FOUND | HA_STATE_RNEXT_SAME;

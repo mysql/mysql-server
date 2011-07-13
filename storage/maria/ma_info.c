@@ -42,10 +42,10 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
     DBUG_RETURN(0);				/* Compatible with ISAM */
   if (!(flag & HA_STATUS_NO_LOCK))
   {
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->intern_lock);
     _ma_readinfo(info,F_RDLCK,0);
     fast_ma_writeinfo(info);
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
   }
   if (flag & HA_STATUS_VARIABLE)
   {

@@ -47,7 +47,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
   }
 
   error=0;
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
   if (share->kfile.file >= 0)		/* May only be false on windows */
   {
     switch (lock_type) {
@@ -97,11 +97,11 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
               (share->nonmmaped_inserts > MAX_NONMAPPED_INSERTS))
           {
             if (share->lock_key_trees)
-              rw_wrlock(&share->mmap_lock);
+              mysql_rwlock_wrlock(&share->mmap_lock);
             _ma_remap_file(info, share->state.state.data_file_length);
             share->nonmmaped_inserts= 0;
             if (share->lock_key_trees)
-              rw_unlock(&share->mmap_lock);
+              mysql_rwlock_unlock(&share->mmap_lock);
           }
 #endif
 #ifdef EXTERNAL_LOCKING
@@ -238,7 +238,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
     }
   }
 #endif
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
   DBUG_RETURN(error);
 } /* maria_lock_database */
 
@@ -399,7 +399,7 @@ int _ma_mark_file_changed(MARIA_HA *info)
 
   if (_MA_ALREADY_MARKED_FILE_CHANGED)
     DBUG_RETURN(0);
-  pthread_mutex_lock(&share->intern_lock); /* recheck under mutex */
+  mysql_mutex_lock(&share->intern_lock); /* recheck under mutex */
   if (! _MA_ALREADY_MARKED_FILE_CHANGED)
   {
     share->state.changed|=(STATE_CHANGED | STATE_NOT_ANALYZED |
@@ -445,7 +445,7 @@ int _ma_mark_file_changed(MARIA_HA *info)
   }
   error= 0;
 err:
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
   DBUG_RETURN(error);
 #undef _MA_ALREADY_MARKED_FILE_CHANGED
 }

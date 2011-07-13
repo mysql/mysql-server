@@ -45,7 +45,7 @@ int maria_panic(enum ha_panic_function flag)
 
   if (!maria_inited)
     DBUG_RETURN(0);
-  pthread_mutex_lock(&THR_LOCK_maria);
+  mysql_mutex_lock(&THR_LOCK_maria);
   for (list_element=maria_open_list ; list_element ; list_element=next_open)
   {
     next_open=list_element->next;		/* Save if close */
@@ -57,10 +57,10 @@ int maria_panic(enum ha_panic_function flag)
         happen in MySQL), as we release the mutex, the list may change and so
         we may crash.
       */
-      pthread_mutex_unlock(&THR_LOCK_maria);
+      mysql_mutex_unlock(&THR_LOCK_maria);
       if (maria_close(info))
 	error=my_errno;
-      pthread_mutex_lock(&THR_LOCK_maria);
+      mysql_mutex_lock(&THR_LOCK_maria);
       break;
     case HA_PANIC_WRITE:		/* Do this to free databases */
 #ifdef CANT_OPEN_FILES_TWICE
@@ -87,9 +87,9 @@ int maria_panic(enum ha_panic_function flag)
 	  error=my_errno;
       }
 #ifdef CANT_OPEN_FILES_TWICE
-      if (info->s->kfile.file >= 0 && my_close(info->s->kfile.file, MYF(0)))
+      if (info->s->kfile.file >= 0 && mysql_file_close(info->s->kfile.file, MYF(0)))
 	error = my_errno;
-      if (info->dfile.file >= 0 && my_close(info->dfile.file, MYF(0)))
+      if (info->dfile.file >= 0 && mysql_file_close(info->dfile.file, MYF(0)))
 	error = my_errno;
       info->s->kfile.file= info->dfile.file= -1;/* Files aren't open anymore */
       break;
@@ -102,19 +102,18 @@ int maria_panic(enum ha_panic_function flag)
 	if (share->kfile.file < 0)
         {
 
-	  if ((share->kfile.file= my_open(fn_format(name_buff,
-                                                    info->filename, "",
-                                                    N_NAME_IEXT,4),
-                                          info->mode,
-                                          MYF(MY_WME))) < 0)
+	  if ((share->kfile.file= mysql_file_open(key_file_kfile,
+                                       fn_format(name_buff, info->filename, "",
+                                                 N_NAME_IEXT,4),
+                                       info->mode, MYF(MY_WME))) < 0)
 	    error = my_errno;  
         }
 	if (info->dfile.file < 0)
 	{
-	  if ((info->dfile.file= my_open(fn_format(name_buff, info->filename,
-                                                   "", N_NAME_DEXT, 4),
-                                         info->mode,
-                                         MYF(MY_WME))) < 0)
+	  if ((info->dfile.file= mysql_file_open(key_file_dfile,
+                                     fn_format(name_buff, info->filename,
+                                               "", N_NAME_DEXT, 4),
+                                      info->mode, MYF(MY_WME))) < 0)
 	    error = my_errno;
 	  info->rec_cache.file= info->dfile.file;
 	}
@@ -131,7 +130,7 @@ int maria_panic(enum ha_panic_function flag)
       break;
     }
   }
-  pthread_mutex_unlock(&THR_LOCK_maria);
+  mysql_mutex_unlock(&THR_LOCK_maria);
   if (flag == HA_PANIC_CLOSE)
     maria_end();
   if (!error)

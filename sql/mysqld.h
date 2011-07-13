@@ -231,7 +231,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_prepared_stmt_count,
   key_LOCK_rpl_status, key_LOCK_server_started, key_LOCK_status,
   key_LOCK_table_share, key_LOCK_thd_data,
-  key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
+  key_LOCK_user_conn, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
@@ -266,10 +266,6 @@ extern PSI_cond_key key_RELAYLOG_update_cond;
 extern PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,
   key_thread_handle_manager, key_thread_kill_server, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand;
-
-#ifdef HAVE_MMAP
-extern PSI_file_key key_file_map;
-#endif /* HAVE_MMAP */
 
 extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,

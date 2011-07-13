@@ -698,6 +698,262 @@ static char *opt_bin_logname;
 int orig_argc;
 char **orig_argv;
 
+#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_MMAP
+PSI_mutex_key key_PAGE_lock, key_LOCK_sync, key_LOCK_active, key_LOCK_pool;
+#endif /* HAVE_MMAP */
+
+#ifdef HAVE_OPENSSL
+PSI_mutex_key key_LOCK_des_key_file;
+#endif /* HAVE_OPENSSL */
+
+PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
+  key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
+  key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
+  key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
+  key_LOCK_gdl, key_LOCK_global_system_variables,
+  key_LOCK_manager,
+  key_LOCK_prepared_stmt_count,
+  key_LOCK_rpl_status, key_LOCK_server_started, key_LOCK_status,
+  key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
+  key_LOCK_user_conn, key_LOCK_uuid_short_generator, key_LOG_LOCK_log,
+  key_master_info_data_lock, key_master_info_run_lock,
+  key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
+  key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
+  key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
+  key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
+  key_PARTITION_LOCK_auto_inc;
+PSI_mutex_key key_RELAYLOG_LOCK_index;
+
+PSI_mutex_key key_LOCK_stats,
+  key_LOCK_global_user_client_stats, key_LOCK_global_table_stats,
+  key_LOCK_global_index_stats;
+
+static PSI_mutex_info all_server_mutexes[]=
+{
+#ifdef HAVE_MMAP
+  { &key_PAGE_lock, "PAGE::lock", 0},
+  { &key_LOCK_sync, "TC_LOG_MMAP::LOCK_sync", 0},
+  { &key_LOCK_active, "TC_LOG_MMAP::LOCK_active", 0},
+  { &key_LOCK_pool, "TC_LOG_MMAP::LOCK_pool", 0},
+#endif /* HAVE_MMAP */
+
+#ifdef HAVE_OPENSSL
+  { &key_LOCK_des_key_file, "LOCK_des_key_file", PSI_FLAG_GLOBAL},
+#endif /* HAVE_OPENSSL */
+
+  { &key_BINLOG_LOCK_index, "MYSQL_BIN_LOG::LOCK_index", 0},
+  { &key_BINLOG_LOCK_prep_xids, "MYSQL_BIN_LOG::LOCK_prep_xids", 0},
+  { &key_RELAYLOG_LOCK_index, "MYSQL_RELAY_LOG::LOCK_index", 0},
+  { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
+  { &key_hash_filo_lock, "hash_filo::lock", 0},
+  { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
+  { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL},
+  { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL},
+  { &key_LOCK_delayed_create, "LOCK_delayed_create", PSI_FLAG_GLOBAL},
+  { &key_LOCK_delayed_insert, "LOCK_delayed_insert", PSI_FLAG_GLOBAL},
+  { &key_LOCK_delayed_status, "LOCK_delayed_status", PSI_FLAG_GLOBAL},
+  { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL},
+  { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL},
+  { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL},
+  { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_GLOBAL},
+  { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_GLOBAL},
+  { &key_LOCK_rpl_status, "LOCK_rpl_status", PSI_FLAG_GLOBAL},
+  { &key_LOCK_server_started, "LOCK_server_started", PSI_FLAG_GLOBAL},
+  { &key_LOCK_status, "LOCK_status", PSI_FLAG_GLOBAL},
+  { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
+  { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
+  { &key_LOCK_stats, "LOCK_stats", PSI_FLAG_GLOBAL},
+  { &key_LOCK_global_user_client_stats, "LOCK_global_user_client_stats", PSI_FLAG_GLOBAL},
+  { &key_LOCK_global_table_stats, "LOCK_global_table_stats", PSI_FLAG_GLOBAL},
+  { &key_LOCK_global_index_stats, "LOCK_global_index_stats", PSI_FLAG_GLOBAL},
+  { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
+  { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
+  { &key_LOCK_uuid_short_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
+  { &key_LOG_LOCK_log, "LOG::LOCK_log", 0},
+  { &key_master_info_data_lock, "Master_info::data_lock", 0},
+  { &key_master_info_run_lock, "Master_info::run_lock", 0},
+  { &key_mutex_slave_reporting_capability_err_lock, "Slave_reporting_capability::err_lock", 0},
+  { &key_relay_log_info_data_lock, "Relay_log_info::data_lock", 0},
+  { &key_relay_log_info_log_space_lock, "Relay_log_info::log_space_lock", 0},
+  { &key_relay_log_info_run_lock, "Relay_log_info::run_lock", 0},
+  { &key_structure_guard_mutex, "Query_cache::structure_guard_mutex", 0},
+  { &key_TABLE_SHARE_LOCK_ha_data, "TABLE_SHARE::LOCK_ha_data", 0},
+  { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
+  { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
+  { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
+  { &key_PARTITION_LOCK_auto_inc, "HA_DATA_PARTITION::LOCK_auto_inc", 0}
+};
+
+PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
+  key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
+  key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock;
+
+static PSI_rwlock_info all_server_rwlocks[]=
+{
+#if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
+  { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0},
+#endif
+  { &key_rwlock_LOCK_grant, "LOCK_grant", PSI_FLAG_GLOBAL},
+  { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0},
+  { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
+  { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},
+  { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
+  { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0}
+};
+
+#ifdef HAVE_MMAP
+PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
+#endif /* HAVE_MMAP */
+
+PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
+  key_COND_cache_status_changed, key_COND_manager,
+  key_COND_rpl_status, key_COND_server_started,
+  key_delayed_insert_cond, key_delayed_insert_cond_client,
+  key_item_func_sleep_cond, key_master_info_data_cond,
+  key_master_info_start_cond, key_master_info_stop_cond,
+  key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
+  key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
+  key_TABLE_SHARE_cond, key_user_level_lock_cond,
+  key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
+PSI_cond_key key_RELAYLOG_update_cond;
+
+static PSI_cond_info all_server_conds[]=
+{
+#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+  { &key_COND_handler_count, "COND_handler_count", PSI_FLAG_GLOBAL},
+#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
+#ifdef HAVE_MMAP
+  { &key_PAGE_cond, "PAGE::cond", 0},
+  { &key_COND_active, "TC_LOG_MMAP::COND_active", 0},
+  { &key_COND_pool, "TC_LOG_MMAP::COND_pool", 0},
+#endif /* HAVE_MMAP */
+  { &key_BINLOG_COND_prep_xids, "MYSQL_BIN_LOG::COND_prep_xids", 0},
+  { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0},
+  { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
+  { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
+  { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
+  { &key_COND_rpl_status, "COND_rpl_status", PSI_FLAG_GLOBAL},
+  { &key_COND_server_started, "COND_server_started", PSI_FLAG_GLOBAL},
+  { &key_delayed_insert_cond, "Delayed_insert::cond", 0},
+  { &key_delayed_insert_cond_client, "Delayed_insert::cond_client", 0},
+  { &key_item_func_sleep_cond, "Item_func_sleep::cond", 0},
+  { &key_master_info_data_cond, "Master_info::data_cond", 0},
+  { &key_master_info_start_cond, "Master_info::start_cond", 0},
+  { &key_master_info_stop_cond, "Master_info::stop_cond", 0},
+  { &key_relay_log_info_data_cond, "Relay_log_info::data_cond", 0},
+  { &key_relay_log_info_log_space_cond, "Relay_log_info::log_space_cond", 0},
+  { &key_relay_log_info_start_cond, "Relay_log_info::start_cond", 0},
+  { &key_relay_log_info_stop_cond, "Relay_log_info::stop_cond", 0},
+  { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
+  { &key_user_level_lock_cond, "User_level_lock::cond", 0},
+  { &key_COND_thread_count, "COND_thread_count", PSI_FLAG_GLOBAL},
+  { &key_COND_thread_cache, "COND_thread_cache", PSI_FLAG_GLOBAL},
+  { &key_COND_flush_thread_cache, "COND_flush_thread_cache", PSI_FLAG_GLOBAL}
+};
+
+PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,
+  key_thread_handle_manager, key_thread_main,
+  key_thread_one_connection, key_thread_signal_hand;
+
+static PSI_thread_info all_server_threads[]=
+{
+#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+  { &key_thread_handle_con_namedpipes, "con_named_pipes", PSI_FLAG_GLOBAL},
+#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
+
+#if defined(HAVE_SMEM) && !defined(EMBEDDED_LIBRARY)
+  { &key_thread_handle_con_sharedmem, "con_shared_mem", PSI_FLAG_GLOBAL},
+#endif /* HAVE_SMEM && !EMBEDDED_LIBRARY */
+
+#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+  { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
+#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
+
+#ifdef __WIN__
+  { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
+#endif /* __WIN__ */
+
+  { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
+  { &key_thread_delayed_insert, "delayed_insert", 0},
+  { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
+  { &key_thread_main, "main", PSI_FLAG_GLOBAL},
+  { &key_thread_one_connection, "one_connection", 0},
+  { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL}
+};
+
+PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
+  key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
+  key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
+  key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
+  key_file_master_info, key_file_misc, key_file_partition,
+  key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
+  key_file_trg, key_file_trn, key_file_init;
+PSI_file_key key_file_query_log, key_file_slow_log;
+PSI_file_key key_file_relaylog, key_file_relaylog_index;
+
+static PSI_file_info all_server_files[]=
+{
+  { &key_file_binlog, "binlog", 0},
+  { &key_file_binlog_index, "binlog_index", 0},
+  { &key_file_relaylog, "relaylog", 0},
+  { &key_file_relaylog_index, "relaylog_index", 0},
+  { &key_file_casetest, "casetest", 0},
+  { &key_file_dbopt, "dbopt", 0},
+  { &key_file_des_key_file, "des_key_file", 0},
+  { &key_file_ERRMSG, "ERRMSG", 0},
+  { &key_select_to_file, "select_to_file", 0},
+  { &key_file_fileparser, "file_parser", 0},
+  { &key_file_frm, "FRM", 0},
+  { &key_file_global_ddl_log, "global_ddl_log", 0},
+  { &key_file_load, "load", 0},
+  { &key_file_loadfile, "LOAD_FILE", 0},
+  { &key_file_log_event_data, "log_event_data", 0},
+  { &key_file_log_event_info, "log_event_info", 0},
+  { &key_file_master_info, "master_info", 0},
+  { &key_file_misc, "misc", 0},
+  { &key_file_partition, "partition", 0},
+  { &key_file_pid, "pid", 0},
+  { &key_file_query_log, "query_log", 0},
+  { &key_file_relay_log_info, "relay_log_info", 0},
+  { &key_file_send_file, "send_file", 0},
+  { &key_file_slow_log, "slow_log", 0},
+  { &key_file_tclog, "tclog", 0},
+  { &key_file_trg, "trigger_name", 0},
+  { &key_file_trn, "trigger", 0},
+  { &key_file_init, "init", 0}
+};
+
+/**
+  Initialise all the performance schema instrumentation points
+  used by the server.
+*/
+void init_server_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_server_mutexes);
+  PSI_server->register_mutex(category, all_server_mutexes, count);
+
+  count= array_elements(all_server_rwlocks);
+  PSI_server->register_rwlock(category, all_server_rwlocks, count);
+
+  count= array_elements(all_server_conds);
+  PSI_server->register_cond(category, all_server_conds, count);
+
+  count= array_elements(all_server_threads);
+  PSI_server->register_thread(category, all_server_threads, count);
+
+  count= array_elements(all_server_files);
+  PSI_server->register_file(category, all_server_files, count);
+}
+
+#endif /* HAVE_PSI_INTERFACE */
+
 /*
   Since buffered_option_error_reporter is only used currently
   for parsing performance schema options, this code is not needed
@@ -3710,7 +3966,7 @@ static int init_thread_environment()
                    &LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_error_messages,
                    &LOCK_error_messages, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_uuid_generator,
+  mysql_mutex_init(key_LOCK_uuid_short_generator,
                    &LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_connection_count,
                    &LOCK_connection_count, MY_MUTEX_INIT_FAST);
@@ -7968,267 +8224,4 @@ template class I_List<i_string_pair>;
 template class I_List<Statement>;
 template class I_List_iterator<Statement>;
 #endif
-
-#ifdef HAVE_PSI_INTERFACE
-#ifdef HAVE_MMAP
-PSI_mutex_key key_PAGE_lock, key_LOCK_sync, key_LOCK_active, key_LOCK_pool;
-#endif /* HAVE_MMAP */
-
-#ifdef HAVE_OPENSSL
-PSI_mutex_key key_LOCK_des_key_file;
-#endif /* HAVE_OPENSSL */
-
-PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
-  key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
-  key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
-  key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
-  key_LOCK_gdl, key_LOCK_global_system_variables,
-  key_LOCK_manager,
-  key_LOCK_prepared_stmt_count,
-  key_LOCK_rpl_status, key_LOCK_server_started, key_LOCK_status,
-  key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
-  key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
-  key_master_info_data_lock, key_master_info_run_lock,
-  key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
-  key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
-  key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
-  key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
-  key_PARTITION_LOCK_auto_inc;
-PSI_mutex_key key_RELAYLOG_LOCK_index;
-
-PSI_mutex_key key_LOCK_stats,
-  key_LOCK_global_user_client_stats, key_LOCK_global_table_stats,
-  key_LOCK_global_index_stats;
-
-static PSI_mutex_info all_server_mutexes[]=
-{
-#ifdef HAVE_MMAP
-  { &key_PAGE_lock, "PAGE::lock", 0},
-  { &key_LOCK_sync, "TC_LOG_MMAP::LOCK_sync", 0},
-  { &key_LOCK_active, "TC_LOG_MMAP::LOCK_active", 0},
-  { &key_LOCK_pool, "TC_LOG_MMAP::LOCK_pool", 0},
-#endif /* HAVE_MMAP */
-
-#ifdef HAVE_OPENSSL
-  { &key_LOCK_des_key_file, "LOCK_des_key_file", PSI_FLAG_GLOBAL},
-#endif /* HAVE_OPENSSL */
-
-  { &key_BINLOG_LOCK_index, "MYSQL_BIN_LOG::LOCK_index", 0},
-  { &key_BINLOG_LOCK_prep_xids, "MYSQL_BIN_LOG::LOCK_prep_xids", 0},
-  { &key_RELAYLOG_LOCK_index, "MYSQL_RELAY_LOG::LOCK_index", 0},
-  { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
-  { &key_hash_filo_lock, "hash_filo::lock", 0},
-  { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
-  { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL},
-  { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL},
-  { &key_LOCK_delayed_create, "LOCK_delayed_create", PSI_FLAG_GLOBAL},
-  { &key_LOCK_delayed_insert, "LOCK_delayed_insert", PSI_FLAG_GLOBAL},
-  { &key_LOCK_delayed_status, "LOCK_delayed_status", PSI_FLAG_GLOBAL},
-  { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL},
-  { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL},
-  { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL},
-  { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_GLOBAL},
-  { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_GLOBAL},
-  { &key_LOCK_rpl_status, "LOCK_rpl_status", PSI_FLAG_GLOBAL},
-  { &key_LOCK_server_started, "LOCK_server_started", PSI_FLAG_GLOBAL},
-  { &key_LOCK_status, "LOCK_status", PSI_FLAG_GLOBAL},
-  { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
-  { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
-  { &key_LOCK_stats, "LOCK_stats", PSI_FLAG_GLOBAL},
-  { &key_LOCK_global_user_client_stats, "LOCK_global_user_client_stats", PSI_FLAG_GLOBAL},
-  { &key_LOCK_global_table_stats, "LOCK_global_table_stats", PSI_FLAG_GLOBAL},
-  { &key_LOCK_global_index_stats, "LOCK_global_index_stats", PSI_FLAG_GLOBAL},
-  { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
-  { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
-  { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
-  { &key_LOG_LOCK_log, "LOG::LOCK_log", 0},
-  { &key_master_info_data_lock, "Master_info::data_lock", 0},
-  { &key_master_info_run_lock, "Master_info::run_lock", 0},
-  { &key_mutex_slave_reporting_capability_err_lock, "Slave_reporting_capability::err_lock", 0},
-  { &key_relay_log_info_data_lock, "Relay_log_info::data_lock", 0},
-  { &key_relay_log_info_log_space_lock, "Relay_log_info::log_space_lock", 0},
-  { &key_relay_log_info_run_lock, "Relay_log_info::run_lock", 0},
-  { &key_structure_guard_mutex, "Query_cache::structure_guard_mutex", 0},
-  { &key_TABLE_SHARE_LOCK_ha_data, "TABLE_SHARE::LOCK_ha_data", 0},
-  { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
-  { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
-  { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
-  { &key_PARTITION_LOCK_auto_inc, "HA_DATA_PARTITION::LOCK_auto_inc", 0}
-};
-
-PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
-  key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
-  key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock;
-
-static PSI_rwlock_info all_server_rwlocks[]=
-{
-#if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
-  { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0},
-#endif
-  { &key_rwlock_LOCK_grant, "LOCK_grant", PSI_FLAG_GLOBAL},
-  { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0},
-  { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
-  { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},
-  { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
-  { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0}
-};
-
-#ifdef HAVE_MMAP
-PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
-#endif /* HAVE_MMAP */
-
-PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
-  key_COND_cache_status_changed, key_COND_manager,
-  key_COND_rpl_status, key_COND_server_started,
-  key_delayed_insert_cond, key_delayed_insert_cond_client,
-  key_item_func_sleep_cond, key_master_info_data_cond,
-  key_master_info_start_cond, key_master_info_stop_cond,
-  key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
-  key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
-  key_TABLE_SHARE_cond, key_user_level_lock_cond,
-  key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
-PSI_cond_key key_RELAYLOG_update_cond;
-
-static PSI_cond_info all_server_conds[]=
-{
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
-  { &key_COND_handler_count, "COND_handler_count", PSI_FLAG_GLOBAL},
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
-#ifdef HAVE_MMAP
-  { &key_PAGE_cond, "PAGE::cond", 0},
-  { &key_COND_active, "TC_LOG_MMAP::COND_active", 0},
-  { &key_COND_pool, "TC_LOG_MMAP::COND_pool", 0},
-#endif /* HAVE_MMAP */
-  { &key_BINLOG_COND_prep_xids, "MYSQL_BIN_LOG::COND_prep_xids", 0},
-  { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0},
-  { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
-  { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
-  { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
-  { &key_COND_rpl_status, "COND_rpl_status", PSI_FLAG_GLOBAL},
-  { &key_COND_server_started, "COND_server_started", PSI_FLAG_GLOBAL},
-  { &key_delayed_insert_cond, "Delayed_insert::cond", 0},
-  { &key_delayed_insert_cond_client, "Delayed_insert::cond_client", 0},
-  { &key_item_func_sleep_cond, "Item_func_sleep::cond", 0},
-  { &key_master_info_data_cond, "Master_info::data_cond", 0},
-  { &key_master_info_start_cond, "Master_info::start_cond", 0},
-  { &key_master_info_stop_cond, "Master_info::stop_cond", 0},
-  { &key_relay_log_info_data_cond, "Relay_log_info::data_cond", 0},
-  { &key_relay_log_info_log_space_cond, "Relay_log_info::log_space_cond", 0},
-  { &key_relay_log_info_start_cond, "Relay_log_info::start_cond", 0},
-  { &key_relay_log_info_stop_cond, "Relay_log_info::stop_cond", 0},
-  { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
-  { &key_user_level_lock_cond, "User_level_lock::cond", 0},
-  { &key_COND_thread_count, "COND_thread_count", PSI_FLAG_GLOBAL},
-  { &key_COND_thread_cache, "COND_thread_cache", PSI_FLAG_GLOBAL},
-  { &key_COND_flush_thread_cache, "COND_flush_thread_cache", PSI_FLAG_GLOBAL}
-};
-
-PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,
-  key_thread_handle_manager, key_thread_main,
-  key_thread_one_connection, key_thread_signal_hand;
-
-static PSI_thread_info all_server_threads[]=
-{
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
-  { &key_thread_handle_con_namedpipes, "con_named_pipes", PSI_FLAG_GLOBAL},
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
-
-#if defined(HAVE_SMEM) && !defined(EMBEDDED_LIBRARY)
-  { &key_thread_handle_con_sharedmem, "con_shared_mem", PSI_FLAG_GLOBAL},
-#endif /* HAVE_SMEM && !EMBEDDED_LIBRARY */
-
-#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
-  { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
-#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
-
-#ifdef __WIN__
-  { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
-#endif /* __WIN__ */
-
-  { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
-  { &key_thread_delayed_insert, "delayed_insert", 0},
-  { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
-  { &key_thread_main, "main", PSI_FLAG_GLOBAL},
-  { &key_thread_one_connection, "one_connection", 0},
-  { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL}
-};
-
-#ifdef HAVE_MMAP
-PSI_file_key key_file_map;
-#endif /* HAVE_MMAP */
-
-PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
-  key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
-  key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
-  key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
-  key_file_master_info, key_file_misc, key_file_partition,
-  key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
-  key_file_trg, key_file_trn, key_file_init;
-PSI_file_key key_file_query_log, key_file_slow_log;
-PSI_file_key key_file_relaylog, key_file_relaylog_index;
-
-static PSI_file_info all_server_files[]=
-{
-#ifdef HAVE_MMAP
-  { &key_file_map, "map", 0},
-#endif /* HAVE_MMAP */
-  { &key_file_binlog, "binlog", 0},
-  { &key_file_binlog_index, "binlog_index", 0},
-  { &key_file_relaylog, "relaylog", 0},
-  { &key_file_relaylog_index, "relaylog_index", 0},
-  { &key_file_casetest, "casetest", 0},
-  { &key_file_dbopt, "dbopt", 0},
-  { &key_file_des_key_file, "des_key_file", 0},
-  { &key_file_ERRMSG, "ERRMSG", 0},
-  { &key_select_to_file, "select_to_file", 0},
-  { &key_file_fileparser, "file_parser", 0},
-  { &key_file_frm, "FRM", 0},
-  { &key_file_global_ddl_log, "global_ddl_log", 0},
-  { &key_file_load, "load", 0},
-  { &key_file_loadfile, "LOAD_FILE", 0},
-  { &key_file_log_event_data, "log_event_data", 0},
-  { &key_file_log_event_info, "log_event_info", 0},
-  { &key_file_master_info, "master_info", 0},
-  { &key_file_misc, "misc", 0},
-  { &key_file_partition, "partition", 0},
-  { &key_file_pid, "pid", 0},
-  { &key_file_query_log, "query_log", 0},
-  { &key_file_relay_log_info, "relay_log_info", 0},
-  { &key_file_send_file, "send_file", 0},
-  { &key_file_slow_log, "slow_log", 0},
-  { &key_file_tclog, "tclog", 0},
-  { &key_file_trg, "trigger_name", 0},
-  { &key_file_trn, "trigger", 0},
-  { &key_file_init, "init", 0}
-};
-
-/**
-  Initialise all the performance schema instrumentation points
-  used by the server.
-*/
-void init_server_psi_keys(void)
-{
-  const char* category= "sql";
-  int count;
-
-  if (PSI_server == NULL)
-    return;
-
-  count= array_elements(all_server_mutexes);
-  PSI_server->register_mutex(category, all_server_mutexes, count);
-
-  count= array_elements(all_server_rwlocks);
-  PSI_server->register_rwlock(category, all_server_rwlocks, count);
-
-  count= array_elements(all_server_conds);
-  PSI_server->register_cond(category, all_server_conds, count);
-
-  count= array_elements(all_server_threads);
-  PSI_server->register_thread(category, all_server_threads, count);
-
-  count= array_elements(all_server_files);
-  PSI_server->register_file(category, all_server_files, count);
-}
-
-#endif /* HAVE_PSI_INTERFACE */
 

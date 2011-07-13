@@ -82,7 +82,7 @@ my_bool _ma_setup_live_state(MARIA_HA *info)
   trn->used_tables= tables;
   tables->share= share;
 
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
   share->in_trans++;
   DBUG_PRINT("info", ("share: 0x%lx  in_trans: %d",
                       (ulong) share, share->in_trans));
@@ -98,7 +98,7 @@ my_bool _ma_setup_live_state(MARIA_HA *info)
   */
   while (trn->trid <= history->trid)
     history= history->next;
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
   /* The current item can't be deleted as it's the first one visible for us */
   tables->state_start=  tables->state_current= history->state;
   tables->state_current.changed= tables->state_current.no_transid= 0;
@@ -215,10 +215,10 @@ void _ma_remove_not_visible_states_with_lock(MARIA_SHARE *share,
   if ((is_lock_trman= trman_is_inited()))
     trnman_lock();
 
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
   share->state_history=  _ma_remove_not_visible_states(share->state_history,
                                                        all, 1);
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
   if (is_lock_trman)
     trnman_unlock();
 }
@@ -444,7 +444,7 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
     {
       MARIA_STATE_HISTORY *history;
 
-      pthread_mutex_lock(&share->intern_lock);
+      mysql_mutex_lock(&share->intern_lock);
 
       /* We only have to update history state if something changed */
       if (tables->state_current.changed)
@@ -476,7 +476,7 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
             {
               /* purecov: begin inspected */
               error= 1;
-              pthread_mutex_unlock(&share->intern_lock);
+              mysql_mutex_unlock(&share->intern_lock);
               my_free(tables);
               continue;
               /* purecov: end */
@@ -512,7 +512,7 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
         }
       }
       share->in_trans--;
-      pthread_mutex_unlock(&share->intern_lock);
+      mysql_mutex_unlock(&share->intern_lock);
     }
     else
     {
@@ -521,9 +521,9 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
         We need to keep share->in_trans correct in the debug library
         because of the assert in maria_close()
       */
-      pthread_mutex_lock(&share->intern_lock);
+      mysql_mutex_lock(&share->intern_lock);
       share->in_trans--;
-      pthread_mutex_unlock(&share->intern_lock);
+      mysql_mutex_unlock(&share->intern_lock);
 #endif
     }
     my_free(tables);
@@ -550,7 +550,7 @@ void _ma_remove_table_from_trnman(MARIA_SHARE *share, TRN *trn)
   DBUG_PRINT("enter", ("share: 0x%lx  in_trans: %d",
                        (ulong) share, share->in_trans));
 
-  safe_mutex_assert_owner(&share->intern_lock);
+  mysql_mutex_assert_owner(&share->intern_lock);
   
   for (prev= (MARIA_USED_TABLES**) (char*) &trn->used_tables, tables= *prev;
        tables;
@@ -712,10 +712,10 @@ void maria_versioning(MARIA_HA *info, my_bool versioning)
 
 void _ma_set_share_data_file_length(MARIA_SHARE *share, ulonglong new_length)
 {
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
   if (share->state.state.data_file_length < new_length)
     share->state.state.data_file_length= new_length;
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
 }
 
 

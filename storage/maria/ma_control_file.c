@@ -148,9 +148,8 @@ static CONTROL_FILE_ERROR create_control_file(const char *name,
   uchar buffer[CF_CREATE_TIME_TOTAL_SIZE];
   DBUG_ENTER("maria_create_control_file");
 
-  if ((control_file_fd= my_create(name, 0,
-                                  open_flags,
-                                  MYF(MY_SYNC_DIR | MY_WME))) < 0)
+  if ((control_file_fd= mysql_file_create(key_file_control, name, 0,
+                                  open_flags, MYF(MY_SYNC_DIR | MY_WME))) < 0)
     DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
 
   /* Reset variables, as we are creating the file */
@@ -318,7 +317,8 @@ CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing,
 
   /* Otherwise, file exists */
 
-  if ((control_file_fd= my_open(name, open_flags, MYF(MY_WME))) < 0)
+  if ((control_file_fd= mysql_file_open(key_file_control, name,
+                                        open_flags, MYF(MY_WME))) < 0)
   {
     errmsg= "Can't open file";
     goto err;
@@ -330,7 +330,7 @@ CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing,
     goto err;
   }
 
-  file_size= my_seek(control_file_fd, 0, SEEK_END, MYF(MY_WME));
+  file_size= mysql_file_seek(control_file_fd, 0, SEEK_END, MYF(MY_WME));
   if (file_size == MY_FILEPOS_ERROR)
   {
     errmsg= "Can't read size";
@@ -362,7 +362,7 @@ CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing,
     goto err;
   }
 
-  if (my_pread(control_file_fd, buffer, (size_t)file_size, 0, MYF(MY_FNABP)))
+  if (mysql_file_pread(control_file_fd, buffer, (size_t)file_size, 0, MYF(MY_FNABP)))
   {
     errmsg= "Can't read file";
     goto err;
@@ -544,7 +544,7 @@ int ma_control_file_write_and_force(LSN last_checkpoint_lsn_arg,
 
   if (my_pwrite(control_file_fd, buffer, cf_changeable_size,
                 cf_create_time_size, MYF(MY_FNABP |  MY_WME)) ||
-      (!no_need_sync && my_sync(control_file_fd, MYF(MY_WME))))
+      (!no_need_sync && mysql_file_sync(control_file_fd, MYF(MY_WME))))
     DBUG_RETURN(1);
 
   last_checkpoint_lsn= last_checkpoint_lsn_arg;
@@ -577,9 +577,9 @@ int ma_control_file_end(void)
                  MYF(MY_SEEK_NOT_DONE | MY_FORCE_LOCK));
 #endif
 
-  close_error= my_close(control_file_fd, MYF(MY_WME));
+  close_error= mysql_file_close(control_file_fd, MYF(MY_WME));
   /*
-    As my_close() frees structures even if close() fails, we do the same,
+    As mysql_file_close() frees structures even if close() fails, we do the same,
     i.e. we mark the file as closed in all cases.
   */
   control_file_fd= -1;

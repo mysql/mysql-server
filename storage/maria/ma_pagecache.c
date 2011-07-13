@@ -639,7 +639,7 @@ static my_bool pagecache_fwrite(PAGECACHE *pagecache,
     flags     - MYF() flags
 */
 #define pagecache_fread(pagecache, filedesc, buffer, pageno, flags) \
-  my_pread((filedesc)->file, buffer, pagecache->block_size,         \
+  mysql_file_pread((filedesc)->file, buffer, pagecache->block_size,         \
            ((my_off_t) pageno << pagecache->shift), flags)
 
 
@@ -720,7 +720,7 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
   pagecache->disk_blocks= -1;
   if (! pagecache->inited)
   {
-    if (mysql_mutex_init(ma_key_mutex_PAGECACHE_cache_lock,
+    if (mysql_mutex_init(key_PAGECACHE_cache_lock,
                          &pagecache->cache_lock, MY_MUTEX_INIT_FAST) ||
         my_hash_init(&pagecache->files_in_flush, &my_charset_bin, 32,
                   offsetof(struct st_file_in_flush, file),

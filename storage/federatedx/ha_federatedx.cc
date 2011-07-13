@@ -327,7 +327,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Variables for federatedx share methods */
 static HASH federatedx_open_tables;             // To track open tables
 static HASH federatedx_open_servers;            // To track open servers
-pthread_mutex_t federatedx_mutex;               // To init the hash
+mysql_mutex_t federatedx_mutex;                 // To init the hash
 const char ident_quote_char= '`';               // Character for quoting
                                                 // identifiers
 const char value_quote_char= '\'';              // Character for quoting
@@ -374,6 +374,30 @@ federatedx_server_get_key(FEDERATEDX_SERVER *server, size_t *length,
   return server->key;
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key fe_key_mutex_federatedx, fe_key_mutex_FEDERATEDX_SERVER_mutex;
+
+static PSI_mutex_info all_federated_mutexes[]=
+{
+  { &fe_key_mutex_federatedx, "federatedx", PSI_FLAG_GLOBAL},
+  { &fe_key_mutex_FEDERATEDX_SERVER_mutex, "FEDERATED_SERVER::mutex", 0}
+};
+
+static void init_federated_psi_keys(void)
+{
+  const char* category= "federated";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_federated_mutexes);
+  PSI_server->register_mutex(category, all_federated_mutexes, count);
+}
+#else
+#define init_federated_psi_keys() /* no-op */
+#endif /* HAVE_PSI_INTERFACE */
+
 
 /*
   Initialize the federatedx handler.
@@ -390,6 +414,7 @@ federatedx_server_get_key(FEDERATEDX_SERVER *server, size_t *length,
 int federatedx_db_init(void *p)
 {
   DBUG_ENTER("federatedx_db_init");
+  init_federated_psi_keys();
   handlerton *federatedx_hton= (handlerton *)p;
   federatedx_hton->state= SHOW_OPTION_YES;
   /* Needed to work with old .frm files */
@@ -404,7 +429,8 @@ int federatedx_db_init(void *p)
   federatedx_hton->create= federatedx_create_handler;
   federatedx_hton->flags= HTON_ALTER_NOT_SUPPORTED | HTON_NO_PARTITION;
 
-  if (pthread_mutex_init(&federatedx_mutex, MY_MUTEX_INIT_FAST))
+  if (mysql_mutex_init(fe_key_mutex_federatedx,
+                       &federatedx_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (!my_hash_init(&federatedx_open_tables, &my_charset_bin, 32, 0, 0,
                  (my_hash_get_key) federatedx_share_get_key, 0, 0) &&
@@ -414,7 +440,7 @@ int federatedx_db_init(void *p)
     DBUG_RETURN(FALSE);
   }
 
-  pthread_mutex_destroy(&federatedx_mutex);
+  mysql_mutex_destroy(&federatedx_mutex);
 error:
   DBUG_RETURN(TRUE);
 }
@@ -434,7 +460,7 @@ int federatedx_done(void *p)
 {
   my_hash_free(&federatedx_open_tables);
   my_hash_free(&federatedx_open_servers);
-  pthread_mutex_destroy(&federatedx_mutex);
+  mysql_mutex_destroy(&federatedx_mutex);
 
   return 0;
 }
@@ -1489,7 +1515,7 @@ static FEDERATEDX_SERVER *get_server(FEDERATEDX_SHARE *share, TABLE *table)
   String password(share->password ? share->password : "", &my_charset_bin);
   DBUG_ENTER("ha_federated.cc::get_server");
 
-  safe_mutex_assert_owner(&federatedx_mutex);
+  mysql_mutex_assert_owner(&federatedx_mutex);
 
   init_alloc_root(&mem_root, 4096, 4096);
 
@@ -1512,7 +1538,8 @@ static FEDERATEDX_SERVER *get_server(FEDERATEDX_SHARE *share, TABLE *table)
     if (my_hash_insert(&federatedx_open_servers, (uchar*) server))
       goto error;
 
-    pthread_mutex_init(&server->mutex, MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(fe_key_mutex_FEDERATEDX_SERVER_mutex,
+                     &server->mutex, MY_MUTEX_INIT_FAST);
   }
   else
     free_root(&mem_root, MYF(0)); /* prevents memory leak */
@@ -1550,7 +1577,7 @@ static FEDERATEDX_SHARE *get_share(const char *table_name, TABLE *table)
   bzero(&tmp_share, sizeof(tmp_share));
   init_alloc_root(&mem_root, 256, 0);
 
-  pthread_mutex_lock(&federatedx_mutex);
+  mysql_mutex_lock(&federatedx_mutex);
 
   tmp_share.share_key= table_name;
   tmp_share.share_key_length= strlen(table_name);
@@ -1599,12 +1626,12 @@ static FEDERATEDX_SHARE *get_share(const char *table_name, TABLE *table)
     free_root(&mem_root, MYF(0)); /* prevents memory leak */
 
   share->use_count++;
-  pthread_mutex_unlock(&federatedx_mutex);
+  mysql_mutex_unlock(&federatedx_mutex);
 
   DBUG_RETURN(share);
 
 error:
-  pthread_mutex_unlock(&federatedx_mutex);
+  mysql_mutex_unlock(&federatedx_mutex);
   free_root(&mem_root, MYF(0));
   DBUG_RETURN(NULL);
 }
@@ -1615,10 +1642,10 @@ static int free_server(federatedx_txn *txn, FEDERATEDX_SERVER *server)
   bool destroy;
   DBUG_ENTER("free_server");
 
-  pthread_mutex_lock(&federatedx_mutex);
+  mysql_mutex_lock(&federatedx_mutex);
   if ((destroy= !--server->use_count))
     my_hash_delete(&federatedx_open_servers, (uchar*) server);
-  pthread_mutex_unlock(&federatedx_mutex);
+  mysql_mutex_unlock(&federatedx_mutex);
 
   if (destroy)
   {
@@ -1634,7 +1661,7 @@ static int free_server(federatedx_txn *txn, FEDERATEDX_SERVER *server)
 
     DBUG_ASSERT(server->io_count == 0);
 
-    pthread_mutex_destroy(&server->mutex);
+    mysql_mutex_destroy(&server->mutex);
     mem_root= server->mem_root;
     free_root(&mem_root, MYF(0));
   }
@@ -1654,10 +1681,10 @@ static int free_share(federatedx_txn *txn, FEDERATEDX_SHARE *share)
   bool destroy;
   DBUG_ENTER("free_share");
 
-  pthread_mutex_lock(&federatedx_mutex);
+  mysql_mutex_lock(&federatedx_mutex);
   if ((destroy= !--share->use_count))
     my_hash_delete(&federatedx_open_tables, (uchar*) share);
-  pthread_mutex_unlock(&federatedx_mutex);
+  mysql_mutex_unlock(&federatedx_mutex);
 
   if (destroy)
   {
@@ -3350,9 +3377,9 @@ int ha_federatedx::create(const char *name, TABLE *table_arg,
     the remote server. To ensure that no new FEDERATEDX_SERVER
     instance is created, we pass NULL in get_server() TABLE arg.
   */
-  pthread_mutex_lock(&federatedx_mutex);
+  mysql_mutex_lock(&federatedx_mutex);
   tmp_share.s= get_server(&tmp_share, NULL);
-  pthread_mutex_unlock(&federatedx_mutex);
+  mysql_mutex_unlock(&federatedx_mutex);
 
   if (tmp_share.s)
   {
@@ -3379,8 +3406,9 @@ int ha_federatedx::create(const char *name, TABLE *table_arg,
     fill_server(thd->mem_root, &server, &tmp_share, create_info->table_charset);
 
 #ifndef DBUG_OFF
-    pthread_mutex_init(&server.mutex, MY_MUTEX_INIT_FAST);
-    pthread_mutex_lock(&server.mutex);
+    mysql_mutex_init(fe_key_mutex_FEDERATEDX_SERVER_mutex,
+                     &server.mutex, MY_MUTEX_INIT_FAST);
+    mysql_mutex_lock(&server.mutex);
 #endif
 
     tmp_io= federatedx_io::construct(thd->mem_root, &server);
@@ -3388,8 +3416,8 @@ int ha_federatedx::create(const char *name, TABLE *table_arg,
     retval= test_connection(thd, tmp_io, &tmp_share);
 
 #ifndef DBUG_OFF
-    pthread_mutex_unlock(&server.mutex);
-    pthread_mutex_destroy(&server.mutex);
+    mysql_mutex_unlock(&server.mutex);
+    mysql_mutex_destroy(&server.mutex);
 #endif
 
     delete tmp_io;

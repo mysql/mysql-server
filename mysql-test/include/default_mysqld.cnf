@@ -32,6 +32,7 @@ max_heap_table_size=        1M
 
 loose-skip-innodb
 loose-skip-pbxt
+loose-skip-federated
 
 loose-innodb_data_file_path=      ibdata1:10M:autoextend
 loose-innodb_buffer_pool_size=    8M

@@ -41,9 +41,9 @@
 /** @brief type of checkpoint currently running */
 static CHECKPOINT_LEVEL checkpoint_in_progress= CHECKPOINT_NONE;
 /** @brief protects checkpoint_in_progress */
-static pthread_mutex_t LOCK_checkpoint;
+static mysql_mutex_t LOCK_checkpoint;
 /** @brief for killing the background checkpoint thread */
-static pthread_cond_t  COND_checkpoint;
+static mysql_cond_t  COND_checkpoint;
 /** @brief control structure for checkpoint background thread */
 static MA_SERVICE_THREAD_CONTROL checkpoint_control=
   {THREAD_DEAD, FALSE, &LOCK_checkpoint, &COND_checkpoint};
@@ -109,7 +109,7 @@ int ma_checkpoint_execute(CHECKPOINT_LEVEL level, my_bool no_wait)
   DBUG_ASSERT(level > CHECKPOINT_NONE);
 
   /* look for already running checkpoints */
-  pthread_mutex_lock(&LOCK_checkpoint);
+  mysql_mutex_lock(&LOCK_checkpoint);
   while (checkpoint_in_progress != CHECKPOINT_NONE)
   {
     if (no_wait && (checkpoint_in_progress >= level))
@@ -119,18 +119,18 @@ int ma_checkpoint_execute(CHECKPOINT_LEVEL level, my_bool no_wait)
         smarter to flush pages instead of waiting here while the other thread
         finishes its checkpoint).
       */
-      pthread_mutex_unlock(&LOCK_checkpoint);
+      mysql_mutex_unlock(&LOCK_checkpoint);
       goto end;
     }
-    pthread_cond_wait(&COND_checkpoint, &LOCK_checkpoint);
+    mysql_cond_wait(&COND_checkpoint, &LOCK_checkpoint);
   }
 
   checkpoint_in_progress= level;
-  pthread_mutex_unlock(&LOCK_checkpoint);
+  mysql_mutex_unlock(&LOCK_checkpoint);
   /* from then on, we are sure to be and stay the only checkpointer */
 
   result= really_execute_checkpoint();
-  pthread_cond_broadcast(&COND_checkpoint);
+  mysql_cond_broadcast(&COND_checkpoint);
 end:
   DBUG_RETURN(result);
 }
@@ -291,11 +291,11 @@ err:
 end:
   for (i= 0; i < (sizeof(record_pieces)/sizeof(record_pieces[0])); i++)
     my_free(record_pieces[i].str);
-  pthread_mutex_lock(&LOCK_checkpoint);
+  mysql_mutex_lock(&LOCK_checkpoint);
   checkpoint_in_progress= CHECKPOINT_NONE;
   checkpoints_total++;
   checkpoints_ok_total+= !error;
-  pthread_mutex_unlock(&LOCK_checkpoint);
+  mysql_mutex_unlock(&LOCK_checkpoint);
   DBUG_RETURN(error);
 }
 
@@ -331,8 +331,9 @@ int ma_checkpoint_init(ulong interval)
   else if (interval > 0)
   {
     compile_time_assert(sizeof(void *) >= sizeof(ulong));
-    if (!(res= pthread_create(&th, NULL, ma_checkpoint_background,
-                              (void *)interval)))
+    if (!(res= mysql_thread_create(key_thread_checkpoint,
+                                   &th, NULL, ma_checkpoint_background,
+                                   (void *)interval)))
     {
       /* thread lives, will have to be killed */
       checkpoint_control.status= THREAD_RUNNING;
@@ -355,7 +356,7 @@ static void flush_all_tables(int what_to_flush)
 {
   int res= 0;
   LIST *pos; /**< to iterate over open tables */
-  pthread_mutex_lock(&THR_LOCK_maria);
+  mysql_mutex_lock(&THR_LOCK_maria);
   for (pos= maria_open_list; pos; pos= pos->next)
   {
     MARIA_HA *info= (MARIA_HA*)pos->data;
@@ -382,7 +383,7 @@ static void flush_all_tables(int what_to_flush)
     }
     DBUG_ASSERT(res == 0);
   }
-  pthread_mutex_unlock(&THR_LOCK_maria);
+  mysql_mutex_unlock(&THR_LOCK_maria);
 }
 #endif
 
@@ -745,7 +746,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
 
   LINT_INIT(state_copies_horizon);
   /* let's make a list of distinct shares */
-  pthread_mutex_lock(&THR_LOCK_maria);
+  mysql_mutex_lock(&THR_LOCK_maria);
   for (nb= 0, pos= maria_open_list; pos; pos= pos->next)
   {
     MARIA_HA *info= (MARIA_HA*)pos->data;
@@ -794,7 +795,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
   }
 
   DBUG_ASSERT(i == nb);
-  pthread_mutex_unlock(&THR_LOCK_maria);
+  mysql_mutex_unlock(&THR_LOCK_maria);
   DBUG_PRINT("info",("found %u table shares", nb));
 
   str->length=
@@ -935,8 +936,8 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       intern_lock in the middle of manipulating the table. Serializing us and
       maria_close() should help avoid problems.
     */
-    pthread_mutex_lock(&share->close_lock);
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->close_lock);
+    mysql_mutex_lock(&share->intern_lock);
     /*
       Tables in a normal state have their two file descriptors open.
       In some rare cases like REPAIR, some descriptor may be closed or even
@@ -1032,7 +1033,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       otherwise this would deadlock with allocate_and_write_block_record()
       calling _ma_set_share_data_file_length()
     */
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
     
     if (!ignore_share)
     {
@@ -1064,16 +1065,16 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
         and so this assertion should be true:
       */
       DBUG_ASSERT(ignore_share);
-      pthread_mutex_destroy(&share->intern_lock);
-      pthread_mutex_unlock(&share->close_lock);
-      pthread_mutex_destroy(&share->close_lock);
+      mysql_mutex_destroy(&share->intern_lock);
+      mysql_mutex_unlock(&share->close_lock);
+      mysql_mutex_destroy(&share->close_lock);
       my_free(share);
     }
     else
     {
       /* share goes back to normal state */
       share->in_checkpoint= 0;
-      pthread_mutex_unlock(&share->close_lock);
+      mysql_mutex_unlock(&share->close_lock);
     }
 
     /*
@@ -1146,8 +1147,8 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
         per second, so if you have touched 1000 files it's 7 seconds).
       */
       sync_error|=
-        my_sync(dfile.file, MYF(MY_WME | MY_IGNORE_BADFD)) |
-        my_sync(kfile.file, MYF(MY_WME | MY_IGNORE_BADFD));
+        mysql_file_sync(dfile.file, MYF(MY_WME | MY_IGNORE_BADFD)) |
+        mysql_file_sync(kfile.file, MYF(MY_WME | MY_IGNORE_BADFD));
       /*
         in case of error, we continue because writing other tables to disk is
         still useful.
@@ -1172,14 +1173,14 @@ err:
   if (unlikely(unmark_tables))
   {
     /* maria_close() uses THR_LOCK_maria from start to end */
-    pthread_mutex_lock(&THR_LOCK_maria);
+    mysql_mutex_lock(&THR_LOCK_maria);
     for (i= 0; i < nb; i++)
     {
       MARIA_SHARE *share= distinct_shares[i];
       if (share->in_checkpoint & MARIA_CHECKPOINT_SHOULD_FREE_ME)
       {
         /* maria_close() left us to free the share */
-        pthread_mutex_destroy(&share->intern_lock);
+        mysql_mutex_destroy(&share->intern_lock);
         my_free(share);
       }
       else
@@ -1188,7 +1189,7 @@ err:
         share->in_checkpoint= 0;
       }
     }
-    pthread_mutex_unlock(&THR_LOCK_maria);
+    mysql_mutex_unlock(&THR_LOCK_maria);
   }
   my_free(distinct_shares);
   my_free(state_copies);

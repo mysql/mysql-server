@@ -44,7 +44,7 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
     DBUG_RETURN(my_errno);
   keyinfo= share->keyinfo + inx;
   if (share->lock_key_trees)
-    rw_rdlock(&keyinfo->root_lock);
+    mysql_rwlock_rdlock(&keyinfo->root_lock);
   changed= _ma_test_if_changed(info);
   if (!flag)
   {
@@ -102,7 +102,7 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
     }
   }
   if (share->lock_key_trees)
-    rw_unlock(&keyinfo->root_lock);
+    mysql_rwlock_unlock(&keyinfo->root_lock);
 
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);

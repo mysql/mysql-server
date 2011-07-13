@@ -135,7 +135,7 @@ size_t _ma_mmap_pread(MARIA_HA *info, uchar *Buffer,
 {
   DBUG_PRINT("info", ("maria_read with mmap %d\n", info->dfile.file));
   if (info->s->lock_key_trees)
-    rw_rdlock(&info->s->mmap_lock);
+    mysql_rwlock_rdlock(&info->s->mmap_lock);
 
   /*
     The following test may fail in the following cases:
@@ -148,14 +148,14 @@ size_t _ma_mmap_pread(MARIA_HA *info, uchar *Buffer,
   {
     memcpy(Buffer, info->s->file_map + offset, Count);
     if (info->s->lock_key_trees)
-      rw_unlock(&info->s->mmap_lock);
+      mysql_rwlock_unlock(&info->s->mmap_lock);
     return 0;
   }
   else
   {
     if (info->s->lock_key_trees)
-      rw_unlock(&info->s->mmap_lock);
-    return my_pread(info->dfile.file, Buffer, Count, offset, MyFlags);
+      mysql_rwlock_unlock(&info->s->mmap_lock);
+    return mysql_file_pread(info->dfile.file, Buffer, Count, offset, MyFlags);
   }
 }
 
@@ -165,7 +165,7 @@ size_t _ma_mmap_pread(MARIA_HA *info, uchar *Buffer,
 size_t _ma_nommap_pread(MARIA_HA *info, uchar *Buffer,
 			size_t Count, my_off_t offset, myf MyFlags)
 {
-  return my_pread(info->dfile.file, Buffer, Count, offset, MyFlags);
+  return mysql_file_pread(info->dfile.file, Buffer, Count, offset, MyFlags);
 }
 
 
@@ -190,7 +190,7 @@ size_t _ma_mmap_pwrite(MARIA_HA *info, const uchar *Buffer,
 {
   DBUG_PRINT("info", ("maria_write with mmap %d\n", info->dfile.file));
   if (info->s->lock_key_trees)
-    rw_rdlock(&info->s->mmap_lock);
+    mysql_rwlock_rdlock(&info->s->mmap_lock);
 
   /*
     The following test may fail in the following cases:
@@ -203,14 +203,14 @@ size_t _ma_mmap_pwrite(MARIA_HA *info, const uchar *Buffer,
   {
     memcpy(info->s->file_map + offset, Buffer, Count);
     if (info->s->lock_key_trees)
-      rw_unlock(&info->s->mmap_lock);
+      mysql_rwlock_unlock(&info->s->mmap_lock);
     return 0;
   }
   else
   {
     info->s->nonmmaped_inserts++;
     if (info->s->lock_key_trees)
-      rw_unlock(&info->s->mmap_lock);
+      mysql_rwlock_unlock(&info->s->mmap_lock);
     return my_pwrite(info->dfile.file, Buffer, Count, offset, MyFlags);
   }
 
@@ -1682,7 +1682,7 @@ static my_bool _ma_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 
   while (length > IO_SIZE*2)
   {
-    if (my_pread(file,temp_buff,next_length,filepos, MYF(MY_NABP)) ||
+    if (mysql_file_pread(file,temp_buff,next_length,filepos, MYF(MY_NABP)) ||
 	memcmp(buff, temp_buff, next_length))
       goto err;
     filepos+=next_length;
@@ -1690,7 +1690,7 @@ static my_bool _ma_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
     length-= next_length;
     next_length=IO_SIZE*2;
   }
-  if (my_pread(file,temp_buff,length,filepos,MYF(MY_NABP)))
+  if (mysql_file_pread(file,temp_buff,length,filepos,MYF(MY_NABP)))
     goto err;
   DBUG_RETURN(memcmp(buff, temp_buff, length) != 0);
 err:
@@ -1864,7 +1864,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
             flush_io_cache(&info->rec_cache))
           goto err;
 	/* VOID(my_seek(info->dfile.file, filepos, MY_SEEK_SET, MYF(0))); */
-	if (my_read(info->dfile.file, to, block_info.data_len, MYF(MY_NABP)))
+	if (mysql_file_read(info->dfile.file, to, block_info.data_len, MYF(MY_NABP)))
 	{
 	  if (my_errno == HA_ERR_FILE_TOO_SHORT)
 	    my_errno= HA_ERR_WRONG_IN_RECORD;	/* Unexpected end of file */
@@ -1915,8 +1915,8 @@ uint _ma_get_block_info(MARIA_BLOCK_INFO *info, File file, my_off_t filepos)
       pointer set to the end of the header after this function.
       my_pread() may leave the file pointer untouched.
     */
-    my_seek(file,filepos,MY_SEEK_SET,MYF(0));
-    if (my_read(file, header, sizeof(info->header),MYF(0)) !=
+    mysql_file_seek(file,filepos,MY_SEEK_SET,MYF(0));
+    if (mysql_file_read(file, header, sizeof(info->header),MYF(0)) !=
 	sizeof(info->header))
       goto err;
   }

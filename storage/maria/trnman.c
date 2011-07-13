@@ -45,7 +45,7 @@ static TrID global_trid_generator;
 static TrID trid_min_read_from= MAX_TRID;
 
 /* the mutex for everything above */
-static pthread_mutex_t LOCK_trn_list;
+static mysql_mutex_t LOCK_trn_list;
 
 /* LIFO pool of unused TRN structured for reuse */
 static TRN *pool;
@@ -185,8 +185,8 @@ int trnman_init(TrID initial_trid)
   trid_min_read_from= initial_trid;
   lf_hash_init(&trid_to_trn, sizeof(TRN*), LF_HASH_UNIQUE,
                0, 0, trn_get_hash_key, 0);
-  DBUG_PRINT("info", ("pthread_mutex_init LOCK_trn_list"));
-  pthread_mutex_init(&LOCK_trn_list, MY_MUTEX_INIT_FAST);
+  DBUG_PRINT("info", ("mysql_mutex_init LOCK_trn_list"));
+  mysql_mutex_init(key_LOCK_trn_list, &LOCK_trn_list, MY_MUTEX_INIT_FAST);
   my_atomic_rwlock_init(&LOCK_short_trid_to_trn);
   my_atomic_rwlock_init(&LOCK_pool);
 
@@ -216,12 +216,12 @@ void trnman_destroy()
     TRN *trn= pool;
     pool= pool->next;
     DBUG_ASSERT(trn->wt == NULL);
-    pthread_mutex_destroy(&trn->state_lock);
+    mysql_mutex_destroy(&trn->state_lock);
     my_free(trn);
   }
   lf_hash_destroy(&trid_to_trn);
-  DBUG_PRINT("info", ("pthread_mutex_destroy LOCK_trn_list"));
-  pthread_mutex_destroy(&LOCK_trn_list);
+  DBUG_PRINT("info", ("mysql_mutex_destroy LOCK_trn_list"));
+  mysql_mutex_destroy(&LOCK_trn_list);
   my_atomic_rwlock_destroy(&LOCK_short_trid_to_trn);
   my_atomic_rwlock_destroy(&LOCK_pool);
   my_free(short_trid_to_active_trn+1);
@@ -240,8 +240,8 @@ static TrID new_trid()
 {
   DBUG_ENTER("new_trid");
   DBUG_ASSERT(global_trid_generator < 0xffffffffffffLL);
-  DBUG_PRINT("info", ("safe_mutex_assert_owner LOCK_trn_list"));
-  safe_mutex_assert_owner(&LOCK_trn_list);
+  DBUG_PRINT("info", ("mysql_mutex_assert_owner LOCK_trn_list"));
+  mysql_mutex_assert_owner(&LOCK_trn_list);
   DBUG_RETURN(++global_trid_generator);
 }
 
@@ -293,8 +293,8 @@ TRN *trnman_new_trn(WT_THD *wt)
     mutex.
   */
 
-  DBUG_PRINT("info", ("pthread_mutex_lock LOCK_trn_list"));
-  pthread_mutex_lock(&LOCK_trn_list);
+  DBUG_PRINT("info", ("mysql_mutex_lock LOCK_trn_list"));
+  mysql_mutex_lock(&LOCK_trn_list);
 
   /* Allocating a new TRN structure */
   tmp.trn= pool;
@@ -320,19 +320,19 @@ TRN *trnman_new_trn(WT_THD *wt)
     trn= (TRN *)my_malloc(sizeof(TRN), MYF(MY_WME | MY_ZEROFILL));
     if (unlikely(!trn))
     {
-      DBUG_PRINT("info", ("pthread_mutex_unlock LOCK_trn_list"));
-      pthread_mutex_unlock(&LOCK_trn_list);
+      DBUG_PRINT("info", ("mysql_mutex_unlock LOCK_trn_list"));
+      mysql_mutex_unlock(&LOCK_trn_list);
       return 0;
     }
     trnman_allocated_transactions++;
-    pthread_mutex_init(&trn->state_lock, MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(key_TRN_state_lock, &trn->state_lock, MY_MUTEX_INIT_FAST);
   }
   trn->wt= wt;
   trn->pins= lf_hash_get_pins(&trid_to_trn);
   if (!trn->pins)
   {
     trnman_free_trn(trn);
-    pthread_mutex_unlock(&LOCK_trn_list);
+    mysql_mutex_unlock(&LOCK_trn_list);
     return 0;
   }
 
@@ -346,8 +346,8 @@ TRN *trnman_new_trn(WT_THD *wt)
   trn->prev= active_list_max.prev;
   active_list_max.prev= trn->prev->next= trn;
   trid_min_read_from= active_list_min.next->min_read_from;
-  DBUG_PRINT("info", ("pthread_mutex_unlock LOCK_trn_list"));
-  pthread_mutex_unlock(&LOCK_trn_list);
+  DBUG_PRINT("info", ("mysql_mutex_unlock LOCK_trn_list"));
+  mysql_mutex_unlock(&LOCK_trn_list);
 
   if (unlikely(!trn->min_read_from))
   {
@@ -370,9 +370,9 @@ TRN *trnman_new_trn(WT_THD *wt)
     only after the following function TRN is considered initialized,
     so it must be done the last
   */
-  pthread_mutex_lock(&trn->state_lock);
+  mysql_mutex_lock(&trn->state_lock);
   trn->short_id= get_short_trid(trn);
-  pthread_mutex_unlock(&trn->state_lock);
+  mysql_mutex_unlock(&trn->state_lock);
 
   res= lf_hash_insert(&trid_to_trn, trn->pins, &trn);
   DBUG_ASSERT(res <= 0);
@@ -417,9 +417,9 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
   /* if a rollback, all UNDO records should have been executed */
   DBUG_ASSERT(commit || trn->undo_lsn == 0);
   DBUG_ASSERT(trn != &dummy_transaction_object);
-  DBUG_PRINT("info", ("pthread_mutex_lock LOCK_trn_list"));
+  DBUG_PRINT("info", ("mysql_mutex_lock LOCK_trn_list"));
 
-  pthread_mutex_lock(&LOCK_trn_list);
+  mysql_mutex_lock(&LOCK_trn_list);
 
   /* remove from active list */
   trn->next->prev= trn->prev;
@@ -451,11 +451,11 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
     }
   }
 
-  pthread_mutex_lock(&trn->state_lock);
+  mysql_mutex_lock(&trn->state_lock);
   if (commit)
     trn->commit_trid= global_trid_generator;
   wt_thd_release_self(trn);
-  pthread_mutex_unlock(&trn->state_lock);
+  mysql_mutex_unlock(&trn->state_lock);
 
   /*
     if transaction is committed and it was not the only active transaction -
@@ -480,8 +480,8 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
     res= -1;
   trnman_active_transactions--;
 
-  DBUG_PRINT("info", ("pthread_mutex_unlock LOCK_trn_list"));
-  pthread_mutex_unlock(&LOCK_trn_list);
+  DBUG_PRINT("info", ("mysql_mutex_unlock LOCK_trn_list"));
+  mysql_mutex_unlock(&LOCK_trn_list);
 
   /*
     the rest is done outside of a critical section
@@ -535,9 +535,9 @@ static void trnman_free_trn(TRN *trn)
   */
   union { TRN *trn; void *v; } tmp;
 
-  pthread_mutex_lock(&trn->state_lock);
+  mysql_mutex_lock(&trn->state_lock);
   trn->short_id= 0;
-  pthread_mutex_unlock(&trn->state_lock);
+  mysql_mutex_unlock(&trn->state_lock);
 
   tmp.trn= pool;
 
@@ -627,11 +627,11 @@ TRN *trnman_trid_to_trn(TRN *trn, TrID trid)
     return 0; /* no luck */
 
   /* we've found something */
-  pthread_mutex_lock(&(*found)->state_lock);
+  mysql_mutex_lock(&(*found)->state_lock);
 
   if ((*found)->short_id == 0)
   {
-    pthread_mutex_unlock(&(*found)->state_lock);
+    mysql_mutex_unlock(&(*found)->state_lock);
     lf_hash_search_unpin(trn->pins);
     return 0; /* but it was a ghost */
   }
@@ -688,7 +688,7 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
 
   /* validate the use of read_non_atomic() in general: */
   compile_time_assert((sizeof(LSN) == 8) && (sizeof(LSN_WITH_FLAGS) == 8));
-  pthread_mutex_lock(&LOCK_trn_list);
+  mysql_mutex_lock(&LOCK_trn_list);
   str_act->length= 2 + /* number of active transactions */
     LSN_STORE_SIZE + /* minimum of their rec_lsn */
     TRANSID_SIZE + /* current TrID generator value */
@@ -718,9 +718,9 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
   {
     uint sid;
     LSN rec_lsn, undo_lsn, first_undo_lsn;
-    pthread_mutex_lock(&trn->state_lock);
+    mysql_mutex_lock(&trn->state_lock);
     sid= trn->short_id;
-    pthread_mutex_unlock(&trn->state_lock);
+    mysql_mutex_unlock(&trn->state_lock);
     if (sid == 0)
     {
       /*
@@ -814,7 +814,7 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
 err:
   error= 1;
 end:
-  pthread_mutex_unlock(&LOCK_trn_list);
+  mysql_mutex_unlock(&LOCK_trn_list);
   DBUG_RETURN(error);
 }
 
@@ -872,10 +872,10 @@ TrID trnman_get_min_trid()
 TrID trnman_get_min_safe_trid()
 {
   TrID trid;
-  pthread_mutex_lock(&LOCK_trn_list);
+  mysql_mutex_lock(&LOCK_trn_list);
   trid= min(active_list_min.next->min_read_from,
             global_trid_generator);
-  pthread_mutex_unlock(&LOCK_trn_list);
+  mysql_mutex_unlock(&LOCK_trn_list);
   return trid;
 }
 
@@ -889,9 +889,9 @@ TrID trnman_get_max_trid()
   TrID id;
   if (short_trid_to_active_trn == NULL)
     return 0;
-  pthread_mutex_lock(&LOCK_trn_list);
+  mysql_mutex_lock(&LOCK_trn_list);
   id= global_trid_generator;
-  pthread_mutex_unlock(&LOCK_trn_list);
+  mysql_mutex_unlock(&LOCK_trn_list);
   return id;
 }
 
@@ -917,8 +917,8 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
   my_bool ret= 0;
 
   if (!trnman_is_locked)
-    pthread_mutex_lock(&LOCK_trn_list);
-  safe_mutex_assert_owner(&LOCK_trn_list);
+    mysql_mutex_lock(&LOCK_trn_list);
+  mysql_mutex_assert_owner(&LOCK_trn_list);
   for (trn= active_list_min.next; trn != &active_list_max; trn= trn->next)
   {
     /*
@@ -944,7 +944,7 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
     }
   }
   if (!trnman_is_locked)
-    pthread_mutex_unlock(&LOCK_trn_list);
+    mysql_mutex_unlock(&LOCK_trn_list);
   return ret;
 }
 
@@ -955,7 +955,7 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
 
 void trnman_lock()
 {
-  pthread_mutex_lock(&LOCK_trn_list);
+  mysql_mutex_lock(&LOCK_trn_list);
 }
 
 
@@ -965,7 +965,7 @@ void trnman_lock()
 
 void trnman_unlock()
 {
-  pthread_mutex_unlock(&LOCK_trn_list);
+  mysql_mutex_unlock(&LOCK_trn_list);
 }
 
 

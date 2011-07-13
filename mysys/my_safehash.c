@@ -107,7 +107,7 @@ my_bool safe_hash_init(SAFE_HASH *hash, uint elements,
     hash->default_value= 0;
     DBUG_RETURN(1);
   }
-  my_rwlock_init(&hash->mutex, 0);
+  mysql_rwlock_init(key_SAFEHASH_mutex, &hash->mutex);
   hash->default_value= default_value;
   hash->root= 0;
   DBUG_RETURN(0);
@@ -134,7 +134,7 @@ void safe_hash_free(SAFE_HASH *hash)
   if (hash->default_value)
   {
     my_hash_free(&hash->hash);
-    rwlock_destroy(&hash->mutex);
+    mysql_rwlock_destroy(&hash->mutex);
     hash->default_value=0;
   }
 }
@@ -159,9 +159,9 @@ uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length,
 {
   uchar *result;
   DBUG_ENTER("safe_hash_search");
-  rw_rdlock(&hash->mutex);
+  mysql_rwlock_rdlock(&hash->mutex);
   result= my_hash_search(&hash->hash, key, length);
-  rw_unlock(&hash->mutex);
+  mysql_rwlock_unlock(&hash->mutex);
   if (!result)
     result= def;
   else
@@ -199,7 +199,7 @@ my_bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
   DBUG_ENTER("safe_hash_set");
   DBUG_PRINT("enter",("key: %.*s  data: 0x%lx", length, key, (long) data));
 
-  rw_wrlock(&hash->mutex);
+  mysql_rwlock_wrlock(&hash->mutex);
   entry= (SAFE_HASH_ENTRY*) my_hash_search(&hash->hash, key, length);
 
   if (data == hash->default_value)
@@ -249,7 +249,7 @@ my_bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
   }
 
 end:
-  rw_unlock(&hash->mutex);
+  mysql_rwlock_unlock(&hash->mutex);
   DBUG_RETURN(error);
 }
 
@@ -274,7 +274,7 @@ void safe_hash_change(SAFE_HASH *hash, uchar *old_data, uchar *new_data)
   SAFE_HASH_ENTRY *entry, *next;
   DBUG_ENTER("safe_hash_change");
 
-  rw_wrlock(&hash->mutex);
+  mysql_rwlock_wrlock(&hash->mutex);
 
   for (entry= hash->root ; entry ; entry= next)
   {
@@ -292,6 +292,6 @@ void safe_hash_change(SAFE_HASH *hash, uchar *old_data, uchar *new_data)
     }
   }
 
-  rw_unlock(&hash->mutex);
+  mysql_rwlock_unlock(&hash->mutex);
   DBUG_VOID_RETURN;
 }

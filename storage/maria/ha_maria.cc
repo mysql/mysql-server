@@ -280,6 +280,93 @@ static MYSQL_SYSVAR_BOOL(used_for_temp_tables,
        "Whether temporary tables should be MyISAM or Aria", 0, 0,
        1);
 
+#ifdef HAVE_PSI_INTERFACE
+
+static PSI_mutex_info all_aria_mutexes[]=
+{
+  { &key_THR_LOCK_maria, "THR_LOCK_maria", PSI_FLAG_GLOBAL},
+  { &key_LOCK_soft_sync, "LOCK_soft_sync", PSI_FLAG_GLOBAL},
+  { &key_LOCK_trn_list, "LOCK_trn_list", PSI_FLAG_GLOBAL},
+  { &key_SHARE_BITMAP_lock, "SHARE::bitmap::bitmap_lock", 0},
+  { &key_SORT_INFO_mutex, "SORT_INFO::mutex", 0},
+  { &key_TRANSLOG_BUFFER_mutex, "TRANSLOG_BUFFER::mutex", 0},
+  { &key_TRANSLOG_DESCRIPTOR_dirty_buffer_mask_lock, "TRANSLOG_DESCRIPTOR::dirty_buffer_mask_lock", 0},
+  { &key_TRANSLOG_DESCRIPTOR_sent_to_disk_lock, "TRANSLOG_DESCRIPTOR::sent_to_disk_lock", 0},
+  { &key_TRANSLOG_DESCRIPTOR_log_flush_lock, "TRANSLOG_DESCRIPTOR::log_flush_lock", 0},
+  { &key_TRANSLOG_DESCRIPTOR_file_header_lock, "TRANSLOG_DESCRIPTOR::file_header_lock", 0},
+  { &key_TRANSLOG_DESCRIPTOR_unfinished_files_lock, "TRANSLOG_DESCRIPTOR::unfinished_files_lock", 0},
+  { &key_TRANSLOG_DESCRIPTOR_purger_lock, "TRANSLOG_DESCRIPTOR::purger_lock", 0},
+  { &key_SHARE_intern_lock, "SHARE::intern_lock", 0},
+  { &key_SHARE_key_del_lock, "SHARE::key_del_lock", 0},
+  { &key_SHARE_close_lock, "SHARE::close_lock", 0},
+  { &key_SERVICE_THREAD_CONTROL_lock, "SERVICE_THREAD_CONTROL::LOCK_control", 0},
+  { &key_TRN_state_lock, "TRN::state_lock", 0},
+  { &key_PAGECACHE_cache_lock, "PAGECACHE::cache_lock", 0}
+};
+
+static PSI_cond_info all_aria_conds[]=
+{
+  { &key_COND_soft_sync, "COND_soft_sync", PSI_FLAG_GLOBAL},
+  { &key_SHARE_key_del_cond, "SHARE::key_del_cond", 0},
+  { &key_SERVICE_THREAD_CONTROL_cond, "SERVICE_THREAD_CONTROL::COND_control", 0},
+  { &key_SORT_INFO_cond, "SORT_INFO::cond", 0},
+  { &key_SHARE_BITMAP_cond, "BITMAP::bitmap_cond", 0},
+  { &key_TRANSLOG_BUFFER_waiting_filling_buffer, "TRANSLOG_BUFFER::waiting_filling_buffer", 0},
+  { &key_TRANSLOG_BUFFER_prev_sent_to_disk_cond, "TRANSLOG_BUFFER::prev_sent_to_disk_cond", 0},
+  { &key_TRANSLOG_DESCRIPTOR_log_flush_cond, "TRANSLOG_DESCRIPTOR::log_flush_cond", 0},
+  { &key_TRANSLOG_DESCRIPTOR_new_goal_cond, "TRANSLOG_DESCRIPTOR::new_goal_cond", 0}
+};
+
+static PSI_rwlock_info all_aria_rwlocks[]=
+{
+  { &key_KEYINFO_root_lock, "KEYINFO::root_lock", 0},
+  { &key_SHARE_mmap_lock, "SHARE::mmap_lock", 0},
+  { &key_TRANSLOG_DESCRIPTOR_open_files_lock, "TRANSLOG_DESCRIPTOR::open_files_lock", 0}
+};
+
+static PSI_thread_info all_aria_threads[]=
+{
+  { &key_thread_checkpoint, "checkpoint_background", PSI_FLAG_GLOBAL},
+  { &key_thread_soft_sync, "soft_sync_background", PSI_FLAG_GLOBAL},
+  { &key_thread_find_all_keys, "thr_find_all_keys", 0}
+};
+
+static PSI_file_info all_aria_files[]=
+{
+  { &key_file_translog, "translog", 0},
+  { &key_file_kfile, "MAI", 0},
+  { &key_file_dfile, "MAD", 0},
+  { &key_file_control, "control", PSI_FLAG_GLOBAL}
+};
+
+
+static void init_aria_psi_keys(void)
+{
+  const char* category= "aria";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_aria_mutexes);
+  PSI_server->register_mutex(category, all_aria_mutexes, count);
+
+  count= array_elements(all_aria_rwlocks);
+  PSI_server->register_rwlock(category, all_aria_rwlocks, count);
+
+  count= array_elements(all_aria_conds);
+  PSI_server->register_cond(category, all_aria_conds, count);
+
+  count= array_elements(all_aria_threads);
+  PSI_server->register_thread(category, all_aria_threads, count);
+
+  count= array_elements(all_aria_files);
+  PSI_server->register_file(category, all_aria_files, count);
+}
+#else
+#define init_aria_psi_keys() /* no-op */
+#endif /* HAVE_PSI_INTERFACE */
+
 /*****************************************************************************
 ** MARIA tables
 *****************************************************************************/
@@ -906,7 +993,7 @@ int ha_maria::net_read_dump(NET * net)
   int data_fd= file->dfile.file;
   int error= 0;
 
-  my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
+  mysql_file_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
   for (;;)
   {
     ulong packet_len= my_net_read(net);
@@ -918,7 +1005,7 @@ int ha_maria::net_read_dump(NET * net)
       error= -1;
       goto err;
     }
-    if (my_write(data_fd, (uchar *) net->read_pos, (uint) packet_len,
+    if (mysql_file_write(data_fd, (uchar *) net->read_pos, (uint) packet_len,
                  MYF(MY_WME | MY_FNABP)))
     {
       error= errno;
@@ -942,10 +1029,10 @@ int ha_maria::dump(THD * thd, int fd)
     return ENOMEM;
 
   int error= 0;
-  my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
+  mysql_file_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
   for (; bytes_to_read > 0;)
   {
-    size_t bytes= my_read(data_fd, buf, block_size, MYF(MY_WME));
+    size_t bytes= mysql_file_read(data_fd, buf, block_size, MYF(MY_WME));
     if (bytes == MY_FILE_ERROR)
     {
       error= errno;
@@ -954,7 +1041,7 @@ int ha_maria::dump(THD * thd, int fd)
 
     if (fd >= 0)
     {
-      if (my_write(fd, buf, bytes, MYF(MY_WME | MY_FNABP)))
+      if (mysql_file_write(fd, buf, bytes, MYF(MY_WME | MY_FNABP)))
       {
         error= errno ? errno : EPIPE;
         goto err;
@@ -1156,7 +1243,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
         (param.testflag & T_STATISTICS) || maria_is_crashed(file))
     {
       file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
-      pthread_mutex_lock(&share->intern_lock);
+      mysql_mutex_lock(&share->intern_lock);
       DBUG_PRINT("info", ("Reseting crashed state"));
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
                                STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
@@ -1164,7 +1251,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
         error= maria_update_state_info(&param, file,
                                        UPDATE_TIME | UPDATE_OPEN_COUNT |
                                        UPDATE_STAT);
-      pthread_mutex_unlock(&share->intern_lock);
+      mysql_mutex_unlock(&share->intern_lock);
       info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
            HA_STATUS_CONST);
     }
@@ -1213,9 +1300,9 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   error= maria_chk_key(&param, file);
   if (!error)
   {
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->intern_lock);
     error= maria_update_state_info(&param, file, UPDATE_STAT);
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
   }
   else if (!maria_is_crashed(file) && !thd->killed)
     maria_mark_crashed(file);
@@ -1300,9 +1387,9 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
 
   if (!error)
   {
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->intern_lock);
     maria_update_state_info(&param, file, UPDATE_TIME | UPDATE_OPEN_COUNT);
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
   }
   return error;
 }
@@ -1459,7 +1546,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
     }
   }
   thd_proc_info(thd, "Saving state");
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
   if (!error)
   {
     if ((share->state.changed & STATE_CHANGED) || maria_is_crashed(file))
@@ -1500,7 +1587,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     maria_update_state_info(param, file, 0);
   }
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
   thd_proc_info(thd, old_proc_info);
   if (!thd->locked_tables_mode)
     maria_lock_database(file, F_UNLCK);
@@ -3064,7 +3151,7 @@ bool maria_show_status(handlerton *hton,
       const char error[]= "can't stat";
       char object[SHOW_MSG_LEN];
       file= translog_filename_by_fileno(i, path);
-      if (!(stat= my_stat(file, &stat_buff, MYF(0))))
+      if (!(stat= mysql_file_stat(key_file_translog, file, &stat_buff, MYF(0))))
       {
         status= error;
         status_len= sizeof(error) - 1;
@@ -3119,7 +3206,7 @@ static my_bool translog_callback_delete_all(const char *directory,
 {
   char complete_name[FN_REFLEN];
   fn_format(complete_name, filename, directory, "", MYF(MY_UNPACK_FILENAME));
-  return my_delete(complete_name, MYF(MY_WME));
+  return mysql_file_delete(key_file_translog, complete_name, MYF(MY_WME));
 }
 
 

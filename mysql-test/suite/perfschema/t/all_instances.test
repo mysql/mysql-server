@@ -1,0 +1,20 @@
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source include/have_maria.inc
+
+use performance_schema;
+
+#
+# list all instances of everything.
+#
+
+#
+# "group by" sorts and removes duplicates.
+# "where" filters out instances that can be conditionally compiled out
+#
+
+select name from mutex_instances group by name;
+select name from rwlock_instances group by name;
+select name from cond_instances group by name;
+select event_name from file_instances group by event_name;
+select name from threads group by name;

@@ -111,7 +111,7 @@ int federatedx_txn::acquire(FEDERATEDX_SHARE *share, bool readonly,
     if (!io)
     {
       /* check to see if there are any unowned IO connections */
-      pthread_mutex_lock(&server->mutex);
+      mysql_mutex_lock(&server->mutex);
       if ((io= server->idle_list))
       {
 	server->idle_list= io->idle_next;
@@ -123,7 +123,7 @@ int federatedx_txn::acquire(FEDERATEDX_SHARE *share, bool readonly,
       io->txn_next= txn_list;
       txn_list= io;
 
-      pthread_mutex_unlock(&server->mutex);
+      mysql_mutex_unlock(&server->mutex);
     }
 
     if (io->busy)
@@ -188,10 +188,10 @@ void federatedx_txn::release_scan()
       /* reset some values */
       io->readonly= TRUE;
 
-      pthread_mutex_lock(&server->mutex);
+      mysql_mutex_lock(&server->mutex);
       io->idle_next= server->idle_list;
       server->idle_list= io;
-      pthread_mutex_unlock(&server->mutex);
+      mysql_mutex_unlock(&server->mutex);
       returned++;
     }
   }

@@ -26,6 +26,7 @@
 #include "ma_control_file.h"
 #include "ma_state.h"
 #include <waiting_threads.h>
+#include <mysql/psi/mysql_file.h>
 
 /* For testing recovery */
 #ifdef TO_BE_REMOVED
@@ -246,8 +247,8 @@ typedef struct st_maria_file_bitmap
   uint non_flushable;                  /**< 0 if bitmap and log are in sync */
   PAGECACHE_FILE file;		       /* datafile where bitmap is stored */
 
-  pthread_mutex_t bitmap_lock;
-  pthread_cond_t bitmap_cond;          /**< When bitmap becomes flushable */
+  mysql_mutex_t bitmap_lock;
+  mysql_cond_t bitmap_cond;          /**< When bitmap becomes flushable */
   /* Constants, allocated when initiating bitmaps */
   uint sizes[8];                      /* Size per bit combination */
   uint total_size;		      /* Total usable size of bitmap page */
@@ -395,20 +396,20 @@ typedef struct st_maria_share
     versioning information (like in_trans, state_history).
     @todo find the exhaustive list.
   */
-  pthread_mutex_t intern_lock;	
-  pthread_mutex_t key_del_lock;
-  pthread_cond_t  key_del_cond;
+  mysql_mutex_t intern_lock;	
+  mysql_mutex_t key_del_lock;
+  mysql_cond_t  key_del_cond;
   /**
     _Always_ held while closing table; prevents checkpoint from looking at
     structures freed during closure (like bitmap). If you need close_lock and
     intern_lock, lock them in this order.
   */
-  pthread_mutex_t close_lock;
+  mysql_mutex_t close_lock;
   my_off_t mmaped_length;
   uint nonmmaped_inserts;		/* counter of writing in
 						   non-mmaped area */
   MARIA_FILE_BITMAP bitmap;
-  rw_lock_t mmap_lock;
+  mysql_rwlock_t mmap_lock;
   LSN lsn_of_file_id; /**< LSN of its last LOGREC_FILE_ID */
 } MARIA_SHARE;
 
@@ -764,7 +765,7 @@ struct st_maria_handler
 #define MARIA_UNIQUE_HASH_TYPE	HA_KEYTYPE_ULONG_INT
 #define maria_unique_store(A,B)    mi_int4store((A),(B))
 
-extern pthread_mutex_t THR_LOCK_maria;
+extern mysql_mutex_t THR_LOCK_maria;
 #ifdef DONT_USE_RW_LOCKS
 #define rw_wrlock(A) {}
 #define rw_rdlock(A) {}
@@ -794,6 +795,39 @@ extern my_bool maria_inited, maria_in_ha_maria, maria_recovery_changed_data;
 extern my_bool maria_recovery_verbose;
 extern HASH maria_stored_state;
 extern int (*maria_create_trn_hook)(MARIA_HA *);
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_SHARE_BITMAP_lock, key_SORT_INFO_mutex,
+                     key_THR_LOCK_maria, key_TRANSLOG_BUFFER_mutex,
+                     key_LOCK_soft_sync,
+                     key_TRANSLOG_DESCRIPTOR_dirty_buffer_mask_lock,
+                     key_TRANSLOG_DESCRIPTOR_sent_to_disk_lock,
+                     key_TRANSLOG_DESCRIPTOR_log_flush_lock,
+                     key_TRANSLOG_DESCRIPTOR_file_header_lock,
+                     key_TRANSLOG_DESCRIPTOR_unfinished_files_lock,
+                     key_TRANSLOG_DESCRIPTOR_purger_lock,
+                     key_SHARE_intern_lock, key_SHARE_key_del_lock,
+                     key_SHARE_close_lock,
+                     key_SERVICE_THREAD_CONTROL_lock,
+                     key_PAGECACHE_cache_lock;
+
+extern PSI_cond_key key_SHARE_key_del_cond, key_SERVICE_THREAD_CONTROL_cond,
+                    key_SORT_INFO_cond, key_SHARE_BITMAP_cond,
+                    key_COND_soft_sync, key_TRANSLOG_BUFFER_waiting_filling_buffer,
+                    key_TRANSLOG_BUFFER_prev_sent_to_disk_cond,
+                    key_TRANSLOG_DESCRIPTOR_log_flush_cond,
+                    key_TRANSLOG_DESCRIPTOR_new_goal_cond;
+
+extern PSI_rwlock_key key_KEYINFO_root_lock, key_SHARE_mmap_lock,
+                      key_TRANSLOG_DESCRIPTOR_open_files_lock;
+
+extern PSI_thread_key key_thread_checkpoint, key_thread_find_all_keys,
+                      key_thread_soft_sync;
+
+extern PSI_file_key key_file_translog, key_file_kfile, key_file_dfile,
+                    key_file_control;
+
+#endif
 
 /* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 typedef struct st_maria_s_param
@@ -1249,18 +1283,4 @@ extern PAGECACHE *maria_log_pagecache;
 extern void ma_set_index_cond_func(MARIA_HA *info, index_cond_func_t func,
                                    void *func_arg);
 int ma_check_index_cond(register MARIA_HA *info, uint keynr, uchar *record);
-
-#ifdef HAVE_PSI_INTERFACE
-extern PSI_mutex_key ma_key_mutex_PAGECACHE_cache_lock;
-
-//extern PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock;
-
-//extern PSI_cond_key mi_key_cond_MI_SORT_INFO_cond;
-
-//extern PSI_file_key mi_key_file_datatmp;
-
-//extern PSI_thread_key mi_key_thread_find_all_keys;
-
-void init_aria_psi_keys();
-#endif /* HAVE_PSI_INTERFACE */
 

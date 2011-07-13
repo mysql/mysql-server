@@ -38,7 +38,7 @@ my_bool maria_delay_key_write= 0, maria_page_checksums= 1;
 my_bool maria_inited= FALSE;
 my_bool maria_in_ha_maria= FALSE; /* If used from ha_maria or not */
 my_bool maria_recovery_changed_data= 0, maria_recovery_verbose= 0;
-pthread_mutex_t THR_LOCK_maria;
+mysql_mutex_t THR_LOCK_maria;
 #ifdef DONT_USE_RW_LOCKS
 ulong maria_concurrent_insert= 0;
 #else
@@ -109,23 +109,36 @@ static int always_valid(const char *filename __attribute__((unused)))
 int (*maria_test_invalid_symlink)(const char *filename)= always_valid;
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_mutex_key ma_key_mutex_PAGECACHE_cache_lock;
 
-static PSI_mutex_info all_mutexes[]=
-{
-  { &ma_key_mutex_PAGECACHE_cache_lock, "PAGECACHE::cache_lock", 0}
-};
+PSI_mutex_key key_SHARE_BITMAP_lock, key_SORT_INFO_mutex,
+              key_THR_LOCK_maria, key_TRANSLOG_BUFFER_mutex,
+              key_LOCK_soft_sync,
+              key_TRANSLOG_DESCRIPTOR_dirty_buffer_mask_lock,
+              key_TRANSLOG_DESCRIPTOR_sent_to_disk_lock,
+              key_TRANSLOG_DESCRIPTOR_log_flush_lock,
+              key_TRANSLOG_DESCRIPTOR_file_header_lock,
+              key_TRANSLOG_DESCRIPTOR_unfinished_files_lock,
+              key_TRANSLOG_DESCRIPTOR_purger_lock,
+              key_SHARE_intern_lock, key_SHARE_key_del_lock,
+              key_SHARE_close_lock, key_PAGECACHE_cache_lock,
+              key_SERVICE_THREAD_CONTROL_lock,
+              key_LOCK_trn_list, key_TRN_state_lock;
 
-void init_aria_psi_keys()
-{
-  const char* category= "aria";
-  int count;
+PSI_cond_key key_SHARE_key_del_cond, key_SERVICE_THREAD_CONTROL_cond,
+             key_SORT_INFO_cond, key_SHARE_BITMAP_cond,
+             key_COND_soft_sync, key_TRANSLOG_BUFFER_waiting_filling_buffer,
+             key_TRANSLOG_BUFFER_prev_sent_to_disk_cond,
+             key_TRANSLOG_DESCRIPTOR_log_flush_cond,
+             key_TRANSLOG_DESCRIPTOR_new_goal_cond;
 
-  if (PSI_server == NULL)
-    return;
+PSI_rwlock_key key_KEYINFO_root_lock, key_SHARE_mmap_lock,
+               key_TRANSLOG_DESCRIPTOR_open_files_lock;
 
-  count= array_elements(all_mutexes);
-  PSI_server->register_mutex(category, all_mutexes, count);
-}
+PSI_thread_key key_thread_checkpoint, key_thread_find_all_keys,
+               key_thread_soft_sync;
+
+PSI_file_key key_file_translog, key_file_kfile, key_file_dfile,
+             key_file_control;
+
 #endif /* HAVE_PSI_INTERFACE */
 

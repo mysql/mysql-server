@@ -63,7 +63,7 @@ federatedx_io::federatedx_io(FEDERATEDX_SERVER *aserver)
   DBUG_ENTER("federatedx_io::federatedx_io");
   DBUG_ASSERT(server);
 
-  safe_mutex_assert_owner(&server->mutex);
+  mysql_mutex_assert_owner(&server->mutex);
   server->io_count++;
 
   DBUG_VOID_RETURN;

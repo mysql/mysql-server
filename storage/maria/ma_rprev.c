@@ -42,7 +42,7 @@ int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
   keyinfo= share->keyinfo + inx;
   changed= _ma_test_if_changed(info);
   if (share->lock_key_trees)
-    rw_rdlock(&keyinfo->root_lock);
+    mysql_rwlock_rdlock(&keyinfo->root_lock);
   if (!flag)
     error= _ma_search_last(info, keyinfo, share->state.key_root[inx]);
   else if (!changed)
@@ -65,7 +65,7 @@ int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
     }
   }
   if (share->lock_key_trees)
-    rw_unlock(&keyinfo->root_lock);
+    mysql_rwlock_unlock(&keyinfo->root_lock);
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_PREV_FOUND;
   if (error)

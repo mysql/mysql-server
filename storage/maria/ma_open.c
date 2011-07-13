@@ -162,7 +162,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, const char *name,
     goto err;
 
 
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
   info.read_record= share->read_record;
   share->reopen++;
   share->write_flag=MYF(MY_NABP | MY_WAIT_IF_FULL);
@@ -189,7 +189,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, const char *name,
   }
   info.state_start= info.state;                 /* Initial values */
 
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
 
   /* Allocate buffer for one record */
   /* prerequisites: info->rec_buffer == 0 && info->rec_buff_size == 0 */
@@ -221,7 +221,7 @@ err:
     /* fall through */
   case 5:
     if (data_file < 0)
-      my_close(info.dfile.file, MYF(0));
+      mysql_file_close(info.dfile.file, MYF(0));
     break;
   }
   my_errno=save_errno;
@@ -234,11 +234,11 @@ err:
 MARIA_HA *maria_clone(MARIA_SHARE *share, int mode)
 {
   MARIA_HA *new_info;
-  pthread_mutex_lock(&THR_LOCK_maria);
+  mysql_mutex_lock(&THR_LOCK_maria);
   new_info= maria_clone_internal(share, NullS, mode,
                                  share->data_file_type == BLOCK_RECORD ?
                                  share->bitmap.file.file : -1);
-  pthread_mutex_unlock(&THR_LOCK_maria);
+  mysql_mutex_unlock(&THR_LOCK_maria);
   return new_info;
 }
 
@@ -287,7 +287,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     DBUG_RETURN(0);
   }
 
-  pthread_mutex_lock(&THR_LOCK_maria);
+  mysql_mutex_lock(&THR_LOCK_maria);
   old_info= 0;
   if ((open_flags & HA_OPEN_COPY) ||
       !(old_info=_ma_test_if_reopen(name_buff)))
@@ -305,16 +305,18 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                       my_errno= HA_ERR_CRASHED;
                       goto err;
                     });
-    if ((kfile=my_open(name_buff,(open_mode=O_RDWR) | O_SHARE,MYF(0))) < 0)
+    if ((kfile=mysql_file_open(key_file_kfile, name_buff,
+                               (open_mode=O_RDWR) | O_SHARE,MYF(0))) < 0)
     {
       if ((errno != EROFS && errno != EACCES) ||
 	  mode != O_RDONLY ||
-	  (kfile=my_open(name_buff,(open_mode=O_RDONLY) | O_SHARE,MYF(0))) < 0)
+	  (kfile=mysql_file_open(key_file_kfile, name_buff,
+                                 (open_mode=O_RDONLY) | O_SHARE,MYF(0))) < 0)
 	goto err;
     }
     share->mode=open_mode;
     errpos= 1;
-    if (my_pread(kfile,share->state.header.file_version, head_length, 0,
+    if (mysql_file_pread(kfile,share->state.header.file_version, head_length, 0,
                  MYF(MY_NABP)))
     {
       my_errno= HA_ERR_NOT_A_TABLE;
@@ -381,7 +383,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
     end_pos=disk_cache+info_length;
     errpos= 3;
-    if (my_pread(kfile, disk_cache, info_length, 0L, MYF(MY_NABP)))
+    if (mysql_file_pread(kfile, disk_cache, info_length, 0L, MYF(MY_NABP)))
     {
       my_errno=HA_ERR_CRASHED;
       goto err;
@@ -536,7 +538,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                          &share->open_file_name.str,
                          share->open_file_name.length+1,
 			 &share->state.key_root,keys*sizeof(my_off_t),
-			 &share->mmap_lock,sizeof(rw_lock_t),
+			 &share->mmap_lock,sizeof(mysql_rwlock_t),
 			 NullS))
       goto err;
     errpos= 4;
@@ -837,13 +839,17 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       }
     }
     thr_lock_init(&share->lock);
-    pthread_mutex_init(&share->intern_lock, MY_MUTEX_INIT_FAST);
-    pthread_mutex_init(&share->key_del_lock, MY_MUTEX_INIT_FAST);
-    pthread_cond_init(&share->key_del_cond, 0);
-    pthread_mutex_init(&share->close_lock, MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(key_SHARE_intern_lock,
+                     &share->intern_lock, MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(key_SHARE_key_del_lock,
+                     &share->key_del_lock, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_SHARE_key_del_cond, &share->key_del_cond, 0);
+    mysql_mutex_init(key_SHARE_close_lock,
+                     &share->close_lock, MY_MUTEX_INIT_FAST);
     for (i=0; i<keys; i++)
-      my_rwlock_init(&share->keyinfo[i].root_lock, NULL);
-    my_rwlock_init(&share->mmap_lock, NULL);
+      mysql_rwlock_init(key_KEYINFO_root_lock,
+                        &share->keyinfo[i].root_lock);
+    mysql_rwlock_init(key_SHARE_mmap_lock, &share->mmap_lock);
 
     share->row_is_visible= _ma_row_visible_always;
     share->lock.get_status= _ma_reset_update_flag;
@@ -926,7 +932,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     DBUG_PRINT("warning", ("table is crashed: changed: %u",
                            share->state.changed));
 
-  pthread_mutex_unlock(&THR_LOCK_maria);
+  mysql_mutex_unlock(&THR_LOCK_maria);
   DBUG_RETURN(m_info);
 
 err:
@@ -946,7 +952,7 @@ err:
   switch (errpos) {
   case 5:
     if (data_file >= 0)
-      my_close(data_file, MYF(0));
+      mysql_file_close(data_file, MYF(0));
     if (old_info)
       break;					/* Don't remove open table */
     (*share->once_end)(share);
@@ -958,13 +964,13 @@ err:
     my_free(disk_cache);
     /* fall through */
   case 1:
-    my_close(kfile,MYF(0));
+    mysql_file_close(kfile,MYF(0));
     /* fall through */
   case 0:
   default:
     break;
   }
-  pthread_mutex_unlock(&THR_LOCK_maria);
+  mysql_mutex_unlock(&THR_LOCK_maria);
   my_errno= save_errno;
   DBUG_RETURN (NULL);
 } /* maria_open */
@@ -1220,11 +1226,9 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
     return 0;
 
   if (pWrite & MA_STATE_INFO_WRITE_LOCK)
-    pthread_mutex_lock(&share->intern_lock);
+    mysql_mutex_lock(&share->intern_lock);
   else if (maria_multi_threaded)
-  {
-    safe_mutex_assert_owner(&share->intern_lock);
-  }
+    mysql_mutex_assert_owner(&share->intern_lock);
   if (share->base.born_transactional && translog_status == TRANSLOG_OK &&
       !maria_in_recovery)
   {
@@ -1239,7 +1243,7 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
   }
   res= _ma_state_info_write_sub(share->kfile.file, &share->state, pWrite);
   if (pWrite & MA_STATE_INFO_WRITE_LOCK)
-    pthread_mutex_unlock(&share->intern_lock);
+    mysql_mutex_unlock(&share->intern_lock);
   share->changed= 0;
   return res;
 }
@@ -1338,9 +1342,9 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
   }
 
   res= (pWrite & MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET) ?
-    my_pwrite(file, buff, (size_t) (ptr-buff), 0L,
+    mysql_file_pwrite(file, buff, (size_t) (ptr-buff), 0L,
               MYF(MY_NABP | MY_THREADSAFE)) :
-    my_write(file,  buff, (size_t) (ptr-buff),
+    mysql_file_write(file,  buff, (size_t) (ptr-buff),
              MYF(MY_NABP));
   DBUG_RETURN(res != 0);
 }
@@ -1422,7 +1426,7 @@ uint _ma_state_info_read_dsk(File file __attribute__((unused)),
   DBUG_ASSERT(state->create_rename_lsn == LSN_IMPOSSIBLE);
   if (!maria_single_user)
   {
-    if (my_pread(file, buff, state->state_length, 0L, MYF(MY_NABP)))
+    if (mysql_file_pread(file, buff, state->state_length, 0L, MYF(MY_NABP)))
       return 1;
     _ma_state_info_read(buff, state);
   }
@@ -1477,7 +1481,7 @@ uint _ma_base_info_write(File file, MARIA_BASE_INFO *base)
   *ptr++= base->extra_alloc_procent;
   bzero(ptr,16);					ptr+= 16; /* extra */
   DBUG_ASSERT((ptr - buff) == MARIA_BASE_INFO_SIZE);
-  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
+  return mysql_file_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 
@@ -1539,7 +1543,7 @@ my_bool _ma_keydef_write(File file, MARIA_KEYDEF *keydef)
   mi_int2store(ptr,keydef->keylength);		ptr+= 2;
   mi_int2store(ptr,keydef->minlength);		ptr+= 2;
   mi_int2store(ptr,keydef->maxlength);		ptr+= 2;
-  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
+  return mysql_file_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 uchar *_ma_keydef_read(uchar *ptr, MARIA_KEYDEF *keydef)
@@ -1582,7 +1586,7 @@ my_bool _ma_keyseg_write(File file, const HA_KEYSEG *keyseg)
   mi_int4store(ptr, pos);
   ptr+=4;
 
-  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
+  return mysql_file_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 
@@ -1622,7 +1626,7 @@ my_bool _ma_uniquedef_write(File file, MARIA_UNIQUEDEF *def)
   *ptr++=  (uchar) def->key;
   *ptr++ = (uchar) def->null_are_equal;
 
-  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
+  return mysql_file_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 uchar *_ma_uniquedef_read(uchar *ptr, MARIA_UNIQUEDEF *def)
@@ -1653,7 +1657,7 @@ my_bool _ma_columndef_write(File file, MARIA_COLUMNDEF *columndef)
   (*ptr++)= columndef->null_bit;
   (*ptr++)= columndef->empty_bit;
   ptr[0]= ptr[1]= ptr[2]= ptr[3]= 0;            ptr+= 4;  /* For future */
-  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
+  return mysql_file_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 uchar *_ma_columndef_read(uchar *ptr, MARIA_COLUMNDEF *columndef)
@@ -1681,7 +1685,7 @@ my_bool _ma_column_nr_write(File file, uint16 *offsets, uint columns)
     return 1;
   for (ptr= buff, end= ptr + size; ptr < end ; ptr+= 2, offsets++)
     int2store(ptr, *offsets);
-  res= my_write(file, buff, size, MYF(MY_NABP)) != 0;
+  res= mysql_file_write(file, buff, size, MYF(MY_NABP)) != 0;
   my_afree(buff);
   return res;
 }
@@ -1793,8 +1797,8 @@ int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share, const char *org_name,
   }
 
   info->dfile.file= share->bitmap.file.file=
-    my_open(share->data_file_name.str, share->mode | O_SHARE,
-            MYF(MY_WME));
+    mysql_file_open(key_file_dfile, share->data_file_name.str,
+                    share->mode | O_SHARE, MYF(MY_WME));
   return info->dfile.file >= 0 ? 0 : 1;
 }
 
@@ -1805,11 +1809,12 @@ int _ma_open_keyfile(MARIA_SHARE *share)
     Modifications to share->kfile should be under intern_lock to protect
     against a concurrent checkpoint.
   */
-  pthread_mutex_lock(&share->intern_lock);
-  share->kfile.file= my_open(share->unique_file_name.str,
-                             share->mode | O_SHARE,
+  mysql_mutex_lock(&share->intern_lock);
+  share->kfile.file= mysql_file_open(key_file_kfile,
+                                     share->unique_file_name.str,
+                                     share->mode | O_SHARE,
                              MYF(MY_WME));
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
   return (share->kfile.file < 0);
 }
 

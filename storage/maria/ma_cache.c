@@ -49,7 +49,7 @@ my_bool _ma_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos,
     if ((my_off_t) read_length > (my_off_t) (info->pos_in_file-pos))
       read_length=(uint) (info->pos_in_file-pos);
     info->seek_not_done=1;
-    if (my_pread(info->file,buff,read_length,pos,MYF(MY_NABP)))
+    if (mysql_file_pread(info->file,buff,read_length,pos,MYF(MY_NABP)))
       DBUG_RETURN(1);
     if (!(length-=read_length))
       DBUG_RETURN(0);
@@ -88,7 +88,7 @@ my_bool _ma_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos,
   else
   {
     info->seek_not_done=1;
-    if ((read_length=my_pread(info->file,buff,length,pos,MYF(0))) == length)
+    if ((read_length=mysql_file_pread(info->file,buff,length,pos,MYF(0))) == length)
       DBUG_RETURN(0);
   }
   if (!(flag & READING_HEADER) || (int) read_length == -1 ||

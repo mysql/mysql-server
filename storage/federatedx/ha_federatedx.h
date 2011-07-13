@@ -66,7 +66,7 @@ typedef struct st_fedrated_server {
 
   const char *csname;
 
-  pthread_mutex_t mutex;
+  mysql_mutex_t mutex;
   federatedx_io *idle_list;
 } FEDERATEDX_SERVER;
 

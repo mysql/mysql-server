@@ -9,9 +9,9 @@ typedef struct st_ma_service_thread_control
   /** if thread module was inited or not */
   my_bool inited;
   /** for killing the background thread */
-  pthread_mutex_t *LOCK_control;
+  mysql_mutex_t *LOCK_control;
   /** for killing the background thread */
-  pthread_cond_t *COND_control;
+  mysql_cond_t *COND_control;
 } MA_SERVICE_THREAD_CONTROL;
 
 

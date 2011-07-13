@@ -18,8 +18,10 @@ int ma_service_thread_control_init(MA_SERVICE_THREAD_CONTROL *control)
   DBUG_PRINT("init", ("control 0x%lx", (ulong) control));
   control->inited= TRUE;
   control->status= THREAD_DEAD; /* not yet born == dead */
-  res= (pthread_mutex_init(control->LOCK_control, MY_MUTEX_INIT_SLOW) ||
-        pthread_cond_init(control->COND_control, 0));
+  res= (mysql_mutex_init(key_SERVICE_THREAD_CONTROL_lock,
+                         control->LOCK_control, MY_MUTEX_INIT_SLOW) ||
+        mysql_cond_init(key_SERVICE_THREAD_CONTROL_cond,
+                        control->COND_control, 0));
   DBUG_PRINT("info", ("init: %s", (res ? "Error" : "OK")));
   DBUG_RETURN(res);
 }
@@ -41,7 +43,7 @@ void ma_service_thread_control_end(MA_SERVICE_THREAD_CONTROL *control)
   DBUG_ENTER("ma_service_thread_control_end");
   DBUG_PRINT("init", ("control 0x%lx", (ulong) control));
   DBUG_ASSERT(control->inited);
-  pthread_mutex_lock(control->LOCK_control);
+  mysql_mutex_lock(control->LOCK_control);
   if (control->status != THREAD_DEAD) /* thread was started OK */
   {
     DBUG_PRINT("info",("killing Maria background thread"));
@@ -49,15 +51,15 @@ void ma_service_thread_control_end(MA_SERVICE_THREAD_CONTROL *control)
     do /* and wait for it to be dead */
     {
       /* wake it up if it was in a sleep */
-      pthread_cond_broadcast(control->COND_control);
+      mysql_cond_broadcast(control->COND_control);
       DBUG_PRINT("info",("waiting for Maria background thread to die"));
-      pthread_cond_wait(control->COND_control, control->LOCK_control);
+      mysql_cond_wait(control->COND_control, control->LOCK_control);
     }
     while (control->status != THREAD_DEAD);
   }
-  pthread_mutex_unlock(control->LOCK_control);
-  pthread_mutex_destroy(control->LOCK_control);
-  pthread_cond_destroy(control->COND_control);
+  mysql_mutex_unlock(control->LOCK_control);
+  mysql_mutex_destroy(control->LOCK_control);
+  mysql_cond_destroy(control->COND_control);
   control->inited= FALSE;
   DBUG_VOID_RETURN;
 }
@@ -81,29 +83,29 @@ my_bool my_service_thread_sleep(MA_SERVICE_THREAD_CONTROL *control,
   my_bool res= FALSE;
   DBUG_ENTER("my_service_thread_sleep");
   DBUG_PRINT("init", ("control 0x%lx", (ulong) control));
-  pthread_mutex_lock(control->LOCK_control);
+  mysql_mutex_lock(control->LOCK_control);
   if (control->status == THREAD_DYING)
   {
-    pthread_mutex_unlock(control->LOCK_control);
+    mysql_mutex_unlock(control->LOCK_control);
     DBUG_RETURN(TRUE);
   }
 #if 0 /* good for testing, to do a lot of checkpoints, finds a lot of bugs */
-  pthread_mutex_unlock(&control->LOCK_control);
+  mysql_mutex_unlock(&control->LOCK_control);
   my_sleep(100000); /* a tenth of a second */
-  pthread_mutex_lock(&control->LOCK_control);
+  mysql_mutex_lock(&control->LOCK_control);
 #else
     /* To have a killable sleep, we use timedwait like our SQL GET_LOCK() */
   DBUG_PRINT("info", ("sleeping %llu nano seconds", sleep_time));
   if (sleep_time)
   {
     set_timespec_nsec(abstime, sleep_time);
-    pthread_cond_timedwait(control->COND_control,
+    mysql_cond_timedwait(control->COND_control,
                            control->LOCK_control, &abstime);
   }
 #endif
   if (control->status == THREAD_DYING)
     res= TRUE;
-  pthread_mutex_unlock(control->LOCK_control);
+  mysql_mutex_unlock(control->LOCK_control);
   DBUG_RETURN(res);
 }
 
@@ -118,17 +120,17 @@ void my_service_thread_signal_end(MA_SERVICE_THREAD_CONTROL *control)
 {
   DBUG_ENTER("my_service_thread_signal_end");
   DBUG_PRINT("init", ("control 0x%lx", (ulong) control));
-  pthread_mutex_lock(control->LOCK_control);
+  mysql_mutex_lock(control->LOCK_control);
   control->status = THREAD_DEAD; /* indicate that we are dead */
   /*
     wake up ma_service_thread_control_end which may be waiting for
     our death
   */
-  pthread_cond_broadcast(control->COND_control);
+  mysql_cond_broadcast(control->COND_control);
   /*
     broadcast was inside unlock because ma_service_thread_control_end
     destroys mutex
   */
-  pthread_mutex_unlock(control->LOCK_control);
+  mysql_mutex_unlock(control->LOCK_control);
   DBUG_VOID_RETURN;
 }
