@@ -10,3 +10,4 @@
 #
 ##############################################################################
 innodb_fts_proximity : INNODB_FTS: RESULT DIFF with MyISAM
+fulltext_plugin : INNODB_FTS: Do not support external parser plugin
