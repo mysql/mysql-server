@@ -3699,13 +3699,13 @@ lock_deadlock_check(
 Pop the deadlock search state from the stack.
 @return stack slot instance that was on top of the stack. */
 static
-const lock_stack_t const*
+const lock_stack_t*
 lock_deadlock_pop(
 /*==============*/
 	lock_deadlock_ctx_t*	ctx)		/*!< in/out: context */
 {
-	const lock_stack_t const*	stack;
-	const trx_lock_t const*		trx_lock;
+	const lock_stack_t*	stack;
+	const trx_lock_t*	trx_lock;
 
 	ut_ad(lock_mutex_own());
 
@@ -3831,7 +3831,7 @@ lock_deadlock_search(
 		}
 
 		if (lock == NULL && ctx->depth > 0) {
-			const lock_stack_t const*	stack;
+			const lock_stack_t*	stack;
 
 			/* Restore previous search state. */
 
