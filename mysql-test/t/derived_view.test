@@ -537,7 +537,7 @@ DROP TABLE t1,t2,t3;
 --echo #
 
 CREATE TABLE t1 (a int, b int) ;
-INSERT IGNORE INTO t1 VALUES (0,0);
+INSERT INTO t1 VALUES (0,0);
 
 CREATE TABLE t2 (a int) ;
 INSERT INTO t2 VALUES (0), (0);
@@ -558,3 +558,35 @@ SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
 
 DROP VIEW v1;
 DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug #809206: DISTINCT in derived table / view           
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (0);
+
+CREATE TABLE t2 (a  varchar(32), b int, KEY (a)) ;
+INSERT INTO t2 VALUES
+  ('j',28), ('c',29), ('i',26), ('c',29), ('k',27),
+  ('j',28), ('c',29), ('i',25), ('d',26), ('k',27);
+
+CREATE TABLE t3 (a varchar(32));
+INSERT INTO t3 VALUES ('j'), ('c');
+
+CREATE VIEW v1 AS SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a;
+
+SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a;
+EXPLAIN 
+SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a;
+
+SELECT * FROM (SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a) t;
+EXPLAIN
+SELECT * FROM (SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a) t;
+
+SELECT * FROM v1;
+EXPLAIN 
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;

@@ -880,8 +880,6 @@ JOIN::optimize()
 
   if (select_lex->first_cond_optimization)
   {
-    if (!select_lex->outer_select())
-      thd->used_tables= 0; 
     //Do it only for the first execution
     /* Merge all mergeable derived tables/views in this SELECT. */
     if (select_lex->handle_derived(thd->lex, DT_MERGE))
@@ -895,8 +893,6 @@ JOIN::optimize()
 
   if (select_lex->first_cond_optimization)
   {
-    if (!select_lex->outer_select())
-      thd->used_tables= 0;
     /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
     if (convert_join_subqueries_to_semijoins(this))
       DBUG_RETURN(1); /* purecov: inspected */
@@ -906,6 +902,7 @@ JOIN::optimize()
     /* Save this info for the next executions */
     if (select_lex->save_leaf_tables(thd))
       DBUG_RETURN(1);
+    eval_select_list_used_tables();
   }
   
   table_count= select_lex->leaf_tables.elements;
@@ -1727,7 +1724,7 @@ int JOIN::init_execution()
 
     if (exec_tmp_table1->distinct)
     {
-      table_map used_tables= thd->used_tables;
+      table_map used_tables= select_list_used_tables;
       JOIN_TAB *last_join_tab= join_tab + top_join_tab_count - 1;
       do
       {
@@ -8463,6 +8460,30 @@ void JOIN::drop_unused_derived_keys()
       tab->ref.key= 0;
   }
 }
+
+
+/*
+  Evaluate the bitmap of used tables for items from the select list
+*/
+
+inline void JOIN::eval_select_list_used_tables()
+{
+  select_list_used_tables= 0;
+  Item *item;
+  List_iterator_fast<Item> it(fields_list);
+  while ((item= it++))
+  {
+    select_list_used_tables|= item->used_tables();
+  }
+  Item_outer_ref *ref;
+  List_iterator_fast<Item_outer_ref> ref_it(select_lex->inner_refs_list);
+  while ((ref= ref_it++))
+  {
+    item= ref->outer_ref;
+    select_list_used_tables|= item->used_tables();
+  }
+}
+
 
 /*
   Determine {after which table we'll produce ordered set} 
@@ -20845,7 +20866,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	  need_order=0;
 	  extra.append(STRING_WITH_LEN("; Using filesort"));
 	}
-	if (distinct & test_all_bits(used_tables,thd->used_tables))
+	if (distinct & test_all_bits(used_tables,
+                                     join->select_list_used_tables))
 	  extra.append(STRING_WITH_LEN("; Distinct"));
         if (tab->loosescan_match_tab)
         {
