@@ -109,4 +109,36 @@ WHERE (t1.d , t1.d) NOT IN (
 
 drop table t1, t2, t3;
 
+--echo #
+--echo # LP BUG#809266 Diverging results with partial_match_rowid_merge=on
+--echo #
+
+CREATE TABLE t1 (c int) ;
+INSERT INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (6,3), (9,NULL);
+
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,in_to_exists=off';
+
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+
+drop table t1, t2;
+
 set @@optimizer_switch=@save_optimizer_switch;

@@ -1131,11 +1131,18 @@ protected:
   /* A list of equalities between each pair of IN operands. */
   List<Item> *equi_join_conds;
   /*
-    If there is a row, such that all its NULL-able components are NULL, this
-    member is set to the number of covered columns. If there is no covering
-    row, then this is 0.
+    True if there is an all NULL row in tmp_table. If so, then if there is
+    no complete match, there is a guaranteed partial match.
   */
-  uint covering_null_row_width;
+  bool has_covering_null_row;
+
+  /*
+    True if all nullable columns of tmp_table consist of only NULL values.
+    If so, then if there is a match in the non-null columns, there is a
+    guaranteed partial match.
+  */
+  bool has_covering_null_columns;
+
 protected:
   virtual bool partial_match()= 0;
 public:
@@ -1144,7 +1151,8 @@ public:
                                  TABLE *tmp_table_arg, Item_subselect *item_arg,
                                  select_result_interceptor *result_arg,
                                  List<Item> *equi_join_conds_arg,
-                                 uint covering_null_row_width_arg);
+                                 bool has_covering_null_row_arg,
+                                 bool has_covering_null_columns_arg);
   int prepare() { return 0; }
   int exec();
   void fix_length_and_dec(Item_cache**) {}
@@ -1232,13 +1240,15 @@ public:
   subselect_rowid_merge_engine(THD *thd_arg,
                                subselect_uniquesubquery_engine *engine_arg,
                                TABLE *tmp_table_arg, uint merge_keys_count_arg,
-                               uint covering_null_row_width_arg,
+                               bool has_covering_null_row_arg,
+                               bool has_covering_null_columns_arg,
                                Item_subselect *item_arg,
                                select_result_interceptor *result_arg,
                                List<Item> *equi_join_conds_arg)
     :subselect_partial_match_engine(thd_arg, engine_arg, tmp_table_arg,
                                     item_arg, result_arg, equi_join_conds_arg,
-                                    covering_null_row_width_arg),
+                                    has_covering_null_row_arg,
+                                    has_covering_null_columns_arg),
     merge_keys_count(merge_keys_count_arg), non_null_key(NULL)
   {}
   ~subselect_rowid_merge_engine();
@@ -1258,7 +1268,8 @@ public:
                               TABLE *tmp_table_arg, Item_subselect *item_arg,
                               select_result_interceptor *result_arg,
                               List<Item> *equi_join_conds_arg,
-                              uint covering_null_row_width_arg);
+                              bool has_covering_null_row_arg,
+                              bool has_covering_null_columns_arg);
   void cleanup();
   virtual enum_engine_type engine_type() { return TABLE_SCAN_ENGINE; }
 };
