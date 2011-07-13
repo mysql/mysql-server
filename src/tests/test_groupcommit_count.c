@@ -114,8 +114,9 @@ do_test (int N) {
 	int count_before = get_fsync_count();
 	test_groupcommit(N);
 	printtdiff(N);
-	if (get_fsync_count()-count_before>= N*NITER) {
-	    if (verbose) printf("It looks like too many fsyncs.  Group commit doesn't appear to be occuring.\n");
+	int count_after = get_fsync_count();
+	if (count_after-count_before >= N*NITER) {
+	    if (verbose) printf("It looks like too many fsyncs.  Group commit doesn't appear to be occuring. %d - %d >= %d\n", count_after, count_before, N*NITER);
 	    exit(1);
 	}
     }

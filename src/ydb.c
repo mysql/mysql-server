@@ -2451,6 +2451,7 @@ toku_txn_commit(DB_TXN * txn, u_int32_t flags,
     // Close the logger after releasing the locks
     r = toku_txn_release_locks(txn);
     //toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
+    toku_txn_maybe_fsync_log(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     toku_txn_close_txn(db_txn_struct_i(txn)->tokutxn);
     // the toxutxn is freed, and we must free the rest. */
 
@@ -2520,6 +2521,7 @@ toku_txn_abort(DB_TXN * txn,
     assert(r==0);
     r = toku_txn_release_locks(txn);
     //toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
+    toku_txn_maybe_fsync_log(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     toku_txn_close_txn(db_txn_struct_i(txn)->tokutxn);
 
 #if !TOKUDB_NATIVE_H
