@@ -1023,11 +1023,11 @@ inline int Gcalc_operation_reducer::get_single_result(res_point *res,
 
 int Gcalc_operation_reducer::get_result_thread(res_point *cur,
                                                Gcalc_result_receiver *storage,
-                                               int move_upward)
+                                               int move_upward,
+                                               res_point *first_poly_node)
 {
   res_point *next;
   bool glue_step= false;
-  res_point *first_poly_node= cur;
   double x, y;
   while (cur)
   {
@@ -1068,12 +1068,13 @@ int Gcalc_operation_reducer::get_result_thread(res_point *cur,
 
 
 int Gcalc_operation_reducer::get_polygon_result(res_point *cur,
-                                                Gcalc_result_receiver *storage)
+                                                Gcalc_result_receiver *storage,
+                                                res_point *first_poly_node)
 {
   res_point *glue= cur->glue;
   glue->up->down= NULL;
   free_result(glue);
-  return get_result_thread(cur, storage, 1) ||
+  return get_result_thread(cur, storage, 1, first_poly_node) ||
          storage->complete_shape();
 }
 
@@ -1100,7 +1101,7 @@ int Gcalc_operation_reducer::get_line_result(res_point *cur,
     }
   }
 
-  return get_result_thread(cur, storage, move_upward) ||
+  return get_result_thread(cur, storage, move_upward, 0) ||
          storage->complete_shape();
 }
 
@@ -1129,7 +1130,8 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
         DBUG_ASSERT(insert_position);
         hole_position= storage->position();
         storage->start_shape(Gcalc_function::shape_hole);
-        if (get_polygon_result(m_result, storage) ||
+        if (get_polygon_result(m_result, storage,
+                               m_result->outer_poly->first_poly_node) ||
             storage->move_hole(insert_position, hole_position,
                                &position_shift))
           return 1;
@@ -1146,7 +1148,7 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
         p->next= polygons;
         polygons= p;
         storage->start_shape(Gcalc_function::shape_polygon);
-        if (get_polygon_result(m_result, storage))
+        if (get_polygon_result(m_result, storage, m_result))
           return 1;
         *poly_position= storage->position();
       }

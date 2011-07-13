@@ -304,8 +304,9 @@ private:
 
   int get_single_result(res_point *res, Gcalc_result_receiver *storage);
   int get_result_thread(res_point *cur, Gcalc_result_receiver *storage,
-			int move_upward);
-  int get_polygon_result(res_point *cur, Gcalc_result_receiver *storage);
+			int move_upward, res_point *first_poly_node);
+  int get_polygon_result(res_point *cur, Gcalc_result_receiver *storage,
+                         res_point *first_poly_node);
   int get_line_result(res_point *cur, Gcalc_result_receiver *storage);
 
   void free_result(res_point *res);
