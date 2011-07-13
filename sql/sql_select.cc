@@ -16052,6 +16052,11 @@ void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
   @param rows_limit
   @param table_alias          possible name of the temporary table that can
                               be used for name resolving; can be "".
+
+  @remark mysql_create_view() checks that views have less than
+          MAX_FIELDS columns. This prevents any MyISAM temp table
+          made when materializing the view from hitting the 64k
+          MyISAM header size limit.
 */
 
 #define STRING_TOTAL_LENGTH_TO_PACK_ROWS 128
