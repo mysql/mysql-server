@@ -767,6 +767,8 @@ public:
      make_join_statistics)
   */
   table_map outer_join;
+  /* Bitmap of tables used in the select list items */
+  table_map select_list_used_tables;
   ha_rows  send_records,found_records,examined_rows,row_limit, select_limit;
   /**
     Used to fetch no more than given amount of rows per one
@@ -1134,6 +1136,7 @@ public:
     return (table_map(1) << table_count) - 1;
   }
   void drop_unused_derived_keys();
+  inline void eval_select_list_used_tables();
   /* 
     Return the table for which an index scan can be used to satisfy 
     the sort order needed by the ORDER BY/(implicit) GROUP BY clause 

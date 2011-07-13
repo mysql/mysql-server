@@ -3511,7 +3511,6 @@ void SELECT_LEX::update_used_tables()
   while ((item= it++))
   {
     item->update_used_tables();
-    join->thd->used_tables|= item->used_tables();
   }
   Item_outer_ref *ref;
   List_iterator_fast<Item_outer_ref> ref_it(inner_refs_list);
@@ -3519,7 +3518,6 @@ void SELECT_LEX::update_used_tables()
   {
     item= ref->outer_ref;
     item->update_used_tables();
-    join->thd->used_tables|= item->used_tables();
   }
   for (ORDER *order= group_list.first; order; order= order->next)
     (*order->item)->update_used_tables();
