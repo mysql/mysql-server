@@ -591,6 +591,17 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
+  /*
+    Make sure the view doesn't have so many columns that we hit the
+    64k header limit if the view is materialized as a MyISAM table.
+  */
+  if (select_lex->item_list.elements > MAX_FIELDS)
+  {
+    my_error(ER_TOO_MANY_FIELDS, MYF(0));
+    res= TRUE;
+    goto err;
+  }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     Compare/check grants on view with grants of underlying tables
