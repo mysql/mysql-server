@@ -179,9 +179,6 @@ retry:
 
 		/* Make an intentional seg fault so that we get a stack
 		trace */
-		/* Intentional segfault on NetWare causes an abend. Avoid this
-		by graceful exit handling in ut_a(). */
-#if (!defined __NETWARE__)
 		if (assert_on_error) {
 			ut_print_timestamp(stderr);
 
@@ -194,9 +191,6 @@ retry:
 		} else {
 			return(NULL);
 		}
-#else
-		ut_a(0);
-#endif
 	}
 
 	if (set_to_zero) {
@@ -296,7 +290,7 @@ UNIV_INTERN
 void
 ut_free(
 /*====*/
-	void* ptr)  /*!< in, own: memory block */
+	void* ptr)  /*!< in, own: memory block, can be NULL */
 {
 #ifndef UNIV_HOTBACKUP
 	ut_mem_block_t* block;

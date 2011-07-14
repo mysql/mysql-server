@@ -38,8 +38,6 @@ Created July 17, 2007 Vasil Dimov
 
 #include <mysql/plugin.h>
 
-#include "mysql_addons.h"
-
 #include "buf0buf.h"
 #include "dict0dict.h"
 #include "ha0storage.h"
@@ -157,6 +155,10 @@ struct trx_i_s_cache_struct {
 	ullint		last_read;	/*!< last time the cache was read;
 					measured in microseconds since
 					epoch */
+	mutex_t		last_read_mutex;/*!< mutex protecting the
+					last_read member - it is updated
+					inside a shared lock of the
+					rw_lock member */
 	i_s_table_cache_t innodb_trx;	/*!< innodb_trx table */
 	i_s_table_cache_t innodb_locks;	/*!< innodb_locks table */
 	i_s_table_cache_t innodb_lock_waits;/*!< innodb_lock_waits table */
@@ -188,6 +190,15 @@ static trx_i_s_cache_t	trx_i_s_cache_static;
 INFORMATION SCHEMA tables is fetched and later retrieved by the C++
 code in handler/i_s.cc. */
 UNIV_INTERN trx_i_s_cache_t*	trx_i_s_cache = &trx_i_s_cache_static;
+
+/* Key to register the lock/mutex with performance schema */
+#ifdef UNIV_PFS_RWLOCK
+UNIV_INTERN mysql_pfs_key_t	trx_i_s_cache_lock_key;
+#endif /* UNIV_PFS_RWLOCK */
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	cache_last_read_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 /*******************************************************************//**
 For a record lock that is in waiting state retrieves the only bit that
@@ -463,8 +474,11 @@ fill_trx_row(
 {
 	const char*	stmt;
 	size_t		stmt_len;
+	const char*	s;
 
-	row->trx_id = trx_get_id(trx);
+	ut_ad(mutex_own(&kernel_mutex));
+
+	row->trx_id = trx->id;
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
 	row->requested_lock_row = requested_lock_row;
@@ -479,7 +493,7 @@ fill_trx_row(
 		row->trx_wait_started = 0;
 	}
 
-	row->trx_weight = (ullint) ut_conv_dulint_to_longlong(TRX_WEIGHT(trx));
+	row->trx_weight = (ullint) TRX_WEIGHT(trx);
 
 	if (trx->mysql_thd == NULL) {
 		/* For internal transactions e.g., purge and transactions
@@ -487,7 +501,7 @@ fill_trx_row(
 		thread data structure. */
 		row->trx_mysql_thread_id = 0;
 		row->trx_query = NULL;
-		return(TRUE);
+		goto thd_done;
 	}
 
 	row->trx_mysql_thread_id = thd_get_thread_id(trx->mysql_thd);
@@ -504,7 +518,7 @@ fill_trx_row(
 		query[stmt_len] = '\0';
 
 		row->trx_query = ha_storage_put_memlim(
-			cache->storage, stmt, stmt_len + 1,
+			cache->storage, query, stmt_len + 1,
 			MAX_ALLOWED_FOR_STORAGE(cache));
 
 		row->trx_query_cs = innobase_get_charset(trx->mysql_thd);
@@ -517,6 +531,79 @@ fill_trx_row(
 
 		row->trx_query = NULL;
 	}
+
+thd_done:
+	s = trx->op_info;
+
+	if (s != NULL && s[0] != '\0') {
+
+		TRX_I_S_STRING_COPY(s, row->trx_operation_state,
+				    TRX_I_S_TRX_OP_STATE_MAX_LEN, cache);
+
+		if (row->trx_operation_state == NULL) {
+
+			return(FALSE);
+		}
+	} else {
+
+		row->trx_operation_state = NULL;
+	}
+
+	row->trx_tables_in_use = trx->n_mysql_tables_in_use;
+
+	row->trx_tables_locked = trx->mysql_n_tables_locked;
+
+	row->trx_lock_structs = UT_LIST_GET_LEN(trx->trx_locks);
+
+	row->trx_lock_memory_bytes = mem_heap_get_size(trx->lock_heap);
+
+	row->trx_rows_locked = lock_number_of_rows_locked(trx);
+
+	row->trx_rows_modified = trx->undo_no;
+
+	row->trx_concurrency_tickets = trx->n_tickets_to_enter_innodb;
+
+	switch (trx->isolation_level) {
+	case TRX_ISO_READ_UNCOMMITTED:
+		row->trx_isolation_level = "READ UNCOMMITTED";
+		break;
+	case TRX_ISO_READ_COMMITTED:
+		row->trx_isolation_level = "READ COMMITTED";
+		break;
+	case TRX_ISO_REPEATABLE_READ:
+		row->trx_isolation_level = "REPEATABLE READ";
+		break;
+	case TRX_ISO_SERIALIZABLE:
+		row->trx_isolation_level = "SERIALIZABLE";
+		break;
+	/* Should not happen as TRX_ISO_READ_COMMITTED is default */
+	default:
+		row->trx_isolation_level = "UNKNOWN";
+	}
+
+	row->trx_unique_checks = (ibool) trx->check_unique_secondary;
+
+	row->trx_foreign_key_checks = (ibool) trx->check_foreigns;
+
+	s = trx->detailed_error;
+
+	if (s != NULL && s[0] != '\0') {
+
+		TRX_I_S_STRING_COPY(s,
+				    row->trx_foreign_key_error,
+				    TRX_I_S_TRX_FK_ERROR_MAX_LEN, cache);
+
+		if (row->trx_foreign_key_error == NULL) {
+
+			return(FALSE);
+		}
+	} else {
+		row->trx_foreign_key_error = NULL;
+	}
+
+	row->trx_has_search_latch = (ibool) trx->has_search_latch;
+
+	row->trx_search_latch_timeout = trx->search_latch_timeout;
 
 	return(TRUE);
 }
@@ -1138,6 +1225,13 @@ can_cache_be_updated(
 {
 	ullint	now;
 
+	/* Here we read cache->last_read without acquiring its mutex
+	because last_read is only updated when a shared rw lock on the
+	whole cache is being held (see trx_i_s_cache_end_read()) and
+	we are currently holding an exclusive rw lock on the cache.
+	So it is not possible for last_read to be updated while we are
+	reading it. */
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
 #endif
@@ -1235,12 +1329,6 @@ trx_i_s_possibly_fetch_data_into_cache(
 /*===================================*/
 	trx_i_s_cache_t*	cache)	/*!< in/out: cache */
 {
-	ullint	now;
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
-#endif
-
 	if (!can_cache_be_updated(cache)) {
 
 		return(1);
@@ -1252,10 +1340,6 @@ trx_i_s_possibly_fetch_data_into_cache(
 	fetch_data_into_cache(cache);
 
 	mutex_exit(&kernel_mutex);
-
-	/* update cache last read time */
-	now = ut_time_us(NULL);
-	cache->last_read = now;
 
 	return(0);
 }
@@ -1287,11 +1371,17 @@ trx_i_s_cache_init(
 	release kernel_mutex
 	release trx_i_s_cache_t::rw_lock
 	acquire trx_i_s_cache_t::rw_lock, S
+	acquire trx_i_s_cache_t::last_read_mutex
+	release trx_i_s_cache_t::last_read_mutex
 	release trx_i_s_cache_t::rw_lock */
 
-	rw_lock_create(&cache->rw_lock, SYNC_TRX_I_S_RWLOCK);
+	rw_lock_create(trx_i_s_cache_lock_key, &cache->rw_lock,
+		       SYNC_TRX_I_S_RWLOCK);
 
 	cache->last_read = 0;
+
+	mutex_create(cache_last_read_mutex_key,
+		     &cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));
@@ -1343,9 +1433,17 @@ trx_i_s_cache_end_read(
 /*===================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
+	ullint	now;
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_SHARED));
 #endif
+
+	/* update cache last read time */
+	now = ut_time_us(NULL);
+	mutex_enter(&cache->last_read_mutex);
+	cache->last_read = now;
+	mutex_exit(&cache->last_read_mutex);
 
 	rw_lock_s_unlock(&cache->rw_lock);
 }

@@ -546,12 +546,12 @@ dict_create_sys_stats_tuple(
 	/* 4: DIFF_VALS ----------------------*/
 	dfield = dtuple_get_nth_field(entry, 2/*DIFF_VALS*/);
 	ptr = mem_heap_alloc(heap, 8);
-	mach_write_to_8(ptr, ut_dulint_zero); /* initial value is 0 */
+	mach_write_to_8(ptr, 0); /* initial value is 0 */
 	dfield_set_data(dfield, ptr, 8);
 	/* 5: NON_NULL_VALS ------------------*/
 	dfield = dtuple_get_nth_field(entry, 3/*NON_NULL_VALS*/);
 	ptr = mem_heap_alloc(heap, 8);
-	mach_write_to_8(ptr, ut_dulint_zero); /* initial value is 0 */
+	mach_write_to_8(ptr, 0); /* initial value is 0 */
 	dfield_set_data(dfield, ptr, 8);
 
 	return(entry);
@@ -640,7 +640,7 @@ dict_build_index_def_step(
 	ins_node_set_new_row(node->ind_def, row);
 
 	/* Note that the index was created by this transaction. */
-	index->trx_id = (ib_uint64_t) ut_conv_dulint_to_longlong(trx->id);
+	index->trx_id = trx->id;
 
 	return(DB_SUCCESS);
 }
@@ -830,7 +830,7 @@ dict_truncate_index_tree(
 	ibool		drop = !space;
 	ulint		zip_size;
 	ulint		type;
-	dulint		index_id;
+	index_id_t	index_id;
 	rec_t*		rec;
 	const byte*	ptr;
 	ulint		len;
@@ -923,7 +923,7 @@ create:
 	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
-		if (!ut_dulint_cmp(index->id, index_id)) {
+		if (index->id == index_id) {
 			root_page_no = btr_create(type, space, zip_size,
 						  index_id, index, mtr);
 			index->page = (unsigned int) root_page_no;
@@ -933,10 +933,9 @@ create:
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: Index %lu %lu of table %s is missing\n"
+		"  InnoDB: Index %llu of table %s is missing\n"
 		"InnoDB: from the data dictionary during TRUNCATE!\n",
-		ut_dulint_get_high(index_id),
-		ut_dulint_get_low(index_id),
+		(ullint) index_id,
 		table->name);
 
 	return(FIL_NULL);
@@ -1232,7 +1231,7 @@ dict_create_index_step(
 
 	if (node->state == INDEX_ADD_TO_CACHE) {
 
-		dulint	index_id = node->index->id;
+		index_id_t	index_id = node->index->id;
 
 		err = dict_index_add_to_cache(
 			node->table, node->index, FIL_NULL,

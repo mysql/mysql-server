@@ -26,9 +26,8 @@ Created July 18, 2007 Vasil Dimov
 #ifndef i_s_h
 #define i_s_h
 
-extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages;
-extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_index;
-extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_blob;
+const char plugin_author[] = "Oracle Corporation";
+
 extern struct st_mysql_plugin	i_s_innodb_trx;
 extern struct st_mysql_plugin	i_s_innodb_locks;
 extern struct st_mysql_plugin	i_s_innodb_lock_waits;
@@ -36,13 +35,20 @@ extern struct st_mysql_plugin	i_s_innodb_cmp;
 extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
-extern struct st_mysql_plugin	i_s_innodb_patches;
+extern struct st_mysql_plugin	i_s_innodb_sys_tables;
+extern struct st_mysql_plugin	i_s_innodb_sys_tablestats;
+extern struct st_mysql_plugin	i_s_innodb_sys_indexes;
+extern struct st_mysql_plugin   i_s_innodb_sys_columns;
+extern struct st_mysql_plugin   i_s_innodb_sys_fields;
+extern struct st_mysql_plugin   i_s_innodb_sys_foreign;
+extern struct st_mysql_plugin   i_s_innodb_sys_foreign_cols;
 extern struct st_mysql_plugin	i_s_innodb_rseg;
+extern struct st_mysql_plugin	i_s_innodb_sys_stats;
 extern struct st_mysql_plugin	i_s_innodb_table_stats;
 extern struct st_mysql_plugin	i_s_innodb_index_stats;
 extern struct st_mysql_plugin	i_s_innodb_admin_command;
-extern struct st_mysql_plugin   i_s_innodb_sys_tables;
-extern struct st_mysql_plugin   i_s_innodb_sys_indexes;
-extern struct st_mysql_plugin	i_s_innodb_sys_stats;
+extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages;
+extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_index;
+extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_blob;
 
 #endif /* i_s_h */

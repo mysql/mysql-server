@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -238,7 +238,7 @@ row_upd_check_references_constraints(
 				foreign->n_fields))) {
 
 			if (foreign->foreign_table == NULL) {
-				dict_table_get(foreign->foreign_table_name,
+				dict_table_get(foreign->foreign_table_name_lookup,
 					       FALSE);
 			}
 
@@ -377,7 +377,7 @@ row_upd_index_entry_sys_field(
 				them */
 	dict_index_t*	index,	/*!< in: clustered index */
 	ulint		type,	/*!< in: DATA_TRX_ID or DATA_ROLL_PTR */
-	dulint		val)	/*!< in: value to write */
+	ib_uint64_t	val)	/*!< in: value to write */
 {
 	dfield_t*	dfield;
 	byte*		field;
@@ -504,14 +504,49 @@ row_upd_rec_in_place(
 	n_fields = upd_get_n_fields(update);
 
 	for (i = 0; i < n_fields; i++) {
+#ifdef UNIV_BLOB_DEBUG
+		btr_blob_dbg_t	b;
+		const byte*	field_ref	= NULL;
+#endif /* UNIV_BLOB_DEBUG */
+
 		upd_field = upd_get_nth_field(update, i);
 		new_val = &(upd_field->new_val);
 		ut_ad(!dfield_is_ext(new_val) ==
 		      !rec_offs_nth_extern(offsets, upd_field->field_no));
+#ifdef UNIV_BLOB_DEBUG
+		if (dfield_is_ext(new_val)) {
+			ulint	len;
+			field_ref = rec_get_nth_field(rec, offsets, i, &len);
+			ut_a(len != UNIV_SQL_NULL);
+			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
+			field_ref += len - BTR_EXTERN_FIELD_REF_SIZE;
+
+			b.ref_page_no = page_get_page_no(page_align(rec));
+			b.ref_heap_no = page_rec_get_heap_no(rec);
+			b.ref_field_no = i;
+			b.blob_page_no = mach_read_from_4(
+				field_ref + BTR_EXTERN_PAGE_NO);
+			ut_a(b.ref_field_no >= index->n_uniq);
+			btr_blob_dbg_rbt_delete(index, &b, "upd_in_place");
+		}
+#endif /* UNIV_BLOB_DEBUG */
 
 		rec_set_nth_field(rec, offsets, upd_field->field_no,
 				  dfield_get_data(new_val),
 				  dfield_get_len(new_val));
+
+#ifdef UNIV_BLOB_DEBUG
+		if (dfield_is_ext(new_val)) {
+			b.blob_page_no = mach_read_from_4(
+				field_ref + BTR_EXTERN_PAGE_NO);
+			b.always_owner = b.owner = !(field_ref[BTR_EXTERN_LEN]
+						     & BTR_EXTERN_OWNER_FLAG);
+			b.del = rec_get_deleted_flag(
+				rec, rec_offs_comp(offsets));
+
+			btr_blob_dbg_rbt_insert(index, &b, "upd_in_place");
+		}
+#endif /* UNIV_BLOB_DEBUG */
 	}
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
@@ -545,7 +580,7 @@ row_upd_write_sys_vals_to_log(
 	trx_write_roll_ptr(log_ptr, roll_ptr);
 	log_ptr += DATA_ROLL_PTR_LEN;
 
-	log_ptr += mach_dulint_write_compressed(log_ptr, trx->id);
+	log_ptr += mach_ull_write_compressed(log_ptr, trx->id);
 
 	return(log_ptr);
 }
@@ -579,7 +614,7 @@ row_upd_parse_sys_vals(
 	*roll_ptr = trx_read_roll_ptr(ptr);
 	ptr += DATA_ROLL_PTR_LEN;
 
-	ptr = mach_dulint_parse_compressed(ptr, end_ptr, trx_id);
+	ptr = mach_ull_parse_compressed(ptr, end_ptr, trx_id);
 
 	return(ptr);
 }
@@ -970,7 +1005,7 @@ row_upd_index_replace_new_col_val(
 		}
 
 		len = dtype_get_at_most_n_mbchars(col->prtype,
-						  col->mbminlen, col->mbmaxlen,
+						  col->mbminmaxlen,
 						  field->prefix_len, len,
 						  (const char*) data);
 
@@ -1532,21 +1567,22 @@ row_upd_sec_index_entry(
 	upd_node_t*	node,	/*!< in: row update node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ibool		check_ref;
-	ibool		found;
-	dict_index_t*	index;
-	dtuple_t*	entry;
-	btr_pcur_t	pcur;
-	btr_cur_t*	btr_cur;
-	mem_heap_t*	heap;
-	rec_t*		rec;
-	ulint		err	= DB_SUCCESS;
-	mtr_t		mtr;
-	trx_t*		trx	= thr_get_trx(thr);
+	mtr_t			mtr;
+	const rec_t*		rec;
+	btr_pcur_t		pcur;
+	mem_heap_t*		heap;
+	dtuple_t*		entry;
+	dict_index_t*		index;
+	btr_cur_t*		btr_cur;
+	ibool			referenced;
+	ulint			err	= DB_SUCCESS;
+	trx_t*			trx	= thr_get_trx(thr);
+	ulint			mode	= BTR_MODIFY_LEAF;
+	enum row_search_result	search_result;
 
 	index = node->index;
 
-	check_ref = row_upd_index_is_referenced(index, trx);
+	referenced = row_upd_index_is_referenced(index, trx);
 
 	heap = mem_heap_create(1024);
 
@@ -1556,13 +1592,33 @@ row_upd_sec_index_entry(
 
 	mtr_start(&mtr);
 
-	found = row_search_index_entry(index, entry, BTR_MODIFY_LEAF, &pcur,
-				       &mtr);
+	/* Set the query thread, so that ibuf_insert_low() will be
+	able to invoke thd_get_trx(). */
+	btr_pcur_get_btr_cur(&pcur)->thr = thr;
+
+	/* We can only try to use the insert/delete buffer to buffer
+	delete-mark operations if the index we're modifying has no foreign
+	key constraints referring to it. */
+	if (!referenced) {
+		mode |= BTR_DELETE_MARK;
+	}
+
+	search_result = row_search_index_entry(index, entry, mode,
+					       &pcur, &mtr);
+
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 	rec = btr_cur_get_rec(btr_cur);
 
-	if (UNIV_UNLIKELY(!found)) {
+	switch (search_result) {
+	case ROW_NOT_DELETED_REF:	/* should only occur for BTR_DELETE */
+		ut_error;
+		break;
+	case ROW_BUFFERED:
+		/* Entry was delete marked already. */
+		break;
+
+	case ROW_NOT_FOUND:
 		fputs("InnoDB: error in sec index entry update in\n"
 		      "InnoDB: ", stderr);
 		dict_index_name_print(stderr, trx, index);
@@ -1579,20 +1635,26 @@ row_upd_sec_index_entry(
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n", stderr);
-	} else {
+		break;
+	case ROW_FOUND:
 		/* Delete mark the old index record; it can already be
 		delete marked if we return after a lock wait in
 		row_ins_index_entry below */
 
-		if (!rec_get_deleted_flag(rec,
-					  dict_table_is_comp(index->table))) {
-			err = btr_cur_del_mark_set_sec_rec(0, btr_cur, TRUE,
-							   thr, &mtr);
-			if (err == DB_SUCCESS && check_ref) {
+		if (!rec_get_deleted_flag(
+			rec, dict_table_is_comp(index->table))) {
 
-				ulint*	offsets = rec_get_offsets(
-					rec, index, NULL,
-					ULINT_UNDEFINED, &heap);
+			err = btr_cur_del_mark_set_sec_rec(
+				0, btr_cur, TRUE, thr, &mtr);
+
+			if (err == DB_SUCCESS && referenced) {
+
+				ulint*	offsets;
+
+				offsets = rec_get_offsets(
+					rec, index, NULL, ULINT_UNDEFINED,
+					&heap);
+
 				/* NOTE that the following call loses
 				the position of pcur ! */
 				err = row_upd_check_references_constraints(
@@ -1600,6 +1662,7 @@ row_upd_sec_index_entry(
 					index, offsets, thr, &mtr);
 			}
 		}
+		break;
 	}
 
 	btr_pcur_close(&pcur);
@@ -1748,7 +1811,7 @@ row_upd_clust_rec_by_insert(
 	upd_node_t*	node,	/*!< in/out: row update node */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	que_thr_t*	thr,	/*!< in: query thread */
-	ibool		check_ref,/*!< in: TRUE if index may be referenced in
+	ibool		referenced,/*!< in: TRUE if index may be referenced in
 				a foreign key constraint */
 	mtr_t*		mtr)	/*!< in/out: mtr; gets committed here */
 {
@@ -1828,11 +1891,13 @@ err_exit:
 			}
 		}
 
-		if (check_ref) {
+		if (referenced) {
 			/* NOTE that the following call loses
 			the position of pcur ! */
+
 			err = row_upd_check_references_constraints(
 				node, pcur, table, index, offsets, thr, mtr);
+
 			if (err != DB_SUCCESS) {
 				goto err_exit;
 			}
@@ -1997,7 +2062,8 @@ row_upd_del_mark_clust_rec(
 	ulint*		offsets,/*!< in/out: rec_get_offsets() for the
 				record under the cursor */
 	que_thr_t*	thr,	/*!< in: query thread */
-	ibool		check_ref,/*!< in: TRUE if index may be referenced in
+	ibool		referenced,
+				/*!< in: TRUE if index may be referenced in
 				a foreign key constraint */
 	mtr_t*		mtr)	/*!< in: mtr; gets committed here */
 {
@@ -2023,13 +2089,11 @@ row_upd_del_mark_clust_rec(
 	err = btr_cur_del_mark_set_clust_rec(
 		BTR_NO_LOCKING_FLAG, btr_cur_get_block(btr_cur),
 		btr_cur_get_rec(btr_cur), index, offsets, TRUE, thr, mtr);
-	if (err == DB_SUCCESS && check_ref) {
+	if (err == DB_SUCCESS && referenced) {
 		/* NOTE that the following call loses the position of pcur ! */
 
-		err = row_upd_check_references_constraints(node,
-							   pcur, index->table,
-							   index, offsets,
-							   thr, mtr);
+		err = row_upd_check_references_constraints(
+			node, pcur, index->table, index, offsets, thr, mtr);
 	}
 
 	mtr_commit(mtr);
@@ -2051,7 +2115,6 @@ row_upd_clust_step(
 	dict_index_t*	index;
 	btr_pcur_t*	pcur;
 	ibool		success;
-	ibool		check_ref;
 	ulint		err;
 	mtr_t*		mtr;
 	mtr_t		mtr_buf;
@@ -2059,11 +2122,12 @@ row_upd_clust_step(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets;
+	ibool		referenced;
 	rec_offs_init(offsets_);
 
 	index = dict_table_get_first_index(node->table);
 
-	check_ref = row_upd_index_is_referenced(index, thr_get_trx(thr));
+	referenced = row_upd_index_is_referenced(index, thr_get_trx(thr));
 
 	pcur = node->pcur;
 
@@ -2096,8 +2160,7 @@ row_upd_clust_step(
 	then we have to free the file segments of the index tree associated
 	with the index */
 
-	if (node->is_delete
-	    && ut_dulint_cmp(node->table->id, DICT_INDEXES_ID) == 0) {
+	if (node->is_delete && node->table->id == DICT_INDEXES_ID) {
 
 		dict_drop_index_tree(btr_pcur_get_rec(pcur), mtr);
 
@@ -2133,8 +2196,9 @@ row_upd_clust_step(
 	/* NOTE: the following function calls will also commit mtr */
 
 	if (node->is_delete) {
-		err = row_upd_del_mark_clust_rec(node, index, offsets,
-						 thr, check_ref, mtr);
+		err = row_upd_del_mark_clust_rec(
+			node, index, offsets, thr, referenced, mtr);
+
 		if (err == DB_SUCCESS) {
 			node->state = UPD_NODE_UPDATE_ALL_SEC;
 			node->index = dict_table_get_next_index(index);
@@ -2183,8 +2247,9 @@ exit_func:
 		choosing records to update. MySQL solves now the problem
 		externally! */
 
-		err = row_upd_clust_rec_by_insert(node, index, thr, check_ref,
-						  mtr);
+		err = row_upd_clust_rec_by_insert(
+			node, index, thr, referenced, mtr);
+
 		if (err != DB_SUCCESS) {
 
 			return(err);

@@ -46,6 +46,8 @@ Created 10/25/1995 Heikki Tuuri
 #include "row0mysql.h"
 #include "row0row.h"
 #include "que0que.h"
+#include "btr0btr.h"
+#include "btr0sea.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
 # include "ibuf0ibuf.h"
@@ -126,6 +128,16 @@ UNIV_INTERN ulint	fil_n_pending_tablespace_flushes	= 0;
 
 /** The null file address */
 UNIV_INTERN fil_addr_t	fil_addr_null = {FIL_NULL, 0};
+
+#ifdef UNIV_PFS_MUTEX
+/* Key to register fil_system_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	fil_system_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
+#ifdef UNIV_PFS_RWLOCK
+/* Key to register file space latch with performance schema */
+UNIV_INTERN mysql_pfs_key_t	fil_space_latch_key;
+#endif /* UNIV_PFS_RWLOCK */
 
 /** File node of a tablespace or the log data space */
 struct fil_node_struct {
@@ -297,6 +309,34 @@ struct fil_system_struct {
 initialized. */
 static fil_system_t*	fil_system	= NULL;
 
+#ifdef UNIV_DEBUG
+/** Try fil_validate() every this many times */
+# define FIL_VALIDATE_SKIP	17
+
+/******************************************************************//**
+Checks the consistency of the tablespace cache some of the time.
+@return	TRUE if ok or the check was skipped */
+static
+ibool
+fil_validate_skip(void)
+/*===================*/
+{
+	/** The fil_validate() call skip counter. Use a signed type
+	because of the race condition below. */
+	static int fil_validate_count = FIL_VALIDATE_SKIP;
+
+	/* There is a race condition below, but it does not matter,
+	because this call is only for heuristic purposes. We want to
+	reduce the call frequency of the costly fil_validate() check
+	in debug builds. */
+	if (--fil_validate_count > 0) {
+		return(TRUE);
+	}
+
+	fil_validate_count = FIL_VALIDATE_SKIP;
+	return(fil_validate());
+}
+#endif /* UNIV_DEBUG */
 
 /********************************************************************//**
 NOTE: you must call fil_mutex_enter_and_prepare_for_io() first!
@@ -662,7 +702,8 @@ fil_node_open_file(
 		async I/O! */
 
 		node->handle = os_file_create_simple_no_error_handling(
-			node->name, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+			innodb_file_data_key, node->name, OS_FILE_OPEN,
+			OS_FILE_READ_ONLY, &success);
 		if (!success) {
 			/* The following call prints an error message */
 			os_file_get_last_error(TRUE);
@@ -780,15 +821,21 @@ add_size:
 	os_file_create() to fall back to the normal file I/O mode. */
 
 	if (space->purpose == FIL_LOG) {
-		node->handle = os_file_create(node->name, OS_FILE_OPEN,
-					      OS_FILE_AIO, OS_LOG_FILE, &ret);
+		node->handle = os_file_create(innodb_file_log_key,
+					      node->name, OS_FILE_OPEN,
+					      OS_FILE_AIO, OS_LOG_FILE,
+					      &ret);
 	} else if (node->is_raw_disk) {
-		node->handle = os_file_create(node->name,
+		node->handle = os_file_create(innodb_file_data_key,
+					      node->name,
 					      OS_FILE_OPEN_RAW,
-					      OS_FILE_AIO, OS_DATA_FILE, &ret);
+					      OS_FILE_AIO, OS_DATA_FILE,
+						     &ret);
 	} else {
-		node->handle = os_file_create(node->name, OS_FILE_OPEN,
-					      OS_FILE_AIO, OS_DATA_FILE, &ret);
+		node->handle = os_file_create(innodb_file_data_key,
+					      node->name, OS_FILE_OPEN,
+					      OS_FILE_AIO, OS_DATA_FILE,
+					      &ret);
 	}
 
 	ut_a(ret);
@@ -817,7 +864,7 @@ fil_node_close_file(
 	ut_ad(node && system);
 	ut_ad(mutex_own(&(system->mutex)));
 	ut_a(node->open);
-	ut_a(node->n_pending == 0 || srv_lazy_drop_table);
+	ut_a(node->n_pending == 0 || node->space->is_being_deleted);
 	ut_a(node->n_pending_flushes == 0);
 	ut_a(node->modification_counter == node->flush_counter);
 
@@ -830,7 +877,7 @@ fil_node_close_file(
 	ut_a(system->n_open > 0);
 	system->n_open--;
 
-	if (node->space->purpose == FIL_TABLESPACE && !trx_sys_sys_space(node->space->id)) {
+	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE && !trx_sys_sys_space(node->space->id)) {
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
 
 		/* The node is in the LRU list, remove it */
@@ -1029,7 +1076,7 @@ fil_node_free(
 	ut_ad(node && system && space);
 	ut_ad(mutex_own(&(system->mutex)));
 	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
-	ut_a(node->n_pending == 0 || srv_lazy_drop_table);
+	ut_a(node->n_pending == 0 || space->is_being_deleted);
 
 	if (node->open) {
 		/* We fool the assertion in fil_node_close_file() to think
@@ -1240,7 +1287,7 @@ try_again:
 	UT_LIST_INIT(space->chain);
 	space->magic_n = FIL_SPACE_MAGIC_N;
 
-	rw_lock_create(&space->latch, SYNC_FSP);
+	rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
 
 	HASH_INSERT(fil_space_t, hash, fil_system->spaces, id, space);
 
@@ -1549,8 +1596,10 @@ fil_init(
 
 	fil_system = mem_zalloc(sizeof(fil_system_t));
 
-	mutex_create(&fil_system->mutex, SYNC_ANY_LATCH);
-	mutex_create(&fil_system->file_extend_mutex, SYNC_OUTER_ANY_LATCH);
+	mutex_create(fil_system_mutex_key,
+		     &fil_system->mutex, SYNC_ANY_LATCH);
+	mutex_create(fil_system_mutex_key,
+		     &fil_system->file_extend_mutex, SYNC_OUTER_ANY_LATCH);
 
 	fil_system->spaces = hash_create(hash_size);
 	fil_system->name_hash = hash_create(hash_size);
@@ -1710,7 +1759,7 @@ fil_write_lsn_and_arch_no_to_file(
 
 	fil_read(TRUE, space_id, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
-	mach_write_ull(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
+	mach_write_to_8(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
 
 	fil_write(TRUE, space_id, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
@@ -1804,7 +1853,7 @@ fil_read_flushed_lsn_and_arch_log_no(
 
 	os_file_read(data_file, buf, 0, 0, UNIV_PAGE_SIZE);
 
-	flushed_lsn = mach_read_ull(buf + FIL_PAGE_FILE_FLUSH_LSN);
+	flushed_lsn = mach_read_from_8(buf + FIL_PAGE_FILE_FLUSH_LSN);
 
 	ut_free(buf2);
 
@@ -2605,7 +2654,7 @@ retry:
 	success = fil_rename_tablespace_in_mem(space, node, path);
 
 	if (success) {
-		success = os_file_rename(old_path, path);
+		success = os_file_rename(innodb_file_data_key, old_path, path);
 
 		if (!success) {
 			/* We have to revert the changes we made
@@ -2682,7 +2731,8 @@ fil_create_new_single_table_tablespace(
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
-	file = os_file_create(path, OS_FILE_CREATE, OS_FILE_NORMAL,
+	file = os_file_create(innodb_file_data_key, path,
+			      OS_FILE_CREATE, OS_FILE_NORMAL,
 			      OS_DATA_FILE, &ret);
 	if (ret == FALSE) {
 		ut_print_timestamp(stderr);
@@ -2870,7 +2920,8 @@ fil_reset_too_high_lsns(
 	filepath = fil_make_ibd_name(name, FALSE);
 
 	file = os_file_create_simple_no_error_handling(
-		filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+		innodb_file_data_key, filepath, OS_FILE_OPEN,
+		OS_FILE_READ_WRITE, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -2901,7 +2952,7 @@ fil_reset_too_high_lsns(
 
 	/* We have to read the file flush lsn from the header of the file */
 
-	flush_lsn = mach_read_ull(page + FIL_PAGE_FILE_FLUSH_LSN);
+	flush_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
 	if (current_lsn >= flush_lsn) {
 		/* Ok */
@@ -2949,7 +3000,7 @@ fil_reset_too_high_lsns(
 
 			goto func_exit;
 		}
-		if (mach_read_ull(page + FIL_PAGE_LSN) > current_lsn) {
+		if (mach_read_from_8(page + FIL_PAGE_LSN) > current_lsn) {
 			/* We have to reset the lsn */
 
 			if (zip_size) {
@@ -2991,7 +3042,7 @@ fil_reset_too_high_lsns(
 		goto func_exit;
 	}
 
-	mach_write_ull(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
+	mach_write_to_8(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
 
 	success = os_file_write(filepath, file, page, 0, 0,
 				zip_size ? zip_size : UNIV_PAGE_SIZE);
@@ -3006,6 +3057,97 @@ func_exit:
 	mem_free(filepath);
 
 	return(success);
+}
+
+/********************************************************************//**
+Checks if a page is corrupt. (for offline page)
+*/
+static
+ibool
+fil_page_buf_page_is_corrupted_offline(
+/*===================================*/
+	const byte*	page,		/*!< in: a database page */
+	ulint		zip_size)	/*!< in: size of compressed page;
+					0 for uncompressed pages */
+{
+	ulint		checksum_field;
+	ulint		old_checksum_field;
+
+	if (!zip_size
+	    && memcmp(page + FIL_PAGE_LSN + 4,
+		      page + UNIV_PAGE_SIZE
+		      - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
+		return(TRUE);
+	}
+
+	checksum_field = mach_read_from_4(page
+					  + FIL_PAGE_SPACE_OR_CHKSUM);
+
+	if (zip_size) {
+		return(checksum_field != BUF_NO_CHECKSUM_MAGIC
+		       && checksum_field
+		       != page_zip_calc_checksum(page, zip_size));
+	}
+
+	old_checksum_field = mach_read_from_4(
+		page + UNIV_PAGE_SIZE
+		- FIL_PAGE_END_LSN_OLD_CHKSUM);
+
+	if (old_checksum_field != mach_read_from_4(page
+						   + FIL_PAGE_LSN)
+	    && old_checksum_field != BUF_NO_CHECKSUM_MAGIC
+	    && old_checksum_field
+	    != buf_calc_page_old_checksum(page)) {
+		return(TRUE);
+	}
+
+	if (!srv_fast_checksum
+	    && checksum_field != 0
+	    && checksum_field != BUF_NO_CHECKSUM_MAGIC
+	    && checksum_field
+	    != buf_calc_page_new_checksum(page)) {
+		return(TRUE);
+	}
+
+	if (srv_fast_checksum
+	    && checksum_field != 0
+	    && checksum_field != BUF_NO_CHECKSUM_MAGIC
+	    && checksum_field
+	    != buf_calc_page_new_checksum_32(page)
+	    && checksum_field
+	    != buf_calc_page_new_checksum(page)) {
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/********************************************************************//**
+*/
+static
+void
+fil_page_buf_page_store_checksum(
+/*=============================*/
+	byte*	page,
+	ulint	zip_size)
+{
+	if (!zip_size) {
+		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
+				srv_use_checksums
+				? (!srv_fast_checksum
+				   ? buf_calc_page_new_checksum(page)
+				   : buf_calc_page_new_checksum_32(page))
+						: BUF_NO_CHECKSUM_MAGIC);
+		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+				srv_use_checksums
+				? buf_calc_page_old_checksum(page)
+						: BUF_NO_CHECKSUM_MAGIC);
+	} else {
+		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
+				srv_use_checksums
+				? page_zip_calc_checksum(page, zip_size)
+				: BUF_NO_CHECKSUM_MAGIC);
+	}
 }
 
 /********************************************************************//**
@@ -3054,7 +3196,8 @@ fil_open_single_table_tablespace(
 	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 	file = os_file_create_simple_no_error_handling(
-		filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+		innodb_file_data_key, filepath, OS_FILE_OPEN,
+		OS_FILE_READ_WRITE, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -3107,8 +3250,8 @@ fil_open_single_table_tablespace(
 		byte*		buf3;
 		byte*		descr_page;
 		ibool		descr_is_corrupt = FALSE;
-		dulint		old_id[31];
-		dulint		new_id[31];
+		index_id_t	old_id[31];
+		index_id_t	new_id[31];
 		ulint		root_page[31];
 		ulint		n_index;
 		os_file_t	info_file = -1;
@@ -3123,6 +3266,7 @@ fil_open_single_table_tablespace(
 		fil_system_t*	system;
 		fil_node_t*	node = NULL;
 		fil_space_t*	space;
+		ulint		zip_size;
 
 		buf3 = ut_malloc(2 * UNIV_PAGE_SIZE);
 		descr_page = ut_align(buf3, UNIV_PAGE_SIZE);
@@ -3140,30 +3284,26 @@ fil_open_single_table_tablespace(
 		/* store as first descr page */
 		memcpy(descr_page, page, UNIV_PAGE_SIZE);
 
+		zip_size = dict_table_flags_to_zip_size(flags);
+		ut_a(zip_size == dict_table_flags_to_zip_size(space_flags));
+
 		/* get free limit (page number) of the table space */
 /* these should be same to the definition in fsp0fsp.c */
 #define FSP_HEADER_OFFSET	FIL_PAGE_DATA
 #define	FSP_FREE_LIMIT		12
 		free_limit = mach_read_from_4(FSP_HEADER_OFFSET + FSP_FREE_LIMIT + page);
-		free_limit_bytes = (ib_int64_t)free_limit * (ib_int64_t)UNIV_PAGE_SIZE;
+		free_limit_bytes = (ib_int64_t)free_limit * (ib_int64_t)(zip_size ? zip_size : UNIV_PAGE_SIZE);
 
 		/* overwrite fsp header */
 		fsp_header_init_fields(page, id, flags);
 		mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
 		space_id = id;
 		space_flags = flags;
-		if (mach_read_ull(page + FIL_PAGE_FILE_FLUSH_LSN) > current_lsn)
-			mach_write_ull(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
-		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
-				srv_use_checksums
-				? (!srv_fast_checksum
-				   ? buf_calc_page_new_checksum(page)
-				   : buf_calc_page_new_checksum_32(page))
-						: BUF_NO_CHECKSUM_MAGIC);
-		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
-				srv_use_checksums
-				? buf_calc_page_old_checksum(page)
-						: BUF_NO_CHECKSUM_MAGIC);
+		if (mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN) > current_lsn)
+			mach_write_to_8(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
+
+		fil_page_buf_page_store_checksum(page, zip_size);
+
 		success = os_file_write(filepath, file, page, 0, 0, UNIV_PAGE_SIZE);
 
 		/* get file size */
@@ -3173,7 +3313,7 @@ fil_open_single_table_tablespace(
 
 		if (size_bytes < free_limit_bytes) {
 			free_limit_bytes = size_bytes;
-			if (size_bytes >= (ib_int64_t) (FSP_EXTENT_SIZE * UNIV_PAGE_SIZE)) {
+			if (size_bytes >= (lint)FSP_EXTENT_SIZE * (lint)(zip_size ? zip_size : UNIV_PAGE_SIZE)) {
 				fprintf(stderr, "InnoDB: free limit of %s is larger than its real size.\n", filepath);
 				file_is_corrupt = TRUE;
 			}
@@ -3196,30 +3336,30 @@ fil_open_single_table_tablespace(
 		info_file_path[len - 2] = 'x';
 		info_file_path[len - 1] = 'p';
 
-		info_file = os_file_create_simple_no_error_handling(
+		info_file = os_file_create_simple_no_error_handling(innodb_file_data_key,
 				info_file_path, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
 		if (!success) {
-			fprintf(stderr, "InnoDB: cannot open %s\n", info_file_path);
+			fprintf(stderr, "InnoDB: Cannot open the file: %s\n", info_file_path);
 			file_is_corrupt = TRUE;
 			goto skip_info;
 		}
 		success = os_file_read(info_file, page, 0, 0, UNIV_PAGE_SIZE);
 		if (!success) {
-			fprintf(stderr, "InnoDB: cannot read %s\n", info_file_path);
+			fprintf(stderr, "InnoDB: Cannot read the file: %s\n", info_file_path);
 			file_is_corrupt = TRUE;
 			goto skip_info;
 		}
 		if (mach_read_from_4(page) != 0x78706f72UL
 		    || mach_read_from_4(page + 4) != 0x74696e66UL) {
-			fprintf(stderr, "InnoDB: %s seems not to be a correct .exp file\n", info_file_path);
+			fprintf(stderr, "InnoDB: %s seems to be an incorrect .exp file.\n", info_file_path);
 			file_is_corrupt = TRUE;
 			goto skip_info;
 		}
 
-		fprintf(stderr, "InnoDB: import: extended import of %s is started.\n", name);
+		fprintf(stderr, "InnoDB: Import: The extended import of %s is being started.\n", name);
 
 		n_index = mach_read_from_4(page + 8);
-		fprintf(stderr, "InnoDB: import: %lu indexes are detected.\n", (ulong)n_index);
+		fprintf(stderr, "InnoDB: Import: %lu indexes have been detected.\n", (ulong)n_index);
 		for (i = 0; i < n_index; i++) {
 			new_id[i] =
 				dict_table_get_index_on_name(table,
@@ -3237,75 +3377,41 @@ skip_info:
 			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
 		}
 		*/
-		if (!(flags & DICT_TF_ZSSIZE_MASK)) {
+
+		if (zip_size) {
+			fprintf(stderr, "InnoDB: Warning: importing compressed table is still EXPERIMENTAL, currently.\n");
+		}
+
+		{
 			mem_heap_t*	heap = NULL;
 			ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 			ulint*		offsets = offsets_;
 			ib_int64_t	offset;
 
-			size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
+			size = (ulint) (size_bytes / (zip_size ? zip_size : UNIV_PAGE_SIZE));
 			/* over write space id of all pages */
 			rec_offs_init(offsets_);
 
 			fprintf(stderr, "InnoDB: Progress in %%:");
 
-			for (offset = 0; offset < free_limit_bytes; offset += UNIV_PAGE_SIZE) {
-				ulint		checksum_field;
-				ulint		old_checksum_field;
+			for (offset = 0; offset < free_limit_bytes;
+			     offset += zip_size ? zip_size : UNIV_PAGE_SIZE) {
 				ibool		page_is_corrupt;
 
 				success = os_file_read(file, page,
 							(ulint)(offset & 0xFFFFFFFFUL),
-							(ulint)(offset >> 32), UNIV_PAGE_SIZE);
+							(ulint)(offset >> 32),
+							zip_size ? zip_size : UNIV_PAGE_SIZE);
 
 				page_is_corrupt = FALSE;
 
 				/* check consistency */
-				if (memcmp(page + FIL_PAGE_LSN + 4,
-					   page + UNIV_PAGE_SIZE
-					   - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
-
+				if (fil_page_buf_page_is_corrupted_offline(page, zip_size)) {
 					page_is_corrupt = TRUE;
 				}
 
 				if (mach_read_from_4(page + FIL_PAGE_OFFSET)
-				    != offset / UNIV_PAGE_SIZE) {
-
-					page_is_corrupt = TRUE;
-				}
-
-				checksum_field = mach_read_from_4(page
-								  + FIL_PAGE_SPACE_OR_CHKSUM);
-
-				old_checksum_field = mach_read_from_4(
-					page + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN_OLD_CHKSUM);
-
-				if (old_checksum_field != mach_read_from_4(page
-									   + FIL_PAGE_LSN)
-				    && old_checksum_field != BUF_NO_CHECKSUM_MAGIC
-				    && old_checksum_field
-				    != buf_calc_page_old_checksum(page)) {
-
-					page_is_corrupt = TRUE;
-				}
-
-				if (!srv_fast_checksum
-				    && checksum_field != 0
-				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
-				    && checksum_field
-				    != buf_calc_page_new_checksum(page)) {
-
-					page_is_corrupt = TRUE;
-				}
-
-				if (srv_fast_checksum
-				    && checksum_field != 0
-				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
-				    && checksum_field
-				    != buf_calc_page_new_checksum_32(page)
-				    && checksum_field
-				    != buf_calc_page_new_checksum(page)) {
+				    != offset / (zip_size ? zip_size : UNIV_PAGE_SIZE)) {
 
 					page_is_corrupt = TRUE;
 				}
@@ -3316,18 +3422,19 @@ skip_info:
 					/* it should be overwritten already */
 					ut_a(!page_is_corrupt);
 
-				} else if (!((offset / UNIV_PAGE_SIZE) % UNIV_PAGE_SIZE)) {
+				} else if (!((offset / (zip_size ? zip_size : UNIV_PAGE_SIZE))
+					     % (zip_size ? zip_size : UNIV_PAGE_SIZE))) {
 					/* descr page (not header) */
 					if (page_is_corrupt) {
 						file_is_corrupt = TRUE;
 						descr_is_corrupt = TRUE;
 					} else {
-
+						ut_ad(fil_page_get_type(page) == FIL_PAGE_TYPE_XDES);
 						descr_is_corrupt = FALSE;
 					}
 
 					/* store as descr page */
-					memcpy(descr_page, page, UNIV_PAGE_SIZE);
+					memcpy(descr_page, page, (zip_size ? zip_size : UNIV_PAGE_SIZE));
 
 				} else if (descr_is_corrupt) {
 					/* unknown state of the page */
@@ -3355,9 +3462,12 @@ skip_info:
 					ulint	bit_index;
 
 					descr = descr_page + XDES_ARR_OFFSET
-						+ XDES_SIZE * (ut_2pow_remainder((offset / UNIV_PAGE_SIZE), UNIV_PAGE_SIZE) / FSP_EXTENT_SIZE);
+						+ XDES_SIZE * (ut_2pow_remainder(
+							(offset / (zip_size ? zip_size : UNIV_PAGE_SIZE)),
+							(zip_size ? zip_size : UNIV_PAGE_SIZE)) / FSP_EXTENT_SIZE);
 
-					index = XDES_FREE_BIT + XDES_BITS_PER_PAGE * ((offset / UNIV_PAGE_SIZE) % FSP_EXTENT_SIZE);
+					index = XDES_FREE_BIT
+						+ XDES_BITS_PER_PAGE * ((offset / (zip_size ? zip_size : UNIV_PAGE_SIZE)) % FSP_EXTENT_SIZE);
 					byte_index = index / 8;
 					bit_index = index % 8;
 
@@ -3375,7 +3485,7 @@ skip_info:
 				}
 
 				if (page_is_corrupt) {
-					fprintf(stderr, " [errp:%lld]", offset / UNIV_PAGE_SIZE);
+					fprintf(stderr, " [errp:%lld]", offset / (zip_size ? zip_size : UNIV_PAGE_SIZE));
 
 					/* cannot treat corrupt page */
 					goto skip_write;
@@ -3385,7 +3495,13 @@ skip_info:
 					mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
 
 					for (i = 0; i < n_index; i++) {
-						if (offset / UNIV_PAGE_SIZE == root_page[i]) {
+						if (offset / (zip_size ? zip_size : UNIV_PAGE_SIZE) == root_page[i]) {
+							if (fil_page_get_type(page) != FIL_PAGE_INDEX) {
+								file_is_corrupt = TRUE;
+								fprintf(stderr, " [etyp:%lld]",
+									offset / (zip_size ? zip_size : UNIV_PAGE_SIZE));
+								goto skip_write;
+							}
 							/* this is index root page */
 							mach_write_to_4(page + FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
 											+ FSEG_HDR_SPACE, id);
@@ -3396,10 +3512,17 @@ skip_info:
 					}
 
 					if (fil_page_get_type(page) == FIL_PAGE_INDEX) {
-						dulint tmp = mach_read_from_8(page + (PAGE_HEADER + PAGE_INDEX_ID));
+						index_id_t tmp = mach_read_from_8(page + (PAGE_HEADER + PAGE_INDEX_ID));
 
-						if (mach_read_from_2(page + PAGE_HEADER + PAGE_LEVEL) == 0
-						    && ut_dulint_cmp(old_id[0], tmp) == 0) {
+						for (i = 0; i < n_index; i++) {
+							if (old_id[i] == tmp) {
+								mach_write_to_8(page + (PAGE_HEADER + PAGE_INDEX_ID), new_id[i]);
+								break;
+							}
+						}
+
+						if (!zip_size && mach_read_from_2(page + PAGE_HEADER + PAGE_LEVEL) == 0
+						    && old_id[0] == tmp) {
 							/* leaf page of cluster index, reset trx_id of records */
 							rec_t*	rec;
 							rec_t*	supremum;
@@ -3419,7 +3542,7 @@ skip_info:
 								if (!offset) {
 									offset = row_get_trx_id_offset(rec, index, offsets);
 								}
-								trx_write_trx_id(rec + offset, ut_dulint_create(0, 1));
+								trx_write_trx_id(rec + offset, 1);
 
 								for (i = 0; i < n_fields; i++) {
 									if (rec_offs_nth_extern(offsets, i)) {
@@ -3437,44 +3560,34 @@ skip_info:
 								rec = page_rec_get_next(rec);
 								n_recs--;
 							}
-						}
-
-						for (i = 0; i < n_index; i++) {
-							if (ut_dulint_cmp(old_id[i], tmp) == 0) {
-								mach_write_to_8(page + (PAGE_HEADER + PAGE_INDEX_ID), new_id[i]);
-								break;
-							}
+						} else if (mach_read_from_2(page + PAGE_HEADER + PAGE_LEVEL) == 0
+							   && old_id[0] != tmp) {
+							mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), 1);
 						}
 					}
 
-					if (mach_read_ull(page + FIL_PAGE_LSN) > current_lsn) {
-						mach_write_ull(page + FIL_PAGE_LSN, current_lsn);
-						mach_write_ull(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
-										current_lsn);
+					if (mach_read_from_8(page + FIL_PAGE_LSN) > current_lsn) {
+						mach_write_to_8(page + FIL_PAGE_LSN, current_lsn);
+						if (!zip_size) {
+							mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+									current_lsn);
+						}
 					}
 
-					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
-							srv_use_checksums
-							? (!srv_fast_checksum
-							   ? buf_calc_page_new_checksum(page)
-							   : buf_calc_page_new_checksum_32(page))
-									: BUF_NO_CHECKSUM_MAGIC);
-					mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
-							srv_use_checksums
-							? buf_calc_page_old_checksum(page)
-									: BUF_NO_CHECKSUM_MAGIC);
+					fil_page_buf_page_store_checksum(page, zip_size);
 
 					success = os_file_write(filepath, file, page,
 								(ulint)(offset & 0xFFFFFFFFUL),
-								(ulint)(offset >> 32), UNIV_PAGE_SIZE);
+								(ulint)(offset >> 32),
+								zip_size ? zip_size : UNIV_PAGE_SIZE);
 				}
 
 skip_write:
 				if (free_limit_bytes
-				    && ((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / free_limit_bytes)
+				    && ((ib_int64_t)((offset + (zip_size ? zip_size : UNIV_PAGE_SIZE)) * 100) / free_limit_bytes)
 					!= ((offset * 100) / free_limit_bytes)) {
 					fprintf(stderr, " %lu",
-						(ulong)((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / free_limit_bytes));
+						(ulong)((ib_int64_t)((offset + (zip_size ? zip_size : UNIV_PAGE_SIZE)) * 100) / free_limit_bytes));
 				}
 			}
 
@@ -3484,7 +3597,7 @@ skip_write:
 			index = dict_table_get_first_index(table);
 			while (index) {
 				for (i = 0; i < n_index; i++) {
-					if (ut_dulint_cmp(new_id[i], index->id) == 0) {
+					if (new_id[i] == index->id) {
 						break;
 					}
 				}
@@ -3501,7 +3614,7 @@ skip_write:
 
 					info = pars_info_create();
 
-					pars_info_add_dulint_literal(info, "indexid", new_id[i]);
+					pars_info_add_ull_literal(info, "indexid", new_id[i]);
 					pars_info_add_int4_literal(info, "new_page", (lint) root_page[i]);
 
 					error = que_eval_sql(info,
@@ -3530,13 +3643,6 @@ skip_write:
 			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);
 			}
-		} else {
-			/* zip page? */
-			size = (ulint)
-			(size_bytes
-					/ dict_table_flags_to_zip_size(flags));
-			fprintf(stderr, "InnoDB: import: table %s seems to be in newer format."
-					" It may not be able to treated for now.\n", name);
 		}
 		/* .exp file should be removed */
 		success = os_file_delete(info_file_path);
@@ -3564,10 +3670,10 @@ skip_write:
 			      stderr);
 			ut_print_filename(stderr, filepath);
 			fprintf(stderr, " seems to be corrupt.\n"
-				"InnoDB: anyway, all not corrupt pages were tried to be converted to salvage.\n"
+				"InnoDB: An attempt to convert and salvage all corrupt pages was not made.\n"
 				"InnoDB: ##### CAUTION #####\n"
-				"InnoDB: ## The .ibd must cause to crash InnoDB, though re-import would seem to be succeeded.\n"
-				"InnoDB: ## If you don't have knowledge about salvaging data from .ibd, you should not use the file.\n"
+				"InnoDB: ## The .ibd file may cause InnoDB to crash, even though its re-import seems to have succeeded.\n"
+				"InnoDB: ## If you don't know how to salvage data from a .ibd, you should not use the file.\n"
 				"InnoDB: ###################\n");
 			success = FALSE;
 
@@ -3617,6 +3723,271 @@ skip_check:
 func_exit:
 	os_file_close(file);
 	mem_free(filepath);
+
+	if (srv_expand_import && dict_table_flags_to_zip_size(flags)) {
+		ulint		page_no;
+		ulint		zip_size;
+		ulint		height;
+		ulint		root_height = 0;
+		rec_t*		node_ptr;
+		dict_table_t*	table;
+		dict_index_t*	index;
+		buf_block_t*	block;
+		page_t*		page;
+		page_zip_des_t*	page_zip;
+		mtr_t		mtr;
+
+		mem_heap_t*	heap		= NULL;
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+		ulint*		offsets		= offsets_;
+
+		rec_offs_init(offsets_);
+
+		zip_size = dict_table_flags_to_zip_size(flags);
+
+		table = dict_table_get_low(name);
+		index = dict_table_get_first_index(table);
+		page_no = dict_index_get_page(index);
+		ut_a(page_no == 3);
+
+		fprintf(stderr, "InnoDB: It is compressed .ibd file. need to convert additionaly on buffer pool.\n");
+
+		/* down to leaf */
+		mtr_start(&mtr);
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+
+		height = ULINT_UNDEFINED;
+
+		for (;;) {
+			block = buf_page_get(space_id, zip_size, page_no,
+					     RW_NO_LATCH, &mtr);
+			page = buf_block_get_frame(block);
+
+			block->check_index_page_at_flush = TRUE;
+
+			if (height == ULINT_UNDEFINED) {
+				height = btr_page_get_level(page, &mtr);
+				root_height = height;
+			}
+
+			if (height == 0) {
+				break;
+			}
+
+			node_ptr = page_rec_get_next(page_get_infimum_rec(page));
+
+			height--;
+
+			offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+			page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
+		}
+
+		mtr_commit(&mtr);
+
+		fprintf(stderr, "InnoDB: pages needs split are ...");
+
+		/* scan reaf pages */
+		while (page_no != FIL_NULL) {
+			rec_t*	rec;
+			rec_t*	supremum;
+			ulint	n_recs;
+
+			mtr_start(&mtr);
+
+			block = buf_page_get(space_id, zip_size, page_no,
+					     RW_X_LATCH, &mtr);
+			page = buf_block_get_frame(block);
+			page_zip = buf_block_get_page_zip(block);
+
+			if (!page_zip) {
+				/*something wrong*/
+				fprintf(stderr, "InnoDB: Something wrong with reading page %lu.\n", page_no);
+convert_err_exit:
+				mtr_commit(&mtr);
+				mutex_enter(&fil_system->mutex);
+				fil_space_free(space_id, FALSE);
+				mutex_exit(&fil_system->mutex);
+				success = FALSE;
+				goto convert_exit;
+			}
+
+			supremum = page_get_supremum_rec(page);
+			rec = page_rec_get_next(page_get_infimum_rec(page));
+			n_recs = page_get_n_recs(page);
+
+			/* illegal operation as InnoDB online system. so not logged */
+			while (rec && rec != supremum && n_recs > 0) {
+				ulint	n_fields;
+				ulint	i;
+				ulint	offset = index->trx_id_offset;
+
+				offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
+				n_fields = rec_offs_n_fields(offsets);
+				if (!offset) {
+					offset = row_get_trx_id_offset(rec, index, offsets);
+				}
+				trx_write_trx_id(rec + offset, 1);
+
+				for (i = 0; i < n_fields; i++) {
+					if (rec_offs_nth_extern(offsets, i)) {
+						ulint	local_len;
+						byte*	data;
+
+						data = rec_get_nth_field(rec, offsets, i, &local_len);
+
+						local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+
+						mach_write_to_4(data + local_len + BTR_EXTERN_SPACE_ID, id);
+					}
+				}
+
+				rec = page_rec_get_next(rec);
+				n_recs--;
+			}
+
+			/* dummy logged update for along with modified page path */
+			if (index->id != btr_page_get_index_id(page)) {
+				/* this should be adjusted already */
+				fprintf(stderr, "InnoDB: The page %lu seems to be converted wrong.\n", page_no);
+				goto convert_err_exit;
+			}
+			btr_page_set_index_id(page, page_zip, index->id, &mtr);
+
+			/* confirm whether fits to the page size or not */
+			if (!page_zip_compress(page_zip, page, index, &mtr)
+			    && !btr_page_reorganize(block, index, &mtr)) {
+				buf_block_t*	new_block;
+				page_t*		new_page;
+				page_zip_des_t*	new_page_zip;
+				rec_t*		split_rec;
+				ulint		n_uniq;
+
+				/* split page is needed */
+				fprintf(stderr, " %lu", page_no);
+
+				mtr_x_lock(dict_index_get_lock(index), &mtr);
+
+				n_uniq = dict_index_get_n_unique_in_tree(index);
+
+				if(page_get_n_recs(page) < 2) {
+					/* no way to make smaller */
+					fprintf(stderr, "InnoDB: The page %lu cannot be store to the page size.\n", page_no);
+					goto convert_err_exit;
+				}
+
+				if (UNIV_UNLIKELY(page_no == dict_index_get_page(index))) {
+					ulint		new_page_no;
+					dtuple_t*	node_ptr;
+					ulint		level;
+					rec_t*		node_ptr_rec;
+					page_cur_t	page_cursor;
+
+					/* it is root page, need to raise before split */
+
+					level = btr_page_get_level(page, &mtr);
+
+					new_block = btr_page_alloc(index, 0, FSP_NO_DIR, level, &mtr);
+					new_page = buf_block_get_frame(new_block);
+					new_page_zip = buf_block_get_page_zip(new_block);
+					btr_page_create(new_block, new_page_zip, index, level, &mtr);
+
+					btr_page_set_next(new_page, new_page_zip, FIL_NULL, &mtr);
+					btr_page_set_prev(new_page, new_page_zip, FIL_NULL, &mtr);
+
+					page_zip_copy_recs(new_page_zip, new_page,
+							   page_zip, page, index, &mtr);
+					btr_search_move_or_delete_hash_entries(new_block, block, index);
+
+					rec = page_rec_get_next(page_get_infimum_rec(new_page));
+					new_page_no = buf_block_get_page_no(new_block);
+
+					node_ptr = dict_index_build_node_ptr(index, rec, new_page_no, heap,
+									     level);
+					dtuple_set_info_bits(node_ptr,
+							     dtuple_get_info_bits(node_ptr)
+							     | REC_INFO_MIN_REC_FLAG);
+					btr_page_empty(block, page_zip, index, level + 1, &mtr);
+
+					btr_page_set_next(page, page_zip, FIL_NULL, &mtr);
+					btr_page_set_prev(page, page_zip, FIL_NULL, &mtr);
+
+					page_cur_set_before_first(block, &page_cursor);
+
+					node_ptr_rec = page_cur_tuple_insert(&page_cursor, node_ptr,
+									     index, 0, &mtr);
+					ut_a(node_ptr_rec);
+
+					if (!btr_page_reorganize(block, index, &mtr)) {
+						fprintf(stderr, "InnoDB: failed to store the page %lu.\n", page_no);
+						goto convert_err_exit;
+					}
+
+					/* move to the raised page */
+					page_no = new_page_no;
+					block = new_block;
+					page = new_page;
+					page_zip = new_page_zip;
+
+					fprintf(stderr, "(raise_to:%lu)", page_no);
+				}
+
+				split_rec = page_get_middle_rec(page);
+
+				new_block = btr_page_alloc(index, page_no + 1, FSP_UP,
+							   btr_page_get_level(page, &mtr), &mtr);
+				new_page = buf_block_get_frame(new_block);
+				new_page_zip = buf_block_get_page_zip(new_block);
+				btr_page_create(new_block, new_page_zip, index,
+						btr_page_get_level(page, &mtr), &mtr);
+
+				offsets = rec_get_offsets(split_rec, index, offsets, n_uniq, &heap);
+
+				btr_attach_half_pages(index, block,
+						      split_rec, new_block, FSP_UP, &mtr);
+
+				page_zip_copy_recs(new_page_zip, new_page,
+						   page_zip, page, index, &mtr);
+				page_delete_rec_list_start(split_rec - page + new_page,
+							   new_block, index, &mtr);
+				btr_search_move_or_delete_hash_entries(new_block, block, index);
+				page_delete_rec_list_end(split_rec, block, index,
+							 ULINT_UNDEFINED, ULINT_UNDEFINED, &mtr);
+
+				fprintf(stderr, "(new:%lu)", buf_block_get_page_no(new_block));
+
+				/* Are they needed? */
+				if (!btr_page_reorganize(block, index, &mtr)) {
+					fprintf(stderr, "InnoDB: failed to store the page %lu.\n", page_no);
+					goto convert_err_exit;
+				}
+				if (!btr_page_reorganize(new_block, index, &mtr)) {
+					fprintf(stderr, "InnoDB: failed to store the page %lu.\n", buf_block_get_page_no(new_block));
+					goto convert_err_exit;
+				}
+			}
+
+			page_no = btr_page_get_next(page, &mtr);
+
+			mtr_commit(&mtr);
+
+			if (heap) {
+				mem_heap_empty(heap);
+			}
+		}
+
+		fprintf(stderr, "...done.\nInnoDB: waiting the flush batch of the additional conversion.\n");
+
+		/* should wait for the not-logged changes are all flushed */
+		buf_flush_list(ULINT_MAX, mtr.end_lsn + 1);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+
+		fprintf(stderr, "InnoDB: done.\n");
+convert_exit:
+		if (UNIV_LIKELY_NULL(heap)) {
+			mem_heap_free(heap);
+		}
+	}
 
 	return(success);
 }
@@ -3686,7 +4057,8 @@ fil_load_single_table_tablespace(
 # endif /* !UNIV_HOTBACKUP */
 #endif
 	file = os_file_create_simple_no_error_handling(
-		filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+		innodb_file_data_key, filepath, OS_FILE_OPEN,
+		OS_FILE_READ_ONLY, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -3844,7 +4216,7 @@ fil_load_single_table_tablespace(
 		os_file_close(file);
 
 		new_path = fil_make_ibbackup_old_name(filepath);
-		ut_a(os_file_rename(filepath, new_path));
+		ut_a(os_file_rename(innodb_file_data_key, filepath, new_path));
 
 		ut_free(buf2);
 		mem_free(filepath);
@@ -3882,7 +4254,7 @@ fil_load_single_table_tablespace(
 
 		mutex_exit(&fil_system->mutex);
 
-		ut_a(os_file_rename(filepath, new_path));
+		ut_a(os_file_rename(innodb_file_data_key, filepath, new_path));
 
 		ut_free(buf2);
 		mem_free(filepath);
@@ -4797,15 +5169,13 @@ _fil_io(
 //#if (1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE
 //# error "(1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE"
 //#endif
-	ut_ad(fil_validate());
+	ut_ad(fil_validate_skip());
 #ifndef UNIV_HOTBACKUP
 # ifndef UNIV_LOG_DEBUG
 	/* ibuf bitmap pages must be read in the sync aio mode: */
 	ut_ad(recv_no_ibuf_operations || (type == OS_FILE_WRITE)
 	      || !ibuf_bitmap_page(zip_size, block_offset)
 	      || sync || is_log);
-	ut_ad(!ibuf_inside() || is_log || (type == OS_FILE_WRITE)
-	      || ibuf_page(space_id, zip_size, block_offset, NULL));
 # endif /* UNIV_LOG_DEBUG */
 	if (sync) {
 		mode = OS_AIO_SYNC;
@@ -4835,7 +5205,7 @@ _fil_io(
 	    && ((buf_page_t*)message)->space_was_being_deleted) {
 
 		if (mode == OS_AIO_NORMAL) {
-			buf_page_io_complete(message, trx);
+			buf_page_io_complete(message);
 			return(DB_SUCCESS); /*fake*/
 		}
 		if (type == OS_FILE_READ) {
@@ -4946,14 +5316,14 @@ _fil_io(
 	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
-	if (srv_pass_corrupt_table && space->is_corrupt) {
+	if (srv_pass_corrupt_table == 1 && space->is_corrupt) {
 		/* should ignore i/o for the crashed space */
 		mutex_enter(&fil_system->mutex);
 		fil_node_complete_io(node, fil_system, type);
 		mutex_exit(&fil_system->mutex);
 		if (mode == OS_AIO_NORMAL) {
 			ut_a(space->purpose == FIL_TABLESPACE);
-			buf_page_io_complete(message, trx);
+			buf_page_io_complete(message);
 		}
 		if (type == OS_FILE_READ) {
 			return(DB_TABLESPACE_DELETED);
@@ -4961,7 +5331,19 @@ _fil_io(
 			return(DB_SUCCESS);
 		}
 	} else {
-		ut_a(!space->is_corrupt);
+		if (srv_pass_corrupt_table > 1 && space->is_corrupt) {
+			/* should ignore write i/o for the crashed space */
+			if (type == OS_FILE_WRITE) {
+				mutex_enter(&fil_system->mutex);
+				fil_node_complete_io(node, fil_system, type);
+				mutex_exit(&fil_system->mutex);
+				if (mode == OS_AIO_NORMAL) {
+					ut_a(space->purpose == FIL_TABLESPACE);
+					buf_page_io_complete(message);
+				}
+				return(DB_SUCCESS);
+			}
+		}
 #ifdef UNIV_HOTBACKUP
 	/* In ibbackup do normal i/o, not aio */
 	if (type == OS_FILE_READ) {
@@ -5004,7 +5386,7 @@ _fil_io(
 
 		mutex_exit(&fil_system->mutex);
 
-		ut_ad(fil_validate());
+		ut_ad(fil_validate_skip());
 	}
 
 	return(DB_SUCCESS);
@@ -5093,16 +5475,19 @@ fil_aio_wait(
 	ulint		type;
 	ulint		space_id = 0;
 
-	ut_ad(fil_validate());
+	ut_ad(fil_validate_skip());
 
-	if (os_aio_use_native_aio) {
+	if (srv_use_native_aio) {
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, &fil_node,
 					    &message, &type, &space_id);
+#elif defined(LINUX_NATIVE_AIO)
+		ret = os_aio_linux_handle(segment, &fil_node,
+					  &message, &type, &space_id);
 #else
-		ret = 0; /* Eliminate compiler warning */
 		ut_error;
+		ret = 0; /* Eliminate compiler warning */
 #endif
 	} else {
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
@@ -5122,11 +5507,15 @@ fil_aio_wait(
 		     || buf_page_get_state(message) != BUF_BLOCK_FILE_PAGE);
 
 		srv_set_io_thread_op_info(segment, "complete io for buf page");
-		buf_page_io_complete(message, NULL);
+		buf_page_io_complete(message);
 		return;
 	}
 
 	ut_a(ret);
+	if (UNIV_UNLIKELY(fil_node == NULL)) {
+		ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+		return;
+	}
 
 	srv_set_io_thread_op_info(segment, "complete io for fil node");
 
@@ -5136,7 +5525,7 @@ fil_aio_wait(
 
 	mutex_exit(&fil_system->mutex);
 
-	ut_ad(fil_validate());
+	ut_ad(fil_validate_skip());
 
 	/* Do the i/o handling */
 	/* IMPORTANT: since i/o handling for reads will read also the insert
@@ -5146,7 +5535,7 @@ fil_aio_wait(
 
 	if (fil_node->space->purpose == FIL_TABLESPACE) {
 		srv_set_io_thread_op_info(segment, "complete io for buf page");
-		buf_page_io_complete(message, NULL);
+		buf_page_io_complete(message);
 	} else {
 		srv_set_io_thread_op_info(segment, "complete io for log");
 		log_io_complete(message);

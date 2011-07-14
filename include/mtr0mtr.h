@@ -190,21 +190,21 @@ functions).  The page number parameter was originally written as 0. @{ */
 /* @} */
 
 /***************************************************************//**
-Starts a mini-transaction and creates a mini-transaction handle
-and buffer in the memory buffer given by the caller.
-@return	mtr buffer which also acts as the mtr handle */
+Starts a mini-transaction. */
 UNIV_INLINE
-mtr_t*
+void
 mtr_start(
 /*======*/
-	mtr_t*	mtr);	/*!< in: memory buffer for the mtr buffer */
+	mtr_t*	mtr)	/*!< out: mini-transaction */
+	__attribute__((nonnull));
 /***************************************************************//**
 Commits a mini-transaction. */
 UNIV_INTERN
 void
 mtr_commit(
 /*=======*/
-	mtr_t*	mtr);	/*!< in: mini-transaction */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
 @return	savepoint */
@@ -263,15 +263,6 @@ mtr_read_ulint(
 /*===========*/
 	const byte*	ptr,	/*!< in: pointer from where to read */
 	ulint		type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
-	mtr_t*		mtr);	/*!< in: mini-transaction handle */
-/********************************************************//**
-Reads 8 bytes from a file page buffered in the buffer pool.
-@return	value read */
-UNIV_INTERN
-dulint
-mtr_read_dulint(
-/*============*/
-	const byte*	ptr,	/*!< in: pointer from where to read */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
@@ -387,6 +378,8 @@ struct mtr_struct{
 #endif
 	dyn_array_t	memo;	/*!< memo stack for locks etc. */
 	dyn_array_t	log;	/*!< mini-transaction log */
+	ibool		inside_ibuf;
+				/*!< TRUE if inside ibuf changes */
 	ibool		modifications;
 				/* TRUE if the mtr made modifications to
 				buffer pool pages */

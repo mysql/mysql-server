@@ -56,6 +56,11 @@ typedef os_thread_t		os_thread_id_t;	/*!< In Unix we use the thread
 /* Define a function pointer type to use in a typecast */
 typedef void* (*os_posix_f_t) (void*);
 
+#ifdef HAVE_PSI_INTERFACE
+/* Define for performance schema registration key */
+typedef unsigned int    mysql_pfs_key_t;
+#endif
+
 /***************************************************************//**
 Compares two thread ids for equality.
 @return	TRUE if equal */
@@ -86,7 +91,7 @@ os_thread_t
 os_thread_create(
 /*=============*/
 #ifndef __WIN__
-		 os_posix_f_t		 start_f,
+	os_posix_f_t		start_f,
 #else
 	ulint (*start_f)(void*),		/*!< in: pointer to function
 						from which to start */
@@ -102,8 +107,9 @@ UNIV_INTERN
 void
 os_thread_exit(
 /*===========*/
-	void*	exit_value);	/*!< in: exit value; in Windows this void*
+	void*	exit_value)	/*!< in: exit value; in Windows this void*
 				is cast as a DWORD */
+	UNIV_COLD __attribute__((noreturn));
 /*****************************************************************//**
 Returns the thread identifier of current thread.
 @return	current thread identifier */
@@ -111,13 +117,6 @@ UNIV_INTERN
 os_thread_id_t
 os_thread_get_curr_id(void);
 /*========================*/
-/*****************************************************************//**
-Returns handle to the current thread.
-@return	current thread handle */
-UNIV_INTERN
-os_thread_t
-os_thread_get_curr(void);
-/*====================*/
 /*****************************************************************//**
 Advises the os to give up remainder of the thread's time slice. */
 UNIV_INTERN
@@ -131,29 +130,6 @@ void
 os_thread_sleep(
 /*============*/
 	ulint	tm);	/*!< in: time in microseconds */
-/******************************************************************//**
-Gets a thread priority.
-@return	priority */
-UNIV_INTERN
-ulint
-os_thread_get_priority(
-/*===================*/
-	os_thread_t	handle);/*!< in: OS handle to the thread */
-/******************************************************************//**
-Sets a thread priority. */
-UNIV_INTERN
-void
-os_thread_set_priority(
-/*===================*/
-	os_thread_t	handle,	/*!< in: OS handle to the thread */
-	ulint		pri);	/*!< in: priority: one of OS_PRIORITY_... */
-/******************************************************************//**
-Gets the last operating system error code for the calling thread.
-@return	last error on Windows, 0 otherwise */
-UNIV_INTERN
-ulint
-os_thread_get_last_error(void);
-/*==========================*/
 
 #ifndef UNIV_NONINL
 #include "os0thread.ic"

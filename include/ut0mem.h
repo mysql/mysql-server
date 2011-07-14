@@ -119,7 +119,7 @@ UNIV_INTERN
 void
 ut_free(
 /*====*/
-	void* ptr);  /*!< in, own: memory block */
+	void* ptr);  /*!< in, own: memory block, can be NULL */
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not

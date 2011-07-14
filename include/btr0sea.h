@@ -85,7 +85,8 @@ UNIV_INTERN
 ulint
 btr_search_info_get_ref_count(
 /*==========================*/
-	btr_search_t*   info);	/*!< in: search info. */
+	btr_search_t*   info,	/*!< in: search info. */
+	index_id_t	key);
 /*********************************************************************//**
 Updates the search info. */
 UNIV_INLINE
@@ -136,10 +137,11 @@ UNIV_INTERN
 void
 btr_search_drop_page_hash_index(
 /*============================*/
-	buf_block_t*	block);	/*!< in: block containing index page,
+	buf_block_t*	block,	/*!< in: block containing index page,
 				s- or x-latched, or an index page
 				for which we know that
 				block->buf_fix_count == 0 */
+	dict_index_t*	index_in);
 /************************************************************************
 Drops a page hash index based on index */
 UNIV_INTERN
@@ -199,9 +201,46 @@ btr_search_validate(void);
 # define btr_search_validate()	TRUE
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
+/********************************************************************//**
+New functions to control split btr_search_index */
+UNIV_INLINE
+hash_table_t*
+btr_search_get_hash_index(
+/*======================*/
+	index_id_t	key);
+
+UNIV_INLINE
+rw_lock_t*
+btr_search_get_latch(
+/*=================*/
+	index_id_t	key);
+
+UNIV_INLINE
+void
+btr_search_x_lock_all(void);
+/*========================*/
+
+UNIV_INLINE
+void
+btr_search_x_unlock_all(void);
+/*==========================*/
+
+UNIV_INLINE
+void
+btr_search_s_lock_all(void);
+/*========================*/
+
+UNIV_INLINE
+void
+btr_search_s_unlock_all(void);
+/*==========================*/
+
+
 /** Flag: has the search system been enabled?
 Protected by btr_search_latch and btr_search_enabled_mutex. */
 extern char	btr_search_enabled;
+
+extern ulint	btr_search_index_num;
 
 /** Flag: whether the search system has completed its disabling process,
 It is set to TRUE right after buf_pool_drop_hash_index() in
@@ -269,7 +308,7 @@ typedef struct btr_search_sys_struct	btr_search_sys_t;
 
 /** The hash index system */
 struct btr_search_sys_struct{
-	hash_table_t*	hash_index;	/*!< the adaptive hash index,
+	hash_table_t**	hash_index;	/*!< the adaptive hash index,
 					mapping dtuple_fold values
 					to rec_t pointers on index pages */
 };
@@ -290,10 +329,12 @@ but does NOT protect:
 
 Bear in mind (3) and (4) when using the hash index.
 */
-extern rw_lock_t*	btr_search_latch_temp;
+//extern rw_lock_t*	btr_search_latch_temp;
+
+extern rw_lock_t**	btr_search_latch_part;
 
 /** The latch protecting the adaptive search system */
-#define btr_search_latch	(*btr_search_latch_temp)
+//#define btr_search_latch	(*btr_search_latch_temp)
 
 #ifdef UNIV_SEARCH_PERF_STAT
 /** Number of successful adaptive hash index lookups */

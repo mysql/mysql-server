@@ -69,18 +69,6 @@ trx_get_error_info(
 }
 
 /*******************************************************************//**
-Retrieves transacion's id, represented as unsigned long long.
-@return	transaction's id */
-UNIV_INLINE
-ullint
-trx_get_id(
-/*=======*/
-	const trx_t*	trx)	/*!< in: transaction */
-{
-	return((ullint)ut_conv_dulint_to_longlong(trx->id));
-}
-
-/*******************************************************************//**
 Retrieves transaction's que state in a human readable string. The string
 should not be free()'d or modified.
 @return	string in the data segment */

@@ -359,7 +359,7 @@ struct mem_block_info_struct {
 			to the heap is also the first block in this list,
 			though it also contains the base node of the list. */
 	ulint	len;	/*!< physical length of this block in bytes */
-	ulint	total_size; /* physical length in bytes of all blocks
+	ulint	total_size; /*!< physical length in bytes of all blocks
 			in the heap. This is defined only in the base
 			node and is set to ULINT_UNDEFINED in others. */
 	ulint	type;	/*!< type of heap: MEM_HEAP_DYNAMIC, or

@@ -53,7 +53,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "rem0cmp.h"
 #include "row0merge.h"
 #include "m_ctype.h" /* my_isspace() */
-#include "ha_prototypes.h" /* innobase_strcasecmp() */
+#include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str()*/
 #include "srv0start.h" /* SRV_LOG_SPACE_FIRST_ID */
 
 #include <ctype.h>
@@ -70,6 +70,18 @@ operations a table drop since MySQL does not know of them; therefore
 we need this; NOTE: a transaction which reserves this must keep book
 on the mode in trx_struct::dict_operation_lock_mode */
 UNIV_INTERN rw_lock_t	dict_operation_lock;
+
+/* Keys to register rwlocks and mutexes with performance schema */
+#ifdef UNIV_PFS_RWLOCK
+UNIV_INTERN mysql_pfs_key_t	dict_operation_lock_key;
+UNIV_INTERN mysql_pfs_key_t	index_tree_rw_lock_key;
+UNIV_INTERN mysql_pfs_key_t	dict_table_stats_latch_key;
+#endif /* UNIV_PFS_RWLOCK */
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	dict_sys_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	dict_foreign_err_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
@@ -255,7 +267,7 @@ dict_mutex_exit_for_mysql(void)
 
 /** Get the latch that protects the stats of a given table */
 #define GET_TABLE_STATS_LATCH(table) \
-	(&dict_table_stats_latches[ut_fold_dulint(table->id) \
+	(&dict_table_stats_latches[ut_fold_ull(table->id) \
 				   % DICT_TABLE_STATS_LATCHES_SIZE])
 
 /**********************************************************************//**
@@ -446,14 +458,14 @@ dict_index_t*
 dict_index_get_on_id_low(
 /*=====================*/
 	dict_table_t*	table,	/*!< in: table */
-	dulint		id)	/*!< in: index id */
+	index_id_t	id)	/*!< in: index id */
 {
 	dict_index_t*	index;
 
 	index = dict_table_get_first_index(table);
 
 	while (index) {
-		if (0 == ut_dulint_cmp(id, index->id)) {
+		if (id == index->id) {
 			/* Found */
 
 			return(index);
@@ -595,12 +607,13 @@ UNIV_INTERN
 dict_table_t*
 dict_table_get_on_id(
 /*=================*/
-	dulint	table_id,	/*!< in: table id */
-	trx_t*	trx)		/*!< in: transaction handle */
+	table_id_t	table_id,	/*!< in: table id */
+	trx_t*		trx)		/*!< in: transaction handle */
 {
 	dict_table_t*	table;
 
-	if (trx->dict_operation_lock_mode == RW_X_LATCH) {
+	if (table_id <= DICT_FIELDS_ID
+	    || trx->dict_operation_lock_mode == RW_X_LATCH) {
 
 		/* Note: An X latch implies that the transaction
 		already owns the dictionary mutex. */
@@ -683,7 +696,7 @@ dict_init(void)
 
 	dict_sys = mem_alloc(sizeof(dict_sys_t));
 
-	mutex_create(&dict_sys->mutex, SYNC_DICT);
+	mutex_create(dict_sys_mutex_key, &dict_sys->mutex, SYNC_DICT);
 
 	dict_sys->table_hash = hash_create(buf_pool_get_curr_size()
 					   / (DICT_POOL_PER_TABLE_HASH
@@ -695,15 +708,18 @@ dict_init(void)
 
 	UT_LIST_INIT(dict_sys->table_LRU);
 
-	rw_lock_create(&dict_operation_lock, SYNC_DICT_OPERATION);
+	rw_lock_create(dict_operation_lock_key,
+		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
 	dict_foreign_err_file = os_file_create_tmpfile();
 	ut_a(dict_foreign_err_file);
 
-	mutex_create(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
+	mutex_create(dict_foreign_err_mutex_key,
+		     &dict_foreign_err_mutex, SYNC_ANY_LATCH);
 
 	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
-		rw_lock_create(&dict_table_stats_latches[i], SYNC_INDEX_TREE);
+		rw_lock_create(dict_table_stats_latch_key,
+			       &dict_table_stats_latches[i], SYNC_INDEX_TREE);
 	}
 }
 
@@ -818,7 +834,7 @@ dict_table_add_to_cache(
 	table->cached = TRUE;
 
 	fold = ut_fold_string(table->name);
-	id_fold = ut_fold_dulint(table->id);
+	id_fold = ut_fold_ull(table->id);
 
 	row_len = 0;
 	for (i = 0; i < table->n_def; i++) {
@@ -860,7 +876,7 @@ dict_table_add_to_cache(
 		dict_table_t*	table2;
 		HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold,
 			    dict_table_t*, table2, ut_ad(table2->cached),
-			    ut_dulint_cmp(table2->id, table->id) == 0);
+			    table2->id == table->id);
 		ut_a(table2 == NULL);
 
 #ifdef UNIV_DEBUG
@@ -895,7 +911,7 @@ UNIV_INTERN
 dict_index_t*
 dict_index_find_on_id_low(
 /*======================*/
-	dulint	id)	/*!< in: index id */
+	index_id_t	id)	/*!< in: index id */
 {
 	dict_table_t*	table;
 	dict_index_t*	index;
@@ -906,7 +922,7 @@ dict_index_find_on_id_low(
 		index = dict_table_get_first_index(table);
 
 		while (index) {
-			if (0 == ut_dulint_cmp(id, index->id)) {
+			if (id == index->id) {
 				/* Found */
 
 				return(index);
@@ -1070,13 +1086,13 @@ dict_table_rename_in_cache(
 			/* Allocate a longer name buffer;
 			TODO: store buf len to save memory */
 
-			foreign->foreign_table_name
-				= mem_heap_alloc(foreign->heap,
-						 ut_strlen(table->name) + 1);
+			foreign->foreign_table_name = mem_heap_strdup(
+				foreign->heap, table->name);
+			dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
+		} else {
+			strcpy(foreign->foreign_table_name, table->name);
+			dict_mem_foreign_table_name_lookup_set(foreign, FALSE);
 		}
-
-		strcpy(foreign->foreign_table_name, table->name);
-
 		if (strchr(foreign->id, '/')) {
 			ulint	db_len;
 			char*	old_id;
@@ -1142,12 +1158,14 @@ dict_table_rename_in_cache(
 			/* Allocate a longer name buffer;
 			TODO: store buf len to save memory */
 
-			foreign->referenced_table_name = mem_heap_alloc(
-				foreign->heap, strlen(table->name) + 1);
+			foreign->referenced_table_name = mem_heap_strdup(
+				foreign->heap, table->name);
+			dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
+		} else {
+			/* Use the same buffer */
+			strcpy(foreign->referenced_table_name, table->name);
+			dict_mem_referenced_table_name_lookup_set(foreign, FALSE);
 		}
-
-		strcpy(foreign->referenced_table_name, table->name);
-
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
@@ -1162,7 +1180,7 @@ void
 dict_table_change_id_in_cache(
 /*==========================*/
 	dict_table_t*	table,	/*!< in/out: table object already in cache */
-	dulint		new_id)	/*!< in: new id to set */
+	table_id_t	new_id)	/*!< in: new id to set */
 {
 	ut_ad(table);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -1171,12 +1189,12 @@ dict_table_change_id_in_cache(
 	/* Remove the table from the hash table of id's */
 
 	HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
-		    ut_fold_dulint(table->id), table);
+		    ut_fold_ull(table->id), table);
 	table->id = new_id;
 
 	/* Add the table back to the hash table */
 	HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
-		    ut_fold_dulint(table->id), table);
+		    ut_fold_ull(table->id), table);
 }
 
 /**********************************************************************//**
@@ -1232,7 +1250,7 @@ dict_table_remove_from_cache(
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
 		    ut_fold_string(table->name), table);
 	HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
-		    ut_fold_dulint(table->id), table);
+		    ut_fold_ull(table->id), table);
 
 	/* Remove table from LRU list of tables */
 	UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
@@ -1724,7 +1742,8 @@ undo_size_ok:
 	new_index->stat_n_leaf_pages = 1;
 
 	new_index->page = page_no;
-	rw_lock_create(&new_index->lock, SYNC_INDEX_TREE);
+	rw_lock_create(index_tree_rw_lock_key, &new_index->lock,
+		       SYNC_INDEX_TREE);
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
@@ -1792,7 +1811,7 @@ dict_index_remove_from_cache(
 	zero. */
 
 	for (;;) {
-		ulint ref_count = btr_search_info_get_ref_count(info);
+		ulint ref_count = btr_search_info_get_ref_count(info, index->id);
 		if (ref_count == 0) {
 			break;
 		}
@@ -2562,8 +2581,7 @@ dict_table_get_index_by_max_id(
 				/* We found a matching index, select
 				the index with the higher id*/
 
-				if (!found
-				    || ut_dulint_cmp(index->id, found->id) > 0) {
+				if (!found || index->id > found->id) {
 
 					found = index;
 				}
@@ -2642,10 +2660,10 @@ dict_foreign_add_to_cache(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	for_table = dict_table_check_if_in_cache_low(
-		foreign->foreign_table_name);
+		foreign->foreign_table_name_lookup);
 
 	ref_table = dict_table_check_if_in_cache_low(
-		foreign->referenced_table_name);
+		foreign->referenced_table_name_lookup);
 	ut_a(for_table || ref_table);
 
 	if (for_table) {
@@ -3074,19 +3092,25 @@ dict_scan_table_name(
 	memcpy(ref, database_name, database_name_len);
 	ref[database_name_len] = '/';
 	memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
-#ifndef __WIN__
-	if (srv_lower_case_table_names) {
-#endif /* !__WIN__ */
-		/* The table name is always put to lower case on Windows. */
+
+	/* Values;  0 = Store and compare as given; case sensitive
+	            1 = Store and compare in lower; case insensitive
+	            2 = Store as given, compare in lower; case semi-sensitive */
+	if (innobase_get_lower_case_table_names() == 2) {
 		innobase_casedn_str(ref);
-#ifndef __WIN__
+		*table = dict_table_get_low(ref);
+		memcpy(ref, database_name, database_name_len);
+		ref[database_name_len] = '/';
+		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+	} else {
+		if (innobase_get_lower_case_table_names() == 1) {
+			innobase_casedn_str(ref);
+		}
+		*table = dict_table_get_low(ref);
 	}
-#endif /* !__WIN__ */
 
 	*success = TRUE;
 	*ref_name = ref;
-	*table = dict_table_get_low(ref);
-
 	return(ptr);
 }
 
@@ -3542,7 +3566,7 @@ col_loop1:
 			start_of_latest_foreign);
 		mutex_exit(&dict_foreign_err_mutex);
 
-		return(DB_CANNOT_ADD_CONSTRAINT);
+		return(DB_CHILD_NO_INDEX);
 	}
 	ptr = dict_accept(cs, ptr, "REFERENCES", &success);
 
@@ -3575,8 +3599,10 @@ col_loop1:
 	}
 
 	foreign->foreign_table = table;
-	foreign->foreign_table_name = mem_heap_strdup(foreign->heap,
-						      table->name);
+	foreign->foreign_table_name = mem_heap_strdup(
+		foreign->heap, table->name);
+	dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
+
 	foreign->foreign_index = index;
 	foreign->n_fields = (unsigned int) i;
 	foreign->foreign_col_names = mem_heap_alloc(foreign->heap,
@@ -3823,7 +3849,7 @@ try_find_index:
 				start_of_latest_foreign);
 			mutex_exit(&dict_foreign_err_mutex);
 
-			return(DB_CANNOT_ADD_CONSTRAINT);
+			return(DB_PARENT_NO_INDEX);
 		}
 	} else {
 		ut_a(trx->check_foreigns == FALSE);
@@ -3833,8 +3859,9 @@ try_find_index:
 	foreign->referenced_index = index;
 	foreign->referenced_table = referenced_table;
 
-	foreign->referenced_table_name
-		= mem_heap_strdup(foreign->heap, referenced_table_name);
+	foreign->referenced_table_name = mem_heap_strdup(
+		foreign->heap, referenced_table_name);
+	dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
 
 	foreign->referenced_col_names = mem_heap_alloc(foreign->heap,
 						       i * sizeof(void*));
@@ -4051,7 +4078,7 @@ UNIV_INTERN
 dict_index_t*
 dict_index_get_if_in_cache_low(
 /*===========================*/
-	dulint	index_id)	/*!< in: index id */
+	index_id_t	index_id)	/*!< in: index id */
 {
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -4066,7 +4093,7 @@ UNIV_INTERN
 dict_index_t*
 dict_index_get_if_in_cache(
 /*=======================*/
-	dulint	index_id)	/*!< in: index id */
+	index_id_t	index_id)	/*!< in: index id */
 {
 	dict_index_t*	index;
 
@@ -4371,11 +4398,11 @@ dict_reload_statistics(
 		rec = btr_pcur_get_rec(&pcur);
 
 		if (!btr_pcur_is_on_user_rec(&pcur)
-		    || ut_dulint_cmp(mach_read_from_8(rec_get_nth_field_old(rec, 0, &len)),
-				     index->id)) {
+		    || mach_read_from_8(rec_get_nth_field_old(rec, 0, &len))
+			!= index->id) {
 			/* not found: even 1 if not found should not be alowed */
 			fprintf(stderr, "InnoDB: Warning: stats for %s/%s (%lu/%lu)"
-				        " not fonund in SYS_STATS\n",
+				        " not found in SYS_STATS\n",
 					index->table_name, index->name, i, n_cols);
 			btr_pcur_close(&pcur);
 			mtr_commit(&mtr);
@@ -4401,13 +4428,13 @@ dict_reload_statistics(
 		field = rec_get_nth_field_old(rec, DICT_SYS_STATS_DIFF_VALS_FIELD, &len);
 		ut_a(len == 8);
 
-		stat_n_diff_key_vals_tmp[i] = ut_conv_dulint_to_longlong(mach_read_from_8(field));
+		stat_n_diff_key_vals_tmp[i] = mach_read_from_8(field);
 
 		if (n_fields > DICT_SYS_STATS_NON_NULL_VALS_FIELD) {
 			field = rec_get_nth_field_old(rec, DICT_SYS_STATS_NON_NULL_VALS_FIELD, &len);
 			ut_a(len == 8);
 
-			stat_n_non_null_key_vals_tmp[i] = ut_conv_dulint_to_longlong(mach_read_from_8(field));
+			stat_n_non_null_key_vals_tmp[i] = mach_read_from_8(field);
 		} else {
 			/* not enough fields: should be older */
 			fprintf(stderr, "InnoDB: Notice: stats for %s/%s (%lu/%lu)"
@@ -4516,13 +4543,15 @@ dict_store_statistics(
 		rec = btr_pcur_get_rec(&pcur);
 
 		if (!btr_pcur_is_on_user_rec(&pcur)
-		    || ut_dulint_cmp(mach_read_from_8(rec_get_nth_field_old(rec, 0, &len)),
-				     index->id)) {
+		    || mach_read_from_8(rec_get_nth_field_old(rec, 0, &len))
+			!= index->id) {
 			/* not found */
 
 
 			break;
 		}
+
+		btr_pcur_store_position(&pcur, &mtr);
 
 		if (rec_get_deleted_flag(rec, 0)) {
 			/* don't count */
@@ -4548,22 +4577,20 @@ dict_store_statistics(
 		field = rec_get_nth_field_old(rec, DICT_SYS_STATS_DIFF_VALS_FIELD, &len);
 		ut_a(len == 8);
 
-		mlog_write_dulint((byte*)field,
-				ut_dulint_create((ulint) (stat_n_diff_key_vals_tmp[key_cols] >> 32),
-						(ulint) stat_n_diff_key_vals_tmp[key_cols] & 0xFFFFFFFF),
-				&mtr);
+		mlog_write_ull((byte*)field, stat_n_diff_key_vals_tmp[key_cols], &mtr);
 
 		field = rec_get_nth_field_old(rec, DICT_SYS_STATS_NON_NULL_VALS_FIELD, &len);
 		ut_a(len == 8);
 
-		mlog_write_dulint((byte*)field,
-				ut_dulint_create((ulint) (stat_n_non_null_key_vals_tmp[key_cols] >> 32),
-						(ulint) stat_n_non_null_key_vals_tmp[key_cols] & 0xFFFFFFFF),
-				&mtr);
+		mlog_write_ull((byte*)field, stat_n_non_null_key_vals_tmp[key_cols], &mtr);
 
 		rests--;
 
 next_rec:
+		mtr_commit(&mtr);
+		mtr_start(&mtr);
+		btr_pcur_restore_position(BTR_MODIFY_LEAF, &pcur, &mtr);
+
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 	btr_pcur_close(&pcur);
@@ -4591,7 +4618,7 @@ void
 dict_update_statistics(
 /*===================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	ibool		only_calc_if_missing_stats,	/*!< in: only
+	ibool		only_calc_if_missing_stats,/*!< in: only
 					update/recalc the stats if they have
 					not been initialized yet, otherwise
 					do nothing */
@@ -4619,7 +4646,7 @@ dict_update_statistics(
 		if (dict_reload_statistics(table, &sum_of_index_sizes)) {
 			/* success */
 #ifdef UNIV_DEBUG
-			fprintf(stderr, "InnoDB: DEBUG: reload_statistics is scceeded for %s.\n",
+			fprintf(stderr, "InnoDB: DEBUG: reload_statistics succeeded for %s.\n",
 					table->name);
 #endif
 			goto end;
@@ -4652,16 +4679,18 @@ dict_update_statistics(
 	}
 
 	do {
-		if (table->is_corrupt) {
-			ut_a(srv_pass_corrupt_table);
-			return;
-		}
-
 		if (UNIV_LIKELY
 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
 			 && dict_index_is_clust(index)))) {
 			ulint	size;
+
+			if (table->is_corrupt) {
+				ut_a(srv_pass_corrupt_table);
+				dict_table_stats_unlock(table, RW_X_LATCH);
+				return;
+			}
+
 			size = btr_get_size(index, BTR_TOTAL_SIZE);
 
 			index->stat_index_size = size;
@@ -4768,8 +4797,8 @@ next_rec:
 	rec = btr_pcur_get_rec(&pcur);
 
 	if (!btr_pcur_is_on_user_rec(&pcur)
-	    || ut_dulint_cmp(mach_read_from_8(rec_get_nth_field_old(rec, 0, &len)),
-			     index->id)) {
+	    || mach_read_from_8(rec_get_nth_field_old(rec, 0, &len))
+		!= index->id) {
 		/* not found */
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -4873,18 +4902,18 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_update_statistics(table, FALSE /* update even if initialized */, FALSE);
+	if (srv_stats_auto_update)
+		dict_update_statistics(table, FALSE /* update even if initialized */, FALSE);
 
 	dict_table_stats_lock(table, RW_S_LATCH);
 
 	fprintf(stderr,
 		"--------------------------------------\n"
-		"TABLE: name %s, id %lu %lu, flags %lx, columns %lu,"
+		"TABLE: name %s, id %llu, flags %lx, columns %lu,"
 		" indexes %lu, appr.rows %lu\n"
 		"  COLUMNS: ",
 		table->name,
-		(ulong) ut_dulint_get_high(table->id),
-		(ulong) ut_dulint_get_low(table->id),
+		(ullint) table->id,
 		(ulong) table->flags,
 		(ulong) table->n_cols,
 		(ulong) UT_LIST_GET_LEN(table->indexes),
@@ -4962,14 +4991,13 @@ dict_index_print_low(
 	}
 
 	fprintf(stderr,
-		"  INDEX: name %s, id %lu %lu, fields %lu/%lu,"
+		"  INDEX: name %s, id %llu, fields %lu/%lu,"
 		" uniq %lu, type %lu\n"
 		"   root page %lu, appr.key vals %lu,"
 		" leaf pages %lu, size pages %lu\n"
 		"   FIELDS: ",
 		index->name,
-		(ulong) ut_dulint_get_high(index->id),
-		(ulong) ut_dulint_get_low(index->id),
+		(ullint) index->id,
 		(ulong) index->n_user_defined_cols,
 		(ulong) index->n_fields,
 		(ulong) index->n_uniq,
@@ -5056,8 +5084,8 @@ dict_print_info_on_foreign_key_in_create_format(
 
 	fputs(") REFERENCES ", file);
 
-	if (dict_tables_have_same_db(foreign->foreign_table_name,
-				     foreign->referenced_table_name)) {
+	if (dict_tables_have_same_db(foreign->foreign_table_name_lookup,
+				     foreign->referenced_table_name_lookup)) {
 		/* Do not print the database name of the referenced table */
 		ut_print_name(file, trx, TRUE,
 			      dict_remove_db_name(
@@ -5348,8 +5376,7 @@ dict_table_get_index_on_name_and_min_id(
 
 	while (index != NULL) {
 		if (ut_strcmp(index->name, name) == 0) {
-			if (!min_index
-			    || ut_dulint_cmp(index->id, min_index->id) < 0) {
+			if (!min_index || index->id < min_index->id) {
 
 				min_index = index;
 			}

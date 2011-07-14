@@ -102,7 +102,8 @@ ha_clear(
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
+	/* cannot identificate which btr_search_latch[i] for now */
+	//ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
 #endif /* UNIV_SYNC_DEBUG */
 
 #ifndef UNIV_HOTBACKUP

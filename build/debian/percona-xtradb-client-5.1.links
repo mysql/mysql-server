@@ -1,3 +1,0 @@
-usr/bin/mysqlcheck usr/bin/mysqlrepair
-usr/bin/mysqlcheck usr/bin/mysqlanalyze
-usr/bin/mysqlcheck usr/bin/mysqloptimize

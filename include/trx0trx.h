@@ -44,6 +44,9 @@ extern sess_t*	trx_dummy_sess;
 /** Number of transactions currently allocated for MySQL: protected by
 the kernel mutex */
 extern ulint	trx_n_mysql_transactions;
+/** Number of transactions currently in the XA PREPARED state: protected by
+the kernel mutex */
+extern ulint	trx_n_prepared;
 
 /********************************************************************//**
 Releases the search latch if trx has reserved it. */
@@ -107,6 +110,14 @@ void
 trx_free(
 /*=====*/
 	trx_t*	trx);	/*!< in, own: trx object */
+/********************************************************************//**
+At shutdown, frees a transaction object that is in the PREPARED state. */
+UNIV_INTERN
+void
+trx_free_prepared(
+/*==============*/
+	trx_t*	trx)	/*!< in, own: trx object */
+	UNIV_COLD __attribute__((nonnull));
 /********************************************************************//**
 Frees a transaction object for MySQL. */
 UNIV_INTERN
@@ -408,29 +419,19 @@ Calculates the "weight" of a transaction. The weight of one transaction
 is estimated as the number of altered rows + the number of locked rows.
 @param t	transaction
 @return		transaction weight */
-#define TRX_WEIGHT(t)	\
-	ut_dulint_add((t)->undo_no, UT_LIST_GET_LEN((t)->trx_locks))
+#define TRX_WEIGHT(t)	((t)->undo_no + UT_LIST_GET_LEN((t)->trx_locks))
 
 /*******************************************************************//**
 Compares the "weight" (or size) of two transactions. Transactions that
 have edited non-transactional tables are considered heavier than ones
 that have not.
-@return	<0, 0 or >0; similar to strcmp(3) */
+@return	TRUE if weight(a) >= weight(b) */
 UNIV_INTERN
-int
-trx_weight_cmp(
-/*===========*/
+ibool
+trx_weight_ge(
+/*==========*/
 	const trx_t*	a,	/*!< in: the first transaction to be compared */
 	const trx_t*	b);	/*!< in: the second transaction to be compared */
-
-/*******************************************************************//**
-Retrieves transacion's id, represented as unsigned long long.
-@return	transaction's id */
-UNIV_INLINE
-ullint
-trx_get_id(
-/*=======*/
-	const trx_t*	trx);	/*!< in: transaction */
 
 /* Maximum length of a string that can be returned by
 trx_get_que_state_str(). */
@@ -480,6 +481,20 @@ struct trx_struct{
 					of view of concurrency control:
 					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
 					... */
+	/*------------------------------*/
+	/* MySQL has a transaction coordinator to coordinate two phase
+       	commit between multiple storage engines and the binary log. When
+       	an engine participates in a transaction, it's responsible for
+       	registering itself using the trans_register_ha() API. */
+	unsigned	is_registered:1;/* This flag is set to 1 after the
+				       	transaction has been registered with
+				       	the coordinator using the XA API, and
+				       	is set to 0 after commit or rollback. */
+	unsigned	owns_prepare_mutex:1;/* 1 if owns prepare mutex, if
+					this is set to 1 then registered should
+					also be set to 1. This is used in the
+					XA code */
+	/*------------------------------*/
 	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
 	ulint		check_foreigns;	/* normally TRUE, but if the user
 					wants to suppress foreign key checks,
@@ -497,7 +512,6 @@ struct trx_struct{
 					FALSE, one can save CPU time and about
 					150 bytes in the undo log size as then
 					we skip XA steps */
-	ulint		flush_log_at_trx_commit_session;
 	ulint		flush_log_later;/* In 2PC, we hold the
 					prepare_commit mutex across
 					both phases. In that case, we
@@ -511,9 +525,6 @@ struct trx_struct{
 					in that case we must flush the log
 					in trx_commit_complete_for_mysql() */
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
-	ulint		active_trans;	/*!< 1 - if a transaction in MySQL
-					is active. 2 - if prepare_commit_mutex
-					was taken */
 	ulint		has_search_latch;
 					/* TRUE if this trx has latched the
 					search system latch in S-mode */
@@ -556,8 +567,8 @@ struct trx_struct{
 					max trx id when the transaction is
 					moved to COMMITTED_IN_MEMORY state */
 	ib_uint64_t	commit_lsn;	/*!< lsn at the time of the commit */
-	trx_id_t	table_id;	/*!< Table to drop iff dict_operation
-					is TRUE, or ut_dulint_zero. */
+	table_id_t	table_id;	/*!< Table to drop iff dict_operation
+					is TRUE, or 0. */
 	/*------------------------------*/
 	void*		mysql_thd;	/*!< MySQL thread handle corresponding
 					to this trx, or NULL */
@@ -583,12 +594,6 @@ struct trx_struct{
 					replication has processed */
 	const char*	mysql_relay_log_file_name;
 	ib_int64_t	mysql_relay_log_pos;
-
-	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
-					with this transaction object */
-	ulint		mysql_process_no;/* since in Linux, 'top' reports
-					process id's and not thread id's, we
-					store the process number too */
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -133,15 +133,6 @@ os_thread_create(
 			      0,	/* thread runs immediately */
 			      &win_thread_id);
 
-	if (srv_set_thread_priorities) {
-
-		/* Set created thread priority the same as a normal query
-		in MYSQL: we try to prevent starvation of threads by
-		assigning same priority QUERY_PRIOR to all */
-
-		ut_a(SetThreadPriority(thread, srv_query_thread_priority));
-	}
-
 	if (thread_id) {
 		*thread_id = win_thread_id;
 	}
@@ -172,16 +163,6 @@ os_thread_create(
 		exit(1);
 	}
 #endif
-#ifdef __NETWARE__
-	ret = pthread_attr_setstacksize(&attr,
-					(size_t) NW_THD_STACKSIZE);
-	if (ret) {
-		fprintf(stderr,
-			"InnoDB: Error: pthread_attr_setstacksize"
-			" returned %d\n", ret);
-		exit(1);
-	}
-#endif
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count++;
 	os_mutex_exit(os_sync_mutex);
@@ -200,11 +181,6 @@ os_thread_create(
 #ifndef UNIV_HPUX10
 	pthread_attr_destroy(&attr);
 #endif
-	if (srv_set_thread_priorities) {
-
-		my_pthread_setprio(pthread, srv_query_thread_priority);
-	}
-
 	if (thread_id) {
 		*thread_id = pthread;
 	}
@@ -226,6 +202,11 @@ os_thread_exit(
 	fprintf(stderr, "Thread exits, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
+
+#ifdef UNIV_PFS_THREAD
+	pfs_delete_thread();
+#endif
+
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count--;
 	os_mutex_exit(os_sync_mutex);
@@ -239,21 +220,6 @@ os_thread_exit(
 }
 
 /*****************************************************************//**
-Returns handle to the current thread.
-@return	current thread handle */
-UNIV_INTERN
-os_thread_t
-os_thread_get_curr(void)
-/*====================*/
-{
-#ifdef __WIN__
-	return(GetCurrentThread());
-#else
-	return(pthread_self());
-#endif
-}
-
-/*****************************************************************//**
 Advises the os to give up remainder of the thread's time slice. */
 UNIV_INTERN
 void
@@ -261,7 +227,7 @@ os_thread_yield(void)
 /*=================*/
 {
 #if defined(__WIN__)
-	Sleep(0);
+	SwitchToThread();
 #elif (defined(HAVE_SCHED_YIELD) && defined(HAVE_SCHED_H))
 	sched_yield();
 #elif defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
@@ -284,8 +250,6 @@ os_thread_sleep(
 {
 #ifdef __WIN__
 	Sleep((DWORD) tm / 1000);
-#elif defined(__NETWARE__)
-	delay(tm / 1000);
 #else
 	struct timeval	t;
 
@@ -295,81 +259,3 @@ os_thread_sleep(
 	select(0, NULL, NULL, NULL, &t);
 #endif
 }
-
-#ifndef UNIV_HOTBACKUP
-/******************************************************************//**
-Sets a thread priority. */
-UNIV_INTERN
-void
-os_thread_set_priority(
-/*===================*/
-	os_thread_t	handle,	/*!< in: OS handle to the thread */
-	ulint		pri)	/*!< in: priority */
-{
-#ifdef __WIN__
-	int	os_pri;
-
-	if (pri == OS_THREAD_PRIORITY_BACKGROUND) {
-		os_pri = THREAD_PRIORITY_BELOW_NORMAL;
-	} else if (pri == OS_THREAD_PRIORITY_NORMAL) {
-		os_pri = THREAD_PRIORITY_NORMAL;
-	} else if (pri == OS_THREAD_PRIORITY_ABOVE_NORMAL) {
-		os_pri = THREAD_PRIORITY_HIGHEST;
-	} else {
-		ut_error;
-	}
-
-	ut_a(SetThreadPriority(handle, os_pri));
-#else
-	UT_NOT_USED(handle);
-	UT_NOT_USED(pri);
-#endif
-}
-
-/******************************************************************//**
-Gets a thread priority.
-@return	priority */
-UNIV_INTERN
-ulint
-os_thread_get_priority(
-/*===================*/
-	os_thread_t	handle __attribute__((unused)))
-				/*!< in: OS handle to the thread */
-{
-#ifdef __WIN__
-	int	os_pri;
-	ulint	pri;
-
-	os_pri = GetThreadPriority(handle);
-
-	if (os_pri == THREAD_PRIORITY_BELOW_NORMAL) {
-		pri = OS_THREAD_PRIORITY_BACKGROUND;
-	} else if (os_pri == THREAD_PRIORITY_NORMAL) {
-		pri = OS_THREAD_PRIORITY_NORMAL;
-	} else if (os_pri == THREAD_PRIORITY_HIGHEST) {
-		pri = OS_THREAD_PRIORITY_ABOVE_NORMAL;
-	} else {
-		ut_error;
-	}
-
-	return(pri);
-#else
-	return(0);
-#endif
-}
-
-/******************************************************************//**
-Gets the last operating system error code for the calling thread.
-@return	last error on Windows, 0 otherwise */
-UNIV_INTERN
-ulint
-os_thread_get_last_error(void)
-/*==========================*/
-{
-#ifdef __WIN__
-	return(GetLastError());
-#else
-	return(0);
-#endif
-}
-#endif /* !UNIV_HOTBACKUP */

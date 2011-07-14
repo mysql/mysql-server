@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -191,7 +191,7 @@ row_merge_build_indexes(
 					unless creating a PRIMARY KEY */
 	dict_index_t**	indexes,	/*!< in: indexes to be created */
 	ulint		n_indexes,	/*!< in: size of indexes[] */
-	TABLE*		table);		/*!< in/out: MySQL table, for
+	struct TABLE*	table);		/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
 #endif /* row0merge.h */

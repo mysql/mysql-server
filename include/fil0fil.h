@@ -27,12 +27,13 @@ Created 10/25/1995 Heikki Tuuri
 #define fil0fil_h
 
 #include "univ.i"
-#ifndef UNIV_HOTBACKUP
-#include "sync0rw.h"
-#endif /* !UNIV_HOTBACKUP */
 #include "dict0types.h"
 #include "ut0byte.h"
 #include "os0file.h"
+#ifndef UNIV_HOTBACKUP
+#include "sync0rw.h"
+#include "ibuf0types.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -521,17 +521,17 @@ Equivalent to:
 
 char buf[8];
 mach_write_to_8(buf, val);
-pars_info_add_literal(info, name, buf, 8, DATA_BINARY, 0);
+pars_info_add_literal(info, name, buf, 8, DATA_FIXBINARY, 0);
 
 except that the buffer is dynamically allocated from the info struct's
 heap. */
 UNIV_INTERN
 void
-pars_info_add_dulint_literal(
-/*=========================*/
+pars_info_add_ull_literal(
+/*======================*/
 	pars_info_t*	info,		/*!< in: info struct */
 	const char*	name,		/*!< in: name */
-	dulint		val);		/*!< in: value */
+	ib_uint64_t	val);		/*!< in: value */
 /****************************************************************//**
 Add user function. */
 UNIV_INTERN

@@ -44,12 +44,17 @@ Created 1/20/1994 Heikki Tuuri
 #include "hb_univ.i"
 #endif /* UNIV_HOTBACKUP */
 
+/* aux macros to convert M into "123" (string) if M is defined like
+#define M 123 */
+#define _IB_TO_STR(s)	#s
+#define IB_TO_STR(s)	_IB_TO_STR(s)
+
 #define INNODB_VERSION_MAJOR	1
-#define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	15
+#define INNODB_VERSION_MINOR	1
+#define INNODB_VERSION_BUGFIX	7
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 12.5
+#define PERCONA_INNODB_VERSION 20.1
 #endif
 
 
@@ -62,18 +67,15 @@ component, i.e. we show M.N.P as M.N */
 #define INNODB_VERSION_SHORT	\
 	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
 
-/* auxiliary macros to help creating the version as string */
-#define __INNODB_VERSION(a, b, c, d)   (#a "." #b "." #c "-" #d)
-#define _INNODB_VERSION(a, b, c, d)    __INNODB_VERSION(a, b, c, d)
-
-
 #define INNODB_VERSION_STR			\
-	_INNODB_VERSION(INNODB_VERSION_MAJOR,	\
-			INNODB_VERSION_MINOR,	\
-			INNODB_VERSION_BUGFIX,  \
-			PERCONA_INNODB_VERSION)
+	IB_TO_STR(INNODB_VERSION_MAJOR) "."	\
+	IB_TO_STR(INNODB_VERSION_MINOR) "."	\
+	IB_TO_STR(INNODB_VERSION_BUGFIX) "-"	\
+	IB_TO_STR(PERCONA_INNODB_VERSION)
 
-#define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
+#define REFMAN "http://dev.mysql.com/doc/refman/"	\
+	IB_TO_STR(MYSQL_MAJOR_VERSION) "."		\
+	IB_TO_STR(MYSQL_MINOR_VERSION) "/en/"
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* In the dynamic plugin, redefine some externally visible symbols
@@ -84,19 +86,6 @@ have not figured out how to apply the visibility=hidden attribute to
 the virtual method table (vtable) in GCC 3. */
 # define ha_innobase ha_innodb
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-
-/* if any of the following macros is defined at this point this means
-that the code from the "right" plug.in was executed and we do not
-need to include ut0auxconf.h which would either define the same macros
-or will be empty */
-#if !defined(HAVE_IB_GCC_ATOMIC_BUILTINS) \
- && !defined(HAVE_IB_ATOMIC_PTHREAD_T_GCC) \
- && !defined(HAVE_IB_SOLARIS_ATOMICS) \
- && !defined(HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS) \
- && !defined(SIZEOF_PTHREAD_T) \
- && !defined(HAVE_IB_PAUSE_INSTRUCTION)
-# include "ut0auxconf.h"
-#endif
 
 #if (defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)) && !defined(MYSQL_SERVER) && !defined(__WIN__)
 # undef __WIN__
@@ -122,7 +111,7 @@ if we are compiling on Windows. */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.c */
 # include <sys/stat.h>
-# if !defined(__NETWARE__) && !defined(__WIN__)
+# if !defined(__WIN__)
 #  include <sys/mman.h> /* mmap() for os0proc.c */
 # endif
 
@@ -150,6 +139,23 @@ Sun Studio */
 # endif
 
 #endif /* #if (defined(WIN32) || ... */
+
+/* Following defines are to enable performance schema
+instrumentation in each of four InnoDB modules if
+HAVE_PSI_INTERFACE is defined. */
+#ifdef HAVE_PSI_INTERFACE
+# define UNIV_PFS_MUTEX
+# define UNIV_PFS_RWLOCK
+/* For I/O instrumentation, performance schema rely
+on a native descriptor to identify the file, this
+descriptor could conflict with our OS level descriptor.
+Disable IO instrumentation on Windows until this is
+resolved */
+# ifndef __WIN__
+#  define UNIV_PFS_IO
+# endif
+# define UNIV_PFS_THREAD
+#endif /* HAVE_PSI_INTERFACE */
 
 /*			DEBUG VERSION CONTROL
 			===================== */
@@ -201,6 +207,8 @@ this will break redo log file compatibility, but it may be useful when
 debugging redo log application problems. */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_IBUF_DEBUG				/* debug the insert buffer */
+#define UNIV_BLOB_DEBUG				/* track BLOB ownership;
+assumes that no BLOBs survive server restart */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */
@@ -219,6 +227,9 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						for compressed pages */
 #define UNIV_ZIP_COPY				/* call page_zip_copy_recs()
 						more often */
+#define UNIV_AIO_DEBUG				/* prints info about
+						submitted and reaped AIO
+						requests to the log. */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
@@ -242,14 +253,29 @@ by one. */
 			option off; also some ibuf tests are suppressed */
 
 /* Linkage specifier for non-static InnoDB symbols (variables and functions)
-that are only referenced from within InnoDB, not from MySQL */
-#if defined(__GNUC__) && (__GNUC__ >= 4) || defined(__INTEL_COMPILER)
+that are only referenced from within InnoDB, not from MySQL. We disable the
+GCC visibility directive on all Sun operating systems because there is no
+easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
+#if defined(__GNUC__) && (__GNUC__ >= 4) && !defined(sun) || defined(__INTEL_COMPILER)
 # define UNIV_INTERN __attribute__((visibility ("hidden")))
 #else
 # define UNIV_INTERN
 #endif
+#if defined __GNUC__ && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+/** Starting with GCC 4.3, the "cold" attribute is used to inform the
+compiler that a function is unlikely executed.  The function is
+optimized for size rather than speed and on many targets it is placed
+into special subsection of the text section so all cold functions
+appears close together improving code locality of non-cold parts of
+program.  The paths leading to call of cold functions within code are
+marked as unlikely by the branch prediction mechanism.  optimize a
+rarely invoked function for size instead for speed. */
+# define UNIV_COLD __attribute__((cold))
+#else
+# define UNIV_COLD /* empty */
+#endif
 
-#if (!defined(UNIV_DEBUG) && !defined(UNIV_MUST_NOT_INLINE))
+#ifndef UNIV_MUST_NOT_INLINE
 /* Definition for inline version */
 
 #ifdef __WIN__
@@ -375,8 +401,10 @@ typedef unsigned long long int	ullint;
 /* The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
 
+/** The bitmask of 32-bit unsigned integer */
+#define ULINT32_MASK		0xFFFFFFFF
 /* The undefined 32-bit unsigned integer */
-#define	ULINT32_UNDEFINED	0xFFFFFFFF
+#define	ULINT32_UNDEFINED	ULINT32_MASK
 
 /* Maximum value for a ulint */
 #define ULINT_MAX		((ulint)(-2))
@@ -384,7 +412,10 @@ typedef unsigned long long int	ullint;
 /* Maximum value for ib_uint64_t */
 #define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
 
-/* THe 'undefined' value for ullint */
+/** The generic InnoDB system object identifier data type */
+typedef ib_uint64_t	ib_id_t;
+
+/* The 'undefined' value for a ullint */
 #define ULLINT_UNDEFINED        ((ullint)(-1))
 
 /* This 'ibool' type is used within Innobase. Remember that different included

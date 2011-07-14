@@ -48,6 +48,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
+#include "ha_prototypes.h"
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -81,6 +82,18 @@ UNIV_INTERN ulint	log_fsp_current_free_limit		= 0;
 
 /* Global log system variable */
 UNIV_INTERN log_t*	log_sys	= NULL;
+
+#ifdef UNIV_PFS_RWLOCK
+UNIV_INTERN mysql_pfs_key_t	checkpoint_lock_key;
+# ifdef UNIV_LOG_ARCHIVE
+UNIV_INTERN mysql_pfs_key_t	archive_lock_key;
+# endif
+#endif /* UNIV_PFS_RWLOCK */
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	log_sys_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	log_flush_order_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
 UNIV_INTERN ibool	log_do_write = TRUE;
@@ -785,7 +798,11 @@ log_init(void)
 {
 	log_sys = mem_alloc(sizeof(log_t));
 
-	mutex_create(&log_sys->mutex, SYNC_LOG);
+	mutex_create(log_sys_mutex_key, &log_sys->mutex, SYNC_LOG);
+
+	mutex_create(log_flush_order_mutex_key,
+		     &log_sys->log_flush_order_mutex,
+		     SYNC_LOG_FLUSH_ORDER);
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -841,7 +858,8 @@ log_init(void)
 	log_sys->last_checkpoint_lsn = log_sys->lsn;
 	log_sys->n_pending_checkpoint_writes = 0;
 
-	rw_lock_create(&log_sys->checkpoint_lock, SYNC_NO_ORDER_CHECK);
+	rw_lock_create(checkpoint_lock_key, &log_sys->checkpoint_lock,
+		       SYNC_NO_ORDER_CHECK);
 
 	log_sys->checkpoint_buf_ptr = mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE);
 	log_sys->checkpoint_buf = ut_align(log_sys->checkpoint_buf_ptr,
@@ -857,7 +875,8 @@ log_init(void)
 
 	log_sys->n_pending_archive_ios = 0;
 
-	rw_lock_create(&log_sys->archive_lock, SYNC_NO_ORDER_CHECK);
+	rw_lock_create(archive_lock_key, &log_sys->archive_lock,
+		       SYNC_NO_ORDER_CHECK);
 
 	log_sys->archive_buf = NULL;
 
@@ -1135,7 +1154,7 @@ log_io_complete(
 	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
 	    && srv_unix_file_flush_method != SRV_UNIX_ALL_O_DIRECT
 	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-	    && srv_flush_log_at_trx_commit != 2) {
+	    && thd_flush_log_at_trx_commit(NULL) != 2) {
 
 		fil_flush(group->space_id);
 	}
@@ -1179,7 +1198,7 @@ log_group_file_header_flush(
 	buf = *(group->file_header_bufs + nth_file);
 
 	mach_write_to_4(buf + LOG_GROUP_ID, group->id);
-	mach_write_ull(buf + LOG_FILE_START_LSN, start_lsn);
+	mach_write_to_8(buf + LOG_FILE_START_LSN, start_lsn);
 
 	/* Wipe over possible label of ibbackup --restore */
 	memcpy(buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, "    ", 4);
@@ -1672,10 +1691,10 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	n_pages = buf_flush_batch(BUF_FLUSH_LIST, ULINT_MAX, new_oldest);
+	n_pages = buf_flush_list(ULINT_MAX, new_oldest);
 
 	if (sync) {
-		buf_flush_wait_batch_end(BUF_FLUSH_LIST);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
 
 	if (n_pages == ULINT_UNDEFINED) {
@@ -1784,8 +1803,8 @@ log_group_checkpoint(
 
 	buf = group->checkpoint_buf;
 
-	mach_write_ull(buf + LOG_CHECKPOINT_NO, log_sys->next_checkpoint_no);
-	mach_write_ull(buf + LOG_CHECKPOINT_LSN, log_sys->next_checkpoint_lsn);
+	mach_write_to_8(buf + LOG_CHECKPOINT_NO, log_sys->next_checkpoint_no);
+	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, log_sys->next_checkpoint_lsn);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_OFFSET,
 			log_group_calc_lsn_offset(
@@ -1806,9 +1825,9 @@ log_group_checkpoint(
 		}
 	}
 
-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
 #else /* UNIV_LOG_ARCHIVE */
-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN,
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN,
 			(ib_uint64_t)log_group_calc_lsn_offset(
 				log_sys->next_checkpoint_lsn, group));
 #endif /* UNIV_LOG_ARCHIVE */
@@ -1902,7 +1921,7 @@ log_reset_first_header_and_checkpoint(
 	ib_uint64_t	lsn;
 
 	mach_write_to_4(hdr_buf + LOG_GROUP_ID, 0);
-	mach_write_ull(hdr_buf + LOG_FILE_START_LSN, start);
+	mach_write_to_8(hdr_buf + LOG_FILE_START_LSN, start);
 
 	lsn = start + LOG_BLOCK_HDR_SIZE;
 
@@ -1914,15 +1933,15 @@ log_reset_first_header_and_checkpoint(
 				+ (sizeof "ibbackup ") - 1));
 	buf = hdr_buf + LOG_CHECKPOINT_1;
 
-	mach_write_ull(buf + LOG_CHECKPOINT_NO, 0);
-	mach_write_ull(buf + LOG_CHECKPOINT_LSN, lsn);
+	mach_write_to_8(buf + LOG_CHECKPOINT_NO, 0);
+	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, lsn);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_OFFSET,
 			LOG_FILE_HDR_SIZE + LOG_BLOCK_HDR_SIZE);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, 2 * 1024 * 1024);
 
-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
 
 	fold = ut_fold_binary(buf, LOG_CHECKPOINT_CHECKSUM_1);
 	mach_write_to_4(buf + LOG_CHECKPOINT_CHECKSUM_1, fold);
@@ -2290,7 +2309,7 @@ log_group_archive_file_header_write(
 	buf = *(group->archive_file_header_bufs + nth_file);
 
 	mach_write_to_4(buf + LOG_GROUP_ID, group->id);
-	mach_write_ull(buf + LOG_FILE_START_LSN, start_lsn);
+	mach_write_to_8(buf + LOG_FILE_START_LSN, start_lsn);
 	mach_write_to_4(buf + LOG_FILE_NO, file_no);
 
 	mach_write_to_4(buf + LOG_FILE_ARCH_COMPLETED, FALSE);
@@ -2326,7 +2345,7 @@ log_group_archive_completed_header_write(
 	buf = *(group->archive_file_header_bufs + nth_file);
 
 	mach_write_to_4(buf + LOG_FILE_ARCH_COMPLETED, TRUE);
-	mach_write_ull(buf + LOG_FILE_END_LSN, end_lsn);
+	mach_write_to_8(buf + LOG_FILE_END_LSN, end_lsn);
 
 	dest_offset = nth_file * group->file_size + LOG_FILE_ARCH_COMPLETED;
 
@@ -2390,13 +2409,15 @@ loop:
 		log_archived_file_name_gen(name, group->id,
 					   group->archived_file_no + n_files);
 
-		file_handle = os_file_create(name, open_mode, OS_FILE_AIO,
+		file_handle = os_file_create(innodb_file_log_key,
+					     name, open_mode,
+					     OS_FILE_AIO,
 					     OS_DATA_FILE, &ret);
 
 		if (!ret && (open_mode == OS_FILE_CREATE)) {
 			file_handle = os_file_create(
-				name, OS_FILE_OPEN, OS_FILE_AIO,
-				OS_DATA_FILE, &ret);
+				innodb_file_log_key, name, OS_FILE_OPEN,
+				OS_FILE_AIO, OS_DATA_FILE, &ret);
 		}
 
 		if (!ret) {
@@ -3094,6 +3115,7 @@ logs_empty_and_mark_files_at_shutdown(void)
 {
 	ib_uint64_t	lsn;
 	ulint		arch_log_no;
+	ibool		server_busy;
 
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
@@ -3103,99 +3125,91 @@ logs_empty_and_mark_files_at_shutdown(void)
 	algorithm only works if the server is idle at shutdown */
 
 	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
-	os_event_set(srv_shutdown_event);
 loop:
 	os_thread_sleep(100000);
 
 	mutex_enter(&kernel_mutex);
 
-	/* We need the monitor threads to stop before we proceed with a
-	normal shutdown. In case of very fast shutdown, however, we can
-	proceed without waiting for monitor threads. */
+	/* We need the monitor threads to stop before we proceed with
+	a shutdown. */
 
-	if (srv_fast_shutdown < 2
-	   && (srv_error_monitor_active
-	      || srv_lock_timeout_active || srv_monitor_active)) {
+	if (srv_error_monitor_active
+	    || srv_lock_timeout_active
+	    || srv_monitor_active) {
 
 		mutex_exit(&kernel_mutex);
+
+		os_event_set(srv_error_event);
+		os_event_set(srv_monitor_event);
+		os_event_set(srv_timeout_event);
 
 		goto loop;
 	}
 
-	/* Check that there are no longer transactions. We need this wait even
-	for the 'very fast' shutdown, because the InnoDB layer may have
-	committed or prepared transactions and we don't want to lose them. */
+	/* Check that there are no longer transactions, except for
+	PREPARED ones. We need this wait even for the 'very fast'
+	shutdown, because the InnoDB layer may have committed or
+	prepared transactions and we don't want to lose them. */
 
-	if (trx_n_mysql_transactions > 0
-	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
-
-		mutex_exit(&kernel_mutex);
-
-		goto loop;
-	}
-
-	if (srv_fast_shutdown == 2) {
-		/* In this fastest shutdown we do not flush the buffer pool:
-		it is essentially a 'crash' of the InnoDB server. Make sure
-		that the log is all flushed to disk, so that we can recover
-		all committed transactions in a crash recovery. We must not
-		write the lsn stamps to the data files, since at a startup
-		InnoDB deduces from the stamps if the previous shutdown was
-		clean. */
-
-		log_buffer_flush_to_disk();
-
-		return; /* We SKIP ALL THE REST !! */
-	}
-
-	/* Check that the master thread is suspended */
-
-	if (srv_n_threads_active[SRV_MASTER] != 0) {
-
-		mutex_exit(&kernel_mutex);
-
-		goto loop;
-	}
-
-	/* Check that the purge threads ended */
-	if (srv_use_purge_thread
-	    && (srv_n_threads_active[SRV_PURGE] != 0
-		|| srv_n_threads_active[SRV_PURGE_WORKER] != 0)) {
-
-		mutex_exit(&kernel_mutex);
-
-		goto loop;
-	}
-
+	server_busy = trx_n_mysql_transactions > 0
+		|| UT_LIST_GET_LEN(trx_sys->trx_list) > trx_n_prepared;
 	mutex_exit(&kernel_mutex);
 
-	mutex_enter(&(log_sys->mutex));
-
-	if (log_sys->n_pending_checkpoint_writes
-#ifdef UNIV_LOG_ARCHIVE
-	    || log_sys->n_pending_archive_ios
-#endif /* UNIV_LOG_ARCHIVE */
-	    || log_sys->n_pending_writes) {
-
-		mutex_exit(&(log_sys->mutex));
-
+	if (server_busy || srv_is_any_background_thread_active()) {
 		goto loop;
 	}
 
-	mutex_exit(&(log_sys->mutex));
+	mutex_enter(&log_sys->mutex);
+	server_busy = log_sys->n_pending_checkpoint_writes
+#ifdef UNIV_LOG_ARCHIVE
+		|| log_sys->n_pending_archive_ios
+#endif /* UNIV_LOG_ARCHIVE */
+		|| log_sys->n_pending_writes;
+	mutex_exit(&log_sys->mutex);
 
-	if (!buf_pool_check_no_pending_io()) {
-
+	if (server_busy || !buf_pool_check_no_pending_io()) {
 		goto loop;
 	}
 
 #ifdef UNIV_LOG_ARCHIVE
 	log_archive_all();
 #endif /* UNIV_LOG_ARCHIVE */
+	if (srv_fast_shutdown == 2) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: MySQL has requested a very fast shutdown"
+			" without flushing "
+			"the InnoDB buffer pool to data files."
+			" At the next mysqld startup "
+			"InnoDB will do a crash recovery!\n");
+
+		/* In this fastest shutdown we do not flush the buffer
+		pool: it is essentially a 'crash' of the InnoDB
+		server. Make sure that the log is all flushed to disk,
+		so that we can recover all committed transactions in a
+		crash recovery. We must not write the lsn stamps to
+		the data files, since at a startup InnoDB deduces from
+		the stamps if the previous shutdown was clean. */
+
+		log_buffer_flush_to_disk();
+
+		/* Check that the background threads stay suspended */
+		if (srv_is_any_background_thread_active()) {
+			fprintf(stderr,
+				"InnoDB: Warning: some background thread"
+				" woke up during shutdown\n");
+			goto loop;
+		}
+
+		srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
+		fil_close_all_files();
+		ut_a(!srv_is_any_background_thread_active());
+		return;
+	}
 
 	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
 
-	mutex_enter(&(log_sys->mutex));
+	mutex_enter(&log_sys->mutex);
 
 	lsn = log_sys->lsn;
 
@@ -3206,7 +3220,7 @@ loop:
 #endif /* UNIV_LOG_ARCHIVE */
 	    ) {
 
-		mutex_exit(&(log_sys->mutex));
+		mutex_exit(&log_sys->mutex);
 
 		goto loop;
 	}
@@ -3224,20 +3238,16 @@ loop:
 	log_archive_close_groups(TRUE);
 #endif /* UNIV_LOG_ARCHIVE */
 
-	mutex_exit(&(log_sys->mutex));
+	mutex_exit(&log_sys->mutex);
 
-	mutex_enter(&kernel_mutex);
-	/* Check that the master thread has stayed suspended */
-	if (srv_n_threads_active[SRV_MASTER] != 0) {
+	/* Check that the background threads stay suspended */
+	if (srv_is_any_background_thread_active()) {
 		fprintf(stderr,
-			"InnoDB: Warning: the master thread woke up"
+			"InnoDB: Warning: some background thread woke up"
 			" during shutdown\n");
-
-		mutex_exit(&kernel_mutex);
 
 		goto loop;
 	}
-	mutex_exit(&kernel_mutex);
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 	fil_flush_file_spaces(FIL_LOG);
@@ -3255,7 +3265,8 @@ loop:
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Make some checks that the server really is quiet */
-	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
+	ut_a(!srv_is_any_background_thread_active());
+
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
 
@@ -3276,7 +3287,8 @@ loop:
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
-	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
+	ut_a(!srv_is_any_background_thread_active());
+
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
 }
@@ -3317,9 +3329,9 @@ log_check_log_recs(
 
 	ut_memcpy(scan_buf, start, end - start);
 
-	recv_scan_log_recs((buf_pool->curr_size
-			    - recv_n_pool_free_frames) * UNIV_PAGE_SIZE,
-			   FALSE, scan_buf, end - start,
+	recv_scan_log_recs((buf_pool_get_n_pages()
+			   - (recv_n_pool_free_frames * srv_buf_pool_instances))
+			   * UNIV_PAGE_SIZE, FALSE, scan_buf, end - start,
 			   ut_uint64_align_down(buf_start_lsn,
 						OS_FILE_LOG_BLOCK_SIZE),
 			   &contiguous_lsn, &scanned_lsn);
@@ -3379,11 +3391,11 @@ log_print(
 		"Checkpoint age target %lu\n"
 		"Modified age          %lu\n"
 		"Checkpoint age        %lu\n",
-			(ulong) log_sys->max_checkpoint_age,
-			(ulong) log_max_checkpoint_age_async(),
-			(ulong) (log_sys->lsn -
-					log_buf_pool_get_oldest_modification()),
-			(ulong) (log_sys->lsn - log_sys->last_checkpoint_lsn));
+		(ulong) log_sys->max_checkpoint_age,
+		(ulong) log_max_checkpoint_age_async(),
+		(ulong) (log_sys->lsn -
+				log_buf_pool_get_oldest_modification()),
+		(ulong) (log_sys->lsn - log_sys->last_checkpoint_lsn));
 
 	current_time = time(NULL);
 

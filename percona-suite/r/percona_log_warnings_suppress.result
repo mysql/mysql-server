@@ -1,0 +1,31 @@
+SET @old_log_warnings = @@log_warnings;
+SET @old_log_warnings_suppress = @@log_warnings_suppress;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(20));
+SET GLOBAL log_warnings_suppress='';
+SET GLOBAL LOG_WARNINGS=0;
+SHOW GLOBAL VARIABLES LIKE 'log_warnings_suppress';
+Variable_name	Value
+log_warnings_suppress	
+INSERT INTO t1 VALUES(UUID(), 'suppress_1592');
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+SET GLOBAL LOG_WARNINGS=1;
+INSERT INTO t1 VALUES(UUID(), 'suppress_1592');
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+SET GLOBAL log_warnings_suppress='1592';
+SET GLOBAL LOG_WARNINGS=0;
+INSERT INTO t1 VALUES(UUID(), 'suppress_1592');
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+SET GLOBAL LOG_WARNINGS=1;
+INSERT INTO t1 VALUES(UUID(), 'suppress_1592');
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP TABLE t1;
+SET GLOBAL log_warnings = @old_log_warnings;
+SET GLOBAL log_warnings_suppress = @old_log_warnings_suppress;
+# Count the number of times the "Unsafe" message was printed
+# to the error log.
+Occurrences: 1

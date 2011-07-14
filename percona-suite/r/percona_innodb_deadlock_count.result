@@ -1,0 +1,28 @@
+# Establish connection con1 (user=root)
+# Establish connection con2 (user=root)
+# Establish connection con3 (user=root)
+# Drop test table
+drop table if exists t;
+# Create test table
+create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
+# Insert two rows to test table
+insert into t values(2,1);
+insert into t values(1,2);
+# Switch to connection con1
+BEGIN;
+SELECT b FROM t WHERE a=1 FOR UPDATE;
+# Switch to connection con2
+BEGIN;
+SELECT b FROM t WHERE a=2 FOR UPDATE;
+# Switch to connection con1
+SELECT b FROM t WHERE a=2 FOR UPDATE;
+# Switch to connection con2
+SELECT b FROM t WHERE a=1 FOR UPDATE;
+# Switch to connection con1
+ROLLBACK;
+# Switch to connection con2
+ROLLBACK;
+# Switch to connection con3
+Deadlocks: 1
+# Drop test table
+drop table t;

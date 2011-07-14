@@ -1,4 +1,0 @@
-show variables like 'use_global_long_query_time';
-show variables like 'use_global_log_slow_control';
-show global variables like 'use_global_long_query_time';
-show global variables like 'use_global_log_slow_control';

@@ -181,13 +181,15 @@ class ha_innobase: public handler
 	void update_create_info(HA_CREATE_INFO* create_info);
 	int create(const char *name, register TABLE *form,
 					HA_CREATE_INFO *create_info);
-	int delete_all_rows();
+	int truncate();
 	int delete_table(const char *name);
 	int rename_table(const char* from, const char* to);
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
 	char* update_table_comment(const char* comment);
 	char* get_foreign_key_create_info();
 	int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list);
+	int get_parent_foreign_key_list(THD *thd,
+					List<FOREIGN_KEY_INFO> *f_key_list);
 	bool can_switch_engines();
 	uint referenced_by_foreign_key();
 	void free_foreign_key_create_info(char* str);
@@ -234,11 +236,7 @@ the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
 
 extern "C" {
 struct charset_info_st *thd_charset(MYSQL_THD thd);
-#if MYSQL_VERSION_ID >= 50142
 LEX_STRING *thd_query_string(MYSQL_THD thd);
-#else
-char **thd_query(MYSQL_THD thd);
-#endif
 
 /** Get the file name of the MySQL binlog.
  * @return the name of the binlog file
@@ -280,14 +278,20 @@ int thd_binlog_format(const MYSQL_THD thd);
 */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 
-#if MYSQL_VERSION_ID > 50140
 /**
   Check if binary logging is filtered for thread's current db.
   @param  thd   Thread handle
   @retval 1 the query is not filtered, 0 otherwise.
 */
 bool thd_binlog_filter_ok(const MYSQL_THD thd);
-#endif /* MYSQL_VERSION_ID > 50140 */
+
+/**
+  Check if the query may generate row changes which
+  may end up in the binary.
+  @param  thd   Thread handle
+  @return 1 the query may generate row changes, 0 otherwise.
+*/
+bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
 }
 
 typedef struct trx_struct trx_t;
@@ -319,15 +323,14 @@ innobase_trx_allocate(
 This function checks each index name for a table against reserved
 system default primary index name 'GEN_CLUST_INDEX'. If a name
 matches, this function pushes an warning message to the client,
-and returns true. */
+and returns true.
+@return true if the index name matches the reserved name */
 extern "C"
 bool
 innobase_index_name_is_reserved(
 /*============================*/
-					/* out: true if the index name
-					matches the reserved name */
-	const trx_t*	trx,		/* in: InnoDB transaction handle */
-	const KEY*	key_info,	/* in: Indexes to be created */
-	ulint		num_of_keys);	/* in: Number of indexes to
+	THD*		thd,		/*!< in/out: MySQL connection */
+	const KEY*	key_info,	/*!< in: Indexes to be created */
+	ulint		num_of_keys);	/*!< in: Number of indexes to
 					be created. */
 

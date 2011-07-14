@@ -36,6 +36,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "trx0trx.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0rec.h"
 #include "trx0purge.h"
 
@@ -515,7 +516,7 @@ trx_undo_header_create_log(
 {
 	mlog_write_initial_log_record(undo_page, MLOG_UNDO_HDR_CREATE, mtr);
 
-	mlog_catenate_dulint_compressed(mtr, trx_id);
+	mlog_catenate_ull_compressed(mtr, trx_id);
 }
 #else /* !UNIV_HOTBACKUP */
 # define trx_undo_header_create_log(undo_page,trx_id,mtr) ((void) 0)
@@ -687,7 +688,7 @@ trx_undo_insert_header_reuse_log(
 {
 	mlog_write_initial_log_record(undo_page, MLOG_UNDO_HDR_REUSE, mtr);
 
-	mlog_catenate_dulint_compressed(mtr, trx_id);
+	mlog_catenate_ull_compressed(mtr, trx_id);
 }
 #else /* !UNIV_HOTBACKUP */
 # define trx_undo_insert_header_reuse_log(undo_page,trx_id,mtr) ((void) 0)
@@ -707,8 +708,14 @@ trx_undo_parse_page_header(
 	mtr_t*	mtr)	/*!< in: mtr or NULL */
 {
 	trx_id_t	trx_id;
+	/* Silence a GCC warning about possibly uninitialized variable
+	when mach_ull_parse_compressed() is not inlined. */
+	ut_d(trx_id = 0);
+	/* Declare the variable uninitialized in Valgrind, so that the
+	above initialization will not mask any bugs. */
+	UNIV_MEM_INVALID(&trx_id, sizeof trx_id);
 
-	ptr = mach_dulint_parse_compressed(ptr, end_ptr, &trx_id);
+	ptr = mach_ull_parse_compressed(ptr, end_ptr, &trx_id);
 
 	if (ptr == NULL) {
 
@@ -1095,8 +1102,7 @@ trx_undo_truncate_end(
 				break;
 			}
 
-			if (ut_dulint_cmp(trx_undo_rec_get_undo_no(rec), limit)
-			    >= 0) {
+			if (trx_undo_rec_get_undo_no(rec) >= limit) {
 				/* Truncate at least this record off, maybe
 				more */
 				trunc_here = rec;
@@ -1149,7 +1155,7 @@ trx_undo_truncate_start(
 
 	ut_ad(mutex_own(&(rseg->mutex)));
 
-	if (ut_dulint_is_zero(limit)) {
+	if (!limit) {
 
 		return;
 	}
@@ -1171,7 +1177,7 @@ loop:
 
 	last_rec = trx_undo_page_get_last_rec(undo_page, hdr_page_no,
 					      hdr_offset);
-	if (ut_dulint_cmp(trx_undo_rec_get_undo_no(last_rec), limit) >= 0) {
+	if (trx_undo_rec_get_undo_no(last_rec) >= limit) {
 
 		mtr_commit(&mtr);
 
@@ -1293,7 +1299,7 @@ trx_undo_mem_create_at_db_start(
 
 	undo_header = undo_page + offset;
 
-	trx_id = mtr_read_dulint(undo_header + TRX_UNDO_TRX_ID, mtr);
+	trx_id = mach_read_from_8(undo_header + TRX_UNDO_TRX_ID);
 
 	xid_exists = mtr_read_ulint(undo_header + TRX_UNDO_XID_EXISTS,
 				    MLOG_1BYTE, mtr);
@@ -1317,7 +1323,7 @@ trx_undo_mem_create_at_db_start(
 	undo->dict_operation =	mtr_read_ulint(
 		undo_header + TRX_UNDO_DICT_TRANS, MLOG_1BYTE, mtr);
 
-	undo->table_id = mtr_read_dulint(undo_header + TRX_UNDO_TABLE_ID, mtr);
+	undo->table_id = mach_read_from_8(undo_header + TRX_UNDO_TABLE_ID);
 	undo->state = state;
 	undo->size = flst_get_len(seg_header + TRX_UNDO_PAGE_LIST, mtr);
 
@@ -1395,46 +1401,8 @@ trx_undo_lists_init(
 	rseg_header = trx_rsegf_get_new(rseg->space, rseg->zip_size,
 					rseg->page_no, &mtr);
 
-	if (!srv_extra_undoslots) {
-		/* uses direct call for avoid "Assertion failure" */
-		//page_no = trx_rsegf_get_nth_undo(rseg_header, TRX_RSEG_N_EXTRA_SLOTS - 1, &mtr);
-		page_no = mtr_read_ulint(rseg_header + TRX_RSEG_UNDO_SLOTS
-					 + (TRX_RSEG_N_EXTRA_SLOTS - 1) * TRX_RSEG_SLOT_SIZE,
-					 MLOG_4BYTES, &mtr);
-		if (page_no != 0) {
-			/* check extended slots are not used */
-			for (i = TRX_RSEG_N_SLOTS; i < TRX_RSEG_N_EXTRA_SLOTS; i++) {
-				/* uses direct call for avoid "Assertion failure" */
-				page_no = mtr_read_ulint(rseg_header + TRX_RSEG_UNDO_SLOTS
-							 + i * TRX_RSEG_SLOT_SIZE,
-							 MLOG_4BYTES, &mtr);
-				if (page_no != 0 && page_no != FIL_NULL) {
-					srv_extra_undoslots = TRUE;
-					fprintf(stderr,
-"InnoDB: Error: innodb_extra_undoslots option is disabled, but it was enabled before.\n"
-"InnoDB: The datafile is not normal for mysqld and disabled innodb_extra_undoslots.\n"
-"InnoDB: Enable innodb_extra_undoslots if it was enabled before, and\n"
-"InnoDB: ### don't use this datafile with other mysqld or ibbackup! ###\n"
-"InnoDB: Cannot continue operation for the safety. Calling exit(1).\n");
-					exit(1);
-				}
-			}
-			fprintf(stderr,
-"InnoDB: Warning: innodb_extra_undoslots option is disabled, but it was  enabled before.\n"
-"InnoDB: But extended undo slots seem not used, so continue operation.\n");
-		}
-	}
-
 	for (i = 0; i < TRX_RSEG_N_SLOTS; i++) {
 		page_no = trx_rsegf_get_nth_undo(rseg_header, i, &mtr);
-
-		/* If it was not initialized when the datafile created,
-		page_no will be 0 for the extended slots after that */
-
-		if (page_no == 0) {
-			page_no = FIL_NULL;
-			trx_rsegf_set_nth_undo(rseg_header, i, page_no, &mtr);
-		}
 
 		/* In forced recovery: try to avoid operations which look
 		at database pages; undo logs are rapidly changing data, and
@@ -1744,7 +1712,7 @@ trx_undo_mark_as_dict_operation(
 		ut_error;
 	case TRX_DICT_OP_INDEX:
 		/* Do not discard the table on recovery. */
-		undo->table_id = ut_dulint_zero;
+		undo->table_id = 0;
 		break;
 	case TRX_DICT_OP_TABLE:
 		undo->table_id = trx->table_id;
@@ -1755,8 +1723,8 @@ trx_undo_mark_as_dict_operation(
 			 + TRX_UNDO_DICT_TRANS,
 			 TRUE, MLOG_1BYTE, mtr);
 
-	mlog_write_dulint(hdr_page + undo->hdr_offset + TRX_UNDO_TABLE_ID,
-			  undo->table_id, mtr);
+	mlog_write_ull(hdr_page + undo->hdr_offset + TRX_UNDO_TABLE_ID,
+		       undo->table_id, mtr);
 
 	undo->dict_operation = TRUE;
 }
@@ -1831,8 +1799,6 @@ UNIV_INTERN
 page_t*
 trx_undo_set_state_at_finish(
 /*=========================*/
-	trx_rseg_t*	rseg,	/*!< in: rollback segment memory object */
-	trx_t*		trx __attribute__((unused)), /*!< in: transaction */
 	trx_undo_t*	undo,	/*!< in: undo log memory copy */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -1841,10 +1807,8 @@ trx_undo_set_state_at_finish(
 	page_t*		undo_page;
 	ulint		state;
 
-	ut_ad(trx);
 	ut_ad(undo);
 	ut_ad(mtr);
-	ut_ad(mutex_own(&rseg->mutex));
 
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
@@ -1861,9 +1825,7 @@ trx_undo_set_state_at_finish(
 
 	if (undo->size == 1
 	    && mach_read_from_2(page_hdr + TRX_UNDO_PAGE_FREE)
-	       < TRX_UNDO_PAGE_REUSE_LIMIT
-	    && UT_LIST_GET_LEN(rseg->update_undo_list) < 500
-	    && UT_LIST_GET_LEN(rseg->insert_undo_list) < 500) {
+	       < TRX_UNDO_PAGE_REUSE_LIMIT) {
 
 		state = TRX_UNDO_CACHED;
 
@@ -2013,5 +1975,32 @@ trx_undo_insert_cleanup(
 	}
 
 	mutex_exit(&(rseg->mutex));
+}
+
+/********************************************************************//**
+At shutdown, frees the undo logs of a PREPARED transaction. */
+UNIV_INTERN
+void
+trx_undo_free_prepared(
+/*===================*/
+	trx_t*	trx)	/*!< in/out: PREPARED transaction */
+{
+	mutex_enter(&trx->rseg->mutex);
+
+	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+
+	if (trx->update_undo) {
+		ut_a(trx->update_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(undo_list, trx->rseg->update_undo_list,
+			       trx->update_undo);
+		trx_undo_mem_free(trx->update_undo);
+	}
+	if (trx->insert_undo) {
+		ut_a(trx->insert_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(undo_list, trx->rseg->insert_undo_list,
+			       trx->insert_undo);
+		trx_undo_mem_free(trx->insert_undo);
+	}
+	mutex_exit(&trx->rseg->mutex);
 }
 #endif /* !UNIV_HOTBACKUP */

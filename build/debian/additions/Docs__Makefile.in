@@ -1,6 +1,0 @@
-all:
-
-distclean:
-	-rm -f Makefile
-
-.PHONY: all distclean clean install check

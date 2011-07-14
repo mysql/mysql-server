@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -54,6 +54,6 @@ typedef	struct purge_node_struct purge_node_t;
 typedef struct row_ext_struct row_ext_t;
 
 /* MySQL data types */
-typedef struct st_table TABLE;
+struct TABLE;
 
 #endif

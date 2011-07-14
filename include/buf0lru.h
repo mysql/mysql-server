@@ -52,8 +52,9 @@ operations need new buffer blocks, and the i/o work done in flushing would be
 wasted. */
 UNIV_INTERN
 void
-buf_LRU_try_free_flushed_blocks(void);
-/*==================================*/
+buf_LRU_try_free_flushed_blocks(
+/*============================*/
+	buf_pool_t*	buf_pool);	/*!< in: buffer pool instance */
 /******************************************************************//**
 Returns TRUE if less than 25 % of the buffer pool is available. This can be
 used in heuristics to prevent huge transactions eating up the whole buffer
@@ -72,7 +73,7 @@ These are low-level functions
 #define BUF_LRU_OLD_MIN_LEN	512	/* 8 megabytes of 16k pages */
 
 /** Maximum LRU list search length in buf_flush_LRU_recommendation() */
-#define BUF_LRU_FREE_SEARCH_LEN		(5 + 2 * BUF_READ_AHEAD_AREA)
+#define BUF_LRU_FREE_SEARCH_LEN(b)	(5 + 2 * BUF_READ_AHEAD_AREA(b))
 
 /******************************************************************//**
 Invalidates all pages belonging to a given tablespace when we are deleting
@@ -104,10 +105,10 @@ Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
 NOTE: If this function returns BUF_LRU_FREED, it will temporarily
-release buf_pool_mutex.  Furthermore, the page frame will no longer be
+release buf_pool->mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
-The caller must hold buf_pool_mutex and buf_page_get_mutex(bpage) and
+The caller must hold buf_pool->mutex and buf_page_get_mutex(bpage) and
 release these two mutexes after the call.  No other
 buf_page_get_mutex() may be held when calling this function.
 @return BUF_LRU_FREED if freed, BUF_LRU_CANNOT_RELOCATE or
@@ -128,22 +129,26 @@ UNIV_INTERN
 ibool
 buf_LRU_search_and_free_block(
 /*==========================*/
-	ulint	n_iterations);	/*!< in: how many times this has been called
-				repeatedly without result: a high value means
-				that we should search farther; if
-				n_iterations < 10, then we search
-				n_iterations / 10 * buf_pool->curr_size
-				pages from the end of the LRU list; if
-				n_iterations < 5, then we will also search
-				n_iterations / 5 of the unzip_LRU list. */
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	ulint		n_iterations);	/*!< in: how many times this has
+					been called repeatedly without
+					result: a high value means that
+					we should search farther; if
+					n_iterations < 10, then we search
+					n_iterations / 10 * buf_pool->curr_size
+					pages from the end of the LRU list; if
+					n_iterations < 5, then we will
+					also search n_iterations / 5
+					of the unzip_LRU list. */
 /******************************************************************//**
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
 @return	a free control block, or NULL if the buf_block->free list is empty */
 UNIV_INTERN
 buf_block_t*
-buf_LRU_get_free_only(void);
-/*=======================*/
+buf_LRU_get_free_only(
+/*==================*/
+	buf_pool_t*	buf_pool);	/*!< buffer pool instance */
 /******************************************************************//**
 Returns a free block from the buf_pool. The block is taken off the
 free list. If it is empty, blocks are moved from the end of the
@@ -151,9 +156,10 @@ LRU list to the free list.
 @return	the free control block, in state BUF_BLOCK_READY_FOR_USE */
 UNIV_INTERN
 buf_block_t*
-buf_LRU_get_free_block(void)
-/*========================*/
-	__attribute__((warn_unused_result));
+buf_LRU_get_free_block(
+/*===================*/
+	buf_pool_t*	buf_pool)	/*!< in/out: buffer pool instance */
+	__attribute__((nonnull,warn_unused_result));
 
 /******************************************************************//**
 Puts a block back to the free list. */
@@ -201,7 +207,7 @@ buf_LRU_make_block_old(
 Updates buf_LRU_old_ratio.
 @return	updated old_pct */
 UNIV_INTERN
-uint
+ulint
 buf_LRU_old_ratio_update(
 /*=====================*/
 	uint	old_pct,/*!< in: Reserve this percentage of
@@ -249,7 +255,7 @@ buf_LRU_print(void);
 
 /** @name Heuristics for detecting index scan @{ */
 /** Reserve this much/BUF_LRU_OLD_RATIO_DIV of the buffer pool for
-"old" blocks.  Protected by buf_pool_mutex. */
+"old" blocks.  Protected by buf_pool->mutex. */
 extern uint	buf_LRU_old_ratio;
 /** The denominator of buf_LRU_old_ratio. */
 #define BUF_LRU_OLD_RATIO_DIV	1024
@@ -295,7 +301,7 @@ Cleared by buf_LRU_stat_update(). */
 extern buf_LRU_stat_t	buf_LRU_stat_cur;
 
 /** Running sum of past values of buf_LRU_stat_cur.
-Updated by buf_LRU_stat_update().  Protected by buf_pool_mutex. */
+Updated by buf_LRU_stat_update().  Protected by buf_pool->mutex. */
 extern buf_LRU_stat_t	buf_LRU_stat_sum;
 
 /********************************************************************//**

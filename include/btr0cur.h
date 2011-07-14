@@ -138,7 +138,8 @@ btr_cur_search_to_nth_level(
 				should always be made using PAGE_CUR_LE to
 				search the position! */
 	ulint		latch_mode, /*!< in: BTR_SEARCH_LEAF, ..., ORed with
-				BTR_INSERT and BTR_ESTIMATE;
+				at most one of BTR_INSERT, BTR_DELETE_MARK,
+				BTR_DELETE, or BTR_ESTIMATE;
 				cursor->left_block is used to store a pointer
 				to the left neighbor page, in the cases
 				BTR_SEARCH_PREV and BTR_MODIFY_PREV;
@@ -352,19 +353,6 @@ btr_cur_del_mark_set_sec_rec(
 	ibool		val,	/*!< in: value to set */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr);	/*!< in: mtr */
-/***********************************************************//**
-Clear a secondary index record's delete mark.  This function is only
-used by the insert buffer insert merge mechanism. */
-UNIV_INTERN
-void
-btr_cur_del_unmark_for_ibuf(
-/*========================*/
-	rec_t*		rec,		/*!< in/out: record to delete unmark */
-	page_zip_des_t*	page_zip,	/*!< in/out: compressed page
-					corresponding to rec, or NULL
-					when the tablespace is
-					uncompressed */
-	mtr_t*		mtr);		/*!< in: mtr */
 /*************************************************************//**
 Tries to compress a page of the tree if it seems useful. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. To avoid
@@ -634,7 +622,20 @@ btr_push_update_extern_fields(
 	const upd_t*	update,	/*!< in: update vector */
 	mem_heap_t*	heap)	/*!< in: memory heap */
 	__attribute__((nonnull));
-
+/***********************************************************//**
+Sets a secondary index record's delete mark to the given value. This
+function is only used by the insert buffer merge mechanism. */
+UNIV_INTERN
+void
+btr_cur_set_deleted_flag_for_ibuf(
+/*==============================*/
+	rec_t*		rec,		/*!< in/out: record */
+	page_zip_des_t*	page_zip,	/*!< in/out: compressed page
+					corresponding to rec, or NULL
+					when the tablespace is
+					uncompressed */
+	ibool		val,		/*!< in: value to set */
+	mtr_t*		mtr);		/*!< in: mtr */
 /*######################################################################*/
 
 /** In the pessimistic delete, if the page data size drops below this
@@ -652,6 +653,11 @@ struct btr_path_struct{
 				order); value ULINT_UNDEFINED
 				denotes array end */
 	ulint	n_recs;		/*!< number of records on the page */
+	ulint	page_no;	/*!< no of the page containing the record */
+	ulint	page_level;	/*!< level of the page, if later we fetch
+				the page under page_no and it is no different
+				level then we know that the tree has been
+				reorganized */
 };
 
 #define BTR_PATH_ARRAY_N_SLOTS	250	/*!< size of path array (in slots) */
@@ -666,8 +672,13 @@ enum btr_cur_method {
 				hash_node, and might be necessary to
 				update */
 	BTR_CUR_BINARY,		/*!< success using the binary search */
-	BTR_CUR_INSERT_TO_IBUF	/*!< performed the intended insert to
+	BTR_CUR_INSERT_TO_IBUF,	/*!< performed the intended insert to
 				the insert buffer */
+	BTR_CUR_DEL_MARK_IBUF,	/*!< performed the intended delete
+				mark in the insert/delete buffer */
+	BTR_CUR_DELETE_IBUF,	/*!< performed the intended delete in
+				the insert/delete buffer */
+	BTR_CUR_DELETE_REF	/*!< row_purge_poss_sec() failed */
 };
 
 /** The tree cursor: the definition appears here only for the compiler
@@ -675,6 +686,7 @@ to know struct size! */
 struct btr_cur_struct {
 	dict_index_t*	index;		/*!< index where positioned */
 	page_cur_t	page_cur;	/*!< page cursor */
+	purge_node_t*	purge_node;	/*!< purge node, for BTR_DELETE */
 	buf_block_t*	left_block;	/*!< this field is used to store
 					a pointer to the left neighbor
 					page, in the cases
@@ -731,6 +743,23 @@ struct btr_cur_struct {
 					NULL */
 	ulint		fold;		/*!< fold value used in the search if
 					flag is BTR_CUR_HASH */
+	/*----- Delete buffering -------*/
+	ulint		ibuf_cnt;	/* in searches done on insert buffer
+					trees, this contains the "counter"
+					value (the first two bytes of the
+					fourth field) extracted from the
+					page above the leaf page, from the
+					father node pointer that pointed to
+					the leaf page. in other words, it
+					contains the minimum counter value
+					for records to be inserted on the
+					chosen leaf page. If for some reason
+					this can't be read, or if the search
+					ended on the leftmost leaf page in
+					the tree (in which case the father
+					node pointer had the 'minimum
+					record' flag set), this is
+					ULINT_UNDEFINED. */
 	/*------------------------------*/
 	/* @} */
 	btr_path_t*	path_arr;	/*!< in estimating the number of

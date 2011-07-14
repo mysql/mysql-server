@@ -1,0 +1,46 @@
+SET GLOBAL SLOW_QUERY_LOG=ON;
+SELECT sleep(1);
+sleep(1)
+0
+SELECT sleep(3);
+sleep(3)
+0
+SELECT sleep(5);
+sleep(5)
+0
+set global long_query_time=4;
+set global slow_query_log_use_global_control='long_query_time';
+SELECT sleep(1);
+sleep(1)
+0
+SELECT sleep(3);
+sleep(3)
+0
+SELECT sleep(5);
+sleep(5)
+0
+set global long_query_time=2;
+set global slow_query_log_use_global_control='';
+SET GLOBAL SLOW_QUERY_LOG=OFF;
+FLUSH LOGS;
+3
+show global variables like 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	
+set global slow_query_log_use_global_control='long_query_time';
+show global variables like 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	long_query_time
+set global slow_query_log_use_global_control='log_slow_filter,long_query_time';
+show global variables like 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	log_slow_filter,long_query_time
+set global slow_query_log_use_global_control='log_slow_filter';
+show global variables like 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	log_slow_filter
+set global slow_query_log_use_global_control='';
+show global variables like 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	
+set global slow_query_log_use_global_control='long_query_time';

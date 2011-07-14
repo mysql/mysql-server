@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2006, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -174,6 +174,15 @@ innobase_strcasecmp(
 	const char*	b);	/*!< in: second string to compare */
 
 /******************************************************************//**
+Strip dir name from a full path name and return only its file name.
+@return file name or "null" if no file name */
+UNIV_INTERN
+const char*
+innobase_basename(
+/*==============*/
+	const char*	path_name);	/*!< in: full path name */
+
+/******************************************************************//**
 Returns true if the thread is executing a SELECT statement.
 @return	true if thd is executing SELECT */
 
@@ -267,13 +276,31 @@ thd_lock_wait_timeout(
 /*==================*/
 	void*	thd);	/*!< in: thread handle (THD*), or NULL to query
 			the global innodb_lock_wait_timeout */
-
+/******************************************************************//**
+Add up the time waited for the lock for the current query. */
+UNIV_INTERN
+void
+thd_set_lock_wait_time(
+/*===================*/
+        void*   thd,	/*!< in: thread handle (THD*) */
+        ulint   value);	/*!< in: time waited for the lock */
 /******************************************************************//**
 */
 
 ulong
-thd_flush_log_at_trx_commit_session(
+thd_flush_log_at_trx_commit(
 /*================================*/
 	void*	thd);
+
+/**********************************************************************//**
+Get the current setting of the lower_case_table_names global parameter from
+mysqld.cc. We do a dirty read because for one there is no synchronization
+object and secondly there is little harm in doing so even if we get a torn
+read.
+@return	value of lower_case_table_names */
+UNIV_INTERN
+ulint
+innobase_get_lower_case_table_names(void);
+/*=====================================*/
 
 #endif

@@ -103,10 +103,10 @@ UNIV_INTERN
 ulint
 buf_read_ahead_linear(
 /*==================*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	offset, /*!< in: page number of a page; NOTE: the current thread
-			must want access to this page (see NOTE 3 above) */
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes, or 0 */
+	ulint	offset,		/*!< in: page number; see NOTE 3 above */
+	ibool	inside_ibuf,	/*!< in: TRUE if we are inside ibuf routine */
 	trx_t*	trx);
 /********************************************************************//**
 Issues read requests for pages which the ibuf module wants to read in, in
@@ -158,7 +158,7 @@ buf_read_recv_pages(
 
 /** The size in pages of the area which the read-ahead algorithms read if
 invoked */
-#define	BUF_READ_AHEAD_AREA		64
+#define	BUF_READ_AHEAD_AREA(b)		64
 
 /** @name Modes used in read-ahead @{ */
 /** read only pages belonging to the insert buffer tree */
