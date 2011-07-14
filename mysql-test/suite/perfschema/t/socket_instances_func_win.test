@@ -19,7 +19,7 @@
 #
 
 --source include/not_embedded.inc
---source include/not_windows.inc
+--source include/windows.inc
 
 # Take a snapshot of SOCKET_INSTANCES
 CREATE TEMPORARY TABLE my_socket_instances AS
@@ -81,31 +81,6 @@ let $con2_port = `SELECT @port`;
 --connection default
 
 #
-# ESTABLISH LOCAL UNIX DOMAIN CONNECTION
-#
-# Connect via mysql sock file
-
---echo # Establish local unix domain connection (con3,localhost,root,,test,,)
---connect(con3,localhost,root,,test,,)
-
-# Get the thread id of this connection, store in con3_thread_id
-SELECT THREAD_ID INTO @thread_id
-FROM performance_schema.threads
-WHERE PROCESSLIST_ID = CONNECTION_ID();
-
-let $con3_thread_id= `SELECT @thread_id`;
-
-# Get the port of this unix domain connection, store in con3_port (should be 0)
-eval SELECT PORT INTO @port
-FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con3_thread_id;
-
-let $con3_port = `SELECT @port`;
-
---echo # Switch to connection default
---connection default
-
-#
 # VERIFY EVENT NAMES
 #
 
@@ -120,7 +95,7 @@ FROM performance_schema.socket_instances
 ORDER BY EVENT_NAME;
 
 #
-# VERIFY UNIQUE EVENT IDs
+# VERIFY UNIQUE OBJECT IDs
 #
 
 --echo # OBJECT_INSTANCE_BEGIN is an arbitrary identifier, guaranteed to be unique.
@@ -129,7 +104,7 @@ SELECT COUNT(*) = COUNT(DISTINCT OBJECT_INSTANCE_BEGIN) AS "Expect 1"
 FROM performance_schema.socket_instances;
 
 #
-# VERIFY UNIQUE SOCKET ID
+# VERIFY UNIQUE SOCKET IDs
 #
 
 --echo # SOCKET_ID is the internal file handle assigned to the socket.
@@ -168,12 +143,12 @@ WHERE PORT = $con2_port;
 # VERIFY CONNECTION DETAILS FOR THE DEFAULT CONNECTION
 #
 
---echo #    Check the content for the default connection (unix domain)
-# EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID  IP  PORT    STATE
-# wait/io/socket/com/client_connection       139799531958280         16         37         0    ACTIVE
+--echo #    Check the content for the default connection (tcpip)
+# EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID  IP           PORT    STATE
+# wait/io/socket/com/client_connection              26139912         16     907296  127.0.0.1    2631    ACTIVE
 
 SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
-   AND IP = '' AND PORT = 0 AS 'Expect 1'
+   AND IP = '127.0.0.1' AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
 
@@ -184,7 +159,7 @@ WHERE THREAD_ID = @thread_id;
 --echo # Characteristics of 'server_tcpip_socket' entry
 --echo #    Server listening socket, TCP/IP
 --echo #    There is only one entry with 'wait/io/socket/com/server_tcpip_socket'.
---echo #    It shares the same thread id as 'wait/io/socket/com/server_unix_socket'.
+
 
 SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
@@ -209,49 +184,13 @@ FROM performance_schema.socket_instances
 WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
 
 #
-# VERIFY SERVER LISTENING SOCKET, UNIX DOMAIN
+# VERIFY SERVER LISTENING SOCKET THREAD ID
 #
 
---echo # Characteristics of 'server_unix_socket' entry
---echo #    Server listening socket, unix domain (socket file)
---echo #    There is only one entry with 'wait/io/socket/com/server_unix_socket'.
---echo #    It shares the same thread id as 'wait/io/socket/com/server_tcpip_socket'.
-
-SELECT COUNT(*) = 1 AS 'Expect 1'
-FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
-
-# Store the thread id of 'server_unix_socket'
---echo # Get the 'server_unix_socket' thread id
-
-SELECT THREAD_ID INTO @thread_id
-FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
-
-let $server_unix_thread_id= `SELECT @thread_id`;
-
---echo #    Check the content.
-eval SELECT THREAD_ID = $server_unix_thread_id
-     AND PORT = 0 AND IP = ''
-     AND STATE = 'ACTIVE' AS 'Expect 1'
-FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
-
-#
-# VERIFY SERVER LISTENING SOCKET THREAD IDs
-#
-
---echo # Server listening sockets (TCP and Unix) are handled on the same thread
-eval SELECT COUNT(*) = 2 AS 'Expect 1'
+--echo # Server listening socket (TCP) is handled on one thread
+eval SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE THREAD_ID = $server_tcpip_thread_id;
-
-eval SELECT COUNT(*) = 2 AS 'Expect 1'
-FROM performance_schema.socket_instances
-WHERE THREAD_ID = $server_unix_thread_id;
-
---echo #Compare server listener socket thread ids
-eval SELECT $server_tcpip_thread_id = $server_unix_thread_id as 'Expect 1';
 
 #
 # VERIFY TCP/IP CLIENT CONNECTION 1
@@ -301,40 +240,16 @@ WHERE THREAD_ID = $con2_thread_id;
 --echo #    There is only one entry with this id.
 --replace_result $con2_thread_id <con2_thread_id>
 
-eval SELECT COUNT(*) = 2 AS 'Expect 2'
-FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con2_thread_id;
-
-#
-# VERIFY LOCAL CONNECTION, UNIX DOMAIN
-#
-
-# EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID  IP  PORT  STATE
-# wait/io/socket/com/client_connection       139799531958280         16         37         0   IDLE or ACTIVE
-
---echo #    Check the content for client connection 3 (unix domain).
---replace_result $con3_thread_id <con3_thread_id>
-
-eval SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
-     AND IP = ''
-     AND PORT = 0
-AS 'Expect 1'
-FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con3_thread_id;
-
---echo # Characteristics of entries with THREAD_ID of con3
---echo #    There is only one entry with this id.
---replace_result $con3_thread_id <con3_thread_id>
-
 eval SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con3_thread_id;
+WHERE THREAD_ID = $con2_thread_id;
 
 #
 # LIST CLIENT CONNECTIONS
 #
 
---echo # Show differences to socket_instances before con1, con2 and con3 connecting
+--echo # Show differences to socket_instances before con1 connecting
+--connection default
 
 SELECT EVENT_NAME, IP
 FROM performance_schema.socket_instances
@@ -349,15 +264,12 @@ ORDER BY THREAD_ID;
 # DROP CLIENT CONNECTIONS
 #
 
---echo # Disconnect con1, con2 and con3
+--echo # Disconnect con1 and con2
 --connection con1
 --disconnect con1
 --source include/wait_until_disconnected.inc
 --connection con2
 --disconnect con2
---source include/wait_until_disconnected.inc
---connection con3
---disconnect con3
 --source include/wait_until_disconnected.inc
 --connection default
 
@@ -365,7 +277,7 @@ ORDER BY THREAD_ID;
 # VERIFY CONNECTIONS DROPPED
 #
 
---echo # Show differences to socket_instances before con1,con1 connecting.
+--echo # Show differences to socket_instances before con1 connecting.
 --echo # There should be none.
 
 SELECT *

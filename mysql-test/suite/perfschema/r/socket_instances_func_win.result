@@ -9,7 +9,7 @@ FROM performance_schema.threads
 WHERE PROCESSLIST_ID = CONNECTION_ID();
 SELECT PORT INTO @port
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = 17;
+WHERE THREAD_ID = 19;
 # Switch to connection default
 # Establish a second local TCP/IP connection (con2,127.0.0.1,root,,test,,)
 SELECT THREAD_ID INTO @thread_id
@@ -17,15 +17,7 @@ FROM performance_schema.threads
 WHERE PROCESSLIST_ID = CONNECTION_ID();
 SELECT PORT INTO @port
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = 18;
-# Switch to connection default
-# Establish local unix domain connection (con3,localhost,root,,test,,)
-SELECT THREAD_ID INTO @thread_id
-FROM performance_schema.threads
-WHERE PROCESSLIST_ID = CONNECTION_ID();
-SELECT PORT INTO @port
-FROM performance_schema.socket_instances
-WHERE THREAD_ID = 19;
+WHERE THREAD_ID = 20;
 # Switch to connection default
 # EVENT_NAME is the "wait/io/socket/*" instrument identifier.
 SELECT COUNT(*) = 0 AS "Expect 1"
@@ -39,7 +31,6 @@ ORDER BY EVENT_NAME;
 EVENT_NAME
 wait/io/socket/com/client_connection
 wait/io/socket/com/server_tcpip_socket
-wait/io/socket/com/server_unix_socket
 # OBJECT_INSTANCE_BEGIN is an arbitrary identifier, guaranteed to be unique.
 SELECT COUNT(*) = COUNT(DISTINCT OBJECT_INSTANCE_BEGIN) AS "Expect 1"
 FROM performance_schema.socket_instances;
@@ -68,9 +59,9 @@ FROM performance_schema.socket_instances
 WHERE PORT = <con2_port>;
 Expect 1
 1
-#    Check the content for the default connection (unix domain)
+#    Check the content for the default connection (tcpip)
 SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
-   AND IP = '' AND PORT = 0 AS 'Expect 1'
+   AND IP = '127.0.0.1' AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
 Expect 1
@@ -78,7 +69,6 @@ Expect 1
 # Characteristics of 'server_tcpip_socket' entry
 #    Server listening socket, TCP/IP
 #    There is only one entry with 'wait/io/socket/com/server_tcpip_socket'.
-#    It shares the same thread id as 'wait/io/socket/com/server_unix_socket'.
 SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
@@ -89,47 +79,17 @@ SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.socket_instances
 WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
 #    Check the content.
-SELECT THREAD_ID = 1
+SELECT THREAD_ID = 16
 AND PORT = <MASTER_MYPORT> AND IP = '0.0.0.0'
      AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
 Expect 1
 1
-# Characteristics of 'server_unix_socket' entry
-#    Server listening socket, unix domain (socket file)
-#    There is only one entry with 'wait/io/socket/com/server_unix_socket'.
-#    It shares the same thread id as 'wait/io/socket/com/server_tcpip_socket'.
+# Server listening socket (TCP) is handled on one thread
 SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
-Expect 1
-1
-# Get the 'server_unix_socket' thread id
-SELECT THREAD_ID INTO @thread_id
-FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
-#    Check the content.
-SELECT THREAD_ID = 1
-AND PORT = 0 AND IP = ''
-     AND STATE = 'ACTIVE' AS 'Expect 1'
-FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
-Expect 1
-1
-# Server listening sockets (TCP and Unix) are handled on the same thread
-SELECT COUNT(*) = 2 AS 'Expect 1'
-FROM performance_schema.socket_instances
-WHERE THREAD_ID = 1;
-Expect 1
-1
-SELECT COUNT(*) = 2 AS 'Expect 1'
-FROM performance_schema.socket_instances
-WHERE THREAD_ID = 1;
-Expect 1
-1
-#Compare server listener socket thread ids
-SELECT 1 = 1 as 'Expect 1';
+WHERE THREAD_ID = 16;
 Expect 1
 1
 #    Check content for client connection 1 (tcpip)
@@ -138,7 +98,7 @@ SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
         AND PORT = <con1_port>
 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = 17;
+WHERE THREAD_ID = 19;
 Expect 1
 1
 # Characteristics of entries with THREAD_ID of con1
@@ -154,33 +114,17 @@ SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
         AND PORT = <con2_port>
 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = 18;
+WHERE THREAD_ID = 20;
 Expect 1
 1
 # Characteristics of entries with THREAD_ID of con2
 #    There is only one entry with this id.
-SELECT COUNT(*) = 2 AS 'Expect 2'
-FROM performance_schema.socket_instances
-WHERE THREAD_ID = <con2_thread_id>;
-Expect 2
-0
-#    Check the content for client connection 3 (unix domain).
-SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
-     AND IP = ''
-     AND PORT = 0
-AS 'Expect 1'
-FROM performance_schema.socket_instances
-WHERE THREAD_ID = <con3_thread_id>;
-Expect 1
-1
-# Characteristics of entries with THREAD_ID of con3
-#    There is only one entry with this id.
 SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = <con3_thread_id>;
+WHERE THREAD_ID = <con2_thread_id>;
 Expect 1
 1
-# Show differences to socket_instances before con1, con2 and con3 connecting
+# Show differences to socket_instances before con1 connecting
 SELECT EVENT_NAME, IP
 FROM performance_schema.socket_instances
 WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)
@@ -190,9 +134,8 @@ ORDER BY THREAD_ID;
 EVENT_NAME	IP
 wait/io/socket/com/client_connection	127.0.0.1
 wait/io/socket/com/client_connection	127.0.0.1
-wait/io/socket/com/client_connection	
-# Disconnect con1, con2 and con3
-# Show differences to socket_instances before con1,con1 connecting.
+# Disconnect con1 and con2
+# Show differences to socket_instances before con1 connecting.
 # There should be none.
 SELECT *
 FROM performance_schema.socket_instances
