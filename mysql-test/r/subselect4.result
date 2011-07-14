@@ -1190,6 +1190,54 @@ set @@optimizer_switch='materialization=off,semijoin=on';
 set @@optimizer_switch=@save_optimizer_switch;
 drop table t1, t2;
 #
+# LP BUG#777691 Wrong result with subqery in select list and subquery cache=off in maria-5.3
+#
+CREATE TABLE t1 ( f1 varchar(32)) ;
+INSERT INTO t1 VALUES ('b'),('x'),('c'),('x');
+CREATE TABLE t2 ( f2 int, f3 varchar(32)) ;
+INSERT INTO t2 VALUES (1,'x');
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=off,in_to_exists=on,subquery_cache=off';
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+f1	max_f2
+b	NULL
+x	1
+c	NULL
+x	1
+set @@optimizer_switch='materialization=on,in_to_exists=off,subquery_cache=off';
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+f1	max_f2
+b	NULL
+x	1
+c	NULL
+x	1
+set @@optimizer_switch='materialization=off,in_to_exists=on,subquery_cache=off';
+Even when t2 is not constant table, the result must be the same.
+INSERT INTO t2 VALUES (2,'y');
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+f1	max_f2
+b	NULL
+x	1
+c	NULL
+x	1
+set @@optimizer_switch=@save_optimizer_switch;
+drop table t1, t2;
+#
 # LP BUG#641203 Query returns rows where no result is expected (impossible WHERE)
 #
 CREATE TABLE t1 (c1 varchar(1) DEFAULT NULL);
