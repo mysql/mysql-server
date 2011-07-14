@@ -2236,7 +2236,11 @@ retry:
 
         cache->synced_doc_id = ut_max(doc_id_cmp, *doc_id);
 
-        cache->next_doc_id = cache->synced_doc_id + 1;
+	mutex_enter(&cache->doc_id_lock);
+	if (cache->next_doc_id < cache->synced_doc_id + 1) {
+		cache->next_doc_id = cache->synced_doc_id + 1;
+	}
+	mutex_exit(&cache->doc_id_lock);
         
         if (doc_id_cmp > *doc_id) {
                 error = fts_update_sync_doc_id(table, table->name,
@@ -4275,7 +4279,7 @@ fts_init_doc_id(
 #endif /* FTS_ADD_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
-        ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+        ut_ad(rw_lock_own(&table->fts->cache->lock, RW_LOCK_EX));
 #endif
 
 	/* Then compare this value with the ID value stored in the CONFIG
