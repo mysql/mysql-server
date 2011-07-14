@@ -93,6 +93,22 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
 }
 
 
+bool
+Item_row::eval_not_null_tables(uchar *opt_arg)
+{
+  Item **arg,**arg_end;
+  not_null_tables_cache= 0;
+  if (arg_count)
+  {		
+    for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
+    {
+      not_null_tables_cache|= (*arg)->not_null_tables();
+    }
+  }
+  return FALSE;
+}
+
+
 void Item_row::cleanup()
 {
   DBUG_ENTER("Item_row::cleanup");
