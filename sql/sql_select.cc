@@ -902,8 +902,9 @@ JOIN::optimize()
     /* Save this info for the next executions */
     if (select_lex->save_leaf_tables(thd))
       DBUG_RETURN(1);
-    eval_select_list_used_tables();
   }
+  
+  eval_select_list_used_tables();
   
   table_count= select_lex->leaf_tables.elements;
 
