@@ -1406,9 +1406,9 @@ String *Item_in_subselect::val_str(String *str)
 bool Item_in_subselect::val_bool()
 {
   DBUG_ASSERT(fixed == 1);
-  null_value= was_null= FALSE;
   if (forced_const)
     return value;
+  null_value= was_null= FALSE;
   if (exec())
   {
     reset();
@@ -4588,6 +4588,20 @@ int subselect_hash_sj_engine::exec()
     has_covering_null_row= (result_sink->get_max_nulls_in_row() == field_count);
     has_covering_null_columns= (count_non_null_columns +
                                 count_null_only_columns == field_count);
+
+    if (has_covering_null_row && has_covering_null_columns)
+    {
+      /*
+        The whole table consist of only NULL values. The result of IN is
+        a constant UNKNOWN.
+      */
+      DBUG_ASSERT(tmp_table->file->stats.records == 1);
+      item_in->value= 0;
+      item_in->null_value= 1;
+      item_in->make_const();
+      item_in->set_first_execution();
+      DBUG_RETURN(FALSE);
+    }
 
     if (has_covering_null_row)
     {

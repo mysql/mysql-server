@@ -1,4 +1,206 @@
 set @save_optimizer_switch=@@optimizer_switch;
+-------------------------------
+Part 1: Feature tests.
+-------------------------------
+Default for all tests.
+set @@optimizer_switch="materialization=on,in_to_exists=off,semijoin=off,subquery_cache=off";
+
+Schema requires partial matching, but data analysis discoveres there is
+no need. This is possible only if all outer columns are not NULL.
+
+create table t1 (a1 char(8) not null, a2 char(8) not null);
+create table t2 (b1 char(8), b2 char(8));
+insert into t1 values ('1 - 00', '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 00', '2 - 00');
+insert into t2 values ('1 - 01', NULL    );
+insert into t2 values (NULL    , '2 - 02');
+insert into t2 values (NULL    , NULL    );
+insert into t2 values ('1 - 02', '2 - 02');
+select * from t1
+where (a1, a2) not in (select * from t2 where b1 is not null and b2 is not null);
+a1	a2
+1 - 01	2 - 01
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+a1	a2	in_res
+1 - 00	2 - 00	0
+1 - 01	2 - 01	NULL
+drop table t1, t2;
+
+NULLs in the outer columns, no NULLs in the suqbuery 
+
+create table t1 (a1 char(8), a2 char(8));
+create table t2 (b1 char(8) not null, b2 char(8) not null);
+insert into t1 values (NULL    , '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+insert into t1 values (NULL    , NULL    );
+insert into t2 values ('1 - 00', '2 - 00');
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 02', '2 - 00');
+select * from t1
+where (a1, a2) not in (select * from t2 where b1 is not null and b2 is not null);
+a1	a2
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+a1	a2	in_res
+NULL	2 - 00	NULL
+1 - 01	2 - 01	0
+NULL	NULL	NULL
+select * from t1
+where (a1, a2) in (select * from t2 where b1 is not null and b2 is not null);
+a1	a2
+1 - 01	2 - 01
+select a1, a2, (a1, a2) in (select * from t2) as in_res from t1;
+a1	a2	in_res
+NULL	2 - 00	NULL
+1 - 01	2 - 01	1
+NULL	NULL	NULL
+drop table t1, t2;
+
+All columns require partial matching (no non-null columns)
+
+TODO
+
+Both non-NULL columns and columns with NULLs
+
+TODO
+
+Covering NULL rows
+
+create table t1 (a1 char(8), a2 char(8));
+create table t2 (b1 char(8), b2 char(8));
+insert into t1 values ('1 - 00', '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 01', NULL    );
+insert into t2 values (NULL    , '2 - 02');
+insert into t2 values (NULL    , NULL    );
+insert into t2 values ('1 - 02', '2 - 02');
+select * from t1
+where (a1, a2) not in (select * from t2);
+a1	a2
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+a1	a2	in_res
+1 - 00	2 - 00	NULL
+1 - 01	2 - 01	NULL
+insert into t2 values ('1 - 01', '2 - 01');
+select * from t1
+where (a1, a2) not in (select * from t2);
+a1	a2
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+a1	a2	in_res
+1 - 00	2 - 00	NULL
+1 - 01	2 - 01	0
+select * from t1
+where (a1, a2) in (select * from t2);
+a1	a2
+1 - 01	2 - 01
+select a1, a2, (a1, a2) in (select * from t2) as in_res from t1;
+a1	a2	in_res
+1 - 00	2 - 00	NULL
+1 - 01	2 - 01	1
+drop table t1, t2;
+
+Covering NULL columns
+
+this case affects only the rowid-merge algorithm
+set @@optimizer_switch="partial_match_rowid_merge=on,partial_match_table_scan=off";
+create table t1 (a1 char(8) not null, a2 char(8), a3 char(8) not null);
+create table t2 (b1 char(8) not null, b2 char(8), b3 char(8) not null);
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+insert into t2 values ('1 - 01', NULL, '3 - x1');
+insert into t2 values ('1 - 02', NULL, '3 - 02');
+insert into t2 values ('1 - 00', NULL, '3 - 00');
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+a1	a2	a3
+1 - 01	2 - 01	3 - 01
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+a1	a2	a3	in_res
+1 - 00	2 - 00	3 - 00	NULL
+1 - 01	2 - 01	3 - 01	1
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+a1	a2	a3
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+a1	a2	a3	in_res
+1 - 00	2 - 00	3 - 00	NULL
+1 - 01	2 - 01	3 - 01	0
+drop table t1, t2;
+create table t1 (a1 char(8), a2 char(8), a3 char(8) not null);
+create table t2 (b1 char(8), b2 char(8), b3 char(8) not null);
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+insert into t2 values (NULL, NULL, '3 - x1');
+insert into t2 values (NULL, NULL, '3 - 02');
+insert into t2 values (NULL, NULL, '3 - 00');
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+a1	a2	a3
+1 - 01	2 - 01	3 - 01
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+a1	a2	a3	in_res
+1 - 00	2 - 00	3 - 00	NULL
+1 - 01	2 - 01	3 - 01	1
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+a1	a2	a3
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+a1	a2	a3	in_res
+1 - 00	2 - 00	3 - 00	NULL
+1 - 01	2 - 01	3 - 01	0
+drop table t1, t2;
+
+Covering NULL row, and a NULL column
+
+create table t1 (a1 char(8) not null, a2 char(8), a3 char(8));
+create table t2 (b1 char(8),          b2 char(8), b3 char(8));
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+insert into t2 values ('1 - 01', NULL, '3 - x1');
+insert into t2 values (NULL    , NULL, NULL    );
+insert into t2 values ('1 - 00', NULL, '3 - 00');
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+a1	a2	a3
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+a1	a2	a3	in_res
+1 - 00	2 - 00	3 - 00	NULL
+1 - 01	2 - 01	3 - 01	NULL
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+a1	a2	a3
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+a1	a2	a3	in_res
+1 - 00	2 - 00	3 - 00	NULL
+1 - 01	2 - 01	3 - 01	NULL
+drop table t1, t2;
+
+Covering NULL row, and covering NULL columns
+
+create table t1 (a1 char(8) not null, a2 char(8), a3 char(8));
+create table t2 (b1 char(8),          b2 char(8), b3 char(8));
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+insert into t2 values (NULL, NULL, NULL);
+insert into t2 values (NULL, NULL, NULL);
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+a1	a2	a3
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+a1	a2	a3	in_res
+1 - 00	2 - 00	3 - 00	NULL
+1 - 01	2 - 01	3 - 01	NULL
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+a1	a2	a3
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+a1	a2	a3	in_res
+1 - 00	2 - 00	3 - 00	NULL
+1 - 01	2 - 01	3 - 01	NULL
+drop table t1, t2;
+-------------------------------
+Part 2: Test cases for bugs.
+-------------------------------
 drop table if exists t1, t2;
 #
 # LP BUG#608744

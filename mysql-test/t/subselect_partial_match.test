@@ -5,6 +5,219 @@
 
 set @save_optimizer_switch=@@optimizer_switch;
 
+--echo -------------------------------
+--echo Part 1: Feature tests.
+--echo -------------------------------
+
+--echo Default for all tests.
+set @@optimizer_switch="materialization=on,in_to_exists=off,semijoin=off,subquery_cache=off";
+
+--echo
+--echo Schema requires partial matching, but data analysis discoveres there is
+--echo no need. This is possible only if all outer columns are not NULL.
+--echo
+
+create table t1 (a1 char(8) not null, a2 char(8) not null);
+create table t2 (b1 char(8), b2 char(8));
+
+insert into t1 values ('1 - 00', '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+
+insert into t2 values ('1 - 00', '2 - 00');
+insert into t2 values ('1 - 01', NULL    );
+insert into t2 values (NULL    , '2 - 02');
+insert into t2 values (NULL    , NULL    );
+insert into t2 values ('1 - 02', '2 - 02');
+
+select * from t1
+where (a1, a2) not in (select * from t2 where b1 is not null and b2 is not null);
+
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+--echo
+--echo NULLs in the outer columns, no NULLs in the suqbuery 
+--echo
+
+create table t1 (a1 char(8), a2 char(8));
+create table t2 (b1 char(8) not null, b2 char(8) not null);
+
+insert into t1 values (NULL    , '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+insert into t1 values (NULL    , NULL    );
+
+insert into t2 values ('1 - 00', '2 - 00');
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 02', '2 - 00');
+
+select * from t1
+where (a1, a2) not in (select * from t2 where b1 is not null and b2 is not null);
+
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2) in (select * from t2 where b1 is not null and b2 is not null);
+
+select a1, a2, (a1, a2) in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+--echo
+--echo All columns require partial matching (no non-null columns)
+--echo
+
+--echo TODO
+
+--echo
+--echo Both non-NULL columns and columns with NULLs
+--echo
+
+--echo TODO
+
+--echo
+--echo Covering NULL rows
+--echo
+
+create table t1 (a1 char(8), a2 char(8));
+create table t2 (b1 char(8), b2 char(8));
+
+insert into t1 values ('1 - 00', '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+
+insert into t2 values ('1 - 01', NULL    );
+insert into t2 values (NULL    , '2 - 02');
+insert into t2 values (NULL    , NULL    );
+insert into t2 values ('1 - 02', '2 - 02');
+
+select * from t1
+where (a1, a2) not in (select * from t2);
+
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+
+insert into t2 values ('1 - 01', '2 - 01');
+
+select * from t1
+where (a1, a2) not in (select * from t2);
+
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2) in (select * from t2);
+
+select a1, a2, (a1, a2) in (select * from t2) as in_res from t1;
+
+
+drop table t1, t2;
+
+--echo
+--echo Covering NULL columns
+--echo
+
+--echo this case affects only the rowid-merge algorithm
+set @@optimizer_switch="partial_match_rowid_merge=on,partial_match_table_scan=off";
+
+create table t1 (a1 char(8) not null, a2 char(8), a3 char(8) not null);
+create table t2 (b1 char(8) not null, b2 char(8), b3 char(8) not null);
+
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+
+insert into t2 values ('1 - 01', NULL, '3 - x1');
+insert into t2 values ('1 - 02', NULL, '3 - 02');
+insert into t2 values ('1 - 00', NULL, '3 - 00');
+
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+create table t1 (a1 char(8), a2 char(8), a3 char(8) not null);
+create table t2 (b1 char(8), b2 char(8), b3 char(8) not null);
+
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+
+insert into t2 values (NULL, NULL, '3 - x1');
+insert into t2 values (NULL, NULL, '3 - 02');
+insert into t2 values (NULL, NULL, '3 - 00');
+
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+--echo
+--echo Covering NULL row, and a NULL column
+--echo
+
+create table t1 (a1 char(8) not null, a2 char(8), a3 char(8));
+create table t2 (b1 char(8),          b2 char(8), b3 char(8));
+
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+
+insert into t2 values ('1 - 01', NULL, '3 - x1');
+insert into t2 values (NULL    , NULL, NULL    );
+insert into t2 values ('1 - 00', NULL, '3 - 00');
+
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+
+--echo
+--echo Covering NULL row, and covering NULL columns
+--echo
+
+create table t1 (a1 char(8) not null, a2 char(8), a3 char(8));
+create table t2 (b1 char(8),          b2 char(8), b3 char(8));
+
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+
+insert into t2 values (NULL, NULL, NULL);
+insert into t2 values (NULL, NULL, NULL);
+
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+
+--echo -------------------------------
+--echo Part 2: Test cases for bugs.
+--echo -------------------------------
+
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
