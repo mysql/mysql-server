@@ -225,3 +225,32 @@ SELECT COUNT(*) FROM t3;
 
 DROP PROCEDURE insert_data;
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # BUG#778434 Wrong result with in_to_exists=on in maria-5.3-mwl89
+--echo #
+CREATE TABLE t1 ( f11 int) ;
+INSERT IGNORE INTO t1 VALUES (0);
+
+CREATE TABLE t2 ( f10 int) ;
+INSERT IGNORE INTO t2 VALUES (0);
+
+CREATE TABLE t3 ( f1 int NOT NULL , f10 int, PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t3 VALUES (6,0),(10,0);
+
+CREATE TABLE t4 ( f11 int) ;
+INSERT IGNORE INTO t4 VALUES
+(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(NULL),
+(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
+
+set @tmp_778434=@@optimizer_switch;
+SET optimizer_switch='materialization=off,in_to_exists=on,subquery_cache=off,semijoin=off';
+
+SELECT * FROM t1 INNER JOIN t2 ON t2.f10 = t1.f11
+WHERE (6, 234) IN (
+        SELECT t3.f1, t3.f1
+        FROM t3 JOIN t4 ON t4.f11 = t3.f10
+);
+
+DROP TABLE t1,t2,t3,t4;
+set optimizer_switch= @tmp_778434;

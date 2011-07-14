@@ -2462,6 +2462,7 @@ private:
   */
 
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
+  /* Note: ha_index_read_idx_map() may buypass index_init() */
   virtual int index_init(uint idx, bool sorted) { return 0; }
   virtual int index_end() { return 0; }
   /**

@@ -2259,7 +2259,14 @@ int ha_maria::index_read_idx_map(uchar * buf, uint index, const uchar * key,
 				 key_part_map keypart_map,
 				 enum ha_rkey_function find_flag)
 {
-  int error= maria_rkey(file, buf, index, key, keypart_map, find_flag);
+  int error;
+  /* Use the pushed index condition if it matches the index we're scanning */
+  if (index == pushed_idx_cond_keyno)
+    ma_set_index_cond_func(file, index_cond_func_maria, this);
+  
+  error= maria_rkey(file, buf, index, key, keypart_map, find_flag);
+   
+  ma_set_index_cond_func(file, NULL, 0);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
 }

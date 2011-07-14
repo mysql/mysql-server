@@ -3627,11 +3627,19 @@ inline int handler::ha_index_read_map(uchar * buf, const uchar * key,
   return error;
 }
 
+
+/*
+  @note: Other index lookup/navigation functions require prior
+  handler->index_init() call. This function is different, it requires
+  that the scan is not initialized, and accepts "uint index" as an argument.
+*/
+
 inline int handler::ha_index_read_idx_map(uchar * buf, uint index,
                                           const uchar * key,
                                           key_part_map keypart_map,
                                           enum ha_rkey_function find_flag)
 {
+  DBUG_ASSERT(inited==NONE);
   increment_statistics(&SSV::ha_read_key_count);
   int error= index_read_idx_map(buf, index, key, keypart_map, find_flag);
   if (!error)
