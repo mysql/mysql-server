@@ -1468,7 +1468,6 @@ trx_undo_prev_version_build(
 	table_id_t	table_id;
 	trx_id_t	trx_id;
 	roll_ptr_t	roll_ptr;
-	roll_ptr_t	old_roll_ptr;
 	upd_t*		update;
 	byte*		ptr;
 	ulint		info_bits;
@@ -1486,7 +1485,6 @@ trx_undo_prev_version_build(
 	ut_a(dict_index_is_clust(index));
 
 	roll_ptr = row_get_rec_roll_ptr(rec, index, offsets);
-	old_roll_ptr = roll_ptr;
 
 	*old_vers = NULL;
 
