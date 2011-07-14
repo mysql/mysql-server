@@ -252,7 +252,7 @@ cmp_rec_rec(
 /*****************************************************************
 This function is used to compare two dfields where at least the first
 has its data type field set. */
-UNIV_INLINE
+UNIV_INTERN
 int
 cmp_dfield_dfield_like_prefix(
 /*==========================*/

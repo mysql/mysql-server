@@ -4460,6 +4460,7 @@ innobase_mysql_cmp(
 	return(0);
 }
 
+
 /*************************************************************//**
 Get the next token from the given string and store it in *token. */
 extern "C" UNIV_INTERN
@@ -4512,6 +4513,35 @@ innobase_get_fts_charset(
 	return(charset);
 }
 
+/*************************************************************//**
+InnoDB uses this function to compare two data fields for which the data type
+is such that we must use MySQL code to compare them. NOTE that the prototype
+of this function is in rem0cmp.c in InnoDB source code! If you change this
+function, remember to update the prototype there!
+@return	1, 0, -1, if a is greater, equal, less than b, respectively */
+extern "C" UNIV_INTERN
+int
+innobase_mysql_cmp_prefix(
+/*======================*/
+	int		mysql_type,	/*!< in: MySQL type */
+	uint		charset_number,	/*!< in: number of the charset */
+	const unsigned char* a,		/*!< in: data field */
+	unsigned int	a_length,	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+	const unsigned char* b,		/*!< in: data field */
+	unsigned int	b_length)	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+{
+	CHARSET_INFO*		charset;
+	int			result;
+
+	charset = innobase_get_fts_charset(mysql_type, charset_number);
+
+	result = ha_compare_text(charset, (uchar*) a, a_length,
+				 (uchar*) b, b_length, 1, 0);
+
+	return(result);
+}
 /******************************************************************//**
 compare two character string according to their charset. */
 extern "C" UNIV_INTERN
@@ -13481,6 +13511,16 @@ static MYSQL_SYSVAR_ULONG(ft_max_token_size, fts_max_token_size,
   "InnoDB Fulltext search maximum token size in bytes",
   NULL, NULL, HA_FT_MAXCHARLEN, 10, FTS_MAX_WORD_LEN , 0);
 
+static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "InnoDB Fulltext search parallel sort degree",
+  NULL, NULL, 2, 1, 16, 0);
+   
+static MYSQL_SYSVAR_ULONG(sort_buf_size, srv_sort_buf_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "InnoDB Fulltext search sort buffer size",
+  NULL, NULL, 3145728, 1048576, 64836480, 0);
+
 static MYSQL_SYSVAR_BOOL(optimize_fulltext_only, innodb_optimize_fulltext_only,
   PLUGIN_VAR_NOCMDARG,
   "Only optimize the Fulltext index of the table",
@@ -13684,6 +13724,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(ft_cache_size),
   MYSQL_SYSVAR(ft_max_token_size),
   MYSQL_SYSVAR(ft_min_token_size),
+  MYSQL_SYSVAR(ft_sort_pll_degree),
   MYSQL_SYSVAR(large_prefix),
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
   MYSQL_SYSVAR(lock_wait_timeout),
@@ -13716,6 +13757,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(support_xa),
+  MYSQL_SYSVAR(sort_buf_size),
   MYSQL_SYSVAR(analyze_is_persistent),
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(spin_wait_delay),

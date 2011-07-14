@@ -42,6 +42,10 @@ FIC. Three fields are sort: (word, doc_id, position) */
 /* Number of FTS index table*/
 #define FTS_NUM_INDEX_TABLE		4
 
+/* Maximum number of rows in a table, smaller than which, we will
+optimize using a 4 byte Doc ID for FIC merge sort to reduce sort size */
+#define MAX_DOC_ID_OPT_VAL		1073741824
+
 /* Document id type. */
 typedef ib_uint64_t doc_id_t;
 
@@ -70,6 +74,9 @@ those defined in mysql file ft_global.h */
 
 /* Threshold where our optimize thread automatically kicks in */
 #define FTS_OPTIMIZE_THRESHOLD		10000000
+
+/* Variable specifying the FTS parallel sort degree */
+extern ulint            fts_sort_pll_degree;
 
 /* FTS rank type, which will be between 0 .. 1 inclusive */
 typedef float fts_rank_t;

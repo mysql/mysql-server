@@ -1004,6 +1004,11 @@ ha_innobase::add_index(
 		trx, prebuilt->table, heap, key_info, num_of_idx,
 		&num_fts_index, &fts_add_doc_id, &fts_add_doc_idx);
 
+	if (!index_defs) {
+		error = DB_UNSUPPORTED;
+		goto error;
+	}
+
 	/* We do not support create more than one FT index on the
 	table yet.
 	TODO: this restriction will be removed */

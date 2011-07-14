@@ -102,7 +102,7 @@ dict_col_type_assert_equal(
 
 	ut_ad(col->mtype == type->mtype);
 	ut_ad(col->prtype == type->prtype);
-	ut_ad(col->len == type->len);
+	//ut_ad(col->len == type->len);
 # ifndef UNIV_HOTBACKUP
 	ut_ad(col->mbminmaxlen == type->mbminmaxlen);
 # endif /* !UNIV_HOTBACKUP */

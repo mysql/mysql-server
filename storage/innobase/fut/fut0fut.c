@@ -4930,7 +4930,7 @@ fts_get_doc_id_from_row(
 	doc_id = fts_read_doc_id(dfield_get_data(field));
 
 	/* Must not be 0. */
-	ut_a(doc_id > 0);
+	ut_ad(doc_id > 0);
 
 	return(doc_id);
 }

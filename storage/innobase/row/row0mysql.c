@@ -1225,6 +1225,7 @@ run_again:
 	err = trx->error_state;
 
 	if (err != DB_SUCCESS) {
+error_exit:
 		que_thr_stop_for_mysql(thr);
 
 		/* FIXME: What's this ? */
@@ -1249,6 +1250,11 @@ run_again:
 
 		/* Extract the doc id from the hidden FTS column */
 		doc_id = fts_get_doc_id_from_row(prebuilt->table, node->row);
+
+		if (doc_id <= 0) {
+			goto error_exit;	
+		}
+
 		/* Pass NULL for the colums affected, since an INSERT affects
 		all FTS indexes. */
 		fts_trx_add_op(trx, prebuilt->table, doc_id, FTS_INSERT, NULL);

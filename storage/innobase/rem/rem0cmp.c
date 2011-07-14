@@ -90,6 +90,23 @@ innobase_mysql_cmp(
 	const unsigned char* b,		/*!< in: data field */
 	unsigned int	b_length);	/*!< in: data field length,
 					not UNIV_SQL_NULL */
+/*************************************************************//**
+This function is used to compare two data fields for which the data type
+is such that we must use MySQL code to compare them. The prototype here
+must be a copy of the one in ha_innobase.cc!
+@return	1, 0, -1, if a is greater, equal, less than b, respectively */
+extern
+int
+innobase_mysql_cmp_prefix(
+/*======================*/
+	int		mysql_type,	/*!< in: MySQL type */
+	uint		charset_number,	/*!< in: number of the charset */
+	const unsigned char* a,		/*!< in: data field */
+	unsigned int	a_length,	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+	const unsigned char* b,		/*!< in: data field */
+	unsigned int	b_length);	/*!< in: data field length,
+					not UNIV_SQL_NULL */
 /*********************************************************************//**
 Transforms the character code so that it is ordered appropriately for the
 language. This is only used for the latin1 char set. MySQL does the
@@ -281,6 +298,44 @@ cmp_whole_field(
 	}
 
 	return(0);
+}
+
+/*****************************************************************
+This function is used to compare two dfields where at least the first
+has its data type field set. */
+UNIV_INTERN
+int
+cmp_dfield_dfield_like_prefix(
+/*==========================*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
+				less than dfield2, respectively */
+	dfield_t*	dfield1,/* in: data field; must have type field set */
+	dfield_t*	dfield2)/* in: data field */
+{
+	const dtype_t*  type;
+	ulint           ret;
+
+	ut_ad(dfield_check_typed(dfield1));
+
+	type = dfield_get_type(dfield1);
+
+	if (type->mtype >= DATA_FLOAT) {
+		ret = innobase_mysql_cmp_prefix(
+			(int)(type->prtype & DATA_MYSQL_TYPE_MASK),
+			(uint)dtype_get_charset_coll(type->prtype),
+			dfield_get_data(dfield1),
+			dfield_get_len(dfield1),
+                        dfield_get_data(dfield2),
+                        dfield_get_len(dfield2));
+        } else {
+                ret = (cmp_data_data_like_prefix(
+                        (byte*) dfield_get_data(dfield1),
+                        dfield_get_len(dfield1),
+                        (byte*) dfield_get_data(dfield2),
+                        dfield_get_len(dfield2)));
+        }
+
+        return(ret);
 }
 
 /*************************************************************//**

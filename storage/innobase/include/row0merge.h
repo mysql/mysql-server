@@ -38,6 +38,7 @@ Created 13/06/2005 Jan Lindstrom
 #include "btr0types.h"
 #include "row0mysql.h"
 #include "lock0types.h"
+#include "srv0srv.h"
 
 /** @brief Block size for I/O operations in merge sort.
 
@@ -47,7 +48,7 @@ rounded to a power of 2.
 When not creating a PRIMARY KEY that contains column prefixes, this
 can be set as small as UNIV_PAGE_SIZE / 2.  See the comment above
 ut_ad(data_size < sizeof(row_merge_block_t)). */
-typedef byte    row_merge_block_t[1048576];
+typedef byte   row_merge_block_t;
 
 /** @brief Secondary buffer for I/O operations of merge records.
 

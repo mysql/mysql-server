@@ -69,6 +69,10 @@ struct fts_psort_common_struct {
 	dict_index_t*		sort_index;	/*!< FTS index */
 	fts_psort_info_t*	all_info;	/*!< all parallel sort info */
 	os_event_t		sort_event;	/*!< sort event */
+	doc_id_t		doc_id;		/*!< a marked Doc ID, other
+						Doc ID will subtract it so
+						to reduce Doc ID to 32 bit
+						variable if possible */
 };
 
 typedef struct fts_psort_common_struct	fts_psort_common_t;
@@ -177,7 +181,9 @@ row_merge_fts_doc_tokenize(
 	ulint*		init_pos,	/*!< in/out: doc start position */
 	ulint*		buf_used,	/*!< in/out: sort buffer used */
 	ulint*		rows_added,	/*!< in/out: num rows added */
-	merge_file_t**	merge_file);	/*!< in/out: merge file to fill */
+	merge_file_t**	merge_file,	/*!< in/out: merge file to fill */
+	doc_id_t	doc_id_diff);	/*!< in: Doc ID difference */
+
 /********************************************************************//**
 Read sorted file containing index data tuples and insert these data
 tuples to the index
@@ -256,7 +262,9 @@ row_fts_insert_tuple(
 	doc_id_t*	in_doc_id,	/*!< in: last item doc id */
 	dtuple_t*	dtuple,		/*!< in: index entry */
 	CHARSET_INFO*	charset,	/*!< in: charset */
-	mem_heap_t*	heap);		/*!< in: heap */
+	mem_heap_t*	heap,		/*!< in: heap */
+	doc_id_t	doc_id_diff);	/*!< in: Doc ID value needs to add
+					back */
 /********************************************************************//**
 Propagate a newly added record up one level in the selection tree
 @return parent where this value propagated to */
