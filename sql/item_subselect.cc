@@ -3864,8 +3864,7 @@ subselect_hash_sj_engine::get_strategy_using_data()
       bitmap_set_bit(&non_null_key_parts, i);
       --count_partial_match_columns;
     }
-    if (result_sink->get_null_count_of_col(i) ==
-               tmp_table->file->stats.records)
+    if (result_sink->get_null_count_of_col(i) == tmp_table->file->stats.records)
       ++count_null_only_columns;
   }
 
@@ -4573,29 +4572,36 @@ int subselect_hash_sj_engine::exec()
   if (strategy == PARTIAL_MATCH)
   {
     uint count_pm_keys; /* Total number of keys needed for partial matching. */
-    MY_BITMAP *nn_key_parts; /* The key parts of the only non-NULL index. */
-    uint covering_null_row_width;
+    MY_BITMAP *nn_key_parts= NULL; /* Key parts of the only non-NULL index. */
+    uint count_non_null_columns= 0; /* Number of columns in nn_key_parts. */
+    bool has_covering_null_row;
+    bool has_covering_null_columns;
     select_materialize_with_stats *result_sink=
       (select_materialize_with_stats *) result;
+    uint field_count= tmp_table->s->fields;
 
-    nn_key_parts= (count_partial_match_columns < tmp_table->s->fields) ?
-                  &non_null_key_parts : NULL;
+    if (count_partial_match_columns < field_count)
+    {
+      nn_key_parts= &non_null_key_parts;
+      count_non_null_columns= bitmap_bits_set(nn_key_parts);
+    }
+    has_covering_null_row= (result_sink->get_max_nulls_in_row() == field_count);
+    has_covering_null_columns= (count_non_null_columns +
+                                count_null_only_columns == field_count);
 
-    if (result_sink->get_max_nulls_in_row() ==
-        tmp_table->s->fields -
-        (nn_key_parts ? bitmap_bits_set(nn_key_parts) : 0))
-      covering_null_row_width= result_sink->get_max_nulls_in_row();
-    else
-      covering_null_row_width= 0;
-
-    if (covering_null_row_width)
-      count_pm_keys= nn_key_parts ? 1 : 0;
+    if (has_covering_null_row)
+    {
+      DBUG_ASSERT(count_partial_match_columns = field_count);
+      count_pm_keys= 0;
+    }
+    else if (has_covering_null_columns)
+      count_pm_keys= 1;
     else
       count_pm_keys= count_partial_match_columns - count_null_only_columns +
-        (nn_key_parts ? 1 : 0);
+                     (nn_key_parts ? 1 : 0);
 
     choose_partial_match_strategy(test(nn_key_parts),
-                                  test(covering_null_row_width),
+                                  has_covering_null_row,
                                   &partial_match_key_parts);
     DBUG_ASSERT(strategy == PARTIAL_MATCH_MERGE ||
                 strategy == PARTIAL_MATCH_SCAN);
@@ -4605,7 +4611,8 @@ int subselect_hash_sj_engine::exec()
         new subselect_rowid_merge_engine(thd, (subselect_uniquesubquery_engine*)
                                          lookup_engine, tmp_table,
                                          count_pm_keys,
-                                         covering_null_row_width,
+                                         has_covering_null_row,
+                                         has_covering_null_columns,
                                          item, result,
                                          semi_join_conds->argument_list());
       if (!pm_engine ||
@@ -4630,7 +4637,8 @@ int subselect_hash_sj_engine::exec()
                                             lookup_engine, tmp_table,
                                             item, result,
                                             semi_join_conds->argument_list(),
-                                            covering_null_row_width)))
+                                            has_covering_null_row,
+                                            has_covering_null_columns)))
       {
         /* This is an irrecoverable error. */
         res= 1;
@@ -5066,11 +5074,13 @@ subselect_partial_match_engine::subselect_partial_match_engine(
   TABLE *tmp_table_arg, Item_subselect *item_arg,
   select_result_interceptor *result_arg,
   List<Item> *equi_join_conds_arg,
-  uint covering_null_row_width_arg)
+  bool has_covering_null_row_arg,
+  bool has_covering_null_columns_arg)
   :subselect_engine(thd_arg, item_arg, result_arg),
    tmp_table(tmp_table_arg), lookup_engine(engine_arg),
    equi_join_conds(equi_join_conds_arg),
-   covering_null_row_width(covering_null_row_width_arg)
+   has_covering_null_row(has_covering_null_row_arg),
+   has_covering_null_columns(has_covering_null_columns_arg)
 {}
 
 
@@ -5108,7 +5118,7 @@ int subselect_partial_match_engine::exec()
     }
   }
 
-  if (covering_null_row_width == tmp_table->s->fields)
+  if (has_covering_null_row)
   {
     /*
       If there is a NULL-only row that coveres all columns the result of IN
@@ -5172,7 +5182,6 @@ void subselect_partial_match_engine::print(String *str,
 /*
   @param non_null_key_parts  
   @param partial_match_key_parts  A union of all single-column NULL key parts.
-  @param count_partial_match_columns Number of NULL keyparts (set bits above).
 
   @retval FALSE  the engine was initialized successfully
   @retval TRUE   there was some (memory allocation) error during initialization,
@@ -5193,20 +5202,26 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
   Item_in_subselect *item_in= (Item_in_subselect*) item;
   int error;
 
-  if (keys_count == 0)
+  if (merge_keys_count == 0)
   {
+    DBUG_ASSERT(bitmap_bits_set(partial_match_key_parts) == 0 ||
+                has_covering_null_row);
     /* There is nothing to initialize, we will only do regular lookups. */
     return FALSE;
   }
 
-  DBUG_ASSERT(!covering_null_row_width || (covering_null_row_width &&
-                                           keys_count == 1 &&
-                                           non_null_key_parts));
+  /*
+    If all nullable columns contain only NULLs, there must be one index
+    over all non-null columns.
+  */
+  DBUG_ASSERT(!has_covering_null_columns ||
+              (has_covering_null_columns &&
+               merge_keys_count == 1 && non_null_key_parts));
   /*
     Allocate buffers to hold the merged keys and the mapping between rowids and
     row numbers.
   */
-  if (!(merge_keys= (Ordered_key**) thd->alloc(keys_count *
+  if (!(merge_keys= (Ordered_key**) thd->alloc(merge_keys_count *
                                                sizeof(Ordered_key*))) ||
       !(row_num_to_rowid= (uchar*) my_malloc((size_t)(row_count * rowid_length),
         MYF(MY_WME))))
@@ -5225,15 +5240,13 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
   }
 
   /*
-    If there is a covering NULL row, the only key that is needed is the
-    only non-NULL key that is already created above. We create keys on
-    NULL-able columns only if there is no covering NULL row.
+    If all nullable columns contain NULLs, the only key that is needed is the
+    only non-NULL key that is already created above.
   */
-  if (!covering_null_row_width)
+  if (!has_covering_null_columns)
   {
-    if (bitmap_init_memroot(&matching_keys, keys_count, thd->mem_root) ||
-        bitmap_init_memroot(&matching_outer_cols, keys_count, thd->mem_root) ||
-        bitmap_init_memroot(&null_only_columns, keys_count, thd->mem_root))
+    if (bitmap_init_memroot(&matching_keys, merge_keys_count, thd->mem_root) ||
+        bitmap_init_memroot(&matching_outer_cols, merge_keys_count, thd->mem_root))
       return TRUE;
 
     /*
@@ -5242,31 +5255,25 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
     */
     for (uint i= 0; i < partial_match_key_parts->n_bits; i++)
     {
-      if (!bitmap_is_set(partial_match_key_parts, i))
+      /* Skip columns that have no NULLs, or contain only NULLs. */
+      if (!bitmap_is_set(partial_match_key_parts, i) ||
+          result_sink->get_null_count_of_col(i) == row_count)
         continue;
 
-      if (result_sink->get_null_count_of_col(i) == row_count)
-      {
-        bitmap_set_bit(&null_only_columns, cur_keyid);
-        continue;
-      }
-      else
-      {
-        merge_keys[cur_keyid]= new Ordered_key(
+      merge_keys[cur_keyid]= new Ordered_key(
                                      cur_keyid, tmp_table,
                                      item_in->left_expr->element_index(i),
                                      result_sink->get_null_count_of_col(i),
                                      result_sink->get_min_null_of_col(i),
                                      result_sink->get_max_null_of_col(i),
                                      row_num_to_rowid);
-        if (merge_keys[cur_keyid]->init(i))
-          return TRUE;
-        merge_keys[cur_keyid]->first();
-      }
+      if (merge_keys[cur_keyid]->init(i))
+        return TRUE;
+      merge_keys[cur_keyid]->first();
       ++cur_keyid;
     }
   }
-  DBUG_ASSERT(cur_keyid == keys_count);
+  DBUG_ASSERT(cur_keyid == merge_keys_count);
 
   /* Populate the indexes with data from the temporary table. */
   if (tmp_table->file->ha_rnd_init_with_error(1))
@@ -5307,7 +5314,7 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
       non_null_key->add_key(cur_rownum);
     }
 
-    for (uint i= (non_null_key ? 1 : 0); i < keys_count; i++)
+    for (uint i= (non_null_key ? 1 : 0); i < merge_keys_count; i++)
     {
       /*
         Check if the first and only indexed column contains NULL in the curent
@@ -5324,14 +5331,14 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
   tmp_table->file->ha_rnd_end();
 
   /* Sort all the keys by their NULL selectivity. */
-  my_qsort(merge_keys, keys_count, sizeof(Ordered_key*),
+  my_qsort(merge_keys, merge_keys_count, sizeof(Ordered_key*),
            (qsort_cmp) cmp_keys_by_null_selectivity);
 
   /* Sort the keys in each of the indexes. */
-  for (uint i= 0; i < keys_count; i++)
+  for (uint i= 0; i < merge_keys_count; i++)
     merge_keys[i]->sort_keys();
 
-  if (init_queue(&pq, keys_count, 0, FALSE,
+  if (init_queue(&pq, merge_keys_count, 0, FALSE,
                  subselect_rowid_merge_engine::cmp_keys_by_cur_rownum, NULL,
                  0, 0))
     return TRUE;
@@ -5343,10 +5350,10 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
 subselect_rowid_merge_engine::~subselect_rowid_merge_engine()
 {
   /* None of the resources below is allocated if there are no ordered keys. */
-  if (keys_count)
+  if (merge_keys_count)
   {
     my_free((char*) row_num_to_rowid, MYF(0));
-    for (uint i= 0; i < keys_count; i++)
+    for (uint i= 0; i < merge_keys_count; i++)
       delete merge_keys[i];
     delete_queue(&pq);
     if (tmp_table->file->inited == handler::RND)
@@ -5404,6 +5411,10 @@ subselect_rowid_merge_engine::cmp_keys_by_cur_rownum(void *arg,
   Check if certain table row contains a NULL in all columns for which there is
   no match in the corresponding value index.
 
+  @note
+  There is no need to check the columns that contain only NULLs, because
+  those are guaranteed to match.
+
   @retval TRUE if a NULL row exists
   @retval FALSE otherwise
 */
@@ -5411,16 +5422,14 @@ subselect_rowid_merge_engine::cmp_keys_by_cur_rownum(void *arg,
 bool subselect_rowid_merge_engine::test_null_row(rownum_t row_num)
 {
   Ordered_key *cur_key;
-  uint cur_id;
-  for (uint i = 0; i < keys_count; i++)
+  for (uint i = 0; i < merge_keys_count; i++)
   {
     cur_key= merge_keys[i];
-    cur_id= cur_key->get_keyid();
-    if (bitmap_is_set(&matching_keys, cur_id))
+    if (bitmap_is_set(&matching_keys, cur_key->get_keyid()))
     {
       /*
-        The key 'i' (with id 'cur_keyid') already matches a value in row 'row_num',
-        thus we skip it as it can't possibly match a NULL.
+        The key 'i' (with id 'cur_keyid') already matches a value in row
+        'row_num', thus we skip it as it can't possibly match a NULL.
       */
       continue;
     }
@@ -5465,11 +5474,10 @@ bool subselect_rowid_merge_engine::partial_match()
   }
 
   /*
-    If there is a NULL (sub)row that covers all NULL-able columns,
-    then there is a guranteed partial match, and we don't need to search
-    for the matching row.
-   */
-  if (covering_null_row_width)
+    If all nullable columns contain only NULLs, then there is a guranteed
+    partial match, and we don't need to search for a matching row.
+  */
+  if (has_covering_null_columns)
   {
     res= TRUE;
     goto end;
@@ -5481,7 +5489,7 @@ bool subselect_rowid_merge_engine::partial_match()
     Do not add the non_null_key, since it was already processed above.
   */
   bitmap_clear_all(&matching_outer_cols);
-  for (uint i= test(non_null_key); i < keys_count; i++)
+  for (uint i= test(non_null_key); i < merge_keys_count; i++)
   {
     DBUG_ASSERT(merge_keys[i]->get_column_count() == 1);
     if (merge_keys[i]->get_search_key(0)->null_value)
@@ -5519,7 +5527,6 @@ bool subselect_rowid_merge_engine::partial_match()
 
   min_key= (Ordered_key*) queue_remove_top(&pq);
   min_row_num= min_key->current();
-  bitmap_copy(&matching_keys, &null_only_columns);
   bitmap_set_bit(&matching_keys, min_key->get_keyid());
   bitmap_union(&matching_keys, &matching_outer_cols);
   if (min_key->next_same())
@@ -5555,7 +5562,6 @@ bool subselect_rowid_merge_engine::partial_match()
       {
         min_key= cur_key;
         min_row_num= cur_row_num;
-        bitmap_copy(&matching_keys, &null_only_columns);
         bitmap_set_bit(&matching_keys, min_key->get_keyid());
         bitmap_union(&matching_keys, &matching_outer_cols);
       }
@@ -5588,10 +5594,12 @@ subselect_table_scan_engine::subselect_table_scan_engine(
   Item_subselect *item_arg,
   select_result_interceptor *result_arg,
   List<Item> *equi_join_conds_arg,
-  uint covering_null_row_width_arg)
+  bool has_covering_null_row_arg,
+  bool has_covering_null_columns_arg)
   :subselect_partial_match_engine(thd_arg, engine_arg, tmp_table_arg, item_arg,
                                   result_arg, equi_join_conds_arg,
-                                  covering_null_row_width_arg)
+                                  has_covering_null_row_arg,
+                                  has_covering_null_columns_arg)
 {}
 
 
@@ -5630,10 +5638,6 @@ bool subselect_table_scan_engine::partial_match()
 
   tmp_table->file->extra_opt(HA_EXTRA_CACHE,
                              current_thd->variables.read_buff_size);
-  /*
-  TIMOUR:
-  scan_table() also calls "table->null_row= 0;", why, do we need it?
-  */
   for (;;)
   {
     error= tmp_table->file->ha_rnd_next(tmp_table->record[0]);

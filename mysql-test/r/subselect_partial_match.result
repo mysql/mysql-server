@@ -1,8 +1,8 @@
+set @save_optimizer_switch=@@optimizer_switch;
 drop table if exists t1, t2;
 #
 # LP BUG#608744
 #
-set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch="materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=off";
 create table t1 (a1 char(1), a2 char(1));
 insert into t1 values (NULL, 'b');
@@ -11,7 +11,6 @@ insert into t2 values ('a','b'), ('c', 'd');
 select * from t1 where (a1, a2) NOT IN (select b1, b2 from t2);
 a1	a2
 drop table t1,t2;
-set @@optimizer_switch=@save_optimizer_switch;
 #
 # LP BUG#601156
 #
@@ -21,7 +20,6 @@ INSERT INTO t1 VALUES (4,NULL);
 CREATE TABLE t2 (b1 int DEFAULT NULL, b2 int DEFAULT NULL);
 INSERT INTO t2 VALUES (6,NULL);
 INSERT INTO t2 VALUES (NULL,0);
-set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch='materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on';
 EXPLAIN EXTENDED
 SELECT * FROM (SELECT * FROM t1 WHERE a1 NOT IN (SELECT b2 FROM t2)) table1;
@@ -31,11 +29,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (select `test`.`t2`.`b2` from `test`.`t2` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `<subquery3>`.`b2`)))))))
 DROP TABLE t1, t2;
-set @@optimizer_switch=@save_optimizer_switch;
 #
 # LP BUG#613009 Crash in Ordered_key::get_field_idx
 #
-set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch='materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=off';
 create table t1 (a1 char(3) DEFAULT NULL, a2 char(3) DEFAULT NULL);
 insert into t1 values (NULL, 'a21'), (NULL, 'a22');
@@ -46,7 +42,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select * from t1 where (a1, a2) not in (select a1, a2 from t1);
 a1	a2
 drop table t1;
-set @@optimizer_switch=@save_optimizer_switch;
 #
 # LP BUG#680058 void Ordered_key::add_key(rownum_t):
 # Assertion `key_buff_elements && cur_key_idx < key_buff_elements' failed
@@ -55,10 +50,99 @@ create table t1 (f1 char(1), f2 char(1));
 insert into t1 values ('t', '0'), ('0', 't');
 create table t2 (f3 char(1), f4 char(1));
 insert into t2 values ('t', NULL), ('t', NULL), ('d', 'y');
-set @save_optimizer_switch=@@optimizer_switch;
-SET @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,semijoin=off';
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,semijoin=off';
 select * from t1 where (f1, f2) not in (select * from t2);
 f1	f2
 0	t
-set @@optimizer_switch=@save_optimizer_switch;
 drop table t1, t2;
+#
+# LP BUG#809245 Second assertion `bit < (map)->n_bits' with partial_match_merge
+#
+CREATE TABLE t1 (d varchar(32)) ;
+INSERT INTO t1 VALUES ('r');
+CREATE TABLE t2 ( a int, c varchar(32)) ;
+INSERT INTO t2 VALUES (5,'r');
+CREATE TABLE t3 ( a int NOT NULL , d varchar(32)) ;
+INSERT INTO t3 VALUES (10,'g');
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,in_to_exists=off';
+EXPLAIN SELECT *
+FROM t1
+WHERE (t1.d , t1.d) NOT IN (
+SELECT t3.d , t2.c
+FROM t3 LEFT JOIN t2 ON t3.a = t2.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT *
+FROM t1
+WHERE (t1.d , t1.d) NOT IN (
+SELECT t3.d , t2.c
+FROM t3 LEFT JOIN t2 ON t3.a = t2.a);
+d
+r
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+EXPLAIN SELECT *
+FROM t1
+WHERE (t1.d , t1.d) NOT IN (
+SELECT t3.d , t2.c
+FROM t3 LEFT JOIN t2 ON t3.a = t2.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT *
+FROM t1
+WHERE (t1.d , t1.d) NOT IN (
+SELECT t3.d , t2.c
+FROM t3 LEFT JOIN t2 ON t3.a = t2.a);
+d
+r
+drop table t1, t2, t3;
+#
+# LP BUG#809266 Diverging results with partial_match_rowid_merge=on
+#
+CREATE TABLE t1 (c int) ;
+INSERT INTO t1 VALUES (0),(0);
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (6,3), (9,NULL);
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,in_to_exists=off';
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+c
+0
+0
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+c
+0
+0
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+c
+0
+0
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+c
+0
+0
+drop table t1, t2;
+set @@optimizer_switch=@save_optimizer_switch;
