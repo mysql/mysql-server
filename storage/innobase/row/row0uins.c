@@ -320,10 +320,14 @@ row_undo_ins_remove_sec_rec(
 	mem_heap_t*	heap;
 
 	for (heap = mem_heap_create(1024);
-	     node->index != NULL && !(node->index->type & DICT_FTS);
+	     node->index != NULL;
 	     mem_heap_empty(heap),
 		     node->index = dict_table_get_next_index(node->index)) {
 		dtuple_t*	entry;
+
+		if (node->index->type & DICT_FTS) {
+			continue;
+		}
 
 		entry = row_build_index_entry(node->row, node->ext,
 					      node->index, heap);

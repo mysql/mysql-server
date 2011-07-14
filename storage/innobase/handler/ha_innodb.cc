@@ -274,6 +274,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&fts_bg_threads_mutex_key, "fts_bg_threads_mutex", 0},
 	{&fts_delete_mutex_key, "fts_delete_mutex", 0},
 	{&fts_optimize_mutex_key, "fts_optimize_mutex", 0},
+	{&fts_doc_id_mutex_key, "fts_doc_id_mutex", 0},
 	{&log_flush_order_mutex_key, "log_flush_order_mutex", 0},
 	{&hash_table_mutex_key, "hash_table_mutex", 0},
 	{&ibuf_bitmap_mutex_key, "ibuf_bitmap_mutex", 0},
@@ -7115,7 +7116,7 @@ ha_innobase::ft_init_ext(
 	}
 
 	if (!(table->fts->fts_status & ADDED_TABLE_SYNCED)) {
-		fts_init_index(table);
+		fts_init_index(table, FALSE);
 
 		table->fts->fts_status |= ADDED_TABLE_SYNCED;
 	}

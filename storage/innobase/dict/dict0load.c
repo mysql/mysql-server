@@ -1003,6 +1003,8 @@ dict_load_columns(
 			if (col->prtype & DATA_FTS_DOC_ID) {
 				DICT_TF2_FLAG_SET(
 					table, DICT_TF2_FTS_HAS_DOC_ID);
+				DICT_TF2_FLAG_UNSET(
+					table, DICT_TF2_FTS_ADD_DOC_ID);
 			}
 
 			table->fts->doc_col = i;
