@@ -115,8 +115,8 @@ row_merge_create_fts_sort_index(
 	use a uint4 to represent the Doc ID (an assumption is Max Doc ID
 	- Min Doc ID does not exceed uint4 can represent */
 	if (table->stat_n_rows < MAX_DOC_ID_OPT_VAL) {
-		field->col->len = sizeof(int32_t);
-		field->fixed_len = sizeof(int32_t);
+		field->col->len = sizeof(ib_uint32_t);
+		field->fixed_len = sizeof(ib_uint32_t);
 	} else {
 		field->col->len = FTS_DOC_ID_LEN;
 		field->fixed_len = FTS_DOC_ID_LEN;
@@ -390,7 +390,7 @@ row_merge_fts_doc_tokenize(
 		ulint		cur_len = 0;
 		ib_rbt_bound_t	parent;
 		fts_string_t	t_str;
-		int32_t		t_doc_id;
+		ib_uint32_t	t_doc_id;
 
 		inc = innobase_mysql_fts_get_token(doc->charset,
 			doc->text.utf8 + i,
@@ -458,7 +458,7 @@ row_merge_fts_doc_tokenize(
 			len = FTS_DOC_ID_LEN;
 		} else {
 			mach_write_to_4((byte*)&t_doc_id,
-					(int32_t)(doc_id - doc_id_diff));
+					(ib_uint32_t)(doc_id - doc_id_diff));
 			dfield_set_data(field, &t_doc_id, sizeof(t_doc_id));
 			len = 4;
 		}
@@ -928,9 +928,9 @@ row_fts_insert_tuple(
 	if (doc_id_diff == ULINT_UNDEFINED) {
 		doc_id = fts_read_doc_id(dfield_get_data(dfield));
 	} else {
-		int32_t		id;
+		ib_uint32_t	id;
 
-		id = (int32_t) mach_read_from_4(dfield_get_data(dfield));
+		id = (ib_uint32_t) mach_read_from_4(dfield_get_data(dfield));
 
 		doc_id = id + doc_id_diff;
 	}

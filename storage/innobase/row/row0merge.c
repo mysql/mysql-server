@@ -343,7 +343,15 @@ row_merge_buf_add(
 						index->table->fts->doc_col);
 					*doc_id = (doc_id_t) mach_read_from_8(
 						dfield_get_data(doc_field));
-					ut_a(*doc_id > 0);
+
+					if (*doc_id == 0) {
+						fprintf(stderr, "InnoDB FTS: "
+							"User supplied Doc ID "
+							"is zero. Record "
+							"Skipped\n");
+						ut_ad(*doc_id > 0);
+						return(0);
+					}
 				}
 
 				if (FTS_PLL_ENABLED) {
@@ -1445,7 +1453,8 @@ row_merge_read_clustered_index(
 				continue;
 			}
 
-			if (!row &&  index->type & DICT_FTS && FTS_PLL_ENABLED) {
+			if ((!row || !doc_id)
+			    && index->type & DICT_FTS && FTS_PLL_ENABLED) {
 				continue;
 			}
 
