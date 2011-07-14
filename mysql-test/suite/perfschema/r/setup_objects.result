@@ -21,6 +21,49 @@ insert into performance_schema.setup_objects
 values ('TABLE', 'db4', 't1', 'NO', 'YES');
 insert into performance_schema.setup_objects
 values ('TABLE', 'db4', '%', 'YES', 'NO');
+insert into performance_schema.setup_objects
+values ('SOMETHING', 'bad1', 'bad1', 'YES', 'NO');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
+show warnings;
+Level	Code	Message
+Warning	1265	Data truncated for column 'OBJECT_TYPE' at row 1
+Error	1452	Cannot add or update a child row: a foreign key constraint fails ()
+insert into performance_schema.setup_objects
+values ('TABLE', 'bad2', 'bad2', 'MAYBE', 'NO');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
+show warnings;
+Level	Code	Message
+Warning	1265	Data truncated for column 'ENABLED' at row 1
+Error	1452	Cannot add or update a child row: a foreign key constraint fails ()
+insert into performance_schema.setup_objects
+values ('TABLE', 'bad3', 'bad3', 'YES', 'MAYBE NOT');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
+show warnings;
+Level	Code	Message
+Warning	1265	Data truncated for column 'TIMED' at row 1
+Error	1452	Cannot add or update a child row: a foreign key constraint fails ()
+select * from performance_schema.setup_objects
+order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+TABLE	db1	%	YES	YES
+TABLE	db1	t1	YES	YES
+TABLE	db1	t2	YES	NO
+TABLE	db2	t1	YES	YES
+TABLE	db2	t2	YES	NO
+TABLE	db3	%	NO	YES
+TABLE	db3	t1	YES	YES
+TABLE	db3	t2	NO	NO
+TABLE	db4	%	YES	NO
+TABLE	db4	t1	NO	YES
+update performance_schema.setup_objects
+set OBJECT_TYPE='SOMETHING' where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.setup_objects
+set ENABLED='MAYBE' where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
+update performance_schema.setup_objects
+set TIMED='MAYBE NOT' where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
 select * from performance_schema.setup_objects
 order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
