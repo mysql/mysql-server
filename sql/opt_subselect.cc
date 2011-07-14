@@ -2160,7 +2160,8 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   table_map handled_by_fm_or_ls= 0;
   /* FirstMatch Strategy */
   if (new_join_tab->emb_sj_nest &&
-      optimizer_flag(join->thd, OPTIMIZER_SWITCH_FIRSTMATCH))
+      optimizer_flag(join->thd, OPTIMIZER_SWITCH_FIRSTMATCH) &&
+      !join->outer_join)
   {
     const table_map outer_corr_tables=
       new_join_tab->emb_sj_nest->nested_join->sj_corr_tables |
@@ -2255,7 +2256,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       If we got an option to use LooseScan for the current table, start
       considering using LooseScan strategy
     */
-    if (loose_scan_pos->read_time != DBL_MAX)
+    if (loose_scan_pos->read_time != DBL_MAX && !join->outer_join)
     {
       pos->first_loosescan_table= idx;
       pos->loosescan_need_tables=
