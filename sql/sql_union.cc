@@ -491,12 +491,12 @@ bool st_select_lex_unit::optimize()
       SELECT_LEX *lex_select_save= thd->lex->current_select;
       thd->lex->current_select= sl;
       set_limit(sl);
-      if (sl == global_parameters || describe)
+      if ((sl == global_parameters && is_union()) || describe)
       {
         offset_limit_cnt= 0;
         /*
           We can't use LIMIT at this stage if we are using ORDER BY for the
-          whole query
+          whole UNION.
         */
         if (sl->order_list.first || describe)
           select_limit_cnt= HA_POS_ERROR;
