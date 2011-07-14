@@ -147,7 +147,10 @@ UNIV_INTERN
 ibool
 fts_init_index(
 /*===========*/
-	dict_table_t*	table);	/*!< in: Table with FTS */
+	dict_table_t*	table,		/*!< in: Table with FTS */
+	ibool		has_cache_lock);/*!< in: Whether we already have
+					cache lock */
+
 #ifndef UNIV_NONINL
 #include "fut0fut.ic"
 #endif

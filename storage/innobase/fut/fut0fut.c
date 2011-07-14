@@ -89,6 +89,7 @@ UNIV_INTERN mysql_pfs_key_t	fts_cache_init_rw_lock_key;
 UNIV_INTERN mysql_pfs_key_t	fts_delete_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	fts_optimize_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	fts_bg_threads_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	fts_doc_id_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /** variable to record innodb_fts_internal_tbl_name for information
@@ -574,6 +575,8 @@ fts_cache_create(
 		     SYNC_FTS_OPTIMIZE);
 	mutex_create(fts_optimize_mutex_key, &cache->optimize_lock,
 		     SYNC_FTS_OPTIMIZE);
+	mutex_create(fts_doc_id_mutex_key, &cache->doc_id_lock,
+		     SYNC_FTS_OPTIMIZE);
 
 	/* This is the heap used to create the cache itself. */
 	cache->self_heap = ib_heap_allocator_create(heap);
@@ -874,6 +877,7 @@ fts_cache_destroy(
 	rw_lock_free(&cache->init_lock);
 	mutex_free(&cache->optimize_lock);
 	mutex_free(&cache->deleted_lock);
+	mutex_free(&cache->doc_id_lock);
 	rbt_free(cache->stopword_info.cached_stopword);
 	mem_heap_free(cache->cache_heap);
 }
@@ -2129,12 +2133,25 @@ fts_get_next_doc_id(
 	the initial value of the Doc ID */
 	if (cache->first_doc_id == 0) {
 		doc_id_t	init_doc_id;
+
+		rw_lock_x_lock(&cache->lock);
+
+		if (cache->first_doc_id != 0) {
+			rw_lock_x_unlock(&cache->lock);
+			goto nextid;
+		}
+
 		init_doc_id = fts_init_doc_id(table);
+		
 		cache->first_doc_id = init_doc_id;
+
+		rw_lock_x_unlock(&cache->lock);
 	} else {
-		/* Otherwise, simply increment the value in cache
-		FIXME: We might need a mutex here. */
+nextid:
+		/* Otherwise, simply increment the value in cache */
+		mutex_enter(&(cache->doc_id_lock));
 		++cache->next_doc_id;
+		mutex_exit(&(cache->doc_id_lock));
 	}
 
 	*doc_id = cache->next_doc_id;
@@ -2381,7 +2398,7 @@ fts_add_doc_id(
 	/* If Doc ID is supplied by user, the table might not
 	yet be sync-ed */
 	if (!(ftt->table->fts->fts_status & ADDED_TABLE_SYNCED)) {
-		fts_init_index(ftt->table);
+		fts_init_index(ftt->table, FALSE);
 	}
 
 	/* Get the document, parse them and add to FTS ADD table
@@ -4256,6 +4273,11 @@ fts_init_doc_id(
 
 	mem_heap_free(heap);
 #endif /* FTS_ADD_DEBUG */
+
+#ifdef UNIV_SYNC_DEBUG
+        ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+#endif
+
 	/* Then compare this value with the ID value stored in the CONFIG
 	table. The larger one will be our new initial Doc ID */
 	fts_cmp_set_sync_doc_id(table, 0, FALSE, &max_doc_id);
@@ -4264,7 +4286,7 @@ fts_init_doc_id(
 	creating index (and add doc id column. No need to recovery
 	documents */
 	if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
-		fts_init_index((dict_table_t*) table);
+		fts_init_index((dict_table_t*) table, TRUE);
 	}
 
 	table->fts->fts_status |= ADDED_TABLE_SYNCED;
@@ -6177,7 +6199,9 @@ UNIV_INTERN
 ibool
 fts_init_index(
 /*===========*/
-	dict_table_t*	table)		/*!< in: Table with FTS */
+	dict_table_t*	table,		/*!< in: Table with FTS */
+	ibool		has_cache_lock)	/*!< in: Whether we already have
+					cache lock */
 {
 	ulint           error = DB_SUCCESS;
 	doc_id_t        start_doc;
@@ -6187,14 +6211,16 @@ fts_init_index(
 	fts_doc_t	doc;
 
 	/* First check cache->get_docs is initialized */
-	rw_lock_x_lock(&cache->lock);
+	if (!has_cache_lock) {
+		rw_lock_x_lock(&cache->lock);
+	}
+
 	if (cache->get_docs == NULL) {
 		cache->get_docs = fts_get_docs_create(cache);
 	}
 
 	if (table->fts->fts_status & ADDED_TABLE_SYNCED) {
-		rw_lock_x_unlock(&cache->lock);
-		return(TRUE);
+		goto func_exit;
 	}
 
 	fts_doc_init(&doc);
@@ -6209,8 +6235,7 @@ fts_init_index(
 	dropped, and we re-initialize the Doc ID system for subsequent
 	insertion */
 	if (ib_vector_is_empty(cache->get_docs)) {
-		rw_lock_x_unlock(&cache->lock);
-		return(TRUE);
+		goto func_exit;
 	}
 
 	/* We only have one FTS index per table */
@@ -6234,7 +6259,10 @@ fts_init_index(
 
 	table->fts->fts_status |= ADDED_TABLE_SYNCED;
 
-	rw_lock_x_unlock(&cache->lock);
+func_exit:
+	if (!has_cache_lock) {
+		rw_lock_x_unlock(&cache->lock);
+	}
 
 	return(TRUE);
 }
