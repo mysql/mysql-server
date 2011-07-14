@@ -1792,6 +1792,7 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
 {
   int res;
   /* Use the pushed index condition if it matches the index we're scanning */
+  end_range= NULL;
   if (index == pushed_idx_cond_keyno)
     mi_set_index_cond_func(file, index_cond_func_myisam, this);
   res= mi_rkey(file, buf, index, key, keypart_map, find_flag);
