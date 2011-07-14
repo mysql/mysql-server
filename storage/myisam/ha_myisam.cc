@@ -20,7 +20,6 @@
 
 #define MYSQL_SERVER 1
 #include "sql_priv.h"
-#include "probes_mysql.h"
 #include "key.h"                                // key_copy
 #include "sql_plugin.h"
 #include <m_ctype.h>
@@ -1625,10 +1624,8 @@ int ha_myisam::index_read_map(uchar *buf, const uchar *key,
                               key_part_map keypart_map,
                               enum ha_rkey_function find_flag)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
   int error=mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1636,45 +1633,35 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                   key_part_map keypart_map,
                                   enum ha_rkey_function find_flag)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisam::index_next(uchar *buf)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
   int error=mi_rnext(file,buf,active_index);
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisam::index_prev(uchar *buf)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
   int error=mi_rprev(file,buf, active_index);
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisam::index_first(uchar *buf)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
   int error=mi_rfirst(file, buf, active_index);
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
 int ha_myisam::index_last(uchar *buf)
 {
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
   int error=mi_rlast(file, buf, active_index);
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1684,12 +1671,10 @@ int ha_myisam::index_next_same(uchar *buf,
 {
   int error;
   DBUG_ASSERT(inited==INDEX);
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   do
   {
     error= mi_rnext_same(file,buf);
   } while (error == HA_ERR_RECORD_DELETED);
-  MYSQL_INDEX_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1703,10 +1688,7 @@ int ha_myisam::rnd_init(bool scan)
 
 int ha_myisam::rnd_next(uchar *buf)
 {
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   int error=mi_scan(file, buf);
-  MYSQL_READ_ROW_DONE(error);
   return error;
 }
 
@@ -1723,10 +1705,7 @@ int ha_myisam::restart_rnd_next(uchar *buf)
 
 int ha_myisam::rnd_pos(uchar *buf, uchar *pos)
 {
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       FALSE);
   int error=mi_rrnd(file, buf, my_get_ptr(pos,ref_length));
-  MYSQL_READ_ROW_DONE(error);
   return error;
 }
 

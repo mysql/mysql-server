@@ -21,7 +21,6 @@
 #define MYSQL_SERVER 1
 #include "sql_priv.h"
 #include "unireg.h"
-#include "probes_mysql.h"
 #include "ha_blackhole.h"
 #include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_SQL
 
@@ -143,14 +142,11 @@ int ha_blackhole::rnd_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   THD *thd= ha_thd();
   if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -158,10 +154,7 @@ int ha_blackhole::rnd_next(uchar *buf)
 int ha_blackhole::rnd_pos(uchar * buf, uchar *pos)
 {
   DBUG_ENTER("ha_blackhole::rnd_pos");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       FALSE);
   DBUG_ASSERT(0);
-  MYSQL_READ_ROW_DONE(0);
   DBUG_RETURN(0);
 }
 
@@ -234,13 +227,11 @@ int ha_blackhole::index_read_map(uchar * buf, const uchar * key,
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_read");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
   if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -251,13 +242,11 @@ int ha_blackhole::index_read_idx_map(uchar * buf, uint idx, const uchar * key,
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_read_idx");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
   if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -267,13 +256,11 @@ int ha_blackhole::index_read_last_map(uchar * buf, const uchar * key,
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_read_last");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
   if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query() == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -282,9 +269,7 @@ int ha_blackhole::index_next(uchar * buf)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_END_OF_FILE;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -293,9 +278,7 @@ int ha_blackhole::index_prev(uchar * buf)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_prev");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_END_OF_FILE;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -304,9 +287,7 @@ int ha_blackhole::index_first(uchar * buf)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_first");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_END_OF_FILE;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
@@ -316,9 +297,7 @@ int ha_blackhole::index_last(uchar * buf)
 {
   int rc;
   DBUG_ENTER("ha_blackhole::index_last");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_END_OF_FILE;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
