@@ -127,7 +127,7 @@ on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
 
 /* Variable specifying the FTS parallel sort buffer size */
-extern ulint	srv_sort_buf_size;
+extern ulong	srv_sort_buf_size;
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will

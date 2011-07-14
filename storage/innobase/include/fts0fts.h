@@ -76,7 +76,7 @@ those defined in mysql file ft_global.h */
 #define FTS_OPTIMIZE_THRESHOLD		10000000
 
 /* Variable specifying the FTS parallel sort degree */
-extern ulint            fts_sort_pll_degree;
+extern ulong		fts_sort_pll_degree;
 
 /* FTS rank type, which will be between 0 .. 1 inclusive */
 typedef float fts_rank_t;

@@ -45,10 +45,10 @@ Created 10/13/2010 Jimmy Yang
 	} while (0)
 
 /* Parallel sort degree */
-UNIV_INTERN ulint	fts_sort_pll_degree;
+UNIV_INTERN ulong	fts_sort_pll_degree;
 
 /* Parallel sort buffer size */
-UNIV_INTERN ulint	srv_sort_buf_size;
+UNIV_INTERN ulong	srv_sort_buf_size;
 
 /*********************************************************************//**
 Create a temporary "fts sort index" used to merge sort the
