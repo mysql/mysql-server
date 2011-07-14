@@ -2561,7 +2561,7 @@ fts_delete(
 		mutex_exit(&table->fts->cache->deleted_lock);
 
 		/* Only if the row was really deleted. */
-		ut_a(row->state == FTS_DELETE);
+		ut_a(row->state == FTS_DELETE || row->state == FTS_MODIFY);
 
 		mutex_enter(&cache->deleted_lock);
 
@@ -6229,6 +6229,7 @@ fts_init_index(
 
 	if (!start_doc) {
 		error = fts_cmp_set_sync_doc_id(table, 0, TRUE, &start_doc);
+		cache->synced_doc_id = start_doc;
 	}
 
 	/* No FTS index, this is the case when previous FTS index
