@@ -2376,7 +2376,7 @@ fts_optimize_table_bk(
 	}
 
 	if (fts->cache && fts->cache->deleted < FTS_OPTIMIZE_THRESHOLD) {
-		return(DB_SUCCESS);
+		goto func_exit;
 	}
 
 	error = fts_optimize_table(table);
@@ -2387,6 +2387,7 @@ fts_optimize_table_bk(
 		slot->completed = ut_time();
 	}
 
+func_exit:
 	/* Note time this run completed. */
 	slot->last_run = ut_time();
 
