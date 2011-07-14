@@ -3955,7 +3955,7 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
   st_select_lex *subq_lex= subq_pred->unit->first_select();
   nested_join->join_list.empty();
   List_iterator_fast<TABLE_LIST> li(subq_lex->top_join_list);
-  TABLE_LIST *tl, *last_leaf;
+  TABLE_LIST *tl;
   while ((tl= li++))
   {
     tl->embedding= sj_nest;
@@ -3973,7 +3973,6 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
   for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf)
   {}
   tl->next_leaf= subq_lex->leaf_tables;
-  last_leaf= tl;
 
   /*
     Same as above for next_local chain
@@ -4258,7 +4257,6 @@ bool JOIN::flatten_subqueries()
       DBUG_RETURN(TRUE);
   }
 skip_conversion:
-  bool converted= FALSE;
   /* 
     3. Finalize the subqueries that we did not convert,
        ie. perform IN->EXISTS rewrite.
@@ -4272,7 +4270,6 @@ skip_conversion:
 
     SELECT_LEX *save_select_lex= thd->lex->current_select;
     thd->lex->current_select= (*subq)->unit->first_select();
-    converted= TRUE;
 
     res= (*subq)->select_transformer(child_join);
 
@@ -11822,8 +11819,6 @@ static bool
 make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
   const bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
-  uint first_sjm_table= MAX_TABLES;
-  uint last_sjm_table= MAX_TABLES;
 
   /* First table sorted if ORDER or GROUP BY was specified */
   bool sorted= (join->order || join->group_list);
@@ -11857,8 +11852,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
     {
       /* This is a start of semi-join nest */
-      first_sjm_table= i;
-      last_sjm_table= i + join->best_positions[i].n_sj_tables;
       if (i == join->const_tables)
         join->first_select= sub_select_sjm;
       else
@@ -16841,7 +16834,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   bool using_unique_constraint=FALSE;
   bool use_packed_rows= FALSE;
   Field *field, *key_field;
-  uint blob_count, null_pack_length, null_count;
+  uint null_pack_length, null_count;
   uchar *null_flags;
   uchar *pos;
   DBUG_ENTER("create_duplicate_weedout_tmp_table");
@@ -16921,8 +16914,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   share->primary_key= MAX_KEY;               // Indicate no primary key
   share->keys_for_keyread.init();
   share->keys_in_use.init();
-
-  blob_count= 0;
 
   /* Create the field */
   {

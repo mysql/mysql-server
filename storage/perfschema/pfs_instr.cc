@@ -1411,12 +1411,10 @@ void aggregate_all_event_names(PFS_single_stat *from_array,
   PFS_single_stat *from;
   PFS_single_stat *from_last;
   PFS_single_stat *to;
-  PFS_single_stat *to_last;
 
   from= from_array;
   from_last= from_array + wait_class_max;
   to= to_array;
-  to_last= to_array + wait_class_max;
 
   for ( ; from < from_last ; from++, to++)
   {
@@ -1435,16 +1433,12 @@ void aggregate_all_event_names(PFS_single_stat *from_array,
   PFS_single_stat *from;
   PFS_single_stat *from_last;
   PFS_single_stat *to_1;
-  PFS_single_stat *to_1_last;
   PFS_single_stat *to_2;
-  PFS_single_stat *to_2_last;
 
   from= from_array;
   from_last= from_array + wait_class_max;
   to_1= to_array_1;
-  to_1_last= to_array_1 + wait_class_max;
   to_2= to_array_2;
-  to_2_last= to_array_2 + wait_class_max;
 
   for ( ; from < from_last ; from++, to_1++, to_2++)
   {
@@ -1463,12 +1457,10 @@ void aggregate_all_stages(PFS_stage_stat *from_array,
   PFS_stage_stat *from;
   PFS_stage_stat *from_last;
   PFS_stage_stat *to;
-  PFS_stage_stat *to_last;
 
   from= from_array;
   from_last= from_array + stage_class_max;
   to= to_array;
-  to_last= to_array + stage_class_max;
 
   for ( ; from < from_last ; from++, to++)
   {
@@ -1486,12 +1478,10 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
   PFS_statement_stat *from;
   PFS_statement_stat *from_last;
   PFS_statement_stat *to;
-  PFS_statement_stat *to_last;
 
   from= from_array;
   from_last= from_array + statement_class_max;
   to= to_array;
-  to_last= to_array + statement_class_max;
 
   for ( ; from < from_last ; from++, to++)
   {
