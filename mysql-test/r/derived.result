@@ -1459,3 +1459,14 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
 DROP TABLE t1,t2;
 #
+#
+# Bug#12735934 - Lost LIMIT clause caused wrong result.
+#
+CREATE TABLE t1 (f1 VARCHAR(1), key(f1));
+INSERT INTO t1 VALUES ('a');
+CREATE VIEW v1 AS SELECT f1 FROM t1 ORDER BY 1 LIMIT 0;
+SELECT * FROM v1;
+f1
+DROP VIEW v1;
+DROP TABLE t1;
+#

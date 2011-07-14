@@ -833,3 +833,15 @@ WHERE (2) IN
 DROP TABLE t1,t2;
 --echo #
 
+--echo #
+--echo # Bug#12735934 - Lost LIMIT clause caused wrong result.
+--echo #
+CREATE TABLE t1 (f1 VARCHAR(1), key(f1));
+INSERT INTO t1 VALUES ('a');
+CREATE VIEW v1 AS SELECT f1 FROM t1 ORDER BY 1 LIMIT 0;
+SELECT * FROM v1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+
