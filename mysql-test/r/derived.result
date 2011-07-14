@@ -1470,3 +1470,41 @@ f1
 DROP VIEW v1;
 DROP TABLE t1;
 #
+#
+# Bug#12726927: An outdated assertion caused server failure.
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_nokey int(11) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (10,1,'v'), (24,18,'h');
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_date_key date NOT NULL,
+col_date_nokey date NOT NULL,
+col_time_nokey time NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_date_key (col_date_key),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,'1900-01-01','1900-01-01','00:00:00','k','k');
+SELECT OUTR.col_date_key
+FROM t2 AS OUTR2
+LEFT JOIN t2 AS OUTR ON OUTR2.pk < OUTR.pk
+WHERE ( OUTR.col_varchar_nokey , OUTR.col_varchar_key )
+IN (
+SELECT DISTINCT col_varchar_key , col_varchar_key
+FROM t1
+WHERE col_int_nokey XOR OUTR.col_time_nokey
+)
+XOR OUTR.col_date_nokey IS NULL
+;
+col_date_key
+NULL
+DROP TABLE t1,t2;
+#
