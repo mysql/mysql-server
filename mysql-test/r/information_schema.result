@@ -1111,7 +1111,7 @@ CREATE PROCEDURE p1 ()
 BEGIN
 SELECT 'foo' FROM DUAL;
 END |
-ERROR 42000: Unknown database 'information_schema'
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 select ROUTINE_NAME from routines where ROUTINE_SCHEMA='information_schema';
 ROUTINE_NAME
 grant all on information_schema.* to 'user1'@'localhost';

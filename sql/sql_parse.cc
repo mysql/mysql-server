@@ -3927,6 +3927,10 @@ end_with_restore_list:
       goto create_sp_error;
     }
 
+    if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str,
+                     NULL, NULL, 0, 0))
+      goto create_sp_error;
+
     /*
       Check that a database directory with this name
       exists. Design note: This won't work on virtual databases
@@ -3937,10 +3941,6 @@ end_with_restore_list:
       my_error(ER_BAD_DB_ERROR, MYF(0), lex->sphead->m_db.str);
       goto create_sp_error;
     }
-
-    if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str,
-                     NULL, NULL, 0, 0))
-      goto create_sp_error;
 
     name= lex->sphead->name(&namelen);
 #ifdef HAVE_DLOPEN

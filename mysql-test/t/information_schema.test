@@ -750,7 +750,7 @@ create temporary table schemata(f1 char(10));
 # Bug#10708 SP's can use INFORMATION_SCHEMA as ROUTINE_SCHEMA
 #
 delimiter |;
---error ER_BAD_DB_ERROR
+--error ER_DBACCESS_DENIED_ERROR
 CREATE PROCEDURE p1 ()
 BEGIN
   SELECT 'foo' FROM DUAL;
