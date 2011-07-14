@@ -44,6 +44,12 @@ Created 10/13/2010 Jimmy Yang
 		}							\
 	} while (0)
 
+/* Parallel sort degree */
+UNIV_INTERN ulint	fts_sort_pll_degree;
+
+/* Parallel sort buffer size */
+UNIV_INTERN ulint	srv_sort_buf_size;
+
 /*********************************************************************//**
 Create a temporary "fts sort index" used to merge sort the
 tokenized doc string. The index has three "fields":
@@ -104,9 +110,20 @@ row_merge_create_fts_sort_index(
 	field->prefix_len = 0;
 	field->col = mem_heap_alloc(new_index->heap, sizeof(dict_col_t));
 	field->col->mtype = DATA_INT;
-	field->col->len = FTS_DOC_ID_LEN;
-	field->fixed_len = FTS_DOC_ID_LEN;
-	field->col->prtype = DATA_NOT_NULL;
+
+	/* If the table has less than 1000 million rows, we could
+	use a uint4 to represent the Doc ID (an assumption is Max Doc ID
+	- Min Doc ID does not exceed uint4 can represent */
+	if (table->stat_n_rows < MAX_DOC_ID_OPT_VAL) {
+		field->col->len = sizeof(int32_t);
+		field->fixed_len = sizeof(int32_t);
+	} else {
+		field->col->len = FTS_DOC_ID_LEN;
+		field->fixed_len = FTS_DOC_ID_LEN;
+	}
+
+	field->col->prtype = DATA_NOT_NULL | DATA_BINARY_TYPE;
+
 	field->col->mbminmaxlen = 0;
 
 	/* The third field is on the word's Position in original doc */
@@ -142,14 +159,16 @@ row_fts_psort_info_init(
 	ulint			i;
 	ulint			j;
 	fts_psort_common_t*	common_info = NULL;
-	ulint			block_size = 3 * sizeof(row_merge_block_t);
+	ulint			block_size;
 	fts_psort_info_t*	psort_info = NULL;
 	fts_psort_info_t*	merge_info;
 	os_event_t		sort_event;
 	ibool			ret = TRUE;
 
+	block_size = 3 * srv_sort_buf_size;
+
 	*psort = psort_info = mem_zalloc(
-		 FTS_PARALLEL_DEGREE * sizeof *psort_info);
+		 fts_sort_pll_degree * sizeof *psort_info);
 
 	if (!psort_info) {
 		return FALSE;
@@ -167,12 +186,18 @@ row_fts_psort_info_init(
 	common_info->all_info = psort_info;
 	common_info->sort_event = sort_event;
 
+	if (new_table->stat_n_rows >=  MAX_DOC_ID_OPT_VAL) {
+		common_info->doc_id = ULINT_UNDEFINED;
+	} else {
+		common_info->doc_id = 0;
+	}
+
 	if (!common_info) {
 		mem_free(psort_info);
 		return FALSE;
 	}
 
-	for (j = 0; j < FTS_PARALLEL_DEGREE; j++) {
+	for (j = 0; j < fts_sort_pll_degree; j++) {
 
 		UT_LIST_INIT(psort_info[j].fts_doc_list);
 
@@ -191,8 +216,7 @@ row_fts_psort_info_init(
 
 			row_merge_file_create(psort_info[j].merge_file[i]);
 
-			psort_info[j].merge_block[i] = os_mem_alloc_large(
-				&block_size);
+			psort_info[j].merge_block[i] = ut_malloc(block_size);
 
 			if (!psort_info[j].merge_block[i]) {
 				ret = FALSE;
@@ -235,12 +259,11 @@ row_fts_psort_info_destroy(
 	fts_psort_info_t*	psort_info,	/*!< parallel sort info */
 	fts_psort_info_t*	merge_info)	/*!< parallel merge info */
 {
-	ulint	block_size = 3 * sizeof(row_merge_block_t);
 	ulint	i;
 	ulint	j;
 
 	if (psort_info) {
-		for (j = 0; j < FTS_PARALLEL_DEGREE; j++) {
+		for (j = 0; j < fts_sort_pll_degree; j++) {
 			for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 				if (psort_info[j].merge_file[i]) {
 					row_merge_file_destroy(
@@ -248,9 +271,7 @@ row_fts_psort_info_destroy(
 				}
 
 				if (psort_info[j].merge_block[i]) {
-					os_mem_free_large(
-						psort_info[j].merge_block[i],
-						block_size);
+					ut_free(psort_info[j].merge_block[i]);
 				}
 			}
 		}
@@ -278,7 +299,7 @@ row_fts_free_pll_merge_buf(
 		return;
 	}
 
-	for (j = 0; j < FTS_PARALLEL_DEGREE; j++) {
+	for (j = 0; j < fts_sort_pll_degree; j++) {
 		for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 			row_merge_buf_free(psort_info[j].merge_buf[i]);
 		}
@@ -307,7 +328,8 @@ row_merge_fts_doc_tokenize(
 	ulint*		init_pos,	/*!< in/out: doc start position */
 	ulint*		buf_used,	/*!< in/out: sort buffer used */
 	ulint*		rows_added,	/*!< in/out: num rows added */
-	merge_file_t**	merge_file)	/*!< in/out: merge file to fill */
+	merge_file_t**	merge_file,	/*!< in/out: merge file to fill */
+	doc_id_t	doc_id_diff)	/*!< in: Doc ID difference */
 {
 	ulint		i;
 	ulint		inc;
@@ -368,6 +390,7 @@ row_merge_fts_doc_tokenize(
 		ulint		cur_len = 0;
 		ib_rbt_bound_t	parent;
 		fts_string_t	t_str;
+		int32_t		t_doc_id;
 
 		inc = innobase_mysql_fts_get_token(doc->charset,
 			doc->text.utf8 + i,
@@ -427,12 +450,21 @@ row_merge_fts_doc_tokenize(
 		field++;
 
 		/* The second field is the Doc ID */
-		fts_write_doc_id((byte*) &write_doc_id, doc_id);
-		dfield_set_data(field, &write_doc_id, sizeof(write_doc_id));
-		len = dfield_get_len(field);
-		ut_a(len == FTS_DOC_ID_LEN);
+
+		if (doc_id_diff == ULINT_UNDEFINED) {
+			fts_write_doc_id((byte*) &write_doc_id, doc_id);
+			dfield_set_data(field, &write_doc_id,
+					sizeof(write_doc_id));
+			len = FTS_DOC_ID_LEN;
+		} else {
+			mach_write_to_4((byte*)&t_doc_id,
+					(int32_t)(doc_id - doc_id_diff));
+			dfield_set_data(field, &t_doc_id, sizeof(t_doc_id));
+			len = 4;
+		}
+
 		field->type.mtype = DATA_INT;
-		field->type.prtype = DATA_NOT_NULL;
+		field->type.prtype = DATA_NOT_NULL | DATA_BINARY_TYPE;
 		field->type.len = len;
 		field->type.mbminmaxlen = 0;
 		cur_len += len;
@@ -444,6 +476,7 @@ row_merge_fts_doc_tokenize(
 				(i + offset + inc - str.len +(*init_pos)));
 		dfield_set_data(field, &position, 4);
 		len = dfield_get_len(field);
+		ut_ad(len == 4);
 		field->type.mtype = DATA_INT;
 		field->type.prtype = DATA_NOT_NULL;
 		field->type.len = len;
@@ -457,7 +490,7 @@ row_merge_fts_doc_tokenize(
 
 		/* Reserve one byte for the end marker of row_merge_block_t. */
 		if (buf->total_size + data_size[idx] + cur_len 
-		    >= sizeof(row_merge_block_t) - 1) {
+		    >= srv_sort_buf_size - 1) {
 			buf_full = TRUE;
 			break;
 		}
@@ -515,6 +548,7 @@ fts_parallel_tokenization(
 	ulint			error;
 	int			tmpfd[FTS_NUM_AUX_INDEX];
 	ulint			rows_added[FTS_NUM_AUX_INDEX];
+	ulint			mycount[FTS_NUM_AUX_INDEX];
 	ulint			buf_used = 0;
 	ib_uint64_t		total_rec = 0;
 	ulint			num_doc_processed = 0;
@@ -545,6 +579,7 @@ fts_parallel_tokenization(
 
 	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 		rows_added[i] = 0;
+		mycount[i] = 0;
 	}
 
 	block = psort_info->merge_block;
@@ -563,7 +598,7 @@ loop:
 			zip_size, blob_heap,
 			table->fts->cache->stopword_info.cached_stopword,
 			&word_dtype, &init_pos, &buf_used, rows_added,
-			merge_file);
+			merge_file, psort_info->psort_common->doc_id);
 
 		/* Current sort buffer full, need to recycle */
 		if (!processed) {
@@ -572,6 +607,15 @@ loop:
 		}
 
 		num_doc_processed++;
+
+		if (num_doc_processed % 10000 == 1) {
+			fprintf(stderr, "number of doc processed %d\n",
+				(int)num_doc_processed);
+			for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
+				fprintf(stderr, "ID %d, partition %d, word "
+					"%d\n",(int)id, (int) i, (int) mycount[i]);
+			}
+		}
 
 		mem_heap_empty(blob_heap);
 
@@ -595,8 +639,9 @@ loop:
 		row_merge_write(merge_file[buf_used]->fd,
 				merge_file[buf_used]->offset++,
 				block[buf_used]);
-		UNIV_MEM_INVALID(block[buf_used][0], sizeof block[buf_used][0]);
+		UNIV_MEM_INVALID(block[buf_used][0], srv_sort_buf_size);
 		buf[buf_used] = row_merge_buf_empty(buf[buf_used]);
+		mycount[buf_used] += rows_added[buf_used];
 		rows_added[buf_used] = 0;
 
 		ut_a(doc_item);
@@ -634,7 +679,7 @@ exit:
 			row_merge_write(merge_file[i]->fd,
 					merge_file[i]->offset++, block[i]);
 
-			UNIV_MEM_INVALID(block[i][0], sizeof block[i][0]);
+			UNIV_MEM_INVALID(block[i][0], srv_sort_buf_size);
 			buf[i] = row_merge_buf_empty(buf[i]);
 			rows_added[i] = 0;
 		}
@@ -651,7 +696,8 @@ exit:
 		tmpfd[i] = innobase_mysql_tmpfile();
 		error = row_merge_sort(psort_info->psort_common->trx,
 				       psort_info->psort_common->sort_index,
-				       merge_file[i], block[i], &tmpfd[i],
+				       merge_file[i],
+				       (row_merge_block_t*) block[i], &tmpfd[i],
 				       psort_info->psort_common->table);
 		total_rec += merge_file[i]->n_rec;
 		close(tmpfd[i]);
@@ -675,10 +721,10 @@ row_fts_start_psort(
 /*================*/
 	fts_psort_info_t*	psort_info)
 {
-	int		i = 0;
+	ulint		i = 0;
 	os_thread_id_t	thd_id;
 
-	for (i = 0; i < FTS_PARALLEL_DEGREE; i++) {
+	for (i = 0; i < fts_sort_pll_degree; i++) {
 		psort_info[i].psort_id = i;
 		os_thread_create(fts_parallel_tokenization,
 				 (void *)&psort_info[i], &thd_id);
@@ -796,7 +842,9 @@ row_fts_insert_tuple(
 	doc_id_t*	in_doc_id,	/*!< in: last item doc id */
 	dtuple_t*	dtuple,		/*!< in: index entry */
 	CHARSET_INFO*	charset,	/*!< in: charset */
-	mem_heap_t*	heap)		/*!< in: heap */
+	mem_heap_t*	heap,		/*!< in: heap */
+	doc_id_t	doc_id_diff)	/*!< in: Doc ID value needs to add
+					back */
 {
 	fts_node_t*	fts_node = NULL;
 	dfield_t*	dfield;
@@ -876,7 +924,16 @@ row_fts_insert_tuple(
 
 	/* Get the word's Doc ID */
 	dfield = dtuple_get_nth_field(dtuple, 1);
-	doc_id = fts_read_doc_id(dfield_get_data(dfield));
+
+	if (doc_id_diff == ULINT_UNDEFINED) {
+		doc_id = fts_read_doc_id(dfield_get_data(dfield));
+	} else {
+		int32_t		id;
+
+		id = (int32_t) mach_read_from_4(dfield_get_data(dfield));
+
+		doc_id = id + doc_id_diff;
+	}
 
 	/* Get the word's position info */
 	dfield = dtuple_get_nth_field(dtuple, 2);
@@ -1028,7 +1085,7 @@ row_fts_build_sel_tree_level(
 }
 /*********************************************************************//**
 Build a selection tree for merge. The selection tree is a binary tree
-and should have FTS_PARALLEL_DEGREE / 2 levels. With root as level 0
+and should have fts_sort_pll_degree / 2 levels. With root as level 0
 @return number of tree levels */
 static
 ulint
@@ -1045,18 +1102,18 @@ row_fts_build_sel_tree(
 	ulint	start;
 
 	/* No need to build selection tree if we only have two merge threads */
-	if (FTS_PARALLEL_DEGREE <= 2) {
+	if (fts_sort_pll_degree <= 2) {
 		return(0);
 	}
 
-	while (num < FTS_PARALLEL_DEGREE) {
+	while (num < fts_sort_pll_degree) {
 		num = num << 1;
 		treelevel++;
 	}
 
 	start = (1 << treelevel) - 1;
 
-	for (i = 0; i < FTS_PARALLEL_DEGREE; i++) {
+	for (i = 0; i < (int) fts_sort_pll_degree; i++) {
 		sel_tree[i + start] = i;
 	}
 
@@ -1084,12 +1141,12 @@ row_fts_merge_insert(
 	ulint			id)	/* !< in: which auxiliary table's data
 					to insert to */
 {
-	const byte*		b[FTS_PARALLEL_DEGREE];
+	const byte**		b;
 	mem_heap_t*		tuple_heap;
 	mem_heap_t*		heap;
 	ulint			error = DB_SUCCESS;
-	ulint			foffs[FTS_PARALLEL_DEGREE];
-	ulint*			offsets[FTS_PARALLEL_DEGREE];
+	ulint*			foffs;
+	ulint**			offsets;
 	fts_tokenizer_word_t	new_word;
 	ib_vector_t*		positions;
 	doc_id_t		last_doc_id;
@@ -1099,17 +1156,18 @@ row_fts_merge_insert(
 	ulint			n_bytes;
 	ulint			i;
 	ulint			num;
-	mrec_buf_t*		buf[FTS_PARALLEL_DEGREE];
-	int			fd[FTS_PARALLEL_DEGREE];
-	row_merge_block_t*	block[FTS_PARALLEL_DEGREE];
-	const mrec_t*		mrec[FTS_PARALLEL_DEGREE];
+	mrec_buf_t**		buf;
+	int*			fd;
+	byte**			block;
+	const mrec_t**		mrec;
 	ulint			count = 0;
-	int			sel_tree[1 << (FTS_PARALLEL_DEGREE)];
+	int*			sel_tree;
 	ulint			height;
 	ulint			start;
 	ulint			counta = 0;
 	trx_t*			insert_trx;
 	CHARSET_INFO*		charset;
+	doc_id_t		doc_id_diff = 0;
 
 	ut_ad(trx);
 	ut_ad(index);
@@ -1122,13 +1180,31 @@ row_fts_merge_insert(
 
 	insert_trx->op_info = "inserting index entries";
 
+	doc_id_diff = psort_info[0].psort_common->doc_id;
+
 	heap = mem_heap_create(500 + sizeof(mrec_buf_t));
+
+	b = (const byte**) mem_heap_alloc(
+		heap, sizeof (*b) * fts_sort_pll_degree);
+	foffs = (ulint*) mem_heap_alloc(
+		heap, sizeof(*foffs) * fts_sort_pll_degree);
+	offsets = (ulint**) mem_heap_alloc(
+		heap, sizeof(*offsets) * fts_sort_pll_degree);
+	buf = (mrec_buf_t**) mem_heap_alloc(
+		heap, sizeof(*buf) * fts_sort_pll_degree);
+	fd = (int*) mem_heap_alloc(heap, sizeof(*fd) * fts_sort_pll_degree);
+	block = (byte**) mem_heap_alloc(
+		heap, sizeof(*block) * fts_sort_pll_degree);
+	mrec = (const mrec_t**) mem_heap_alloc(
+		heap, sizeof(*mrec) * fts_sort_pll_degree);
+	sel_tree = (int*) mem_heap_alloc(
+		heap, sizeof(*sel_tree) * (1 << fts_sort_pll_degree));
 
 	tuple_heap = mem_heap_create(1000);
 
 	charset = fts_index_get_charset(index);
 
-	for (i = 0; i < FTS_PARALLEL_DEGREE; i++) {
+	for (i = 0; i < fts_sort_pll_degree; i++) {
 
 		num = 1 + REC_OFFS_HEADER_SIZE
 			+ dict_index_get_n_fields(index);
@@ -1137,7 +1213,7 @@ row_fts_merge_insert(
 		offsets[i][0] = num;
 		offsets[i][1] = dict_index_get_n_fields(index);
 		block[i] = psort_info[i].merge_block[id];
-		b[i] = *psort_info[i].merge_block[id];
+		b[i] = psort_info[i].merge_block[id];
 		fd[i] = psort_info[i].merge_file[id]->fd;
 		foffs[i] = 0;
 
@@ -1168,12 +1244,13 @@ row_fts_merge_insert(
 	fts_table.parent = index->table->name;
 	fts_table.table = NULL;
 
-	for (i = 0; i < FTS_PARALLEL_DEGREE; i++) {
+	for (i = 0; i < fts_sort_pll_degree; i++) {
 		if (psort_info[i].merge_file[id]->n_rec == 0) {
 			/* No Rows to read */
 			mrec[i] = b[i] = NULL;
 		} else {
-			if (!row_merge_read(fd[i], foffs[i], block[i])) {
+			if (!row_merge_read(fd[i], foffs[i],
+			    (row_merge_block_t*) block[i])) {
 				error = DB_CORRUPTION;
 				goto exit;
 			}
@@ -1182,7 +1259,8 @@ row_fts_merge_insert(
 		}
 	}
 
-	height = row_fts_build_sel_tree(sel_tree, mrec, offsets, index);
+	height = row_fts_build_sel_tree(sel_tree, (const mrec_t **) mrec,
+					offsets, index);
 
 	start = (1 << height) - 1;
 
@@ -1192,23 +1270,24 @@ row_fts_merge_insert(
 		int		min_rec = 0;
 
 
-		if (FTS_PARALLEL_DEGREE <= 2) {
+		if (fts_sort_pll_degree <= 2) {
 			while (!mrec[min_rec]) {
 				min_rec++;
 
-				if (min_rec >= FTS_PARALLEL_DEGREE) {
+				if (min_rec >= (int) fts_sort_pll_degree) {
 
 					row_fts_insert_tuple(
 						insert_trx, ins_graph,
 						&fts_table, &new_word,
 						positions, &last_doc_id,
-						NULL, charset, heap);
+						NULL, charset, heap,
+						doc_id_diff);
 
 					goto exit;
 				}
 			}
 
-			for (i = min_rec + 1; i < FTS_PARALLEL_DEGREE; i++) {
+			for (i = min_rec + 1; i < fts_sort_pll_degree; i++) {
 				ibool           null_eq = FALSE;
 				if (!mrec[i]) {
 					continue;
@@ -1228,7 +1307,7 @@ row_fts_merge_insert(
 					insert_trx, ins_graph,
 					&fts_table, &new_word,
 					positions, &last_doc_id,
-					NULL, charset, heap);
+					NULL, charset, heap, doc_id_diff);
 
 				goto exit;
 			}
@@ -1240,12 +1319,13 @@ row_fts_merge_insert(
 
 		row_fts_insert_tuple(
 			insert_trx, ins_graph, &fts_table, &new_word,
-			positions, &last_doc_id, dtuple, charset, heap);
+			positions, &last_doc_id, dtuple, charset, heap,
+			doc_id_diff);
 
 
 		ROW_MERGE_READ_GET_NEXT(min_rec);
 
-		if (FTS_PARALLEL_DEGREE > 2) {
+		if (fts_sort_pll_degree > 2) {
 			if (!mrec[min_rec]) {
 				sel_tree[start + min_rec] = -1;
 			}
