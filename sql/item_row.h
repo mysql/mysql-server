@@ -73,6 +73,7 @@ public:
 
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
+  bool eval_not_null_tables(uchar *opt_arg);
 
   uint cols() { return arg_count; }
   Item* element_index(uint i) { return items[i]; }

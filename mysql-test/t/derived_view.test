@@ -590,3 +590,39 @@ SELECT * FROM v1;
 
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #809179           
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (6,5);
+
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES (1,0);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (6,5);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT t.a,t.b FROM t3 RIGHT JOIN (t1 AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+EXPLAIN EXTENDED
+SELECT t.a,t.b FROM t3 RIGHT JOIN (t1 AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+
+SELECT t.a,t.b FROM t3 RIGHT JOIN ((SELECT * FROM t1) AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+EXPLAIN EXTENDED
+SELECT t.a,t.b FROM t3 RIGHT JOIN ((SELECT * FROM t1) AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+
+SELECT t.a,t.b FROM t3 RIGHT JOIN (v1 AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+EXPLAIN EXTENDED
+SELECT t.a,t.b FROM t3 RIGHT JOIN (v1 AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
