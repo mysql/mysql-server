@@ -54,6 +54,45 @@ insert into performance_schema.setup_objects
 insert into performance_schema.setup_objects
   values ('TABLE', 'db4', '%', 'YES', 'NO');
 
+# Also test insert of invalid enum values
+
+--error ER_NO_REFERENCED_ROW_2
+insert into performance_schema.setup_objects
+  values ('SOMETHING', 'bad1', 'bad1', 'YES', 'NO');
+show warnings;
+
+--error ER_NO_REFERENCED_ROW_2
+insert into performance_schema.setup_objects
+  values ('TABLE', 'bad2', 'bad2', 'MAYBE', 'NO');
+show warnings;
+
+--error ER_NO_REFERENCED_ROW_2
+insert into performance_schema.setup_objects
+  values ('TABLE', 'bad3', 'bad3', 'YES', 'MAYBE NOT');
+show warnings;
+
+select * from performance_schema.setup_objects
+  order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+# Also test update of invalid enum values
+# Note: do not use SHOW WARNINGS in the test,
+# because error messages such as:
+#   "Data truncated for column 'OBJECT_TYPE' at row <N>"
+# do not always use the same row number <N>.
+
+# ER_WRONG_PERFSCHEMA_USAGE because of privileges, expected.
+--error ER_WRONG_PERFSCHEMA_USAGE
+update performance_schema.setup_objects
+  set OBJECT_TYPE='SOMETHING' where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+
+--error ER_NO_REFERENCED_ROW_2
+update performance_schema.setup_objects
+  set ENABLED='MAYBE' where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+
+--error ER_NO_REFERENCED_ROW_2
+update performance_schema.setup_objects
+  set TIMED='MAYBE NOT' where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
+
 select * from performance_schema.setup_objects
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 
