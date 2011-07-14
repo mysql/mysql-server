@@ -23,11 +23,11 @@ DB_TXN *tid=0;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
-const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
-int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
-int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
-char *dbfilename = "bench.db";
-u_int32_t cachesize = 127*1024*1024;
+static const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
+static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK|DB_RECOVER;
+// static int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
+static char *dbfilename = "bench.db";
+static u_int64_t cachesize = 127*1024*1024;
 static int verbose UU() = 0;
 static const char *log_dir = NULL;
 
@@ -36,7 +36,7 @@ static long long set_count = 0;
 static void pt_query_setup (void) {
     int r;
     r = db_env_create(&env, 0);                                                           assert(r==0);
-    r = env->set_cachesize(env, 0, cachesize, 1);                                         assert(r==0);
+    r = env->set_cachesize(env, cachesize / (1<<30), cachesize % (1<<30), 1);             assert(r==0);
     if (log_dir) {
         r = env->set_lg_dir(env, log_dir);                                                assert(r==0);
     }
@@ -132,7 +132,7 @@ static void warmup(void) {
     r = txn->commit(txn, 0); assert_zero(r);
     double tdiff = gettime() - tstart;
     unsigned long long rows = maxkey / SERIAL_SPACING;
-    printf("Warmup        : read %12llu rows in %6.1fs %8.0f/s\n", rows, tdiff, rows/tdiff);
+    printf("Warmup        : read %12llu rows in %6.1fs %8.0f/s\n", rows, tdiff, rows/tdiff); fflush(stdout);
 }
 
 
@@ -165,6 +165,10 @@ int test_main(int argc, char * const argv[]) {
             nthreads = atoi(argv[++i]);
             continue;
         }
+        if (strcmp(arg, "--cachesize") == 0 && i+1 < argc) {
+            cachesize = atoll(argv[++i]);
+            continue;
+        }
         return 1;
     }
 
@@ -188,7 +192,7 @@ int test_main(int argc, char * const argv[]) {
     }
     assert(set_count == nthreads * nqueries);
     double tdiff = gettime() - tstart;
-    printf("Point Queries : read %12llu rows in %6.1fs %8.0f/s with %d threads\n", set_count, tdiff, set_count/tdiff, nthreads);
+    printf("Point Queries : read %12llu rows in %6.1fs %8.0f/s with %d threads\n", set_count, tdiff, set_count/tdiff, nthreads); fflush(stdout);
 
     pt_query_shutdown();
     return 0;
