@@ -11,5 +11,6 @@ foo
 mtr
 mysql
 pbxt
+performance_schema
 test
 drop schema foo;

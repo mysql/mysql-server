@@ -3,6 +3,8 @@
 drop table if exists t1;
 --enable_warnings
 
+set @@session.sql_auto_is_null=1;
+
 #
 # Test some ODBC compatibility
 #

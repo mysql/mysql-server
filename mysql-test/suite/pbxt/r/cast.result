@@ -342,18 +342,18 @@ INSERT INTO t1 SET f1 = -1.0e+30 ;
 INSERT INTO t1 SET f1 = +1.0e+30 ;
 SELECT f1 AS double_val, CAST(f1 AS SIGNED INT) AS cast_val FROM t1;
 double_val	cast_val
--1e+30	-9223372036854775808
-1e+30	9223372036854775807
+-1e30	-9223372036854775808
+1e30	9223372036854775807
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1e+30'
-Warning	1292	Truncated incorrect INTEGER value: '1e+30'
+Warning	1292	Truncated incorrect INTEGER value: '-1e30'
+Warning	1292	Truncated incorrect INTEGER value: '1e30'
 DROP TABLE t1;
 select cast('1.2' as decimal(3,2));
 cast('1.2' as decimal(3,2))
 1.20
 select 1e18 * cast('1.2' as decimal(3,2));
 1e18 * cast('1.2' as decimal(3,2))
-1.2e+18
+1.2e18
 select cast(cast('1.2' as decimal(3,2)) as signed);
 cast(cast('1.2' as decimal(3,2)) as signed)
 1
@@ -370,7 +370,7 @@ select cast(s1 as decimal(7,2)) from t1;
 cast(s1 as decimal(7,2))
 99999.99
 Warnings:
-Error	1264	Out of range value for column 'cast(s1 as decimal(7,2))' at row 1
+Warning	1264	Out of range value for column 'cast(s1 as decimal(7,2))' at row 1
 drop table t1;
 CREATE TABLE t1 (v varchar(10), tt tinytext, t text,
 mt mediumtext, lt longtext);

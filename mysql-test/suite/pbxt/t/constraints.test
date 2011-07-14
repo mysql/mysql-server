@@ -10,7 +10,7 @@ create table t1 (a int check (a>0));
 insert into t1 values (1);
 insert into t1 values (0);
 drop table t1;
-create table t1 (a int ,b int, check a>b);
+create table t1 (a int, b int, check (a>b));
 insert into t1 values (1,0);
 insert into t1 values (0,1);
 drop table t1;

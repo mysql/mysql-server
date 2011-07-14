@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1, t2;
 partition by list (a)
 partitions 3
 (partition x1 values in (1,2,9,4) tablespace ts1,
@@ -65,8 +65,8 @@ partitions 3
 partition x2 tablespace ts2,
 partition x3 tablespace ts3);
 ERROR HY000: Field in list of fields for partition function not found in table
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -142,8 +142,8 @@ partitions 2
 (partition x1 values less than (4),
 partition x2 values less than (5));
 ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -155,8 +155,8 @@ partitions 2
 (partition x1 values in (4),
 partition x2 values in (5));
 ERROR HY000: Only LIST PARTITIONING can use VALUES IN in partition definition
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -168,8 +168,8 @@ partitions 2
 (partition x1 values in (4,6),
 partition x2 values in (5,7));
 ERROR HY000: Only LIST PARTITIONING can use VALUES IN in partition definition
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -179,8 +179,8 @@ primary key (a,b))
 partition by key (a)
 subpartition by key (b);
 ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -190,8 +190,8 @@ primary key (a,b))
 partition by key (a)
 subpartition by key (a, b);
 ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -201,8 +201,8 @@ primary key (a,b))
 partition by key (a)
 subpartition by hash (a+b);
 ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -212,8 +212,8 @@ primary key (a,b))
 partition by key (a)
 subpartition by key (b);
 ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -223,8 +223,8 @@ primary key (a,b))
 partition by key (a)
 subpartition by key (a, b);
 ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -234,8 +234,8 @@ primary key (a,b))
 partition by key (a)
 subpartition by hash (a+b);
 ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -255,8 +255,8 @@ subpartition by hash (sin(a+b))
 (partition x1 (subpartition x11, subpartition x12),
 partition x2 (subpartition x21, subpartition x22));
 ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -280,8 +280,8 @@ subpartition by key (a,d)
 (partition x1 values less than (1) (subpartition x11, subpartition x12),
 partition x2 values less than (2) (subpartition x21, subpartition x22));
 ERROR HY000: Field in list of fields for partition function not found in table
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -308,8 +308,8 @@ c int not null,
 primary key(a,b))
 partition by range (a);
 ERROR HY000: For RANGE partitions each partition must be defined
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
-load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par')
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL
 CREATE TABLE t1 (
 a int not null,
@@ -330,8 +330,7 @@ partition by range (a)
 partitions 2
 (partition x1 values less than (4.0) tablespace ts1,
 partition x2 values less than (8) tablespace ts2);
-ERROR 42000: VALUES value must be of same type as partition function near ') tablespace ts1,
-partition x2 values less than (8) tablespace ts2)' at line 8
+ERROR HY000: VALUES value for partition 'x1' must have type INT
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -381,8 +380,7 @@ partition by list (a)
 partitions 2
 (partition x1 values less than 4,
 partition x2 values less than (5));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4,
-partition x2 values less than (5))' at line 8
+ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -392,7 +390,7 @@ partition by range (a)
 partitions 2
 (partition x1 values less than maxvalue,
 partition x2 values less than (5));
-ERROR 42000: MAXVALUE can only be used in last partition definition near '))' at line 9
+ERROR HY000: MAXVALUE can only be used in last partition definition
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -402,7 +400,7 @@ partition by range (a)
 partitions 2
 (partition x1 values less than maxvalue,
 partition x2 values less than maxvalue);
-ERROR 42000: MAXVALUE can only be used in last partition definition near 'maxvalue)' at line 9
+ERROR HY000: MAXVALUE can only be used in last partition definition
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -571,8 +569,7 @@ partition by list (a)
 partitions 2
 (partition x1 values in (4.0, 12+8),
 partition x2 values in (3, 21));
-ERROR 42000: VALUES value must be of same type as partition function near ' 12+8),
-partition x2 values in (3, 21))' at line 8
+ERROR HY000: VALUES value for partition 'x1' must have type INT
 CREATE TABLE t1 (
 a int not null,
 b int not null,

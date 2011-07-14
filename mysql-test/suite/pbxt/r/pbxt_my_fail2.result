@@ -40,6 +40,8 @@ end|
 call bug7049_2()|
 Result
 Caught it
+Warnings:
+Error	1062	Duplicate entry '42' for key 'x'
 drop procedure bug7049_1|
 drop function bug7049_1|
 drop procedure bug7049_2|

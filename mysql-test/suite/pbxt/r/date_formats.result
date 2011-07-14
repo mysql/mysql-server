@@ -1,82 +1,20 @@
 drop table if exists t1;
-SHOW GLOBAL VARIABLES LIKE "%_format%";
-Variable_name	Value
-binlog_format	<format>
-date_format	%Y-%m-%d
-datetime_format	%Y-%m-%d %H:%i:%s
-default_week_format	0
-time_format	%H:%i:%s
-SHOW SESSION VARIABLES LIKE "%_format%";
-Variable_name	Value
-binlog_format	<format>
-date_format	%Y-%m-%d
-datetime_format	%Y-%m-%d %H:%i:%s
-default_week_format	0
-time_format	%H:%i:%s
-SET time_format='%H%i%s';
-SET time_format='%H:%i:%s.%f';
-SET time_format='%h-%i-%s.%f%p';
-SET time_format='%h:%i:%s.%f %p';
-SET time_format='%h:%i:%s%p';
-SET date_format='%Y%m%d';
-SET date_format='%Y.%m.%d';
-SET date_format='%d.%m.%Y';
-SET date_format='%m-%d-%Y';
-set datetime_format= '%Y%m%d%H%i%s';
-set datetime_format= '%Y-%m-%d %H:%i:%s';
-set datetime_format= '%m-%d-%y %H:%i:%s.%f';
-set datetime_format= '%d-%m-%Y %h:%i:%s%p';
-set datetime_format= '%H:%i:%s %Y-%m-%d';
-set datetime_format= '%H:%i:%s.%f %m-%d-%Y';
-set datetime_format= '%h:%i:%s %p %Y-%m-%d';
-set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
-SHOW SESSION VARIABLES LIKE "%format";
-Variable_name	Value
-binlog_format	<format>
-date_format	%m-%d-%Y
-datetime_format	%h:%i:%s.%f %p %Y-%m-%d
-default_week_format	0
-time_format	%h:%i:%s%p
-SET time_format='%h:%i:%s';
-ERROR 42000: Variable 'time_format' can't be set to the value of '%h:%i:%s'
-SET time_format='%H %i:%s';
-ERROR 42000: Variable 'time_format' can't be set to the value of '%H %i:%s'
-SET time_format='%H::%i:%s';
-ERROR 42000: Variable 'time_format' can't be set to the value of '%H::%i:%s'
-SET time_format='%H:%i:%s%f';
-ERROR 42000: Variable 'time_format' can't be set to the value of '%H:%i:%s%f'
-SET time_format='%H:%i.%f:%s';
-ERROR 42000: Variable 'time_format' can't be set to the value of '%H:%i.%f:%s'
-SET time_format='%H:%i:%s%p';
-ERROR 42000: Variable 'time_format' can't be set to the value of '%H:%i:%s%p'
-SET time_format='%h:%i:%s.%f %p %Y-%m-%d';
-ERROR 42000: Variable 'time_format' can't be set to the value of '%h:%i:%s.%f %p %Y-%m-%d'
-SET time_format='%H%i%s.%f';
-ERROR 42000: Variable 'time_format' can't be set to the value of '%H%i%s.%f'
-SET time_format='%H:%i-%s.%f';
-ERROR 42000: Variable 'time_format' can't be set to the value of '%H:%i-%s.%f'
-SET date_format='%d.%m.%d';
-ERROR 42000: Variable 'date_format' can't be set to the value of '%d.%m.%d'
-SET datetime_format='%h.%m.%y %d.%i.%s';
-ERROR 42000: Variable 'datetime_format' can't be set to the value of '%h.%m.%y %d.%i.%s'
-set datetime_format= '%H:%i:%s.%f %p %Y-%m-%d';
-ERROR 42000: Variable 'datetime_format' can't be set to the value of '%H:%i:%s.%f %p %Y-%m-%d'
-set GLOBAL datetime_format= '%H:%i:%s %Y-%m-%d';
-SET SESSION datetime_format=default;
-select @@global.datetime_format, @@session.datetime_format;
-@@global.datetime_format	@@session.datetime_format
-%H:%i:%s %Y-%m-%d	%H:%i:%s %Y-%m-%d
-SET GLOBAL datetime_format=default;
-SET SESSION datetime_format=default;
-select @@global.datetime_format, @@session.datetime_format;
-@@global.datetime_format	@@session.datetime_format
-%Y-%m-%d %H:%i:%s	%Y-%m-%d %H:%i:%s
-SET GLOBAL date_format=default;
-SET GLOBAL time_format=default;
-SET GLOBAL datetime_format=default;
-SET time_format=default;
-SET date_format=default;
-SET datetime_format=default;
+SELECT variable_name, variable_value
+FROM information_schema.global_variables
+WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
+ORDER BY variable_name;
+variable_name	variable_value
+DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
+DATE_FORMAT	%Y-%m-%d
+TIME_FORMAT	%H:%i:%s
+SELECT variable_name, variable_value
+FROM information_schema.session_variables
+WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
+ORDER BY variable_name;
+variable_name	variable_value
+DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
+DATE_FORMAT	%Y-%m-%d
+TIME_FORMAT	%H:%i:%s
 select str_to_date(concat('15-01-2001',' 2:59:58.999'),
 concat('%d-%m-%Y',' ','%H:%i:%s.%f'));
 str_to_date(concat('15-01-2001',' 2:59:58.999'),
@@ -86,11 +24,13 @@ select STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T');
 STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T')
 NULL
 Warnings:
-Error	1411	Incorrect time value: '22.30.61' for function str_to_date
+Warning	1411	Incorrect time value: '22.30.61' for function str_to_date
 create table t1 (date char(30), format char(30) not null);
 insert into t1 values
 ('2003-01-02 10:11:12', '%Y-%m-%d %H:%i:%S'),
 ('03-01-02 8:11:2.123456', '%y-%m-%d %H:%i:%S.%#'),
+('0003-01-02 8:11:2.123456', '%Y-%m-%d %H:%i:%S.%#'),
+('03-01-02 8:11:2.123456',   '%Y-%m-%d %H:%i:%S.%#'),
 ('2003-01-02 10:11:12 PM', '%Y-%m-%d %h:%i:%S %p'),
 ('2003-01-02 01:11:12.12345AM', '%Y-%m-%d %h:%i:%S.%f%p'),
 ('2003-01-02 02:11:12.12345AM', '%Y-%m-%d %h:%i:%S.%f %p'),
@@ -122,6 +62,8 @@ select date,format,str_to_date(date, format) as str_to_date from t1;
 date	format	str_to_date
 2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	2003-01-02 10:11:12
 03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	2003-01-02 08:11:02
+0003-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	0003-01-02 08:11:02
+03-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	2003-01-02 08:11:02
 2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02 22:11:12
 2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 01:11:12.123450
 2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	2003-01-02 02:11:12.123450
@@ -153,6 +95,8 @@ select date,format,concat('',str_to_date(date, format)) as con from t1;
 date	format	con
 2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	2003-01-02 10:11:12
 03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	2003-01-02 08:11:02
+0003-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	0003-01-02 08:11:02
+03-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	2003-01-02 08:11:02
 2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02 22:11:12
 2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 01:11:12.123450
 2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	2003-01-02 02:11:12.123450
@@ -184,6 +128,8 @@ select date,format,cast(str_to_date(date, format) as datetime) as datetime from 
 date	format	datetime
 2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	2003-01-02 10:11:12
 03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	2003-01-02 08:11:02
+0003-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	0003-01-02 08:11:02
+03-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	2003-01-02 08:11:02
 2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02 22:11:12
 2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 01:11:12.123450
 2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	2003-01-02 02:11:12.123450
@@ -215,6 +161,8 @@ select date,format,DATE(str_to_date(date, format)) as date2 from t1;
 date	format	date2
 2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	2003-01-02
 03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	2003-01-02
+0003-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	0003-01-02
+03-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	2003-01-02
 2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02
 2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02
 2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	2003-01-02
@@ -246,6 +194,8 @@ select date,format,TIME(str_to_date(date, format)) as time from t1;
 date	format	time
 2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	10:11:12
 03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	08:11:02
+0003-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	08:11:02
+03-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	08:11:02
 2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	22:11:12
 2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	01:11:12.123450
 2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	02:11:12.123450
@@ -277,6 +227,8 @@ select date,format,concat(TIME(str_to_date(date, format))) as time2 from t1;
 date	format	time2
 2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	10:11:12
 03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	08:11:02
+0003-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	08:11:02
+03-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	08:11:02
 2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	22:11:12
 2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	01:11:12.123450
 2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	02:11:12.123450
@@ -344,21 +296,21 @@ Tuesday 52 2001	%W %u %x	NULL
 7 53 1998	%w %u %Y	NULL
 NULL	%m.%d.%Y	NULL
 Warnings:
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12.123456' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AM' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AN' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
-Error	1411	Incorrect datetime value: '10:20:10AM' for function str_to_date
-Error	1411	Incorrect datetime value: '15 Septembei 2001' for function str_to_date
-Error	1411	Incorrect datetime value: '15 Ju 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Sund 15 MA' for function str_to_date
-Error	1411	Incorrect datetime value: 'Thursdai 12 1998' for function str_to_date
-Error	1411	Incorrect datetime value: 'Sunday 01 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: '7 53 1998' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12.123456' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12AM' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12AN' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Warning	1411	Incorrect datetime value: '10:20:10AM' for function str_to_date
+Warning	1411	Incorrect datetime value: '15 Septembei 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: '15 Ju 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Sund 15 MA' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Thursdai 12 1998' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Sunday 01 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: '7 53 1998' for function str_to_date
 select date,format,concat(str_to_date(date, format),'') as con from t1;
 date	format	con
 2003-01-02 10:11:12 PM	%Y-%m-%d %H:%i:%S %p	NULL
@@ -378,21 +330,21 @@ Tuesday 52 2001	%W %u %x	NULL
 7 53 1998	%w %u %Y	NULL
 NULL	%m.%d.%Y	NULL
 Warnings:
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12.123456' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AM' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AN' for function str_to_date
-Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
-Error	1411	Incorrect datetime value: '10:20:10AM' for function str_to_date
-Error	1411	Incorrect datetime value: '15 Septembei 2001' for function str_to_date
-Error	1411	Incorrect datetime value: '15 Ju 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Sund 15 MA' for function str_to_date
-Error	1411	Incorrect datetime value: 'Thursdai 12 1998' for function str_to_date
-Error	1411	Incorrect datetime value: 'Sunday 01 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
-Error	1411	Incorrect datetime value: '7 53 1998' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12.123456' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12AM' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12AN' for function str_to_date
+Warning	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Warning	1411	Incorrect datetime value: '10:20:10AM' for function str_to_date
+Warning	1411	Incorrect datetime value: '15 Septembei 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: '15 Ju 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Sund 15 MA' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Thursdai 12 1998' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Sunday 01 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Warning	1411	Incorrect datetime value: '7 53 1998' for function str_to_date
 truncate table t1;
 insert into t1 values
 ('10:20:10AM', '%h:%i:%s'),
@@ -432,7 +384,7 @@ select str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'));
 str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'))
 NULL
 Warnings:
-Error	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
+Warning	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
 explain extended select makedate(1997,1), addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM"),cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME), maketime(23,11,12),microsecond("1997-12-31 23:59:59.000001");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used

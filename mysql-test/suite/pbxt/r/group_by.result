@@ -107,8 +107,9 @@ SELECT cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2
 cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
 SELECT HIGH_PRIORITY cid, CONCAT(firstname, ' ', surname), COUNT(call_id) FROM t1 LEFT JOIN t2 ON cid=contact_id WHERE firstname like '%foo%' GROUP BY cid ORDER BY surname, firstname;
 cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
-drop table t1,t2;
+drop table t2;
 unlock tables;
+drop table t1;
 CREATE TABLE t1 (
 bug_id mediumint(9) NOT NULL auto_increment,
 groupset bigint(20) DEFAULT '0' NOT NULL,
@@ -933,12 +934,261 @@ b	sum(1)
 18	6
 19	6
 DROP TABLE t1;
-CREATE TABLE t1 (a INT, b INT, KEY(a));
-INSERT INTO t1 VALUES (1, 1), (2, 2), (3,3), (4,4);
-EXPLAIN SELECT a, SUM(b) FROM t1 GROUP BY a LIMIT 2;
+CREATE TABLE t1 (a INT, b INT,
+PRIMARY KEY (a),
+KEY i2(a,b));
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8);
+INSERT INTO t1 SELECT a + 8,b FROM t1;
+INSERT INTO t1 SELECT a + 16,b FROM t1;
+INSERT INTO t1 SELECT a + 32,b FROM t1;
+INSERT INTO t1 SELECT a + 64,b FROM t1;
+INSERT INTO t1 SELECT a + 128,b FROM t1 limit 16;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT a FROM t1 WHERE a < 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	a	5	NULL	2	
-EXPLAIN SELECT a, SUM(b) FROM t1 IGNORE INDEX (a) GROUP BY a LIMIT 2;
+1	SIMPLE	t1	range	PRIMARY,i2	PRIMARY	4	NULL	1	Using where; Using index
+EXPLAIN SELECT a FROM t1 WHERE a < 2 ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
-DROP TABLE t1;
+1	SIMPLE	t1	range	PRIMARY,i2	PRIMARY	4	NULL	1	Using where; Using index
+EXPLAIN SELECT a FROM t1 WHERE a < 2 GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,i2	PRIMARY	4	NULL	1	Using where; Using index for group-by
+EXPLAIN SELECT a FROM t1 IGNORE INDEX (PRIMARY,i2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	144	
+EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR JOIN (PRIMARY,i2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	144	
+EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY,i2) GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	144	Using index
+EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	144	Using index
+SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
+a
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY)
+IGNORE INDEX FOR GROUP BY (i2) GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	144	Using index
+EXPLAIN SELECT a FROM t1 IGNORE INDEX (PRIMARY) IGNORE INDEX FOR ORDER BY (i2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	i2	9	NULL	144	Using index
+EXPLAIN SELECT a FROM t1 FORCE INDEX (i2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	i2	9	NULL	144	Using index
+EXPLAIN SELECT a FROM t1 USE INDEX ();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	144	
+EXPLAIN SELECT a FROM t1 USE INDEX () USE INDEX (i2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	144	
+EXPLAIN SELECT a FROM t1 
+FORCE INDEX (PRIMARY) 
+IGNORE INDEX FOR GROUP BY (i2)
+IGNORE INDEX FOR ORDER BY (i2)
+USE INDEX (i2);
+ERROR HY000: Incorrect usage of USE INDEX and FORCE INDEX
+EXPLAIN SELECT a FROM t1 USE INDEX (i2) USE INDEX ();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	i2	9	NULL	144	Using index
+EXPLAIN SELECT a FROM t1 FORCE INDEX ();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+EXPLAIN SELECT a FROM t1 IGNORE INDEX ();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+EXPLAIN SELECT a FROM t1 USE INDEX FOR JOIN (i2) 
+USE INDEX FOR GROUP BY (i2) GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	#	NULL	i2	#	NULL	#	#
+EXPLAIN SELECT a FROM t1 FORCE INDEX FOR JOIN (i2) 
+FORCE INDEX FOR GROUP BY (i2) GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	NULL	i2	4	NULL	145	Using index for group-by
+EXPLAIN SELECT a FROM t1 USE INDEX () IGNORE INDEX (i2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	144	
+EXPLAIN SELECT a FROM t1 IGNORE INDEX (i2) USE INDEX ();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	144	
+EXPLAIN SELECT a FROM t1 
+USE INDEX FOR GROUP BY (i2) 
+USE INDEX FOR ORDER BY (i2)
+USE INDEX FOR JOIN (i2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	i2	9	NULL	144	Using index
+EXPLAIN SELECT a FROM t1 
+USE INDEX FOR JOIN (i2) 
+USE INDEX FOR JOIN (i2) 
+USE INDEX FOR JOIN (i2,i2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	i2	9	NULL	144	Using index
+EXPLAIN SELECT 1 FROM t1 WHERE a IN
+(SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	PRIMARY,i2	PRIMARY	4	NULL	144	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where; FirstMatch(t1)
+CREATE TABLE t2 (a INT, b INT, KEY(a));
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3,3), (4,4);
+EXPLAIN SELECT a, SUM(b) FROM t2 GROUP BY a LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	a	5	NULL	2	
+EXPLAIN SELECT a, SUM(b) FROM t2 IGNORE INDEX (a) GROUP BY a LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+EXPLAIN SELECT 1 FROM t2 WHERE a IN
+(SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	a	a	5	NULL	4	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where; FirstMatch(t2)
+SHOW VARIABLES LIKE 'old';
+Variable_name	Value
+old	OFF
+SET @@old = off;
+ERROR HY000: Variable 'old' is a read only variable
+DROP TABLE t1, t2;

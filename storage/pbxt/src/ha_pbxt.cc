@@ -2198,6 +2198,10 @@ MX_TABLE_TYPES_T ha_pbxt::table_flags() const
 		 */
 		HA_BINLOG_ROW_CAPABLE |
 #endif
+                /*
+                 * ha_pbxt::repair() method does not return HA_ADMIN_NOT_IMPLEMENTED
+                 */
+                HA_CAN_REPAIR |
 		/*
 		 * Auto-increment is allowed on a partial key.
 		 */

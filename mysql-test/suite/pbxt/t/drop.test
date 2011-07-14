@@ -100,8 +100,8 @@ drop database if exists mysqltest;
 drop table if exists t1;
 --enable_warnings
 create table t1 (i int);
-lock tables t1 read;
 create database mysqltest;
+lock tables t1 read;
 connect (addconroot1, localhost, root,,);
 --send drop table t1
 connect (addconroot2, localhost, root,,);
@@ -117,8 +117,11 @@ connection addconroot1;
 --reap
 connection addconroot2;
 --reap
-disconnect addconroot1;
 disconnect addconroot2;
+--source include/wait_until_disconnected.inc
+connection addconroot1;
+disconnect addconroot1;
+--source include/wait_until_disconnected.inc
 connection default;
 
 --disable_query_log

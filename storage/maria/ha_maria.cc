@@ -3048,8 +3048,15 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *create_info,
 static int maria_hton_panic(handlerton *hton, ha_panic_function flag)
 {
   /* If no background checkpoints, we need to do one now */
-  return ((checkpoint_interval == 0) ?
-          ma_checkpoint_execute(CHECKPOINT_FULL, FALSE) : 0) | maria_panic(flag);
+  int ret=0;
+
+  if (!checkpoint_interval)
+    ret= ma_checkpoint_execute(CHECKPOINT_FULL, FALSE);
+
+  ret|= maria_panic(flag);
+
+  maria_hton= 0;
+  return ret;
 }
 
 

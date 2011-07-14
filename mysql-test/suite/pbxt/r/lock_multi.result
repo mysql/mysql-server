@@ -9,6 +9,7 @@ update t1,t2 set c=a where b=d;
 select c from t2;
 c
 2
+unlock tables;
 drop table t1;
 drop table t2;
 create table t1 (a int);
@@ -16,6 +17,7 @@ create table t2 (a int);
 lock table t1 write, t2 write;
 insert t1 select * from t2;
 drop table t2;
+unlock tables;
 ERROR 42S02: Table 'test.t2' doesn't exist
 drop table t1;
 create table t1 (a int);
@@ -23,6 +25,7 @@ create table t2 (a int);
 lock table t1 write, t2 write, t1 as t1_2 write, t2 as t2_2 write;
 insert t1 select * from t2;
 drop table t2;
+unlock tables;
 ERROR 42S02: Table 'test.t2' doesn't exist
 drop table t1;
 End of 4.1 tests
@@ -53,9 +56,10 @@ CREATE TABLE t1 (c1 int);
 LOCK TABLE t1 WRITE;
 FLUSH TABLES WITH READ LOCK;
 CREATE TABLE t2 (c1 int);
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
 UNLOCK TABLES;
 UNLOCK TABLES;
-DROP TABLE t1, t2;
+DROP TABLE t1;
 CREATE TABLE t1 (c1 int);
 LOCK TABLE t1 WRITE;
 FLUSH TABLES WITH READ LOCK;
@@ -134,17 +138,6 @@ unlock tables;
 unlock tables;
 drop table t1,t2;
 End of 5.0 tests
-create table t1 (i int);
-lock table t1 read;
-update t1 set i= 10;
-select * from t1;
-Timeout in wait_condition.inc for select count(*) = 1 from information_schema.processlist
-where state = "Locked" and info = "select * from t1"
-kill query ID;
-i
-ERROR 70100: Query execution was interrupted
-unlock tables;
-drop table t1;
 drop table if exists t1;
 create table t1 (i int);
 connection: default
@@ -179,10 +172,11 @@ drop table if exists t1,t2;
 create table t1 (a int);
 flush status;
 lock tables t1 read;
-insert into t1 values(1);;
+insert into t1 values(1);
 unlock tables;
 drop table t1;
 select @tlwa < @tlwb;
 @tlwa < @tlwb
 1
 End of 5.1 tests
+drop database pbxt;

@@ -148,12 +148,12 @@ a	2
 drop table t1;
 create table t1 (a int not null unique, b int unique, c int, d int not null primary key, key(c), e int not null unique);
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	d	A	0	NULL	NULL		BTREE	
-t1	0	a	1	a	A	0	NULL	NULL		BTREE	
-t1	0	e	1	e	A	0	NULL	NULL		BTREE	
-t1	0	b	1	b	A	0	NULL	NULL	YES	BTREE	
-t1	1	c	1	c	A	0	NULL	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	d	A	0	NULL	NULL		BTREE		
+t1	0	a	1	a	A	0	NULL	NULL		BTREE		
+t1	0	e	1	e	A	0	NULL	NULL		BTREE		
+t1	0	b	1	b	A	0	NULL	NULL	YES	BTREE		
+t1	1	c	1	c	A	0	NULL	NULL	YES	BTREE		
 drop table t1;
 CREATE TABLE t1 (c CHAR(10) NOT NULL,i INT NOT NULL AUTO_INCREMENT,
 UNIQUE (c,i));
@@ -251,13 +251,13 @@ insert t1 values ('cccc', 'tttt'),
 (0xD0B1212223D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1212223D0B1D0B1D0B1D0B1),
 (0xD0B1222123D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1222123D0B1D0B1D0B1D0B1);
 insert t1 (c) values ('cc22');
-ERROR 23000: Duplicate entry 'cc22' for key 'c'
+ERROR 23000: Duplicate entry 'cc' for key 'c'
 insert t1 (t) values ('ttt22');
-ERROR 23000: Duplicate entry 'ttt22' for key 't'
+ERROR 23000: Duplicate entry 'ttt' for key 't'
 insert t1 (c) values (0xD0B1212322D0B1D0B1D0B1D0B1D0B1);
-ERROR 23000: Duplicate entry 'б!#"�' for key 'c'
+ERROR 23000: Duplicate entry '\0431!' for key 'c'
 insert t1 (t) values (0xD0B1D0B1212322D0B1D0B1D0B1D0B1);
-ERROR 23000: Duplicate entry 'бб!#"б' for key 't'
+ERROR 23000: Duplicate entry '\0431\0431!' for key 't'
 select c from t1 where c='cccc';
 c
 cccc

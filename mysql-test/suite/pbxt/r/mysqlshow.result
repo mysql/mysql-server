@@ -93,6 +93,7 @@ Database: information_schema
 | INDEX_STATISTICS                      |
 | KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
+| PARAMETERS                            |
 | PARTITIONS                            |
 | PLUGINS                               |
 | PROCESSLIST                           |
@@ -105,6 +106,7 @@ Database: information_schema
 | SESSION_VARIABLES                     |
 | STATISTICS                            |
 | TABLES                                |
+| TABLESPACES                           |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
 | TABLE_STATISTICS                      |
@@ -112,25 +114,7 @@ Database: information_schema
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
-| INNODB_BUFFER_POOL_PAGES              |
 | PBXT_STATISTICS                       |
-| INNODB_CMP                            |
-| INNODB_RSEG                           |
-| XTRADB_ENHANCEMENTS                   |
-| INNODB_BUFFER_POOL_PAGES_INDEX        |
-| XTRADB_ADMIN_COMMAND                  |
-| INNODB_TRX                            |
-| INNODB_SYS_TABLES                     |
-| INNODB_LOCK_WAITS                     |
-| INNODB_SYS_STATS                      |
-| INNODB_LOCKS                          |
-| INNODB_CMPMEM                         |
-| INNODB_TABLE_STATS                    |
-| INNODB_SYS_INDEXES                    |
-| INNODB_CMP_RESET                      |
-| INNODB_BUFFER_POOL_PAGES_BLOB         |
-| INNODB_CMPMEM_RESET                   |
-| INNODB_INDEX_STATS                    |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -150,6 +134,7 @@ Database: INFORMATION_SCHEMA
 | INDEX_STATISTICS                      |
 | KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
+| PARAMETERS                            |
 | PARTITIONS                            |
 | PLUGINS                               |
 | PROCESSLIST                           |
@@ -162,6 +147,7 @@ Database: INFORMATION_SCHEMA
 | SESSION_VARIABLES                     |
 | STATISTICS                            |
 | TABLES                                |
+| TABLESPACES                           |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
 | TABLE_STATISTICS                      |
@@ -169,25 +155,7 @@ Database: INFORMATION_SCHEMA
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
-| INNODB_BUFFER_POOL_PAGES              |
 | PBXT_STATISTICS                       |
-| INNODB_CMP                            |
-| INNODB_RSEG                           |
-| XTRADB_ENHANCEMENTS                   |
-| INNODB_BUFFER_POOL_PAGES_INDEX        |
-| XTRADB_ADMIN_COMMAND                  |
-| INNODB_TRX                            |
-| INNODB_SYS_TABLES                     |
-| INNODB_LOCK_WAITS                     |
-| INNODB_SYS_STATS                      |
-| INNODB_LOCKS                          |
-| INNODB_CMPMEM                         |
-| INNODB_TABLE_STATS                    |
-| INNODB_SYS_INDEXES                    |
-| INNODB_CMP_RESET                      |
-| INNODB_BUFFER_POOL_PAGES_BLOB         |
-| INNODB_CMPMEM_RESET                   |
-| INNODB_INDEX_STATS                    |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

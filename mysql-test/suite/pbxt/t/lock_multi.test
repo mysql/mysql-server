@@ -30,6 +30,7 @@ update t1,t2 set c=a where b=d;
 connection reader;
 select c from t2;
 connection locker;
+unlock tables;
 drop table t1;
 drop table t2;
 
@@ -48,9 +49,11 @@ insert t1 select * from t2;
 connection locker;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "insert t1 select * from t2";
+  where state = "Waiting for table metadata lock" and
+        info = "insert t1 select * from t2";
 --source include/wait_condition.inc
 drop table t2;
+unlock tables;
 connection reader;
 --error ER_NO_SUCH_TABLE
 reap;
@@ -72,9 +75,11 @@ connection locker;
 # Sleep a bit till the insert of connection reader is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "insert t1 select * from t2";
+  where state = "Waiting for table metadata lock" and
+        info = "insert t1 select * from t2";
 --source include/wait_condition.inc
 drop table t2;
+unlock tables;
 connection reader;
 --error ER_NO_SUCH_TABLE
 reap;
@@ -116,8 +121,8 @@ SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
 connection locker;
 # Sleep a bit till the select of connection reader is in work and hangs
 let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info =
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND info =
   "SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1";
 --source include/wait_condition.inc
 # Make test case independent from earlier grants.
@@ -149,9 +154,11 @@ connection writer;
 # Sleep a bit till the flush of connection locker is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables" and info = "FLUSH TABLES WITH READ LOCK";
+  where state = "Waiting for global read lock" and
+        info = "FLUSH TABLES WITH READ LOCK";
 --source include/wait_condition.inc
 # This must not block.
+--error ER_TABLE_NOT_LOCKED
 CREATE TABLE t2 (c1 int);
 UNLOCK TABLES;
 #
@@ -161,7 +168,7 @@ reap;
 UNLOCK TABLES;
 #
 connection default;
-DROP TABLE t1, t2;
+DROP TABLE t1;
 #
 # Test if CREATE TABLE SELECT with LOCK TABLE deadlocks.
 #
@@ -179,7 +186,8 @@ connection writer;
 # Sleep a bit till the flush of connection locker is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables" and info = "FLUSH TABLES WITH READ LOCK";
+  where state = "Waiting for global read lock" and
+        info = "FLUSH TABLES WITH READ LOCK";
 --source include/wait_condition.inc
 --error ER_TABLE_NOT_LOCKED
 CREATE TABLE t2 AS SELECT * FROM t1;
@@ -214,10 +222,11 @@ DROP DATABASE mysqltest_1;
 # With bug in place: try to acquire LOCK_mysql_create_table...
 # When fixed: Reject dropping db because of the read lock.
 connection con1;
-# Wait a bit so that the session con2 is in state "Waiting for release of readlock"
+# Wait a bit so that the session con2 is in state
+# "Waiting for global read lock"
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for release of readlock"
+  where state = "Waiting for global read lock"
   and info = "DROP DATABASE mysqltest_1";
 --source include/wait_condition.inc
 --error ER_CANT_UPDATE_WITH_READLOCK
@@ -251,7 +260,8 @@ connection reader;
 # Wait till connection writer is blocked
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "alter table t1 auto_increment=0";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 auto_increment=0";
 --source include/wait_condition.inc
 send
 alter table t1 auto_increment=0;
@@ -259,7 +269,8 @@ connection locker;
 # Wait till connection reader is blocked
 let $wait_condition=
   select count(*) = 2 from information_schema.processlist
-  where state = "Locked" and info = "alter table t1 auto_increment=0";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 auto_increment=0";
 --source include/wait_condition.inc
 unlock tables;
 connection writer;
@@ -290,19 +301,21 @@ connection con2;
 send flush tables with read lock;
 connection con5;
 --echo # con5
-let $show_statement= SHOW PROCESSLIST;
-let $field= State;
-let $condition= = 'Flushing tables';
---source include/wait_show_condition.inc
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock" and
+        info = "flush tables with read lock";
+--source include/wait_condition.inc
 --echo # global read lock is taken
 connection con3;
 --echo # con3
 send select * from t2 for update;
 connection con5;
-let $show_statement= SHOW PROCESSLIST;
-let $field= State;
-let $condition= = 'Waiting for release of readlock';
---source include/wait_show_condition.inc
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock" and
+        info = "select * from t2 for update";
+--source include/wait_condition.inc
 --echo # waiting for release of read lock
 connection con4;
 --echo # con4
@@ -348,10 +361,11 @@ connection con1;
 send update t2 set a = 1;
 connection default;
 --echo # default
-let $show_statement= SHOW PROCESSLIST;
-let $field= State;
-let $condition= = 'Waiting for release of readlock';
---source include/wait_show_condition.inc
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock" and
+        info = "update t2 set a = 1";
+--source include/wait_condition.inc
 --echo # statement is waiting for release of read lock
 connection con2;
 --echo # con2
@@ -375,10 +389,11 @@ connection con1;
 send lock tables t2 write;
 connection default;
 --echo # default
-let $show_statement= SHOW PROCESSLIST;
-let $field= State;
-let $condition= = 'Waiting for release of readlock';
---source include/wait_show_condition.inc
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock" and
+        info = "lock tables t2 write";
+--source include/wait_condition.inc
 --echo # statement is waiting for release of read lock
 connection con2;
 --echo # con2
@@ -401,45 +416,11 @@ drop table t1,t2;
 --echo End of 5.0 tests
 
 
-#
-# Bug#21281 Pending write lock is incorrectly removed when its
-#           statement being KILLed
-#
-create table t1 (i int);
-connection locker;
-lock table t1 read;
-connection writer;
-send
-update t1 set i= 10;
-connection reader;
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "update t1 set i= 10";
---source include/wait_condition.inc
-send
-select * from t1;
-connection default;
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "select * from t1";
---source include/wait_condition.inc
-let $ID= `select id from information_schema.processlist where state = "Locked" and info = "update t1 set i= 10"`;
---replace_result $ID ID
-eval kill query $ID;
-connection reader;
---reap
-connection writer;
---error ER_QUERY_INTERRUPTED
---reap
-connection locker;
-unlock tables;
-connection default;
-drop table t1;
-
 # Disconnect sessions used in many subtests above
 disconnect locker;
 disconnect reader;
 disconnect writer;
+
 
 #
 # Bug#32395 Alter table under a impending global read lock causes a server crash
@@ -464,7 +445,8 @@ connection default;
 --echo connection: default
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for global read lock" and
+        info = "flush tables with read lock";
 --source include/wait_condition.inc
 alter table t1 add column j int;
 connect (insert,localhost,root,,test,,);
@@ -472,14 +454,16 @@ connection insert;
 --echo connection: insert
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for global read lock" and
+        info = "flush tables with read lock";
 --source include/wait_condition.inc
 --send insert into t1 values (1,2);
 --echo connection: default
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for release of readlock";
+  where state = "Waiting for global read lock" and
+        info = "insert into t1 values (1,2)";
 --source include/wait_condition.inc
 unlock tables;
 connection flush;
@@ -487,7 +471,8 @@ connection flush;
 --reap
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for release of readlock";
+  where state = "Waiting for global read lock" and
+        info = "insert into t1 values (1,2)";
 --source include/wait_condition.inc
 select * from t1;
 unlock tables;
@@ -522,18 +507,14 @@ connection default;
 --echo connection: default
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for global read lock";
 --source include/wait_condition.inc
 flush tables;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for global read lock";
 --source include/wait_condition.inc
 unlock tables;
-let $wait_condition=
-  select count(*) = 0 from information_schema.processlist
-  where state = "Flushing tables";
---source include/wait_condition.inc
 connection flush;
 --reap
 connection default;
@@ -553,21 +534,23 @@ lock tables t1 read;
 let $tlwa= `show status like 'Table_locks_waited'`;
 connect (waiter,localhost,root,,);
 connection waiter;
---send insert into t1 values(1);
+send insert into t1 values(1);
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "insert into t1 values(1)";
+  where state = "Waiting for table level lock" and
+        info = "insert into t1 values(1)";
 --source include/wait_condition.inc
 let $tlwb= `show status like 'Table_locks_waited'`;
 unlock tables;
+connection waiter;
+--reap
+connection default;
 drop table t1;
 disconnect waiter;
-connection default;
 --disable_query_log
 eval SET @tlwa= SUBSTRING_INDEX('$tlwa', '	', -1);
 eval SET @tlwb= SUBSTRING_INDEX('$tlwb', '	', -1);
-drop database pbxt;
 --enable_query_log
 select @tlwa < @tlwb;
 
@@ -576,3 +559,5 @@ select @tlwa < @tlwb;
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
+connection default;
+drop database pbxt;

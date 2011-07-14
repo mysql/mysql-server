@@ -1333,6 +1333,7 @@ explain select fld1 from t2 where fld1=250501 or fld1=250502 or fld1 >= 250505 a
 # If the like starts with a certain letter key will be used.
 #
 
+--sorted_result
 select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
 select fld3 from t2 where fld3 like "L%" and fld3 = "ok";
 select fld3 from t2 where (fld3 like "C%" and fld3 = "Chantilly");
@@ -1858,7 +1859,9 @@ select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 using ( a );
 select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 # left [outer] join on
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) left outer join t1 on t1.a>1;
+--sorted_result
 select * from t1 left outer join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 # left join using
 select * from (t1 as t2 left join t1 as t3 using (a)) left join t1 using ( a );
@@ -1867,7 +1870,9 @@ select * from t1 left join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 select * from (t1 as t2 left join t1 as t3 using (a)) natural left join t1;
 select * from t1 natural left join (t1 as t2 left join t1 as t3 using (a));
 # right join on
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) right join t1 on t1.a>1;
+--sorted_result
 select * from t1 right join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 # right [outer] joing using
 select * from (t1 as t2 left join t1 as t3 using (a)) right outer join t1 using ( a );
@@ -1993,7 +1998,7 @@ DROP TABLE t1;
 #
 
 create table t1 (a int(11) unsigned, b int(11) unsigned);
-insert into t1 values (1,0), (1,1), (1,2);
+insert into t1 values (1,0), (1,1), (18446744073709551615,0);
 select a-b  from t1 order by 1;
 select a-b , (a-b < 0)  from t1 order by 1;
 select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
@@ -2517,10 +2522,14 @@ insert into t1 values(1),(2);
 insert into t2 values(1),(2);
 create view v2 (c) as select a1 from t1;
 
+--sorted_result
 select * from t1 natural left join t2;
+--sorted_result
 select * from t1 natural right join t2;
 
+--sorted_result
 select * from v2 natural left join t2;
+--sorted_result
 select * from v2 natural right join t2;
 
 drop table t1, t2;
@@ -2689,16 +2698,20 @@ create view v3 as select (t1.id+2) as id from t1 natural left join t2;
 # all queries must return the same result
 select t1.id from t1 left join v2 using (id);
 select t1.id from v2 right join t1 using (id);
+--sorted_result
 select t1.id from t1 left join v3 using (id);
 select * from t1 left join v2 using (id);
 select * from v2 right join t1 using (id);
+--sorted_result
 select * from t1 left join v3 using (id);
 
 select v1.id from v1 left join v2 using (id);
 select v1.id from v2 right join v1 using (id);
+--sorted_result
 select v1.id from v1 left join v3 using (id);
 select * from v1 left join v2 using (id);
 select * from v2 right join v1 using (id);
+--sorted_result
 select * from v1 left join v3 using (id);
 
 drop table t1, t2;
@@ -2747,14 +2760,14 @@ create table t1(f1 int, f2 date);
 insert into t1 values(1,'2005-01-01'),(2,'2005-09-01'),(3,'2005-09-30'),
   (4,'2005-10-01'),(5,'2005-12-30');
 # should return all records
-select * from t1 where f2 >= 0;
-select * from t1 where f2 >= '0000-00-00';
+select * from t1 where f2 >= 0            order by f2;
+select * from t1 where f2 >= '0000-00-00' order by f2;
 # should return 4,5
-select * from t1 where f2 >= '2005-09-31';
-select * from t1 where f2 >= '2005-09-3a';
+select * from t1 where f2 >= '2005-09-31' order by f2;
+select * from t1 where f2 >= '2005-09-3a' order by f2;
 # should return 1,2,3
-select * from t1 where f2 <= '2005-09-31';
-select * from t1 where f2 <= '2005-09-3a';
+select * from t1 where f2 <= '2005-09-31' order by f2;
+select * from t1 where f2 <= '2005-09-3a' order by f2;
 drop table t1;
 
 #
@@ -2893,6 +2906,7 @@ DROP TABLE t1,t2;
 # cases to prevent fixing this accidently. It is intended behaviour)
 #
 
+SET SQL_MODE='NO_UNSIGNED_SUBTRACTION';
 CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
 INSERT t1 SET i = 0;
 UPDATE t1 SET i = -1;
@@ -2902,6 +2916,7 @@ SELECT * FROM t1;
 UPDATE t1 SET i = i - 1;
 SELECT * FROM t1;
 DROP TABLE t1;
+SET SQL_MODE=default;
 
 # BUG#17379
 
@@ -3014,16 +3029,6 @@ SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
   WHERE t1.id=2;
 
 DROP TABLE t1,t2,t3;
-
-#
-# Bug#20503: Server crash due to the ORDER clause isn't taken into account
-#            while space allocation
-#
-create table t1 (c1 varchar(1), c2 int, c3 int, c4 int, c5 int, c6 int,
-c7 int, c8 int, c9 int, fulltext key (`c1`)) engine=myisam; # PBXT: Fulltext requires MyISAM
-select distinct match (`c1`) against ('z') , c2, c3, c4,c5, c6,c7, c8 
-  from t1 where c9=1 order by c2, c2;
-drop table t1;
 
 #
 # Bug #22735: no equality propagation for BETWEEN and IN with STRING arguments

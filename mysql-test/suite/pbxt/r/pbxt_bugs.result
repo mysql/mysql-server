@@ -665,30 +665,30 @@ create table t2 (s1 int, foreign key (s1) references t1 (s1)) engine = pbxt;
 select * from information_schema.table_constraints
 where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+def	test	FOREIGN_1	test	t2	FOREIGN KEY
 select * from information_schema.referential_constraints where table_name = 't2';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
-NULL	test	FOREIGN_1	NULL	test	PRIMARY	NONE	RESTRICT	RESTRICT	t2	t1
+def	test	FOREIGN_1	def	test	PRIMARY	NONE	RESTRICT	RESTRICT	t2	t1
 drop table t2, t1;
 create table t1 (s1 int, s2 int, unique key ix1 (s1, s2)) engine = pbxt;
 create table t2 (s1 int, s2 int, foreign key (s1, s2) references t1 (s1, s2)) engine = pbxt;
 select * from information_schema.table_constraints
 where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+def	test	FOREIGN_1	test	t2	FOREIGN KEY
 select * from information_schema.referential_constraints where table_name = 't2';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
-NULL	test	FOREIGN_1	NULL	test	ix1	NONE	RESTRICT	RESTRICT	t2	t1
+def	test	FOREIGN_1	def	test	ix1	NONE	RESTRICT	RESTRICT	t2	t1
 drop table t2, t1;
 create table t1 (s1 int, s2 int, unique key ix1 (s1, s2), unique key ix2 (s1, s2)) engine = pbxt;
 create table t2 (s1 int, s2 int, foreign key (s1, s2) references t1 (s1, s2)) engine = pbxt;
 select * from information_schema.table_constraints
 where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+def	test	FOREIGN_1	test	t2	FOREIGN KEY
 select * from information_schema.referential_constraints where table_name = 't2';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
-NULL	test	FOREIGN_1	NULL	test	ix1	NONE	RESTRICT	RESTRICT	t2	t1
+def	test	FOREIGN_1	def	test	ix1	NONE	RESTRICT	RESTRICT	t2	t1
 drop table t2, t1;
 create table t1 (s1 int, s2 int, unique key ix1 (s1, s2)) engine = pbxt;
 create table t2 (s1 int, s2 int, 
@@ -696,20 +696,20 @@ foreign key (s1, s2) references t1 (s1, s2) on delete cascade on update set null
 select * from information_schema.table_constraints
 where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+def	test	FOREIGN_1	test	t2	FOREIGN KEY
 select * from information_schema.referential_constraints where table_name = 't2';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
-NULL	test	FOREIGN_1	NULL	test	ix1	NONE	SET NULL	CASCADE	t2	t1
+def	test	FOREIGN_1	def	test	ix1	NONE	SET NULL	CASCADE	t2	t1
 drop table t2, t1;
 create table t2 (s1 int, s2 int, s3 int, s4 int, unique key ix34 (s3, s4),
 foreign key (s1, s2) references t2 (s3, s4)) engine = pbxt;
 select * from information_schema.table_constraints
 where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+def	test	FOREIGN_1	test	t2	FOREIGN KEY
 select * from information_schema.referential_constraints where table_name = 't2';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
-NULL	test	FOREIGN_1	NULL	test	ix34	NONE	RESTRICT	RESTRICT	t2	t2
+def	test	FOREIGN_1	def	test	ix34	NONE	RESTRICT	RESTRICT	t2	t2
 drop table t2;
 create table t1 (s1 int, s2 int, unique key ix1 (s1, s2)) engine = pbxt;
 create table t2 (s1 int, s2 int, 
@@ -718,12 +718,12 @@ alter table t1 add constraint s2 foreign key (s1, s2) references t2 (s1, s2);
 select * from information_schema.table_constraints
 where constraint_type = 'FOREIGN KEY' and  (table_name = 't1' or table_name = 't2');
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	test	s2	test	t1	FOREIGN KEY
-NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+def	test	s2	test	t1	FOREIGN KEY
+def	test	FOREIGN_1	test	t2	FOREIGN KEY
 select * from information_schema.referential_constraints where (table_name = 't1' or table_name = 't2');
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
-NULL	test	s2	NULL	test	s1	NONE	RESTRICT	RESTRICT	t1	t2
-NULL	test	FOREIGN_1	NULL	test	ix1	NONE	RESTRICT	RESTRICT	t2	t1
+def	test	s2	def	test	s1	NONE	RESTRICT	RESTRICT	t1	t2
+def	test	FOREIGN_1	def	test	ix1	NONE	RESTRICT	RESTRICT	t2	t1
 set foreign_key_checks = 0;
 drop table t2, t1;
 set foreign_key_checks = 1;
@@ -731,10 +731,10 @@ create table t1 (id int primary key, s1 int, foreign key (s1) references t1 (id)
 select * from information_schema.table_constraints
 where constraint_type = 'FOREIGN KEY' and  table_name = 't1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	test	FOREIGN_1	test	t1	FOREIGN KEY
+def	test	FOREIGN_1	test	t1	FOREIGN KEY
 select * from information_schema.referential_constraints where table_name = 't1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
-NULL	test	FOREIGN_1	NULL	test	PRIMARY	NONE	RESTRICT	RESTRICT	t1	t1
+def	test	FOREIGN_1	def	test	PRIMARY	NONE	RESTRICT	RESTRICT	t1	t1
 drop table t1;
 drop table if exists t2,t1;
 create table t1 (s1 int primary key) engine = pbxt;

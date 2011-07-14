@@ -529,10 +529,14 @@ end|
 call t3_update()|
 t3_update
 Inner (good)
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 begin|
 call t3_update()|
 t3_update
 Inner (good)
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 commit|
 drop table if exists t3|
 drop procedure if exists t3_update|

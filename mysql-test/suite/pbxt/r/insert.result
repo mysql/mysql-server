@@ -175,12 +175,12 @@ Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	4
 original_value	1e+1111111111a
-f_double	1.79769313486232e+308
-f_float	3.40282e+38
+f_double	1.7976931348623157e308
+f_float	3.40282e38
 f_double_7_2	99999.99
 f_float_4_3	9.999
-f_double_u	1.79769313486232e+308
-f_float_u	3.40282e+38
+f_double_u	1.7976931348623157e308
+f_float_u	3.40282e38
 f_double_15_1_u	99999999999999.9
 f_float_3_1_u	99.9
 set @value= "-1e+1111111111a";
@@ -204,8 +204,8 @@ Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	5
 original_value	-1e+1111111111a
-f_double	-1.79769313486232e+308
-f_float	-3.40282e+38
+f_double	-1.7976931348623157e308
+f_float	-3.40282e38
 f_double_7_2	-99999.99
 f_float_4_3	-9.999
 f_double_u	0
@@ -227,13 +227,13 @@ Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
 Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	6
-original_value	1e+111
-f_double	1e+111
-f_float	3.40282e+38
+original_value	1e111
+f_double	1e111
+f_float	3.40282e38
 f_double_7_2	99999.99
 f_float_4_3	9.999
-f_double_u	1e+111
-f_float_u	3.40282e+38
+f_double_u	1e111
+f_float_u	3.40282e38
 f_double_15_1_u	99999999999999.9
 f_float_3_1_u	99.9
 set @value= -1e+111;
@@ -248,9 +248,9 @@ Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
 Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	7
-original_value	-1e+111
-f_double	-1e+111
-f_float	-3.40282e+38
+original_value	-1e111
+f_double	-1e111
+f_float	-3.40282e38
 f_double_7_2	-99999.99
 f_float_4_3	-9.999
 f_double_u	0

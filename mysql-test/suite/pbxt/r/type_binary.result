@@ -47,7 +47,7 @@ create table t1 (s1 binary(2) primary key);
 insert into t1 values (0x01);
 insert into t1 values (0x0120);
 insert into t1 values (0x0100);
-ERROR 23000: Duplicate entry '' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '\x01' for key 'PRIMARY'
 select hex(s1) from t1 order by s1;
 hex(s1)
 0100

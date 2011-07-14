@@ -185,37 +185,37 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	fld1	fld1	4	NULL	2	Using where; Using index
 select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
 fld1	fld3
-218401	faithful
-018007	fanatic
-228311	fated
-018017	featherweight
-218022	feed
-088303	feminine
-058004	Fenton
-038017	fetched
-018054	fetters
-208101	fiftieth
-238007	filial
-013606	fingerings
-218008	finishers
-038205	firearm
-188505	fitting
-202301	Fitzpatrick
-238008	fixedly
 012001	flanking
+013602	foldout
+013606	fingerings
+018007	fanatic
+018017	featherweight
+018054	fetters
 018103	flint
 018104	flopping
-188007	flurried
-013602	foldout
-226205	foothill
-232102	forgivably
-228306	forthcoming
-186002	freakish
-208113	freest
-231315	freezes
 036002	funereal
-226209	furnishings
+038017	fetched
+038205	firearm
+058004	Fenton
+088303	feminine
+186002	freakish
+188007	flurried
+188505	fitting
 198006	furthermore
+202301	Fitzpatrick
+208101	fiftieth
+208113	freest
+218008	finishers
+218022	feed
+218401	faithful
+226205	foothill
+226209	furnishings
+228306	forthcoming
+228311	fated
+231315	freezes
+232102	forgivably
+238007	filial
+238008	fixedly
 select fld3 from t2 where fld3 like "L%" and fld3 = "ok";
 fld3
 select fld3 from t2 where (fld3 like "C%" and fld3 = "Chantilly");
@@ -2092,10 +2092,10 @@ fld6	char(4)	latin1_swedish_ci	NO				#
 show full columns from t2 from test like 's%';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 show keys from t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t2	0	PRIMARY	1	auto	A	1199	NULL	NULL		BTREE	
-t2	0	fld1	1	fld1	A	1199	NULL	NULL		BTREE	
-t2	1	fld3	1	fld3	A	1199	NULL	NULL		BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t2	0	PRIMARY	1	auto	A	1199	NULL	NULL		BTREE		
+t2	0	fld1	1	fld1	A	1199	NULL	NULL		BTREE		
+t2	1	fld3	1	fld3	A	1199	NULL	NULL		BTREE		
 drop table t4, t3, t2, t1;
 DO 1;
 DO benchmark(100,1+1),1,1;
@@ -2264,20 +2264,20 @@ a
 3
 select * from (t1 as t2 left join t1 as t3 using (a)) right join t1 on t1.a>1;
 a	a
-NULL	1
 1	2
-2	2
-3	2
 1	3
+2	2
 2	3
+3	2
 3	3
+NULL	1
 select * from t1 right join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 a	a
 2	1
-3	1
 2	2
-3	2
 2	3
+3	1
+3	2
 3	3
 select * from (t1 as t2 left join t1 as t3 using (a)) right outer join t1 using ( a );
 a
@@ -2432,27 +2432,28 @@ city
 London
 DROP TABLE t1;
 create table t1 (a int(11) unsigned, b int(11) unsigned);
-insert into t1 values (1,0), (1,1), (1,2);
+insert into t1 values (1,0), (1,1), (18446744073709551615,0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 3
 select a-b  from t1 order by 1;
 a-b
 0
 1
-18446744073709551615
+4294967295
 select a-b , (a-b < 0)  from t1 order by 1;
 a-b	(a-b < 0)
 0	0
 1	0
-18446744073709551615	0
+4294967295	0
 select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
 d	(a-b >= 0)	b
 1	1	0
 0	1	1
-18446744073709551615	1	2
 select cast((a - b) as unsigned) from t1 order by 1;
 cast((a - b) as unsigned)
 0
 1
-18446744073709551615
+4294967295
 drop table t1;
 create table t1 (a int(11));
 select all all * from t1;
@@ -2792,26 +2793,26 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select max(key1) from t1 where key1 <= 0.6158;
 max(key1)
-0.615800023078918
+0.6158000230789185
 select max(key2) from t2 where key2 <= 1.6158;
 max(key2)
-1.61580002307892
+1.6158000230789185
 select min(key1) from t1 where key1 >= 0.3762;
 min(key1)
-0.376199990510941
+0.37619999051094055
 select min(key2) from t2 where key2 >= 1.3762;
 min(key2)
-1.37619996070862
+1.3761999607086182
 select max(key1), min(key2) from t1, t2
 where key1 <= 0.6158 and key2 >= 1.3762;
 max(key1)	min(key2)
-0.615800023078918	1.37619996070862
+0.6158000230789185	1.3761999607086182
 select max(key1) from t1 where key1 <= 0.6158 and rand() + 0.5 >= 0.5;
 max(key1)
-0.615800023078918
+0.6158000230789185
 select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
 min(key1)
-0.376199990510941
+0.37619999051094055
 DROP TABLE t1,t2;
 CREATE TABLE t1 (i BIGINT UNSIGNED NOT NULL);
 INSERT INTO t1 VALUES (10);
@@ -3241,37 +3242,37 @@ drop table t1, t2 ,t3;
 create table t1(f1 int, f2 date);
 insert into t1 values(1,'2005-01-01'),(2,'2005-09-01'),(3,'2005-09-30'),
 (4,'2005-10-01'),(5,'2005-12-30');
-select * from t1 where f2 >= 0;
+select * from t1 where f2 >= 0            order by f2;
 f1	f2
 1	2005-01-01
 2	2005-09-01
 3	2005-09-30
 4	2005-10-01
 5	2005-12-30
-select * from t1 where f2 >= '0000-00-00';
+select * from t1 where f2 >= '0000-00-00' order by f2;
 f1	f2
 1	2005-01-01
 2	2005-09-01
 3	2005-09-30
 4	2005-10-01
 5	2005-12-30
-select * from t1 where f2 >= '2005-09-31';
+select * from t1 where f2 >= '2005-09-31' order by f2;
 f1	f2
 4	2005-10-01
 5	2005-12-30
-select * from t1 where f2 >= '2005-09-3a';
+select * from t1 where f2 >= '2005-09-3a' order by f2;
 f1	f2
 3	2005-09-30
 4	2005-10-01
 5	2005-12-30
 Warnings:
 Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
-select * from t1 where f2 <= '2005-09-31';
+select * from t1 where f2 <= '2005-09-31' order by f2;
 f1	f2
 1	2005-01-01
 2	2005-09-01
 3	2005-09-30
-select * from t1 where f2 <= '2005-09-3a';
+select * from t1 where f2 <= '2005-09-3a' order by f2;
 f1	f2
 1	2005-01-01
 2	2005-09-01
@@ -3419,6 +3420,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using where
 DROP TABLE t1,t2;
+SET SQL_MODE='NO_UNSIGNED_SUBTRACTION';
 CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
 INSERT t1 SET i = 0;
 UPDATE t1 SET i = -1;
@@ -3438,8 +3440,9 @@ Warnings:
 Warning	1264	Out of range value for column 'i' at row 1
 SELECT * FROM t1;
 i
-255
+0
 DROP TABLE t1;
+SET SQL_MODE=default;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, c int, e int, primary key(a,b,c));
@@ -3542,12 +3545,6 @@ id	a	b	c	d	e
 2	NULL	NULL	NULL	2	40
 2	NULL	NULL	NULL	2	50
 DROP TABLE t1,t2,t3;
-create table t1 (c1 varchar(1), c2 int, c3 int, c4 int, c5 int, c6 int,
-c7 int, c8 int, c9 int, fulltext key (`c1`)) engine=myisam;
-select distinct match (`c1`) against ('z') , c2, c3, c4,c5, c6,c7, c8 
-from t1 where c9=1 order by c2, c2;
-match (`c1`) against ('z')	c2	c3	c4	c5	c6	c7	c8
-drop table t1;
 CREATE TABLE t1 (pk varchar(10) PRIMARY KEY, fk varchar(16));
 CREATE TABLE t2 (pk varchar(16) PRIMARY KEY, fk varchar(10));
 INSERT INTO t1 VALUES

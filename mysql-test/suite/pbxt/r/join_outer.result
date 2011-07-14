@@ -942,25 +942,29 @@ group_concat(t1.b,t2.c)
 aaaaa
 bbbbb
 Warnings:
-Warning	1260	2 line(s) were cut by GROUP_CONCAT()
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
 select group_concat(t1.b,t2.c) from t1 inner join t2 using(a) group by t1.a;
 group_concat(t1.b,t2.c)
 aaaaa
 bbbbb
 Warnings:
-Warning	1260	2 line(s) were cut by GROUP_CONCAT()
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
 select group_concat(t1.b,t2.c) from t1 left join t2 using(a) group by a;
 group_concat(t1.b,t2.c)
 aaaaa
 bbbbb
 Warnings:
-Warning	1260	2 line(s) were cut by GROUP_CONCAT()
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
 select group_concat(t1.b,t2.c) from t1 inner join t2 using(a) group by a;
 group_concat(t1.b,t2.c)
 aaaaa
 bbbbb
 Warnings:
-Warning	1260	2 line(s) were cut by GROUP_CONCAT()
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
 drop table t1, t2;
 set group_concat_max_len=default;
 create table t1 (gid smallint(5) unsigned not null, x int(11) not null, y int(11) not null, art int(11) not null, primary key  (gid,x,y));

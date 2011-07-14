@@ -115,6 +115,8 @@ select @@optimizer_prune_level;
 @@optimizer_prune_level
 1
 set optimizer_search_depth=63;
+Warnings:
+Warning	1287	'optimizer-search-depth=63' is deprecated and will be removed in a future release. Please use a search depth less than 63 instead
 select @@optimizer_search_depth;
 @@optimizer_search_depth
 63

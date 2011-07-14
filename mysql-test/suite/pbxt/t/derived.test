@@ -45,7 +45,7 @@ select * from (select * from t1 where t1.a=(select t2.a from t2 where t2.a=t1.a)
 explain select * from (select t1.*, t2.a as t2a from t1,t2 where t1.a=t2.a) t1;
 drop table t1, t2;
 create table t1(a int not null, t char(8), index(a));
-disable_query_log;
+--disable_query_log
 begin;
 let $1 = 10000;
 while ($1)
@@ -54,7 +54,7 @@ while ($1)
   dec $1;
  }
 commit;
-enable_query_log;
+--enable_query_log
 SELECT * FROM (SELECT * FROM t1) as b ORDER BY a  ASC LIMIT 0,20;
 explain select count(*) from t1 as tt1, (select * from t1) as tt2;
 drop table t1;
@@ -101,7 +101,7 @@ SELECT a.x FROM (SELECT 1 AS x) AS a HAVING a.x = 1;
 #
 # Test for select if database is not selected.
 #
-# Connect without a database
+# Connect without a database as user mysqltest_1
 create user mysqltest_1;
 create table t1 select 1 as a;
 analyze table t1; # PBXT: Required to get a consitent result
@@ -161,7 +161,7 @@ UPDATE `t1` AS P1 INNER JOIN (SELECT aaaa FROM `t1` GROUP BY N HAVING Count(M) >
 delete P1.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
 select * from t1;
 --replace_result P2 p2
---error ER_UNKNOWN_TABLE 
+--error ER_NON_UPDATABLE_TABLE
 delete P1.*,P2.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
 -- error 1054
 delete P1.* from `t1` AS P1 INNER JOIN (SELECT aaa FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
@@ -214,7 +214,8 @@ drop table t2;
 # select list counter
 #
 CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) NOT NULL default '', `vendor` int(11) NOT NULL default '0', `date_` date NOT NULL default '0000-00-00', `price` decimal(12,2) NOT NULL default '0.00', PRIMARY KEY  (`itemid`,`grpid`,`vendor`,`date_`), KEY `itemid` (`itemid`,`vendor`), KEY `itemid_2` (`itemid`,`date_`));
-insert into t1 values (128, 'rozn', 2, now(), 10),(128, 'rozn', 1, now(), 10);
+insert into t1 values (128, 'rozn', 2, curdate(), 10),
+  (128, 'rozn', 1, curdate(), 10);
 SELECT MIN(price) min, MAX(price) max, AVG(price) avg FROM (SELECT SUBSTRING( MAX(concat(date_,";",price)), 12) price FROM t1 WHERE itemid=128 AND  grpid='rozn' GROUP BY itemid, grpid, vendor) lastprices;
 DROP TABLE t1;
 
@@ -275,7 +276,9 @@ select t2.* from ((select * from t1) as A inner join t2 on A.ID = t2.FID);
 select t2.* from (select * from t1) as A inner join t2 on A.ID = t2.FID;
 drop table t1, t2;
 
+connection con1;
 disconnect con1;
+--source include/wait_until_disconnected.inc
 connection default;
 drop user mysqltest_1;
 

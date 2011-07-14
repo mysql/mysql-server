@@ -263,6 +263,7 @@ information_schema
 mtr
 mysql
 pbxt
+performance_schema
 test
 prepare stmt4 from ' show tables from test like ''t2%'' ';
 execute stmt4;
@@ -280,6 +281,9 @@ b	char(10)	YES		NULL
 SET @arg00=1;
 execute stmt4 using @arg00;
 Field	Type	Null	Key	Default	Extra
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
 prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
 execute stmt4;
 Field	Type	Null	Key	Default	Extra
@@ -287,9 +291,9 @@ a	int(11)	NO	PRI	NULL
 create index t2_idx on t2(b);
 prepare stmt4 from ' show index from t2 from test ';
 execute stmt4;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t2	0	PRIMARY	1	a	A	0	NULL	NULL		BTREE	
-t2	1	t2_idx	1	b	A	0	NULL	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t2	0	PRIMARY	1	a	A	0	NULL	NULL		BTREE		
+t2	1	t2_idx	1	b	A	0	NULL	NULL	YES	BTREE		
 prepare stmt4 from ' show table status from test like ''t2%'' ';
 execute stmt4;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
@@ -306,8 +310,9 @@ prepare stmt4 from ' show variables like ''sql_mode'' ';
 execute stmt4;
 Variable_name	Value
 sql_mode	
-prepare stmt4 from ' show engine pbxt logs ';
+prepare stmt4 from ' show engine myisam logs ';
 execute stmt4;
+Type	Name	Status
 prepare stmt4 from ' show grants for user ';
 prepare stmt4 from ' show create table t2 ';
 prepare stmt4 from ' show master status ';
@@ -400,17 +405,15 @@ prepare stmt3 from ' lock tables t1 read ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' unlock tables ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
-prepare stmt1 from ' load data infile ''data.txt''
-into table t1 fields terminated by ''\t'' ';
+prepare stmt1 from ' load data infile ''<MYSQLTEST_VARDIR>/tmp/data.txt''
+     into table t1 fields terminated by ''\t'' ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
-prepare stmt1 from ' select * into outfile ''data.txt'' from t1 ';
+prepare stmt1 from ' select * into outfile ''<MYSQLTEST_VARDIR>/tmp/data.txt'' from t1 ';
 execute stmt1 ;
 prepare stmt1 from ' optimize table t1 ' ;
 prepare stmt1 from ' analyze table t1 ' ;
 prepare stmt1 from ' checksum table t1 ' ;
 prepare stmt1 from ' repair table t1 ' ;
-prepare stmt1 from ' restore table t1 from ''data.txt'' ' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' handler t1 open ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' commit ' ;
