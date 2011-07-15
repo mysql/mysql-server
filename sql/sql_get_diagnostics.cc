@@ -117,3 +117,78 @@ Diagnostics_information_item::set_value(THD *thd, Item **value)
   DBUG_RETURN(rv);
 }
 
+
+/**
+  Obtain statement information in the context of a given diagnostics area.
+
+  @param thd  The current thread.
+  @param da   The diagnostics area.
+
+  @retval false on success.
+  @retval true on error
+*/
+
+bool
+Statement_information::aggregate(THD *thd, const Diagnostics_area *da)
+{
+  bool rv= false;
+  Statement_information_item *stmt_info_item;
+  List_iterator<Statement_information_item> it(*m_items);
+  DBUG_ENTER("Statement_information::aggregate");
+
+  /*
+    Each specified target gets the value of each given
+    information item obtained from the diagnostics area.
+  */
+  while ((stmt_info_item= it++))
+  {
+    if ((rv= evaluate(thd, stmt_info_item, da)))
+      break;
+  }
+
+  DBUG_RETURN(rv);
+}
+
+
+/**
+  Obtain the value of this statement information item in the context of
+  a given diagnostics area.
+
+  @param thd  The current thread.
+  @param da   The diagnostics area.
+
+  @retval Item representing the value.
+  @retval NULL on error.
+*/
+
+Item *
+Statement_information_item::get_value(THD *thd, const Diagnostics_area *da)
+{
+  Item *value= NULL;
+  DBUG_ENTER("Statement_information_item::get_value");
+
+  switch (m_name)
+  {
+  /*
+    The number of condition areas that have information. That is,
+    the number of errors and warnings within the diagnostics area.
+  */
+  case NUMBER:
+  {
+    ulong count= da->get_warning_info()->cond_count();
+    value= new (thd->mem_root) Item_uint(count);
+    break;
+  }
+  /*
+    Number that shows how many rows were directly affected by
+    a data-change statement (INSERT, UPDATE, DELETE, MERGE,
+    REPLACE, LOAD).
+  */
+  case ROW_COUNT:
+    value= new (thd->mem_root) Item_int(thd->get_row_count_func());
+    break;
+  }
+
+  DBUG_RETURN(value);
+}
+

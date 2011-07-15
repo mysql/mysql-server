@@ -173,5 +173,64 @@ private:
   Item *m_target;
 };
 
+
+/**
+  A statement information item.
+*/
+class Statement_information_item : public Diagnostics_information_item
+{
+public:
+  /** The name of a statement information item. */
+  enum Name
+  {
+    NUMBER,
+    ROW_COUNT
+  };
+
+  /**
+    Constructor, used to represent a statement information item.
+
+    @param name   The name of this item.
+    @param target A target that gets the value of this item.
+  */
+  Statement_information_item(Name name, Item *target)
+    : Diagnostics_information_item(target), m_name(name)
+  {}
+
+  /** Obtain value of this statement information item. */
+  Item *get_value(THD *thd, const Diagnostics_area *da);
+
+private:
+  /** The name of this statement information item. */
+  Name m_name;
+};
+
+
+/**
+  Statement information.
+
+  @remark Provides information about the execution of a statement.
+*/
+class Statement_information : public Diagnostics_information
+{
+public:
+  /**
+    Constructor, used to represent the statement information of a
+    GET DIAGNOSTICS statement.
+
+    @param items  List of requested statement information items.
+  */
+  Statement_information(List<Statement_information_item> *items)
+    : m_items(items)
+  {}
+
+  /** Obtain statement information in the context of a diagnostics area. */
+  bool aggregate(THD *thd, const Diagnostics_area *da);
+
+private:
+  /* List of statement information items. */
+  List<Statement_information_item> *m_items;
+};
+
 #endif
 

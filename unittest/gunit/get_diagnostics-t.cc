@@ -287,4 +287,51 @@ TEST_F(GetDiagnosticsTest, FatalError)
 }
 
 
+// GET [CURRENT] DIAGNOSTICS @var1 = NUMBER, @var2 = ROW_COUNT;
+TEST_F(GetDiagnosticsTest, StatementInformation)
+{
+  Item *var;
+  Sql_cmd *cmd;
+  Statement_information *info;
+  Statement_information_item *diag_info_item;
+  List<Statement_information_item> items;
+  MEM_ROOT *mem_root= thd()->mem_root;
+
+  // NUMBER = 1 warning
+  thd()->raise_warning(ER_UNKNOWN_ERROR);
+  // ROW_COUNT = 5
+  thd()->set_row_count_func(5U);
+
+  // var1 will receive the value of NUMBER
+  var= new (mem_root) Item_func_get_user_var(var_name1);
+  diag_info_item= new (mem_root)
+    Statement_information_item(Statement_information_item::NUMBER, var);
+  EXPECT_FALSE(items.push_back(diag_info_item));
+
+  // var2 will receive the value of ROW_COUNT
+  var= new (mem_root) Item_func_get_user_var(var_name2);
+  diag_info_item= new (mem_root)
+    Statement_information_item(Statement_information_item::ROW_COUNT, var);
+  EXPECT_FALSE(items.push_back(diag_info_item));
+
+  // Information list and command
+  info= new (mem_root) Statement_information(&items);
+  info->set_which_da(Diagnostics_information::CURRENT_AREA);
+  cmd= new (mem_root) Sql_cmd_get_diagnostics(info);
+
+  EXPECT_FALSE(cmd->execute(thd()));
+  EXPECT_TRUE(thd()->get_stmt_da()->is_ok());
+
+  // check var1 value
+  var= new (mem_root) Item_func_get_user_var(var_name1);
+  EXPECT_FALSE(var->fix_fields(thd(), &var));
+  EXPECT_EQ(1U, var->val_uint());
+
+  // check var2 value
+  var= new (mem_root) Item_func_get_user_var(var_name2);
+  EXPECT_FALSE(var->fix_fields(thd(), &var));
+  EXPECT_EQ(5U, var->val_int());
+}
+
+
 }
