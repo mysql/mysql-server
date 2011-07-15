@@ -6110,15 +6110,19 @@ fts_init_recover_doc(
 	ulint		field_no = 0;
 	fts_get_doc_t*  get_doc;
 	doc_id_t	doc_id;
+	ibool		has_fts = TRUE;
 
 	len = 0;
 
-	fts_doc_init(&doc);
-	doc.found = TRUE;
-
 	exp = node->select_list;
 
-	get_doc = ib_vector_get(cache->get_docs, 0);
+	if (ib_vector_is_empty(cache->get_docs)) {
+		has_fts = FALSE;	
+	} else {
+		get_doc = ib_vector_get(cache->get_docs, 0);
+		fts_doc_init(&doc);
+		doc.found = TRUE;
+	}
 
 	exp = node->select_list;
 	doc_len = 0;
@@ -6134,10 +6138,18 @@ fts_init_recover_doc(
 
 			ut_a(dtype_get_mtype(type) == DATA_INT);
 			doc_id = (doc_id_t) mach_read_from_8(data);
+
+			/* Just need to fetch the Doc ID */
+			if (!has_fts) {
+				goto func_exit;
+			}
+
 			field_no++;
 			exp = que_node_get_next(exp);
 			continue;
 		}
+
+		ut_a(has_fts);
 
 		if (len == UNIV_SQL_NULL) {
 			exp = que_node_get_next(exp);
@@ -6182,13 +6194,14 @@ fts_init_recover_doc(
 
 	fts_cache_add_doc(cache, get_doc->index_cache, doc_id, doc.tokens);
 
-	if (doc_id >= cache->next_doc_id) {
-		cache->next_doc_id = doc_id + 1;
-	}
-
 	fts_doc_free(&doc);
 
 	cache->added++;
+
+func_exit:
+	if (doc_id >= cache->next_doc_id) {
+		cache->next_doc_id = doc_id + 1;
+	}
 
 	return(TRUE);
 }
@@ -6213,6 +6226,7 @@ fts_init_index(
 	fts_get_doc_t*  get_doc;
 	dict_index_t*   index;
 	fts_doc_t	doc;
+	ibool		has_fts = TRUE;
 
 	/* First check cache->get_docs is initialized */
 	if (!has_cache_lock) {
@@ -6240,27 +6254,30 @@ fts_init_index(
 	dropped, and we re-initialize the Doc ID system for subsequent
 	insertion */
 	if (ib_vector_is_empty(cache->get_docs)) {
-		goto func_exit;
+		index = dict_table_get_first_index(table);
+		has_fts = FALSE;
+	} else {
+		/* We only have one FTS index per table */
+		get_doc = ib_vector_get(cache->get_docs, 0);
+
+		index = get_doc->index_cache->index;
 	}
-
-	/* We only have one FTS index per table */
-	get_doc = ib_vector_get(cache->get_docs, 0);
-
-	index = get_doc->index_cache->index;
 
 	fts_doc_fetch_by_doc_id(NULL, start_doc, index,
 				FTS_FETCH_DOC_BY_ID_LARGE,
 				fts_init_recover_doc, cache);
 
-	fts_cache_add_doc(cache, get_doc->index_cache, start_doc, doc.tokens);
+	if (has_fts) {
+		fts_cache_add_doc(cache, get_doc->index_cache,
+				  start_doc, doc.tokens);
 
-	if (error == DB_SUCCESS
-	    && (table->fts->cache->stopword_info.status & STOPWORD_NOT_INIT)) {
-		fts_load_stopword(table, NULL, NULL, TRUE, FALSE);
+		if (table->fts->cache->stopword_info.status & STOPWORD_NOT_INIT) {
+			fts_load_stopword(table, NULL, NULL, TRUE, FALSE);
+		}
+
+		/* Register the table with the optimize thread. */
+		fts_optimize_add_table(table);
 	}
-
-	/* Register the table with the optimize thread. */
-	fts_optimize_add_table(table);
 
 	table->fts->fts_status |= ADDED_TABLE_SYNCED;
 
