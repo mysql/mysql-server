@@ -1003,6 +1003,7 @@ void test_locker_disabled()
   rwlock_class_A->m_enabled= true;
   cond_class_A->m_enabled= true;
   file_class_A->m_enabled= true;
+  update_instruments_derived_flags();
 
   mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker (global disabled)");
@@ -1017,7 +1018,7 @@ void test_locker_disabled()
   file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker (global disabled)");
 
-  /* Pretent the mode is global, counted only */
+  /* Pretend the mode is global, counted only */
   /* ---------------------------------------- */
 
   setup_thread(thread_1, true);
@@ -1031,6 +1032,7 @@ void test_locker_disabled()
   cond_class_A->m_timed= false;
   file_class_A->m_enabled= true;
   file_class_A->m_timed= false;
+  update_instruments_derived_flags();
 
   mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker (global counted)");
@@ -1063,6 +1065,7 @@ void test_locker_disabled()
   rwlock_class_A->m_enabled= false;
   cond_class_A->m_enabled= false;
   file_class_A->m_enabled= false;
+  update_instruments_derived_flags();
 
   mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker");
@@ -1092,6 +1095,7 @@ void test_locker_disabled()
   cond_class_A->m_timed= true;
   file_class_A->m_enabled= true;
   file_class_A->m_timed= true;
+  update_instruments_derived_flags();
 
   mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker != NULL, "locker");
@@ -1127,6 +1131,7 @@ void test_locker_disabled()
   rwlock_class_A->m_enabled= true;
   cond_class_A->m_enabled= true;
   file_class_A->m_enabled= true;
+  update_instruments_derived_flags();
 
   mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker");

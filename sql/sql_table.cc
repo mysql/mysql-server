@@ -5168,6 +5168,9 @@ mysql_compare_tables(TABLE *table,
     Test also that engine was not given during ALTER TABLE, or
     we are force to run regular alter table (copy).
     E.g. ALTER TABLE tbl_name ENGINE=MyISAM.
+    Note that we do copy even if the table is already using the
+    given engine. Many users and tools depend on using ENGINE to
+    force a table rebuild.
 
     For the following ones we also want to run regular alter table:
     ALTER TABLE tbl_name ORDER BY ..

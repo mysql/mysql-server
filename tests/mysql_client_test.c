@@ -18601,11 +18601,8 @@ static void test_bug38486(void)
 static void test_bug33831(void)
 {
   MYSQL *l_mysql;
-  my_bool error;
 
   DBUG_ENTER("test_bug33831");
-  
-  error= 0;
 
   if (!(l_mysql= mysql_client_init(NULL)))
   {
@@ -18628,9 +18625,8 @@ static void test_bug33831(void)
     DIE_UNLESS(0);
   }
 
-
   mysql_close(l_mysql);
-  
+
   DBUG_VOID_RETURN;
 }
 
@@ -19709,6 +19705,34 @@ static void test_bug54790()
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  BUG 11754979 - 46675: ON DUPLICATE KEY UPDATE AND UPDATECOUNT() POSSIBLY WRONG
+*/
+
+static void test_bug11754979()
+{
+  MYSQL* conn;
+  DBUG_ENTER("test_bug11754979");
+
+  myheader("test_bug11754979");
+  DIE_UNLESS((conn= mysql_client_init(NULL)));
+  DIE_UNLESS(mysql_real_connect(conn, opt_host, opt_user,
+             opt_password, opt_db ? opt_db:"test", opt_port,
+             opt_unix_socket,  CLIENT_FOUND_ROWS));
+  myquery(mysql_query(conn, "DROP TABLE IF EXISTS t1"));
+  myquery(mysql_query(conn, "CREATE TABLE t1(id INT, label CHAR(1), PRIMARY KEY(id))"));
+  myquery(mysql_query(conn, "INSERT INTO t1(id, label) VALUES (1, 'a')"));
+  myquery(mysql_query(conn, "INSERT INTO t1(id, label) VALUES (1, 'a') "
+                            "ON DUPLICATE KEY UPDATE id = 4"));
+  DIE_UNLESS(mysql_affected_rows(conn) == 2);
+  myquery(mysql_query(conn, "DROP TABLE t1"));
+  mysql_close(conn);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -20055,6 +20079,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug11766854", test_bug11766854 },
   { "test_bug54790", test_bug54790 },
   { "test_bug12337762", test_bug12337762 },
+  { "test_bug11754979", test_bug11754979 },
   { 0, 0 }
 };
 
