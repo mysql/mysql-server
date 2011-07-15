@@ -2345,6 +2345,7 @@ public:
     			   str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
+  Item *charset_converter(const CHARSET_INFO *tocs, bool lossless);
   inline void append(char *str, uint length)
   {
     str_value.append(str, length);
