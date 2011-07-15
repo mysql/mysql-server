@@ -539,6 +539,58 @@ set_trigger_new_row(THD *thd, LEX_STRING *name, Item *val)
 
 
 /**
+  Create an object to represent a SP variable in the Item-hierarchy.
+
+  @param  thd         The current thread.
+  @param  name        The SP variable name.
+  @param  spvar       The SP variable (optional).
+  @param  start_in_q  Start position of the SP variable name in the query.
+  @param  end_in_q    End position of the SP variable name in the query.
+
+  @remark If spvar is not specified, the name is used to search for the
+          variable in the parse-time context. If the variable does not
+          exist, a error is set and NULL is returned to the caller.
+
+  @return An Item_splocal object representing the SP variable, or NULL on error.
+*/
+static Item_splocal*
+create_item_for_sp_var(THD *thd, LEX_STRING name, sp_variable_t *spvar,
+                       const char *start_in_q, const char *end_in_q)
+{
+  Item_splocal *item;
+  LEX *lex= thd->lex;
+  uint pos_in_q, len_in_q;
+  sp_pcontext *spc = lex->spcont;
+
+  /* If necessary, look for the variable. */
+  if (spc && !spvar)
+    spvar= spc->find_variable(&name);
+
+  if (!spvar)
+  {
+    my_error(ER_SP_UNDECLARED_VAR, MYF(0), name.str);
+    return NULL;
+  }
+
+  DBUG_ASSERT(spc && spvar);
+
+  /* Position and length of the SP variable name in the query. */
+  pos_in_q= start_in_q - lex->sphead->m_tmp_query;
+  len_in_q= end_in_q - start_in_q;
+
+  item= new (thd->mem_root)
+    Item_splocal(name, spvar->offset, spvar->type, pos_in_q, len_in_q);
+
+#ifndef DBUG_OFF
+  if (item)
+    item->m_sp= lex->sphead;
+#endif
+
+  return item;
+}
+
+
+/**
   Helper to resolve the SQL:2003 Syntax exception 1) in <in predicate>.
   See SQL:2003, Part 2, section 8.4 <in predicate>, Note 184, page 383.
   This function returns the proper item for the SQL expression
@@ -10093,29 +10145,13 @@ limit_option:
         ident
         {
           Item_splocal *splocal;
-          THD *thd= YYTHD;
-          LEX *lex= thd->lex;
-          Lex_input_stream *lip= & thd->m_parser_state->m_lip;
-          sp_variable_t *spv;
-          sp_pcontext *spc = lex->spcont;
-          if (spc && (spv = spc->find_variable(&$1)))
-          {
-            splocal= new (thd->mem_root)
-              Item_splocal($1, spv->offset, spv->type,
-                  lip->get_tok_start() - lex->sphead->m_tmp_query,
-                  lip->get_ptr() - lip->get_tok_start());
-            if (splocal == NULL)
-              MYSQL_YYABORT;
-#ifndef DBUG_OFF
-            splocal->m_sp= lex->sphead;
-#endif
-            lex->safe_to_cache_query=0;
-          }
-          else
-          {
-            my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
+          Lex_input_stream *lip= &YYTHD->m_parser_state->m_lip;
+
+          splocal= create_item_for_sp_var(YYTHD, $1, NULL,
+                                          lip->get_tok_start(), lip->get_ptr());
+          if (splocal == NULL)
             MYSQL_YYABORT;
-          }
+          Lex->safe_to_cache_query= 0;
           if (splocal->type() != Item::INT_ITEM)
           {
             my_error(ER_WRONG_SPVAR_TYPE_IN_LIMIT, MYF(0));
@@ -12135,11 +12171,12 @@ simple_ident:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            Lex_input_stream *lip= YYLIP;
             sp_variable_t *spv;
             sp_pcontext *spc = lex->spcont;
             if (spc && (spv = spc->find_variable(&$1)))
             {
+              Lex_input_stream *lip= &thd->m_parser_state->m_lip;
+
               /* We're compiling a stored procedure and found a variable */
               if (! lex->parsing_options.allows_variable)
               {
@@ -12147,17 +12184,11 @@ simple_ident:
                 MYSQL_YYABORT;
               }
 
-              Item_splocal *splocal;
-              splocal= new (thd->mem_root)
-                         Item_splocal($1, spv->offset, spv->type,
-                                      lip->get_tok_start_prev() - lex->sphead->m_tmp_query,
-                                      lip->get_tok_end() - lip->get_tok_start_prev());
-              if (splocal == NULL)
+              $$= create_item_for_sp_var(thd, $1, spv,
+                                         lip->get_tok_start_prev(),
+                                         lip->get_tok_end());
+              if ($$ == NULL)
                 MYSQL_YYABORT;
-#ifndef DBUG_OFF
-              splocal->m_sp= lex->sphead;
-#endif
-              $$= splocal;
               lex->safe_to_cache_query=0;
             }
             else
