@@ -930,9 +930,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   const char *save_where;
   char* db_name;
   char db_name_string[FN_REFLEN];
-  bool save_use_only_table_context;
-  uint8 saved_full_group_by_flag;
-  nesting_map saved_allow_sum_func;
   DBUG_ENTER("fix_fields_part_func");
 
   if (part_info->fixed)
@@ -999,23 +996,26 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     of interesting side effects, both desirable and undesirable.
   */
 
-  save_use_only_table_context= thd->lex->use_only_table_context;
-  thd->lex->use_only_table_context= TRUE;
-  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
-  saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
-  saved_allow_sum_func= thd->lex->allow_sum_func;
-  thd->lex->allow_sum_func= 0;
+  {
+    const bool save_use_only_table_context= thd->lex->use_only_table_context;
+    thd->lex->use_only_table_context= TRUE;
+    thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+    const bool save_agg_field= thd->lex->current_select->non_agg_field_used();
+    const bool save_agg_func=  thd->lex->current_select->agg_func_used();
+    const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
+    thd->lex->allow_sum_func= 0;
   
-  error= func_expr->fix_fields(thd, (Item**)&func_expr);
+    error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
-  /*
-    Restore full_group_by_flag and allow_sum_func,
-    fix_fields should not affect mysql_select later, see Bug#46923.
-  */
-  thd->lex->current_select->full_group_by_flag= saved_full_group_by_flag;
-  thd->lex->allow_sum_func= saved_allow_sum_func;
-
-  thd->lex->use_only_table_context= save_use_only_table_context;
+    /*
+      Restore agg_field/agg_func and allow_sum_func,
+      fix_fields should not affect mysql_select later, see Bug#46923.
+    */
+    thd->lex->current_select->set_non_agg_field_used(save_agg_field);
+    thd->lex->current_select->set_agg_func_used(save_agg_func);
+    thd->lex->allow_sum_func= saved_allow_sum_func;
+    thd->lex->use_only_table_context= save_use_only_table_context;
+  }
 
   context->table_list= save_table_list;
   context->first_name_resolution_table= save_first_table;
