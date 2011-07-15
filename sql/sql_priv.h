@@ -261,13 +261,6 @@ enum enum_yes_no_unknown
 
 #ifdef MYSQL_SERVER
 /*
-  A set of constants used for checking non aggregated fields and sum
-  functions mixture in the ONLY_FULL_GROUP_BY_MODE.
-*/
-#define NON_AGG_FIELD_USED  1
-#define SUM_FUNC_USED       2
-
-/*
   External variables
 */
 
