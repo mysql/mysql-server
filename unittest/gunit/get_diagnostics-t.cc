@@ -388,4 +388,80 @@ TEST_F(GetDiagnosticsTest, ConditionInformation)
 }
 
 
+Item *get_cond_info_item(THD *thd,
+                         uint number,
+                         Condition_information_item::Name name)
+{
+  Item *var;
+  Sql_cmd *cmd;
+  Condition_information *info;
+  Condition_information_item *diag_info_item;
+  List<Condition_information_item> items;
+  MEM_ROOT *mem_root= thd->mem_root;
+  LEX_STRING var_name= {C_STRING_WITH_LEN("get_cond_info_item")};
+
+  // Simulate GET DIAGNOSTICS as a new command
+  thd->reset_for_next_command();
+
+  // var1 will receive the value of MYSQL_ERRNO
+  var= new (mem_root) Item_func_get_user_var(var_name);
+  diag_info_item= new (mem_root) Condition_information_item(name, var);
+  EXPECT_FALSE(items.push_back(diag_info_item));
+
+  // condition number
+  var= new (mem_root) Item_uint(number);
+
+  // Information list and command
+  info= new (mem_root) Condition_information(var, &items);
+  info->set_which_da(Diagnostics_information::CURRENT_AREA);
+  cmd= new (mem_root) Sql_cmd_get_diagnostics(info);
+
+  EXPECT_FALSE(cmd->execute(thd));
+  EXPECT_TRUE(thd->get_stmt_da()->is_ok());
+
+  // make a user var item
+  var= new (mem_root) Item_func_get_user_var(var_name);
+  EXPECT_FALSE(var->fix_fields(thd, &var));
+
+  return var;
+}
+
+
+// GET DIAGNOSTICS CONDITION 1 @var = CLASS_ORIGIN;
+// GET DIAGNOSTICS CONDITION 1 @var = SUBCLASS_ORIGIN;
+TEST_F(GetDiagnosticsTest, ConditionInformationClassOrigin)
+{
+  Item *var;
+  String str;
+
+  // "MySQL" origin
+  push_warning_printf(thd(), MYSQL_ERROR::WARN_LEVEL_WARN,
+                      ER_XAER_NOTA, "Unknown XID");
+
+  // "ISO 9075" origin
+  push_warning_printf(thd(), MYSQL_ERROR::WARN_LEVEL_WARN,
+                      ER_UNKNOWN_ERROR, "Unknown error");
+
+  // Condition 1 CLASS_ORIGIN
+  var= get_cond_info_item(thd(), 1, Condition_information_item::CLASS_ORIGIN);
+  EXPECT_EQ(&str, var->val_str(&str));
+  EXPECT_STREQ("MySQL", str.c_ptr_safe());
+
+  // Condition 1 SUBCLASS_ORIGIN
+  var= get_cond_info_item(thd(), 1, Condition_information_item::SUBCLASS_ORIGIN);
+  EXPECT_EQ(&str, var->val_str(&str));
+  EXPECT_STREQ("MySQL", str.c_ptr_safe());
+
+  // Condition 2 CLASS_ORIGIN
+  var= get_cond_info_item(thd(), 2, Condition_information_item::CLASS_ORIGIN);
+  EXPECT_EQ(&str, var->val_str(&str));
+  EXPECT_STREQ("ISO 9075", str.c_ptr_safe());
+
+  // Condition 2 CLASS_ORIGIN
+  var= get_cond_info_item(thd(), 2, Condition_information_item::SUBCLASS_ORIGIN);
+  EXPECT_EQ(&str, var->val_str(&str));
+  EXPECT_STREQ("ISO 9075", str.c_ptr_safe());
+}
+
+
 }

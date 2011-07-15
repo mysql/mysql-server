@@ -151,6 +151,12 @@ private:
   /** Set the SQLSTATE of this condition. */
   void set_sqlstate(const char* sqlstate);
 
+  /** Set the CLASS_ORIGIN of this condition. */
+  void set_class_origin();
+
+  /** Set the SUBCLASS_ORIGIN of this condition. */
+  void set_subclass_origin();
+
   /**
     Clear this SQL condition.
   */
