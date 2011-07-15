@@ -281,6 +281,8 @@ MYSQL_ERROR::set(uint sql_errno, const char* sqlstate,
   memcpy(m_returned_sqlstate, sqlstate, SQLSTATE_LENGTH);
   m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
 
+  set_class_origin();
+  set_subclass_origin();
   set_builtin_message_text(msg);
   m_level= level;
 }
@@ -316,6 +318,58 @@ MYSQL_ERROR::set_sqlstate(const char* sqlstate)
 {
   memcpy(m_returned_sqlstate, sqlstate, SQLSTATE_LENGTH);
   m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
+}
+
+static LEX_CSTRING sqlstate_origin[]= {
+  { STRING_WITH_LEN("ISO 9075") },
+  { STRING_WITH_LEN("MySQL") }
+};
+
+void
+MYSQL_ERROR::set_class_origin()
+{
+  char cls[2];
+  LEX_CSTRING *origin;
+
+  /* Let CLASS = the first two letters of RETURNED_SQLSTATE. */
+  cls[0]= m_returned_sqlstate[0];
+  cls[1]= m_returned_sqlstate[1];
+
+  /*
+    If CLASS[1] is any of: 0 1 2 3 4 A B C D E F G H
+    and CLASS[2] is any of: 0-9 A-Z
+  */
+  if (((cls[0] >= '0' && cls[0] <= '4') || (cls[0] >= 'A' && cls[0] <= 'H')) &&
+      ((cls[1] >= '0' && cls[1] <= '9') || (cls[1] >= 'A' && cls[1] <= 'Z')))
+    /* then let CLASS_ORIGIN = 'ISO 9075'. */
+    origin= &sqlstate_origin[0];
+  else
+    /* let CLASS_ORIGIN = 'MySQL'. */
+    origin= &sqlstate_origin[1];
+
+  m_class_origin.set_ascii(origin->str, origin->length);
+}
+
+void
+MYSQL_ERROR::set_subclass_origin()
+{
+  LEX_CSTRING *origin;
+
+  DBUG_ASSERT(! m_class_origin.is_empty());
+
+  /*
+    Let SUBCLASS = the next three letters of RETURNED_SQLSTATE.
+    If CLASS_ORIGIN = 'ISO 9075' or SUBCLASS = '000'
+  */
+  if (! memcmp(m_class_origin.ptr(), STRING_WITH_LEN("ISO 9075")) ||
+      ! memcmp(m_returned_sqlstate+2, STRING_WITH_LEN("000")))
+    /* then let SUBCLASS_ORIGIN = 'ISO 9075'. */
+    origin= &sqlstate_origin[0];
+  else
+    /* let SUBCLASS_ORIGIN = 'MySQL'. */
+    origin= &sqlstate_origin[1];
+
+  m_subclass_origin.set_ascii(origin->str, origin->length);
 }
 
 Diagnostics_area::Diagnostics_area()
