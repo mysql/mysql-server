@@ -7572,7 +7572,7 @@ b
 DROP TABLE t1;
 DROP PROCEDURE p1;
 
-# End of 5.5 test
+# End of 5.5 tests
 #
 # Bug#12663165 SP DEAD CODE REMOVAL DOESN'T UNDERSTAND CONTINUE HANDLERS
 #
@@ -7596,3 +7596,26 @@ Warnings:
 Error	1424	Recursive stored functions and triggers are not allowed.
 Error	1305	FUNCTION test.f1 does not exist
 DROP FUNCTION f1;
+#
+# WL#2111: Add non-reserved ROW_COUNT keyword.
+#
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE row_count INT DEFAULT 1;
+SELECT row_count;
+SELECT row_count();
+ROW_COUNT: WHILE row_count > 0 DO
+SET row_count = row_count - 1;
+END WHILE ROW_COUNT;
+SELECT ROW_COUNT;
+END|
+CALL p1();
+row_count
+1
+row_count()
+-1
+ROW_COUNT
+0
+DROP PROCEDURE p1;
+# End of 5.6 tests
