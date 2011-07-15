@@ -2033,19 +2033,6 @@ protected:
 };
 
 
-class Create_func_row_count : public Create_func_arg0
-{
-public:
-  virtual Item *create(THD *thd);
-
-  static Create_func_row_count s_singleton;
-
-protected:
-  Create_func_row_count() {}
-  virtual ~Create_func_row_count() {}
-};
-
-
 class Create_func_rpad : public Create_func_arg3
 {
 public:
@@ -4809,18 +4796,6 @@ Create_func_round::create_native(THD *thd, LEX_STRING name,
 }
 
 
-Create_func_row_count Create_func_row_count::s_singleton;
-
-Item*
-Create_func_row_count::create(THD *thd)
-{
-  DBUG_ENTER("Create_func_row_count::create");
-  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  thd->lex->safe_to_cache_query= 0;
-  DBUG_RETURN(new (thd->mem_root) Item_func_row_count());
-}
-
-
 Create_func_rpad Create_func_rpad::s_singleton;
 
 Item*
@@ -5501,7 +5476,6 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("RELEASE_LOCK") }, BUILDER(Create_func_release_lock)},
   { { C_STRING_WITH_LEN("REVERSE") }, BUILDER(Create_func_reverse)},
   { { C_STRING_WITH_LEN("ROUND") }, BUILDER(Create_func_round)},
-  { { C_STRING_WITH_LEN("ROW_COUNT") }, BUILDER(Create_func_row_count)},
   { { C_STRING_WITH_LEN("RPAD") }, BUILDER(Create_func_rpad)},
   { { C_STRING_WITH_LEN("RTRIM") }, BUILDER(Create_func_rtrim)},
   { { C_STRING_WITH_LEN("SEC_TO_TIME") }, BUILDER(Create_func_sec_to_time)},
