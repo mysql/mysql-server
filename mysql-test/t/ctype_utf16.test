@@ -755,6 +755,13 @@ INSERT INTO t1 VALUES ('a');
 SELECT CASE s1 WHEN 'a' THEN 'b' ELSE 'c' END FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#12340997
+--echo # DATE_ADD/DATE_SUB WITH INTERVAL CRASHES IN GET_INTERVAL_VALUE()
+--echo #
+
+SELECT space(date_add(101, INTERVAL CHAR('1' USING utf16) hour_second)); 
+
 #
 ## TODO: add tests for all engines
 #

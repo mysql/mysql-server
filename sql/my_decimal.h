@@ -144,8 +144,6 @@ public:
   void swap(my_decimal &rhs)
   {
     swap_variables(my_decimal, *this, rhs);
-    /* Swap the buffer pointers back */
-    swap_variables(decimal_digit_t *, buf, rhs.buf);
   }
 };
 
