@@ -1016,6 +1016,14 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	it.replace(item);
       }
 
+      DBUG_EXECUTE("where",
+                   print_where(item, "rewrite with MIN/MAX", QT_ORDINARY););
+      if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+      {
+        DBUG_ASSERT(select_lex->non_agg_field_used());
+        select_lex->set_non_agg_field_used(false);
+      }
+
       save_allow_sum_func= thd->lex->allow_sum_func;
       thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
       /*
