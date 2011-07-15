@@ -71,6 +71,11 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
 
 static const char *HA_ERR(int i)
 {
+  /* 
+    This function should only be called in case of an error
+    was detected 
+   */
+  DBUG_ASSERT(i != 0);
   switch (i) {
   case HA_ERR_KEY_NOT_FOUND: return "HA_ERR_KEY_NOT_FOUND";
   case HA_ERR_FOUND_DUPP_KEY: return "HA_ERR_FOUND_DUPP_KEY";
@@ -123,7 +128,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
   }
-  return 0;
+  return "No Error!";
 }
 
 /**
@@ -144,7 +149,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                            TABLE *table, const char * type,
                                            const char *log_name, ulong pos)
 {
-  const char *handler_error= HA_ERR(ha_error);
+  const char *handler_error= (ha_error ? HA_ERR(ha_error) : NULL);
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end= buff + sizeof(buff);
   uint len;
@@ -7765,7 +7770,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       error= do_exec_row(rli);
 
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      if (error)
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
 
       table->in_use = old_thd;
@@ -9508,7 +9514,8 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   restart_rnd_next:
       error= table->file->rnd_next(table->record[0]);
 
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      if (error)
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
 
       case 0:
