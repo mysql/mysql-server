@@ -1077,8 +1077,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   int error;
   LEX *old_lex= thd->lex;
   LEX lex;
-  uint8 saved_full_group_by_flag;
-  nesting_map saved_allow_sum_func;
   DBUG_ENTER("fix_fields_part_func");
 
   if (init_lex_with_single_table(thd, table, &lex))
@@ -1103,19 +1101,22 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     This is a tricky call to prepare for since it can have a large number
     of interesting side effects, both desirable and undesirable.
   */
-  saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
-  saved_allow_sum_func= thd->lex->allow_sum_func;
-  thd->lex->allow_sum_func= 0;
+  {
+    const bool save_agg_field= thd->lex->current_select->non_agg_field_used();
+    const bool save_agg_func=  thd->lex->current_select->agg_func_used();
+    const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
+    thd->lex->allow_sum_func= 0;
 
-  error= func_expr->fix_fields(thd, (Item**)&func_expr);
+    error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
-  /*
-    Restore full_group_by_flag and allow_sum_func,
-    fix_fields should not affect mysql_select later, see Bug#46923.
-  */
-  thd->lex->current_select->full_group_by_flag= saved_full_group_by_flag;
-  thd->lex->allow_sum_func= saved_allow_sum_func;
-
+    /*
+      Restore agg_field/agg_func  and allow_sum_func,
+      fix_fields should not affect mysql_select later, see Bug#46923.
+    */
+    thd->lex->current_select->set_non_agg_field_used(save_agg_field);
+    thd->lex->current_select->set_agg_func_used(save_agg_func);
+    thd->lex->allow_sum_func= saved_allow_sum_func;
+  }
   if (unlikely(error))
   {
     DBUG_PRINT("info", ("Field in partition function not part of table"));
