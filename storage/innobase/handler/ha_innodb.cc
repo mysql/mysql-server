@@ -6544,6 +6544,10 @@ ha_innobase::index_read(
 		DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
 	}
 
+	if (index->type & DICT_FTS) {
+		DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
+	}
+
 	/* Note that if the index for which the search template is built is not
 	necessarily prebuilt->index, but can also be the clustered index */
 
@@ -6712,20 +6716,9 @@ ha_innobase::change_active_index(
 	ut_ad(user_thd == ha_thd());
 	ut_a(prebuilt->trx == thd_to_trx(user_thd));
 
-start:
 	active_index = keynr;
 
 	prebuilt->index = innobase_get_index(keynr);
-
-	if (prebuilt->index->type == DICT_FTS) {
-
-		/* FTS indexes are not searchable directly, we will use
-		the PRIMARY index, which is always the first index.*/
-
-		keynr = MAX_KEY;
-
-		goto start;
-	}
 
 	if (UNIV_UNLIKELY(!prebuilt->index)) {
 		sql_print_warning("InnoDB: change_active_index(%u) failed",
