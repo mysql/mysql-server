@@ -435,8 +435,6 @@ protected:
   friend uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
   friend range_seq_t quick_range_seq_init(void *init_param,
                                           uint n_ranges, uint flags);
-  friend void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
-                              bool distinct,const char *message);
   friend class QUICK_SELECT_DESC;
   friend class QUICK_INDEX_MERGE_SELECT;
   friend class QUICK_ROR_INTERSECT_SELECT;

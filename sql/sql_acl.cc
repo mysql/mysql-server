@@ -825,8 +825,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
     char *password= get_field(&mem, table->field[2]);
     uint password_len= password ? strlen(password) : 0;
-    user.auth_string.str= password ? password : const_cast<char*>("");
-    user.auth_string.length= password_len;
     set_user_salt(&user, password, password_len);
 
     if (set_user_plugin(&user, password_len))
@@ -915,7 +913,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           char *tmpstr= get_field(&mem, table->field[next_field++]);
           if (tmpstr)
           {
-            if (user.auth_string.length)
+            if (password_len)
             {
               sql_print_warning("'user' entry '%s@%s' has both a password "
                                 "and an authentication plugin specified. The "
@@ -1483,8 +1481,8 @@ static void acl_insert_user(const char *user, const char *host,
   {
     acl_user.plugin= password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 ?
       old_password_plugin_name : native_password_plugin_name;
-    acl_user.auth_string.str= strmake_root(&mem, password, password_len);
-    acl_user.auth_string.length= password_len;
+    acl_user.auth_string.str= const_cast<char*>("");
+    acl_user.auth_string.length= 0;
   }
 
   acl_user.access=privileges;
@@ -8313,7 +8311,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
 
   if (!mpvio->acl_user)
   {
-    login_failed_error(mpvio, 0);
+    login_failed_error(mpvio, mpvio->auth_info.password_used);
     DBUG_RETURN (1);
   }
 
@@ -8461,7 +8459,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
         old_password_plugin, otherwise MySQL will think that server 
         and client plugins don't match.
       */
-      if (mpvio->acl_user->auth_string.length == 0)
+      if (mpvio->acl_user->salt_len == 0)
         mpvio->acl_user_plugin= old_password_plugin_name;
     }
   }
@@ -8761,6 +8759,14 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
       return packet_error;
   }
 
+  /*
+    Set the default for the password supplied flag for non-existing users
+    as the default plugin (native passsword authentication) would do it
+    for compatibility reasons.
+  */
+  if (passwd_len)
+    mpvio->auth_info.password_used= PASSWORD_USED_YES;
+
   size_t client_plugin_len= 0;
   char *client_plugin= get_string(&end, &bytes_remaining_in_packet,
                                   &client_plugin_len);
@@ -8840,7 +8846,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
         old_password_plugin, otherwise MySQL will think that server 
         and client plugins don't match.
       */
-      if (mpvio->acl_user->auth_string.length == 0)
+      if (mpvio->acl_user->salt_len == 0)
         mpvio->acl_user_plugin= old_password_plugin_name;
     }
   }
@@ -9543,13 +9549,10 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
     my_ok(thd);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (likely(PSI_server != NULL))
-  {
-    PSI_server->set_thread_user_host(thd->main_security_ctx.user,
-                                     strlen(thd->main_security_ctx.user),
-                                     thd->main_security_ctx.host_or_ip,
-                                     strlen(thd->main_security_ctx.host_or_ip));
-  }
+  PSI_CALL(set_thread_user_host)(thd->main_security_ctx.user,
+                                 strlen(thd->main_security_ctx.user),
+                                 thd->main_security_ctx.host_or_ip,
+                                 strlen(thd->main_security_ctx.host_or_ip));
 #endif
 
   /* Ready to handle queries */
@@ -9628,7 +9631,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 #endif
 
   if (pkt_len == 0) /* no password */
-    DBUG_RETURN(info->auth_string[0] ? CR_ERROR : CR_OK);
+    DBUG_RETURN(mpvio->acl_user->salt_len != 0 ? CR_ERROR : CR_OK);
 
   info->password_used= PASSWORD_USED_YES;
   if (pkt_len == SCRAMBLE_LENGTH)
@@ -9677,7 +9680,7 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     pkt_len= strnlen((char*)pkt, pkt_len);
 
   if (pkt_len == 0) /* no password */
-    return info->auth_string[0] ? CR_ERROR : CR_OK;
+    return mpvio->acl_user->salt_len != 0 ? CR_ERROR : CR_OK;
 
   if (secure_auth(mpvio))
     return CR_ERROR;

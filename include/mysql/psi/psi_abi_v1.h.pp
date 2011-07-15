@@ -119,94 +119,82 @@ struct PSI_statement_info_v1
 struct PSI_mutex_locker_state_v1
 {
   uint m_flags;
+  enum PSI_mutex_operation m_operation;
   struct PSI_mutex *m_mutex;
   struct PSI_thread *m_thread;
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);
-  enum PSI_mutex_operation m_operation;
-  const char* m_src_file;
-  int m_src_line;
   void *m_wait;
 };
 struct PSI_rwlock_locker_state_v1
 {
   uint m_flags;
+  enum PSI_rwlock_operation m_operation;
   struct PSI_rwlock *m_rwlock;
   struct PSI_thread *m_thread;
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);
-  enum PSI_rwlock_operation m_operation;
-  const char* m_src_file;
-  int m_src_line;
   void *m_wait;
 };
 struct PSI_cond_locker_state_v1
 {
   uint m_flags;
+  enum PSI_cond_operation m_operation;
   struct PSI_cond *m_cond;
   struct PSI_mutex *m_mutex;
   struct PSI_thread *m_thread;
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);
-  enum PSI_cond_operation m_operation;
-  const char* m_src_file;
-  int m_src_line;
   void *m_wait;
 };
 struct PSI_file_locker_state_v1
 {
   uint m_flags;
+  enum PSI_file_operation m_operation;
   struct PSI_file *m_file;
   struct PSI_thread *m_thread;
   size_t m_number_of_bytes;
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);
-  enum PSI_file_operation m_operation;
-  const char* m_src_file;
-  int m_src_line;
   void *m_wait;
 };
 struct PSI_table_locker_state_v1
 {
   uint m_flags;
+  enum PSI_table_io_operation m_io_operation;
   struct PSI_table *m_table;
   struct PSI_table_share *m_table_share;
   struct PSI_thread *m_thread;
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);
-  enum PSI_table_io_operation m_io_operation;
-  uint m_index;
-  const char* m_src_file;
-  int m_src_line;
   void *m_wait;
+  uint m_index;
 };
 struct PSI_statement_locker_state_v1
 {
+  my_bool m_discarded;
+  uchar m_no_index_used;
+  uchar m_no_good_index_used;
   uint m_flags;
   void *m_class;
   struct PSI_thread *m_thread;
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);
-  const char* m_src_file;
-  int m_src_line;
   void *m_statement;
-  my_bool m_discarded;
   ulonglong m_lock_time;
   ulonglong m_rows_sent;
   ulonglong m_rows_examined;
-  ulonglong m_created_tmp_disk_tables;
-  ulonglong m_created_tmp_tables;
-  ulonglong m_select_full_join;
-  ulonglong m_select_full_range_join;
-  ulonglong m_select_range;
-  ulonglong m_select_range_check;
-  ulonglong m_select_scan;
-  ulonglong m_sort_merge_passes;
-  ulonglong m_sort_range;
-  ulonglong m_sort_rows;
-  ulonglong m_sort_scan;
-  ulonglong m_no_index_used;
-  ulonglong m_no_good_index_used;
+  ulong m_created_tmp_disk_tables;
+  ulong m_created_tmp_tables;
+  ulong m_select_full_join;
+  ulong m_select_full_range_join;
+  ulong m_select_range;
+  ulong m_select_range_check;
+  ulong m_select_scan;
+  ulong m_sort_merge_passes;
+  ulong m_sort_range;
+  ulong m_sort_rows;
+  ulong m_sort_scan;
 };
 typedef void (*register_mutex_v1_t)
   (const char *category, struct PSI_mutex_info_v1 *info, int count);

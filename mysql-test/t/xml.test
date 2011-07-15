@@ -665,5 +665,14 @@ SET NAMES latin1;
 SELECT UPDATEXML(CONVERT('' USING swe7), TRUNCATE('',1), 0);
 
 --echo #
+--echo # Bug#12375190: UPDATEXML CRASHES ON SIMPLE INPUTS
+--echo #
+SELECT UPDATEXML('','(a)/a','');
+SELECT UPDATEXML('<a><a>x</a></a>','(a)/a','<b />');
+SELECT UPDATEXML('<a><c><a>x</a></c></a>','(a)/a','<b />');
+SELECT UPDATEXML('<a><c><a>x</a></c></a>','(a)//a','<b />');
+SELECT ExtractValue('<a><a>aa</a><b>bb</b></a>','(a)/a|(a)/b');
+
+--echo #
 --echo # End of 5.5 tests
 --echo #

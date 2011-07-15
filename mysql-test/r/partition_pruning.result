@@ -2717,33 +2717,61 @@ partition p0 values in (1,2),
 partition p1 values in (3,4)
 );
 insert into t1 values (1),(1),(2),(2),(3),(4),(3),(4);
+# This won't do any table access
+explain extended update t1 set a=100 where a=5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+explain partitions update t1 set a=100 where a=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 flush status;
 update t1 set a=100 where a=5;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	0
+# ... as compared to this, which will scan both partitions
+explain partitions update t1 set a=100 where a+1=5+1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	8	Using where; Using temporary
 flush status;
 update t1 set a=100 where a+1=5+1;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	10
+# Same as above for DELETE:
+explain extended delete from t1 where a=5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+explain partitions delete from t1 where a=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 flush status;
 delete from t1 where a=5;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	0
+explain partitions delete from t1 where a+1=5+1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	8	Using where
 flush status;
 delete from t1 where a+1=5+1;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	10
+# Same as above multi-table UPDATE/DELETE
 create table t2 like t1;
 insert into t2 select * from t2;
+explain partitions update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 flush status;
 update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	0
+explain partitions delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 flush status;
 delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
 show status like 'Handler_read_rnd_next';
@@ -2771,6 +2799,13 @@ PARTITION p1 VALUES LESS THAN (400),
 PARTITION p2 VALUES LESS THAN (600),
 PARTITION p3 VALUES LESS THAN (800),
 PARTITION p4 VALUES LESS THAN (1001));
+CREATE TABLE `t3` (
+`a` int(11) default NULL,
+`b` int(11) default NULL
+);
+explain partitions insert into t2 select a,1 from t1 where a < 200;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1010	Using where
 insert into t2 select a,1 from t1 where a < 200;
 insert into t2 select a,2 from t1 where a >= 200 and a < 400;
 insert into t2 select a,3 from t1 where a >= 400 and a < 600;
@@ -2779,25 +2814,59 @@ insert into t2 select a,5 from t1 where a >= 800 and a < 1001;
 explain partitions select * from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	
+explain partitions insert into t3 select * from t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	
+explain extended   insert into t3 select * from t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1010	100.00	
 explain partitions select * from t2 where a < 801 and a > 200;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	800	Using where
+explain partitions insert into t3 select * from t2 where a < 801 and a > 200;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	800	Using where
 explain partitions select * from t2 where a < 801 and a > 800;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	200	Using where
+explain partitions insert into t3 select * from t2 where a < 801 and a > 800;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	200	Using where
 explain partitions select * from t2 where a > 600;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
+explain partitions insert into t3 select * from t2 where a > 600;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where a > 600 and b = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
+explain partitions insert into t3 select * from t2 where a > 600 and b = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where a > 600 and b = 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
+explain partitions insert into t3 select * from t2 where a > 600 and b = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where a > 600 and b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
+explain partitions insert into t3 select * from t2 where a > 600 and b = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where b = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+explain partitions insert into t3 select * from t2 where b = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+DROP TABLE t3;
+explain extended update t2 set b = 100 where b = 6;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1010	100.00	Using where
+explain partitions update t2 set b = 100 where b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
 flush status;
@@ -2805,21 +2874,36 @@ update t2 set b = 100 where b = 6;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	1015
+explain partitions update t2 set a = 1002 where a = 1001;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 flush status;
 update t2 set a = 1002 where a = 1001;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	0
+explain partitions update t2 set b = 6 where a = 600;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p3	ALL	NULL	NULL	NULL	NULL	200	Using where
 flush status;
 update t2 set b = 6 where a = 600;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	201
+explain partitions update t2 set b = 6 where a > 600 and a < 800;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p3	ALL	NULL	NULL	NULL	NULL	200	Using where
 flush status;
 update t2 set b = 6 where a > 600 and a < 800;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	201
+explain extended delete from t2 where a > 600;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	400	100.00	Using where
+explain partitions delete from t2 where a > 600;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 flush status;
 delete from t2 where a > 600;
 show status like 'Handler_read_rnd_next';
@@ -2931,6 +3015,12 @@ Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` 
 explain partitions select * from t2 where b > 0 and b < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	910	Using where
+explain extended update t2 set a = 111 where b = 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	range	b	b	5	NULL	5	100.00	Using where; Using temporary
+explain partitions update t2 set a = 111 where b = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	5	Using where; Using temporary
 flush status;
 update t2 set a = 111 where b = 10;
 show status like 'Handler_read_rnd_next';
@@ -2939,6 +3029,9 @@ Handler_read_rnd_next	0
 show status like 'Handler_read_key';
 Variable_name	Value
 Handler_read_key	5
+explain partitions update t2 set a = 111 where b in (5,6);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	910	Using where; Using temporary
 flush status;
 update t2 set a = 111 where b in (5,6);
 show status like 'Handler_read_rnd_next';
@@ -2947,6 +3040,9 @@ Handler_read_rnd_next	915
 show status like 'Handler_read_key';
 Variable_name	Value
 Handler_read_key	0
+explain partitions update t2 set a = 222 where b = 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	102	Using where; Using temporary
 flush status;
 update t2 set a = 222 where b = 7;
 show status like 'Handler_read_rnd_next';
@@ -2955,6 +3051,12 @@ Handler_read_rnd_next	0
 show status like 'Handler_read_key';
 Variable_name	Value
 Handler_read_key	5
+explain extended delete from t2 where b = 7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	range	b	b	5	NULL	139	100.00	Using where
+explain partitions delete from t2 where b = 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	139	Using where
 flush status;
 delete from t2 where b = 7;
 show status like 'Handler_read_rnd_next';
@@ -2963,6 +3065,9 @@ Handler_read_rnd_next	0
 show status like 'Handler_read_key';
 Variable_name	Value
 Handler_read_key	5
+explain partitions delete from t2 where b > 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	810	Using where
 flush status;
 delete from t2 where b > 5;
 show status like 'Handler_read_rnd_next';
@@ -2977,6 +3082,9 @@ Handler_read_prev	0
 show status like 'Handler_read_next';
 Variable_name	Value
 Handler_read_next	0
+explain partitions delete from t2 where b < 5 or b > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	510	Using where
 flush status;
 delete from t2 where b < 5 or b > 3;
 show status like 'Handler_read_rnd_next';

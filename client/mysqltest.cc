@@ -201,6 +201,7 @@ static char *opt_plugin_dir= 0;
 static my_regex_t ps_re;     /* the query can be run using PS protocol */
 static my_regex_t sp_re;     /* the query can be run as a SP */
 static my_regex_t view_re;   /* the query can be run as a view*/
+static my_regex_t explain_re;/* the query can be converted to EXPLAIN */
 
 static void init_re(void);
 static int match_re(my_regex_t *, char *);
@@ -6391,7 +6392,8 @@ static struct my_option my_long_options[] =
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
    &view_protocol, &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"explain-protocol", OPT_EXPLAIN_PROTOCOL, "Explains all select.",
+  {"explain-protocol", OPT_EXPLAIN_PROTOCOL,
+   "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements",
    &explain_protocol, &explain_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT,
@@ -7882,7 +7884,7 @@ void run_explain(struct st_connection *cn, struct st_command *command, int flags
 {
   if (explain_protocol_enabled &&
       !command->expected_errors.count &&
-      match_re(&view_re, command->query))
+      match_re(&explain_re, command->query))
   {
     st_command save_command= *command;
     DYNAMIC_STRING query_str;
@@ -7892,6 +7894,7 @@ void run_explain(struct st_connection *cn, struct st_command *command, int flags
     init_dynamic_string(&query_str, "EXPLAIN EXTENDED ", 256, 256);
     dynstr_append_mem(&query_str, command->query,
                       command->end - command->query);
+    
     command->query= query_str.str;
     command->query_len= query_str.length;
     command->end= strend(command->query);
@@ -7965,9 +7968,16 @@ void init_re(void)
     "^("
     "[[:space:]]*SELECT[[:space:]])";
 
+
+  /* Filter for queries that can be converted to EXPLAIN */
+  const char *explain_re_str =
+    "^("
+    "[[:space:]]*(SELECT|DELETE|UPDATE|INSERT|REPLACE)[[:space:]])";
+
   init_re_comp(&ps_re, ps_re_str);
   init_re_comp(&sp_re, sp_re_str);
   init_re_comp(&view_re, view_re_str);
+  init_re_comp(&explain_re, explain_re_str);
 }
 
 
@@ -8631,8 +8641,14 @@ int main(int argc, char **argv)
 	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
 	  save_file[0]= 0;
 	}
-	run_query(cur_con, command, flags);
+        /*
+          We run EXPLAIN _before_ the query. If query is UPDATE/DELETE is
+          matters: a DELETE may delete rows, and then EXPLAIN DELETE will
+          usually terminate quickly with "no matching rows". To make it more
+          interesting, EXPLAIN is now first.
+        */
 	run_explain(cur_con, command, flags);
+	run_query(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
 

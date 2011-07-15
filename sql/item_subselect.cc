@@ -35,6 +35,7 @@
 #include "sql_select.h"
 #include "sql_parse.h"                          // check_stack_overrun
 #include "debug_sync.h"
+#include "sql_test.h"
 
 inline Item * and_items(Item* cond, Item *item)
 {
@@ -1173,6 +1174,14 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	List_iterator<Item> it(select_lex->item_list);
 	it++;
 	it.replace(item);
+      }
+
+      DBUG_EXECUTE("where",
+                   print_where(item, "rewrite with MIN/MAX", QT_ORDINARY););
+      if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+      {
+        DBUG_ASSERT(select_lex->non_agg_field_used());
+        select_lex->set_non_agg_field_used(false);
       }
 
       save_allow_sum_func= thd->lex->allow_sum_func;
