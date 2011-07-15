@@ -22,13 +22,17 @@
 --source include/not_windows.inc
 
 # Take a snapshot of SOCKET_INSTANCES
+--echo # Take a snapshot of SOCKET_INSTANCES
 CREATE TEMPORARY TABLE my_socket_instances AS
 SELECT * FROM performance_schema.socket_instances;
 
 # Get the thread id of this connection
+--echo # Get thread id of the default connection
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
 WHERE PROCESSLIST_ID = CONNECTION_ID();
+
+let $con0_thread_id = `SELECT @thread_id`;
 
 #
 # ESTABLISH TCP/IP CONNECTION 1
@@ -36,20 +40,21 @@ WHERE PROCESSLIST_ID = CONNECTION_ID();
 # Have a connection with IP = '127.0.0.1,'
 
 --echo # Establish local TCP/IP connection (con1,127.0.0.1,root,,test,,)
---connect (con1,127.0.0.1,root,,test,,)
+--disable_query_log
+--connect (con1,127.0.0.1,root,,test,,$MASTER_MYPORT)
+--enable_query_log
 
-# Get the thread id of this connection, store in con1_thread_id
+--echo # Store the thread id of connection 1 (tcp/ip)
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
 WHERE PROCESSLIST_ID = CONNECTION_ID();
 
-let $con1_thread_id= `SELECT @thread_id`;
-
-# Get the port of this tcpi/ip connection, store in con1_port
+--echo # Store the port of connection 1 (tcp/ip)
 eval SELECT PORT INTO @port
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con1_thread_id;
+WHERE THREAD_ID = @thread_id;
 
+let $con1_thread_id= `SELECT @thread_id`;
 let $con1_port = `SELECT @port`;
 
 --echo # Switch to connection default
@@ -61,20 +66,21 @@ let $con1_port = `SELECT @port`;
 # Have a connection with IP = '127.0.0.1,'
 
 --echo # Establish a second local TCP/IP connection (con2,127.0.0.1,root,,test,,)
---connect (con2,127.0.0.1,root,,test,,)
+--disable_query_log
+--connect (con2,127.0.0.1,root,,test,,$MASTER_MYPORT)
+--enable_query_log
 
-# Get the thread id of this connection, store in con2_thread_id
+--echo # Store the thread_id of connection 2 (tcp/ip)
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
 WHERE PROCESSLIST_ID = CONNECTION_ID();
 
-let $con2_thread_id= `SELECT @thread_id`;
-
-# Get the port of this tcpi/ip connection, store in con2_port
+--echo # Store the port of connection 2 (tcp/ip)
 eval SELECT PORT INTO @port
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con2_thread_id;
+WHERE THREAD_ID = @thread_id;
 
+let $con2_thread_id= `SELECT @thread_id`;
 let $con2_port = `SELECT @port`;
 
 --echo # Switch to connection default
@@ -88,19 +94,18 @@ let $con2_port = `SELECT @port`;
 --echo # Establish local unix domain connection (con3,localhost,root,,test,,)
 --connect(con3,localhost,root,,test,,)
 
-# Get the thread id of this connection, store in con3_thread_id
+--echo # Store the thread id of connection 3 (unix domain)
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
 WHERE PROCESSLIST_ID = CONNECTION_ID();
 
-let $con3_thread_id= `SELECT @thread_id`;
-
-# Get the port of this unix domain connection, store in con3_port (should be 0)
+--echo # Store the port of connection 3 (unix domain)
 eval SELECT PORT INTO @port
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con3_thread_id;
+WHERE THREAD_ID = @thread_id;
 
 let $con3_port = `SELECT @port`;
+let $con3_thread_id= `SELECT @thread_id`;
 
 --echo # Switch to connection default
 --connection default
@@ -114,10 +119,6 @@ let $con3_port = `SELECT @port`;
 SELECT COUNT(*) = 0 AS "Expect 1"
 FROM performance_schema.socket_instances
 WHERE EVENT_NAME NOT LIKE 'wait/io/socket/%';
-#
-SELECT DISTINCT EVENT_NAME
-FROM performance_schema.socket_instances
-ORDER BY EVENT_NAME;
 
 #
 # VERIFY UNIQUE EVENT IDs
@@ -144,7 +145,11 @@ FROM performance_schema.socket_instances;
 --echo # Characteristics per our thread
 --echo #    There must be only one entry with our thread_id
 
-SELECT COUNT(*) = 1 AS 'Expect 1'
+--disable_query_log
+eval set @thread_id= $con0_thread_id;
+--enable_query_log
+
+eval SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
 
@@ -153,16 +158,23 @@ WHERE THREAD_ID = @thread_id;
 #
 
 --echo # TCP/IP connections should have a unique port number
+--disable_query_log
+eval set @port= $con1_port;
+--enable_query_log
 
---replace_result $con1_port <con1_port>
+--echo # Connection 1 (tcp/ip)
 eval SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE PORT = $con1_port;
+WHERE PORT = @port;
 
---replace_result $con2_port <con2_port>
+--disable_query_log
+eval set @port= $con2_port;
+--enable_query_log
+
+--echo # Connection 2 (tcp/ip)
 eval SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE PORT = $con2_port;
+WHERE PORT = @port;
 
 #
 # VERIFY CONNECTION DETAILS FOR THE DEFAULT CONNECTION
@@ -171,6 +183,10 @@ WHERE PORT = $con2_port;
 --echo #    Check the content for the default connection (unix domain)
 # EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID  IP  PORT    STATE
 # wait/io/socket/com/client_connection       139799531958280         16         37         0    ACTIVE
+
+--disable_query_log
+eval set @thread_id = $con0_thread_id;
+--enable_query_log
 
 SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
    AND IP = '' AND PORT = 0 AS 'Expect 1'
@@ -202,7 +218,7 @@ let $server_tcpip_thread_id= `SELECT @thread_id`;
 --echo #    Check the content.
 --replace_result $MASTER_MYPORT <MASTER_MYPORT>
 
-eval SELECT THREAD_ID = $server_tcpip_thread_id
+eval SELECT THREAD_ID = @thread_id
      AND PORT = $MASTER_MYPORT AND IP = '0.0.0.0'
      AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
@@ -231,7 +247,7 @@ WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
 let $server_unix_thread_id= `SELECT @thread_id`;
 
 --echo #    Check the content.
-eval SELECT THREAD_ID = $server_unix_thread_id
+eval SELECT THREAD_ID = @thread_id
      AND PORT = 0 AND IP = ''
      AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
@@ -242,16 +258,29 @@ WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
 #
 
 --echo # Server listening sockets (TCP and Unix) are handled on the same thread
-eval SELECT COUNT(*) = 2 AS 'Expect 1'
-FROM performance_schema.socket_instances
-WHERE THREAD_ID = $server_tcpip_thread_id;
+
+--disable_query_log
+eval set @thread_id = $server_tcpip_thread_id;
+--enable_query_log
 
 eval SELECT COUNT(*) = 2 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = $server_unix_thread_id;
+WHERE THREAD_ID = @thread_id;
+
+--disable_query_log
+eval set @thread_id = $server_unix_thread_id;
+--enable_query_log
+
+eval SELECT COUNT(*) = 2 AS 'Expect 1'
+FROM performance_schema.socket_instances
+WHERE THREAD_ID = @thread_id;
 
 --echo #Compare server listener socket thread ids
-eval SELECT $server_tcpip_thread_id = $server_unix_thread_id as 'Expect 1';
+--disable_query_log
+eval SELECT ($server_tcpip_thread_id = $server_unix_thread_id) into @match_thread_id;
+--enable_query_log
+
+select @match_thread_id;
 
 #
 # VERIFY TCP/IP CLIENT CONNECTION 1
@@ -261,23 +290,25 @@ eval SELECT $server_tcpip_thread_id = $server_unix_thread_id as 'Expect 1';
 # wait/io/socket/com/client_connection       140707865187120         18         59   127.0.0.1   59298   IDLE or ACTIVE
 
 --echo #    Check content for client connection 1 (tcpip)
---replace_result $con1_thread_id <con1_thread_id>
---replace_result $con1_port <con1_port>
+
+--disable_query_log
+eval set @port = $con1_port;
+eval set @thread_id = $con1_thread_id;
+--enable_query_log
 
 eval SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
         AND IP = '127.0.0.1'
-        AND PORT = $con1_port
+        AND PORT = @port
 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con1_thread_id;
+WHERE THREAD_ID = @thread_id;
 
 --echo # Characteristics of entries with THREAD_ID of con1
 --echo #    There is only one entry with this id.
---replace_result $con1_thread_id <con1_thread_id>
 
 eval SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con1_thread_id;
+WHERE THREAD_ID = @thread_id;
 
 #
 # VERIFY TCP/IP CLIENT CONNECTION 2
@@ -287,23 +318,25 @@ WHERE THREAD_ID = $con1_thread_id;
 # wait/io/socket/com/client_connection       140707865187120         18         59   127.0.0.1   59298   IDLE or ACTIVE
 
 --echo #    Check content for client connection 2 (tcpip)
---replace_result $con2_thread_id <con2_thread_id>
---replace_result $con2_port <con2_port>
+
+--disable_query_log
+eval set @port = $con2_port;
+eval set @thread_id = $con2_thread_id;
+--enable_query_log
 
 eval SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
         AND IP = '127.0.0.1'
-        AND PORT = $con2_port
+        AND PORT = @port
 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con2_thread_id;
+WHERE THREAD_ID = @thread_id;
 
 --echo # Characteristics of entries with THREAD_ID of con2
 --echo #    There is only one entry with this id.
---replace_result $con2_thread_id <con2_thread_id>
 
-eval SELECT COUNT(*) = 2 AS 'Expect 2'
+eval SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con2_thread_id;
+WHERE THREAD_ID = @thread_id;
 
 #
 # VERIFY LOCAL CONNECTION, UNIX DOMAIN
@@ -313,22 +346,24 @@ WHERE THREAD_ID = $con2_thread_id;
 # wait/io/socket/com/client_connection       139799531958280         16         37         0   IDLE or ACTIVE
 
 --echo #    Check the content for client connection 3 (unix domain).
---replace_result $con3_thread_id <con3_thread_id>
+
+--disable_query_log
+eval set @thread_id = $con3_thread_id;
+--enable_query_log
 
 eval SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
      AND IP = ''
      AND PORT = 0
 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con3_thread_id;
+WHERE THREAD_ID = @thread_id;
 
 --echo # Characteristics of entries with THREAD_ID of con3
 --echo #    There is only one entry with this id.
---replace_result $con3_thread_id <con3_thread_id>
 
 eval SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = $con3_thread_id;
+WHERE THREAD_ID = @thread_id;
 
 #
 # LIST CLIENT CONNECTIONS
