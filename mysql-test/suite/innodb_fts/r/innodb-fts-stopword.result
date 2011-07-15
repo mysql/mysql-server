@@ -55,8 +55,8 @@ id	title	body
 select @@innodb_server_stopword_table;
 @@innodb_server_stopword_table
 NULL
-select @@innodb_use_stopword;
-@@innodb_use_stopword
+select @@innodb_ft_enable_stopword;
+@@innodb_ft_enable_stopword
 1
 select @@innodb_user_stopword_table;
 @@innodb_user_stopword_table
@@ -113,5 +113,5 @@ drop table articles_3;
 drop table articles_4;
 drop table user_stopword;
 drop table user_stopword_session;
-SET GLOBAL innodb_use_stopword=1;
+SET GLOBAL innodb_ft_enable_stopword=1;
 SET GLOBAL innodb_server_stopword_table=default;

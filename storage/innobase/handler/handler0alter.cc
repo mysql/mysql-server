@@ -915,10 +915,10 @@ ha_innobase::add_index(
 	ulint		num_of_idx;
 	ulint		num_created	= 0;
 	ibool		dict_locked	= FALSE;
-	ulint		new_primary;
+	ulint		new_primary	= 0;
 	int		error;
 	ulint		num_fts_index	= 0;
-	ulint		num_idx_create;
+	ulint		num_idx_create	= 0;
 	ibool		fts_add_doc_id	= FALSE;
 	ibool		fts_add_doc_idx	= FALSE;
 
@@ -1006,7 +1006,7 @@ ha_innobase::add_index(
 
 	if (!index_defs) {
 		error = DB_UNSUPPORTED;
-		goto error;
+		goto error_exit;
 	}
 
 	/* We do not support create more than one FT index on the
@@ -1016,7 +1016,7 @@ ha_innobase::add_index(
 	    || num_fts_index > 1) {
 		error = DB_UNSUPPORTED;
 		my_error(ER_INNODB_FT_LIMIT, MYF(0));
-		goto error;
+		goto error_exit;
 	}
 
 	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
@@ -1193,12 +1193,12 @@ error_handling:
 
 	case DB_TOO_BIG_RECORD:
 		my_error(HA_ERR_TO_BIG_ROW, MYF(0));
-		goto error;
+		goto error_exit;
 	case DB_PRIMARY_KEY_IS_NULL:
 		my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
 		/* fall through */
 	case DB_DUPLICATE_KEY:
-error:
+error_exit:
 		prebuilt->trx->error_info = NULL;
 		/* fall through */
 	default:

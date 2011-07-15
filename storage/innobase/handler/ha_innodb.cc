@@ -429,7 +429,7 @@ static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   "Use strict mode when evaluating create options.",
   NULL, NULL, FALSE);
 
-static MYSQL_THDVAR_BOOL(use_stopword, PLUGIN_VAR_OPCMDARG,
+static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
   "Create FTS index with stopword.",
   NULL, NULL,
   /* default */ TRUE);
@@ -7859,7 +7859,7 @@ innobase_fts_load_stopword(
 	fts_load_stopword(table,
 			  fts_server_stopword_table,
 			  THDVAR(thd, user_stopword_table),
-			  THDVAR(thd, use_stopword), FALSE);
+			  THDVAR(thd, ft_enable_stopword), FALSE);
 }
 /*****************************************************************//**
 Creates a new table to an InnoDB database.
@@ -8279,7 +8279,7 @@ ha_innobase::create(
 		fts_load_stopword(innobase_table,
 				  fts_server_stopword_table,
 				  THDVAR(thd, user_stopword_table),
-				  THDVAR(thd, use_stopword), FALSE);
+				  THDVAR(thd, ft_enable_stopword), FALSE);
 	}
 
 	/* Note: We can't call update_thd() as prebuilt will not be
@@ -13322,12 +13322,6 @@ static MYSQL_SYSVAR_STR(server_stopword_table, innobase_server_stopword_table,
   innodb_stopword_table_update,
   NULL);
 
-static MYSQL_SYSVAR_STR(fts_internal_tbl_name, fts_internal_tbl_name,
-  PLUGIN_VAR_NOCMDARG,
-  "FTS internal auxiliary table to be checked",
-  innodb_internal_table_validate, 
-  innodb_internal_table_update, NULL);
-
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   PLUGIN_VAR_OPCMDARG,
   "Set to 0 (write and flush once per second),"
@@ -13496,6 +13490,12 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
+
+static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
+  PLUGIN_VAR_NOCMDARG,
+  "FTS internal auxiliary table to be checked",
+  innodb_internal_table_validate, 
+  innodb_internal_table_update, NULL);
 
 static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -13723,6 +13723,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
   MYSQL_SYSVAR(ft_cache_size),
+  MYSQL_SYSVAR(ft_enable_stopword),
   MYSQL_SYSVAR(ft_max_token_size),
   MYSQL_SYSVAR(ft_min_token_size),
   MYSQL_SYSVAR(ft_sort_pll_degree),
@@ -13747,7 +13748,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(optimize_fulltext_only),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(server_stopword_table),
-  MYSQL_SYSVAR(fts_internal_tbl_name),
+  MYSQL_SYSVAR(ft_aux_table),
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(stats_transient_sample_pages),
@@ -13767,7 +13768,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(version),
-  MYSQL_SYSVAR(use_stopword),
   MYSQL_SYSVAR(user_stopword_table),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),

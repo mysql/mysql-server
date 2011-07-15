@@ -27,11 +27,11 @@ SELECT * FROM articles WHERE MATCH (title,body)
         AGAINST ('the' IN NATURAL LANGUAGE MODE);
 
 let $innodb_server_stopword_table_orig=`select @@innodb_server_stopword_table`;
-let $innodb_use_stopword_orig=`select @@innodb_use_stopword`;
+let $innodb_ft_enable_stopword_orig=`select @@innodb_ft_enable_stopword`;
 let $innodb_user_stopword_table_orig=`select @@innodb_user_stopword_table`;
 
 select @@innodb_server_stopword_table;
-select @@innodb_use_stopword;
+select @@innodb_ft_enable_stopword;
 select @@innodb_user_stopword_table;
 
 # Provide user defined stopword table, if not (correctly) defined,
@@ -113,6 +113,6 @@ drop table articles_4;
 drop table user_stopword;
 drop table user_stopword_session;
 
-eval SET GLOBAL innodb_use_stopword=$innodb_use_stopword_orig;
+eval SET GLOBAL innodb_ft_enable_stopword=$innodb_ft_enable_stopword_orig;
 eval SET GLOBAL innodb_server_stopword_table=default;
 

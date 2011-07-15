@@ -2929,16 +2929,27 @@ fts_optimize_thread(
 	}
 
 
+	/* Lock dict_operation_lock to make sure no DDL happening */
+	rw_lock_x_lock(&dict_operation_lock);
 	if (n_tables > 0) {
-		for (i = 0; i < ib_vector_size(tables);
-		     i++) {
+		for (i = 0; i < ib_vector_size(tables); i++) {
 			slot = ib_vector_get(tables, i);
 
 			if (slot->state != FTS_STATE_EMPTY) {
-				fts_sync_table(slot->table);
+				dict_table_t*	table;
+
+			        table = dict_table_open_on_name_no_stats(
+					slot->table->name, FALSE,
+					DICT_ERR_IGNORE_INDEX_ROOT);
+
+				if (table) {
+					fts_sync_table(table);
+					dict_table_close(table, FALSE);
+				}
 			}
 		}
 	}
+	rw_lock_x_unlock(&dict_operation_lock);
 
 	ib_vector_free(tables);
 
