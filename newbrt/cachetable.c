@@ -1845,6 +1845,7 @@ int toku_cachetable_get_and_pin_nonblocking (
 	    case CTPAIR_INVALID: assert(0);
 	    case CTPAIR_READING:
 	    case CTPAIR_WRITING:
+                cachetable_miss++;
 		run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
 		if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
 		// Now wait for the I/O to occur.
@@ -1855,6 +1856,7 @@ int toku_cachetable_get_and_pin_nonblocking (
 		return TOKUDB_TRY_AGAIN;
 	    case CTPAIR_IDLE:
                 {
+                    cachetable_hit++;
                     rwlock_read_lock(&p->rwlock, ct->mutex);
                     BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
                     //
@@ -1888,7 +1890,6 @@ int toku_cachetable_get_and_pin_nonblocking (
                     pair_touch(p);
                     *value = p->value;
                     if (sizep) *sizep = p->size;
-                    cachetable_hit++;
                     cachetable_unlock(ct);
                     return 0;
 	        }
@@ -1899,6 +1900,7 @@ int toku_cachetable_get_and_pin_nonblocking (
     assert(p==0);
 
     // Not found
+    cachetable_miss++;
     p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, pe_callback, write_extraargs, CACHETABLE_CLEAN);
     assert(p);
     rwlock_write_lock(&p->rwlock, ct->mutex);
