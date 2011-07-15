@@ -968,6 +968,40 @@ set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t1, t2;
 
+
+--echo #
+--echo # LP BUG#777691 Wrong result with subqery in select list and subquery cache=off in maria-5.3
+--echo #
+
+CREATE TABLE t1 ( f1 varchar(32)) ;
+INSERT INTO t1 VALUES ('b'),('x'),('c'),('x');
+
+CREATE TABLE t2 ( f2 int, f3 varchar(32)) ;
+INSERT INTO t2 VALUES (1,'x');
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=off,in_to_exists=on,subquery_cache=off';
+
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+
+set @@optimizer_switch='materialization=on,in_to_exists=off,subquery_cache=off';
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+
+set @@optimizer_switch='materialization=off,in_to_exists=on,subquery_cache=off';
+--echo Even when t2 is not constant table, the result must be the same.
+INSERT INTO t2 VALUES (2,'y');
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+
+set @@optimizer_switch=@save_optimizer_switch;
+
+drop table t1, t2;
+
 --echo #
 --echo # LP BUG#641203 Query returns rows where no result is expected (impossible WHERE)
 --echo #
