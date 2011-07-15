@@ -118,7 +118,7 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
 
 bool String::set(double num,uint decimals, CHARSET_INFO *cs)
 {
-  char buff[331];
+  char buff[FLOATING_POINT_BUFFER];
   uint dummy_errors;
 
   str_charset=cs;
@@ -188,7 +188,9 @@ end:
 #else
 #ifdef HAVE_SNPRINTF
   buff[sizeof(buff)-1]=0;			// Safety
-  snprintf(buff,sizeof(buff)-1, "%.*f",(int) decimals,num);
+  int num_chars= snprintf(buff, sizeof(buff)-1, "%.*f",(int) decimals, num);
+  DBUG_ASSERT(num_chars > 0);
+  DBUG_ASSERT(num_chars < (int) sizeof(buff));
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
