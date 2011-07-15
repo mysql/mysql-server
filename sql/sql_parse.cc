@@ -434,6 +434,9 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA;
 
+  /* Does not change the contents of the diagnostics area. */
+  sql_command_flags[SQLCOM_GET_DIAGNOSTICS]= CF_DIAGNOSTIC_STMT;
+
   /*
     (1): without it, in "CALL some_proc((subq))", subquery would not be
     traced.
@@ -4544,6 +4547,7 @@ create_sp_error:
     /* fall through */
   case SQLCOM_SIGNAL:
   case SQLCOM_RESIGNAL:
+  case SQLCOM_GET_DIAGNOSTICS:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
