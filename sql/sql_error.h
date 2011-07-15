@@ -353,6 +353,14 @@ public:
     return m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR];
   }
 
+  /**
+    The number of conditions (errors, warnings and notes) in the list.
+  */
+  uint cond_count() const
+  {
+    return m_warn_list.elements();
+  }
+
   /** Id of the warning information area. */
   ulonglong warn_id() const { return m_warn_id; }
 
