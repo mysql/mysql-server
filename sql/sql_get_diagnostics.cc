@@ -192,3 +192,150 @@ Statement_information_item::get_value(THD *thd, const Diagnostics_area *da)
   DBUG_RETURN(value);
 }
 
+
+/**
+  Obtain condition information in the context of a given diagnostics area.
+
+  @param thd  The current thread.
+  @param da   The diagnostics area.
+
+  @retval false on success.
+  @retval true on error
+*/
+
+bool
+Condition_information::aggregate(THD *thd, const Diagnostics_area *da)
+{
+  bool rv= false;
+  longlong cond_number;
+  const MYSQL_ERROR *cond= NULL;
+  Condition_information_item *cond_info_item;
+  const Warning_info *wi= da->get_warning_info();
+  Warning_info::Const_iterator it_conds= wi->iterator();
+  List_iterator_fast<Condition_information_item> it_items(*m_items);
+  DBUG_ENTER("Condition_information::aggregate");
+
+  /* Prepare the expression for evaluation. */
+  if (!m_cond_number_expr->fixed &&
+      m_cond_number_expr->fix_fields(thd, &m_cond_number_expr))
+    DBUG_RETURN(true);
+
+  cond_number= m_cond_number_expr->val_int();
+
+  /*
+    Limit to the number of available conditions. Warning_info::warn_count()
+    is not used because it indicates the number of condition regardless of
+    @@max_error_count, which prevents conditions from being pushed, but not
+    counted.
+  */
+  if (cond_number < 1 || (ulonglong) cond_number > wi->cond_count())
+  {
+    my_error(ER_DA_INVALID_CONDITION_NUMBER, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  /* Advance to the requested condition. */
+  while (cond_number--)
+    cond= it_conds++;
+
+  DBUG_ASSERT(cond);
+
+  /* Evaluate the requested information in the context of the condition. */
+  while ((cond_info_item= it_items++))
+  {
+    if ((rv= evaluate(thd, cond_info_item, cond)))
+      break;
+  }
+
+  DBUG_RETURN(rv);
+}
+
+
+/**
+  Create an UTF-8 string item to represent a condition item string.
+
+  @remark The string might not have a associated charset. For example,
+          this can be the case if the server does not or fails to process
+          the error message file.
+
+  @remark See "Design notes about MYSQL_ERROR::m_message_text." in sql_error.cc
+
+  @return Pointer to an string item, NULL on failure.
+*/
+
+Item *
+Condition_information_item::make_utf8_string_item(THD *thd, const String *str)
+{
+  /* If a charset was not set, assume that no conversion is needed. */
+  const CHARSET_INFO *cs= str->charset() ? str->charset() : &my_charset_utf8_bin;
+  Item_string *item= new Item_string(str->ptr(), str->length(), cs);
+  /* If necessary, convert the string (ignoring errors), then copy it over. */
+  return item ? item->charset_converter(&my_charset_utf8_bin, false) : NULL;
+}
+
+
+/**
+  Obtain the value of this condition information item in the context of
+  a given condition.
+
+  @param thd  The current thread.
+  @param da   The diagnostics area.
+
+  @retval Item representing the value.
+  @retval NULL on error.
+*/
+
+Item *
+Condition_information_item::get_value(THD *thd, const MYSQL_ERROR *cond)
+{
+  String str;
+  Item *value= NULL;
+  DBUG_ENTER("Condition_information_item::get_value");
+
+  switch (m_name)
+  {
+  case CLASS_ORIGIN:
+    value= make_utf8_string_item(thd, &(cond->m_class_origin));
+    break;
+  case SUBCLASS_ORIGIN:
+    value= make_utf8_string_item(thd, &(cond->m_subclass_origin));
+    break;
+  case CONSTRAINT_CATALOG:
+    value= make_utf8_string_item(thd, &(cond->m_constraint_catalog));
+    break;
+  case CONSTRAINT_SCHEMA:
+    value= make_utf8_string_item(thd, &(cond->m_constraint_schema));
+    break;
+  case CONSTRAINT_NAME:
+    value= make_utf8_string_item(thd, &(cond->m_constraint_name));
+    break;
+  case CATALOG_NAME:
+    value= make_utf8_string_item(thd, &(cond->m_catalog_name));
+    break;
+  case SCHEMA_NAME:
+    value= make_utf8_string_item(thd, &(cond->m_schema_name));
+    break;
+  case TABLE_NAME:
+    value= make_utf8_string_item(thd, &(cond->m_table_name));
+    break;
+  case COLUMN_NAME:
+    value= make_utf8_string_item(thd, &(cond->m_column_name));
+    break;
+  case CURSOR_NAME:
+    value= make_utf8_string_item(thd, &(cond->m_cursor_name));
+    break;
+  case MESSAGE_TEXT:
+    value= make_utf8_string_item(thd, &(cond->m_message_text));
+    break;
+  case MYSQL_ERRNO:
+    value= new (thd->mem_root) Item_uint(cond->m_sql_errno);
+    break;
+  case RETURNED_SQLSTATE:
+    str.set_ascii(cond->get_sqlstate(), strlen(cond->get_sqlstate()));
+    value= make_utf8_string_item(thd, &str);
+    break;
+  }
+
+  DBUG_RETURN(value);
+}
+

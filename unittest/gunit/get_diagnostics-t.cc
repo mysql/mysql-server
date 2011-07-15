@@ -334,4 +334,58 @@ TEST_F(GetDiagnosticsTest, StatementInformation)
 }
 
 
+// GET DIAGNOSTICS CONDITION 1 @var1 = MYSQL_ERRNO, @var2 = MESSAGE_TEXT;
+TEST_F(GetDiagnosticsTest, ConditionInformation)
+{
+  Item *var;
+  String str;
+  Sql_cmd *cmd;
+  Condition_information *info;
+  Condition_information_item *diag_info_item;
+  List<Condition_information_item> items;
+  MEM_ROOT *mem_root= thd()->mem_root;
+
+  // Pre-existing error
+  my_message_sql(ER_UNKNOWN_ERROR, "Unknown error", MYF(0));
+
+  // Simulate GET DIAGNOSTICS as a new command separated
+  // from the one that generated the error
+  thd()->reset_for_next_command();
+
+  // var1 will receive the value of MYSQL_ERRNO
+  var= new (mem_root) Item_func_get_user_var(var_name1);
+  diag_info_item= new (mem_root)
+    Condition_information_item(Condition_information_item::MYSQL_ERRNO, var);
+  EXPECT_FALSE(items.push_back(diag_info_item));
+
+  // var2 will receive the value of MESSAGE_TEXT
+  var= new (mem_root) Item_func_get_user_var(var_name2);
+  diag_info_item= new (mem_root)
+    Condition_information_item(Condition_information_item::MESSAGE_TEXT, var);
+  EXPECT_FALSE(items.push_back(diag_info_item));
+
+  // condition number (1)
+  var= new (mem_root) Item_uint(1);
+
+  // Information list and command
+  info= new (mem_root) Condition_information(var, &items);
+  info->set_which_da(Diagnostics_information::CURRENT_AREA);
+  cmd= new (mem_root) Sql_cmd_get_diagnostics(info);
+
+  EXPECT_FALSE(cmd->execute(thd()));
+  EXPECT_TRUE(thd()->get_stmt_da()->is_ok());
+
+  // check var1 value
+  var= new (mem_root) Item_func_get_user_var(var_name1);
+  EXPECT_FALSE(var->fix_fields(thd(), &var));
+  EXPECT_EQ(ulonglong (ER_UNKNOWN_ERROR), var->val_uint());
+
+  // check var2 value
+  var= new (mem_root) Item_func_get_user_var(var_name2);
+  EXPECT_FALSE(var->fix_fields(thd(), &var));
+  EXPECT_EQ(&str, var->val_str(&str));
+  EXPECT_STREQ("Unknown error", str.c_ptr_safe());
+}
+
+
 }

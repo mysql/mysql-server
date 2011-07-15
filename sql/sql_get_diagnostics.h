@@ -232,5 +232,89 @@ private:
   List<Statement_information_item> *m_items;
 };
 
+
+/**
+  A condition information item.
+*/
+class Condition_information_item : public Diagnostics_information_item
+{
+public:
+  /**
+    The name of a condition information item.
+  */
+  enum Name
+  {
+    CLASS_ORIGIN,
+    SUBCLASS_ORIGIN,
+    CONSTRAINT_CATALOG,
+    CONSTRAINT_SCHEMA,
+    CONSTRAINT_NAME,
+    CATALOG_NAME,
+    SCHEMA_NAME,
+    TABLE_NAME,
+    COLUMN_NAME,
+    CURSOR_NAME,
+    MESSAGE_TEXT,
+    MYSQL_ERRNO,
+    RETURNED_SQLSTATE
+  };
+
+  /**
+    Constructor, used to represent a condition information item.
+
+    @param name   The name of this item.
+    @param target A target that gets the value of this item.
+  */
+  Condition_information_item(Name name, Item *target)
+    : Diagnostics_information_item(target), m_name(name)
+  {}
+
+  /** Obtain value of this condition information item. */
+  Item *get_value(THD *thd, const MYSQL_ERROR *cond);
+
+private:
+  /** The name of this condition information item. */
+  Name m_name;
+
+  /** Create an string item to represent a condition item string. */
+  Item *make_utf8_string_item(THD *thd, const String *str);
+};
+
+
+/**
+  Condition information.
+
+  @remark Provides information about conditions raised during the
+          execution of a statement.
+*/
+class Condition_information : public Diagnostics_information
+{
+public:
+  /**
+    Constructor, used to represent the condition information of a
+    GET DIAGNOSTICS statement.
+
+    @param cond_number_expr Number that identifies the diagnostic condition.
+    @param items List of requested condition information items.
+  */
+  Condition_information(Item *cond_number_expr,
+                        List<Condition_information_item> *items)
+    : m_cond_number_expr(cond_number_expr), m_items(items)
+  {}
+
+  /** Obtain condition information in the context of a diagnostics area. */
+  bool aggregate(THD *thd, const Diagnostics_area *da);
+
+private:
+  /**
+    Number that identifies the diagnostic condition for which
+    information is to be obtained.
+  */
+  Item *m_cond_number_expr;
+
+  /** List of condition information items. */
+  List<Condition_information_item> *m_items;
+};
+
 #endif
 
