@@ -498,7 +498,7 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "join_cache_incremental=on,"
                                         "join_cache_hashed=on,"
                                         "join_cache_bka=on,"
-                                        "optimize_join_buffer_size=on,"
+                                        "optimize_join_buffer_size=off,"
                                         "table_elimination=on";
                                         ;
 #ifdef SAFEMALLOC
