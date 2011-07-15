@@ -445,7 +445,7 @@ commit;
 select * from t50 where match(s2) against ('VÐƷWİ FGHIJ KLMNO ABCDE' in boolean mode);
 select * from t50;
 drop table t50;
-
+set @@autocommit=1;
 
 --echo "----------Test4---------"
 create table t50 (id int unsigned primary key auto_increment, s2
@@ -468,7 +468,7 @@ select * from t50 where match(s2) against('Rainbows');
 rollback;
 select * from t50;
 drop table t50;
-
+set @@autocommit=1;
 
 --echo "----------Test6---------"
 CREATE TABLE t1 (
@@ -494,6 +494,7 @@ SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aac') DESC;
 SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aab') DESC; 
 
 
+--echo "----------Test7---------"
 select * from t1 where match(a,b) against ('aaa')
 union select * from t1 where match(a,b) against ('aab')
 union select * from t1 where match(a,b) against ('aac');
@@ -504,9 +505,79 @@ select * from t1 where match(a,b) against ('aaa')
 
 DROP TABLE t1;
 
+--echo "----------Test8---------"
+# Create FTS table
+CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ... abcd')  ,
+        ('How To Use MySQL Well','After you went through a q ...abdd'),
+        ('Optimizing MySQL','In this tutorial we will show ...abed');
+
+# Create the FTS index Using Alter Table
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+EVAL SHOW CREATE TABLE t1;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. q ...'),
+        ('MySQL vs. YourSQL use','In the following database comparison ...'),
+        ('MySQL Security','When run configured properly, MySQL ...');
+
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('run');
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('use');
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('went');
+# rows should be matched as 'q' is single char its not indexed
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('run') AND NOT MATCH(a,b) AGAINST ('q');
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('use') AND NOT MATCH(a,b) AGAINST ('q');
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('went') AND NOT MATCH(a,b) AGAINST ('q');
+
+--echo "----------Test9---------"
+CREATE TABLE t2 AS SELECT * FROM t1;
+ALTER TABLE t2 ENGINE=MYISAM;
+CREATE FULLTEXT INDEX i ON t2 (a,b);
+SET @x = (SELECT COUNT(*) FROM t1 WHERE MATCH(a,b) AGAINST ('run'));
+SET @x = @x + (SELECT COUNT(*) FROM t1 WHERE MATCH(a,b) AGAINST ('use'));
+SET @x = @x + (SELECT COUNT(*) FROM t1 WHERE MATCH(a,b) AGAINST ('went'));
+SET @x = @x + (SELECT COUNT(*) FROM t1 WHERE MATCH(a,b) AGAINST ('run'));
+SET @x2 = (SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('run'));
+SET @x2 = @x2 + (SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('use'));
+SET @x2 = @x2 + (SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('went'));
+SET @x2 = @x2 + (SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('run'));
+# Innodb returns value for x which is correct
+SELECT @x, @x2;
+
+
+DROP TABLE t2;
+
+--echo "----------Test10---------"
+CREATE TABLE t2 AS SELECT * FROM t1;
+ALTER TABLE t2 ENGINE=MYISAM;
+CREATE FULLTEXT INDEX i ON t2 (a,b);
+SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('abc*' IN BOOLEAN MODE);
+SELECT COUNT(*) FROM t1 WHERE MATCH(a,b) AGAINST ('abc*' IN BOOLEAN MODE);
+
+DROP TABLE t2;
+
+
+--echo "----------Test11---------"
+CREATE TABLE t2 AS SELECT * FROM t1;
+ALTER TABLE t2 ENGINE = MYISAM;
+CREATE FULLTEXT INDEX i ON t2 (a,b);
+ALTER TABLE t2 ENGINE=InnoDB;
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ('run');
+SELECT COUNT(*) FROM t2 WHERE MATCH(a,b) AGAINST ('abc*' IN BOOLEAN MODE);
+DROP TABLE t2,t1;
+
+
+--echo "----------Test13---------"
 set names utf8;
 
-SET @@AUTOCOMMIT=1;
 CREATE TABLE t1 (s1 INT, s2 VARCHAR(200) CHARACTER SET UTF8 COLLATE UTF8_SPANISH_CI) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX i ON t1 (s2);
 INSERT INTO t1 VALUES (1,'aaCen'),(2,'aaCha'),(3,'aaCio'),(4,'aaçen'),(5,'aaçha'),(6,'aaçio');
@@ -514,7 +585,7 @@ SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('aach*' IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('aaC*' IN BOOLEAN MODE);
 DROP TABLE t1;
 
-SET @@AUTOCOMMIT=1;
+--echo "----------Test14---------"
 CREATE TABLE t1(s1 INT , s2 VARCHAR(100) CHARACTER SET sjis) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX i ON t1 (s2);
 INSERT INTO t1 VALUES (1,'ペペペ'),(2,'テテテ'),(3,'ルルル'),(4,'グググ');
@@ -523,6 +594,7 @@ INSERT INTO t1 VALUES (1,'ペペペ'),(2,'テテテ'),(3,'ルルル'),(4,'ググ
 DROP TABLE t1;
 
 
+--echo "----------Test15---------"
 CREATE TABLE t1 (s1 VARCHAR (60) CHARACTER SET UTF8 COLLATE UTF8_UNICODE_520_CI) ENGINE = MyISAM;
 CREATE FULLTEXT INDEX i ON t1 (s1);
 INSERT INTO t1 VALUES
@@ -538,10 +610,65 @@ SELECT * FROM t2 WHERE MATCH(s1) AGAINST ('LLLL' COLLATE UTF8_UNICODE_520_CI);
 DROP TABLE t1,t2;
 --enable_warnings
 
-SET @@AUTOCOMMIT=1;
+--echo "----------Test16---------"
 CREATE TABLE t1 (s1 INT, s2 VARCHAR(50) CHARACTER SET UTF8) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX i ON t1(s2);
 INSERT INTO t1 VALUES (2, 'ğė Daśi      p          ');
 SELECT * FROM t1 WHERE MATCH(s2) AGAINST ('+p +"ğė Daśi*"' IN BOOLEAN MODE);
 DROP TABLE t1;
 
+
+--echo "----------Test19---------"
+#19 Failure with Boolean quoted search
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,'İóëɠ');
+CREATE FULLTEXT INDEX i ON t1 (char_column);
+SELECT * FROM t1 WHERE MATCH(char_column) AGAINST ('"İóëɠ"' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+--echo "----------Test20---------"
+#20 Crash with utf32 and boolean mode.
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF32, char_column2 VARCHAR(60) character set utf8) ENGINE = InnoDB;
+INSERT INTO t1 (char_column) VALUES ('abcde'),('fghij'),('klmno'),('qrstu');
+UPDATE t1 SET char_column2 = char_column;
+CREATE FULLTEXT INDEX i ON t1 (char_column2);
+#InnoDB: Assertion failure file pars0opt.c line 535
+#SELECT * FROM t1 WHERE MATCH(char_column) AGAINST ('abc*' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+--echo "----------Test22---------"
+# case 22
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,'aaa'),(2,'bbb'),(3,'ccc');
+CREATE FULLTEXT INDEX i ON t1 (char_column);
+# Crash using handler - enable once fixed
+HANDLER t1 OPEN;
+#InnoDB:error assert at row0sel.c line 2377
+#HANDLER t1 READ i = ('aaa');
+DROP TABLE t1;
+#23. Duplicate key error when there are no unique indexes (procedure test)
+#24 Failure after cascading update - already have tests
+
+--echo "----------Test25---------"
+#25 Failure with Croatian boolean truncated search.
+CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8 COLLATE UTF8_CROATIAN_CI) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,'Ǉin'),(2,'ljin'),(3,'lmin'),(4,'ǇǇǇǇǇ');
+CREATE FULLTEXT INDEX i ON t1 (char_column);
+#inndob:error incorrect result correct it after fix
+SELECT * FROM t1 WHERE MATCH (char_column) AGAINST ('lj*' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+#26. Index error when run procedure call from multiple clients
+
+--echo "----------Test27---------"
+#27 Crash after server restart
+CREATE TABLE t1 (id INT,char_column VARCHAR(60));
+SET @@autocommit=0;
+CREATE FULLTEXT INDEX i ON t1 (char_column);
+INSERT INTO t1 values (1,'aaa');
+echo "restart server..."
+# Restart the server
+--source include/restart_mysqld.inc
+DELETE FROM t1 WHERE MATCH(char_column) AGAINST ('bbb');
+SET @@autocommit=1;
+DROP TABLE t1;
