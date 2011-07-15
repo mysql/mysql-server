@@ -2225,8 +2225,8 @@ sub mysqld_client_arguments () {
 
 
 sub have_maria_support () {
-  my $maria_var= $mysqld_variables{'aria'};
-  return defined $maria_var and $maria_var eq 'TRUE';
+  my $maria_var= $mysqld_variables{'aria-recover'};
+  return defined $maria_var;
 }
 
 #

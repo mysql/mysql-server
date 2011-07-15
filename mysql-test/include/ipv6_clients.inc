@@ -1,4 +1,4 @@
---exec $MYSQLADMIN --no-defaults --default-character-set=latin1 -h $IPv6 -P $MASTER_MYPORT  -u root ping 
+--exec $MYSQLADMIN --default-character-set=latin1 -h $IPv6 -P $MASTER_MYPORT  -u root ping 
 --disable_result_log
 --exec $MYSQL_CHECK -h $IPv6 -P $MASTER_MYPORT  -u root test 
 --exec $MYSQL_DUMP -h $IPv6 -P $MASTER_MYPORT  -u root test 

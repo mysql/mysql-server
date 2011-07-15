@@ -191,7 +191,6 @@ drop table t1;
 CREATE TABLE t1 (a int, b int, v varchar(60000)) checksum=1 engine=aria;
 insert into t1 values (1,1,"aaa"),(1,2,null);
 checksum table t1;
-lock table t1 write;
 insert into t1 values (1,3,repeat('c',30000)),(4,4,repeat('a',30000));
 update t1 set v="row5" where b=4;
 delete from t1 where b=3;
@@ -521,6 +520,10 @@ connection default;
 drop table t1, t2;
 
 # End of 5.1 tests
+
+create table t1 (a int) engine=aria;
+lock table t1 write;
+drop table t1;
 
 --disable_result_log
 --disable_query_log
