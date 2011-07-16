@@ -4,6 +4,14 @@
 drop table if exists t1;
 --enable_warnings
 
+#
+# workaround for lp:811438
+# remove when fixed.
+#
+create table t1 (a int);
+insert t1 values (1);
+drop table t1;
+
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 
@@ -41,3 +49,5 @@ commit;
 drop table t1;
 
 # End of 4.1 tests
+drop database pbxt;
+
