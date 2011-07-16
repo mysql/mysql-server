@@ -1363,6 +1363,11 @@ trx_mark_sql_stat_end(
 		/* fall through */
 	case TRX_STATE_ACTIVE:
 		trx->last_sql_stat_start.least_undo_no = trx->undo_no;
+
+		if (trx->fts_trx) {
+			fts_savepoint_laststmt_refresh(trx);
+		}
+
 		return;
 	}
 
