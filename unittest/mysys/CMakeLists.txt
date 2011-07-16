@@ -13,20 +13,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
-                    ${CMAKE_SOURCE_DIR}/sql
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
-                    ${CMAKE_SOURCE_DIR}/unittest/mytap)
+                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
 
-
-MACRO (MY_ADD_TEST name)
-  ADD_EXECUTABLE(${name}-t ${name}-t.c)
-  TARGET_LINK_LIBRARIES(${name}-t mytap mysys strings)
-  ADD_TEST(${name} ${name}-t)
-ENDMACRO()
-
-
-FOREACH(testname bitmap base64 my_vsnprintf my_atomic my_rdtsc lf my_malloc)
-  MY_ADD_TEST(${testname})
-ENDFOREACH()
+MY_ADD_TESTS(bitmap base64 my_vsnprintf my_atomic my_rdtsc lf my_malloc
+             LINK_LIBRARIES mysys)

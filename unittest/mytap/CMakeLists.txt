@@ -15,3 +15,5 @@
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 ADD_LIBRARY(mytap tap.c)
+
+MY_ADD_TESTS(t/basic)

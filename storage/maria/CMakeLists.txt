@@ -87,3 +87,4 @@ ENDIF()
 CMAKE_DEPENDENT_OPTION(USE_ARIA_FOR_TMP_TABLES "Use Aria for temporary tables" ON
                        "WITH_ARIA_STORAGE_ENGINE" OFF)
 
+ADD_SUBDIRECTORY(unittest)

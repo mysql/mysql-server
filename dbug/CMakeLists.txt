@@ -45,9 +45,10 @@ IF(NOT WIN32)
                        COMMAND sed -e 's!\\\\!\\\\\\\\!g'
                        <${CMAKE_CURRENT_SOURCE_DIR}/${srcfile} >${file})
   ENDFOREACH(file)
-  ADD_CUSTOM_COMMAND(OUTPUT tests-t DEPENDS tests-t.pl
-                     COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/tests-t.pl tests-t)
-  ADD_CUSTOM_TARGET(unit ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/tests-t)
+  ADD_CUSTOM_COMMAND(OUTPUT dbug-t DEPENDS tests-t.pl
+                     COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/tests-t.pl dbug-t)
+  ADD_CUSTOM_TARGET(dbug-t ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/dbug-t)                 
+  MY_ADD_TEST(dbug)
 
   IF(GROFF)
     ADD_CUSTOM_COMMAND(OUTPUT user.ps
