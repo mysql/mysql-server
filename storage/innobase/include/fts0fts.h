@@ -478,6 +478,15 @@ fts_savepoint_take(
 	const char*	name);		/* in: savepoint name */
 
 /**********************************************************************//**
+Refresh last statement savepoint.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+void
+fts_savepoint_laststmt_refresh(
+/*===========================*/
+	trx_t*		trx);		/*!< in: transaction */
+
+/**********************************************************************//**
 Release the savepoint data identified by  name. */
 UNIV_INTERN
 void
@@ -522,6 +531,14 @@ fts_savepoint_rollback(
 /*===================*/
 	trx_t*		trx,		/*!< in: transaction */
 	const char*	name);		/*!< in: savepoint name */
+
+/*********************************************************************//**
+Rollback to and including savepoint indentified by name. */
+UNIV_INTERN
+void
+fts_savepoint_rollback_last_stmt(
+/*=============================*/
+	trx_t*		trx);		/*!< in: transaction */
 
 /*************************************************************************
 Drop all orphaned FTS auxiliary tables, those that don't have a parent
@@ -641,6 +658,7 @@ struct fts_trx_struct {
 	ib_vector_t*	savepoints;	/* Active savepoints, must have at
 					least one element, the implied
 					savepoint */
+	ib_vector_t*	last_stmt;	/* last_stmt */
 
 	mem_heap_t*	heap;		/* heap */
 };

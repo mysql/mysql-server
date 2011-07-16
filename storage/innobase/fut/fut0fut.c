@@ -1774,8 +1774,12 @@ fts_trx_create(
 	ftt->savepoints = ib_vector_create(
 		heap_alloc, sizeof(fts_savepoint_t), 4);
 
+	ftt->last_stmt = ib_vector_create(
+		heap_alloc, sizeof(fts_savepoint_t), 4);
+
 	/* Default instance has no name and no heap. */
 	fts_savepoint_create(ftt->savepoints, NULL, NULL);
+	fts_savepoint_create(ftt->last_stmt, NULL, NULL);
 
 	return(ftt);
 }
@@ -1841,20 +1845,15 @@ fts_trx_table_t*
 fts_trx_init(
 /*=========*/
 	trx_t*			trx,		/* in: transaction */
-	dict_table_t*		table)		/* in: FTS table instance */
+	dict_table_t*		table,		/* in: FTS table instance */
+	ib_vector_t*		savepoints)	/* in: Savepoints */
 {
 	fts_trx_table_t*	ftt;
 	ib_rbt_bound_t		parent;
 	ib_rbt_t*		tables;
 	fts_savepoint_t*	savepoint;
 
-	/* Row id found update state, and if new state is FTS_NOTHING,
-	we delete the row from our tree.*/
-	if (!trx->fts_trx) {
-		trx->fts_trx = fts_trx_create(trx);
-	}
-
-	savepoint = ib_vector_last(trx->fts_trx->savepoints);
+	savepoint = ib_vector_last(savepoints);
 
 	tables = savepoint->tables;
 	rbt_search_cmp(tables, &parent, &table->id, fts_trx_table_id_cmp, NULL);
@@ -1931,9 +1930,18 @@ fts_trx_add_op(
 	fts_row_state	state,			/* in: state of the row */
 	ib_vector_t*	fts_indexes)		/* in: FTS indexes affected */
 {
-	fts_trx_table_t*	ftt = fts_trx_init(trx, table);
+	fts_trx_table_t*	tran_ftt;
+	fts_trx_table_t*	stmt_ftt;
 
-	fts_trx_table_add_op(ftt, doc_id, state, fts_indexes);
+	if (!trx->fts_trx) {
+		trx->fts_trx = fts_trx_create(trx);
+	}
+
+	tran_ftt = fts_trx_init(trx, table, trx->fts_trx->savepoints);
+	stmt_ftt = fts_trx_init(trx, table, trx->fts_trx->last_stmt);
+
+	fts_trx_table_add_op(tran_ftt, doc_id, state, fts_indexes);
+	fts_trx_table_add_op(stmt_ftt, doc_id, state, fts_indexes);
 }
 
 /********************************************************************
@@ -2608,7 +2616,6 @@ fts_delete(
 
 		mutex_exit(&table->fts->cache->deleted_lock);
 	}
-
 
 	return(error);
 }
@@ -4042,12 +4049,6 @@ fts_add_doc(
 			table->fts->cache,
 			get_doc->index_cache, doc_id, doc.tokens);
 		rw_lock_x_unlock(&table->fts->cache->lock);
-	} else {
-		/* This can happen where the transaction that added/updated
-		the row was rolled back. */
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Warning: doc id (%lu) not found\n",
-			(ulint) doc_id);
 	}
 
 	fts_doc_free(&doc);
@@ -4924,6 +4925,19 @@ fts_trx_free(
 		fts_savepoint_free(savepoint);
 	}
 
+	for (i = 0; i < ib_vector_size(fts_trx->last_stmt); ++i) {
+		fts_savepoint_t*	savepoint;
+
+		savepoint = ib_vector_get(fts_trx->savepoints, i);
+
+		/* The default savepoint name must be NULL. */
+		if (i == 0) {
+			ut_a(savepoint->name == NULL);
+		}
+
+		fts_savepoint_free(savepoint);
+	}
+
 #ifdef UNIV_DEBUG
 	memset(fts_trx, 0, sizeof(*fts_trx));
 #endif /* UNIV_DEBUG */
@@ -5537,6 +5551,130 @@ fts_savepoint_release(
 		/* This must hold. */
 		ut_a(ib_vector_size(savepoints) == (top_of_stack + 1));
 	}
+}
+
+/**********************************************************************//**
+Refresh last statement savepoint.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+void
+fts_savepoint_laststmt_refresh(
+/*===========================*/
+        trx_t*          trx)            /*!< in: transaction */
+{
+
+	mem_heap_t*             heap;
+	fts_trx_t*              fts_trx;
+	fts_savepoint_t*        savepoint;
+
+	fts_trx = trx->fts_trx;
+	heap = fts_trx->heap;
+
+	savepoint = ib_vector_pop(fts_trx->last_stmt);
+	fts_savepoint_free(savepoint);
+
+	ut_ad(ib_vector_is_empty(fts_trx->last_stmt));
+	savepoint = fts_savepoint_create(fts_trx->last_stmt, NULL, NULL);
+}
+
+/********************************************************************
+Undo the Doc ID add/delete operations in last stmt */
+static
+void
+fts_undo_last_stmt(
+/*===============*/
+	fts_trx_table_t*	s_ftt,	/*!< in: Transaction FTS table */
+	fts_trx_table_t*	l_ftt)	/*!< in: last stmt FTS table */
+{
+	ib_rbt_t*		s_rows;
+	ib_rbt_t*		l_rows;
+	const ib_rbt_node_t*	node;
+
+	l_rows = l_ftt->rows;
+	s_rows = s_ftt->rows;
+
+	for (node = rbt_first(l_rows);
+	     node;
+	     node = rbt_next(l_rows, node)) {
+		fts_trx_row_t*	l_row = rbt_value(fts_trx_row_t, node);
+		ib_rbt_bound_t	parent;
+
+		rbt_search(s_rows, &parent, &(l_row->doc_id));
+
+		if (parent.result == 0) {
+			fts_trx_row_t*	s_row = rbt_value(
+				fts_trx_row_t, parent.last);
+
+			switch (l_row->state) {
+			case FTS_INSERT:
+				ut_free(rbt_remove_node(s_rows, parent.last));
+				break;
+
+			case FTS_DELETE:
+				if (s_row->state == FTS_NOTHING) {
+					s_row->state = FTS_INSERT;	
+				} else if (s_row->state == FTS_DELETE) {
+					ut_free(rbt_remove_node(
+						s_rows, parent.last));
+				}
+				break;
+
+			/* FIXME: Check if FTS_MODIFY need to be addressed */
+			case FTS_MODIFY:
+			case FTS_NOTHING:
+				break;
+			default:
+				ut_error;
+			}
+		}
+	}
+}
+
+/********************************************************************
+Rollback to savepoint indentified by name. */
+UNIV_INTERN
+void
+fts_savepoint_rollback_last_stmt(
+/*=============================*/
+					/* out: DB_SUCCESS or error code */
+	trx_t*		trx)		/* in: transaction */
+{
+	ib_vector_t*		savepoints;
+	fts_savepoint_t*	savepoint;
+	fts_savepoint_t*	last_stmt;
+	fts_trx_t*		fts_trx;
+	ib_rbt_bound_t		parent;
+	const ib_rbt_node_t*    node;
+	ib_rbt_t*		l_tables;
+	ib_rbt_t*		s_tables;
+
+	fts_trx = trx->fts_trx;
+	savepoints = fts_trx->savepoints;
+
+	savepoint = ib_vector_last(savepoints);
+	last_stmt = ib_vector_last(fts_trx->last_stmt);
+
+	l_tables = last_stmt->tables;
+	s_tables = savepoint->tables;
+
+        for (node = rbt_first(l_tables);
+             node;
+             node = rbt_next(l_tables, node)) {
+
+                fts_trx_table_t*	l_ftt;
+                fts_trx_table_t*	s_ftt;
+
+                l_ftt = *rbt_value(fts_trx_table_t*, node);
+
+		rbt_search_cmp(s_tables, &parent, &l_ftt->table->id,
+			       fts_trx_table_id_cmp, NULL);
+
+		if (parent.result == 0) {
+			s_ftt = *rbt_value(fts_trx_table_t*, parent.last);
+
+			fts_undo_last_stmt(s_ftt, l_ftt);
+		}
+        }
 }
 
 /********************************************************************
