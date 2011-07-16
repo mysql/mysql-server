@@ -532,11 +532,11 @@ static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
   second packet?
 */
 #define SSL_HANDSHAKE_SIZE      2
-#define NORMAL_HANDSHAKE_SIZE   6
 #define MIN_HANDSHAKE_SIZE      2
 #else
 #define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#define NORMAL_HANDSHAKE_SIZE   6
 
 static DYNAMIC_ARRAY acl_hosts, acl_users, acl_dbs, acl_proxy_users;
 static MEM_ROOT mem, memex;
