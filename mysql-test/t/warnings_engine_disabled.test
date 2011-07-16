@@ -4,7 +4,7 @@
 #
 if (!`SELECT count(*) FROM information_schema.engines WHERE
       support = 'NO' AND engine = 'innodb'`){
-  skip Needs innodb engine;
+  skip Needs compiled-in and disabled innodb engine;
 }
 
 
