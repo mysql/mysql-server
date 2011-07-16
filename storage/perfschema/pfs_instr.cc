@@ -1785,6 +1785,28 @@ void update_table_derived_flags()
   }
 }
 
+void update_socket_derived_flags()
+{
+  PFS_socket *pfs= socket_array;
+  PFS_socket *pfs_last= socket_array + socket_max;
+  PFS_socket_class *klass;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    klass= sanitize_socket_class(pfs->m_class);
+    if (likely(klass != NULL))
+    {
+      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+      pfs->m_timed= klass->m_timed;
+    }
+    else
+    {
+      pfs->m_enabled= false;
+      pfs->m_timed= false;
+    }
+  }
+}
+
 void update_instruments_derived_flags()
 {
   update_mutex_derived_flags();
@@ -1792,6 +1814,7 @@ void update_instruments_derived_flags()
   update_cond_derived_flags();
   update_file_derived_flags();
   update_table_derived_flags();
+  update_socket_derived_flags();
   /* nothing for stages and statements (no instances) */
 }
 

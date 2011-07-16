@@ -1565,6 +1565,10 @@ init_socket_v1(PSI_socket_key key, const my_socket *fd)
 static void destroy_socket_v1(PSI_socket *socket)
 {
   PFS_socket *pfs= reinterpret_cast<PFS_socket*> (socket);
+
+  if (unlikely(pfs == NULL))
+    return;
+
   destroy_socket(pfs);
 }
 
@@ -2757,17 +2761,14 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(socket_operation_map));
   DBUG_ASSERT(state != NULL);
   PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*> (socket);
-  DBUG_ASSERT(pfs_socket != NULL);
-  DBUG_ASSERT(pfs_socket->m_class != NULL);
-
-  if (!flag_global_instrumentation)
+  if (unlikely(pfs_socket == NULL))
     return NULL;
+  DBUG_ASSERT(pfs_socket->m_class != NULL);
 
   if (pfs_socket->m_idle)
     return NULL;
 
-  PFS_socket_class *klass= pfs_socket->m_class;
-  if (!klass->m_enabled)
+  if (!pfs_socket->m_enabled)
     return NULL;
 
   register uint flags;
@@ -2785,7 +2786,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (klass->m_timed)
+    if (pfs_socket->m_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2804,7 +2805,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_id= parent_event->m_event_type;
       wait->m_thread=       pfs_thread;
-      wait->m_class=        klass;
+      wait->m_class=        pfs_socket->m_class;
       wait->m_timer_start=  0;
       wait->m_timer_end=    0;
       wait->m_object_instance_addr= pfs_socket->m_identity;
@@ -2819,7 +2820,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   }
   else
   {
-    if (klass->m_timed)
+    if (pfs_socket->m_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -2845,7 +2846,6 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       case PSI_SOCKET_CLOSE:
       case PSI_SOCKET_SELECT:
         {
-        PFS_socket *pfs_socket= reinterpret_cast<PFS_socket *>(socket);
         pfs_socket->m_socket_stat.m_io_stat.m_misc.aggregate_counted();
         return NULL;
         }
@@ -4697,6 +4697,8 @@ static void set_socket_state_v1(PSI_socket *socket, PSI_socket_state state)
   DBUG_ASSERT(socket);
   DBUG_ASSERT((state == PSI_SOCKET_STATE_IDLE) || (state == PSI_SOCKET_STATE_ACTIVE));
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
+  if (unlikely(pfs == NULL))
+    return;
   pfs->m_idle= (state == PSI_SOCKET_STATE_IDLE);
 }
 
@@ -4710,6 +4712,9 @@ static void set_socket_info_v1(PSI_socket *socket,
 {
   DBUG_ASSERT(socket);
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
+
+  if (unlikely(pfs == NULL))
+    return;
 
   /** Set socket descriptor */
   if (fd != NULL)
@@ -4737,6 +4742,8 @@ static void set_socket_thread_owner_v1(PSI_socket *socket)
   if (likely(socket != NULL))
   {
     PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*>(socket);
+    if (unlikely(pfs_socket == NULL))
+      return;
     pfs_socket->m_thread_owner= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   }
 }

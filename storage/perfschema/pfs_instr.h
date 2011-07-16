@@ -567,6 +567,8 @@ void update_cond_derived_flags();
 void update_file_derived_flags();
 /** Update derived flags for all table handles. */
 void update_table_derived_flags();
+/** Update derived flags for all socket instances. */
+void update_socket_derived_flags();
 /** Update derived flags for all instruments. */
 void update_instruments_derived_flags();
 

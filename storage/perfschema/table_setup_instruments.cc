@@ -282,6 +282,12 @@ int table_setup_instruments::update_row_values(TABLE *table,
     case pos_setup_instruments::VIEW_STATEMENT:
       /* No flag to update. */
       break;
+    case pos_setup_instruments::VIEW_SOCKET:
+      update_socket_derived_flags();
+      break;
+    case pos_setup_instruments::VIEW_IDLE:
+      /* No flag to update. */
+      break;
     default:
       DBUG_ASSERT(false);
       break;
