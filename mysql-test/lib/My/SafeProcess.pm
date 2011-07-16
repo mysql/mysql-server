@@ -94,7 +94,8 @@ if(defined $ENV{MTR_BINDIR})
 }
 else
 {
-  $bindir = ".";
+  use Cwd;
+  $bindir = getcwd();
 }
 
 

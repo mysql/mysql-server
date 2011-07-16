@@ -6,5 +6,18 @@ package My::Suite;
 sub config_files { () }
 sub servers { () }
 
+sub list_cases {
+  my ($self, $testdir) = @_;
+  opendir(TESTDIR, $testdir) or mtr_error("Can't open dir \"$testdir\": $!");
+  my (@cases) = grep { s/\.test$// } readdir TESTDIR;
+  closedir TESTDIR;
+  @cases;
+}
+
+sub start_test {
+  my ($self, $tinfo)= @_;
+  &::start_mysqltest($tinfo);
+}
+
 bless { };
 

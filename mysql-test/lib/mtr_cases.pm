@@ -125,7 +125,7 @@ sub collect_test_cases ($$$$) {
     foreach my $test_name_spec ( @$opt_cases )
     {
       my $found= 0;
-      my ($sname, $tname, $extension)= split_testname($test_name_spec);
+      my ($sname, $tname)= split_testname($test_name_spec);
       foreach my $test ( @$cases )
       {
 	last unless $opt_reorder;
@@ -205,7 +205,7 @@ sub collect_test_cases ($$$$) {
 }
 
 
-# Returns (suitename, testname, extension)
+# Returns (suitename, testname)
 sub split_testname {
   my ($test_name)= @_;
 
@@ -217,24 +217,19 @@ sub split_testname {
 
   if (@parts == 1){
     # Only testname given, ex: alias
-    return (undef , $parts[0], undef);
+    return (undef , $parts[0]);
   } elsif (@parts == 2) {
     # Either testname.test or suite.testname given
     # Ex. main.alias or alias.test
 
     if ($parts[1] eq "test")
     {
-      return (undef , $parts[0], $parts[1]);
+      return (undef , $parts[0]);
     }
     else
     {
-      return ($parts[0], $parts[1], undef);
+      return ($parts[0], $parts[1]);
     }
-
-  } elsif (@parts == 3) {
-    # Fully specified suitename.testname.test
-    # ex main.alias.test
-    return ( $parts[0], $parts[1], $parts[2]);
   }
 
   mtr_error("Illegal format of test name: $test_name");
@@ -342,80 +337,43 @@ sub collect_one_suite
   my $suite_opts= [ opts_from_file("$testdir/suite.opt") ];
   $suite_opts = [ opts_from_file("$suitedir/suite.opt") ] unless @$suite_opts;
 
+  my (@case_names)= $::suites{$suite}->list_cases($testdir);
+
   if ( @$opt_cases )
   {
+    my (%case_names)= map { $_ => 1 } @case_names;
+    @case_names= ();
+
     # Collect in specified order
     foreach my $test_name_spec ( @$opt_cases )
     {
-      my ($sname, $tname, $extension)= split_testname($test_name_spec);
+      my ($sname, $tname)= split_testname($test_name_spec);
 
-      # The test name parts have now been defined
-      #print "  suite_name: $sname\n";
-      #print "  tname:      $tname\n";
-      #print "  extension:  $extension\n";
-
-      # Check cirrect suite if suitename is defined
+      # Check correct suite if suitename is defined
       next if (defined $sname and $suite ne $sname);
 
-      if ( defined $extension )
+      # Extension was specified, check if the test exists
+      if ( ! $case_names{$tname})
       {
-	my $full_name= "$testdir/$tname.$extension";
-	# Extension was specified, check if the test exists
-        if ( ! -f $full_name)
-        {
-	  # This is only an error if suite was specified, otherwise it
-	  # could exist in another suite
-          mtr_error("Test '$full_name' was not found in suite '$sname'")
-	    if $sname;
+        # This is only an error if suite was specified, otherwise it
+        # could exist in another suite
+        mtr_error("Test '$tname' was not found in suite '$sname'")
+          if $sname;
 
-	  next;
-        }
+        next;
       }
-      else
-      {
-	# No extension was specified, use default
-	$extension= "test";
-	my $full_name= "$testdir/$tname.$extension";
-
-	# Test not found here, could exist in other suite
-	next if ( ! -f $full_name );
-      }
-
-      push(@cases,
-	   collect_one_test_case($suitedir,
-				 $testdir,
-				 $resdir,
-				 $suite,
-				 $tname,
-				 "$tname.$extension",
-				 \%disabled,
-				 $suite_opts));
+      push @case_names, $tname;
     }
   }
-  else
+
+  foreach (@case_names)
   {
-    opendir(TESTDIR, $testdir) or mtr_error("Can't open dir \"$testdir\": $!");
+    # Skip tests that do not match the --do-test= filter
+    next if ($do_test_reg and not $_ =~ /$do_test_reg/o);
 
-    foreach my $elem ( sort readdir(TESTDIR) )
-    {
-      my $tname= mtr_match_extension($elem, 'test');
-
-      next unless defined $tname;
-
-      # Skip tests that does not match the --do-test= filter
-      next if ($do_test_reg and not $tname =~ /$do_test_reg/o);
-
-      push(@cases,
-	   collect_one_test_case($suitedir,
-				 $testdir,
-				 $resdir,
-				 $suite,
-				 $tname,
-				 $elem,
-				 \%disabled,
-				 $suite_opts));
-    }
-    closedir TESTDIR;
+    push(@cases, collect_one_test_case($suitedir, $testdir, $resdir,
+                                       $suite, $_, "$_.test", \%disabled,
+                                       $suite_opts));
   }
 
   #  Return empty list if no testcases found
@@ -748,7 +706,7 @@ sub collect_one_test_case {
   if ( $start_from && 0)
   {
     # start_from can be specified as [suite.].testname_prefix
-    my ($suite, $test, $ext)= split_testname($start_from);
+    my ($suite, $test)= split_testname($start_from);
 
     if ( $suite and $suitename lt $suite){
       return; # Skip silently
@@ -1032,26 +990,6 @@ sub collect_one_test_case {
     $tinfo->{template_path}= $config;
   }
 
-  if ( $tinfo->{'example_plugin_test'} )
-  {
-    if ( !$ENV{'HA_EXAMPLE_SO'} )
-    {
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Test requires the 'example' plugin";
-      return $tinfo;
-    }
-  }
-
-  if ( $tinfo->{'oqgraph_test'} )
-  {
-    if ( !$ENV{'GRAPH_ENGINE_SO'} )
-    {
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Test requires the OQGraph storage engine";
-      return $tinfo;
-    }
-  }
-
   if (not ref $::suites{$tinfo->{suite}})
   {
     $tinfo->{'skip'}= 1;
@@ -1093,16 +1031,18 @@ my @tags=
  ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],
  ["include/not_valgrind.inc", "not_valgrind", 1],
- ["include/have_example_plugin.inc", "example_plugin_test", 1],
- ["include/have_oqgraph_engine.inc", "oqgraph_test", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
  ["include/check_ipv6.inc", "need_ipv6", 1],
 );
 
 
 sub tags_from_test_file {
+
   my $tinfo= shift;
   my $file= shift;
+
+  return unless -f $file;
+
   #mtr_verbose("$file");
   my $F= IO::File->new($file) or mtr_error("can't open file \"$file\": $!");
   my @all_files=($file);
