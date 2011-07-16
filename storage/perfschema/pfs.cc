@@ -2765,10 +2765,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     return NULL;
   DBUG_ASSERT(pfs_socket->m_class != NULL);
 
-  if (pfs_socket->m_idle)
-    return NULL;
-
-  if (!pfs_socket->m_enabled)
+  if (pfs_socket->m_idle || !pfs_socket->m_enabled)
     return NULL;
 
   register uint flags;
