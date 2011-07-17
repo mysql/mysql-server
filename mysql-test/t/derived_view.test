@@ -582,3 +582,21 @@ SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
 
 DROP VIEW v1;
 DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug #794901: insert into a multi-table view           
+--echo #
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+
+CREATE VIEW v1 AS SELECT t1.a FROM t1,t2;
+CREATE VIEW v2 AS SELECT a FROM t2 GROUP BY a;
+CREATE VIEW v3 AS SELECT v1.a FROM v1,v2;
+
+-- error ER_NON_INSERTABLE_TABLE
+INSERT INTO v3(a) VALUES (1);
+
+DROP VIEW v1,v2,v3;
+DROP TABLE t1,t2,t3;

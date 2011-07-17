@@ -13033,7 +13033,7 @@ void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
 */
 
 TABLE *
-create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
+create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
 		 ulonglong select_options, ha_rows rows_limit,
                  char *table_alias, bool do_not_open)

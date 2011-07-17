@@ -637,6 +637,12 @@ public:
     tables. Unlike 'next_local', this in this list views are *not*
     leaves. Created in setup_tables() -> make_leaves_list().
   */
+  /* 
+    Subqueries that will need to be converted to semi-join nests, including
+    those converted to jtbm nests. The list is emptied when conversion is done.
+  */
+  List<Item_in_subselect> sj_subselects;
+
   List<TABLE_LIST> leaf_tables;
   List<TABLE_LIST> leaf_tables_exec;
   List<TABLE_LIST> leaf_tables_prep;
@@ -886,7 +892,7 @@ public:
   void remove_table_from_list(TABLE_LIST *table);
   void remap_tables(TABLE_LIST *derived, table_map map,
                     uint tablenr, st_select_lex *parent_lex);
-  bool merge_subquery(TABLE_LIST *derived, st_select_lex *subq_lex,
+  bool merge_subquery(THD *thd, TABLE_LIST *derived, st_select_lex *subq_lex,
                       uint tablenr, table_map map);
   inline bool is_mergeable()
   {

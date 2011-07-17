@@ -177,8 +177,8 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs);
 static bool replace_where_subcondition(JOIN *join, Item **expr, 
                                        Item *old_cond, Item *new_cond,
                                        bool do_fix_fields);
-static int subq_sj_candidate_cmp(Item_in_subselect* const *el1, 
-                                 Item_in_subselect* const *el2);
+static int subq_sj_candidate_cmp(Item_in_subselect* el1, Item_in_subselect* el2,
+                                 void *arg);
 static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred);
 static bool convert_subq_to_jtbm(JOIN *parent_join, 
                                  Item_in_subselect *subq_pred, bool *remove);
@@ -357,8 +357,15 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       in_subs->is_flattenable_semijoin= TRUE;
 
       /* Register the subquery for further processing in flatten_subqueries() */
-      select_lex->
-        outer_select()->join->sj_subselects.append(thd->mem_root, in_subs);
+      if (!in_subs->is_registered_semijoin)
+      {
+        Query_arena *arena, backup;
+        arena= thd->activate_stmt_arena_if_needed(&backup);
+        select_lex->outer_select()->sj_subselects.push_back(in_subs);
+        if (arena)
+          thd->restore_active_arena(arena, &backup);
+        in_subs->is_registered_semijoin= TRUE;
+      }
     }
     else
     {
@@ -405,7 +412,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
                condition also excludes multi-table update statements.
         A note about prepared statements: we want the if-branch to be taken on
         PREPARE and each EXECUTE. The rewrites are only done once, but we need 
-        join->sj_subselects list to be populated for every EXECUTE. 
+        select_lex->sj_subselects list to be populated for every EXECUTE. 
 
         */
         if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION) &&      // 0
@@ -432,8 +439,15 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
           {
             in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
             in_subs->is_flattenable_semijoin= FALSE;
-            select_lex->outer_select()->
-              join->sj_subselects.append(thd->mem_root, in_subs);
+            if (!in_subs->is_registered_semijoin)
+	    {
+              Query_arena *arena, backup;
+              arena= thd->activate_stmt_arena_if_needed(&backup);
+              select_lex->outer_select()->sj_subselects.push_back(in_subs);
+              if (arena)
+                thd->restore_active_arena(arena, &backup);
+              in_subs->is_registered_semijoin= TRUE;
+            }
           }
         }
 
@@ -731,21 +745,19 @@ bool check_for_outer_joins(List<TABLE_LIST> *join_list)
 bool convert_join_subqueries_to_semijoins(JOIN *join)
 {
   Query_arena *arena, backup;
-  Item_in_subselect **in_subq;
-  Item_in_subselect **in_subq_end;
+  Item_in_subselect *in_subq;
   THD *thd= join->thd;
   List_iterator<TABLE_LIST> ti(join->select_lex->leaf_tables);
   DBUG_ENTER("convert_join_subqueries_to_semijoins");
 
-  if (join->sj_subselects.elements() == 0)
+  if (join->select_lex->sj_subselects.is_empty())
     DBUG_RETURN(FALSE);
 
-  for (in_subq= join->sj_subselects.front(), 
-       in_subq_end= join->sj_subselects.back(); 
-       in_subq != in_subq_end; 
-       in_subq++)
+  List_iterator_fast<Item_in_subselect> li(join->select_lex->sj_subselects);
+
+  while ((in_subq= li++))
   {
-    SELECT_LEX *subq_sel= (*in_subq)->get_select_lex();
+    SELECT_LEX *subq_sel= in_subq->get_select_lex();
     if (subq_sel->handle_derived(thd->lex, DT_OPTIMIZE))
       DBUG_RETURN(1);
     if (subq_sel->handle_derived(thd->lex, DT_MERGE))
@@ -753,13 +765,11 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
     subq_sel->update_used_tables();
   }
 
+  li.rewind();
   /* First, convert child join's subqueries. We proceed bottom-up here */
-  for (in_subq= join->sj_subselects.front(), 
-       in_subq_end= join->sj_subselects.back(); 
-       in_subq != in_subq_end; 
-       in_subq++)
+  while ((in_subq= li++)) 
   {
-    st_select_lex *child_select= (*in_subq)->get_select_lex();
+    st_select_lex *child_select= in_subq->get_select_lex();
     JOIN *child_join= child_select->join;
     child_join->outer_tables = child_join->table_count;
 
@@ -773,9 +783,9 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
 
     if (convert_join_subqueries_to_semijoins(child_join))
       DBUG_RETURN(TRUE);
-    (*in_subq)->sj_convert_priority= 
-      test((*in_subq)->emb_on_expr_nest != NO_JOIN_NEST) * MAX_TABLES * 2 +
-      (*in_subq)->is_correlated * MAX_TABLES + child_join->outer_tables;
+    in_subq->sj_convert_priority= 
+      test(in_subq->emb_on_expr_nest != NO_JOIN_NEST) * MAX_TABLES * 2 +
+      in_subq->is_correlated * MAX_TABLES + child_join->outer_tables;
   }
   
   // Temporary measure: disable semi-joins when they are together with outer
@@ -783,7 +793,7 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
 #if 0  
   if (check_for_outer_joins(join->join_list))
   {
-    in_subq= join->sj_subselects.front();
+    in_subq= join->select_lex->sj_subselects.head();
     arena= thd->activate_stmt_arena_if_needed(&backup);
     goto skip_conversion;
   }
@@ -795,41 +805,41 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
       - prefer correlated subqueries over uncorrelated;
       - prefer subqueries that have greater number of outer tables;
   */
-  join->sj_subselects.sort(subq_sj_candidate_cmp);
+  bubble_sort<Item_in_subselect>(&join->select_lex->sj_subselects,
+				 subq_sj_candidate_cmp, NULL);
   // #tables-in-parent-query + #tables-in-subquery < MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
   arena= thd->activate_stmt_arena_if_needed(&backup);
  
-  for (in_subq= join->sj_subselects.front(); 
-       in_subq != in_subq_end;
-       in_subq++)
+  li.rewind();
+  while ((in_subq= li++))
   {
     bool remove_item= TRUE;
 
     /* Stop processing if we've reached a subquery that's attached to the ON clause */
-    if ((*in_subq)->emb_on_expr_nest != NO_JOIN_NEST)
+    if (in_subq->emb_on_expr_nest != NO_JOIN_NEST)
       break;
 
-    if ((*in_subq)->is_flattenable_semijoin) 
+    if (in_subq->is_flattenable_semijoin) 
     {
       if (join->table_count + 
-          (*in_subq)->unit->first_select()->join->table_count >= MAX_TABLES)
+          in_subq->unit->first_select()->join->table_count >= MAX_TABLES)
         break;
-      if (convert_subq_to_sj(join, *in_subq))
+      if (convert_subq_to_sj(join, in_subq))
         DBUG_RETURN(TRUE);
     }
     else
     {
       if (join->table_count + 1 >= MAX_TABLES)
         break;
-      if (convert_subq_to_jtbm(join, *in_subq, &remove_item))
+      if (convert_subq_to_jtbm(join, in_subq, &remove_item))
         DBUG_RETURN(TRUE);
     }
     if (remove_item)
     {
-      Item **tree= ((*in_subq)->emb_on_expr_nest == NO_JOIN_NEST)?
-                     &join->conds : &((*in_subq)->emb_on_expr_nest->on_expr);
-      Item *replace_me= (*in_subq)->original_item();
+      Item **tree= (in_subq->emb_on_expr_nest == NO_JOIN_NEST)?
+                     &join->conds : &(in_subq->emb_on_expr_nest->on_expr);
+      Item *replace_me= in_subq->original_item();
       if (replace_where_subcondition(join, tree, replace_me, new Item_int(1),
                                      FALSE))
         DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -840,34 +850,34 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
     3. Finalize (perform IN->EXISTS rewrite) the subqueries that we didn't
     convert:
   */
-  for (; in_subq!= in_subq_end; in_subq++)
+  while (in_subq)
   {
-    JOIN *child_join= (*in_subq)->unit->first_select()->join;
-    (*in_subq)->changed= 0;
-    (*in_subq)->fixed= 0;
+    JOIN *child_join= in_subq->unit->first_select()->join;
+    in_subq->changed= 0;
+    in_subq->fixed= 0;
 
     SELECT_LEX *save_select_lex= thd->lex->current_select;
-    thd->lex->current_select= (*in_subq)->unit->first_select();
+    thd->lex->current_select= in_subq->unit->first_select();
 
-    bool res= (*in_subq)->select_transformer(child_join);
+    bool res= in_subq->select_transformer(child_join);
 
     thd->lex->current_select= save_select_lex;
 
     if (res)
       DBUG_RETURN(TRUE);
 
-    (*in_subq)->changed= 1;
-    (*in_subq)->fixed= 1;
+    in_subq->changed= 1;
+    in_subq->fixed= 1;
 
-    Item *substitute= (*in_subq)->substitution;
-    bool do_fix_fields= !(*in_subq)->substitution->fixed;
-    Item **tree= ((*in_subq)->emb_on_expr_nest == NO_JOIN_NEST)?
-                   &join->conds : &((*in_subq)->emb_on_expr_nest->on_expr);
-    Item *replace_me= (*in_subq)->original_item();
+    Item *substitute= in_subq->substitution;
+    bool do_fix_fields= !in_subq->substitution->fixed;
+    Item **tree= (in_subq->emb_on_expr_nest == NO_JOIN_NEST)?
+                   &join->conds : &(in_subq->emb_on_expr_nest->on_expr);
+    Item *replace_me= in_subq->original_item();
     if (replace_where_subcondition(join, tree, replace_me, substitute, 
                                    do_fix_fields))
       DBUG_RETURN(TRUE);
-    (*in_subq)->substitution= NULL;
+    in_subq->substitution= NULL;
 #if 0
     /* 
       Don't do the following, because the simplify_join() call is after this
@@ -881,9 +891,9 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
     */
     if (!thd->stmt_arena->is_conventional())
     {
-      tree= ((*in_subq)->emb_on_expr_nest == NO_JOIN_NEST)?
+      tree= (in_subq->emb_on_expr_nest == NO_JOIN_NEST)?
              &join->select_lex->prep_where : 
-             &((*in_subq)->emb_on_expr_nest->prep_on_expr);
+             &(in_subq->emb_on_expr_nest->prep_on_expr);
 
       if (replace_where_subcondition(join, tree, replace_me, substitute, 
                                      FALSE))
@@ -898,12 +908,13 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
       re-run the test for materialization that was done in
       check_and_do_in_subquery_rewrites.
     */
-    (*in_subq)->in_strategy= SUBS_IN_TO_EXISTS;
+    in_subq->in_strategy= SUBS_IN_TO_EXISTS;
+    in_subq= li++;
   }
 
   if (arena)
     thd->restore_active_arena(arena, &backup);
-  join->sj_subselects.clear();
+  join->select_lex->sj_subselects.empty();
   DBUG_RETURN(FALSE);
 }
 
@@ -1004,11 +1015,11 @@ static bool replace_where_subcondition(JOIN *join, Item **expr,
   return TRUE;
 }
 
-static int subq_sj_candidate_cmp(Item_in_subselect* const *el1, 
-                                 Item_in_subselect* const *el2)
+static int subq_sj_candidate_cmp(Item_in_subselect* el1, Item_in_subselect* el2,
+                                 void *arg)
 {
-  return ((*el1)->sj_convert_priority < (*el2)->sj_convert_priority) ? 1 : 
-         ( ((*el1)->sj_convert_priority == (*el2)->sj_convert_priority)? 0 : -1);
+  return (el1->sj_convert_priority > el2->sj_convert_priority) ? 1 : 
+         ( (el1->sj_convert_priority == el2->sj_convert_priority)? 0 : -1);
 }
 
 

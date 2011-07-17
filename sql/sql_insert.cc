@@ -135,7 +135,7 @@ bool check_view_single_update(List<Item> &fields, List<Item> *values,
     A buffer for the insert values was allocated for the merged view.
     Use it.
   */
-  //tbl->table->insert_values= view->table->insert_values;
+  tbl->table->insert_values= view->table->insert_values;
   view->table= tbl->table;
   *map= tables;
 

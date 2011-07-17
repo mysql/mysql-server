@@ -346,10 +346,17 @@ bool mysql_derived_merge(THD *thd, LEX *lex, TABLE_LIST *derived)
   if (derived->merged)
     return FALSE;
 
+ if (thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
+     thd->lex->sql_command == SQLCOM_DELETE_MULTI)
+   thd->save_prep_leaf_list= TRUE;
+
   arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
   derived->merged= TRUE;
 
-  if (!derived->merged_for_insert)
+  if (!derived->merged_for_insert || 
+      (derived->is_multitable() && 
+       (thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
+        thd->lex->sql_command == SQLCOM_DELETE_MULTI)))
   {
     /*
       Check whether there is enough free bits in table map to merge subquery.
@@ -392,7 +399,7 @@ bool mysql_derived_merge(THD *thd, LEX *lex, TABLE_LIST *derived)
     }
 
     /* Merge derived table's subquery in the parent select. */
-    if (parent_lex->merge_subquery(derived, dt_select, tablenr, map))
+    if (parent_lex->merge_subquery(thd, derived, dt_select, tablenr, map))
     {
       res= TRUE;
       goto exit_merge;
@@ -468,8 +475,6 @@ exit_merge:
 
 bool mysql_derived_merge_for_insert(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
-  SELECT_LEX *dt_select= derived->get_single_select();
-
   if (derived->merged_for_insert)
     return FALSE;
   if (derived->is_materialized_derived())
@@ -482,43 +487,13 @@ bool mysql_derived_merge_for_insert(THD *thd, LEX *lex, TABLE_LIST *derived)
   {
     if (!derived->updatable)
       return derived->create_field_translation(thd);
-    TABLE_LIST *tl=((TABLE_LIST*)dt_select->table_list.first);
-    TABLE *table= tl->table;
-    /* preserve old map & tablenr. */
-    if (!derived->merged_for_insert && derived->table)
-      table->set_table_map(derived->table->map, derived->table->tablenr);
-
-    derived->table= table;
-    derived->schema_table=
-      ((TABLE_LIST*)dt_select->table_list.first)->schema_table;
-    if (!derived->merged)
+    if (derived->merge_underlying_list)
     {
-      Query_arena *arena, backup;
-      arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
-      derived->select_lex->leaf_tables.push_back(tl);
-      derived->nested_join= (NESTED_JOIN*) thd->calloc(sizeof(NESTED_JOIN));
-      if (derived->nested_join)
-      {
-        derived->wrap_into_nested_join(tl->select_lex->top_join_list);
-        derived->get_unit()->exclude_level(); 
-      }
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
-      derived->merged= TRUE;
-      if (!derived->nested_join)
-        return TRUE;
-    }      
-  }
-  else
-  {
-    if (thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
-        thd->lex->sql_command == SQLCOM_DELETE_MULTI)
-      thd->save_prep_leaf_list= TRUE;
-    if (!derived->merged_for_insert && mysql_derived_merge(thd, lex, derived))
-      return TRUE;
-  }
-  derived->merged_for_insert= TRUE;
-
+      derived->table= derived->merge_underlying_list->table;
+      derived->schema_table= derived->merge_underlying_list->schema_table;
+      derived->merged_for_insert= TRUE;
+    }
+  }  
   return FALSE;
 }
 

@@ -603,9 +603,11 @@ int mysql_multi_delete_prepare(THD *thd)
                                     &thd->lex->select_lex.top_join_list,
                                     lex->query_tables,
                                     lex->select_lex.leaf_tables, FALSE, 
-                                    DELETE_ACL, SELECT_ACL, TRUE))
+                                    DELETE_ACL, SELECT_ACL, FALSE))
     DBUG_RETURN(TRUE);
 
+  if (lex->select_lex.handle_derived(thd->lex, DT_MERGE))  
+    DBUG_RETURN(TRUE);
 
   /*
     Multi-delete can't be constructed over-union => we always have

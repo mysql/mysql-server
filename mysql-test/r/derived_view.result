@@ -1003,3 +1003,16 @@ Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a`,0 AS `a`,0 AS `b` from `test`.`t1` left join `test`.`t2` on((0 <> 0)) where <expr_cache><0>(<in_optimizer>(0,<exists>(select 0 from `test`.`t1` where (<cache>(0) = 0))))
 DROP VIEW v1;
 DROP TABLE t1,t2;
+#
+# LP bug #794901: insert into a multi-table view           
+#
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+CREATE VIEW v1 AS SELECT t1.a FROM t1,t2;
+CREATE VIEW v2 AS SELECT a FROM t2 GROUP BY a;
+CREATE VIEW v3 AS SELECT v1.a FROM v1,v2;
+INSERT INTO v3(a) VALUES (1);
+ERROR HY000: The target table v3 of the INSERT is not insertable-into
+DROP VIEW v1,v2,v3;
+DROP TABLE t1,t2,t3;
