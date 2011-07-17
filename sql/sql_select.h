@@ -966,11 +966,6 @@ public:
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
   bool initialized; ///< flag to avoid double init_execution calls
 
-  /* 
-    Subqueries that will need to be converted to semi-join nests, including
-    those converted to jtbm nests. The list is emptied when conversion is done.
-  */
-  Array<Item_in_subselect> sj_subselects;
   /*
     Additional WHERE and HAVING predicates to be considered for IN=>EXISTS
     subquery transformation of a JOIN object.
@@ -1000,7 +995,7 @@ public:
 
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
-    :fields_list(fields_arg), sj_subselects(thd_arg->mem_root, 4)
+    :fields_list(fields_arg)
   {
     init(thd_arg, fields_arg, select_options_arg, result_arg);
   }

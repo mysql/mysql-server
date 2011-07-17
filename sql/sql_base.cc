@@ -7794,9 +7794,18 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
   if (select_lex->first_cond_optimization)
   {
     leaves.empty();
-    select_lex->leaf_tables_exec.empty();
-    make_leaves_list(leaves, tables, full_table_list, first_select_table);
- 
+    if (!select_lex->is_prep_leaf_list_saved)
+    {
+      make_leaves_list(leaves, tables, full_table_list, first_select_table);
+      select_lex->leaf_tables_exec.empty();
+    }
+    else
+    {
+      List_iterator_fast <TABLE_LIST> ti(select_lex->leaf_tables_prep);
+      while ((table_list= ti++))
+        leaves.push_back(table_list);
+    }
+      
     while ((table_list= ti++))
     {
       TABLE *table= table_list->table;

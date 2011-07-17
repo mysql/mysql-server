@@ -248,6 +248,7 @@ int mysql_update(THD *thd,
       DBUG_RETURN(1);
     close_tables_for_reopen(thd, &table_list);
   }
+
   if (table_list->handle_derived(thd->lex, DT_MERGE_FOR_INSERT))
     DBUG_RETURN(1);
   if (table_list->handle_derived(thd->lex, DT_PREPARE))
@@ -1037,9 +1038,10 @@ reopen_tables:
     second time, but this call will do nothing (there are check for second
     call in setup_tables()).
   */
+
   //We need to merge for insert prior to prepare.
-  if (mysql_handle_list_of_derived(lex, table_list, DT_MERGE_FOR_INSERT))
-    DBUG_RETURN(1);
+  if (mysql_handle_derived(lex, DT_MERGE_FOR_INSERT))
+    DBUG_RETURN(TRUE);
   if (mysql_handle_derived(lex, DT_PREPARE))
     DBUG_RETURN(TRUE);
 
@@ -1047,7 +1049,10 @@ reopen_tables:
                                     &lex->select_lex.top_join_list,
                                     table_list,
                                     lex->select_lex.leaf_tables, FALSE,
-                                    UPDATE_ACL, SELECT_ACL, TRUE))
+                                    UPDATE_ACL, SELECT_ACL, FALSE))
+    DBUG_RETURN(TRUE);
+
+  if (lex->select_lex.handle_derived(thd->lex, DT_MERGE))  
     DBUG_RETURN(TRUE);
 
   if (setup_fields_with_no_wrap(thd, 0, *fields, MARK_COLUMNS_WRITE, 0, 0))
@@ -1237,6 +1242,9 @@ reopen_tables:
     further check in multi_update::prepare whether to use record cache.
   */
   lex->select_lex.exclude_from_table_unique_test= FALSE;
+
+  if (lex->select_lex.save_prep_leaf_tables(thd))
+    DBUG_RETURN(TRUE);
  
   DBUG_RETURN (FALSE);
 }
@@ -1329,13 +1337,6 @@ int multi_update::prepare(List<Item> &not_used_values,
   thd->count_cuted_fields= CHECK_FIELD_WARN;
   thd->cuted_fields=0L;
   thd_proc_info(thd, "updating main table");
-
-  SELECT_LEX *select_lex= lex_unit->first_select();
-  if (select_lex->first_cond_optimization)
-  {
-    if (select_lex->handle_derived(thd->lex, DT_MERGE))
-      DBUG_RETURN(TRUE);
-  }
 
   tables_to_update= get_table_map(fields);
 

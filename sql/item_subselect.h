@@ -459,6 +459,11 @@ public:
   bool is_flattenable_semijoin;
 
   /*
+    TRUE<=>registered in the list of semijoins in outer select
+  */
+  bool is_registered_semijoin;
+
+  /*
     Used to determine how this subselect item is represented in the item tree,
     in case there is a need to locate it there and replace with something else.
     Two options are possible:

@@ -1146,7 +1146,8 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
   optimizer(0), pushed_cond_guards(NULL), in_strategy(0),
-  is_jtbm_merged(FALSE), is_flattenable_semijoin(FALSE), 
+  is_jtbm_merged(FALSE), is_flattenable_semijoin(FALSE),
+  is_registered_semijoin(FALSE), 
   upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");

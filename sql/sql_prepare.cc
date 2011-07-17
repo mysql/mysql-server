@@ -1269,8 +1269,9 @@ static int mysql_test_update(Prepared_statement *stmt,
     thd->fill_derived_tables() is false here for sure (because it is
     preparation of PS, so we even do not check it).
   */
-  if (table_list->handle_derived(thd->lex, DT_MERGE_FOR_INSERT) ||
-      table_list->handle_derived(thd->lex, DT_PREPARE))
+  if (table_list->handle_derived(thd->lex, DT_MERGE_FOR_INSERT))
+    goto error;
+  if (table_list->handle_derived(thd->lex, DT_PREPARE))
     goto error;
 
   if (!table_list->updatable)
@@ -1340,9 +1341,11 @@ static bool mysql_test_delete(Prepared_statement *stmt,
       open_tables(thd, &table_list, &table_count, 0))
     goto error;
 
-  if (mysql_handle_derived(thd->lex, DT_INIT) ||
-      mysql_handle_list_of_derived(thd->lex, table_list, DT_MERGE_FOR_INSERT) ||
-      mysql_handle_list_of_derived(thd->lex, table_list, DT_PREPARE))
+  if (mysql_handle_derived(thd->lex, DT_INIT))
+    goto error;
+  if (mysql_handle_derived(thd->lex, DT_MERGE_FOR_INSERT))
+    goto error;
+  if (mysql_handle_derived(thd->lex, DT_PREPARE))
     goto error;
 
   if (!table_list->updatable)
