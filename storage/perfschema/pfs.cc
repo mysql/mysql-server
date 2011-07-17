@@ -2777,7 +2777,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     if (unlikely(pfs_thread == NULL))
       return NULL;
 
-    if (! pfs_thread->m_enabled)
+    if (!pfs_thread->m_enabled)
       return NULL;
 
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
@@ -3028,10 +3028,10 @@ start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_
 {
   DBUG_ASSERT(state != NULL);
 
-  if (! flag_global_instrumentation)
+  if (!flag_global_instrumentation)
     return NULL;
 
-  if (! global_idle_class.m_enabled)
+  if (!global_idle_class.m_enabled)
     return NULL;
 
   register uint flags= 0;
@@ -3042,14 +3042,14 @@ start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_
     PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
     if (unlikely(pfs_thread == NULL))
       return NULL;
-    if (! pfs_thread->m_enabled)
+    if (!pfs_thread->m_enabled)
       return NULL;
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
     if (global_idle_class.m_timed)
     {
-      timer_start= get_timer_raw_value_and_function(idle_timer, & state->m_timer);
+      timer_start= get_timer_raw_value_and_function(idle_timer, &state->m_timer);
       state->m_timer_start= timer_start;
       flags|= STATE_FLAG_TIMED;
     }
@@ -3070,7 +3070,7 @@ start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_
 #endif
 
       wait->m_thread= pfs_thread;
-      wait->m_class= & global_idle_class;
+      wait->m_class= &global_idle_class;
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
       wait->m_event_id= pfs_thread->m_event_id++;
@@ -3086,7 +3086,7 @@ start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_
   {
     if (global_idle_class.m_timed)
     {
-      timer_start= get_timer_raw_value_and_function(idle_timer, & state->m_timer);
+      timer_start= get_timer_raw_value_and_function(idle_timer, &state->m_timer);
       state->m_timer_start= timer_start;
       flags= STATE_FLAG_TIMED;
     }
