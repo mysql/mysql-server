@@ -256,6 +256,5 @@ drop table mysql.ndb_replication;
 --connection master
 stop slave;
 reset slave;
-change master to master_host='';
 
 --source include/rpl_end.inc
