@@ -866,7 +866,8 @@ fil_node_close_file(
 	ut_a(node->open);
 	ut_a(node->n_pending == 0 || node->space->is_being_deleted);
 	ut_a(node->n_pending_flushes == 0);
-	ut_a(node->modification_counter == node->flush_counter);
+	ut_a(node->modification_counter == node->flush_counter
+	     || srv_fast_shutdown == 2);
 
 	ret = os_file_close(node->handle);
 	ut_a(ret);
@@ -2628,7 +2629,7 @@ retry:
 
 		os_thread_sleep(20000);
 
-		fil_flush(id);
+		fil_flush(id, TRUE);
 
 		goto retry;
 
@@ -2842,7 +2843,7 @@ error_exit2:
 		goto error_exit;
 	}
 
-	ret = os_file_flush(file);
+	ret = os_file_flush(file, TRUE);
 
 	if (!ret) {
 		fputs("InnoDB: Error: file flush of tablespace ", stderr);
@@ -3028,7 +3029,7 @@ fil_reset_too_high_lsns(
 		}
 	}
 
-	success = os_file_flush(file);
+	success = os_file_flush(file, TRUE);
 	if (!success) {
 
 		goto func_exit;
@@ -3050,7 +3051,7 @@ fil_reset_too_high_lsns(
 
 		goto func_exit;
 	}
-	success = os_file_flush(file);
+	success = os_file_flush(file, TRUE);
 func_exit:
 	os_file_close(file);
 	ut_free(buf2);
@@ -4838,7 +4839,7 @@ fil_extend_space_to_desired_size(
 	mutex_exit(&fil_system->mutex);
 	mutex_exit(&fil_system->file_extend_mutex);
 
-	fil_flush(space_id);
+	fil_flush(space_id, TRUE);
 
 	return(success);
 }
@@ -5550,8 +5551,9 @@ UNIV_INTERN
 void
 fil_flush(
 /*======*/
-	ulint	space_id)	/*!< in: file space id (this can be a group of
+	ulint	space_id,	/*!< in: file space id (this can be a group of
 				log files or a tablespace of the database) */
+	ibool	metadata)
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
@@ -5622,7 +5624,7 @@ retry:
 			/* fprintf(stderr, "Flushing to file %s\n",
 			node->name); */
 
-			os_file_flush(file);
+			os_file_flush(file, metadata);
 
 			mutex_enter(&fil_system->mutex);
 
@@ -5705,7 +5707,7 @@ fil_flush_file_spaces(
 	a non-existing space id. */
 	for (i = 0; i < n_space_ids; i++) {
 
-		fil_flush(space_ids[i]);
+		fil_flush(space_ids[i], TRUE);
 	}
 
 	mem_free(space_ids);

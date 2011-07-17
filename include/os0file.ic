@@ -372,6 +372,7 @@ ibool
 pfs_os_file_flush_func(
 /*===================*/
 	os_file_t	file,	/*!< in, own: handle to a file */
+	ibool		metadata,
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
@@ -381,7 +382,7 @@ pfs_os_file_flush_func(
 
 	register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_SYNC,
 				   src_file, src_line);
-	result = os_file_flush_func(file);
+	result = os_file_flush_func(file, metadata);
 
 	register_pfs_file_io_end(locker, 0);
 

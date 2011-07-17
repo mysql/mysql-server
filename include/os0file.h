@@ -290,8 +290,7 @@ The wrapper functions have the prefix of "innodb_". */
 			      __FILE__, __LINE__)
 
 # define os_file_read_trx(file, buf, offset, offset_high, n, trx)	\
-	pfs_os_file_read_func(file, buf, offset, offset_high, n, trx,	\
-			      __FILE__, __LINE__)
+	os_file_read_func(file, buf, offset, offset_high, n, trx)
 
 # define os_file_read_no_error_handling(file, buf, offset,		\
 					offset_high, n)			\
@@ -303,8 +302,8 @@ The wrapper functions have the prefix of "innodb_". */
 	pfs_os_file_write_func(name, file, buf, offset, offset_high,	\
 			       n, __FILE__, __LINE__)
 
-# define os_file_flush(file)						\
-	pfs_os_file_flush_func(file, __FILE__, __LINE__)
+# define os_file_flush(file, metadata)					\
+	pfs_os_file_flush_func(file, metadata, __FILE__, __LINE__)
 
 # define os_file_rename(key, oldpath, newpath)				\
 	pfs_os_file_rename_func(key, oldpath, newpath, __FILE__, __LINE__)
@@ -343,7 +342,7 @@ to original un-instrumented file I/O APIs */
 # define os_file_write(name, file, buf, offset, offset_high, n)		\
 	os_file_write_func(name, file, buf, offset, offset_high, n)
 
-# define os_file_flush(file)	os_file_flush_func(file)
+# define os_file_flush(file, metadata)	os_file_flush_func(file, metadata)
 
 # define os_file_rename(key, oldpath, newpath)				\
 	os_file_rename_func(oldpath, newpath)
@@ -794,6 +793,7 @@ ibool
 pfs_os_file_flush_func(
 /*===================*/
 	os_file_t	file,	/*!< in, own: handle to a file */
+	ibool		metadata,
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
 
@@ -873,7 +873,8 @@ UNIV_INTERN
 ibool
 os_file_flush_func(
 /*===============*/
-	os_file_t	file);	/*!< in, own: handle to a file */
+	os_file_t	file,	/*!< in, own: handle to a file */
+	ibool		metadata);
 /***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may

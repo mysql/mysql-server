@@ -1133,7 +1133,7 @@ log_io_complete(
 		    && srv_unix_file_flush_method != SRV_UNIX_ALL_O_DIRECT
 		    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
 
-			fil_flush(group->space_id);
+			fil_flush(group->space_id, FALSE);
 		}
 
 #ifdef UNIV_DEBUG
@@ -1156,7 +1156,7 @@ log_io_complete(
 	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
 	    && thd_flush_log_at_trx_commit(NULL) != 2) {
 
-		fil_flush(group->space_id);
+		fil_flush(group->space_id, FALSE);
 	}
 
 	mutex_enter(&(log_sys->mutex));
@@ -1547,7 +1547,7 @@ loop:
 
 		group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
-		fil_flush(group->space_id);
+		fil_flush(group->space_id, FALSE);
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
 	}
 
@@ -2644,7 +2644,7 @@ log_io_complete_archive(void)
 
 	mutex_exit(&(log_sys->mutex));
 
-	fil_flush(group->archive_space_id);
+	fil_flush(group->archive_space_id, TRUE);
 
 	mutex_enter(&(log_sys->mutex));
 

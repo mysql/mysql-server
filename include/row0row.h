@@ -41,13 +41,24 @@ Created 4/20/1996 Heikki Tuuri
 Gets the offset of the trx id field, in bytes relative to the origin of
 a clustered index record.
 @return	offset of DATA_TRX_ID */
-UNIV_INTERN
+UNIV_INLINE
 ulint
-row_get_trx_id_offset(
-/*==================*/
-	const rec_t*	rec,	/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
+row_get_trx_id_offset_func(
+/*=======================*/
+#ifdef UNIV_DEBUG
+	const rec_t*		rec,	/*!< in: record */
+#endif /* UNIV_DEBUG */
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
+	__attribute__((nonnull, warn_unused_result));
+#ifdef UNIV_DEBUG
+# define row_get_trx_id_offset(rec, index, offsets)	\
+	row_get_trx_id_offset_func(rec, index, offsets)
+#else /* UNIV_DEBUG */
+# define row_get_trx_id_offset(rec, index, offsets)	\
+	row_get_trx_id_offset_func(index, offsets)
+#endif /* UNIV_DEBUG */
+
 /*********************************************************************//**
 Reads the trx id field from a clustered index record.
 @return	value of the field */
@@ -55,9 +66,10 @@ UNIV_INLINE
 trx_id_t
 row_get_rec_trx_id(
 /*===============*/
-	const rec_t*	rec,	/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
+	const rec_t*		rec,	/*!< in: record */
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Reads the roll pointer field from a clustered index record.
 @return	value of the field */

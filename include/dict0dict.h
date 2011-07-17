@@ -136,6 +136,19 @@ dict_col_copy_type(
 /*===============*/
 	const dict_col_t*	col,	/*!< in: column */
 	dtype_t*		type);	/*!< out: data type */
+/**********************************************************************//**
+Determine bytes of column prefix to be stored in the undo log. Please
+note if the table format is UNIV_FORMAT_A (< DICT_TF_FORMAT_ZIP), no prefix
+needs to be stored in the undo log.
+@return bytes of column prefix to be stored in the undo log */
+UNIV_INLINE
+ulint
+dict_max_field_len_store_undo(
+/*==========================*/
+	dict_table_t*		table,	/*!< in: table */
+	const dict_col_t*	col);	/*!< in: column which index prefix
+					is based on */
+
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 /*********************************************************************//**

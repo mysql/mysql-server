@@ -51,7 +51,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	1
-#define INNODB_VERSION_BUGFIX	7
+#define INNODB_VERSION_BUGFIX	8
 
 #ifndef PERCONA_INNODB_VERSION
 #define PERCONA_INNODB_VERSION 20.1
@@ -192,6 +192,8 @@ command. Not tested on Windows. */
 						debugging without UNIV_DEBUG */
 #define UNIV_BLOB_LIGHT_DEBUG			/* Enable off-page column
 						debugging without UNIV_DEBUG */
+#define UNIV_BLOB_NULL_DEBUG			/* Enable deep off-page
+						column debugging */
 #define UNIV_DEBUG				/* Enable ut_ad() assertions
 						and disable UNIV_INLINE */
 #define UNIV_DEBUG_LOCK_VALIDATE		/* Enable

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2067,6 +2067,9 @@ btr_cur_optimistic_update(
 
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+#ifdef UNIV_BLOB_NULL_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* UNIV_BLOB_NULL_DEBUG */
 
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
@@ -3347,9 +3350,14 @@ btr_estimate_n_rows_in_range_on_level(
 
 		mtr_start(&mtr);
 
-		/* fetch the page */
-		block = buf_page_get(space, zip_size, page_no, RW_S_LATCH,
-				     &mtr);
+		/* Fetch the page. Because we are not holding the
+		index->lock, the tree may have changed and we may be
+		attempting to read a page that is no longer part of
+		the B-tree. We pass BUF_GET_POSSIBLY_FREED in order to
+		silence a debug assertion about this. */
+		block = buf_page_get_gen(space, zip_size, page_no, RW_S_LATCH,
+					 NULL, BUF_GET_POSSIBLY_FREED,
+					 __FILE__, __LINE__, &mtr);
 
 		page = buf_block_get_frame(block);
 
@@ -3367,6 +3375,13 @@ btr_estimate_n_rows_in_range_on_level(
 			mtr_commit(&mtr);
 			goto inexact;
 		}
+
+		/* It is possible but highly unlikely that the page was
+		originally written by an old version of InnoDB that did
+		not initialize FIL_PAGE_TYPE on other than B-tree pages.
+		For example, this could be an almost-empty BLOB page
+		that happens to contain the magic values in the fields
+		that we checked above. */
 
 		n_pages_read++;
 

@@ -2017,7 +2017,7 @@ os_file_set_size(
 
 	ut_free(buf2);
 
-	ret = os_file_flush(file);
+	ret = os_file_flush(file, TRUE);
 
 	if (ret) {
 		return(TRUE);
@@ -2055,7 +2055,8 @@ static
 int
 os_file_fsync(
 /*==========*/
-	os_file_t	file)	/*!< in: handle to a file */
+	os_file_t	file,	/*!< in: handle to a file */
+	ibool		metadata)
 {
 	int	ret;
 	int	failures;
@@ -2064,7 +2065,16 @@ os_file_fsync(
 	failures = 0;
 
 	do {
+#if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
+		if (metadata) {
+			ret = fsync(file);
+		} else {
+			ret = fdatasync(file);
+		}
+#else
+		(void) metadata;
 		ret = fsync(file);
+#endif
 
 		os_n_fsyncs++;
 
@@ -2104,7 +2114,8 @@ UNIV_INTERN
 ibool
 os_file_flush_func(
 /*===============*/
-	os_file_t	file)	/*!< in, own: handle to a file */
+	os_file_t	file,	/*!< in, own: handle to a file */
+	ibool		metadata)
 {
 #ifdef __WIN__
 	BOOL	ret;
@@ -2154,18 +2165,18 @@ os_file_flush_func(
 		/* If we are not on an operating system that supports this,
 		then fall back to a plain fsync. */
 
-		ret = os_file_fsync(file);
+		ret = os_file_fsync(file, metadata);
 	} else {
 		ret = fcntl(file, F_FULLFSYNC, NULL);
 
 		if (ret) {
 			/* If we are not on a file system that supports this,
 			then fall back to a plain fsync. */
-			ret = os_file_fsync(file);
+			ret = os_file_fsync(file, metadata);
 		}
 	}
 #else
-	ret = os_file_fsync(file);
+	ret = os_file_fsync(file, metadata);
 #endif
 
 	if (ret == 0) {
@@ -2411,7 +2422,7 @@ os_file_pwrite(
 		the OS crashes, a database page is only partially
 		physically written to disk. */
 
-		ut_a(TRUE == os_file_flush(file));
+		ut_a(TRUE == os_file_flush(file, TRUE));
 	}
 # endif /* UNIV_DO_FLUSH */
 
@@ -2463,7 +2474,7 @@ os_file_pwrite(
 			the OS crashes, a database page is only partially
 			physically written to disk. */
 
-			ut_a(TRUE == os_file_flush(file));
+			ut_a(TRUE == os_file_flush(file, TRUE));
 		}
 # endif /* UNIV_DO_FLUSH */
 
@@ -2836,7 +2847,7 @@ retry:
 
 # ifdef UNIV_DO_FLUSH
 	if (!os_do_not_call_flush_at_each_write) {
-		ut_a(TRUE == os_file_flush(file));
+		ut_a(TRUE == os_file_flush(file, TRUE));
 	}
 # endif /* UNIV_DO_FLUSH */
 
@@ -4141,7 +4152,13 @@ os_aio_func(
 		Windows async i/o, Windows does not allow us to use
 		ordinary synchronous os_file_read etc. on the same file,
 		therefore we have built a special mechanism for synchronous
-		wait in the Windows case. */
+		wait in the Windows case.
+		Also note that the Performance Schema instrumentation has
+		been performed by current os_aio_func()'s wrapper function
+		pfs_os_aio_func(). So we would no longer need to call
+		Performance Schema instrumented os_file_read() and
+		os_file_write(). Instead, we should use os_file_read_func()
+		and os_file_write_func() */
 
 		if (type == OS_FILE_READ) {
 			return(os_file_read_trx(file, buf, offset,
@@ -4150,7 +4167,8 @@ os_aio_func(
 
 		ut_a(type == OS_FILE_WRITE);
 
-		return(os_file_write(name, file, buf, offset, offset_high, n));
+		return(os_file_write_func(name, file, buf, offset,
+					  offset_high, n));
 	}
 
 try_again:
@@ -4398,7 +4416,7 @@ os_aio_windows_handle(
 #ifdef UNIV_DO_FLUSH
 		if (slot->type == OS_FILE_WRITE
 		    && !os_do_not_call_flush_at_each_write) {
-			if (!os_file_flush(slot->file)) {
+			if (!os_file_flush(slot->file, TRUE)) {
 				ut_error;
 			}
 		}
@@ -4701,7 +4719,7 @@ found:
 #ifdef UNIV_DO_FLUSH
 		if (slot->type == OS_FILE_WRITE
 		    && !os_do_not_call_flush_at_each_write)
-		    && !os_file_flush(slot->file) {
+		    && !os_file_flush(slot->file, TRUE) {
 			ut_error;
 		}
 #endif /* UNIV_DO_FLUSH */
