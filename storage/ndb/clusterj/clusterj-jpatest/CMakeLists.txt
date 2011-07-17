@@ -14,8 +14,14 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/model/*.java)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/model)
+
+SET ( JAVA_SOURCES "")
+FOREACH(D ${JAVA_SOURCE_DIRS})
+  FILE(GLOB tmp ${D}/*.java)
+  LIST(APPEND JAVA_SOURCES ${tmp})
+ENDFOREACH()
 
 SET ( CLASSPATH 
   target/classes
@@ -25,10 +31,9 @@ SET ( CLASSPATH
 SET(CLUSTERJ_JPATEST_EXPORTS com.mysql.clusterj.jpatest,com.mysql.clusterj.jpatest.model)
 CREATE_MANIFEST(manifest.mf ${CLUSTERJ_JPATEST_EXPORTS} clusterj-jpatest)
 
-CREATE_JAR(clusterj-jpatest ${JAVA_SOURCE_DIRS} 
+CREATE_JAR(clusterj-jpatest ${JAVA_SOURCES} 
   CLASSPATH ${CLASSPATH}
   MANIFEST manifest.mf
   ENHANCE ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources/META-INF/persistence.xml
   DEPENDENCIES clusterjpa.jar
-  EXTRA_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources META-INF/persistence.xml)
-
+  EXTRA_FILES src/main/resources/META-INF)

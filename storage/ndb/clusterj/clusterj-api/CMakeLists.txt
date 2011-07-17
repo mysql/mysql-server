@@ -14,14 +14,19 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/annotation/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/query/*.java)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/annotation
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/query)
+
+SET ( JAVA_SOURCES "")
+FOREACH(D ${JAVA_SOURCE_DIRS})
+  FILE(GLOB tmp ${D}/*.java)
+  LIST(APPEND JAVA_SOURCES ${tmp})
+ENDFOREACH()
 
 SET(CLUSTERJ_API_EXPORTS com.mysql.clusterj,com.mysql.clusterj.query,com.mysql.clusterj.annotation)
 CREATE_MANIFEST(manifest.mf ${CLUSTERJ_API_EXPORTS} clusterj-api)
 
-CREATE_JAR(clusterj-api ${JAVA_SOURCE_DIRS} 
+CREATE_JAR(clusterj-api ${JAVA_SOURCES}
   CLASSPATH target/classes
   MANIFEST manifest.mf)
-  
