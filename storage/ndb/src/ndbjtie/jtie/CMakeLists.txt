@@ -16,9 +16,8 @@
 
 ADD_SUBDIRECTORY(test)
 
-SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/jtie/*.java)
+FILE(GLOB JAVA_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/jtie/*.java)
 
-CREATE_JAR(jtie ${JAVA_SOURCE_DIRS} 
+CREATE_JAR(jtie ${JAVA_SOURCES} 
   CLASSPATH target/classes)
 

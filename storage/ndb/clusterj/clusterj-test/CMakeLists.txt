@@ -14,9 +14,15 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/domaintypehandler/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model/*.java)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/domaintypehandler
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model)
+
+SET ( JAVA_SOURCES "")
+FOREACH(D ${JAVA_SOURCE_DIRS})
+  FILE(GLOB tmp ${D}/*.java)
+  LIST(APPEND JAVA_SOURCES ${tmp})
+ENDFOREACH()
 
 SET ( CLASSPATH 
   target/classes
@@ -27,11 +33,9 @@ SET ( CLASSPATH
 SET(CLUSTERJ_TEST_EXPORTS regression,testsuite.clusterj,testsuite.clusterj.model,testsuite.clusterj.domaintypehandler)
 CREATE_MANIFEST(manifest.mf ${CLUSTERJ_TEST_EXPORTS} clusterj-test)
 
-CREATE_JAR(clusterj-test ${JAVA_SOURCE_DIRS} 
+CREATE_JAR(clusterj-test ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
   MANIFEST manifest.mf
-  DEPENDENCIES clusterj-tie.jar
-  EXTRA_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources META-INF
-              ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources schema.sql)
-
-
+  DEPENDENCIES clusterj.jar
+  EXTRA_FILES src/main/resources/META-INF
+              src/main/resources/schema.sql)

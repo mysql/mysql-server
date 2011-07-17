@@ -30,13 +30,19 @@ IF(HAVE_JDK)
 ENDIF(HAVE_JDK)
 
 SET ( JAVA_SOURCE_DIRS
- ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mysql/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mgmapi/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/ndbapi/*.java)
+ ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mysql
+ ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/mgmapi
+ ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/ndbjtie/ndbapi)
+
+SET ( JAVA_SOURCES "")
+FOREACH(D ${JAVA_SOURCE_DIRS})
+  FILE(GLOB tmp ${D}/*.java)
+  LIST(APPEND JAVA_SOURCES ${tmp})
+ENDFOREACH()
 
 SET ( CLASSPATH jtie/target/classes)
 
-CREATE_JAR(ndbjtie ${JAVA_SOURCE_DIRS} 
+CREATE_JAR(ndbjtie ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH} 
   DEPENDENCIES jtie.jar)
 
