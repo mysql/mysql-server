@@ -1492,12 +1492,37 @@ open_table_v1(PSI_table_share *share, const void *identity)
   if (unlikely(thread == NULL))
     return NULL;
 
-  /* Do not instrument this table is all table instruments are disabled. */
-  if (! pfs_table_share->m_enabled)
-    return NULL;
-
   PFS_table *pfs_table= create_table(pfs_table_share, thread, identity);
   return reinterpret_cast<PSI_table *> (pfs_table);
+}
+
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::unbind_table.
+*/
+static void unbind_table_v1(PSI_table *table)
+{
+  PFS_table *pfs= reinterpret_cast<PFS_table*> (table);
+  if (likely(pfs != NULL))
+  {
+    pfs->aggregate();
+    pfs->m_thread_owner= NULL;
+  }
+}
+
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::rebind_table.
+*/
+static void rebind_table_v1(PSI_table *table)
+{
+  PFS_table *pfs= reinterpret_cast<PFS_table*> (table);
+  if (likely(pfs != NULL))
+  {
+    DBUG_ASSERT(pfs->m_thread_owner == NULL);
+
+    pfs->m_thread_owner= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  }
 }
 
 /**
@@ -2268,13 +2293,17 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
   if (! pfs_table->m_io_enabled)
     return NULL;
 
+  PFS_thread *pfs_thread= pfs_table->m_thread_owner;
+  if (unlikely(pfs_thread == NULL))
+    return NULL;
+
+  DBUG_ASSERT(pfs_thread ==
+              my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
+
   register uint flags;
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
     if (! pfs_thread->m_enabled)
       return NULL;
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
@@ -2343,6 +2372,7 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
 {
   DBUG_ASSERT(state != NULL);
   DBUG_ASSERT((op == PSI_TABLE_LOCK) || (op == PSI_TABLE_EXTERNAL_LOCK));
+
   PFS_table *pfs_table= reinterpret_cast<PFS_table*> (table);
 
   if (unlikely(pfs_table == NULL))
@@ -2352,6 +2382,13 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
 
   if (! pfs_table->m_lock_enabled)
     return NULL;
+
+  PFS_thread *pfs_thread= pfs_table->m_thread_owner;
+  if (unlikely(pfs_thread == NULL))
+    return NULL;
+
+  DBUG_ASSERT(pfs_thread ==
+              my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
 
   PFS_TL_LOCK_TYPE lock_type;
 
@@ -2380,9 +2417,6 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
     if (! pfs_thread->m_enabled)
       return NULL;
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
@@ -4261,6 +4295,8 @@ PSI_v1 PFS_v1=
   release_table_share_v1,
   drop_table_share_v1,
   open_table_v1,
+  unbind_table_v1,
+  rebind_table_v1,
   close_table_v1,
   create_file_v1,
   spawn_thread_v1,

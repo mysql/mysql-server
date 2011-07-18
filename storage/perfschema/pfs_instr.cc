@@ -1280,7 +1280,7 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
           pfs->m_lock_timed= share->m_timed && global_table_lock_class.m_timed;
           share->inc_refcount();
           pfs->m_table_stat.reset();
-          pfs->m_opening_thread= opening_thread;
+          pfs->m_thread_owner= opening_thread;
           pfs->m_lock.dirty_to_allocated();
           return pfs;
         }
@@ -1299,7 +1299,7 @@ void PFS_table::sanitized_aggregate(void)
     and not own the table handle.
   */
   PFS_table_share *safe_share= sanitize_table_share(m_share);
-  PFS_thread *safe_thread= sanitize_thread(m_opening_thread);
+  PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
   if (safe_share != NULL && safe_thread != NULL)
     safe_aggregate(& m_table_stat, safe_share, safe_thread);
 }
@@ -1307,7 +1307,7 @@ void PFS_table::sanitized_aggregate(void)
 void PFS_table::sanitized_aggregate_io(void)
 {
   PFS_table_share *safe_share= sanitize_table_share(m_share);
-  PFS_thread *safe_thread= sanitize_thread(m_opening_thread);
+  PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
   if (safe_share != NULL && safe_thread != NULL)
     safe_aggregate_io(& m_table_stat, safe_share, safe_thread);
 }
@@ -1315,7 +1315,7 @@ void PFS_table::sanitized_aggregate_io(void)
 void PFS_table::sanitized_aggregate_lock(void)
 {
   PFS_table_share *safe_share= sanitize_table_share(m_share);
-  PFS_thread *safe_thread= sanitize_thread(m_opening_thread);
+  PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
   if (safe_share != NULL && safe_thread != NULL)
     safe_aggregate_lock(& m_table_stat, safe_share, safe_thread);
 }
@@ -1468,12 +1468,10 @@ void aggregate_all_event_names(PFS_single_stat *from_array,
   PFS_single_stat *from;
   PFS_single_stat *from_last;
   PFS_single_stat *to;
-  PFS_single_stat *to_last;
 
   from= from_array;
   from_last= from_array + wait_class_max;
   to= to_array;
-  to_last= to_array + wait_class_max;
 
   for ( ; from < from_last ; from++, to++)
   {
@@ -1492,16 +1490,12 @@ void aggregate_all_event_names(PFS_single_stat *from_array,
   PFS_single_stat *from;
   PFS_single_stat *from_last;
   PFS_single_stat *to_1;
-  PFS_single_stat *to_1_last;
   PFS_single_stat *to_2;
-  PFS_single_stat *to_2_last;
 
   from= from_array;
   from_last= from_array + wait_class_max;
   to_1= to_array_1;
-  to_1_last= to_array_1 + wait_class_max;
   to_2= to_array_2;
-  to_2_last= to_array_2 + wait_class_max;
 
   for ( ; from < from_last ; from++, to_1++, to_2++)
   {
@@ -1520,12 +1514,10 @@ void aggregate_all_stages(PFS_stage_stat *from_array,
   PFS_stage_stat *from;
   PFS_stage_stat *from_last;
   PFS_stage_stat *to;
-  PFS_stage_stat *to_last;
 
   from= from_array;
   from_last= from_array + stage_class_max;
   to= to_array;
-  to_last= to_array + stage_class_max;
 
   for ( ; from < from_last ; from++, to++)
   {
@@ -1572,12 +1564,10 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
   PFS_statement_stat *from;
   PFS_statement_stat *from_last;
   PFS_statement_stat *to;
-  PFS_statement_stat *to_last;
 
   from= from_array;
   from_last= from_array + statement_class_max;
   to= to_array;
-  to_last= to_array + statement_class_max;
 
   for ( ; from < from_last ; from++, to++)
   {

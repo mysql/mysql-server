@@ -2166,6 +2166,30 @@ THD *handler::ha_thd(void) const
   return (table && table->in_use) ? table->in_use : current_thd;
 }
 
+void handler::unbind_psi()
+{
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Notify the instrumentation that this table is not owned
+    by this thread any more.
+  */
+  if (likely(PSI_server != NULL))
+    PSI_server->unbind_table(m_psi);
+#endif
+}
+
+void handler::rebind_psi()
+{
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Notify the instrumentation that this table is now owned
+    by this thread.
+  */
+  if (likely(PSI_server != NULL))
+    PSI_server->rebind_table(m_psi);
+#endif
+}
+
 PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
 {
   return share->m_psi;
@@ -5278,7 +5302,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
                                          uint *buffer_size, COST_VECT *cost)
 {
   ulong max_buff_entries, elem_size;
-  ha_rows rows_in_full_step, rows_in_last_step;
+  ha_rows rows_in_last_step;
   uint n_full_steps;
   double index_read_cost;
 
@@ -5290,15 +5314,13 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
 
   /* Number of iterations we'll make with full buffer */
   n_full_steps= (uint)floor(rows2double(rows) / max_buff_entries);
-  
-  /* 
-    Get numbers of rows we'll be processing in 
-     - non-last sweep, with full buffer 
-     - last iteration, with non-full buffer
+
+  /*
+    Get numbers of rows we'll be processing in last iteration, with
+    non-full buffer
   */
-  rows_in_full_step= max_buff_entries;
   rows_in_last_step= rows % max_buff_entries;
-  
+
   /* Adjust buffer size if we expect to use only part of the buffer */
   if (n_full_steps)
   {
@@ -5312,11 +5334,11 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
                       (size_t)(1.2*rows_in_last_step) * elem_size + 
                       h->ref_length + table->key_info[keynr].key_length);
   }
-  
+
   COST_VECT last_step_cost;
   get_sort_and_sweep_cost(table, rows_in_last_step, &last_step_cost);
   cost->add(&last_step_cost);
- 
+
   if (n_full_steps != 0)
     cost->mem_cost= *buffer_size;
   else
