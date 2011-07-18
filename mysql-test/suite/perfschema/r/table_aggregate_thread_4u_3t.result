@@ -9,10 +9,10 @@ localhost	user3	%
 localhost	user4	%
 select * from performance_schema.setup_objects
 order by object_type, object_schema, object_name;
-OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	TIMED
-TABLE	test	t1	YES
-TABLE	test	t2	NO
-TABLE	test	t3	NO
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+TABLE	test	t1	YES	YES
+TABLE	test	t2	YES	NO
+TABLE	test	t3	YES	NO
 select * from performance_schema.setup_consumers;
 NAME	ENABLED
 events_stages_current	NO
@@ -221,20 +221,20 @@ a	b	c	d
 "================== Step 3 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	0
-user1	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	0
-user1	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
-localhost	wait/io/table/sql/handler	0
-localhost	wait/lock/table/sql/handler	0
+localhost	wait/io/table/sql/handler	37
+localhost	wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	37
@@ -274,26 +274,26 @@ TABLE	test	t3	31
 "================== Step 4 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
 wait/io/table/sql/handler	0
 wait/lock/table/sql/handler	0
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	0
-user1	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	36
 user2	localhost	wait/io/table/sql/handler	0
 user2	localhost	wait/lock/table/sql/handler	0
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	0
-user1	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	36
 user2	wait/io/table/sql/handler	0
 user2	wait/lock/table/sql/handler	0
 execute dump_host;
 host	event_name	count_star
-localhost	wait/io/table/sql/handler	0
-localhost	wait/lock/table/sql/handler	0
+localhost	wait/io/table/sql/handler	37
+localhost	wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	37
@@ -371,26 +371,26 @@ a	b	c	d
 "================== Step 5 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	0
-user1	localhost	wait/lock/table/sql/handler	0
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	36
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	0
-user1	wait/lock/table/sql/handler	0
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	36
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
-localhost	wait/io/table/sql/handler	0
-localhost	wait/lock/table/sql/handler	0
+localhost	wait/io/table/sql/handler	94
+localhost	wait/lock/table/sql/handler	72
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	94
@@ -430,32 +430,32 @@ TABLE	test	t3	72
 "================== Step 6 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
 wait/io/table/sql/handler	0
 wait/lock/table/sql/handler	0
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	0
-user1	localhost	wait/lock/table/sql/handler	0
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	36
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
 user3	localhost	wait/io/table/sql/handler	0
 user3	localhost	wait/lock/table/sql/handler	0
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	0
-user1	wait/lock/table/sql/handler	0
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	36
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
 user3	wait/io/table/sql/handler	0
 user3	wait/lock/table/sql/handler	0
 execute dump_host;
 host	event_name	count_star
-localhost	wait/io/table/sql/handler	0
-localhost	wait/lock/table/sql/handler	0
+localhost	wait/io/table/sql/handler	94
+localhost	wait/lock/table/sql/handler	72
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	94
@@ -540,32 +540,32 @@ a	b	c	d
 "================== Step 7 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	0
-user1	localhost	wait/lock/table/sql/handler	0
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
-user3	localhost	wait/io/table/sql/handler	0
-user3	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	36
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
+user3	localhost	wait/io/table/sql/handler	76
+user3	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	0
-user1	wait/lock/table/sql/handler	0
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	36
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
-localhost	wait/io/table/sql/handler	0
-localhost	wait/lock/table/sql/handler	0
+localhost	wait/io/table/sql/handler	170
+localhost	wait/lock/table/sql/handler	108
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	170
@@ -605,38 +605,38 @@ TABLE	test	t3	123
 "================== Step 8 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
 wait/io/table/sql/handler	0
 wait/lock/table/sql/handler	0
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	0
-user1	localhost	wait/lock/table/sql/handler	0
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
-user3	localhost	wait/io/table/sql/handler	0
-user3	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	36
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
+user3	localhost	wait/io/table/sql/handler	76
+user3	localhost	wait/lock/table/sql/handler	36
 user4	localhost	wait/io/table/sql/handler	0
 user4	localhost	wait/lock/table/sql/handler	0
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	0
-user1	wait/lock/table/sql/handler	0
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	36
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
 user4	wait/io/table/sql/handler	0
 user4	wait/lock/table/sql/handler	0
 execute dump_host;
 host	event_name	count_star
-localhost	wait/io/table/sql/handler	0
-localhost	wait/lock/table/sql/handler	0
+localhost	wait/io/table/sql/handler	170
+localhost	wait/lock/table/sql/handler	108
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	170
@@ -728,38 +728,38 @@ a	b	c	d
 "================== Step 9 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	0
-user1	localhost	wait/lock/table/sql/handler	0
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
-user3	localhost	wait/io/table/sql/handler	0
-user3	localhost	wait/lock/table/sql/handler	0
-user4	localhost	wait/io/table/sql/handler	0
-user4	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	36
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
+user3	localhost	wait/io/table/sql/handler	76
+user3	localhost	wait/lock/table/sql/handler	36
+user4	localhost	wait/io/table/sql/handler	95
+user4	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	0
-user1	wait/lock/table/sql/handler	0
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
-user4	wait/io/table/sql/handler	0
-user4	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	36
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
+user4	wait/io/table/sql/handler	95
+user4	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
-localhost	wait/io/table/sql/handler	0
-localhost	wait/lock/table/sql/handler	0
+localhost	wait/io/table/sql/handler	265
+localhost	wait/lock/table/sql/handler	144
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	265
@@ -803,38 +803,38 @@ unlock tables;
 "================== Step 10 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	48
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	0
-user1	localhost	wait/lock/table/sql/handler	0
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
-user3	localhost	wait/io/table/sql/handler	0
-user3	localhost	wait/lock/table/sql/handler	0
-user4	localhost	wait/io/table/sql/handler	0
-user4	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	48
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
+user3	localhost	wait/io/table/sql/handler	76
+user3	localhost	wait/lock/table/sql/handler	36
+user4	localhost	wait/io/table/sql/handler	95
+user4	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	0
-user1	wait/lock/table/sql/handler	0
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
-user4	wait/io/table/sql/handler	0
-user4	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	48
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
+user4	wait/io/table/sql/handler	95
+user4	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
-localhost	wait/io/table/sql/handler	0
-localhost	wait/lock/table/sql/handler	0
+localhost	wait/io/table/sql/handler	265
+localhost	wait/lock/table/sql/handler	156
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	265
@@ -875,34 +875,34 @@ flush tables;
 "================== Step 11 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	265
-wait/lock/table/sql/handler	156
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	48
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	265
-user1	localhost	wait/lock/table/sql/handler	156
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
-user3	localhost	wait/io/table/sql/handler	0
-user3	localhost	wait/lock/table/sql/handler	0
-user4	localhost	wait/io/table/sql/handler	0
-user4	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	48
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
+user3	localhost	wait/io/table/sql/handler	76
+user3	localhost	wait/lock/table/sql/handler	36
+user4	localhost	wait/io/table/sql/handler	95
+user4	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	265
-user1	wait/lock/table/sql/handler	156
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
-user4	wait/io/table/sql/handler	0
-user4	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	48
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
+user4	wait/io/table/sql/handler	95
+user4	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
 localhost	wait/io/table/sql/handler	265
@@ -948,34 +948,34 @@ set global read_only=0;
 "================== Step 12 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	265
-wait/lock/table/sql/handler	156
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	48
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	265
-user1	localhost	wait/lock/table/sql/handler	156
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
-user3	localhost	wait/io/table/sql/handler	0
-user3	localhost	wait/lock/table/sql/handler	0
-user4	localhost	wait/io/table/sql/handler	0
-user4	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	48
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
+user3	localhost	wait/io/table/sql/handler	76
+user3	localhost	wait/lock/table/sql/handler	36
+user4	localhost	wait/io/table/sql/handler	95
+user4	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	265
-user1	wait/lock/table/sql/handler	156
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
-user4	wait/io/table/sql/handler	0
-user4	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	48
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
+user4	wait/io/table/sql/handler	95
+user4	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
 localhost	wait/io/table/sql/handler	265
@@ -1019,32 +1019,32 @@ TABLE	test	t3	188
 "================== Step 13 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	265
-user1	localhost	wait/lock/table/sql/handler	156
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
-user3	localhost	wait/io/table/sql/handler	0
-user3	localhost	wait/lock/table/sql/handler	0
-user4	localhost	wait/io/table/sql/handler	0
-user4	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	48
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
+user3	localhost	wait/io/table/sql/handler	76
+user3	localhost	wait/lock/table/sql/handler	36
+user4	localhost	wait/io/table/sql/handler	95
+user4	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	265
-user1	wait/lock/table/sql/handler	156
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
-user4	wait/io/table/sql/handler	0
-user4	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	48
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
+user4	wait/io/table/sql/handler	95
+user4	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
 localhost	wait/io/table/sql/handler	265
@@ -1088,30 +1088,30 @@ TABLE	test	t3	188
 "================== Step 14 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	265
-user1	localhost	wait/lock/table/sql/handler	156
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
-user3	localhost	wait/io/table/sql/handler	0
-user3	localhost	wait/lock/table/sql/handler	0
-user4	localhost	wait/io/table/sql/handler	0
-user4	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	48
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
+user3	localhost	wait/io/table/sql/handler	76
+user3	localhost	wait/lock/table/sql/handler	36
+user4	localhost	wait/io/table/sql/handler	95
+user4	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	265
-user1	wait/lock/table/sql/handler	156
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
-user4	wait/io/table/sql/handler	0
-user4	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	48
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
+user4	wait/io/table/sql/handler	95
+user4	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
 localhost	wait/io/table/sql/handler	265
@@ -1155,28 +1155,28 @@ TABLE	test	t3	188
 "================== Step 15 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	265
-user1	localhost	wait/lock/table/sql/handler	156
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
-user3	localhost	wait/io/table/sql/handler	0
-user3	localhost	wait/lock/table/sql/handler	0
-user4	localhost	wait/io/table/sql/handler	0
-user4	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	48
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
+user3	localhost	wait/io/table/sql/handler	76
+user3	localhost	wait/lock/table/sql/handler	36
+user4	localhost	wait/io/table/sql/handler	95
+user4	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	265
-user1	wait/lock/table/sql/handler	156
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
-user4	wait/io/table/sql/handler	0
-user4	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	48
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
+user4	wait/io/table/sql/handler	95
+user4	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
 localhost	wait/io/table/sql/handler	265
@@ -1222,24 +1222,24 @@ execute dump_thread;
 event_name	count_star
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	265
-user1	localhost	wait/lock/table/sql/handler	156
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
-user3	localhost	wait/io/table/sql/handler	0
-user3	localhost	wait/lock/table/sql/handler	0
-user4	localhost	wait/io/table/sql/handler	0
-user4	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	48
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
+user3	localhost	wait/io/table/sql/handler	76
+user3	localhost	wait/lock/table/sql/handler	36
+user4	localhost	wait/io/table/sql/handler	95
+user4	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	265
-user1	wait/lock/table/sql/handler	156
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
-user4	wait/io/table/sql/handler	0
-user4	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	48
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
+user4	wait/io/table/sql/handler	95
+user4	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
 localhost	wait/io/table/sql/handler	265
@@ -1286,24 +1286,24 @@ execute dump_thread;
 event_name	count_star
 execute dump_account;
 user	host	event_name	count_star
-user1	localhost	wait/io/table/sql/handler	265
-user1	localhost	wait/lock/table/sql/handler	156
-user2	localhost	wait/io/table/sql/handler	0
-user2	localhost	wait/lock/table/sql/handler	0
-user3	localhost	wait/io/table/sql/handler	0
-user3	localhost	wait/lock/table/sql/handler	0
-user4	localhost	wait/io/table/sql/handler	0
-user4	localhost	wait/lock/table/sql/handler	0
+user1	localhost	wait/io/table/sql/handler	37
+user1	localhost	wait/lock/table/sql/handler	48
+user2	localhost	wait/io/table/sql/handler	57
+user2	localhost	wait/lock/table/sql/handler	36
+user3	localhost	wait/io/table/sql/handler	76
+user3	localhost	wait/lock/table/sql/handler	36
+user4	localhost	wait/io/table/sql/handler	95
+user4	localhost	wait/lock/table/sql/handler	36
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	265
-user1	wait/lock/table/sql/handler	156
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
-user4	wait/io/table/sql/handler	0
-user4	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	48
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
+user4	wait/io/table/sql/handler	95
+user4	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
 localhost	wait/io/table/sql/handler	265
@@ -1360,14 +1360,14 @@ user4	localhost	wait/io/table/sql/handler	0
 user4	localhost	wait/lock/table/sql/handler	0
 execute dump_user;
 user	event_name	count_star
-user1	wait/io/table/sql/handler	265
-user1	wait/lock/table/sql/handler	156
-user2	wait/io/table/sql/handler	0
-user2	wait/lock/table/sql/handler	0
-user3	wait/io/table/sql/handler	0
-user3	wait/lock/table/sql/handler	0
-user4	wait/io/table/sql/handler	0
-user4	wait/lock/table/sql/handler	0
+user1	wait/io/table/sql/handler	37
+user1	wait/lock/table/sql/handler	48
+user2	wait/io/table/sql/handler	57
+user2	wait/lock/table/sql/handler	36
+user3	wait/io/table/sql/handler	76
+user3	wait/lock/table/sql/handler	36
+user4	wait/io/table/sql/handler	95
+user4	wait/lock/table/sql/handler	36
 execute dump_host;
 host	event_name	count_star
 localhost	wait/io/table/sql/handler	265
