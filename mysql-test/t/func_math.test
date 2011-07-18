@@ -547,3 +547,14 @@ let $nine_81=
 
 eval select $nine_81 % 0.1 as foo;
 eval select $nine_81 % 0.0 as foo;
+
+--echo #
+--echo # Bug#12711164 - 61676:
+--echo # RESULT OF DIV WITH DECIMAL AND INTEGER DOES NOT MAKE SENSE 
+--echo #
+
+select 5 div 2;
+select 5.0 div 2.0;
+select 5.0 div 2;
+select 5 div 2.0;
+select 5.9 div 2, 1.23456789e3 DIV 2, 1.23456789e9 DIV 2, 1.23456789e19 DIV 2;

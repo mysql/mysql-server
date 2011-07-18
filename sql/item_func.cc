@@ -1605,8 +1605,13 @@ longlong Item_func_int_div::val_int()
       return 0;
     }
 
+    my_decimal truncated;
+    const bool do_truncate= true;
+    if (my_decimal_round(E_DEC_FATAL_ERROR, &tmp, 0, do_truncate, &truncated))
+      DBUG_ASSERT(false);
+
     longlong res;
-    if (my_decimal2int(E_DEC_FATAL_ERROR, &tmp, unsigned_flag, &res) &
+    if (my_decimal2int(E_DEC_FATAL_ERROR, &truncated, unsigned_flag, &res) &
         E_DEC_OVERFLOW)
       raise_integer_overflow();
     return res;
