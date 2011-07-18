@@ -88,10 +88,8 @@ row_sel_sec_rec_is_for_blob(
 /*========================*/
 	ulint		mtype,		/*!< in: main type */
 	ulint		prtype,		/*!< in: precise type */
-	ulint		mbminlen,	/*!< in: minimum length of a
-					multi-byte character */
-	ulint		mbmaxlen,	/*!< in: maximum length of a
-					multi-byte character */
+	ulint		mbminmaxlen,	/*!< in: minimum and maximum length of
+					a multi-byte character */
 	const byte*	clust_field,	/*!< in: the locally stored part of
 					the clustered index column, including
 					the BLOB pointer; the clustered
@@ -101,12 +99,26 @@ row_sel_sec_rec_is_for_blob(
 	ulint		clust_len,	/*!< in: length of clust_field */
 	const byte*	sec_field,	/*!< in: column in secondary index */
 	ulint		sec_len,	/*!< in: length of sec_field */
-	ulint		zip_size)	/*!< in: compressed page size, or 0 */
+	dict_table_t*	table)		/*!< in: table */
 {
 	ulint	len;
-	byte	buf[DICT_MAX_INDEX_COL_LEN];
+	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
+	ulint	zip_size = dict_table_flags_to_zip_size(table->flags);
+	ulint	max_prefix_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
 
-	len = btr_copy_externally_stored_field_prefix(buf, sizeof buf,
+	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	if (UNIV_UNLIKELY
+	    (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
+		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
+		/* The externally stored field was not written yet.
+		This record should only be seen by
+		recv_recovery_rollback_active() or any
+		TRX_ISO_READ_UNCOMMITTED transactions. */
+		return(FALSE);
+	}
+
+	len = btr_copy_externally_stored_field_prefix(buf, max_prefix_len,
 						      zip_size,
 						      clust_field, clust_len);
 
@@ -119,7 +131,7 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = dtype_get_at_most_n_mbchars(prtype, mbminlen, mbmaxlen,
+	len = dtype_get_at_most_n_mbchars(prtype, mbminmaxlen,
 					  sec_len, len, (const char*) buf);
 
 	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
@@ -202,18 +214,17 @@ row_sel_sec_rec_is_for_clust_rec(
 			}
 
 			len = dtype_get_at_most_n_mbchars(
-				col->prtype, col->mbminlen, col->mbmaxlen,
+				col->prtype, col->mbminmaxlen,
 				ifield->prefix_len, len, (char*) clust_field);
 
 			if (rec_offs_nth_extern(clust_offs, clust_pos)
 			    && len < sec_len) {
 				if (!row_sel_sec_rec_is_for_blob(
 					    col->mtype, col->prtype,
-					    col->mbminlen, col->mbmaxlen,
+					    col->mbminmaxlen,
 					    clust_field, clust_len,
 					    sec_field, sec_len,
-					    dict_table_zip_size(
-						    clust_index->table))) {
+					    clust_index->table)) {
 					goto inequal;
 				}
 
@@ -1200,7 +1211,7 @@ row_sel_try_search_shortcut(
 	ut_ad(plan->unique_search);
 	ut_ad(!plan->must_get_clust);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(btr_search_get_latch(index->id), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
 	row_sel_open_pcur(plan, TRUE, mtr);
@@ -1371,10 +1382,10 @@ table_loop:
 	    && !plan->must_get_clust
 	    && !plan->table->big_rows) {
 		if (!search_latch_locked) {
-			rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_lock(btr_search_get_latch(index->id));
 
 			search_latch_locked = TRUE;
-		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_WAIT_EX) {
+		} else if (rw_lock_get_writer(btr_search_get_latch(index->id)) == RW_LOCK_WAIT_EX) {
 
 			/* There is an x-latch request waiting: release the
 			s-latch for a moment; as an s-latch here is often
@@ -1383,8 +1394,8 @@ table_loop:
 			from acquiring an s-latch for a long time, lowering
 			performance significantly in multiprocessors. */
 
-			rw_lock_s_unlock(&btr_search_latch);
-			rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_unlock(btr_search_get_latch(index->id));
+			rw_lock_s_lock(btr_search_get_latch(index->id));
 		}
 
 		found_flag = row_sel_try_search_shortcut(node, plan, &mtr);
@@ -1407,7 +1418,7 @@ table_loop:
 	}
 
 	if (search_latch_locked) {
-		rw_lock_s_unlock(&btr_search_latch);
+		rw_lock_s_unlock(btr_search_get_latch(index->id));
 
 		search_latch_locked = FALSE;
 	}
@@ -1941,7 +1952,7 @@ stop_for_a_while:
 	mtr_commit(&mtr);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_gen(TRUE));
+	ut_ad(sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 	err = DB_SUCCESS;
 	goto func_exit;
@@ -1961,7 +1972,7 @@ commit_mtr_for_a_while:
 	mtr_has_extra_clust_latch = FALSE;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_gen(TRUE));
+	ut_ad(sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 
 	goto table_loop;
@@ -1978,12 +1989,12 @@ lock_wait_or_error:
 	mtr_commit(&mtr);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_gen(TRUE));
+	ut_ad(sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 
 func_exit:
 	if (search_latch_locked) {
-		rw_lock_s_unlock(&btr_search_latch);
+		rw_lock_s_unlock(btr_search_get_latch(index->id));
 	}
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -2527,13 +2538,13 @@ row_sel_field_store_in_mysql_format(
 	ulint		len)	/*!< in: length of the data */
 {
 	byte*	ptr;
-	byte*	field_end;
-	byte*	pad_ptr;
 
 	ut_ad(len != UNIV_SQL_NULL);
 	UNIV_MEM_ASSERT_RW(data, len);
 
 	switch (templ->type) {
+		const byte*	field_end;
+		byte*		pad;
 	case DATA_INT:
 		/* Convert integer data from Innobase to a little-endian
 		format, sign bit restored to normal */
@@ -2577,38 +2588,32 @@ row_sel_field_store_in_mysql_format(
 		unused end of a >= 5.0.3 true VARCHAR column, just in case
 		MySQL expects its contents to be deterministic. */
 
-		pad_ptr = dest + len;
+		pad = dest + len;
 
 		ut_ad(templ->mbminlen <= templ->mbmaxlen);
 
-		/* We handle UCS2 charset strings differently. */
-		if (templ->mbminlen == 2) {
-			/* A space char is two bytes, 0x0020 in UCS2 */
+		/* We treat some Unicode charset strings specially. */
+		switch (templ->mbminlen) {
+		case 4:
+			/* InnoDB should never have stripped partial
+			UTF-32 characters. */
+			ut_a(!(len & 3));
+			break;
+		case 2:
+			/* A space char is two bytes,
+			0x0020 in UCS2 and UTF-16 */
 
-			if (len & 1) {
+			if (UNIV_UNLIKELY(len & 1)) {
 				/* A 0x20 has been stripped from the column.
 				Pad it back. */
 
-				if (pad_ptr < field_end) {
-					*pad_ptr = 0x20;
-					pad_ptr++;
+				if (pad < field_end) {
+					*pad++ = 0x20;
 				}
 			}
-
-			/* Pad the rest of the string with 0x0020 */
-
-			while (pad_ptr < field_end) {
-				*pad_ptr = 0x00;
-				pad_ptr++;
-				*pad_ptr = 0x20;
-				pad_ptr++;
-			}
-		} else {
-			ut_ad(templ->mbminlen == 1);
-			/* space=0x20 */
-
-			memset(pad_ptr, 0x20, field_end - pad_ptr);
 		}
+
+		row_mysql_pad_col(templ->mbminlen, pad, field_end - pad);
 		break;
 
 	case DATA_BLOB:
@@ -2633,9 +2638,9 @@ row_sel_field_store_in_mysql_format(
 		      || !(templ->mysql_col_len % templ->mbmaxlen));
 		ut_ad(len * templ->mbmaxlen >= templ->mysql_col_len);
 
-		if (templ->mbminlen != templ->mbmaxlen) {
+		if (templ->mbminlen == 1 && templ->mbmaxlen != 1) {
 			/* Pad with spaces. This undoes the stripping
-			done in row0mysql.ic, function
+			done in row0mysql.c, function
 			row_mysql_store_col_in_innobase_format(). */
 
 			memset(dest + len, 0x20, templ->mysql_col_len - len);
@@ -2675,45 +2680,41 @@ row_sel_store_mysql_rec(
 	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct */
 	const rec_t*	rec,		/*!< in: Innobase record in the index
 					which was described in prebuilt's
-					template; must be protected by
-					a page latch */
-	const ulint*	offsets,	/* in: array returned by
-					rec_get_offsets() */
+					template, or in the clustered index;
+					must be protected by a page latch */
+	ibool		rec_clust,	/*!< in: TRUE if rec is in the
+					clustered index instead of
+					prebuilt->index */
+	const ulint*	offsets,	/*!< in: array returned by
+					rec_get_offsets(rec) */
 	ulint		start_field_no,	/* in: start from this field */
 	ulint		end_field_no)	/* in: end at this field */
 {
-	mysql_row_templ_t*	templ;
-	mem_heap_t*		extern_field_heap	= NULL;
-	mem_heap_t*		heap;
-	const byte*		data;
-	ulint			len;
-	ulint			i;
+	mem_heap_t*	extern_field_heap	= NULL;
+	mem_heap_t*	heap;
+	ulint		i;
 
 	ut_ad(prebuilt->mysql_template);
 	ut_ad(prebuilt->default_rec);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
 	if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
 		mem_heap_free(prebuilt->blob_heap);
 		prebuilt->blob_heap = NULL;
 	}
 
-// psergey@askmonty.org: don't take the following:
-#if 0	
-	/* init null bytes with default values as they might be
-
-	left uninitialized in some cases and these uninited bytes
-	might be copied into mysql record buffer that leads to
-	valgrind warnings */
-	memcpy(mysql_rec, prebuilt->default_rec, prebuilt->null_bitmap_len);
-#endif
-	
 	for (i = start_field_no; i < end_field_no /* prebuilt->n_template */ ; i++) {
 
-		templ = prebuilt->mysql_template + i;
+		const mysql_row_templ_t*templ = prebuilt->mysql_template + i;
+		const byte*		data;
+		ulint			len;
+		ulint			field_no;
 
-		if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets,
-						      templ->rec_field_no))) {
+		field_no = rec_clust
+			? templ->clust_rec_field_no : templ->rec_field_no;
+
+		if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets, field_no))) {
 
 			/* Copy an externally stored field to the temporary
 			heap */
@@ -2741,7 +2742,7 @@ row_sel_store_mysql_rec(
 			data = btr_rec_copy_externally_stored_field(
 				rec, offsets,
 				dict_table_zip_size(prebuilt->table),
-				templ->rec_field_no, &len, heap);
+				field_no, &len, heap);
 
 			if (UNIV_UNLIKELY(!data)) {
 				/* The externally stored field
@@ -2762,8 +2763,7 @@ row_sel_store_mysql_rec(
 		} else {
 			/* Field is stored in the row. */
 
-			data = rec_get_nth_field(rec, offsets,
-						 templ->rec_field_no, &len);
+			data = rec_get_nth_field(rec, offsets, field_no, &len);
 
 			if (UNIV_UNLIKELY(templ->type == DATA_BLOB)
 			    && len != UNIV_SQL_NULL) {
@@ -3125,7 +3125,7 @@ row_sel_pop_cached_row_for_mysql(
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct */
 {
 	ulint			i;
-	mysql_row_templ_t*	templ;
+	const mysql_row_templ_t*templ;
 	byte*			cached_rec;
 	ut_ad(prebuilt->n_fetch_cached > 0);
 	ut_ad(prebuilt->mysql_prefix_len <= prebuilt->mysql_row_len);
@@ -3186,9 +3186,14 @@ ibool
 row_sel_push_cache_row_for_mysql(
 /*=============================*/
 	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct */
-	const rec_t*	rec,		/*!< in: record to push; must
-					be protected by a page latch */
-	const ulint*	offsets,	/* in: rec_get_offsets() */
+	const rec_t*	rec,		/*!< in: record to push, in the index
+					which was described in prebuilt's
+					template, or in the clustered index;
+					must be protected by a page latch */
+	ibool		rec_clust,	/*!< in: TRUE if rec is in the
+					clustered index instead of
+					prebuilt->index */
+	const ulint*	offsets,	/*!< in: rec_get_offsets(rec) */
 	ulint		start_field_no,	/* in: start from this field */
 	byte*		remainder_buf)	/* in: if start_field_no !=0,
 					where to take prev fields */
@@ -3198,6 +3203,7 @@ row_sel_push_cache_row_for_mysql(
 
 	ut_ad(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 	ut_a(!prebuilt->templ_contains_blob);
 
 	if (prebuilt->fetch_cache[0] == NULL) {
@@ -3227,7 +3233,7 @@ row_sel_push_cache_row_for_mysql(
 				prebuilt->fetch_cache[
 					  prebuilt->n_fetch_cached],
 				prebuilt,
-				rec,
+				rec, rec_clust,
 				offsets,
 				start_field_no,
 				prebuilt->n_template))) {
@@ -3391,6 +3397,8 @@ row_search_for_mysql(
 	/* if the returned record was locked and we did a semi-consistent
 	read (fetch the newest committed version), then this is set to
 	TRUE */
+	ulint		i;
+	ulint		should_release;
 #ifdef UNIV_SEARCH_DEBUG
 	ulint		cnt				= 0;
 #endif /* UNIV_SEARCH_DEBUG */
@@ -3401,13 +3409,13 @@ row_search_for_mysql(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
 	ibool		some_fields_in_buffer;
-	ibool		problematic_use = FALSE;
+	ibool		table_lock_waited		= FALSE;
+	ibool		problematic_use			= FALSE;
 	ibool		get_clust_rec			= 0;
 
 	rec_offs_init(offsets_);
 
 	ut_ad(index && pcur && search_tuple);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	if (UNIV_UNLIKELY(prebuilt->table->ibd_file_missing)) {
 		ut_print_timestamp(stderr);
@@ -3424,11 +3432,17 @@ row_search_for_mysql(
 			"InnoDB: how you can resolve the problem.\n",
 			prebuilt->table->name);
 
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 		return(DB_ERROR);
 	}
 
 	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
 
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 		return(DB_MISSING_HISTORY);
 	}
 
@@ -3477,18 +3491,33 @@ row_search_for_mysql(
 	/* PHASE 0: Release a possible s-latch we are holding on the
 	adaptive hash index latch if there is someone waiting behind */
 
-	if (UNIV_UNLIKELY(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED)
-	    && trx->has_search_latch) {
+	should_release = 0;
+	for (i = 0; i < btr_search_index_num; i++) {
+		/* we should check all latches (fix Bug#791030) */
+		if (rw_lock_get_writer(btr_search_latch_part[i])
+		    != RW_LOCK_NOT_LOCKED) {
+			should_release |= ((ulint)1 << i);
+		}
+	}
+
+	if (should_release) {
 
 		/* There is an x-latch request on the adaptive hash index:
 		release the s-latch to reduce starvation and wait for
 		BTR_SEA_TIMEOUT rounds before trying to keep it again over
 		calls from MySQL */
 
-		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = FALSE;
+		for (i = 0; i < btr_search_index_num; i++) {
+			/* we should release all s-latches (fix Bug#791030) */
+			if (trx->has_search_latch & ((ulint)1 << i)) {
+				rw_lock_s_unlock(btr_search_latch_part[i]);
+				trx->has_search_latch &= (~((ulint)1 << i));
+			}
+		}
 
+		if (!trx->has_search_latch) {
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+		}
 	}
 
 	/* Reset the new record lock info if srv_locks_unsafe_for_binlog
@@ -3639,9 +3668,28 @@ row_search_for_mysql(
 			hash index semaphore! */
 
 #ifndef UNIV_SEARCH_DEBUG
-			if (!trx->has_search_latch) {
-				rw_lock_s_lock(&btr_search_latch);
-				trx->has_search_latch = TRUE;
+			if (!(trx->has_search_latch
+			      & ((ulint)1 << (index->id % btr_search_index_num)))) {
+				if (trx->has_search_latch
+				    < ((ulint)1 << (index->id % btr_search_index_num))) {
+					rw_lock_s_lock(btr_search_get_latch(index->id));
+					trx->has_search_latch |=
+						((ulint)1 << (index->id % btr_search_index_num));
+				} else {
+					/* should re-lock to obay latch-order */
+					for (i = 0; i < btr_search_index_num; i++) {
+						if (trx->has_search_latch & ((ulint)1 << i)) {
+							rw_lock_s_unlock(btr_search_latch_part[i]);
+						}
+					}
+					trx->has_search_latch |=
+						((ulint)1 << (index->id % btr_search_index_num));
+					for (i = 0; i < btr_search_index_num; i++) {
+						if (trx->has_search_latch & ((ulint)1 << i)) {
+							rw_lock_s_lock(btr_search_latch_part[i]);
+						}
+					}
+				}
 			}
 #endif
 			switch (row_sel_try_search_shortcut_for_mysql(
@@ -3660,7 +3708,7 @@ row_search_for_mysql(
 				ut_ad(!rec_get_deleted_flag(rec, comp));
 
 				if (!row_sel_store_mysql_rec(buf, prebuilt,
-						rec, offsets, 0,
+						rec, FALSE, offsets, 0,
 						prebuilt->n_template)) {
 					/* Only fresh inserts may contain
 					incomplete externally stored
@@ -3702,7 +3750,11 @@ release_search_latch_if_needed:
 
 					trx->search_latch_timeout--;
 
-					rw_lock_s_unlock(&btr_search_latch);
+					for (i = 0; i < btr_search_index_num; i++) {
+						if (trx->has_search_latch & ((ulint)1 << i)) {
+							rw_lock_s_unlock(btr_search_latch_part[i]);
+						}
+					}
 					trx->has_search_latch = FALSE;
 				}
 
@@ -3726,7 +3778,12 @@ release_search_latch_if_needed:
 	/* PHASE 3: Open or restore index cursor position */
 
 	if (trx->has_search_latch) {
-		rw_lock_s_unlock(&btr_search_latch);
+
+		for (i = 0; i < btr_search_index_num; i++) {
+			if (trx->has_search_latch & ((ulint)1 << i)) {
+				rw_lock_s_unlock(btr_search_latch_part[i]);
+			}
+		}
 		trx->has_search_latch = FALSE;
 	}
 
@@ -3766,6 +3823,67 @@ release_search_latch_if_needed:
 	que_thr_move_to_run_state_for_mysql(thr, trx);
 
 	clust_index = dict_table_get_first_index(index->table);
+
+	/* Do some start-of-statement preparations */
+
+	if (!prebuilt->mysql_has_locked) {
+		if (!(prebuilt->table->flags & (DICT_TF2_TEMPORARY << DICT_TF2_SHIFT))) {
+			fprintf(stderr, "InnoDB: Error: row_search_for_mysql() is called without ha_innobase::external_lock()\n");
+			if (trx->mysql_thd != NULL) {
+				innobase_mysql_print_thd(stderr, trx->mysql_thd, 600);
+			}
+		}
+		problematic_use = TRUE;
+	}
+retry_check:
+	
+	if (!prebuilt->sql_stat_start) {
+		/* No need to set an intention lock or assign a read view */
+
+		if (trx->read_view == NULL
+		    && prebuilt->select_lock_type == LOCK_NONE) {
+
+			fputs("InnoDB: Error: MySQL is trying to"
+			      " perform a consistent read\n"
+			      "InnoDB: but the read view is not assigned!\n",
+			      stderr);
+			if (problematic_use) {
+				fprintf(stderr, "InnoDB: It may be caused by calling "
+						"without ha_innobase::external_lock()\n"
+						"InnoDB: For the first-aid, avoiding the crash. "
+						"But it should be fixed ASAP.\n");
+				if (prebuilt->table->flags & (DICT_TF2_TEMPORARY << DICT_TF2_SHIFT)
+				    && trx->mysql_thd != NULL) {
+					innobase_mysql_print_thd(stderr, trx->mysql_thd, 600);
+				}
+				prebuilt->sql_stat_start = TRUE;
+				goto retry_check;
+			}
+			trx_print(stderr, trx, 600);
+			fputc('\n', stderr);
+			ut_error;
+		}
+	} else if (prebuilt->select_lock_type == LOCK_NONE) {
+		/* This is a consistent read */
+		/* Assign a read view for the query */
+
+		trx_assign_read_view(trx);
+		prebuilt->sql_stat_start = FALSE;
+	} else {
+wait_table_again:
+		err = lock_table(0, index->table,
+				 prebuilt->select_lock_type == LOCK_S
+				 ? LOCK_IS : LOCK_IX, thr);
+
+		if (err != DB_SUCCESS) {
+
+			table_lock_waited = TRUE;
+			goto lock_table_wait;
+		}
+		prebuilt->sql_stat_start = FALSE;
+	}
+
+	/* Open or restore index cursor position */
 
 	if (UNIV_LIKELY(direction != 0)) {
 		ibool	need_to_process = sel_restore_position_for_mysql(
@@ -3840,59 +3958,6 @@ release_search_latch_if_needed:
 				FALSE, index, BTR_SEARCH_LEAF, pcur, FALSE,
 				&mtr);
 		}
-	}
-
-	if (!prebuilt->mysql_has_locked) {
-		fprintf(stderr, "InnoDB: Error: row_search_for_mysql() is called without ha_innobase::external_lock()\n");
-		if (trx->mysql_thd != NULL) {
-			innobase_mysql_print_thd(stderr, trx->mysql_thd, 600);
-		}
-		problematic_use = TRUE;
-	}
-retry_check:
-	
-	if (!prebuilt->sql_stat_start) {
-		/* No need to set an intention lock or assign a read view */
-
-		if (trx->read_view == NULL
-		    && prebuilt->select_lock_type == LOCK_NONE) {
-
-			fputs("InnoDB: Error: MySQL is trying to"
-			      " perform a consistent read\n"
-			      "InnoDB: but the read view is not assigned!\n",
-			      stderr);
-			if (problematic_use) {
-				fprintf(stderr, "InnoDB: It may be caused by calling "
-						"without ha_innobase::external_lock()\n"
-						"InnoDB: For the first-aid, avoiding the crash. "
-						"But it should be fixed ASAP.\n");
-				prebuilt->sql_stat_start = TRUE;
-				goto retry_check;
-			}
-			trx_print(stderr, trx, 600);
-			fputc('\n', stderr);
-			ut_a(0);
-		}
-	} else if (prebuilt->select_lock_type == LOCK_NONE) {
-		/* This is a consistent read */
-		/* Assign a read view for the query */
-
-		trx_assign_read_view(trx);
-		prebuilt->sql_stat_start = FALSE;
-	} else {
-		ulint	lock_mode;
-		if (prebuilt->select_lock_type == LOCK_S) {
-			lock_mode = LOCK_IS;
-		} else {
-			lock_mode = LOCK_IX;
-		}
-		err = lock_table(0, index->table, lock_mode, thr);
-
-		if (err != DB_SUCCESS) {
-
-			goto lock_wait_or_error;
-		}
-		prebuilt->sql_stat_start = FALSE;
 	}
 
 rec_loop:
@@ -3984,7 +4049,13 @@ rec_loop:
 	if (UNIV_UNLIKELY(next_offs >= UNIV_PAGE_SIZE - PAGE_DIR)) {
 
 wrong_offs:
-		if (srv_force_recovery == 0 || moves_up == FALSE) {
+		if (srv_pass_corrupt_table && !trx_sys_sys_space(index->table->space)) {
+			index->table->is_corrupt = TRUE;
+			fil_space_set_corrupt(index->table->space);
+		}
+
+		if ((srv_force_recovery == 0 || moves_up == FALSE)
+		    && srv_pass_corrupt_table <= 1) {
 			ut_print_timestamp(stderr);
 			buf_page_print(page_align(rec), 0);
 			fprintf(stderr,
@@ -4035,7 +4106,8 @@ wrong_offs:
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-	if (UNIV_UNLIKELY(srv_force_recovery > 0)) {
+	if (UNIV_UNLIKELY(srv_force_recovery > 0)
+	    || (srv_pass_corrupt_table == 2 && index->table->is_corrupt)) {
 		if (!rec_validate(rec, offsets)
 		    || !btr_index_rec_validate(rec, index, FALSE)) {
 			fprintf(stderr,
@@ -4317,7 +4389,6 @@ no_gap_lock:
 			is necessary, because we can only get the undo
 			information via the clustered index record. */
 
-			ut_ad(index != clust_index);
 			ut_ad(!dict_index_is_clust(index));
 
 			if (!lock_sec_rec_cons_read_sees(
@@ -4372,10 +4443,18 @@ no_gap_lock:
 idx_cond_check:
 	if (prebuilt->idx_cond_func) {
 		int res;
+                ibool ib_res;
 		ut_ad(prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE);
 		offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
-		row_sel_store_mysql_rec(buf, prebuilt, rec,
+		ib_res= row_sel_store_mysql_rec(buf, prebuilt, rec, FALSE,
 		                        offsets, 0, prebuilt->n_index_fields);
+                /* 
+                  The above call will fail and return FALSE when requested to
+                  store an "externally stored column" (afaiu, a blob). Index
+                  Condition Pushdown is not supported for indexes with blob
+                  columns, so we should never get this error.
+                */
+                ut_ad(ib_res);
 		res= prebuilt->idx_cond_func(prebuilt->idx_cond_func_arg);
 		if (res == 0)
 			goto next_rec;
@@ -4450,26 +4529,10 @@ idx_cond_check:
 			goto next_rec;
 		}
 
-		if (prebuilt->need_to_access_clustered) {
-
-			result_rec = clust_rec;
-
-			ut_ad(rec_offs_validate(result_rec, clust_index,
-						offsets));
-		} else {
-			/* We used 'offsets' for the clust rec, recalculate
-			them for 'rec' */
-			offsets = rec_get_offsets(rec, index, offsets,
-						  ULINT_UNDEFINED, &heap);
-			result_rec = rec;
-		}
-
-		/* result_rec can legitimately be delete-marked
-		now that it has been established that it points to a
-		clustered index record that exists in the read view. */
+		result_rec = clust_rec;
+		ut_ad(rec_offs_validate(result_rec, clust_index, offsets));
 	} else {
 		result_rec = rec;
-		ut_ad(!rec_get_deleted_flag(rec, comp));
 	}
 
 	/* We found a qualifying record 'result_rec'. At this point,
@@ -4478,6 +4541,7 @@ idx_cond_check:
 	ut_ad(rec_offs_validate(result_rec,
 				result_rec != rec ? clust_index : index,
 				offsets));
+	ut_ad(!rec_get_deleted_flag(result_rec, comp));
 
 	/* At this point, the clustered index record is protected
 	by a page latch that was acquired when pcur was positioned.
@@ -4504,6 +4568,7 @@ idx_cond_check:
 					 && prebuilt->idx_cond_func);
 
 		if (!row_sel_push_cache_row_for_mysql(prebuilt, result_rec,
+						      result_rec != rec,
                                                       offsets,
                                                       some_fields_in_buffer?
                                                       prebuilt->n_index_fields : 0,
@@ -4524,15 +4589,32 @@ idx_cond_check:
 
 		goto next_rec;
 	} else {
-		if (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE) {
+		if (UNIV_UNLIKELY
+		    (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE)) {
+			/* CHECK TABLE: fetch the row */
+
+			if (result_rec != rec
+			    && !prebuilt->need_to_access_clustered) {
+				/* We used 'offsets' for the clust
+				rec, recalculate them for 'rec' */
+				offsets = rec_get_offsets(rec, index, offsets,
+							  ULINT_UNDEFINED,
+							  &heap);
+				result_rec = rec;
+			}
+
 			memcpy(buf + 4, result_rec
 			       - rec_offs_extra_size(offsets),
 			       rec_offs_size(offsets));
 			mach_write_to_4(buf,
 					rec_offs_extra_size(offsets) + 4);
 		} else {
+			/* Returning a row to MySQL */
+
 			if (!row_sel_store_mysql_rec(buf, prebuilt,
-						   result_rec, offsets,
+						   result_rec,
+						   result_rec != rec,
+                                                   offsets,
 						   prebuilt->idx_cond_func?
 						   prebuilt->n_index_fields: 0,
 						   prebuilt->n_template)) {
@@ -4658,6 +4740,7 @@ lock_wait_or_error:
 
 	btr_pcur_store_position(pcur, &mtr);
 
+lock_table_wait:
 	mtr_commit(&mtr);
 	mtr_has_extra_clust_latch = FALSE;
 
@@ -4674,6 +4757,14 @@ lock_wait_or_error:
 
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 		mtr_start(&mtr);
+
+		/* Table lock waited, go try to obtain table lock
+		again */
+		if (table_lock_waited) {
+			table_lock_waited = FALSE;
+
+			goto wait_table_again;
+		}
 
 		sel_restore_position_for_mysql(&same_user_rec,
 					       BTR_SEARCH_LEAF, pcur,
@@ -4756,6 +4847,10 @@ func_exit:
 			prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
 		}
 	}
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 	return(err);
 }
 
@@ -4793,8 +4888,7 @@ row_search_check_if_query_cache_permitted(
 	IX type locks actually would require ret = FALSE. */
 
 	if (UT_LIST_GET_LEN(table->locks) == 0
-	    && ut_dulint_cmp(trx->id,
-			     table->query_cache_inv_trx_id) >= 0) {
+	    && trx->id >= table->query_cache_inv_trx_id) {
 
 		ret = TRUE;
 

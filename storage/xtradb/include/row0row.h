@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,13 +41,24 @@ Created 4/20/1996 Heikki Tuuri
 Gets the offset of the trx id field, in bytes relative to the origin of
 a clustered index record.
 @return	offset of DATA_TRX_ID */
-UNIV_INTERN
+UNIV_INLINE
 ulint
-row_get_trx_id_offset(
-/*==================*/
-	const rec_t*	rec,	/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
+row_get_trx_id_offset_func(
+/*=======================*/
+#ifdef UNIV_DEBUG
+	const rec_t*		rec,	/*!< in: record */
+#endif /* UNIV_DEBUG */
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
+	__attribute__((nonnull, warn_unused_result));
+#ifdef UNIV_DEBUG
+# define row_get_trx_id_offset(rec, index, offsets)	\
+	row_get_trx_id_offset_func(rec, index, offsets)
+#else /* UNIV_DEBUG */
+# define row_get_trx_id_offset(rec, index, offsets)	\
+	row_get_trx_id_offset_func(index, offsets)
+#endif /* UNIV_DEBUG */
+
 /*********************************************************************//**
 Reads the trx id field from a clustered index record.
 @return	value of the field */
@@ -55,9 +66,10 @@ UNIV_INLINE
 trx_id_t
 row_get_rec_trx_id(
 /*===============*/
-	const rec_t*	rec,	/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
+	const rec_t*		rec,	/*!< in: record */
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Reads the roll pointer field from a clustered index record.
 @return	value of the field */
@@ -257,11 +269,25 @@ row_get_clust_rec(
 	dict_index_t*	index,	/*!< in: secondary index */
 	dict_index_t**	clust_index,/*!< out: clustered index */
 	mtr_t*		mtr);	/*!< in: mtr */
+
+/** Result of row_search_index_entry */
+enum row_search_result {
+	ROW_FOUND = 0,		/*!< the record was found */
+	ROW_NOT_FOUND,		/*!< record not found */
+	ROW_BUFFERED,		/*!< one of BTR_INSERT, BTR_DELETE, or
+				BTR_DELETE_MARK was specified, the
+				secondary index leaf page was not in
+				the buffer pool, and the operation was
+				enqueued in the insert/delete buffer */
+	ROW_NOT_DELETED_REF	/*!< BTR_DELETE was specified, and
+				row_purge_poss_sec() failed */
+};
+
 /***************************************************************//**
 Searches an index record.
-@return	TRUE if found */
+@return	whether the record was found or buffered */
 UNIV_INTERN
-ibool
+enum row_search_result
 row_search_index_entry(
 /*===================*/
 	dict_index_t*	index,	/*!< in: index */

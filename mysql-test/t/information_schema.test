@@ -536,7 +536,7 @@ connect (user10261,localhost,mysqltest_4,,);
 connection user10261;
 --sorted_result
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
-where COLUMN_NAME='TABLE_NAME';
+where COLUMN_NAME='TABLE_NAME' and table_name not like 'innodb%';
 connection default;
 disconnect user10261;
 delete from mysql.user where user='mysqltest_4';
@@ -917,10 +917,10 @@ DROP USER mysql_bug20230@localhost;
 #           INFORMARTION_SCHEMA.TABLES
 #
 
-SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
+SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test') and table_name not like 'xtradb%';
 SELECT table_name from information_schema.tables
   WHERE table_name=(SELECT MAX(table_name)
-                      FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
+                      FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test') and table_name not like 'xtradb%');
 #
 # Bug #23037 Bug in field "Default" of query "SHOW COLUMNS FROM table"
 #

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -39,6 +39,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "srv0srv.h"
 #include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
+#include "ha_prototypes.h"
 
 /*
 	IMPLEMENTATION OF THE RW_LOCK
@@ -168,12 +169,22 @@ UNIV_INTERN ib_int64_t	rw_x_exit_count		= 0;
 UNIV_INTERN rw_lock_list_t	rw_lock_list;
 UNIV_INTERN mutex_t		rw_lock_list_mutex;
 
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	rw_lock_list_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	rw_lock_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 #ifdef UNIV_SYNC_DEBUG
 /* The global mutex which protects debug info lists of all rw-locks.
 To modify the debug info list of an rw-lock, this mutex has to be
 acquired in addition to the mutex protecting the lock. */
 
 UNIV_INTERN mutex_t		rw_lock_debug_mutex;
+
+# ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	rw_lock_debug_mutex_key;
+# endif
+
 /* If deadlock detection does not get immediately the mutex,
 it may wait for this event */
 UNIV_INTERN os_event_t		rw_lock_debug_event;
@@ -231,16 +242,17 @@ rw_lock_create_func(
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_DEBUG */
-	const char*	cmutex_name, 	/*!< in: mutex name */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline)		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name)	/*!< in: mutex name */
 {
 	/* If this is the very first time a synchronization object is
 	created, then the following call initializes the sync system. */
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_create(rw_lock_get_mutex(lock), SYNC_NO_ORDER_CHECK);
+	mutex_create(rw_lock_mutex_key, rw_lock_get_mutex(lock),
+		     SYNC_NO_ORDER_CHECK);
 
 	ut_d(lock->mutex.cfile_name = cfile_name);
 	ut_d(lock->mutex.cline = cline);
@@ -261,6 +273,9 @@ rw_lock_create_func(
 	contains garbage at initialization and cannot be used for
 	recursive x-locking. */
 	lock->recursive = FALSE;
+	/* Silence Valgrind when UNIV_DEBUG_VALGRIND is not enabled. */
+	memset((void*) &lock->writer_thread, 0, sizeof lock->writer_thread);
+	UNIV_MEM_INVALID(&lock->writer_thread, sizeof lock->writer_thread);
 
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_INIT(lock->debug_list);
@@ -296,8 +311,8 @@ the rw-lock is freed. Removes an rw-lock object from the global list. The
 rw-lock is checked to be in the non-locked state. */
 UNIV_INTERN
 void
-rw_lock_free(
-/*=========*/
+rw_lock_free_func(
+/*==============*/
 	rw_lock_t*	lock)	/*!< in: rw-lock */
 {
 	ut_ad(rw_lock_validate(lock));
@@ -335,10 +350,13 @@ rw_lock_validate(
 /*=============*/
 	rw_lock_t*	lock)	/*!< in: rw-lock */
 {
+	ulint	waiters;
+	lint	lock_word;
+
 	ut_a(lock);
 
-	ulint waiters = rw_lock_get_waiters(lock);
-	lint lock_word = lock->lock_word;
+	waiters = rw_lock_get_waiters(lock);
+	lock_word = lock->lock_word;
 
 	ut_ad(lock->magic_n == RW_LOCK_MAGIC_N);
 	ut_a(waiters == 0 || waiters == 1);
@@ -602,7 +620,7 @@ rw_lock_x_lock_func(
 {
 	ulint	index;	/*!< index of the reserved wait cell */
 	ulint	i;	/*!< spin round count */
-	ibool   spinning = FALSE;
+	ibool	spinning = FALSE;
 
 	ut_ad(rw_lock_validate(lock));
 
@@ -921,7 +939,7 @@ rw_lock_list_print_info(
 
 			info = UT_LIST_GET_FIRST(lock->debug_list);
 			while (info != NULL) {
-				rw_lock_debug_print(info);
+				rw_lock_debug_print(file, info);
 				info = UT_LIST_GET_NEXT(list, info);
 			}
 		}
@@ -969,7 +987,7 @@ rw_lock_print(
 
 		info = UT_LIST_GET_FIRST(lock->debug_list);
 		while (info != NULL) {
-			rw_lock_debug_print(info);
+			rw_lock_debug_print(stderr, info);
 			info = UT_LIST_GET_NEXT(list, info);
 		}
 	}
@@ -981,28 +999,29 @@ UNIV_INTERN
 void
 rw_lock_debug_print(
 /*================*/
+	FILE*			f,	/*!< in: output stream */
 	rw_lock_debug_t*	info)	/*!< in: debug struct */
 {
 	ulint	rwt;
 
 	rwt	  = info->lock_type;
 
-	fprintf(stderr, "Locked: thread %ld file %s line %ld  ",
+	fprintf(f, "Locked: thread %lu file %s line %lu  ",
 		(ulong) os_thread_pf(info->thread_id), info->file_name,
 		(ulong) info->line);
 	if (rwt == RW_LOCK_SHARED) {
-		fputs("S-LOCK", stderr);
+		fputs("S-LOCK", f);
 	} else if (rwt == RW_LOCK_EX) {
-		fputs("X-LOCK", stderr);
+		fputs("X-LOCK", f);
 	} else if (rwt == RW_LOCK_WAIT_EX) {
-		fputs("WAIT X-LOCK", stderr);
+		fputs("WAIT X-LOCK", f);
 	} else {
 		ut_error;
 	}
 	if (info->pass != 0) {
-		fprintf(stderr, " pass value %lu", (ulong) info->pass);
+		fprintf(f, " pass value %lu", (ulong) info->pass);
 	}
-	putc('\n', stderr);
+	putc('\n', f);
 }
 
 /***************************************************************//**

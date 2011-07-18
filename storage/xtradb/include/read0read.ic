@@ -64,15 +64,14 @@ read_view_sees_trx_id(
 	trx_id_t		trx_id)	/*!< in: trx id */
 {
 	ulint	n_ids;
-	int	cmp;
 	ulint	i;
 
-	if (ut_dulint_cmp(trx_id, view->up_limit_id) < 0) {
+	if (trx_id < view->up_limit_id) {
 
 		return(TRUE);
 	}
 
-	if (ut_dulint_cmp(trx_id, view->low_limit_id) >= 0) {
+	if (trx_id >= view->low_limit_id) {
 
 		return(FALSE);
 	}
@@ -85,12 +84,11 @@ read_view_sees_trx_id(
 	n_ids = view->n_trx_ids;
 
 	for (i = 0; i < n_ids; i++) {
+		trx_id_t	view_trx_id
+			= read_view_get_nth_trx_id(view, n_ids - i - 1);
 
-		cmp = ut_dulint_cmp(
-			trx_id,
-			read_view_get_nth_trx_id(view, n_ids - i - 1));
-		if (cmp <= 0) {
-			return(cmp < 0);
+		if (trx_id <= view_trx_id) {
+			return(trx_id != view_trx_id);
 		}
 	}
 

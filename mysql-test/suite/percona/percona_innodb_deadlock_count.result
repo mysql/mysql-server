@@ -11,18 +11,18 @@ insert into t values(1,2);
 # Switch to connection con1
 BEGIN;
 SELECT b FROM t WHERE a=1 FOR UPDATE;
-b
-2
 # Switch to connection con2
 BEGIN;
 SELECT b FROM t WHERE a=2 FOR UPDATE;
-b
-1
 # Switch to connection con1
 SELECT b FROM t WHERE a=2 FOR UPDATE;
 # Switch to connection con2
 SELECT b FROM t WHERE a=1 FOR UPDATE;
+# Switch to connection con1
+ROLLBACK;
+# Switch to connection con2
+ROLLBACK;
 # Switch to connection con3
-1
+Deadlocks: 1
 # Drop test table
 drop table t;

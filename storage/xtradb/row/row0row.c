@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,35 +46,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "read0read.h"
 #include "ut0mem.h"
-
-/*********************************************************************//**
-Gets the offset of trx id field, in bytes relative to the origin of
-a clustered index record.
-@return	offset of DATA_TRX_ID */
-UNIV_INTERN
-ulint
-row_get_trx_id_offset(
-/*==================*/
-	const rec_t*	rec __attribute__((unused)),
-				/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
-{
-	ulint	pos;
-	ulint	offset;
-	ulint	len;
-
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(rec, index, offsets));
-
-	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-
-	offset = rec_get_nth_field_offs(offsets, pos, &len);
-
-	ut_ad(len == DATA_TRX_ID_LEN);
-
-	return(offset);
-}
 
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
@@ -151,12 +122,10 @@ row_build_index_entry(
 		} else if (dfield_is_ext(dfield)) {
 			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 			len -= BTR_EXTERN_FIELD_REF_SIZE;
-			ut_a(ind_field->prefix_len <= len
-			     || dict_index_is_clust(index));
 		}
 
 		len = dtype_get_at_most_n_mbchars(
-			col->prtype, col->mbminlen, col->mbmaxlen,
+			col->prtype, col->mbminmaxlen,
 			ind_field->prefix_len, len, dfield_get_data(dfield));
 		dfield_set_len(dfield, len);
 	}
@@ -231,6 +200,14 @@ row_build(
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
 
+#if 0 && defined UNIV_BLOB_NULL_DEBUG
+	/* This one can fail in trx_rollback_active() if
+	the server crashed during an insert before the
+	btr_store_big_rec_extern_fields() did mtr_commit()
+	all BLOB pointers to the clustered index record. */
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* 0 && UNIV_BLOB_NULL_DEBUG */
+
 	if (type != ROW_COPY_POINTERS) {
 		/* Take a copy of rec to heap */
 		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
@@ -301,8 +278,7 @@ row_build(
 		ut_ad(dict_table_get_format(index->table)
 		      < DICT_TF_FORMAT_ZIP);
 	} else if (j) {
-		*ext = row_ext_create(j, ext_cols, row,
-				      dict_table_zip_size(index->table),
+		*ext = row_ext_create(j, ext_cols, index->table->flags, row,
 				      heap);
 	} else {
 		*ext = NULL;
@@ -347,6 +323,14 @@ row_rec_to_index_entry_low(
 
 	rec_len = rec_offs_n_fields(offsets);
 
+	if (srv_use_sys_stats_table
+	    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)) {
+		if (rec_len < dict_index_get_n_fields(index)) {
+			/* the new record should be extended */
+			rec_len = dict_index_get_n_fields(index);
+		}
+	}
+
 	entry = dtuple_create(heap, rec_len);
 
 	dtuple_set_n_fields_cmp(entry,
@@ -358,6 +342,14 @@ row_rec_to_index_entry_low(
 	for (i = 0; i < rec_len; i++) {
 
 		dfield = dtuple_get_nth_field(entry, i);
+
+		if (srv_use_sys_stats_table
+		    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)
+		    && i >= rec_offs_n_fields(offsets)) {
+			dfield_set_null(dfield);
+			continue;
+		}
+
 		field = rec_get_nth_field(rec, offsets, i, &len);
 
 		dfield_set_data(dfield, field, len);
@@ -415,6 +407,10 @@ row_rec_to_index_entry(
 		rec = rec_copy(buf, rec, offsets);
 		/* Avoid a debug assertion in rec_offs_validate(). */
 		rec_offs_make_valid(rec, index, offsets);
+#ifdef UNIV_BLOB_NULL_DEBUG
+	} else {
+		ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* UNIV_BLOB_NULL_DEBUG */
 	}
 
 	entry = row_rec_to_index_entry_low(rec, index, offsets, n_ext, heap);
@@ -520,8 +516,7 @@ row_build_row_ref(
 				dfield_set_len(dfield,
 					       dtype_get_at_most_n_mbchars(
 						       dtype->prtype,
-						       dtype->mbminlen,
-						       dtype->mbmaxlen,
+						       dtype->mbminmaxlen,
 						       clust_col_prefix_len,
 						       len, (char*) field));
 			}
@@ -635,8 +630,7 @@ notfound:
 				dfield_set_len(dfield,
 					       dtype_get_at_most_n_mbchars(
 						       dtype->prtype,
-						       dtype->mbminlen,
-						       dtype->mbmaxlen,
+						       dtype->mbminmaxlen,
 						       clust_col_prefix_len,
 						       len, (char*) field));
 			}
@@ -736,9 +730,9 @@ row_get_clust_rec(
 
 /***************************************************************//**
 Searches an index record.
-@return	TRUE if found */
+@return	whether the record was found or buffered */
 UNIV_INTERN
-ibool
+enum row_search_result
 row_search_index_entry(
 /*===================*/
 	dict_index_t*	index,	/*!< in: index */
@@ -755,13 +749,38 @@ row_search_index_entry(
 	ut_ad(dtuple_check_typed(entry));
 
 	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, pcur, mtr);
+
+	switch (btr_pcur_get_btr_cur(pcur)->flag) {
+	case BTR_CUR_DELETE_REF:
+		ut_a(mode & BTR_DELETE);
+		return(ROW_NOT_DELETED_REF);
+
+	case BTR_CUR_DEL_MARK_IBUF:
+	case BTR_CUR_DELETE_IBUF:
+	case BTR_CUR_INSERT_TO_IBUF:
+		return(ROW_BUFFERED);
+
+	case BTR_CUR_HASH:
+	case BTR_CUR_HASH_FAIL:
+	case BTR_CUR_BINARY:
+		break;
+	}
+
 	low_match = btr_pcur_get_low_match(pcur);
 
 	rec = btr_pcur_get_rec(pcur);
 
 	n_fields = dtuple_get_n_fields(entry);
 
-	return(!page_rec_is_infimum(rec) && low_match == n_fields);
+	if (page_rec_is_infimum(rec)) {
+
+		return(ROW_NOT_FOUND);
+	} else if (low_match != n_fields) {
+
+		return(ROW_NOT_FOUND);
+	}
+
+	return(ROW_FOUND);
 }
 
 #include <my_sys.h>

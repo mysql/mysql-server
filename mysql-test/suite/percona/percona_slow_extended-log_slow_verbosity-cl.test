@@ -1,0 +1,3 @@
+show global variables like 'log_slow_verbosity';
+show variables like 'log_slow_verbosity';
+select @@log_slow_verbosity;

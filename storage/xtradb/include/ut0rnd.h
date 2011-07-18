@@ -97,13 +97,13 @@ ut_fold_ulint_pair(
 	ulint	n2)	/*!< in: ulint */
 	__attribute__((const));
 /*************************************************************//**
-Folds a dulint.
+Folds a 64-bit integer.
 @return	folded value */
 UNIV_INLINE
 ulint
-ut_fold_dulint(
-/*===========*/
-	dulint	d)	/*!< in: dulint */
+ut_fold_ull(
+/*========*/
+	ib_uint64_t	d)	/*!< in: 64-bit integer */
 	__attribute__((const));
 /*************************************************************//**
 Folds a character string ending in the null character.

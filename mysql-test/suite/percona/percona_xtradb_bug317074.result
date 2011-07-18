@@ -1,4 +1,5 @@
 SET @old_innodb_file_format=@@innodb_file_format;
+SET @old_innodb_file_format_max=@@innodb_file_format_max;
 SET @old_innodb_file_per_table=@@innodb_file_per_table;
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=ON;

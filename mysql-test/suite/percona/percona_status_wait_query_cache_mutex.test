@@ -30,7 +30,7 @@ SLEEP 1.0;
 --connection conn2
 --error 0, ER_UNKNOWN_SYSTEM_VARIABLE
 SET SESSION debug="+d,status_wait_query_cache_mutex_sleep";
---replace_column 1 Id 6 Time
+--replace_column 1 Id 6 Time 9 Rows_sent 10 Rows_examined 11 Rows_read
 SHOW PROCESSLIST;
 
 DROP TABLE t;

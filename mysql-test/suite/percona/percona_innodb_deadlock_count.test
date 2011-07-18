@@ -9,7 +9,6 @@ connect (con3,localhost,root,,);
 --disable_warnings
 drop table if exists t;
 --enable_warnings
-disable_abort_on_error;
 
 --echo # Create test table
 create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
@@ -20,11 +19,11 @@ insert into t values(1,2);
 #--echo # Save current deadlock count
 let $current = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_deadlocks'`;
 
+--disable_result_log
+
 --echo # Switch to connection con1
 connection con1;
 BEGIN; SELECT b FROM t WHERE a=1 FOR UPDATE;
-
-#show engine innodb status;
 
 --echo # Switch to connection con2
 connection con2;
@@ -38,12 +37,25 @@ SEND SELECT b FROM t WHERE a=2 FOR UPDATE;
 connection con2;
 SEND SELECT b FROM t WHERE a=1 FOR UPDATE;
 
-SLEEP 0.2;
+--echo # Switch to connection con1
+connection con1;
+--error 0, ER_LOCK_DEADLOCK
+reap;
+ROLLBACK;
+
+--echo # Switch to connection con2
+connection con2;
+--error 0, ER_LOCK_DEADLOCK
+reap;
+ROLLBACK;
+
 --echo # Switch to connection con3
 connection con3;
 let $result = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_deadlocks'`;
 
+--enable_result_log
+
 let $diff = `SELECT $result - $current`;
-echo $diff;
+echo Deadlocks: $diff;
 --echo # Drop test table
 drop table t;

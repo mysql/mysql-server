@@ -1,3 +1,0 @@
-# According to /usr/share/menu/ policy 1.4, not /usr/share/doc/debian-policy/
-?package(innotop):needs="text" section="Applications/Data Management"\
-  title="innotop" command="/usr/bin/innotop"

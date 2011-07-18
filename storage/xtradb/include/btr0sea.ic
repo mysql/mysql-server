@@ -62,8 +62,8 @@ btr_search_info_update(
 	btr_search_t*	info;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+	ut_ad(!rw_lock_own(btr_search_get_latch(index->id), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(btr_search_get_latch(index->id), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	info = btr_search_get_info(index);
@@ -82,3 +82,72 @@ btr_search_info_update(
 
 	btr_search_info_update_slow(info, cursor);
 }
+
+/*********************************************************************//**
+New functions to control split btr_search_index */
+UNIV_INLINE
+hash_table_t*
+btr_search_get_hash_index(
+/*======================*/
+	index_id_t	key)
+{
+	return(btr_search_sys->hash_index[key % btr_search_index_num]);
+}
+
+UNIV_INLINE
+rw_lock_t*
+btr_search_get_latch(
+/*=================*/
+	index_id_t	key)
+{
+	return(btr_search_latch_part[key % btr_search_index_num]);
+}
+
+UNIV_INLINE
+void
+btr_search_x_lock_all(void)
+/*=======================*/
+{
+	ulint	i;
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		rw_lock_x_lock(btr_search_latch_part[i]);
+	}
+}
+
+UNIV_INLINE
+void
+btr_search_x_unlock_all(void)
+/*==========================*/
+{
+	ulint	i;
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		rw_lock_x_unlock(btr_search_latch_part[i]);
+	}
+}
+
+UNIV_INLINE
+void
+btr_search_s_lock_all(void)
+/*=======================*/
+{
+	ulint	i;
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		rw_lock_s_lock(btr_search_latch_part[i]);
+	}
+}
+
+UNIV_INLINE
+void
+btr_search_s_unlock_all(void)
+/*=========================*/
+{
+	ulint	i;
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		rw_lock_s_unlock(btr_search_latch_part[i]);
+	}
+}
+

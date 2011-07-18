@@ -1,0 +1,107 @@
+-- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/master-slave.inc
+
+connection master;
+-- disable_warnings
+DROP TABLE IF EXISTS t;
+-- enable_warnings
+CREATE TABLE t(id INT);
+
+-- disable_warnings
+connection slave;
+START SLAVE;
+-- source include/wait_for_slave_to_start.inc
+-- enable_warnings
+
+connection master;
+INSERT INTO t VALUES (1);
+sync_slave_with_master;
+
+connection slave;
+show variables like 'log_slow_slave_statements';
+set global log_slow_slave_statements=ON;
+show variables like 'log_slow_slave_statements';
+
+connection master;
+INSERT INTO t VALUES (2);
+sync_slave_with_master;
+connection slave;
+
+STOP SLAVE;
+-- source include/wait_for_slave_to_stop.inc
+START SLAVE;
+-- source include/wait_for_slave_to_start.inc
+
+connection master;
+INSERT INTO t VALUES (3);
+sync_slave_with_master;
+
+connection slave;
+show        variables like 'long_query_time';
+show global variables like 'long_query_time';
+show global variables like 'slow_query_log_use_global_control';
+set global long_query_time=0;
+show        variables like 'long_query_time';
+show global variables like 'long_query_time';
+show global variables like 'slow_query_log_use_global_control';
+
+connection master;
+INSERT INTO t VALUES (4);
+sync_slave_with_master;
+
+connection slave;
+show        variables like 'long_query_time';
+show global variables like 'long_query_time';
+show global variables like 'slow_query_log_use_global_control';
+set global slow_query_log_use_global_control='long_query_time';
+show        variables like 'long_query_time';
+show global variables like 'long_query_time';
+show global variables like 'slow_query_log_use_global_control';
+
+#-- echo # Make insert(5) on master
+connection master;
+INSERT INTO t VALUES (5);
+sync_slave_with_master;
+connection slave;
+show        variables like 'long_query_time';
+show global variables like 'long_query_time';
+show global variables like 'slow_query_log_use_global_control';
+set global long_query_time=1;
+set global slow_query_log_use_global_control='';
+
+connection master;
+FLUSH LOGS;
+
+-- echo # Analyse master slow_query_log
+let $i=5;
+let $k=1;
+while($i)
+{
+    --let grep_file = $MYSQLTEST_VARDIR/mysqld.1/data/percona_log_slow_slave_statements-master.log
+    --let grep_pattern = INSERT INTO t VALUES \($k\)
+    --source grep.inc
+    dec $i;
+    inc $k;
+}
+
+connection slave;
+FLUSH LOGS;
+
+-- echo # Analyse slave slow_query_log
+let $i=5;
+let $k=1;
+while($i)
+{
+    --let grep_file = $MYSQLTEST_VARDIR/mysqld.2/data/percona_log_slow_slave_statements-slave.log
+    --let grep_pattern = INSERT INTO t VALUES \($k\)
+    --source grep.inc
+    dec $i;
+    inc $k;
+}
+set global log_slow_slave_statements=OFF;
+
+connection master;
+DROP TABLE t;
+sync_slave_with_master;
+STOP SLAVE;
+-- source include/wait_for_slave_to_stop.inc

@@ -1,3 +1,0 @@
-version=3
-opts="uversionmangle=s/-(rc|beta)/$1/" \
-  ftp://sunsite.informatik.rwth-aachen.de/pub/mirror/www.mysql.com/Downloads/MySQL-5.1/mysql-([\d\.]*(?:-beta|-rc)?).tar.gz debian

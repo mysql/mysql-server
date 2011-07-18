@@ -1,4 +1,10 @@
+--source include/have_response_time_distribution.inc
 --source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+--source include/have_debug.inc
+--disable_query_log
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement:");
+--enable_query_log
 
 connection master;
 -- disable_warnings
@@ -16,12 +22,12 @@ SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 10;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 source include/percona_query_response_time_flush.inc;
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=ON;
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=ON;
 
 connection master;
-INSERT INTO t VALUES(0);
+INSERT INTO t SELECT SLEEP(0.4);
 SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
-INSERT INTO t VALUES(1);
+INSERT INTO t SELECT SLEEP(0.4);
 SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 sync_slave_with_master;
 
@@ -34,9 +40,9 @@ SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 source include/percona_query_response_time_flush.inc;
 
 connection master;
-INSERT INTO t VALUES(0);
+INSERT INTO t SELECT SLEEP(0.4);
 SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
-INSERT INTO t VALUES(1);
+INSERT INTO t SELECT SLEEP(0.4);
 SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 sync_slave_with_master;
 
@@ -49,4 +55,7 @@ DROP TABLE IF EXISTS t;
 sync_slave_with_master;
 connection slave;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 10;
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=OFF;
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=OFF;
+
+STOP SLAVE;
+-- source include/wait_for_slave_to_stop.inc

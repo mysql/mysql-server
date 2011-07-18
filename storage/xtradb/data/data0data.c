@@ -367,7 +367,7 @@ dfield_print_also_hex(
 	prtype = dtype_get_prtype(dfield_get_type(dfield));
 
 	switch (dtype_get_mtype(dfield_get_type(dfield))) {
-		dulint	id;
+		ib_id_t	id;
 	case DATA_INT:
 		switch (len) {
 			ulint	val;
@@ -417,22 +417,16 @@ dfield_print_also_hex(
 
 		case 6:
 			id = mach_read_from_6(data);
-			fprintf(stderr, "{%lu %lu}",
-				ut_dulint_get_high(id),
-				ut_dulint_get_low(id));
+			fprintf(stderr, "%llu", (ullint) id);
 			break;
 
 		case 7:
 			id = mach_read_from_7(data);
-			fprintf(stderr, "{%lu %lu}",
-				ut_dulint_get_high(id),
-				ut_dulint_get_low(id));
+			fprintf(stderr, "%llu", (ullint) id);
 			break;
 		case 8:
 			id = mach_read_from_8(data);
-			fprintf(stderr, "{%lu %lu}",
-				ut_dulint_get_high(id),
-				ut_dulint_get_low(id));
+			fprintf(stderr, "%llu", (ullint) id);
 			break;
 		default:
 			goto print_hex;
@@ -444,29 +438,25 @@ dfield_print_also_hex(
 		case DATA_TRX_ID:
 			id = mach_read_from_6(data);
 
-			fprintf(stderr, "trx_id " TRX_ID_FMT,
-				TRX_ID_PREP_PRINTF(id));
+			fprintf(stderr, "trx_id " TRX_ID_FMT, (ullint) id);
 			break;
 
 		case DATA_ROLL_PTR:
 			id = mach_read_from_7(data);
 
-			fprintf(stderr, "roll_ptr {%lu %lu}",
-				ut_dulint_get_high(id), ut_dulint_get_low(id));
+			fprintf(stderr, "roll_ptr " TRX_ID_FMT, (ullint) id);
 			break;
 
 		case DATA_ROW_ID:
 			id = mach_read_from_6(data);
 
-			fprintf(stderr, "row_id {%lu %lu}",
-				ut_dulint_get_high(id), ut_dulint_get_low(id));
+			fprintf(stderr, "row_id " TRX_ID_FMT, (ullint) id);
 			break;
 
 		default:
-			id = mach_dulint_read_compressed(data);
+			id = mach_ull_read_compressed(data);
 
-			fprintf(stderr, "mix_id {%lu %lu}",
-				ut_dulint_get_high(id), ut_dulint_get_low(id));
+			fprintf(stderr, "mix_id " TRX_ID_FMT, (ullint) id);
 		}
 		break;
 
@@ -595,7 +585,8 @@ dtuple_convert_big_rec(
 
 	if (dict_table_get_format(index->table) < DICT_TF_FORMAT_ZIP) {
 		/* up to MySQL 5.1: store a 768-byte prefix locally */
-		local_len = BTR_EXTERN_FIELD_REF_SIZE + DICT_MAX_INDEX_COL_LEN;
+		local_len = BTR_EXTERN_FIELD_REF_SIZE
+			+ DICT_ANTELOPE_MAX_INDEX_COL_LEN;
 	} else {
 		/* new-format table: do not store any BLOB prefix locally */
 		local_len = BTR_EXTERN_FIELD_REF_SIZE;
@@ -767,7 +758,10 @@ dtuple_convert_back_big_rec(
 
 		local_len -= BTR_EXTERN_FIELD_REF_SIZE;
 
-		ut_ad(local_len <= DICT_MAX_INDEX_COL_LEN);
+		/* Only in REDUNDANT and COMPACT format, we store
+		up to DICT_ANTELOPE_MAX_INDEX_COL_LEN (768) bytes
+		locally */
+		ut_ad(local_len <= DICT_ANTELOPE_MAX_INDEX_COL_LEN);
 
 		dfield_set_data(dfield,
 				(char*) b->data - local_len,

@@ -57,6 +57,11 @@ Completed by Sunny Bains and Marko Makela
 #include "ut0sort.h"
 #include "handler0alter.h"
 
+/* Ignore posix_fadvise() on those platforms where it does not exist */
+#if defined __WIN__
+# define posix_fadvise(fd, offset, len, advice) /* nothing */
+#endif /* __WIN__ */
+
 #ifdef UNIV_DEBUG
 /** Set these in order ot enable debug printout. */
 /* @{ */
@@ -269,6 +274,7 @@ row_merge_buf_add(
 	const dict_index_t*	index;
 	dfield_t*		entry;
 	dfield_t*		field;
+	const dict_field_t*	ifield;
 
 	if (buf->n_tuples >= buf->max_tuples) {
 		return(FALSE);
@@ -287,14 +293,14 @@ row_merge_buf_add(
 	data_size = 0;
 	extra_size = UT_BITS_IN_BYTES(index->n_nullable);
 
-	for (i = 0; i < n_fields; i++, field++) {
-		const dict_field_t*	ifield;
+	ifield = dict_index_get_nth_field(index, 0);
+
+	for (i = 0; i < n_fields; i++, field++, ifield++) {
 		const dict_col_t*	col;
 		ulint			col_no;
 		const dfield_t*		row_field;
 		ulint			len;
 
-		ifield = dict_index_get_nth_field(index, i);
 		col = ifield->col;
 		col_no = dict_col_get_no(col);
 		row_field = dtuple_get_nth_field(row, col_no);
@@ -332,7 +338,7 @@ row_merge_buf_add(
 		if (ifield->prefix_len) {
 			len = dtype_get_at_most_n_mbchars(
 				col->prtype,
-				col->mbminlen, col->mbmaxlen,
+				col->mbminmaxlen,
 				ifield->prefix_len,
 				len, dfield_get_data(field));
 			dfield_set_len(field, len);
@@ -690,7 +696,9 @@ ibool
 row_merge_read(
 /*===========*/
 	int			fd,	/*!< in: file descriptor */
-	ulint			offset,	/*!< in: offset where to read */
+	ulint			offset,	/*!< in: offset where to read
+					in number of row_merge_block_t
+					elements */
 	row_merge_block_t*	buf)	/*!< out: data */
 {
 	ib_uint64_t	ofs = ((ib_uint64_t) offset) * sizeof *buf;
@@ -707,6 +715,11 @@ row_merge_read(
 						 (ulint) (ofs & 0xFFFFFFFF),
 						 (ulint) (ofs >> 32),
 						 sizeof *buf);
+#ifdef POSIX_FADV_DONTNEED
+	/* Each block is read exactly once.  Free up the file cache. */
+	posix_fadvise(fd, ofs, sizeof *buf, POSIX_FADV_DONTNEED);
+#endif /* POSIX_FADV_DONTNEED */
+
 	if (UNIV_UNLIKELY(!success)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -724,13 +737,18 @@ ibool
 row_merge_write(
 /*============*/
 	int		fd,	/*!< in: file descriptor */
-	ulint		offset,	/*!< in: offset where to read
-				in number of row_merge_block_t
-				elements */
+	ulint		offset,	/*!< in: offset where to write,
+				in number of row_merge_block_t elements */
 	const void*	buf)	/*!< in: data */
 {
-	ib_uint64_t	ofs = ((ib_uint64_t) offset)
-		* sizeof(row_merge_block_t);
+	size_t		buf_len = sizeof(row_merge_block_t);
+	ib_uint64_t	ofs = buf_len * (ib_uint64_t) offset;
+	ibool		ret;
+
+	ret = os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf,
+			    (ulint) (ofs & 0xFFFFFFFF),
+			    (ulint) (ofs >> 32),
+			    buf_len);
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_write) {
@@ -739,10 +757,13 @@ row_merge_write(
 	}
 #endif /* UNIV_DEBUG */
 
-	return(UNIV_LIKELY(os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf,
-					 (ulint) (ofs & 0xFFFFFFFF),
-					 (ulint) (ofs >> 32),
-					 sizeof(row_merge_block_t))));
+#ifdef POSIX_FADV_DONTNEED
+	/* The block will be needed on the next merge pass,
+	but it can be evicted from the file cache meanwhile. */
+	posix_fadvise(fd, ofs, buf_len, POSIX_FADV_DONTNEED);
+#endif /* POSIX_FADV_DONTNEED */
+
+	return(UNIV_LIKELY(ret));
 }
 
 /********************************************************************//**
@@ -1585,48 +1606,47 @@ row_merge(
 	const dict_index_t*	index,	/*!< in: index being created */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
+	ulint*			half,	/*!< in/out: half the file */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	int*			tmpfd,	/*!< in/out: temporary file handle */
-	struct TABLE*		table,	/*!< in/out: MySQL table, for
+	struct TABLE*		table)	/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
-	ulint*			num_run,/*!< in/out: Number of runs remain
-					to be merged */
-	ulint*			run_offset) /*!< in/out: Array contains the
-					first offset number for each merge
-					run */
 {
 	ulint		foffs0;	/*!< first input offset */
 	ulint		foffs1;	/*!< second input offset */
 	ulint		error;	/*!< error code */
 	merge_file_t	of;	/*!< output file */
-	const ulint	ihalf	= run_offset[*num_run / 2];
+	const ulint	ihalf	= *half;
 				/*!< half the input file */
-	ulint		n_run	= 0;
-				/*!< num of runs generated from this merge */
+	ulint		ohalf;	/*!< half the output file */
 
 	UNIV_MEM_ASSERT_W(block[0], 3 * sizeof block[0]);
-
 	ut_ad(ihalf < file->offset);
 
 	of.fd = *tmpfd;
 	of.offset = 0;
 	of.n_rec = 0;
 
+#ifdef POSIX_FADV_SEQUENTIAL
+	/* The input file will be read sequentially, starting from the
+	beginning and the middle.  In Linux, the POSIX_FADV_SEQUENTIAL
+	affects the entire file.  Each block will be read exactly once. */
+	posix_fadvise(file->fd, 0, 0,
+		      POSIX_FADV_SEQUENTIAL | POSIX_FADV_NOREUSE);
+#endif /* POSIX_FADV_SEQUENTIAL */
+
 	/* Merge blocks to the output file. */
+	ohalf = 0;
 	foffs0 = 0;
 	foffs1 = ihalf;
 
-	UNIV_MEM_INVALID(run_offset, *num_run * sizeof *run_offset);
-
 	for (; foffs0 < ihalf && foffs1 < file->offset; foffs0++, foffs1++) {
+		ulint	ahalf;	/*!< arithmetic half the input file */
 
 		if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 			return(DB_INTERRUPTED);
 		}
-
-		/* Remember the offset number for this run */
-		run_offset[n_run++] = of.offset;
 
 		error = row_merge_blocks(index, file, block,
 					 &foffs0, &foffs1, &of, table);
@@ -1635,6 +1655,21 @@ row_merge(
 			return(error);
 		}
 
+		/* Record the offset of the output file when
+		approximately half the output has been generated.  In
+		this way, the next invocation of row_merge() will
+		spend most of the time in this loop.  The initial
+		estimate is ohalf==0. */
+		ahalf = file->offset / 2;
+		ut_ad(ohalf <= of.offset);
+
+		/* Improve the estimate until reaching half the input
+		file size, or we can not get any closer to it.  All
+		comparands should be non-negative when !(ohalf < ahalf)
+		because ohalf <= of.offset. */
+		if (ohalf < ahalf || of.offset - ahalf < ohalf - ahalf) {
+			ohalf = of.offset;
+		}
 	}
 
 	/* Copy the last blocks, if there are any. */
@@ -1643,9 +1678,6 @@ row_merge(
 		if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 			return(DB_INTERRUPTED);
 		}
-
-		/* Remember the offset number for this run */
-		run_offset[n_run++] = of.offset;
 
 		if (!row_merge_blocks_copy(index, file, block, &foffs0, &of)) {
 			return(DB_CORRUPTION);
@@ -1659,9 +1691,6 @@ row_merge(
 			return(DB_INTERRUPTED);
 		}
 
-		/* Remember the offset number for this run */
-		run_offset[n_run++] = of.offset;
-
 		if (!row_merge_blocks_copy(index, file, block, &foffs1, &of)) {
 			return(DB_CORRUPTION);
 		}
@@ -1673,23 +1702,10 @@ row_merge(
 		return(DB_CORRUPTION);
 	}
 
-	ut_ad(n_run <= *num_run);
-
-	*num_run = n_run;
-
-	/* Each run can contain one or more offsets. As merge goes on,
-	the number of runs (to merge) will reduce until we have one
-	single run. So the number of runs will always be smaller than
-	the number of offsets in file */
-	ut_ad((*num_run) <= file->offset);
-
-	/* The number of offsets in output file is always equal or
-	smaller than input file */
-	ut_ad(of.offset <= file->offset);
-
 	/* Swap file descriptors for the next pass. */
 	*tmpfd = file->fd;
 	*file = of;
+	*half = ohalf;
 
 	UNIV_MEM_INVALID(block[0], 3 * sizeof block[0]);
 
@@ -1714,44 +1730,27 @@ row_merge_sort(
 					if applicable */
 {
 	ulint	half = file->offset / 2;
-	ulint	num_runs;
-	ulint*	run_offset;
-	ulint	error = DB_SUCCESS;
-
-	/* Record the number of merge runs we need to perform */
-	num_runs = file->offset;
-
-	/* If num_runs are less than 1, nothing to merge */
-	if (num_runs <= 1) {
-		return(error);
-	}
-
-	/* "run_offset" records each run's first offset number */
-	run_offset = (ulint*) mem_alloc(file->offset * sizeof(ulint));
-
-	/* This tells row_merge() where to start for the first round
-	of merge. */
-	run_offset[half] = half;
 
 	/* The file should always contain at least one byte (the end
 	of file marker).  Thus, it must be at least one block. */
 	ut_ad(file->offset > 0);
 
-	/* Merge the runs until we have one big run */
 	do {
-		error = row_merge(trx, index, file, block, tmpfd,
-				  table, &num_runs, run_offset);
+		ulint	error;
 
-		UNIV_MEM_ASSERT_RW(run_offset, num_runs * sizeof *run_offset);
+		error = row_merge(trx, index, file, &half,
+				  block, tmpfd, table);
 
 		if (error != DB_SUCCESS) {
-			break;
+			return(error);
 		}
-	} while (num_runs > 1);
 
-	mem_free(run_offset);
+		/* half > 0 should hold except when the file consists
+		of one block.  No need to merge further then. */
+		ut_ad(half > 0 || file->offset == 1);
+	} while (half < file->offset && half > 0);
 
-	return(error);
+	return(DB_SUCCESS);
 }
 
 /*************************************************************//**
@@ -1937,7 +1936,6 @@ row_merge_lock_table(
 	sel_node_t*	node;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
 	heap = mem_heap_create(512);
@@ -2038,7 +2036,7 @@ row_merge_drop_index(
 
 	ut_ad(index && table && trx);
 
-	pars_info_add_dulint_literal(info, "indexid", index->id);
+	pars_info_add_ull_literal(info, "indexid", index->id);
 
 	trx_start_if_not_started(trx);
 	trx->op_info = "dropping index";
@@ -2052,7 +2050,7 @@ row_merge_drop_index(
 	/* Replace this index with another equivalent index for all
 	foreign key constraints on this table where this index is used */
 
-	dict_table_replace_index_in_foreign_list(table, index);
+	dict_table_replace_index_in_foreign_list(table, index, trx);
 	dict_index_remove_from_cache(table, index);
 
 	trx->op_info = "";
@@ -2108,7 +2106,7 @@ row_merge_drop_temp_indexes(void)
 		const rec_t*	rec;
 		const byte*	field;
 		ulint		len;
-		dulint		table_id;
+		table_id_t	table_id;
 		dict_table_t*	table;
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
@@ -2168,6 +2166,33 @@ row_merge_drop_temp_indexes(void)
 }
 
 /*********************************************************************//**
+Creates temperary merge files, and if UNIV_PFS_IO defined, register
+the file descriptor with Performance Schema.
+@return File descriptor */
+UNIV_INLINE
+int
+row_merge_file_create_low(void)
+/*===========================*/
+{
+	int	fd;
+#ifdef UNIV_PFS_IO
+	/* This temp file open does not go through normal
+	file APIs, add instrumentation to register with
+	performance schema */
+	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
+	register_pfs_file_open_begin(&state, locker, innodb_file_temp_key,
+				     PSI_FILE_OPEN,
+				     "Innodb Merge Temp File",
+				     __FILE__, __LINE__);
+#endif
+	fd = innobase_mysql_tmpfile();
+#ifdef UNIV_PFS_IO
+        register_pfs_file_open_end(locker, fd);
+#endif
+	return(fd);
+}
+/*********************************************************************//**
 Create a merge file. */
 static
 void
@@ -2175,11 +2200,32 @@ row_merge_file_create(
 /*==================*/
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
-	merge_file->fd = innobase_mysql_tmpfile();
+	merge_file->fd = row_merge_file_create_low();
 	merge_file->offset = 0;
 	merge_file->n_rec = 0;
 }
 
+/*********************************************************************//**
+Destroy a merge file. And de-register the file from Performance Schema
+if UNIV_PFS_IO is defined. */
+UNIV_INLINE
+void
+row_merge_file_destroy_low(
+/*=======================*/
+	int		fd)	/*!< in: merge file descriptor */
+{
+#ifdef UNIV_PFS_IO
+	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
+	register_pfs_file_io_begin(&state, locker,
+				   fd, 0, PSI_FILE_CLOSE,
+				   __FILE__, __LINE__);
+#endif
+	close(fd);
+#ifdef UNIV_PFS_IO
+	register_pfs_file_io_end(locker, 0);
+#endif
+}
 /*********************************************************************//**
 Destroy a merge file. */
 static
@@ -2189,7 +2235,7 @@ row_merge_file_destroy(
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
 	if (merge_file->fd != -1) {
-		close(merge_file->fd);
+		row_merge_file_destroy_low(merge_file->fd);
 		merge_file->fd = -1;
 	}
 }
@@ -2313,7 +2359,7 @@ row_merge_rename_indexes(
 
 	trx->op_info = "renaming indexes";
 
-	pars_info_add_dulint_literal(info, "tableid", table->id);
+	pars_info_add_ull_literal(info, "tableid", table->id);
 
 	err = que_eval_sql(info, rename_indexes, FALSE, trx);
 
@@ -2350,9 +2396,8 @@ row_merge_rename_tables(
 {
 	ulint		err	= DB_ERROR;
 	pars_info_t*	info;
-	char		old_name[MAX_TABLE_NAME_LEN + 1];
+	char		old_name[MAX_FULL_NAME_LEN + 1];
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -2365,7 +2410,7 @@ row_merge_rename_tables(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "InnoDB: too long table name: '%s', "
 			"max length is %d\n", old_table->name,
-			MAX_TABLE_NAME_LEN);
+			MAX_FULL_NAME_LEN);
 		ut_error;
 	}
 
@@ -2501,8 +2546,7 @@ row_merge_create_index(
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing
 		this index, to ensure read consistency. */
-		index->trx_id = (ib_uint64_t)
-			ut_conv_dulint_to_longlong(trx->id);
+		index->trx_id = trx->id;
 	} else {
 		index = NULL;
 	}
@@ -2519,10 +2563,8 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to check */
 {
-	return(!trx->read_view || read_view_sees_trx_id(
-		       trx->read_view,
-		       ut_dulint_create((ulint) (index->trx_id >> 32),
-					(ulint) index->trx_id & 0xFFFFFFFF)));
+	return(!trx->read_view
+	       || read_view_sees_trx_id(trx->read_view, index->trx_id));
 }
 
 /*********************************************************************//**
@@ -2589,7 +2631,7 @@ row_merge_build_indexes(
 		row_merge_file_create(&merge_files[i]);
 	}
 
-	tmpfd = innobase_mysql_tmpfile();
+	tmpfd = row_merge_file_create_low();
 
 	/* Reset the MySQL row buffer that is used when reporting
 	duplicate keys. */
@@ -2631,7 +2673,7 @@ row_merge_build_indexes(
 	}
 
 func_exit:
-	close(tmpfd);
+	row_merge_file_destroy_low(tmpfd);
 
 	for (i = 0; i < n_indexes; i++) {
 		row_merge_file_destroy(&merge_files[i]);

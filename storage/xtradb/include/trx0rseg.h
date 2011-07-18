@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -103,7 +103,7 @@ trx_rseg_header_create(
 	ulint	zip_size,	/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
 	ulint	max_size,	/*!< in: max size in pages */
-	ulint*	slot_no,	/*!< out: rseg id == slot number in trx sys */
+	ulint	rseg_slot_no,	/*!< in: rseg id == slot number in trx sys */
 	mtr_t*	mtr);		/*!< in: mtr */
 /*********************************************************************//**
 Creates the memory copies for rollback segments and initializes the
@@ -113,18 +113,9 @@ void
 trx_rseg_list_and_array_init(
 /*=========================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx system header */
+	ib_bh_t*	ib_bh,		/*!< in: rseg queue */
 	mtr_t*		mtr);		/*!< in: mtr */
-/****************************************************************//**
-Creates a new rollback segment to the database.
-@return	the created segment object, NULL if fail */
-UNIV_INTERN
-trx_rseg_t*
-trx_rseg_create(
-/*============*/
-	ulint	space,		/*!< in: space id */
-	ulint	max_size,	/*!< in: max size in pages */
-	ulint*	id,		/*!< out: rseg id */
-	mtr_t*	mtr);		/*!< in: mtr */
+
 /***************************************************************************
 Free's an instance of the rollback segment in memory. */
 UNIV_INTERN
@@ -133,12 +124,15 @@ trx_rseg_mem_free(
 /*==============*/
 	trx_rseg_t*	rseg);		/* in, own: instance to free */
 
-
-/* Real max value may be 4076 in usual. But reserve 4 slot for safety or etc... */
-#define TRX_RSEG_N_EXTRA_SLOTS	(((UNIV_PAGE_SIZE - (FIL_PAGE_DATA + FIL_PAGE_DATA_END + TRX_RSEG_UNDO_SLOTS)) / TRX_RSEG_SLOT_SIZE) - 4)
+/*********************************************************************
+Creates a rollback segment. */
+UNIV_INTERN
+trx_rseg_t*
+trx_rseg_create(void);
+/*==================*/
 
 /* Number of undo log slots in a rollback segment file copy */
-#define TRX_RSEG_N_SLOTS	(srv_extra_undoslots ? TRX_RSEG_N_EXTRA_SLOTS : (UNIV_PAGE_SIZE / 16))
+#define TRX_RSEG_N_SLOTS	(UNIV_PAGE_SIZE / 16)
 
 /* Maximum number of transactions supported by a single rollback segment */
 #define TRX_RSEG_MAX_N_TRXS	(TRX_RSEG_N_SLOTS / 2)
@@ -149,9 +143,7 @@ struct trx_rseg_struct{
 	ulint		id;	/*!< rollback segment id == the index of
 				its slot in the trx system file copy */
 	mutex_t		mutex;	/*!< mutex protecting the fields in this
-				struct except id; NOTE that the latching
-				order must always be kernel mutex ->
-				rseg mutex */
+				struct except id, which is constant */
 	ulint		space;	/*!< space where the rollback segment is
 				header is placed */
 	ulint		zip_size;/* compressed page size of space
@@ -189,6 +181,14 @@ struct trx_rseg_struct{
 					/* the list of the rollback segment
 					memory objects */
 };
+
+/** For prioritising the rollback segments for purge. */
+struct rseg_queue_struct {
+	trx_id_t	trx_no;		/*!< trx_rseg_t::last_trx_no */
+	trx_rseg_t*	rseg;		/*!< Rollback segment */
+};
+
+typedef struct rseg_queue_struct rseg_queue_t;
 
 /* Undo log segment slot in a rollback segment header */
 /*-------------------------------------------------------------*/

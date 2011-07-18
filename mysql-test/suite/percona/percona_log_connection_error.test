@@ -48,5 +48,7 @@ if(!`select LENGTH('$log_error_')`)
 # Assign env variable LOG_ERROR
 let LOG_ERROR=$log_error_;
 
-let cmd=cat $log_error | grep "Too many connections" | wc -l;
+--let grep_file = $log_error
+--let grep_pattern = Too many connections
+--source grep.inc
 exec $cmd;

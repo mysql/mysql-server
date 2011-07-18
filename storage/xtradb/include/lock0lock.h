@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,7 +43,7 @@ extern ibool	lock_print_waits;
 #endif /* UNIV_DEBUG */
 /* Buffer for storing information about the most recent deadlock error */
 extern FILE*	lock_latest_err_file;
-extern ulint    srv_n_lock_deadlock_count;
+extern ulint	srv_n_lock_deadlock_count;
 
 /*********************************************************************//**
 Gets the size of a lock struct.
@@ -73,9 +73,10 @@ UNIV_INLINE
 trx_t*
 lock_clust_rec_some_has_impl(
 /*=========================*/
-	const rec_t*	rec,	/*!< in: user record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
+	const rec_t*		rec,	/*!< in: user record */
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Gets the heap_no of the smallest user record on a page.
 @return	heap_no of smallest user record, or PAGE_HEAP_NO_SUPREMUM */
@@ -640,7 +641,7 @@ UNIV_INTERN
 ulint
 lock_number_of_rows_locked(
 /*=======================*/
-	trx_t*	trx);	/*!< in: transaction */
+	const trx_t*	trx);	/*!< in: transaction */
 /*******************************************************************//**
 Check if a transaction holds any autoinc locks.
 @return TRUE if the transaction holds any AUTOINC locks. */
@@ -671,7 +672,7 @@ lock_get_type(
 Gets the id of the transaction owning a lock.
 @return	transaction id */
 UNIV_INTERN
-ullint
+trx_id_t
 lock_get_trx_id(
 /*============*/
 	const lock_t*	lock);	/*!< in: lock */
@@ -700,7 +701,7 @@ lock_get_type_str(
 Gets the id of the table on which the lock is.
 @return	id of the table */
 UNIV_INTERN
-ullint
+table_id_t
 lock_get_table_id(
 /*==============*/
 	const lock_t*	lock);	/*!< in: lock */
@@ -816,6 +817,7 @@ struct lock_op_struct{
 /** The lock system struct */
 struct lock_sys_struct{
 	hash_table_t*	rec_hash;	/*!< hash table of the record locks */
+	ulint		rec_num;
 };
 
 /** The lock system */

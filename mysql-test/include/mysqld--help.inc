@@ -22,7 +22,7 @@ perl;
 
   # Plugins which may or may not be there:
   @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
-              thread-concurrency super-large-pages mutex-deadlock-detector null-audit maria aria pbxt oqgraph sphinx/;
+              xtradb thread-concurrency super-large-pages mutex-deadlock-detector null-audit maria aria pbxt oqgraph sphinx/;
 
   # And substitute the content some environment variables with their
   # names:
@@ -39,7 +39,7 @@ perl;
     next if /Value \(after reading options\)/; # skip table header
     next if /^($re1) /;
     next if /^($re2)-/;
-    $skip=0 if /^  -/;
+    $skip=0 if /^  -/ or /^$/;
     $skip=1 if / --($re2)\b/;
     y!\\!/!;
     s/[ ]+/ /; # squeeze spaces to remove table formatting

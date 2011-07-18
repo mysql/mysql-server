@@ -154,14 +154,19 @@ dfield_dup(
 	dfield_t*	field,	/*!< in/out: data field */
 	mem_heap_t*	heap);	/*!< in: memory heap where allocated */
 /*********************************************************************//**
-Tests if data length and content is equal for two dfields.
-@return	TRUE if equal */
+Tests if two data fields are equal.
+If len==0, tests the data length and content for equality.
+If len>0, tests the first len bytes of the content for equality.
+@return	TRUE if both fields are NULL or if they are equal */
 UNIV_INLINE
 ibool
 dfield_datas_are_binary_equal(
 /*==========================*/
 	const dfield_t*	field1,	/*!< in: field */
-	const dfield_t*	field2);/*!< in: field */
+	const dfield_t*	field2,	/*!< in: field */
+	ulint		len)	/*!< in: maximum prefix to compare,
+				or 0 to compare the whole field length */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Tests if dfield data length and content is equal to the given.
 @return	TRUE if equal */
@@ -309,7 +314,7 @@ dtuple_fold(
 	ulint		n_fields,/*!< in: number of complete fields to fold */
 	ulint		n_bytes,/*!< in: number of bytes to fold in an
 				incomplete last field */
-	dulint		tree_id)/*!< in: index tree id */
+	index_id_t	tree_id)/*!< in: index tree id */
 	__attribute__((pure));
 /*******************************************************************//**
 Sets types of fields binary in a tuple. */

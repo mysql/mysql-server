@@ -29,7 +29,6 @@ Created 5/27/1996 Heikki Tuuri
 #include "que0que.ic"
 #endif
 
-#include "srv0que.h"
 #include "usr0sess.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
@@ -1298,18 +1297,13 @@ que_run_threads_low(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	que_thr_t*	next_thr;
-	ulint		cumul_resource;
 	ulint		loop_count;
 
 	ut_ad(thr->state == QUE_THR_RUNNING);
 	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
 	ut_ad(!mutex_own(&kernel_mutex));
 
-	/* cumul_resource counts how much resources the OS thread (NOT the
-	query thread) has spent in this function */
-
 	loop_count = QUE_MAX_LOOPS_WITHOUT_CHECK;
-	cumul_resource = 0;
 loop:
 	/* Check that there is enough space in the log to accommodate
 	possible log entries by this query step; if the operation can touch

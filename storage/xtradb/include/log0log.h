@@ -672,6 +672,9 @@ extern log_t*	log_sys;
 					when mysqld is first time started
 					on the restored database, it can
 					print helpful info for the user */
+#define LOG_FILE_OS_FILE_LOG_BLOCK_SIZE 64
+					/* extend to record log_block_size
+					of XtraDB. 0 means default 512 */
 #define	LOG_FILE_ARCH_COMPLETED	OS_FILE_LOG_BLOCK_SIZE
 					/* this 4-byte field is TRUE when
 					the writing of an archived log file
@@ -763,6 +766,15 @@ struct log_struct{
 #ifndef UNIV_HOTBACKUP
 	mutex_t		mutex;		/*!< mutex protecting the log */
 #endif /* !UNIV_HOTBACKUP */
+
+	mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
+					the flush list when we are putting
+					dirty blocks in the list. The idea
+					behind this mutex is to be able
+					to release log_sys->mutex during
+					mtr_commit and still ensure that
+					insertions in the flush_list happen
+					in the LSN order. */
 	byte*		buf_ptr;	/* unaligned log buffer */
 	byte*		buf;		/*!< log buffer */
 	ulint		buf_size;	/*!< log buffer size in bytes */
@@ -951,6 +963,19 @@ struct log_struct{
 	/* @} */
 #endif /* UNIV_LOG_ARCHIVE */
 };
+
+/** Test if flush order mutex is owned. */
+#define log_flush_order_mutex_own()	\
+	mutex_own(&log_sys->log_flush_order_mutex)
+
+/** Acquire the flush order mutex. */
+#define log_flush_order_mutex_enter() do {		\
+	mutex_enter(&log_sys->log_flush_order_mutex);	\
+} while (0)
+/** Release the flush order mutex. */
+# define log_flush_order_mutex_exit() do {		\
+	mutex_exit(&log_sys->log_flush_order_mutex);	\
+} while (0)
 
 #ifdef UNIV_LOG_ARCHIVE
 /** Archiving state @{ */

@@ -16,7 +16,23 @@ percona_status_wait_query_cache_mutex: Feature not merged into MariaDB
 percona_slave_innodb_stats:           Feature not merged into MariaDB
 percona_query_response_time-replication: Feature not merged into MariaDB
 percona_server_variables:             Feature not merged into MariaDB
-
 percona_slow_query_log-log_slow_verbosity:    InnoDB filtering information not fully merged into MariaDB
-
 percona_innodb_buffer_pool_shm:       Requires big shmmax not default on many systems
+percona_log_warnings_suppress:          Feature not merged into MariaDB
+percona_slow_extended-log_slow_sp_statements-cl: Feature not merged into MariaDB
+percona_slow_extended-log_slow_verbosity-cl: Feature not merged into MariaDB
+slow_query_log_use_global_control: Feature not merged into MariaDB
+percona_slow_extended-use_global_control: Feature not merged into MariaDB
+percona_slow_query_log-log_slow_verbosity: Feature not merged into MariaDB
+percona_slow_extended-log_slow_verbosity: Feature not merged into MariaDB
+percona_slow_extended-microseconds_in_slow_extended: Feature not merged into MariaDB
+percona_slow_extended-use_global_long_query_time: Feature not merged into MariaDB
+percona_slow_extended-slow_query_log_timestamp_always-cl: Feature not merged into MariaDB
+percona_slow_extended-slow_query_log_microseconds_timestamp-cl: Feature not merged into MariaDB
+percona_bug643149: Feature not merged into MariaDB
+percona_processlist_row_stats: Feature not merged into MariaDB
+percona_server_variables_debug: Feature not merged into MariaDB
+percona_slow_extended-slave_statements: Feature not merged into MariaDB
+percona_show_slave_status_nolock: Feature not merged into MariaDB
+percona_slow_extended-slave_innodb_stats: Feature not merged into MariaDB
+percona_slow_extended-slave_statements-and-use_global_long_query_time: Feature not merged into MariaDB

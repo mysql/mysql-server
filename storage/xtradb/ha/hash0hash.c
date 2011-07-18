@@ -31,6 +31,11 @@ Created 5/20/1997 Heikki Tuuri
 #include "mem0mem.h"
 
 #ifndef UNIV_HOTBACKUP
+
+# ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	hash_table_mutex_key;
+# endif /* UNIV_PFS_MUTEX */
+
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
 UNIV_INTERN
@@ -128,70 +133,6 @@ hash_create(
 }
 
 /*************************************************************//**
-*/
-UNIV_INTERN
-ulint
-hash_create_needed(
-/*===============*/
-	ulint	n)
-{
-	ulint	prime;
-	ulint	offset;
-
-	prime = ut_find_prime(n);
-
-	offset = (sizeof(hash_table_t) + 7) / 8;
-	offset *= 8;
-
-	return(offset + sizeof(hash_cell_t) * prime);
-}
-
-UNIV_INTERN
-void
-hash_create_init(
-/*=============*/
-	hash_table_t*	table,
-	ulint		n)
-{
-	ulint	prime;
-	ulint	offset;
-
-	prime = ut_find_prime(n);
-
-	offset = (sizeof(hash_table_t) + 7) / 8;
-	offset *= 8;
-
-	table->array = (hash_cell_t*)(((byte*)table) + offset);
-	table->n_cells = prime;
-# if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-	table->adaptive = FALSE;
-# endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	table->n_mutexes = 0;
-	table->mutexes = NULL;
-	table->heaps = NULL;
-	table->heap = NULL;
-	ut_d(table->magic_n = HASH_TABLE_MAGIC_N);
-
-	/* Initialize the cell array */
-	hash_table_clear(table);
-}
-
-UNIV_INTERN
-void
-hash_create_reuse(
-/*==============*/
-	hash_table_t*	table)
-{
-	ulint	offset;
-
-	offset = (sizeof(hash_table_t) + 7) / 8;
-	offset *= 8;
-
-	table->array = (hash_cell_t*)(((byte*)table) + offset);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-}
-
-/*************************************************************//**
 Frees a hash table. */
 UNIV_INTERN
 void
@@ -234,7 +175,8 @@ hash_create_mutexes_func(
 	table->mutexes = mem_alloc(n_mutexes * sizeof(mutex_t));
 
 	for (i = 0; i < n_mutexes; i++) {
-		mutex_create(table->mutexes + i, sync_level);
+		mutex_create(hash_table_mutex_key,
+			     table->mutexes + i, sync_level);
 	}
 
 	table->n_mutexes = n_mutexes;

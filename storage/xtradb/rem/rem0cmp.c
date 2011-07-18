@@ -862,15 +862,18 @@ cmp_rec_rec_with_match(
 	const ulint*	offsets1,/*!< in: rec_get_offsets(rec1, index) */
 	const ulint*	offsets2,/*!< in: rec_get_offsets(rec2, index) */
 	dict_index_t*	index,	/*!< in: data dictionary index */
+	ibool		nulls_unequal,
+				/* in: TRUE if this is for index statistics
+				cardinality estimation, and innodb_stats_method
+				is "nulls_unequal" or "nulls_ignored" */
 	ulint*		matched_fields, /*!< in/out: number of already completely
 				matched fields; when the function returns,
 				contains the value the for current
 				comparison */
-	ulint*		matched_bytes, /*!< in/out: number of already matched
+	ulint*		matched_bytes) /*!< in/out: number of already matched
 				bytes within the first field not completely
 				matched; when the function returns, contains
 				the value for the current comparison */
-	ulint		stats_method)
 {
 	ulint		rec1_n_fields;	/* the number of fields in rec */
 	ulint		rec1_f_len;	/* length of current field in rec */
@@ -962,13 +965,13 @@ cmp_rec_rec_with_match(
 			    || rec2_f_len == UNIV_SQL_NULL) {
 
 				if (rec1_f_len == rec2_f_len) {
-
-					if (stats_method == SRV_STATS_METHOD_NULLS_EQUAL) {
-						goto next_field;
-					} else {
+					/* This is limited to stats collection,
+					cannot use it for regular search */
+					if (nulls_unequal) {
 						ret = -1;
+					} else {
+						goto next_field;
 					}
-
 				} else if (rec2_f_len == UNIV_SQL_NULL) {
 
 					/* We define the SQL null to be the

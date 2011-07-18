@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP TABLE IF EXISTS t;
 CREATE TABLE t(id INT);
 SELECT * from t;
@@ -21,12 +17,16 @@ SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	10
 FLUSH QUERY_RESPONSE_TIME;
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=ON;
-INSERT INTO t VALUES(0);
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=ON;
+INSERT INTO t SELECT SLEEP(0.4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count)
 0
-INSERT INTO t VALUES(1);
+INSERT INTO t SELECT SLEEP(0.4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count)
 0
@@ -41,11 +41,15 @@ SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	2
 FLUSH QUERY_RESPONSE_TIME;
-INSERT INTO t VALUES(0);
+INSERT INTO t SELECT SLEEP(0.4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count)
 0
-INSERT INTO t VALUES(1);
+INSERT INTO t SELECT SLEEP(0.4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count)
 0
@@ -57,4 +61,6 @@ SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count)
 3
 DROP TABLE IF EXISTS t;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 10;
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=OFF;
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=OFF;
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -40,6 +40,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "os0file.h"
 #include "srv0srv.h"
+#include "ha_prototypes.h"
 
 /*
 			WAIT ARRAY
@@ -137,6 +138,11 @@ struct sync_array_struct {
 	ulint		res_count;	/*!< count of cell reservations
 					since creation of the array */
 };
+
+#ifdef UNIV_PFS_MUTEX
+/* Key to register the mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	syn_arr_mutex_key;
+#endif
 
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
@@ -245,9 +251,10 @@ sync_array_create(
 
 	/* Then create the mutex to protect the wait array complex */
 	if (protection == SYNC_ARRAY_OS_MUTEX) {
-		arr->os_mutex = os_mutex_create(NULL);
+		arr->os_mutex = os_mutex_create();
 	} else if (protection == SYNC_ARRAY_MUTEX) {
-		mutex_create(&arr->mutex, SYNC_NO_ORDER_CHECK);
+		mutex_create(syn_arr_mutex_key,
+			     &arr->mutex, SYNC_NO_ORDER_CHECK);
 	} else {
 		ut_error;
 	}
@@ -472,8 +479,8 @@ sync_array_cell_print(
 	fprintf(file,
 		"--Thread %lu has waited at %s line %lu"
 		" for %#.5g seconds the semaphore:\n",
-		(ulong) os_thread_pf(cell->thread), cell->file,
-		(ulong) cell->line,
+		(ulong) os_thread_pf(cell->thread),
+		innobase_basename(cell->file), (ulong) cell->line,
 		difftime(time(NULL), cell->reservation_time));
 
 	if (type == SYNC_MUTEX) {
@@ -526,7 +533,7 @@ sync_array_cell_print(
 			(ulong) rw_lock_get_reader_count(rwlock),
 			(ulong) rwlock->waiters,
 			rwlock->lock_word,
-			rwlock->last_s_file_name,
+			innobase_basename(rwlock->last_s_file_name),
 			(ulong) rwlock->last_s_line,
 			rwlock->last_x_file_name,
 			(ulong) rwlock->last_x_line);
@@ -583,9 +590,6 @@ sync_array_deadlock_step(
 	ulint		depth)	/*!< in: recursion depth */
 {
 	sync_cell_t*	new;
-	ibool		ret;
-
-	depth++;
 
 	if (pass != 0) {
 		/* If pass != 0, then we do not know which threads are
@@ -597,7 +601,7 @@ sync_array_deadlock_step(
 
 	new = sync_array_find_thread(arr, thread);
 
-	if (new == start) {
+	if (UNIV_UNLIKELY(new == start)) {
 		/* Stop running of other threads */
 
 		ut_dbg_stop_threads = TRUE;
@@ -609,11 +613,7 @@ sync_array_deadlock_step(
 		return(TRUE);
 
 	} else if (new) {
-		ret = sync_array_detect_deadlock(arr, start, new, depth);
-
-		if (ret) {
-			return(TRUE);
-		}
+		return(sync_array_detect_deadlock(arr, start, new, depth + 1));
 	}
 	return(FALSE);
 }
@@ -714,7 +714,7 @@ print:
 					fprintf(stderr, "rw-lock %p ",
 						(void*) lock);
 					sync_array_cell_print(stderr, cell);
-					rw_lock_debug_print(debug);
+					rw_lock_debug_print(stderr, debug);
 					return(TRUE);
 				}
 			}
@@ -913,8 +913,10 @@ Prints warnings of long semaphore waits to stderr.
 @return	TRUE if fatal semaphore wait threshold was exceeded */
 UNIV_INTERN
 ibool
-sync_array_print_long_waits(void)
-/*=============================*/
+sync_array_print_long_waits(
+/*========================*/
+	os_thread_id_t*	waiter,	/*!< out: longest waiting thread */
+	const void**	sema)	/*!< out: longest-waited-for semaphore */
 {
 	sync_cell_t*	cell;
 	ibool		old_val;
@@ -922,23 +924,51 @@ sync_array_print_long_waits(void)
 	ulint		i;
 	ulint		fatal_timeout = srv_fatal_semaphore_wait_threshold;
 	ibool		fatal = FALSE;
+	double		longest_diff = 0;
+
+#ifdef UNIV_DEBUG_VALGRIND
+	/* Increase the timeouts if running under valgrind because it executes
+	extremely slowly. UNIV_DEBUG_VALGRIND does not necessary mean that
+	we are running under valgrind but we have no better way to tell.
+	See Bug#58432 innodb.innodb_bug56143 fails under valgrind
+	for an example */
+# define SYNC_ARRAY_TIMEOUT	2400
+	fatal_timeout *= 10;
+#else
+# define SYNC_ARRAY_TIMEOUT	240
+#endif
 
 	for (i = 0; i < sync_primary_wait_array->n_cells; i++) {
 
+		double	diff;
+		void*	wait_object;
+
 		cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
 
-		if (cell->wait_object != NULL && cell->waiting
-		    && difftime(time(NULL), cell->reservation_time) > 240) {
+		wait_object = cell->wait_object;
+
+		if (wait_object == NULL || !cell->waiting) {
+
+			continue;
+		}
+
+		diff = difftime(time(NULL), cell->reservation_time);
+
+		if (diff > SYNC_ARRAY_TIMEOUT) {
 			fputs("InnoDB: Warning: a long semaphore wait:\n",
 			      stderr);
 			sync_array_cell_print(stderr, cell);
 			noticed = TRUE;
 		}
 
-		if (cell->wait_object != NULL && cell->waiting
-		    && difftime(time(NULL), cell->reservation_time)
-		    > fatal_timeout) {
+		if (diff > fatal_timeout) {
 			fatal = TRUE;
+		}
+
+		if (diff > longest_diff) {
+			longest_diff = diff;
+			*sema = wait_object;
+			*waiter = cell->thread;
 		}
 	}
 
@@ -969,6 +999,8 @@ sync_array_print_long_waits(void)
 			"InnoDB: ###### Diagnostic info printed"
 			" to the standard error stream\n");
 	}
+
+#undef SYNC_ARRAY_TIMEOUT
 
 	return(fatal);
 }

@@ -1,1 +1,0 @@
---slow-query-log-file=percona_slow_query_log-min_examined_row_limit.log --long-query-time=1

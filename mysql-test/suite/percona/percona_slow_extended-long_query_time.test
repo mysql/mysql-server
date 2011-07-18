@@ -1,0 +1,23 @@
+source include/have_xtradb.inc;
+
+SET GLOBAL SLOW_QUERY_LOG=ON;
+
+SELECT sleep(1);
+SELECT sleep(3);
+SELECT sleep(5);
+
+set long_query_time=4;
+
+SELECT sleep(1);
+SELECT sleep(3);
+SELECT sleep(5);
+
+set long_query_time=2;
+
+SET GLOBAL SLOW_QUERY_LOG=OFF;
+
+FLUSH LOGS;
+--let grep_file = $MYSQLTEST_VARDIR/mysqld.1/data/percona_slow_query_log-long_query_time.log
+--let grep_pattern = Query_time
+--source grep.inc
+

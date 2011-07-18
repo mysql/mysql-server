@@ -529,7 +529,7 @@ dict_create_sys_stats_tuple(
 
 	sys_stats = dict_sys->sys_stats;
 
-	entry = dtuple_create(heap, 3 + DATA_N_SYS_COLS);
+	entry = dtuple_create(heap, 4 + DATA_N_SYS_COLS);
 
 	dict_table_copy_types(entry, sys_stats);
 
@@ -546,7 +546,12 @@ dict_create_sys_stats_tuple(
 	/* 4: DIFF_VALS ----------------------*/
 	dfield = dtuple_get_nth_field(entry, 2/*DIFF_VALS*/);
 	ptr = mem_heap_alloc(heap, 8);
-	mach_write_to_8(ptr, ut_dulint_zero); /* initial value is 0 */
+	mach_write_to_8(ptr, 0); /* initial value is 0 */
+	dfield_set_data(dfield, ptr, 8);
+	/* 5: NON_NULL_VALS ------------------*/
+	dfield = dtuple_get_nth_field(entry, 3/*NON_NULL_VALS*/);
+	ptr = mem_heap_alloc(heap, 8);
+	mach_write_to_8(ptr, 0); /* initial value is 0 */
 	dfield_set_data(dfield, ptr, 8);
 
 	return(entry);
@@ -635,7 +640,7 @@ dict_build_index_def_step(
 	ins_node_set_new_row(node->ind_def, row);
 
 	/* Note that the index was created by this transaction. */
-	index->trx_id = (ib_uint64_t) ut_conv_dulint_to_longlong(trx->id);
+	index->trx_id = trx->id;
 
 	return(DB_SUCCESS);
 }
@@ -693,7 +698,6 @@ dict_create_index_tree_step(
 {
 	dict_index_t*	index;
 	dict_table_t*	sys_indexes;
-	dict_table_t*	table;
 	dtuple_t*	search_tuple;
 	ulint		zip_size;
 	btr_pcur_t	pcur;
@@ -702,7 +706,6 @@ dict_create_index_tree_step(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	index = node->index;
-	table = node->table;
 
 	sys_indexes = dict_sys->sys_indexes;
 
@@ -727,9 +730,9 @@ dict_create_index_tree_step(
 	/* printf("Created a new index tree in space %lu root page %lu\n",
 	index->space, index->page_no); */
 
-	page_rec_write_index_page_no(btr_pcur_get_rec(&pcur),
-				     DICT_SYS_INDEXES_PAGE_NO_FIELD,
-				     node->page_no, &mtr);
+	page_rec_write_field(btr_pcur_get_rec(&pcur),
+			     DICT_SYS_INDEXES_PAGE_NO_FIELD,
+			     node->page_no, &mtr);
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
@@ -799,9 +802,8 @@ dict_drop_index_tree(
 	root_page_no); */
 	btr_free_root(space, zip_size, root_page_no, mtr);
 
-	page_rec_write_index_page_no(rec,
-				     DICT_SYS_INDEXES_PAGE_NO_FIELD,
-				     FIL_NULL, mtr);
+	page_rec_write_field(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
+			     FIL_NULL, mtr);
 }
 
 /*******************************************************************//**
@@ -827,7 +829,7 @@ dict_truncate_index_tree(
 	ibool		drop = !space;
 	ulint		zip_size;
 	ulint		type;
-	dulint		index_id;
+	index_id_t	index_id;
 	rec_t*		rec;
 	const byte*	ptr;
 	ulint		len;
@@ -896,7 +898,7 @@ dict_truncate_index_tree(
 	appropriate field in the SYS_INDEXES record: this mini-transaction
 	marks the B-tree totally truncated */
 
-	btr_page_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
+	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
 
 	btr_free_root(space, zip_size, root_page_no, mtr);
 create:
@@ -904,8 +906,8 @@ create:
 	in SYS_INDEXES, so that the database will not get into an
 	inconsistent state in case it crashes between the mtr_commit()
 	below and the following mtr_commit() call. */
-	page_rec_write_index_page_no(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
-				     FIL_NULL, mtr);
+	page_rec_write_field(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
+			     FIL_NULL, mtr);
 
 	/* We will need to commit the mini-transaction in order to avoid
 	deadlocks in the btr_create() call, because otherwise we would
@@ -920,7 +922,7 @@ create:
 	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
-		if (!ut_dulint_cmp(index->id, index_id)) {
+		if (index->id == index_id) {
 			root_page_no = btr_create(type, space, zip_size,
 						  index_id, index, mtr);
 			index->page = (unsigned int) root_page_no;
@@ -930,10 +932,9 @@ create:
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: Index %lu %lu of table %s is missing\n"
+		"  InnoDB: Index %llu of table %s is missing\n"
 		"InnoDB: from the data dictionary during TRUNCATE!\n",
-		ut_dulint_get_high(index_id),
-		ut_dulint_get_low(index_id),
+		(ullint) index_id,
 		table->name);
 
 	return(FIL_NULL);
@@ -1229,7 +1230,7 @@ dict_create_index_step(
 
 	if (node->state == INDEX_ADD_TO_CACHE) {
 
-		dulint	index_id = node->index->id;
+		index_id_t	index_id = node->index->id;
 
 		err = dict_index_add_to_cache(
 			node->table, node->index, FIL_NULL,

@@ -9,11 +9,6 @@ SELECT @@global.innodb_flush_log_at_trx_commit;
 @@global.innodb_flush_log_at_trx_commit
 1
 '#---------------------FN_DYNVARS_046_02-------------------------#'
-SET innodb_flush_log_at_trx_commit = 1;
-ERROR HY000: Variable 'innodb_flush_log_at_trx_commit' is a GLOBAL variable and should be set with SET GLOBAL
-SELECT @@innodb_flush_log_at_trx_commit;
-@@innodb_flush_log_at_trx_commit
-1
 SELECT local.innodb_flush_log_at_trx_commit;
 ERROR 42S02: Unknown table 'local' in field list
 SET global innodb_flush_log_at_trx_commit = 0;

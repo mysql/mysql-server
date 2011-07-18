@@ -85,9 +85,6 @@ ut_rnd_gen_ulint(void)
 /*==================*/
 {
 	ulint	rnd;
-	ulint	n_bits;
-
-	n_bits = 8 * sizeof(ulint);
 
 	ut_rnd_ulint_counter = UT_RND1 * ut_rnd_ulint_counter + UT_RND2;
 
@@ -173,16 +170,16 @@ ut_fold_ulint_pair(
 }
 
 /*************************************************************//**
-Folds a dulint.
+Folds a 64-bit integer.
 @return	folded value */
 UNIV_INLINE
 ulint
-ut_fold_dulint(
-/*===========*/
-	dulint	d)	/*!< in: dulint */
+ut_fold_ull(
+/*========*/
+	ib_uint64_t	d)	/*!< in: 64-bit integer */
 {
-	return(ut_fold_ulint_pair(ut_dulint_get_low(d),
-				  ut_dulint_get_high(d)));
+	return(ut_fold_ulint_pair((ulint) d & ULINT32_MASK,
+				  (ulint) (d >> 32)));
 }
 
 /*************************************************************//**

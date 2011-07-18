@@ -1,3 +1,4 @@
+SET GLOBAL debug="d,query_exec_time_debug";
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 1;
 Warnings:
 Warning	1292	Truncated incorrect query_response_time_range_base value: '1'
@@ -65,65 +66,27 @@ time
  4194304.00000
  8388608.00000
 TOO LONG
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=1;
-SELECT SLEEP(0.31);
-SLEEP(0.31)
-0
-SELECT SLEEP(0.32);
-SLEEP(0.32)
-0
-SELECT SLEEP(0.33);
-SLEEP(0.33)
-0
-SELECT SLEEP(0.34);
-SLEEP(0.34)
-0
-SELECT SLEEP(0.35);
-SLEEP(0.35)
-0
-SELECT SLEEP(0.36);
-SLEEP(0.36)
-0
-SELECT SLEEP(0.37);
-SLEEP(0.37)
-0
-SELECT SLEEP(0.38);
-SLEEP(0.38)
-0
-SELECT SLEEP(0.39);
-SLEEP(0.39)
-0
-SELECT SLEEP(0.40);
-SLEEP(0.40)
-0
-SELECT SLEEP(1.1);
-SLEEP(1.1)
-0
-SELECT SLEEP(1.2);
-SLEEP(1.2)
-0
-SELECT SLEEP(1.3);
-SLEEP(1.3)
-0
-SELECT SLEEP(1.5);
-SLEEP(1.5)
-0
-SELECT SLEEP(1.4);
-SLEEP(1.4)
-0
-SELECT SLEEP(0.5);
-SLEEP(0.5)
-0
-SELECT SLEEP(2.1);
-SLEEP(2.1)
-0
-SELECT SLEEP(2.3);
-SLEEP(2.3)
-0
-SELECT SLEEP(2.5);
-SLEEP(2.5)
-0
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
+SET SESSION debug="+d,query_exec_time_0.31";
+SET SESSION debug="+d,query_exec_time_0.32";
+SET SESSION debug="+d,query_exec_time_0.33";
+SET SESSION debug="+d,query_exec_time_0.34";
+SET SESSION debug="+d,query_exec_time_0.35";
+SET SESSION debug="+d,query_exec_time_0.36";
+SET SESSION debug="+d,query_exec_time_0.37";
+SET SESSION debug="+d,query_exec_time_0.38";
+SET SESSION debug="+d,query_exec_time_0.39";
+SET SESSION debug="+d,query_exec_time_0.4";
+SET SESSION debug="+d,query_exec_time_1.1";
+SET SESSION debug="+d,query_exec_time_1.2";
+SET SESSION debug="+d,query_exec_time_1.3";
+SET SESSION debug="+d,query_exec_time_1.5";
+SET SESSION debug="+d,query_exec_time_1.4";
+SET SESSION debug="+d,query_exec_time_0.5";
+SET SESSION debug="+d,query_exec_time_2.1";
+SET SESSION debug="+d,query_exec_time_2.3";
+SET SESSION debug="+d,query_exec_time_2.5";
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SELECT d.count,
 (SELECT SUM(a.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as a WHERE a.count != 0) as query_count,
 (SELECT SUM((b.total * 1000000) DIV 1000000) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as query_total,
@@ -131,11 +94,10 @@ SELECT d.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
 count	query_count	query_total	not_zero_region_count	region_count
-1	20	15	5	44
-10	20	15	5	44
-1	20	15	5	44
-5	20	15	5	44
-3	20	15	5	44
+10	19	15	4	44
+1	19	15	4	44
+5	19	15	4	44
+3	19	15	4	44
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 44
@@ -193,65 +155,27 @@ SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	10
 FLUSH QUERY_RESPONSE_TIME;
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=1;
-SELECT SLEEP(0.31);
-SLEEP(0.31)
-0
-SELECT SLEEP(0.32);
-SLEEP(0.32)
-0
-SELECT SLEEP(0.33);
-SLEEP(0.33)
-0
-SELECT SLEEP(0.34);
-SLEEP(0.34)
-0
-SELECT SLEEP(0.35);
-SLEEP(0.35)
-0
-SELECT SLEEP(0.36);
-SLEEP(0.36)
-0
-SELECT SLEEP(0.37);
-SLEEP(0.37)
-0
-SELECT SLEEP(0.38);
-SLEEP(0.38)
-0
-SELECT SLEEP(0.39);
-SLEEP(0.39)
-0
-SELECT SLEEP(0.40);
-SLEEP(0.40)
-0
-SELECT SLEEP(1.1);
-SLEEP(1.1)
-0
-SELECT SLEEP(1.2);
-SLEEP(1.2)
-0
-SELECT SLEEP(1.3);
-SLEEP(1.3)
-0
-SELECT SLEEP(1.5);
-SLEEP(1.5)
-0
-SELECT SLEEP(1.4);
-SLEEP(1.4)
-0
-SELECT SLEEP(0.5);
-SLEEP(0.5)
-0
-SELECT SLEEP(2.1);
-SLEEP(2.1)
-0
-SELECT SLEEP(2.3);
-SLEEP(2.3)
-0
-SELECT SLEEP(2.5);
-SLEEP(2.5)
-0
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
+SET SESSION debug="+d,query_exec_time_0.31";
+SET SESSION debug="+d,query_exec_time_0.32";
+SET SESSION debug="+d,query_exec_time_0.33";
+SET SESSION debug="+d,query_exec_time_0.34";
+SET SESSION debug="+d,query_exec_time_0.35";
+SET SESSION debug="+d,query_exec_time_0.36";
+SET SESSION debug="+d,query_exec_time_0.37";
+SET SESSION debug="+d,query_exec_time_0.38";
+SET SESSION debug="+d,query_exec_time_0.39";
+SET SESSION debug="+d,query_exec_time_0.4";
+SET SESSION debug="+d,query_exec_time_1.1";
+SET SESSION debug="+d,query_exec_time_1.2";
+SET SESSION debug="+d,query_exec_time_1.3";
+SET SESSION debug="+d,query_exec_time_1.5";
+SET SESSION debug="+d,query_exec_time_1.4";
+SET SESSION debug="+d,query_exec_time_0.5";
+SET SESSION debug="+d,query_exec_time_2.1";
+SET SESSION debug="+d,query_exec_time_2.3";
+SET SESSION debug="+d,query_exec_time_2.5";
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SELECT d.count,
 (SELECT SUM(a.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as a WHERE a.count != 0) as query_count,
 (SELECT SUM((b.total * 1000000) DIV 1000000) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as query_total,
@@ -259,9 +183,8 @@ SELECT d.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
 count	query_count	query_total	not_zero_region_count	region_count
-1	20	17	3	14
-11	20	17	3	14
-8	20	17	3	14
+11	19	17	2	14
+8	19	17	2	14
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 14
@@ -289,65 +212,27 @@ SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	7
 FLUSH QUERY_RESPONSE_TIME;
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=1;
-SELECT SLEEP(0.31);
-SLEEP(0.31)
-0
-SELECT SLEEP(0.32);
-SLEEP(0.32)
-0
-SELECT SLEEP(0.33);
-SLEEP(0.33)
-0
-SELECT SLEEP(0.34);
-SLEEP(0.34)
-0
-SELECT SLEEP(0.35);
-SLEEP(0.35)
-0
-SELECT SLEEP(0.36);
-SLEEP(0.36)
-0
-SELECT SLEEP(0.37);
-SLEEP(0.37)
-0
-SELECT SLEEP(0.38);
-SLEEP(0.38)
-0
-SELECT SLEEP(0.39);
-SLEEP(0.39)
-0
-SELECT SLEEP(0.40);
-SLEEP(0.40)
-0
-SELECT SLEEP(1.1);
-SLEEP(1.1)
-0
-SELECT SLEEP(1.2);
-SLEEP(1.2)
-0
-SELECT SLEEP(1.3);
-SLEEP(1.3)
-0
-SELECT SLEEP(1.5);
-SLEEP(1.5)
-0
-SELECT SLEEP(1.4);
-SLEEP(1.4)
-0
-SELECT SLEEP(0.5);
-SLEEP(0.5)
-0
-SELECT SLEEP(2.1);
-SLEEP(2.1)
-0
-SELECT SLEEP(2.3);
-SLEEP(2.3)
-0
-SELECT SLEEP(2.5);
-SLEEP(2.5)
-0
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
+SET SESSION debug="+d,query_exec_time_0.31";
+SET SESSION debug="+d,query_exec_time_0.32";
+SET SESSION debug="+d,query_exec_time_0.33";
+SET SESSION debug="+d,query_exec_time_0.34";
+SET SESSION debug="+d,query_exec_time_0.35";
+SET SESSION debug="+d,query_exec_time_0.36";
+SET SESSION debug="+d,query_exec_time_0.37";
+SET SESSION debug="+d,query_exec_time_0.38";
+SET SESSION debug="+d,query_exec_time_0.39";
+SET SESSION debug="+d,query_exec_time_0.4";
+SET SESSION debug="+d,query_exec_time_1.1";
+SET SESSION debug="+d,query_exec_time_1.2";
+SET SESSION debug="+d,query_exec_time_1.3";
+SET SESSION debug="+d,query_exec_time_1.5";
+SET SESSION debug="+d,query_exec_time_1.4";
+SET SESSION debug="+d,query_exec_time_0.5";
+SET SESSION debug="+d,query_exec_time_2.1";
+SET SESSION debug="+d,query_exec_time_2.3";
+SET SESSION debug="+d,query_exec_time_2.5";
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SELECT d.count,
 (SELECT SUM(a.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as a WHERE a.count != 0) as query_count,
 (SELECT SUM((b.total * 1000000) DIV 1000000) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as query_total,
@@ -355,9 +240,8 @@ SELECT d.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
 count	query_count	query_total	not_zero_region_count	region_count
-1	20	17	3	17
-11	20	17	3	17
-8	20	17	3	17
+11	19	17	2	17
+8	19	17	2	17
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 17
@@ -388,65 +272,27 @@ SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	156
 FLUSH QUERY_RESPONSE_TIME;
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=1;
-SELECT SLEEP(0.31);
-SLEEP(0.31)
-0
-SELECT SLEEP(0.32);
-SLEEP(0.32)
-0
-SELECT SLEEP(0.33);
-SLEEP(0.33)
-0
-SELECT SLEEP(0.34);
-SLEEP(0.34)
-0
-SELECT SLEEP(0.35);
-SLEEP(0.35)
-0
-SELECT SLEEP(0.36);
-SLEEP(0.36)
-0
-SELECT SLEEP(0.37);
-SLEEP(0.37)
-0
-SELECT SLEEP(0.38);
-SLEEP(0.38)
-0
-SELECT SLEEP(0.39);
-SLEEP(0.39)
-0
-SELECT SLEEP(0.40);
-SLEEP(0.40)
-0
-SELECT SLEEP(1.1);
-SLEEP(1.1)
-0
-SELECT SLEEP(1.2);
-SLEEP(1.2)
-0
-SELECT SLEEP(1.3);
-SLEEP(1.3)
-0
-SELECT SLEEP(1.5);
-SLEEP(1.5)
-0
-SELECT SLEEP(1.4);
-SLEEP(1.4)
-0
-SELECT SLEEP(0.5);
-SLEEP(0.5)
-0
-SELECT SLEEP(2.1);
-SLEEP(2.1)
-0
-SELECT SLEEP(2.3);
-SLEEP(2.3)
-0
-SELECT SLEEP(2.5);
-SLEEP(2.5)
-0
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
+SET SESSION debug="+d,query_exec_time_0.31";
+SET SESSION debug="+d,query_exec_time_0.32";
+SET SESSION debug="+d,query_exec_time_0.33";
+SET SESSION debug="+d,query_exec_time_0.34";
+SET SESSION debug="+d,query_exec_time_0.35";
+SET SESSION debug="+d,query_exec_time_0.36";
+SET SESSION debug="+d,query_exec_time_0.37";
+SET SESSION debug="+d,query_exec_time_0.38";
+SET SESSION debug="+d,query_exec_time_0.39";
+SET SESSION debug="+d,query_exec_time_0.4";
+SET SESSION debug="+d,query_exec_time_1.1";
+SET SESSION debug="+d,query_exec_time_1.2";
+SET SESSION debug="+d,query_exec_time_1.3";
+SET SESSION debug="+d,query_exec_time_1.5";
+SET SESSION debug="+d,query_exec_time_1.4";
+SET SESSION debug="+d,query_exec_time_0.5";
+SET SESSION debug="+d,query_exec_time_2.1";
+SET SESSION debug="+d,query_exec_time_2.3";
+SET SESSION debug="+d,query_exec_time_2.5";
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SELECT d.count,
 (SELECT SUM(a.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as a WHERE a.count != 0) as query_count,
 (SELECT SUM((b.total * 1000000) DIV 1000000) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as query_total,
@@ -454,9 +300,8 @@ SELECT d.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
 count	query_count	query_total	not_zero_region_count	region_count
-1	20	17	3	7
-11	20	17	3	7
-8	20	17	3	7
+11	19	17	2	7
+8	19	17	2	7
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 7
@@ -477,65 +322,27 @@ SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	1000
 FLUSH QUERY_RESPONSE_TIME;
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=1;
-SELECT SLEEP(0.31);
-SLEEP(0.31)
-0
-SELECT SLEEP(0.32);
-SLEEP(0.32)
-0
-SELECT SLEEP(0.33);
-SLEEP(0.33)
-0
-SELECT SLEEP(0.34);
-SLEEP(0.34)
-0
-SELECT SLEEP(0.35);
-SLEEP(0.35)
-0
-SELECT SLEEP(0.36);
-SLEEP(0.36)
-0
-SELECT SLEEP(0.37);
-SLEEP(0.37)
-0
-SELECT SLEEP(0.38);
-SLEEP(0.38)
-0
-SELECT SLEEP(0.39);
-SLEEP(0.39)
-0
-SELECT SLEEP(0.40);
-SLEEP(0.40)
-0
-SELECT SLEEP(1.1);
-SLEEP(1.1)
-0
-SELECT SLEEP(1.2);
-SLEEP(1.2)
-0
-SELECT SLEEP(1.3);
-SLEEP(1.3)
-0
-SELECT SLEEP(1.5);
-SLEEP(1.5)
-0
-SELECT SLEEP(1.4);
-SLEEP(1.4)
-0
-SELECT SLEEP(0.5);
-SLEEP(0.5)
-0
-SELECT SLEEP(2.1);
-SLEEP(2.1)
-0
-SELECT SLEEP(2.3);
-SLEEP(2.3)
-0
-SELECT SLEEP(2.5);
-SLEEP(2.5)
-0
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
+SET SESSION debug="+d,query_exec_time_0.31";
+SET SESSION debug="+d,query_exec_time_0.32";
+SET SESSION debug="+d,query_exec_time_0.33";
+SET SESSION debug="+d,query_exec_time_0.34";
+SET SESSION debug="+d,query_exec_time_0.35";
+SET SESSION debug="+d,query_exec_time_0.36";
+SET SESSION debug="+d,query_exec_time_0.37";
+SET SESSION debug="+d,query_exec_time_0.38";
+SET SESSION debug="+d,query_exec_time_0.39";
+SET SESSION debug="+d,query_exec_time_0.4";
+SET SESSION debug="+d,query_exec_time_1.1";
+SET SESSION debug="+d,query_exec_time_1.2";
+SET SESSION debug="+d,query_exec_time_1.3";
+SET SESSION debug="+d,query_exec_time_1.5";
+SET SESSION debug="+d,query_exec_time_1.4";
+SET SESSION debug="+d,query_exec_time_0.5";
+SET SESSION debug="+d,query_exec_time_2.1";
+SET SESSION debug="+d,query_exec_time_2.3";
+SET SESSION debug="+d,query_exec_time_2.5";
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SELECT d.count,
 (SELECT SUM(a.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as a WHERE a.count != 0) as query_count,
 (SELECT SUM((b.total * 1000000) DIV 1000000) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as b WHERE b.count != 0) as query_total,
@@ -543,9 +350,8 @@ SELECT d.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
 count	query_count	query_total	not_zero_region_count	region_count
-1	20	17	3	6
-11	20	17	3	6
-8	20	17	3	6
+11	19	17	2	6
+8	19	17	2	6
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 6
@@ -566,5 +372,6 @@ Warning	1292	Truncated incorrect query_response_time_range_base value: '1001'
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
 query_response_time_range_base	1000
-SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE  =10;
+SET GLOBAL debug=default;

@@ -56,11 +56,6 @@ SELECT @@global.innodb_flush_log_at_trx_commit;
 # Check if variable can be accessed with and without @@ sign                  #
 ###############################################################################
 
---Error ER_GLOBAL_VARIABLE
-SET innodb_flush_log_at_trx_commit = 1;
-SELECT @@innodb_flush_log_at_trx_commit;
-
-
 --Error ER_UNKNOWN_TABLE
 SELECT local.innodb_flush_log_at_trx_commit;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "mem0mem.h"
 #include "sync0sync.h"
 #include "ut0lst.h"
+#include "ut0bh.h"
 #include "read0types.h"
 #include "page0types.h"
 
@@ -160,13 +161,6 @@ void
 trx_sys_dummy_create(
 /*=================*/
 	ulint	space);
-/*********************************************************************
-Create extra rollback segments when create_new_db */
-UNIV_INTERN
-void
-trx_sys_create_extra_rseg(
-/*======================*/
-	ulint	num);	/* in: number of extra user rollback segments */
 /****************************************************************//**
 Looks for a free slot for a rollback segment in the trx system file copy.
 @return	slot index or ULINT_UNDEFINED if not found */
@@ -253,13 +247,6 @@ Allocates a new transaction id.
 UNIV_INLINE
 trx_id_t
 trx_sys_get_new_trx_id(void);
-/*========================*/
-/*****************************************************************//**
-Allocates a new transaction number.
-@return	new, allocated trx number */
-UNIV_INLINE
-trx_id_t
-trx_sys_get_new_trx_no(void);
 /*========================*/
 #endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
@@ -465,12 +452,20 @@ trx_sys_file_format_id_to_name(
 	const ulint	id);	/*!< in: id of the file format */
 
 #endif /* !UNIV_HOTBACKUP */
+/*********************************************************************
+Creates the rollback segments */
+UNIV_INTERN
+void
+trx_sys_create_rsegs(
+/*=================*/
+	ulint	n_rsegs);	/*!< number of rollback segments to create */
+
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 
 /* Space id and page no where the trx system file copy resides */
 #define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
-#define	TRX_DOUBLEWRITE_SPACE	1	/* the doublewrite buffer tablespace if used */
+#define	TRX_DOUBLEWRITE_SPACE	0xFFFFFFE0UL	/* the doublewrite buffer tablespace if used */
 #define	TRX_SYS_SPACE_MAX	9	/* reserved max space id for system tablespaces */
 #include "fsp0fsp.h"
 #define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
@@ -501,11 +496,16 @@ trx_sys_file_format_id_to_name(
 					slots */
 /*------------------------------------------------------------- @} */
 
-/** Maximum number of rollback segments: the number of segment
-specification slots in the transaction system array; rollback segment
-id must fit in one byte, therefore 256; each slot is currently 8 bytes
-in size */
-#define	TRX_SYS_N_RSEGS		256
+/* Max number of rollback segments: the number of segment specification slots
+in the transaction system array; rollback segment id must fit in one (signed)
+byte, therefore 128; each slot is currently 8 bytes in size. If you want
+to raise the level to 256 then you will need to fix some assertions that
+impose the 7 bit restriction. e.g., mach_write_to_3() */
+#define	TRX_SYS_N_RSEGS			128
+/* Originally, InnoDB defined TRX_SYS_N_RSEGS as 256 but created only one
+rollback segment.  It initialized some arrays with this number of entries.
+We must remember this limit in order to keep file compatibility. */
+#define TRX_SYS_OLD_N_RSEGS		256
 
 /** Maximum length of MySQL binlog file name, in bytes.
 @see trx_sys_mysql_master_log_name
@@ -593,11 +593,16 @@ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_NO. */
 (TRX_SYS_PAGE_NO of TRX_SYS_SPACE) */
 #define TRX_SYS_FILE_FORMAT_TAG		(UNIV_PAGE_SIZE - 16)
 
-/** Contents of TRX_SYS_FILE_FORMAT_TAG when valid.  The file format
+/** Contents of TRX_SYS_FILE_FORMAT_TAG when valid. The file format
 identifier is added to this constant. */
 #define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW	3645922177UL
 /** Contents of TRX_SYS_FILE_FORMAT_TAG+4 when valid */
 #define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH	2745987765UL
+/** Contents of TRX_SYS_FILE_FORMAT_TAG when valid. The file format
+identifier is added to this 64-bit constant. */
+#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N					\
+	((ib_uint64_t) TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH << 32	\
+	 | TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW)
 /* @} */
 
 /** Doublewrite control struct */

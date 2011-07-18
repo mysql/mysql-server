@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -71,7 +71,9 @@ row_vers_impl_x_locked_off_kernel(
 					warning */
 	trx_t*		trx;
 	ulint		rec_del;
+#ifdef UNIV_DEBUG
 	ulint		err;
+#endif /* UNIV_DEBUG */
 	mtr_t		mtr;
 	ulint		comp;
 
@@ -169,9 +171,12 @@ row_vers_impl_x_locked_off_kernel(
 
 		heap2 = heap;
 		heap = mem_heap_create(1024);
-		err = trx_undo_prev_version_build(clust_rec, &mtr, version,
-						  clust_index, clust_offsets,
-						  heap, &prev_version);
+#ifdef UNIV_DEBUG
+		err =
+#endif /* UNIV_DEBUG */
+		trx_undo_prev_version_build(clust_rec, &mtr, version,
+					    clust_index, clust_offsets,
+					    heap, &prev_version);
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
 		if (prev_version == NULL) {
@@ -209,7 +214,7 @@ row_vers_impl_x_locked_off_kernel(
 		prev_trx_id must have already committed for the trx_id
 		to be able to modify the row. Therefore, prev_trx_id
 		cannot hold any implicit lock. */
-		if (vers_del && 0 != ut_dulint_cmp(trx_id, prev_trx_id)) {
+		if (vers_del && trx_id != prev_trx_id) {
 
 			mutex_enter(&kernel_mutex);
 			break;
@@ -280,7 +285,7 @@ row_vers_impl_x_locked_off_kernel(
 			break;
 		}
 
-		if (0 != ut_dulint_cmp(trx_id, prev_trx_id)) {
+		if (trx_id != prev_trx_id) {
 			/* The versions modified by the trx_id transaction end
 			to prev_version: no implicit x-lock */
 
@@ -533,7 +538,7 @@ row_vers_build_for_consistent_read(
 		undo_no of the record is < undo_no in the view. */
 
 		if (view->type == VIEW_HIGH_GRANULARITY
-		    && ut_dulint_cmp(view->creator_trx_id, trx_id) == 0) {
+		    && view->creator_trx_id == trx_id) {
 
 			roll_ptr = row_get_rec_roll_ptr(version, index,
 							*offsets);
@@ -541,9 +546,14 @@ row_vers_build_for_consistent_read(
 			undo_no = trx_undo_rec_get_undo_no(undo_rec);
 			mem_heap_empty(heap);
 
-			if (ut_dulint_cmp(view->undo_no, undo_no) > 0) {
+			if (view->undo_no > undo_no) {
 				/* The view already sees this version: we can
 				copy it to in_heap and return */
+
+#ifdef UNIV_BLOB_NULL_DEBUG
+				ut_a(!rec_offs_any_null_extern(
+					     version, *offsets));
+#endif /* UNIV_BLOB_NULL_DEBUG */
 
 				buf = mem_heap_alloc(in_heap,
 						     rec_offs_size(*offsets));
@@ -577,6 +587,10 @@ row_vers_build_for_consistent_read(
 
 		*offsets = rec_get_offsets(prev_version, index, *offsets,
 					   ULINT_UNDEFINED, offset_heap);
+
+#ifdef UNIV_BLOB_NULL_DEBUG
+		ut_a(!rec_offs_any_null_extern(prev_version, *offsets));
+#endif /* UNIV_BLOB_NULL_DEBUG */
 
 		trx_id = row_get_rec_trx_id(prev_version, index, *offsets);
 
@@ -632,7 +646,7 @@ row_vers_build_for_semi_consistent_read(
 	mem_heap_t*	heap		= NULL;
 	byte*		buf;
 	ulint		err;
-	trx_id_t	rec_trx_id	= ut_dulint_zero;
+	trx_id_t	rec_trx_id	= 0;
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
@@ -664,14 +678,22 @@ row_vers_build_for_semi_consistent_read(
 
 		mutex_enter(&kernel_mutex);
 		version_trx = trx_get_on_id(version_trx_id);
+		if (version_trx
+		    && (version_trx->conc_state == TRX_COMMITTED_IN_MEMORY
+			|| version_trx->conc_state == TRX_NOT_STARTED)) {
+
+			version_trx = NULL;
+		}
 		mutex_exit(&kernel_mutex);
 
-		if (!version_trx
-		    || version_trx->conc_state == TRX_NOT_STARTED
-		    || version_trx->conc_state == TRX_COMMITTED_IN_MEMORY) {
+		if (!version_trx) {
 
 			/* We found a version that belongs to a
 			committed transaction: return it. */
+
+#ifdef UNIV_BLOB_NULL_DEBUG
+			ut_a(!rec_offs_any_null_extern(version, *offsets));
+#endif /* UNIV_BLOB_NULL_DEBUG */
 
 			if (rec == version) {
 				*old_vers = rec;
@@ -684,7 +706,7 @@ row_vers_build_for_semi_consistent_read(
 			rolled back and the transaction is removed from
 			the global list of transactions. */
 
-			if (!ut_dulint_cmp(rec_trx_id, version_trx_id)) {
+			if (rec_trx_id == version_trx_id) {
 				/* The transaction was committed while
 				we searched for earlier versions.
 				Return the current version as a
@@ -730,6 +752,9 @@ row_vers_build_for_semi_consistent_read(
 		version = prev_version;
 		*offsets = rec_get_offsets(version, index, *offsets,
 					   ULINT_UNDEFINED, offset_heap);
+#ifdef UNIV_BLOB_NULL_DEBUG
+		ut_a(!rec_offs_any_null_extern(version, *offsets));
+#endif /* UNIV_BLOB_NULL_DEBUG */
 	}/* for (;;) */
 
 	if (heap) {

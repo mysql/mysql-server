@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -242,8 +242,8 @@ trx_undo_page_report_insert(
 
 	/* Store first some general parameters to the undo log */
 	*ptr++ = TRX_UNDO_INSERT_REC;
-	ptr += mach_dulint_write_much_compressed(ptr, trx->undo_no);
-	ptr += mach_dulint_write_much_compressed(ptr, index->table->id);
+	ptr += mach_ull_write_much_compressed(ptr, trx->undo_no);
+	ptr += mach_ull_write_much_compressed(ptr, index->table->id);
 	/*----------------------------------------*/
 	/* Store then the fields required to uniquely determine the record
 	to be inserted in the clustered index */
@@ -289,7 +289,7 @@ trx_undo_rec_get_pars(
 	ibool*		updated_extern,	/*!< out: TRUE if we updated an
 					externally stored fild */
 	undo_no_t*	undo_no,	/*!< out: undo log record number */
-	dulint*		table_id)	/*!< out: table id */
+	table_id_t*	table_id)	/*!< out: table id */
 {
 	byte*		ptr;
 	ulint		type_cmpl;
@@ -309,11 +309,11 @@ trx_undo_rec_get_pars(
 	*type = type_cmpl & (TRX_UNDO_CMPL_INFO_MULT - 1);
 	*cmpl_info = type_cmpl / TRX_UNDO_CMPL_INFO_MULT;
 
-	*undo_no = mach_dulint_read_much_compressed(ptr);
-	ptr += mach_dulint_get_much_compressed_size(*undo_no);
+	*undo_no = mach_ull_read_much_compressed(ptr);
+	ptr += mach_ull_get_much_compressed_size(*undo_no);
 
-	*table_id = mach_dulint_read_much_compressed(ptr);
-	ptr += mach_dulint_get_much_compressed_size(*table_id);
+	*table_id = mach_ull_read_much_compressed(ptr);
+	ptr += mach_ull_get_much_compressed_size(*table_id);
 
 	return(ptr);
 }
@@ -351,10 +351,10 @@ trx_undo_rec_get_col_val(
 		ut_ad(*orig_len >= BTR_EXTERN_FIELD_REF_SIZE);
 		ut_ad(*len > *orig_len);
 		/* @see dtuple_convert_big_rec() */
-		ut_ad(*len >= BTR_EXTERN_FIELD_REF_SIZE * 2);
+		ut_ad(*len >= BTR_EXTERN_FIELD_REF_SIZE);
 		/* we do not have access to index->table here
 		ut_ad(dict_table_get_format(index->table) >= DICT_TF_FORMAT_ZIP
-		      || *len >= REC_MAX_INDEX_COL_LEN
+		      || *len >= col->max_prefix
 		      + BTR_EXTERN_FIELD_REF_SIZE);
 		*/
 
@@ -456,9 +456,10 @@ static
 byte*
 trx_undo_page_fetch_ext(
 /*====================*/
-	byte*		ext_buf,	/*!< in: a buffer of
-					REC_MAX_INDEX_COL_LEN
-					+ BTR_EXTERN_FIELD_REF_SIZE */
+	byte*		ext_buf,	/*!< in: buffer to hold the prefix
+					data and BLOB pointer */
+	ulint		prefix_len,	/*!< in: prefix size to store
+					in the undo log */
 	ulint		zip_size,	/*!< compressed page size in bytes,
 					or 0 for uncompressed BLOB  */
 	const byte*	field,		/*!< in: an externally stored column */
@@ -467,7 +468,7 @@ trx_undo_page_fetch_ext(
 {
 	/* Fetch the BLOB. */
 	ulint	ext_len = btr_copy_externally_stored_field_prefix(
-		ext_buf, REC_MAX_INDEX_COL_LEN, zip_size, field, *len);
+		ext_buf, prefix_len, zip_size, field, *len);
 	/* BLOBs should always be nonempty. */
 	ut_a(ext_len);
 	/* Append the BLOB pointer to the prefix. */
@@ -488,10 +489,11 @@ trx_undo_page_report_modify_ext(
 	byte*		ptr,		/*!< in: undo log position,
 					at least 15 bytes must be available */
 	byte*		ext_buf,	/*!< in: a buffer of
-					REC_MAX_INDEX_COL_LEN
-					+ BTR_EXTERN_FIELD_REF_SIZE,
+					DICT_MAX_FIELD_LEN_BY_FORMAT() size,
 					or NULL when should not fetch
 					a longer prefix */
+	ulint		prefix_len,	/*!< prefix size to store in the
+					undo log */
 	ulint		zip_size,	/*!< compressed page size in bytes,
 					or 0 for uncompressed BLOB  */
 	const byte**	field,		/*!< in/out: the locally stored part of
@@ -499,6 +501,8 @@ trx_undo_page_report_modify_ext(
 	ulint*		len)		/*!< in/out: length of field, in bytes */
 {
 	if (ext_buf) {
+		ut_a(prefix_len > 0);
+
 		/* If an ordering column is externally stored, we will
 		have to store a longer prefix of the field.  In this
 		case, write to the log a marker followed by the
@@ -507,7 +511,7 @@ trx_undo_page_report_modify_ext(
 
 		ptr += mach_write_compressed(ptr, *len);
 
-		*field = trx_undo_page_fetch_ext(ext_buf, zip_size,
+		*field = trx_undo_page_fetch_ext(ext_buf, prefix_len, zip_size,
 						 *field, len);
 
 		ptr += mach_write_compressed(ptr, *len);
@@ -553,7 +557,7 @@ trx_undo_page_report_modify(
 	ulint		i;
 	trx_id_t	trx_id;
 	ibool		ignore_prefix = FALSE;
-	byte		ext_buf[REC_MAX_INDEX_COL_LEN
+	byte		ext_buf[REC_VERSION_56_MAX_INDEX_COL_LEN
 				+ BTR_EXTERN_FIELD_REF_SIZE];
 
 	ut_a(dict_index_is_clust(index));
@@ -598,9 +602,9 @@ trx_undo_page_report_modify(
 	type_cmpl_ptr = ptr;
 
 	*ptr++ = (byte) type_cmpl;
-	ptr += mach_dulint_write_much_compressed(ptr, trx->undo_no);
+	ptr += mach_ull_write_much_compressed(ptr, trx->undo_no);
 
-	ptr += mach_dulint_write_much_compressed(ptr, table->id);
+	ptr += mach_ull_write_much_compressed(ptr, table->id);
 
 	/*----------------------------------------*/
 	/* Store the state of the info bits */
@@ -620,16 +624,16 @@ trx_undo_page_report_modify(
 	by some other trx as it must have committed by now for us to
 	allow an over-write. */
 	if (ignore_prefix) {
-		ignore_prefix = ut_dulint_cmp(trx_id, trx->id) != 0;
+		ignore_prefix = (trx_id != trx->id);
 	}
-	ptr += mach_dulint_write_compressed(ptr, trx_id);
+	ptr += mach_ull_write_compressed(ptr, trx_id);
 
 	field = rec_get_nth_field(rec, offsets,
 				  dict_index_get_sys_col_pos(
 					  index, DATA_ROLL_PTR), &flen);
 	ut_ad(flen == DATA_ROLL_PTR_LEN);
 
-	ptr += mach_dulint_write_compressed(ptr, trx_read_roll_ptr(field));
+	ptr += mach_ull_write_compressed(ptr, trx_read_roll_ptr(field));
 
 	/*----------------------------------------*/
 	/* Store then the fields required to uniquely determine the
@@ -665,14 +669,27 @@ trx_undo_page_report_modify(
 	/* Save to the undo log the old values of the columns to be updated. */
 
 	if (update) {
+		ulint	extended = 0;
+
 		if (trx_undo_left(undo_page, ptr) < 5) {
 
 			return(0);
 		}
 
-		ptr += mach_write_compressed(ptr, upd_get_n_fields(update));
+		if (srv_use_sys_stats_table
+		    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)) {
+			for (i = 0; i < upd_get_n_fields(update); i++) {
+				ulint	pos = upd_get_nth_field(update, i)->field_no;
 
-		for (i = 0; i < upd_get_n_fields(update); i++) {
+				if (pos >= rec_offs_n_fields(offsets)) {
+					extended++;
+				}
+			}
+		}
+
+		ptr += mach_write_compressed(ptr, upd_get_n_fields(update) - extended);
+
+		for (i = 0; i < upd_get_n_fields(update) - extended; i++) {
 
 			ulint	pos = upd_get_nth_field(update, i)->field_no;
 
@@ -693,13 +710,21 @@ trx_undo_page_report_modify(
 			}
 
 			if (rec_offs_nth_extern(offsets, pos)) {
+				const dict_col_t*	col
+					= dict_index_get_nth_col(index, pos);
+				ulint			prefix_len
+					= dict_max_field_len_store_undo(
+						table, col);
+
+				ut_ad(prefix_len + BTR_EXTERN_FIELD_REF_SIZE
+				      <= sizeof ext_buf);
+
 				ptr = trx_undo_page_report_modify_ext(
 					ptr,
-					dict_index_get_nth_col(index, pos)
-					->ord_part
+					col->ord_part
 					&& !ignore_prefix
-					&& flen < REC_MAX_INDEX_COL_LEN
-					? ext_buf : NULL,
+					&& flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
+					? ext_buf : NULL, prefix_len,
 					dict_table_zip_size(table),
 					&field, &flen);
 
@@ -778,11 +803,20 @@ trx_undo_page_report_modify(
 							  &flen);
 
 				if (rec_offs_nth_extern(offsets, pos)) {
+					const dict_col_t*	col =
+						dict_index_get_nth_col(
+							index, pos);
+					ulint			prefix_len =
+						dict_max_field_len_store_undo(
+							table, col);
+
+					ut_a(prefix_len < sizeof ext_buf);
+
 					ptr = trx_undo_page_report_modify_ext(
 						ptr,
-						flen < REC_MAX_INDEX_COL_LEN
+						flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 						&& !ignore_prefix
-						? ext_buf : NULL,
+						? ext_buf : NULL, prefix_len,
 						dict_table_zip_size(table),
 						&field, &flen);
 				} else {
@@ -848,11 +882,11 @@ trx_undo_update_rec_get_sys_cols(
 
 	/* Read the values of the system columns */
 
-	*trx_id = mach_dulint_read_compressed(ptr);
-	ptr += mach_dulint_get_compressed_size(*trx_id);
+	*trx_id = mach_ull_read_compressed(ptr);
+	ptr += mach_ull_get_compressed_size(*trx_id);
 
-	*roll_ptr = mach_dulint_read_compressed(ptr);
-	ptr += mach_dulint_get_compressed_size(*roll_ptr);
+	*roll_ptr = mach_ull_read_compressed(ptr);
+	ptr += mach_ull_get_compressed_size(*roll_ptr);
 
 	return(ptr);
 }
@@ -1082,11 +1116,11 @@ trx_undo_rec_get_partial_row(
 			undo log record. */
 			if (!ignore_prefix && col->ord_part) {
 				ut_a(dfield_get_len(dfield)
-				     >= 2 * BTR_EXTERN_FIELD_REF_SIZE);
+				     >= BTR_EXTERN_FIELD_REF_SIZE);
 				ut_a(dict_table_get_format(index->table)
 				     >= DICT_TF_FORMAT_ZIP
 				     || dfield_get_len(dfield)
-				     >= REC_MAX_INDEX_COL_LEN
+				     >= REC_ANTELOPE_MAX_INDEX_COL_LEN 
 				     + BTR_EXTERN_FIELD_REF_SIZE);
 			}
 		}
@@ -1168,7 +1202,7 @@ trx_undo_report_row_operation(
 					index, otherwise NULL */
 	roll_ptr_t*	roll_ptr)	/*!< out: rollback pointer to the
 					inserted undo log record,
-					ut_dulint_zero if BTR_NO_UNDO_LOG
+					0 if BTR_NO_UNDO_LOG
 					flag was specified */
 {
 	trx_t*		trx;
@@ -1186,7 +1220,7 @@ trx_undo_report_row_operation(
 
 	if (flags & BTR_NO_UNDO_LOG_FLAG) {
 
-		*roll_ptr = ut_dulint_zero;
+		*roll_ptr = 0;
 
 		return(DB_SUCCESS);
 	}
@@ -1284,7 +1318,7 @@ trx_undo_report_row_operation(
 			undo->top_undo_no = trx->undo_no;
 			undo->guess_block = undo_block;
 
-			UT_DULINT_INC(trx->undo_no);
+			trx->undo_no++;
 
 			mutex_exit(&trx->undo_mutex);
 
@@ -1433,7 +1467,7 @@ trx_undo_prev_version_build(
 	trx_id_t	rec_trx_id;
 	ulint		type;
 	undo_no_t	undo_no;
-	dulint		table_id;
+	table_id_t	table_id;
 	trx_id_t	trx_id;
 	roll_ptr_t	roll_ptr;
 	roll_ptr_t	old_roll_ptr;
@@ -1523,7 +1557,7 @@ trx_undo_prev_version_build(
 					     roll_ptr, info_bits,
 					     NULL, heap, &update);
 
-	if (ut_dulint_cmp(table_id, index->table->id) != 0) {
+	if (UNIV_UNLIKELY(table_id != index->table->id)) {
 		ptr = NULL;
 
 		fprintf(stderr,
@@ -1544,16 +1578,14 @@ trx_undo_prev_version_build(
 		fprintf(stderr,
 			"InnoDB: table %s, index %s, n_uniq %lu\n"
 			"InnoDB: undo rec address %p, type %lu cmpl_info %lu\n"
-			"InnoDB: undo rec table id %lu %lu,"
-			" index table id %lu %lu\n"
+			"InnoDB: undo rec table id %llu,"
+			" index table id %llu\n"
 			"InnoDB: dump of 150 bytes in undo rec: ",
 			index->table_name, index->name,
 			(ulong) dict_index_get_n_unique(index),
 			undo_rec, (ulong) type, (ulong) cmpl_info,
-			(ulong) ut_dulint_get_high(table_id),
-			(ulong) ut_dulint_get_low(table_id),
-			(ulong) ut_dulint_get_high(index->table->id),
-			(ulong) ut_dulint_get_low(index->table->id));
+			(ullint) table_id,
+			(ullint) index->table->id);
 		ut_print_buf(stderr, undo_rec, 150);
 		fputs("\n"
 		      "InnoDB: index record ", stderr);
@@ -1564,18 +1596,18 @@ trx_undo_prev_version_build(
 		fprintf(stderr, "\n"
 			"InnoDB: Record trx id " TRX_ID_FMT
 			", update rec trx id " TRX_ID_FMT "\n"
-			"InnoDB: Roll ptr in rec %lu %lu, in update rec"
-			" %lu %lu\n",
-			TRX_ID_PREP_PRINTF(rec_trx_id),
-			TRX_ID_PREP_PRINTF(trx_id),
-			(ulong) ut_dulint_get_high(old_roll_ptr),
-			(ulong) ut_dulint_get_low(old_roll_ptr),
-			(ulong) ut_dulint_get_high(roll_ptr),
-			(ulong) ut_dulint_get_low(roll_ptr));
+			"InnoDB: Roll ptr in rec " TRX_ID_FMT
+			", in update rec" TRX_ID_FMT "\n",
+			(ullint) rec_trx_id, (ullint) trx_id,
+			(ullint) old_roll_ptr, (ullint) roll_ptr);
 
 		trx_purge_sys_print();
 		return(DB_ERROR);
 	}
+
+# ifdef UNIV_BLOB_NULL_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+# endif /* UNIV_BLOB_NULL_DEBUG */
 
 	if (row_upd_changes_field_size_or_external(index, offsets, update)) {
 		ulint	n_ext;

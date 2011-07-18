@@ -1006,6 +1006,8 @@ const char *print_slave_db_safe(const char* db)
   DBUG_RETURN((db ? db : ""));
 }
 
+#endif /* HAVE_REPLICATION */
+
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
                                  const char *default_val)
 {
@@ -1037,6 +1039,10 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 }
 
 
+/*
+  when moving these functions to mysys, don't forget to
+  remove slave.cc from libmysqld/CMakeLists.txt
+*/
 int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
 {
   char buf[32];
@@ -1164,6 +1170,8 @@ err:
     my_free(buf_act);
   DBUG_RETURN(ret);
 }
+
+#ifdef HAVE_REPLICATION
 
 /*
   Check if the error is caused by network.

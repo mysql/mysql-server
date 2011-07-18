@@ -1,0 +1,89 @@
+include/master-slave.inc
+[connection master]
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(id INT);
+START SLAVE;
+include/wait_for_slave_to_start.inc
+INSERT INTO t VALUES (1);
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	OFF
+set global log_slow_slave_statements=ON;
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+INSERT INTO t VALUES (2);
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+INSERT INTO t VALUES (3);
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	
+set global long_query_time=0;
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	
+INSERT INTO t VALUES (4);
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	
+set global slow_query_log_use_global_control='long_query_time';
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	long_query_time
+INSERT INTO t VALUES (5);
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'slow_query_log_use_global_control';
+Variable_name	Value
+slow_query_log_use_global_control	long_query_time
+set global long_query_time=1;
+set global slow_query_log_use_global_control='';
+FLUSH LOGS;
+# Analyse master slow_query_log
+0
+0
+0
+0
+0
+FLUSH LOGS;
+# Analyse slave slow_query_log
+0
+0
+0
+0
+1
+set global log_slow_slave_statements=OFF;
+DROP TABLE t;
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc

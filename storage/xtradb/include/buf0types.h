@@ -36,6 +36,8 @@ typedef struct buf_chunk_struct		buf_chunk_t;
 typedef	struct buf_pool_struct		buf_pool_t;
 /** Buffer pool statistics struct */
 typedef	struct buf_pool_stat_struct	buf_pool_stat_t;
+/** Buffer pool buddy statistics struct */
+typedef	struct buf_buddy_stat_struct	buf_buddy_stat_t;
 
 /** A buffer frame. @see page_t */
 typedef	byte	buf_frame_t;
@@ -76,7 +78,7 @@ enum buf_io_fix {
 /** twice the maximum block size of the buddy system;
 the underlying memory is aligned by this amount:
 this must be equal to UNIV_PAGE_SIZE */
-#define BUF_BUDDY_HIGH	(BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
+#define BUF_BUDDY_HIGH	((ulint)BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
 /* @} */
 
 #endif

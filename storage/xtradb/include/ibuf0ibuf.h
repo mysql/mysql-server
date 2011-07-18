@@ -35,18 +35,38 @@ Created 7/19/1997 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "ibuf0types.h"
 
+/* Possible operations buffered in the insert/whatever buffer. See
+ibuf_insert(). DO NOT CHANGE THE VALUES OF THESE, THEY ARE STORED ON DISK. */
+typedef enum {
+	IBUF_OP_INSERT = 0,
+	IBUF_OP_DELETE_MARK = 1,
+	IBUF_OP_DELETE = 2,
+
+	/* Number of different operation types. */
+	IBUF_OP_COUNT = 3
+} ibuf_op_t;
+
 /** Combinations of operations that can be buffered.  Because the enum
 values are used for indexing innobase_change_buffering_values[], they
 should start at 0 and there should not be any gaps. */
 typedef enum {
 	IBUF_USE_NONE = 0,
 	IBUF_USE_INSERT,	/* insert */
+	IBUF_USE_DELETE_MARK,	/* delete */
+	IBUF_USE_INSERT_DELETE_MARK,	/* insert+delete */
+	IBUF_USE_DELETE,	/* delete+purge */
+	IBUF_USE_ALL,		/* insert+delete+purge */
 
 	IBUF_USE_COUNT		/* number of entries in ibuf_use_t */
 } ibuf_use_t;
 
 /** Operations that can currently be buffered. */
 extern ibuf_use_t	ibuf_use;
+
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/** Flag to control insert buffer debugging. */
+extern uint		ibuf_debug;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** The insert buffer control structure */
 extern ibuf_t*		ibuf;
@@ -72,8 +92,7 @@ separately committed mini-transaction, because in crash recovery, the
 free bits could momentarily be set too high. */
 
 /******************************************************************//**
-Creates the insert buffer data structure at a database startup and
-initializes the data structures for the insert buffer of each tablespace. */
+Creates the insert buffer data structure at a database startup. */
 UNIV_INTERN
 void
 ibuf_init_at_db_start(void);
@@ -85,6 +104,22 @@ UNIV_INTERN
 void
 ibuf_update_max_tablespace_id(void);
 /*===============================*/
+/***************************************************************//**
+Starts an insert buffer mini-transaction. */
+UNIV_INLINE
+void
+ibuf_mtr_start(
+/*===========*/
+	mtr_t*	mtr)	/*!< out: mini-transaction */
+	__attribute__((nonnull));
+/***************************************************************//**
+Commits an insert buffer mini-transaction. */
+UNIV_INLINE
+void
+ibuf_mtr_commit(
+/*============*/
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Initializes an ibuf bitmap page. */
 UNIV_INTERN
@@ -205,10 +240,12 @@ routine.
 For instance, a read-ahead of non-ibuf pages is forbidden by threads
 that are executing an insert buffer routine.
 @return TRUE if inside an insert buffer routine */
-UNIV_INTERN
+UNIV_INLINE
 ibool
-ibuf_inside(void);
-/*=============*/
+ibuf_inside(
+/*========*/
+	const mtr_t*	mtr)	/*!< in: mini-transaction */
+	__attribute__((nonnull, pure));
 /***********************************************************************//**
 Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @return	TRUE if a bitmap page */
@@ -225,15 +262,44 @@ Must not be called when recv_no_ibuf_operations==TRUE.
 @return	TRUE if level 2 or level 3 page */
 UNIV_INTERN
 ibool
-ibuf_page(
-/*======*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	page_no,/*!< in: page number */
-	mtr_t*	mtr);	/*!< in: mtr which will contain an x-latch to the
-			bitmap page if the page is not one of the fixed
-			address ibuf pages, or NULL, in which case a new
-			transaction is created. */
+ibuf_page_low(
+/*==========*/
+	ulint		space,	/*!< in: space id */
+	ulint		zip_size,/*!< in: compressed page size in bytes, or 0 */
+	ulint		page_no,/*!< in: page number */
+#ifdef UNIV_DEBUG
+	ibool		x_latch,/*!< in: FALSE if relaxed check
+				(avoid latching the bitmap page) */
+#endif /* UNIV_DEBUG */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
+	mtr_t*		mtr)	/*!< in: mtr which will contain an
+				x-latch to the bitmap page if the page
+				is not one of the fixed address ibuf
+				pages, or NULL, in which case a new
+				transaction is created. */
+	__attribute__((warn_unused_result));
+#ifdef UNIV_DEBUG
+/** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
+pages.  Must not be called when recv_no_ibuf_operations==TRUE.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes, or 0
+@param page_no	page number
+@param mtr	mini-transaction or NULL
+@return TRUE if level 2 or level 3 page */
+# define ibuf_page(space, zip_size, page_no, mtr)			\
+	ibuf_page_low(space, zip_size, page_no, TRUE, __FILE__, __LINE__, mtr)
+#else /* UVIV_DEBUG */
+/** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
+pages.  Must not be called when recv_no_ibuf_operations==TRUE.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes, or 0
+@param page_no	page number
+@param mtr	mini-transaction or NULL
+@return TRUE if level 2 or level 3 page */
+# define ibuf_page(space, zip_size, page_no, mtr)			\
+	ibuf_page_low(space, zip_size, page_no, __FILE__, __LINE__, mtr)
+#endif /* UVIV_DEBUG */
 /***********************************************************************//**
 Frees excess pages from the ibuf free list. This function is called when an OS
 thread calls fsp services to allocate a new file segment, or a new page to a
@@ -243,14 +309,15 @@ void
 ibuf_free_excess_pages(void);
 /*========================*/
 /*********************************************************************//**
-Makes an index insert to the insert buffer, instead of directly to the disk
-page, if this is possible. Does not do insert if the index is clustered
-or unique.
+Buffer an operation in the insert/delete buffer, instead of doing it
+directly to the disk page, if this is possible. Does not do it if the index
+is clustered or unique.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
 ibuf_insert(
 /*========*/
+	ibuf_op_t	op,	/*!< in: operation type */
 	const dtuple_t*	entry,	/*!< in: index entry to insert */
 	dict_index_t*	index,	/*!< in: index where to insert */
 	ulint		space,	/*!< in: space id where to insert */
@@ -259,11 +326,11 @@ ibuf_insert(
 	que_thr_t*	thr);	/*!< in: query thread */
 /*********************************************************************//**
 When an index page is read from a disk to the buffer pool, this function
-inserts to the page the possible index entries buffered in the insert buffer.
-The entries are deleted from the insert buffer. If the page is not read, but
-created in the buffer pool, this function deletes its buffered entries from
-the insert buffer; there can exist entries for such a page if the page
-belonged to an index which subsequently was dropped. */
+applies any buffered operations to the page and deletes the entries from the
+insert buffer. If the page is not read, but created in the buffer pool, this
+function deletes its buffered entries from the insert buffer; there can
+exist entries for such a page if the page belonged to an index which
+subsequently was dropped. */
 UNIV_INTERN
 void
 ibuf_merge_or_delete_for_page(
@@ -356,12 +423,37 @@ void
 ibuf_print(
 /*=======*/
 	FILE*	file);	/*!< in: file where to print */
+/********************************************************************
+Read the first two bytes from a record's fourth field (counter field in new
+records; something else in older records).
+@return	"counter" field, or ULINT_UNDEFINED if for some reason it can't be read */
+UNIV_INTERN
+ulint
+ibuf_rec_get_counter(
+/*=================*/
+	const rec_t*	rec);	/*!< in: ibuf record */
 /******************************************************************//**
 Closes insert buffer and frees the data structures. */
 UNIV_INTERN
 void
 ibuf_close(void);
 /*============*/
+/******************************************************************//**
+Function to pass ibuf status variables */
+UNIV_INTERN
+void
+ibuf_export_ibuf_status(
+/*====================*/
+	ulint*	size,
+	ulint*	free_list,
+	ulint*	segment_size,
+	ulint*	merges,
+	ulint*	merged_inserts,
+	ulint*	merged_delete_marks,
+	ulint*	merged_deletes,
+	ulint*	discarded_inserts,
+	ulint*	discarded_delete_marks,
+	ulint*	discarded_deletes);
 
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO

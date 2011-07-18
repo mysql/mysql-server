@@ -67,12 +67,15 @@ UNIV_INTERN
 void
 dict_hdr_get_new_id(
 /*================*/
-	dulint*	table_id,	/*!< out: table id (not assigned if NULL) */
-	dulint*	index_id,	/*!< out: index id (not assigned if NULL) */
-	ulint*	space_id)	/*!< out: space id (not assigned if NULL) */
+	table_id_t*	table_id,	/*!< out: table id
+					(not assigned if NULL) */
+	index_id_t*	index_id,	/*!< out: index id
+					(not assigned if NULL) */
+	ulint*		space_id)	/*!< out: space id
+					(not assigned if NULL) */
 {
 	dict_hdr_t*	dict_hdr;
-	dulint		id;
+	ib_id_t		id;
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
@@ -80,16 +83,16 @@ dict_hdr_get_new_id(
 	dict_hdr = dict_hdr_get(&mtr);
 
 	if (table_id) {
-		id = mtr_read_dulint(dict_hdr + DICT_HDR_TABLE_ID, &mtr);
-		id = ut_dulint_add(id, 1);
-		mlog_write_dulint(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
+		id = mach_read_from_8(dict_hdr + DICT_HDR_TABLE_ID);
+		id++;
+		mlog_write_ull(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
 		*table_id = id;
 	}
 
 	if (index_id) {
-		id = mtr_read_dulint(dict_hdr + DICT_HDR_INDEX_ID, &mtr);
-		id = ut_dulint_add(id, 1);
-		mlog_write_dulint(dict_hdr + DICT_HDR_INDEX_ID, id, &mtr);
+		id = mach_read_from_8(dict_hdr + DICT_HDR_INDEX_ID);
+		id++;
+		mlog_write_ull(dict_hdr + DICT_HDR_INDEX_ID, id, &mtr);
 		*index_id = id;
 	}
 
@@ -114,7 +117,7 @@ dict_hdr_flush_row_id(void)
 /*=======================*/
 {
 	dict_hdr_t*	dict_hdr;
-	dulint		id;
+	row_id_t	id;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -125,7 +128,7 @@ dict_hdr_flush_row_id(void)
 
 	dict_hdr = dict_hdr_get(&mtr);
 
-	mlog_write_dulint(dict_hdr + DICT_HDR_ROW_ID, id, &mtr);
+	mlog_write_ull(dict_hdr + DICT_HDR_ROW_ID, id, &mtr);
 
 	mtr_commit(&mtr);
 }
@@ -157,14 +160,14 @@ dict_hdr_create(
 
 	/* Start counting row, table, index, and tree ids from
 	DICT_HDR_FIRST_ID */
-	mlog_write_dulint(dict_header + DICT_HDR_ROW_ID,
-			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
+	mlog_write_ull(dict_header + DICT_HDR_ROW_ID,
+		       DICT_HDR_FIRST_ID, mtr);
 
-	mlog_write_dulint(dict_header + DICT_HDR_TABLE_ID,
-			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
+	mlog_write_ull(dict_header + DICT_HDR_TABLE_ID,
+		       DICT_HDR_FIRST_ID, mtr);
 
-	mlog_write_dulint(dict_header + DICT_HDR_INDEX_ID,
-			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
+	mlog_write_ull(dict_header + DICT_HDR_INDEX_ID,
+		       DICT_HDR_FIRST_ID, mtr);
 
 	mlog_write_ulint(dict_header + DICT_HDR_MAX_SPACE_ID,
 			 0, MLOG_4BYTES, mtr);
@@ -263,8 +266,8 @@ dict_boot(void)
 	/* Get the dictionary header */
 	dict_hdr = dict_hdr_get(&mtr);
 
-	if (ut_dulint_cmp(mtr_read_dulint(dict_hdr + DICT_HDR_XTRADB_MARK, &mtr),
-			  DICT_HDR_XTRADB_FLAG) != 0) {
+	if (mach_read_from_8(dict_hdr + DICT_HDR_XTRADB_MARK)
+	    != DICT_HDR_XTRADB_FLAG) {
 		/* not extended yet by XtraDB, need to be extended */
 		ulint	root_page_no;
 
@@ -277,7 +280,7 @@ dict_boot(void)
 		} else {
 			mlog_write_ulint(dict_hdr + DICT_HDR_STATS, root_page_no,
 					 MLOG_4BYTES, &mtr);
-			mlog_write_dulint(dict_hdr + DICT_HDR_XTRADB_MARK,
+			mlog_write_ull(dict_hdr + DICT_HDR_XTRADB_MARK,
 					  DICT_HDR_XTRADB_FLAG, &mtr);
 		}
 		mtr_commit(&mtr);
@@ -296,11 +299,9 @@ dict_boot(void)
 	..._MARGIN, it will immediately be updated to the disk-based
 	header. */
 
-	dict_sys->row_id = ut_dulint_add(
-		ut_dulint_align_up(mtr_read_dulint(dict_hdr + DICT_HDR_ROW_ID,
-						   &mtr),
-				   DICT_HDR_ROW_ID_WRITE_MARGIN),
-		DICT_HDR_ROW_ID_WRITE_MARGIN);
+	dict_sys->row_id = DICT_HDR_ROW_ID_WRITE_MARGIN
+		+ ut_uint64_align_up(mach_read_from_8(dict_hdr + DICT_HDR_ROW_ID),
+				     DICT_HDR_ROW_ID_WRITE_MARGIN);
 
 	/* Insert into the dictionary cache the descriptions of the basic
 	system tables */
@@ -465,16 +466,20 @@ dict_boot(void)
 	ut_a(error == DB_SUCCESS);
 
 	/*-------------------------*/
-	table = dict_mem_table_create("SYS_STATS", DICT_HDR_SPACE, 3, 0);
+	table = dict_mem_table_create("SYS_STATS", DICT_HDR_SPACE, 4, 0);
 	table->n_mysql_handles_opened = 1; /* for pin */
 
 	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "KEY_COLS", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "DIFF_VALS", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "NON_NULL_VALS", DATA_BINARY, 0, 0);
 
 	/* The '+ 2' below comes from the fields DB_TRX_ID, DB_ROLL_PTR */
 #if DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2
 #error "DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2"
+#endif
+#if DICT_SYS_STATS_NON_NULL_VALS_FIELD != 3 + 2
+#error "DICT_SYS_STATS_NON_NULL_VALS_FIELD != 3 + 2"
 #endif
 
 	table->id = DICT_STATS_ID;

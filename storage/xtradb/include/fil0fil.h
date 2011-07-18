@@ -27,12 +27,13 @@ Created 10/25/1995 Heikki Tuuri
 #define fil0fil_h
 
 #include "univ.i"
-#ifndef UNIV_HOTBACKUP
-#include "sync0rw.h"
-#endif /* !UNIV_HOTBACKUP */
 #include "dict0types.h"
 #include "ut0byte.h"
 #include "os0file.h"
+#ifndef UNIV_HOTBACKUP
+#include "sync0rw.h"
+#include "ibuf0types.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
@@ -648,18 +649,10 @@ _fil_io(
 Confirm whether the parameters are valid or not */
 UNIV_INTERN
 ibool
-fil_area_is_exist(
+fil_is_exist(
 /*==============*/
 	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
-				aio this must be divisible by the OS block
-				size */
-	ulint	len);		/*!< in: how many bytes to read or write; this
-				must not cross a file boundary; in aio this
-				must be a block size multiple */
+	ulint	block_offset);	/*!< in: offset in number of blocks */
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
@@ -678,8 +671,9 @@ UNIV_INTERN
 void
 fil_flush(
 /*======*/
-	ulint	space_id);	/*!< in: file space id (this can be a group of
+	ulint	space_id,	/*!< in: file space id (this can be a group of
 				log files or a tablespace of the database) */
+	ibool	metadata);
 /**********************************************************************//**
 Flushes to disk writes in file spaces of the given type possibly cached by
 the OS. */
@@ -736,6 +730,15 @@ ulint
 fil_page_get_type(
 /*==============*/
 	const byte*	page);	/*!< in: file page */
+
+/*******************************************************************//**
+Returns TRUE if a single-table tablespace is being deleted.
+@return TRUE if being deleted */
+UNIV_INTERN
+ibool
+fil_tablespace_is_being_deleted(
+/*============================*/
+	ulint		id);	/*!< in: space id */
 
 /*************************************************************************
 Return local hash table informations. */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,6 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0purge.h"
 #include "log0log.h"
 #include "log0recv.h"
@@ -130,9 +131,15 @@ static const char*	file_format_name_map[] = {
 static const ulint	FILE_FORMAT_NAME_N
 	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register the mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 #ifndef UNIV_HOTBACKUP
 /** This is used to track the maximum file format id known to InnoDB. It's
-updated via SET GLOBAL innodb_file_format_check = 'x' or when we open
+updated via SET GLOBAL innodb_file_format_max = 'x' or when we open
 or create a table. */
 static	file_format_t	file_format_max;
 
@@ -183,7 +190,8 @@ trx_doublewrite_init(
 	os_do_not_call_flush_at_each_write = TRUE;
 #endif /* UNIV_DO_FLUSH */
 
-	mutex_create(&trx_doublewrite->mutex, SYNC_DOUBLEWRITE);
+	mutex_create(trx_doublewrite_mutex_key,
+		     &trx_doublewrite->mutex, SYNC_DOUBLEWRITE);
 
 	trx_doublewrite->first_free = 0;
 
@@ -245,7 +253,9 @@ trx_sys_create_doublewrite_buf(void)
 {
 	buf_block_t*	block;
 	buf_block_t*	block2;
+#ifdef UNIV_SYNC_DEBUG
 	buf_block_t*	new_block;
+#endif /* UNIV_SYNC_DEBUG */
 	byte*	doublewrite;
 	byte*	fseg_header;
 	ulint	page_no;
@@ -348,8 +358,11 @@ start_again:
 			the page position in the tablespace, then the page
 			has not been written to in doublewrite. */
 
-			new_block = buf_page_get(TRX_SYS_SPACE, 0, page_no,
-						 RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+			new_block =
+#endif /* UNIV_SYNC_DEBUG */
+			buf_page_get(TRX_SYS_SPACE, 0, page_no,
+				     RW_X_LATCH, &mtr);
 			buf_block_dbg_add_level(new_block,
 						SYNC_NO_ORDER_CHECK);
 
@@ -425,17 +438,17 @@ start_again:
 	} else {
 		fprintf(stderr,
 			"InnoDB: Doublewrite buffer not found in the doublewrite file:"
-			" creating new\n");
+			" creating new doublewrite buffer.\n");
 
 		if (buf_pool_get_curr_size()
 		    < ((2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
 			+ FSP_EXTENT_SIZE / 2 + 100)
 		       * UNIV_PAGE_SIZE)) {
 			fprintf(stderr,
-				"InnoDB: Cannot create doublewrite buffer:"
-				" you must\n"
+				"InnoDB: Cannot create the doublewrite buffer:"
+				" You must\n"
 				"InnoDB: increase your buffer pool size.\n"
-				"InnoDB: Cannot continue operation.\n");
+				"InnoDB: Cannot continue processing.\n");
 
 			exit(1);
 		}
@@ -451,10 +464,10 @@ start_again:
 
 		if (block2 == NULL) {
 			fprintf(stderr,
-				"InnoDB: Cannot create doublewrite buffer:"
-				" you must\n"
+				"InnoDB: Cannot create the doublewrite buffer:"
+				" You must\n"
 				"InnoDB: increase your tablespace size.\n"
-				"InnoDB: Cannot continue operation.\n");
+				"InnoDB: Cannot continue processing.\n");
 
 			/* We exit without committing the mtr to prevent
 			its modifications to the database getting to disk */
@@ -473,8 +486,8 @@ start_again:
 						       FSP_UP, &mtr);
 			if (page_no == FIL_NULL) {
 				fprintf(stderr,
-					"InnoDB: Cannot create doublewrite"
-					" buffer: you must\n"
+					"InnoDB: Cannot create the doublewrite"
+					" buffer: You must\n"
 					"InnoDB: increase your"
 					" tablespace size.\n"
 					"InnoDB: Cannot continue operation.\n"
@@ -492,8 +505,11 @@ start_again:
 			the page position in the tablespace, then the page
 			has not been written to in doublewrite. */
 
-			new_block = buf_page_get(TRX_DOUBLEWRITE_SPACE, 0, page_no,
-						 RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+			new_block =
+#endif /* UNIV_SYNC_DEBUG */
+			buf_page_get(TRX_DOUBLEWRITE_SPACE, 0, page_no,
+				     RW_X_LATCH, &mtr);
 			buf_block_dbg_add_level(new_block,
 						SYNC_NO_ORDER_CHECK);
 
@@ -826,8 +842,8 @@ trx_sys_flush_max_trx_id(void)
 
 	sys_header = trx_sysf_get(&mtr);
 
-	mlog_write_dulint(sys_header + TRX_SYS_TRX_ID_STORE,
-			  trx_sys->max_trx_id, &mtr);
+	mlog_write_ull(sys_header + TRX_SYS_TRX_ID_STORE,
+		       trx_sys->max_trx_id, &mtr);
 	mtr_commit(&mtr);
 }
 
@@ -855,8 +871,7 @@ trx_sys_update_mysql_binlog_offset(
 		/* -> To store relay log file information, file_name must fit to the 480 bytes */
 
 		file_name = "";
-	}
-	else {
+	} else {
 		file_name = file_name_in;
 	}
 
@@ -1069,7 +1084,8 @@ trx_sysf_create(
 	buf_block_t*	block;
 	page_t*		page;
 	ulint		page_no;
-	ulint		i;
+	byte*		ptr;
+	ulint		len;
 
 	ut_ad(mtr);
 
@@ -1102,34 +1118,57 @@ trx_sysf_create(
 	sys_header = trx_sysf_get(mtr);
 
 	/* Start counting transaction ids from number 1 up */
-	mlog_write_dulint(sys_header + TRX_SYS_TRX_ID_STORE,
-			  ut_dulint_create(0, 1), mtr);
+	mach_write_to_8(sys_header + TRX_SYS_TRX_ID_STORE, 1);
 
-	/* Reset the rollback segment slots */
-	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
+	/* Reset the rollback segment slots.  Old versions of InnoDB
+	define TRX_SYS_N_RSEGS as 256 (TRX_SYS_OLD_N_RSEGS) and expect
+	that the whole array is initialized. */
+	ptr = TRX_SYS_RSEGS + sys_header;
+	len = ut_max(TRX_SYS_OLD_N_RSEGS, TRX_SYS_N_RSEGS)
+		* TRX_SYS_RSEG_SLOT_SIZE;
+	memset(ptr, 0xff, len);
+	ptr += len;
+	ut_a(ptr <= page + (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END));
 
-		trx_sysf_rseg_set_space(sys_header, i, ULINT_UNDEFINED, mtr);
-		trx_sysf_rseg_set_page_no(sys_header, i, FIL_NULL, mtr);
-	}
+	/* Initialize all of the page.  This part used to be uninitialized. */
+	memset(ptr, 0, UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + page - ptr);
 
-	/* The remaining area (up to the page trailer) is uninitialized.
-	Silence Valgrind warnings about it. */
-	UNIV_MEM_VALID(sys_header + (TRX_SYS_RSEGS
-				     + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
-				     + TRX_SYS_RSEG_SPACE),
-		       (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
-			- (TRX_SYS_RSEGS
-			   + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
-			   + TRX_SYS_RSEG_SPACE))
-		       + page - sys_header);
+	mlog_log_string(sys_header, UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
+			+ page - sys_header, mtr);
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
-	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, &slot_no,
+	slot_no = trx_sysf_rseg_find_free(mtr);
+	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, slot_no,
 					 mtr);
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
-	ut_a(page_no != FIL_NULL);
+	ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
 
 	mutex_exit(&kernel_mutex);
+}
+
+/*****************************************************************//**
+Compare two trx_rseg_t instances on last_trx_no. */
+static
+int
+trx_rseg_compare_last_trx_no(
+/*=========================*/
+	const void*	p1,		/*!< in: elem to compare */
+	const void*	p2)		/*!< in: elem to compare */
+{
+	ib_int64_t	cmp;
+
+	const rseg_queue_t*	rseg_q1 = (const rseg_queue_t*) p1;
+	const rseg_queue_t*	rseg_q2 = (const rseg_queue_t*) p2;
+
+	cmp = rseg_q1->trx_no - rseg_q2->trx_no;
+
+	if (cmp < 0) {
+		return(-1);
+	} else if (cmp > 0) {
+		return(1);
+	}
+
+	return(0);
 }
 
 /*****************************************************************//**
@@ -1218,10 +1257,11 @@ trx_sys_init_at_db_start(void)
 /*==========================*/
 {
 	trx_sysf_t*	sys_header;
-	ib_int64_t	rows_to_undo	= 0;
+	ib_uint64_t	rows_to_undo	= 0;
 	const char*	unit		= "";
 	trx_t*		trx;
 	mtr_t		mtr;
+	ib_bh_t*	ib_bh;
 
 	mtr_start(&mtr);
 
@@ -1229,11 +1269,19 @@ trx_sys_init_at_db_start(void)
 
 	mutex_enter(&kernel_mutex);
 
-	trx_sys = mem_alloc(sizeof(trx_sys_t));
+	/* We create the min binary heap here and pass ownership to
+	purge when we init the purge sub-system. Purge is responsible
+	for freeing the binary heap. */
+
+	ib_bh = ib_bh_create(
+		trx_rseg_compare_last_trx_no,
+		sizeof(rseg_queue_t), TRX_SYS_N_RSEGS);
+
+	trx_sys = mem_zalloc(sizeof(*trx_sys));
 
 	sys_header = trx_sysf_get(&mtr);
 
-	trx_rseg_list_and_array_init(sys_header, &mtr);
+	trx_rseg_list_and_array_init(sys_header, ib_bh, &mtr);
 
 	trx_sys->latest_rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
 
@@ -1244,12 +1292,10 @@ trx_sys_init_at_db_start(void)
 	to the disk-based header! Thus trx id values will not overlap when
 	the database is repeatedly started! */
 
-	trx_sys->max_trx_id = ut_dulint_add(
-		ut_dulint_align_up(mtr_read_dulint(
-					   sys_header
-					   + TRX_SYS_TRX_ID_STORE, &mtr),
-				   TRX_SYS_TRX_ID_WRITE_MARGIN),
-		2 * TRX_SYS_TRX_ID_WRITE_MARGIN);
+	trx_sys->max_trx_id = 2 * TRX_SYS_TRX_ID_WRITE_MARGIN
+		+ ut_uint64_align_up(mach_read_from_8(sys_header
+						   + TRX_SYS_TRX_ID_STORE),
+				     TRX_SYS_TRX_ID_WRITE_MARGIN);
 
 	UT_LIST_INIT(trx_sys->mysql_trx_list);
 	trx_dummy_sess = sess_open();
@@ -1260,9 +1306,8 @@ trx_sys_init_at_db_start(void)
 
 		for (;;) {
 
-			if ( trx->conc_state != TRX_PREPARED) {
-				rows_to_undo += ut_conv_dulint_to_longlong(
-					trx->undo_no);
+			if (trx->conc_state != TRX_PREPARED) {
+				rows_to_undo += trx->undo_no;
 			}
 
 			trx = UT_LIST_GET_NEXT(trx_list, trx);
@@ -1285,12 +1330,13 @@ trx_sys_init_at_db_start(void)
 			(ulong) rows_to_undo, unit);
 
 		fprintf(stderr, "InnoDB: Trx id counter is " TRX_ID_FMT "\n",
-			TRX_ID_PREP_PRINTF(trx_sys->max_trx_id));
+			(ullint) trx_sys->max_trx_id);
 	}
 
 	UT_LIST_INIT(trx_sys->view_list);
 
-	trx_purge_sys_create();
+	/* Transfer ownership to purge. */
+	trx_purge_sys_create(ib_bh);
 
 	mutex_exit(&kernel_mutex);
 
@@ -1316,51 +1362,6 @@ trx_sys_create(void)
 }
 
 /*****************************************************************//**
-Creates and initializes the dummy transaction system page for tablespace. */
-UNIV_INTERN
-void
-trx_sys_dummy_create(
-/*=================*/
-	ulint	space)
-{
-	mtr_t	mtr;
-
-	/* This function is only for doublewrite file for now */
-	ut_a(space == TRX_DOUBLEWRITE_SPACE);
-
-	mtr_start(&mtr);
-
-	trx_sysf_dummy_create(space, &mtr);
-
-	mtr_commit(&mtr);
-}
-
-/*********************************************************************
-Create extra rollback segments when create_new_db */
-UNIV_INTERN
-void
-trx_sys_create_extra_rseg(
-/*======================*/
-	ulint	num)	/* in: number of extra user rollback segments */
-{
-	mtr_t	mtr;
-	ulint	slot_no;
-	ulint	i;
-
-	/* Craete extra rollback segments */
-	mtr_start(&mtr);
-	for (i = 1; i < num + 1; i++) {
-		if(!trx_rseg_create(TRX_SYS_SPACE, ULINT_MAX, &slot_no, &mtr)) {
-			fprintf(stderr,
-"InnoDB: Warning: Failed to create extra rollback segments.\n");
-			break;
-		}
-		ut_a(slot_no == i);
-	}
-	mtr_commit(&mtr);
-}
-
-/*****************************************************************//**
 Update the file format tag.
 @return	always TRUE */
 static
@@ -1374,7 +1375,7 @@ trx_sys_file_format_max_write(
 	mtr_t		mtr;
 	byte*		ptr;
 	buf_block_t*	block;
-	ulint		tag_value_low;
+	ib_uint64_t	tag_value;
 
 	mtr_start(&mtr);
 
@@ -1385,17 +1386,13 @@ trx_sys_file_format_max_write(
 	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
 
 	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
-	tag_value_low = format_id + TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
+	tag_value = format_id + TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
 
 	if (name) {
 		*name = file_format_max.name;
 	}
 
-	mlog_write_dulint(
-		ptr,
-		ut_dulint_create(TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH,
-				 tag_value_low),
-		&mtr);
+	mlog_write_ull(ptr, tag_value, &mtr);
 
 	mtr_commit(&mtr);
 
@@ -1413,8 +1410,7 @@ trx_sys_file_format_max_read(void)
 	mtr_t			mtr;
 	const byte*		ptr;
 	const buf_block_t*	block;
-	ulint			format_id;
-	dulint			file_format_id;
+	ib_id_t			file_format_id;
 
 	/* Since this is called during the startup phase it's safe to
 	read the value without a covering mutex. */
@@ -1428,16 +1424,15 @@ trx_sys_file_format_max_read(void)
 
 	mtr_commit(&mtr);
 
-	format_id = file_format_id.low - TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
+	file_format_id -= TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
 
-	if (file_format_id.high != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
-	    || format_id >= FILE_FORMAT_NAME_N) {
+	if (file_format_id >= FILE_FORMAT_NAME_N) {
 
 		/* Either it has never been tagged, or garbage in it. */
 		return(ULINT_UNDEFINED);
 	}
 
-	return(format_id);
+	return((ulint) file_format_id);
 }
 
 /*****************************************************************//**
@@ -1473,12 +1468,12 @@ trx_sys_file_format_max_check(
 	if (format_id == ULINT_UNDEFINED) {
 		/* Format ID was not set. Set it to minimum possible
 		value. */
-		format_id = DICT_TF_FORMAT_51;
+		format_id = DICT_TF_FORMAT_MIN;
 	}
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: highest supported file format is %s.\n",
+		" InnoDB: highest supported file format is %s.\n",
 		trx_sys_file_format_id_to_name(DICT_TF_FORMAT_MAX));
 
 	if (format_id > DICT_TF_FORMAT_MAX) {
@@ -1487,7 +1482,7 @@ trx_sys_file_format_max_check(
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: %s: the system tablespace is in a file "
+			" InnoDB: %s: the system tablespace is in a file "
 			"format that this version doesn't support - %s\n",
 			((max_format_id <= DICT_TF_FORMAT_MAX)
 				? "Error" : "Warning"),
@@ -1553,7 +1548,7 @@ trx_sys_file_format_tag_init(void)
 
 	/* If format_id is not set then set it to the minimum. */
 	if (format_id == ULINT_UNDEFINED) {
-		trx_sys_file_format_max_set(DICT_TF_FORMAT_51, NULL);
+		trx_sys_file_format_max_set(DICT_TF_FORMAT_MIN, NULL);
 	}
 }
 
@@ -1604,11 +1599,12 @@ void
 trx_sys_file_format_init(void)
 /*==========================*/
 {
-	mutex_create(&file_format_max.mutex, SYNC_FILE_FORMAT_TAG);
+	mutex_create(file_format_max_mutex_key,
+		     &file_format_max.mutex, SYNC_FILE_FORMAT_TAG);
 
 	/* We don't need a mutex here, as this function should only
 	be called once at start up. */
-	file_format_max.id = DICT_TF_FORMAT_51;
+	file_format_max.id = DICT_TF_FORMAT_MIN;
 
 	file_format_max.name = trx_sys_file_format_id_to_name(
 		file_format_max.id);
@@ -1623,6 +1619,60 @@ trx_sys_file_format_close(void)
 {
 	/* Does nothing at the moment */
 }
+
+/*****************************************************************//**
+Creates and initializes the dummy transaction system page for tablespace. */
+UNIV_INTERN
+void
+trx_sys_dummy_create(
+/*=================*/
+	ulint	space)
+{
+	mtr_t	mtr;
+
+	/* This function is only for doublewrite file for now */
+	ut_a(space == TRX_DOUBLEWRITE_SPACE);
+
+	mtr_start(&mtr);
+
+	trx_sysf_dummy_create(space, &mtr);
+
+	mtr_commit(&mtr);
+}
+
+/*********************************************************************
+Creates the rollback segments */
+UNIV_INTERN
+void
+trx_sys_create_rsegs(
+/*=================*/
+	ulint	n_rsegs)	/*!< number of rollback segments to create */
+{
+	ulint	new_rsegs = 0;
+
+	/* Do not create additional rollback segments if
+	innodb_force_recovery has been set and the database
+	was not shutdown cleanly. */
+	if (!srv_force_recovery && !recv_needed_recovery) {
+		ulint	i;
+
+		for (i = 0;  i < n_rsegs; ++i) {
+
+			if (trx_rseg_create() != NULL) {
+				++new_rsegs;
+			} else {
+				break;
+			}
+		}
+	}
+
+	if (new_rsegs > 0) {
+		fprintf(stderr,
+			"InnoDB: %lu rollback segment(s) active.\n",
+		       	new_rsegs);
+	}
+}
+
 #else /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Prints to stderr the MySQL binlog info in the system header if the
@@ -1694,11 +1744,12 @@ trx_sys_read_file_format_id(
 	byte		buf[UNIV_PAGE_SIZE * 2];
 	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
 	const byte*	ptr;
-	dulint		file_format_id;
+	ib_id_t		file_format_id;
 
 	*format_id = ULINT_UNDEFINED;
-	
+
 	file = os_file_create_simple_no_error_handling(
+		innodb_file_data_key,
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
@@ -1707,9 +1758,9 @@ trx_sys_read_file_format_id(
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
-        
+
 		ut_print_timestamp(stderr);
-        
+
 		fprintf(stderr,
 "  ibbackup: Error: trying to read system tablespace file format,\n"
 "  ibbackup: but could not open the tablespace file %s!\n",
@@ -1726,9 +1777,9 @@ trx_sys_read_file_format_id(
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
-        
+
 		ut_print_timestamp(stderr);
-        
+
 		fprintf(stderr,
 "  ibbackup: Error: trying to read system table space file format,\n"
 "  ibbackup: but failed to read the tablespace file %s!\n",
@@ -1742,17 +1793,16 @@ trx_sys_read_file_format_id(
 	/* get the file format from the page */
 	ptr = page + TRX_SYS_FILE_FORMAT_TAG;
 	file_format_id = mach_read_from_8(ptr);
+	file_format_id -= TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
 
-	*format_id = file_format_id.low - TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
-
-	if (file_format_id.high != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
-	    || *format_id >= FILE_FORMAT_NAME_N) {
+	if (file_format_id >= FILE_FORMAT_NAME_N) {
 
 		/* Either it has never been tagged, or garbage in it. */
-		*format_id = ULINT_UNDEFINED;
 		return(TRUE);
 	}
-	
+
+	*format_id = (ulint) file_format_id;
+
 	return(TRUE);
 }
 
@@ -1777,8 +1827,9 @@ trx_sys_read_pertable_file_format_id(
 	ib_uint32_t	flags;
 
 	*format_id = ULINT_UNDEFINED;
-	
+
 	file = os_file_create_simple_no_error_handling(
+		innodb_file_data_key,
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
@@ -1864,10 +1915,12 @@ void
 trx_sys_close(void)
 /*===============*/
 {
+	trx_t*		trx;
 	trx_rseg_t*	rseg;
 	read_view_t*	view;
 
 	ut_ad(trx_sys != NULL);
+	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
 	/* Check that all read views are closed except read view owned
 	by a purge. */
@@ -1898,6 +1951,13 @@ trx_sys_close(void)
 	mutex_free(&trx_doublewrite->mutex);
 	mem_free(trx_doublewrite);
 	trx_doublewrite = NULL;
+
+	/* Only prepared transactions may be left in the system. Free them. */
+	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == trx_n_prepared);
+
+	while ((trx = UT_LIST_GET_FIRST(trx_sys->trx_list)) != NULL) {
+		trx_free_prepared(trx);
+	}
 
 	/* There can't be any active transactions. */
 	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);

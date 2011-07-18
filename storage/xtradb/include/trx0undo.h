@@ -262,8 +262,6 @@ UNIV_INTERN
 page_t*
 trx_undo_set_state_at_finish(
 /*=========================*/
-	trx_rseg_t*	rseg,	/*!< in: rollback segment memory object */
-	trx_t*		trx,	/*!< in: transaction */
 	trx_undo_t*	undo,	/*!< in: undo log memory copy */
 	mtr_t*		mtr);	/*!< in: mtr */
 /******************************************************************//**
@@ -298,6 +296,15 @@ void
 trx_undo_insert_cleanup(
 /*====================*/
 	trx_t*	trx);	/*!< in: transaction handle */
+
+/********************************************************************//**
+At shutdown, frees the undo logs of a PREPARED transaction. */
+UNIV_INTERN
+void
+trx_undo_free_prepared(
+/*===================*/
+	trx_t*	trx)	/*!< in/out: PREPARED transaction */
+	UNIV_COLD __attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses the redo log entry of an undo log page initialization.
@@ -383,7 +390,7 @@ struct trx_undo_struct{
 	XID		xid;		/*!< X/Open XA transaction
 					identification */
 	ibool		dict_operation;	/*!< TRUE if a dict operation trx */
-	dulint		table_id;	/*!< if a dict operation, then the table
+	table_id_t	table_id;	/*!< if a dict operation, then the table
 					id */
 	trx_rseg_t*	rseg;		/*!< rseg where the undo log belongs */
 	/*-----------------------------*/

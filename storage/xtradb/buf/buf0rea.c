@@ -37,6 +37,8 @@ Created 11/5/1995 Heikki Tuuri
 #include "os0file.h"
 #include "srv0start.h"
 #include "srv0srv.h"
+#include "mysql/plugin.h"
+#include "mysql/service_thd_wait.h"
 
 /** The linear read-ahead area size */
 #define	BUF_READ_AHEAD_LINEAR_AREA	BUF_READ_AHEAD_AREA
@@ -178,6 +180,7 @@ not_to_recover:
 
 	ut_ad(buf_page_in_file(bpage));
 
+	thd_wait_begin(NULL, THD_WAIT_DISKIO);
 	if (zip_size) {
 		*err = _fil_io(OS_FILE_READ | wake_later,
 			      sync, space, zip_size, offset, 0, zip_size,
@@ -189,6 +192,7 @@ not_to_recover:
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
 			      ((buf_block_t*) bpage)->frame, bpage, trx);
 	}
+	thd_wait_end(NULL);
 
 	if (srv_pass_corrupt_table) {
 		if (*err != DB_SUCCESS) {
@@ -201,7 +205,7 @@ not_to_recover:
 	if (sync) {
 		/* The i/o is already completed when we arrive from
 		fil_read */
-		buf_page_io_complete(bpage, trx);
+		buf_page_io_complete(bpage);
 	}
 
 	return(1);
@@ -222,6 +226,7 @@ buf_read_page(
 	ulint	offset,	/*!< in: page number */
 	trx_t*	trx)
 {
+	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 	ib_int64_t	tablespace_version;
 	ulint		count;
 	ulint		err;
@@ -246,7 +251,7 @@ buf_read_page(
 	}
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(FALSE);
+	buf_flush_free_margin(buf_pool, TRUE);
 
 	/* Increment number of I/O operations used for LRU policy. */
 	buf_LRU_stat_inc_io();
@@ -282,12 +287,13 @@ UNIV_INTERN
 ulint
 buf_read_ahead_linear(
 /*==================*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	offset,	/*!< in: page number of a page; NOTE: the current thread
-			must want access to this page (see NOTE 3 above) */
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes, or 0 */
+	ulint	offset,		/*!< in: page number; see NOTE 3 above */
+	ibool	inside_ibuf,	/*!< in: TRUE if we are inside ibuf routine */
 	trx_t*	trx)
 {
+	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 	ib_int64_t	tablespace_version;
 	buf_page_t*	bpage;
 	buf_frame_t*	frame;
@@ -303,12 +309,12 @@ buf_read_ahead_linear(
 	ulint		err;
 	ulint		i;
 	const ulint	buf_read_ahead_linear_area
-		= BUF_READ_AHEAD_LINEAR_AREA;
+		= BUF_READ_AHEAD_LINEAR_AREA(buf_pool);
 	ulint		threshold;
 
- 	if (!(srv_read_ahead & 2)) {
- 		return(0);
- 	}
+	if (!(srv_read_ahead & 2)) {
+		return(0);
+	}
 
 	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
 		/* No read-ahead to avoid thread deadlocks */
@@ -342,12 +348,10 @@ buf_read_ahead_linear(
 
 	tablespace_version = fil_space_get_version(space);
 
-	//buf_pool_mutex_enter();
-	mutex_enter(&buf_pool_mutex);
+	buf_pool_mutex_enter(buf_pool);
 
 	if (high > fil_space_get_size(space)) {
-		//buf_pool_mutex_exit();
-		mutex_exit(&buf_pool_mutex);
+		buf_pool_mutex_exit(buf_pool);
 		/* The area is not whole, return */
 
 		return(0);
@@ -355,12 +359,11 @@ buf_read_ahead_linear(
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		//buf_pool_mutex_exit();
-		mutex_exit(&buf_pool_mutex);
+		buf_pool_mutex_exit(buf_pool);
 
 		return(0);
 	}
-	mutex_exit(&buf_pool_mutex);
+	buf_pool_mutex_exit(buf_pool);
 
 	/* Check that almost all pages in the area have been accessed; if
 	offset == low, the accesses must be in a descending order, otherwise,
@@ -375,15 +378,15 @@ buf_read_ahead_linear(
 	/* How many out of order accessed pages can we ignore
 	when working out the access pattern for linear readahead */
 	threshold = ut_min((64 - srv_read_ahead_threshold),
-			   BUF_READ_AHEAD_AREA);
+			   BUF_READ_AHEAD_AREA(buf_pool));
 
 	fail_count = 0;
 
-	rw_lock_s_lock(&page_hash_latch);
+	rw_lock_s_lock(&buf_pool->page_hash_latch);
 	for (i = low; i < high; i++) {
-		bpage = buf_page_hash_get(space, i);
+		bpage = buf_page_hash_get(buf_pool, space, i);
 
-		if ((bpage == NULL) || !buf_page_is_accessed(bpage)) {
+		if (bpage == NULL || !buf_page_is_accessed(bpage)) {
 			/* Not accessed */
 			fail_count++;
 
@@ -407,8 +410,8 @@ buf_read_ahead_linear(
 
 		if (fail_count > threshold) {
 			/* Too many failures: return */
-			//buf_pool_mutex_exit();
-			rw_lock_s_unlock(&page_hash_latch);
+			//buf_pool_mutex_exit(buf_pool);
+			rw_lock_s_unlock(&buf_pool->page_hash_latch);
 			return(0);
 		}
 
@@ -420,11 +423,11 @@ buf_read_ahead_linear(
 	/* If we got this far, we know that enough pages in the area have
 	been accessed in the right order: linear read-ahead can be sensible */
 
-	bpage = buf_page_hash_get(space, offset);
+	bpage = buf_page_hash_get(buf_pool, space, offset);
 
 	if (bpage == NULL) {
-		//buf_pool_mutex_exit();
-		rw_lock_s_unlock(&page_hash_latch);
+		//buf_pool_mutex_exit(buf_pool);
+		rw_lock_s_unlock(&buf_pool->page_hash_latch);
 
 		return(0);
 	}
@@ -450,8 +453,8 @@ buf_read_ahead_linear(
 	pred_offset = fil_page_get_prev(frame);
 	succ_offset = fil_page_get_next(frame);
 
-	//buf_pool_mutex_exit();
-	rw_lock_s_unlock(&page_hash_latch);
+	//buf_pool_mutex_exit(buf_pool);
+	rw_lock_s_unlock(&buf_pool->page_hash_latch);
 
 	if ((offset == low) && (succ_offset == offset + 1)) {
 
@@ -487,11 +490,9 @@ buf_read_ahead_linear(
 
 	/* If we got this far, read-ahead can be sensible: do it */
 
-	if (ibuf_inside()) {
-		ibuf_mode = BUF_READ_IBUF_PAGES_ONLY;
-	} else {
-		ibuf_mode = BUF_READ_ANY_PAGE;
-	}
+	ibuf_mode = inside_ibuf
+		? BUF_READ_IBUF_PAGES_ONLY | OS_AIO_SIMULATED_WAKE_LATER
+		: BUF_READ_ANY_PAGE | OS_AIO_SIMULATED_WAKE_LATER;
 
 	count = 0;
 
@@ -508,7 +509,7 @@ buf_read_ahead_linear(
 		if (!ibuf_bitmap_page(zip_size, i)) {
 			count += buf_read_page_low(
 				&err, FALSE,
-				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
+				ibuf_mode,
 				space, zip_size, FALSE, tablespace_version, i, trx);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
@@ -530,7 +531,7 @@ buf_read_ahead_linear(
 	os_aio_simulated_wake_handler_threads();
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(FALSE);
+	buf_flush_free_margin(buf_pool, TRUE);
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints && (count > 0)) {
@@ -578,18 +579,21 @@ buf_read_ibuf_merge_pages(
 {
 	ulint	i;
 
-	ut_ad(!ibuf_inside());
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(n_stored < UNIV_PAGE_SIZE);
 #endif
-	while (buf_pool->n_pend_reads
-	       > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		os_thread_sleep(500000);
-	}
 
 	for (i = 0; i < n_stored; i++) {
-		ulint	zip_size = fil_space_get_zip_size(space_ids[i]);
-		ulint	err;
+		ulint		err;
+		buf_pool_t*	buf_pool;
+		ulint		zip_size = fil_space_get_zip_size(space_ids[i]);
+
+		buf_pool = buf_pool_get(space_ids[i], page_nos[i]);
+
+		while (buf_pool->n_pend_reads
+		       > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
+			os_thread_sleep(500000);
+		}
 
 		if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
 
@@ -614,8 +618,8 @@ tablespace_deleted:
 
 	os_aio_simulated_wake_handler_threads();
 
-	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(FALSE);
+	/* Flush pages from the end of all the LRU lists if necessary */
+	buf_flush_free_margins(FALSE);
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
@@ -708,11 +712,12 @@ not_to_recover:
 	tablespace_version = fil_space_get_version(space);
 
 	for (i = 0; i < n_stored; i++) {
+		buf_pool_t*	buf_pool;
 
 		count = 0;
 
 		os_aio_print_debug = FALSE;
-
+		buf_pool = buf_pool_get(space, page_nos[i]);
 		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
 
 			os_aio_simulated_wake_handler_threads();
@@ -751,8 +756,8 @@ not_to_recover:
 
 	os_aio_simulated_wake_handler_threads();
 
-	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(FALSE);
+	/* Flush pages from the end of all the LRU lists if necessary */
+	buf_flush_free_margins(FALSE);
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {

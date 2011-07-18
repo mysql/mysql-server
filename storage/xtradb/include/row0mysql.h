@@ -103,6 +103,17 @@ row_mysql_read_blob_ref(
 	ulint		col_len);	/*!< in: BLOB reference length
 					(not BLOB length) */
 /**************************************************************//**
+Pad a column with spaces. */
+UNIV_INTERN
+void
+row_mysql_pad_col(
+/*==============*/
+	ulint	mbminlen,	/*!< in: minimum size of a character,
+				in bytes */
+	byte*	pad,		/*!< out: padded buffer */
+	ulint	len);		/*!< in: number of bytes to pad */
+
+/**************************************************************//**
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
 row0sel.c.
@@ -384,6 +395,14 @@ row_insert_stats_for_mysql(
 	dict_index_t*	index,
 	trx_t*		trx);
 /*********************************************************************//**
+*/
+UNIV_INTERN
+int
+row_delete_stats_for_mysql(
+/*=======================*/
+	dict_index_t*	index,
+	trx_t*		trx);
+/*********************************************************************//**
 Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.
@@ -535,6 +554,10 @@ struct mysql_row_templ_struct {
 					Innobase record in the current index;
 					not defined if template_type is
 					ROW_MYSQL_WHOLE_ROW */
+	ulint	clust_rec_field_no;	/*!< field number of the column in an
+					Innobase record in the clustered index;
+					not defined if template_type is
+					ROW_MYSQL_WHOLE_ROW */
 	ulint	mysql_col_offset;	/*!< offset of the column in the MySQL
 					row format */
 	ulint	mysql_col_len;		/*!< length of the column in the MySQL
@@ -573,7 +596,7 @@ struct mysql_row_templ_struct {
 #define ROW_PREBUILT_ALLOCATED	78540783
 #define ROW_PREBUILT_FREED	26423527
 
-typedef int (*index_cond_func_t)(void *param);
+typedef int (*idx_cond_func_t)(void *param);
 /** A struct for (sometimes lazily) prebuilt structures in an Innobase table
 
 handle used within MySQL; these are used to save CPU time. */
@@ -774,7 +797,7 @@ struct row_prebuilt_struct {
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
 	/*----------------------*/
-        index_cond_func_t idx_cond_func;/* Index Condition Pushdown function,
+        idx_cond_func_t idx_cond_func;	/* Index Condition Pushdown function,
                                         or NULL if there is none set */
         void*           idx_cond_func_arg;/* ICP function  argument */
         ulint           n_index_fields; /* Number of fields at the start of

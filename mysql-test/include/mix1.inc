@@ -1120,6 +1120,11 @@ INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,1,1), (3,1,1), (4,1,1);
 INSERT INTO t1 (a,b,c) SELECT a+4,b,c FROM t1;
 
 # should be range access
+
+#
+# InnoDB uses "where", while xtradb "index condition"
+#
+--replace_regex /where/index condition/
 EXPLAIN SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 
 # should produce '8 7 6 5 4' for a
