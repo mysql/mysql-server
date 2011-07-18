@@ -249,6 +249,15 @@ enum enum_server_command
 #define SERVER_PS_OUT_PARAMS            4096
 
 /**
+  This flag is set when a statement begins and UGID_NEXT_LIST != NULL
+  or UGID_NEXT != NULL.  It is cleared when a statement ends and
+  UGID_END = 1.
+*/
+//#ifdef HAVE_UGID
+#define SERVER_STATUS_IN_MASTER_SUPER_GROUP    8192
+//#endif
+
+/**
   Server status flags that must be cleared when starting
   execution of a new SQL statement.
   Flags from this set are only added to the

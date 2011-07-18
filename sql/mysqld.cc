@@ -4852,6 +4852,12 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(1);
   }
 
+
+  /*
+    Add server_uuid to the sid_map.  This must be done after server_uuid has been initialized in init_server_auto_options.
+  */
+  mysql_bin_log.init_sid_map();
+
   init_ssl();
   network_init();
 

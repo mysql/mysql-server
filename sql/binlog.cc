@@ -100,13 +100,18 @@ public:
   
   virtual ~binlog_cache_data()
   {
-    DBUG_ASSERT(empty());
+    DBUG_ASSERT(is_binlog_empty());
     close_cached_file(&cache_log);
   }
 
-  bool empty() const
+  bool is_binlog_empty() const
   {
     return pending() == NULL && my_b_tell(&cache_log) == 0;
+  }
+
+  bool is_group_cache_empty() const
+  {
+    return group_cache.is_empty();
   }
 
   Rows_log_event *pending() const
@@ -147,7 +152,8 @@ public:
       variable after truncating the cache.
     */
     cache_log.disk_writes= 0;
-    DBUG_ASSERT(empty());
+    group_cache.clear();
+    DBUG_ASSERT(is_binlog_empty());
   }
 
   /*
@@ -178,6 +184,13 @@ protected:
   */
   bool trx_cache;
 
+#ifdef HAVE_UGID
+  /**
+    The group cache for this cache.
+  */
+  Group_cache group_cache;
+#endif
+
 private:
   /*
     Pending binrows event. This event is the event where the rows are currently
@@ -196,7 +209,7 @@ private:
   */
   void compute_statistics()
   {
-    if (!empty())
+    if (!is_binlog_empty())
     {
       statistic_increment(*ptr_binlog_cache_use, &LOCK_status);
       if (cache_log.disk_writes != 0)
@@ -498,7 +511,8 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
 {
   binlog_cache_mngr *const cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
-  DBUG_ASSERT(cache_mngr->trx_cache.empty() && cache_mngr->stmt_cache.empty());
+  DBUG_ASSERT(cache_mngr->trx_cache.is_binlog_empty() &&
+              cache_mngr->stmt_cache.is_binlog_empty());
   thd_set_ha_data(thd, binlog_hton, NULL);
   cache_mngr->~binlog_cache_mngr();
   my_free(cache_mngr);
@@ -524,7 +538,7 @@ binlog_flush_cache(THD *thd, binlog_cache_data* cache_data, Log_event *end_evt)
   DBUG_ASSERT((end_evt->is_using_trans_cache() && cache_data->is_trx_cache()) ||
               (!end_evt->is_using_trans_cache() && !cache_data->is_trx_cache()));
 
-  if (!cache_data->empty())
+  if (!cache_data->is_binlog_empty())
   {
     if (thd->binlog_flush_pending_rows_event(TRUE, cache_data->is_trx_cache()))
       DBUG_RETURN(1);
@@ -549,7 +563,7 @@ binlog_flush_cache(THD *thd, binlog_cache_data* cache_data, Log_event *end_evt)
   }
   cache_data->reset();
 
-  DBUG_ASSERT(cache_data->empty());
+  DBUG_ASSERT(cache_data->is_binlog_empty());
   DBUG_RETURN(error);
 }
 
@@ -711,12 +725,12 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
               YESNO(thd->transaction.all.cannot_safely_rollback()),
               YESNO(thd->transaction.stmt.cannot_safely_rollback())));
 
-  if (!cache_mngr->stmt_cache.empty())
+  if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
     error= binlog_commit_flush_stmt_cache(thd, cache_mngr);
   }
 
-  if (cache_mngr->trx_cache.empty())
+  if (cache_mngr->trx_cache.is_binlog_empty())
   {
     /*
       we're here because cache_log was flushed in MYSQL_BIN_LOG::log_xid()
@@ -725,14 +739,25 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
     DBUG_RETURN(error);
   }
 
+  if (!error)
+    error= ugid_before_flush_trx_cache(thd, &mysql_bin_log.sid_lock,
+                                       &mysql_bin_log.group_log_state,
+                                       &cache_mngr->trx_cache.group_cache);
+
   /*
     We commit the transaction if:
      - We are not in a transaction and committing a statement, or
      - We are in a transaction and a full transaction is committed.
     Otherwise, we accumulate the changes.
   */
-  if (!error && ending_trans(thd, all))
-    error= binlog_commit_flush_trx_cache(thd, cache_mngr);
+  if (!error)
+  {
+    if (ending_trans(thd, all))
+      error= binlog_commit_flush_trx_cache(thd, cache_mngr);
+    else
+      error=
+        ugid_after_flush_trx_cache(thd, &cache_mngr->trx_cache.group_cache);
+  }
 
   /*
     This is part of the stmt rollback.
@@ -773,12 +798,12 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     error= mysql_bin_log.write_incident(thd, TRUE);
     cache_mngr->reset_stmt_cache();
   }
-  else if (!cache_mngr->stmt_cache.empty())
+  else if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
     error= binlog_commit_flush_stmt_cache(thd, cache_mngr);
   }
 
-  if (cache_mngr->trx_cache.empty())
+  if (cache_mngr->trx_cache.is_binlog_empty())
   {
     /*
       we're here because cache_log was flushed in MYSQL_BIN_LOG::log_xid()
@@ -1118,7 +1143,7 @@ trans_has_updated_trans_table(const THD* thd)
   binlog_cache_mngr *const cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
 
-  return (cache_mngr ? !cache_mngr->trx_cache.empty() : 0);
+  return (cache_mngr ? !cache_mngr->trx_cache.is_binlog_empty() : 0);
 }
 
 /** 
@@ -1571,6 +1596,9 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
    description_event_for_exec(0), description_event_for_queue(0)
+#ifdef HAVE_UGID
+  , sid_map(&sid_lock), group_log_state(&sid_lock, &sid_map)
+#endif
 {
   /*
     We don't want to initialize locks here as such initialization depends on
@@ -1583,6 +1611,23 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
   memset(&purge_index_file, 0, sizeof(purge_index_file));
   memset(&crash_safe_index_file, 0, sizeof(crash_safe_index_file));
 }
+
+
+#ifdef HAVE_UGID
+void MYSQL_BIN_LOG::init_sid_map()
+{
+  sid_lock.rdlock();
+  rpl_sid server_uuid_sid;
+#ifndef NO_DBUG
+  DBUG_ASSERT(server_uuid_sid.parse(server_uuid) == GS_SUCCESS);
+#else
+  server_uuid_sid.parse(server_uuid);
+#endif
+  sid_map.add_permanent(&server_uuid_sid);
+  sid_lock.unlock();
+}
+#endif
+
 
 /* this is called only once */
 
@@ -3545,6 +3590,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   if (Rows_log_event* pending= cache_data->pending())
   {
     IO_CACHE *file= &cache_data->cache_log;
+    my_off_t start_pos= my_b_tell(file);
 
     /*
       Write pending event to the cache.
@@ -3559,6 +3605,9 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
     }
 
     delete pending;
+
+    cache_data->group_cache.
+      add_logged_subgroup(thd, my_b_tell(file) - start_pos);
   }
 
   thd->binlog_set_pending_rows_event(event, is_transactional);

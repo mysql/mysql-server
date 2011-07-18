@@ -177,6 +177,15 @@ public:
     m_key_file_log_index= key_file_log_index;
   }
 #endif
+#ifdef HAVE_UGID
+  /**
+    Add @@global.server_uuid to this binlog's Sid_map.
+
+    This can't be done in the constructor because the constructor is
+    invoked at server startup before server_uuid is initialized.
+  */
+  void init_sid_map();
+#endif
 
   int open(const char *opt_name);
   void close();
@@ -308,6 +317,12 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+
+#ifdef HAVE_UGID
+  Checkable_rwlock sid_lock;
+  Sid_map sid_map;
+  Group_log_state group_log_state;
+#endif
 };
 
 typedef struct st_load_file_info

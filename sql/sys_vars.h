@@ -28,6 +28,8 @@
 #include "keycaches.h"
 #include "strfunc.h"
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
+#include "zgroups.h"
+#include <ctype.h>
 
 /*
   a set of mostly trivial (as in f(X)=X) defines below to make system variable
@@ -1725,3 +1727,197 @@ public:
   virtual bool global_update(THD *thd, set_var *var);
 };
 
+
+#ifdef HAVE_UGID
+/**
+  Class for variables that store values of type Ugid_specification.
+*/
+class Sys_var_ugid_specification: public sys_var
+{
+public:
+  Sys_var_ugid_specification(const char *name_arg,
+          const char *comment, int flag_args, ptrdiff_t off, size_t size,
+          CMD_LINE getopt,
+          const char *def_val,
+          PolyLock *lock= 0,
+          enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
+          on_check_function on_check_func=0,
+          on_update_function on_update_func=0,
+          const char *substitute=0,
+          int parse_flag= PARSE_NORMAL)
+    : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
+              getopt.arg_type, SHOW_CHAR, (intptr)def_val,
+              lock, binlog_status_arg, on_check_func, on_update_func,
+              substitute, parse_flag)
+  {
+    DBUG_ASSERT(size == sizeof(Ugid_specification));
+  }
+  bool session_update(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_ugid::session_update");
+    mysql_bin_log.sid_lock.rdlock();
+    bool ret= (((Ugid_specification *)session_var_ptr(thd))->
+               parse(var->save_result.string_value.str) != GS_SUCCESS);
+    mysql_bin_log.sid_lock.unlock();
+    DBUG_RETURN(ret);
+  }
+  bool global_update(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+  void session_save_default(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_ugid::session_save_default");
+    char *ptr= (char*)(intptr)option.def_value;
+    var->save_result.string_value.str= ptr;
+    var->save_result.string_value.length= ptr ? strlen(ptr) : 0;
+    DBUG_VOID_RETURN;
+  }
+  void global_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+  bool do_check(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_ugid::do_check");
+    char buf[Ugid_specification::MAX_TEXT_LENGTH + 1];
+    String str(buf, sizeof(buf), &my_charset_latin1);
+    String *res= var->value->val_str(&str);
+    if (!res)
+      DBUG_RETURN(TRUE);
+    var->save_result.string_value.str= thd->strmake(res->ptr(), res->length());
+    var->save_result.string_value.length= res->length();
+    bool ret=
+      Ugid_specification::is_valid(res->ptr()) != Ugid_specification::INVALID;
+    DBUG_RETURN(ret);
+  }
+  bool check_update_type(Item_result type)
+  { return type != STRING_RESULT; }
+  uchar *session_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ENTER("Sys_var_ugid::session_value_ptr");
+    char buf[Ugid_specification::MAX_TEXT_LENGTH + 1];
+    mysql_bin_log.sid_lock.rdlock();
+    ((Ugid_specification *)session_var_ptr(thd))->to_string(buf);
+    mysql_bin_log.sid_lock.unlock();
+    char *ret= thd->strdup(buf);
+    DBUG_RETURN((uchar *)ret);
+  }
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  { DBUG_ASSERT(FALSE); }
+};
+
+
+/**
+  Class for variables that store values of type Group_set.
+
+  The back-end storage should be a Group_set_or_null, and it should be
+  set to null by default.  When the variable is set for the first
+  time, the Group_set* will be allocated.
+*/
+class Sys_var_group_set: public sys_var
+{
+public:
+  Sys_var_group_set(const char *name_arg,
+          const char *comment, int flag_args, ptrdiff_t off, size_t size,
+          CMD_LINE getopt,
+          const char *def_val,
+          PolyLock *lock= 0,
+          enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
+          on_check_function on_check_func=0,
+          on_update_function on_update_func=0,
+          const char *substitute=0,
+          int parse_flag= PARSE_NORMAL)
+    : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
+              getopt.arg_type, SHOW_CHAR, (intptr)def_val,
+              lock, binlog_status_arg, on_check_func, on_update_func,
+              substitute, parse_flag)
+  {
+    DBUG_ASSERT(size == sizeof(Group_set_or_null));
+  }
+  bool session_update(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_group_set::session_update");
+    Group_set_or_null *gsn=
+      (Group_set_or_null *)session_var_ptr(thd);
+    char *value= var->save_result.string_value.str;
+    DBUG_PRINT("info", ("var[%p]->save_result[%p].string_value[%p].str[%p]",
+                        var, &var->save_result, &var->save_result.string_value,
+                        var->save_result.string_value.str));
+    if (value == NULL)
+      gsn->set_null();
+    else
+    {
+      Group_set *gs= gsn->set_non_null(&mysql_bin_log.sid_map);
+      if (gs == NULL)
+        DBUG_RETURN(true);
+      /*
+        If string begins with '+', add to the existing set, otherwise
+        replace existing set.
+      */
+      while (isspace(*value))
+        value++;
+      if (*value == '+')
+        value++;
+      else
+        gs->clear();
+      // Add specified set of groups to Group_set.
+      mysql_bin_log.sid_lock.rdlock();
+      if (gs->add(value) != GS_SUCCESS)
+      {
+        mysql_bin_log.sid_lock.unlock();
+        gsn->set_null();
+        DBUG_RETURN(true);
+      }
+      mysql_bin_log.sid_lock.unlock();
+    }
+    DBUG_RETURN(false);
+  }
+  bool global_update(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+  void session_save_default(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_group_set::session_save_default");
+    char *ptr= (char*)(intptr)option.def_value;
+    var->save_result.string_value.str= ptr;
+    var->save_result.string_value.length= ptr ? strlen(ptr) : 0;
+    DBUG_VOID_RETURN;
+  }
+  void global_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+  bool do_check(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_group_set::do_check");
+    String str;
+    String *res= var->value->val_str(&str);
+    DBUG_PRINT("info", ("res=%p", res));
+    if (res == NULL)
+    {
+      var->save_result.string_value.str= NULL;
+      DBUG_RETURN(FALSE);
+    }
+    DBUG_ASSERT(res->ptr() != NULL);
+    DBUG_PRINT("info", ("res->ptr=%p res->ptr()=%s", res->ptr(), res->ptr()));
+    var->save_result.string_value.str= thd->strmake(res->ptr(), res->length());
+    var->save_result.string_value.length= res->length();
+    bool ret= !Group_set::is_valid(res->ptr());
+    DBUG_RETURN(ret);
+  }
+  bool check_update_type(Item_result type)
+  { return type != STRING_RESULT; }
+  uchar *session_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ENTER("Sys_var_group_set::session_value_ptr");
+    Group_set_or_null *gsn= (Group_set_or_null *)session_var_ptr(thd);
+    Group_set *gs= gsn->get_group_set();
+    if (gs == NULL)
+      DBUG_RETURN(NULL);
+    char *buf;
+    mysql_bin_log.sid_lock.rdlock();
+    buf= (char *)thd->alloc(gs->get_string_length() + 1);
+    if (buf)
+      gs->to_string(buf);
+    mysql_bin_log.sid_lock.unlock();
+    DBUG_RETURN((uchar *)buf);
+  }
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  { DBUG_ASSERT(FALSE); }
+};
+
+#endif /* HAVE_UGID */
