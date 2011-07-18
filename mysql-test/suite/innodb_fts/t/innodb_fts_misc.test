@@ -438,8 +438,6 @@ create fulltext index i on t50 (s2);
 insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCDE');
 set @@autocommit=0;
 update t50 set s2 = lower(s2);
-# INNODB_FTS: Assert - fixed
-# crash seen on second update
 update t50 set s2 = upper(s2); 
 commit;
 select * from t50 where match(s2) against ('VÐƷWİ FGHIJ KLMNO ABCDE' in boolean mode);
@@ -454,8 +452,8 @@ create fulltext index i on t50 (s2);
 insert into t50 (s2) values ('FGHIJ'),('KLMNO'),('VÐƷWİ'),('ABCD*');
 select * from t50 where match(s2) against ('abcd*' in natural language
 mode); 
-# INNODB_FTS: RESULT DIFF
-# abcd record expected in boolean mode search
+# INNODB_FTS: RESULT DIFF(Expected). InnoDB do not index "*", so
+# word "ABCD" indexed, instead of "ABCD*"
 select * from t50 where match(s2) against ('abcd*' in boolean mode); 
 drop table t50;
 
@@ -632,8 +630,7 @@ CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF32, char_col
 INSERT INTO t1 (char_column) VALUES ('abcde'),('fghij'),('klmno'),('qrstu');
 UPDATE t1 SET char_column2 = char_column;
 CREATE FULLTEXT INDEX i ON t1 (char_column2);
-#InnoDB: Assertion failure file pars0opt.c line 535
-#SELECT * FROM t1 WHERE MATCH(char_column) AGAINST ('abc*' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(char_column) AGAINST ('abc*' IN BOOLEAN MODE);
 DROP TABLE t1;
 
 --echo "----------Test22---------"
@@ -641,10 +638,8 @@ DROP TABLE t1;
 CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,'aaa'),(2,'bbb'),(3,'ccc');
 CREATE FULLTEXT INDEX i ON t1 (char_column);
-# Crash using handler - enable once fixed
 HANDLER t1 OPEN;
-#InnoDB:error assert at row0sel.c line 2377
-#HANDLER t1 READ i = ('aaa');
+HANDLER t1 READ i = ('aaa');
 DROP TABLE t1;
 #23. Duplicate key error when there are no unique indexes (procedure test)
 #24 Failure after cascading update - already have tests

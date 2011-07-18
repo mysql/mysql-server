@@ -7072,9 +7072,13 @@ ha_innobase::ft_init_ext(
 	ulint			error;
 	byte*			query = (byte*) key->ptr();
 	ulint			query_len = key->length();
+	const CHARSET_INFO*	char_set = key->charset();
 	NEW_FT_INFO*		fts_hdl = NULL;
 	dict_index_t*		index;
 	fts_result_t*		result;
+	char			buf_tmp[8192];
+	ulint			buf_tmp_used;
+	uint			num_errors;
 
 	fprintf(stderr, "ft_init_ext()\n");
 
@@ -7085,6 +7089,19 @@ ha_innobase::ft_init_ext(
 		fprintf(stderr, "BOOL search\n");
 	} else {
 		fprintf(stderr, "NL search\n");
+	}
+
+	/* Convert incoming query string to utf8 charset */
+	if (strcmp(char_set->csname, "utf8") != 0) {
+		buf_tmp_used = innobase_convert_string(
+			buf_tmp, sizeof(buf_tmp) - 1,
+			&my_charset_utf8_general_ci,
+			query, query_len, (CHARSET_INFO*) char_set,
+			&num_errors);
+
+		query = (byte*) buf_tmp;
+		query_len = buf_tmp_used;
+		query[query_len] = 0;
 	}
 
 	trx = prebuilt->trx;
