@@ -466,7 +466,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       /* Check if max/min optimization applicable */
       if (allany_subs)
         allany_subs->in_strategy|= (allany_subs->is_maxmin_applicable(join) ?
-                                    SUBS_MAXMIN :
+                                    (SUBS_MAXMIN_INJECTED | SUBS_MAXMIN_ENGINE) :
                                     SUBS_IN_TO_EXISTS);
 
       /*

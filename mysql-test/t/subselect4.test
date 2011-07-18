@@ -1700,4 +1700,31 @@ set @@optimizer_switch = @old_optimizer_switch;
 
 drop table t1, t2, t3;
 
+
+--echo #
+--echo # LP BUG#782305: Wrong result/valgrind warning in Item_sum_hybrid::any_value()
+--echo #
+
+CREATE TABLE t1 ( f1 int) ;
+INSERT INTO t1 VALUES (2),(3);
+CREATE TABLE t2 (f2 int) ;
+INSERT INTO t2 VALUES (2),(3);
+
+PREPARE st1 FROM '
+SELECT * FROM t2
+WHERE f2 <= SOME ( SELECT f1 FROM t1 );
+';
+EXECUTE st1;
+EXECUTE st1;
+
+PREPARE st2 FROM '
+SELECT * FROM t2
+WHERE f2 <= SOME (SELECT f1-2 FROM t1 UNION SELECT f1-1 FROM t1);
+';
+EXECUTE st2;
+EXECUTE st2;
+
+drop table t1, t2;
+
+
 set optimizer_switch=@subselect4_tmp;

@@ -167,6 +167,23 @@ void Item_in_subselect::cleanup()
   DBUG_VOID_RETURN;
 }
 
+
+void Item_allany_subselect::cleanup()
+{
+  /*
+    The MAX/MIN transformation through injection is reverted through the
+    change_item_tree() mechanism. Revert the select_lex object of the
+    query to its initial state.
+  */
+  for (SELECT_LEX *sl= unit->first_select();
+       sl; sl= sl->next_select())
+    if (in_strategy & SUBS_MAXMIN_INJECTED)
+      sl->with_sum_func= false;
+  Item_in_subselect::cleanup();
+
+}
+
+
 Item_subselect::~Item_subselect()
 {
   DBUG_ENTER("Item_subselect::~Item_subselect");
@@ -1566,7 +1583,7 @@ Item_in_subselect::single_value_transformer(JOIN *join)
 bool Item_allany_subselect::transform_into_max_min(JOIN *join)
 {
   DBUG_ENTER("Item_allany_subselect::transform_into_max_min");
-  if (!(in_strategy & SUBS_MAXMIN))
+  if (!(in_strategy & (SUBS_MAXMIN_INJECTED | SUBS_MAXMIN_ENGINE)))
     DBUG_RETURN(false);
   Item **place= optimizer->arguments() + 1;
   THD *thd= join->thd;
@@ -1626,6 +1643,12 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
     if (join->prepare_stage2())
       DBUG_RETURN(true);
     subs= new Item_singlerow_subselect(select_lex);
+
+    /*
+      Remove other strategies if any (we already changed the query and
+      can't apply other strategy).
+    */
+    in_strategy= SUBS_MAXMIN_INJECTED;
   }
   else
   {
@@ -1633,6 +1656,11 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
     subs= item= new Item_maxmin_subselect(thd, this, select_lex, func->l_op());
     if (upper_item)
       upper_item->set_sub_test(item);
+    /*
+      Remove other strategies if any (we already changed the query and
+      can't apply other strategy).
+    */
+    in_strategy= SUBS_MAXMIN_ENGINE;
   }
   /* fix fields is already called for  left expression */
   subs= func->create(left_expr, subs);
@@ -1643,11 +1671,6 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
 
   select_lex->master_unit()->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
   select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
-  /*
-    Remove other strategies if there was (we already changed the query and
-    can't apply other strategy).
-  */
-  in_strategy= SUBS_MAXMIN;
 
   DBUG_RETURN(false);
 }
@@ -2540,7 +2563,8 @@ bool
 Item_allany_subselect::select_transformer(JOIN *join)
 {
   DBUG_ENTER("Item_allany_subselect::select_transformer");
-  DBUG_ASSERT((in_strategy & ~(SUBS_MAXMIN | SUBS_IN_TO_EXISTS)) == 0);
+  DBUG_ASSERT((in_strategy & ~(SUBS_MAXMIN_INJECTED | SUBS_MAXMIN_ENGINE |
+                               SUBS_IN_TO_EXISTS)) == 0);
   in_strategy|= SUBS_IN_TO_EXISTS;
   if (upper_item)
     upper_item->show= 1;

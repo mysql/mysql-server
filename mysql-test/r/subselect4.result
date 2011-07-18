@@ -2060,4 +2060,34 @@ WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
 f4
 set @@optimizer_switch = @old_optimizer_switch;
 drop table t1, t2, t3;
+#
+# LP BUG#782305: Wrong result/valgrind warning in Item_sum_hybrid::any_value()
+#
+CREATE TABLE t1 ( f1 int) ;
+INSERT INTO t1 VALUES (2),(3);
+CREATE TABLE t2 (f2 int) ;
+INSERT INTO t2 VALUES (2),(3);
+PREPARE st1 FROM '
+SELECT * FROM t2
+WHERE f2 <= SOME ( SELECT f1 FROM t1 );
+';
+EXECUTE st1;
+f2
+2
+3
+EXECUTE st1;
+f2
+2
+3
+PREPARE st2 FROM '
+SELECT * FROM t2
+WHERE f2 <= SOME (SELECT f1-2 FROM t1 UNION SELECT f1-1 FROM t1);
+';
+EXECUTE st2;
+f2
+2
+EXECUTE st2;
+f2
+2
+drop table t1, t2;
 set optimizer_switch=@subselect4_tmp;

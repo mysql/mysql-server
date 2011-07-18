@@ -366,7 +366,10 @@ TABLE_LIST * const NO_JOIN_NEST=(TABLE_LIST*)0x1;
 #define SUBS_PARTIAL_MATCH_ROWID_MERGE 8
 #define SUBS_PARTIAL_MATCH_TABLE_SCAN 16
 /* ALL/ANY will be transformed with max/min optimization */
-#define SUBS_MAXMIN 32
+/*   The subquery has not aggregates, transform it into a MAX/MIN query. */
+#define SUBS_MAXMIN_INJECTED 32
+/*   The subquery has aggregates, use a special max/min subselect engine. */
+#define SUBS_MAXMIN_ENGINE 64
 
 
 /**
@@ -555,6 +558,7 @@ public:
   Item_allany_subselect(Item * left_expr, chooser_compare_func_creator fc,
                         st_select_lex *select_lex, bool all);
 
+  void cleanup();
   // only ALL subquery has upper not
   subs_type substype() { return all?ALL_SUBS:ANY_SUBS; }
   bool select_transformer(JOIN *join);
