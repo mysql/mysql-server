@@ -34,6 +34,7 @@
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
+#include "zgroups.h"
 
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
@@ -513,6 +514,13 @@ typedef struct system_variables
   my_bool binlog_rows_query_log_events;
 
   double long_query_time_double;
+
+#ifdef HAVE_UGID
+  Ugid_specification ugid_next;
+  Group_set_or_null ugid_next_list;
+  my_bool ugid_end;
+  my_bool ugid_commit;
+#endif
 
 } SV;
 
@@ -2985,6 +2993,19 @@ public:
     DBUG_VOID_RETURN;
   }
 
+#ifdef HAVE_UGID
+  Group_set *get_ugid_next_list()
+  {
+    return variables.ugid_next_list.is_non_null ?
+      variables.ugid_next_list.group_set : NULL;
+  }
+
+  const Group_set *get_ugid_next_list_const() const
+  {
+    return const_cast<const Group_set *>(const_cast<THD *>(this)->get_ugid_next_list());
+  }
+#endif
+
   /**
     Set the current database; use deep copy of C-string.
 
@@ -4090,6 +4111,11 @@ public:
   Identifies statements that can be explained with EXPLAIN.
 */
 #define CF_CAN_BE_EXPLAINED       (1U << 13)
+
+/**
+  Identifies statements that could potentially be written to the binary log.
+*/
+#define CF_BINLOGGABLE            (1U << 14)
 
 /* Bits in server_command_flags */
 
