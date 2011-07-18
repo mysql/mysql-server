@@ -616,7 +616,7 @@ DROP VIEW v1;
 DROP TABLE t1,t2,t3;
 
 --echo #
---echo # LP bug #809179           
+--echo # LP bug #809179: right join over a derived table / view         
 --echo #
 
 CREATE TABLE t1 (a int, b int);
@@ -667,4 +667,33 @@ CREATE VIEW v3 AS SELECT v1.a FROM v1,v2;
 INSERT INTO v3(a) VALUES (1);
 
 DROP VIEW v1,v2,v3;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #793448: materialized view accessed by two-component key           
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (9,3), (2,5);
+
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES (9,3), (3,7), (9,1), (2,5), (2,4), (3,8);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (10,3), (9,7), (9,1), (2,4);
+
+CREATE VIEW v1(a,b) AS SELECT a, MAX(b) FROM t2 GROUP BY a;
+CREATE VIEW v2(a,b) AS SELECT a,b FROM t2 UNION SELECT a,b FROM t3;
+
+SELECT * FROM v1;
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+
+SELECT * FROM v2;
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+
+DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;

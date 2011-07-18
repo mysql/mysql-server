@@ -743,7 +743,7 @@ SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	ref	a	a	4	const	1	Using index
-1	PRIMARY	<derived2>	ref	key1	key1	10	test.t1.a,test.t1.a	2	Using where
+1	PRIMARY	<derived2>	ref	key1	key1	10	test.t1.a,test.t1.a	2	
 2	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
 SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
 a	a	a	b
@@ -1050,7 +1050,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
 #
-# LP bug #809179           
+# LP bug #809179: right join over a derived table / view         
 #
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (6,5);
@@ -1115,4 +1115,54 @@ CREATE VIEW v3 AS SELECT v1.a FROM v1,v2;
 INSERT INTO v3(a) VALUES (1);
 ERROR HY000: The target table v3 of the INSERT is not insertable-into
 DROP VIEW v1,v2,v3;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #793448: materialized view accessed by two-component key           
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (9,3), (2,5);
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES (9,3), (3,7), (9,1), (2,5), (2,4), (3,8);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (10,3), (9,7), (9,1), (2,4);
+CREATE VIEW v1(a,b) AS SELECT a, MAX(b) FROM t2 GROUP BY a;
+CREATE VIEW v2(a,b) AS SELECT a,b FROM t2 UNION SELECT a,b FROM t3;
+SELECT * FROM v1;
+a	b
+2	5
+3	8
+9	3
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+a
+9
+2
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	key0	key0	10	func,func	2	Using where
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
+SELECT * FROM v2;
+a	b
+9	3
+3	7
+9	1
+2	5
+2	4
+3	8
+10	3
+9	7
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+a
+9
+2
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	key0	key0	10	func,func	2	Using where
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	
+4	UNION	t3	ALL	NULL	NULL	NULL	NULL	4	
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
