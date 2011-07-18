@@ -681,12 +681,17 @@ CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF32, char_col
 INSERT INTO t1 (char_column) VALUES ('abcde'),('fghij'),('klmno'),('qrstu');
 UPDATE t1 SET char_column2 = char_column;
 CREATE FULLTEXT INDEX i ON t1 (char_column2);
+SELECT * FROM t1 WHERE MATCH(char_column) AGAINST ('abc*' IN BOOLEAN MODE);
+id	char_column	char_column2
+NULL	abcde	abcde
 DROP TABLE t1;
 "----------Test22---------"
 CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,'aaa'),(2,'bbb'),(3,'ccc');
 CREATE FULLTEXT INDEX i ON t1 (char_column);
 HANDLER t1 OPEN;
+HANDLER t1 READ i = ('aaa');
+id	char_column
 DROP TABLE t1;
 "----------Test25---------"
 CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8 COLLATE UTF8_CROATIAN_CI) ENGINE=InnoDB;

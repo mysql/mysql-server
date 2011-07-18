@@ -1224,7 +1224,7 @@ error_exit:
 		}
 	}
 
-	ut_a(!new_primary || prebuilt->table->n_ref_count == 1);
+	ut_ad(!new_primary || prebuilt->table->n_ref_count == 1);
 
 	trx_commit_for_mysql(trx);
 	if (prebuilt->trx) {
