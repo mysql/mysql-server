@@ -39,9 +39,6 @@ Created 2006-02-15 Osku Salerma
 FIC. Three fields are sort: (word, doc_id, position) */
 #define FTS_NUM_FIELDS_SORT		3
 
-/* Number of FTS index table*/
-#define FTS_NUM_INDEX_TABLE		4
-
 /* Maximum number of rows in a table, smaller than which, we will
 optimize using a 4 byte Doc ID for FIC merge sort to reduce sort size */
 #define MAX_DOC_ID_OPT_VAL		1073741824

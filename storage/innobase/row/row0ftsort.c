@@ -1046,8 +1046,8 @@ row_fts_build_sel_tree_level(
 	dict_index_t*	index)		/*<! in: index dictionary */
 {
 	ulint	start;
-	ulint	child_left;
-	ulint	child_right;
+	int	child_left;
+	int	child_right;
 	ibool	null_eq = FALSE;
 	ulint	i;
 	ulint	num_item;
@@ -1059,6 +1059,18 @@ row_fts_build_sel_tree_level(
 		child_left = sel_tree[(start + i) * 2 + 1];
 		child_right = sel_tree[(start + i) * 2 + 2];
 
+		if (child_left == -1) {
+			if (child_right == -1) {
+				sel_tree[start + i] = -1;
+			} else {
+				sel_tree[start + i] =  child_right;
+			}
+			continue;
+		} else if (child_right == -1) {
+			sel_tree[start + i] = child_left;
+			continue;
+		}
+
 		/* Deal with NULL child conditions */
 		if (!mrec[child_left]) {
 			if (!mrec[child_right]) {
@@ -1066,10 +1078,10 @@ row_fts_build_sel_tree_level(
 			} else {
 				sel_tree[start + i] = child_right;
 			}
-			return;
+			continue;
 		} else if (!mrec[child_right]) {
 			sel_tree[start + i] = child_left;
-			return;
+			continue;
 		}
 
 		/* Select the smaller one to set parent pointer */
@@ -1233,8 +1245,8 @@ row_fts_merge_insert(
 	last_doc_id = 0;
 
 	/* Allocate insert query graphs for FTS auxillary
-	Index Table, note we have 4 such index tables */
-	n_bytes = sizeof(que_t*) * (FTS_NUM_INDEX_TABLE + 1);
+	Index Table, note we have FTS_NUM_AUX_INDEX such index tables */
+	n_bytes = sizeof(que_t*) * (FTS_NUM_AUX_INDEX + 1);
 	ins_graph = mem_heap_alloc(heap, n_bytes);
 	memset(ins_graph, 0x0, n_bytes);
 
@@ -1347,7 +1359,7 @@ exit:
 
 	mem_heap_free(tuple_heap);
 
-	for (i = 0; i < FTS_NUM_INDEX_TABLE; i++) {
+	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 		if (ins_graph[i]) {
 			fts_que_graph_free(ins_graph[i]);
 		}

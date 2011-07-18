@@ -13525,7 +13525,7 @@ static MYSQL_SYSVAR_ULONG(ft_max_token_size, fts_max_token_size,
 static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "InnoDB Fulltext search parallel sort degree",
-  NULL, NULL, 2, 1, 16, 0);
+  NULL, NULL, 16, 1, 16, 0);
    
 static MYSQL_SYSVAR_ULONG(sort_buf_size, srv_sort_buf_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
