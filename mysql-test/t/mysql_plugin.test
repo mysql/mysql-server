@@ -149,7 +149,7 @@ let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=
 --echo # 
 --echo # Missing library
 --echo #
-let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$MYSQL_TEST_DIR/include/;
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$DAEMONEXAMPLE_DIR --plugin-ini=$MYSQL_TEST_DIR/include/daemon_example_bad_soname.ini;
 --error 1,2,256
 --exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
 
