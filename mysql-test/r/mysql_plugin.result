@@ -1,0 +1,97 @@
+#
+# Ensure the plugin isn't loaded.
+#
+SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+name	dl
+#
+# Enable the plugin...
+#
+#
+# Ensure the plugin is now loaded.
+#
+SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+name	dl
+daemon_example	libdaemon_example.so
+#
+# Disable the plugin...
+#
+#
+# Ensure the plugin isn't loaded.
+#
+SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+name	dl
+#
+# Attempt to load non-existant plugin
+#
+ERROR: Cannot read plugin config file NOT_THERE_AT_ALL.ini.
+#
+# Attempt to use non-existant plugin.ini file
+#
+ERROR: Cannot read plugin config file daemon_example.ini.
+# 
+# Attempt to omit the plugin
+#
+ERROR: No plugin specified.
+# 
+# Attempt to omit DISABLE|ENABLE
+#
+ERROR: missing operation. Please specify either '<plugin> ENABLE' or '<plugin> DISABLE'.
+# 
+# Attempt to use bad paths - datadir
+#
+ERROR: Cannot access datadir at '/data_not_there/'.
+# 
+# Attempt to use bad paths - basedir
+#
+ERROR: Cannot access basedir at '/basedir_not_there/'.
+# 
+# Attempt to use bad paths - plugin_dir
+#
+ERROR: Cannot read plugin config file daemon_example.ini.
+# 
+# Missing library
+#
+ERROR: The plugin library is missing or in a different location.
+# 
+# Bad format for config file
+#
+ERROR: plugin name requested does not match config file data.
+# 
+# Missing base_dir option
+#
+ERROR: Missing --basedir option.
+# 
+# Missing data_dir option
+#
+ERROR: Missing --datadir option.
+# 
+# Missing plugin_dir option
+#
+ERROR: Missing --plugin_dir option.
+#
+# Show the help.
+#
+mysql_plugin  Ver 1.0.0 Distrib XX.XX.XX
+Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+
+Enable or disable plugins.
+
+Usage: mysql_plugin [options] <plugin> ENABLE|DISABLE
+
+Options:
+  -?, --help          Display this help and exit.
+  -b, --basedir=name  The basedir for the server.
+  -d, --datadir=name  The datadir for the server.
+  -p, --plugin-dir=name 
+                      The plugin dir for the server.
+  -i, --plugin-ini=name 
+                      Read plugin information from configuration file specified
+                      instead of from <plugin-dir>/<plugin_name>.ini.
+  -n, --no-defaults   Do not read values from configuration file.
+  -P, --print-defaults 
+                      Show default values from configuration file.
+  -v, --verbose       More verbose output; you can use this multiple times to
+                      get even more verbose output.
+  -V, --version       Output version information and exit.
+
+
