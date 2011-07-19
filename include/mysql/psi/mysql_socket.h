@@ -464,7 +464,7 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t byte_count
 */
 #ifdef HAVE_PSI_SOCKET_INTERFACE
   #define mysql_socket_accept(K, FD, AP, LP) \
-    inline_mysql_socket_accept(K, /*__FILE__, __LINE__,*/ FD, AP, LP)
+    inline_mysql_socket_accept(__FILE__, __LINE__, K, FD, AP, LP)
 #else
   #define mysql_socket_accept(FD, AP, LP) \
     inline_mysql_socket_accept(FD, AP, LP)
@@ -863,23 +863,32 @@ static inline MYSQL_SOCKET
 inline_mysql_socket_accept
 (
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  PSI_socket_key key, //const char *src_file, uint src_line,
+  const char *src_file, uint src_line, PSI_socket_key key,
 #endif
   MYSQL_SOCKET socket_listen, struct sockaddr *addr, socklen_t *addr_len)
 {
   MYSQL_SOCKET socket_accept= MYSQL_INVALID_SOCKET;
+#ifdef HAVE_PSI_SOCKET_INTERFACE
   socklen_t addr_length= (addr_len != NULL) ? *addr_len : 0;
+  struct PSI_socket_locker *locker;
+  PSI_socket_locker_state state;
+  locker= PSI_CALL(get_thread_socket_locker)(&state, socket_listen.m_psi,
+                                             PSI_SOCKET_CONNECT);
+  if (likely(locker != NULL))
+  {
+    PSI_CALL(start_socket_wait)(locker, (size_t)0, src_file, src_line);
+    socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
+    PSI_CALL(end_socket_wait)(locker, (size_t)0);
 
-  socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
+    /** Initialize the instrument with the new socket descriptor and address */
+    socket_accept.m_psi=
+	           PSI_CALL(init_socket)(key, (const my_socket*)&socket_accept.fd);
 
-  /** Initialize the instrument with the new socket descriptor and address */
-  #ifdef HAVE_PSI_SOCKET_INTERFACE
-  socket_accept.m_psi= PSI_CALL(init_socket)(key, (const my_socket*)&socket_accept.fd);
-
-  if (likely(socket_accept.fd != INVALID_SOCKET))
-    PSI_CALL(set_socket_info)(socket_accept.m_psi, &socket_accept.fd,
-                             addr, addr_length);
-  return socket_accept;
+    if (likely(socket_accept.fd != INVALID_SOCKET))
+      PSI_CALL(set_socket_info)(socket_accept.m_psi, &socket_accept.fd,
+                                addr, addr_length);
+    return socket_accept;
+  }
 #endif
   socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
   return socket_accept;
