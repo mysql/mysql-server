@@ -3004,6 +3004,8 @@ public:
   {
     return const_cast<const Group_set *>(const_cast<THD *>(this)->get_ugid_next_list());
   }
+
+  Group_cache *get_group_cache(bool is_transactional);
 #endif
 
   /**
@@ -4116,6 +4118,13 @@ public:
   Identifies statements that could potentially be written to the binary log.
 */
 #define CF_BINLOGGABLE            (1U << 14)
+
+/**
+  Identifies statements that normally do not write anything to the
+  binary log, but could write something in case they invoke a stored
+  function (e.g. SELECT, DO, SET).
+*/
+#define CF_BINLOGGABLE_WITH_SF    (1U << 15)
 
 /* Bits in server_command_flags */
 

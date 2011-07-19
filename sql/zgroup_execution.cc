@@ -69,7 +69,8 @@ static int ugid_acquire_group_ownership(THD *thd, Checkable_rwlock *lock,
 
 
 static int ugid_acquire_group_ownerships(THD *thd, Checkable_rwlock *lock,
-                                         Group_log_state *gls, Group_set *gs)
+                                         Group_log_state *gls,
+                                         const Group_set *gs)
 {
   DBUG_ENTER("ugid_acquire_group_ownerships");
   //printf("ugid_acquire_group_ownerships\n");
@@ -168,12 +169,13 @@ int ugid_before_statement(THD *thd, Checkable_rwlock *lock,
                           Group_cache *gsc, Group_cache *gtc)
 {
   DBUG_ENTER("ugid_before_statement");
-  //printf("ugid_before_statement\n");
+
+  DBUG_PRINT("info", ("in ugid_before_statement"));
 
   /*
     1. Check that the @@SESSION.UGID_* variables are consistent.
   */
-  Group_set *ugid_next_list= thd->get_ugid_next_list();
+  const Group_set *ugid_next_list= thd->get_ugid_next_list();
   Ugid_specification *ugid_next= &thd->variables.ugid_next;
   if (ugid_next_list != NULL)
   {
@@ -289,18 +291,20 @@ skip_no_unlock:
 }
 
 
-void ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
-                            Group_log_state *gls, Group_cache *gc,
-                            Group_cache *trx_cache)
+int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
+                           Group_log_state *gls, Group_cache *gc,
+                           Group_cache *trx_cache)
 {
   DBUG_ENTER("flush_group_cache");
   lock->rdlock();
   gc->generate_automatic_gno(thd, gls);
-  gc->write_to_log(trx_cache);
-  gc->update_group_log_state(thd, gls);
+  if (gc->write_to_log(trx_cache) != GS_SUCCESS)
+    DBUG_RETURN(1);
+  if (gc->update_group_log_state(thd, gls) != GS_SUCCESS)
+    DBUG_RETURN(1);
   lock->unlock();
   gc->clear();
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
