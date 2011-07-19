@@ -203,6 +203,8 @@ UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
 
+/* Switch to enable random read ahead. */
+UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
@@ -1906,6 +1908,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
 	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
 	export_vars.innodb_buffer_pool_reads = srv_buf_pool_reads;
+	export_vars.innodb_buffer_pool_read_ahead_rnd
+		= buf_pool->stat.n_ra_pages_read_rnd;
 	export_vars.innodb_buffer_pool_read_ahead
 		= buf_pool->stat.n_ra_pages_read;
 	export_vars.innodb_buffer_pool_read_ahead_evicted
