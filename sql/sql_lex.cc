@@ -1639,6 +1639,7 @@ void st_select_lex::init_query()
   nest_level= 0;
   link_next= 0;
   lock_option= TL_READ_DEFAULT;
+  is_prep_leaf_list_saved= FALSE;
 
   bzero((char*) expr_cache_may_be_used, sizeof(expr_cache_may_be_used));
 }
@@ -1674,7 +1675,6 @@ void st_select_lex::init_select()
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
   full_group_by_flag= 0;
-  is_prep_leaf_list_saved= FALSE;
   insert_tables= 0;
   merged_into= 0;
 }
