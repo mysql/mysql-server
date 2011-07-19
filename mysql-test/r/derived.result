@@ -477,3 +477,24 @@ WHERE t.f2='s' AND t.f2 LIKE '%a%' OR t.f1<>0 ORDER BY t.f2;
 f1
 8
 DROP TABLE t1, t2;
+#
+# BUG##806524: Assertion `join->best_read < 1.7976931348623157e+308 with table_elimination=on and derived_merge=on 
+# 
+CREATE TABLE t1 ( f4 int) ;
+CREATE TABLE t2 ( f4 int) ;
+CREATE TABLE t3 ( f1 int NOT NULL , PRIMARY KEY (f1)) ;
+CREATE TABLE t4 ( f2 int, f4 int) ;
+SELECT *
+FROM ( SELECT * FROM t1 ) AS alias1
+RIGHT JOIN (
+t2 AS alias2
+LEFT JOIN (
+SELECT t4.*
+FROM ( SELECT * FROM t3 ) AS SQ1_alias1
+RIGHT JOIN t4
+ON t4.f2 = SQ1_alias1.f1
+) AS alias3
+ON alias3.f4 != 0
+) ON alias3.f4 != 0;
+f4	f4	f2	f4
+drop table t1,t2,t3,t4;
