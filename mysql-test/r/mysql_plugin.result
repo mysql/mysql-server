@@ -23,11 +23,11 @@ name	dl
 #
 # Attempt to load non-existant plugin
 #
-ERROR: Cannot read plugin config file NOT_THERE_AT_ALL.ini.
+ERROR: Cannot read plugin config file NOT_THERE_AT_ALL. File does not exist.
 #
 # Attempt to use non-existant plugin.ini file
 #
-ERROR: Cannot read plugin config file daemon_example.ini.
+ERROR: Cannot read plugin config file daemon_example. File does not exist.
 # 
 # Attempt to omit the plugin
 #
@@ -47,7 +47,7 @@ ERROR: Cannot access basedir at '/basedir_not_there/'.
 # 
 # Attempt to use bad paths - plugin_dir
 #
-ERROR: Cannot read plugin config file daemon_example.ini.
+ERROR: Cannot read plugin config file daemon_example. File does not exist.
 # 
 # Missing library
 #
@@ -55,7 +55,7 @@ ERROR: The plugin library is missing or in a different location.
 # 
 # Bad format for config file
 #
-ERROR: plugin name requested does not match config file data.
+ERROR: The plugin library is missing or in a different location.
 # 
 # Missing base_dir option
 #
