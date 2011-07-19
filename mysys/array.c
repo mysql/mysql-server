@@ -127,7 +127,7 @@ my_bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element)
     0		Error
 */
 
-uchar *alloc_dynamic(DYNAMIC_ARRAY *array)
+void *alloc_dynamic(DYNAMIC_ARRAY *array)
 {
   if (array->elements == array->max_element)
   {
@@ -171,7 +171,7 @@ uchar *alloc_dynamic(DYNAMIC_ARRAY *array)
     0		Array is empty
 */
 
-uchar *pop_dynamic(DYNAMIC_ARRAY *array)
+void *pop_dynamic(DYNAMIC_ARRAY *array)
 {
   if (array->elements)
     return array->buffer+(--array->elements * array->size_of_element);
@@ -273,7 +273,7 @@ my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements)
       idx	Index of element wanted. 
 */
 
-void get_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
+void get_dynamic(DYNAMIC_ARRAY *array, void *element, uint idx)
 {
   if (idx >= array->elements)
   {
@@ -355,29 +355,4 @@ void freeze_size(DYNAMIC_ARRAY *array)
                                      MYF(MY_WME));
     array->max_element=elements;
   }
-}
-
-
-/*
-  Get the index of a dynamic element
-
-  SYNOPSIS
-    get_index_dynamic()
-     array	Array
-     element Whose element index 
-
-*/
-
-int get_index_dynamic(DYNAMIC_ARRAY *array, uchar* element)
-{
-  size_t ret;
-  if (array->buffer > element)
-    return -1;
-
-  ret= (element - array->buffer) /  array->size_of_element;
-  if (ret > array->elements)
-    return -1;
-
-  return ret;
-
 }
