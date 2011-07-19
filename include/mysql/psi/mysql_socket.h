@@ -531,8 +531,9 @@ inline_mysql_socket_socket
   mysql_socket.fd= socket(domain, type, protocol);
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  mysql_socket.m_psi = PSI_CALL(init_socket)(key, (const my_socket*)&mysql_socket.fd);
-  if (likely(mysql_socket.fd != INVALID_SOCKET))
+  mysql_socket.m_psi= PSI_CALL(init_socket)(key, (const my_socket*)&mysql_socket.fd);
+  
+  if (likely(mysql_socket.fd != INVALID_SOCKET && mysql_socket.m_psi != NULL))
     PSI_CALL(set_socket_info)(mysql_socket.m_psi, &mysql_socket.fd, NULL, 0);
 #endif
   return mysql_socket;
@@ -884,7 +885,7 @@ inline_mysql_socket_accept
     socket_accept.m_psi=
 	           PSI_CALL(init_socket)(key, (const my_socket*)&socket_accept.fd);
 
-    if (likely(socket_accept.fd != INVALID_SOCKET))
+    if (likely(socket_accept.fd != INVALID_SOCKET) && socket_accept.m_psi != NULL)
       PSI_CALL(set_socket_info)(socket_accept.m_psi, &socket_accept.fd,
                                 addr, addr_length);
     return socket_accept;
