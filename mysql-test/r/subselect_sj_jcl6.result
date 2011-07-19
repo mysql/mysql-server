@@ -714,22 +714,22 @@ WHERE int_nokey IN (SELECT it2.int_key
 FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 int_key
 0
-5
-9
-9
-7
+0
+0
+0
+0
+0
+2
 2
-8
-0
-2
-0
-0
-0
-0
-5
-7
-7
 3
+5
+5
+7
+7
+7
+8
+9
+9
 EXPLAIN
 SELECT int_key FROM ot1
 WHERE int_nokey IN (SELECT it2.int_key
