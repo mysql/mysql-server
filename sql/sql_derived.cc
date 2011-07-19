@@ -478,11 +478,7 @@ bool mysql_derived_merge_for_insert(THD *thd, LEX *lex, TABLE_LIST *derived)
   if (derived->merged_for_insert)
     return FALSE;
   if (derived->is_materialized_derived())
-  {
-    bool res=  mysql_derived_prepare(thd, lex, derived);
-    derived->select_lex->leaf_tables.push_back(derived);
-    return res;
-  }
+    return mysql_derived_prepare(thd, lex, derived);
   if (!derived->is_multitable())
   {
     if (!derived->updatable)
