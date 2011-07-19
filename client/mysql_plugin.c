@@ -228,6 +228,69 @@ static int run_command(char* cmd, const char *mode)
 }
 
 
+#ifdef __WIN__
+/**
+  Check to see if there are spaces in a path.
+  
+  @param[in]  path  The Windows path to examine.
+
+  @retval int spaces found = 1, no spaces = 0
+*/
+static int has_spaces(const char *path)
+{
+  if (strchr(path, ' ') != NULL)
+    return 1;
+  return 0;
+}
+
+
+/**
+  Convert a Unix path to a Windows path.
+ 
+  @param[in]  path  The Windows path to examine.
+
+  @returns string containing path with / changed to \\
+*/
+static char *convert_path(const char *argument)
+{
+  /* Convert / to \\ to make Windows paths */
+  char *winfilename= my_strdup(argument, MYF(MY_FAE));
+  char *pos, *end;
+  int length= strlen(argument);
+
+  for (pos= winfilename, end= pos+length ; pos < end ; pos++)
+  {
+    if (*pos == '/')
+    {
+      *pos= '\\';
+    }
+  }
+  return winfilename;
+}
+
+
+/**
+  Add quotes if the path has spaces in it.
+
+  @param[in]  path  The Windows path to examine.
+
+  @returns string containing excaped quotes if spaces found in path
+*/
+static char *add_quotes(const char *path)
+{
+  char windows_cmd_friendly[FN_REFLEN];
+
+  if (has_spaces(path))
+    snprintf(windows_cmd_friendly, sizeof(windows_cmd_friendly),
+             "\"%s\"", path);
+  else
+    snprintf(windows_cmd_friendly, sizeof(windows_cmd_friendly),
+             "%s", path);
+  return my_strdup(windows_cmd_friendly, MYF(MY_FAE));
+}
+#endif
+
+
 /**
   Get the default values from the my.cnf file.
 
@@ -259,11 +322,26 @@ static int get_default_values()
   {
     if ((error= make_tempfile(defaults_file, "txt")))
       goto exit;
+
+#ifdef __WIN__
+    {
+      char *format_str= 0;
+  
+      if (has_spaces(tool_path) || has_spaces(defaults_file))
+        format_str = "\"%s mysqld > %s\"";
+      else
+        format_str = "%s mysqld > %s";
+  
+      snprintf(defaults_cmd, sizeof(defaults_cmd), format_str,
+               add_quotes(tool_path), add_quotes(defaults_file));
+    }
+#else
     snprintf(defaults_cmd, sizeof(defaults_cmd),
              "%s mysqld > %s", tool_path, defaults_file);
+#endif
 
     /* Execute the command */
-    if (opt_verbose > 1)
+    if (opt_verbose)
     {
       printf("# Command: %s\n", defaults_cmd);
     }
@@ -517,14 +595,14 @@ static int load_plugin_data(char *plugin_name, char *config_file)
   }
   if (!file_exists(opt_plugin_ini))
   {
-    reason= "File does not exist.";
+    reason= (char *)"File does not exist.";
     goto error;
   }
 
   file_ptr= fopen(opt_plugin_ini, "r");
   if (file_ptr == NULL)
   {
-    reason= "Cannot open file.";
+    reason= (char *)"Cannot open file.";
     goto error;
   }
 
@@ -542,6 +620,12 @@ static int load_plugin_data(char *plugin_name, char *config_file)
     }
     if (res == NULL)
     {
+      if (i < 1)
+      {
+        reason= (char *)"Bad format in plugin configuration file.";
+        fclose(file_ptr);
+        goto error;        
+      }
       break;
     }
     if ((line[0] == '#') || (line[0] == '\n')) // skip comment and blank lines
@@ -552,11 +636,6 @@ static int load_plugin_data(char *plugin_name, char *config_file)
     {
       /* save so_name */
       plugin_data.so_name= my_strdup(line, MYF(MY_WME));
-      if (plugin_data.so_name == NULL)
-      {
-        reason= "Cannot read library name.";
-        goto error;
-      }
       /* Add proper file extension for soname */
       strcat((char *)plugin_data.so_name, FN_SOEXT);
       i++;
@@ -574,6 +653,7 @@ static int load_plugin_data(char *plugin_name, char *config_file)
       }
     }
   }
+  
   fclose(file_ptr);
   return 0;
 
@@ -735,6 +815,19 @@ static int process_options(int argc, char *argv[], char *operation)
     goto exit;
   }
 
+  /* Add a trailing directory separator if not present */
+  if (opt_basedir)
+  {
+    i= (int)strlength(opt_basedir);
+    if (opt_basedir[i-1] != FN_LIBCHAR || opt_basedir[i-1] != FN_LIBCHAR2)
+#ifdef __WIN__
+      if (opt_basedir[i-1] != '/')
+        strcat(opt_basedir, "//");
+#else
+      strcat(opt_basedir, FN_DIRSEP);
+#endif
+  }
+  
   /*
     If the user did not specify the option to skip loading defaults from a
     config file and the required options are not present or there was an error
@@ -756,13 +849,6 @@ static int process_options(int argc, char *argv[], char *operation)
   if ((error = check_options(argc, argv, operation)))
   {
     goto exit;
-  }
-
-  /* Add a trailing directory separator if not present */
-  i= (int)strlength(opt_basedir);
-  if (opt_basedir[i-1] != FN_LIBCHAR || opt_basedir[i-1] != FN_LIBCHAR2)
-  {
-    strcat(opt_basedir, FN_DIRSEP);
   }
 
   if (opt_verbose)
@@ -1029,12 +1115,30 @@ static int bootstrap_server(char *server_path, char *bootstrap_file)
   int error= 0;
   int ret= 0;
 
+#ifdef __WIN__
+  char *format_str= 0;
+  char *verbose_str= "";
+  
+  if (opt_verbose)
+    strcat(verbose_str, "--console");
+  if (has_spaces(opt_datadir) || has_spaces(opt_basedir) ||
+      has_spaces(bootstrap_file))
+    format_str= "\"%s %s --bootstrap --datadir=%s --basedir=%s < %s\"";
+  else 
+    format_str= "%s %s --bootstrap --datadir=%s --basedir=%s < %s";
+
+  snprintf(bootstrap_cmd, sizeof(bootstrap_cmd), format_str,
+           add_quotes(convert_path(server_path)), verbose_str,
+           add_quotes(opt_datadir), add_quotes(opt_basedir),
+           add_quotes(bootstrap_file));
+#else
   snprintf(bootstrap_cmd, sizeof(bootstrap_cmd),
            "%s --no-defaults --bootstrap --datadir=%s --basedir=%s"
            " < %s", server_path, opt_datadir, opt_basedir, bootstrap_file);
+#endif
 
   /* Execute the command */
-  if (opt_verbose > 1)
+  if (opt_verbose)
   {
     printf("# Command: %s\n", bootstrap_cmd);
   }
