@@ -1520,7 +1520,8 @@ ndb_index_stat_check_or_create_systables(NdbIndexStat* is, Ndb* ndb)
     DBUG_RETURN(0);
   }
 
-  if (is->getNdbError().code == 721)
+  if (is->getNdbError().code == 721 ||
+      is->getNdbError().code == 4244)
   {
     // race between mysqlds, maybe
     DBUG_PRINT("index_stat", ("create index stats tables failed: error %d line %d",
