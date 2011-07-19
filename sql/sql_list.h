@@ -152,6 +152,7 @@ struct list_node :public Sql_alloc
   }
 };
 
+typedef bool List_eq(void *a, void *b);
 
 extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
 
@@ -295,6 +296,16 @@ public:
   inline void **head_ref() { return first != &end_of_list ? &first->info : 0; }
   inline bool is_empty() { return first == &end_of_list ; }
   inline list_node *last_ref() { return &end_of_list; }
+  inline bool add_unique(void *info, List_eq *eq)
+  {
+    list_node *node= first;
+    for (;
+         node != &end_of_list && (!(*eq)(node->info, info));
+         node= node->next) ;
+    if (node == &end_of_list)
+      return push_back(info);
+    return 1;
+  }
   friend class base_list_iterator;
   friend class error_list;
   friend class error_list_iterator;
@@ -465,6 +476,8 @@ public:
   inline void concat(List<T> *list) { base_list::concat(list); }
   inline void disjoin(List<T> *list) { base_list::disjoin(list); }
   inline void prepand(List<T> *list) { base_list::prepand(list); }
+  inline bool add_unique(T *a, bool (*eq)(T *a, T *b))
+  { return base_list::add_unique(a, (List_eq *)eq); }
   void delete_elements(void)
   {
     list_node *element,*next;

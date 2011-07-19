@@ -135,7 +135,7 @@ typedef struct st_table_ref
   bool          disable_cache;
 
   bool tmp_table_index_lookup_init(THD *thd, KEY *tmp_key, Item_iterator &it,
-                                   bool value);
+                                   bool value, uint skip= 0);
 } TABLE_REF;
 
 

@@ -259,6 +259,7 @@ public:
   bool is_expensive();
   void set_join_tab_idx(uint join_tab_idx_arg)
   { args[1]->set_join_tab_idx(join_tab_idx_arg); }
+  virtual void get_cache_parameters(List<Item> &parameters);
 };
 
 class Comp_creator

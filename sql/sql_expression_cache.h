@@ -37,6 +37,15 @@ public:
     Print cache parameters
   */
   virtual void print(String *str, enum_query_type query_type)= 0;
+
+  /**
+    Is this cache initialized
+  */
+  virtual bool is_inited()= 0;
+  /**
+    Initialize this cache
+  */
+  virtual void init()= 0;
 };
 
 struct st_table_ref;
@@ -51,15 +60,16 @@ class Item_field;
 class Expression_cache_tmptable :public Expression_cache
 {
 public:
-  Expression_cache_tmptable(THD *thd, List<Item*> &dependants, Item *value);
+  Expression_cache_tmptable(THD *thd, List<Item> &dependants, Item *value);
   virtual ~Expression_cache_tmptable();
   virtual result check_value(Item **value);
   virtual my_bool put_value(Item *value);
 
   void print(String *str, enum_query_type query_type);
+  bool is_inited() { return inited; };
+  void init();
 
 private:
-  void init();
 
   /* tmp table parameters */
   TMP_TABLE_PARAM cache_table_param;
@@ -71,10 +81,8 @@ private:
   struct st_table_ref ref;
   /* Cached result */
   Item_field *cached_result;
-  /* List of references to the parameters of the expression */
-  List<Item*> *list;
-  /* List of items */
-  List<Item> items;
+  /* List of parameter items */
+  List<Item> &items;
   /* Value Item example */
   Item *val;
   /* Set on if the object has been succesfully initialized with init() */

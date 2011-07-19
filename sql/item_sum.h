@@ -374,6 +374,7 @@ public:
   virtual Field *create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length);
   bool walk(Item_processor processor, bool walk_subquery, uchar *argument);
+  virtual bool collect_outer_ref_processor(uchar *param);
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
   bool register_sum_func(THD *thd, Item **ref);

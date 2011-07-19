@@ -11731,17 +11731,19 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
     Disallow loose index scan if the MIN/MAX argument field is referenced by
     a subquery in the WHERE clause.
   */
+
   if (cond_type == Item::SUBSELECT_ITEM)
   {
     Item_subselect *subs_cond= (Item_subselect*) cond;
     if (subs_cond->is_correlated)
     {
-      DBUG_ASSERT(subs_cond->depends_on.elements > 0);
-      List_iterator_fast<Item*> li(subs_cond->depends_on);
-      Item **dep;
+      DBUG_ASSERT(subs_cond->upper_refs.elements > 0);
+      List_iterator_fast<Item_subselect::Ref_to_outside>
+        li(subs_cond->upper_refs);
+      Item_subselect::Ref_to_outside *dep;
       while ((dep= li++))
       {
-        if ((*dep)->eq(min_max_arg_item, FALSE))
+        if (dep->item->eq(min_max_arg_item, FALSE))
           DBUG_RETURN(FALSE);
       }
     }

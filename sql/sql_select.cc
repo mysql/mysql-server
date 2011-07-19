@@ -9613,6 +9613,7 @@ bool JOIN_TAB::preread_init()
   @param thd             Thread handle
   @param tmp_key         The temporary table key
   @param it              The iterator of items for lookup in the key
+  @param skip            Number of fields from the beginning to skip
 
   @details
   Build TABLE_REF object for lookup in the key 'tmp_key' using items
@@ -9625,9 +9626,11 @@ bool JOIN_TAB::preread_init()
 bool TABLE_REF::tmp_table_index_lookup_init(THD *thd,
                                             KEY *tmp_key,
                                             Item_iterator &it,
-                                            bool value)
+                                            bool value,
+                                            uint skip)
 {
   uint tmp_key_parts= tmp_key->key_parts;
+  uint i;
   DBUG_ENTER("TABLE_REF::tmp_table_index_lookup_init");
 
   key= 0; /* The only temp table index. */
@@ -9648,7 +9651,8 @@ bool TABLE_REF::tmp_table_index_lookup_init(THD *thd,
   uchar *cur_ref_buff= key_buff;
 
   it.open();
-  for (uint i= 0; i < tmp_key_parts; i++, cur_key_part++, ref_key++)
+  for (i= 0; i < skip; i++) it.next();
+  for (i= 0; i < tmp_key_parts; i++, cur_key_part++, ref_key++)
   {
     Item *item= it.next();
     DBUG_ASSERT(item);

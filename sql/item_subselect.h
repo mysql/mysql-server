@@ -102,14 +102,6 @@ public:
   List<Ref_to_outside> upper_refs;
   st_select_lex *parent_select;
 
-  /**
-     List of references on items subquery depends on (externally resolved);
-
-     @note We can't store direct links on Items because it could be
-           substituted with other item (for example for grouping).
-   */
-  List<Item*> depends_on;
-
   /*
    TRUE<=>Table Elimination has made it redundant to evaluate this select
           (and so it is not part of QEP, etc)
@@ -225,6 +217,7 @@ public:
     @retval FALSE otherwise
   */
   bool is_expensive_processor(uchar *arg) { return TRUE; }
+
   /**
     Get the SELECT_LEX structure associated with this Item.
     @return the SELECT_LEX structure associated with this Item
@@ -232,6 +225,7 @@ public:
   st_select_lex* get_select_lex();
   const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
   virtual bool expr_cache_is_needed(THD *);
+  virtual void get_cache_parameters(List<Item> &parameters);
 
   friend class select_result_interceptor;
   friend class Item_in_optimizer;

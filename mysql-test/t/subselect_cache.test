@@ -1567,6 +1567,7 @@ FROM t2 ) AND table1 .`col_varchar_key` OR table1 .`pk` ;
 drop table t1,t2;
 set @@optimizer_switch= default;
 
+set optimizer_switch='subquery_cache=on';
 #
 --echo # LP BUG#615378 (incorrect NULL result returning in Item_cache)
 #
@@ -1614,3 +1615,54 @@ GROUP BY field3
 HAVING (field3 <= 'h' AND field2 != 4) ;
 --enable_warnings
 drop tables t1, t2, t3;
+
+--echo #
+--echo # Test aggregate functions as parameters to subquery cache
+--echo #
+
+CREATE TABLE t1 ( a INT, b INT, c INT, KEY (a, b));
+
+INSERT INTO t1 VALUES
+  ( 1, 1,  1 ),
+  ( 1, 2,  2 ),
+  ( 1, 3,  3 ),
+  ( 1, 4,  6 ),
+  ( 1, 5,  5 ),
+  ( 1, 9, 13 ),
+
+  ( 2, 1,  6 ),
+  ( 2, 2,  7 ),
+  ( 2, 3,  8 );
+
+SELECT a, AVG(t1.b),
+(SELECT t11.c FROM t1 t11 WHERE t11.a = t1.a AND t11.b = AVG(t1.b)) AS t11c
+FROM t1 GROUP BY a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Test of LP BUG#800696 (deleting list of Items (OR arguments) 
+--echo # in optimization)
+--echo #
+
+set optimizer_switch='subquery_cache=on,in_to_exists=on';
+CREATE TABLE t1 ( f3 int) ;
+INSERT INTO t1 VALUES (0),(0);
+
+CREATE TABLE t3 ( f3 int) ;
+INSERT INTO t3 VALUES (0),(0);
+
+CREATE TABLE t2 ( f1 int, f2 int, f3 int) ;
+INSERT INTO t2 VALUES (7,0,0);
+
+SELECT *
+FROM t2, t3
+WHERE t2.f2 OR t3.f3 IN
+(
+SELECT t2.f2
+FROM t1
+WHERE t2.f1 OR t2.f3 );
+drop tables t1, t2, t3;
+
+--echo # restore default
+set @@optimizer_switch= default;

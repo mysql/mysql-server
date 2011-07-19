@@ -23,9 +23,9 @@
 ulong subquery_cache_miss, subquery_cache_hit;
 
 Expression_cache_tmptable::Expression_cache_tmptable(THD *thd,
-                                                 List<Item*> &dependants,
-                                                 Item *value)
-  :cache_table(NULL), table_thd(thd), list(&dependants), val(value),
+                                                     List<Item> &dependants,
+                                                     Item *value)
+  :cache_table(NULL), table_thd(thd), items(dependants), val(value),
    inited (0)
 {
   DBUG_ENTER("Expression_cache_tmptable::Expression_cache_tmptable");
@@ -60,50 +60,32 @@ static uint field_enumerator(uchar *arg)
 
 void Expression_cache_tmptable::init()
 {
-  List_iterator<Item*> li(*list);
-  Item_iterator_ref_list it(li);
-  Item **item;
+  List_iterator<Item> li(items);
+  Item_iterator_list it(li);
   uint field_counter;
   DBUG_ENTER("Expression_cache_tmptable::init");
   DBUG_ASSERT(!inited);
   inited= TRUE;
   cache_table= NULL;
 
-  while ((item= li++))
-  {
-    DBUG_ASSERT(item);
-    if (*item)
-    {
-      DBUG_ASSERT((*item)->fixed);
-      items.push_back((*item));
-    }
-    else
-    {
-      /*
-        This is possible when optimizer already executed this subquery and
-        optimized out the condition predicate.
-      */
-      li.remove();
-    }
-  }
-
-  if (list->elements == 0)
+  if (items.elements == 0)
   {
     DBUG_PRINT("info", ("All parameters were removed by optimizer."));
     DBUG_VOID_RETURN;
   }
 
+  /* add result field */
+  items.push_front(val);
+
   cache_table_param.init();
   /* dependent items and result */
-  cache_table_param.field_count= list->elements + 1;
+  cache_table_param.field_count= items.elements;
   /* postpone table creation to index description */
   cache_table_param.skip_create_table= 1;
 
-  items.push_front(val);
-
   if (!(cache_table= create_tmp_table(table_thd, &cache_table_param,
                                       items, (ORDER*) NULL,
-                                      FALSE, FALSE,
+                                      FALSE, TRUE,
                                       ((table_thd->options |
                                         TMP_TABLE_ALL_COLUMNS) &
                                        ~(OPTION_BIG_TABLES |
@@ -122,16 +104,13 @@ void Expression_cache_tmptable::init()
     goto error;
   }
 
-  /* This list do not contain result field */
-  it.open();
-
-  field_counter=1;
+  field_counter= 1;
 
   if (cache_table->alloc_keys(1) ||
       cache_table->add_tmp_key(0, items.elements - 1, &field_enumerator,
                                 (uchar*)&field_counter, TRUE) ||
       ref.tmp_table_index_lookup_init(table_thd, cache_table->key_info, it,
-                                      TRUE))
+                                      TRUE, 1 /* skip result field*/))
   {
     DBUG_PRINT("error", ("creating index failed"));
     goto error;
@@ -191,13 +170,6 @@ Expression_cache::result Expression_cache_tmptable::check_value(Item **value)
 {
   int res;
   DBUG_ENTER("Expression_cache_tmptable::check_value");
-
-  /*
-    We defer cache initialization to get item references that are
-    used at the execution phase.
-  */
-  if (!inited)
-    init();
 
   if (cache_table)
   {
@@ -274,16 +246,17 @@ err:
 
 void Expression_cache_tmptable::print(String *str, enum_query_type query_type)
 {
-  List_iterator<Item*> li(*list);
-  Item **item;
+  List_iterator<Item> li(items);
+  Item *item;
   bool is_first= TRUE;
 
   str->append('<');
+  li++;  // skip result field
   while ((item= li++))
   {
     if (!is_first)
       str->append(',');
-    (*item)->print(str, query_type);
+    item->print(str, query_type);
     is_first= FALSE;
   }
   str->append('>');

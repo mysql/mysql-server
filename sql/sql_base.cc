@@ -6454,11 +6454,6 @@ find_field_in_tables(THD *thd, Item_ident *item,
         {
           mark_select_range_as_dependent(thd, last_select, current_sel,
                                          found, *ref, item);
-          if (item->can_be_depended)
-          {
-            DBUG_ASSERT((*ref) == (Item*)item);
-            current_sel->register_dependency_item(last_select, ref);
-          }
         }
       }
       return found;

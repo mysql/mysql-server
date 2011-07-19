@@ -1464,31 +1464,40 @@ Item *Item_in_optimizer::expr_cache_insert_transformer(uchar *thd_arg)
   DBUG_ENTER("Item_in_optimizer::expr_cache_insert_transformer");
   if (args[1]->type() != Item::SUBSELECT_ITEM)
     DBUG_RETURN(this); // MAX/MIN transformed => do nothing
-  List<Item*> &depends_on= ((Item_subselect *)args[1])->depends_on;
 
   if (expr_cache)
     DBUG_RETURN(expr_cache);
 
+  if (args[1]->expr_cache_is_needed(thd) &&
+      (expr_cache= set_expr_cache(thd)))
+    DBUG_RETURN(expr_cache);
+
+  DBUG_RETURN(this);
+}
+
+
+
+/**
+    Collect and add to the list cache parameters for this Item.
+
+    @param parameters    The list where to add parameters
+*/
+
+void Item_in_optimizer::get_cache_parameters(List<Item> &parameters)
+{
   /* Add left expression to the list of the parameters of the subquery */
   if (args[0]->cols() == 1)
-    depends_on.push_front((Item**)args);
+    parameters.add_unique(args[0], &cmp_items);
   else
   {
     for (uint i= 0; i < args[0]->cols(); i++)
     {
-      depends_on.push_front(args[0]->addr(i));
+      parameters.add_unique(args[0]->element_index(i), &cmp_items);
     }
   }
-
-  if (args[1]->expr_cache_is_needed(thd) &&
-      (expr_cache= set_expr_cache(thd, depends_on)))
-    DBUG_RETURN(expr_cache);
-
-  /* no cache => return list in original state just to be safe */
-  for (uint i= 0; i < args[0]->cols(); i++)
-    depends_on.pop();
-  DBUG_RETURN(this);
+  args[1]->get_cache_parameters(parameters);
 }
+
 
 /*
    The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>

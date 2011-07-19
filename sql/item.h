@@ -1155,6 +1155,15 @@ public:
   {
     return FALSE;
   }
+  struct Collect_deps_prm
+  {
+    int nest_level;
+    List<Item> *parameters;
+  };
+  /**
+    Collect outer references
+  */
+  virtual bool collect_outer_ref_processor(uchar *arg) {return FALSE; }
 
   /**
     Find a function of a given type
@@ -1249,7 +1258,7 @@ public:
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
-  Item* set_expr_cache(THD *thd, List<Item*> &depends_on);
+  Item* set_expr_cache(THD *thd);
   virtual Item *get_cached_item() { return NULL; }
 
   virtual Item_equal *get_item_equal() { return NULL; }
@@ -1273,7 +1282,23 @@ public:
     walk(&Item::view_used_tables_processor, 0, (uchar *) view);
     return view->view_used_tables;
   }
+
+  /**
+    Collect and add to the list cache parameters for this Item.
+
+    @note Now implemented only for subqueries and in_optimizer,
+    if we need it for general function then this method should
+    be defined for Item_func.
+  */
+  virtual void get_cache_parameters(List<Item> &parameters) { };
 };
+
+
+/**
+  Compare two Items for List<Item>::add_unique()
+*/
+
+bool cmp_items(Item *a, Item *b);
 
 
 /*
@@ -1677,6 +1702,10 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
+  /**
+    Collect outer references
+  */
+  virtual bool collect_outer_ref_processor(uchar *arg);
   friend bool insert_fields(THD *thd, Name_resolution_context *context,
                             const char *db_name,
                             const char *table_name, List_iterator<Item> *it,
@@ -2739,8 +2768,11 @@ private:
   */
   Item_cache *expr_value;
 
+  List<Item> parameters;
+
   Item *check_cache();
-  inline void cache();
+  void cache();
+  void init_on_demand();
 
 public:
   Item_cache_wrapper(Item *item_arg);
@@ -2750,7 +2782,7 @@ public:
   enum Type type() const { return EXPR_CACHE_ITEM; }
   enum Type real_type() const { return orig_item->type(); }
 
-  bool set_cache(THD *thd, List<Item*> &depends_on);
+  bool set_cache(THD *thd);
 
   bool fix_fields(THD *thd, Item **it);
   void fix_length_and_dec() {}
@@ -2832,6 +2864,9 @@ public:
     if (result_type() == ROW_RESULT)
       orig_item->bring_value();
   }
+  virtual bool is_expensive() { return orig_item->is_expensive(); }
+  bool is_expensive_processor(uchar *arg)
+  { return orig_item->is_expensive_processor(arg); }
   bool check_vcol_func_processor(uchar *arg)
   {
     return trace_unsupported_by_check_vcol_func_processor("cache");

@@ -793,7 +793,6 @@ public:
   inline bool is_subquery_function() { return master_unit()->item != 0; }
 
   bool mark_as_dependent(THD *thd, st_select_lex *last, Item *dependency);
-  void register_dependency_item(st_select_lex *last, Item **dependency);
 
   bool set_braces(bool value);
   bool inc_in_sum_expr();

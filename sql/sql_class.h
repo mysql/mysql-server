@@ -74,6 +74,22 @@ public:
 
 
 /**
+  Item iterator over List_iterator_fast for Items
+*/
+
+class Item_iterator_list: public Item_iterator
+{
+  List_iterator<Item> list;
+public:
+  Item_iterator_list(List_iterator<Item> &arg_list):
+    list(arg_list) {}
+  void open() { list.rewind(); }
+  Item *next() { return (list++); }
+  void close() {}
+};
+
+
+/**
   Item iterator over Item interface for rows
 */
 

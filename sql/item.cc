@@ -31,6 +31,16 @@ const String my_null_string("NULL", 4, default_charset_info);
 static int save_field_in_field(Field *from, bool *null_value,
                                Field *to, bool no_conversions);
 
+
+/**
+  Compare two Items for List<Item>::add_unique()
+*/
+
+bool cmp_items(Item *a, Item *b)
+{
+  return a->eq(b, FALSE);
+}
+
 /****************************************************************************/
 
 /* Hybrid_type_traits {_real} */
@@ -651,14 +661,14 @@ Item* Item::transform(Item_transformer transformer, uchar *arg)
   A pointer to created wrapper item if successful, NULL - otherwise
 */
 
-Item* Item::set_expr_cache(THD *thd, List<Item *> &depends_on)
+Item* Item::set_expr_cache(THD *thd)
 {
   DBUG_ENTER("Item::set_expr_cache");
   Item_cache_wrapper *wrapper;
   if ((wrapper= new Item_cache_wrapper(this)) &&
       !wrapper->fix_fields(thd, (Item**)&wrapper))
   {
-    if (wrapper->set_cache(thd, depends_on))
+    if (wrapper->set_cache(thd))
       DBUG_RETURN(NULL);
     DBUG_RETURN(wrapper);
   }
@@ -739,6 +749,15 @@ bool Item_ident::remove_dependence_processor(uchar * arg)
     depended_from= 0;
   context= &((st_select_lex *) arg)->context;
   DBUG_RETURN(0);
+}
+
+
+bool Item_ident::collect_outer_ref_processor(uchar *param)
+{
+  Collect_deps_prm *prm= (Collect_deps_prm *)param;
+  if (depended_from && depended_from->nest_level < prm->nest_level)
+    prm->parameters->add_unique(this, &cmp_items);
+  return FALSE;
 }
 
 
@@ -4357,9 +4376,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
                             ((ref_type == REF_ITEM || ref_type == FIELD_ITEM) ?
                              (Item_ident*) (*reference) :
                              0));
-          context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
           /*
             A reference to a view field had been found and we
             substituted it instead of this Item (find_field_in_tables
@@ -4460,9 +4476,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     mark_as_dependent(thd, last_checked_context->select_lex,
                       context->select_lex, rf,
                       rf);
-    context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
 
     return 0;
   }
@@ -4471,9 +4484,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     mark_as_dependent(thd, last_checked_context->select_lex,
                       context->select_lex,
                       this, (Item_ident*)*reference);
-    context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
     if (last_checked_context->select_lex->having_fix_field)
     {
       Item_ref *rf;
@@ -6304,9 +6314,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
                                 refer_type == FIELD_ITEM) ?
                                (Item_ident*) (*reference) :
                                0));
-           context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
             /*
               view reference found, we substituted it instead of this
               Item, so can quit
@@ -6357,9 +6364,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
                           thd->lex->current_select, fld, fld);
-        context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
         /*
           A reference is resolved to a nest level that's outer or the same as
           the nest level of the enclosing set function : adjust the value of
@@ -6383,9 +6387,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       DBUG_ASSERT(*ref && (*ref)->fixed);
       mark_as_dependent(thd, last_checked_context->select_lex,
                         context->select_lex, this, this);
-      context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
       /*
         A reference is resolved to a nest level that's outer or the same as
         the nest level of the enclosing set function : adjust the value of
@@ -6400,12 +6401,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
   }
   else if (ref_type() != VIEW_REF)
   {
-    if (depended_from && reference)
-    {
-      DBUG_ASSERT(context->select_lex != get_depended_from());
-      context->select_lex->register_dependency_item(get_depended_from(),
-                                                    reference);
-    }
     /*
       It could be that we're referring to something that's in ancestor selects.
       We must make an appropriate mark_as_dependent() call for each such
@@ -6914,6 +6909,7 @@ Item_cache_wrapper::Item_cache_wrapper(Item *item_arg)
   unsigned_flag= orig_item->unsigned_flag;
   name= item_arg->name;
   name_length= item_arg->name_length;
+  with_subselect=  orig_item->with_subselect;
 
   if ((expr_value= Item_cache::get_cache(orig_item)))
     expr_value->setup(orig_item);
@@ -6922,11 +6918,28 @@ Item_cache_wrapper::Item_cache_wrapper(Item *item_arg)
 }
 
 
+/**
+  Initialize the cache if it is needed
+*/
+
+void Item_cache_wrapper::init_on_demand()
+{
+    if (!expr_cache->is_inited())
+    {
+      orig_item->get_cache_parameters(parameters);
+      expr_cache->init();
+    }
+}
+
+
 void Item_cache_wrapper::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   if (expr_cache)
+  {
+    init_on_demand();
     expr_cache->print(str, query_type);
+  }
   else
     str->append(STRING_WITH_LEN("<<DISABLED>>"));
   str->append('(');
@@ -6962,6 +6975,7 @@ void Item_cache_wrapper::cleanup()
   expr_cache= 0;
   /* expr_value is Item so it will be destroyed from list of Items */
   expr_value= 0;
+  parameters.empty();
   DBUG_VOID_RETURN;
 }
 
@@ -6982,11 +6996,11 @@ void Item_cache_wrapper::cleanup()
   @retval TRUE  Error
 */
 
-bool Item_cache_wrapper::set_cache(THD *thd, List<Item*> &depends_on)
+bool Item_cache_wrapper::set_cache(THD *thd)
 {
   DBUG_ENTER("Item_cache_wrapper::set_cache");
   DBUG_ASSERT(expr_cache == 0);
-  expr_cache= new Expression_cache_tmptable(thd, depends_on, expr_value);
+  expr_cache= new Expression_cache_tmptable(thd, parameters, expr_value);
   DBUG_RETURN(expr_cache == NULL);
 }
 
@@ -7011,6 +7025,7 @@ Item *Item_cache_wrapper::check_cache()
   {
     Expression_cache_tmptable::result res;
     Item *cached_value;
+    init_on_demand();
     res= expr_cache->check_value(&cached_value);
     if (res == Expression_cache_tmptable::HIT)
       DBUG_RETURN(cached_value);
