@@ -1634,6 +1634,68 @@ f1	f2	f3	f3
 4	0	0	0
 drop view v4;
 drop table t1, t2, t3, t4;
+#
+# BUG#803303: Wrong result with semijoin=on, outer join in maria-5.3-subqueries-mwl90
+#
+# Testcase#1:
+set @tmp803303= @@optimizer_switch;
+set optimizer_switch = 'semijoin=on,materialization=off,firstmatch=off,loosescan=off';
+CREATE TABLE t2 ( f1 int) ;
+INSERT IGNORE INTO t2 VALUES (6),(8);
+CREATE TABLE t1 ( f1 int, f2 int, f3 int) ;
+INSERT IGNORE INTO t1 VALUES (8,0,0),(7,0,0),(9,0,0);
+SELECT alias2.f1
+FROM t2 AS alias1
+LEFT JOIN ( t1 AS alias2 JOIN t1 AS alias3 ON alias3.f2 = alias2.f3 )
+ON alias3.f2 = alias2.f2
+WHERE alias2.f1 IN ( SELECT f1 FROM t2 AS alias4 ) ;
+f1
+8
+8
+8
+8
+8
+8
+drop table t1,t2;
+set optimizer_switch= @tmp803303;
+# Testcase #2:
+CREATE TABLE t1 ( f10 int) ;
+INSERT INTO t1 VALUES (0),(0);
+CREATE TABLE t2 ( f10 int, f11 varchar(1)) ;
+INSERT INTO t2 VALUES (0,'a'),(0,'b');
+CREATE TABLE t3 ( f10 int) ;
+INSERT INTO t3 VALUES (0),(0),(0),(0),(0);
+CREATE TABLE t4 ( f10 varchar(1), f11 int) ;
+INSERT INTO t4 VALUES ('a',0),('b',0);
+SELECT * FROM t1
+LEFT JOIN ( t2 JOIN t3 ON t3.f10 = t2.f10 ) ON t1.f10 = t2.f10
+WHERE t2.f10 IN (
+SELECT t4.f11
+FROM t4
+WHERE t4.f10 != t2.f11
+);
+f10	f10	f11	f10
+0	0	b	0
+0	0	b	0
+0	0	a	0
+0	0	a	0
+0	0	b	0
+0	0	b	0
+0	0	a	0
+0	0	a	0
+0	0	b	0
+0	0	b	0
+0	0	a	0
+0	0	a	0
+0	0	b	0
+0	0	b	0
+0	0	a	0
+0	0	a	0
+0	0	b	0
+0	0	b	0
+0	0	a	0
+0	0	a	0
+drop table t1,t2,t3,t4;
 set optimizer_switch=@subselect_sj_tmp;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
