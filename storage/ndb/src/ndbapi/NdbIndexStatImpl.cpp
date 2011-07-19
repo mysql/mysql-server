@@ -725,7 +725,7 @@ NdbIndexStatImpl::set_index(const NdbDictionary::Index& index,
       }
       NdbPack::Type type (
         icol->getType(),
-        icol->getArrayType() + icol->getSize() * icol->getLength(),
+        icol->getSizeInBytes(),
         icol->getNullable(),
         icol->getCharset() != 0 ? icol->getCharset()->number : 0
       );
