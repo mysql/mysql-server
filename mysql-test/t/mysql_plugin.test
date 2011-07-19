@@ -2,18 +2,34 @@
 # Test mysql_plugin tool
 #
 
-#
-# Test currently does not run on Windows because in Windows build trees,
-# mysqld.exe is not placed in the ./sql folder - it is placed either
-# in ./sql/Debug or ./sql/release. If this behaviour is changed, this test
-# can run on Windows.
-#
---source include/not_windows.inc
+--source include/not_embedded.inc
 
 # Add the datadir, basedir, plugin_dir to the bootstrap command
 let $MYSQLD_DATADIR= `select @@datadir`;
-let $MYSQLD_BASEDIR= `select @@basedir`;
-let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$DAEMONEXAMPLE_DIR;
+let $MYSQL_BASEDIR= `select @@basedir`;
+
+# The mysql_plugin tool expects all executables in "basedir", so they will be copied to it.
+# It also expects a directory structure like in the installed mysql version, so errmsg.sys
+# will be copied to "basedir/share". The directories differ between Windows and Unix.
+--disable_abort_on_error
+if(`SELECT CONVERT(@@version_compile_os USING latin1)
+    IN ('Win32','Win64','Windows')`)
+{
+   let $MYSQLD_BASEDIR= $MYSQL_BASEDIR/sql/Debug;
+   --copy_file $MYSQL_BASEDIR/extra/Debug/my_print_defaults.exe $MYSQLD_BASEDIR/my_print_defaults.exe
+   --mkdir $MYSQLD_BASEDIR/share
+   --copy_file $MYSQL_BASEDIR/sql/share/english/errmsg.sys $MYSQLD_BASEDIR/share/errmsg.sys
+   --copy_file $MYSQL_BASEDIR/plugin/daemon_example/daemon_example.ini $DAEMONEXAMPLE_DIR/daemon_example.ini
+}
+if (`SELECT CONVERT(@@version_compile_os USING latin1)
+    NOT IN ('Win32','Win64','Windows')`)
+{
+   let $MYSQLD_BASEDIR= $MYSQL_BASEDIR/sql;
+   --copy_file $MYSQL_BASEDIR/extra/my_print_defaults $MYSQLD_BASEDIR/my_print_defaults
+   --copy_file $MYSQL_BASEDIR/sql/share/english/errmsg.sys $MYSQLD_BASEDIR/share/errmsg.sys
+}
+
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR --plugin-dir=$DAEMONEXAMPLE_DIR;
 
 --echo #
 --echo # Ensure the plugin isn't loaded.
@@ -110,7 +126,7 @@ EOF
 --echo #
 --echo # Attempt to use non-existant plugin.ini file
 --echo #
---error 1,2,256
+--error 1,2,7,256
 --exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example --plugin-ini=/NOT/THERE/pi.ini 2>&1
 
 --echo # 
@@ -128,7 +144,7 @@ EOF
 --echo # 
 --echo # Attempt to use bad paths - datadir
 --echo #
-let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=/data_not_there/ --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$DAEMONEXAMPLE_DIR;
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=/data_not_there/ --basedir=$MYSQLD_BASEDIR --plugin-dir=$DAEMONEXAMPLE_DIR;
 --error 1,2,256
 --exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
 
@@ -142,21 +158,21 @@ let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=
 --echo # 
 --echo # Attempt to use bad paths - plugin_dir
 --echo #
-let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=/plugin_not_there/;
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR --plugin-dir=/plugin_not_there/;
 --error 1,2,256
 --exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
 
 --echo # 
 --echo # Missing library
 --echo #
-let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$DAEMONEXAMPLE_DIR --plugin-ini=$MYSQL_TEST_DIR/include/daemon_example_bad_soname.ini;
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR --plugin-dir=$DAEMONEXAMPLE_DIR --plugin-ini=$MYSQL_TEST_DIR/include/daemon_example_bad_soname.ini;
 --error 1,2,256
 --exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
 
 --echo # 
 --echo # Bad format for config file
 --echo #
-let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$DAEMONEXAMPLE_DIR --plugin-ini=$MYSQL_TEST_DIR/include/daemon_example_bad_format.ini;
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR --plugin-dir=$DAEMONEXAMPLE_DIR --plugin-ini=$MYSQL_TEST_DIR/include/daemon_example_bad_format.ini;
 --error 1,2,256
 --exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
 
@@ -170,14 +186,14 @@ let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --plugin-d
 --echo # 
 --echo # Missing data_dir option
 --echo #
-let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$DAEMONEXAMPLE_DIR;
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --basedir=$MYSQLD_BASEDIR --plugin-dir=$DAEMONEXAMPLE_DIR;
 --error 1,2,139,256
 --exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
 
 --echo # 
 --echo # Missing plugin_dir option
 --echo #
-let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql;
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR;
 --error 1,2,139,256
 --exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
 
@@ -185,8 +201,12 @@ let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=
 --echo # Show the help.
 --echo #
 replace_result $MYSQL_PLUGIN mysql_plugin;
---replace_regex /Distrib [0-9.]+/Distrib XX.XX.XX/
+--replace_regex /Ver [0-9.]+ Distrib [0-9.]+/Ver V.V.VV Distrib XX.XX.XX/
 --exec $MYSQL_PLUGIN --help
+
+replace_result $MYSQL_PLUGIN mysql_plugin;
+--replace_regex /Ver [0-9.]+ Distrib [0-9.]+/Ver V.V.VV Distrib XX.XX.XX/
+--exec $MYSQL_PLUGIN --version
 
 #
 # Restart the server
@@ -203,3 +223,18 @@ EOF
 --error 0,1
 --remove_file $expect_file
 
+if(`SELECT CONVERT(@@version_compile_os USING latin1)
+    IN ('Win32','Win64','Windows')`)
+{
+  --remove_file $DAEMONEXAMPLE_DIR/daemon_example.ini
+  --remove_file $MYSQLD_BASEDIR/my_print_defaults.exe
+  --remove_file $MYSQLD_BASEDIR/share/errmsg.sys
+  --rmdir $MYSQLD_BASEDIR/share
+}
+if(`SELECT CONVERT(@@version_compile_os USING latin1)
+    NOT IN ('Win32','Win64','Windows')`)
+{
+  --remove_file $MYSQLD_BASEDIR/my_print_defaults
+  --remove_file $MYSQLD_BASEDIR/share/errmsg.sys
+}
+--enable_abort_on_error
