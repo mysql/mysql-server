@@ -8332,6 +8332,7 @@ uint get_next_field_for_derived_key(uchar *arg)
     keyuse->keypart= keypart;
   if (keyuse->key != key)
     keyuse= 0;
+  *((KEYUSE **) arg)= keyuse;
   return fldno;
 }
 
