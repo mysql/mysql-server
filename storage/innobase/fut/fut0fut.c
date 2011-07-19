@@ -231,8 +231,10 @@ static const char* fts_common_tables[] = {
 const  fts_index_selector_t fts_index_selector[] = {
 	{ 9, "INDEX_1" },
 	{ 65, "INDEX_2" },
-	{ 79, "INDEX_3" },
-	{ 255, "INDEX_4" },
+	{ 70, "INDEX_3" },
+	{ 75, "INDEX_4" },
+	{ 80, "INDEX_5" },
+	{ 85, "INDEX_6" },
 	{  0 , NULL	 }
 };
 
@@ -282,6 +284,7 @@ void
 fts_update_max_cache_size(
 /*======================*/
 	fts_sync_t*	sync);		/*!< in: sync state */
+
 /****************************************************************//**
 Check whether a particular word (term) exists in the FTS index.
 @return DB_SUCCESS if all went fine */
@@ -1519,10 +1522,13 @@ fts_create_one_index_table(
 
 	error = row_create_table_for_mysql(new_table, trx);
 
-        if (error != DB_SUCCESS) {
-                trx->error_state = error;
-                new_table = NULL;
-        }
+	if (error != DB_SUCCESS) {
+		trx->error_state = error;
+		dict_mem_table_free(new_table);
+		new_table = NULL;
+		fprintf(stderr, "  InnoDB: Warning: Fail to create FTS "
+				"  index table %s \n", table_name);
+	}
 
 	return(new_table);
 }
@@ -1564,13 +1570,20 @@ fts_create_index_tables_low(
 	que_graph_free(graph);
 
 	for (i = 0; fts_index_selector[i].value && error == DB_SUCCESS; ++i) {
+		dict_table_t*	new_table;
 
 		/* Create the FTS auxiliary tables that are specific
 		to an FTS index. We need to preserve the table_id %s
 		which fts_parse_sql_no_dict_lock() will fill in for us. */
 		fts_table.suffix = fts_get_suffix(i);
 
-		fts_create_one_index_table(trx, index, &fts_table, heap);
+		new_table = fts_create_one_index_table(
+			trx, index, &fts_table, heap);
+
+		if(!new_table) {
+			error = DB_FAIL;
+			goto func_exit;
+		}
 
 		graph = fts_parse_sql_no_dict_lock(
 			&fts_table, NULL, fts_create_index_sql);
@@ -1579,6 +1592,7 @@ fts_create_index_tables_low(
 		que_graph_free(graph);
 	}
 
+func_exit:
 	if (error == DB_SUCCESS) {
 		error = fts_sql_commit(trx);
 	} else {
@@ -2552,20 +2566,22 @@ fts_delete(
 	if (error == DB_SUCCESS && n_rows_updated > 0) {
 #endif /* FTS_ADD_DEBUG*/
 
-	if (doc_id > cache->synced_doc_id) {
+	/* It is possible we update record that has not yet be sync-ed
+	into cache from last crash (delete Doc will not initialize the
+	sync). Do not do any added counter accounting until the FTS cache
+	is re-established and sync-ed */
+	if (table->fts->fts_status & ADDED_TABLE_SYNCED
+	    && doc_id > cache->synced_doc_id) {
 		fts_update_t*	update;
 
 		mutex_enter(&table->fts->cache->deleted_lock);
 
-		/* It is possible we update record that has
-		not yet be sync-ed from last crash. */
-		if (table->fts->fts_status & ADDED_TABLE_SYNCED) {
-			ut_a(table->fts->cache->added > 0);
-		}
+		ut_ad(table->fts->cache->added > 0);
 
-		/* The Doc ID could belong to those left in ADDED table from
-		last crash. So need to check if it is less than first_doc_id
-		when we initialize the Doc ID system after reboot */
+		/* The Doc ID could belong to those left in
+		ADDED table from last crash. So need to check
+		if it is less than first_doc_id when we initialize
+		the Doc ID system after reboot */
 		if (doc_id >= table->fts->cache->first_doc_id) {
 			--table->fts->cache->added;
 		}
@@ -6409,7 +6425,8 @@ fts_init_index(
 		fts_cache_add_doc(cache, get_doc->index_cache,
 				  start_doc, doc.tokens);
 
-		if (table->fts->cache->stopword_info.status & STOPWORD_NOT_INIT) {
+		if (table->fts->cache->stopword_info.status
+		    & STOPWORD_NOT_INIT) {
 			fts_load_stopword(table, NULL, NULL, TRUE, FALSE);
 		}
 

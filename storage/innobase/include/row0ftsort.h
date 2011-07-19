@@ -52,11 +52,9 @@ struct fts_doc_item {
 tokenization threads and sort threads. */
 typedef UT_LIST_BASE_NODE_T(fts_doc_item_t)     fts_doc_list_t;
 
-#define FTS_PARALLEL_DEGREE	2
 #define FTS_PLL_ENABLED		1
-#define FTS_NUM_AUX_INDEX	4
+#define FTS_NUM_AUX_INDEX	6
 #define FTS_PLL_MERGE		1
-
 
 /** Sort information passed to each individual parallel sort thread */
 typedef struct fts_psort_info_struct	fts_psort_info_t;
