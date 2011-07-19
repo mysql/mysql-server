@@ -1024,7 +1024,7 @@ srv_mon_get_rseg_size(void)
 	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		const trx_rseg_t*	rseg = trx_sys->rseg_array[i];
 
-		if (rseg) {
+		if (rseg != NULL) {
 			value += rseg->curr_size;
 		}
 	}

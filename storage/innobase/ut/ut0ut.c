@@ -24,6 +24,7 @@ Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
 
 #include "ut0ut.h"
+#include "ut0sort.h"
 
 #ifdef UNIV_NONINL
 #include "ut0ut.ic"
@@ -432,6 +433,21 @@ ut_print_buf(
 	}
 
 	putc(';', file);
+}
+
+/**********************************************************************//**
+Sort function for ulint arrays. */
+UNIV_INTERN
+void
+ut_ulint_sort(
+/*==========*/
+	ulint*	arr,		/*!< in/out: array to sort */
+	ulint*	aux_arr,	/*!< in/out: aux array to use in sort */
+	ulint	low,		/*!< in: lower bound */
+	ulint	high)		/*!< in: upper bound */
+{
+	UT_SORT_FUNCTION_BODY(ut_ulint_sort, arr, aux_arr, low, high,
+			      ut_ulint_cmp);
 }
 
 /*************************************************************//**
