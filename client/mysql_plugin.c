@@ -41,9 +41,9 @@ static char bootstrap[FN_REFLEN];
 /* plugin struct */
 struct st_plugin
 {
-  const char *name;        /* plugin name */
-  const char *so_name;     /* plugin so (library) name */
-  const char *symbols[16]; /* symbols to load */
+  const char *name;           /* plugin name */
+  const char *so_name;        /* plugin so (library) name */
+  const char *components[16]; /* components to load */
 } plugin_data;
 
 
@@ -492,123 +492,94 @@ static int search_paths(const char *base_path, const char *tool_name,
 
 
 /**
-  Read a plugin data element
-
-  This method takes as input a line from the plugin.ini file and splits it
-  into the st_plugin structure.
-
-  @retval int error = 1, success = 0
-*/
-
-static int read_plugin_data(char *line)
-{
-  const char delimiters[]= " ,";
-  char *token, *cp;
-  int i= 0;
-  int error= 0;
-
-  cp= my_strdup(line, MYF(MY_FAE));
-  token= strtok (cp, delimiters);
-  if (token != NULL)
-  {
-    /* read name */
-    plugin_data.name= my_strdup(token, MYF(MY_WME));
-    /* read so_name */
-    token = strtok(NULL, delimiters);
-    if (token == NULL)
-    {
-      return 1;
-    }
-    plugin_data.so_name= my_strdup(token, MYF(MY_WME));
-    if (plugin_data.so_name == NULL)
-    {
-      error= 1;
-      goto exit;
-    }
-    /* Add proper file extension for soname */
-    strcat((char *)plugin_data.so_name, FN_SOEXT);
-    /* read symbols */
-    while (token != NULL)
-    {
-      token= strtok (NULL, delimiters);
-      if ((token != NULL) && (token[0] != '\n'))
-      {
-        plugin_data.symbols[i]= my_strdup(token, MYF(MY_WME));
-        i++;
-      }
-      else
-      {
-        plugin_data.symbols[i]= NULL;
-      }
-    }
-  }
-  
-exit:
-  if (error)
-  {
-    fprintf(stderr, "ERROR: Format incorrect for plugin config file.\n");
-  }
-
-  return error;
-}
-
-
-/**
   Read the plugin ini file.
 
   This function attempts to read the plugin config file from the plugin_dir
-  path. If the file is not found, an error is generated.
+  path saving the data in the the st_plugin structure. If the file is not
+  found or the file cannot be read, an error is generated.
 
   @retval int error = 1, success = 0
 */
 
-static int load_plugin_data(char *plugin_name)
+static int load_plugin_data(char *plugin_name, char *config_file)
 {
   FILE *file_ptr;
   char path[FN_REFLEN];
   char line[1024];
-  int i= 0;
+  char *reason= 0;
+  char *res;
+  int i= -1;
 
   if (opt_plugin_ini == 0)
   {
-    fn_format(path, plugin_name, opt_plugin_dir, "", MYF(0));
+    fn_format(path, config_file, opt_plugin_dir, "", MYF(0));
     opt_plugin_ini= my_strdup(path, MYF(MY_FAE));
   }
   if (!file_exists(opt_plugin_ini))
   {
+    reason= "File does not exist.";
     goto error;
   }
 
   file_ptr= fopen(opt_plugin_ini, "r");
   if (file_ptr == NULL)
   {
+    reason= "Cannot open file.";
     goto error;
   }
-  i = 0;
-  while (1)
+
+  /* save name */
+  plugin_data.name= my_strdup(plugin_name, MYF(MY_WME));
+
+  /* Read plugin components */
+  while (i < 16)
   {
-    char *res;
     res= fgets(line, sizeof(line), file_ptr);
+    /* strip /n */
+    if (line[strlen(line)-1] == '\n')
+    {
+      line[strlen(line)-1]= '\0';
+    }
     if (res == NULL)
     {
       break;
     }
-    if (line[0] == '#') // skip comment lines
+    if ((line[0] == '#') || (line[0] == '\n')) // skip comment and blank lines
     {
       continue;
     }
-    if (read_plugin_data(line))
+    if (i == -1) // if first pass, read this line as so_name
     {
-      fclose(file_ptr);
-      goto error;
+      /* save so_name */
+      plugin_data.so_name= my_strdup(line, MYF(MY_WME));
+      if (plugin_data.so_name == NULL)
+      {
+        reason= "Cannot read library name.";
+        goto error;
+      }
+      /* Add proper file extension for soname */
+      strcat((char *)plugin_data.so_name, FN_SOEXT);
+      i++;
+    }
+    else
+    {
+      if (strlen(line) > 0)
+      {
+        plugin_data.components[i]= my_strdup(line, MYF(MY_WME));
+        i++;
+      }
+      else
+      {
+        plugin_data.components[i]= NULL;
+      }
     }
   }
   fclose(file_ptr);
   return 0;
 
 error:
-  fprintf(stderr, "ERROR: Cannot read plugin config file %s.\n",
-          plugin_name);
+  fprintf(stderr, "ERROR: Cannot read plugin config file %s. %s\n",
+          plugin_name, reason);
   return 1;
 }
 
@@ -706,7 +677,7 @@ static int check_options(int argc, char **argv, char *operation)
   /* If a plugin was specified, read the config file. */
   else if (strlen(plugin_name) > 0) 
   {
-    if (load_plugin_data(config_file))
+    if (load_plugin_data(plugin_name, config_file))
     {
       return 1;
     }
@@ -954,10 +925,10 @@ static int build_bootstrap_file(char *operation, char *bootstrap)
   {
     int i= 0;
     fprintf(file, "INSERT IGNORE INTO mysql.plugin VALUES ");
-    for (i= 0; i < (int)array_elements(plugin_data.symbols); i++)
+    for (i= 0; i < (int)array_elements(plugin_data.components); i++)
     {
       /* stop when we read the end of the symbol list - marked with NULL */
-      if (plugin_data.symbols[i] == NULL)
+      if (plugin_data.components[i] == NULL)
       {
         break;
       }
@@ -966,7 +937,7 @@ static int build_bootstrap_file(char *operation, char *bootstrap)
         fprintf(file, ", ");
       }
       fprintf(file, "('%s','%s')",
-              plugin_data.symbols[i], plugin_data.so_name);
+              plugin_data.components[i], plugin_data.so_name);
     }
     fprintf(file, ";\n");
     if (opt_verbose)
