@@ -1387,8 +1387,6 @@ trx_undo_lists_init(
 /*================*/
 	trx_rseg_t*	rseg)	/*!< in: rollback segment memory object */
 {
-	ulint		page_no;
-	trx_undo_t*	undo;
 	ulint		size	= 0;
 	trx_rsegf_t*	rseg_header;
 	ulint		i;
@@ -1401,10 +1399,12 @@ trx_undo_lists_init(
 
 	mtr_start(&mtr);
 
-	rseg_header = trx_rsegf_get_new(rseg->space, rseg->zip_size,
-					rseg->page_no, &mtr);
+	rseg_header = trx_rsegf_get_new(
+		rseg->space, rseg->zip_size, rseg->page_no, &mtr);
 
 	for (i = 0; i < TRX_RSEG_N_SLOTS; i++) {
+		ulint	page_no;
+
 		page_no = trx_rsegf_get_nth_undo(rseg_header, i, &mtr);
 
 		/* In forced recovery: try to avoid operations which look
@@ -1415,8 +1415,11 @@ trx_undo_lists_init(
 		if (page_no != FIL_NULL
 		    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
 
-			undo = trx_undo_mem_create_at_db_start(rseg, i,
-							       page_no, &mtr);
+			trx_undo_t*	undo;
+
+			undo = trx_undo_mem_create_at_db_start(
+				rseg, i, page_no, &mtr);
+
 			size += undo->size;
 
 			mtr_commit(&mtr);
