@@ -1,0 +1,205 @@
+#
+# Test mysql_plugin tool
+#
+
+#
+# Test currently does not run on Windows because in Windows build trees,
+# mysqld.exe is not placed in the ./sql folder - it is placed either
+# in ./sql/Debug or ./sql/release. If this behaviour is changed, this test
+# can run on Windows.
+#
+--source include/not_windows.inc
+
+# Add the datadir, basedir, plugin_dir to the bootstrap command
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $MYSQLD_BASEDIR= `select @@basedir`;
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$DAEMONEXAMPLE_DIR;
+
+--echo #
+--echo # Ensure the plugin isn't loaded.
+--echo #
+SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+
+--echo #
+--echo # Enable the plugin...
+--echo #
+let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+# MTR will remove this file later, but this might be too late.
+--error 0,1
+--remove_file $expect_file
+--write_file $expect_file
+wait
+EOF
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+#
+# Enable the plugin
+#
+--exec $MYSQLD_BOOTSTRAP_CMD ENABLE daemon_example
+
+#
+# Ensure enabling an enabled plugin doesn't fail
+--exec $MYSQLD_BOOTSTRAP_CMD ENABLE daemon_example
+
+#
+# Restart the server
+#
+--append_file $expect_file
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # Ensure the plugin is now loaded.
+--echo #
+--replace_regex /\.dll/.so/
+SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+
+--echo #
+--echo # Disable the plugin...
+--echo #
+# MTR will remove this file later, but this might be too late.
+--error 0,1
+--remove_file $expect_file
+--write_file $expect_file
+wait
+EOF
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+#
+# Disable the plugin
+#
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example
+
+#
+# Restart the server
+#
+--append_file $expect_file
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # Ensure the plugin isn't loaded.
+--echo #
+SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+
+#
+# Stop the server for error conditions
+#
+let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+# MTR will remove this file later, but this might be too late.
+--error 0,1
+--remove_file $expect_file
+--write_file $expect_file
+wait
+EOF
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+--echo #
+--echo # Attempt to load non-existant plugin
+--echo #
+--error 1,2,256
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE NOT_THERE_AT_ALL 2>&1
+
+--echo #
+--echo # Attempt to use non-existant plugin.ini file
+--echo #
+--error 1,2,256
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example --plugin-ini=/NOT/THERE/pi.ini 2>&1
+
+--echo # 
+--echo # Attempt to omit the plugin
+--echo #
+--error 1,2,256
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE 2>&1
+
+--echo # 
+--echo # Attempt to omit DISABLE|ENABLE
+--echo #
+--error 1,2,256
+--exec $MYSQLD_BOOTSTRAP_CMD daemon_example 2>&1
+
+--echo # 
+--echo # Attempt to use bad paths - datadir
+--echo #
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=/data_not_there/ --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$DAEMONEXAMPLE_DIR;
+--error 1,2,256
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
+
+--echo # 
+--echo # Attempt to use bad paths - basedir
+--echo #
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=/basedir_not_there/ --plugin-dir=$DAEMONEXAMPLE_DIR;
+--error 1,2,256
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
+
+--echo # 
+--echo # Attempt to use bad paths - plugin_dir
+--echo #
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=/plugin_not_there/;
+--error 1,2,256
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
+
+--echo # 
+--echo # Missing library
+--echo #
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$MYSQL_TEST_DIR/include/;
+--error 1,2,256
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
+
+--echo # 
+--echo # Bad format for config file
+--echo #
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$DAEMONEXAMPLE_DIR --plugin-ini=$MYSQL_TEST_DIR/include/daemon_example_bad_format.ini;
+--error 1,2,256
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
+
+--echo # 
+--echo # Missing base_dir option
+--echo #
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --plugin-dir=$DAEMONEXAMPLE_DIR;
+--error 1,2,139,256
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
+
+--echo # 
+--echo # Missing data_dir option
+--echo #
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --basedir=$MYSQLD_BASEDIR/sql --plugin-dir=$DAEMONEXAMPLE_DIR;
+--error 1,2,139,256
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
+
+--echo # 
+--echo # Missing plugin_dir option
+--echo #
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR/sql;
+--error 1,2,139,256
+--exec $MYSQLD_BOOTSTRAP_CMD DISABLE daemon_example 2>&1
+
+--echo #
+--echo # Show the help.
+--echo #
+replace_result $MYSQL_PLUGIN mysql_plugin;
+--replace_regex /Distrib [0-9.]+/Distrib XX.XX.XX/
+--exec $MYSQL_PLUGIN --help
+
+#
+# Restart the server
+#
+--append_file $expect_file
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+#
+# Cleanup
+# MTR will remove this file later, but this might be too late.
+--error 0,1
+--remove_file $expect_file
+
