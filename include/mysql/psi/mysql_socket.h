@@ -880,16 +880,20 @@ inline_mysql_socket_accept
     PSI_CALL(start_socket_wait)(locker, (size_t)0, src_file, src_line);
     socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
     PSI_CALL(end_socket_wait)(locker, (size_t)0);
-
-    /** Initialize the instrument with the new socket descriptor and address */
-    socket_accept.m_psi=
-	           PSI_CALL(init_socket)(key, (const my_socket*)&socket_accept.fd);
-
-    if (likely(socket_accept.fd != INVALID_SOCKET) && socket_accept.m_psi != NULL)
-      PSI_CALL(set_socket_info)(socket_accept.m_psi, &socket_accept.fd,
-                                addr, addr_length);
-    return socket_accept;
   }
+  else
+  {
+    socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
+  }
+
+  /** Initialize the instrument with the new socket descriptor and address */
+  socket_accept.m_psi=
+            PSI_CALL(init_socket)(key, (const my_socket*)&socket_accept.fd);
+
+  if (likely(socket_accept.fd != INVALID_SOCKET && socket_accept.m_psi != NULL))
+    PSI_CALL(set_socket_info)(socket_accept.m_psi, &socket_accept.fd, addr,
+                              addr_length);
+  return socket_accept;
 #endif
   socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
   return socket_accept;
