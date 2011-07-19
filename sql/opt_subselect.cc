@@ -1317,6 +1317,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   {
     emb_tbl_nest->on_expr= and_items(emb_tbl_nest->on_expr, 
                                      sj_nest->sj_on_expr);
+    emb_tbl_nest->on_expr->top_level_item();
     if (!emb_tbl_nest->on_expr->fixed)
       emb_tbl_nest->on_expr->fix_fields(parent_join->thd,
                                         &emb_tbl_nest->on_expr);
@@ -1325,6 +1326,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   {
     /* Inject into the WHERE */
     parent_join->conds= and_items(parent_join->conds, sj_nest->sj_on_expr);
+    parent_join->conds->top_level_item();
     /*
       fix_fields must update the properties (e.g. st_select_lex::cond_count of
       the correct select_lex.

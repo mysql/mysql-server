@@ -10,7 +10,7 @@ show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	6
 drop table if exists t0, t1, t2, t3, t4, t10, t11, t12;
-drop view if exists v1, v2;
+drop view if exists v1, v2, v3, v4;
 drop procedure if exists p1;
 set @subselect_sj_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
@@ -714,22 +714,22 @@ WHERE int_nokey IN (SELECT it2.int_key
 FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 int_key
 0
-2
-0
-7
-9
-9
 5
+9
+9
+7
 2
-0
-0
-0
-3
-7
-7
 8
 0
+2
+0
+0
+0
+0
 5
+7
+7
+3
 EXPLAIN
 SELECT int_key FROM ot1
 WHERE int_nokey IN (SELECT it2.int_key
@@ -737,7 +737,7 @@ FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	it1	index	NULL	int_key	4	NULL	2	Using index; Start temporary
 1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (flat, BNL join)
-1	PRIMARY	it2	ALL	NULL	NULL	NULL	NULL	20	Using where; End temporary; Using join buffer (incremental, BNL join)
+1	PRIMARY	it2	ref	int_key	int_key	4	test.ot1.int_nokey	3	Using where; End temporary; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 DROP TABLE ot1, it1, it2;
 # End of BUG#38075
 #
@@ -1604,6 +1604,36 @@ ON (t1.f3) IN ( SELECT f4 FROM t1 )
 EXECUTE st1;
 f1	f3	f4	f2	f4
 DROP TABLE t1,t2,t3;
+#
+# BUG#803457: Wrong result with semijoin + view + outer join in maria-5.3-subqueries-mwl90
+#   (Original testcase)
+#
+CREATE TABLE t1 (f1 int, f2 int );
+INSERT INTO t1 VALUES (2,0),(4,0),(0,NULL);
+CREATE TABLE t2 (f2 int, f3 int );
+INSERT INTO t2 VALUES (NULL,NULL),(0,0);
+CREATE TABLE t3 ( f1 int, f3 int );
+INSERT INTO t3 VALUES (2,0),(4,0),(0,NULL),(4,0),(8,0);
+CREATE TABLE t4 ( f2 int, KEY (f2) );
+INSERT INTO t4 VALUES (0),(NULL);
+CREATE VIEW v4 AS SELECT DISTINCT f2 FROM t4 ;
+# The following must not have outer joins:
+explain extended
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3) WHERE t2.f3 IN (SELECT * FROM t4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	t4	ref	f2	f2	5	test.t2.f3	2	100.00	Using index; FirstMatch(t2)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (incremental, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3`,`test`.`t3`.`f3` AS `f3` from `test`.`t1` semi join (`test`.`t4`) join `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`f2` = `test`.`t2`.`f2`) and (`test`.`t3`.`f1` = `test`.`t1`.`f1`) and (`test`.`t4`.`f2` = `test`.`t2`.`f3`))
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3) WHERE t2.f3 IN (SELECT * FROM t4);
+f1	f2	f3	f3
+2	0	0	0
+4	0	0	0
+4	0	0	0
+drop view v4;
+drop table t1, t2, t3, t4;
 set optimizer_switch=@subselect_sj_tmp;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
