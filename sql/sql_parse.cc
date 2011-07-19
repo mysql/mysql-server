@@ -375,11 +375,12 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE |
                                             CF_CAN_BE_EXPLAINED |
                                             CF_CAN_GENERATE_ROW_EVENTS |
-                                            CF_BINLOGGABLE;
-  sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE | CF_AUTO_COMMIT_TRANS;
+                                            CF_BINLOGGABLE_WITH_SF;
+  sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE | CF_AUTO_COMMIT_TRANS |
+                                            CF_BINLOGGABLE_WITH_SF;
   sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS |
-                                            CF_BINLOGGABLE;
+                                            CF_BINLOGGABLE_WITH_SF;
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
@@ -441,6 +442,8 @@ void init_update_queries(void)
                                                CF_BINLOGGABLE;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA |
                                                CF_BINLOGGABLE;
+  sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA |
+                                               CF_BINLOGGABLE;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA |
                                                CF_BINLOGGABLE;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA |
@@ -467,8 +470,10 @@ void init_update_queries(void)
     See mysql_execute_command() for how CF_ROW_COUNT is used.
   */
   sql_command_flags[SQLCOM_CALL]=      CF_REEXECUTION_FRAGILE |
-                                       CF_CAN_GENERATE_ROW_EVENTS;
-  sql_command_flags[SQLCOM_EXECUTE]=   CF_CAN_GENERATE_ROW_EVENTS;
+                                       CF_CAN_GENERATE_ROW_EVENTS |
+                                       CF_BINLOGGABLE;
+  sql_command_flags[SQLCOM_EXECUTE]=   CF_CAN_GENERATE_ROW_EVENTS |
+                                       CF_BINLOGGABLE;
 
   /*
     The following admin table operations are allowed
@@ -486,7 +491,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=       CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_REVOKE_ALL]=         CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REVOKE_ALL]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_GRANT]|=             CF_AUTO_COMMIT_TRANS;
 
@@ -2219,6 +2224,23 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   } /* endif unlikely slave */
 #endif
+
+  /*
+    If this is a loggable statement
+  */
+  if (opt_bin_log && lex->is_binloggable())
+  {
+    // Initialize the cache manager if this was not done yet.
+    thd->binlog_setup_trx_data();
+    if (ugid_before_statement(thd, &mysql_bin_log.sid_lock,
+                              &mysql_bin_log.group_log_state,
+                              thd->get_group_cache(false),
+                              thd->get_group_cache(true)))
+    {
+      // error has already been printed; don't print anything more here
+      DBUG_RETURN(-1);
+    }
+  }
 
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 

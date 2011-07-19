@@ -1780,11 +1780,11 @@ public:
     String str(buf, sizeof(buf), &my_charset_latin1);
     String *res= var->value->val_str(&str);
     if (!res)
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     var->save_result.string_value.str= thd->strmake(res->ptr(), res->length());
     var->save_result.string_value.length= res->length();
-    bool ret=
-      Ugid_specification::is_valid(res->ptr()) != Ugid_specification::INVALID;
+    bool ret= Ugid_specification::is_valid(res->ptr()) ? false : true;
+    DBUG_PRINT("info", ("ret=%d", ret));
     DBUG_RETURN(ret);
   }
   bool check_update_type(Item_result type)

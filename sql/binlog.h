@@ -183,8 +183,11 @@ public:
 
     This can't be done in the constructor because the constructor is
     invoked at server startup before server_uuid is initialized.
+    
+    @retval 0 Success
+    @retval 1 Error (out of memory or IO error).
   */
-  void init_sid_map();
+  int init_sid_map();
 #endif
 
   int open(const char *opt_name);

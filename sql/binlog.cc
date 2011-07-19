@@ -27,7 +27,7 @@
 #define MY_OFF_T_UNDEF (~(my_off_t)0UL)
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
-handlerton *binlog_hton;
+static handlerton *binlog_hton;
 
 const char *log_bin_index= 0;
 const char *log_bin_basename= 0;
@@ -161,6 +161,13 @@ public:
   */
   IO_CACHE cache_log;
 
+#ifdef HAVE_UGID
+  /**
+    The group cache for this cache.
+  */
+  Group_cache group_cache;
+#endif
+
 protected:
   /*
     It truncates the cache to a certain position. This includes deleting the
@@ -183,13 +190,6 @@ protected:
     transactional or non-transactional cache.
   */
   bool trx_cache;
-
-#ifdef HAVE_UGID
-  /**
-    The group cache for this cache.
-  */
-  Group_cache group_cache;
-#endif
 
 private:
   /*
@@ -509,6 +509,7 @@ static int binlog_init(void *p)
 
 static int binlog_close_connection(handlerton *hton, THD *thd)
 {
+  DBUG_ENTER("binlog_close_connection");
   binlog_cache_mngr *const cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
   DBUG_ASSERT(cache_mngr->trx_cache.is_binlog_empty() &&
@@ -516,7 +517,7 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
   thd_set_ha_data(thd, binlog_hton, NULL);
   cache_mngr->~binlog_cache_mngr();
   my_free(cache_mngr);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /**
@@ -1614,8 +1615,10 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
 
 
 #ifdef HAVE_UGID
-void MYSQL_BIN_LOG::init_sid_map()
+int MYSQL_BIN_LOG::init_sid_map()
 {
+  DBUG_ENTER("MYSQL_BIN_LOG::init_sid_map()");
+  int ret= 0;
   sid_lock.rdlock();
   rpl_sid server_uuid_sid;
 #ifndef NO_DBUG
@@ -1623,8 +1626,19 @@ void MYSQL_BIN_LOG::init_sid_map()
 #else
   server_uuid_sid.parse(server_uuid);
 #endif
-  sid_map.add_permanent(&server_uuid_sid);
+  rpl_sidno sidno= sid_map.add_permanent(&server_uuid_sid);
+  if (sidno < 1)
+  {
+    if (sidno == GS_ERROR_OUT_OF_MEMORY)
+      sql_print_error("Out of memory when adding @@server_id to the binary log's SID-map.");
+    else if (sidno == GS_ERROR_IO)
+      sql_print_error("IO error when adding @@server_id to the binary log's SID-map.");
+    else
+      DBUG_ASSERT(0);
+    ret= 1;
+  }
   sid_lock.unlock();
+  DBUG_RETURN(ret);
 }
 #endif
 
@@ -4735,6 +4749,20 @@ err1:
 }
 
 
+Group_cache *THD::get_group_cache(bool is_transactional)
+{
+  DBUG_ENTER("THD::get_group_cache(bool)");
+  binlog_cache_mngr *cache_mngr=
+    (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
+  DBUG_PRINT("info", ("cache_mngr=%p", cache_mngr));
+  binlog_cache_data *cache_data=
+    cache_mngr->get_binlog_cache_data(is_transactional);
+  DBUG_PRINT("info", ("cache_data=%p", cache_data));
+
+  DBUG_RETURN(&cache_data->group_cache);
+}
+
+
 /*
   These functions are placed in this file since they need access to
   binlog_hton, which has internal linkage.
@@ -4806,8 +4834,7 @@ inline void binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
   /*
     Initialize the cache manager if this was not done yet.
   */ 
-  if (thd_get_ha_data(thd, binlog_hton) == NULL)
-    thd->binlog_setup_trx_data();
+  thd->binlog_setup_trx_data();
 
   /*
     If the event is requesting immediatly logging, there is no need to go
@@ -4863,7 +4890,7 @@ inline void binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
     Here, a transaction is either a BEGIN..COMMIT/ROLLBACK block or a single
     statement in autocommit mode.
   */
-  if (cache->empty())
+  if (cache->is_binlog_empty())
   {
     IO_CACHE *file=
       cache_mngr->get_binlog_cache_log(is_transactional);

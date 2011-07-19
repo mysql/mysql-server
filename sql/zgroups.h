@@ -34,6 +34,9 @@
 #include "my_atomic.h"
 
 
+class MYSQL_BIN_LOG;
+
+
 typedef int64 rpl_gno;
 typedef int32 rpl_sidno;
 typedef int64 rpl_binlog_no;
@@ -327,7 +330,7 @@ public:
     @param flush Flush changes to disk.
     @retval SIDNO The SIDNO for the SID (a new SIDNO if the SID did
     not exist, an existing if it did exist).
-    @retval 0 if there is an error (out of memory or IO).
+    @retval GS_ERROR_IO or GS_ERROR_OUT_OF_MEMORY if there is an error.
 
     @note The SID is stored on disk forever.  This is needed if the
     SID is written to the binary log.  If the SID will not be written
@@ -1539,7 +1542,9 @@ struct Ugid_specification
   /**
     Returns the type of the group, if the given string is a valid Ugid_specification; INVALID otherwise.
   */
-  static enum_type is_valid(const char *text);
+  static enum_type get_type(const char *text);
+  /// Returns true if the given string is a valid Ugid_specification.
+  static bool is_valid(const char *text) { return get_type(text) != INVALID; }
 };
 
 
@@ -1754,9 +1759,9 @@ int ugid_before_statement(THD *thd, Checkable_rwlock *lock,
 int ugid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
                                 Group_log_state *gls, Group_cache *gc);
 int ugid_after_flush_trx_cache(THD *thd, Group_cache *gc);
-void ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
-                            Group_log_state *gls, Group_cache *gc,
-                            Group_cache *trx_cache);
+int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
+                           Group_log_state *gls, Group_cache *gc,
+                           Group_cache *trx_cache);
 
 
 #endif /* HAVE_UGID */

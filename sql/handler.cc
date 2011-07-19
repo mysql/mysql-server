@@ -512,6 +512,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     the switch below and hton->state should be removed when
     command-line options for plugins will be implemented
   */
+  DBUG_PRINT("info", ("hton->state=%d", hton->state));
   switch (hton->state) {
   case SHOW_OPTION_NO:
     break;

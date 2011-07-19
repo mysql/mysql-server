@@ -62,7 +62,7 @@ int Ugid_specification::to_string(char *buf) const
 }
 
 
-Ugid_specification::enum_type Ugid_specification::is_valid(const char *text)
+Ugid_specification::enum_type Ugid_specification::get_type(const char *text)
 {
   DBUG_ENTER("Ugid_specification::is_valid");
   DBUG_ASSERT(text != NULL);

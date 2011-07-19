@@ -5,6 +5,7 @@
 --echo ==== Error values for ugid_next ====
 
 SELECT @@SESSION.UGID_NEXT;
+SELECT @@SESSION.UGID_NEXT_LIST;
 
 SET @@SESSION.UGID_NEXT= "ANONYMOUS";
 SELECT @@SESSION.UGID_NEXT;
@@ -106,13 +107,13 @@ while ($id <= 4)
 
   # can't set value from stored function
   --eval CREATE FUNCTION f () RETURNS INT BEGIN SET @@SESSION.$var = $val; RETURN 1; END
-  --error 1734 # ER_VARIABLE_NOT_SETTABLE_IN_SUB_STATEMENT
+  --error 1739 # ER_VARIABLE_NOT_SETTABLE_IN_SUB_STATEMENT
   SELECT f();
   DROP FUNCTION f;
 
   # can't set value from trigger
   --eval CREATE TRIGGER t BEFORE INSERT ON variables FOR EACH ROW SET @@SESSION.$var = $val
-  --error 1734 # ER_VARIABLE_NOT_SETTABLE_IN_SUB_STATEMENT
+  --error 1739 # ER_VARIABLE_NOT_SETTABLE_IN_SUB_STATEMENT
   INSERT INTO variables(var) VALUES ('a');
   DROP TRIGGER t;
 
@@ -122,7 +123,7 @@ while ($id <= 4)
   DROP PROCEDURE p;
 
   # can't set value when invoking SF
-  --error 1739 # ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
+  --error 1744 # ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
   --eval SET @@SESSION.$var = return_ugid()
 
   # must be SUPER
@@ -136,7 +137,7 @@ while ($id <= 4)
     # ugid_next and ugid_next list are not settable outside a
     # master-super-group, inside a transaction
     BEGIN;
-    --error 1735 # ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+    --error 1740 # ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
     --eval SET @@SESSION.$var = $val
     COMMIT;
   }
@@ -149,7 +150,7 @@ while ($id <= 4)
 # Cannot start master-super-group when ugid_next and ugid_next_list
 # are incompatible.
 eval SET @@SESSION.UGID_NEXT_LIST = "$uuid:1", @@SESSION.UGID_NEXT = "$uuid:2";
---error
+--error 1
 BEGIN;
 
 # In a master-super-group where ugid_next_list != NULL, ugid_next can

@@ -4008,21 +4008,24 @@ static int init_server_auto_options()
   if (handle_options(&argc, &argv, auto_options, mysqld_get_one_option))
     DBUG_RETURN(1);
 
+  DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid)
   {
-    if (strlen(uuid) != UUID_LENGTH)
+    if (!Uuid::is_valid(uuid))
     {
-      sql_print_error("The UUID stored in auto.cnf file is the wrong length.");
+      sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
       goto err;
     }
     strcpy(server_uuid, uuid);
   }
   else
   {
+    DBUG_PRINT("info", ("generating server_uuid"));
     flush= TRUE;
     /* server_uuid will be set in the function */
     if (generate_server_uuid())
       goto err;
+    DBUG_PRINT("info", ("generated server_uuid=%s", server_uuid));
     sql_print_warning("No existing UUID has been found, so we assume that this"
                       " is the first time that this server has been started."
                       " Generating a new UUID: %s.",
@@ -4843,20 +4846,26 @@ int mysqld_main(int argc, char **argv)
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
    */
-  if (!opt_bootstrap && init_server_auto_options())
+  if (!opt_bootstrap)
   {
-    sql_print_error("Initialzation of the server's UUID failed because it could"
-                    " not be read from the auto.cnf file. If this is a new"
-                    " server, the initialization failed because it was not"
-                    " possible to generate a new UUID.");
-    unireg_abort(1);
+    if (init_server_auto_options())
+    {
+      sql_print_error("Initialzation of the server's UUID failed because it could"
+                      " not be read from the auto.cnf file. If this is a new"
+                      " server, the initialization failed because it was not"
+                      " possible to generate a new UUID.");
+      unireg_abort(1);
+    }
+
+    /*
+      Add server_uuid to the sid_map.  This must be done after
+      server_uuid has been initialized in init_server_auto_options.
+
+      No error message is needed: init_sid_map() prints a message.
+    */
+    if (mysql_bin_log.init_sid_map())
+      unireg_abort(1);
   }
-
-
-  /*
-    Add server_uuid to the sid_map.  This must be done after server_uuid has been initialized in init_server_auto_options.
-  */
-  mysql_bin_log.init_sid_map();
 
   init_ssl();
   network_init();

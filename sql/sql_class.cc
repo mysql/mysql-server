@@ -537,6 +537,13 @@ void thd_exit_cond(MYSQL_THD thd, const char *old_msg)
 extern "C"
 void **thd_ha_data(const THD *thd, const struct handlerton *hton)
 {
+  DBUG_PRINT("info", ("thd=%p", thd));
+  DBUG_PRINT("info", ("thd->ha_data=%p", thd->ha_data));
+  DBUG_PRINT("info", ("hton=%p", hton));
+  DBUG_PRINT("info", ("hton->slot=%d", hton->slot));
+  DBUG_PRINT("info", ("&thd->ha_data[hton->slot]=%p", &thd->ha_data[hton->slot]));
+  DBUG_PRINT("info", ("thd->ha_data[hton->slot].ha_ptr=%p", thd->ha_data[hton->slot].ha_ptr));
+  DBUG_PRINT("info", ("&thd->ha_data[hton->slot].ha_ptr=%p", &thd->ha_data[hton->slot].ha_ptr));
   return (void **) &thd->ha_data[hton->slot].ha_ptr;
 }
 
