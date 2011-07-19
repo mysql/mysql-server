@@ -1448,6 +1448,8 @@ fts_query_match_phrase_terms(
 			if (distance != ULINT_UNDEFINED && distance > 0) {
 				--distance;
 			}
+		} else {
+			ptr += ret;
 		}
 	}
 
