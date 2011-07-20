@@ -42,7 +42,7 @@
 #include "sql_derived.h" // mysql_derived_prepare,
                          // mysql_handle_derived,
                          // mysql_derived_filling
-
+#include "opt_trace.h"   // Opt_trace_object
 
 /**
    True if the table's input and output record buffers are comparable using
@@ -308,7 +308,7 @@ int mysql_update(THD *thd,
     mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
     DBUG_RETURN(1);
   }
-  if (!thd->lex->describe)
+  if (!preserve_items_for_printing(thd))
     mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
 
   THD_STAGE_INFO(thd, stage_init);
@@ -415,31 +415,36 @@ int mysql_update(THD *thd,
 
   table->mark_columns_needed_for_update();
   select= make_select(table, 0, 0, conds, 0, &error);
-  if (error || !limit ||
-      (select && select->check_quick(thd, safe_update, limit)))
-  {
-    if (thd->lex->describe && !error && !thd->is_error())
+
+  { // Enter scope for optimizer trace wrapper
+    Opt_trace_object wrapper(&thd->opt_trace);
+    wrapper.add_utf8_table(table);
+
+    if (error || !limit ||
+        (select && select->check_quick(thd, safe_update, limit)))
     {
-      error= explain_no_table(thd, "Impossible WHERE");
-      goto exit_without_my_ok;
+      if (thd->lex->describe && !error && !thd->is_error())
+      {
+        error= explain_no_table(thd, "Impossible WHERE");
+        goto exit_without_my_ok;
+      }
+      delete select;
+      free_underlaid_joins(thd, select_lex);
+      /*
+        There was an error or the error was already sent by
+        the quick select evaluation.
+        TODO: Add error code output parameter to Item::val_xxx() methods.
+        Currently they rely on the user checking DA for
+        errors when unwinding the stack after calling Item::val_xxx().
+      */
+      if (error || thd->is_error())
+      {
+        DBUG_RETURN(1);				// Error in where
+      }
+      my_ok(thd);				// No matching records
+      DBUG_RETURN(0);
     }
-    
-    delete select;
-    free_underlaid_joins(thd, select_lex);
-    /*
-      There was an error or the error was already sent by
-      the quick select evaluation.
-      TODO: Add error code output parameter to Item::val_xxx() methods.
-      Currently they rely on the user checking DA for
-      errors when unwinding the stack after calling Item::val_xxx().
-    */
-    if (error || thd->is_error())
-    {
-      DBUG_RETURN(1);				// Error in where
-    }
-    my_ok(thd);				// No matching records
-    DBUG_RETURN(0);
-  }
+  } // Ends scope for optimizer trace wrapper
 
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
@@ -1339,7 +1344,7 @@ int mysql_multi_update_prepare(THD *thd)
     mysql_handle_derived(lex, &mysql_derived_cleanup);
     DBUG_RETURN(TRUE);
   }
-  if (!thd->lex->describe)
+  if (!preserve_items_for_printing(thd))
     mysql_handle_derived(lex, &mysql_derived_cleanup);
 
   DBUG_RETURN (FALSE);
