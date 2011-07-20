@@ -5137,6 +5137,32 @@ SELECT
 FROM t3 WHERE 1 = 0 GROUP BY 1;
 (SELECT 1 FROM t1,t2 WHERE t2.b > t3.b)
 DROP TABLE t1,t2,t3;
+#
+# Bug#12329653 
+# EXPLAIN, UNION, PREPARED STATEMENT, CRASH, SQL_FULL_GROUP_BY
+#
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
+1
+1
+1
+PREPARE stmt FROM 
+'SELECT 1 UNION ALL 
+SELECT 1 FROM t1
+ORDER BY
+(SELECT 1 FROM t1 AS t1_0  
+  WHERE 1 < SOME (SELECT a1 FROM t1)
+)' ;
+EXECUTE stmt ;
+ERROR 21000: Subquery returns more than 1 row
+EXECUTE stmt ;
+ERROR 21000: Subquery returns more than 1 row
+SET SESSION sql_mode=@old_sql_mode;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 End of 5.0 tests.
 create table t_out (subcase char(3),
 a1 char(2), b1 char(2), c1 char(2));
