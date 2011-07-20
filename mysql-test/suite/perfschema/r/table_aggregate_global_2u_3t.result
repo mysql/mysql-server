@@ -88,8 +88,15 @@ Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
 "================== Step 1 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -135,10 +142,16 @@ TABLE	test	t2	0
 TABLE	test	t3	0
 "================== con1 connected =================="
 "================== Step 2 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/table/sql/handler	0
+user1	wait/lock/table/sql/handler	0
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -219,10 +232,16 @@ a	b	c	d
 105	5	5	1
 "================== con1 marker =================="
 "================== Step 3 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/table/sql/handler	0
+user1	wait/lock/table/sql/handler	0
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -272,12 +291,17 @@ TABLE	test	t2	24
 TABLE	test	t3	31
 "================== con2 connected =================="
 "================== Step 4 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/table/sql/handler	0
+user1	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user2	wait/io/table/sql/handler	0
+user2	wait/lock/table/sql/handler	0
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -369,12 +393,17 @@ a	b	c	d
 205	5	5	1
 "================== con2 marker =================="
 "================== Step 5 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/table/sql/handler	0
+user1	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user2	wait/io/table/sql/handler	0
+user2	wait/lock/table/sql/handler	0
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -428,14 +457,18 @@ TABLE	test	t2	54
 TABLE	test	t3	72
 "================== con3 connected =================="
 "================== Step 6 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/table/sql/handler	0
+user1	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user2	wait/io/table/sql/handler	0
+user2	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user3	wait/io/table/sql/handler	0
+user3	wait/lock/table/sql/handler	0
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -538,14 +571,18 @@ a	b	c	d
 305	5	5	1
 "================== con3 marker =================="
 "================== Step 7 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/table/sql/handler	0
+user1	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user2	wait/io/table/sql/handler	0
+user2	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user3	wait/io/table/sql/handler	0
+user3	wait/lock/table/sql/handler	0
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -603,16 +640,19 @@ TABLE	test	t2	90
 TABLE	test	t3	123
 "================== con4 connected =================="
 "================== Step 8 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/table/sql/handler	0
+user1	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user2	wait/io/table/sql/handler	0
+user2	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user3	wait/io/table/sql/handler	0
+user3	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user4	wait/io/table/sql/handler	0
+user4	wait/lock/table/sql/handler	0
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -726,16 +766,19 @@ a	b	c	d
 405	5	5	1
 "================== con4 marker =================="
 "================== Step 9 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/table/sql/handler	0
+user1	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user2	wait/io/table/sql/handler	0
+user2	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user3	wait/io/table/sql/handler	0
+user3	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user4	wait/io/table/sql/handler	0
+user4	wait/lock/table/sql/handler	0
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -801,16 +844,19 @@ lock tables test.t1 write, test.t2 write, test.t3 write;
 unlock tables;
 "================== con1 marker =================="
 "================== Step 10 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/table/sql/handler	0
+user1	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user2	wait/io/table/sql/handler	0
+user2	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user3	wait/io/table/sql/handler	0
+user3	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user4	wait/io/table/sql/handler	0
+user4	wait/lock/table/sql/handler	0
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -873,16 +919,19 @@ TABLE	test	t3	188
 flush tables;
 "================== flush marker =================="
 "================== Step 11 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/table/sql/handler	0
+user1	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user2	wait/io/table/sql/handler	0
+user2	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user3	wait/io/table/sql/handler	0
+user3	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user4	wait/io/table/sql/handler	0
+user4	wait/lock/table/sql/handler	0
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -946,16 +995,19 @@ set global read_only=1;
 set global read_only=0;
 "================== global read_only marker =================="
 "================== Step 12 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/table/sql/handler	0
+user1	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user2	wait/io/table/sql/handler	0
+user2	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user3	wait/io/table/sql/handler	0
+user3	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user4	wait/io/table/sql/handler	0
+user4	wait/lock/table/sql/handler	0
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -1017,14 +1069,18 @@ TABLE	test	t2	136
 TABLE	test	t3	188
 "================== con1 disconnected =================="
 "================== Step 13 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	status
+user1	not found
+username	event_name	count_star
+user2	wait/io/table/sql/handler	0
+user2	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user3	wait/io/table/sql/handler	0
+user3	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user4	wait/io/table/sql/handler	0
+user4	wait/lock/table/sql/handler	0
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -1086,12 +1142,17 @@ TABLE	test	t2	136
 TABLE	test	t3	188
 "================== con2 disconnected =================="
 "================== Step 14 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	event_name	count_star
+user3	wait/io/table/sql/handler	0
+user3	wait/lock/table/sql/handler	0
+username	event_name	count_star
+user4	wait/io/table/sql/handler	0
+user4	wait/lock/table/sql/handler	0
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -1153,10 +1214,16 @@ TABLE	test	t2	136
 TABLE	test	t3	188
 "================== con3 disconnected =================="
 "================== Step 15 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	event_name	count_star
+user4	wait/io/table/sql/handler	0
+user4	wait/lock/table/sql/handler	0
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -1218,8 +1285,15 @@ TABLE	test	t2	136
 TABLE	test	t3	188
 "================== con4 disconnected =================="
 "================== Step 16 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -1282,8 +1356,15 @@ TABLE	test	t3	188
 truncate performance_schema.events_waits_summary_by_thread_by_event_name;
 "================== BY_THREAD truncated =================="
 "================== Step 17 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -1346,8 +1427,15 @@ TABLE	test	t3	188
 truncate performance_schema.events_waits_summary_by_account_by_event_name;
 "================== BY_ACCOUNT truncated =================="
 "================== Step 18 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -1410,8 +1498,15 @@ TABLE	test	t3	188
 truncate performance_schema.events_waits_summary_by_user_by_event_name;
 "================== BY_USER truncated =================="
 "================== Step 19 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -1474,8 +1569,15 @@ TABLE	test	t3	188
 truncate performance_schema.events_waits_summary_by_host_by_event_name;
 "================== BY_HOST truncated =================="
 "================== Step 21 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0
@@ -1538,8 +1640,15 @@ TABLE	test	t3	188
 truncate performance_schema.events_waits_summary_global_by_event_name;
 "================== GLOBAL truncated =================="
 "================== Step 21 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 user1	localhost	wait/io/table/sql/handler	0

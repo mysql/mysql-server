@@ -1,6 +1,13 @@
 "================== Step 1 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -28,12 +35,18 @@ HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 localhost	1	1
 "================== con1 connected =================="
 "================== Step 2 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/file/sql/query_log	1
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	0
-wait/synch/rwlock/sql/LOCK_grant	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/file/sql/query_log	1
+user1	wait/synch/mutex/sql/LOCK_connection_count	0
+user1	wait/synch/mutex/sql/LOCK_user_locks	0
+user1	wait/synch/rwlock/sql/LOCK_grant	0
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -69,12 +82,18 @@ release_lock("marker")
 insert into test.t1 values ("marker");
 "================== con1 marker =================="
 "================== Step 3 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/file/sql/query_log	4
+user1	wait/synch/mutex/sql/LOCK_connection_count	0
+user1	wait/synch/mutex/sql/LOCK_user_locks	2
+user1	wait/synch/rwlock/sql/LOCK_grant	2
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -105,16 +124,21 @@ HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 localhost	2	2
 "================== con2 connected =================="
 "================== Step 4 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	1
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	0
-wait/synch/rwlock/sql/LOCK_grant	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/file/sql/query_log	4
+user1	wait/synch/mutex/sql/LOCK_connection_count	0
+user1	wait/synch/mutex/sql/LOCK_user_locks	2
+user1	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user2	wait/io/file/sql/query_log	1
+user2	wait/synch/mutex/sql/LOCK_connection_count	0
+user2	wait/synch/mutex/sql/LOCK_user_locks	0
+user2	wait/synch/rwlock/sql/LOCK_grant	0
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -152,16 +176,21 @@ release_lock("marker")
 insert into test.t1 values ("marker");
 "================== con2 marker =================="
 "================== Step 5 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/file/sql/query_log	4
+user1	wait/synch/mutex/sql/LOCK_connection_count	0
+user1	wait/synch/mutex/sql/LOCK_user_locks	2
+user1	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user2	wait/io/file/sql/query_log	4
+user2	wait/synch/mutex/sql/LOCK_connection_count	0
+user2	wait/synch/mutex/sql/LOCK_user_locks	2
+user2	wait/synch/rwlock/sql/LOCK_grant	2
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -192,20 +221,24 @@ HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 localhost	3	3
 "================== con3 connected =================="
 "================== Step 6 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	1
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	0
-wait/synch/rwlock/sql/LOCK_grant	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/file/sql/query_log	4
+user1	wait/synch/mutex/sql/LOCK_connection_count	0
+user1	wait/synch/mutex/sql/LOCK_user_locks	2
+user1	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user2	wait/io/file/sql/query_log	4
+user2	wait/synch/mutex/sql/LOCK_connection_count	0
+user2	wait/synch/mutex/sql/LOCK_user_locks	2
+user2	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user3	wait/io/file/sql/query_log	1
+user3	wait/synch/mutex/sql/LOCK_connection_count	0
+user3	wait/synch/mutex/sql/LOCK_user_locks	0
+user3	wait/synch/rwlock/sql/LOCK_grant	0
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -243,20 +276,24 @@ release_lock("marker")
 insert into test.t1 values ("marker");
 "================== con3 marker =================="
 "================== Step 7 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/file/sql/query_log	4
+user1	wait/synch/mutex/sql/LOCK_connection_count	0
+user1	wait/synch/mutex/sql/LOCK_user_locks	2
+user1	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user2	wait/io/file/sql/query_log	4
+user2	wait/synch/mutex/sql/LOCK_connection_count	0
+user2	wait/synch/mutex/sql/LOCK_user_locks	2
+user2	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user3	wait/io/file/sql/query_log	4
+user3	wait/synch/mutex/sql/LOCK_connection_count	0
+user3	wait/synch/mutex/sql/LOCK_user_locks	2
+user3	wait/synch/rwlock/sql/LOCK_grant	2
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -287,24 +324,27 @@ HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 localhost	4	4
 "================== con4 connected =================="
 "================== Step 8 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	1
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	0
-wait/synch/rwlock/sql/LOCK_grant	0
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/file/sql/query_log	4
+user1	wait/synch/mutex/sql/LOCK_connection_count	0
+user1	wait/synch/mutex/sql/LOCK_user_locks	2
+user1	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user2	wait/io/file/sql/query_log	4
+user2	wait/synch/mutex/sql/LOCK_connection_count	0
+user2	wait/synch/mutex/sql/LOCK_user_locks	2
+user2	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user3	wait/io/file/sql/query_log	4
+user3	wait/synch/mutex/sql/LOCK_connection_count	0
+user3	wait/synch/mutex/sql/LOCK_user_locks	2
+user3	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user4	wait/io/file/sql/query_log	1
+user4	wait/synch/mutex/sql/LOCK_connection_count	0
+user4	wait/synch/mutex/sql/LOCK_user_locks	0
+user4	wait/synch/rwlock/sql/LOCK_grant	0
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -342,24 +382,27 @@ release_lock("marker")
 insert into test.t1 values ("marker");
 "================== con4 marker =================="
 "================== Step 9 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
+call dump_thread();
+username	event_name	count_star
+user1	wait/io/file/sql/query_log	4
+user1	wait/synch/mutex/sql/LOCK_connection_count	0
+user1	wait/synch/mutex/sql/LOCK_user_locks	2
+user1	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user2	wait/io/file/sql/query_log	4
+user2	wait/synch/mutex/sql/LOCK_connection_count	0
+user2	wait/synch/mutex/sql/LOCK_user_locks	2
+user2	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user3	wait/io/file/sql/query_log	4
+user3	wait/synch/mutex/sql/LOCK_connection_count	0
+user3	wait/synch/mutex/sql/LOCK_user_locks	2
+user3	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user4	wait/io/file/sql/query_log	4
+user4	wait/synch/mutex/sql/LOCK_connection_count	0
+user4	wait/synch/mutex/sql/LOCK_user_locks	2
+user4	wait/synch/rwlock/sql/LOCK_grant	2
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -390,20 +433,24 @@ HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 localhost	5	5
 "================== con1 disconnected =================="
 "================== Step 10 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
+call dump_thread();
+username	status
+user1	not found
+username	event_name	count_star
+user2	wait/io/file/sql/query_log	4
+user2	wait/synch/mutex/sql/LOCK_connection_count	0
+user2	wait/synch/mutex/sql/LOCK_user_locks	2
+user2	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user3	wait/io/file/sql/query_log	4
+user3	wait/synch/mutex/sql/LOCK_connection_count	0
+user3	wait/synch/mutex/sql/LOCK_user_locks	2
+user3	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user4	wait/io/file/sql/query_log	4
+user4	wait/synch/mutex/sql/LOCK_connection_count	0
+user4	wait/synch/mutex/sql/LOCK_user_locks	2
+user4	wait/synch/rwlock/sql/LOCK_grant	2
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -435,16 +482,21 @@ HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 localhost	4	5
 "================== con2 disconnected =================="
 "================== Step 11 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	event_name	count_star
+user3	wait/io/file/sql/query_log	4
+user3	wait/synch/mutex/sql/LOCK_connection_count	0
+user3	wait/synch/mutex/sql/LOCK_user_locks	2
+user3	wait/synch/rwlock/sql/LOCK_grant	2
+username	event_name	count_star
+user4	wait/io/file/sql/query_log	4
+user4	wait/synch/mutex/sql/LOCK_connection_count	0
+user4	wait/synch/mutex/sql/LOCK_user_locks	2
+user4	wait/synch/rwlock/sql/LOCK_grant	2
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -476,12 +528,18 @@ HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 localhost	3	5
 "================== con3 disconnected =================="
 "================== Step 12 =================="
-execute dump_thread;
-event_name	count_star
-wait/io/file/sql/query_log	4
-wait/synch/mutex/sql/LOCK_connection_count	0
-wait/synch/mutex/sql/LOCK_user_locks	2
-wait/synch/rwlock/sql/LOCK_grant	2
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	event_name	count_star
+user4	wait/io/file/sql/query_log	4
+user4	wait/synch/mutex/sql/LOCK_connection_count	0
+user4	wait/synch/mutex/sql/LOCK_user_locks	2
+user4	wait/synch/rwlock/sql/LOCK_grant	2
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -513,8 +571,15 @@ HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 localhost	2	5
 "================== con4 disconnected =================="
 "================== Step 13 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -547,8 +612,15 @@ localhost	1	5
 truncate performance_schema.events_waits_summary_by_thread_by_event_name;
 "================== BY_THREAD truncated =================="
 "================== Step 14 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -581,8 +653,15 @@ localhost	1	5
 truncate performance_schema.events_waits_summary_by_account_by_event_name;
 "================== BY_ACCOUNT truncated =================="
 "================== Step 15 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -615,8 +694,15 @@ localhost	1	5
 truncate performance_schema.events_waits_summary_by_user_by_event_name;
 "================== BY_USER truncated =================="
 "================== Step 16 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -649,8 +735,15 @@ localhost	1	5
 truncate performance_schema.events_waits_summary_by_host_by_event_name;
 "================== BY_HOST truncated =================="
 "================== Step 17 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;
@@ -683,8 +776,15 @@ localhost	1	5
 truncate performance_schema.events_waits_summary_global_by_event_name;
 "================== GLOBAL truncated =================="
 "================== Step 18 =================="
-execute dump_thread;
-event_name	count_star
+call dump_thread();
+username	status
+user1	not found
+username	status
+user2	not found
+username	status
+user3	not found
+username	status
+user4	not found
 execute dump_account;
 user	host	event_name	count_star
 execute dump_user;

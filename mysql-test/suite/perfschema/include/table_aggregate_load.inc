@@ -48,7 +48,7 @@ show variables like "performance_schema%";
 show status like "performance_schema%";
 
 echo "================== Step 1 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -76,7 +76,7 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 echo "================== Step 2 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -116,7 +116,7 @@ echo "================== con1 marker ==================";
 --connection default
 
 echo "================== Step 3 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -145,7 +145,7 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 echo "================== Step 4 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -185,7 +185,7 @@ echo "================== con2 marker ==================";
 --connection default
 
 echo "================== Step 5 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -210,7 +210,7 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 echo "================== Step 6 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -250,7 +250,7 @@ echo "================== con3 marker ==================";
 --connection default
 
 echo "================== Step 7 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -275,7 +275,7 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 echo "================== Step 8 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -315,7 +315,7 @@ echo "================== con4 marker ==================";
 --connection default
 
 echo "================== Step 9 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -338,7 +338,7 @@ echo "================== con1 marker ==================";
 --connection default
 
 echo "================== Step 10 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -356,7 +356,7 @@ flush tables;
 echo "================== flush marker ==================";
 
 echo "================== Step 11 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -373,7 +373,7 @@ set global read_only=0;
 echo "================== global read_only marker ==================";
 
 echo "================== Step 12 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -396,7 +396,7 @@ let $wait_condition=
 echo "================== con1 disconnected ==================";
 
 echo "================== Step 13 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -419,7 +419,7 @@ let $wait_condition=
 echo "================== con2 disconnected ==================";
 
 echo "================== Step 14 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -442,7 +442,7 @@ let $wait_condition=
 echo "================== con3 disconnected ==================";
 
 echo "================== Step 15 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -465,7 +465,7 @@ let $wait_condition=
 echo "================== con4 disconnected ==================";
 
 echo "================== Step 16 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -483,7 +483,7 @@ truncate performance_schema.events_waits_summary_by_thread_by_event_name;
 echo "================== BY_THREAD truncated ==================";
 
 echo "================== Step 17 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -499,7 +499,7 @@ truncate performance_schema.events_waits_summary_by_account_by_event_name;
 echo "================== BY_ACCOUNT truncated ==================";
 
 echo "================== Step 18 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -515,7 +515,7 @@ truncate performance_schema.events_waits_summary_by_user_by_event_name;
 echo "================== BY_USER truncated ==================";
 
 echo "================== Step 19 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -531,7 +531,7 @@ truncate performance_schema.events_waits_summary_by_host_by_event_name;
 echo "================== BY_HOST truncated ==================";
 
 echo "================== Step 21 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
@@ -547,7 +547,7 @@ truncate performance_schema.events_waits_summary_global_by_event_name;
 echo "================== GLOBAL truncated ==================";
 
 echo "================== Step 21 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_account;
 execute dump_user;
 execute dump_host;
