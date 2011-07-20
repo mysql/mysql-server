@@ -133,17 +133,45 @@ truncate performance_schema.events_waits_summary_by_host_by_event_name;
 truncate performance_schema.events_waits_summary_global_by_event_name;
 truncate performance_schema.events_waits_history_long;
 
-prepare dump_thread from
-  "select event_name, count_star
-  from performance_schema.events_waits_summary_by_thread_by_event_name
-  where event_name in ('wait/synch/mutex/sql/LOCK_connection_count',
-                       'wait/synch/mutex/sql/LOCK_user_locks',
-                       'wait/synch/rwlock/sql/LOCK_grant',
-                       'wait/io/file/sql/query_log')
-  and thread_id in
-  (select thread_id from performance_schema.threads
-   where processlist_user like \'user%\')
-  order by thread_id, event_name;";
+--disable_warnings
+drop procedure if exists dump_thread;
+drop procedure if exists dump_one_thread;
+--enable_warnings
+
+delimiter $$;
+
+create procedure dump_thread()
+begin
+  call dump_one_thread('user1');
+  call dump_one_thread('user2');
+  call dump_one_thread('user3');
+  call dump_one_thread('user4');
+end
+$$
+
+create procedure dump_one_thread(in username varchar(64))
+begin
+  declare my_thread_id int;
+
+  set my_thread_id = (select thread_id from performance_schema.threads
+                        where processlist_user=username);
+
+  if (my_thread_id is not null) then
+    select username, event_name, count_star
+      from performance_schema.events_waits_summary_by_thread_by_event_name
+      where event_name in ('wait/synch/mutex/sql/LOCK_connection_count',
+                           'wait/synch/mutex/sql/LOCK_user_locks',
+                           'wait/synch/rwlock/sql/LOCK_grant',
+                           'wait/io/file/sql/query_log')
+      and thread_id = my_thread_id
+      order by event_name;
+  else
+    select username, "not found" as status;
+  end if;
+end
+$$
+
+delimiter ;$$
 
 prepare dump_user from
   "select user, event_name, count_star
