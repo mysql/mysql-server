@@ -1150,43 +1150,48 @@ create table t2 (b1 int);
 insert into t1 values (5);
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 min(a1)
+NULL
 set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch=@optimizer_switch_local_default;
 set @@optimizer_switch='materialization=off,in_to_exists=on';
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 min(a1)
+NULL
 set @@optimizer_switch=@optimizer_switch_local_default;
 set @@optimizer_switch='semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
+NULL
 set @@optimizer_switch=@optimizer_switch_local_default;
 set @@optimizer_switch='materialization=off,in_to_exists=on';
 # with MariaDB and MWL#90, this particular case is solved:
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
+NULL
 # but when we go around MWL#90 code, the problem still shows up:
 explain select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
 min(a1)
+NULL
 set @@optimizer_switch= @save_optimizer_switch;
 drop table t1,t2;
 create table t1 (a char(2), b varchar(10));
@@ -1555,3 +1560,33 @@ FROM t2;
 (SELECT COUNT(DISTINCT f2), f1, f3 FROM t1 GROUP BY f1, f3)
 1
 drop table t1, t2;
+#
+# LPBUG#702301: MAX in select + always false WHERE with SQ
+#
+CREATE TABLE t1 (a int, b int, KEY (b));
+INSERT INTO t1 VALUES (3,1), (4,2);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (7), (8);
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+max_res
+NULL
+EXPLAIN EXTENDED
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	index	NULL	b	5	NULL	2	100.00	Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1003	select max(`test`.`t1`.`b`) AS `max_res` from `test`.`t1` where <in_optimizer>(9,9 in ( <materialize> (select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(9 in <temporary table> on distinct_key where ((9 = `<subquery2>`.`a`)))))
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+max_res
+NULL
+EXPLAIN EXTENDED
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	index	NULL	b	5	NULL	2	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select max(`test`.`t1`.`b`) AS `max_res` from `test`.`t1` where <in_optimizer>(9,<exists>(select `test`.`t2`.`a` from `test`.`t2` where (9 = `test`.`t2`.`a`)))
+DROP TABLE t1,t2;

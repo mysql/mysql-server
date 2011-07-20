@@ -202,3 +202,27 @@ SELECT (f1, f2, f3) NOT IN
 FROM t2;
 
 drop table t1, t2;
+
+--echo #
+--echo # LPBUG#702301: MAX in select + always false WHERE with SQ
+--echo #
+
+CREATE TABLE t1 (a int, b int, KEY (b));
+INSERT INTO t1 VALUES (3,1), (4,2);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (7), (8);
+
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+EXPLAIN EXTENDED
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
+
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+EXPLAIN EXTENDED
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+
+DROP TABLE t1,t2;
+
