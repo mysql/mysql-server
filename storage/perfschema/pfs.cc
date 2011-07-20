@@ -2767,7 +2767,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
 
   DBUG_ASSERT(pfs_socket->m_class != NULL);
 
-  if (pfs_socket->m_idle || !pfs_socket->m_enabled)
+  if (!pfs_socket->m_enabled)
     return NULL;
 
   register uint flags;
@@ -2785,7 +2785,8 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (pfs_socket->m_timed)
+    /* Sockets in IDLE state are timed separately */
+	if (pfs_socket->m_timed && !pfs_socket->m_idle)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2819,7 +2820,8 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   }
   else
   {
-    if (pfs_socket->m_timed)
+    /* Sockets in IDLE state are counted but not timed */
+	if (pfs_socket->m_timed && !pfs_socket->m_idle)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -2828,10 +2830,10 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       flags= 0;
 
       /*
-        get_thread_socket_locker() does not track the byte count associated
-        with socket operations because the requested and actual byte counts
-        may differ. This shortcut is therefore only valid for 'miscellaneous'
-        operations that do not have a byte count.
+        Even if timing is disabled, end_socket_wait() still needs a locker to
+		capture the number of bytes sent or received by the socket operation.
+		However, for operations that do not have a byte count, then just
+		increment the event counter and return a NULL locker.
       */
       switch (op)
       {
@@ -4574,14 +4576,15 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
 {
   PSI_socket_locker_state *state= reinterpret_cast<PSI_socket_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
-  ulonglong timer_end= 0;
-  ulonglong wait_time= 0;
-  bool socket_closed= false;
-
   PFS_socket *socket= reinterpret_cast<PFS_socket *>(state->m_socket);
   DBUG_ASSERT(socket != NULL);
   PFS_thread *thread= reinterpret_cast<PFS_thread *>(state->m_thread);
+  DBUG_ASSERT(thread != NULL);
 
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
+  bool socket_closed= false;
+  bool socket_idle= socket->m_idle;
   PFS_byte_stat *byte_stat;
   register uint flags= state->m_flags;
   size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
@@ -4685,6 +4688,10 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
       thread->m_events_waits_count--;
     }
   }
+
+  /* Clear IDLE state */
+  if (socket_idle)
+    socket->m_idle= false;
 
   /* This socket will no longer be used */
   if (socket_closed)

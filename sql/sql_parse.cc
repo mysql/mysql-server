@@ -790,7 +790,7 @@ bool do_command(THD *thd)
   ulong packet_length;
   NET *net= &thd->net;
   enum enum_server_command command;
-  // CWP: MYSQL_IDLE_WAIT_VARIABLES(idle_locker, idle_state) /* no ; */
+  MYSQL_IDLE_WAIT_VARIABLES(idle_locker, idle_state) /* no ; */
 
   DBUG_ENTER("do_command");
 
@@ -838,13 +838,13 @@ bool do_command(THD *thd)
     - do not time the wait on the socket
     - time the wait as IDLE server time instead.
   */
-  // CWP: disabled mysql_socket_set_state(net->vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
-  // CWP: MYSQL_START_IDLE_WAIT(idle_locker, &idle_state);
+  mysql_socket_set_state(net->vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
+  MYSQL_START_IDLE_WAIT(idle_locker, &idle_state);
 
   packet_length= my_net_read(net);
 
-  // CWP: MYSQL_END_IDLE_WAIT(idle_locker);
-  // CWP: mysql_socket_set_state(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
+  MYSQL_END_IDLE_WAIT(idle_locker);
+  mysql_socket_set_state(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
 
   if (packet_length == packet_error)
   {
