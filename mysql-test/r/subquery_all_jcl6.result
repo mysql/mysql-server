@@ -5163,6 +5163,31 @@ ERROR 21000: Subquery returns more than 1 row
 SET SESSION sql_mode=@old_sql_mode;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+#
+# Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
+#
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2(a1 int);
+INSERT INTO t2 VALUES (3);
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2 FROM t2);
+1
+1
+1
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2.0 FROM t2);
+1
+1
+1
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 'a' FROM t2);
+1
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
+1
+1
+1
+SET SESSION sql_mode=@old_sql_mode;
+DROP TABLE t1, t2;
 End of 5.0 tests.
 create table t_out (subcase char(3),
 a1 char(2), b1 char(2), c1 char(2));
