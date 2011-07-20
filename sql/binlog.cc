@@ -4752,12 +4752,20 @@ err1:
 Group_cache *THD::get_group_cache(bool is_transactional)
 {
   DBUG_ENTER("THD::get_group_cache(bool)");
+
+  // if opt_bin_log==0, it is not safe to call thd_get_ha_data because
+  // binlog_hton has not been completely set up
+  DBUG_ASSERT(opt_bin_log);
   binlog_cache_mngr *cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
-  DBUG_PRINT("info", ("cache_mngr=%p", cache_mngr));
+
+  // cache_mngr is NULL until we call thd->binlog_setup_trx_data, so
+  // we assert that this has been done.
+  DBUG_ASSERT(cache_mngr != NULL);
+
   binlog_cache_data *cache_data=
     cache_mngr->get_binlog_cache_data(is_transactional);
-  DBUG_PRINT("info", ("cache_data=%p", cache_data));
+  DBUG_ASSERT(cache_data != NULL);
 
   DBUG_RETURN(&cache_data->group_cache);
 }

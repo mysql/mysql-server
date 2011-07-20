@@ -2226,9 +2226,10 @@ mysql_execute_command(THD *thd)
 #endif
 
   /*
-    If this is a loggable statement
+    Execute ugid_before_statement, so that we acquire ownership of
+    groups as specified by ugid_next and ugid_next_list.
   */
-  if (opt_bin_log && lex->is_binloggable())
+  if (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt)
   {
     // Initialize the cache manager if this was not done yet.
     thd->binlog_setup_trx_data();
