@@ -650,7 +650,7 @@ CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8 COLLATE UT
 INSERT INTO t1 VALUES (1,'Ǉin'),(2,'ljin'),(3,'lmin'),(4,'ǇǇǇǇǇ');
 CREATE FULLTEXT INDEX i ON t1 (char_column);
 #inndob:error incorrect result correct it after fix
-SELECT * FROM t1 WHERE MATCH (char_column) AGAINST ('lj*' IN BOOLEAN MODE);
+SELECT count(*) FROM t1 WHERE MATCH (char_column) AGAINST ('lj*' IN BOOLEAN MODE);
 DROP TABLE t1;
 
 #26. Index error when run procedure call from multiple clients

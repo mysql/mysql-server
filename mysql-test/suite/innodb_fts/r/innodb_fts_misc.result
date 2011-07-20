@@ -697,11 +697,9 @@ DROP TABLE t1;
 CREATE TABLE t1 ( id INT , char_column VARCHAR(60) CHARACTER SET UTF8 COLLATE UTF8_CROATIAN_CI) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,'Ǉin'),(2,'ljin'),(3,'lmin'),(4,'ǇǇǇǇǇ');
 CREATE FULLTEXT INDEX i ON t1 (char_column);
-SELECT * FROM t1 WHERE MATCH (char_column) AGAINST ('lj*' IN BOOLEAN MODE);
-id	char_column
-1	Ǉin
-2	ljin
-4	ǇǇǇǇǇ
+SELECT count(*) FROM t1 WHERE MATCH (char_column) AGAINST ('lj*' IN BOOLEAN MODE);
+count(*)
+3
 DROP TABLE t1;
 "----------Test27---------"
 CREATE TABLE t1 (id INT,char_column VARCHAR(60));

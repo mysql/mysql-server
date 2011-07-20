@@ -2450,6 +2450,7 @@ innobase_init(
 	bool		ret;
 	char		*default_path;
 	uint		format_id;
+	ulong		num_pll_degree;
 
 	DBUG_ENTER("innobase_init");
 	handlerton *innobase_hton= (handlerton *)p;
@@ -2730,6 +2731,14 @@ innobase_change_buffering_inited_ok:
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
 	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
+
+	/* Round up fts_sort_pll_degree to nearest power of 2 number */
+	num_pll_degree = 1;	
+        while (num_pll_degree < fts_sort_pll_degree) {
+                num_pll_degree = num_pll_degree << 1;
+        }
+
+	fts_sort_pll_degree = num_pll_degree;
 
 	/* Store the default charset-collation number of this MySQL
 	installation */
@@ -13524,8 +13533,8 @@ static MYSQL_SYSVAR_ULONG(ft_max_token_size, fts_max_token_size,
 
 static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "InnoDB Fulltext search parallel sort degree",
-  NULL, NULL, 16, 1, 16, 0);
+  "InnoDB Fulltext search parallel sort degree, will round up to nearest power of 2 number",
+  NULL, NULL, 2, 1, 16, 0);
    
 static MYSQL_SYSVAR_ULONG(sort_buf_size, srv_sort_buf_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
