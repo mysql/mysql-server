@@ -110,7 +110,7 @@ extern char*	srv_data_home;
 extern char*	srv_undo_dir;
 
 /** Number of undo tablespaces to use. */
-extern	ulint	srv_undo_tablespaces;
+extern ulong	srv_undo_tablespaces;
 
 /* The number of undo segments to use */
 extern ulong	srv_undo_logs;
