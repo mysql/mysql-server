@@ -623,7 +623,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   if (!(cond->used_tables() & field->table->map))
   {
     /* Condition doesn't restrict the used table */
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(!cond->const_item());
   }
   if (cond->type() == Item::COND_ITEM)
   {
