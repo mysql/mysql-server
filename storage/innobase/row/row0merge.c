@@ -2016,9 +2016,9 @@ row_merge_insert_index_tuples(
 	ulint			foffs = 0;
 	ulint*			offsets;
 	fts_tokenizer_word_t	new_word;
-	ib_vector_t*		positions;
+	ib_vector_t*		positions = NULL;
 	doc_id_t		last_doc_id;
-	que_t**			ins_graph;
+	que_t**			ins_graph = NULL;
 	fts_table_t		fts_table;
 	mem_heap_t*		fts_heap = NULL;
 
