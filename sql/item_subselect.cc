@@ -1666,8 +1666,11 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
     */
     in_strategy= SUBS_MAXMIN_ENGINE;
   }
-  /* fix fields is already called for  left expression */
-  subs= func->create(left_expr, subs);
+  /*
+    The swap is needed for expressions of type 'f1 < ALL ( SELECT ....)'
+    where we want to evaluate the sub query even if f1 would be null.
+  */
+  subs= func->create_swap(left_expr, subs);
   thd->change_item_tree(place, subs);
   if (subs->fix_fields(thd, &subs))
     DBUG_RETURN(true);

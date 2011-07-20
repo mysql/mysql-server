@@ -267,7 +267,14 @@ class Comp_creator
 public:
   Comp_creator() {}                           /* Remove gcc warning */
   virtual ~Comp_creator() {}                  /* Remove gcc warning */
+  /**
+    Create operation with given arguments.
+  */
   virtual Item_bool_func2* create(Item *a, Item *b) const = 0;
+  /**
+    Create operation with given arguments in swap order.
+  */
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const = 0;
   virtual const char* symbol(bool invert) const = 0;
   virtual bool eqne_op() const = 0;
   virtual bool l_op() const = 0;
@@ -279,6 +286,7 @@ public:
   Eq_creator() {}                             /* Remove gcc warning */
   virtual ~Eq_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? "<>" : "="; }
   virtual bool eqne_op() const { return 1; }
   virtual bool l_op() const { return 0; }
@@ -290,6 +298,7 @@ public:
   Ne_creator() {}                             /* Remove gcc warning */
   virtual ~Ne_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? "=" : "<>"; }
   virtual bool eqne_op() const { return 1; }
   virtual bool l_op() const { return 0; }
@@ -301,6 +310,7 @@ public:
   Gt_creator() {}                             /* Remove gcc warning */
   virtual ~Gt_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? "<=" : ">"; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 0; }
@@ -312,6 +322,7 @@ public:
   Lt_creator() {}                             /* Remove gcc warning */
   virtual ~Lt_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? ">=" : "<"; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 1; }
@@ -323,6 +334,7 @@ public:
   Ge_creator() {}                             /* Remove gcc warning */
   virtual ~Ge_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? "<" : ">="; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 0; }
@@ -334,6 +346,7 @@ public:
   Le_creator() {}                             /* Remove gcc warning */
   virtual ~Le_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? ">" : "<="; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 1; }
