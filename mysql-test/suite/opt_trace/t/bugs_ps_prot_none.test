@@ -17,10 +17,10 @@ if (`select locate('mrr', @@optimizer_switch) > 0`)
 }
 --enable_query_log
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
+if (`SELECT $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0
+        OR $PS_PROTOCOL = 0`)
 {
-   --skip Need normal protocol
+   --skip Need ps-protocol
 }
 
---source suite/optimizer_trace/include/optimizer_trace_bugs.inc
+--source suite/opt_trace/include/bugs.inc
