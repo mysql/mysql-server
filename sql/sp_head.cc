@@ -37,6 +37,7 @@
 #include "sql_parse.h"                          // cleanup_items
 #include "sql_base.h"                           // close_thread_tables
 #include "transaction.h"       // trans_commit_stmt
+#include "opt_trace.h"         // opt_trace_disable_etc
 
 /*
   Sufficient max length of printed destinations and frame offsets (all uints).
@@ -982,7 +983,7 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
   thd->query_name_consts= 0;
 
   for (Item_splocal **splocal= sp_vars_uses.front(); 
-       splocal < sp_vars_uses.back(); splocal++)
+       splocal <= sp_vars_uses.back(); splocal++)
   {
     Item *val;
 
@@ -1245,6 +1246,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   */
   if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (uchar*)&old_packet))
     DBUG_RETURN(TRUE);
+
+  opt_trace_disable_if_no_security_context_access(thd);
 
   /* init per-instruction memroot */
   init_sql_alloc(&execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
@@ -1690,6 +1693,13 @@ sp_head::execute_trigger(THD *thd,
     m_security_ctx.restore_security_context(thd, save_ctx);
     DBUG_RETURN(TRUE);
   }
+  /*
+    Optimizer trace note: we needn't explicitely test here that the connected
+    user has TRIGGER privilege: assume he doesn't have it; two possibilities:
+    - connected user == definer: then we threw an error just above;
+    - connected user != definer: then in sp_head::execute(), when checking the
+    security context we will disable tracing.
+  */
 #endif // NO_EMBEDDED_ACCESS_CHECKS
 
   /*
@@ -1926,6 +1936,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     binlog_save_options= thd->variables.option_bits;
     thd->variables.option_bits&= ~OPTION_BIN_LOG;
   }
+
+  opt_trace_disable_if_no_stored_proc_func_access(thd, this);
 
   /*
     Switch to call arena/mem_root so objects like sp_cursor or
@@ -2170,6 +2182,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   if (!err_status)
     err_status= set_routine_security_ctx(thd, this, TRUE, &save_security_ctx);
 #endif
+
+  opt_trace_disable_if_no_stored_proc_func_access(thd, this);
 
   if (!err_status)
     err_status= execute(thd, TRUE);
@@ -2968,20 +2982,37 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   reinit_stmt_before_use(thd, m_lex);
 
   if (open_tables)
-    res= instr->exec_open_and_lock_tables(thd, m_lex->query_tables);
-
-  if (!res)
   {
-    res= instr->exec_core(thd, nextp);
-    DBUG_PRINT("info",("exec_core returned: %d", res));
-  }
+    /*
+      IF, CASE, DECLARE, SET, RETURN, have 'open_tables' true; they may
+      have a subquery in parameter and are worth tracing. They don't
+      correspond to a SQL command so we pretend that they are SQLCOM_SELECT.
+    */
+    Opt_trace_start ots(thd, m_lex->query_tables, SQLCOM_SELECT,
+                        &m_lex->var_list, NULL, 0, instr,
+                        thd->variables.character_set_client);
+    Opt_trace_object trace_command(&thd->opt_trace);
+    Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
 
-  /*
-    Call after unit->cleanup() to close open table
-    key read.
-  */
-  if (open_tables)
-  {
+    /*
+      Check whenever we have access to tables for this statement
+      and open and lock them before executing instructions core function.
+    */
+    res= (open_temporary_tables(thd, m_lex->query_tables) ||
+          check_table_access(thd, SELECT_ACL, m_lex->query_tables, FALSE,
+                             UINT_MAX, FALSE) ||
+          open_and_lock_tables(thd, m_lex->query_tables, TRUE, 0));
+
+    if (!res)
+    {
+      res= instr->exec_core(thd, nextp);
+      DBUG_PRINT("info",("exec_core returned: %d", res));
+    }
+
+    /*
+      Call after unit->cleanup() to close open table
+      key read.
+    */
     m_lex->unit.cleanup();
     /* Here we also commit or rollback the current statement. */
     if (! thd->in_sub_stmt)
@@ -2998,6 +3029,11 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
       thd->mdl_context.release_transactional_locks();
     else if (! thd->in_sub_stmt)
       thd->mdl_context.release_statement_locks();
+  }
+  else
+  {
+    res= instr->exec_core(thd, nextp);
+    DBUG_PRINT("info",("exec_core returned: %d", res));
   }
 
   if (m_lex->query_tables_own_last)
@@ -3048,24 +3084,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 /*
   sp_instr class functions
 */
-
-int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
-{
-  int result;
-
-  /*
-    Check whenever we have access to tables for this statement
-    and open and lock them before executing instructions core function.
-  */
-  if (open_temporary_tables(thd, tables) ||
-      check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE) ||
-      open_and_lock_tables(thd, tables, TRUE, 0))
-    result= -1;
-  else
-    result= 0;
-
-  return result;
-}
 
 uint sp_instr::get_cont_dest()
 {

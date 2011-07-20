@@ -163,7 +163,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema,funcs_1";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema,funcs_1,opt_trace";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -189,6 +189,7 @@ my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
 my $opt_view_protocol;
+my $opt_trace_protocol;
 my $opt_explain_protocol;
 
 our $opt_debug;
@@ -1043,6 +1044,7 @@ sub command_line_setup {
              'ps-protocol'              => \$opt_ps_protocol,
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
+             'opt-trace-protocol'       => \$opt_trace_protocol,
              'explain-protocol'         => \$opt_explain_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
@@ -1680,6 +1682,13 @@ sub command_line_setup {
     # Set special valgrind options unless options passed on command line
     push(@valgrind_args, "--trace-children=yes")
       unless @valgrind_args;
+  }
+
+  if ( $opt_trace_protocol )
+  {
+    push(@opt_extra_mysqld_opt, "--optimizer_trace=enabled=on,one_line=off");
+    # some queries yield big traces:
+    push(@opt_extra_mysqld_opt, "--optimizer-trace-max-mem-size=1000000");
   }
 
   if ( $opt_valgrind )
@@ -5456,6 +5465,11 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--view-protocol");
   }
 
+  if ( $opt_trace_protocol )
+  {
+    mtr_add_arg($args, "--opt-trace-protocol");
+  }
+
   if ( $opt_cursor_protocol )
   {
     mtr_add_arg($args, "--cursor-protocol");
@@ -5961,6 +5975,7 @@ Options to control what engine/variation to run
   cursor-protocol       Use the cursor protocol between client and server
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
+  opt-trace-protocol    Print optimizer trace
   explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT queries
   sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
@@ -6062,7 +6077,9 @@ Options for debugging the product
   ddd                   Start mysqld in ddd
   debug                 Dump trace output for all servers and client programs
   debug-common          Same as debug, but sets 'd' debug flags to
-                        "query,info,error,enter,exit"
+                        "query,info,error,enter,exit"; you need this if you
+                        want both to see debug printouts and to use
+                        DBUG_EXECUTE_IF.
   debug-server          Use debug version of server, but without turning on
                         tracing
   debugger=NAME         Start mysqld in the selected debugger
