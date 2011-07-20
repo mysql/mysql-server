@@ -947,7 +947,12 @@ trx_commit(
 
 		error = fts_commit(trx);
 
-		if (error != DB_SUCCESS) {
+		/* FTS-FIXME: Temparorily tolerate DB_DUPLICATE_KEY
+		instead of dying. This is a possible scenario if there
+		is a crash between insert to DELETED table committing
+		and transaction committing. The fix would be able to
+		return error from this function */
+		if (error != DB_SUCCESS && error != DB_DUPLICATE_KEY) {
 			/* FTS-FIXME: once we can return values from this
 			function, we should do so and signal an error
 			instead of just dying. */
