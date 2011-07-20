@@ -1227,7 +1227,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
     tl->table->tablenr= table_no;
     tl->table->map= ((table_map)1) << table_no;
     if (tl->is_jtbm())
-      tl->jtbm_table_no= tl->table->map;
+      tl->jtbm_table_no= tl->table->tablenr;
     SELECT_LEX *old_sl= tl->select_lex;
     tl->select_lex= parent_join->select_lex; 
     for (TABLE_LIST *emb= tl->embedding;

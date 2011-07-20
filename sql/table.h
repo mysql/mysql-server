@@ -1320,6 +1320,7 @@ struct TABLE_LIST
 
   /* If this is a jtbm semi-join object: corresponding subselect predicate */
   Item_in_subselect  *jtbm_subselect;
+  /* TODO: check if this can be joined with tablenr_exec */
   uint jtbm_table_no;
 
   SJ_MATERIALIZATION_INFO *sj_mat_info;
@@ -1445,6 +1446,7 @@ struct TABLE_LIST
 
   table_map view_used_tables;
   table_map     map_exec;
+  /* TODO: check if this can be joined with jtbm_table_no */
   uint          tablenr_exec;
 
   /* Ptr to parent MERGE table list item. See top comment in ha_myisammrg.cc */
