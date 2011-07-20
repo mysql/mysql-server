@@ -4061,7 +4061,7 @@ row_rename_table_for_mysql(
 	ibool		commit)		/*!< in: if TRUE then commit trx */
 {
 	dict_table_t*	table			= NULL;
-	ibool		dict_locked;
+	ibool		dict_locked		= FALSE;
 	ulint		err			= DB_ERROR;
 	mem_heap_t*	heap			= NULL;
 	const char**	constraints_to_drop	= NULL;

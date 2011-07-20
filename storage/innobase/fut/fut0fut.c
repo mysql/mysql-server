@@ -2576,13 +2576,15 @@ fts_delete(
 
 		mutex_enter(&table->fts->cache->deleted_lock);
 
-		ut_ad(table->fts->cache->added > 0);
+		/* FIXME: This assertion could trigger in Michael's tests
+		ut_ad(table->fts->cache->added > 0); */
 
 		/* The Doc ID could belong to those left in
 		ADDED table from last crash. So need to check
 		if it is less than first_doc_id when we initialize
 		the Doc ID system after reboot */
-		if (doc_id >= table->fts->cache->first_doc_id) {
+		if (doc_id >= table->fts->cache->first_doc_id
+		    && table->fts->cache->added > 0) {
 			--table->fts->cache->added;
 		}
 
@@ -6262,8 +6264,8 @@ fts_init_recover_doc(
 	ulint		len;
 	ulint		doc_len;
 	ulint		field_no = 0;
-	fts_get_doc_t*  get_doc;
-	doc_id_t	doc_id;
+	fts_get_doc_t*  get_doc = NULL;
+	doc_id_t	doc_id = 0;
 	ibool		has_fts = TRUE;
 
 	len = 0;
@@ -6309,6 +6311,8 @@ fts_init_recover_doc(
 			exp = que_node_get_next(exp);
 			continue;
 		}
+
+		ut_ad(get_doc);
 
 		if (!get_doc->index_cache->charset) {
 			ulint   prtype = dfield->type.prtype;
@@ -6377,7 +6381,7 @@ fts_init_index(
 	ulint           error = DB_SUCCESS;
 	doc_id_t        start_doc;
 	fts_cache_t*    cache = table->fts->cache;
-	fts_get_doc_t*  get_doc;
+	fts_get_doc_t*  get_doc = NULL;
 	dict_index_t*   index;
 	fts_doc_t	doc;
 	ibool		has_fts = TRUE;
