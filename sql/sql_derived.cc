@@ -267,6 +267,7 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
   TABLE *table= orig_table_list->table;
   SELECT_LEX_UNIT *unit= orig_table_list->derived;
   bool res= FALSE;
+  DBUG_ENTER("mysql_derived_filling");
 
   /*check that table creation pass without problem and it is derived table */
   if (table && unit)
@@ -311,7 +312,7 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     }
     lex->current_select= save_current_select;
   }
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -321,8 +322,9 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 
 bool mysql_derived_cleanup(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
+  DBUG_ENTER("mysql_derived_cleanup");
   SELECT_LEX_UNIT *unit= derived->derived;
   if (unit)
     unit->cleanup();
-  return false;
+  DBUG_RETURN(false);
 }
