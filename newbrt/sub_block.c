@@ -248,6 +248,7 @@ compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *un
 
         // wait for all of the work to complete
         workset_join(&ws);
+        workset_destroy(&ws);
 
         // squeeze out the holes not used by the compress bound
         compressed_ptr = compressed_base_ptr + sub_block[0].compressed_size;
