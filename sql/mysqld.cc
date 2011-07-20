@@ -5502,6 +5502,7 @@ void handle_connections_sockets()
 #ifdef HAVE_POLL
   int socket_count= 0;
   struct pollfd fds[2]; // for ip_sock and unix_sock
+  MYSQL_SOCKET pfs_fds[2]; // for performance schema
 #else
   fd_set readFDs,clientFDs;
   uint max_used_connection= (uint)(max(mysql_socket_getfd(ip_sock), mysql_socket_getfd(unix_sock))+1);
@@ -5522,6 +5523,7 @@ void handle_connections_sockets()
 #ifdef HAVE_POLL
     fds[socket_count].fd= mysql_socket_getfd(ip_sock);
     fds[socket_count].events= POLLIN;
+    pfs_fds[socket_count]= ip_sock;
     socket_count++;
 #else
     FD_SET(mysql_socket_getfd(ip_sock), &clientFDs);
@@ -5535,6 +5537,7 @@ void handle_connections_sockets()
 #ifdef HAVE_POLL
   fds[socket_count].fd= mysql_socket_getfd(unix_sock);
   fds[socket_count].events= POLLIN;
+  pfs_fds[socket_count]= unix_sock;
   socket_count++;
 #else
   FD_SET(mysql_socket_getfd(unix_sock), &clientFDs);
@@ -5579,7 +5582,7 @@ void handle_connections_sockets()
     {
       if (fds[i].revents & POLLIN)
       {
-        mysql_socket_setfd(&sock, fds[i].fd);
+        sock= pfs_fds[i];
 #ifdef HAVE_FCNTL
         flags= fcntl(mysql_socket_getfd(sock), F_GETFL, 0);
 #else
