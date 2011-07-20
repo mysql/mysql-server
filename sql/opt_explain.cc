@@ -1456,7 +1456,8 @@ bool explain_query_expression(THD *thd, select_result *result)
     /*
       The warnings system requires input in utf8, @see mysqld_show_warnings().
     */
-    thd->lex->unit.print(&str, QT_TO_SYSTEM_CHARSET);
+    thd->lex->unit.print(&str, enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                               QT_SHOW_SELECT_NUMBER));
     str.append('\0');
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_YES, str.ptr());

@@ -90,27 +90,55 @@ public:
     my_init_dynamic_array(&array, sizeof(Elem), prealloc, increment);
   }
 
+  /**
+     @note Though formally this could be declared "const" it would be
+     misleading at it returns a non-const pointer to array's data.
+  */
   Elem& at(int idx)
   {
     return *(((Elem*)array.buffer) + idx);
   }
+  /// Const variant of at(), which cannot change data
+  const Elem& at(int idx) const
+  {
+    return *(((Elem*)array.buffer) + idx);
+  }
 
+  /// @returns pointer to first element; undefined behaviour if array is empty
   Elem *front()
   {
+    DBUG_ASSERT(array.elements >= 1);
     return (Elem*)array.buffer;
   }
 
+  /// @returns pointer to last element; undefined behaviour if array is empty.
   Elem *back()
   {
-    return ((Elem*)array.buffer) + array.elements;
+    DBUG_ASSERT(array.elements >= 1);
+    return ((Elem*)array.buffer) + (array.elements - 1);
   }
 
-  bool append(Elem &el)
+  /**
+     @retval false ok
+     @retval true  OOM, @c my_error() has been called.
+  */
+  bool append(const Elem &el)
   {
-    return (insert_dynamic(&array, &el));
+    return insert_dynamic(&array, &el);
   }
 
-  int elements()
+  /// Pops the last element. Does nothing if array is empty.
+  void pop()
+  {
+    (void)pop_dynamic(&array);
+  }
+
+  void del(uint idx)
+  {
+    delete_dynamic_element(&array, idx);
+  }
+
+  int elements() const
   {
     return array.elements;
   }

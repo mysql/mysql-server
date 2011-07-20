@@ -90,7 +90,8 @@ enum {
   OPT_PS_PROTOCOL=OPT_MAX_CLIENT_OPTION, OPT_SP_PROTOCOL,
   OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS, OPT_LOG_DIR,
-  OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, OPT_EXPLAIN_PROTOCOL
+  OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, OPT_TRACE_PROTOCOL,
+  OPT_EXPLAIN_PROTOCOL
 };
 
 static int record= 0, opt_sleep= -1;
@@ -110,6 +111,7 @@ static my_bool opt_mark_progress= 0;
 static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
 static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
+static my_bool opt_trace_protocol= 0, opt_trace_protocol_enabled= 0;
 static my_bool explain_protocol= 0, explain_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static my_bool parsing_disabled= 0;
@@ -201,6 +203,8 @@ static char *opt_plugin_dir= 0;
 static my_regex_t ps_re;     /* the query can be run using PS protocol */
 static my_regex_t sp_re;     /* the query can be run as a SP */
 static my_regex_t view_re;   /* the query can be run as a view*/
+/* the query can be traced with optimizer trace*/
+static my_regex_t opt_trace_re;
 static my_regex_t explain_re;/* the query can be converted to EXPLAIN */
 
 static void init_re(void);
@@ -6392,6 +6396,10 @@ static struct my_option my_long_options[] =
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
    &view_protocol, &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"opt-trace-protocol", OPT_TRACE_PROTOCOL,
+   "Trace DML statements with optimizer trace",
+   &opt_trace_protocol, &opt_trace_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"explain-protocol", OPT_EXPLAIN_PROTOCOL,
    "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements",
    &explain_protocol, &explain_protocol, 0,
@@ -7879,6 +7887,40 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   DBUG_VOID_RETURN;
 }
 
+/**
+   Display the optimizer trace produced by the last executed statement.
+ */
+void display_opt_trace(struct st_connection *cn,
+                       struct st_command *command,
+                       int flags)
+{
+  if (!disable_query_log &&
+      opt_trace_protocol_enabled &&
+      !command->expected_errors.count &&
+      match_re(&opt_trace_re, command->query))
+  {
+    st_command save_command= *command;
+    DYNAMIC_STRING query_str;
+    init_dynamic_string(&query_str,
+                        "SELECT trace FROM information_schema.optimizer_trace"
+                        " /* injected by --opt-trace-protocol */",
+                        128, 128);
+
+    command->query= query_str.str;
+    command->query_len= query_str.length;
+    command->end= strend(command->query);
+
+    /* sorted trace is not readable at all*/
+    my_bool save_display_result_sorted= display_result_sorted;
+    display_result_sorted= FALSE;
+    run_query(cn, command, flags);
+    display_result_sorted= save_display_result_sorted;
+
+    dynstr_free(&query_str);
+    *command= save_command;
+  }
+}
+
 
 void run_explain(struct st_connection *cn, struct st_command *command, int flags)
 {
@@ -7968,6 +8010,13 @@ void init_re(void)
     "^("
     "[[:space:]]*SELECT[[:space:]])";
 
+  const char *opt_trace_re_str =
+    "^("
+    "[[:space:]]*INSERT[[:space:]]|"
+    "[[:space:]]*UPDATE[[:space:]]|"
+    "[[:space:]]*DELETE[[:space:]]|"
+    "[[:space:]]*EXPLAIN[[:space:]]|"
+    "[[:space:]]*SELECT[[:space:]])";
 
   /* Filter for queries that can be converted to EXPLAIN */
   const char *explain_re_str =
@@ -7977,6 +8026,7 @@ void init_re(void)
   init_re_comp(&ps_re, ps_re_str);
   init_re_comp(&sp_re, sp_re_str);
   init_re_comp(&view_re, view_re_str);
+  init_re_comp(&opt_trace_re, opt_trace_re_str);
   init_re_comp(&explain_re, explain_re_str);
 }
 
@@ -8014,6 +8064,7 @@ void free_re(void)
   my_regfree(&ps_re);
   my_regfree(&sp_re);
   my_regfree(&view_re);
+  my_regfree(&opt_trace_re);
   my_regex_end();
 }
 
@@ -8327,6 +8378,7 @@ int main(int argc, char **argv)
   var_set_int("$PS_PROTOCOL", ps_protocol);
   var_set_int("$SP_PROTOCOL", sp_protocol);
   var_set_int("$VIEW_PROTOCOL", view_protocol);
+  var_set_int("$OPT_TRACE_PROTOCOL", opt_trace_protocol);
   var_set_int("$EXPLAIN_PROTOCOL", explain_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
 
@@ -8363,6 +8415,7 @@ int main(int argc, char **argv)
   ps_protocol_enabled= ps_protocol;
   sp_protocol_enabled= sp_protocol;
   view_protocol_enabled= view_protocol;
+  opt_trace_protocol_enabled= opt_trace_protocol;
   explain_protocol_enabled= explain_protocol;
   cursor_protocol_enabled= cursor_protocol;
 
@@ -8649,6 +8702,7 @@ int main(int argc, char **argv)
         */
 	run_explain(cur_con, command, flags);
 	run_query(cur_con, command, flags);
+	display_opt_trace(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
 
