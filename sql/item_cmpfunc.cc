@@ -5956,6 +5956,49 @@ void Item_equal::print(String *str, enum_query_type query_type)
 }
 
 
+void Item_func_trig_cond::print(String *str, enum_query_type query_type)
+{
+  /*
+    Print:
+    trigcond_if(<property><(optional list of source tables)>, condition, TRUE)
+    which means: if a certain property (<property>) is true, then return
+    the value of <condition>, else return TRUE. If source tables are
+    present, they are the owner of the property.
+  */
+  str->append(func_name());
+  str->append("_if(");
+  switch(trig_type)
+  {
+  case IS_NOT_NULL_COMPL:
+    str->append("is_not_null_compl");
+    break;
+  case FOUND_MATCH:
+    str->append("found_match");
+    break;
+  case OUTER_FIELD_IS_NOT_NULL:
+    str->append("outer_field_is_not_null");
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+  if (trig_tab != NULL)
+  {
+    str->append("(");
+    str->append(trig_tab->table->alias);
+    if (trig_tab->last_inner != trig_tab)
+    {
+      /* case of t1 LEFT JOIN (t2,t3,...): print range of inner tables */
+      str->append("..");
+      str->append(trig_tab->last_inner->table->alias);
+    }
+    str->append(")");
+  }
+  str->append(", ");
+  args[0]->print(str, query_type);
+  str->append(", true)");
+}
+
+
 /**
   Get item that can be substituted for the supplied item.
 

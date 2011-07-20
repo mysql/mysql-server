@@ -703,8 +703,10 @@ trx_purge_get_rseg_with_min_trx_id(
 
 	ut_a(purge_sys->rseg->last_page_no != FIL_NULL);
 
-	/* We assume in purge of externally stored fields that space id == 0 */
-	ut_a(purge_sys->rseg->space == 0);
+	/* We assume in purge of externally stored fields that space id is
+	in the range of UNDO tablespace space ids */
+	ut_a(purge_sys->rseg->space <= srv_undo_tablespaces);
+
 	zip_size = purge_sys->rseg->zip_size;
 
 	ut_a(purge_sys->iter.trx_no <= purge_sys->rseg->last_trx_no);
@@ -741,7 +743,8 @@ trx_purge_read_undo_rec(
 		mtr_start(&mtr);
 
 		undo_rec = trx_undo_get_first_rec(
-			0 /* System space id */, zip_size,
+			purge_sys->rseg->space,
+			zip_size,
 			purge_sys->hdr_page_no,
 			purge_sys->hdr_offset, RW_S_LATCH, &mtr);
 

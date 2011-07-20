@@ -53,6 +53,7 @@
 #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
 #include "debug_sync.h"
 #include "datadict.h"   // dd_frm_type()
+#include "opt_trace.h"     // Optimizer trace information schema tables
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -2084,7 +2085,7 @@ void reset_status_vars()
   for (; ptr < last; ptr++)
   {
     /* Note that SHOW_LONG_NOFLUSH variables are not reset */
-    if (ptr->type == SHOW_LONG)
+    if (ptr->type == SHOW_LONG || ptr->type == SHOW_SIGNED_LONG)
       *(ulong*) ptr->value= 0;
   }  
 }
@@ -2261,6 +2262,9 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_LONG:
         case SHOW_LONG_NOFLUSH: // the difference lies in refresh_status()
           end= int10_to_str(*(long*) value, buff, 10);
+          break;
+        case SHOW_SIGNED_LONG:
+          end= int10_to_str(*(long*) value, buff, -10);
           break;
         case SHOW_LONGLONG_STATUS:
           value= ((char *) status_var + (ulong) value);
@@ -7597,6 +7601,11 @@ ST_FIELD_INFO tablespaces_fields_info[]=
 };
 
 
+#ifdef OPTIMIZER_TRACE
+/** For creating fields of information_schema.OPTIMIZER_TRACE */
+extern ST_FIELD_INFO optimizer_trace_info[];
+#endif
+
 /*
   Description of ST_FIELD_INFO in table.h
 
@@ -7637,6 +7646,11 @@ ST_SCHEMA_TABLE schema_tables[]=
    OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1, 0},
+#ifdef OPTIMIZER_TRACE
+  {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
+    fill_optimizer_trace_info, make_optimizer_trace_table_for_show,
+    NULL, -1, -1, false, 0},
+#endif
   {"PARAMETERS", parameters_fields_info, create_schema_table,
    fill_schema_proc, 0, 0, -1, -1, 0, 0},
   {"PARTITIONS", partitions_fields_info, create_schema_table,

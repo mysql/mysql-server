@@ -511,6 +511,7 @@
 #cmakedefine EXTRA_DEBUG 1
 #cmakedefine BACKUP_TEST 1
 #cmakedefine CYBOZU 1
+#cmakedefine OPTIMIZER_TRACE 1
 #cmakedefine USE_SYMDIR 1
 
 /* Character sets and collations */

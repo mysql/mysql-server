@@ -2670,6 +2670,15 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value)
 }
 
 
+/**
+   @sa enum_query_type.
+   For us to be able to print a query (in debugging, optimizer trace, EXPLAIN
+   EXTENDED) without changing the query's result, this function must not
+   modify the item's content. Not even a realloc() of str_value is permitted:
+   Item_func_concat/repeat/encode::val_str() depend on the allocated length;
+   a change of this length can influence results of CONCAT(), REPEAT(),
+   ENCODE()...
+*/
 void Item_string::print(String *str, enum_query_type query_type)
 {
   const bool print_introducer=
@@ -2712,7 +2721,7 @@ void Item_string::print(String *str, enum_query_type query_type)
 
         thd->convert_string(&utf8_lex_str,
                             system_charset_info,
-                            str_value.c_ptr_safe(),
+                            str_value.ptr(),
                             str_value.length(),
                             str_value.charset());
 
