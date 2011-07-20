@@ -7,10 +7,10 @@
 
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
+if (`SELECT $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0
+        OR $PS_PROTOCOL = 0`)
 {
-   --skip Need normal protocol
+   --skip Need ps-protocol
 }
 
---source suite/optimizer_trace/include/optimizer_trace_bugs.inc
+--source suite/opt_trace/include/bugs.inc

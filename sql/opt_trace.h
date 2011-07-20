@@ -256,7 +256,8 @@ class set_var_base;
           ]
 @endverbatim
 
-  For more output examples, check @c mysql-test/r/optimizer_trace*.result.
+  For more output examples, check result files of the opt_trace suite in
+  @c mysql-test.
 
   Feature can be un-compiled with @code cmake -DOPTIMIZER_TRACE=0 @endcode.
 
