@@ -161,7 +161,7 @@ row_fts_psort_info_init(
 	fts_psort_common_t*	common_info = NULL;
 	ulint			block_size;
 	fts_psort_info_t*	psort_info = NULL;
-	fts_psort_info_t*	merge_info;
+	fts_psort_info_t*	merge_info = NULL;
 	os_event_t		sort_event;
 	ibool			ret = TRUE;
 
@@ -231,8 +231,7 @@ row_fts_psort_info_init(
 
 	/* Initialize merge_info structures parallel merge and insert
 	into auxiliary FTS tables (FTS_INDEX_TABLE) */
-	*merge = merge_info = mem_alloc(FTS_NUM_AUX_INDEX
-					* sizeof *merge_info);
+	*merge = merge_info = mem_alloc(FTS_NUM_AUX_INDEX * sizeof *merge_info);
 
 	for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
 
