@@ -548,7 +548,9 @@ enum enum_query_type
   /// In utf8.
   QT_TO_SYSTEM_CHARSET= (1 << 0),
   /// Without character set introducers.
-  QT_WITHOUT_INTRODUCERS= (1 << 1)
+  QT_WITHOUT_INTRODUCERS= (1 << 1),
+  /// When printing a SELECT, add its number (select_lex->number)
+  QT_SHOW_SELECT_NUMBER= (1 << 2)
 };
 
 /* query_id */

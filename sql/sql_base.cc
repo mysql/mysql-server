@@ -5568,7 +5568,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
       mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
       goto err;
     }
-    if (!thd->lex->describe)
+    if (!preserve_items_for_printing(thd))
       mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
   }
 

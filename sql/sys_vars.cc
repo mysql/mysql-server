@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
+  @file
+  Definitions of all server's session or global variables.
+
   How to add new variables:
 
   1. copy one of the existing variables, and edit the declaration.
@@ -40,6 +43,7 @@
 #include "rpl_slave.h"
 #include "rpl_info_factory.h"
 #include "transaction.h"
+#include "opt_trace.h"
 #include "mysqld.h"
 #include "lock.h"
 #include "sql_time.h"                       // known_date_time_formats
@@ -1650,6 +1654,66 @@ static Sys_var_flagset Sys_optimizer_switch(
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(fix_optimizer_switch));
+
+#ifdef OPTIMIZER_TRACE
+
+static Sys_var_flagset Sys_optimizer_trace(
+       "optimizer_trace",
+       "Controls tracing of the Optimizer:"
+       " optimizer_trace=option=val[,option=val...], where option is one of"
+       " {enabled, end_marker, one_line}"
+       " and val is one of {on, off, default}",
+       SESSION_VAR(optimizer_trace), CMD_LINE(REQUIRED_ARG),
+       Opt_trace_context::flag_names,
+       DEFAULT(Opt_trace_context::FLAG_DEFAULT));
+// @see set_var::is_var_optimizer_trace()
+export sys_var *Sys_optimizer_trace_ptr= &Sys_optimizer_trace;
+
+/**
+  Note how "misc" is not here: it is not accessible to the user; disabling
+  "misc" would disable the top object, which would make an empty trace.
+*/
+static Sys_var_flagset Sys_optimizer_trace_features(
+       "optimizer_trace_features",
+       "Enables/disables tracing of selected features of the Optimizer:"
+       " optimizer_trace_features=option=val[,option=val...], where option is one of"
+       " {greedy_search, range_optimizer, dynamic_range, repeated_subselect}"
+       " and val is one of {on, off, default}",
+       SESSION_VAR(optimizer_trace_features), CMD_LINE(REQUIRED_ARG),
+       Opt_trace_context::feature_names,
+       DEFAULT(Opt_trace_context::default_features));
+
+/** Delete all old optimizer traces */
+static bool optimizer_trace_update(sys_var *self, THD *thd,
+                                   enum_var_type type)
+{
+  thd->opt_trace.reset();
+  return false;
+}
+
+static Sys_var_long Sys_optimizer_trace_offset(
+       "optimizer_trace_offset",
+       "Offset of first optimizer trace to show; see manual",
+       SESSION_VAR(optimizer_trace_offset), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(LONG_MIN, LONG_MAX), DEFAULT(-1), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(optimizer_trace_update));
+
+static Sys_var_long Sys_optimizer_trace_limit(
+       "optimizer_trace_limit",
+       "Maximum number of shown optimizer traces",
+       SESSION_VAR(optimizer_trace_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, LONG_MAX), DEFAULT(1), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(optimizer_trace_update));
+
+static Sys_var_ulong Sys_optimizer_trace_max_mem_size(
+       "optimizer_trace_max_mem_size",
+       "Maximum allowed cumulated size of stored optimizer traces",
+       SESSION_VAR(optimizer_trace_max_mem_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*16), BLOCK_SIZE(1));
+
+#endif
 
 static Sys_var_charptr Sys_pid_file(
        "pid_file", "Pid file used by safe_mysqld",
