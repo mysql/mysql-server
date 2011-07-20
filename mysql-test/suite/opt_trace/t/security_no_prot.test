@@ -5,4 +5,4 @@ if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
 }
 
 # The main testing script
---source suite/optimizer_trace/include/optimizer_trace_range.inc
+--source suite/opt_trace/include/security.inc

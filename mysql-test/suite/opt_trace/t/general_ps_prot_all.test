@@ -13,4 +13,5 @@ if (`SELECT $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0
    --skip Need ps-protocol
 }
 
---source suite/optimizer_trace/include/optimizer_trace_bugs.inc
+# The main testing script
+--source suite/opt_trace/include/general.inc
