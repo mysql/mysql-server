@@ -2123,7 +2123,9 @@ row_create_index_for_mysql(
 	ulint		i;
 	ulint		len;
 	char*		table_name;
+	char*		index_name;
 	dict_table_t*	table;
+	ibool		is_fts = FALSE;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -2136,6 +2138,9 @@ row_create_index_for_mysql(
 	table later, after the index object is freed (inside
 	que_run_threads()) and thus index->table_name is not available. */
 	table_name = mem_strdup(index->table_name);
+	index_name = mem_strdup(index->name);
+
+	is_fts = (index->type == DICT_FTS);
 
 	table = dict_table_open_on_name_no_stats(table_name, TRUE,
 						 DICT_ERR_IGNORE_NONE);
@@ -2180,10 +2185,10 @@ row_create_index_for_mysql(
 	que_graph_free((que_t*) que_node_get_parent(thr));
 
 	/* Create the index specific FTS auxiliary tables. */
-	if (err == DB_SUCCESS && index->type == DICT_FTS) {
+	if (err == DB_SUCCESS && is_fts) {
 		dict_index_t*	idx;
 
-		idx = dict_table_get_index_on_name(table, index->name);
+		idx = dict_table_get_index_on_name(table, index_name);
 
 		ut_ad(idx);
 		err = fts_create_index_tables(trx, idx);
@@ -2209,6 +2214,7 @@ error_handling:
 	trx->op_info = "";
 
 	mem_free(table_name);
+	mem_free(index_name);
 
 	return((int) err);
 }
