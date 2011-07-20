@@ -2761,8 +2761,10 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(socket_operation_map));
   DBUG_ASSERT(state != NULL);
   PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*> (socket);
+
   if (unlikely(pfs_socket == NULL))
     return NULL;
+
   DBUG_ASSERT(pfs_socket->m_class != NULL);
 
   if (pfs_socket->m_idle || !pfs_socket->m_enabled)
