@@ -42,8 +42,8 @@ Created 2007/03/27 Sunny Bains
 
 #define FTS_ELEM(t, n, i, j) (t[(i) * n + (j)])
 
-#define RANK_DOWNGRADE	(-1.0)
-#define RANK_UPGRADE	(1.0)
+#define RANK_DOWNGRADE	(-0.5)
+#define RANK_UPGRADE	(0.5)
 
 /* Maximum number of words supported in a proximity search.
 FIXME, this limitation can be removed easily. Need to see
@@ -695,6 +695,14 @@ fts_query_change_ranking(
 		ranking->rank += (fts_rank_t)((downgrade)
 						? RANK_DOWNGRADE
 						: RANK_UPGRADE);
+
+		/* Allow at most 2 adjustment by RANK_DOWNGRADE (-0.5)
+		and RANK_UPGRADE (0.5) */
+		if (ranking->rank >= 1.0) {
+			ranking->rank = 1.0;
+		} else if (ranking->rank <= -1.0) {
+			ranking->rank = -1.0;
+		}
 	}
 	return;
 }
@@ -2857,8 +2865,9 @@ fts_query_calculate_ranking(
 {
 	const ib_rbt_node_t*	node;
 
-	ut_a(ranking->rank == 0.0 || ranking->rank == RANK_DOWNGRADE ||
-	     ranking->rank == RANK_UPGRADE);
+	/* At this stage, ranking->rank should not exceed the 1.0
+	bound */
+	ut_ad(ranking->rank <= 1.0 && ranking->rank >= -1.0);
 
 	for (node = rbt_first(ranking->words);
 	     node;
