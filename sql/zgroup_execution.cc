@@ -228,7 +228,7 @@ int ugid_before_statement(THD *thd, Checkable_rwlock *lock,
   }
 
   /*
-    2. Begin super-group
+    2. Begin master-super-group
   */
   lock->rdlock();
 
@@ -254,17 +254,28 @@ int ugid_before_statement(THD *thd, Checkable_rwlock *lock,
       if (!ugid_next_list->is_empty())
         if (ugid_acquire_group_ownerships(thd, lock, gls, ugid_next_list))
           goto skip_unlock;
+      thd->server_status |= SERVER_STATUS_IN_MASTER_SUPER_GROUP;
+    }
+    else if (ugid_next->type == Ugid_specification::UGID)
+    {
+      if (ugid_acquire_group_ownership(thd, lock, gls,
+                                       ugid_next->group.sidno,
+                                       ugid_next->group.gno))
+        goto skip_unlock;
+      thd->server_status |= SERVER_STATUS_IN_MASTER_SUPER_GROUP;
+    }
+    else if (ugid_next->type == Ugid_specification::ANONYMOUS)
+    {
+      thd->server_status |= SERVER_STATUS_IN_MASTER_SUPER_GROUP;
     }
     else
     {
-      if (ugid_next->type == Ugid_specification::UGID)
-        if (ugid_acquire_group_ownership(thd, lock, gls,
-                                         ugid_next->group.sidno,
-                                         ugid_next->group.gno))
-          goto skip_unlock;
+      /*
+        In this case, we will continue to be outside a
+        master-super-group, so we do nothing.
+      */
+      DBUG_ASSERT(ugid_next->type == Ugid_specification::AUTOMATIC);
     }
-
-    thd->server_status |= SERVER_STATUS_IN_MASTER_SUPER_GROUP;
   }
 
   /*

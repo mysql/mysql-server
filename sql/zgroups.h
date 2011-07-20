@@ -55,7 +55,7 @@ enum enum_group_status
   GS_SUCCESS= 0,
   GS_ERROR_OUT_OF_MEMORY= -1,
   GS_ERROR_PARSE= -2,
-  GS_ERROR_IO= -3,
+  GS_ERROR_IO= -3
 };
 
 /**
@@ -1014,7 +1014,7 @@ private:
   struct Interval_chunk
   {
     Interval_chunk *next;
-    Interval intervals[0];
+    Interval intervals[1];
   };
   /// The default number of intervals in an Interval_chunk.
   static const int CHUNK_GROW_SIZE = 8;

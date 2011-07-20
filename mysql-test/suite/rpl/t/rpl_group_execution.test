@@ -16,6 +16,28 @@ SELECT @@SESSION.UGID_NEXT;
 eval SET @@SESSION.UGID_NEXT= "$uuid:10";
 SELECT @@SESSION.UGID_NEXT;
 
+eval SET @@SESSION.UGID_NEXT= "$uuid:0x10";
+SELECT @@SESSION.UGID_NEXT;
+
+eval SET @@SESSION.UGID_NEXT= "$uuid:010";
+SELECT @@SESSION.UGID_NEXT;
+
+--error 1231 # ER_WRONG_VALUE_FOR_VAR
+eval SET @@SESSION.UGID_NEXT= "$uuid:10#";
+SELECT @@SESSION.UGID_NEXT;
+
+--error 1231 # ER_WRONG_VALUE_FOR_VAR
+eval SET @@SESSION.UGID_NEXT= "$uuid:1-10";
+SELECT @@SESSION.UGID_NEXT;
+
+--error 1231 # ER_WRONG_VALUE_FOR_VAR
+eval SET @@SESSION.UGID_NEXT= "$uuid:1:3";
+SELECT @@SESSION.UGID_NEXT;
+
+--error 1231 # ER_WRONG_VALUE_FOR_VAR
+eval SET @@SESSION.UGID_NEXT= "$uuid:1,$uuid:3";
+SELECT @@SESSION.UGID_NEXT;
+
 --error 1231 # ER_WRONG_VALUE_FOR_VAR
 SET @@SESSION.UGID_NEXT= NULL;
 SELECT @@SESSION.UGID_NEXT;
@@ -47,6 +69,14 @@ SELECT @@SESSION.UGID_NEXT_LIST;
 SET @@SESSION.UGID_NEXT_LIST= "";
 SELECT @@SESSION.UGID_NEXT_LIST;
 
+--error 1231 # ER_WRONG_VALUE_FOR_VAR
+SET @@SESSION.UGID_NEXT_LIST= "#";
+SELECT @@SESSION.UGID_NEXT_LIST;
+
+--error 1231 # ER_WRONG_VALUE_FOR_VAR
+SET @@SESSION.UGID_NEXT_LIST= "0aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1:0aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1";
+SELECT @@SESSION.UGID_NEXT_LIST;
+
 SET @@SESSION.UGID_NEXT_LIST= NULL;
 SELECT @@SESSION.UGID_NEXT_LIST;
 
@@ -59,31 +89,35 @@ SELECT @@SESSION.UGID_NEXT_LIST;
 SET @@SESSION.UGID_NEXT_LIST= "2aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-10:2-20";
 SELECT @@SESSION.UGID_NEXT_LIST;
 
-SET @@SESSION.UGID_NEXT_LIST= "3aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-10:11-20";
+SET @@SESSION.UGID_NEXT_LIST= "3aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa :1-10:11-20";
 SELECT @@SESSION.UGID_NEXT_LIST;
 
-SET @@SESSION.UGID_NEXT_LIST= "4aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-10:14-20";
+SET @@SESSION.UGID_NEXT_LIST= "4aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa: 1-10:14-20";
 SELECT @@SESSION.UGID_NEXT_LIST;
 
-SET @@SESSION.UGID_NEXT_LIST= "5aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4-10:1-20";
+SET @@SESSION.UGID_NEXT_LIST= "5aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4 -10:1-20";
 SELECT @@SESSION.UGID_NEXT_LIST;
 
-SET @@SESSION.UGID_NEXT_LIST= "6aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4-10:8-20";
+SET @@SESSION.UGID_NEXT_LIST= "6aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4- 10:8-20";
 SELECT @@SESSION.UGID_NEXT_LIST;
 
-SET @@SESSION.UGID_NEXT_LIST= "7aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4-10:4-20";
+SET @@SESSION.UGID_NEXT_LIST= "7aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4-10 :4-20";
 SELECT @@SESSION.UGID_NEXT_LIST;
 
-SET @@SESSION.UGID_NEXT_LIST= "8aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4-10:15-20:11-14";
+SET @@SESSION.UGID_NEXT_LIST= "8aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4-10:15-20:11-14 ";
 SELECT @@SESSION.UGID_NEXT_LIST;
 
-SET @@SESSION.UGID_NEXT_LIST= "9aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-10,9aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11-20";
+SET @@SESSION.UGID_NEXT_LIST= "9aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+: 1 - 10,
+9aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa    :       11 -     20     ";
 SELECT @@SESSION.UGID_NEXT_LIST;
 
 SET @@SESSION.UGID_NEXT_LIST= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-10,0aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11-20,aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11-20";
 SELECT @@SESSION.UGID_NEXT_LIST;
 
 --echo ==== Error conditions for setting ugid_next and ugid_next_list ====
+
+SET UGID_NEXT_LIST = NULL, UGID_NEXT = "AUTOMATIC", UGID_END = 0, UGID_COMMIT = 0;
 
 CREATE TABLE variables (var VARCHAR(100), val VARCHAR(100), id INT PRIMARY KEY AUTO_INCREMENT);
 eval INSERT INTO variables(var, val) VALUES
@@ -117,11 +151,6 @@ while ($id <= 4)
   INSERT INTO variables(var) VALUES ('a');
   DROP TRIGGER t;
 
-  # can set value from stored procedure
-  --eval CREATE PROCEDURE p () BEGIN SET @@SESSION.$var = $val; END
-  CALL p();
-  DROP PROCEDURE p;
-
   # can't set value when invoking SF
   --error 1744 # ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
   --eval SET @@SESSION.$var = return_ugid()
@@ -132,20 +161,44 @@ while ($id <= 4)
   --eval SET @@SESSION.$var = $val
   --connection master
 
-  if ($id <= 2)
-  {
-    # ugid_next and ugid_next list are not settable outside a
-    # master-super-group, inside a transaction
-    BEGIN;
-    --error 1740 # ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
-    --eval SET @@SESSION.$var = $val
-    COMMIT;
-  }
+  --eval SELECT @@SESSION.$var;
 
   --inc $id
 }
 
+SET UGID_NEXT_LIST = NULL;
+
+# can set value from stored procedure (although this is weird and we
+# really don't want to support it, we have to check that at least
+# there is no crash)
+SET UGID_NEXT_LIST = NULL, UGID_NEXT = "AUTOMATIC", UGID_END = 0, UGID_COMMIT = 0;
+--delimiter |
+eval CREATE PROCEDURE p ()
+BEGIN
+  SET @@SESSION.UGID_NEXT_LIST = "$uuid:1-10";
+  SET @@SESSION.UGID_NEXT = "$uuid:50";
+  SET @@SESSION.UGID_NEXT = "$uuid:5";
+  SET @@SESSION.UGID_COMMIT = 1;
+  SET @@SESSION.UGID_END = 1;
+  SET @@SESSION.UGID_NEXT_LIST = NULL;
+  SET @@SESSION.UGID_NEXT = "AUTOMATIC";
+  SET @@SESSION.UGID_COMMIT = 0;
+  SET @@SESSION.UGID_END = 0;
+END|
+--delimiter ;
+CALL p();
+DROP PROCEDURE p;
+
 --echo ---- Misc. error conditions for UGID_NEXT and UGID_NEXT_LIST ----
+
+# can't set ugid_next outside master-super-group, inside a transaction
+SET UGID_NEXT_LIST = NULL;
+BEGIN;
+  --error 1740 # ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+  --eval SET UGID_NEXT_LIST = "$uuid:1"
+  --error 1740 # ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+  --eval SET UGID_NEXT = "$uuid:1"
+COMMIT;
 
 # Cannot start master-super-group when ugid_next and ugid_next_list
 # are incompatible.

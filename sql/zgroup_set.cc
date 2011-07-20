@@ -150,9 +150,11 @@ void Group_set::add_interval_memory(int n_ivs, Interval *ivs)
 enum_group_status Group_set::create_new_chunk(int size)
 {
   DBUG_ENTER("Group_set::create_new_chunk");
-  // allocate the new chunk
+  // allocate the new chunk. one element is already pre-allocated, so
+  // we only add size-1 elements to the size of the struct.
   Interval_chunk *new_chunk=
-    (Interval_chunk *)malloc(sizeof(Interval_chunk) + sizeof(Interval) * size);
+    (Interval_chunk *)malloc(sizeof(Interval_chunk) +
+                             sizeof(Interval) * (size - 1));
   if (new_chunk == NULL)
     DBUG_RETURN(GS_ERROR_OUT_OF_MEMORY);
   // store the chunk in the list of chunks
