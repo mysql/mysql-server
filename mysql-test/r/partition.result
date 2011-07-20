@@ -77,7 +77,7 @@ EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a > 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > 1)
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > 1)
 DROP TABLE t1;
 #
 # Bug#57778: failed primary key add to partitioned innodb table
