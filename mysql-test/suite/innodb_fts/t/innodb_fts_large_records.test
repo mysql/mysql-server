@@ -52,17 +52,17 @@ SELECT * FROM t1 WHERE MATCH (a,b)
         AGAINST ('row35col2word49' IN NATURAL LANGUAGE MODE);
 
 # boolean mode
-select * from t1 where MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+row5col2word49" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+row35col2word49 +(row35col1word49 row35col2word40)" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+row35col2word49 -(row45col2word49)" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("row5col2word49 row5col2word40" IN BOOLEAN MODE);
-select * from t1 where MATCH a,b AGAINST ("+row5col2word* +row5col1word49*" IN BOOLEAN MODE);
-select * from t1 where MATCH a,b AGAINST ('"row35col2word49"' IN BOOLEAN MODE);
-select * from t1 where MATCH a,b AGAINST ('"ROW35col2WORD49"' IN BOOLEAN MODE);
+select count(*) from t1 where MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH(a,b) AGAINST("+row5col2word49" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH(a,b) AGAINST("+row35col2word49 +(row35col1word49 row35col2word40)" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH(a,b) AGAINST("+row35col2word49 -(row45col2word49)" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH(a,b) AGAINST("row5col2word49 row5col2word40" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH a,b AGAINST ("+row5col2word* +row5col1word49*" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH a,b AGAINST ('"row35col2word49"' IN BOOLEAN MODE);
+select count(*) from t1 where MATCH a,b AGAINST ('"ROW35col2WORD49"' IN BOOLEAN MODE);
 
 # query expansion
-select * from t1 where MATCH(a,b) AGAINST ("row5col2word49" WITH QUERY EXPANSION);
+select count(*) from t1 where MATCH(a,b) AGAINST ("row5col2word49" WITH QUERY EXPANSION);
 
 SELECT * FROM t1
         WHERE MATCH (a,b)
@@ -137,17 +137,17 @@ SELECT * FROM t1 WHERE MATCH (a,b)
         AGAINST ('row35col2word49' IN NATURAL LANGUAGE MODE);
 
 # boolean mode
-select * from t1 where MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+row5col2word49" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+row35col2word49 +(row35col1word49 row35col2word40)" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("+row35col2word49 -(row45col2word49)" IN BOOLEAN MODE);
-select * from t1 where MATCH(a,b) AGAINST("row5col2word49 row5col2word40" IN BOOLEAN MODE);
-select * from t1 where MATCH a,b AGAINST ("+row5col2word* +row5col1word49*" IN BOOLEAN MODE);
-select * from t1 where MATCH a,b AGAINST ('"row35col2word49"' IN BOOLEAN MODE);
-select * from t1 where MATCH a,b AGAINST ('"ROW35col2WORD49"' IN BOOLEAN MODE);
+select count(*) from t1 where MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH(a,b) AGAINST("+row5col2word49" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH(a,b) AGAINST("+row35col2word49 +(row35col1word49 row35col2word40)" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH(a,b) AGAINST("+row35col2word49 -(row45col2word49)" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH(a,b) AGAINST("row5col2word49 row5col2word40" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH a,b AGAINST ("+row5col2word* +row5col1word49*" IN BOOLEAN MODE);
+select count(*) from t1 where MATCH a,b AGAINST ('"row35col2word49"' IN BOOLEAN MODE);
+select count(*) from t1 where MATCH a,b AGAINST ('"ROW35col2WORD49"' IN BOOLEAN MODE);
 
 # query expansion
-select * from t1 where MATCH(a,b) AGAINST ("row5col2word49" WITH QUERY EXPANSION);
+select count(*) from t1 where MATCH(a,b) AGAINST ("row5col2word49" WITH QUERY EXPANSION);
 
 SELECT * FROM t1
         WHERE MATCH (a,b)

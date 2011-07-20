@@ -2235,6 +2235,27 @@ fts_query_phrase_search(
 			}
 		}
 
+		if (num_token == 1
+		    && !ib_vector_is_empty(query->match_array[0])) {
+			fts_match_t*    match;
+			ulint		n_matched;
+
+			n_matched = ib_vector_size(query->match_array[0]);
+
+			for (i = 0; i < n_matched; i++) {
+				match = ib_vector_get(
+					query->match_array[0], i);
+
+				fts_query_process_doc_id(
+					query, match->doc_id, 0);
+
+				fts_query_add_word_to_document(
+					query, match->doc_id, token->utf8);
+			}
+			query->oper = oper;
+			goto func_exit;
+		}
+
 		/* If we are doing proximity search, verify the distance
 		between all words, and check they are in specified distance. */
 		if (query->flags & FTS_PROXIMITY) {
