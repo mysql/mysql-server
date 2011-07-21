@@ -3109,7 +3109,7 @@ DROP TABLE t1,t2;
 --echo #
 
 SET SESSION optimizer_switch=
-  'semijoin=on,materialization=off,firstmatch=off,loosescan=off';
+  'semijoin=on,materialization=off,firstmatch=off,loosescan=off,derived_with_keys=on';
 
 CREATE TABLE t1 (a int) ;
 INSERT IGNORE INTO t1 VALUES (0), (1), (0);

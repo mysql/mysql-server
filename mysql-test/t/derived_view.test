@@ -2,6 +2,12 @@
 drop table if exists t1,t2;
 drop view if exists v1,v2,v3,v4;
 --enable_warnings
+
+set @exit_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=on,derived_with_keys=on';
+# The 'default' value within the scope of this test:
+set @save_optimizer_switch=@@optimizer_switch;
+
 create table t1(f1 int, f11 int);
 create table t2(f2 int, f22 int);
 insert into t1 values(1,1),(2,2),(3,3),(5,5),(9,9),(7,7);
@@ -405,7 +411,7 @@ SELECT * FROM t3
 SELECT * FROM t3
   WHERE t3.a IN (SELECT v1.a FROM v1, t2 WHERE t2.a = v1.b);
 
-SET SESSION optimizer_switch=default;
+SET SESSION optimizer_switch=@save_optimizer_switch;
 
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
@@ -454,7 +460,7 @@ EXPLAIN
 SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
 SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
 
-SET SESSION optimizer_switch=default;
+SET SESSION optimizer_switch=@save_optimizer_switch;
 
 DROP VIEW v1;
 DROP TABLE t1;
@@ -697,3 +703,28 @@ SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
 
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #804686: query over a derived table using a view 
+--echo #                 with a degenerated where condition
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,0), (1,0), (0,0), (1,1), (1,0);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+CREATE VIEW v2 AS SELECT a, MAX(b) AS b FROM t1 GROUP BY a;
+
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b<>0;
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b<>0;
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b;
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b;
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b;
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b;
+
+DROP VIEW v1,v2;
+DROP TABLE t1;
+
+# The following command must be the last one the file 
+set optimizer_switch=@exit_optimizer_switch;

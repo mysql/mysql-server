@@ -1674,6 +1674,9 @@ CREATE TABLE t5 (
 );
 INSERT INTO t5 VALUES (5141,12,'2004-08-06','2004-08-06');
 
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=on';
+
 select
   count(distinct t2.userid) pass,
   groupstuff.*,
@@ -1705,6 +1708,8 @@ join
 ) as groupstuff on t2.userid = groupstuff.userid 
 group by 
   groupstuff.groupname, colhead , t2.courseid;
+
+set optimizer_switch=@save_optimizer_switch; 
 
 drop table t1, t2, t3, t4, t5;
 
