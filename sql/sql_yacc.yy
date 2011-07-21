@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2072,7 +2073,9 @@ create:
             lex->change=NullS;
             memset(&lex->create_info, 0, sizeof(lex->create_info));
             lex->create_info.options=$2 | $4;
-            lex->create_info.db_type= ha_default_handlerton(thd);
+            lex->create_info.db_type=
+              lex->create_info.options & HA_LEX_CREATE_TMP_TABLE ?
+              ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
             lex->create_info.default_table_charset= NULL;
             lex->name.str= 0;
             lex->name.length= 0;
@@ -2080,11 +2083,14 @@ create:
           }
           create2
           {
-            LEX *lex= YYTHD->lex;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             lex->current_select= &lex->select_lex; 
             if (!lex->create_info.db_type)
             {
-              lex->create_info.db_type= ha_default_handlerton(YYTHD);
+              lex->create_info.db_type=
+                lex->create_info.options & HA_LEX_CREATE_TMP_TABLE ?
+                ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
               push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
                                   ER_WARN_USING_OTHER_HANDLER,
                                   ER(ER_WARN_USING_OTHER_HANDLER),
@@ -2768,9 +2774,15 @@ sp_decl:
             sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, $2,
                                       ctx->current_var_count());
-            if (i == NULL ||
-                sp->add_instr(i) ||
-                sp->push_backpatch(i, ctx->push_label((char *)"", 0)))
+            if (i == NULL || sp->add_instr(i))
+              MYSQL_YYABORT;
+
+            /* For continue handlers, mark end of handler scope. */
+            if ($2 == SP_HANDLER_CONTINUE &&
+                sp->push_backpatch(i, ctx->last_label()))
+              MYSQL_YYABORT;
+
+            if (sp->push_backpatch(i, ctx->push_label(empty_c_string, 0)))
               MYSQL_YYABORT;
           }
           sp_hcond_list sp_proc_stmt
@@ -5244,19 +5256,22 @@ default_collation:
 storage_engines:
           ident_or_text
           {
-            plugin_ref plugin= ha_resolve_by_name(YYTHD, &$1);
+            THD *thd= YYTHD;
+            plugin_ref plugin=
+              ha_resolve_by_name(thd, &$1,
+                thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
 
             if (plugin)
               $$= plugin_data(plugin, handlerton*);
             else
             {
-              if (YYTHD->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
+              if (thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
               {
                 my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
                 MYSQL_YYABORT;
               }
               $$= 0;
-              push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+              push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                   ER_UNKNOWN_STORAGE_ENGINE,
                                   ER(ER_UNKNOWN_STORAGE_ENGINE),
                                   $1.str);
@@ -5267,8 +5282,12 @@ storage_engines:
 known_storage_engines:
           ident_or_text
           {
-            plugin_ref plugin;
-            if ((plugin= ha_resolve_by_name(YYTHD, &$1)))
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            plugin_ref plugin=
+              ha_resolve_by_name(thd, &$1,
+                lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
+            if (plugin)
               $$= plugin_data(plugin, handlerton*);
             else
             {
@@ -11033,7 +11052,9 @@ show:
             memset(&lex->create_info, 0, sizeof(lex->create_info));
           }
           show_param
-          {}
+          {
+            Select->parsing_place= NO_MATTER;
+          }
         ;
 
 show_param:
@@ -11375,14 +11396,22 @@ describe:
             if (prepare_schema_table(YYTHD, lex, $2, SCH_COLUMNS))
               MYSQL_YYABORT;
           }
-          opt_describe_column {}
+          opt_describe_column
+          {
+            Select->parsing_place= NO_MATTER;
+          }
         | describe_command opt_extended_describe
           { Lex->describe|= DESCRIBE_NORMAL; }
+          explanable_command
+          { Lex->select_lex.options|= SELECT_DESCRIBE; }
+        ;
+
+explanable_command:
           select
-          {
-            LEX *lex=Lex;
-            lex->select_lex.options|= SELECT_DESCRIBE;
-          }
+        | insert
+        | replace
+        | update
+        | delete
         ;
 
 describe_command:

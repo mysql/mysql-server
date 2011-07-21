@@ -591,6 +591,17 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
+  /*
+    Make sure the view doesn't have so many columns that we hit the
+    64k header limit if the view is materialized as a MyISAM table.
+  */
+  if (select_lex->item_list.elements > MAX_FIELDS)
+  {
+    my_error(ER_TOO_MANY_FIELDS, MYF(0));
+    res= TRUE;
+    goto err;
+  }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     Compare/check grants on view with grants of underlying tables
@@ -1278,8 +1289,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       underlying tables.
       Skip this step if we are opening view for prelocking only.
     */
-    if (!table->prelocking_placeholder &&
-        (old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
+    if (!table->prelocking_placeholder && old_lex->describe &&
+        is_explainable_query(old_lex->sql_command))
     {
       if (check_table_access(thd, SELECT_ACL, view_tables, FALSE,
                              UINT_MAX, TRUE) &&

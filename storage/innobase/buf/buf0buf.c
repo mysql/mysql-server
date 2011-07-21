@@ -407,6 +407,7 @@ buf_get_total_stat(
 		tot_stat->n_pages_read += buf_stat->n_pages_read;
 		tot_stat->n_pages_written += buf_stat->n_pages_written;
 		tot_stat->n_pages_created += buf_stat->n_pages_created;
+		tot_stat->n_ra_pages_read_rnd += buf_stat->n_ra_pages_read_rnd;
 		tot_stat->n_ra_pages_read += buf_stat->n_ra_pages_read;
 		tot_stat->n_ra_pages_evicted += buf_stat->n_ra_pages_evicted;
 		tot_stat->n_pages_made_young += buf_stat->n_pages_made_young;
@@ -2505,6 +2506,9 @@ loop:
 		}
 
 		if (buf_read_page(space, zip_size, offset)) {
+			buf_read_ahead_random(space, zip_size, offset,
+					      ibuf_inside(mtr));
+
 			retries = 0;
 		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
 			++retries;
@@ -3493,7 +3497,6 @@ err_exit:
 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
 		bpage->space	= space;
 		bpage->offset	= offset;
-
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;
@@ -4718,6 +4721,7 @@ buf_stats_aggregate_pool_info(
 	total_info->n_pages_created += pool_info->n_pages_created;
 	total_info->n_pages_written += pool_info->n_pages_written;
 	total_info->n_page_gets += pool_info->n_page_gets;
+	total_info->n_ra_pages_read_rnd += pool_info->n_ra_pages_read_rnd;
 	total_info->n_ra_pages_read += pool_info->n_ra_pages_read;
 	total_info->n_ra_pages_evicted += pool_info->n_ra_pages_evicted;
 	total_info->page_made_young_rate += pool_info->page_made_young_rate;
@@ -4730,6 +4734,7 @@ buf_stats_aggregate_pool_info(
 	total_info->page_read_delta += pool_info->page_read_delta;
 	total_info->young_making_delta += pool_info->young_making_delta;
 	total_info->not_young_making_delta += pool_info->not_young_making_delta;
+	total_info->pages_readahead_rnd_rate += pool_info->pages_readahead_rnd_rate;
 	total_info->pages_readahead_rate += pool_info->pages_readahead_rate;
 	total_info->pages_evicted_rate += pool_info->pages_evicted_rate;
 	total_info->unzip_lru_len += pool_info->unzip_lru_len;
@@ -4804,6 +4809,7 @@ buf_stats_get_pool_info(
 
 	pool_info->n_page_gets = buf_pool->stat.n_page_gets;
 
+	pool_info->n_ra_pages_read_rnd = buf_pool->stat.n_ra_pages_read_rnd;
 	pool_info->n_ra_pages_read = buf_pool->stat.n_ra_pages_read;
 
 	pool_info->n_ra_pages_evicted = buf_pool->stat.n_ra_pages_evicted;
@@ -4843,6 +4849,10 @@ buf_stats_get_pool_info(
 			buf_pool->stat.n_pages_not_made_young
 			- buf_pool->old_stat.n_pages_not_made_young;
 	}
+	pool_info->pages_readahead_rnd_rate =
+		 (buf_pool->stat.n_ra_pages_read_rnd
+		  - buf_pool->old_stat.n_ra_pages_read_rnd) / time_elapsed;
+
 
 	pool_info->pages_readahead_rate =
 		 (buf_pool->stat.n_ra_pages_read
@@ -4927,9 +4937,12 @@ buf_print_io_instance(
 
 	/* Statistics about read ahead algorithm */
 	fprintf(file, "Pages read ahead %.2f/s,"
-		" evicted without access %.2f/s\n",
+		" evicted without access %.2f/s,"
+		" Random read ahead %.2f/s\n",
+
 		pool_info->pages_readahead_rate,
-		pool_info->pages_evicted_rate);
+		pool_info->pages_evicted_rate,
+		pool_info->pages_readahead_rnd_rate);
 
 	/* Print some values to help us with visualizing what is
 	happening with LRU eviction. */

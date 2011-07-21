@@ -1,0 +1,15 @@
+#
+# Basic test for innodb_buffer_pool_load_abort
+#
+
+-- source include/have_innodb.inc
+
+# Check the default value
+SET @orig = @@global.innodb_buffer_pool_load_abort;
+SELECT @orig;
+
+# Confirm that the value remains OFF after being set to ON
+
+SET GLOBAL innodb_buffer_pool_load_abort = ON;
+
+SELECT @@global.innodb_buffer_pool_load_abort;

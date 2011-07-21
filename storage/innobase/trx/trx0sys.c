@@ -413,6 +413,9 @@ start_again:
 		/* Flush the modified pages to disk and make a checkpoint */
 		log_make_checkpoint_at(LSN_MAX, TRUE);
 
+		/* Remove doublewrite pages from LRU */
+		buf_pool_invalidate();
+
 		fprintf(stderr, "InnoDB: Doublewrite buffer created\n");
 
 		trx_sys_multiple_tablespace_format = TRUE;
@@ -1005,7 +1008,9 @@ trx_sys_init_at_db_start(void)
 
 	sys_header = trx_sysf_get(&mtr);
 
-	trx_rseg_array_init(sys_header, ib_bh, &mtr);
+	if (srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+		trx_rseg_array_init(sys_header, ib_bh, &mtr);
+	}
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the 'if' in
@@ -1363,36 +1368,69 @@ trx_sys_file_format_close(void)
 }
 
 /*********************************************************************
-Creates the rollback segments */
+Creates the rollback segments.
+@return number of rollback segments that are active. */
 UNIV_INTERN
-void
+ulint
 trx_sys_create_rsegs(
 /*=================*/
+	ulint	n_spaces,	/*!< number of tablespaces for UNDO logs */
 	ulint	n_rsegs)	/*!< number of rollback segments to create */
 {
-	ulint	new_rsegs = 0;
+	mtr_t	mtr;
+	ulint	n_used;
 
-	/* Do not create additional rollback segments if
-	innodb_force_recovery has been set and the database
-	was not shutdown cleanly. */
-	if (!srv_force_recovery && !recv_needed_recovery) {
+	ut_a(n_spaces < TRX_SYS_N_RSEGS);
+	ut_a(n_rsegs <= TRX_SYS_N_RSEGS);
+
+	if (srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
+		return(ULINT_UNDEFINED);
+	}
+
+	/* This is executed in single-threaded mode therefore it is not
+	necessary to use the same mtr in trx_rseg_create(). n_used cannot
+	change while the function is executing. */
+
+	mtr_start(&mtr);
+	n_used = trx_sysf_rseg_find_free(&mtr);
+	mtr_commit(&mtr);
+
+	if (n_used == ULINT_UNDEFINED) {
+		n_used = TRX_SYS_N_RSEGS;
+	}
+
+	/* Do not create additional rollback segments if innodb_force_recovery
+	has been set and the database was not shutdown cleanly. */
+
+	if (!srv_force_recovery && !recv_needed_recovery && n_used < n_rsegs) {
 		ulint	i;
+		ulint	new_rsegs = n_rsegs - n_used;
 
-		for (i = 0;  i < n_rsegs; ++i) {
+		for (i = 0; i < new_rsegs; ++i) {
+			ulint	space;
 
-			if (trx_rseg_create() != NULL) {
-				++new_rsegs;
+			/* Tablespace 0 is the system tablespace. All UNDO
+			log tablespaces start from 1. */
+
+			if (n_spaces > 0) {
+				space = (i % n_spaces) + 1;
+			} else {
+				space = 0; /* System tablespace */
+			}
+
+			if (trx_rseg_create(space) != NULL) {
+				++n_used;
 			} else {
 				break;
 			}
 		}
 	}
 
-	if (new_rsegs > 0) {
-		fprintf(stderr,
-			"InnoDB: %lu rollback segment(s) active.\n",
-		       	new_rsegs);
-	}
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: %lu rollback segment(s) are active.\n",
+		n_used);
+
+	return(n_used);
 }
 
 #else /* !UNIV_HOTBACKUP */
@@ -1467,18 +1505,18 @@ trx_sys_read_file_format_id(
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-"  ibbackup: Error: trying to read system tablespace file format,\n"
-"  ibbackup: but could not open the tablespace file %s!\n",
-			pathname
-		);
+			"  ibbackup: Error: trying to read system tablespace "
+			"file format,\n"
+			"  ibbackup: but could not open the tablespace "
+			"file %s!\n", pathname);
 		return(FALSE);
 	}
 
 	/* Read the page on which file format is stored */
 
 	success = os_file_read_no_error_handling(
-		file, page, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE, 0, UNIV_PAGE_SIZE
-	);
+		file, page, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE, UNIV_PAGE_SIZE);
+
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -1486,10 +1524,11 @@ trx_sys_read_file_format_id(
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-"  ibbackup: Error: trying to read system table space file format,\n"
-"  ibbackup: but failed to read the tablespace file %s!\n",
-			pathname
-		);
+			"  ibbackup: Error: trying to read system tablespace "
+			"file format,\n"
+			"  ibbackup: but failed to read the tablespace "
+			"file %s!\n", pathname);
+
 		os_file_close(file);
 		return(FALSE);
 	}
@@ -1510,7 +1549,6 @@ trx_sys_read_file_format_id(
 
 	return(TRUE);
 }
-
 
 /*****************************************************************//**
 Reads the file format id from the given per-table data file.
@@ -1543,33 +1581,34 @@ trx_sys_read_pertable_file_format_id(
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
-        
+
 		ut_print_timestamp(stderr);
-        
+
 		fprintf(stderr,
-"  ibbackup: Error: trying to read per-table tablespace format,\n"
-"  ibbackup: but could not open the tablespace file %s!\n",
-			pathname
-		);
+			"  ibbackup: Error: trying to read per-table "
+			"tablespace format,\n"
+			"  ibbackup: but could not open the tablespace "
+			"file %s!\n", pathname);
+
 		return(FALSE);
 	}
 
 	/* Read the first page of the per-table datafile */
 
-	success = os_file_read_no_error_handling(
-		file, page, 0, 0, UNIV_PAGE_SIZE
-	);
+	success = os_file_read_no_error_handling(file, page, 0, UNIV_PAGE_SIZE);
+
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
-        
+
 		ut_print_timestamp(stderr);
-        
+
 		fprintf(stderr,
-"  ibbackup: Error: trying to per-table data file format,\n"
-"  ibbackup: but failed to read the tablespace file %s!\n",
-			pathname
-		);
+			"  ibbackup: Error: trying to per-table data file "
+			"format,\n"
+			"  ibbackup: but failed to read the tablespace "
+			"file %s!\n", pathname);
+
 		os_file_close(file);
 		return(FALSE);
 	}

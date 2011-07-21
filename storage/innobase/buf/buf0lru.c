@@ -1876,7 +1876,6 @@ buf_LRU_block_remove_hashed_page(
 
 		buf_pool_mutex_exit_allow(buf_pool);
 		buf_page_free_descriptor(bpage);
-
 		return(BUF_BLOCK_ZIP_FREE);
 
 	case BUF_BLOCK_FILE_PAGE:

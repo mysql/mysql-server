@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.   
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -97,13 +97,10 @@ inline_mysql_start_table_io_wait(PSI_table_locker_state *state,
                                  uint index,
                                  const char *src_file, int src_line)
 {
-  struct PSI_table_locker *locker= NULL;
-  if (likely(PSI_server && psi))
-  {
-    locker= PSI_server->get_thread_table_io_locker(state, psi, op, index);
-    if (likely(locker != NULL))
-      PSI_server->start_table_io_wait(locker, src_file, src_line);
-  }
+  struct PSI_table_locker *locker;
+  locker= PSI_CALL(get_thread_table_io_locker)(state, psi, op, index);
+  if (likely(locker != NULL))
+    PSI_CALL(start_table_io_wait)(locker, src_file, src_line);
   return locker;
 }
 
@@ -115,7 +112,7 @@ static inline void
 inline_mysql_end_table_io_wait(struct PSI_table_locker *locker)
 {
   if (likely(locker != NULL))
-    PSI_server->end_table_io_wait(locker);
+    PSI_CALL(end_table_io_wait)(locker);
 }
 #endif
 
@@ -165,13 +162,10 @@ inline_mysql_start_table_lock_wait(PSI_table_locker_state *state,
                                    enum PSI_table_lock_operation op,
                                    ulong flags, const char *src_file, int src_line)
 {
-  struct PSI_table_locker *locker= NULL;
-  if (likely(PSI_server && psi))
-  {
-    locker= PSI_server->get_thread_table_lock_locker(state, psi, op, flags);
-    if (likely(locker != NULL))
-      PSI_server->start_table_lock_wait(locker, src_file, src_line);
-  }
+  struct PSI_table_locker *locker;
+  locker= PSI_CALL(get_thread_table_lock_locker)(state, psi, op, flags);
+  if (likely(locker != NULL))
+    PSI_CALL(start_table_lock_wait)(locker, src_file, src_line);
   return locker;
 }
 
@@ -183,7 +177,7 @@ static inline void
 inline_mysql_end_table_lock_wait(struct PSI_table_locker *locker)
 {
   if (likely(locker != NULL))
-    PSI_server->end_table_lock_wait(locker);
+    PSI_CALL(end_table_lock_wait)(locker);
 }
 #endif
 

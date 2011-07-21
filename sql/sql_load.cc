@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -176,6 +177,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
   THD::killed_state killed_status= THD::NOT_KILLED;
+  bool is_concurrent;
 #endif
   char *db = table_list->db;			// This is never null
   /*
@@ -186,7 +188,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
   bool transactional_table;
-  bool is_concurrent;
   DBUG_ENTER("mysql_load");
 
   /*
@@ -255,7 +256,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   table= table_list->table;
   transactional_table= table->file->has_transactions();
+#ifndef EMBEDDED_LIBRARY
   is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
+#endif
 
   if (!fields_vars.elements)
   {
@@ -268,15 +271,18 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       Let us also prepare SET clause, altough it is probably empty
       in this case.
     */
-    if (setup_fields(thd, 0, set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
-        setup_fields(thd, 0, set_values, MARK_COLUMNS_READ, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(),
+                     set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
+        setup_fields(thd, Ref_ptr_array(), set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
   }
   else
   {						// Part field list
     /* TODO: use this conds for 'WITH CHECK OPTIONS' */
-    if (setup_fields(thd, 0, fields_vars, MARK_COLUMNS_WRITE, 0, 0) ||
-        setup_fields(thd, 0, set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
+    if (setup_fields(thd, Ref_ptr_array(),
+                     fields_vars, MARK_COLUMNS_WRITE, 0, 0) ||
+        setup_fields(thd, Ref_ptr_array(),
+                     set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
         check_that_all_fields_are_given_values(thd, table, table_list))
       DBUG_RETURN(TRUE);
     /*
@@ -295,7 +301,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       }
     }
     /* Fix the expressions in SET clause */
-    if (setup_fields(thd, 0, set_values, MARK_COLUMNS_READ, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
   }
 
@@ -397,8 +403,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
 #if !defined(__WIN__) && ! defined(__NETWARE__)
     MY_STAT stat_info;
-    if (!my_stat(name,&stat_info,MYF(MY_WME)))
-	    DBUG_RETURN(TRUE);
+    if (!my_stat(name, &stat_info, MYF(MY_WME)))
+      DBUG_RETURN(TRUE);
 
     // if we are not in slave thread, the file must be:
     if (!thd->slave_thread &&
@@ -406,11 +412,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
           ((stat_info.st_mode & S_IFREG) == S_IFREG ||  // regular file
            (stat_info.st_mode & S_IFIFO) == S_IFIFO)))  // named pipe
     {
-	    my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
-	    DBUG_RETURN(TRUE);
+      my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
+      DBUG_RETURN(TRUE);
     }
     if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
-            is_fifo = 1;
+      is_fifo= 1;
 #endif
     if ((file= mysql_file_open(key_file_load,
                                name, O_RDONLY, MYF(MY_WME))) < 0)
@@ -1116,12 +1122,9 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   List_iterator_fast<Item> it(fields_vars);
   Item *item;
   TABLE *table= table_list->table;
-  bool no_trans_update_stmt;
   const CHARSET_INFO *cs= read_info.read_charset;
   DBUG_ENTER("read_xml_field");
-  
-  no_trans_update_stmt= !table->file->has_transactions();
-  
+
   for ( ; ; it.rewind())
   {
     if (thd->killed)

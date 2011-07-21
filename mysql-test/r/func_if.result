@@ -196,3 +196,19 @@ c
 NULL
 0
 DROP TABLE t1;
+#
+# Bug#12620084
+# ASSERTION WHEN CHECKING FIELD_TYPES[FIELD_POS] AND IT'S MYSQL_TYPE_NULL
+#
+SELECT if(0, (SELECT min('hello')), NULL);
+if(0, (SELECT min('hello')), NULL)
+NULL
+SELECT if(1, (SELECT min('hello')), NULL);
+if(1, (SELECT min('hello')), NULL)
+hello
+SELECT if(0, NULL, (SELECT min('hello')));
+if(0, NULL, (SELECT min('hello')))
+hello
+SELECT if(1, NULL, (SELECT min('hello')));
+if(1, NULL, (SELECT min('hello')))
+NULL

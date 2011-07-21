@@ -35,6 +35,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "transaction.h"
+#include "opt_explain.h"
 #include "records.h"                            // init_read_record,
                                                 // end_read_record
 
@@ -60,6 +61,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   ha_rows	deleted= 0;
   bool          reverse= FALSE;
   bool          skip_record;
+  bool          need_sort= FALSE;
+  bool          err= true;
   ORDER *order= (ORDER *) ((order_list && order_list->elements) ?
                            order_list->first : NULL);
   uint usable_index= MAX_KEY;
@@ -144,6 +147,13 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     ha_rows const maybe_deleted= table->file->stats.records;
+
+    if (thd->lex->describe)
+    {
+      err= explain_no_table(thd, "Deleting all rows", maybe_deleted);
+      goto exit_without_my_ok;
+    }
+
     DBUG_PRINT("debug", ("Trying to use delete_all_rows()"));
     if (!(error=table->file->ha_delete_all_rows()))
     {
@@ -169,14 +179,28 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     Item::cond_result result;
     conds= remove_eq_conds(thd, conds, &result);
     if (result == Item::COND_FALSE)             // Impossible where
+    {
       limit= 0;
+
+      if (thd->lex->describe)
+      {
+        err= explain_no_table(thd, "Impossible WHERE");
+        goto exit_without_my_ok;
+      }
+    }
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (prune_partitions(thd, table, conds))
   {
+    /* No matching records */
+    if (thd->lex->describe)
+    {
+      err= explain_no_table(thd, "No matching rows after partition pruning");
+      goto exit_without_my_ok;
+    }
+
     free_underlaid_joins(thd, select_lex);
-    // No matching record
     my_ok(thd, 0);
     DBUG_RETURN(0);
   }
@@ -219,23 +243,33 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       DBUG_RETURN(TRUE);
     }
   }
+
+  if (order)
+  {
+    table->update_const_key_parts(conds);
+    order= simple_remove_const(order, conds);
+
+    usable_index= get_index_for_order(order, table, select, limit,
+                                      &need_sort, &reverse);
+  }
+
+  if (thd->lex->describe)
+  {
+    err= explain_single_table_modification(thd, table, select, usable_index,
+                                           limit, false, need_sort);
+    goto exit_without_my_ok;
+  }
+
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_QUICK);
 
-  if (order)
+  if (need_sort)
   {
     uint         length= 0;
     SORT_FIELD  *sortorder;
     ha_rows examined_rows;
     ha_rows found_rows;
     
-    table->update_const_key_parts(conds);
-    order= simple_remove_const(order, conds);
-
-    bool need_sort;
-    usable_index= get_index_for_order(order, table, select, limit,
-                                      &need_sort, &reverse);
-    if (need_sort)
     {
       DBUG_ASSERT(usable_index == MAX_KEY);
       table->sort.io_cache= (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
@@ -361,6 +395,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     (void) table->file->extra(HA_EXTRA_NORMAL);
 
 cleanup:
+  DBUG_ASSERT(!thd->lex->describe);
   /*
     Invalidate the table in the query cache if something changed. This must
     be before binlog writing and ha_autocommit_...
@@ -413,6 +448,11 @@ cleanup:
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
   DBUG_RETURN(thd->is_error() || thd->killed);
+
+exit_without_my_ok:
+  delete select;
+  free_underlaid_joins(thd, select_lex);
+  DBUG_RETURN((err || thd->is_error() || thd->killed) ? 1 : 0);
 }
 
 

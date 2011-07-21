@@ -79,7 +79,6 @@ buf_buddy_add_to_free(
 	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 	ut_ad(buf_pool->zip_free[i].start != bpage);
 	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
-
 }
 
 /**********************************************************************//**
@@ -104,7 +103,6 @@ buf_buddy_remove_from_free(
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 	UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
-
 }
 
 /**********************************************************************//**
@@ -262,19 +260,19 @@ buf_buddy_alloc_from(
 Allocate a block.  The thread calling this function must hold
 buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
 The buf_pool_mutex may be released and reacquired.
-@return        allocated block, never NULL */
+@return	allocated block, never NULL */
 UNIV_INTERN
 void*
 buf_buddy_alloc_low(
 /*================*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
 	ulint		i,		/*!< in: index of buf_pool->zip_free[],
 					or BUF_BUDDY_SIZES */
 	ibool*		lru)		/*!< in: pointer to a variable that
 					will be assigned TRUE if storage was
 					allocated from the LRU list and
 					buf_pool->mutex was temporarily
-					released, */
+					released */
 {
 	buf_block_t*	block;
 
@@ -353,7 +351,6 @@ buf_buddy_relocate(
 	header. Should the fields be invalid, we will be unable to
 	relocate the block. */
 
-
 	/* The src block may be split into smaller blocks,
 	some of which may be free.  Thus, the
 	mach_read_from_4() calls below may attempt to read
@@ -362,10 +359,10 @@ buf_buddy_relocate(
 	pool), so there is nothing wrong about this.  The
 	mach_read_from_4() calls here will only trigger bogus
 	Valgrind memcheck warnings in UNIV_DEBUG_VALGRIND builds. */
-	space	= mach_read_from_4((const byte*) src +
-			FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-	page_no	= mach_read_from_4((const byte*) src +
-			FIL_PAGE_OFFSET);
+	space	= mach_read_from_4((const byte *) src
+				   + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+	page_no	= mach_read_from_4((const byte *) src
+				   + FIL_PAGE_OFFSET);
 	/* Suppress Valgrind warnings about conditional jump
 	on uninitialized value. */
 	UNIV_MEM_VALID(&space, sizeof space);
@@ -460,21 +457,21 @@ recombine:
 	if (UT_LIST_GET_LEN(buf_pool->zip_free[i]) < 16) {
 		goto func_exit;
 	}
- 
+
 	/* Try to combine adjacent blocks. */
- 	buddy = (buf_page_t*) buf_buddy_get(((byte*) buf), BUF_BUDDY_LOW << i);
- 
- #ifndef UNIV_DEBUG_VALGRIND
+	buddy = (buf_page_t*) buf_buddy_get(((byte*) buf), BUF_BUDDY_LOW << i);
+
+#ifndef UNIV_DEBUG_VALGRIND
 	/* When Valgrind instrumentation is not enabled, we can read
 	buddy->state to quickly determine that a block is not free.
 	When the block is not free, buddy->state belongs to a compressed
 	page frame that may be flagged uninitialized in our Valgrind
 	instrumentation.  */
- 
- 	if (buddy->state != BUF_BLOCK_ZIP_FREE) {
- 
- 		goto buddy_nonfree;
- 	}
+
+	if (buddy->state != BUF_BLOCK_ZIP_FREE) {
+
+		goto buddy_nonfree;
+	}
 #endif /* !UNIV_DEBUG_VALGRIND */
 
 	for (bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]); bpage; ) {
@@ -501,12 +498,13 @@ buddy_is_free:
 buddy_nonfree:
 #endif /* !UNIV_DEBUG_VALGRIND */
 
-	 ut_d(BUF_BUDDY_LIST_VALIDATE(buf_pool, i));
+	ut_d(BUF_BUDDY_LIST_VALIDATE(buf_pool, i));
 
 	/* The buddy is not free. Is there a free block of this size? */
 	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 
 	if (bpage) {
+
 		/* Remove the block from the free list, because a successful
 		buf_buddy_relocate() will overwrite bpage->list. */
 		buf_buddy_remove_from_free(buf_pool, bpage, i);
