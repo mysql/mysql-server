@@ -8967,6 +8967,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
           if (eq_ref_extended == (table_map)0)
           { 
             /* Try an EQ_REF-joined expansion of the partial plan */
+            Opt_trace_array trace_rest(trace, "rest_of_plan");
             eq_ref_extended= real_table_bit |
               eq_ref_extension_by_limited_search(
                                              remaining_tables & ~real_table_bit,
@@ -8989,6 +8990,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
                                            read_time,
                                            current_read_time,
                                            "pruned_by_eq_ref_heuristic"););
+            trace_one_table.add("pruned_by_eq_ref_heuristic", true);
             backout_nj_sj_state(remaining_tables, s);
             continue;
           }
@@ -9153,6 +9155,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
   */
   if (remaining_tables)
   {
+    Opt_trace_context * const trace= &thd->opt_trace;
     table_map eq_ref_ext(0);
     JOIN_TAB *s;
     JOIN_TAB *saved_refs[MAX_TABLES];
@@ -9183,6 +9186,8 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
           !(remaining_tables & s->dependent)  &&     // 3)
           (!idx || !check_interleaving_with_nj(s)))  // 4)
       {
+        Opt_trace_object trace_one_table(trace);
+        trace_one_table.add_utf8_table(s->table);
         POSITION *const position= join->positions + idx;
         POSITION loose_scan_pos;
 
@@ -9198,9 +9203,13 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
            Expand QEP with all 'identical' REFs in 
           'join->positions' order.
         */
-        if (position->key  &&
-            position->read_time    == (position-1)->read_time &&
-            position->records_read == (position-1)->records_read)
+        const bool added_to_eq_ref_extension=
+          position->key  &&
+          position->read_time    == (position-1)->read_time &&
+          position->records_read == (position-1)->records_read;
+        trace_one_table.add("added_to_eq_ref_extension",
+                            added_to_eq_ref_extension);
+        if (added_to_eq_ref_extension)
         {
           double current_record_count, current_read_time;
 
@@ -9209,6 +9218,9 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
           current_read_time=    read_time
                                 + position->read_time
                                 + current_record_count * ROW_EVALUATE_COST;
+
+          trace_one_table.add("cost_for_plan", current_read_time).
+            add("records_for_plan", current_record_count);
 
           if (has_sj)
           {
@@ -9233,6 +9245,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
                                            read_time,
                                            current_read_time,
                                            "prune_by_cost"););
+            trace_one_table.add("pruned_by_cost", true);
             backout_nj_sj_state(remaining_tables, s);
             continue;
           }
@@ -9247,6 +9260,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
                                            "EQ_REF_extension"););
 
             /* Recursively EQ_REF-extend the current partial plan */
+            Opt_trace_array trace_rest(trace, "rest_of_plan");
             eq_ref_ext|=
                 eq_ref_extension_by_limited_search(remaining_tables & ~real_table_bit,
                                                    idx + 1,
@@ -9257,8 +9271,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
           else
           {
             plan_is_complete(idx, current_record_count, current_read_time);
-            // TODO(didrik): add trace here.
-            // trace_one_table.add("chosen", true);
+            trace_one_table.add("chosen", true);
           }
           backout_nj_sj_state(remaining_tables, s);
           memcpy(join->best_ref + idx, saved_refs, sizeof(JOIN_TAB*) * (join->tables-idx));
@@ -9267,7 +9280,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
 
         backout_nj_sj_state(remaining_tables, s);
       } // check_interleaving_with_nj()
-    } // for (...)
+    } // for (JOIN_TAB **pos= ...)
 
     memcpy(join->best_ref + idx, saved_refs, sizeof(JOIN_TAB*) * (join->tables-idx));
     /*
