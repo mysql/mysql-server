@@ -1640,6 +1640,7 @@ bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *group,bool asc);
 bool push_new_name_resolution_context(THD *thd,
                                       TABLE_LIST *left_op,
                                       TABLE_LIST *right_op);
+Item *normalize_cond(Item *cond);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,
                       SELECT_LEX *lex);
