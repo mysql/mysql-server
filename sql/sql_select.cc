@@ -9144,162 +9144,164 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
 {
   DBUG_ENTER("Optimize_table_order::eq_ref_extension_by_limited_search");
 
+  if (remaining_tables == 0)
+    DBUG_RETURN(0);
+
   const bool has_sj=
     !(join->select_lex->sj_nests.is_empty() || join->emb_sjm_nest);
 
   /*
-    The brackeded section below add 'eq_ref' joinable tables to
-    the QEP in the order they are found in the 'remaining_tables' set.
+    The section below adds 'eq_ref' joinable tables to the QEP in the order
+    they are found in the 'remaining_tables' set.
     See above description for why we can add these without greedy
     cost analysis.
   */
-  if (remaining_tables)
+  Opt_trace_context * const trace= &thd->opt_trace;
+  table_map eq_ref_ext(0);
+  JOIN_TAB *s;
+  JOIN_TAB *saved_refs[MAX_TABLES];
+  // Save 'best_ref[]' as we has to restore before return.
+  memcpy(saved_refs, join->best_ref + idx,
+         sizeof(JOIN_TAB*) * (join->tables-idx));
+
+  for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
-    Opt_trace_context * const trace= &thd->opt_trace;
-    table_map eq_ref_ext(0);
-    JOIN_TAB *s;
-    JOIN_TAB *saved_refs[MAX_TABLES];
-    // Save 'best_ref[]' as we has to restore before return.
-    memcpy(saved_refs, join->best_ref + idx,
-           sizeof(JOIN_TAB*) * (join->tables-idx));
+    const table_map real_table_bit= s->table->map;
 
-    for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
-    {
-      const table_map real_table_bit= s->table->map;
-
-      /*
-        Don't move swap inside conditional code: All items
-        should be swapped to maintain '#rows' ordered tables.
-        This is critical for early pruning of bad plans.
-      */
-      swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
-
-      /*
-        Consider table for 'eq_ref' heuristic if:
-          1)      It might use a keyref for best_access_path
-          2) and, Table remains to be handled.
-          3) and, It is independent of those not yet in partial plan.
-          4) and, It passed the interleaving check.
-      */
-      if (s->keyuse                           &&     // 1)
-          (remaining_tables & real_table_bit) &&     // 2)
-          !(remaining_tables & s->dependent)  &&     // 3)
-          (!idx || !check_interleaving_with_nj(s)))  // 4)
-      {
-        Opt_trace_object trace_one_table(trace);
-        trace_one_table.add_utf8_table(s->table);
-        POSITION *const position= join->positions + idx;
-        POSITION loose_scan_pos;
-
-        /* Find the best access method from 's' to the current partial plan */
-        best_access_path(join, s, excluded_tables | remaining_tables,
-                         idx, FALSE, record_count, 
-                         position, &loose_scan_pos);
-
-        /* EQ_REF prune logic is based on that all joins
-           in the ref_extension has the same #rows and cost.
-           -> The total cost of the QEP is independent of the order
-           of joins within this 'ref_extension'.
-           Expand QEP with all 'identical' REFs in 
-          'join->positions' order.
-        */
-        const bool added_to_eq_ref_extension=
-          position->key  &&
-          position->read_time    == (position-1)->read_time &&
-          position->records_read == (position-1)->records_read;
-        trace_one_table.add("added_to_eq_ref_extension",
-                            added_to_eq_ref_extension);
-        if (added_to_eq_ref_extension)
-        {
-          double current_record_count, current_read_time;
-
-          /* Add the cost of extending the plan with 's' */
-          current_record_count= record_count * position->records_read;
-          current_read_time=    read_time
-                                + position->read_time
-                                + current_record_count * ROW_EVALUATE_COST;
-
-          trace_one_table.add("cost_for_plan", current_read_time).
-            add("records_for_plan", current_record_count);
-
-          if (has_sj)
-          {
-            /*
-              Even if there are no semijoins, advance_sj_state() has a
-              significant cost (takes 9% of time in a 20-table plan search),
-              hence the if() above, which is also more efficient than the 
-              same if() inside advance_sj_state() would be.
-            */
-            advance_sj_state(remaining_tables, s, idx,
-                             &current_record_count, &current_read_time,
-                             &loose_scan_pos);
-          }
-          else
-            position->sj_strategy= SJ_OPT_NONE;
-
-          /* Expand only partial plans with lower cost than the best QEP so far */
-          if (current_read_time >= join->best_read)
-          {
-            DBUG_EXECUTE("opt", print_plan(join, idx+1,
-                                           current_record_count,
-                                           read_time,
-                                           current_read_time,
-                                           "prune_by_cost"););
-            trace_one_table.add("pruned_by_cost", true);
-            backout_nj_sj_state(remaining_tables, s);
-            continue;
-          }
-
-          eq_ref_ext= real_table_bit;
-          if ((current_search_depth > 1) && (remaining_tables & ~real_table_bit))
-          { 
-            DBUG_EXECUTE("opt", print_plan(join, idx + 1,
-                                           current_record_count,
-                                           read_time,
-                                           current_read_time,
-                                           "EQ_REF_extension"););
-
-            /* Recursively EQ_REF-extend the current partial plan */
-            Opt_trace_array trace_rest(trace, "rest_of_plan");
-            eq_ref_ext|=
-                eq_ref_extension_by_limited_search(remaining_tables & ~real_table_bit,
-                                                   idx + 1,
-                                                   current_record_count,
-                                                   current_read_time,
-                                                   current_search_depth - 1);
-          }
-          else
-          {
-            plan_is_complete(idx, current_record_count, current_read_time);
-            trace_one_table.add("chosen", true);
-          }
-          backout_nj_sj_state(remaining_tables, s);
-          memcpy(join->best_ref + idx, saved_refs, sizeof(JOIN_TAB*) * (join->tables-idx));
-          DBUG_RETURN(eq_ref_ext);
-        } // if ('is eq_ref')
-
-        backout_nj_sj_state(remaining_tables, s);
-      } // check_interleaving_with_nj()
-    } // for (JOIN_TAB **pos= ...)
-
-    memcpy(join->best_ref + idx, saved_refs, sizeof(JOIN_TAB*) * (join->tables-idx));
     /*
-      'eq_ref' heuristc didn't find a table to be appended to
-      the query plan. We need to use the greedy search
-      for finding the next table to be added.
+      Don't move swap inside conditional code: All items
+      should be swapped to maintain '#rows' ordered tables.
+      This is critical for early pruning of bad plans.
     */
-    DBUG_ASSERT(!eq_ref_ext);
-    if (best_extension_by_limited_search(remaining_tables,
-                                         idx,
-                                         record_count,
+    swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+
+    /*
+      Consider table for 'eq_ref' heuristic if:
+        1)      It might use a keyref for best_access_path
+        2) and, Table remains to be handled.
+        3) and, It is independent of those not yet in partial plan.
+        4) and, It passed the interleaving check.
+    */
+    if (s->keyuse                           &&     // 1)
+        (remaining_tables & real_table_bit) &&     // 2)
+        !(remaining_tables & s->dependent)  &&     // 3)
+        (!idx || !check_interleaving_with_nj(s)))  // 4)
+    {
+      Opt_trace_object trace_one_table(trace);
+      trace_one_table.add_utf8_table(s->table);
+      POSITION *const position= join->positions + idx;
+      POSITION loose_scan_pos;
+
+      /* Find the best access method from 's' to the current partial plan */
+      best_access_path(join, s, excluded_tables | remaining_tables,
+                       idx, FALSE, record_count,
+                       position, &loose_scan_pos);
+
+      /*
+        EQ_REF prune logic is based on that all joins
+        in the ref_extension has the same #rows and cost.
+        -> The total cost of the QEP is independent of the order
+           of joins within this 'ref_extension'.
+           Expand QEP with all 'identical' REFs in
+          'join->positions' order.
+      */
+      const bool added_to_eq_ref_extension=
+        position->key  &&
+        position->read_time    == (position-1)->read_time &&
+        position->records_read == (position-1)->records_read;
+      trace_one_table.add("added_to_eq_ref_extension",
+                          added_to_eq_ref_extension);
+      if (added_to_eq_ref_extension)
+      {
+        double current_record_count, current_read_time;
+
+        /* Add the cost of extending the plan with 's' */
+        current_record_count= record_count * position->records_read;
+        current_read_time=    read_time
+                              + position->read_time
+                              + current_record_count * ROW_EVALUATE_COST;
+
+        trace_one_table.add("cost_for_plan", current_read_time).
+          add("records_for_plan", current_record_count);
+
+        if (has_sj)
+        {
+          /*
+            Even if there are no semijoins, advance_sj_state() has a
+            significant cost (takes 9% of time in a 20-table plan search),
+            hence the if() above, which is also more efficient than the
+            same if() inside advance_sj_state() would be.
+          */
+          advance_sj_state(remaining_tables, s, idx,
+                           &current_record_count, &current_read_time,
+                           &loose_scan_pos);
+        }
+        else
+          position->sj_strategy= SJ_OPT_NONE;
+
+        // Expand only partial plans with lower cost than the best QEP so far
+        if (current_read_time >= join->best_read)
+        {
+          DBUG_EXECUTE("opt", print_plan(join, idx+1,
+                                         current_record_count,
                                          read_time,
-                                         current_search_depth))
-      DBUG_RETURN(~(table_map)0);
+                                         current_read_time,
+                                         "prune_by_cost"););
+          trace_one_table.add("pruned_by_cost", true);
+          backout_nj_sj_state(remaining_tables, s);
+          continue;
+        }
 
-    DBUG_RETURN(eq_ref_ext);
-  }
+        eq_ref_ext= real_table_bit;
+        if ((current_search_depth > 1) &&
+            (remaining_tables & ~real_table_bit))
+        {
+          DBUG_EXECUTE("opt", print_plan(join, idx + 1,
+                                         current_record_count,
+                                         read_time,
+                                         current_read_time,
+                                         "EQ_REF_extension"););
 
-  DBUG_RETURN(0);
+          /* Recursively EQ_REF-extend the current partial plan */
+          Opt_trace_array trace_rest(trace, "rest_of_plan");
+          eq_ref_ext|=
+            eq_ref_extension_by_limited_search(remaining_tables &
+                                               ~real_table_bit,
+                                               idx + 1,
+                                               current_record_count,
+                                               current_read_time,
+                                               current_search_depth - 1);
+        }
+        else
+        {
+          plan_is_complete(idx, current_record_count, current_read_time);
+          trace_one_table.add("chosen", true);
+        }
+        backout_nj_sj_state(remaining_tables, s);
+        memcpy(join->best_ref + idx, saved_refs,
+               sizeof(JOIN_TAB*) * (join->tables - idx));
+        DBUG_RETURN(eq_ref_ext);
+      } // if (added_to_eq_ref_extension)
+
+      backout_nj_sj_state(remaining_tables, s);
+    } // if (... !check_interleaving_with_nj() ...)
+  } // for (JOIN_TAB **pos= ...)
+
+  memcpy(join->best_ref + idx, saved_refs, sizeof(JOIN_TAB*) * (join->tables-idx));
+  /*
+    'eq_ref' heuristc didn't find a table to be appended to
+    the query plan. We need to use the greedy search
+    for finding the next table to be added.
+  */
+  DBUG_ASSERT(!eq_ref_ext);
+  if (best_extension_by_limited_search(remaining_tables,
+                                       idx,
+                                       record_count,
+                                       read_time,
+                                       current_search_depth))
+    DBUG_RETURN(~(table_map)0);
+
+  DBUG_RETURN(eq_ref_ext);
 }
 
 
