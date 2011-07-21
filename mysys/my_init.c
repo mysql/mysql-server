@@ -100,10 +100,6 @@ my_bool my_init(void)
   fastmutex_global_init();              /* Must be called early */
 #endif
 
-#if defined(HAVE_PTHREAD_INIT)
-  pthread_init();			/* Must be called before DBUG_ENTER */
-#endif
-
   /* $HOME is needed early to parse configuration files located in ~/ */
   if ((home_dir= getenv("HOME")) != 0)
     home_dir= intern_filename(home_dir_buff, home_dir);
