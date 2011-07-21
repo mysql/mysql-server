@@ -3031,7 +3031,16 @@ void subselect_indexsubquery_engine::print(String *str,
   str->append(STRING_WITH_LEN("<index_lookup>("));
   tab->ref.items[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" in "));
-  str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
+  /*
+    For materialized derived tables/views use table/view alias instead of
+    temporary table name, as it changes on each run and not acceptable for
+    EXPLAIN EXTENDED.
+  */
+  if (tab->table->pos_in_table_list &&
+      tab->table->pos_in_table_list->uses_materialization())
+    str->append(tab->table->alias, strlen(tab->table->alias));
+  else
+    str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
   str->append(STRING_WITH_LEN(" on "));
   str->append(key_info->name);
