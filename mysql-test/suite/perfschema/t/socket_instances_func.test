@@ -26,6 +26,9 @@
 CREATE TEMPORARY TABLE my_socket_instances AS
 SELECT * FROM performance_schema.socket_instances;
 
+--echo # DEBUG 1
+SELECT * FROM performance_schema.socket_instances;
+
 # Get the thread id of this connection
 --echo # Get thread id of the default connection
 SELECT THREAD_ID INTO @thread_id
@@ -40,9 +43,12 @@ let $con0_thread_id = `SELECT @thread_id`;
 # Have a connection with IP = '127.0.0.1,'
 
 --echo # Establish local TCP/IP connection (con1,127.0.0.1,root,,test,,)
---disable_query_log
+#--disable_query_log
 --connect (con1,127.0.0.1,root,,test,,$MASTER_MYPORT)
---enable_query_log
+#--enable_query_log
+
+--echo # DEBUG 2
+SELECT * FROM performance_schema.socket_instances;
 
 --echo # Store the thread id of connection 1 (tcp/ip)
 SELECT THREAD_ID INTO @thread_id
@@ -66,9 +72,12 @@ let $con1_port = `SELECT @port`;
 # Have a connection with IP = '127.0.0.1,'
 
 --echo # Establish a second local TCP/IP connection (con2,127.0.0.1,root,,test,,)
---disable_query_log
+#--disable_query_log
 --connect (con2,127.0.0.1,root,,test,,$MASTER_MYPORT)
---enable_query_log
+#--enable_query_log
+
+--echo # DEBUG 3
+SELECT * FROM performance_schema.socket_instances;
 
 --echo # Store the thread_id of connection 2 (tcp/ip)
 SELECT THREAD_ID INTO @thread_id
@@ -93,6 +102,10 @@ let $con2_port = `SELECT @port`;
 
 --echo # Establish local unix domain connection (con3,localhost,root,,test,,)
 --connect(con3,localhost,root,,test,,)
+
+--echo # DEBUG 4
+SELECT * FROM performance_schema.socket_instances;
+
 
 --echo # Store the thread id of connection 3 (unix domain)
 SELECT THREAD_ID INTO @thread_id
