@@ -458,7 +458,8 @@ select 497, TMP.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
 select * from information_schema.optimizer_trace;
 drop table t1,t2,t3;
 
-# test of multiple trace points "added_to_eq_ref_extension:true" (from
+# test of multiple nested trace points "added_to_eq_ref_extension:true"
+# (eq_ref optimization finding a sequence of eq_ref-joined tables) (from
 # main.type_blob)
 
 CREATE TABLE t1 (
