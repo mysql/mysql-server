@@ -1529,5 +1529,31 @@ WHERE t2.f10 IN (
 
 drop table t1,t2,t3,t4;
 
+--echo #
+--echo # BUG#803457: Wrong result with semijoin + view + outer join in maria-5.3-subqueries-mwl90
+--echo #
+set @tmp803457=@@optimizer_switch;
+set optimizer_switch='materialization=off';
+CREATE TABLE t1 (f1 int, f2 int );
+INSERT INTO t1 VALUES (2,0),(4,0),(0,NULL);
+
+CREATE TABLE t2 (f2 int, f3 int );
+INSERT INTO t2 VALUES (NULL,NULL),(0,0);
+
+CREATE TABLE t3 ( f1 int, f3 int );
+INSERT INTO t3 VALUES (2,0),(4,0),(0,NULL),(4,0),(8,0);
+
+CREATE TABLE t4 ( f2 int);
+INSERT INTO t4 VALUES (0),(NULL);
+
+--echo # The following uses Duplicate Weedout, and "End temporary" must not be
+--echo #   in the middle of the inner side of an outer join:
+explain 
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3) WHERE IFNULL(t2.f3,'foo') IN (SELECT * FROM t4);
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3 ) WHERE IFNULL(t2.f3,'foo') IN (SELECT * FROM t4);
+
+DROP TABLE t1, t2, t3, t4;
+set @tmp803457=@@optimizer_switch;
+
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;

@@ -2477,6 +2477,15 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
                                  nest->nested_join->sj_depends_on |
                                  nest->nested_join->sj_corr_tables;
     }
+    
+    if (pos->dupsweedout_tables)
+    {
+      /* we're in the process of constructing a DuplicateWeedout range */
+      TABLE_LIST *emb= new_join_tab->table->pos_in_table_list->embedding;
+      /* and we've entered an inner side of an outer join*/
+      if (emb && emb->on_expr)
+        pos->dupsweedout_tables |= emb->nested_join->used_tables;
+    }
 
     if (pos->dupsweedout_tables && 
         !(remaining_tables &
