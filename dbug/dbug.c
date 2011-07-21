@@ -1412,7 +1412,7 @@ next:
         }
         else
         {
-          (*cur)->flags&=~(EXCLUDE & SUBDIR);
+          (*cur)->flags&=~(EXCLUDE | SUBDIR);
           (*cur)->flags|=INCLUDE | subdir;
         }
         goto next;

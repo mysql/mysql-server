@@ -1223,7 +1223,7 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
           pfs->m_lock_timed= share->m_timed && global_table_lock_class.m_timed;
           share->inc_refcount();
           pfs->m_table_stat.reset();
-          pfs->m_opening_thread= opening_thread;
+          pfs->m_thread_owner= opening_thread;
           pfs->m_lock.dirty_to_allocated();
           return pfs;
         }
@@ -1242,7 +1242,7 @@ void PFS_table::sanitized_aggregate(void)
     and not own the table handle.
   */
   PFS_table_share *safe_share= sanitize_table_share(m_share);
-  PFS_thread *safe_thread= sanitize_thread(m_opening_thread);
+  PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
   if (safe_share != NULL && safe_thread != NULL)
     safe_aggregate(& m_table_stat, safe_share, safe_thread);
 }
@@ -1250,7 +1250,7 @@ void PFS_table::sanitized_aggregate(void)
 void PFS_table::sanitized_aggregate_io(void)
 {
   PFS_table_share *safe_share= sanitize_table_share(m_share);
-  PFS_thread *safe_thread= sanitize_thread(m_opening_thread);
+  PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
   if (safe_share != NULL && safe_thread != NULL)
     safe_aggregate_io(& m_table_stat, safe_share, safe_thread);
 }
@@ -1258,7 +1258,7 @@ void PFS_table::sanitized_aggregate_io(void)
 void PFS_table::sanitized_aggregate_lock(void)
 {
   PFS_table_share *safe_share= sanitize_table_share(m_share);
-  PFS_thread *safe_thread= sanitize_thread(m_opening_thread);
+  PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
   if (safe_share != NULL && safe_thread != NULL)
     safe_aggregate_lock(& m_table_stat, safe_share, safe_thread);
 }

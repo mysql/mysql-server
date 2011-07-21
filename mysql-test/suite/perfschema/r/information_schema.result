@@ -140,7 +140,7 @@ rwlock_instances	1000	0
 setup_actors	1	0
 setup_consumers	11	0
 setup_instruments	1000	0
-setup_objects	3	0
+setup_objects	4	0
 setup_timers	3	0
 table_io_waits_summary_by_index_usage	1000	0
 table_io_waits_summary_by_table	1000	0

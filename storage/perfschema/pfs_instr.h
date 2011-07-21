@@ -170,7 +170,10 @@ public:
     @sa sanitized_aggregate.
   */
   void aggregate(void)
-  { return safe_aggregate(& m_table_stat, m_share, m_opening_thread); }
+  {
+    if (likely(m_thread_owner != NULL))
+      safe_aggregate(& m_table_stat, m_share, m_thread_owner);
+  }
 
   /**
     Aggregate this table handle statistics to the parents.
@@ -196,7 +199,7 @@ public:
   /** Internal lock. */
   pfs_lock m_lock;
   /** Owner. */
-  PFS_thread *m_opening_thread;
+  PFS_thread *m_thread_owner;
   /** Table share. */
   PFS_table_share *m_share;
   /** Table identity, typically a handler. */

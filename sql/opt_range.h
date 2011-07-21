@@ -926,6 +926,17 @@ class SQL_SELECT :public Sql_alloc {
   table_map const_tables,read_tables;
   bool	free_cond;
 
+  /**
+    Used for QS_DYNAMIC_RANGE, i.e., "Range checked for each record".
+    Used by optimizer tracing to decide whether or not dynamic range
+    analysis of this select has been traced already. If optimizer
+    trace option DYNAMIC_RANGE is enabled, range analysis will be
+    traced with different ranges for every record to the left of this
+    table in the join. If disabled, range analysis will only be traced
+    for the first range.
+  */
+  bool traced_before;
+
   SQL_SELECT();
   ~SQL_SELECT();
   void cleanup();
