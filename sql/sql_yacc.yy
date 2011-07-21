@@ -9029,7 +9029,7 @@ where_clause:
           expr
           {
             SELECT_LEX *select= Select;
-            select->where= $3;
+            select->where= normalize_cond($3);
             select->parsing_place= NO_MATTER;
             if ($3)
               $3->top_level_item();
@@ -9045,7 +9045,7 @@ having_clause:
           expr
           {
             SELECT_LEX *sel= Select;
-            sel->having= $3;
+            sel->having= normalize_cond($3);
             sel->parsing_place= NO_MATTER;
             if ($3)
               $3->top_level_item();
@@ -10483,7 +10483,7 @@ wild_and_where:
           }
         | WHERE expr
           {
-            Select->where= $2;
+            Select->where= normalize_cond($2);
             if ($2)
               $2->top_level_item();
           }

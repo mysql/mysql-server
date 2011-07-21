@@ -6891,6 +6891,28 @@ push_new_name_resolution_context(THD *thd,
 
 
 /**
+  Fix condition which contains only field (f turns to  f <> 0 )
+
+  @param cond            The condition to fix
+
+  @return fixed condition
+*/
+
+Item *normalize_cond(Item *cond)
+{
+  if (cond)
+  {
+    Item::Type type= cond->type();
+    if (type == Item::FIELD_ITEM || type == Item::REF_ITEM)
+    {
+      cond= new Item_func_ne(cond, new Item_int(0));
+    }
+  }
+  return cond;
+}
+
+
+/**
   Add an ON condition to the second operand of a JOIN ... ON.
 
     Add an ON condition to the right operand of a JOIN ... ON clause.
@@ -6908,6 +6930,7 @@ void add_join_on(TABLE_LIST *b, Item *expr)
 {
   if (expr)
   {
+    expr= normalize_cond(expr);
     if (!b->on_expr)
       b->on_expr= expr;
     else

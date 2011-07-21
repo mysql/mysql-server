@@ -3906,6 +3906,23 @@ SELECT * FROM v1;
 a
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# LP BUG#777809 (a retrograded condition for view ON)
+#
+CREATE TABLE t1 ( f1 int NOT NULL , f6 int NOT NULL ) ;
+INSERT IGNORE INTO t1 VALUES (20, 2);
+CREATE TABLE t2 ( f3 int NOT NULL ) ;
+INSERT IGNORE INTO t2 VALUES (7);
+CREATE OR REPLACE VIEW v2 AS SELECT * FROM t2;
+PREPARE prep_stmt FROM 'SELECT t1.f6 FROM t1 RIGHT JOIN v2 ON v2.f3 WHERE t1.f1 != 0';
+EXECUTE prep_stmt;
+f6
+2
+EXECUTE prep_stmt;
+f6
+2
+drop view v2;
+drop table t1,t2;
 # -----------------------------------------------------------------
 # -- End of 5.1 tests.
 # -----------------------------------------------------------------
