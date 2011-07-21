@@ -7896,6 +7896,7 @@ void display_opt_trace(struct st_connection *cn,
 {
   if (!disable_query_log &&
       opt_trace_protocol_enabled &&
+      !cn->pending &&
       !command->expected_errors.count &&
       match_re(&opt_trace_re, command->query))
   {
@@ -7910,11 +7911,11 @@ void display_opt_trace(struct st_connection *cn,
     command->query_len= query_str.length;
     command->end= strend(command->query);
 
-    /* sorted trace is not readable at all*/
-    my_bool save_display_result_sorted= display_result_sorted;
+    /* Sorted trace is not readable at all, don't bother to lower case */
+    /* No need to keep old values, will be reset anyway */
     display_result_sorted= FALSE;
+    display_result_lower= FALSE;
     run_query(cn, command, flags);
-    display_result_sorted= save_display_result_sorted;
 
     dynstr_free(&query_str);
     *command= save_command;
@@ -7925,6 +7926,7 @@ void display_opt_trace(struct st_connection *cn,
 void run_explain(struct st_connection *cn, struct st_command *command, int flags)
 {
   if (explain_protocol_enabled &&
+      (flags & QUERY_REAP_FLAG) &&
       !command->expected_errors.count &&
       match_re(&explain_re, command->query))
   {
