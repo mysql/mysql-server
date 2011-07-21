@@ -182,16 +182,16 @@ WHERE PORT = @port;
 
 --echo #    Check the content for the default connection (unix domain)
 # EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID  IP  PORT    STATE
-# wait/io/socket/com/client_connection       139799531958280         16         37         0    ACTIVE
+# wait/io/socket/sql/client_connection       139799531958280         16         37         0    ACTIVE
 
 --disable_query_log
 eval set @thread_id = $con0_thread_id;
 --enable_query_log
 
-SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
-   AND IP = '' AND PORT = 0 AS 'Expect 1'
+SELECT COUNT(*) = 1 as 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE THREAD_ID = @thread_id;
+WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'
+AND PORT = 0 AND THREAD_ID = @thread_id;
 
 #
 # VERIFY SERVER LISTENING SOCKET, TCP/IP
@@ -199,19 +199,19 @@ WHERE THREAD_ID = @thread_id;
 
 --echo # Characteristics of 'server_tcpip_socket' entry
 --echo #    Server listening socket, TCP/IP
---echo #    There is only one entry with 'wait/io/socket/com/server_tcpip_socket'.
---echo #    It shares the same thread id as 'wait/io/socket/com/server_unix_socket'.
+--echo #    There is only one entry with 'wait/io/socket/sql/server_tcpip_socket'.
+--echo #    It shares the same thread id as 'wait/io/socket/sql/server_unix_socket'.
 
 SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 
 # Store the thread id of server_tcpip_socket
 --echo # Get the 'server_tcpip_socket' thread id
 
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 
 let $server_tcpip_thread_id= `SELECT @thread_id`;
 
@@ -222,7 +222,7 @@ eval SELECT THREAD_ID = @thread_id
      AND PORT = $MASTER_MYPORT AND IP = '0.0.0.0'
      AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 
 #
 # VERIFY SERVER LISTENING SOCKET, UNIX DOMAIN
@@ -230,19 +230,19 @@ WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
 
 --echo # Characteristics of 'server_unix_socket' entry
 --echo #    Server listening socket, unix domain (socket file)
---echo #    There is only one entry with 'wait/io/socket/com/server_unix_socket'.
---echo #    It shares the same thread id as 'wait/io/socket/com/server_tcpip_socket'.
+--echo #    There is only one entry with 'wait/io/socket/sql/server_unix_socket'.
+--echo #    It shares the same thread id as 'wait/io/socket/sql/server_tcpip_socket'.
 
 SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_unix_socket';
 
 # Store the thread id of 'server_unix_socket'
 --echo # Get the 'server_unix_socket' thread id
 
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_unix_socket';
 
 let $server_unix_thread_id= `SELECT @thread_id`;
 
@@ -251,7 +251,7 @@ eval SELECT THREAD_ID = @thread_id
      AND PORT = 0 AND IP = ''
      AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_unix_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_unix_socket';
 
 #
 # VERIFY SERVER LISTENING SOCKET THREAD IDs
@@ -287,7 +287,7 @@ select @match_thread_id;
 #
 
 # EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID   IP           PORT  STATE
-# wait/io/socket/com/client_connection       140707865187120         18         59   127.0.0.1   59298   IDLE or ACTIVE
+# wait/io/socket/sql/client_connection       140707865187120         18         59   127.0.0.1   59298   IDLE or ACTIVE
 
 --echo #    Check content for client connection 1 (tcpip)
 
@@ -296,7 +296,7 @@ eval set @port = $con1_port;
 eval set @thread_id = $con1_thread_id;
 --enable_query_log
 
-eval SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
+eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
         AND IP = '127.0.0.1'
         AND PORT = @port
 AS 'Expect 1'
@@ -315,7 +315,7 @@ WHERE THREAD_ID = @thread_id;
 #
 
 # EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID   IP           PORT  STATE
-# wait/io/socket/com/client_connection       140707865187120         18         59   127.0.0.1   59298   IDLE or ACTIVE
+# wait/io/socket/sql/client_connection       140707865187120         18         59   127.0.0.1   59298   IDLE or ACTIVE
 
 --echo #    Check content for client connection 2 (tcpip)
 
@@ -324,7 +324,7 @@ eval set @port = $con2_port;
 eval set @thread_id = $con2_thread_id;
 --enable_query_log
 
-eval SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
+eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
         AND IP = '127.0.0.1'
         AND PORT = @port
 AS 'Expect 1'
@@ -343,7 +343,7 @@ WHERE THREAD_ID = @thread_id;
 #
 
 # EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID  IP  PORT  STATE
-# wait/io/socket/com/client_connection       139799531958280         16         37         0   IDLE or ACTIVE
+# wait/io/socket/sql/client_connection       139799531958280         16         37         0   IDLE or ACTIVE
 
 --echo #    Check the content for client connection 3 (unix domain).
 
@@ -351,7 +351,7 @@ WHERE THREAD_ID = @thread_id;
 eval set @thread_id = $con3_thread_id;
 --enable_query_log
 
-eval SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
+eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
      AND IP = ''
      AND PORT = 0
 AS 'Expect 1'

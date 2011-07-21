@@ -4700,11 +4700,10 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
 
 static void set_socket_state_v1(PSI_socket *socket, PSI_socket_state state)
 {
-  DBUG_ASSERT(socket);
   DBUG_ASSERT((state == PSI_SOCKET_STATE_IDLE) || (state == PSI_SOCKET_STATE_ACTIVE));
-  PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
-  if (unlikely(pfs == NULL))
+  if (unlikely(socket == NULL))
     return;
+  PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
   pfs->m_idle= (state == PSI_SOCKET_STATE_IDLE);
 }
 
@@ -4716,11 +4715,10 @@ static void set_socket_info_v1(PSI_socket *socket,
                                const struct sockaddr *addr,
                                socklen_t addr_len)
 {
-  DBUG_ASSERT(socket);
-  PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
-
-  if (unlikely(pfs == NULL))
+  if (unlikely(socket == NULL))
     return;
+
+  PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
 
   /** Set socket descriptor */
   if (fd != NULL)
@@ -4745,13 +4743,10 @@ static void set_socket_info_v1(PSI_socket *socket,
 */
 static void set_socket_thread_owner_v1(PSI_socket *socket)
 {
-  if (likely(socket != NULL))
-  {
-    PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*>(socket);
-    if (unlikely(pfs_socket == NULL))
-      return;
-    pfs_socket->m_thread_owner= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  }
+  if (unlikely(socket == NULL))
+    return;
+  PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*>(socket);
+  pfs_socket->m_thread_owner= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
 }
 
 /**
