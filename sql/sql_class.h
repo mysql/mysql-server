@@ -38,6 +38,30 @@
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
 
+/**
+  The meat of thd_proc_info(THD*, char*), a macro that packs the last
+  three calling-info parameters.
+*/
+extern "C"
+const char *set_thd_proc_info(void *thd_arg, const char *info,
+                              const char *calling_func,
+                              const char *calling_file,
+                              const unsigned int calling_line);
+
+#define thd_proc_info(thd, msg) \
+  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
+
+extern "C"
+void set_thd_stage_info(void *thd,
+                        const PSI_stage_info *new_stage,
+                        PSI_stage_info *old_stage,
+                        const char *calling_func,
+                        const char *calling_file,
+                        const unsigned int calling_line);
+                        
+#define THD_STAGE_INFO(thd, stage) \
+  (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
+
 class Reprepare_observer;
 class Relay_log_info;
 
@@ -1793,6 +1817,19 @@ public:
   */
   const char *proc_info;
 
+private:
+  unsigned int m_current_stage_key;
+
+public:
+  void enter_stage(const PSI_stage_info *stage,
+                   PSI_stage_info *old_stage,
+                   const char *calling_func,
+                   const char *calling_file,
+                   const unsigned int calling_line);
+
+  const char *get_proc_info() const
+  { return proc_info; }
+
   /*
     Used in error messages to tell user in what part of MySQL we found an
     error. E. g. when where= "having clause", if fix_fields() fails, user
@@ -2562,22 +2599,20 @@ public:
 
   // Begin implementation of MDL_context_owner interface.
 
-  /*
-    For enter_cond() / exit_cond() to work the mutex must be got before
-    enter_cond(); this mutex is then released by exit_cond().
-    Usage must be: lock mutex; enter_cond(); your code; exit_cond().
-  */
-  inline const char* enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
-                                const char* msg)
+  inline void
+  enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
+             const PSI_stage_info *stage, PSI_stage_info *old_stage,
+             const char *src_function, const char *src_file,
+             int src_line)
   {
-    const char* old_msg = proc_info;
     mysql_mutex_assert_owner(mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
-    proc_info = msg;
-    return old_msg;
+    enter_stage(stage, old_stage, src_function, src_file, src_line);
   }
-  inline void exit_cond(const char* old_msg)
+  inline void exit_cond(const PSI_stage_info *stage,
+                        const char *src_function, const char *src_file,
+                        int src_line)
   {
     /*
       Putting the mutex unlock in thd->exit_cond() ensures that
@@ -2589,7 +2624,7 @@ public:
     mysql_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
     mysys_var->current_cond = 0;
-    proc_info = old_msg;
+    enter_stage(stage, NULL, src_function, src_file, src_line);
     mysql_mutex_unlock(&mysys_var->mutex);
     return;
   }
@@ -4146,24 +4181,5 @@ inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 }
 
 #endif /* MYSQL_SERVER */
-
-/**
-  The meat of thd_proc_info(THD*, char*), a macro that packs the last
-  three calling-info parameters.
-*/
-extern "C"
-const char *set_thd_proc_info(void *thd_arg, const char *info,
-                              const char *calling_func,
-                              const char *calling_file,
-                              const unsigned int calling_line);
-
-#define thd_proc_info(thd, msg) \
-  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
-
-#define THD_STAGE_INFO(thd, stage) \
-  { \
-    set_thd_proc_info(thd, stage.m_name, __func__, __FILE__, __LINE__); \
-    MYSQL_SET_STAGE(stage.m_key, __FILE__, __LINE__); \
-  }
 
 #endif /* SQL_CLASS_INCLUDED */

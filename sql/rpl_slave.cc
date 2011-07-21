@@ -852,8 +852,10 @@ int start_slave_thread(
     while (start_id == *slave_run_id && thd != NULL)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
-      const char *old_msg= thd->enter_cond(start_cond, cond_lock,
-                                           "Waiting for slave thread to start");
+      PSI_stage_info saved_stage= {0, "", 0};
+      thd->ENTER_COND(start_cond, cond_lock,
+                      & stage_waiting_for_slave_thread_to_start,
+                      & saved_stage);
       /*
         It is not sufficient to test this at loop bottom. We must test
         it after registering the mutex in enter_cond(). If the kill
@@ -863,7 +865,7 @@ int start_slave_thread(
       */
       if (!thd->killed)
         mysql_cond_wait(start_cond, cond_lock);
-      thd->exit_cond(old_msg);
+      thd->EXIT_COND(& saved_stage);
       mysql_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
       if (thd->killed)
       {
@@ -1819,20 +1821,20 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
 {
   bool slave_killed=0;
   Master_info* mi = rli->mi;
-  const char *save_proc_info;
+  PSI_stage_info old_stage;
   THD* thd = mi->info_thd;
   DBUG_ENTER("wait_for_relay_log_space");
 
   mysql_mutex_lock(&rli->log_space_lock);
-  save_proc_info= thd->enter_cond(&rli->log_space_cond,
-                                  &rli->log_space_lock,
-                                  "\
-Waiting for the slave SQL thread to free enough relay log space");
+  thd->ENTER_COND(&rli->log_space_cond,
+                  &rli->log_space_lock,
+                  &stage_waiting_for_relay_log_space,
+                  &old_stage);
   while (rli->log_space_limit < rli->log_space_total &&
          !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
     mysql_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
-  thd->exit_cond(save_proc_info);
+  thd->EXIT_COND(&old_stage);
   DBUG_RETURN(slave_killed);
 }
 
@@ -2079,11 +2081,11 @@ bool show_master_info(THD* thd, Master_info* mi)
       non-volotile members like mi->info_thd, which is guarded by the mutex.
     */
     mysql_mutex_lock(&mi->run_lock);
-    protocol->store(mi->info_thd ? mi->info_thd->proc_info : "", &my_charset_bin);
+    protocol->store(mi->info_thd ? mi->info_thd->get_proc_info() : "", &my_charset_bin);
     mysql_mutex_unlock(&mi->run_lock);
 
     mysql_mutex_lock(&mi->rli->run_lock);
-    const char *slave_sql_running_state= mi->rli->info_thd ? mi->rli->info_thd->proc_info : "";
+    const char *slave_sql_running_state= mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "";
     mysql_mutex_unlock(&mi->rli->run_lock);
 
     mysql_mutex_lock(&mi->data_lock);
@@ -2371,7 +2373,6 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
 {
   bool ret;
   struct timespec abstime;
-  const char *old_proc_info;
   mysql_mutex_t *lock= &info->sleep_lock;
   mysql_cond_t *cond= &info->sleep_cond;
 
@@ -2379,7 +2380,7 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
   set_timespec(abstime, seconds);
 
   mysql_mutex_lock(lock);
-  old_proc_info= thd->enter_cond(cond, lock, thd->proc_info);
+  thd->ENTER_COND(cond, lock, NULL, NULL);
 
   while (! (ret= func(thd, info)))
   {
@@ -2389,7 +2390,7 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
   }
 
   /* Implicitly unlocks the mutex. */
-  thd->exit_cond(old_proc_info);
+  thd->EXIT_COND(NULL);
 
   return ret;
 }
