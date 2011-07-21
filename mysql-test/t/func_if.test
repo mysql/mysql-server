@@ -187,3 +187,15 @@ SELECT if(0, (SELECT min('hello')), NULL);
 SELECT if(1, (SELECT min('hello')), NULL);
 SELECT if(0, NULL, (SELECT min('hello')));
 SELECT if(1, NULL, (SELECT min('hello')));
+
+--echo #
+--echo # Bug#12532830 
+--echo # SIGFPE OR ASSERTION (PRECISION <= ((9 * 9) - 8*2)) && (DEC <= 30)
+--echo #
+
+let $nines= 9999999999999999999999999999999999999;
+eval select
+sum(distinct(if('a',
+                (select adddate(elt(convert($nines,decimal(64,0)),count(*)),
+                                interval 1 day))
+                , .1))) as foo;
