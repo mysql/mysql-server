@@ -228,6 +228,10 @@ typedef struct st_lex_master_info
   void set_unspecified();
 } LEX_MASTER_INFO;
 
+typedef struct st_lex_reset_slave
+{
+  bool all;
+} LEX_RESET_SLAVE;
 
 enum sub_select_type
 {
@@ -2135,6 +2139,7 @@ struct LEX: public Query_tables_list
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   LEX_SERVER_OPTIONS server_options;
   USER_RESOURCES mqh;
+  LEX_RESET_SLAVE reset_slave_info;
   ulong type;
   /*
     This variable is used in post-parse stage to declare that sum-functions,

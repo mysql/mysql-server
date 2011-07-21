@@ -606,7 +606,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
-Note	1003	select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11`,`tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)) `tt`
+Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11`,`tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)) `tt`
 SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
 f1	f11	f2	f22
 1	1	1	1
@@ -620,7 +620,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	const	0	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
-Note	1003	select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` in (2,3))) `tt` where (`tt`.`f11` = 2)
+Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` in (2,3))) `tt` where (`tt`.`f11` = 2)
 SHOW STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -653,7 +653,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
-Note	1003	select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11`,`aa`.`f1` AS `f1`,`aa`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` in (2,3))) `tt` join (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` in (1,2))) `aa` where (`aa`.`f1` = `tt`.`f1`)
+Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11`,`aa`.`f1` AS `f1`,`aa`.`f11` AS `f11` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` in (2,3))) `tt` join (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` in (1,2))) `aa` where (`aa`.`f1` = `tt`.`f1`)
 SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt JOIN
 (SELECT * FROM t1 WHERE f1 IN (1,2)) aa ON tt.f1=aa.f1;
 f1	f11	f1	f11
@@ -668,7 +668,7 @@ EXPLAIN EXTENDED SELECT * FROM v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	
 Warnings:
-Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1`
 SELECT * FROM v1;
 f1	f11
 1	1
@@ -683,7 +683,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
-Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)
 SELECT * FROM v2;
 f1	f11	f2	f22
 1	1	1	1
@@ -694,7 +694,7 @@ EXPLAIN EXTENDED SELECT * FROM v3 WHERE f11 IN (1,3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f11` in (1,3)) and (`test`.`t1`.`f1` in (2,3)))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f11` in (1,3)) and (`test`.`t1`.`f1` in (2,3)))
 SELECT * FROM v3 WHERE f11 IN (1,3);
 f1	f11
 3	3
@@ -705,7 +705,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
-Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` = `test`.`t1`.`f1`) and (`test`.`t1`.`f1` in (2,3)) and (`test`.`t1`.`f1` in (2,3)))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` = `test`.`t1`.`f1`) and (`test`.`t1`.`f1` in (2,3)) and (`test`.`t1`.`f1` in (2,3)))
 SELECT * FROM v3 JOIN v4 ON f1=f2;
 f1	f11	f2	f22
 3	3	3	3
@@ -715,7 +715,7 @@ EXPLAIN EXTENDED SELECT * FROM v4 WHERE f2 IN (1,3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where ((`test`.`t2`.`f2` in (1,3)) and (`test`.`t2`.`f2` in (2,3)))
+Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where ((`test`.`t2`.`f2` in (1,3)) and (`test`.`t2`.`f2` in (2,3)))
 SHOW STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -745,7 +745,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` group by `test`.`t1`.`f1`) `tt`
+Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` group by `test`.`t1`.`f1`) `tt`
 SELECT * FROM (SELECT * FROM t1 HAVING f1=f1) tt;
 f1	f11
 1	1
@@ -763,7 +763,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.f1	2	100.00	
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from `test`.`t1` join (select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` group by `test`.`t2`.`f2`) `tt` where (`tt`.`f2` = `test`.`t1`.`f1`)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` group by `test`.`t2`.`f2`) `tt` where (`tt`.`f2` = `test`.`t1`.`f1`)
 SHOW STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -799,7 +799,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1`
+Note	1003	/* select#1 */ select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1`
 SELECT * FROM v1;
 f1	f11
 1	1
@@ -816,7 +816,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.f1	2	100.00	
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`v2`.`f2` AS `f2`,`v2`.`f22` AS `f22` from `test`.`t1` join `test`.`v2` where (`v2`.`f2` = `test`.`t1`.`f1`)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`v2`.`f2` AS `f2`,`v2`.`f22` AS `f22` from `test`.`t1` join `test`.`v2` where (`v2`.`f2` = `test`.`t1`.`f1`)
 SHOW STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -852,7 +852,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	
 2	DERIVED	t11	ALL	NULL	NULL	NULL	NULL	6	100.00	Using join buffer (BNL, incremental buffers)
 Warnings:
-Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`v31`.`f1` AS `f1`,`v31`.`f11` AS `f11`,`v3`.`f1` AS `f1`,`v3`.`f11` AS `f11` from `test`.`t1` join `test`.`v3` `v31` join `test`.`v3` where ((`v31`.`f1` = `test`.`t1`.`f1`) and (`v3`.`f1` = `test`.`t1`.`f1`))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`v31`.`f1` AS `f1`,`v31`.`f11` AS `f11`,`v3`.`f1` AS `f1`,`v3`.`f11` AS `f11` from `test`.`t1` join `test`.`v3` `v31` join `test`.`v3` where ((`v31`.`f1` = `test`.`t1`.`f1`) and (`v3`.`f1` = `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
 f1	f11	f1	f11	f1	f11
@@ -1088,7 +1088,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t2.f2	2	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`v1` join `test`.`t2` where ((`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` in (2,3)))
+Note	1003	/* select#1 */ select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`v1` join `test`.`t2` where ((`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` in (2,3)))
 SELECT * FROM v1 JOIN v4 ON f1=f2;
 f1	f11	f2	f22
 3	3	3	3
@@ -1101,7 +1101,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
-Note	1003	select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7)) `tt` where (`tt`.`f1` > 2)) `zz`
+Note	1003	/* select#1 */ select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (/* select#2 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7)) `tt` where (`tt`.`f1` > 2)) `zz`
 SELECT * FROM (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
 f1	f11
@@ -1115,7 +1115,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2)) `zz`
+Note	1003	/* select#1 */ select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (/* select#2 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2)) `zz`
 SELECT * FROM (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
 f1	f11
@@ -1129,7 +1129,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
-Note	1003	select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7)) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `zz`
+Note	1003	/* select#1 */ select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (/* select#2 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7)) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `zz`
 SELECT * FROM (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
 f1	f11
@@ -1143,7 +1143,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `zz`
+Note	1003	/* select#1 */ select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (/* select#2 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `zz`
 SELECT * FROM (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
 f1	f11
@@ -1163,7 +1163,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select `x`.`f1` AS `f1`,`x`.`f11` AS `f11`,`z`.`f1` AS `f1`,`z`.`f11` AS `f11` from (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2)) `x` join (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `t1`.`f1` AS `f1`,`t1`.`f11` AS `f11` from `test`.`t1` where (`t1`.`f1` < 7) group by `t1`.`f1`) `tt` where (`tt`.`f1` > 2)) `z` where (`z`.`f1` = `x`.`f1`)
+Note	1003	/* select#1 */ select `x`.`f1` AS `f1`,`x`.`f11` AS `f11`,`z`.`f1` AS `f1`,`z`.`f11` AS `f11` from (/* select#2 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2)) `x` join (/* select#4 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#5 */ select `t1`.`f1` AS `f1`,`t1`.`f11` AS `f11` from `test`.`t1` where (`t1`.`f1` < 7) group by `t1`.`f1`) `tt` where (`tt`.`f1` > 2)) `z` where (`z`.`f1` = `x`.`f1`)
 FLUSH STATUS;
 SELECT * FROM 
 (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) x
@@ -1199,7 +1199,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
-Note	1003	select `x`.`f1` AS `f1`,`x`.`f11` AS `f11`,`z`.`f1` AS `f1`,`z`.`f11` AS `f11` from (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7)) `tt` where (`tt`.`f1` > 2)) `x` join (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `t1`.`f1` AS `f1`,`t1`.`f11` AS `f11` from `test`.`t1` where (`t1`.`f1` < 7)) `tt` where (`tt`.`f1` > 2)) `z` where (`z`.`f1` = `x`.`f1`)
+Note	1003	/* select#1 */ select `x`.`f1` AS `f1`,`x`.`f11` AS `f11`,`z`.`f1` AS `f1`,`z`.`f11` AS `f11` from (/* select#2 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7)) `tt` where (`tt`.`f1` > 2)) `x` join (/* select#4 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#5 */ select `t1`.`f1` AS `f1`,`t1`.`f11` AS `f11` from `test`.`t1` where (`t1`.`f1` < 7)) `tt` where (`tt`.`f1` > 2)) `z` where (`z`.`f1` = `x`.`f1`)
 SELECT * FROM 
 (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) x
@@ -1227,7 +1227,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select `x`.`f1` AS `f1`,`x`.`f11` AS `f11`,`z`.`f1` AS `f1`,`z`.`f11` AS `f11` from (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `x` join (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `t1`.`f1` AS `f1`,`t1`.`f11` AS `f11` from `test`.`t1` where (`t1`.`f1` < 7) group by `t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `z` where (`z`.`f1` = `x`.`f1`)
+Note	1003	/* select#1 */ select `x`.`f1` AS `f1`,`x`.`f11` AS `f11`,`z`.`f1` AS `f1`,`z`.`f11` AS `f11` from (/* select#2 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `x` join (/* select#4 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#5 */ select `t1`.`f1` AS `f1`,`t1`.`f11` AS `f11` from `test`.`t1` where (`t1`.`f1` < 7) group by `t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `z` where (`z`.`f1` = `x`.`f1`)
 SELECT * FROM 
 (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) x
@@ -1245,7 +1245,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select `tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where (`test`.`t2`.`f2` in (2,3)) group by 1) `tt`
+Note	1003	/* select#1 */ select `tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where (`test`.`t2`.`f2` in (2,3)) group by 1) `tt`
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 f2	f22
 2	2
@@ -1258,7 +1258,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1` where (`v1`.`f1` < 7)) `tt`
+Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#2 */ select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1` where (`v1`.`f1` < 7)) `tt`
 SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
 f1	f11
 1	1
@@ -1272,7 +1272,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	100.00	
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
-Note	1003	select `tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where ((`test`.`t2`.`f2` in (2,3)) and (`test`.`t2`.`f2` < 7))) `tt`
+Note	1003	/* select#1 */ select `tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where ((`test`.`t2`.`f2` in (2,3)) and (`test`.`t2`.`f2` < 7))) `tt`
 SELECT * FROM (SELECT * FROM v6) tt;
 f2	f22
 3	3
@@ -1285,7 +1285,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	<derived4>	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1` group by 1) `tt`
+Note	1003	/* select#1 */ select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (/* select#2 */ select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1` group by 1) `tt`
 SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
 f1	f11
 1	1
@@ -1301,7 +1301,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived5>	ref	auto_key0	auto_key0	5	test.t2.f2	2	100.00	
 5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22`,`v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`t2` join `test`.`v1` where ((`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` in (2,3)) and (`test`.`t2`.`f2` < 7))
+Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22`,`v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`t2` join `test`.`v1` where ((`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` in (2,3)) and (`test`.`t2`.`f2` < 7))
 SELECT * FROM v6 JOIN v7 ON f2=f1;
 f2	f22	f1	f11
 3	3	3	3
@@ -1318,7 +1318,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using join buffer (BNL, incremental buffers)
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	
 Warnings:
-Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`tt`.`f2` AS `f2`,`tt`.`f22` AS `f22`,`test`.`t3`.`f3` AS `f3`,`test`.`t3`.`f33` AS `f33` from `test`.`t1` join (select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2`) `tt` join `test`.`t3` where ((`test`.`t1`.`f1` = `tt`.`f2`) and (`tt`.`f22` = `test`.`t3`.`f3`))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`tt`.`f2` AS `f2`,`tt`.`f22` AS `f22`,`test`.`t3`.`f3` AS `f3`,`test`.`t3`.`f33` AS `f33` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2`) `tt` join `test`.`t3` where ((`test`.`t1`.`f1` = `tt`.`f2`) and (`tt`.`f22` = `test`.`t3`.`f3`))
 SELECT * FROM t1 JOIN (SELECT * FROM t2) tt ON t1.f1=tt.f2
 JOIN t3 ON tt.f22=t3.f3;
 f1	f11	f2	f22	f3	f33

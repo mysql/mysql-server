@@ -378,6 +378,7 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
   TABLE *table= derived->table;
   SELECT_LEX_UNIT *unit= derived->get_unit();
   bool res= FALSE;
+  DBUG_ENTER("mysql_derived_materialize");
 
   DBUG_ASSERT(unit && table && table->created);
 
@@ -421,7 +422,7 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
     derived->materialized= TRUE;
   }
 
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -431,8 +432,9 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
 
 bool mysql_derived_cleanup(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
+  DBUG_ENTER("mysql_derived_cleanup");
   SELECT_LEX_UNIT *unit= derived->derived;
   if (unit)
     unit->cleanup();
-  return false;
+  DBUG_RETURN(false);
 }
