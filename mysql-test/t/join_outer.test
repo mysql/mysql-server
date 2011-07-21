@@ -1106,3 +1106,24 @@ GROUP BY t2.f1, t2.f2;
 DROP TABLE t1,t2;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # LP bug #813447: LEFT JOIN with single-row inner table and
+--echo #                 a subquery in ON expression
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (0);
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (0);
+
+CREATE TABLE t3 (a int);
+INSERT INTO t3 VALUES (0), (0);
+
+SELECT t2.a FROM t1 LEFT JOIN t2 ON (6) IN (SELECT a FROM t3);
+EXPLAIN EXTENDED
+SELECT t2.a FROM t1 LEFT JOIN t2 ON (6) IN (SELECT a FROM t3);
+
+DROP TABLE t1,t2,t3;
+

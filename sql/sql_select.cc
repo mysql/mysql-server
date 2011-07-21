@@ -3268,7 +3268,9 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
 	  continue;
 	if (table->file->stats.records <= 1L &&
 	    (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
-            !table->pos_in_table_list->embedding)
+            !table->pos_in_table_list->embedding &&
+	      !((outer_join & table->map) && 
+		(*s->on_expr_ref)->is_expensive()))
 	{					// system table
 	  int tmp= 0;
 	  s->type=JT_SYSTEM;

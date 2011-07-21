@@ -1409,7 +1409,7 @@ EXPLAIN
 SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
 i
@@ -1418,7 +1418,7 @@ EXPLAIN
 SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
 2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
 i
@@ -1437,10 +1437,10 @@ SELECT *
 FROM t2 LEFT JOIN t2 t3 ON (8, 4) IN (SELECT c1, c1 FROM t1)";
 EXECUTE st1;
 c2	c2
-10	10
+10	NULL
 EXECUTE st1;
 c2	c2
-10	10
+10	NULL
 DROP TABLE t1, t2;
 # 
 # Testcase backport: BUG#46548 IN-subqueries return 0 rows with materialization=on
