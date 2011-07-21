@@ -1,5 +1,8 @@
 drop table if exists t1,t2;
 drop view if exists v1,v2,v3,v4;
+set @exit_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=on,derived_with_keys=on';
+set @save_optimizer_switch=@@optimizer_switch;
 create table t1(f1 int, f11 int);
 create table t2(f2 int, f22 int);
 insert into t1 values(1,1),(2,2),(3,3),(5,5),(9,9),(7,7);
@@ -787,7 +790,7 @@ a
 1
 2
 1
-SET SESSION optimizer_switch=default;
+SET SESSION optimizer_switch=@save_optimizer_switch;
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
 #
@@ -843,7 +846,7 @@ a	b	a	b
 0	0	1	0
 0	0	3	0
 0	0	0	0
-SET SESSION optimizer_switch=default;
+SET SESSION optimizer_switch=@save_optimizer_switch;
 DROP VIEW v1;
 DROP TABLE t1;
 #
@@ -1166,3 +1169,35 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
+#
+# LP bug #804686: query over a derived table using a view 
+#                 with a degenerated where condition
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,0), (1,0), (0,0), (1,1), (1,0);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+CREATE VIEW v2 AS SELECT a, MAX(b) AS b FROM t1 GROUP BY a;
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b<>0;
+b
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b<>0;
+b
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b;
+b
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b;
+b
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	select `test`.`t1`.`b` AS `b` from `test`.`t1` where 0
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `v2`.`b` AS `b` from `test`.`v2` where 0
+DROP VIEW v1,v2;
+DROP TABLE t1;
+set optimizer_switch=@exit_optimizer_switch;

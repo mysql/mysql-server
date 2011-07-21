@@ -903,6 +903,8 @@ a	(select count(distinct t5.b) as sum from t5, t6
 1	2
 drop table t5, t6, t7 ;
 drop table if exists t2 ;
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=on';
 create table t2 as select * from t9;
 set @stmt= ' SELECT
    (SELECT SUM(c1 + c12 + 0.0) FROM t2 
@@ -952,6 +954,7 @@ execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
 execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
 @arg07, @arg08, @arg09 ;
 drop table t2 ;
+set optimizer_switch=@save_optimizer_switch;
 select 1 < (select a from t1) ;
 ERROR 21000: Subquery returns more than 1 row
 prepare stmt1 from ' select 1 < (select a from t1) ' ;

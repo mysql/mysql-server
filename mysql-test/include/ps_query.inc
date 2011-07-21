@@ -528,6 +528,8 @@ drop table t5, t6, t7 ;
 --disable_warnings
 drop table if exists t2 ;
 --enable_warnings
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=on';
 create table t2 as select * from t9;
 ## unusual and complex SELECT without parameters
 set @stmt= ' SELECT
@@ -596,7 +598,7 @@ execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
                     @arg07, @arg08, @arg09 ;
 --enable_result_log
 drop table t2 ;
-
+set optimizer_switch=@save_optimizer_switch; 
 
 ##### test case derived from client_test.c: test_bug4079()
 --error 1242

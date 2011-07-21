@@ -4972,7 +4972,7 @@ DROP TABLE t1,t2;
 # Bug #802860: crash on join cache + derived + duplicate_weedout 
 #
 SET SESSION optimizer_switch=
-'semijoin=on,materialization=off,firstmatch=off,loosescan=off';
+'semijoin=on,materialization=off,firstmatch=off,loosescan=off,derived_with_keys=on';
 CREATE TABLE t1 (a int) ;
 INSERT IGNORE INTO t1 VALUES (0), (1), (0);
 CREATE TABLE t2 (a int) ;
