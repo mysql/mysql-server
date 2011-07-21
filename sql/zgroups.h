@@ -1470,7 +1470,7 @@ public:
   enum_group_status ensure_sidno();
 private:
   /// Error messages.
-  static const int COND_MESSAGE_MAX_TEXT_LENGTH;
+  static const uint COND_MESSAGE_MAX_TEXT_LENGTH;
   static const char *COND_MESSAGE_WAIT_FOR_LIVE_SQL_THREAD;
   static const char *COND_MESSAGE_WAIT_FOR_DEAD_SQL_THREAD;
   static const char *COND_MESSAGE_WAIT_FOR_LIVE_CLIENT;

@@ -52,14 +52,7 @@ const char *Group_log_state::COND_MESSAGE_WAIT_FOR_SQL_THREAD_NO_REPLICATION=
   "is not configured for replication. "
   "The group can only be resumed by a client after setting "
   "@@SESSION.UGID_CONTINUE_ORPHAN = 1.";
-const int Group_log_state::COND_MESSAGE_MAX_TEXT_LENGTH=
-  max(strlen(COND_MESSAGE_WAIT_FOR_LIVE_SQL_THREAD),
-      max(strlen(COND_MESSAGE_WAIT_FOR_DEAD_SQL_THREAD),
-          max(strlen(COND_MESSAGE_WAIT_FOR_LIVE_CLIENT),
-              max(strlen(COND_MESSAGE_WAIT_FOR_DEAD_CLIENT),
-                  max(strlen(COND_MESSAGE_WAIT_FOR_VERY_OLD_CLIENT),
-                      strlen(COND_MESSAGE_WAIT_FOR_SQL_THREAD_NO_REPLICATION)))))) +
-  Group::MAX_TEXT_LENGTH - 2 + 11 - 2;
+const uint Group_log_state::COND_MESSAGE_MAX_TEXT_LENGTH= 1024;
 
 
 enum_group_status
@@ -119,6 +112,19 @@ void Group_log_state::wait_for_sidno(THD *thd, const Sid_map *sm,
   char buf[Group_log_state::COND_MESSAGE_MAX_TEXT_LENGTH + 1];
   char group[Group::MAX_TEXT_LENGTH + 1];
   g.to_string(sm, group);
+
+  // Assert that the buffer has space for any of the messages (would
+  // have been better to do at compile-time, but this is C++...)
+#define ASSERT_LENGTH(x)                                        \
+  DBUG_ASSERT(Group_log_state::COND_MESSAGE_MAX_TEXT_LENGTH <   \
+              strlen(COND_MESSAGE_WAIT_FOR_##x) + 2 * 22);
+  ASSERT_LENGTH(VERY_OLD_CLIENT);
+  ASSERT_LENGTH(LIVE_CLIENT);
+  ASSERT_LENGTH(DEAD_CLIENT);
+  ASSERT_LENGTH(LIVE_SQL_THREAD);
+  ASSERT_LENGTH(DEAD_SQL_THREAD);
+  ASSERT_LENGTH(SQL_THREAD_NO_REPLICATION);
+
   if (owner.is_client())
   {
     if (owner.is_very_old_client())
