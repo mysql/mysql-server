@@ -621,11 +621,17 @@ UNIV_INLINE
 trx_rseg_t*
 trx_assign_rseg(
 /*============*/
-	ulint	max_undo_logs)	/*!< in: maximum number of UNDO logs to use */
+	ulint	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
+	ulint	n_tablespaces)	/*!< in: number of rollback tablespaces */
 {
 	ulint		i;
 	trx_rseg_t*	rseg;
 	static ulint	latest_rseg = 0;
+
+	if (srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
+		ut_a(max_undo_logs == ULINT_UNDEFINED);
+		return(NULL);
+	}
 
 	/* This breaks true round robin but that should be OK. */
 
@@ -640,13 +646,20 @@ trx_assign_rseg(
 
 	ut_a(trx_sys->rseg_array[0] != NULL);
 
+	/* Skip the system tablespace if we have more than one tablespace
+	defined for rollback segments. We want all UNDO records to be in
+	the non-system tablespaces. */
+
 	do {
 		rseg = trx_sys->rseg_array[i];
 		ut_a(rseg == NULL || i == rseg->id);
 
 		i = (rseg == NULL) ? 0 : i + 1;
 
-	} while (rseg == NULL);
+	} while (rseg == NULL
+		 || (rseg->space == 0
+		     && n_tablespaces > 0
+		     && trx_sys->rseg_array[1] != NULL));
 
 	return(rseg);
 }
@@ -670,7 +683,7 @@ trx_start_low(
 	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
 	read_view_open_now: */
 
-	rseg = trx_assign_rseg(srv_rollback_segments);
+	rseg = trx_assign_rseg(srv_undo_logs, srv_undo_tablespaces);
 
 	trx->no = IB_ULONGLONG_MAX;
 
