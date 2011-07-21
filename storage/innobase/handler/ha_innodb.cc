@@ -409,6 +409,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_pages_misc,	  SHOW_LONG},
   {"buffer_pool_pages_total",
   (char*) &export_vars.innodb_buffer_pool_pages_total,	  SHOW_LONG},
+  {"buffer_pool_read_ahead_rnd",
+  (char*) &export_vars.innodb_buffer_pool_read_ahead_rnd, SHOW_LONG},
   {"buffer_pool_read_ahead",
   (char*) &export_vars.innodb_buffer_pool_read_ahead,	  SHOW_LONG},
   {"buffer_pool_read_ahead_evicted",
@@ -514,7 +516,7 @@ static
 int
 innobase_close_connection(
 /*======================*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */
+	handlerton*	hton,		/*!< in/out: Innodb handlerton */
 	THD*		thd);		/*!< in: MySQL thread handle for
 					which to close the connection */
 
@@ -526,7 +528,7 @@ static
 int
 innobase_commit(
 /*============*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */
+	handlerton*	hton,		/*!< in/out: Innodb handlerton */
 	THD*		thd,		/*!< in: MySQL thread handle of the
 					user for whom the transaction should
 					be committed */
@@ -542,7 +544,7 @@ static
 int
 innobase_rollback(
 /*==============*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */ 
+	handlerton*	hton,		/*!< in/out: Innodb handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back */
@@ -558,7 +560,7 @@ static
 int
 innobase_rollback_to_savepoint(
 /*===========================*/
-	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread of
 					the user whose XA transaction should
 					be rolled back to savepoint */
@@ -571,7 +573,7 @@ static
 int
 innobase_savepoint(
 /*===============*/
-	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread of
 					the user's XA transaction for which
 					we need to take a savepoint */
@@ -585,7 +587,7 @@ static
 int
 innobase_release_savepoint(
 /*=======================*/
-	handlerton*	hton,		/*!< in: handlerton for Innodb */
+	handlerton*	hton,		/*!< in/out: handlerton for Innodb */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction's
 					savepoint should be released */
@@ -597,7 +599,7 @@ static
 handler*
 innobase_create_handler(
 /*====================*/
-	handlerton*	hton,		/*!< in: handlerton for Innodb */
+	handlerton*	hton,		/*!< in/out: handlerton for Innodb */
 	TABLE_SHARE*	table,
 	MEM_ROOT*	mem_root);
 
@@ -2514,7 +2516,7 @@ mem_free_and_error:
 		goto error;
 	}
 
-	/* -------------- Log files ---------------------------*/
+	/* -------------- All log files ---------------------------*/
 
 	/* The default dir for log files is the datadir of MySQL */
 
@@ -3055,7 +3057,7 @@ static
 int
 innobase_rollback(
 /*==============*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */ 
+	handlerton*	hton,		/*!< in: Innodb handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back */
@@ -3137,7 +3139,7 @@ static
 int
 innobase_rollback_to_savepoint(
 /*===========================*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */ 
+	handlerton*	hton,		/*!< in: Innodb handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back to savepoint */
@@ -12173,14 +12175,6 @@ static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
   1,			/* Minimum value */
   5000, 0);		/* Maximum value */
 
-static MYSQL_SYSVAR_ULONG(rollback_segments, srv_rollback_segments,
-  PLUGIN_VAR_OPCMDARG,
-  "Number of UNDO logs to use.",
-  NULL, NULL,
-  128,			/* Default setting */
-  1,			/* Minimum value */
-  TRX_SYS_N_RSEGS, 0);	/* Maximum value */
-
 static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Purge threads can be from 0 to 32. Default is 0.",
@@ -12481,6 +12475,27 @@ static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   "Path to individual files and their sizes.",
   NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Directory where undo tablespace files live, this path can be absolute.",
+  NULL, NULL, ".");
+
+static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of undo tablespaces to use. ",
+  NULL, NULL,
+  0L,			/* Default seting */
+  0L,			/* Minimum value */
+  126L, 0);		/* Maximum value */
+
+static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
+  PLUGIN_VAR_OPCMDARG,
+  "Number of undo logs to use.",
+  NULL, NULL,
+  TRX_SYS_N_RSEGS,	/* Default setting */
+  1,			/* Minimum value */
+  TRX_SYS_N_RSEGS, 0);	/* Maximum value */
+
 static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The AUTOINC lock modes supported by InnoDB:               "
@@ -12535,6 +12550,11 @@ static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
   "Debug flags for InnoDB change buffering (0=none)",
   NULL, NULL, 0, 0, 1, 0);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
+static MYSQL_SYSVAR_BOOL(random_read_ahead, srv_random_read_ahead,
+  PLUGIN_VAR_NOCMDARG,
+  "Whether to use read ahead for random access within an extent.",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,
@@ -12643,6 +12663,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
   MYSQL_SYSVAR(change_buffering_debug),
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+  MYSQL_SYSVAR(random_read_ahead),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(monitor_enable),
@@ -12655,7 +12676,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_hash_locks),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
-  MYSQL_SYSVAR(rollback_segments),
+  MYSQL_SYSVAR(undo_logs),
+  MYSQL_SYSVAR(undo_directory),
+  MYSQL_SYSVAR(undo_tablespaces),
   MYSQL_SYSVAR(sync_array_size),
   NULL
 };

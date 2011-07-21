@@ -1008,7 +1008,7 @@ class sp_instr_hpush_jump : public sp_instr_jump
 public:
 
   sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, int htype, uint fp)
-    : sp_instr_jump(ip, ctx), m_type(htype), m_frame(fp)
+    : sp_instr_jump(ip, ctx), m_type(htype), m_frame(fp), m_opt_hpop(0)
   {
     m_cond.empty();
   }
@@ -1030,6 +1030,15 @@ public:
     return m_ip;
   }
 
+  virtual void backpatch(uint dest, sp_pcontext *dst_ctx)
+  {
+    DBUG_ASSERT(!m_dest || !m_opt_hpop);
+    if (!m_dest)
+      m_dest= dest;
+    else
+      m_opt_hpop= dest;
+  }
+
   inline void add_condition(struct sp_cond_type *cond)
   {
     m_cond.push_front(cond);
@@ -1039,6 +1048,7 @@ private:
 
   int m_type;			///< Handler type
   uint m_frame;
+  uint m_opt_hpop;              // hpop marking end of handler scope.
   List<struct sp_cond_type> m_cond;
 
 }; // class sp_instr_hpush_jump : public sp_instr_jump

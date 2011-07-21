@@ -105,6 +105,16 @@ extern FILE*	srv_misc_tmpfile;
 /* Server parameters which are read from the initfile */
 
 extern char*	srv_data_home;
+
+/** Server undo tablespaces directory, can be absolute path. */
+extern char*	srv_undo_dir;
+
+/** Number of undo tablespaces to use. */
+extern ulong	srv_undo_tablespaces;
+
+/* The number of undo segments to use */
+extern ulong	srv_undo_logs;
+
 #ifdef UNIV_LOG_ARCHIVE
 extern char*	srv_arch_dir;
 #endif /* UNIV_LOG_ARCHIVE */
@@ -174,6 +184,7 @@ extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
+extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;
 extern ulint	srv_n_read_io_threads;
 extern ulint	srv_n_write_io_threads;
@@ -308,9 +319,6 @@ extern ulong srv_n_purge_threads;
 
 /* the number of pages to purge in one batch */
 extern ulong srv_purge_batch_size;
-
-/* the number of rollback segments to use */
-extern ulong srv_rollback_segments;
 
 /* the number of sync wait arrays */
 extern ulong srv_sync_array_size;
@@ -721,6 +729,7 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
 	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */
 	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
+	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
 	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
 	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
