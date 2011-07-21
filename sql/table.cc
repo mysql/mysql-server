@@ -37,6 +37,7 @@
 #include "my_bit.h"
 #include "sql_select.h"
 #include "mdl.h"                 // MDL_wait_for_graph_visitor
+#include "opt_trace.h"           // opt_trace_disable_if_no_security_...
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -4356,6 +4357,7 @@ bool TABLE_LIST::prepare_security(THD *thd)
   if (prepare_view_securety_context(thd))
     DBUG_RETURN(TRUE);
   thd->security_ctx= find_view_security_context(thd);
+  opt_trace_disable_if_no_security_context_access(thd);
   while ((tbl= tb++))
   {
     DBUG_ASSERT(tbl->referencing_view);

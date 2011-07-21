@@ -34,7 +34,7 @@
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
-
+#include "opt_trace_context.h"    /* Opt_trace_context */
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
 
@@ -419,6 +419,11 @@ typedef struct system_variables
   ulonglong long_query_time;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
+  ulonglong optimizer_trace; ///< bitmap to tune optimizer tracing
+  ulonglong optimizer_trace_features; ///< bitmap to select features to trace
+  long      optimizer_trace_offset;
+  long      optimizer_trace_limit;
+  ulong     optimizer_trace_max_mem_size;
   sql_mode_t sql_mode; ///< which non-standard SQL behaviour should be enabled
   ulonglong option_bits; ///< OPTION_xxx constants, e.g. OPTION_PROFILING
   ha_rows select_limit;
@@ -3097,6 +3102,7 @@ public:
   */
   Internal_error_handler *pop_internal_handler();
 
+  Opt_trace_context opt_trace; ///< optimizer trace of current statement
   /**
     Raise an exception condition.
     @param code the MYSQL_ERRNO error code of the error
@@ -4105,6 +4111,9 @@ public:
   Identifies statements that can be explained with EXPLAIN.
 */
 #define CF_CAN_BE_EXPLAINED       (1U << 13)
+
+/** Identifies statements which may generate an optimizer trace */
+#define CF_OPTIMIZER_TRACE        (1U << 14)
 
 /* Bits in server_command_flags */
 

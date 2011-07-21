@@ -116,6 +116,7 @@ longlong getopt_ll_limit_value(longlong, const struct my_option *,
 double getopt_double_limit_value(double num, const struct my_option *optp,
                                  my_bool *fix);
 my_bool getopt_compare_strings(const char *s, const char *t, uint length);
+ulonglong max_of_int_range(int var_type);
 
 C_MODE_END
 

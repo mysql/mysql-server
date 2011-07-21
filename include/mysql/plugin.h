@@ -124,13 +124,16 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
 
 #define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0}}
 
-/*
+/**
   declarations for SHOW STATUS support in plugins
 */
 enum enum_mysql_show_type
 {
-  SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
-  SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
+  SHOW_UNDEF, SHOW_BOOL,
+  SHOW_INT,        ///< shown as _unsigned_ int
+  SHOW_LONG,       ///< shown as _unsigned_ long
+  SHOW_LONGLONG,   ///< shown as _unsigned_ longlong
+  SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
   SHOW_always_last
 };
