@@ -62,7 +62,7 @@ WHERE PORT = @port;
 Expect 1
 1
 #    Check the content for the default connection (tcpip)
-SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
+SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
    AND IP = '127.0.0.1' AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
@@ -70,26 +70,26 @@ Expect 1
 1
 # Characteristics of 'server_tcpip_socket' entry
 #    Server listening socket, TCP/IP
-#    There is only one entry with 'wait/io/socket/com/server_tcpip_socket'.
+#    There is only one entry with 'wait/io/socket/sql/server_tcpip_socket'.
 SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 Expect 1
 1
 # Get the 'server_tcpip_socket' thread id
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 #    Check the content.
 SELECT THREAD_ID = @thread_id
 AND PORT = <MASTER_MYPORT> AND IP = '0.0.0.0'
      AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 Expect 1
 1
 #    Check content for client connection 1 (tcpip)
-SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
+SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
         AND IP = '127.0.0.1'
         AND PORT = @port
 AS 'Expect 1'
@@ -105,7 +105,7 @@ WHERE THREAD_ID = @thread_id;
 Expect 1
 1
 #    Check content for client connection 2 (tcpip)
-SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
+SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
         AND IP = '127.0.0.1'
         AND PORT = @port
 AS 'Expect 1'
@@ -128,8 +128,8 @@ NOT IN (SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STAT
 FROM my_socket_instances)
 ORDER BY THREAD_ID;
 EVENT_NAME	IP
-wait/io/socket/com/client_connection	127.0.0.1
-wait/io/socket/com/client_connection	127.0.0.1
+wait/io/socket/sql/client_connection	127.0.0.1
+wait/io/socket/sql/client_connection	127.0.0.1
 # Disconnect con1, con2 and con3
 # Show differences to socket_instances before con1,con1 connecting.
 # There should be none.

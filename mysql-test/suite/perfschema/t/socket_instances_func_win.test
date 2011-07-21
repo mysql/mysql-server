@@ -158,13 +158,13 @@ WHERE PORT = @port;
 
 --echo #    Check the content for the default connection (tcpip)
 # EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID  IP           PORT    STATE
-# wait/io/socket/com/client_connection              26139912         16     907296  127.0.0.1    2631    ACTIVE
+# wait/io/socket/sql/client_connection              26139912         16     907296  127.0.0.1    2631    ACTIVE
 
 --disable_query_log
 eval set @thread_id = $con0_thread_id;
 --enable_query_log
 
-SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
+SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
    AND IP = '127.0.0.1' AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
@@ -175,18 +175,18 @@ WHERE THREAD_ID = @thread_id;
 
 --echo # Characteristics of 'server_tcpip_socket' entry
 --echo #    Server listening socket, TCP/IP
---echo #    There is only one entry with 'wait/io/socket/com/server_tcpip_socket'.
+--echo #    There is only one entry with 'wait/io/socket/sql/server_tcpip_socket'.
 
 SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 
 # Store the thread id of server_tcpip_socket
 --echo # Get the 'server_tcpip_socket' thread id
 
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 
 let $server_tcpip_thread_id= `SELECT @thread_id`;
 
@@ -197,14 +197,14 @@ eval SELECT THREAD_ID = @thread_id
      AND PORT = $MASTER_MYPORT AND IP = '0.0.0.0'
      AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
-WHERE EVENT_NAME = 'wait/io/socket/com/server_tcpip_socket';
+WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 
 #
 # VERIFY TCP/IP CLIENT CONNECTION 1
 #
 
 # EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID   IP           PORT  STATE
-# wait/io/socket/com/client_connection       140707865187120         18         59   127.0.0.1   59298   IDLE or ACTIVE
+# wait/io/socket/sql/client_connection       140707865187120         18         59   127.0.0.1   59298   IDLE or ACTIVE
 
 --echo #    Check content for client connection 1 (tcpip)
 
@@ -213,7 +213,7 @@ eval set @port = $con1_port;
 eval set @thread_id = $con1_thread_id;
 --enable_query_log
 
-eval SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
+eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
         AND IP = '127.0.0.1'
         AND PORT = @port
 AS 'Expect 1'
@@ -232,7 +232,7 @@ WHERE THREAD_ID = @thread_id;
 #
 
 # EVENT_NAME                           OBJECT_INSTANCE_BEGIN  THREAD_ID  SOCKET_ID   IP           PORT  STATE
-# wait/io/socket/com/client_connection       140707865187120         18         59   127.0.0.1   59298   IDLE or ACTIVE
+# wait/io/socket/sql/client_connection       140707865187120         18         59   127.0.0.1   59298   IDLE or ACTIVE
 
 --echo #    Check content for client connection 2 (tcpip)
 
@@ -241,7 +241,7 @@ eval set @port = $con2_port;
 eval set @thread_id = $con2_thread_id;
 --enable_query_log
 
-eval SELECT EVENT_NAME = 'wait/io/socket/com/client_connection'
+eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
         AND IP = '127.0.0.1'
         AND PORT = @port
 AS 'Expect 1'
@@ -296,5 +296,4 @@ WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)
 NOT IN (SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE
         FROM my_socket_instances)
 ORDER BY THREAD_ID;
-
 
