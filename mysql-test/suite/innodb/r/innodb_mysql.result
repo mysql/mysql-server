@@ -2624,7 +2624,8 @@ insert into t1 values (1,1),(2,1);
 alter ignore table t1 add unique `main` (b);
 drop table t1;
 End of 5.1 tests
- Test for bug #39932 "create table fails if column for FK is in different
+#
+# Test for bug #39932 "create table fails if column for FK is in different
 #                      case than in corr index".
 #
 drop tables if exists t1, t2;
