@@ -1255,6 +1255,9 @@ convert_error_code_to_mysql(
 	case DB_PRIMARY_KEY_IS_NULL:
 		return(ER_PRIMARY_CANT_HAVE_NULL);
 
+	case DB_FTS_INVALID_DOCID:
+		return(HA_FTS_INVALID_DOCID);
+
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* New error code HA_ERR_TOO_MANY_CONCURRENT_TRXS is only
 		available in 5.1.38 and later, but the plugin should still
@@ -1372,6 +1375,16 @@ innobase_strcasecmp(
 	const char*	a,	/*!< in: first string to compare */
 	const char*	b)	/*!< in: second string to compare */
 {
+	if (!a) {
+		if (!b) {
+			return(0);
+		} else {
+			return(-1);
+		}
+	} else if (!b) {
+		return(1);
+	}
+
 	return(my_strcasecmp(system_charset_info, a, b));
 }
 
@@ -5944,6 +5957,10 @@ report_error:
 						   prebuilt->table->flags,
 						   user_thd);
 
+	if (error_result == HA_FTS_INVALID_DOCID) {
+		my_error(HA_FTS_INVALID_DOCID, MYF(0));
+	}
+
 func_exit:
 	innobase_active_small();
 
@@ -5987,7 +6004,9 @@ calc_row_difference(
 	uint		i;
 	ulint		error = DB_SUCCESS;
 	ibool		changes_fts_column = FALSE;
+	ibool		changes_fts_doc_col = FALSE;
 	trx_t*          trx = thd_to_trx(thd);
+	doc_id_t	doc_id = 0;
 
 	n_fields = table->s->fields;
 	clust_index = dict_table_get_first_index(prebuilt->table);
@@ -6048,6 +6067,18 @@ calc_row_difference(
 			;
 		}
 
+		if (field_mysql_type == MYSQL_TYPE_LONGLONG
+		    && prebuilt->table->fts
+		    && innobase_strcasecmp(
+			field->field_name, FTS_DOC_ID_COL_NAME) == 0) {
+			doc_id = (doc_id_t) mach_read_from_n_little_endian(
+				n_ptr, 8);
+			if (doc_id == 0) {
+				return(DB_FTS_INVALID_DOCID);
+			}
+		}
+	
+
 		if (field->null_ptr) {
 			if (field_in_record_is_null(table, field,
 							(char*) old_row)) {
@@ -6100,19 +6131,25 @@ calc_row_difference(
 			checking only once here. Later we will need to
 			note which columns have been updated and do
 			selective processing. */
-			if (prebuilt->table->fts != NULL
-			    && !changes_fts_column) {
-
+			if (prebuilt->table->fts != NULL) {
 				ulint           offset;
 				dict_table_t*   innodb_table;
 
 				innodb_table = prebuilt->table;
 
-				offset = row_upd_changes_fts_column(
-					innodb_table, ufield);
+				if (!changes_fts_column) {
+					offset = row_upd_changes_fts_column(
+						innodb_table, ufield);
 
-				if (offset != ULINT_UNDEFINED) {
-                                        changes_fts_column = TRUE;
+					if (offset != ULINT_UNDEFINED) {
+						changes_fts_column = TRUE;
+					}
+				}
+
+				if (!changes_fts_doc_col) {
+					changes_fts_doc_col =
+					row_upd_changes_doc_id(
+						innodb_table, ufield);
 				}
 			}
 		}
@@ -6122,10 +6159,18 @@ calc_row_difference(
 	then add an update column node with a new document id to the
 	other changes. We piggy back our changes on the normal UPDATE
 	to reduce processing and IO overhead. */
-	if (prebuilt->table->fts != NULL && changes_fts_column) {
+	if (prebuilt->table->fts != NULL
+	    && (changes_fts_column || changes_fts_doc_col)) {
 		dict_table_t*   innodb_table = prebuilt->table;
 
 		ufield = uvect->fields + n_changed;
+
+		if (!DICT_TF2_FLAG_IS_SET(
+			innodb_table, DICT_TF2_FTS_HAS_DOC_ID)) {
+			trx->fts_next_doc_id = doc_id;
+		} else {
+			trx->fts_next_doc_id = 0;
+		}
 
 		error = fts_update_doc_id(
 			innodb_table, ufield, &trx->fts_next_doc_id);
@@ -6186,9 +6231,13 @@ ha_innobase::update_row(
 	/* Build an update vector from the modified fields in the rows
 	(uses upd_buff of the handle) */
 
-	calc_row_difference(uvect, (uchar*) old_row, new_row, table,
+	error = calc_row_difference(uvect, (uchar*) old_row, new_row, table,
 			upd_buff, (ulint)upd_and_key_val_buff_len,
 			prebuilt, user_thd);
+
+	if (error != DB_SUCCESS) {
+		goto func_exit;
+	}
 
 	/* This is not a delete */
 	prebuilt->upd_node->is_delete = FALSE;
@@ -6241,6 +6290,7 @@ ha_innobase::update_row(
 
 	innodb_srv_conc_exit_innodb(trx);
 
+func_exit:
 	error = convert_error_code_to_mysql(error,
 					    prebuilt->table->flags, user_thd);
 
@@ -6252,6 +6302,8 @@ ha_innobase::update_row(
 		should not increase the count of updated rows.
 		This is fix for http://bugs.mysql.com/29157 */
 		error = HA_ERR_RECORD_IS_THE_SAME;
+	} else if (error == HA_FTS_INVALID_DOCID) {
+		my_error(HA_FTS_INVALID_DOCID, MYF(0));
 	}
 
 	/* Tell InnoDB server that there might be work for
@@ -9258,9 +9310,10 @@ ha_innobase::info_low(
 					- prebuilt->clust_index_was_generated;
 
 		if (table->s->keys != num_innodb_index
-		    && (innobase_fts_check_doc_id_index(ib_table, NULL)
+		    && (innobase_fts_check_doc_id_index(ib_table, NULL) 
+			== FTS_EXIST_DOC_ID_INDEX
 			&& table->s->keys != (num_innodb_index - 1))) {
-			sql_print_error("Table %s contains %lu "
+			sql_print_error("InnoDB: Table %s contains %lu "
 					"indexes inside InnoDB, which "
 					"is different from the number of "
 					"indexes %u defined in the MySQL ",

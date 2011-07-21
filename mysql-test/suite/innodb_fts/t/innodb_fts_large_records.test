@@ -72,7 +72,7 @@ SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"row5col2word48 row5col2word49"@10' IN BOOLEAN MODE);
 
-UPDATE t1 SET a = "using update" , b = "changing fulltext index record" 
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", FTS_DOC_ID = FTS_DOC_ID + 10000 
 WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
 
 select sleep(1);
@@ -157,7 +157,7 @@ SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"row5col2word48 row5col2word49"@10' IN BOOLEAN MODE);
 
-UPDATE t1 SET a = "using update" , b = "changing fulltext index record" 
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", FTS_DOC_ID = FTS_DOC_ID + 10000
 WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
 
 select a,b from t1 where MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
@@ -237,7 +237,7 @@ select count(*) from t1 where MATCH a,b AGAINST ("+sameroww" IN BOOLEAN MODE);
 select count(*) from t1 where MATCH(a,b) AGAINST ("samerowword" WITH QUERY EXPANSION);
 
 
-UPDATE t1 SET a = "using update" , b = "changing fulltext index record" 
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", FTS_DOC_ID = FTS_DOC_ID + 10000 
 WHERE MATCH(a,b) AGAINST("+samerowword +samerowword" IN BOOLEAN MODE);
 
 select count(*) from t1 where MATCH(a,b) AGAINST("+samerowword +samerowword" IN BOOLEAN MODE);
@@ -321,7 +321,7 @@ select count(*) from t1 where MATCH a,b AGAINST ("+2001" IN BOOLEAN MODE);
 select count(*) from t1 where MATCH(a,b) AGAINST ("samerowword" WITH QUERY EXPANSION);
 
 
-UPDATE t1 SET a = "using update" , b = "changing fulltext index record" 
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", FTS_DOC_ID = FTS_DOC_ID + 10000 
 WHERE MATCH(a,b) AGAINST("+samerowword +1050" IN BOOLEAN MODE);
 
 select sleep(1);
