@@ -9,6 +9,8 @@ flush status;
 # We are forced to suppress here the server response.
 optimize table mysql.db;
 update performance_schema.setup_consumers set enabled='YES';
+update performance_schema.setup_objects set enabled='YES'
+  where object_type='TABLE' and object_schema= 'mysql';
 flush privileges;
 insert into test.marker set a = 1;
 insert into test.marker set a = 1;
@@ -113,3 +115,5 @@ drop table test.marker;
 flush status;
 update performance_schema.setup_instruments set enabled='YES';
 update performance_schema.setup_consumers set enabled='YES';
+update performance_schema.setup_objects set enabled='NO'
+  where object_type='TABLE' and object_schema= 'mysql';
