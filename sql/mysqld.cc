@@ -64,6 +64,7 @@
 #include "scheduler.h"
 #include "debug_sync.h"
 #include "sql_callback.h"
+#include "opt_trace_context.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -2518,6 +2519,15 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
     my_safe_print_str(thd->query(), min(1024, thd->query_length()));
     fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
     fprintf(stderr, "Status: %s\n", kreason);
+#ifdef OPTIMIZER_TRACE
+    if (thd->opt_trace.is_started())
+    {
+      const size_t max_print_len= 4096; // print those final bytes
+      const char *tail= thd->opt_trace.get_tail(max_print_len);
+      fprintf(stderr, "Tail of Optimizer trace (%p): ", tail);
+      my_safe_print_str(tail, max_print_len);
+    }
+#endif
     fputc('\n', stderr);
   }
   fprintf(stderr, "\

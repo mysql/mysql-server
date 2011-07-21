@@ -153,6 +153,8 @@ struct buf_pool_info_struct{
 	ulint	n_pages_created;	/*!< buf_pool->n_pages_created */
 	ulint	n_pages_written;	/*!< buf_pool->n_pages_written */
 	ulint	n_page_gets;		/*!< buf_pool->n_page_gets */
+	ulint	n_ra_pages_read_rnd;	/*!< buf_pool->n_ra_pages_read_rnd,
+					number of pages readahead */
 	ulint	n_ra_pages_read;	/*!< buf_pool->n_ra_pages_read, number
 					of pages readahead */
 	ulint	n_ra_pages_evicted;	/*!< buf_pool->n_ra_pages_evicted,
@@ -177,6 +179,8 @@ struct buf_pool_info_struct{
 					last printout */
 
 	/* Statistics about read ahead algorithm.  */
+	double	pages_readahead_rnd_rate;/*!< random readahead rate in pages per
+					second */
 	double	pages_readahead_rate;	/*!< readahead rate in pages per
 					second */
 	double	pages_evicted_rate;	/*!< rate of readahead page evicted
@@ -546,6 +550,18 @@ buf_block_get_freed_page_clock(
 	const buf_block_t*	block)	/*!< in: block */
 	__attribute__((pure));
 
+/********************************************************************//**
+Tells if a block is still close enough to the MRU end of the LRU list
+meaning that it is not in danger of getting evicted and also implying
+that it has been accessed recently.
+Note that this is for heuristics only and does not reserve buffer pool
+mutex.
+@return	TRUE if block is close to MRU end of LRU */
+UNIV_INLINE
+ibool
+buf_page_peek_if_young(
+/*===================*/
+	const buf_page_t*	bpage);	/*!< in: block */
 /********************************************************************//**
 Recommends a move of a block to the start of the LRU list if there is danger
 of dropping from the buffer pool. NOTE: does not reserve the buffer pool
@@ -1695,6 +1711,8 @@ struct buf_pool_stat_struct{
 	ulint	n_pages_written;/*!< number write operations */
 	ulint	n_pages_created;/*!< number of pages created
 				in the pool with no read */
+	ulint	n_ra_pages_read_rnd;/*!< number of pages read in
+				as part of random read ahead */
 	ulint	n_ra_pages_read;/*!< number of pages read in
 				as part of read ahead */
 	ulint	n_ra_pages_evicted;/*!< number of read ahead
@@ -1841,7 +1859,7 @@ struct buf_pool_struct{
 	UT_LIST_BASE_NODE_T(buf_page_t) LRU;
 					/*!< base node of the LRU list */
 	buf_page_t*	LRU_old;	/*!< pointer to the about
-					buf_LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
+					LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
 					oldest blocks in the LRU list;
 					NULL if LRU length less than
 					BUF_LRU_OLD_MIN_LEN;

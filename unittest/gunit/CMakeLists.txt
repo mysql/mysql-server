@@ -211,8 +211,8 @@ SET(TESTS
   mdl
   mdl_mytap
   my_bitmap
-  my_decimal
   my_regex
+  opt_trace
   sql_list
   sql_plist
   thread_utils
@@ -221,6 +221,7 @@ SET(TESTS
 # Add tests (link them with gunit library and the server libraries) 
 SET(SERVER_TESTS
   item
+  my_decimal
   opt_range
 )
 

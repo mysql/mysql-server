@@ -570,6 +570,7 @@ enum enum_schema_tables
   SCH_GLOBAL_VARIABLES,
   SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
+  SCH_OPTIMIZER_TRACE,
   SCH_PARAMETERS,
   SCH_PARTITIONS,
   SCH_PLUGINS,
@@ -1381,6 +1382,9 @@ public:
     as this would crash the server.
   */
   PSI_table *m_psi;
+
+  virtual void unbind_psi();
+  virtual void rebind_psi();
 
 private:
   friend class DsMrr_impl;
