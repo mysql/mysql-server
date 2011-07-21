@@ -1469,17 +1469,37 @@ open_table_v1(PSI_table_share *share, const void *identity)
   if (unlikely(thread == NULL))
     return NULL;
 
-  if (unlikely(setup_objects_version != pfs_table_share->m_setup_objects_version))
-  {
-    pfs_table_share->refresh_setup_object_flags(thread);
-  }
-
-  /* Do not instrument this table is all table instruments are disabled. */
-  if (! pfs_table_share->m_io_enabled && ! pfs_table_share->m_lock_enabled)
-    return NULL;
-
   PFS_table *pfs_table= create_table(pfs_table_share, thread, identity);
   return reinterpret_cast<PSI_table *> (pfs_table);
+}
+
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::unbind_table.
+*/
+static void unbind_table_v1(PSI_table *table)
+{
+  PFS_table *pfs= reinterpret_cast<PFS_table*> (table);
+  if (likely(pfs != NULL))
+  {
+    pfs->aggregate();
+    pfs->m_thread_owner= NULL;
+  }
+}
+
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::rebind_table.
+*/
+static void rebind_table_v1(PSI_table *table)
+{
+  PFS_table *pfs= reinterpret_cast<PFS_table*> (table);
+  if (likely(pfs != NULL))
+  {
+    DBUG_ASSERT(pfs->m_thread_owner == NULL);
+
+    pfs->m_thread_owner= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  }
 }
 
 /**
@@ -1915,10 +1935,7 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
 
   DBUG_ASSERT(pfs_mutex->m_class != NULL);
 
-  if (! flag_global_instrumentation)
-    return NULL;
-  PFS_mutex_class *klass= pfs_mutex->m_class;
-  if (! klass->m_enabled)
+  if (! pfs_mutex->m_enabled)
     return NULL;
 
   register uint flags;
@@ -1933,7 +1950,7 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (klass->m_timed)
+    if (pfs_mutex->m_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -1953,7 +1970,7 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
-      wait->m_class= klass;
+      wait->m_class= pfs_mutex->m_class;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_mutex->m_identity;
@@ -1966,7 +1983,7 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
   }
   else
   {
-    if (klass->m_timed)
+    if (pfs_mutex->m_timed)
     {
       flags= STATE_FLAG_TIMED;
       state->m_thread= NULL;
@@ -1976,7 +1993,6 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
       /*
         Complete shortcut.
       */
-      PFS_mutex *pfs_mutex= reinterpret_cast<PFS_mutex *> (mutex);
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
       pfs_mutex->m_wait_stat.aggregate_counted();
       return NULL;
@@ -2006,10 +2022,7 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
 
   DBUG_ASSERT(pfs_rwlock->m_class != NULL);
 
-  if (! flag_global_instrumentation)
-    return NULL;
-  PFS_rwlock_class *klass= pfs_rwlock->m_class;
-  if (! klass->m_enabled)
+  if (! pfs_rwlock->m_enabled)
     return NULL;
 
   register uint flags;
@@ -2024,7 +2037,7 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (klass->m_timed)
+    if (pfs_rwlock->m_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2044,7 +2057,7 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
-      wait->m_class= klass;
+      wait->m_class= pfs_rwlock->m_class;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_rwlock->m_identity;
@@ -2057,7 +2070,7 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
   }
   else
   {
-    if (klass->m_timed)
+    if (pfs_rwlock->m_timed)
     {
       flags= STATE_FLAG_TIMED;
       state->m_thread= NULL;
@@ -2067,7 +2080,6 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
       /*
         Complete shortcut.
       */
-      PFS_rwlock *pfs_rwlock= reinterpret_cast<PFS_rwlock *> (rwlock);
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
       pfs_rwlock->m_wait_stat.aggregate_counted();
       return NULL;
@@ -2109,15 +2121,12 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
 
   DBUG_ASSERT(pfs_cond->m_class != NULL);
 
-  if (! flag_global_instrumentation)
-    return NULL;
-  PFS_cond_class *klass= pfs_cond->m_class;
-  if (! klass->m_enabled)
+  if (! pfs_cond->m_enabled)
     return NULL;
 
   register uint flags;
 
-  if (klass->m_timed)
+  if (pfs_cond->m_timed)
     state->m_flags= STATE_FLAG_TIMED;
   else
     state->m_flags= 0;
@@ -2132,7 +2141,7 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (klass->m_timed)
+    if (pfs_cond->m_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2152,7 +2161,7 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
-      wait->m_class= klass;
+      wait->m_class= pfs_cond->m_class;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_cond->m_identity;
@@ -2165,14 +2174,13 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
   }
   else
   {
-    if (klass->m_timed)
+    if (pfs_cond->m_timed)
       flags= STATE_FLAG_TIMED;
     else
     {
       /*
         Complete shortcut.
       */
-      PFS_cond *pfs_cond= reinterpret_cast<PFS_cond *> (cond);
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
       pfs_cond->m_wait_stat.aggregate_counted();
       return NULL;
@@ -2247,29 +2255,26 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
 
   DBUG_ASSERT(pfs_table->m_share != NULL);
 
-  if (! flag_global_instrumentation)
+  if (! pfs_table->m_io_enabled)
     return NULL;
 
-  PFS_table_share *share= pfs_table->m_share;
-  if (! share->m_io_enabled)
+  PFS_thread *pfs_thread= pfs_table->m_thread_owner;
+  if (unlikely(pfs_thread == NULL))
     return NULL;
 
-  PFS_instr_class *klass;
-  klass= &global_table_io_class;
+  DBUG_ASSERT(pfs_thread ==
+              my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
 
   register uint flags;
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
     if (! pfs_thread->m_enabled)
       return NULL;
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (share->m_io_timed)
+    if (pfs_table->m_io_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2283,8 +2288,9 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
       state->m_wait= wait;
       flags|= STATE_FLAG_EVENT;
 
+      PFS_table_share *share= pfs_table->m_share;
       wait->m_thread= pfs_thread;
-      wait->m_class= klass;
+      wait->m_class= &global_table_io_class;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_table->m_identity;
@@ -2303,7 +2309,7 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
   }
   else
   {
-    if (share->m_io_timed)
+    if (pfs_table->m_io_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -2330,6 +2336,8 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
                                 PSI_table *table, PSI_table_lock_operation op, ulong op_flags)
 {
   DBUG_ASSERT(state != NULL);
+  DBUG_ASSERT((op == PSI_TABLE_LOCK) || (op == PSI_TABLE_EXTERNAL_LOCK));
+
   PFS_table *pfs_table= reinterpret_cast<PFS_table*> (table);
 
   if (unlikely(pfs_table == NULL))
@@ -2337,18 +2345,17 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
 
   DBUG_ASSERT(pfs_table->m_share != NULL);
 
-  DBUG_ASSERT((op == PSI_TABLE_LOCK) || (op == PSI_TABLE_EXTERNAL_LOCK));
-
-  if (! flag_global_instrumentation)
+  if (! pfs_table->m_lock_enabled)
     return NULL;
 
-  PFS_table_share *share= pfs_table->m_share;
-  if (! share->m_lock_enabled)
+  PFS_thread *pfs_thread= pfs_table->m_thread_owner;
+  if (unlikely(pfs_thread == NULL))
     return NULL;
 
-  PFS_instr_class *klass;
+  DBUG_ASSERT(pfs_thread ==
+              my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
+
   PFS_TL_LOCK_TYPE lock_type;
-  klass= &global_table_lock_class;
 
   switch (op)
   {
@@ -2375,15 +2382,12 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
     if (! pfs_thread->m_enabled)
       return NULL;
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (share->m_lock_timed)
+    if (pfs_table->m_lock_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2397,8 +2401,9 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
       state->m_wait= wait;
       flags|= STATE_FLAG_EVENT;
 
+      PFS_table_share *share= pfs_table->m_share;
       wait->m_thread= pfs_thread;
-      wait->m_class= klass;
+      wait->m_class= &global_table_lock_class;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_table->m_identity;
@@ -2417,7 +2422,7 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
   }
   else
   {
-    if (share->m_lock_timed)
+    if (pfs_table->m_lock_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -2530,11 +2535,7 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
     return NULL; 
   DBUG_ASSERT(pfs_file->m_class != NULL);
 
-  if (! flag_global_instrumentation)
-    return NULL;
-
-  PFS_file_class *klass= pfs_file->m_class;
-  if (! klass->m_enabled)
+  if (! pfs_file->m_enabled)
     return NULL;
 
   register uint flags;
@@ -2549,7 +2550,7 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (klass->m_timed)
+    if (pfs_file->m_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2569,7 +2570,7 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
-      wait->m_class= klass;
+      wait->m_class= pfs_file->m_class;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_file;
@@ -2585,7 +2586,7 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
   else
   {
     state->m_thread= NULL;
-    if (klass->m_timed)
+    if (pfs_file->m_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -2615,9 +2616,6 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(file_operation_map));
   DBUG_ASSERT(state != NULL);
 
-  if (! flag_global_instrumentation)
-    return NULL;
-
   if (unlikely((index < 0) || (index >= file_handle_max)))
     return NULL;
 
@@ -2637,8 +2635,7 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
     file_handle_array[index]= NULL;
 
   DBUG_ASSERT(pfs_file->m_class != NULL);
-  PFS_instr_class *klass= pfs_file->m_class;
-  if (! klass->m_enabled)
+  if (! pfs_file->m_enabled)
     return NULL;
 
   register uint flags;
@@ -2653,7 +2650,7 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (klass->m_timed)
+    if (pfs_file->m_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2673,7 +2670,7 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
-      wait->m_class= klass;
+      wait->m_class= pfs_file->m_class;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_file;
@@ -2689,7 +2686,7 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
   else
   {
     state->m_thread= NULL;
-    if (klass->m_timed)
+    if (pfs_file->m_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -4263,6 +4260,8 @@ PSI_v1 PFS_v1=
   release_table_share_v1,
   drop_table_share_v1,
   open_table_v1,
+  unbind_table_v1,
+  rebind_table_v1,
   close_table_v1,
   create_file_v1,
   spawn_thread_v1,

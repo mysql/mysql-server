@@ -1122,12 +1122,9 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   List_iterator_fast<Item> it(fields_vars);
   Item *item;
   TABLE *table= table_list->table;
-  bool no_trans_update_stmt;
   const CHARSET_INFO *cs= read_info.read_charset;
   DBUG_ENTER("read_xml_field");
-  
-  no_trans_update_stmt= !table->file->has_transactions();
-  
+
   for ( ; ; it.rewind())
   {
     if (thd->killed)

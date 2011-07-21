@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,6 +34,8 @@ optimize table mysql.db;
 
 # Start recording events
 update performance_schema.setup_consumers set enabled='YES';
+update performance_schema.setup_objects set enabled='YES'
+  where object_type='TABLE' and object_schema= 'mysql';
 
 # Code to test
 
@@ -52,3 +54,5 @@ let $schema_to_dump= "test", "mysql";
 # Cleanup
 --source ../include/table_io_cleanup_helper.inc
 
+update performance_schema.setup_objects set enabled='NO'
+  where object_type='TABLE' and object_schema= 'mysql';
