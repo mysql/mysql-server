@@ -3711,7 +3711,7 @@ CREATE TABLE t1 (c INT);
 CREATE VIEW v1 (view_column) AS SELECT c AS alias FROM t1 HAVING alias;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c` AS `view_column` from `t1` having `view_column`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c` AS `view_column` from `t1` having (`view_column` <> 0)	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 view_column
 
