@@ -10146,7 +10146,9 @@ return_zero_rows(JOIN *join, select_result *result, List<TABLE_LIST> &tables,
     TABLE_LIST *table;
     while ((table= ti++))
       mark_as_null_row(table->table);		// All fields are NULL
-    if (having && having->val_int() == 0)
+    if (having &&
+        !having->walk(&Item::clear_sum_processor, FALSE, NULL) &&
+        having->val_int() == 0)
       send_row=0;
   }
   if (!(result->send_fields(fields,
