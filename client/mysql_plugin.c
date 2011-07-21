@@ -924,6 +924,7 @@ static int find_tool(const char *tool_name, char *tool_path)
 
   const char *paths[]= {
     opt_basedir, "/usr", "/usr/local/mysql", "/usr/sbin", "/usr/share",
+    "/extra", "/extra/debug", "/extra/release"
   };
   for (i= 0; i < (int)array_elements(paths); i++)
   {
