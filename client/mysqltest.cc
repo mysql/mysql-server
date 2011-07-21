@@ -8691,11 +8691,6 @@ int main(int argc, char **argv)
         /* Check for special property for this query */
         display_result_vertically|= (command->type == Q_QUERY_VERTICAL);
 
-	if (save_file[0])
-	{
-	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
-	  save_file[0]= 0;
-	}
         /*
           We run EXPLAIN _before_ the query. If query is UPDATE/DELETE is
           matters: a DELETE may delete rows, and then EXPLAIN DELETE will
@@ -8703,6 +8698,12 @@ int main(int argc, char **argv)
           interesting, EXPLAIN is now first.
         */
 	run_explain(cur_con, command, flags);
+	/* Check for 'require' */
+	if (*save_file)
+	{
+	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
+	  *save_file= 0;
+	}
 	run_query(cur_con, command, flags);
 	display_opt_trace(cur_con, command, flags);
 	command_executed++;
