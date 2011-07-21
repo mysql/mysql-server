@@ -875,6 +875,72 @@ while ($depth<4)
     select @@optimizer_search_depth;
     eval EXPLAIN $query;
   }
+
+  ## A mix of 25% EQ_REF / 75% ALL joins
+  ##
+  let $query= SELECT COUNT(*) FROM T1 AS X;
+  let $i= 1;
+  while ($i < 60)
+  {
+    let $query= $query JOIN T$i ON T$i.I = X.I;
+    inc $i;
+    let $query= $query JOIN T$i ON T$i.K = X.I;
+    inc $i;
+    let $query= $query JOIN T$i ON T$i.I = X.I;
+    inc $i;
+    let $query= $query JOIN T$i ON T$i.I = X.I;
+    inc $i;
+
+    eval EXPLAIN $query;
+  }
+
+  ## A mix of 50% EQ_REF / 50% ALL joins
+  ##
+  let $query= SELECT COUNT(*) FROM T1 AS X;
+  let $i= 1;
+  while ($i < 60)
+  {
+    let $query= $query JOIN T$i ON T$i.I = X.I;
+    inc $i;
+    let $query= $query JOIN T$i ON T$i.K = X.I;
+    inc $i;
+    let $query= $query JOIN T$i ON T$i.I = X.I;
+    inc $i;
+    let $query= $query JOIN T$i ON T$i.K = X.I;
+    inc $i;
+
+    eval EXPLAIN $query;
+  }
+
+  ## A mix of 75% EQ_REF / 25% ALL joins
+  ##
+  let $query= SELECT COUNT(*) FROM T1 AS X;
+  let $i= 1;
+  while ($i < 60)
+  {
+    let $query= $query JOIN T$i ON T$i.I = X.I;
+    inc $i;
+    let $query= $query JOIN T$i ON T$i.K = X.I;
+    inc $i;
+    let $query= $query JOIN T$i ON T$i.K = X.I;
+    inc $i;
+    let $query= $query JOIN T$i ON T$i.K = X.I;
+    inc $i;
+
+    eval EXPLAIN $query;
+  }
+
+  ## 100% EQ_REF joins
+  ##
+  let $query= SELECT COUNT(*) FROM T1 AS X;
+  let $i= 1;
+  while ($i < 61)
+  {
+    let $query= $query JOIN T$i ON T$i.K=X.I;
+    inc $i;
+
+    eval EXPLAIN $query;
+  }
 }
 
 let $drop = DROP TABLE t100;

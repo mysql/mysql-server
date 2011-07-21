@@ -198,7 +198,7 @@ our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
 # -1 indicates use default, override with env.var.
-my $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
+our $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
 # Unit test report stored here for delayed printing
 my $ctest_report;
 
@@ -1369,6 +1369,12 @@ sub command_line_setup {
       # Save this for collect phase
       collect_option('default-storage-engine', $1);
       mtr_report("Using default engine '$1'")
+    }
+    if ( $arg =~ /default-temp-storage-engine=(\S+)/ )
+    {
+      # Save this for collect phase
+      collect_option('default-temp-storage-engine', $1);
+      mtr_report("Using default temp engine '$1'")
     }
   }
 

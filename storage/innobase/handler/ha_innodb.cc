@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* Include necessary InnoDB headers */
 extern "C" {
 #include "univ.i"
+#include "buf0dump.h"
 #include "buf0lru.h"
 #include "buf0flu.h"
 #include "btr0sea.h"
@@ -388,6 +389,10 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
 
 static SHOW_VAR innodb_status_variables[]= {
+  {"buffer_pool_dump_status",
+  (char*) &export_vars.innodb_buffer_pool_dump_status,	  SHOW_CHAR},
+  {"buffer_pool_load_status",
+  (char*) &export_vars.innodb_buffer_pool_load_status,	  SHOW_CHAR},
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
   {"buffer_pool_pages_dirty",
@@ -404,6 +409,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_pages_misc,	  SHOW_LONG},
   {"buffer_pool_pages_total",
   (char*) &export_vars.innodb_buffer_pool_pages_total,	  SHOW_LONG},
+  {"buffer_pool_read_ahead_rnd",
+  (char*) &export_vars.innodb_buffer_pool_read_ahead_rnd, SHOW_LONG},
   {"buffer_pool_read_ahead",
   (char*) &export_vars.innodb_buffer_pool_read_ahead,	  SHOW_LONG},
   {"buffer_pool_read_ahead_evicted",
@@ -509,7 +516,7 @@ static
 int
 innobase_close_connection(
 /*======================*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */
+	handlerton*	hton,		/*!< in/out: Innodb handlerton */
 	THD*		thd);		/*!< in: MySQL thread handle for
 					which to close the connection */
 
@@ -521,7 +528,7 @@ static
 int
 innobase_commit(
 /*============*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */
+	handlerton*	hton,		/*!< in/out: Innodb handlerton */
 	THD*		thd,		/*!< in: MySQL thread handle of the
 					user for whom the transaction should
 					be committed */
@@ -537,7 +544,7 @@ static
 int
 innobase_rollback(
 /*==============*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */ 
+	handlerton*	hton,		/*!< in/out: Innodb handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back */
@@ -553,7 +560,7 @@ static
 int
 innobase_rollback_to_savepoint(
 /*===========================*/
-	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread of
 					the user whose XA transaction should
 					be rolled back to savepoint */
@@ -566,7 +573,7 @@ static
 int
 innobase_savepoint(
 /*===============*/
-	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread of
 					the user's XA transaction for which
 					we need to take a savepoint */
@@ -580,7 +587,7 @@ static
 int
 innobase_release_savepoint(
 /*=======================*/
-	handlerton*	hton,		/*!< in: handlerton for Innodb */
+	handlerton*	hton,		/*!< in/out: handlerton for Innodb */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction's
 					savepoint should be released */
@@ -592,7 +599,7 @@ static
 handler*
 innobase_create_handler(
 /*====================*/
-	handlerton*	hton,		/*!< in: handlerton for Innodb */
+	handlerton*	hton,		/*!< in/out: handlerton for Innodb */
 	TABLE_SHARE*	table,
 	MEM_ROOT*	mem_root);
 
@@ -1150,7 +1157,6 @@ convert_error_code_to_mysql(
 						misleading, a new MySQL error
 						code should be introduced */
 
-	case DB_COL_APPEARS_TWICE_IN_INDEX:
 	case DB_CORRUPTION:
 		return(HA_ERR_CRASHED);
 
@@ -2510,7 +2516,7 @@ mem_free_and_error:
 		goto error;
 	}
 
-	/* -------------- Log files ---------------------------*/
+	/* -------------- All log files ---------------------------*/
 
 	/* The default dir for log files is the datadir of MySQL */
 
@@ -2682,42 +2688,33 @@ innobase_change_buffering_inited_ok:
 
 #ifdef HAVE_PSI_INTERFACE
 	/* Register keys with MySQL performance schema */
-	if (PSI_server) {
-		int	count;
+	int	count;
 
-		count = array_elements(all_pthread_mutexes);
-
- 		mysql_mutex_register(
-			"innodb", all_pthread_mutexes, count);
+	count = array_elements(all_pthread_mutexes);
+ 	mysql_mutex_register("innodb", all_pthread_mutexes, count);
 
 # ifdef UNIV_PFS_MUTEX
-		count = array_elements(all_innodb_mutexes);
-		mysql_mutex_register("innodb",
-					   all_innodb_mutexes, count);
+	count = array_elements(all_innodb_mutexes);
+	mysql_mutex_register("innodb", all_innodb_mutexes, count);
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_RWLOCK
-		count = array_elements(all_innodb_rwlocks);
-		mysql_rwlock_register("innodb",
-					    all_innodb_rwlocks, count);
+	count = array_elements(all_innodb_rwlocks);
+	mysql_rwlock_register("innodb", all_innodb_rwlocks, count);
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_THREAD
-		count = array_elements(all_innodb_threads);
-		mysql_thread_register("innodb",
-					    all_innodb_threads, count);
+	count = array_elements(all_innodb_threads);
+	mysql_thread_register("innodb", all_innodb_threads, count);
 # endif /* UNIV_PFS_THREAD */
 
 # ifdef UNIV_PFS_IO
-		count = array_elements(all_innodb_files);
-		mysql_file_register("innodb",
-					  all_innodb_files, count);
+	count = array_elements(all_innodb_files);
+	mysql_file_register("innodb", all_innodb_files, count);
 # endif /* UNIV_PFS_IO */
 
-		count = array_elements(all_innodb_conds);
-		mysql_cond_register("innodb",
-					  all_innodb_conds, count);
-	}
+	count = array_elements(all_innodb_conds);
+	mysql_cond_register("innodb", all_innodb_conds, count);
 #endif /* HAVE_PSI_INTERFACE */
 
 	/* Since we in this module access directly the fields of a trx
@@ -3060,7 +3057,7 @@ static
 int
 innobase_rollback(
 /*==============*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */ 
+	handlerton*	hton,		/*!< in: Innodb handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back */
@@ -3142,7 +3139,7 @@ static
 int
 innobase_rollback_to_savepoint(
 /*===========================*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */ 
+	handlerton*	hton,		/*!< in: Innodb handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back to savepoint */
@@ -12054,6 +12051,91 @@ innobase_index_name_is_reserved(
 	return(false);
 }
 
+/* These variables are never read by InnoDB or changed. They are a kind of
+dummies that are needed by the MySQL infrastructure to call
+buffer_pool_dump_now(), buffer_pool_load_now() and buffer_pool_load_abort()
+by the user by doing:
+  SET GLOBAL innodb_buffer_pool_dump_now=ON;
+  SET GLOBAL innodb_buffer_pool_load_now=ON;
+  SET GLOBAL innodb_buffer_pool_load_abort=ON;
+Their values are read by MySQL and displayed to the user when the variables
+are queried, e.g.:
+  SELECT @@innodb_buffer_pool_dump_now;
+  SELECT @@innodb_buffer_pool_load_now;
+  SELECT @@innodb_buffer_pool_load_abort; */
+static my_bool	innodb_buffer_pool_dump_now = FALSE;
+static my_bool	innodb_buffer_pool_load_now = FALSE;
+static my_bool	innodb_buffer_pool_load_abort = FALSE;
+
+/****************************************************************//**
+Trigger a dump of the buffer pool if innodb_buffer_pool_dump_now is set
+to ON. This function is registered as a callback with MySQL. */
+static
+void
+buffer_pool_dump_now(
+/*=================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_dump_start();
+	}
+}
+
+/****************************************************************//**
+Trigger a load of the buffer pool if innodb_buffer_pool_load_now is set
+to ON. This function is registered as a callback with MySQL. */
+static
+void
+buffer_pool_load_now(
+/*=================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_load_start();
+	}
+}
+
+/****************************************************************//**
+Abort a load of the buffer pool if innodb_buffer_pool_load_abort
+is set to ON. This function is registered as a callback with MySQL. */
+static
+void
+buffer_pool_load_abort(
+/*===================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_load_abort();
+	}
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
   {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
@@ -12092,14 +12174,6 @@ static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
   300,			/* Default setting */
   1,			/* Minimum value */
   5000, 0);		/* Maximum value */
-
-static MYSQL_SYSVAR_ULONG(rollback_segments, srv_rollback_segments,
-  PLUGIN_VAR_OPCMDARG,
-  "Number of UNDO logs to use.",
-  NULL, NULL,
-  128,			/* Default setting */
-  1,			/* Minimum value */
-  TRX_SYS_N_RSEGS, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -12278,6 +12352,37 @@ static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
   NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
 
+static MYSQL_SYSVAR_STR(buffer_pool_filename, srv_buf_dump_filename,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+  "Filename to/from which to dump/load the InnoDB buffer pool",
+  NULL, NULL, SRV_BUF_DUMP_FILENAME_DEFAULT);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_dump_now, innodb_buffer_pool_dump_now,
+  PLUGIN_VAR_RQCMDARG,
+  "Trigger an immediate dump of the buffer pool into a file named @@innodb_buffer_pool_filename",
+  NULL, buffer_pool_dump_now, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_dump_at_shutdown, srv_buffer_pool_dump_at_shutdown,
+  PLUGIN_VAR_RQCMDARG,
+  "Dump the buffer pool into a file named @@innodb_buffer_pool_filename",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_load_now, innodb_buffer_pool_load_now,
+  PLUGIN_VAR_RQCMDARG,
+  "Trigger an immediate load of the buffer pool from a file named @@innodb_buffer_pool_filename",
+  NULL, buffer_pool_load_now, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_load_abort, innodb_buffer_pool_load_abort,
+  PLUGIN_VAR_RQCMDARG,
+  "Abort a currently running load of the buffer pool",
+  NULL, buffer_pool_load_abort, FALSE);
+
+/* there is no point in changing this during runtime, thus readonly */
+static MYSQL_SYSVAR_BOOL(buffer_pool_load_at_startup, srv_buffer_pool_load_at_startup,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Load the buffer pool from a file named @@innodb_buffer_pool_filename",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments.",
@@ -12370,6 +12475,27 @@ static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   "Path to individual files and their sizes.",
   NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Directory where undo tablespace files live, this path can be absolute.",
+  NULL, NULL, ".");
+
+static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of undo tablespaces to use. ",
+  NULL, NULL,
+  0L,			/* Default seting */
+  0L,			/* Minimum value */
+  126L, 0);		/* Maximum value */
+
+static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
+  PLUGIN_VAR_OPCMDARG,
+  "Number of undo logs to use.",
+  NULL, NULL,
+  TRX_SYS_N_RSEGS,	/* Default setting */
+  1,			/* Minimum value */
+  TRX_SYS_N_RSEGS, 0);	/* Maximum value */
+
 static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The AUTOINC lock modes supported by InnoDB:               "
@@ -12425,6 +12551,11 @@ static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
   NULL, NULL, 0, 0, 1, 0);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
+static MYSQL_SYSVAR_BOOL(random_read_ahead, srv_random_read_ahead,
+  PLUGIN_VAR_NOCMDARG,
+  "Whether to use read ahead for random access within an extent.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,
   "Number of pages that must be accessed sequentially for InnoDB to "
@@ -12465,6 +12596,12 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_instances),
+  MYSQL_SYSVAR(buffer_pool_filename),
+  MYSQL_SYSVAR(buffer_pool_dump_now),
+  MYSQL_SYSVAR(buffer_pool_dump_at_shutdown),
+  MYSQL_SYSVAR(buffer_pool_load_now),
+  MYSQL_SYSVAR(buffer_pool_load_abort),
+  MYSQL_SYSVAR(buffer_pool_load_at_startup),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
@@ -12526,6 +12663,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
   MYSQL_SYSVAR(change_buffering_debug),
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+  MYSQL_SYSVAR(random_read_ahead),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(monitor_enable),
@@ -12538,7 +12676,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_hash_locks),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
-  MYSQL_SYSVAR(rollback_segments),
+  MYSQL_SYSVAR(undo_logs),
+  MYSQL_SYSVAR(undo_directory),
+  MYSQL_SYSVAR(undo_tablespaces),
   MYSQL_SYSVAR(sync_array_size),
   NULL
 };

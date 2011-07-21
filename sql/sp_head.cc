@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2588,8 +2589,9 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
-  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, FALSE,
-                                     1, TRUE) ||
+  *full_access= ((!check_table_access(thd, SELECT_ACL, &tables, FALSE,
+                                     1, TRUE) &&
+                  (tables.grant.privilege & SELECT_ACL) != 0) ||
                  (!strcmp(sp->m_definer_user.str,
                           thd->security_ctx->priv_user) &&
                   !strcmp(sp->m_definer_host.str,
@@ -3545,6 +3547,23 @@ sp_instr_hpush_jump::opt_mark(sp_head *sp, List<sp_instr> *leads)
     m_optdest= sp->get_instr(m_dest);
   }
   sp->add_mark_lead(m_dest, leads);
+
+  /*
+    For continue handlers, all instructions in the scope of the handler
+    are possible leads. For example, the instruction after freturn might
+    be executed if the freturn triggers the condition handled by the
+    continue handler.
+
+    m_dest marks the start of the handler scope. It's added as a lead
+    above, so we start on m_dest+1 here.
+    m_opt_hpop is the hpop marking the end of the handler scope.
+  */
+  if (m_type == SP_HANDLER_CONTINUE)
+  {
+    for (uint scope_ip= m_dest+1; scope_ip <= m_opt_hpop; scope_ip++)
+      sp->add_mark_lead(scope_ip, leads);
+  }
+
   return m_ip+1;
 }
 

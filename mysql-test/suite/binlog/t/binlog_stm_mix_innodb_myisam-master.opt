@@ -1,1 +1,1 @@
---innodb_lock_wait_timeout=2 --binlog-direct-non-transactional-updates=FALSE --default-storage-engine=MyISAM
+--innodb_lock_wait_timeout=2 --binlog-direct-non-transactional-updates=FALSE --default-storage-engine=MyISAM --default-temp-storage-engine=MyISAM

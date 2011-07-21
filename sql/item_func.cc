@@ -392,7 +392,7 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
   See comments in Item_cmp_func::split_sum_func()
 */
 
-void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
+void Item_func::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                                List<Item> &fields)
 {
   Item **arg, **arg_end;
@@ -1621,8 +1621,13 @@ longlong Item_func_int_div::val_int()
       return 0;
     }
 
+    my_decimal truncated;
+    const bool do_truncate= true;
+    if (my_decimal_round(E_DEC_FATAL_ERROR, &tmp, 0, do_truncate, &truncated))
+      DBUG_ASSERT(false);
+
     longlong res;
-    if (my_decimal2int(E_DEC_FATAL_ERROR, &tmp, unsigned_flag, &res) &
+    if (my_decimal2int(E_DEC_FATAL_ERROR, &truncated, unsigned_flag, &res) &
         E_DEC_OVERFLOW)
       raise_integer_overflow();
     return res;
@@ -4975,8 +4980,9 @@ longlong Item_func_get_user_var::val_int()
 
 */
 
-int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                        LEX_STRING &name, user_var_entry **out_entry)
+static int
+get_var_with_binlog(THD *thd, enum_sql_command sql_command,
+                    LEX_STRING &name, user_var_entry **out_entry)
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
@@ -5106,7 +5112,7 @@ void Item_func_get_user_var::fix_length_and_dec()
     'var_entry' is NULL only if there occured an error during the call to
     get_var_with_binlog.
   */
-  if (var_entry)
+  if (!error && var_entry)
   {
     m_cached_result_type= var_entry->type;
     unsigned_flag= var_entry->unsigned_flag;

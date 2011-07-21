@@ -111,6 +111,9 @@ sub collect_test_cases ($$$$) {
   my $opt_skip_test_list= shift;
   my $cases= []; # Array of hash(one hash for each testcase)
 
+  # Unit tests off by default also if using --do-test or --start-from
+  $::opt_ctest= 0 if $::opt_ctest == -1 && ($do_test || $start_from);
+
   $do_test_reg= init_pattern($do_test, "--do-test");
   $skip_test_reg= init_pattern($skip_test, "--skip-test");
 
@@ -613,9 +616,12 @@ sub optimize_cases {
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
       my $default_engine=
 	mtr_match_prefix($opt, "--default-storage-engine=");
+      my $default_temp_engine=
+	mtr_match_prefix($opt, "--default-temp-storage-engine=");
 
       # Allow use of uppercase, convert to all lower case
       $default_engine =~ tr/A-Z/a-z/;
+      $default_temp_engine =~ tr/A-Z/a-z/;
 
       if (defined $default_engine){
 
@@ -637,6 +643,27 @@ sub optimize_cases {
 	  if ( $default_engine =~ /^ndb/i );
 	$tinfo->{'innodb_test'}= 1
 	  if ( $default_engine =~ /^innodb/i );
+      }
+      if (defined $default_temp_engine){
+
+	#print " $tinfo->{name}\n";
+	#print " - The test asked to use '$default_temp_engine' as temp engine\n";
+
+	#my $engine_value= $::mysqld_variables{$default_temp_engine};
+	#print " - The mysqld_variables says '$engine_value'\n";
+
+	if ( ! exists $::mysqld_variables{$default_temp_engine} and
+	     ! exists $builtin_engines{$default_temp_engine} )
+	{
+	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'comment'}=
+	    "'$default_temp_engine' not supported";
+	}
+
+	$tinfo->{'ndb_test'}= 1
+	  if ( $default_temp_engine =~ /^ndb/i );
+	$tinfo->{'innodb_test'}= 1
+	  if ( $default_temp_engine =~ /^innodb/i );
       }
     }
 
@@ -987,6 +1014,8 @@ sub collect_one_test_case {
     # the default storage engine is innodb.
     push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=MyISAM");
     push(@{$tinfo->{'slave_opt'}}, "--default-storage-engine=MyISAM");
+    push(@{$tinfo->{'master_opt'}}, "--default-temp-storage-engine=MyISAM");
+    push(@{$tinfo->{'slave_opt'}}, "--default-temp-storage-engine=MyISAM");
   }
 
   if ( $tinfo->{'need_binlog'} )
