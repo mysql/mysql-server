@@ -349,7 +349,6 @@ row_merge_buf_add(
 							"User supplied Doc ID "
 							"is zero. Record "
 							"Skipped\n");
-						ut_ad(*doc_id > 0);
 						return(0);
 					}
 				}

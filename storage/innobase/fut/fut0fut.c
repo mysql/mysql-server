@@ -2527,7 +2527,12 @@ fts_delete(
 	pars_info_t*	info = pars_info_create();
 	fts_cache_t*	cache = table->fts->cache;
 
-	ut_a(doc_id != 0);
+	/* we do not index Documents whose Doc ID value is 0 */
+	if (doc_id == 0) {
+		ut_ad(!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID));
+		return(error);
+	}
+
 	ut_a(row->state == FTS_DELETE || row->state == FTS_MODIFY);
 
 	FTS_INIT_FTS_TABLE(&fts_table, "DELETED", FTS_COMMON_TABLE, table);
@@ -4987,9 +4992,6 @@ fts_get_doc_id_from_row(
 
 	doc_id = fts_read_doc_id(dfield_get_data(field));
 
-	/* Must not be 0. */
-	ut_ad(doc_id > 0);
-
 	return(doc_id);
 }
 
@@ -5032,9 +5034,6 @@ fts_get_doc_id_from_rec(
 	ut_a(len == 8);
 	ut_a(len == sizeof(doc_id));
 	doc_id = (doc_id_t) mach_read_from_8(data);
-
-	/* Must not be 0. */
-	ut_a(doc_id > 0);
 
 	return(doc_id);
 }
@@ -5236,11 +5235,15 @@ fts_update_doc_id(
 	upd_field_t*	ufield,		/* out: update node */
 	doc_id_t*	next_doc_id)	/* out: buffer for writing */
 {
-	ulint		error;
+	ulint		error = DB_SUCCESS;
 	doc_id_t	doc_id;
 
-	/* Get the new document id that will be added. */
-	error = fts_get_next_doc_id(table, &doc_id);
+	if (*next_doc_id) {
+		doc_id = *next_doc_id;
+	} else {
+		/* Get the new document id that will be added. */
+		error = fts_get_next_doc_id(table, &doc_id);
+	}
 
 	if (error == DB_SUCCESS) {
 		dict_index_t*	clust_index;

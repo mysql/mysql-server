@@ -507,7 +507,7 @@ innobase_fts_check_doc_id_col(
 	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
 		const char*     name = dict_table_get_col_name(table, i);
 
-		if (innobase_strcasecmp(name, FTS_DOC_ID_COL_NAME) == 0) {
+		if (strcmp(name, FTS_DOC_ID_COL_NAME) == 0) {
 			const dict_col_t*       col;
 
 			col = dict_table_get_nth_col(table, i);
@@ -548,9 +548,12 @@ innobase_fts_check_doc_id_index(
 
 		/* Check if there exists a unique index with the name of
 		FTS_DOC_ID_INDEX_NAME */
-		if (innobase_strcasecmp(index->name, FTS_DOC_ID_INDEX_NAME)
-		    || !dict_index_is_unique(index)) {
+		if (innobase_strcasecmp(index->name, FTS_DOC_ID_INDEX_NAME)) {
 			continue;
+		}
+
+		if (!dict_index_is_unique(index)) {
+			return(FTS_INCORRECT_DOC_ID_INDEX);
 		}
 
 		/* Check whether the index has FTS_DOC_ID as its
@@ -558,19 +561,22 @@ innobase_fts_check_doc_id_index(
 		field = dict_index_get_nth_field(index, 0);
 
 		/* The column would be of a BIGINT data type */
-		if (innobase_strcasecmp(field->name, FTS_DOC_ID_COL_NAME) == 0
+		if (strcmp(field->name, FTS_DOC_ID_COL_NAME) == 0
 		    && field->col->mtype == DATA_INT
 		    && field->col->len == 8
 		    && field->col->prtype & DATA_NOT_NULL) {
 			if (fts_doc_col_no) {
 				*fts_doc_col_no = dict_col_get_no(field->col);
 			}
-			return(TRUE);
+			return(FTS_EXIST_DOC_ID_INDEX);
+		} else {
+			return(FTS_INCORRECT_DOC_ID_INDEX);
 		}
+
 	}
 
 	/* Not found */
-	return(FALSE);
+	return(FTS_NOT_EXIST_DOC_ID_INDEX);
 }
 /*******************************************************************//**
 Create an index table where indexes are ordered as follows:
@@ -660,6 +666,9 @@ innobase_create_key_def(
 	already has a DOC ID column, if not, we will need to add a
 	Doc ID hidden column and rebuild the primary index */
 	if (*num_fts_index) {
+		ulint	ret;
+		ulint	doc_col_no;
+
 		if (!innobase_fts_check_doc_id_col(table, &fts_doc_col_no)) {
 			*add_fts_doc_id = TRUE;
 			*add_fts_doc_id_idx = TRUE;
@@ -674,22 +683,31 @@ innobase_create_key_def(
 					FTS_DOC_ID_COL_NAME, table->name);
 			return(NULL);
 		} else {
-			ulint	doc_col_no;
 
 			 if (!table->fts) {
 				table->fts = fts_create(table);
 			}
 
 			table->fts->doc_col = fts_doc_col_no;
-
-			if (!innobase_fts_check_doc_id_index(table,
-							     &doc_col_no)) {
-				*add_fts_doc_id_idx = TRUE;
-			} else {
-				ut_ad(doc_col_no == fts_doc_col_no);
-			}
-
 		}
+
+		ret = innobase_fts_check_doc_id_index(table, &doc_col_no);
+
+		if (ret == FTS_NOT_EXIST_DOC_ID_INDEX) {
+			*add_fts_doc_id_idx = TRUE;
+		} else if (ret == FTS_INCORRECT_DOC_ID_INDEX) {
+			fprintf(stderr, "  InnoDB: Index %s is used for FTS" 
+					" Doc ID indexing on table %s, it is"
+					" now on the wrong column or of"
+					" wrong format. Please drop it.\n",
+					FTS_DOC_ID_INDEX_NAME, table->name);
+			DBUG_RETURN(NULL);
+		} else {
+			ut_ad(ret == FTS_EXIST_DOC_ID_INDEX);
+
+			ut_ad(doc_col_no == fts_doc_col_no);
+		}
+
 	}
 
 	/* If DICT_TF2_FTS_ADD_DOC_ID is set, we will need to rebuild

@@ -1373,17 +1373,38 @@ row_upd_changes_some_index_ord_field_binary(
 	return(FALSE);
 }
 
-/***************************************************************
-Checks if an FTS indexed column is affected by an UPDATE. */
+/***********************************************************//**
+Checks if an FTS Doc ID column is affected by an UPDATE.
+@return TRUE if the Doc ID column is changed */
+UNIV_INTERN
+ulint
+row_upd_changes_doc_id(
+/*===================*/
+	dict_table_t*	table,		/*!< in: table */
+	upd_field_t*	upd_field)	/*!< in: field to check */
+{
+	ulint		col_no;
+	dict_index_t*	clust_index;
+	fts_t*		fts = table->fts;
 
+	clust_index = dict_table_get_first_index(table);
+
+	/* Convert from index-specific column number to table-global
+	column number. */
+	col_no = dict_index_get_nth_col_no(clust_index, upd_field->field_no);
+
+	return(col_no == fts->doc_col);
+}
+/***********************************************************//**
+Checks if an FTS indexed column is affected by an UPDATE.
+@return offset within fts_t::indexes if FTS indexed column updated else
+ULINT_UNDEFINED */
+UNIV_INTERN
 ulint
 row_upd_changes_fts_column(
 /*=======================*/
-					/* out: offset within fts_t::indexes
-					if FTS indexed column updated else
-					ULINT_UNDEFINED */
-	dict_table_t*	table,		/* in: table */
-	upd_field_t*	upd_field)	/* in: field to check */
+	dict_table_t*	table,		/*!< in: table */
+	upd_field_t*	upd_field)	/*!< in: field to check */
 {
 	ulint		col_no;
 	dict_index_t*	clust_index;
@@ -1398,19 +1419,18 @@ row_upd_changes_fts_column(
 	return(dict_table_is_fts_column(fts->indexes, col_no));
 }
 
-/***************************************************************
+/***********************************************************//**
 Checks if an update vector changes the table's FTS-indexed columns.
 NOTE: must not be called for tables which do not have an FTS-index.
 Also, the vector returned must be explicitly freed as it's allocated
-using the ut_malloc() allocator. */
-
+using the ut_malloc() allocator.
+@return vector of FTS indexes that were affected by the update */
+UNIV_INTERN
 ib_vector_t*
 row_upd_changes_fts_columns(
 /*========================*/
-					/* out,own: vector of FTS indexes that
-					were affected by the update */
-	dict_table_t*	table,		/* in: table */
-	upd_t*		update)		/* in: update vector for the row */
+	dict_table_t*	table,		/*!< in: table */
+	upd_t*		update)		/*!< in: update vector for the row */
 {
 	ulint		i;
 	ulint		offset;

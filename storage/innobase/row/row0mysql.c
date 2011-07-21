@@ -604,6 +604,7 @@ handle_new_error:
 	case DB_CANNOT_ADD_CONSTRAINT:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 	case DB_OUT_OF_FILE_SPACE:
+	case DB_FTS_INVALID_DOCID:
 	case DB_INTERRUPTED:
 		if (savept) {
 			/* Roll back the latest, possibly incomplete
@@ -1252,6 +1253,10 @@ error_exit:
 		doc_id = fts_get_doc_id_from_row(prebuilt->table, node->row);
 
 		if (doc_id <= 0) {
+			fprintf(stderr,
+				"InnoDB: FTS Doc ID must be large than 0 \n");
+			err = DB_FTS_INVALID_DOCID;
+			trx->error_state = DB_FTS_INVALID_DOCID;
 			goto error_exit;	
 		}
 
@@ -1394,7 +1399,6 @@ row_fts_do_update(
 					table, node->update); */
 
 	if (trx->fts_next_doc_id) {
-
 		fts_trx_add_op(trx, table, old_doc_id, FTS_DELETE, NULL);
 		fts_trx_add_op(trx, table, new_doc_id, FTS_INSERT, NULL);
 	}
@@ -1404,7 +1408,7 @@ row_fts_do_update(
 Handles FTS matters for an update or a delete.
 NOTE: should not be called if the table does not have an FTS index. .*/
 static
-void
+ulint
 row_fts_update_or_delete(
 /*=====================*/
 	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct in MySQL
@@ -1426,8 +1430,15 @@ row_fts_update_or_delete(
 
 		new_doc_id = fts_read_doc_id((byte*) &trx->fts_next_doc_id);
 
+		if (new_doc_id == 0) {
+			fprintf(stderr, " InnoDB FTS: Doc ID cannot be 0 \n");
+			return(DB_FTS_INVALID_DOCID);
+		}
+
 		row_fts_do_update(trx, table, old_doc_id, new_doc_id);
 	}
+
+	return(DB_SUCCESS);
 }
 /*********************************************************************//**
 Does an update or delete of a row for MySQL.
@@ -1571,7 +1582,11 @@ run_again:
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
 	if (dict_table_has_fts_index(table)) {
-		row_fts_update_or_delete(prebuilt);
+		err = row_fts_update_or_delete(prebuilt);
+		if (err != DB_SUCCESS) {
+			trx->op_info = "";
+			return((int) err);
+		}
 	}
 
 	if (node->is_delete) {

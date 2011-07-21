@@ -458,12 +458,17 @@ innobase_fts_load_stopword(
 /*=======================*/
 	dict_table_t*	table,		/*!< Table has the FTS */
 	THD*		thd);		/*!< current thread */
+
+/** Some defines for innobase_fts_check_doc_id_index() return value */
+#define	FTS_INCORRECT_DOC_ID_INDEX	1
+#define	FTS_EXIST_DOC_ID_INDEX		2
+#define	FTS_NOT_EXIST_DOC_ID_INDEX	3
 /*******************************************************************//**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME 
 on the Doc ID column.
 @return TRUE if there exists the FTS_DOC_ID index */
 extern "C"
-ibool
+ulint
 innobase_fts_check_doc_id_index(
 /*============================*/
 	dict_table_t*	table,		/*!< in: table definition */

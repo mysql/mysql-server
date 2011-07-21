@@ -110,6 +110,7 @@ enum db_err {
 					foreign keys as its prefix columns */
 	DB_TOO_BIG_INDEX_COL,		/* index column size exceeds maximum
 					limit */
+	DB_FTS_INVALID_DOCID,		/* FTS Doc ID cannot be zero */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
