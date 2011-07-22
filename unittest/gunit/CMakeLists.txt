@@ -189,7 +189,7 @@ INCLUDE_DIRECTORIES(
 # main-wrapper library (with tap-compatible option).
 ADD_LIBRARY(gunit STATIC
   gunit_test_main.cc tap_event_listener.cc thread_utils.cc)
-TARGET_LINK_LIBRARIES(gunit mysys mytap dbug strings ${GTEST_LIBRARIES} binlog master slave rpl mysqld)
+TARGET_LINK_LIBRARIES(gunit mysys mytap dbug strings ${GTEST_LIBRARIES})
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 # Add some defines.

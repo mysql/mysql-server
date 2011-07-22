@@ -1762,7 +1762,7 @@ public:
     DBUG_RETURN(ret);
   }
   bool global_update(THD *thd, set_var *var)
-  { DBUG_ASSERT(FALSE); }
+  { DBUG_ASSERT(FALSE); return true; }
   void session_save_default(THD *thd, set_var *var)
   {
     DBUG_ENTER("Sys_var_ugid::session_save_default");
@@ -1800,7 +1800,7 @@ public:
     DBUG_RETURN((uchar *)ret);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
-  { DBUG_ASSERT(FALSE); }
+  { DBUG_ASSERT(FALSE); return NULL; }
 };
 
 
@@ -1870,7 +1870,7 @@ public:
     DBUG_RETURN(false);
   }
   bool global_update(THD *thd, set_var *var)
-  { DBUG_ASSERT(FALSE); }
+  { DBUG_ASSERT(FALSE); return true; }
   void session_save_default(THD *thd, set_var *var)
   {
     DBUG_ENTER("Sys_var_group_set::session_save_default");
@@ -1917,7 +1917,7 @@ public:
     DBUG_RETURN((uchar *)buf);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
-  { DBUG_ASSERT(FALSE); }
+  { DBUG_ASSERT(FALSE); return NULL; }
 };
 
 #endif /* HAVE_UGID */

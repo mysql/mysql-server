@@ -41,9 +41,6 @@ Sid_map::~Sid_map()
   delete_dynamic(&_sidno_to_sid);
   delete_dynamic(&_sorted);
   my_hash_free(&_sid_to_sidno);
-#ifndef NO_DBUG
-  my_atomic_rwlock_init(&is_read_locked_lock);
-#endif
   DBUG_VOID_RETURN;
 }
 
