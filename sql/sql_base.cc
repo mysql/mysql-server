@@ -89,6 +89,69 @@ bool No_such_table_error_handler::safely_trapped_errors()
   return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
 }
 
+
+/**
+  This internal handler is used to trap ER_NO_SUCH_TABLE and
+  ER_WRONG_MRG_TABLE errors during CHECK/REPAIR TABLE for MERGE
+  tables.
+*/
+
+class Repair_mrg_table_error_handler : public Internal_error_handler
+{
+public:
+  Repair_mrg_table_error_handler()
+    : m_handled_errors(false), m_unhandled_errors(false)
+  {}
+
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg,
+                        MYSQL_ERROR ** cond_hdl);
+
+  /**
+    Returns TRUE if there were ER_NO_SUCH_/WRONG_MRG_TABLE and there
+    were no unhandled errors. FALSE otherwise.
+  */
+  bool safely_trapped_errors()
+  {
+    /*
+      Check for m_handled_errors is here for extra safety.
+      It can be useful in situation when call to open_table()
+      fails because some error which was suppressed by another
+      error handler (e.g. in case of MDL deadlock which we
+      decided to solve by back-off and retry).
+    */
+    return (m_handled_errors && (! m_unhandled_errors));
+  }
+
+private:
+  bool m_handled_errors;
+  bool m_unhandled_errors;
+};
+
+
+bool
+Repair_mrg_table_error_handler::handle_condition(THD *,
+                                                 uint sql_errno,
+                                                 const char*,
+                                                 MYSQL_ERROR::enum_warning_level level,
+                                                 const char*,
+                                                 MYSQL_ERROR ** cond_hdl)
+{
+  *cond_hdl= NULL;
+  if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
+  {
+    m_handled_errors= true;
+    return TRUE;
+  }
+
+  m_unhandled_errors= true;
+  return FALSE;
+}
+
+
 /**
   @defgroup Data_Dictionary Data Dictionary
   @{
@@ -4376,6 +4439,20 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     error= open_table(thd, tables, new_frm_mem, ot_ctx);
     thd->pop_internal_handler();
     safe_to_ignore_table= no_such_table_handler.safely_trapped_errors();
+  }
+  else if (tables->parent_l && (thd->open_options & HA_OPEN_FOR_REPAIR))
+  {
+    /*
+      Also fail silently for underlying tables of a MERGE table if this
+      table is opened for CHECK/REPAIR TABLE statement. This is needed
+      to provide complete list of problematic underlying tables in
+      CHECK/REPAIR TABLE output.
+    */
+    Repair_mrg_table_error_handler repair_mrg_table_handler;
+    thd->push_internal_handler(&repair_mrg_table_handler);
+    error= open_table(thd, tables, new_frm_mem, ot_ctx);
+    thd->pop_internal_handler();
+    safe_to_ignore_table= repair_mrg_table_handler.safely_trapped_errors();
   }
   else
     error= open_table(thd, tables, new_frm_mem, ot_ctx);
