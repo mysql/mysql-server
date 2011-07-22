@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2001-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/* By Jani Tolonen, 2001-04-20, MySQL Development Team */
-
 #define CHECK_VERSION "2.4.4"
 
 #include "client_priv.h"
@@ -25,6 +22,7 @@
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 /* Exit codes */
 
@@ -206,9 +204,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("By Jani Tolonen, 2001-04-20, MySQL Development Team\n");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n");
-  puts("and you are welcome to modify and redistribute it under the GPL license.\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   puts("This program can be used to CHECK (-c,-m,-C), REPAIR (-r), ANALYZE (-a)");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
   puts("used at the same time. Not all options are supported by all storage engines.");
