@@ -75,6 +75,14 @@ those defined in mysql file ft_global.h */
 /* Variable specifying the FTS parallel sort degree */
 extern ulong		fts_sort_pll_degree;
 
+/* Variable specifying the number of word to optimize for each optimize table
+call */
+extern ulong		fts_num_word_optimize;
+
+/* Variable specifying whether we do additional FTS diagnostic printout
+in the log */
+extern char		fts_enable_diag_print;
+
 /* FTS rank type, which will be between 0 .. 1 inclusive */
 typedef float fts_rank_t;
 

@@ -235,7 +235,10 @@ struct fts_msg_struct {
 };
 
 /* The number of words to read and optimize in a single pass. */
-static const ulint FTS_OPTIMIZE_MAX_WORDS = 1000;
+UNIV_INTERN ulong	fts_num_word_optimize;
+
+/* The number of words to read and optimize in a single pass. */
+UNIV_INTERN char	fts_enable_diag_print;
 
 /* ZLib compressed block size.*/
 static ulint FTS_ZIP_BLOCK_SIZE	= 1024;
@@ -887,6 +890,11 @@ fts_index_fetch_words(
 		}
 
 		fts_que_graph_free(graph);
+
+		/* Check if max word to fetch is exceeded */
+		if (optim->zip->n_words >= n_words) {
+			break;
+		}
 	}
 
 	if (error == DB_SUCCESS && zip->status == Z_OK && zip->n_words > 0) {
@@ -1230,8 +1238,6 @@ test_again:
 
 			++*del_pos;
 
-			fprintf(stderr, "Skipping %lu\n", (ulint) del_doc_id);
-
 			/* Skip the entries for this document. */
 			while (*enc->src_ilist_ptr) {
 				fts_decode_vlc(&enc->src_ilist_ptr);
@@ -1316,6 +1322,7 @@ fts_optimize_deleted_pos(
 	return(del_pos);
 }
 
+#define FTS_DEBUG_PRINT
 /**********************************************************************//**
 Compact the nodes for a word, we also remove any doc ids during the
 compaction pass. */
@@ -1340,6 +1347,12 @@ fts_optimize_word(
 
 	enc.src_last_doc_id = 0;
 	enc.src_ilist_ptr = NULL;
+
+	if (fts_enable_diag_print) {
+		word->text.utf8[word->text.len] = 0;
+		fprintf(stderr, "FTS_OPTIMIZE: optimize \"%s\"\n",
+			word->text.utf8);
+	}
 
 	while (i < size) {
 		ulint		copied;
@@ -1415,6 +1428,11 @@ fts_optimize_write_word(
 	info = pars_info_create();
 
 	ut_ad(fts_table->charset);
+
+	if (fts_enable_diag_print) {
+		fprintf(stderr, "FTS_OPTIMIZE: processed \"%s\"\n",
+			word->utf8);
+	}
 
 	pars_info_bind_varchar_literal(
 		info, "word", word->utf8, word->len);
@@ -1583,6 +1601,7 @@ fts_optimize_create(
 	return(optim);
 }
 
+#ifdef  FTS_OPTIMIZE_DEBUG
 /**********************************************************************//**
 Get optimize start time of an FTS index.
 @return DB_SUCCESS if all OK else error code */
@@ -1658,6 +1677,7 @@ fts_optimize_set_index_end_time(
 
 	return(error);
 }
+#endif
 
 /**********************************************************************//**
 Free the optimize prepared statements.*/
@@ -1872,9 +1892,11 @@ fts_optimize_index_completed(
 	fts_string_t	word;
 	ulint		error;
 	byte		buf[sizeof(ulint)];
+#ifdef FTS_OPTIMIZE_DEBUG
 	ib_time_t	end_time = ut_time();
 
 	error = fts_optimize_set_index_end_time(optim->trx, index, end_time);
+#endif
 
 	/* If we've reached the end of the index then set the start
 	word to the empty string. */
@@ -1929,7 +1951,7 @@ fts_optimize_index_read_words(
 	while (error == DB_SUCCESS) {
 
 		error = fts_index_fetch_words(
-			optim, word, FTS_OPTIMIZE_MAX_WORDS);
+			optim, word, fts_num_word_optimize);
 
 		if (error == DB_SUCCESS) {
 
@@ -2239,10 +2261,10 @@ fts_optimize_indexes(
 	/* Optimize the FTS indexes. */
 	for (i = 0; i < ib_vector_size(fts->indexes); ++i) {
 		dict_index_t*	index;
+
+#ifdef	FTS_OPTIMIZE_DEBUG
 		ib_time_t	end_time;
 		ib_time_t	start_time;
-
-		index = ib_vector_getp(fts->indexes, i);
 
 		/* Get the start and end optimize times for this index. */
 		error = fts_optimize_get_index_start_time(
@@ -2278,6 +2300,9 @@ fts_optimize_indexes(
 		} else {
 			++optim->n_completed;
 		}
+#endif
+		index = ib_vector_getp(fts->indexes, i);
+		error = fts_optimize_index(optim, index);
 	}
 
 	if (error == DB_SUCCESS) {
@@ -2336,13 +2361,15 @@ fts_optimize_reset_start_time(
 
 	for (i = 0; i < ib_vector_size(fts->indexes); ++i) {
 		dict_index_t*	index;
-		ib_time_t	start_time = 0;
 
-		index = ib_vector_getp(fts->indexes, i);
+#ifdef FTS_OPTIMIZE_DEBUG
+		ib_time_t	start_time = 0;
 
 		/* Reset the start time to 0 for this index. */
 		error = fts_optimize_set_index_start_time(
 			optim->trx, index, start_time);
+#endif
+		index = ib_vector_getp(fts->indexes, i);
 	}
 
 	if (error == DB_SUCCESS) {
@@ -2455,6 +2482,12 @@ fts_optimize_table(
 		and master deleted  tables. */
 		if (error == DB_SUCCESS
 		    && optim->n_completed == ib_vector_size(fts->indexes)) {
+
+			if (fts_enable_diag_print) {
+				fprintf(stderr, "FTS_OPTIMIZE: Completed "
+						"Optimize, cleanup DELETED "
+						"table \n");
+			}
 
 			if (ib_vector_size(optim->to_delete->doc_ids) > 0) {
 
