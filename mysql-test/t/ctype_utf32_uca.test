@@ -293,6 +293,27 @@ SET collation_connection=utf32_czech_ci;
 --source include/ctype_czech.inc
 --source include/ctype_like_ignorable.inc
 
+--echo #
+--echo # Bug #12319710 : INVALID MEMORY READ AND/OR CRASH IN 
+--echo #   MY_UCA_CHARCMP WITH UTF32
+--echo #
+
+SET collation_connection=utf32_unicode_ci;
+CREATE TABLE t1 (a TEXT CHARACTER SET utf32 COLLATE utf32_turkish_ci NOT NULL);
+INSERT INTO t1 VALUES ('a'), ('b');
+CREATE TABLE t2 (b VARBINARY(5) NOT NULL);
+
+--echo #insert chars outside of BMP
+INSERT INTO t2 VALUEs (0x082837),(0x082837);
+
+--echo #test for read-out-of-bounds with non-BMP chars as a LIKE pattern
+SELECT * FROM t1,t2 WHERE a LIKE b;
+
+--echo #test the original statement
+SELECT 1 FROM t1 AS t1_0 NATURAL LEFT OUTER JOIN t2 AS t2_0
+RIGHT JOIN t1 AS t1_1 ON t1_0.a LIKE t2_0.b;
+
+DROP TABLE t1,t2;
 
 --echo #
 --echo # End of 5.5 tests
