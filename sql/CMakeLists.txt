@@ -76,6 +76,8 @@ SET(SQL_SHARED_SOURCES
   opt_explain.cc
   opt_range.cc
   opt_sum.cc 
+  opt_trace.cc
+  opt_trace2server.cc
   parse_file.cc
   partition_info.cc
   password.c
@@ -204,7 +206,8 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 ADD_LIBRARY(sqlgunitlib
-  filesort_utils.cc mdl.cc sql_list.cc sql_string.cc thr_malloc.cc)
+  filesort_utils.cc mdl.cc sql_list.cc sql_string.cc thr_malloc.cc
+  )
 ADD_DEPENDENCIES(sqlgunitlib GenError)
 
 

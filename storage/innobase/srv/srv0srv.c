@@ -95,6 +95,16 @@ UNIV_INTERN const char	srv_mysql50_table_name_prefix[9] = "#mysql50#";
 names, where the file name itself may also contain a path */
 
 UNIV_INTERN char*	srv_data_home	= NULL;
+
+/** Rollback files directory, can be absolute. */
+UNIV_INTERN char*	srv_undo_dir = NULL;
+
+/** The number of tablespaces to use for rollback segments. */
+UNIV_INTERN ulong	srv_undo_tablespaces = 8;
+
+/* The number of rollback segments to use */
+UNIV_INTERN ulong	srv_undo_logs = 1;
+
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN char*	srv_arch_dir	= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
@@ -208,6 +218,8 @@ UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
 
+/* Switch to enable random read ahead. */
+UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
@@ -250,9 +262,6 @@ UNIV_INTERN ulong srv_n_purge_threads = 0;
 
 /* the number of pages to purge in one batch */
 UNIV_INTERN ulong srv_purge_batch_size = 20;
-
-/* the number of rollback segments to use */
-UNIV_INTERN ulong srv_rollback_segments = TRX_SYS_N_RSEGS;
 
 /* variable counts amount of data read in total (in bytes) */
 UNIV_INTERN ulint srv_data_read = 0;
@@ -1293,6 +1302,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
 	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
 	export_vars.innodb_buffer_pool_reads = srv_buf_pool_reads;
+	export_vars.innodb_buffer_pool_read_ahead_rnd
+		= stat.n_ra_pages_read_rnd;
 	export_vars.innodb_buffer_pool_read_ahead
 		= stat.n_ra_pages_read;
 	export_vars.innodb_buffer_pool_read_ahead_evicted

@@ -152,6 +152,16 @@ bool Master_info::shall_ignore_server_id(ulong s_id)
       != NULL;
 }
 
+void Master_info::clear_in_memory_info(bool all)
+{
+  init_master_log_pos();
+  if (all)
+  {
+    port= MYSQL_PORT;
+    host[0] = 0; user[0] = 0; password[0] = 0;
+  }
+}
+
 void Master_info::init_master_log_pos()
 {
   DBUG_ENTER("Master_info::init_master_log_pos");

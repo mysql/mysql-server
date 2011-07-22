@@ -4255,15 +4255,14 @@ err:
 
 void MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd)
 {
-  const char *old_msg;
+  PSI_stage_info old_stage;
   DBUG_ENTER("wait_for_update_relay_log");
 
-  old_msg= thd->enter_cond(&update_cond, &LOCK_log,
-                           "Slave has read all relay log; "
-                           "waiting for the slave I/O "
-                           "thread to update it" );
+  thd->ENTER_COND(&update_cond, &LOCK_log,
+                  &stage_slave_has_read_all_relay_log,
+                  &old_stage);
   mysql_cond_wait(&update_cond, &LOCK_log);
-  thd->exit_cond(old_msg);
+  thd->EXIT_COND(&old_stage);
   DBUG_VOID_RETURN;
 }
 

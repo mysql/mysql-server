@@ -429,6 +429,18 @@ ut_strerr(
 /*======*/
 	enum db_err	num);	/*!< in: error number */
 
+/****************************************************************
+Sort function for ulint arrays. */
+UNIV_INTERN
+void
+ut_ulint_sort(
+/*==========*/
+	ulint*	arr,		/*!< in/out: array to sort */
+	ulint*	aux_arr,	/*!< in/out: aux array to use in sort */
+	ulint	low,		/*!< in: lower bound */
+	ulint	high)		/*!< in: upper bound */
+	__attribute__((nonnull));
+
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"
 #endif
