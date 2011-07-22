@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2006-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +18,8 @@
 #include "client_priv.h"
 #include <sslopt-vars.h>
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
+
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -212,6 +213,7 @@ get_one_option(int optid, const struct my_option *opt,
   switch (optid) {
 
   case '?':
+    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
     printf("MySQL utility for upgrading database to MySQL version %s\n",
            MYSQL_SERVER_VERSION);
     my_print_help(my_long_options);

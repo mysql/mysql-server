@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2000-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,6 +110,7 @@ extern "C" {
 #endif
 
 #include "completion_hash.h"
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
@@ -1162,6 +1162,8 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
+  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"), INFO_INFO);
+
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
   if (!status.batch && !quick && !opt_html && !opt_xml)
@@ -1535,10 +1537,7 @@ static void usage(int version)
 
   if (version)
     return;
-  printf("\
-Copyright (C) 2000-2008 MySQL AB\n\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
