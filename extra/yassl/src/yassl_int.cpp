@@ -68,6 +68,8 @@
 
 #endif // YASSL_PURE_C
 
+/* for the definition of get_tty_password() */
+#include <mysql/get_password.h>
 
 namespace yaSSL {
 
@@ -1799,8 +1801,46 @@ bool SSL_METHOD::multipleProtocol() const
 }
 
 
+/** Implement a my_strdup replacement, so we can reuse get_password() */
+extern "C" char *yassl_mysql_strdup(const char *from, int)
+{
+  return from ? strdup(from) : NULL;
+}
+
+
+static int
+default_password_callback(char * buffer, int size_arg, int rwflag,
+                          void * callback_data __attribute__((unused)))
+{
+  char *passwd;
+  size_t passwd_len, size= (size_t) size_arg;
+
+  passwd= ::yassl_mysql_get_tty_password_ext("Enter PEM pass phrase:", 
+                                             yassl_mysql_strdup);
+
+  if (!passwd)
+    return 0;
+
+  passwd_len= strlen(passwd);
+
+  if (!passwd_len)
+    return 0;
+
+  if (size > 0)
+  {
+    size_t result_len= size - 1 > passwd_len ? 
+      passwd_len : size - 1;
+    memcpy(buffer, passwd, result_len);
+    buffer[result_len]= 0;
+  }
+  free(passwd);
+  return passwd_len;
+}
+
+
 SSL_CTX::SSL_CTX(SSL_METHOD* meth) 
-    : method_(meth), certificate_(0), privateKey_(0), passwordCb_(0),
+    : method_(meth), certificate_(0), privateKey_(0), 
+      passwordCb_(default_password_callback),
       userData_(0), sessionCacheOff_(false), sessionCacheFlushOff_(false),
       verifyCallback_(0)
 {}
