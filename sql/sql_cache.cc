@@ -408,23 +408,28 @@ TODO list:
 struct Query_cache_wait_state
 {
   THD *m_thd;
-  const char *m_proc_info;
+  PSI_stage_info m_old_stage;
+  const char *m_func;
+  const char *m_file;
+  int m_line;
 
   Query_cache_wait_state(THD *thd, const char *func,
                          const char *file, unsigned int line)
   : m_thd(thd),
-    m_proc_info(NULL)
+    m_old_stage(),
+    m_func(func), m_file(file), m_line(line)
   {
     if (m_thd)
-      m_proc_info= set_thd_proc_info(m_thd,
-                                     "Waiting for query cache lock",
-                                     func, file, line);
+      set_thd_stage_info(m_thd,
+                         &stage_waiting_for_query_cache_lock,
+                         &m_old_stage,
+                         m_func, m_file, m_line);
   }
 
   ~Query_cache_wait_state()
   {
     if (m_thd)
-      set_thd_proc_info(m_thd, m_proc_info, NULL, NULL, 0);
+      set_thd_stage_info(m_thd, &m_old_stage, NULL, m_func, m_file, m_line);
   }
 };
 

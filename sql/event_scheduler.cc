@@ -38,8 +38,8 @@
 
 #define LOCK_DATA()       lock_data(SCHED_FUNC, __LINE__)
 #define UNLOCK_DATA()     unlock_data(SCHED_FUNC, __LINE__)
-#define COND_STATE_WAIT(mythd, abstime, msg) \
-        cond_wait(mythd, abstime, msg, SCHED_FUNC, __LINE__)
+#define COND_STATE_WAIT(mythd, abstime, stage) \
+        cond_wait(mythd, abstime, stage, SCHED_FUNC, __FILE__, __LINE__)
 
 extern pthread_attr_t connection_attrib;
 
@@ -622,7 +622,7 @@ Event_scheduler::stop()
   {
     /* Synchronously wait until the scheduler stops. */
     while (state != INITIALIZED)
-      COND_STATE_WAIT(thd, NULL, "Waiting for the scheduler to stop");
+      COND_STATE_WAIT(thd, NULL, &stage_waiting_for_scheduler_to_stop);
     goto end;
   }
 
@@ -657,7 +657,7 @@ Event_scheduler::stop()
     /* thd could be 0x0, when shutting down */
     sql_print_information("Event Scheduler: "
                           "Waiting for the scheduler thread to reply");
-    COND_STATE_WAIT(thd, NULL, "Waiting scheduler to stop");
+    COND_STATE_WAIT(thd, NULL, &stage_waiting_for_scheduler_to_stop);
   } while (state == STOPPING);
   DBUG_PRINT("info", ("Scheduler thread has cleaned up. Set state to INIT"));
   sql_print_information("Event Scheduler: Stopped");
@@ -751,16 +751,17 @@ Event_scheduler::unlock_data(const char *func, uint line)
 */
 
 void
-Event_scheduler::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
-                           const char *func, uint line)
+Event_scheduler::cond_wait(THD *thd, struct timespec *abstime, const PSI_stage_info *stage,
+                           const char *src_func, const char *src_file, uint src_line)
 {
   DBUG_ENTER("Event_scheduler::cond_wait");
   waiting_on_cond= TRUE;
-  mutex_last_unlocked_at_line= line;
+  mutex_last_unlocked_at_line= src_line;
   mutex_scheduler_data_locked= FALSE;
-  mutex_last_unlocked_in_func= func;
+  mutex_last_unlocked_in_func= src_func;
   if (thd)
-    thd->enter_cond(&COND_state, &LOCK_scheduler_state, msg);
+    thd->enter_cond(&COND_state, &LOCK_scheduler_state, stage,
+                    NULL, src_func, src_file, src_line);
 
   DBUG_PRINT("info", ("mysql_cond_%swait", abstime? "timed":""));
   if (!abstime)
@@ -773,11 +774,11 @@ Event_scheduler::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
       This will free the lock so we need to relock. Not the best thing to
       do but we need to obey cond_wait()
     */
-    thd->exit_cond("");
+    thd->exit_cond(NULL, src_func, src_file, src_line);
     LOCK_DATA();
   }
-  mutex_last_locked_in_func= func;
-  mutex_last_locked_at_line= line;
+  mutex_last_locked_in_func= src_func;
+  mutex_last_locked_at_line= src_line;
   mutex_scheduler_data_locked= TRUE;
   waiting_on_cond= FALSE;
   DBUG_VOID_RETURN;
