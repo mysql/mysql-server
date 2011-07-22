@@ -186,9 +186,6 @@ int ugid_before_statement(THD *thd, Checkable_rwlock *lock,
     {
       char buf[Ugid_specification::MAX_TEXT_LENGTH + 1];
       lock->rdlock();
-      //printf("(%d %lld) not in ugid_next_list=", ugid_next->group.sidno, ugid_next->group.gno);
-      ugid_next_list->print();
-      abort();
       ugid_next->to_string(buf);
       lock->unlock();
       my_error(ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST, MYF(0), buf);

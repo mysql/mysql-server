@@ -191,7 +191,7 @@ DROP PROCEDURE p;
 
 --echo ---- Misc. error conditions for UGID_NEXT and UGID_NEXT_LIST ----
 
-# can't set ugid_next outside master-super-group, inside a transaction
+# Cannot set ugid_next outside master-super-group, inside a transaction
 SET UGID_NEXT_LIST = NULL;
 BEGIN;
   --error 1740 # ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
@@ -203,7 +203,7 @@ COMMIT;
 # Cannot start master-super-group when ugid_next and ugid_next_list
 # are incompatible.
 eval SET @@SESSION.UGID_NEXT_LIST = "$uuid:1", @@SESSION.UGID_NEXT = "$uuid:2";
---error 1
+--error 1741 # ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
 BEGIN;
 
 # In a master-super-group where ugid_next_list != NULL, ugid_next can
