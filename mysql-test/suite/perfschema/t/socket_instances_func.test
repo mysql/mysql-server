@@ -28,6 +28,9 @@ SELECT * FROM performance_schema.socket_instances;
 
 --echo # DEBUG 1
 SELECT * FROM performance_schema.socket_instances;
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
+--echo # DEBUG 1a
+SELECT * FROM performance_schema.socket_instances;
 
 # Get the thread id of this connection
 --echo # Get thread id of the default connection
@@ -48,6 +51,10 @@ let $con0_thread_id = `SELECT @thread_id`;
 #--enable_query_log
 
 --echo # DEBUG 2
+SELECT * FROM performance_schema.socket_instances;
+--echo # $MYSQL --host=127.0.0.1 --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
+--echo # DEBUG 2a
 SELECT * FROM performance_schema.socket_instances;
 
 --echo # Store the thread id of connection 1 (tcp/ip)

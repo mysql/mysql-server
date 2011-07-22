@@ -1,11 +1,57 @@
 # Take a snapshot of SOCKET_INSTANCES
 CREATE TEMPORARY TABLE my_socket_instances AS
 SELECT * FROM performance_schema.socket_instances;
+# DEBUG 1
+SELECT * FROM performance_schema.socket_instances;
+EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
+wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
+wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
+wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
+current_user()
+root@localhost
+user()
+root@localhost
+EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
+wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
+wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
+wait/io/socket/sql/client_connection    140614630554288 17      60      127.0.0.1       57022   ACTIVE
+wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
+# DEBUG 1a
+SELECT * FROM performance_schema.socket_instances;
+EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
+wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
+wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
+wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
 # Get thread id of the default connection
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
 WHERE PROCESSLIST_ID = CONNECTION_ID();
 # Establish local TCP/IP connection (con1,127.0.0.1,root,,test,,)
+# DEBUG 2
+SELECT * FROM performance_schema.socket_instances;
+EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
+wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
+wait/io/socket/sql/client_connection    140614630501200 18      60      127.0.0.1       57023   ACTIVE
+wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
+wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
+# /home/cpowers/work/dev/mysql-trunk-wl4896/client//mysql --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf --host=127.0.0.1 --port=13000 --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
+current_user()
+root@localhost
+user()
+root@localhost
+EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
+wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
+wait/io/socket/sql/client_connection    140614630501200 18      60      127.0.0.1       57023   ACTIVE
+wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
+wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
+wait/io/socket/sql/client_connection    140614630639184 19      61      127.0.0.1       57024   ACTIVE
+# DEBUG 2a
+SELECT * FROM performance_schema.socket_instances;
+EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
+wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
+wait/io/socket/sql/client_connection    140614630501200 18      60      127.0.0.1       57023   ACTIVE
+wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
+wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
 # Store the thread id of connection 1 (tcp/ip)
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
@@ -16,6 +62,14 @@ FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
 # Switch to connection default
 # Establish a second local TCP/IP connection (con2,127.0.0.1,root,,test,,)
+# DEBUG 3
+SELECT * FROM performance_schema.socket_instances;
+EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
+wait/io/socket/sql/client_connection    140614630434448 20      61      127.0.0.1       57025   ACTIVE
+wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
+wait/io/socket/sql/client_connection    140614630501200 18      60      127.0.0.1       57023   ACTIVE
+wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
+wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
 # Store the thread_id of connection 2 (tcp/ip)
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
@@ -26,6 +80,15 @@ FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
 # Switch to connection default
 # Establish local unix domain connection (con3,localhost,root,,test,,)
+# DEBUG 4
+SELECT * FROM performance_schema.socket_instances;
+EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
+wait/io/socket/sql/client_connection    140614630434448 20      61      127.0.0.1       57025   ACTIVE
+wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
+wait/io/socket/sql/client_connection    140614630501200 18      60      127.0.0.1       57023   ACTIVE
+wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
+wait/io/socket/sql/client_connection    140614630572880 21      62              0       ACTIVE
+wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
 # Store the thread id of connection 3 (unix domain)
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
@@ -190,10 +253,10 @@ WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)
 NOT IN (SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE
 FROM my_socket_instances)
 ORDER BY THREAD_ID;
-EVENT_NAME	IP
-wait/io/socket/sql/client_connection	127.0.0.1
-wait/io/socket/sql/client_connection	127.0.0.1
-wait/io/socket/sql/client_connection	
+EVENT_NAME      IP
+wait/io/socket/sql/client_connection    127.0.0.1
+wait/io/socket/sql/client_connection    127.0.0.1
+wait/io/socket/sql/client_connection
 # Disconnect con1, con2 and con3
 # Show differences to socket_instances before con1,con1 connecting.
 # There should be none.
@@ -203,4 +266,4 @@ WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)
 NOT IN (SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE
 FROM my_socket_instances)
 ORDER BY THREAD_ID;
-EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
+EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
