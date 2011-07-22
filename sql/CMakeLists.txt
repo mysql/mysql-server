@@ -207,7 +207,7 @@ ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 ADD_LIBRARY(sqlgunitlib
   filesort_utils.cc mdl.cc sql_list.cc sql_string.cc thr_malloc.cc
-  opt_trace.cc)
+  )
 ADD_DEPENDENCIES(sqlgunitlib GenError)
 
 
