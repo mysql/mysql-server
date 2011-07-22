@@ -9485,6 +9485,7 @@ ha_innobase::optimize(
 
 	if (innodb_optimize_fulltext_only) {
 		if (prebuilt->table->fts && prebuilt->table->fts->cache) {
+			fts_sync_table(prebuilt->table);
 			fts_optimize_table(prebuilt->table);
 		}
 		return(HA_ADMIN_OK);
@@ -13563,6 +13564,11 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
 
+static MYSQL_SYSVAR_BOOL(ft_enable_diag_print, fts_enable_diag_print,
+  PLUGIN_VAR_OPCMDARG,
+  "Whether to enable additional FTS diagnostic printout ",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
   PLUGIN_VAR_NOCMDARG,
   "FTS internal auxiliary table to be checked",
@@ -13583,6 +13589,11 @@ static MYSQL_SYSVAR_ULONG(ft_max_token_size, fts_max_token_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "InnoDB Fulltext search maximum token size in bytes",
   NULL, NULL, HA_FT_MAXCHARLEN, 10, FTS_MAX_WORD_LEN , 0);
+
+static MYSQL_SYSVAR_ULONG(ft_num_word_optimize, fts_num_word_optimize,
+  PLUGIN_VAR_OPCMDARG,
+  "InnoDB Fulltext search number of words to optimize for each optimize table call ",
+  NULL, NULL, 2000, 1000, 10000, 0);
 
 static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -13798,6 +13809,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(ft_enable_stopword),
   MYSQL_SYSVAR(ft_max_token_size),
   MYSQL_SYSVAR(ft_min_token_size),
+  MYSQL_SYSVAR(ft_num_word_optimize),
   MYSQL_SYSVAR(ft_sort_pll_degree),
   MYSQL_SYSVAR(large_prefix),
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
@@ -13821,6 +13833,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(server_stopword_table),
   MYSQL_SYSVAR(ft_aux_table),
+  MYSQL_SYSVAR(ft_enable_diag_print),
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(stats_transient_sample_pages),
