@@ -35,6 +35,7 @@
 #include "my_md5.h"
 #include "sql_select.h"
 #include "mdl.h"                 // MDL_wait_for_graph_visitor
+#include "opt_trace.h"           // opt_trace_disable_if_no_security_...
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -3304,7 +3305,7 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
   mdl_context->find_deadlock();
 
   wait_status= mdl_context->m_wait.timed_wait(thd, abstime, TRUE,
-                                              "Waiting for table flush");
+                                              &stage_waiting_for_table_flush);
 
   mdl_context->done_waiting_for();
 
@@ -4309,6 +4310,7 @@ bool TABLE_LIST::prepare_security(THD *thd)
   if (prepare_view_securety_context(thd))
     DBUG_RETURN(TRUE);
   thd->security_ctx= find_view_security_context(thd);
+  opt_trace_disable_if_no_security_context_access(thd);
   while ((tbl= tb++))
   {
     DBUG_ASSERT(tbl->referencing_view);

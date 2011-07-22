@@ -323,7 +323,8 @@ def	performance_schema	setup_instruments	TIMED	3	NULL	NO	enum	3	9	NULL	NULL	utf8
 def	performance_schema	setup_objects	OBJECT_TYPE	1	TABLE	NO	enum	5	15	NULL	NULL	utf8	utf8_general_ci	enum('TABLE')			select,insert,update,references	
 def	performance_schema	setup_objects	OBJECT_SCHEMA	2	%	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
 def	performance_schema	setup_objects	OBJECT_NAME	3	%	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	setup_objects	TIMED	4	YES	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
+def	performance_schema	setup_objects	ENABLED	4	YES	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
+def	performance_schema	setup_objects	TIMED	5	YES	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
 def	performance_schema	setup_timers	NAME	1	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
 def	performance_schema	setup_timers	TIMER_NAME	2	NULL	NO	enum	11	33	NULL	NULL	utf8	utf8_general_ci	enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND','TICK')			select,insert,update,references	
 def	performance_schema	socket_instances	EVENT_NAME	1	NULL	NO	varchar	128	384	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	

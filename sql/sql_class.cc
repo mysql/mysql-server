@@ -495,42 +495,83 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
                               const char *calling_file,
                               const unsigned int calling_line)
 {
-  THD *thd= (THD *) thd_arg;
+  PSI_stage_info old_stage;
+  PSI_stage_info new_stage;
 
-  if (!thd)
+  old_stage.m_key= 0;
+  old_stage.m_name= info;
+
+  set_thd_stage_info(thd_arg, & old_stage, & new_stage,
+                     calling_function, calling_file, calling_line);
+
+  return new_stage.m_name;
+}
+
+extern "C"
+void set_thd_stage_info(void *opaque_thd,
+                        const PSI_stage_info *new_stage,
+                        PSI_stage_info *old_stage,
+                        const char *calling_func,
+                        const char *calling_file,
+                        const unsigned int calling_line)
+{
+  THD *thd= (THD*) opaque_thd;
+  if (thd == NULL)
     thd= current_thd;
 
-  const char *old_info= thd->proc_info;
-  const char *basename= calling_file ? base_name(calling_file) : NULL;
-  DBUG_PRINT("proc_info", ("%s:%d  %s", basename, calling_line, info));
+  thd->enter_stage(new_stage, old_stage, calling_func, calling_file, calling_line);
+}
+
+void THD::enter_stage(const PSI_stage_info *new_stage,
+                      PSI_stage_info *old_stage,
+                      const char *calling_func,
+                      const char *calling_file,
+                      const unsigned int calling_line)
+{
+  DBUG_PRINT("THD::enter_stage", ("%s:%d", calling_file, calling_line));
+
+  if (old_stage != NULL)
+  {
+    old_stage->m_key= m_current_stage_key;
+    old_stage->m_name= proc_info;
+  }
+
+  if (new_stage != NULL)
+  {
+    const char *msg= new_stage->m_name;
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.status_change(info, calling_function, basename, calling_line);
+    profiling.status_change(msg, calling_func, calling_file, calling_line);
 #endif
-  thd->proc_info= info;
+
+    m_current_stage_key= new_stage->m_key;
+    proc_info= msg;
+
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_CALL(set_thread_state)(info);
+    PSI_CALL(set_thread_state)(msg);
+    MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
 #endif
-  return old_info;
+  }
+  return;
 }
 
 extern "C"
-const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
-                           mysql_mutex_t *mutex, const char *msg)
+void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage)
 {
   if (!thd)
     thd= current_thd;
 
-  return thd->enter_cond(cond, mutex, msg);
+  return thd->ENTER_COND(cond, mutex, stage, old_stage);
 }
 
 extern "C"
-void thd_exit_cond(MYSQL_THD thd, const char *old_msg)
+void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage)
 {
   if (!thd)
     thd= current_thd;
 
-  thd->exit_cond(old_msg);
+  thd->EXIT_COND(stage);
   return;
 }
 

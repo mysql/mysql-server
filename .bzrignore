@@ -3116,6 +3116,7 @@ libmysqld/transaction.cc
 libmysqld/sys_vars.cc
 libmysqld/keycaches.cc
 client/dtoa.c
+libmysqld/opt_trace.cc
 libmysqld/sql_audit.cc
 storage/archive/archive_performance
 storage/archive/concurrency_test
