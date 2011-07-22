@@ -938,7 +938,7 @@ performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances 1000000
 performance-schema-max-rwlock-classes 30
 performance-schema-max-rwlock-instances 1000000
-performance-schema-max-stage-classes 100
+performance-schema-max-stage-classes 150
 performance-schema-max-statement-classes 165
 performance-schema-max-table-handles 10000
 performance-schema-max-table-instances 1000
