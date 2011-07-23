@@ -1377,6 +1377,8 @@ void ha_ndbcluster::set_rec_per_key()
       {
         int err= ndb_index_stat_set_rpk(i);
         if (err != 0 &&
+            /* no stats is not unexpected error */
+            err != NdbIndexStat::NoIndexStats &&
             /* warning was printed at first error */
             err != Ndb_index_stat_error_HAS_ERROR)
         {
@@ -11827,6 +11829,8 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
         DBUG_RETURN(rows);
       }
       if (err != 0 &&
+          /* no stats is not unexpected error */
+          err != NdbIndexStat::NoIndexStats &&
           /* warning was printed at first error */
           err != Ndb_index_stat_error_HAS_ERROR)
       {
