@@ -40,6 +40,7 @@
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_tables.h"
 #include "ha_ndbcluster_connection.h"
+#include "ha_ndb_index_stat.h"
 
 #include <mysql/plugin.h>
 #include <ndb_version.h>
@@ -1352,6 +1353,7 @@ void ha_ndbcluster::set_rec_per_key()
   */
   for (uint i=0 ; i < table_share->keys ; i++)
   {
+    KEY* key_info= table->key_info + i;
     switch (get_index_type(i))
     {
     case UNIQUE_ORDERED_INDEX:
@@ -1361,7 +1363,6 @@ void ha_ndbcluster::set_rec_per_key()
     {
       // Index is unique when all 'key_parts' are specified,
       // else distribution is unknown and not specified here.
-      KEY* key_info= table->key_info + i;
       key_info->rec_per_key[key_info->key_parts-1]= 1;
       break;
     }
@@ -1375,8 +1376,16 @@ void ha_ndbcluster::set_rec_per_key()
       if (index_stat_enable)
       {
         int err= ndb_index_stat_set_rpk(i);
-        if (err == 0)
-          break;
+        if (err != 0 &&
+            /* warning was printed at first error */
+            err != Ndb_index_stat_error_HAS_ERROR)
+        {
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                              ER_CANT_GET_STAT, /* pun? */
+                              "index stats (RPK) for key %s:"
+                              " unexpected error %d",
+                              key_info->name, err);
+        }
       }
       // no fallback method...
       break;
@@ -11816,6 +11825,16 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
         if (rows < 2)
           rows = 2;
         DBUG_RETURN(rows);
+      }
+      if (err != 0 &&
+          /* warning was printed at first error */
+          err != Ndb_index_stat_error_HAS_ERROR)
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_CANT_GET_STAT, /* pun? */
+                            "index stats (RIR) for key %s:"
+                            " unexpected error %d",
+                            key_info->name, err);
       }
       /*fall through*/
     }

@@ -31,10 +31,15 @@ INSERT INTO t10(I,J) VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9
 CREATE TABLE t100 LIKE t10;
 INSERT INTO t100(I,J)
 SELECT X.J, X.J+(10*Y.J) FROM t10 AS X,t10 AS Y;
+Warnings:
+Warning	1013	index stats (RPK) for key I: unexpected error 4715
 CREATE TABLE t10000 LIKE t10;
 INSERT INTO t10000(I,J)
 SELECT X.J, X.J+(100*Y.J) FROM t100 AS X,t100 AS Y
 WHERE X.J<50;
+Warnings:
+Warning	1013	index stats (RPK) for key I: unexpected error 4715
+Warning	1013	index stats (RIR) for key J: unexpected error 4715
 INSERT INTO t10000(I,J)
 SELECT X.J, X.J+(100*Y.J) FROM t100 AS X,t100 AS Y
 WHERE X.J>=50;

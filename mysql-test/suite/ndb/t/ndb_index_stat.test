@@ -158,13 +158,16 @@ drop table t1;
 
 # bug#XXXXX
 # autocreate=false,enable=1 is now acceptable
-# following hangs for error_delay (60s) if "no stats" is counted as error
+# following gives warning while "no stats" is counted as error
 create table t1 (a int, b int, primary key using hash (a), index x1 (b))
 engine=ndb;
 insert into t1 values (1,11),(2,22),(3,33);
 # make_join_statistics() -> info() -> ndb_index_stat_set_rpk()
+# error 4715 - no stats
 select * from t1 order by a;
-# index stat entry would now wait 60s on error list
+# error 9003 suppressed - previous recent error
+select * from t1 order by a;
+# analyze clears previous error at once
 analyze table t1;
 drop table t1;
 
