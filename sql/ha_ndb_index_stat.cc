@@ -588,6 +588,13 @@ ndb_index_stat_error(Ndb_index_stat *st, const char* place, int line)
                             place, line, error.code, error.line, error.extra));
 }
 
+void
+ndb_index_stat_clear_error(Ndb_index_stat *st)
+{
+  st->error.code= 0;
+  st->error.status= NdbError::Success;
+}
+
 /* Lists across shares */
 
 Ndb_index_stat_list::Ndb_index_stat_list(int the_lt, const char* the_name)
@@ -611,7 +618,7 @@ Ndb_index_stat_list ndb_index_stat_list[Ndb_index_stat::LT_Count] = {
 };
 
 void
-ndb_index_stat_list_add(Ndb_index_stat* st, int lt, int place= +1)
+ndb_index_stat_list_add(Ndb_index_stat* st, int lt)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   assert(st != 0 && st->lt == 0);
@@ -626,13 +633,6 @@ ndb_index_stat_list_add(Ndb_index_stat* st, int lt, int place= +1)
     assert(list.head == 0 && list.tail == 0);
     list.head= st;
     list.tail= st;
-  }
-  else if (place < 0)
-  {
-    assert(list.head != 0 && list.head->list_prev == 0);
-    st->list_next= list.head;
-    list.head->list_prev= st;
-    list.head= st;
   }
   else
   {
@@ -686,50 +686,11 @@ ndb_index_stat_list_remove(Ndb_index_stat* st)
 }
 
 void
-ndb_index_stat_list_move(Ndb_index_stat *st, int lt, int place= +1)
+ndb_index_stat_list_move(Ndb_index_stat *st, int lt)
 {
   assert(st != 0);
   ndb_index_stat_list_remove(st);
-  ndb_index_stat_list_add(st, lt, place);
-}
-
-/* Move entry in / out error list */
-
-void
-ndb_index_stat_list_to_error(Ndb_index_stat *st)
-{
-  Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-
-  assert(st != 0);
-  const int lt= st->lt; NDB_IGNORE_VALUE(lt);
-  assert(1 <= lt && lt < Ndb_index_stat::LT_Count);
-  assert(lt != Ndb_index_stat::LT_Error);
-
-  if (st->force_update != 0)
-  {
-    glob.lock();
-    assert(glob.force_update >= st->force_update);
-    glob.force_update-= st->force_update;
-    glob.unlock();
-    st->force_update= 0;
-  }
-
-  time_t now= ndb_index_stat_time();
-  st->error_time= now;
-  ndb_index_stat_list_move(st, Ndb_index_stat::LT_Error);
-}
-
-void
-ndb_index_stat_list_from_error(Ndb_index_stat *st)
-{
-  assert(st != 0);
-  assert(st->lt == Ndb_index_stat::LT_Error);
-  if (st->force_update)
-    ndb_index_stat_list_move(st, Ndb_index_stat::LT_Update);
-  else
-    ndb_index_stat_list_move(st, Ndb_index_stat::LT_Read);
-  st->error.code= 0;
-  st->error.status= NdbError::Success;
+  ndb_index_stat_list_add(st, lt);
 }
 
 /* Find or add entry under the share */
@@ -1073,6 +1034,7 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr)
     pr.busy= true;
 }
 
+// wl4124_todo detect force_update faster
 void
 ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
@@ -1124,11 +1086,9 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr)
     st_loop= st_loop->list_next;
     DBUG_PRINT("index_stat", ("st %s proc %s", st->id, list.name));
     ndb_index_stat_proc_idle(pr, st);
-    if (pr.lt != lt)
-    {
-      ndb_index_stat_list_move(st, pr.lt);
-      cnt++;
-    }
+    // rotates list if entry remains LT_Idle
+    ndb_index_stat_list_move(st, pr.lt);
+    cnt++;
   }
   if (cnt == batch)
     pr.busy= true;
@@ -1332,9 +1292,9 @@ ndb_index_stat_proc_error(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 
   if (error_wait <= 0)
   {
-    ndb_index_stat_list_from_error(st);
     DBUG_PRINT("index_stat", ("st %s error wait:%ds error count:%u",
                               st->id, (int)error_wait, st->error_count));
+    ndb_index_stat_clear_error(st);
     if (st->force_update)
       pr.lt= Ndb_index_stat::LT_Update;
     else
@@ -1361,11 +1321,8 @@ ndb_index_stat_proc_error(Ndb_index_stat_proc &pr)
     st_loop= st_loop->list_next;
     DBUG_PRINT("index_stat", ("st %s proc %s", st->id, list.name));
     ndb_index_stat_proc_error(pr, st);
-    if (pr.lt != lt)
-    {
-      ndb_index_stat_list_move(st, pr.lt);
-      cnt++;
-    }
+    ndb_index_stat_list_move(st, pr.lt);
+    cnt++;
   }
   if (cnt == batch)
     pr.busy= true;
