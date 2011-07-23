@@ -698,17 +698,34 @@ ndb_index_stat_force_update(Ndb_index_stat *st, bool onoff)
 /* Find or add entry under the share */
 
 Ndb_index_stat*
-ndb_index_stat_alloc()
+ndb_index_stat_alloc(const NDBINDEX *index,
+                     const NDBTAB *table,
+                     int &err_out)
 {
+  err_out= 0;
   Ndb_index_stat *st= new Ndb_index_stat;
   NdbIndexStat *is= new NdbIndexStat;
   if (st != 0 && is != 0)
   {
     st->is= is;
-    return st;
+    st->index_id= index->getObjectId();
+    st->index_version= index->getObjectVersion();
+#ifndef DBUG_OFF
+    my_snprintf(st->id, sizeof(st->id), "%d.%d", st->index_id, st->index_version);
+#endif
+    if (is->set_index(*index, *table) == 0)
+      return st;
+    ndb_index_stat_error(st, "set_index", __LINE__);
+    err_out= st->error.code;
   }
-  delete is;
-  delete st;
+  else
+  {
+    err_out= NdbIndexStat::NoMemError;
+  }
+  if (is != 0)
+    delete is;
+  if (st != 0)
+    delete st;
   return 0;
 }
 
@@ -738,36 +755,21 @@ ndb_index_stat_find_share(NDB_SHARE *share,
 /* Subroutine, have lock */
 Ndb_index_stat*
 ndb_index_stat_add_share(NDB_SHARE *share,
-                         const NDBINDEX *index,
-                         const NDBTAB *table,
+                         Ndb_index_stat *st,
                          Ndb_index_stat *st_last)
 {
-  struct Ndb_index_stat *st= ndb_index_stat_alloc();
-  if (st != 0)
-  {
-    st->share= share;
-    if (st_last == 0)
-      share->index_stat_list= st;
-    else
-      st_last->share_next= st;
-    st->index_id= index->getObjectId();
-    st->index_version= index->getObjectVersion();
-#ifndef DBUG_OFF
-    my_snprintf(st->id, sizeof(st->id), "%d.%d", st->index_id, st->index_version);
-#endif
-    if (st->is->set_index(*index, *table) == -1)
-    {
-      ndb_index_stat_error(st, "set_index", __LINE__);
-      /* Caller assigns list */
-    }
-  }
-  return st;
+  st->share= share;
+  if (st_last == 0)
+    share->index_stat_list= st;
+  else
+    st_last->share_next= st;
 }
 
 Ndb_index_stat*
 ndb_index_stat_get_share(NDB_SHARE *share,
                          const NDBINDEX *index,
                          const NDBTAB *table,
+                         int &err_out,
                          bool allow_add,
                          bool force_update)
 {
@@ -775,27 +777,39 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   pthread_mutex_lock(&ndb_index_stat_list_mutex);
   pthread_mutex_lock(&ndb_index_stat_stat_mutex);
   time_t now= ndb_index_stat_time();
+  err_out= 0;
 
   struct Ndb_index_stat *st= 0;
   struct Ndb_index_stat *st_last= 0;
-  if (ndb_index_stat_allow())
+  do
   {
+    if (unlikely(!ndb_index_stat_allow()))
+    {
+      err_out= Ndb_index_stat_error_NOT_ALLOW;
+      break;
+    }
     st= ndb_index_stat_find_share(share, index, st_last);
-    if (st == 0 && allow_add)
+    if (st == 0)
     {
-      st= ndb_index_stat_add_share(share, index, table, st_last);
-      if (st != 0)
-        ndb_index_stat_list_add(st, Ndb_index_stat::LT_New);
-    }
-    if (st != 0)
-    {
-      if (force_update)
+      if (!allow_add)
       {
-        ndb_index_stat_force_update(st, true);
+        err_out= Ndb_index_stat_error_NOT_FOUND;
+        break;
       }
-      st->access_time= now;
+      st= ndb_index_stat_alloc(index, table, err_out);
+      if (st == 0)
+      {
+        assert(err_out != 0);
+        break;
+      }
+      ndb_index_stat_add_share(share, st, st_last);
+      ndb_index_stat_list_add(st, Ndb_index_stat::LT_New);
     }
+    if (force_update)
+      ndb_index_stat_force_update(st, true);
+    st->access_time= now;
   }
+  while (0);
 
   pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
   pthread_mutex_unlock(&ndb_index_stat_list_mutex);
@@ -1692,22 +1706,31 @@ ndb_index_stat_round(double x)
 }
 
 int
-ha_ndbcluster::ndb_index_stat_wait(Ndb_index_stat *st,
-                                   uint sample_version)
+ndb_index_stat_wait(Ndb_index_stat *st,
+                    uint sample_version,
+                    bool from_analyze)
 {
-  DBUG_ENTER("ha_ndbcluster::ndb_index_stat_wait");
+  DBUG_ENTER("ndb_index_stat_wait");
 
   pthread_mutex_lock(&ndb_index_stat_stat_mutex);
   int err= 0;
   uint count= 0;
-  (void)count; // USED
   struct timespec abstime;
-  while (true) {
+  while (true)
+  {
     int ret= 0;
-    if (st->error.code != 0 &&
-        (st->error.code != NdbIndexStat::NoIndexStats ||
-         st->force_update == 0))
+    if (count == 0)
     {
+      if (st->lt == Ndb_index_stat::LT_Error && !from_analyze)
+      {
+        err= Ndb_index_stat_error_HAS_ERROR;
+        break;
+      }
+      ndb_index_stat_clear_error(st);
+    }
+    if (st->error.code != 0)
+    {
+      /* A new error has occured */
       err= st->error.code;
       break;
     }
@@ -1729,7 +1752,8 @@ ha_ndbcluster::ndb_index_stat_wait(Ndb_index_stat *st,
     }
   }
   pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
-  if (err != 0) {
+  if (err != 0)
+  {
     DBUG_PRINT("index_stat", ("st %s wait error: %d",
                                st->id, err));
     DBUG_RETURN(err);
@@ -1760,14 +1784,12 @@ ha_ndbcluster::ndb_index_stat_query(uint inx,
   ib.range_no= 0;
 
   Ndb_index_stat *st=
-    ndb_index_stat_get_share(m_share, index, m_table, true, false);
+    ndb_index_stat_get_share(m_share, index, m_table, err, true, false);
   if (st == 0)
-  {
-    DBUG_PRINT("index_stat", ("failed to add index stat share"));
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  }
+    DBUG_RETURN(err);
 
-  err= ndb_index_stat_wait(st, 0);
+  /* Pass old version 0 so existing stats terminates wait at once */
+  err= ndb_index_stat_wait(st, 0, false);
   if (err != 0)
     DBUG_RETURN(err);
 
@@ -1881,10 +1903,9 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
     DBUG_PRINT("index_stat", ("force update: %s", index->getName()));
 
     Ndb_index_stat *st=
-      ndb_index_stat_get_share(m_share, index, m_table, true, true);
-
+      ndb_index_stat_get_share(m_share, index, m_table, err, true, true);
     if (st == 0)
-      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      DBUG_RETURN(err);
 
     old[i].sample_version= st->sample_version;
     old[i].error_count= st->error_count;
@@ -1899,11 +1920,11 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
     DBUG_PRINT("index_stat", ("wait for update: %s", index->getName()));
 
     Ndb_index_stat *st=
-      ndb_index_stat_get_share(m_share, index, m_table, false, false);
+      ndb_index_stat_get_share(m_share, index, m_table, err, false, false);
     if (st == 0)
-      DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+      DBUG_RETURN(err);
 
-    err= ndb_index_stat_wait(st, old[i].sample_version);
+    err= ndb_index_stat_wait(st, old[i].sample_version, true);
     if (err != 0)
       DBUG_RETURN(err);
   }

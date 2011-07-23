@@ -230,6 +230,13 @@ a	b
 1	11
 2	22
 3	33
+Warnings:
+Warning	1013	index stats (RPK) for key x1: unexpected error 4715
+select * from t1 order by a;
+a	b
+1	11
+2	22
+3	33
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -273,6 +280,21 @@ insert into t1 values
 select count(*) from t1 where a > 22;
 count(*)
 1
+Warnings:
+Warning	1013	index stats (RPK) for key a: unexpected error 4715
+Warning	1013	index stats (RPK) for key b: unexpected error 4715
+Warning	1013	index stats (RPK) for key c: unexpected error 4715
+Warning	1013	index stats (RPK) for key d: unexpected error 4715
+Warning	1013	index stats (RPK) for key e: unexpected error 4715
+Warning	1013	index stats (RPK) for key f: unexpected error 4715
+Warning	1013	index stats (RPK) for key g: unexpected error 4715
+Warning	1013	index stats (RPK) for key h: unexpected error 4715
+Warning	1013	index stats (RPK) for key i: unexpected error 4715
+Warning	1013	index stats (RPK) for key j: unexpected error 4715
+Warning	1013	index stats (RPK) for key k: unexpected error 4715
+Warning	1013	index stats (RPK) for key l: unexpected error 4715
+Warning	1013	index stats (RPK) for key m: unexpected error 4715
+Warning	1013	index stats (RPK) for key n: unexpected error 4715
 select count(*) from t1 where b > 22;
 count(*)
 1
@@ -379,6 +401,12 @@ insert into t1 values
 select count(*) from t1 where a > '1972-02-02 02:02:02';
 count(*)
 1
+Warnings:
+Warning	1013	index stats (RPK) for key a: unexpected error 4715
+Warning	1013	index stats (RPK) for key b: unexpected error 4715
+Warning	1013	index stats (RPK) for key c: unexpected error 4715
+Warning	1013	index stats (RPK) for key d: unexpected error 4715
+Warning	1013	index stats (RPK) for key e: unexpected error 4715
 select count(*) from t1 where b > '1972-02-02';
 count(*)
 1
@@ -433,6 +461,13 @@ insert into t1 values
 select count(*) from t1 where a > '222';
 count(*)
 1
+Warnings:
+Warning	1013	index stats (RPK) for key a: unexpected error 4715
+Warning	1013	index stats (RPK) for key b: unexpected error 4715
+Warning	1013	index stats (RPK) for key c: unexpected error 4715
+Warning	1013	index stats (RPK) for key d: unexpected error 4715
+Warning	1013	index stats (RPK) for key e: unexpected error 4715
+Warning	1013	index stats (RPK) for key f: unexpected error 4715
 select count(*) from t1 where b > '222';
 count(*)
 1
