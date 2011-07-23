@@ -500,38 +500,29 @@ struct Ndb_index_stat_glob {
   uint wait_update;
   uint cache_query_bytes; /* In use */
   uint cache_clean_bytes; /* Obsolete versions not yet removed */
-  bool is_locked;
   Ndb_index_stat_glob() :
     total_count(0),
     force_update(0),
     wait_update(0),
     cache_query_bytes(0),
-    cache_clean_bytes(0),
-    is_locked(false)
+    cache_clean_bytes(0)
   {
   }
   void set_list_count()
   {
+    total_count= 0;
     int lt;
     for (lt= 0; lt < Ndb_index_stat::LT_Count; lt++)
     {
       const Ndb_index_stat_list &list= ndb_index_stat_list[lt];
       list_count[lt]= list.count;
+      total_count++;
     }
   }
-  void lock()
+  void set_status_variables()
   {
-    pthread_mutex_lock(&ndb_index_stat_glob_mutex);
-    assert(!is_locked);
-    is_locked= true;
-  }
-  void unlock()
-  {
-    assert(is_locked);
     g_ndb_status_index_stat_cache_query= cache_query_bytes;
     g_ndb_status_index_stat_cache_clean= cache_clean_bytes;
-    is_locked= false;
-    pthread_mutex_unlock(&ndb_index_stat_glob_mutex);
   }
 };
 
@@ -567,7 +558,6 @@ Ndb_index_stat::Ndb_index_stat()
 void
 ndb_index_stat_error(Ndb_index_stat *st, const char* place, int line)
 {
-  pthread_mutex_lock(&ndb_index_stat_stat_mutex);
   time_t now= ndb_index_stat_time();
   NdbIndexStat::Error error= st->is->getNdbError();
   if (error.code == 0)
@@ -581,8 +571,6 @@ ndb_index_stat_error(Ndb_index_stat *st, const char* place, int line)
   st->error= error;
   st->error_time= now;
   st->error_count++;
-  pthread_cond_broadcast(&ndb_index_stat_stat_cond);
-  pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
 
   DBUG_PRINT("index_stat", ("%s line %d: error %d line %d extra %d",
                             place, line, error.code, error.line, error.extra));
@@ -642,9 +630,6 @@ ndb_index_stat_list_add(Ndb_index_stat* st, int lt)
     list.tail= st;
   }
   list.count++;
-  glob.lock();
-  glob.total_count++;
-  glob.unlock();
 
   st->lt= lt;
 }
@@ -669,10 +654,6 @@ ndb_index_stat_list_remove(Ndb_index_stat* st)
     list.tail= prev;
   assert(list.count != 0);
   list.count--;
-  glob.lock();
-  assert(glob.total_count != 0);
-  glob.total_count--;
-  glob.unlock();
 
   if (next != 0)
     next->list_prev= prev;
@@ -691,6 +672,27 @@ ndb_index_stat_list_move(Ndb_index_stat *st, int lt)
   assert(st != 0);
   ndb_index_stat_list_remove(st);
   ndb_index_stat_list_add(st, lt);
+}
+
+/* Stats entry changes (must hold stat_mutex) */
+
+void
+ndb_index_stat_force_update(Ndb_index_stat *st, bool onoff)
+{
+  Ndb_index_stat_glob &glob= ndb_index_stat_glob;
+  if (onoff)
+  {
+    /* One more request */
+    glob.force_update++;
+    st->force_update++;
+  }
+  else
+  {
+    /* All done */
+    assert(glob.force_update >= st->force_update);
+    glob.force_update-= st->force_update;
+    st->force_update= 0;
+  }
 }
 
 /* Find or add entry under the share */
@@ -771,6 +773,7 @@ ndb_index_stat_get_share(NDB_SHARE *share,
 {
   pthread_mutex_lock(&share->mutex);
   pthread_mutex_lock(&ndb_index_stat_list_mutex);
+  pthread_mutex_lock(&ndb_index_stat_stat_mutex);
   time_t now= ndb_index_stat_time();
 
   struct Ndb_index_stat *st= 0;
@@ -786,18 +789,15 @@ ndb_index_stat_get_share(NDB_SHARE *share,
     }
     if (st != 0)
     {
-      if (force_update != 0)
+      if (force_update)
       {
-        st->force_update++;
-        Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-        glob.lock();
-        glob.force_update++;
-        glob.unlock();
+        ndb_index_stat_force_update(st, true);
       }
       st->access_time= now;
     }
   }
 
+  pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
   pthread_mutex_unlock(&ndb_index_stat_list_mutex);
   pthread_mutex_unlock(&share->mutex);
   return st;
@@ -870,12 +870,11 @@ ndb_index_stat_cache_move(Ndb_index_stat *st)
   DBUG_PRINT("index_stat", ("st %s cache move: query:%u clean:%u",
                             st->id, new_query_bytes, old_query_bytes));
   st->is->move_cache();
-  glob.lock();
   assert(glob.cache_query_bytes >= old_query_bytes);
   glob.cache_query_bytes-= old_query_bytes;
   glob.cache_query_bytes+= new_query_bytes;
   glob.cache_clean_bytes+= old_query_bytes;
-  glob.unlock();
+  glob.set_status_variables();
 }
 
 void
@@ -889,10 +888,9 @@ ndb_index_stat_cache_clean(Ndb_index_stat *st)
   DBUG_PRINT("index_stat", ("st %s cache clean: clean:%u",
                             st->id, old_clean_bytes));
   st->is->clean_cache();
-  glob.lock();
   assert(glob.cache_clean_bytes >= old_clean_bytes);
   glob.cache_clean_bytes-= old_clean_bytes;
-  glob.unlock();
+  glob.set_status_variables();
 }
 
 /* Misc in/out parameters for process steps */
@@ -982,8 +980,12 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   NdbIndexStat::Head head;
   if (st->is->read_stat(pr.ndb) == -1)
   {
+    pthread_mutex_lock(&ndb_index_stat_stat_mutex);
     ndb_index_stat_error(st, "read_stat", __LINE__);
     pr.lt= Ndb_index_stat::LT_Error;
+    ndb_index_stat_force_update(st, false);
+    pthread_cond_broadcast(&ndb_index_stat_stat_cond);
+    pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
     return;
   }
 
@@ -994,15 +996,7 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   st->read_time= pr.now;
   st->sample_version= head.m_sampleVersion;
 
-  if (st->force_update != 0)
-  {
-    Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-    glob.lock();
-    assert(glob.force_update >= st->force_update);
-    glob.force_update-= st->force_update;
-    glob.unlock();
-    st->force_update= 0;
-  }
+  ndb_index_stat_force_update(st, false);
 
   ndb_index_stat_cache_move(st);
   st->cache_clean= false;
@@ -1173,9 +1167,7 @@ ndb_index_stat_proc_evict()
 {
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  glob.lock();
   uint curr_size= glob.cache_query_bytes + glob.cache_clean_bytes;
-  glob.unlock();
   const uint cache_lowpct= opt.get(Ndb_index_stat_opt::Icache_lowpct);
   const uint cache_limit= opt.get(Ndb_index_stat_opt::Icache_limit);
   if (100 * curr_size <= cache_lowpct * cache_limit)
@@ -1290,10 +1282,14 @@ ndb_index_stat_proc_error(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   const int error_delay= opt.get(Ndb_index_stat_opt::Ierror_delay);
   const time_t error_wait= st->error_time + error_delay - pr.now;
 
-  if (error_wait <= 0)
+  if (error_wait <= 0 ||
+      /* Analyze issued after previous error */
+      st->force_update)
   {
-    DBUG_PRINT("index_stat", ("st %s error wait:%ds error count:%u",
-                              st->id, (int)error_wait, st->error_count));
+    DBUG_PRINT("index_stat", ("st %s error wait:%ds error count:%u"
+                              " force update:%u",
+                              st->id, (int)error_wait, st->error_count,
+                              st->force_update));
     ndb_index_stat_clear_error(st);
     if (st->force_update)
       pr.lt= Ndb_index_stat::LT_Update;

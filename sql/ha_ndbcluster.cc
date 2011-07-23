@@ -427,7 +427,6 @@ int ndb_index_stat_thread_running= 0;
 pthread_mutex_t LOCK_ndb_index_stat_thread;
 pthread_cond_t COND_ndb_index_stat_thread;
 pthread_cond_t COND_ndb_index_stat_ready;
-pthread_mutex_t ndb_index_stat_glob_mutex;
 pthread_mutex_t ndb_index_stat_list_mutex;
 pthread_mutex_t ndb_index_stat_stat_mutex;
 pthread_cond_t ndb_index_stat_stat_cond;
@@ -11427,7 +11426,6 @@ static int ndbcluster_init(void *p)
   pthread_mutex_init(&LOCK_ndb_index_stat_thread, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_ndb_index_stat_thread, NULL);
   pthread_cond_init(&COND_ndb_index_stat_ready, NULL);
-  pthread_mutex_init(&ndb_index_stat_glob_mutex, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&ndb_index_stat_list_mutex, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&ndb_index_stat_stat_mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&ndb_index_stat_stat_cond, NULL);
@@ -11538,7 +11536,6 @@ static int ndbcluster_init(void *p)
     pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_ready);
-    pthread_mutex_destroy(&ndb_index_stat_glob_mutex);
     pthread_mutex_destroy(&ndb_index_stat_list_mutex);
     pthread_mutex_destroy(&ndb_index_stat_stat_mutex);
     pthread_cond_destroy(&ndb_index_stat_stat_cond);
@@ -11559,7 +11556,6 @@ static int ndbcluster_init(void *p)
     pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_ready);
-    pthread_mutex_destroy(&ndb_index_stat_glob_mutex);
     pthread_mutex_destroy(&ndb_index_stat_list_mutex);
     pthread_mutex_destroy(&ndb_index_stat_stat_mutex);
     pthread_cond_destroy(&ndb_index_stat_stat_cond);
