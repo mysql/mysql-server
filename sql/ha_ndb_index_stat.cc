@@ -62,6 +62,7 @@ struct Ndb_index_stat {
   time_t check_time;    /* when checked for updated stats (>= read_time) */
   bool cache_clean;     /* old caches have been deleted */
   uint force_update;    /* one-time force update from analyze table */
+  bool no_stats;        /* have detected that no stats exist */
   NdbIndexStat::Error error;
   time_t error_time;
   int error_count;
@@ -497,6 +498,7 @@ struct Ndb_index_stat_glob {
   uint list_count[Ndb_index_stat::LT_Count]; /* Temporary use */
   uint total_count;
   uint force_update;
+  uint no_stats;
   uint wait_update;
   uint cache_query_bytes; /* In use */
   uint cache_clean_bytes; /* Obsolete versions not yet removed */
@@ -504,6 +506,7 @@ struct Ndb_index_stat_glob {
     total_count(0),
     force_update(0),
     wait_update(0),
+    no_stats(0),
     cache_query_bytes(0),
     cache_clean_bytes(0)
   {
@@ -545,6 +548,7 @@ Ndb_index_stat::Ndb_index_stat()
   check_time= 0;
   cache_clean= false;
   force_update= 0;
+  no_stats= false;
   error_time= 0;
   error_count= 0;
   share_next= 0;
@@ -692,6 +696,26 @@ ndb_index_stat_force_update(Ndb_index_stat *st, bool onoff)
     assert(glob.force_update >= st->force_update);
     glob.force_update-= st->force_update;
     st->force_update= 0;
+  }
+}
+
+void
+ndb_index_stat_no_stats(Ndb_index_stat *st, bool flag)
+{
+  Ndb_index_stat_glob &glob= ndb_index_stat_glob;
+  if (st->no_stats != flag)
+  {
+    if (flag)
+    {
+      glob.no_stats++;
+      st->no_stats= true;
+    }
+    else
+    {
+      assert(glob.no_stats >= 1);
+      glob.no_stats-= 1;
+      st->no_stats= false;
+    }
   }
 }
 
@@ -996,8 +1020,21 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   {
     pthread_mutex_lock(&ndb_index_stat_stat_mutex);
     ndb_index_stat_error(st, "read_stat", __LINE__);
-    pr.lt= Ndb_index_stat::LT_Error;
+    const uint force_update= st->force_update;
     ndb_index_stat_force_update(st, false);
+
+    /* no stats is not unexpected error, unless analyze was done */
+    if (st->is->getNdbError().code == NdbIndexStat::NoIndexStats &&
+        force_update == 0)
+    {
+      ndb_index_stat_no_stats(st, true);
+      pr.lt= Ndb_index_stat::LT_Idle;
+    }
+    else
+    {
+      pr.lt= Ndb_index_stat::LT_Error;
+    }
+
     pthread_cond_broadcast(&ndb_index_stat_stat_cond);
     pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
     return;
@@ -1011,6 +1048,7 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   st->sample_version= head.m_sampleVersion;
 
   ndb_index_stat_force_update(st, false);
+  ndb_index_stat_no_stats(st, false);
 
   ndb_index_stat_cache_move(st);
   st->cache_clean= false;
@@ -1111,7 +1149,16 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   if (st->is->read_head(pr.ndb) == -1)
   {
     ndb_index_stat_error(st, "read_head", __LINE__);
-    pr.lt= Ndb_index_stat::LT_Error;
+    /* no stats is not unexpected error */
+    if (st->is->getNdbError().code == NdbIndexStat::NoIndexStats)
+    {
+      ndb_index_stat_no_stats(st, true);
+      pr.lt= Ndb_index_stat::LT_Idle;
+    }
+    else
+    {
+      pr.lt= Ndb_index_stat::LT_Error;
+    }
     return;
   }
   st->is->get_head(head);
@@ -1394,15 +1441,11 @@ ndb_index_stat_report(const Ndb_index_stat_glob& old_glob)
 
   /* Updates waited for and forced updates */
   {
-    pthread_mutex_lock(&ndb_index_stat_list_mutex);
     uint wait_update= new_glob.wait_update;
     uint force_update= new_glob.force_update;
-    pthread_mutex_unlock(&ndb_index_stat_list_mutex);
-    if (wait_update != 0 || force_update != 0)
-    {
-      DBUG_PRINT("index_stat", ("wait update:%u force update:%u",
-                                wait_update, force_update));
-    }
+    uint no_stats= new_glob.no_stats;
+    DBUG_PRINT("index_stat", ("wait update:%u force update:%u no stats:%u",
+                              wait_update, force_update, no_stats));
   }
 }
 #endif
@@ -1727,6 +1770,12 @@ ndb_index_stat_wait(Ndb_index_stat *st,
         break;
       }
       ndb_index_stat_clear_error(st);
+    }
+    if (st->no_stats && !from_analyze)
+    {
+      /* Have detected no stats now or before */
+      err= NdbIndexStat::NoIndexStats;
+      break;
     }
     if (st->error.code != 0)
     {
