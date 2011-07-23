@@ -612,7 +612,6 @@ Ndb_index_stat_list ndb_index_stat_list[Ndb_index_stat::LT_Count] = {
 void
 ndb_index_stat_list_add(Ndb_index_stat* st, int lt)
 {
-  Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   assert(st != 0 && st->lt == 0);
   assert(st->list_next == 0 && st->list_prev == 0);
   assert(1 <= lt && lt < Ndb_index_stat::LT_Count);
@@ -641,7 +640,6 @@ ndb_index_stat_list_add(Ndb_index_stat* st, int lt)
 void
 ndb_index_stat_list_remove(Ndb_index_stat* st)
 {
-  Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   assert(st != 0);
   int lt= st->lt;
   assert(1 <= lt && lt < Ndb_index_stat::LT_Count);
@@ -777,7 +775,7 @@ ndb_index_stat_find_share(NDB_SHARE *share,
 }
 
 /* Subroutine, have lock */
-Ndb_index_stat*
+void
 ndb_index_stat_add_share(NDB_SHARE *share,
                          Ndb_index_stat *st,
                          Ndb_index_stat *st_last)
