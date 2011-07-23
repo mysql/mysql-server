@@ -5365,7 +5365,7 @@ best_access_path(JOIN      *join,
     /* Estimate the cost of  the hash join access to the table */
     ha_rows rnd_records= matching_candidates_in_table(s, found_constraint);
 
-    tmp= s->quick ? s->quick->read_time : s->table->file->scan_time();
+    tmp= s->quick ? s->quick->read_time : s->scan_time();
     tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
 
     /* We read the table as many times as join buffer becomes full. */

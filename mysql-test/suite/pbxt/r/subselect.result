@@ -2627,8 +2627,6 @@ createDate datetime NOT NULL,
 modifyDate timestamp NOT NULL
 );
 INSERT INTO t5 VALUES (5141,12,'2004-08-06','2004-08-06');
-set @save_optimizer_switch=@@optimizer_switch;
-set optimizer_switch='derived_merge=on';
 select
 count(distinct t2.userid) pass,
 groupstuff.*,
@@ -2670,7 +2668,6 @@ pass	userid	parentid	parentgroup	childid	groupname	grouptypeid	crse	categoryid	c
 1	5141	12	group2	12	group2	5	1	1	87	Oct04
 1	5141	12	group2	12	group2	5	1	2	88	Oct04
 1	5141	12	group2	12	group2	5	1	2	89	Oct04
-set optimizer_switch=@save_optimizer_switch;
 drop table t1, t2, t3, t4, t5;
 create table t1 (a int);
 insert into t1 values (1), (2), (3);
