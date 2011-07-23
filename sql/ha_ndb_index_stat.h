@@ -22,13 +22,16 @@ extern struct st_ndb_status g_ndb_status;
 extern pthread_t ndb_index_stat_thread;
 extern pthread_cond_t COND_ndb_index_stat_thread;
 extern pthread_mutex_t LOCK_ndb_index_stat_thread;
-extern pthread_mutex_t ndb_index_stat_glob_mutex;
+
+/* protect entry lists where needed */
 extern pthread_mutex_t ndb_index_stat_list_mutex;
+
+/* protect and signal changes in stats entries */
 extern pthread_mutex_t ndb_index_stat_stat_mutex;
 extern pthread_cond_t ndb_index_stat_stat_cond;
 
+/* these have to live in ha_ndbcluster.cc */
 extern bool ndb_index_stat_get_enable(THD *thd);
-
 extern long g_ndb_status_index_stat_cache_query;
 extern long g_ndb_status_index_stat_cache_clean;
 
