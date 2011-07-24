@@ -13590,6 +13590,7 @@ static MYSQL_SYSVAR_ULONG(ft_max_token_size, fts_max_token_size,
   "InnoDB Fulltext search maximum token size in bytes",
   NULL, NULL, HA_FT_MAXCHARLEN, 10, FTS_MAX_WORD_LEN , 0);
 
+
 static MYSQL_SYSVAR_ULONG(ft_num_word_optimize, fts_num_word_optimize,
   PLUGIN_VAR_OPCMDARG,
   "InnoDB Fulltext search number of words to optimize for each optimize table call ",
@@ -13598,7 +13599,7 @@ static MYSQL_SYSVAR_ULONG(ft_num_word_optimize, fts_num_word_optimize,
 static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "InnoDB Fulltext search parallel sort degree, will round up to nearest power of 2 number",
-  NULL, NULL, 2, 1, 16, 0);
+  NULL, NULL, 2, 1, 32, 0);
    
 static MYSQL_SYSVAR_ULONG(sort_buf_size, srv_sort_buf_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

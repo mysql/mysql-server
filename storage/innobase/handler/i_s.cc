@@ -3233,6 +3233,7 @@ i_s_fts_index_table_fill_one_index(
 	Field**			fields;
 	ib_vector_t*		words;
 	mem_heap_t*		heap;
+	ulint			num_row_fill;
 
 	DBUG_ENTER("i_s_fts_index_cache_fill_one_index");
 
@@ -3250,8 +3251,10 @@ i_s_fts_index_table_fill_one_index(
 		i_s_fts_index_table_fill_selected(index, words, selected);
 	}
 
+	num_row_fill = ut_min(ib_vector_size(words), 500000);
+
 	/* Go through each word in the index cache */
-	for (ulint i = 0; i < ib_vector_size(words); i++) {
+	for (ulint i = 0; i < num_row_fill; i++) {
 		fts_word_t*	word;
 
 		word = (fts_word_t*) ib_vector_get(words, i);

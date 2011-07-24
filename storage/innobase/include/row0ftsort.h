@@ -42,7 +42,7 @@ typedef struct fts_doc_item     fts_doc_item_t;
 
 /** Information about temporary files used in merge sort */
 struct fts_doc_item {
-	const dfield_t*	field;		/*!< field contains document string */
+	dfield_t*	field;		/*!< field contains document string */
 	doc_id_t	doc_id;		/*!< document ID */
 	UT_LIST_NODE_T(fts_doc_item_t)	doc_list;
 					/*!< list of doc items */

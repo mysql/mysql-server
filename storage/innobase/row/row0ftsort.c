@@ -272,6 +272,7 @@ row_fts_psort_info_destroy(
 				if (psort_info[j].merge_block[i]) {
 					ut_free(psort_info[j].merge_block[i]);
 				}
+				mem_free(psort_info[j].merge_file[i]);
 			}
 		}
 
@@ -607,16 +608,24 @@ loop:
 
 		num_doc_processed++;
 
-		if (num_doc_processed % 10000 == 1) {
+		if (fts_enable_diag_print && num_doc_processed % 10000 == 1) {
 			fprintf(stderr, "number of doc processed %d\n",
 				(int)num_doc_processed);
+#ifdef FTS_INTERNAL_DIAG_PRINT
 			for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 				fprintf(stderr, "ID %d, partition %d, word "
-					"%d\n",(int)id, (int) i, (int) mycount[i]);
+					"%d\n",(int)id, (int) i,
+					(int) mycount[i]);
 			}
+#endif
 		}
 
 		mem_heap_empty(blob_heap);
+
+		if (doc_item->field->data) {
+			ut_free(doc_item->field->data);
+			doc_item->field->data = NULL;
+		}
 
 		doc_item = UT_LIST_GET_NEXT(doc_list, doc_item);
 
@@ -684,7 +693,9 @@ exit:
 		}
 	}
 
-	DEBUG_FTS_SORT_PRINT("FTS SORT: start merge sort\n");
+	if (fts_enable_diag_print) {
+		DEBUG_FTS_SORT_PRINT("FTS SORT: start merge sort\n");
+	}
 
 	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 
@@ -702,7 +713,9 @@ exit:
 		close(tmpfd[i]);
 	}
 
-	DEBUG_FTS_SORT_PRINT("FTS SORT: complete merge sort\n");
+	if (fts_enable_diag_print) {
+		DEBUG_FTS_SORT_PRINT("FTS SORT: complete merge sort\n");
+	}
 
 	mem_heap_free(blob_heap);
 
@@ -1142,7 +1155,8 @@ UNIV_INTERN
 ulint
 row_fts_merge_insert(
 /*=================*/
-	trx_t*			trx,	/*!< in: transaction */
+	trx_t*			trx __attribute__((unused)),
+					/*!< in: transaction */
 	dict_index_t*		index,	/*!< in: index */
 	dict_table_t*		table,	/*!< in: new table */
 	ulint			zip_size __attribute__((unused)),
@@ -1209,7 +1223,7 @@ row_fts_merge_insert(
 	mrec = (const mrec_t**) mem_heap_alloc(
 		heap, sizeof(*mrec) * fts_sort_pll_degree);
 	sel_tree = (int*) mem_heap_alloc(
-		heap, sizeof(*sel_tree) * (1 << fts_sort_pll_degree));
+		heap, sizeof(*sel_tree) * (fts_sort_pll_degree * 2));
 
 	tuple_heap = mem_heap_create(1000);
 
@@ -1219,7 +1233,7 @@ row_fts_merge_insert(
 
 		num = 1 + REC_OFFS_HEADER_SIZE
 			+ dict_index_get_n_fields(index);
-		offsets[i] = mem_heap_alloc(heap,
+		offsets[i] = mem_heap_zalloc(heap,
 					    num * sizeof *offsets[i]);
 		offsets[i][0] = num;
 		offsets[i][1] = dict_index_get_n_fields(index);
@@ -1232,7 +1246,9 @@ row_fts_merge_insert(
 		counta += (int) psort_info[i].merge_file[id]->n_rec;
 	}
 
+#ifdef FTS_INTERNAL_DIAG_PRINT
 	fprintf(stderr, "to inserted %lu record \n", (ulong)counta);
+#endif
 
 	/* Initialize related variables if creating FTS indexes */
 	heap_alloc = ib_heap_allocator_create(heap);
@@ -1368,9 +1384,10 @@ exit:
 
 	mem_heap_free(heap);
 
-	/* FIXME: Diagnostic printout, will be removed later */
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "FTS: inserted %lu record\n", (ulong)count);
+	if (fts_enable_diag_print) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "FTS: inserted %lu record\n", (ulong)count);
+	}
 
 	return(error);
 }
