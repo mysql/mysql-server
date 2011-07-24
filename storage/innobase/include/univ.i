@@ -238,6 +238,8 @@ operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_STATS_DEBUG			/* prints various stats
 						related debug info from
 						dict0stats.c */
+#define FTS_INTERNAL_DIAG_PRINT                 /* FTS internal debugging
+                                                info output */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */

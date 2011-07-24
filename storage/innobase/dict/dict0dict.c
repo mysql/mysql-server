@@ -5363,7 +5363,7 @@ dict_table_get_index_on_name(
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
-		if (ut_strcmp(index->name, name) == 0) {
+		if (innobase_strcasecmp(index->name, name) == 0) {
 
 			return(index);
 		}

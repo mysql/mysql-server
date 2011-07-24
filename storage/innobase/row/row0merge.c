@@ -155,14 +155,12 @@ row_merge_buf_create_low(
 	ut_ad(max_tuples > 0);
 
 	ut_ad(max_tuples <= srv_sort_buf_size);
-	ut_ad(max_tuples < buf_size);
 
 	buf = mem_heap_zalloc(heap, buf_size);
 	buf->heap = heap;
 	buf->index = index;
 	buf->max_tuples = max_tuples;
-	buf->tuples = mem_heap_alloc(heap,
-				     2 * max_tuples * sizeof *buf->tuples);
+	buf->tuples = ut_malloc(2 * max_tuples * sizeof *buf->tuples);
 	buf->tmp_tuples = buf->tuples + max_tuples;
 
 	return(buf);
@@ -185,9 +183,9 @@ row_merge_buf_create(
 	max_tuples = srv_sort_buf_size
 		/ ut_max(1, dict_index_get_min_size(index));
 
-	buf_size = (sizeof *buf) + (max_tuples - 1) * sizeof *buf->tuples;
+	buf_size = (sizeof *buf);
 
-	heap = mem_heap_create(buf_size + srv_sort_buf_size);
+	heap = mem_heap_create(buf_size);
 
 	buf = row_merge_buf_create_low(heap, index, max_tuples, buf_size);
 
@@ -207,12 +205,20 @@ row_merge_buf_empty(
 	ulint		max_tuples	= buf->max_tuples;
 	mem_heap_t*	heap		= buf->heap;
 	dict_index_t*	index		= buf->index;
+	void*		tuple		= buf->tuples;
 
-	buf_size = srv_sort_buf_size + (max_tuples - 1) * sizeof *buf->tuples;
+	buf_size = (sizeof *buf);;
 
 	mem_heap_empty(heap);
 
-	return(row_merge_buf_create_low(heap, index, max_tuples, buf_size));
+	buf = mem_heap_zalloc(heap, buf_size);
+	buf->heap = heap;
+	buf->index = index;
+	buf->max_tuples = max_tuples;
+	buf->tuples = tuple;
+	buf->tmp_tuples = buf->tuples + max_tuples;
+
+	return(buf);
 }
 
 /******************************************************//**
@@ -223,6 +229,7 @@ row_merge_buf_free(
 /*===============*/
 	row_merge_buf_t*	buf)	/*!< in,own: sort buffer, to be freed */
 {
+	ut_free(buf->tuples);
 	mem_heap_free(buf->heap);
 }
 
@@ -354,8 +361,12 @@ row_merge_buf_add(
 				}
 
 				if (FTS_PLL_ENABLED) {
+					byte*	value;
 
-					dfield_dup(field, buf->heap);
+					value = ut_malloc(field->len);
+					memcpy(value, field->data, field->len);
+					field->data = value;
+
 					doc_item->field = field;
 					doc_item->doc_id = *doc_id;
 
@@ -656,7 +667,8 @@ void
 row_merge_buf_write(
 /*================*/
 	const row_merge_buf_t*	buf,	/*!< in: sorted buffer */
-	const merge_file_t*	of,	/*!< in: output file */
+	const merge_file_t*	of UNIV_UNUSED,
+					/*!< in: output file */
 	row_merge_block_t*	block)	/*!< out: buffer for writing to file */
 {
 	const dict_index_t*	index	= buf->index;
@@ -1264,7 +1276,9 @@ row_merge_read_clustered_index(
 	ut_ad(index);
 	ut_ad(files);
 
+#ifdef FTS_INTERNAL_DIAG_PRINT
 	DEBUG_FTS_SORT_PRINT("FTS_SORT: Start Create Index\n");
+#endif
 
 	/* Create and initialize memory for record buffers */
 
@@ -1434,7 +1448,7 @@ row_merge_read_clustered_index(
 			row_merge_buf_t*	buf	= merge_buf[i];
 			merge_file_t*		file	= &files[i];
 			const dict_index_t*	index	= buf->index;
-			ulint			rows_added;
+			ulint			rows_added = 0;
 
 			if (UNIV_LIKELY
 			    (row && (rows_added = row_merge_buf_add(
@@ -1525,7 +1539,9 @@ err_exit:
 	}
 
 func_exit:
+#ifdef FTS_INTERNAL_DIAG_PRINT
 	DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Scan Table\n");
+#endif
 	if (fts_pll_sort) {
 		for (i = 0; i < fts_sort_pll_degree; i++) {
 			psort_info[i].state = FTS_PARENT_COMPLETE;
@@ -1540,7 +1556,10 @@ wait_again:
 			}
 		}
 	}
+
+#ifdef FTS_INTERNAL_DIAG_PRINT
 	DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Tokenization\n");
+#endif
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -2986,7 +3005,9 @@ wait_again:
 					merge_files[i].fd, block);
 			}
 
+#ifdef FTS_INTERNAL_DIAG_PRINT
 			DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Insert\n");
+#endif
 		}
 
 		/* Close the temporary file to free up space. */
@@ -3001,9 +3022,17 @@ wait_again:
 			goto func_exit;
 		}
 
-		/* FIXME: Diagnostic printout, will be removed later */
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "Finish build index %s\n", indexes[i]->name);
+		if (fts_enable_diag_print) {
+			char*	name = (char*)indexes[i]->name;
+
+			ut_print_timestamp(stderr);
+
+			if (*name == TEMP_INDEX_PREFIX)  {
+				name++;
+			}
+
+			fprintf(stderr, "Finish build index %s\n", name);
+		}
 	}
 
 func_exit:

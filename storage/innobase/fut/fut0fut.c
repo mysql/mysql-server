@@ -1148,8 +1148,10 @@ fts_drop_table(
 	/* Check that the table exists in our data dictionary. */
 	if (dict_table_get_low(table_name)) {
 
+#ifdef FTS_INTERNAL_DIAG_PRINT
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB: Dropping %s\n", table_name);
+#endif
 
 		error = row_drop_table_for_mysql(table_name, trx, TRUE);
 
@@ -1529,6 +1531,8 @@ fts_create_one_index_table(
 		fprintf(stderr, "  InnoDB: Warning: Fail to create FTS "
 				"  index table %s \n", table_name);
 	}
+
+	mem_free(table_name);
 
 	return(new_table);
 }
@@ -3415,9 +3419,9 @@ fts_sync_write_words(
 	     rbt_node;
 	     rbt_node = rbt_first(index_cache->words)) {
 
-		ulint	i;
-		ulint	selected;
-		fts_tokenizer_word_t* word;
+		ulint			i;
+		ulint			selected;
+		fts_tokenizer_word_t*	word;
 
 		word = rbt_value(fts_tokenizer_word_t, rbt_node);
 
@@ -4876,6 +4880,7 @@ fts_trx_table_rows_free(
 	}
 
 	ut_a(rbt_empty(rows));
+	rbt_free(rows);
 }
 
 /********************************************************************
@@ -4951,7 +4956,7 @@ fts_trx_free(
 	for (i = 0; i < ib_vector_size(fts_trx->last_stmt); ++i) {
 		fts_savepoint_t*	savepoint;
 
-		savepoint = ib_vector_get(fts_trx->savepoints, i);
+		savepoint = ib_vector_get(fts_trx->last_stmt, i);
 
 		/* The default savepoint name must be NULL. */
 		if (i == 0) {
@@ -4960,10 +4965,6 @@ fts_trx_free(
 
 		fts_savepoint_free(savepoint);
 	}
-
-#ifdef UNIV_DEBUG
-	memset(fts_trx, 0, sizeof(*fts_trx));
-#endif /* UNIV_DEBUG */
 
 	if (fts_trx->heap) {
 		mem_heap_free(fts_trx->heap);
@@ -5350,6 +5351,7 @@ fts_free(
 	}
 
 	if (fts->cache) {
+		fts_cache_clear(fts->cache, TRUE);
 		fts_cache_destroy(fts->cache);
 		fts->cache = NULL;
 	}
@@ -6386,7 +6388,6 @@ fts_init_index(
 	fts_cache_t*    cache = table->fts->cache;
 	fts_get_doc_t*  get_doc = NULL;
 	dict_index_t*   index;
-	fts_doc_t	doc;
 	ibool		has_fts = TRUE;
 
 	/* First check cache->get_docs is initialized */
@@ -6401,8 +6402,6 @@ fts_init_index(
 	if (table->fts->fts_status & ADDED_TABLE_SYNCED) {
 		goto func_exit;
 	}
-
-	fts_doc_init(&doc);
 
 	start_doc = cache->synced_doc_id;
 
@@ -6429,9 +6428,6 @@ fts_init_index(
 				fts_init_recover_doc, cache);
 
 	if (has_fts) {
-		fts_cache_add_doc(cache, get_doc->index_cache,
-				  start_doc, doc.tokens);
-
 		if (table->fts->cache->stopword_info.status
 		    & STOPWORD_NOT_INIT) {
 			fts_load_stopword(table, NULL, NULL, TRUE, FALSE);

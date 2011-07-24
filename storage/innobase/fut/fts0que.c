@@ -760,6 +760,9 @@ fts_query_free_doc_ids(
 
 		ut_free(rbt_remove_node(doc_ids, node));
 	}
+
+	rbt_free(doc_ids);
+
 	return;
 }
 
@@ -957,8 +960,10 @@ fts_query_difference(
 
 	ut_a(query->oper == FTS_IGNORE);
 
+#ifdef FTS_INTERNAL_DIAG_PRINT
 	fprintf(stderr, "DIFFERENCE: Searching: '%.*s'\n",
 		(int) token->len, token->utf8);
+#endif
 
 	if (query->doc_ids) {
 		n_doc_ids = rbt_size(query->doc_ids);
@@ -1026,8 +1031,10 @@ fts_query_intersect(
 
 	ut_a(query->oper == FTS_EXIST);
 
+#ifdef FTS_INTERNAL_DIAG_PRINT
 	fprintf(stderr, "INTERSECT: Searching: '%.*s'\n",
 		(int)token->len, token->utf8);
+#endif
 
 	if (!query->inited) {
 
@@ -1206,8 +1213,10 @@ fts_query_union(
 	ut_a(query->oper == FTS_NONE || query->oper == FTS_DECR_RATING ||
 	     query->oper == FTS_NEGATE || query->oper == FTS_INCR_RATING);
 
+#ifdef FTS_INTERNAL_DIAG_PRINT
 	fprintf(stderr, "UNION: Searching: '%.*s'\n",
 		(int) token->len, token->utf8);
+#endif
 
 	query->error = DB_SUCCESS;
 
@@ -2040,9 +2049,10 @@ fts_query_search_phrase(
 
 	rw_lock_x_unlock(&cache->lock);
 
-	// FIXME: Debug code
+#ifdef FTS_INTERNAL_DIAG_PRINT
 	ut_print_timestamp(stderr);
 	fprintf(stderr, " Start phrase search\n");
+#endif
 
 	/* Read the document from disk and do the actual
 	match, matching documents will be added to the current
@@ -3146,11 +3156,11 @@ fts_query(
 {
 	fts_query_t	query;
 	ulint		error;
-	ib_time_t	start_time;
 	byte*		lc_query_str;
 	ibool		boolean_mode;
 	trx_t*		query_trx;
 	CHARSET_INFO*	charset;
+	ulint		start_time_ms;
 
 	boolean_mode = flags & FTS_BOOL;
 
@@ -3159,7 +3169,7 @@ fts_query(
 	query_trx = trx_allocate_for_background();
 	query_trx->op_info = "FTS query";
 
-	start_time = ut_time();
+	start_time_ms = ut_time_ms();
 
 	query.trx = query_trx;
 	query.index = index;
@@ -3194,9 +3204,10 @@ fts_query(
 		goto func_exit;
 	}
 
-	// FIXME: Debugging
+#ifdef	FTS_INTERNAL_DIAG_PRINT
 	fprintf(stderr, "Total docs: %lu Total words: %lu\n",
-	       query.total_docs, query.total_words);
+		query.total_docs, query.total_words);
+#endif
 
 	query.fts_common_table.suffix = "DELETED";
 
@@ -3272,13 +3283,14 @@ fts_query(
 
 	ut_free(lc_query_str);
 
-	if (*result) {
-		fprintf(stderr, "Processing time: %ld secs: row(s) %d:"
-				" error: %lu\n",
-			ut_time() - start_time,
+	if (fts_enable_diag_print && (*result)) {
+		ulint	diff_time = ut_time_ms() - start_time_ms;
+		fprintf(stderr, "FTS Search Processing time: %ld secs:"
+				" %ld millisec: row(s) %d \n",
+			diff_time / 1000, diff_time % 1000,
 			(*result)->rankings_by_id
-				? (int) rbt_size((*result)->rankings_by_id) : -1,
-			error);
+				? (int) rbt_size((*result)->rankings_by_id)
+				: -1);
 	}
 
 func_exit:
