@@ -245,9 +245,10 @@ typedef struct st_maria_file_bitmap
 {
   uchar *map;
   pgcache_page_no_t page;              /* Page number for current bitmap */
-  uint used_size;                      /* Size of bitmap head that is not 0 */
+  pgcache_page_no_t last_bitmap_page; /* Last possible bitmap page */
   my_bool changed;                     /* 1 if page needs to be written */
   my_bool changed_not_flushed;         /* 1 if some bitmap is not flushed */
+  uint used_size;                      /* Size of bitmap head that is not 0 */
   uint flush_all_requested;            /**< If _ma_bitmap_flush_all waiting */
   uint waiting_for_flush_all_requested; /* If someone is waiting for above */
   uint non_flushable;                  /**< 0 if bitmap and log are in sync */
@@ -261,6 +262,8 @@ typedef struct st_maria_file_bitmap
   /* Constants, allocated when initiating bitmaps */
   uint sizes[8];                      /* Size per bit combination */
   uint total_size;		      /* Total usable size of bitmap page */
+  uint max_total_size;                /* Max value for total_size */
+  uint last_total_size;               /* Size of bitmap on last_bitmap_page */
   uint block_size;                    /* Block size of file */
   ulong pages_covered;                /* Pages covered by bitmap + 1 */
   DYNAMIC_ARRAY pinned_pages;         /**< not-yet-flushable bitmap pages */

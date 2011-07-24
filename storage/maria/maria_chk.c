@@ -1553,8 +1553,8 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
       if (share->base.max_data_file_length != HA_OFFSET_ERROR ||
 	  share->base.max_key_file_length != HA_OFFSET_ERROR)
 	printf("Max datafile length: %16s  Max keyfile length: %18s\n",
-	       llstr(share->base.max_data_file_length-1,llbuff),
-	       llstr(share->base.max_key_file_length-1,llbuff2));
+	       ullstr(share->base.max_data_file_length,llbuff),
+	       ullstr(share->base.max_key_file_length,llbuff2));
     }
   }
   printf("Block_size:          %16d\n",(int) share->block_size);

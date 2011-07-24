@@ -414,14 +414,29 @@ void _ma_init_block_record_data(void)
 
 my_bool _ma_once_init_block_record(MARIA_SHARE *share, File data_file)
 {
+  my_bool res;
+  pgcache_page_no_t last_page; 
 
-  share->base.max_data_file_length=
-    (((ulonglong) 1 << ((share->base.rec_reflength-1)*8))-1) *
-    share->block_size;
+  /*
+    First calculate the max file length with can have with a pointer of size
+    rec_reflength.
+
+    The 'rec_reflength - 1' is because one byte is used for row
+    position withing the page.
+    The /2 comes from _ma_transaction_recpos_to_keypos() where we use
+    the lowest bit to mark if there is a transid following the rownr.
+  */
+  last_page= ((ulonglong) 1 << ((share->base.rec_reflength-1)*8))/2;
+  if (!last_page)                                  /* Overflow; set max size */
+    last_page= ~(pgcache_page_no_t) 0;
+
+  res= _ma_bitmap_init(share, data_file, &last_page);
+  share->base.max_data_file_length= _ma_safe_mul(last_page + 1,
+                                                 share->block_size);
 #if SIZEOF_OFF_T == 4
-    set_if_smaller(share->base.max_data_file_length, INT_MAX32);
+  set_if_smaller(share->base.max_data_file_length, INT_MAX32);
 #endif
-  return _ma_bitmap_init(share, data_file);
+  return res;
 }
 
 
@@ -5170,7 +5185,7 @@ my_bool _ma_scan_init_block_record(MARIA_HA *info)
           (uchar *) my_malloc(share->block_size * 2, MYF(MY_WME))))))
     DBUG_RETURN(1);
   info->scan.page_buff= info->scan.bitmap_buff + share->block_size;
-  info->scan.bitmap_end= info->scan.bitmap_buff + share->bitmap.total_size;
+  info->scan.bitmap_end= info->scan.bitmap_buff + share->bitmap.max_total_size;
 
   /* Set scan variables to get _ma_scan_block() to start with reading bitmap */
   info->scan.number_of_rows= 0;

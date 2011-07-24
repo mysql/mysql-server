@@ -187,7 +187,8 @@ maria_page_get_lsn(uchar *page, pgcache_page_no_t page_no, uchar* data_ptr);
 /* ma_bitmap.c */
 extern const char *bits_to_txt[];
 
-my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);
+my_bool _ma_bitmap_init(MARIA_SHARE *share, File file,
+                        pgcache_page_no_t *last_page);
 my_bool _ma_bitmap_end(MARIA_SHARE *share);
 my_bool _ma_bitmap_flush(MARIA_SHARE *share);
 my_bool _ma_bitmap_flush_all(MARIA_SHARE *share);

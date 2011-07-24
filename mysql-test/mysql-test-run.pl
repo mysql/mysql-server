@@ -4435,6 +4435,7 @@ sub extract_warning_lines ($) {
      qr|Table \./test/bug53592 has a primary key in InnoDB data dictionary, but not in MySQL|,
      qr|mysqld: Table '\./mtr/test_suppressions' is marked as crashed and should be repaired|,
      qr|InnoDB: Error: table 'test/bug39438'|,
+     qr|table.*is full|,
     );
 
   my $matched_lines= [];
