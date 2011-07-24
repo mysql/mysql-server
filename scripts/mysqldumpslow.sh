@@ -35,11 +35,8 @@ $opt{'help'} and usage();
 
 unless (@ARGV) {
     my $defaults   = `my_print_defaults mysqld`;
-    my $basedir = ($defaults =~ m/--basedir=(.*)/)[0]
-	or die "Can't determine basedir from 'my_print_defaults mysqld' output: $defaults";
-    warn "basedir=$basedir\n" if $opt{v};
 
-    my $datadir = ($defaults =~ m/--datadir=(.*)/)[0];
+    my $datadir = ($defaults =~ m/--datadir=(.*)/g)[-1];
     my $slowlog = ($defaults =~ m/--log-slow-queries=(.*)/)[0];
     if (!$datadir or $opt{i}) {
 	# determine the datadir from the instances section of /etc/my.cnf, if any
