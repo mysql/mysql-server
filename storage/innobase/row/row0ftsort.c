@@ -587,10 +587,24 @@ fts_parallel_tokenization(
 
 	doc_item = UT_LIST_GET_FIRST(psort_info->fts_doc_list);
 
+	if (doc_item) {
+		prev_doc_item = doc_item;
+	}
+
 	processed = TRUE;
 loop:
 	while (doc_item) {
 		last_doc_id = doc_item->doc_id;
+
+		if (!(doc_item->field->data)) {
+			doc_item = UT_LIST_GET_NEXT(doc_list, doc_item);
+
+			/* Always remember the last doc_item we processed */
+			if (doc_item) {
+				prev_doc_item = doc_item;
+			}
+			continue;
+		}
 
 		processed = row_merge_fts_doc_tokenize(
 			buf, processed ? doc_item->field : NULL,
@@ -668,6 +682,7 @@ loop:
 		os_thread_yield();
 		doc_item = UT_LIST_GET_NEXT(doc_list, prev_doc_item);
 	} else {
+		os_thread_yield();
 		doc_item = UT_LIST_GET_FIRST(psort_info->fts_doc_list);
 	}
 
