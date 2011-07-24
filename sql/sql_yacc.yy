@@ -11306,7 +11306,10 @@ flush_option:
         | STATUS_SYM
           { Lex->type|= REFRESH_STATUS; }
         | SLAVE
-          { Lex->type|= REFRESH_SLAVE; }
+          { 
+            Lex->type|= REFRESH_SLAVE;
+            Lex->reset_slave_info.all= false;
+          }
         | MASTER_SYM
           { Lex->type|= REFRESH_MASTER; }
         | DES_KEY_FILE
