@@ -26,6 +26,8 @@ extern PSI_mutex_key key_ss_mutex_LOCK_binlog_;
 extern PSI_cond_key key_ss_cond_COND_binlog_send_;
 #endif
 
+extern PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave;
+
 struct TranxNode {
   char             log_name_[FN_REFLEN];
   my_off_t          log_pos_;

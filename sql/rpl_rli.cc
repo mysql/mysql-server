@@ -410,7 +410,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   ulong init_abort_pos_wait;
   int error=0;
   struct timespec abstime; // for timeout checking
-  const char *msg;
+  PSI_stage_info old_stage;
   DBUG_ENTER("Relay_log_info::wait_for_pos");
 
   if (!inited)
@@ -421,9 +421,9 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
 
   set_timespec(abstime,timeout);
   mysql_mutex_lock(&data_lock);
-  msg= thd->enter_cond(&data_cond, &data_lock,
-                       "Waiting for the slave SQL thread to "
-                       "advance position");
+  thd->ENTER_COND(&data_cond, &data_lock,
+                  &stage_waiting_for_the_slave_thread_to_advance_position,
+                  &old_stage);
   /*
      This function will abort when it notices that some CHANGE MASTER or
      RESET MASTER has changed the master info.
@@ -567,7 +567,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   }
 
 err:
-  thd->exit_cond(msg);
+  thd->EXIT_COND(&old_stage);
   DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
 improper_arguments: %d  timed_out: %d",
                      thd->killed_errno(),
