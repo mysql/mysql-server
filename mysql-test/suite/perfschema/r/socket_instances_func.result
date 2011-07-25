@@ -1,57 +1,111 @@
+# DEBUG 0 - ENV
+DYLD_LIBRARY_PATH=/home/cpowers/work/dev/mysql-trunk-wl4896/libmysql/.libs/:/home/cpowers/work/dev/mysql-trunk-wl4896/libmysql_r/.libs/:/home/cpowers/work/dev/mysql-trunk-wl4896/zlib/.libs/
+LD_LIBRARY_PATH=/home/cpowers/work/dev/mysql-trunk-wl4896/libmysql/.libs/:/home/cpowers/work/dev/mysql-trunk-wl4896/libmysql_r/.libs/:/home/cpowers/work/dev/mysql-trunk-wl4896/zlib/.libs/:/usr/lib64/mpi/gcc/openmpi/lib64
+LIBPATH=/home/cpowers/work/dev/mysql-trunk-wl4896/libmysql/.libs/:/home/cpowers/work/dev/mysql-trunk-wl4896/libmysql_r/.libs/:/home/cpowers/work/dev/mysql-trunk-wl4896/zlib/.libs/
+MYSQL_BINDIR=/home/cpowers/work/dev/mysql-trunk-wl4896
+MYSQL_BINLOG=/home/cpowers/work/dev/mysql-trunk-wl4896/client//mysqlbinlog --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf
+MYSQL_BUG25714=/home/cpowers/work/dev/mysql-trunk-wl4896/tests/bug25714
+MYSQL_BUG=
+MYSQL_CHARSETSDIR=/home/cpowers/work/dev/mysql-trunk-wl4896/sql/share/charsets
+MYSQL_CHECK=/home/cpowers/work/dev/mysql-trunk-wl4896/client//mysqlcheck --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf
+MYSQL_CLIENT_TEST=/home/cpowers/work/dev/mysql-trunk-wl4896/tests/mysql_client_test --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf --testcase --vardir=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var
+MYSQL_DEV=mysql-trunk-wl4896
+MYSQL_DUMP=/home/cpowers/work/dev/mysql-trunk-wl4896/client//mysqldump --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf --defaults-group-suffix=.1
+MYSQL_DUMP_SLAVE=/home/cpowers/work/dev/mysql-trunk-wl4896/client//mysqldump --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf --defaults-group-suffix=.2
+MYSQL_EMBEDDED=/home/cpowers/work/dev/mysql-trunk-wl4896/libmysqld/examples/mysql_embedded
+MYSQL_FIX_PRIVILEGE_TABLES=/home/cpowers/work/dev/mysql-trunk-wl4896/scripts/mysql_fix_privilege_tables.sql
+MYSQL_HOST=127.0.0.1
+MYSQL_IMPORT=/home/cpowers/work/dev/mysql-trunk-wl4896/client//mysqlimport --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf
+MYSQL_LIBDIR=/home/cpowers/work/dev/mysql-trunk-wl4896/lib
+MYSQL_MACHINE_TYPE=x86_64
+MYSQL_MY_PRINT_DEFAULTS=/home/cpowers/work/dev/mysql-trunk-wl4896/extra/my_print_defaults
+MYSQL_PORT=9308
+MYSQL_SERVER_VERSION=5.6.3-m5
+MYSQL_SHAREDIR=/home/cpowers/work/dev/mysql-trunk-wl4896/sql/share
+MYSQL_SHOW=/home/cpowers/work/dev/mysql-trunk-wl4896/client//mysqlshow --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf
+MYSQL_SLAP=/home/cpowers/work/dev/mysql-trunk-wl4896/client//mysqlslap --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf
+MYSQL_SLAVE=/home/cpowers/work/dev/mysql-trunk-wl4896/client//mysql --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf --defaults-group-suffix=.2
+MYSQL_SOCK=/home/cpowers/work/etc/mysql-trunk-wl4896/mysql-test/var/tmp/mysqld.1.sock
+MYSQL_SYSTEM_ARCHITECTURE=64
+MYSQL_SYSTEM_TYPE=Linux
+MYSQL_TEST=/home/cpowers/work/dev/mysql-trunk-wl4896/client//mysqltest --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf --silent --tmpdir=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/tmp --character-sets-dir=/home/cpowers/work/dev/mysql-trunk-wl4896/sql/share/charsets --logdir=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/log --plugin_dir=/home/cpowers/work/dev/mysql-trunk-wl4896/plugin/auth --database=test --timer-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/log/timer
+MYSQL_TEST_DIR=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test
+MYSQL_TMP_DIR=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/tmp
+MYSQL_UPGRADE=/home/cpowers/work/dev/mysql-trunk-wl4896/client//mysql_upgrade --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf
+MYSQL_USER=root
+SHLIB_PATH=/home/cpowers/work/dev/mysql-trunk-wl4896/libmysql/.libs/:/home/cpowers/work/dev/mysql-trunk-wl4896/libmysql_r/.libs/:/home/cpowers/work/dev/mysql-trunk-wl4896/zlib/.libs/
 # Take a snapshot of SOCKET_INSTANCES
 CREATE TEMPORARY TABLE my_socket_instances AS
 SELECT * FROM performance_schema.socket_instances;
 # DEBUG 1
 SELECT * FROM performance_schema.socket_instances;
-EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
-wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
-wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
-wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
+EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
+wait/io/socket/sql/server_unix_socket	140087488855440	1	14		0	ACTIVE
+wait/io/socket/sql/server_tcpip_socket	140087488891504	1	13	0.0.0.0	13000	ACTIVE
+wait/io/socket/sql/client_connection	140087488908752	16	37		0	ACTIVE
 current_user()
 root@localhost
 user()
 root@localhost
-EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
-wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
-wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
-wait/io/socket/sql/client_connection    140614630554288 17      60      127.0.0.1       57022   ACTIVE
-wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
+EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
+wait/io/socket/sql/server_unix_socket	140087488855440	1	14		0	ACTIVE
+wait/io/socket/sql/server_tcpip_socket	140087488891504	1	13	0.0.0.0	13000	ACTIVE
+wait/io/socket/sql/client_connection	140087488899568	17	60	127.0.0.1	46650	ACTIVE
+wait/io/socket/sql/client_connection	140087488908752	16	37		0	ACTIVE
 # DEBUG 1a
 SELECT * FROM performance_schema.socket_instances;
-EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
-wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
-wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
-wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
+EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
+wait/io/socket/sql/server_unix_socket	140087488855440	1	14		0	ACTIVE
+wait/io/socket/sql/server_tcpip_socket	140087488891504	1	13	0.0.0.0	13000	ACTIVE
+wait/io/socket/sql/client_connection	140087488908752	16	37		0	ACTIVE
 # Get thread id of the default connection
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
 WHERE PROCESSLIST_ID = CONNECTION_ID();
 # Establish local TCP/IP connection (con1,127.0.0.1,root,,test,,)
-# DEBUG 2
+# Connect 1 (con1,127.0.0.1,root,,test,,13000)
+# Connect 1a (con1a,127.0.0.1,root,,test,13000)
 SELECT * FROM performance_schema.socket_instances;
-EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
-wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
-wait/io/socket/sql/client_connection    140614630501200 18      60      127.0.0.1       57023   ACTIVE
-wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
-wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
-# /home/cpowers/work/dev/mysql-trunk-wl4896/client//mysql --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf --host=127.0.0.1 --port=13000 --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
+EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
+wait/io/socket/sql/server_unix_socket	140087488855440	1	14		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488876272	18	60	127.0.0.1	46651	ACTIVE
+wait/io/socket/sql/server_tcpip_socket	140087488891504	1	13	0.0.0.0	13000	ACTIVE
+wait/io/socket/sql/client_connection	140087488908752	16	37		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488916368	19	61	127.0.0.1	46652	ACTIVE
+# DEBUG 2 - host, protocol
+# /home/cpowers/work/dev/mysql-trunk-wl4896/client//mysql --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf --host=127.0.0.1 --protocol=TCP --port=13000 --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
 current_user()
 root@localhost
 user()
 root@localhost
-EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
-wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
-wait/io/socket/sql/client_connection    140614630501200 18      60      127.0.0.1       57023   ACTIVE
-wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
-wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
-wait/io/socket/sql/client_connection    140614630639184 19      61      127.0.0.1       57024   ACTIVE
-# DEBUG 2a
+EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
+wait/io/socket/sql/server_unix_socket	140087488855440	1	14		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488876272	18	60	127.0.0.1	46651	ACTIVE
+wait/io/socket/sql/server_tcpip_socket	140087488891504	1	13	0.0.0.0	13000	ACTIVE
+wait/io/socket/sql/client_connection	140087488908752	16	37		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488916368	19	61	127.0.0.1	46652	ACTIVE
+wait/io/socket/sql/client_connection	140087488975952	20	62	127.0.0.1	46653	ACTIVE
+# DEBUG 2a - no host, protocol
+# /home/cpowers/work/dev/mysql-trunk-wl4896/client//mysql --defaults-file=/home/cpowers/work/dev/mysql-trunk-wl4896/mysql-test/var/my.cnf --protocol=TCP --port=13000 --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
+current_user()
+root@localhost
+user()
+root@localhost
+EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
+wait/io/socket/sql/client_connection	140087488803920	21	62	127.0.0.1	46655	ACTIVE
+wait/io/socket/sql/server_unix_socket	140087488855440	1	14		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488876272	18	60	127.0.0.1	46651	ACTIVE
+wait/io/socket/sql/server_tcpip_socket	140087488891504	1	13	0.0.0.0	13000	ACTIVE
+wait/io/socket/sql/client_connection	140087488908752	16	37		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488916368	19	61	127.0.0.1	46652	ACTIVE
+# DEBUG 2b - after execs
 SELECT * FROM performance_schema.socket_instances;
-EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
-wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
-wait/io/socket/sql/client_connection    140614630501200 18      60      127.0.0.1       57023   ACTIVE
-wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
-wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
+EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
+wait/io/socket/sql/server_unix_socket	140087488855440	1	14		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488876272	18	60	127.0.0.1	46651	ACTIVE
+wait/io/socket/sql/server_tcpip_socket	140087488891504	1	13	0.0.0.0	13000	ACTIVE
+wait/io/socket/sql/client_connection	140087488908752	16	37		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488916368	19	61	127.0.0.1	46652	ACTIVE
 # Store the thread id of connection 1 (tcp/ip)
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
@@ -64,12 +118,13 @@ WHERE THREAD_ID = @thread_id;
 # Establish a second local TCP/IP connection (con2,127.0.0.1,root,,test,,)
 # DEBUG 3
 SELECT * FROM performance_schema.socket_instances;
-EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
-wait/io/socket/sql/client_connection    140614630434448 20      61      127.0.0.1       57025   ACTIVE
-wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
-wait/io/socket/sql/client_connection    140614630501200 18      60      127.0.0.1       57023   ACTIVE
-wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
-wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
+EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
+wait/io/socket/sql/server_unix_socket	140087488855440	1	14		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488876272	18	60	127.0.0.1	46651	ACTIVE
+wait/io/socket/sql/client_connection	140087488889488	22	62	127.0.0.1	46656	ACTIVE
+wait/io/socket/sql/server_tcpip_socket	140087488891504	1	13	0.0.0.0	13000	ACTIVE
+wait/io/socket/sql/client_connection	140087488908752	16	37		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488916368	19	61	127.0.0.1	46652	ACTIVE
 # Store the thread_id of connection 2 (tcp/ip)
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
@@ -82,13 +137,14 @@ WHERE THREAD_ID = @thread_id;
 # Establish local unix domain connection (con3,localhost,root,,test,,)
 # DEBUG 4
 SELECT * FROM performance_schema.socket_instances;
-EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
-wait/io/socket/sql/client_connection    140614630434448 20      61      127.0.0.1       57025   ACTIVE
-wait/io/socket/sql/client_connection    140614630474768 16      37              0       ACTIVE
-wait/io/socket/sql/client_connection    140614630501200 18      60      127.0.0.1       57023   ACTIVE
-wait/io/socket/sql/server_unix_socket   140614630501424 1       14              0       ACTIVE
-wait/io/socket/sql/client_connection    140614630572880 21      62              0       ACTIVE
-wait/io/socket/sql/server_tcpip_socket  140614630574448 1       13      0.0.0.0 13000   ACTIVE
+EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
+wait/io/socket/sql/client_connection	140087488800560	23	63		0	ACTIVE
+wait/io/socket/sql/server_unix_socket	140087488855440	1	14		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488876272	18	60	127.0.0.1	46651	ACTIVE
+wait/io/socket/sql/client_connection	140087488889488	22	62	127.0.0.1	46656	ACTIVE
+wait/io/socket/sql/server_tcpip_socket	140087488891504	1	13	0.0.0.0	13000	ACTIVE
+wait/io/socket/sql/client_connection	140087488908752	16	37		0	ACTIVE
+wait/io/socket/sql/client_connection	140087488916368	19	61	127.0.0.1	46652	ACTIVE
 # Store the thread id of connection 3 (unix domain)
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
@@ -253,10 +309,11 @@ WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)
 NOT IN (SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE
 FROM my_socket_instances)
 ORDER BY THREAD_ID;
-EVENT_NAME      IP
-wait/io/socket/sql/client_connection    127.0.0.1
-wait/io/socket/sql/client_connection    127.0.0.1
-wait/io/socket/sql/client_connection
+EVENT_NAME	IP
+wait/io/socket/sql/client_connection	127.0.0.1
+wait/io/socket/sql/client_connection	127.0.0.1
+wait/io/socket/sql/client_connection	127.0.0.1
+wait/io/socket/sql/client_connection	
 # Disconnect con1, con2 and con3
 # Show differences to socket_instances before con1,con1 connecting.
 # There should be none.
@@ -266,4 +323,5 @@ WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)
 NOT IN (SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE
 FROM my_socket_instances)
 ORDER BY THREAD_ID;
-EVENT_NAME      OBJECT_INSTANCE_BEGIN   THREAD_ID       SOCKET_ID       IP      PORT    STATE
+EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
+wait/io/socket/sql/client_connection	140087488916368	19	61	127.0.0.1	46652	ACTIVE
