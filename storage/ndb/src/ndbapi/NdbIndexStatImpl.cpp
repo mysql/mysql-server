@@ -1838,7 +1838,9 @@ NdbIndexStatImpl::convert_range(Range& range,
     Uint32 len_out;
     for (uint i = 0; i < key_count; i++)
     {
-      const NdbRecord::Attr& attr = key_record->columns[i];
+      const uint i2 = key_record->key_indexes[i];
+      require(i2 < key_record->noOfColumns);
+      const NdbRecord::Attr& attr = key_record->columns[i2];
       if (!attr.is_null(key))
       {
         const char* data = key + attr.offset;
