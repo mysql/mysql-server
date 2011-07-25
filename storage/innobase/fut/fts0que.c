@@ -3157,6 +3157,8 @@ fts_query(
 	fts_query_t	query;
 	ulint		error;
 	byte*		lc_query_str;
+	ulint		lc_query_str_len;
+	ulint		result_len;
 	ibool		boolean_mode;
 	trx_t*		query_trx;
 	CHARSET_INFO*	charset;
@@ -3238,11 +3240,16 @@ fts_query(
 	/* Convert the query string to lower case before parsing. We own
 	the ut_malloc'ed result and so remember to free it before return. */
 
-	lc_query_str = ut_malloc(query_len + 1);
-	memcpy(lc_query_str, query_str, query_len);
-	lc_query_str[query_len] = 0;
+	lc_query_str_len = query_len * charset->casedn_multiply + 1;
+	lc_query_str = ut_malloc(lc_query_str_len);
 
-	innobase_fts_casedn_str(charset, (char*) lc_query_str);
+	result_len = innobase_fts_casedn_str(
+		charset, (char*) query_str, query_len,
+		(char*) lc_query_str, lc_query_str_len);
+
+	ut_ad(result_len < lc_query_str_len);
+
+	lc_query_str[result_len] = 0;
 
 	query.heap = mem_heap_create(128);
 

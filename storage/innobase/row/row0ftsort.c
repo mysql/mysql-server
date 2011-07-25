@@ -404,11 +404,11 @@ row_merge_fts_doc_tokenize(
 			continue;
 		}
 
-		memcpy(str_buf, str.utf8, str.len);
-		str_buf[str.len] = 0;
-		innobase_fts_casedn_str(doc->charset, (char*) &str_buf);
+		t_str.len = innobase_fts_casedn_str(
+			doc->charset, (char*) str.utf8, str.len,
+			(char*) &str_buf, FTS_MAX_WORD_LEN);
+
 		t_str.utf8 = (byte*) &str_buf;
-		t_str.len = strlen((char*) t_str.utf8);
 
 		/* Ignore string len smaller than "fts_min_token_size", or
 		if "cached_stopword" is defined, ingore words in the
