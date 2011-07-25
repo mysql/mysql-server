@@ -308,7 +308,7 @@ int table_events_waits_common::make_socket_object_columns(volatile PFS_events_wa
 
     uint port;
     char port_str[128];
-    char ip_str[INET6_ADDRSTRLEN];
+    char ip_str[INET6_ADDRSTRLEN+1];
     uint ip_len= 0;
     port_str[0]= ':';
 
