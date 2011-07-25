@@ -47,14 +47,20 @@ let $con0_thread_id = `SELECT @thread_id`;
 
 --echo # Establish local TCP/IP connection (con1,127.0.0.1,root,,test,,)
 #--disable_query_log
+--echo # Connect 1 (con1,127.0.0.1,root,,test,,$MASTER_MYPORT)
 --connect (con1,127.0.0.1,root,,test,,$MASTER_MYPORT)
+--echo # Connect 1a (con1a,127.0.0.1,root,,test,$MASTER_MYPORT)
+--connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT)
 #--enable_query_log
 
---echo # DEBUG 2
 SELECT * FROM performance_schema.socket_instances;
---echo # $MYSQL --host=127.0.0.1 --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
---exec $MYSQL --host=127.0.0.1 --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
---echo # DEBUG 2a
+--echo # DEBUG 2 - host, protocol
+--echo # $MYSQL --host=127.0.0.1 --protocol=TCP --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
+--exec $MYSQL --host=127.0.0.1 --protocol=TCP --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
+--echo # DEBUG 2a - no host, protocol
+--echo # $MYSQL --protocol=TCP --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
+--exec $MYSQL --protocol=TCP --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
+--echo # DEBUG 2b - after execs
 SELECT * FROM performance_schema.socket_instances;
 
 --echo # Store the thread id of connection 1 (tcp/ip)
