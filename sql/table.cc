@@ -3305,7 +3305,7 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
   mdl_context->find_deadlock();
 
   wait_status= mdl_context->m_wait.timed_wait(thd, abstime, TRUE,
-                                              "Waiting for table flush");
+                                              &stage_waiting_for_table_flush);
 
   mdl_context->done_waiting_for();
 
