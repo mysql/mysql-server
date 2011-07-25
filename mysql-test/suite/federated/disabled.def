@@ -10,3 +10,13 @@
 #
 ##############################################################################
 federated_transactions : Bug#11746899 Transactions do not work
+federated_archive : disabled for debugging
+federated_bug_13118 : disabled for debugging
+federated_bug_25714 : disabled for debugging
+federated_bug_35333 : disabled for debugging
+federated_debug : disabled for debugging
+federated_innodb : disabled for debugging
+federated_plugin : disabled for debugging
+federated_server : disabled for debugging
+federated : disabled for debugging
+federated_transactions : disabled for debugging
