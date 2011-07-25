@@ -18,7 +18,7 @@
 #include <m_string.h>
 #include <mysql.h>
 #include <my_getopt.h>
-#include <sys/stat.h>
+#include <my_dir.h>
 #include <my_global.h>
 #include <stdio.h>
 #include <string.h>
@@ -501,14 +501,13 @@ get_one_option(int optid,
 
 static int file_exists(char * filename)
 {
-  struct stat buf;
-  int i = stat (filename, &buf);
-  /* File found */
-  if (i == 0)
+  MY_STAT stat_arg;
+
+  if (!my_stat(filename, &stat_arg, MYF(0)))
   {
-    return 1;
+    return 0;
   }
-  return 0;
+  return 1;
 }
 
 
@@ -924,7 +923,8 @@ static int find_tool(const char *tool_name, char *tool_path)
 
   const char *paths[]= {
     opt_basedir, "/usr", "/usr/local/mysql", "/usr/sbin", "/usr/share",
-    "/extra", "/extra/debug", "/extra/release", "/bin"
+    "/extra", "/extra/debug", "/extra/release", "/bin", "/usr/bin",
+    "/mysql/bin"
   };
   for (i= 0; i < (int)array_elements(paths); i++)
   {
