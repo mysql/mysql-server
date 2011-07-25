@@ -4,7 +4,7 @@
 
 -- source include/have_innodb.inc
 
-# Check the default value and save for later restoration
+# Check the default value
 SET @orig = @@global.innodb_buffer_pool_filename;
 SELECT @orig;
 
@@ -23,6 +23,15 @@ let $wait_condition =
 -- file_exists $file
 
 # Try with a non-default filename
+
+# Restart the server so that the status gets reset to something other than
+# 'Buffer pool(s) dump completed at ', otherwise the following wait_condition
+# gets satisfied before the following dump has completed and --file_exists
+# fails
+-- source include/restart_mysqld.inc
+
+# Save for later restoration
+SET @orig = @@global.innodb_buffer_pool_filename;
 
 SET GLOBAL innodb_buffer_pool_filename = 'innodb_foobar_dump';
 

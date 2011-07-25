@@ -3,6 +3,7 @@ SELECT @orig;
 @orig
 ib_buffer_pool
 SET GLOBAL innodb_buffer_pool_dump_now = ON;
+SET @orig = @@global.innodb_buffer_pool_filename;
 SET GLOBAL innodb_buffer_pool_filename = 'innodb_foobar_dump';
 SET GLOBAL innodb_buffer_pool_dump_now = ON;
 SET GLOBAL innodb_buffer_pool_filename = @orig;
