@@ -21,11 +21,21 @@
 
 echo "================== Step 1 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
@@ -50,11 +60,21 @@ echo "================== con1 connected ==================";
 
 echo "================== Step 2 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
@@ -71,11 +91,21 @@ echo "================== con1 marker ==================";
 
 echo "================== Step 3 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
@@ -92,11 +122,21 @@ echo "================== con2 connected ==================";
 
 echo "================== Step 4 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
@@ -113,11 +153,21 @@ echo "================== con2 marker ==================";
 
 echo "================== Step 5 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
@@ -130,11 +180,21 @@ echo "================== con3 connected ==================";
 
 echo "================== Step 6 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
@@ -151,11 +211,21 @@ echo "================== con3 marker ==================";
 
 echo "================== Step 7 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
@@ -168,11 +238,21 @@ echo "================== con4 connected ==================";
 
 echo "================== Step 8 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
@@ -189,16 +269,28 @@ echo "================== con4 marker ==================";
 
 echo "================== Step 9 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
 
 --disconnect con1
+
+--connection default
 
 # Wait for the disconnect to complete
 let $wait_condition=
@@ -210,16 +302,28 @@ echo "================== con1 disconnected ==================";
 
 echo "================== Step 10 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
 
 --disconnect con2
+
+--connection default
 
 # Wait for the disconnect to complete
 let $wait_condition=
@@ -231,16 +335,28 @@ echo "================== con2 disconnected ==================";
 
 echo "================== Step 11 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
 
 --disconnect con3
+
+--connection default
 
 # Wait for the disconnect to complete
 let $wait_condition=
@@ -252,16 +368,28 @@ echo "================== con3 disconnected ==================";
 
 echo "================== Step 12 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
 
 --disconnect con4
+
+--connection default
 
 # Wait for the disconnect to complete
 let $wait_condition=
@@ -273,11 +401,21 @@ echo "================== con4 disconnected ==================";
 
 echo "================== Step 13 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
@@ -286,75 +424,450 @@ execute dump_hosts;
 
 truncate performance_schema.events_waits_summary_by_thread_by_event_name;
 
-echo "================== BY_THREAD truncated ==================";
+echo "================== WAITS_BY_THREAD truncated ==================";
 
 echo "================== Step 14 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
 
 truncate performance_schema.events_waits_summary_by_account_by_event_name;
 
-echo "================== BY_ACCOUNT truncated ==================";
+echo "================== WAITS_BY_ACCOUNT truncated ==================";
 
 echo "================== Step 15 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
 
 truncate performance_schema.events_waits_summary_by_user_by_event_name;
 
-echo "================== BY_USER truncated ==================";
+echo "================== WAITS_BY_USER truncated ==================";
 
 echo "================== Step 16 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
 
 truncate performance_schema.events_waits_summary_by_host_by_event_name;
 
-echo "================== BY_HOST truncated ==================";
+echo "================== WAITS_BY_HOST truncated ==================";
 
 echo "================== Step 17 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
 
 truncate performance_schema.events_waits_summary_global_by_event_name;
 
-echo "================== GLOBAL truncated ==================";
+echo "================== WAITS_GLOBAL truncated ==================";
 
 echo "================== Step 18 ==================";
 call dump_thread();
-execute dump_account;
-execute dump_user;
-execute dump_host;
-execute dump_global;
-execute dump_history;
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_stages_summary_by_thread_by_event_name;
+
+echo "================== STAGES_BY_THREAD truncated ==================";
+
+echo "================== Step 19 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_stages_summary_by_account_by_event_name;
+
+echo "================== STAGES_BY_ACCOUNT truncated ==================";
+
+echo "================== Step 20 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_stages_summary_by_user_by_event_name;
+
+echo "================== STAGES_BY_USER truncated ==================";
+
+echo "================== Step 21 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_stages_summary_by_host_by_event_name;
+
+echo "================== STAGES_BY_HOST truncated ==================";
+
+echo "================== Step 22 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_stages_summary_global_by_event_name;
+
+echo "================== STAGES_GLOBAL truncated ==================";
+
+echo "================== Step 23 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_statements_summary_by_thread_by_event_name;
+
+echo "================== STATEMENTS_BY_THREAD truncated ==================";
+
+echo "================== Step 24 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_statements_summary_by_account_by_event_name;
+
+echo "================== STATEMENTS_BY_ACCOUNT truncated ==================";
+
+echo "================== Step 25 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_statements_summary_by_user_by_event_name;
+
+echo "================== STATEMENTS_BY_USER truncated ==================";
+
+echo "================== Step 26 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_statements_summary_by_host_by_event_name;
+
+echo "================== STATEMENTS_BY_HOST truncated ==================";
+
+echo "================== Step 27 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_statements_summary_global_by_event_name;
+
+echo "================== STATEMENTS_GLOBAL truncated ==================";
+
+echo "================== Step 28 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.accounts;
+
+echo "================== ACCOUNTS truncated ==================";
+
+echo "================== Step 29 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.users;
+
+echo "================== USERS truncated ==================";
+
+echo "================== Step 30 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.hosts;
+
+echo "================== HOSTS truncated ==================";
+
+echo "================== Step 31 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_stages_account;
+execute dump_stages_user;
+execute dump_stages_host;
+execute dump_stages_global;
+execute dump_stages_history;
+execute dump_statements_account;
+execute dump_statements_user;
+execute dump_statements_host;
+execute dump_statements_global;
+execute dump_statements_history;
 execute dump_accounts;
 execute dump_users;
 execute dump_hosts;
