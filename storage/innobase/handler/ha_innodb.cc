@@ -4675,14 +4675,24 @@ innobase_fts_string_cmp(
 /******************************************************************//**
 Makes all characters in a string lower case. */
 extern "C" UNIV_INTERN
-void
+size_t
 innobase_fts_casedn_str(
 /*====================*/
 	CHARSET_INFO*	cs,	/*!< in: Character set */
-	char*		a)	/*!< in/out: string to put in
-				lower case */
+	char*		src,	/*!< in: string to put in lower case */
+	size_t		src_len,/*!< in: input string length */
+	char*		dst,	/*!< in: buffer for result string */
+	size_t		dst_len)/*!< in: buffer size */
 {
-	my_casedn_str(cs, a);
+	if (cs->casedn_multiply == 1) {
+		memcpy(dst, src, src_len);
+		dst[src_len] = 0;
+		my_casedn_str(cs, dst);
+
+		return(strlen(dst));
+	} else {
+		return(cs->cset->casedn(cs, src, src_len, dst, dst_len));
+	}
 }
 
 #define true_word_char(ctype, character)			\

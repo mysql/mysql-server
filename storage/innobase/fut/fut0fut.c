@@ -3962,15 +3962,19 @@ fts_process_token(
 		fts_string_t	t_str;
 		ulint		newlen;
 
-		fts_utf8_string_dup(&t_str, &str, heap);
-		innobase_fts_casedn_str(doc->charset, (char*) t_str.utf8);
-		newlen = strlen((char*) t_str.utf8);
+		t_str.len = str.len * doc->charset->casedn_multiply + 1;
+		t_str.utf8 = (unsigned char *) mem_heap_alloc(heap, t_str.len);
+
+		newlen = innobase_fts_casedn_str(
+			doc->charset, (char*) str.utf8, str.len,
+			(char*) t_str.utf8, t_str.len);
+
+		t_str.len = newlen;
 
 		/* Add the word to the document statistics. If the word
 		hasn't been seen before we create a new entry for it. */
 		if (rbt_search(result_doc->tokens, &parent, &t_str) != 0) {
 			fts_token_t	new_token;
-
 
 			new_token.text.utf8 = t_str.utf8;
 			new_token.text.len = newlen;

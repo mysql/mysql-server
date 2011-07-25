@@ -53,7 +53,7 @@ extern ulong		fts_max_token_size;
 extern ulong		fts_min_token_size;
 
 /* Maximum possible Fulltext word length */
-#define FTS_MAX_WORD_LEN	2 * HA_FT_MAXCHARLEN
+#define FTS_MAX_WORD_LEN	3 * HA_FT_MAXCHARLEN
 
 /* Variable specifying the table that has Fulltext index to display its
 content through information schema table */
