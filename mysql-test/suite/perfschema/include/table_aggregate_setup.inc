@@ -198,7 +198,7 @@ $$
 
 delimiter ;$$
 
-prepare dump_user from
+prepare dump_waits_user from
   "select user, event_name, count_star
   from performance_schema.events_waits_summary_by_user_by_event_name
   where user like \'user%\' and event_name in
@@ -206,7 +206,7 @@ prepare dump_user from
    \'wait/lock/table/sql/handler\')
   order by user, event_name;";
 
-prepare dump_account from
+prepare dump_waits_account from
   "select user, host, event_name, count_star
   from performance_schema.events_waits_summary_by_account_by_event_name
   where user like \'user%\' and event_name in
@@ -214,7 +214,7 @@ prepare dump_account from
    \'wait/lock/table/sql/handler\')
   order by user, host, event_name;";
 
-prepare dump_host from
+prepare dump_waits_host from
   "select host, event_name, count_star
   from performance_schema.events_waits_summary_by_host_by_event_name
   where host=\'localhost\'  and event_name in
@@ -222,7 +222,7 @@ prepare dump_host from
    \'wait/lock/table/sql/handler\')
   order by host, event_name;";
 
-prepare dump_global from
+prepare dump_waits_global from
   "select event_name, count_star
   from performance_schema.events_waits_summary_global_by_event_name
   where event_name in
@@ -230,7 +230,7 @@ prepare dump_global from
    \'wait/lock/table/sql/handler\')
   order by event_name;";
 
-prepare dump_history from
+prepare dump_waits_history from
   "select event_name, count(event_name), object_type, object_schema, object_name
   from performance_schema.events_waits_history_long
   where event_name in
@@ -239,7 +239,7 @@ prepare dump_history from
   group by object_type, object_schema, object_name, event_name
   order by object_type, object_schema, object_name, event_name;";
 
-prepare dump_index_io from
+prepare dump_waits_index_io from
   "select object_type, object_schema, object_name, index_name,
   count_star, count_read, count_write,
   count_fetch, count_insert, count_update, count_delete
@@ -248,7 +248,7 @@ prepare dump_index_io from
   and object_name in ('t1', 't2', 't3')
   order by object_type, object_schema, object_name, index_name;";
 
-prepare dump_table_io from
+prepare dump_waits_table_io from
   "select object_type, object_schema, object_name,
   count_star, count_read, count_write,
   count_fetch, count_insert, count_update, count_delete
@@ -257,7 +257,7 @@ prepare dump_table_io from
   and object_name in ('t1', 't2', 't3')
   order by object_type, object_schema, object_name";
 
-prepare dump_table_lock from
+prepare dump_waits_table_lock from
   "select object_type, object_schema, object_name,
   count_star, count_read, count_write,
   count_read_normal, count_read_with_shared_locks,
