@@ -468,10 +468,13 @@ trx_id_t
 trx_sys_get_max_trx_id(void)
 /*========================*/
 {
+#if UNIV_WORD_SIZE < DATA_TRX_ID_LEN
+	trx_id_t	max_trx_id;
+#endif
+
 	ut_ad(!mutex_own(&trx_sys->mutex));
 
 #if UNIV_WORD_SIZE < DATA_TRX_ID_LEN
-	trx_id_t	max_trx_id;
 	/* Avoid torn reads. */
 	mutex_enter(&trx_sys->mutex);
 	max_trx_id = trx_sys->max_trx_id;
