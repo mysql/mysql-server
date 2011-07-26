@@ -8157,6 +8157,7 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
       before it's written to the log.
     */
     share->id= id;
+    share->state.logrec_file_id= lsn;
   }
   pthread_mutex_unlock(&share->intern_lock);
   return 0;
