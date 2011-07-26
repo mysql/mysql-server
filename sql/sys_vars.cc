@@ -2500,10 +2500,10 @@ static Sys_var_plugin Sys_default_storage_engine(
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
 
-static Sys_var_plugin Sys_default_temp_storage_engine(
-       "default_temp_storage_engine", "The default storage engine for new explict temporary tables",
+static Sys_var_plugin Sys_default_tmp_storage_engine(
+       "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",
        SESSION_VAR(temp_table_plugin), NO_CMD_LINE,
-       MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_temp_storage_engine),
+       MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
 
 //  Alias for @@default_storage_engine

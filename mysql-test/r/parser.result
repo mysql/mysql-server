@@ -655,3 +655,7 @@ drop tablespace ndb_ts1 engine=myisam;
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
 drop tablespace ndb_ts1;
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+CREATE TABLE t (id INT PRIMARY KEY);
+ALTER TABLE t RENAME TO `t1';;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '`t1'' at line 1
+DROP TABLE t;

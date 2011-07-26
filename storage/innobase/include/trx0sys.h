@@ -132,8 +132,7 @@ ib_bh_t*
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*****************************************************************//**
-Creates the trx_sys instance and initializes ib_bh, lock and
-read_view_mutex. */
+Creates the trx_sys instance and initializes ib_bh and mutex. */
 UNIV_INTERN
 void
 trx_sys_create(void);
@@ -674,9 +673,9 @@ struct trx_doublewrite_struct{
 /** The transaction system central memory data structure. */
 struct trx_sys_struct{
 
-	rw_lock_t	lock;		/*!< read-write lock protecting most
-					fields in this structure except when
-					noted otherwise */
+	mutex_t		mutex;		/*!< mutex protecting most fields in
+					this structure except when noted
+					otherwise */
 	ulint		n_mysql_trx;	/*!< Number of transactions currently
 					allocated for MySQL */
 	ulint		n_prepared_trx;	/*!< Number of transactions currently
@@ -702,7 +701,6 @@ struct trx_sys_struct{
 					list (update undo logs for committed
 					transactions), protected by
 					rseg->mutex */
-	mutex_t		read_view_mutex;/*!< Protects the view_list */
 	UT_LIST_BASE_NODE_T(read_view_t) view_list;
 					/*!< List of read views sorted
 					on trx no, biggest first */
