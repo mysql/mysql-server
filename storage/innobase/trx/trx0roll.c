@@ -161,7 +161,7 @@ trx_rollback_for_mysql(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	/* We are reading trx->state without holding trx_sys->lock
+	/* We are reading trx->state without holding trx_sys->mutex
 	here, because the rollback should be invoked for a running
 	active MySQL transaction (or recovered prepared transaction)
 	that is associated with the current thread. */
@@ -213,7 +213,7 @@ trx_rollback_last_sql_stat_for_mysql(
 {
 	int	err;
 
-	/* We are reading trx->state without holding trx_sys->lock
+	/* We are reading trx->state without holding trx_sys->mutex
 	here, because the statement rollback should be invoked for a
 	running active MySQL transaction that is associated with the
 	current thread. */
@@ -381,7 +381,7 @@ trx_rollback_to_savepoint_for_mysql(
 {
 	trx_named_savept_t*	savep;
 
-	/* We are reading trx->state without holding trx_sys->lock
+	/* We are reading trx->state without holding trx_sys->mutex
 	here, because the savepoint rollback should be invoked for a
 	running active MySQL transaction that is associated with the
 	current thread. */
@@ -550,7 +550,7 @@ trx_rollback_active(
 
 	ut_a(thr == que_fork_start_command(fork));
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	trx_roll_crash_recv_trx	= trx;
 
@@ -560,7 +560,7 @@ trx_rollback_active(
 
 	rows_to_undo = trx_roll_max_undo_no;
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	if (rows_to_undo > 1000000000) {
 		rows_to_undo = rows_to_undo / 1000000;
@@ -645,7 +645,7 @@ Rollback or clean up any resurrected incomplete transactions. It assumes
 that the caller holds the trx_sys_t::lock in S mode and it will release the
 lock if it does a clean up or rollback.
 @return TRUE if the transaction was cleaned up or rolled back
-and trx_sys->lock was released. */
+and trx_sys->mutex was released. */
 static
 ibool
 trx_rollback_resurrected(
@@ -654,9 +654,7 @@ trx_rollback_resurrected(
 	ibool	all)	/*!< in: FALSE=roll back dictionary transactions;
 			TRUE=roll back all non-PREPARED transactions */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	/* The trx->is_recovered flag and trx->state are set
 	atomically under the protection of the trx->mutex (and
@@ -672,7 +670,7 @@ trx_rollback_resurrected(
 
 	switch (trx->state) {
 	case TRX_STATE_COMMITTED_IN_MEMORY:
-		rw_lock_s_unlock(&trx_sys->lock);
+		mutex_exit(&trx_sys->mutex);
 		trx_mutex_exit(trx);
 		fprintf(stderr,
 			"InnoDB: Cleaning up trx with id " TRX_ID_FMT "\n",
@@ -682,7 +680,7 @@ trx_rollback_resurrected(
 	case TRX_STATE_ACTIVE:
 		trx_mutex_exit(trx);
 		if (all || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
-			rw_lock_s_unlock(&trx_sys->lock);
+			mutex_exit(&trx_sys->mutex);
 			trx_rollback_active(trx);
 			return(TRUE);
 		}
@@ -732,7 +730,7 @@ trx_rollback_or_clean_recovered(
 	recovered transactions to clean up or recover. */
 
 	do {
-		rw_lock_s_lock(&trx_sys->lock);
+		mutex_enter(&trx_sys->mutex);
 
 		for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 		     trx != NULL;
@@ -741,18 +739,18 @@ trx_rollback_or_clean_recovered(
 			ut_ad(trx->in_trx_list);
 
 			/* If this function does a cleanup or rollback
-			then it will release the trx_sys->lock, therefore
+			then it will release the trx_sys->mutex, therefore
 			we need to reacquire it before retrying the loop. */
 
 			if (trx_rollback_resurrected(trx, all)) {
 
-				rw_lock_s_lock(&trx_sys->lock);
+				mutex_enter(&trx_sys->mutex);
 
 				break;
 			}
 		}
 
-		rw_lock_s_unlock(&trx_sys->lock);
+		mutex_exit(&trx_sys->mutex);
 
 	} while (trx != NULL);
 

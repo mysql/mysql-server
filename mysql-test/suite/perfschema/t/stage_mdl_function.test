@@ -38,7 +38,14 @@ drop function test.f1;
 
 --connection default
 
-# Wait for the drop function to block
+# user1: Wait for the statement to complete
+let $wait_condition=
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user1'
+  and PROCESSLIST_COMMAND = 'Sleep';
+--source include/wait_condition.inc
+
+# user2: Wait for the drop function to block
 let $wait_condition=
   select count(*) = 1 from performance_schema.threads
   where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user2'
