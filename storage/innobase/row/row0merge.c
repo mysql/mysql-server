@@ -85,6 +85,8 @@ static ibool	row_merge_print_block_write;
 /* @} */
 #endif /* UNIV_DEBUG */
 
+/* Whether to disable file system cache */
+UNIV_INTERN char        fts_enable_sort_o_direct;
 
 /********************************************************************//**
 Read sorted file containing index data tuples and insert these data
@@ -2467,6 +2469,9 @@ row_merge_file_create(
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
 	merge_file->fd = row_merge_file_create_low();
+	if (fts_enable_sort_o_direct) {
+		os_file_set_nocache(merge_file->fd, "row0merge.c", "sort");
+	}
 	merge_file->offset = 0;
 	merge_file->n_rec = 0;
 }

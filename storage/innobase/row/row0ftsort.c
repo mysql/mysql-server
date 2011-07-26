@@ -216,7 +216,12 @@ row_fts_psort_info_init(
 
 			row_merge_file_create(psort_info[j].merge_file[i]);
 
-			psort_info[j].merge_block[i] = ut_malloc(block_size);
+			/* Need to align memory on O_DIRECT write */
+			psort_info[j].block_alloc[i] = ut_malloc(
+				block_size + 1024);
+
+			psort_info[j].merge_block[i] = ut_align(
+				psort_info[j].block_alloc[i], 1024);
 
 			if (!psort_info[j].merge_block[i]) {
 				ret = FALSE;
@@ -269,8 +274,8 @@ row_fts_psort_info_destroy(
 						psort_info[j].merge_file[i]);
 				}
 
-				if (psort_info[j].merge_block[i]) {
-					ut_free(psort_info[j].merge_block[i]);
+				if (psort_info[j].block_alloc[i]) {
+					ut_free(psort_info[j].block_alloc[i]);
 				}
 				mem_free(psort_info[j].merge_file[i]);
 			}
