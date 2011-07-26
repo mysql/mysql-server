@@ -13579,6 +13579,11 @@ static MYSQL_SYSVAR_BOOL(ft_enable_diag_print, fts_enable_diag_print,
   "Whether to enable additional FTS diagnostic printout ",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(ft_enable_sort_o_direct, fts_enable_sort_o_direct,
+  PLUGIN_VAR_OPCMDARG,
+  "Whether to enable O_DIRECT on sort I/O",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
   PLUGIN_VAR_NOCMDARG,
   "FTS internal auxiliary table to be checked",
@@ -13614,7 +13619,7 @@ static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
 static MYSQL_SYSVAR_ULONG(sort_buf_size, srv_sort_buf_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "InnoDB Fulltext search sort buffer size",
-  NULL, NULL, 3145728, 1048576, 64836480, 0);
+  NULL, NULL, 1048576, 524288, 64836480, 0);
 
 static MYSQL_SYSVAR_BOOL(optimize_fulltext_only, innodb_optimize_fulltext_only,
   PLUGIN_VAR_NOCMDARG,
@@ -13845,6 +13850,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(server_stopword_table),
   MYSQL_SYSVAR(ft_aux_table),
   MYSQL_SYSVAR(ft_enable_diag_print),
+  MYSQL_SYSVAR(ft_enable_sort_o_direct),
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(stats_transient_sample_pages),
