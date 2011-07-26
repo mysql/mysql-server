@@ -642,7 +642,7 @@ trx_rollback_active(
 
 /*******************************************************************//**
 Rollback or clean up any resurrected incomplete transactions. It assumes
-that the caller holds the trx_sys_t::lock in S mode and it will release the
+that the caller holds the trx_sys_t::mutex and it will release the
 lock if it does a clean up or rollback.
 @return TRUE if the transaction was cleaned up or rolled back
 and trx_sys->mutex was released. */
