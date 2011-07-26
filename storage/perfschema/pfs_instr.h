@@ -246,7 +246,7 @@ struct PFS_socket : public PFS_instr
   /** Socket file descriptor */
   uint m_fd;
   /** Raw socket address */
-  struct sockaddr m_sock_addr;
+  struct sockaddr_storage  m_sock_addr;
   /** Length of address */
   socklen_t m_addr_len;
   /** Idle flag. */

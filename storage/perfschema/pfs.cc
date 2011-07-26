@@ -4764,8 +4764,8 @@ static void set_socket_info_v1(PSI_socket *socket,
     pfs->m_addr_len= addr_len;
   
     /** Restrict address length to size of struct */
-    if (unlikely(pfs->m_addr_len > sizeof(struct sockaddr)))
-      pfs->m_addr_len= sizeof(struct sockaddr);
+    if (unlikely(pfs->m_addr_len > sizeof(sockaddr_storage)))
+      pfs->m_addr_len= sizeof(struct sockaddr_storage);
   
     memcpy(&pfs->m_sock_addr, addr, pfs->m_addr_len);
   }
