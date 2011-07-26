@@ -21,6 +21,9 @@
 --source include/not_embedded.inc
 --source include/not_windows.inc
 
+--echo # DEBUG 0 - ENV
+--exec env | grep -i MYSQL_ | sort
+
 # Take a snapshot of SOCKET_INSTANCES
 --echo # Take a snapshot of SOCKET_INSTANCES
 CREATE TEMPORARY TABLE my_socket_instances AS
@@ -50,7 +53,7 @@ let $con0_thread_id = `SELECT @thread_id`;
 --echo # Connect 1 (con1,127.0.0.1,root,,test,,$MASTER_MYPORT)
 --connect (con1,127.0.0.1,root,,test,,$MASTER_MYPORT)
 --echo # Connect 1a (con1a,127.0.0.1,root,,test,$MASTER_MYPORT)
---connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT)
+--connect (con1a,127.0.0.1,root,,test,$MASTER_MYPORT)
 #--enable_query_log
 
 SELECT * FROM performance_schema.socket_instances;
