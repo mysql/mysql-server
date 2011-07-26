@@ -12496,6 +12496,15 @@ static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
 
+/* Alias for innodb_undo_logs, this config variable is deprecated. */
+static MYSQL_SYSVAR_ULONG(rollback_segments, srv_undo_logs,
+  PLUGIN_VAR_OPCMDARG,
+  "Number of undo logs to use (deprecated).",
+  NULL, NULL,
+  TRX_SYS_N_RSEGS,	/* Default setting */
+  1,			/* Minimum value */
+  TRX_SYS_N_RSEGS, 0);	/* Maximum value */
+
 static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The AUTOINC lock modes supported by InnoDB:               "
@@ -12677,6 +12686,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(undo_logs),
+  MYSQL_SYSVAR(rollback_segments),
   MYSQL_SYSVAR(undo_directory),
   MYSQL_SYSVAR(undo_tablespaces),
   MYSQL_SYSVAR(sync_array_size),
