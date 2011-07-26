@@ -78,7 +78,7 @@ void pfs_print_error(const char *format, ...)
 uint pfs_get_socket_address(char *host,
                             uint host_len,
                             uint *port,
-                            const struct sockaddr *src_addr,
+                            const struct sockaddr_storage *src_addr,
                             socklen_t src_len)
 {
   DBUG_ASSERT(host);
@@ -88,7 +88,7 @@ uint pfs_get_socket_address(char *host,
   memset(host, 0, host_len);
   *port= 0;
 
-  switch (src_addr->sa_family)
+  switch (src_addr->ss_family)
   {
     case AF_INET:
     {
@@ -114,7 +114,7 @@ uint pfs_get_socket_address(char *host,
       struct sockaddr_in6 *sa6= (struct sockaddr_in6 *)(src_addr);
     #ifdef __WIN__
       /* Older versions of Windows do not support inet_ntop() */
-      getnameinfo((struct sockaddr *)sa6, sizeof(struct sockaddr_in),
+      getnameinfo((struct sockaddr *)sa6, sizeof(struct sockaddr_in6),
                   host, host_len, NULL, 0, NI_NUMERICHOST);
     #else
       inet_ntop(AF_INET6, &(sa6->sin6_addr), host, INET6_ADDRSTRLEN);

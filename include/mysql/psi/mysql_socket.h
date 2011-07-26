@@ -878,12 +878,12 @@ inline_mysql_socket_accept
   if (likely(locker != NULL))
   {
     PSI_CALL(start_socket_wait)(locker, (size_t)0, src_file, src_line);
-    socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
+    socket_accept.fd= accept(socket_listen.fd, addr, &addr_length);
     PSI_CALL(end_socket_wait)(locker, (size_t)0);
   }
   else
   {
-    socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
+    socket_accept.fd= accept(socket_listen.fd, addr, &addr_length);
   }
 
   /** Initialize the instrument with the new socket descriptor and address */

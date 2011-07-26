@@ -44,7 +44,7 @@ void pfs_free(void *ptr);
 uint pfs_get_socket_address(char *host,
                             uint host_len,
                             uint *port,
-                            const struct sockaddr *src_addr,
+                            const struct sockaddr_storage *src_addr,
                             socklen_t src_len);
 
 /**
