@@ -2134,8 +2134,10 @@ fts_update_next_doc_id(
 	const char*		table_name,	/*!< in: table name */
 	doc_id_t		doc_id)		/*!< in: DOC ID to set */
 {
+	table->fts->cache->synced_doc_id = doc_id;
 	table->fts->cache->next_doc_id = doc_id + 1;
-	table->fts->cache->synced_doc_id = table->fts->cache->next_doc_id;
+
+	table->fts->cache->first_doc_id = table->fts->cache->next_doc_id;
 
 	fts_update_sync_doc_id(table, table_name, 
 			       table->fts->cache->synced_doc_id, NULL);
@@ -2174,6 +2176,10 @@ fts_get_next_doc_id(
 		rw_lock_x_unlock(&cache->lock);
 	} else {
 nextid:
+		if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+			return(DB_SUCCESS);
+		}
+
 		/* Otherwise, simply increment the value in cache */
 		mutex_enter(&(cache->doc_id_lock));
 		++cache->next_doc_id;
@@ -2260,7 +2266,11 @@ retry:
 		goto func_exit;
 	}
 
-        cache->synced_doc_id = ut_max(doc_id_cmp, *doc_id);
+	if (doc_id_cmp == 0 && (*doc_id)) {
+		cache->synced_doc_id = *doc_id - 1;
+	} else {
+		cache->synced_doc_id = ut_max(doc_id_cmp, *doc_id);
+	}
 
 	mutex_enter(&cache->doc_id_lock);
 	if (cache->next_doc_id < cache->synced_doc_id + 1) {
@@ -2505,6 +2515,11 @@ fts_add(
 		mutex_enter(&table->fts->cache->deleted_lock);
 		++table->fts->cache->added;
 		mutex_exit(&table->fts->cache->deleted_lock);
+
+		if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+		    && doc_id >= table->fts->cache->next_doc_id) {
+			table->fts->cache->next_doc_id = doc_id + 1;
+		}
 	}
 
 	return(error);
@@ -2686,11 +2701,18 @@ fts_create_doc_id(
 					being inserted. */
 	mem_heap_t*	heap)		/* in: heap */
 {
-	ulint		error;
+	ulint		error = DB_SUCCESS;
 	doc_id_t	doc_id = 0;
 
 	ut_a(table->fts->doc_col != ULINT_UNDEFINED);
 
+	if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+		if (table->fts->cache->first_doc_id == 0) {
+			error = fts_get_next_doc_id(table, &doc_id);
+		}
+		return(error);
+	}
+ 
 	error = fts_get_next_doc_id(table, &doc_id);
 
 	if (error == DB_SUCCESS) {
@@ -3795,7 +3817,6 @@ fts_sync_commit(
 	we just sync-ed to index table */
 	error = fts_cmp_set_sync_doc_id(sync->table, sync->max_doc_id, FALSE,
 					&last_doc_id);
-
 
 	/* Get the list of deleted documents that are either in the
 	cache or were headed there but were deleted before the add
