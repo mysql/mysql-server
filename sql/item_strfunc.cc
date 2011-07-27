@@ -1427,11 +1427,16 @@ void Item_str_func::left_right_max_length()
   if (args[1]->const_item())
   {
     int length= (int) args[1]->val_int();
+    if (args[1]->null_value)
+      goto end;
+
     if (length <= 0)
       char_length=0;
     else
       set_if_smaller(char_length, (uint) length);
   }
+
+end:
   fix_char_length(char_length);
 }
 
@@ -1534,6 +1539,8 @@ void Item_func_substr::fix_length_and_dec()
   if (args[1]->const_item())
   {
     int32 start= (int32) args[1]->val_int();
+    if (args[1]->null_value)
+      goto end;
     if (start < 0)
       max_length= ((uint)(-start) > max_length) ? 0 : (uint)(-start);
     else
@@ -1542,11 +1549,15 @@ void Item_func_substr::fix_length_and_dec()
   if (arg_count == 3 && args[2]->const_item())
   {
     int32 length= (int32) args[2]->val_int();
+    if (args[2]->null_value)
+      goto end;
     if (length <= 0)
       max_length=0; /* purecov: inspected */
     else
       set_if_smaller(max_length,(uint) length);
   }
+
+end:
   max_length*= collation.collation->mbmaxlen;
 }
 
@@ -2732,6 +2743,8 @@ void Item_func_repeat::fix_length_and_dec()
   {
     /* must be longlong to avoid truncation */
     longlong count= args[1]->val_int();
+    if (args[1]->null_value)
+      goto end;
 
     /* Assumes that the maximum length of a String is < INT_MAX32. */
     /* Set here so that rest of code sees out-of-bound value as such. */
@@ -2740,12 +2753,12 @@ void Item_func_repeat::fix_length_and_dec()
 
     ulonglong char_length= (ulonglong) args[0]->max_char_length() * count;
     fix_char_length_ulonglong(char_length);
+    return;
   }
-  else
-  {
-    max_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
-  }
+
+end:
+  max_length= MAX_BLOB_WIDTH;
+  maybe_null= 1;
 }
 
 /**
@@ -2811,18 +2824,20 @@ void Item_func_rpad::fix_length_and_dec()
   if (args[1]->const_item())
   {
     ulonglong char_length= (ulonglong) args[1]->val_int();
+    if (args[1]->null_value)
+      goto end;
     DBUG_ASSERT(collation.collation->mbmaxlen > 0);
     /* Assumes that the maximum length of a String is < INT_MAX32. */
     /* Set here so that rest of code sees out-of-bound value as such. */
     if (char_length > INT_MAX32)
       char_length= INT_MAX32;
     fix_char_length_ulonglong(char_length);
+    return;
   }
-  else
-  {
-    max_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
-  }
+
+end:
+  max_length= MAX_BLOB_WIDTH;
+  maybe_null= 1;
 }
 
 
@@ -2915,18 +2930,20 @@ void Item_func_lpad::fix_length_and_dec()
   if (args[1]->const_item())
   {
     ulonglong char_length= (ulonglong) args[1]->val_int();
+    if (args[1]->null_value)
+      goto end;
     DBUG_ASSERT(collation.collation->mbmaxlen > 0);
     /* Assumes that the maximum length of a String is < INT_MAX32. */
     /* Set here so that rest of code sees out-of-bound value as such. */
     if (char_length > INT_MAX32)
       char_length= INT_MAX32;
     fix_char_length_ulonglong(char_length);
+    return;
   }
-  else
-  {
-    max_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
-  }
+
+end:
+  max_length= MAX_BLOB_WIDTH;
+  maybe_null= 1;
 }
 
 
