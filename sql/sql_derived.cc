@@ -283,19 +283,20 @@ exit:
 bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
   SELECT_LEX_UNIT *unit= derived->get_unit();
+  DBUG_ENTER("mysql_derived_optimize");
 
   DBUG_ASSERT(unit);
 
   // optimize union without execution
   if (unit->optimize() || thd->is_error())
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   if (unit->get_result()->estimated_rowcount <= 1 &&
       (mysql_derived_create(thd, lex, derived) ||
        mysql_derived_materialize(thd, lex, derived)))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -320,6 +321,7 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
   TABLE *table= derived->table;
   SELECT_LEX_UNIT *unit= derived->get_unit();
+  DBUG_ENTER("mysql_derived_create");
 
   DBUG_ASSERT(unit);
 
@@ -331,7 +333,7 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
    *) Table is already created.
   */
   if (!derived->uses_materialization() || !table || table->created)
-    return FALSE;
+    DBUG_RETURN(FALSE);
   /* create tmp table */
   select_union *result= (select_union*)unit->get_result();
 
@@ -343,13 +345,13 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
                              thd->variables.option_bits |
                              TMP_TABLE_ALL_COLUMNS),
                              thd->variables.big_tables))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   table->created= TRUE;
 
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -383,7 +385,7 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
   DBUG_ASSERT(unit && table && table->created);
 
   if (derived->materialized)
-    return FALSE;
+    DBUG_RETURN(FALSE);
 
   select_union *derived_result= derived->derived_result;
 
