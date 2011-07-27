@@ -1032,7 +1032,7 @@ fts_bsearch(
 		/* Nothing to search */
 		return(-1);
 	} else {
-		while (lower <= upper) {
+		while (lower < upper) {
 			int	i = (lower + upper) >> 1;
 
 			if (doc_id > array[i].doc_id) {
