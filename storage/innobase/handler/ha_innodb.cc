@@ -13579,9 +13579,9 @@ static MYSQL_SYSVAR_BOOL(ft_enable_diag_print, fts_enable_diag_print,
   "Whether to enable additional FTS diagnostic printout ",
   NULL, NULL, TRUE);
 
-static MYSQL_SYSVAR_BOOL(ft_enable_sort_o_direct, fts_enable_sort_o_direct,
+static MYSQL_SYSVAR_BOOL(disable_sort_file_cache, srv_disable_sort_file_cache,
   PLUGIN_VAR_OPCMDARG,
-  "Whether to enable O_DIRECT on sort I/O",
+  "Whether to disable OS system file cache for sort I/O",
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
@@ -13850,7 +13850,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(server_stopword_table),
   MYSQL_SYSVAR(ft_aux_table),
   MYSQL_SYSVAR(ft_enable_diag_print),
-  MYSQL_SYSVAR(ft_enable_sort_o_direct),
+  MYSQL_SYSVAR(disable_sort_file_cache),
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(stats_transient_sample_pages),

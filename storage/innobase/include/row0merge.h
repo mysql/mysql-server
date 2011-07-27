@@ -124,10 +124,6 @@ struct row_merge_dup_struct {
 /** Structure for reporting duplicate records. */
 typedef struct row_merge_dup_struct row_merge_dup_t;
 
-/* Whether to disable file system cache by turning on O_DIRECT if it is
-defined */
-extern char		fts_enable_sort_o_direct;
-
 /*********************************************************************//**
 Sets an exclusive lock on a table, for the duration of creating indexes.
 @return	error code or DB_SUCCESS */

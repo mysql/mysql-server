@@ -80,6 +80,9 @@ and/or load it during startup. */
 extern char		srv_buffer_pool_dump_at_shutdown;
 extern char		srv_buffer_pool_load_at_startup;
 
+/* Whether to disable file system cache if it is defined */
+extern char		srv_disable_sort_file_cache;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
