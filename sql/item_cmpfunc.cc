@@ -4894,21 +4894,20 @@ longlong Item_func_like::val_int()
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
-  if (args[1]->const_item())
-  {
-    String* res2= args[1]->val_str((String *)&cmp.value2);
-    const char *ptr2;
+  if (!args[1]->const_item())
+    return OPTIMIZE_NONE;
 
-    if (!res2 || !(ptr2= res2->ptr()))
-      return OPTIMIZE_NONE;
+  String* res2= args[1]->val_str((String *)&cmp.value2);
+  if (!res2)
+    return OPTIMIZE_NONE;
 
-    if (*ptr2 != wild_many)
-    {
-      if (args[0]->result_type() != STRING_RESULT || *ptr2 != wild_one)
-	return OPTIMIZE_OP;
-    }
-  }
-  return OPTIMIZE_NONE;
+  if (!res2->length()) // Can optimize empty wildcard: column LIKE ''
+    return OPTIMIZE_OP;
+
+  DBUG_ASSERT(res2->ptr());
+  char first= res2->ptr()[0];
+  return (first == wild_many || first == wild_one) ?
+    OPTIMIZE_NONE : OPTIMIZE_OP;
 }
 
 

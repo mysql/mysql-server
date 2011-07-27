@@ -298,7 +298,7 @@ trx_get_on_id(
 Returns the minimum trx id in trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->state
 to find out if the minimum trx id transaction itself is active, or already
-committed.). The caller must be holding the trx_sys_t::lock in shared mode.
+committed.). The caller must be holding the trx_sys_t::mutex in shared mode.
 @return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
 UNIV_INLINE
 trx_id_t
@@ -468,10 +468,13 @@ trx_id_t
 trx_sys_get_max_trx_id(void)
 /*========================*/
 {
+#if UNIV_WORD_SIZE < DATA_TRX_ID_LEN
+	trx_id_t	max_trx_id;
+#endif
+
 	ut_ad(!mutex_own(&trx_sys->mutex));
 
 #if UNIV_WORD_SIZE < DATA_TRX_ID_LEN
-	trx_id_t	max_trx_id;
 	/* Avoid torn reads. */
 	mutex_enter(&trx_sys->mutex);
 	max_trx_id = trx_sys->max_trx_id;
