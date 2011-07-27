@@ -4,34 +4,11 @@
 
 -- source include/have_innodb.inc
 
-# Check the default value
+# Check the default value and save for later restoration
 SET @orig = @@global.innodb_buffer_pool_filename;
 SELECT @orig;
 
-# Do a dump and check that the file has been created
-
-SET GLOBAL innodb_buffer_pool_dump_now = ON;
--- let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
-
-# Wait for the dump to complete
-let $wait_condition =
-  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
-  FROM information_schema.global_status
-  WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
--- source include/wait_condition.inc
-
--- file_exists $file
-
 # Try with a non-default filename
-
-# Restart the server so that the status gets reset to something other than
-# 'Buffer pool(s) dump completed at ', otherwise the following wait_condition
-# gets satisfied before the following dump has completed and --file_exists
-# fails
--- source include/restart_mysqld.inc
-
-# Save for later restoration
-SET @orig = @@global.innodb_buffer_pool_filename;
 
 SET GLOBAL innodb_buffer_pool_filename = 'innodb_foobar_dump';
 
