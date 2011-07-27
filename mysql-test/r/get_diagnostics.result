@@ -232,26 +232,26 @@ GET DIAGNOSTICS CONDITION "1" @var = CLASS_ORIGIN;
 SELECT COUNT(max_questions) INTO @var FROM mysql.user;
 GET DIAGNOSTICS CONDITION 9999 @var = CLASS_ORIGIN;
 Warnings:
-Error	1739	Invalid condition number.
+Error	1739	Invalid condition number
 GET DIAGNOSTICS CONDITION NULL @var = CLASS_ORIGIN;
 Warnings:
-Error	1739	Invalid condition number.
-Error	1739	Invalid condition number.
+Error	1739	Invalid condition number
+Error	1739	Invalid condition number
 GET DIAGNOSTICS CONDITION a @var = CLASS_ORIGIN;
 Warnings:
-Error	1739	Invalid condition number.
-Error	1739	Invalid condition number.
+Error	1739	Invalid condition number
+Error	1739	Invalid condition number
 Error	1054	Unknown column 'a' in 'field list'
 SELECT COUNT(max_questions) INTO @var FROM mysql.user;
 SET @cond = 1;
 GET DIAGNOSTICS CONDITION @cond @var1 = CLASS_ORIGIN;
 Warnings:
-Error	1739	Invalid condition number.
+Error	1739	Invalid condition number
 SET @cond = "invalid";
 GET DIAGNOSTICS CONDITION @cond @var1 = CLASS_ORIGIN;
 Warnings:
-Error	1739	Invalid condition number.
-Error	1739	Invalid condition number.
+Error	1739	Invalid condition number
+Error	1739	Invalid condition number
 SELECT COUNT(max_questions) INTO @var FROM mysql.user;
 CREATE PROCEDURE p1()
 BEGIN
@@ -301,11 +301,11 @@ Warning	1292	Truncated incorrect DECIMAL value: ''
 GET DIAGNOSTICS CONDITION 99999 @var = CLASS_ORIGIN;
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Error	1739	Invalid condition number.
+Error	1739	Invalid condition number
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Error	1739	Invalid condition number.
+Error	1739	Invalid condition number
 
 # Statement information runtime
 
@@ -489,14 +489,14 @@ CAST(-19999999999999999999 AS SIGNED)	-9223372036854775808
 errno1	1292
 msg1	Truncated incorrect DECIMAL value: ''
 errno2	1739
-msg2	Invalid condition number.
+msg2	Invalid condition number
 Warnings:
 Level	Warning
 Code	1292
 Message	Truncated incorrect DECIMAL value: ''
 Level	Error
 Code	1739
-Message	Invalid condition number.
+Message	Invalid condition number
 DROP PROCEDURE p1;
 
 # Interaction with SIGNAL
@@ -772,6 +772,17 @@ SELECT @var1, @var2;
 @var1	@var2
 0	0
 DROP TRIGGER trg1;
+DROP TABLE t1;
+
+# GET DIAGNOSTICS does not reset ROW_COUNT
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+GET DIAGNOSTICS @var1 = ROW_COUNT;
+GET DIAGNOSTICS @var2 = ROW_COUNT;
+SELECT @var1, @var2;
+@var1	@var2
+1	1
 DROP TABLE t1;
 #
 # Command statistics
