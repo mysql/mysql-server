@@ -21,21 +21,41 @@
 --source include/not_embedded.inc
 --source include/not_windows.inc
 
---echo # DEBUG 0 - ENV
---exec env | grep -i MYSQL_ | sort
+# Set this to enable debugging output
+let $my_socket_debug=0;
 
-# Take a snapshot of SOCKET_INSTANCES
+#
+# Determine if IPV6 supported
+#
+
+let $check_ipv6_just_check=1;
+--source include/check_ipv6.inc
+
+#
+# Set IP address defaults with respect to IPV6 support
+#
+
+let $my_localhost=127.0.0.1;
+let $my_bindaddr=0.0.0.0;
+if($check_ipv6_supported)
+{
+  let $my_localhost=::1;
+  let $my_bindaddr=::;
+}
+
+if($my_socket_debug)
+{
+  --echo IPV6 SUPPORTED=$check_ipv6_supported, LOCALHOST=$my_localhost, BINDADDR=$my_bindaddr
+}
+
+#
+# Preserve the current state of SOCKET_INSTANCES
+#
+
 --echo # Take a snapshot of SOCKET_INSTANCES
 CREATE TEMPORARY TABLE my_socket_instances AS
 SELECT * FROM performance_schema.socket_instances;
 
---echo # DEBUG 1
-SELECT * FROM performance_schema.socket_instances;
---exec $MYSQL --host=127.0.0.1 --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
---echo # DEBUG 1a
-SELECT * FROM performance_schema.socket_instances;
-
-# Get the thread id of this connection
 --echo # Get thread id of the default connection
 SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
@@ -46,25 +66,18 @@ let $con0_thread_id = `SELECT @thread_id`;
 #
 # ESTABLISH TCP/IP CONNECTION 1
 #
-# Have a connection with IP = '127.0.0.1,'
+# Start connection with IP = localhost (127.0.0.1 or ::1)
 
---echo # Establish local TCP/IP connection (con1,127.0.0.1,root,,test,,)
-#--disable_query_log
---echo # Connect 1 (con1,127.0.0.1,root,,test,,$MASTER_MYPORT)
---connect (con1,127.0.0.1,root,,test,,$MASTER_MYPORT)
---echo # Connect 1a (con1a,127.0.0.1,root,,test,$MASTER_MYPORT)
---connect (con1a,127.0.0.1,root,,test,$MASTER_MYPORT)
-#--enable_query_log
+--echo # Establish local TCP/IP connection (con1,localhost,root,,test,,)
+--disable_query_log
+--connect (con1,$my_localhost,root,,test,,$MASTER_MYPORT)
+--enable_query_log
 
-SELECT * FROM performance_schema.socket_instances;
---echo # DEBUG 2 - host, protocol
---echo # $MYSQL --host=127.0.0.1 --protocol=TCP --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
---exec $MYSQL --host=127.0.0.1 --protocol=TCP --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
---echo # DEBUG 2a - no host, protocol
---echo # $MYSQL --protocol=TCP --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
---exec $MYSQL --protocol=TCP --port=$MASTER_MYPORT --user=root test -e "SELECT current_user();SELECT user();SELECT * FROM performance_schema.socket_instances;"
---echo # DEBUG 2b - after execs
-SELECT * FROM performance_schema.socket_instances;
+if($my_socket_debug)
+{
+  --replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
+  SELECT * FROM performance_schema.socket_instances;
+}
 
 --echo # Store the thread id of connection 1 (tcp/ip)
 SELECT THREAD_ID INTO @thread_id
@@ -85,15 +98,18 @@ let $con1_port = `SELECT @port`;
 #
 # ESTABLISH TCP/IP CONNECTION 2
 #
-# Have a connection with IP = '127.0.0.1,'
+# Start a second connection with IP = localhost (127.0.0.1 or ::1)
 
---echo # Establish a second local TCP/IP connection (con2,127.0.0.1,root,,test,,)
-#--disable_query_log
---connect (con2,127.0.0.1,root,,test,,$MASTER_MYPORT)
-#--enable_query_log
+--echo # Establish second local TCP/IP connection (con1,localhost,root,,test,,)
+--disable_query_log
+--connect (con2,$my_localhost,root,,test,,$MASTER_MYPORT)
+--enable_query_log
 
---echo # DEBUG 3
-SELECT * FROM performance_schema.socket_instances;
+if($my_socket_debug)
+{
+  --replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
+  SELECT * FROM performance_schema.socket_instances;
+}
 
 --echo # Store the thread_id of connection 2 (tcp/ip)
 SELECT THREAD_ID INTO @thread_id
@@ -119,9 +135,11 @@ let $con2_port = `SELECT @port`;
 --echo # Establish local unix domain connection (con3,localhost,root,,test,,)
 --connect(con3,localhost,root,,test,,)
 
---echo # DEBUG 4
-SELECT * FROM performance_schema.socket_instances;
-
+if($my_socket_debug)
+{
+  --replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
+  SELECT * FROM performance_schema.socket_instances;
+}
 
 --echo # Store the thread id of connection 3 (unix domain)
 SELECT THREAD_ID INTO @thread_id
@@ -245,10 +263,13 @@ WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 let $server_tcpip_thread_id= `SELECT @thread_id`;
 
 --echo #    Check the content.
---replace_result $MASTER_MYPORT <MASTER_MYPORT>
+--disable_query_log
+eval set @port = $MASTER_MYPORT;
+eval set @addr = '$my_bindaddr';
+--enable_query_log
 
 eval SELECT THREAD_ID = @thread_id
-     AND PORT = $MASTER_MYPORT AND IP = '0.0.0.0'
+     AND PORT = @port AND IP = @addr
      AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
@@ -323,10 +344,11 @@ select @match_thread_id;
 --disable_query_log
 eval set @port = $con1_port;
 eval set @thread_id = $con1_thread_id;
+eval set @addr = '$my_localhost';
 --enable_query_log
 
 eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
-        AND IP = '127.0.0.1'
+        AND IP = @addr
         AND PORT = @port
 AS 'Expect 1'
 FROM performance_schema.socket_instances
@@ -351,10 +373,11 @@ WHERE THREAD_ID = @thread_id;
 --disable_query_log
 eval set @port = $con2_port;
 eval set @thread_id = $con2_thread_id;
+eval set @addr = '$my_localhost';
 --enable_query_log
 
 eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
-        AND IP = '127.0.0.1'
+        AND IP = @addr
         AND PORT = @port
 AS 'Expect 1'
 FROM performance_schema.socket_instances
@@ -399,7 +422,7 @@ WHERE THREAD_ID = @thread_id;
 #
 
 --echo # Show differences to socket_instances before con1, con2 and con3 connecting
-
+--replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
 SELECT EVENT_NAME, IP
 FROM performance_schema.socket_instances
 WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)
