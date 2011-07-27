@@ -839,6 +839,17 @@ SELECT @var1, @var2;
 DROP TRIGGER trg1;
 DROP TABLE t1;
 
+--echo
+--echo # GET DIAGNOSTICS does not reset ROW_COUNT
+--echo
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+GET DIAGNOSTICS @var1 = ROW_COUNT;
+GET DIAGNOSTICS @var2 = ROW_COUNT;
+SELECT @var1, @var2;
+DROP TABLE t1;
+
 --echo #
 --echo # Command statistics
 --echo #

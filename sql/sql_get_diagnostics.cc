@@ -60,7 +60,7 @@ Sql_cmd_get_diagnostics::execute(THD *thd)
   /* Bail out early if statement succeeded. */
   if (! rv)
   {
-    my_ok(thd);
+    thd->get_stmt_da()->set_ok_status(thd, 0, 0, NULL);
     DBUG_RETURN(false);
   }
 
@@ -83,7 +83,7 @@ Sql_cmd_get_diagnostics::execute(THD *thd)
 
   /* Appending might have failed. */
   if (! (rv= thd->is_error()))
-    my_ok(thd);
+    thd->get_stmt_da()->set_ok_status(thd, 0, 0, NULL);
 
   DBUG_RETURN(rv);
 }
