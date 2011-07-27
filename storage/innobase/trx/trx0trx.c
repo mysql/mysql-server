@@ -747,7 +747,7 @@ trx_serialisation_number_get(
 
 		mutex_enter(&purge_sys->bh_mutex);
 
-		/* This is to reduce the pressure on the trx_sys_t::lock
+		/* This is to reduce the pressure on the trx_sys_t::mutex
 		though in reality it should make very little (read no)
 		difference because this code path is only taken when the
 		rbs is empty. */
