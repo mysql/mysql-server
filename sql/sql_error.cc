@@ -335,6 +335,13 @@ MYSQL_ERROR::set_class_origin()
   cls[0]= m_returned_sqlstate[0];
   cls[1]= m_returned_sqlstate[1];
 
+  /* Only digits and upper case latin letter are allowed. */
+  DBUG_ASSERT(my_isdigit(&my_charset_latin1, cls[0]) ||
+              my_isupper(&my_charset_latin1, cls[0]));
+
+  DBUG_ASSERT(my_isdigit(&my_charset_latin1, cls[1]) ||
+              my_isupper(&my_charset_latin1, cls[1]));
+
   /*
     If CLASS[1] is any of: 0 1 2 3 4 A B C D E F G H
     and CLASS[2] is any of: 0-9 A-Z
