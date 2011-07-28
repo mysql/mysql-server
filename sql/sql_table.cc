@@ -7104,7 +7104,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 end_temporary:
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
 	      (ulong) (copied + deleted), (ulong) deleted,
-	      (ulong) thd->get_stmt_wi()->statement_warn_count());
+	      (ulong) thd->get_stmt_wi()->current_statement_warn_count());
   my_ok(thd, copied + deleted, 0L, tmp_name);
   DBUG_RETURN(FALSE);
 

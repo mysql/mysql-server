@@ -1156,7 +1156,7 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 
     wi->remove_sql_condition(wi->get_error_condition());
   }
-  else if (thd->get_stmt_wi()->statement_warn_count())
+  else if (thd->get_stmt_wi()->current_statement_warn_count())
   {
     Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
     const MYSQL_ERROR *err;

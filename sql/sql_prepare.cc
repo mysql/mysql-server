@@ -341,7 +341,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
   buff[9]= 0;                                   // Guard against a 4.1 client
-  tmp= min(stmt->thd->get_stmt_wi()->statement_warn_count(), 65535);
+  tmp= min(stmt->thd->get_stmt_wi()->current_statement_warn_count(), 65535);
   int2store(buff+10, tmp);
 
   /*

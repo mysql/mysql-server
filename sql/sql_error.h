@@ -240,9 +240,9 @@ class Warning_info
     The number of warnings of the current statement. Warning_info
     life cycle differs from statement life cycle -- it may span
     multiple statements. In that case we get
-    m_statement_warn_count 0, whereas m_warn_list is not empty.
+    m_current_statement_warn_count 0, whereas m_warn_list is not empty.
   */
-  uint	             m_statement_warn_count;
+  uint	             m_current_statement_warn_count;
 
   /*
     Row counter, to print in errors and warnings. Not increased in
@@ -317,7 +317,7 @@ public:
     between commands, but statement_warn_count indicates
     the number of warnings of this particular statement only.
   */
-  void reset_for_next_command() { m_statement_warn_count= 0; }
+  void reset_for_next_command() { m_current_statement_warn_count= 0; }
 
   /**
     Remove given SQL-condition from the list.
@@ -366,7 +366,8 @@ public:
   /** Return the current counter value. */
   ulong current_row_for_warning() const { return m_current_row_for_warning; }
 
-  ulong statement_warn_count() const { return m_statement_warn_count; }
+  ulong current_statement_warn_count() const
+  { return m_current_statement_warn_count; }
 
   /** Make sure there is room for the given number of conditions. */
   void reserve_space(THD *thd, uint count);
