@@ -2397,9 +2397,9 @@ int ndb_add_ndb_binlog_index(THD *thd, void *_row)
   }
 
 add_ndb_binlog_index_err:
-  thd->get_stmt_da()->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-  thd->get_stmt_da()->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
   ndb_binlog_index= 0;
@@ -4268,9 +4268,9 @@ err:
   sql_print_information("Stopping Cluster Binlog");
   DBUG_PRINT("info",("Shutting down cluster binlog thread"));
   thd->proc_info= "Shutting down";
-  thd->get_stmt_da()->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-  thd->get_stmt_da()->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
   mysql_mutex_lock(&injector_mutex);

@@ -1800,7 +1800,7 @@ bool close_temporary_tables(THD *thd)
       qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
 
-      thd->get_stmt_da()->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->set_overwrite_status(true);
       if ((error= (mysql_bin_log.write(&qinfo) || error)))
       {
         /*
@@ -1818,7 +1818,7 @@ bool close_temporary_tables(THD *thd)
         sql_print_error("Failed to write the DROP statement for "
                         "temporary tables to binary log");
       }
-      thd->get_stmt_da()->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->set_overwrite_status(false);
 
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
       thd->thread_specific_used= save_thread_specific_used;

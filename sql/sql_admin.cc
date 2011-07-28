@@ -638,7 +638,8 @@ send_result:
     lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
     {
-      Warning_info::Const_iterator it= thd->get_stmt_da()->sql_conditions();
+      Diagnostics_area::Sql_condition_iterator it=
+        thd->get_stmt_da()->sql_conditions();
       const MYSQL_ERROR *err;
       while ((err= it++))
       {

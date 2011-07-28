@@ -1152,7 +1152,8 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
   }
   else if (thd->get_stmt_da()->current_statement_warn_count())
   {
-    Warning_info::Const_iterator it= thd->get_stmt_da()->sql_conditions();
+    Diagnostics_area::Sql_condition_iterator it=
+      thd->get_stmt_da()->sql_conditions();
     const MYSQL_ERROR *err;
 
     while ((err= it++))
@@ -2146,9 +2147,9 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
     if (!thd->in_sub_stmt)
     {
-      thd->get_stmt_da()->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->set_overwrite_status(true);
       thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-      thd->get_stmt_da()->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->set_overwrite_status(false);
     }
 
     thd_proc_info(thd, "closing tables");
@@ -3020,9 +3021,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     /* Here we also commit or rollback the current statement. */
     if (! thd->in_sub_stmt)
     {
-      thd->get_stmt_da()->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->set_overwrite_status(true);
       thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-      thd->get_stmt_da()->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->set_overwrite_status(false);
     }
     thd_proc_info(thd, "closing tables");
     close_thread_tables(thd);
