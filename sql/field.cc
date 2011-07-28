@@ -1165,7 +1165,7 @@ int Field_num::check_int(const CHARSET_INFO *cs, const char *str, int length,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "integer", err.ptr(), field_name,
-                        (ulong) table->in_use->get_stmt_wi()->
+                        (ulong) table->in_use->get_stmt_da()->
                         current_row_for_warning());
     return 1;
   }
@@ -2651,7 +2651,7 @@ int Field_new_decimal::store(const char *from, uint length,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "decimal", errmsg.ptr(), field_name,
-                        (ulong) table->in_use->get_stmt_wi()->
+                        (ulong) table->in_use->get_stmt_da()->
                         current_row_for_warning());
 
     DBUG_RETURN(err);
@@ -2672,7 +2672,7 @@ int Field_new_decimal::store(const char *from, uint length,
                           ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                           ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                           "decimal", errmsg.ptr(), field_name,
-                          (ulong) table->in_use->get_stmt_wi()->
+                          (ulong) table->in_use->get_stmt_da()->
                           current_row_for_warning());
       my_decimal_set_zero(&decimal_value);
       break;
@@ -5235,7 +5235,7 @@ bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WARN_DATA_OUT_OF_RANGE,
                         ER(ER_WARN_DATA_OUT_OF_RANGE), field_name,
-                        thd->get_stmt_wi()->current_row_for_warning());
+                        thd->get_stmt_da()->current_row_for_warning());
     return 1;
   }
   return Field_time::get_time(ltime);
@@ -6234,7 +6234,7 @@ check_string_copy_error(Field_str *field,
                       ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                       ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                       "string", tmp, field->field_name,
-                      thd->get_stmt_wi()->current_row_for_warning());
+                      thd->get_stmt_da()->current_row_for_warning());
   return TRUE;
 }
 
@@ -10083,7 +10083,7 @@ Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
   {
     thd->cuted_fields+= cuted_increment;
     push_warning_printf(thd, level, code, ER(code), field_name,
-                        thd->get_stmt_wi()->current_row_for_warning());
+                        thd->get_stmt_da()->current_row_for_warning());
     return 0;
   }
   return level >= MYSQL_ERROR::WARN_LEVEL_WARN;

@@ -638,7 +638,7 @@ int thd_tx_isolation(const THD *thd)
 extern "C"
 void thd_inc_row_count(THD *thd)
 {
-  thd->get_stmt_wi()->inc_current_row_for_warning();
+  thd->get_stmt_da()->inc_current_row_for_warning();
 }
 
 
@@ -1104,7 +1104,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   cond= DBUG_EVALUATE_IF(
     "simulate_out_of_memory",
     NULL,
-    get_stmt_wi()->push_warning(this, sql_errno, sqlstate, level, msg));
+    wi->push_warning(this, sql_errno, sqlstate, level, msg));
 
   if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
   {

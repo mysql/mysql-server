@@ -379,7 +379,7 @@ Diagnostics_area::set_ok_status(THD *thd, ulonglong affected_rows_arg,
   if (is_error() || is_disabled())
     return;
 
-  m_statement_warn_count= thd->get_stmt_wi()->current_statement_warn_count();
+  m_statement_warn_count= thd->get_stmt_da()->current_statement_warn_count();
   m_affected_rows= affected_rows_arg;
   m_last_insert_id= last_insert_id_arg;
   if (message_arg)
@@ -415,7 +415,7 @@ Diagnostics_area::set_eof_status(THD *thd)
   */
   m_statement_warn_count= (thd->spcont ?
                            0 :
-                           thd->get_stmt_wi()->current_statement_warn_count());
+                           thd->get_stmt_da()->current_statement_warn_count());
 
   m_status= DA_EOF;
   DBUG_VOID_RETURN;
@@ -758,7 +758,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   List<Item> field_list;
   DBUG_ENTER("mysqld_show_warnings");
 
-  DBUG_ASSERT(thd->get_stmt_wi()->is_read_only());
+  DBUG_ASSERT(thd->get_stmt_da()->is_warning_info_read_only());
 
   field_list.push_back(new Item_empty_string("Level", 7));
   field_list.push_back(new Item_return_int("Code",4, MYSQL_TYPE_LONG));
@@ -776,7 +776,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 
   unit->set_limit(sel);
 
-  Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
+  Warning_info::Const_iterator it= thd->get_stmt_da()->sql_conditions();
   while ((err= it++))
   {
     /* Skip levels that the user is not interested in */
@@ -799,7 +799,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   }
   my_eof(thd);
 
-  thd->get_stmt_wi()->set_read_only(FALSE);
+  thd->get_stmt_da()->set_warning_info_read_only(FALSE);
 
   DBUG_RETURN(FALSE);
 }

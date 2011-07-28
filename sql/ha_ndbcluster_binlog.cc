@@ -984,8 +984,8 @@ static void print_could_not_discover_error(THD *thd,
                   "my_errno: %d",
                    schema->db, schema->name, schema->query,
                    schema->node_id, my_errno);
-  List_iterator_fast<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
-  MYSQL_ERROR *err;
+  Warning_info::Const_iterator it= thd->get_stmt_da()->sql_conditions();
+  const MYSQL_ERROR *err;
   while ((err= it++))
     sql_print_warning("NDB Binlog: (%d)%s", err->get_sql_errno(),
                       err->get_message_text());

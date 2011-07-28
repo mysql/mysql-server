@@ -469,7 +469,7 @@ bool Sql_cmd_signal::execute(THD *thd)
 
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->set_row_count_func(0);
-  thd->get_stmt_wi()->clear_warning_info(thd->query_id);
+  thd->get_stmt_da()->clear_warning_info(thd->query_id);
 
   result= raise_condition(thd, &cond);
 
@@ -479,7 +479,8 @@ bool Sql_cmd_signal::execute(THD *thd)
 
 bool Sql_cmd_resignal::execute(THD *thd)
 {
-  Warning_info *wi= thd->get_stmt_wi();
+  Diagnostics_area *da= thd->get_stmt_da();
+  Warning_info *wi= da->get_warning_info();
   MYSQL_ERROR *signaled;
   int result= TRUE;
 
