@@ -22,7 +22,7 @@
 --source include/not_windows.inc
 
 # Set this to enable debugging output
-let $my_socket_debug=0;
+let $my_socket_debug=1;
 
 #
 # Determine if IPV6 supported
@@ -75,7 +75,7 @@ let $con0_thread_id = `SELECT @thread_id`;
 
 if($my_socket_debug)
 {
-  --replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
+#  --replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
   SELECT * FROM performance_schema.socket_instances;
 }
 
@@ -107,7 +107,7 @@ let $con1_port = `SELECT @port`;
 
 if($my_socket_debug)
 {
-  --replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
+#  --replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
   SELECT * FROM performance_schema.socket_instances;
 }
 
@@ -137,7 +137,7 @@ let $con2_port = `SELECT @port`;
 
 if($my_socket_debug)
 {
-  --replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
+#  --replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
   SELECT * FROM performance_schema.socket_instances;
 }
 
