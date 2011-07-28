@@ -41,7 +41,7 @@ extern "C" void sql_alloc_error_handler(void)
     thd->get_stmt_da()->set_error_status(thd,
                                          ER_OUT_OF_RESOURCES,
                                          ER(ER_OUT_OF_RESOURCES),
-                                         NULL);
+                                         NULL, NULL);
   }
 
   /* Skip writing to the error log to avoid mtr complaints */

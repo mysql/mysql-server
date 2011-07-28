@@ -253,6 +253,12 @@ class Warning_info
   /** Used to optionally clear warnings only once per statement. */
   ulonglong          m_warn_id;
 
+  /**
+    A pointer to an element of m_warn_list. It determines SQL-condition
+    instance which corresponds to the error state in Diagnostics_area.
+  */
+  const MYSQL_ERROR *m_error_condition;
+
   /** Indicates if push_warning() allows unlimited number of warnings. */
   bool               m_allow_unlimited_warnings;
 
@@ -299,18 +305,7 @@ public:
     Concatenate the list of warnings.
     It's considered tolerable to lose a warning.
   */
-  void append_warning_info(THD *thd, const Warning_info *source)
-  {
-    const MYSQL_ERROR *err;
-    Const_iterator it(source->m_warn_list);
-
-    /*
-      Don't use ::push_warning() to avoid invocation of condition
-      handlers or escalation of warnings to errors.
-    */
-    while ((err= it++))
-      Warning_info::push_warning(thd, err);
-  }
+  void append_warning_info(THD *thd, const Warning_info *source);
 
   /**
     Conditional merge of related warning information areas.
@@ -398,6 +393,15 @@ public:
   bool is_read_only() const
   { return m_read_only; }
 
+  const MYSQL_ERROR *get_error_condition() const
+  { return m_error_condition; }
+
+  void set_error_condition(const MYSQL_ERROR *error_condition)
+  { m_error_condition= error_condition; }
+
+  void clear_error_condition()
+  { m_error_condition= NULL; }
+
 private:
   /** Read only status. */
   bool m_read_only;
@@ -470,7 +474,7 @@ public:
                      const char *message);
   void set_eof_status(THD *thd);
   void set_error_status(THD *thd, uint sql_errno_arg, const char *message_arg,
-                        const char *sqlstate);
+                        const char *sqlstate, MYSQL_ERROR *error_condition);
 
   void disable_status();
 

@@ -2966,7 +2966,7 @@ Reprepare_observer::report_error(THD *thd)
     backtracking all the way to Prepared_statement::execute_loop().
   */
   thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE,
-                                       ER(ER_NEED_REPREPARE), "HY000");
+                                       ER(ER_NEED_REPREPARE), "HY000", NULL);
   m_invalidated= TRUE;
 
   return TRUE;
