@@ -577,54 +577,6 @@ void Warning_info::append_warning_info(THD *thd, const Warning_info *source)
 
 
 /**
-  Append warnings only if the original contents of the routine
-  warning info was replaced.
-
-  @param thd    Thread context.
-  @param sp_wi  Stored-program Warning_info
-*/
-void Diagnostics_area::append_sp_warning_info(THD *thd,
-                                              const Warning_info *sp_wi)
-{
-  Warning_info *wi= get_warning_info();
-
-  /*
-    If a routine body is empty or if a routine did not
-    generate any warnings (thus wi->m_warn_id didn't change),
-    do not duplicate our own contents by appending the
-    contents of the called routine. We know that the called
-    routine did not change its warning info.
-
-    On the other hand, if the routine body is not empty and
-    some statement in the routine generates a warning or
-    uses tables, wi->m_warn_id is guaranteed to have changed.
-    In this case we know that the routine warning info
-    contains only new warnings, and thus we perform a copy.
-  */
-
-  if (wi->id() == sp_wi->id())
-    return;
-
-  /*
-    If the invocation of the routine was a standalone statement,
-    rather than a sub-statement, in other words, if it's a CALL
-    of a procedure, rather than invocation of a function or a
-    trigger, we need to clear the current contents of the caller's
-    warning info.
-
-    This is per MySQL rules: if a statement generates a warning,
-    warnings from the previous statement are flushed.  Normally
-    it's done in push_warning(). However, here we don't use
-    push_warning() to avoid invocation of condition handlers or
-    escalation of warnings to errors.
-  */
-
-  wi->opt_clear(thd->query_id);
-  wi->append_warning_info(thd, sp_wi);
-}
-
-
-/**
   Copy Sql_conditions that are not WARN_LEVEL_ERROR from the source
   Warning_info to the current Warning_info.
 

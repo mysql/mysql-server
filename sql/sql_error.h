@@ -622,6 +622,19 @@ public:
   ulonglong warning_info_id() const
   { return get_warning_info()->id(); }
 
+  /**
+    Compare given current warning info and current warning info
+    and see if they are different. They will be different if
+    warnings have been generated or statements that use tables
+    have been executed. This is checked by comparing m_warn_id.
+
+    @param wi  Warning info to compare with current Warning info.
+
+    @return    false if they are equal, true if they are not.
+  */
+  bool warning_info_changed(const Warning_info *wi) const
+  { return get_warning_info()->id() != wi->id(); }
+
   bool is_warning_info_empty() const
   { return get_warning_info()->is_empty(); }
 
@@ -689,7 +702,8 @@ public:
   void copy_sql_conditions_to_wi(THD *thd, Warning_info *dst_wi) const
   { dst_wi->append_warning_info(thd, get_warning_info()); }
 
-  void append_sp_warning_info(THD *thd, const Warning_info *sp_wi);
+  void copy_sql_conditions_from_wi(THD *thd, const Warning_info *src_wi)
+  { get_warning_info()->append_warning_info(thd, src_wi); }
 
   void copy_non_errors_from_wi(THD *thd, const Warning_info *src_wi);
 
