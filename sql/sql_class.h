@@ -525,70 +525,75 @@ typedef struct system_variables
 
 typedef struct system_status_var
 {
-  ulong com_other;
-  ulong com_stat[(uint) SQLCOM_END];
-  ulong created_tmp_disk_tables;
-  ulong created_tmp_tables;
-  ulong ha_commit_count;
-  ulong ha_delete_count;
-  ulong ha_read_first_count;
-  ulong ha_read_last_count;
-  ulong ha_read_key_count;
-  ulong ha_read_next_count;
-  ulong ha_read_prev_count;
-  ulong ha_read_rnd_count;
-  ulong ha_read_rnd_next_count;
+  ulonglong created_tmp_disk_tables;
+  ulonglong created_tmp_tables;
+  ulonglong ha_commit_count;
+  ulonglong ha_delete_count;
+  ulonglong ha_read_first_count;
+  ulonglong ha_read_last_count;
+  ulonglong ha_read_key_count;
+  ulonglong ha_read_next_count;
+  ulonglong ha_read_prev_count;
+  ulonglong ha_read_rnd_count;
+  ulonglong ha_read_rnd_next_count;
   /*
     This number doesn't include calls to the default implementation and
     calls made by range access. The intent is to count only calls made by
     BatchedKeyAccess.
   */
-  ulong ha_multi_range_read_init_count;
-  ulong ha_rollback_count;
-  ulong ha_update_count;
-  ulong ha_write_count;
-  ulong ha_prepare_count;
-  ulong ha_discover_count;
-  ulong ha_savepoint_count;
-  ulong ha_savepoint_rollback_count;
-  ulong ha_external_lock_count;
+  ulonglong ha_multi_range_read_init_count;
+  ulonglong ha_rollback_count;
+  ulonglong ha_update_count;
+  ulonglong ha_write_count;
+  ulonglong ha_prepare_count;
+  ulonglong ha_discover_count;
+  ulonglong ha_savepoint_count;
+  ulonglong ha_savepoint_rollback_count;
+  ulonglong ha_external_lock_count;
 
+#if 0
+  /* Tatiana thinks this may be dead now. */
   /* KEY_CACHE parts. These are copies of the original */
-  ulong key_blocks_changed;
-  ulong key_blocks_used;
-  ulong key_cache_r_requests;
-  ulong key_cache_read;
-  ulong key_cache_w_requests;
-  ulong key_cache_write;
+  ulonglong key_blocks_changed;
+  ulonglong key_blocks_used;
+  ulonglong key_cache_r_requests;
+  ulonglong key_cache_read;
+  ulonglong key_cache_w_requests;
+  ulonglong key_cache_write;
   /* END OF KEY_CACHE parts */
+#endif
 
-  ulong opened_tables;
-  ulong opened_shares;
-  ulong select_full_join_count;
-  ulong select_full_range_join_count;
-  ulong select_range_count;
-  ulong select_range_check_count;
-  ulong select_scan_count;
-  ulong long_query_count;
-  ulong filesort_merge_passes;
-  ulong filesort_range_count;
-  ulong filesort_rows;
-  ulong filesort_scan_count;
+  ulonglong opened_tables;
+  ulonglong opened_shares;
+  ulonglong select_full_join_count;
+  ulonglong select_full_range_join_count;
+  ulonglong select_range_count;
+  ulonglong select_range_check_count;
+  ulonglong select_scan_count;
+  ulonglong long_query_count;
+  ulonglong filesort_merge_passes;
+  ulonglong filesort_range_count;
+  ulonglong filesort_rows;
+  ulonglong filesort_scan_count;
   /* Prepared statements and binary protocol */
-  ulong com_stmt_prepare;
-  ulong com_stmt_reprepare;
-  ulong com_stmt_execute;
-  ulong com_stmt_send_long_data;
-  ulong com_stmt_fetch;
-  ulong com_stmt_reset;
-  ulong com_stmt_close;
-  /*
-    Number of statements sent from the client
-  */
-  ulong questions;
+  ulonglong com_stmt_prepare;
+  ulonglong com_stmt_reprepare;
+  ulonglong com_stmt_execute;
+  ulonglong com_stmt_send_long_data;
+  ulonglong com_stmt_fetch;
+  ulonglong com_stmt_reset;
+  ulonglong com_stmt_close;
 
   ulonglong bytes_received;
   ulonglong bytes_sent;
+  /*
+    Number of statements sent from the client
+  */
+  ulonglong questions;
+
+  ulong com_other;
+  ulong com_stat[(uint) SQLCOM_END];
+
   /*
     IMPORTANT!
     SEE last_system_status_var DEFINITION BELOW.
