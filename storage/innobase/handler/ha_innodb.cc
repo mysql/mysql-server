@@ -6713,6 +6713,16 @@ create_table_def(
 		DBUG_RETURN(ER_TABLE_NAME);
 	}
 
+	/* table_name must contain '/'. Later in the code we assert if it
+	does not */
+	if (strcmp(strchr(table_name, '/') + 1,
+		   "innodb_table_monitor") == 0) {
+		push_warning(
+			(THD*) trx->mysql_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			HA_ERR_WRONG_COMMAND,
+			DEPRECATED_MSG_INNODB_TABLE_MONITOR);
+	}
+
 	n_cols = form->s->fields;
 
 	/* We pass 0 as the space id, and determine at a lower level the space
