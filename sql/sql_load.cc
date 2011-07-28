@@ -214,7 +214,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       !field_term->is_ascii() ||
       !ex->line_term->is_ascii() || !ex->line_start->is_ascii())
   {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
                  ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   } 
@@ -836,7 +836,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       if (pos == read_info.row_end)
       {
         thd->cuted_fields++;			/* Not enough fields */
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_WARN_TOO_FEW_RECORDS,
                             ER(ER_WARN_TOO_FEW_RECORDS),
                             thd->get_stmt_da()->current_row_for_warning());
@@ -860,7 +860,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (pos != read_info.row_end)
     {
       thd->cuted_fields++;			/* To long row */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER(ER_WARN_TOO_MANY_RECORDS),
                           thd->get_stmt_da()->current_row_for_warning());
@@ -896,7 +896,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (read_info.line_cuted)
     {
       thd->cuted_fields++;			/* To long row */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER(ER_WARN_TOO_MANY_RECORDS),
                           thd->get_stmt_da()->current_row_for_warning());
@@ -974,7 +974,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             if (field->type() == MYSQL_TYPE_TIMESTAMP)
               ((Field_timestamp*) field)->set_time();
             else if (field != table->next_number_field)
-              field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+              field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
           }
 	}
@@ -1049,7 +1049,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             in the end ?)
           */
           thd->cuted_fields++;
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER(ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_warning());
@@ -1096,7 +1096,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (read_info.line_cuted)
     {
       thd->cuted_fields++;			/* To long row */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WARN_TOO_MANY_RECORDS, ER(ER_WARN_TOO_MANY_RECORDS),
                           thd->get_stmt_da()->current_row_for_warning());
       if (thd->killed)
@@ -1180,7 +1180,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             if (field->type() == FIELD_TYPE_TIMESTAMP)
               ((Field_timestamp *) field)->set_time();
             else if (field != table->next_number_field)
-              field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+              field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
           }
         }
@@ -1230,7 +1230,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             in the end ?)
           */
           thd->cuted_fields++;
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER(ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_warning());

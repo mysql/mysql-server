@@ -1082,7 +1082,7 @@ convert_error_code_to_mysql(
 		/* fall through */
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
-		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    HA_ERR_ROW_IS_REFERENCED,
 				    "InnoDB: Cannot delete/update "
 				    "rows with cascading foreign key "
@@ -4049,7 +4049,7 @@ retry:
 			if not attended, bring this to the user's attention
 			by printing a warning in addition to log a message
 			in the errorlog */
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 					    ER_NO_SUCH_INDEX,
 					    "InnoDB: Table %s has a "
 					    "primary key in InnoDB data "
@@ -4116,7 +4116,7 @@ retry:
 			if not attended, bring this to the user attention
 			by printing a warning in addition to log a message
 			in the errorlog */
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 					    ER_NO_SUCH_INDEX,
 					    "InnoDB: Table %s has no "
 					    "primary key in InnoDB data "
@@ -6306,7 +6306,7 @@ ha_innobase::change_active_index(
 							   prebuilt->index);
 
 	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
-		push_warning_printf(user_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		push_warning_printf(user_thd, Sql_condition::WARN_LEVEL_WARN,
 				    HA_ERR_TABLE_DEF_CHANGED,
 				    "InnoDB: insufficient history for index %u",
 				    keynr);
@@ -6706,7 +6706,7 @@ create_table_def(
 	on the name length here */
 	if (strlen(table_name) > MAX_FULL_NAME_LEN) {
 		push_warning_printf(
-			(THD*) trx->mysql_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			(THD*) trx->mysql_thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_TABLE_NAME,
 			"InnoDB: Table Name or Database Name is too long");
 
@@ -6734,7 +6734,7 @@ create_table_def(
 		if (!col_type) {
 			push_warning_printf(
 				(THD*) trx->mysql_thd,
-				MYSQL_ERROR::WARN_LEVEL_WARN,
+				Sql_condition::WARN_LEVEL_WARN,
 				ER_CANT_CREATE_TABLE,
 				"Error creating table '%s' with "
 				"column '%s'. Please check its "
@@ -6768,7 +6768,7 @@ create_table_def(
 				number fits in one byte in prtype */
 				push_warning_printf(
 					(THD*) trx->mysql_thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
+					Sql_condition::WARN_LEVEL_WARN,
 					ER_CANT_CREATE_TABLE,
 					"In InnoDB, charset-collation codes"
 					" must be below 256."
@@ -7027,7 +7027,7 @@ get_row_format_name(
 #define CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE		\
 	if (!srv_file_per_table) {				\
 		push_warning_printf(				\
-			thd, MYSQL_ERROR::WARN_LEVEL_WARN,	\
+			thd, Sql_condition::WARN_LEVEL_WARN,	\
 			ER_ILLEGAL_HA_CREATE_OPTION,		\
 			"InnoDB: ROW_FORMAT=%s requires"	\
 			" innodb_file_per_table.",		\
@@ -7039,7 +7039,7 @@ get_row_format_name(
 #define CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE			\
 	if (srv_file_format < UNIV_FORMAT_B) {		\
 		push_warning_printf(				\
-			thd, MYSQL_ERROR::WARN_LEVEL_WARN,	\
+			thd, Sql_condition::WARN_LEVEL_WARN,	\
 			ER_ILLEGAL_HA_CREATE_OPTION,		\
 			"InnoDB: ROW_FORMAT=%s requires"	\
 			" innodb_file_format > Antelope.",	\
@@ -7089,7 +7089,7 @@ create_options_are_valid(
 			/* Valid KEY_BLOCK_SIZE, check its dependencies. */
 			if (!srv_file_per_table) {
 				push_warning(
-					thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+					thd, Sql_condition::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: KEY_BLOCK_SIZE requires"
 					" innodb_file_per_table.");
@@ -7097,7 +7097,7 @@ create_options_are_valid(
 			}
 			if (srv_file_format < UNIV_FORMAT_B) {
 				push_warning(
-					thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+					thd, Sql_condition::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: KEY_BLOCK_SIZE requires"
 					" innodb_file_format > Antelope.");
@@ -7106,7 +7106,7 @@ create_options_are_valid(
 			break;
 		default:
 			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: invalid KEY_BLOCK_SIZE = %lu."
 				" Valid values are [1, 2, 4, 8, 16]",
@@ -7131,7 +7131,7 @@ create_options_are_valid(
 	case ROW_TYPE_REDUNDANT:
 		if (kbs_specified) {
 			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: cannot specify ROW_FORMAT = %s"
 				" with KEY_BLOCK_SIZE.",
@@ -7145,7 +7145,7 @@ create_options_are_valid(
 	case ROW_TYPE_PAGE:
 	case ROW_TYPE_NOT_USED:
 		push_warning(
-			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_ILLEGAL_HA_CREATE_OPTION,		\
 			"InnoDB: invalid ROW_FORMAT specifier.");
 		ret = FALSE;
@@ -7271,7 +7271,7 @@ ha_innobase::create(
 
 		if (!srv_file_per_table) {
 			push_warning(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_per_table.");
@@ -7280,7 +7280,7 @@ ha_innobase::create(
 
 		if (file_format < UNIV_FORMAT_B) {
 			push_warning(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_format > Antelope.");
@@ -7289,7 +7289,7 @@ ha_innobase::create(
 
 		if (!flags) {
 			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu.",
 				create_info->key_block_size);
@@ -7311,7 +7311,7 @@ ha_innobase::create(
 			such combinations can be obtained
 			with ALTER TABLE anyway. */
 			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
 				" unless ROW_FORMAT=COMPRESSED.",
@@ -7342,14 +7342,14 @@ ha_innobase::create(
 	case ROW_TYPE_DYNAMIC:
 		if (!srv_file_per_table) {
 			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
 				get_row_format_name(row_format));
 		} else if (file_format < UNIV_FORMAT_B) {
 			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_format > Antelope.",
@@ -7366,7 +7366,7 @@ ha_innobase::create(
 	case ROW_TYPE_FIXED:
 	case ROW_TYPE_PAGE:
 		push_warning(
-			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: assuming ROW_FORMAT=COMPACT.");
 	case ROW_TYPE_DEFAULT:
@@ -7473,7 +7473,7 @@ ha_innobase::create(
 
 		case DB_PARENT_NO_INDEX:
 			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				HA_ERR_CANNOT_ADD_FOREIGN,
 				"Create table '%s' with foreign key constraint"
 				" failed. There is no index in the referenced"
@@ -7483,7 +7483,7 @@ ha_innobase::create(
 
 		case DB_CHILD_NO_INDEX:
 			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				HA_ERR_CANNOT_ADD_FOREIGN,
 				"Create table '%s' with foreign key constraint"
 				" failed. There is no index in the referencing"
@@ -7671,7 +7671,7 @@ ha_innobase::delete_table(
 	error = dict_stats_delete_table_stats(norm_name,
 					      errstr, sizeof(errstr));
 	if (error != DB_SUCCESS) {
-		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
 			     ER_LOCK_WAIT_TIMEOUT, errstr);
 	}
 
@@ -8431,7 +8431,7 @@ ha_innobase::info_low(
 
 				push_warning_printf(
 					thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
+					Sql_condition::WARN_LEVEL_WARN,
 					ER_CANT_GET_STAT,
 					"InnoDB: Trying to get the free "
 					"space for table %s but its "
@@ -8696,7 +8696,7 @@ ha_innobase::check(
 
 		if (!btr_validate_index(index, prebuilt->trx)) {
 			is_ok = FALSE;
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 					    ER_NOT_KEYFILE,
 					    "InnoDB: The B-tree of"
 					    " index '%-.200s' is corrupted.",
@@ -8713,7 +8713,7 @@ ha_innobase::check(
 			prebuilt->trx, prebuilt->index);
 
 		if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 					    HA_ERR_TABLE_DEF_CHANGED,
 					    "InnoDB: Insufficient history for"
 					    " index '%-.200s'",
@@ -8731,7 +8731,7 @@ ha_innobase::check(
 		prebuilt->select_lock_type = LOCK_NONE;
 
 		if (!row_check_index_for_mysql(prebuilt, index, &n_rows)) {
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 					    ER_NOT_KEYFILE,
 					    "InnoDB: The B-tree of"
 					    " index '%-.200s' is corrupted.",
@@ -8751,7 +8751,7 @@ ha_innobase::check(
 		if (index == dict_table_get_first_index(prebuilt->table)) {
 			n_rows_in_table = n_rows;
 		} else if (n_rows != n_rows_in_table) {
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 					    ER_NOT_KEYFILE,
 					    "InnoDB: Index '%-.200s'"
 					    " contains %lu entries,"
@@ -8770,7 +8770,7 @@ ha_innobase::check(
 	at every CHECK TABLE */
 
 	if (!btr_search_validate()) {
-		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
 			     ER_NOT_KEYFILE,
 			     "InnoDB: The adaptive hash index is corrupted.");
 		is_ok = FALSE;
@@ -11250,7 +11250,7 @@ innodb_file_format_max_validate(
 
 		} else {
 			push_warning_printf(thd,
-			  MYSQL_ERROR::WARN_LEVEL_WARN,
+			  Sql_condition::WARN_LEVEL_WARN,
 			  ER_WRONG_ARGUMENTS,
 			  "InnoDB: invalid innodb_file_format_max "
 			  "value; can be any format up to %s "
@@ -11297,7 +11297,7 @@ innodb_file_format_max_update(
 
 	if (format_id > UNIV_FORMAT_MAX) {
 		/* DEFAULT is "on", which is invalid at runtime. */
-		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
 				    "Ignoring SET innodb_file_format=%s",
 				    format_name_in);
@@ -11809,7 +11809,7 @@ innodb_monitor_update(
 		does not go through validation function */
 		if (thd) {
 			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_NO_DEFAULT,
 				"Default value is not defined for "
 				"this set option. Please specify "
@@ -12031,7 +12031,7 @@ innobase_index_name_is_reserved(
 					innobase_index_reserve_name) == 0) {
 			/* Push warning to mysql */
 			push_warning_printf(thd,
-					    MYSQL_ERROR::WARN_LEVEL_WARN,
+					    Sql_condition::WARN_LEVEL_WARN,
 					    ER_WRONG_NAME_FOR_INDEX,
 					    "Cannot Create Index with name "
 					    "'%s'. The name is reserved "

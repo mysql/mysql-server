@@ -1267,7 +1267,7 @@ check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
   val= var->save_result.ulonglong_value;
   if (val < (longlong) global_system_variables.net_buffer_length)
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
                         "max_allowed_packet", "net_buffer_length");
   }
@@ -1510,7 +1510,7 @@ check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
   val= var->save_result.ulonglong_value;
   if (val > (longlong) global_system_variables.max_allowed_packet)
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
                         "max_allowed_packet", "net_buffer_length");
   }
@@ -2035,7 +2035,7 @@ static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
      requested cache size. See also query_cache_size_arg
   */
   if (query_cache_size != new_cache_size)
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_WARN_QC_RESIZE, ER(ER_WARN_QC_RESIZE),
                         query_cache_size, new_cache_size);
 
@@ -3292,7 +3292,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                      slave_net_timeout,
                      (active_mi? active_mi->heartbeat_period : 0.0)));
   if (active_mi && slave_net_timeout < active_mi->heartbeat_period)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                         ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
@@ -3434,7 +3434,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
                    &locale->errmsgs->errmsgs,
                    ER_ERROR_LAST - ER_ERROR_FIRST + 1))
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                           "Can't process error message file for locale '%s'",
                           locale->name);
       mysql_mutex_unlock(&LOCK_error_messages);

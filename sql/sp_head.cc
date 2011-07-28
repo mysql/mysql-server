@@ -1144,7 +1144,7 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
     if (ctx->find_handler(thd,
                           da->sql_errno(),
                           da->get_sqlstate(),
-                          MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          Sql_condition::WARN_LEVEL_ERROR,
                           da->message()))
     {
       da->remove_sql_condition(da->get_error_condition());
@@ -1154,12 +1154,12 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
   {
     Diagnostics_area::Sql_condition_iterator it=
       thd->get_stmt_da()->sql_conditions();
-    const MYSQL_ERROR *err;
+    const Sql_condition *err;
 
     while ((err= it++))
     {
-      if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_WARN &&
-          err->get_level() != MYSQL_ERROR::WARN_LEVEL_NOTE)
+      if (err->get_level() != Sql_condition::WARN_LEVEL_WARN &&
+          err->get_level() != Sql_condition::WARN_LEVEL_NOTE)
         continue;
 
       if (ctx->find_handler(thd,
@@ -1998,7 +1998,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       if (mysql_bin_log.write(&qinfo) &&
           thd->binlog_evt_union.unioned_events_trans)
       {
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                      "Invoked ROUTINE modified a transactional table but MySQL "
                      "failed to reflect this change in the binary log");
         err_status= TRUE;
@@ -2925,7 +2925,7 @@ sp_head::show_routine_code(THD *thd)
         Since this is for debugging purposes only, we don't bother to
         introduce a special error code for it.
       */
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR, tmp);
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR, tmp);
     }
     protocol->prepare_for_resend();
     protocol->store((longlong)ip);

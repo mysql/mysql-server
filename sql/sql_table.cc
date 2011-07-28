@@ -2388,7 +2388,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         tbl_name.append('.');
         tbl_name.append(String(table->table_name,system_charset_info));
 
-	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+	push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
 			    tbl_name.c_ptr());
       }
@@ -2688,7 +2688,7 @@ bool check_duplicates_in_interval(const char *set_or_name,
                  name, err.ptr(), set_or_name);
         return 1;
       }
-      push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(thd,Sql_condition::WARN_LEVEL_NOTE,
                           ER_DUPLICATED_VALUE_IN_TYPE,
                           ER(ER_DUPLICATED_VALUE_IN_TYPE),
                           name, err.ptr(), set_or_name);
@@ -3665,7 +3665,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	      char warn_buff[MYSQL_ERRMSG_SIZE];
 	      my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_KEY),
 			  length);
-	      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+	      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
 			   ER_TOO_LONG_KEY, warn_buff);
               /* Align key length to multibyte char boundary */
               length-= length % sql_field->charset->mbmaxlen;
@@ -3712,7 +3712,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_KEY),
 		      length);
-	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+	  push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
 		       ER_TOO_LONG_KEY, warn_buff);
           /* Align key length to multibyte char boundary */
           length-= length % sql_field->charset->mbmaxlen;
@@ -3804,7 +3804,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                   key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
       /* do not push duplicate warnings */
       if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_TOO_LONG_INDEX_COMMENT, warn_buff);
 
       key->key_create_info.comment.length= tmp_len;
@@ -3938,7 +3938,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
     my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_AUTO_CONVERT), sql_field->field_name,
             (sql_field->charset == &my_charset_bin) ? "VARBINARY" : "VARCHAR",
             (sql_field->charset == &my_charset_bin) ? "BLOB" : "TEXT");
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
                  warn_buff);
   }
 
@@ -4314,7 +4314,7 @@ bool mysql_create_table_no_lock(THD *thd,
   {
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           alias);
       error= 0;
@@ -4439,11 +4439,11 @@ bool mysql_create_table_no_lock(THD *thd,
 #endif /* HAVE_READLINK */
   {
     if (create_info->data_file_name)
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (create_info->index_file_name)
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
     create_info->data_file_name= create_info->index_file_name= 0;
@@ -4508,7 +4508,7 @@ err:
 
 warn:
   error= FALSE;
-  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+  push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
   goto err;
@@ -5435,7 +5435,7 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
 
   if (error == HA_ERR_WRONG_COMMAND)
   {
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_NOTE,
                         ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                         table->s->table_name.str);
     error= 0;
@@ -6226,7 +6226,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (error == HA_ERR_WRONG_COMMAND)
     {
       error= 0;
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                           ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                           table->alias);
     }
@@ -6277,7 +6277,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (error == HA_ERR_WRONG_COMMAND)
     {
       error= 0;
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                           ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                           table->alias);
     }
@@ -7137,7 +7137,7 @@ err:
     }
     bool save_abort_on_warning= thd->abort_on_warning;
     thd->abort_on_warning= TRUE;
-    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                                  f_val, strlength(f_val), t_type,
                                  alter_info->datetime_field->field_name);
     thd->abort_on_warning= save_abort_on_warning;
@@ -7290,7 +7290,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       my_snprintf(warn_buff, sizeof(warn_buff), 
                   "ORDER BY ignored as there is a user-defined clustered index"
                   " in the table '%-.192s'", from->s->table_name.str);
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                    warn_buff);
     }
     else
@@ -7619,7 +7619,7 @@ static bool check_engine(THD *thd, const char *table_name,
 
   if (req_engine && req_engine != *new_engine)
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                        ER_WARN_USING_OTHER_HANDLER,
                        ER(ER_WARN_USING_OTHER_HANDLER),
                        ha_resolve_storage_engine_name(*new_engine),

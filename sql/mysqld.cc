@@ -2891,7 +2891,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
       thd->is_fatal_error= 1;
     (void) thd->raise_condition(error,
                                 NULL,
-                                MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                Sql_condition::WARN_LEVEL_ERROR,
                                 str);
   }
 

@@ -75,7 +75,7 @@ struct scheduler_param {
 void
 Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
 {
-  const MYSQL_ERROR *err;
+  const Sql_condition *err;
   DBUG_ENTER("evex_print_warnings");
   if (thd->get_stmt_da()->is_warning_info_empty())
     DBUG_VOID_RETURN;

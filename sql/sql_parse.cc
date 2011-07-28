@@ -1913,7 +1913,7 @@ bool sp_process_definer(THD *thd)
   if (!is_acl_user(lex->definer->host.str, lex->definer->user.str))
   {
     push_warning_printf(thd,
-                        MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        Sql_condition::WARN_LEVEL_NOTE,
                         ER_NO_SUCH_USER,
                         ER(ER_NO_SUCH_USER),
                         lex->definer->user.str,
@@ -2378,16 +2378,16 @@ case SQLCOM_PREPARE:
   case SQLCOM_SHOW_WARNS:
   {
     res= mysqld_show_warnings(thd, (ulong)
-			      ((1L << (uint) MYSQL_ERROR::WARN_LEVEL_NOTE) |
-			       (1L << (uint) MYSQL_ERROR::WARN_LEVEL_WARN) |
-			       (1L << (uint) MYSQL_ERROR::WARN_LEVEL_ERROR)
+			      ((1L << (uint) Sql_condition::WARN_LEVEL_NOTE) |
+			       (1L << (uint) Sql_condition::WARN_LEVEL_WARN) |
+			       (1L << (uint) Sql_condition::WARN_LEVEL_ERROR)
 			       ));
     break;
   }
   case SQLCOM_SHOW_ERRORS:
   {
     res= mysqld_show_warnings(thd, (ulong)
-			      (1L << (uint) MYSQL_ERROR::WARN_LEVEL_ERROR));
+			      (1L << (uint) Sql_condition::WARN_LEVEL_ERROR));
     break;
   }
   case SQLCOM_SHOW_PROFILES:
@@ -2472,7 +2472,7 @@ case SQLCOM_PREPARE:
     }
     else
     {
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
       my_ok(thd);
     }
@@ -2606,7 +2606,7 @@ case SQLCOM_PREPARE:
         */
         if (splocal_refs != thd->query_name_consts)
           push_warning(thd, 
-                       MYSQL_ERROR::WARN_LEVEL_WARN,
+                       Sql_condition::WARN_LEVEL_WARN,
                        ER_UNKNOWN_ERROR,
 "Invoked routine ran a statement that may cause problems with "
 "binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' "
@@ -2636,7 +2636,7 @@ case SQLCOM_PREPARE:
         {
           if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
           {
-            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+            push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                                 ER_TABLE_EXISTS_ERROR,
                                 ER(ER_TABLE_EXISTS_ERROR),
                                 create_info.alias);
@@ -3672,7 +3672,7 @@ end_with_restore_list:
           goto error;
         if (specialflag & SPECIAL_NO_RESOLVE &&
             hostname_requires_resolving(user->host.str))
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_WARN_HOSTNAME_WONT_WORK,
                               ER(ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
@@ -4034,7 +4034,7 @@ end_with_restore_list:
       {
         if (sp_grant_privileges(thd, lex->sphead->m_db.str, name,
                                 lex->sql_command == SQLCOM_CREATE_PROCEDURE))
-          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                        ER_PROC_AUTO_GRANT_FAIL, ER(ER_PROC_AUTO_GRANT_FAIL));
         thd->clear_error();
       }
@@ -4238,7 +4238,7 @@ create_sp_error:
         {
           if (lex->drop_if_exists)
           {
-            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+            push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                                 ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
                                 "FUNCTION (UDF)", lex->spname->m_name.str);
             res= FALSE;
@@ -4290,7 +4290,7 @@ create_sp_error:
           sp_revoke_privileges(thd, db, name,
                                lex->sql_command == SQLCOM_DROP_PROCEDURE))
       {
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_PROC_AUTO_REVOKE_FAIL,
                      ER(ER_PROC_AUTO_REVOKE_FAIL));
         /* If this happens, an error should have been reported. */
@@ -4307,7 +4307,7 @@ create_sp_error:
 	if (lex->drop_if_exists)
 	{
           res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+	  push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
                               SP_COM_STRING(lex), lex->spname->m_qname.str);
           if (!res)
