@@ -1481,6 +1481,9 @@ loop:
 
 			last_table_monitor_time = ut_time();
 
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
+
 			fputs("===========================================\n",
 			      stderr);
 
@@ -1495,6 +1498,9 @@ loop:
 			      "END OF INNODB TABLE MONITOR OUTPUT\n"
 			      "==================================\n",
 			      stderr);
+
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 		}
 	}
 

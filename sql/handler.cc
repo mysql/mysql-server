@@ -1057,7 +1057,7 @@ int ha_prepare(THD *thd)
       }
       else
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                             ha_resolve_storage_engine_name(ht));
       }
@@ -1934,7 +1934,7 @@ int ha_start_consistent_snapshot(THD *thd)
     exist:
   */
   if (warn)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                  "This MySQL server does not support any "
                  "consistent-read capable storage engine");
   return 0;
@@ -2030,9 +2030,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
   char buff[MYSQL_ERRMSG_SIZE];
 };
 
@@ -2042,9 +2042,9 @@ Ha_delete_table_error_handler::
 handle_condition(THD *,
                  uint,
                  const char*,
-                 MYSQL_ERROR::enum_warning_level,
+                 Sql_condition::enum_warning_level,
                  const char* msg,
-                 MYSQL_ERROR ** cond_hdl)
+                 Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   /* Grab the error message */
@@ -2107,7 +2107,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       XXX: should we convert *all* errors to warnings here?
       What if the error is fatal?
     */
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, error,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, error,
                 ha_delete_table_error_handler.buff);
   }
   delete file;

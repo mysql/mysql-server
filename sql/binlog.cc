@@ -370,7 +370,7 @@ void check_binlog_cache_size(THD *thd)
   {
     if (thd)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
                           ER(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
                           (ulong) binlog_cache_size,
@@ -396,7 +396,7 @@ void check_binlog_stmt_cache_size(THD *thd)
   {
     if (thd)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX,
                           ER(ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX),
                           (ulong) binlog_stmt_cache_size,
@@ -2329,7 +2329,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     {
       if (my_errno == ENOENT) 
       {
-        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
                             linfo.log_file_name);
         sql_print_information("Failed to delete file '%s'",
@@ -2339,7 +2339,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
       }
       else
       {
-        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_BINLOG_PURGE_FATAL_ERR,
                             "a problem with deleting %s; "
                             "consider examining correspondence "
@@ -2360,7 +2360,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   {
     if (my_errno == ENOENT) 
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
                           index_file_name);
       sql_print_information("Failed to delete file '%s'",
@@ -2370,7 +2370,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     }
     else
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_BINLOG_PURGE_FATAL_ERR,
                           "a problem with deleting %s; "
                           "consider examining correspondence "
@@ -2932,7 +2932,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         */
         if (thd)
         {
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
                               log_info.log_file_name);
         }
@@ -2947,7 +2947,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         */
         if (thd)
         {
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_BINLOG_PURGE_FATAL_ERR,
                               "a problem with getting info on being purged %s; "
                               "consider examining correspondence "
@@ -2975,7 +2975,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         {
           if (thd)
           {
-            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+            push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                                 ER_BINLOG_PURGE_FATAL_ERR,
                                 "a problem with deleting %s and "
                                 "reading the binlog index file",
@@ -3011,7 +3011,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
           {
             if (thd)
             {
-              push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+              push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                                   ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
                                   log_info.log_file_name);
             }
@@ -3023,7 +3023,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
           {
             if (thd)
             {
-              push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+              push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                                   ER_BINLOG_PURGE_FATAL_ERR,
                                   "a problem with deleting %s; "
                                   "consider examining correspondence "
@@ -3114,7 +3114,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
         */
         if (thd)
         {
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_BINLOG_PURGE_FATAL_ERR,
                               "a problem with getting info on being purged %s; "
                               "consider examining correspondence "
@@ -5828,7 +5828,7 @@ void THD::issue_unsafe_warnings()
   {
     if ((unsafe_type_flags & (1 << unsafe_type)) != 0)
     {
-      push_warning_printf(this, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(this, Sql_condition::WARN_LEVEL_NOTE,
                           ER_BINLOG_UNSAFE_STATEMENT,
                           ER(ER_BINLOG_UNSAFE_STATEMENT),
                           ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
