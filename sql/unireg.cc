@@ -27,7 +27,6 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_partition.h"                      // struct partition_info
-#include "sql_table.h"                          // check_duplicate_warning
 #include "sql_class.h"                  // THD, Internal_error_handler
 #include <m_ctype.h>
 #include <assert.h>
@@ -235,12 +234,13 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       my_free(screen_buff);
       DBUG_RETURN(1);
     }
+    THD *thd= current_thd;
     char warn_buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_TABLE_COMMENT),
                 real_table_name, static_cast<ulong>(TABLE_COMMENT_MAXLEN));
     /* do not push duplicate warnings */
-    if (!check_duplicate_warning(current_thd, warn_buff, strlen(warn_buff)))
-      push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                    ER_TOO_LONG_TABLE_COMMENT, warn_buff);
     create_info->comment.length= tmp_len;
   }
@@ -735,7 +735,9 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
                                                      COLUMN_COMMENT_MAXLEN);
     if (tmp_len < field->comment.length)
     {
-      if ((current_thd->variables.sql_mode &
+      THD *thd= current_thd;
+
+      if ((thd->variables.sql_mode &
 	   (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
       {
         my_error(ER_TOO_LONG_FIELD_COMMENT, MYF(0), field->field_name,
@@ -747,8 +749,8 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
                   field->field_name,
                   static_cast<ulong>(COLUMN_COMMENT_MAXLEN));
       /* do not push duplicate warnings */
-      if (!check_duplicate_warning(current_thd, warn_buff, strlen(warn_buff)))
-        push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      ER_TOO_LONG_FIELD_COMMENT, warn_buff);
       field->comment.length= tmp_len;
     }
