@@ -324,7 +324,7 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
   if (invalid_creation_ctx)
   {
     push_warning_printf(thd,
-                        MYSQL_ERROR::WARN_LEVEL_WARN,
+                        Sql_condition::WARN_LEVEL_WARN,
                         ER_SR_INVALID_CREATION_CTX,
                         ER(ER_SR_INVALID_CREATION_CTX),
                         (const char *) db_name,
@@ -679,9 +679,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
 };
 
 bool
@@ -689,13 +689,13 @@ Silence_deprecated_warning::handle_condition(
   THD *,
   uint sql_errno,
   const char*,
-  MYSQL_ERROR::enum_warning_level level,
+  Sql_condition::enum_warning_level level,
   const char*,
-  MYSQL_ERROR ** cond_hdl)
+  Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   if (sql_errno == ER_WARN_DEPRECATED_SYNTAX &&
-      level == MYSQL_ERROR::WARN_LEVEL_WARN)
+      level == Sql_condition::WARN_LEVEL_WARN)
     return TRUE;
 
   return FALSE;
@@ -768,9 +768,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* message,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
 
   bool error_caught() const { return m_error_caught; }
 
@@ -782,9 +782,9 @@ bool
 Bad_db_error_handler::handle_condition(THD *thd,
                                        uint sql_errno,
                                        const char* sqlstate,
-                                       MYSQL_ERROR::enum_warning_level level,
+                                       Sql_condition::enum_warning_level level,
                                        const char* message,
-                                       MYSQL_ERROR ** cond_hdl)
+                                       Sql_condition ** cond_hdl)
 {
   if (sql_errno == ER_BAD_DB_ERROR)
   {
@@ -1416,9 +1416,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl)
+                        Sql_condition ** cond_hdl)
   {
     if (sql_errno == ER_NO_SUCH_TABLE ||
         sql_errno == ER_CANNOT_LOAD_FROM_TABLE_V2 ||
@@ -1776,7 +1776,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
                                sp_find_routine(thd, TYPE_ENUM_FUNCTION,
                                                name, &thd->sp_func_cache,
                                                FALSE) != NULL;
-    thd->get_stmt_wi()->clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->clear_warning_info(thd->query_id);
     if (! sp_object_found)
     {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE",

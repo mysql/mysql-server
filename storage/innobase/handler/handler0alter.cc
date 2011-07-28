@@ -1406,7 +1406,7 @@ ha_innobase::final_drop_index(
 
 			if (ret != DB_SUCCESS) {
 				push_warning(user_thd,
-					     MYSQL_ERROR::WARN_LEVEL_WARN,
+					     Sql_condition::WARN_LEVEL_WARN,
 					     ER_LOCK_WAIT_TIMEOUT,
 					     errstr);
 			}

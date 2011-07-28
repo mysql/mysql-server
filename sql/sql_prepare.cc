@@ -341,7 +341,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
   buff[9]= 0;                                   // Guard against a 4.1 client
-  tmp= min(stmt->thd->get_stmt_wi()->statement_warn_count(), 65535);
+  tmp= min(stmt->thd->get_stmt_da()->current_statement_warn_count(), 65535);
   int2store(buff+10, tmp);
 
   /*
@@ -1961,7 +1961,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 
   /* Reset warning count for each query that uses tables */
   if (tables)
-    thd->get_stmt_wi()->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
 
   /*
     For the optimizer trace, this is the symmetric, for statement preparation,
@@ -2965,8 +2965,7 @@ Reprepare_observer::report_error(THD *thd)
     that this thread execution stops and returns to the caller,
     backtracking all the way to Prepared_statement::execute_loop().
   */
-  thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE,
-                                       ER(ER_NEED_REPREPARE), "HY000");
+  thd->get_stmt_da()->set_error_status(ER_NEED_REPREPARE);
   m_invalidated= TRUE;
 
   return TRUE;
@@ -3576,7 +3575,7 @@ Prepared_statement::reprepare()
       Sic: we can't simply silence warnings during reprepare, because if
       it's failed, we need to return all the warnings to the user.
     */
-    thd->get_stmt_wi()->clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->clear_warning_info(thd->query_id);
   }
   return error;
 }
@@ -3964,7 +3963,7 @@ Ed_connection::free_old_result()
   }
   m_current_rset= m_rsets;
   m_diagnostics_area.reset_diagnostics_area();
-  m_diagnostics_area.get_warning_info()->clear_warning_info(m_thd->query_id);
+  m_diagnostics_area.clear_warning_info(m_thd->query_id);
 }
 
 
