@@ -528,8 +528,52 @@ public:
   inline const Warning_info *get_warning_info() const
   { return m_current_wi; }
 
+public:
   inline void set_warning_info(Warning_info *wi)
   { m_current_wi= wi; }
+
+public:
+  ulonglong warning_info_id() const
+  { return get_warning_info()->warn_id(); }
+
+  bool is_warning_info_empty() const
+  { return get_warning_info()->is_empty(); }
+
+  ulong current_statement_warn_count() const
+  { return get_warning_info()->current_statement_warn_count(); }
+
+  void reset_for_next_command()
+  { get_warning_info()->reset_for_next_command(); }
+
+  void clear_warning_info(ulonglong id)
+  { get_warning_info()->clear_warning_info(id); }
+
+  void opt_clear_warning_info(ulonglong query_id)
+  { get_warning_info()->opt_clear_warning_info(query_id); }
+
+  ulong current_row_for_warning() const
+  { return get_warning_info()->current_row_for_warning(); }
+
+  void inc_current_row_for_warning()
+  { get_warning_info()->inc_current_row_for_warning(); }
+
+  void reset_current_row_for_warning()
+  { get_warning_info()->reset_current_row_for_warning(); }
+
+  bool is_warning_info_read_only() const
+  { return get_warning_info()->is_read_only(); }
+
+  void set_warning_info_read_only(bool read_only)
+  { get_warning_info()->set_read_only(read_only); }
+
+  ulong error_count() const
+  { return get_warning_info()->error_count(); }
+
+  ulong warn_count() const
+  { return get_warning_info()->warn_count(); }
+
+  Warning_info::Const_iterator sql_conditions() const
+  { return get_warning_info()->iterator(); }
 
 private:
   /** Message buffer. Can be used by OK or ERROR status. */

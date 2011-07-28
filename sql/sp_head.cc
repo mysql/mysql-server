@@ -1156,9 +1156,9 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 
     wi->remove_sql_condition(wi->get_error_condition());
   }
-  else if (thd->get_stmt_wi()->current_statement_warn_count())
+  else if (thd->get_stmt_da()->current_statement_warn_count())
   {
-    Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
+    Warning_info::Const_iterator it= thd->get_stmt_da()->sql_conditions();
     const MYSQL_ERROR *err;
 
     while ((err= it++))
@@ -1227,8 +1227,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
   Diagnostics_area *da= thd->get_stmt_da();
-  Warning_info *saved_warning_info;
-  Warning_info warning_info(thd->get_stmt_wi()->warn_id(), false);
+  Warning_info *main_wi= da->get_warning_info();
+  Warning_info sp_wi(da->warning_info_id(), false);
 
   /*
     Just reporting a stack overrun error
@@ -1301,9 +1301,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   old_arena= thd->stmt_arena;
 
   /* Push a new warning information area. */
-  warning_info.append_warning_info(thd, thd->get_stmt_wi());
-  saved_warning_info= thd->get_stmt_wi();
-  da->set_warning_info(&warning_info);
+  sp_wi.append_warning_info(thd, main_wi);
+  da->set_warning_info(&sp_wi);
 
   /*
     Switch query context. This has to be done early as this is sometimes
@@ -1403,7 +1402,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     }
 
     /* Reset number of warnings for this query. */
-    thd->get_stmt_wi()->reset_for_next_command();
+    thd->get_stmt_da()->reset_for_next_command();
 
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
@@ -1511,8 +1510,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
         propagated to the caller in any case.
   */
   if (err_status || merge_da_on_success)
-    saved_warning_info->merge_with_routine_info(thd, thd->get_stmt_wi());
-  da->set_warning_info(saved_warning_info);
+    main_wi->merge_with_routine_info(thd, &sp_wi);
+  da->set_warning_info(main_wi);
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",

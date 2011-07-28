@@ -2944,7 +2944,7 @@ const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
 
 bool check_duplicate_warning(THD *thd, char *msg, ulong length)
 {
-  Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
+  Warning_info::Const_iterator it= thd->get_stmt_da()->sql_conditions();
   const MYSQL_ERROR *err;
   while ((err= it++))
   {
@@ -7104,7 +7104,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 end_temporary:
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
 	      (ulong) (copied + deleted), (ulong) deleted,
-	      (ulong) thd->get_stmt_wi()->current_statement_warn_count());
+	      (ulong) thd->get_stmt_da()->current_statement_warn_count());
   my_ok(thd, copied + deleted, 0L, tmp_name);
   DBUG_RETURN(FALSE);
 
@@ -7131,7 +7131,7 @@ err:
     Report error here.
   */
   if (alter_info->error_if_not_empty &&
-      thd->get_stmt_wi()->current_row_for_warning())
+      thd->get_stmt_da()->current_row_for_warning())
   {
     const char *f_val= 0;
     enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
@@ -7336,7 +7336,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE);
   if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  thd->get_stmt_wi()->reset_current_row_for_warning();
+  thd->get_stmt_da()->reset_current_row_for_warning();
   restore_record(to, s->default_values);        // Create empty record
   while (!(error=info.read_record(&info)))
   {
@@ -7395,7 +7395,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     else
       found_count++;
-    thd->get_stmt_wi()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_warning();
   }
   end_read_record(&info);
   free_io_cache(from);

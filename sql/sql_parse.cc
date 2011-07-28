@@ -2060,12 +2060,12 @@ mysql_execute_command(THD *thd)
     variables, but for now this is probably good enough.
   */
   if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) != 0)
-    thd->get_stmt_wi()->set_read_only(TRUE);
+    thd->get_stmt_da()->set_warning_info_read_only(TRUE);
   else
   {
-    thd->get_stmt_wi()->set_read_only(FALSE);
+    thd->get_stmt_da()->set_warning_info_read_only(FALSE);
     if (all_tables)
-      thd->get_stmt_wi()->opt_clear_warning_info(thd->query_id);
+      thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
   }
 
 #ifdef HAVE_REPLICATION
@@ -5475,7 +5475,7 @@ void THD::reset_for_next_command()
   }
   thd->clear_error();
   thd->get_stmt_da()->reset_diagnostics_area();
-  thd->get_stmt_wi()->reset_for_next_command();
+  thd->get_stmt_da()->reset_for_next_command();
   thd->rand_used= 0;
   thd->m_sent_row_count= thd->m_examined_row_count= 0;
   thd->thd_marker.emb_on_expr_nest= NULL;

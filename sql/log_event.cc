@@ -214,7 +214,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end= buff + sizeof(buff);
   uint len;
-  Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
+  Warning_info::Const_iterator it= thd->get_stmt_da()->sql_conditions();
   const MYSQL_ERROR *err;
   buff[0]= 0;
 
@@ -5306,7 +5306,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   {
     thd->set_time((time_t)when);
     thd->set_query_id(next_query_id());
-    thd->get_stmt_wi()->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];

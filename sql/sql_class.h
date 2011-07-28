@@ -2870,10 +2870,6 @@ public:
   */
   inline bool is_error() const { return get_stmt_da()->is_error(); }
 
-  /// Returns Warning-information-area for the current diagnostics area.
-  Warning_info *get_stmt_wi()
-  { return get_stmt_da()->get_warning_info(); }
-
   /// Returns Diagnostics-area for the current statement.
   Diagnostics_area *get_stmt_da()
   { return m_stmt_da; }
