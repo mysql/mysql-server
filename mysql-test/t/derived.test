@@ -326,7 +326,7 @@ CREATE TABLE C (
 
 INSERT INTO C VALUES (2,'w','w');
 INSERT INTO C VALUES (2,'d','d');
-
+--sorted_result
 SELECT SUM(DISTINCT table2.col_int_key) field1, 
        table1.col_varchar_key field2 
 FROM 
@@ -885,5 +885,23 @@ WHERE ( OUTR.col_varchar_nokey , OUTR.col_varchar_key )
 ;
 
 DROP TABLE t1,t2;
+--echo #
+
+--echo #
+--echo # Bug#12799731 - CRASH IN END_READ_RECORD.
+--echo #
+create table t1(f1 char(255) charset utf8);
+insert into t1 values('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
+set @save_heap_size= @@max_heap_table_size;
+set @@max_heap_table_size= 1;
+flush status;
+select count(*) from t1 join (
+  select t1.f1 from t1 join t1 as t2 join t1 as t3) tt on t1.f1 = tt.f1;
+--echo Should be greater than 1000 as it also includes records dumped from
+--echo heap to myisam.
+show status like 'Handler_write';
+set @@max_heap_table_size= @save_heap_size;
+drop table t1;
+
 --echo #
 
