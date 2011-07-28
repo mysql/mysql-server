@@ -22,30 +22,35 @@
 --source include/not_windows.inc
 
 # Set this to enable debugging output
-let $my_socket_debug=1;
-
-#
-# Determine if IPV6 supported
-#
-
-let $check_ipv6_just_check=1;
---source include/check_ipv6.inc
+let $my_socket_debug=0;
 
 #
 # Set IP address defaults with respect to IPV6 support
 #
 
+# Determine if IPV6 supported
+let $check_ipv6_just_check=1;
+--source include/check_ipv6.inc
+
+# Determine if IPV4 mapped to IPV6 supported
+let $check_ipv4_mapped_just_check=1;
+--source include/check_ipv4_mapped.inc
+
 let $my_localhost=127.0.0.1;
-let $my_bindaddr=0.0.0.0;
+
 if($check_ipv6_supported)
 {
   let $my_localhost=::1;
-  let $my_bindaddr=::;
+}
+
+if($check_ipv4_mapped_supported)
+{
+  let $my_localhost=::ffff:127.0.0.1;
 }
 
 if($my_socket_debug)
 {
-  --echo IPV6 SUPPORTED=$check_ipv6_supported, LOCALHOST=$my_localhost, BINDADDR=$my_bindaddr
+  --echo IPV6=$check_ipv6_supported, IPV4_MAPPED=$check_ipv4_mapped_supported, LOCALHOST=$my_localhost
 }
 
 #
@@ -265,11 +270,11 @@ let $server_tcpip_thread_id= `SELECT @thread_id`;
 --echo #    Check the content.
 --disable_query_log
 eval set @port = $MASTER_MYPORT;
-eval set @addr = '$my_bindaddr';
 --enable_query_log
 
 eval SELECT THREAD_ID = @thread_id
-     AND PORT = @port AND IP = @addr
+     AND (IP = '0.0.0.0' OR IP = '::')
+     AND PORT = @port
      AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
@@ -298,7 +303,8 @@ let $server_unix_thread_id= `SELECT @thread_id`;
 
 --echo #    Check the content.
 eval SELECT THREAD_ID = @thread_id
-     AND PORT = 0 AND IP = ''
+     AND IP = ''
+     AND PORT = 0
      AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE EVENT_NAME = 'wait/io/socket/sql/server_unix_socket';
@@ -348,7 +354,7 @@ eval set @addr = '$my_localhost';
 --enable_query_log
 
 eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
-        AND IP = @addr
+        AND (IP LIKE '%127.0.0.1' OR IP = '::1')
         AND PORT = @port
 AS 'Expect 1'
 FROM performance_schema.socket_instances
@@ -377,7 +383,7 @@ eval set @addr = '$my_localhost';
 --enable_query_log
 
 eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
-        AND IP = @addr
+        AND (IP LIKE '%127.0.0.1' OR IP = '::1')
         AND PORT = @port
 AS 'Expect 1'
 FROM performance_schema.socket_instances
