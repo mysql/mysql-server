@@ -3446,6 +3446,7 @@ static ST_FIELD_INFO	i_s_fts_config_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+	END_OF_ST_FIELD_INFO
 };
 
 static const char* fts_config_key[] = {
