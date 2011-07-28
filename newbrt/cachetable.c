@@ -1859,20 +1859,34 @@ int toku_cachetable_get_and_pin_nonblocking (
 
 	    // Right now we have the cachetable lock.  That means no one is modifying p.
 	    switch (p->state) {
-	    case CTPAIR_INVALID: assert(0);
-	    case CTPAIR_READING:
-	    case CTPAIR_WRITING:
-                cachetable_miss++;
-		run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
-		if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
-		// Now wait for the I/O to occur.
-		// We need to obtain the read lock (waiting for the write to finish), but then we only waited so we could wake up again.  So rather than locking the read lock, and then releasing it we call this function.
-		rwlock_read_lock_and_unlock(&p->rwlock, ct->mutex); // recall that this lock releases and reacquires the ct->mutex, letting writers finish up first.
-		cachetable_unlock(ct);
-		if (ct->ydb_lock_callback) ct->ydb_lock_callback();
-		return TOKUDB_TRY_AGAIN;
 	    case CTPAIR_IDLE:
                 {
+                    if (p->checkpoint_pending) {
+                        // if the pair is idle and we have the cachetable lock,
+                        // then that means no reader thread or writer thread
+                        // is accessing the pair. Also, if we are holding the ydb lock,
+                        // then there should be no other users of this pair,
+                        // So, the number of users had better be zero
+                        // That is what we assert
+                        assert(rwlock_users(&p->rwlock) == 0);
+
+                        // Given there are no users, then we know
+                        // that grabbing the PAIR's write lock should
+                        // succeed.
+                        
+                        // if there is a checkpoint pending, we put the write
+                        // onto the writer thread
+                        // within this call, we assert that the pair is dirty
+                        // If we have a checkpoint pending, the pair better be
+                        // dirty, so we leave that assert in flush_dirty_pair
+                        // the write lock is grabbed in flush_dirty_pair and will
+                        // be released on the writer thread
+                        flush_dirty_pair(ct,p);
+                        // at this point, the state should be CTPAIR_WRITING, because
+                        // flush_dirty_pair set it before putting the write on the writer thread
+                        assert(p->state == CTPAIR_WRITING);
+                        goto wait_on_io;
+                    }
                     cachetable_hit++;
                     rwlock_read_lock(&p->rwlock, ct->mutex);
                     BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
@@ -1927,6 +1941,19 @@ int toku_cachetable_get_and_pin_nonblocking (
                     cachetable_unlock(ct);
                     return 0;
 	        }
+	    case CTPAIR_INVALID: assert(0);
+	    case CTPAIR_READING:
+	    case CTPAIR_WRITING:
+                wait_on_io:
+                cachetable_miss++;
+		run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
+		if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
+		// Now wait for the I/O to occur.
+		// We need to obtain the read lock (waiting for the write to finish), but then we only waited so we could wake up again.  So rather than locking the read lock, and then releasing it we call this function.
+		rwlock_read_lock_and_unlock(&p->rwlock, ct->mutex); // recall that this lock releases and reacquires the ct->mutex, letting writers finish up first.
+		cachetable_unlock(ct);
+		if (ct->ydb_lock_callback) ct->ydb_lock_callback();
+		return TOKUDB_TRY_AGAIN;
 	    }
 	    assert(0); // cannot get here
 	}
