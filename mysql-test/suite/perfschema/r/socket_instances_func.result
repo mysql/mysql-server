@@ -93,7 +93,8 @@ FROM performance_schema.socket_instances
 WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
 #    Check the content.
 SELECT THREAD_ID = @thread_id
-AND PORT = @port AND IP = @addr
+AND (IP = '0.0.0.0' OR IP = '::')
+AND PORT = @port
 AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE EVENT_NAME = 'wait/io/socket/sql/server_tcpip_socket';
@@ -114,8 +115,9 @@ FROM performance_schema.socket_instances
 WHERE EVENT_NAME = 'wait/io/socket/sql/server_unix_socket';
 #    Check the content.
 SELECT THREAD_ID = @thread_id
-AND PORT = 0 AND IP = ''
-     AND STATE = 'ACTIVE' AS 'Expect 1'
+AND IP = ''
+     AND PORT = 0
+AND STATE = 'ACTIVE' AS 'Expect 1'
 FROM performance_schema.socket_instances
 WHERE EVENT_NAME = 'wait/io/socket/sql/server_unix_socket';
 Expect 1
@@ -137,7 +139,7 @@ select @match_thread_id;
 1
 #    Check content for client connection 1 (tcpip)
 SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
-        AND IP = @addr
+        AND (IP LIKE '%127.0.0.1' OR IP = '::1')
 AND PORT = @port
 AS 'Expect 1'
 FROM performance_schema.socket_instances
@@ -153,7 +155,7 @@ Expect 1
 1
 #    Check content for client connection 2 (tcpip)
 SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
-        AND IP = @addr
+        AND (IP LIKE '%127.0.0.1' OR IP = '::1')
 AND PORT = @port
 AS 'Expect 1'
 FROM performance_schema.socket_instances
