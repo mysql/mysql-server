@@ -346,7 +346,7 @@ Diagnostics_area::reset_diagnostics_area()
 {
   DBUG_ENTER("reset_diagnostics_area");
 #ifdef DBUG_OFF
-  can_overwrite_status= FALSE;
+  set_overwrite_status(false);
   /** Don't take chances in production */
   m_message[0]= '\0';
   m_sql_errno= 0;
@@ -355,7 +355,7 @@ Diagnostics_area::reset_diagnostics_area()
   m_statement_warn_count= 0;
 #endif
   get_warning_info()->clear_error_condition();
-  is_sent= FALSE;
+  set_is_sent(false);
   /** Tiny reset in debug mode to see garbage right away */
   m_status= DA_EMPTY;
   DBUG_VOID_RETURN;
@@ -464,7 +464,7 @@ Diagnostics_area::set_error_status(uint sql_errno,
     The only exception is when we flush the message to the client,
     an error can happen during the flush.
   */
-  DBUG_ASSERT(! is_set() || can_overwrite_status);
+  DBUG_ASSERT(! is_set() || m_can_overwrite_status);
 
   // message must be set properly by the caller.
   DBUG_ASSERT(message);
@@ -531,7 +531,7 @@ Warning_info::~Warning_info()
 bool Warning_info::has_sql_condition(const char *message_str,
                                      ulong message_length) const
 {
-  Warning_info::Const_iterator it(m_warn_list);
+  Diagnostics_area::Sql_condition_iterator it(m_warn_list);
   const MYSQL_ERROR *err;
 
   while ((err= it++))
@@ -559,7 +559,7 @@ void Warning_info::clear(ulonglong new_id)
 void Warning_info::append_warning_info(THD *thd, const Warning_info *source)
 {
   const MYSQL_ERROR *err;
-  Const_iterator it(source->m_warn_list);
+  Diagnostics_area::Sql_condition_iterator it(source->m_warn_list);
   const MYSQL_ERROR *src_error_condition = source->get_error_condition();
 
   /*
@@ -623,12 +623,36 @@ void Diagnostics_area::append_sp_warning_info(THD *thd,
   wi->append_warning_info(thd, sp_wi);
 }
 
+
+/**
+  Copy Sql_conditions that are not WARN_LEVEL_ERROR from the source
+  Warning_info to the current Warning_info.
+
+  @param thd    Thread context.
+  @param sp_wi  Stored-program Warning_info
+  @param thd     Thread context.
+  @param src_wi  Warning_info to copy from.
+*/
+void Diagnostics_area::copy_non_errors_from_wi(THD *thd,
+                                               const Warning_info *src_wi)
+{
+  Sql_condition_iterator it(src_wi->m_warn_list);
+  const MYSQL_ERROR *err;
+
+  while ((err= it++))
+  {
+    if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_ERROR)
+      push_warning(thd, err);
+  }
+}
+
+
 void Warning_info::remove_sql_condition(const MYSQL_ERROR *sql_condition)
 {
   if (!sql_condition)
     return;
 
-  Warning_info::Iterator it(m_warn_list);
+  MYSQL_ERROR_list::Iterator it(m_warn_list);
   MYSQL_ERROR *err;
   bool found = false;
 
@@ -811,7 +835,8 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 
   unit->set_limit(sel);
 
-  Warning_info::Const_iterator it= thd->get_stmt_da()->sql_conditions();
+  Diagnostics_area::Sql_condition_iterator it=
+    thd->get_stmt_da()->sql_conditions();
   while ((err= it++))
   {
     /* Skip levels that the user is not interested in */

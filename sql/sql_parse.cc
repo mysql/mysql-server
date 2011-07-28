@@ -4594,9 +4594,9 @@ finish:
     else
     {
       /* If commit fails, we should be able to reset the OK status. */
-      thd->get_stmt_da()->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->set_overwrite_status(true);
       trans_commit_stmt(thd);
-      thd->get_stmt_da()->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->set_overwrite_status(false);
     }
   }
 
@@ -4615,10 +4615,10 @@ finish:
     /* No transaction control allowed in sub-statements. */
     DBUG_ASSERT(! thd->in_sub_stmt);
     /* If commit fails, we should be able to reset the OK status. */
-    thd->get_stmt_da()->can_overwrite_status= TRUE;
+    thd->get_stmt_da()->set_overwrite_status(true);
     /* Commit the normal transaction if one is active. */
     trans_commit_implicit(thd);
-    thd->get_stmt_da()->can_overwrite_status= FALSE;
+    thd->get_stmt_da()->set_overwrite_status(false);
     thd->mdl_context.release_transactional_locks();
   }
   else if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())

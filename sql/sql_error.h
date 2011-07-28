@@ -44,6 +44,7 @@ public:
   */
   enum enum_warning_level
   { WARN_LEVEL_NOTE, WARN_LEVEL_WARN, WARN_LEVEL_ERROR, WARN_LEVEL_END};
+
   /**
     Get the MESSAGE_TEXT of this condition.
     @return the message text.
@@ -214,7 +215,6 @@ private:
 /**
   Information about warnings of the current connection.
 */
-
 class Warning_info
 {
   /** The type of the counted and doubly linked list of conditions. */
@@ -278,26 +278,14 @@ class Warning_info
   Warning_info *m_next_in_da;
   Warning_info **m_prev_in_da;
 
+public:
+  Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings);
+  ~Warning_info();
 
 private:
   Warning_info(const Warning_info &rhs); /* Not implemented */
   Warning_info& operator=(const Warning_info &rhs); /* Not implemented */
 
-public:
-  Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings);
-  ~Warning_info();
-
-public:
-  /** Type of the warning list. */
-  typedef MYSQL_ERROR_list List;
-
-  /** Iterator used to iterate through the warning list. */
-  typedef List::Iterator Iterator;
-
-  /** Const iterator used to iterate through the warning list. */
-  typedef List::Const_Iterator Const_iterator;
-
-public:
   /**
     Checks if Warning_info contains SQL-condition with the given message.
 
@@ -307,7 +295,6 @@ public:
     @return true if the Warning_info contains an SQL-condition with the given
     message.
   */
-
   bool has_sql_condition(const char *message_str, ulong message_length) const;
 
   /**
@@ -358,7 +345,7 @@ public:
 
   /**
     Remove given SQL-condition from the list.
-    
+
     @param sql_condition The SQL-condition to remove (may be NULL).
   */
   void remove_sql_condition(const MYSQL_ERROR *sql_condition);
@@ -377,11 +364,6 @@ public:
             m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR] +
             m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_WARN]);
   }
-
-  /**
-    Returns a const iterator pointing to the beginning of the warning list.
-  */
-  Const_iterator iterator() const { return m_warn_list; }
 
   /**
     The number of errors, or number of rows returned by SHOW ERRORS,
@@ -491,7 +473,6 @@ public:
   void clear_error_condition()
   { m_error_condition= NULL; }
 
-private:
   // for:
   //   - m_next_in_da / m_prev_in_da
   friend class Diagnostics_area;
@@ -503,8 +484,8 @@ extern char *err_conv(char *buff, uint to_length, const char *from,
 class ErrConvString
 {
   char err_buffer[MYSQL_ERRMSG_SIZE];
-public:
 
+public:
   ErrConvString(String *str)
   {
     (void) err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
@@ -535,10 +516,9 @@ public:
   can hold either OK, ERROR, or EOF status.
   Can not be assigned twice per statement.
 */
-
 class Diagnostics_area
 {
-public:
+private:
   /** The type of the counted and doubly linked list of conditions. */
   typedef I_P_List<Warning_info,
                    I_P_List_adapter<Warning_info,
@@ -547,7 +527,12 @@ public:
                    I_P_List_counter,
                    I_P_List_fast_push_back<Warning_info> >
           Warning_info_list;
+
 public:
+  /** Const iterator used to iterate through the warning list. */
+  typedef Warning_info::MYSQL_ERROR_list::Const_Iterator
+    Sql_condition_iterator;
+
   enum enum_diagnostics_status
   {
     /** The area is cleared at start of a statement. */
@@ -561,10 +546,13 @@ public:
     /** Set in case of a custom response, such as one from COM_STMT_PREPARE. */
     DA_DISABLED
   };
-  /** True if status information is sent to the client. */
-  bool is_sent;
-  /** Set to make set_error_status after set_{ok,eof}_status possible. */
-  bool can_overwrite_status;
+
+  void set_overwrite_status(bool can_overwrite_status)
+  { m_can_overwrite_status= can_overwrite_status; }
+
+  bool is_sent() const { return m_is_sent; }
+
+  void set_is_sent(bool is_sent) { m_is_sent= is_sent; }
 
   void set_ok_status(ulonglong affected_rows,
                      ulonglong last_insert_id,
@@ -584,10 +572,15 @@ public:
   void reset_diagnostics_area();
 
   bool is_set() const { return m_status != DA_EMPTY; }
+
   bool is_error() const { return m_status == DA_ERROR; }
+
   bool is_eof() const { return m_status == DA_EOF; }
+
   bool is_ok() const { return m_status == DA_OK; }
+
   bool is_disabled() const { return m_status == DA_DISABLED; }
+
   enum_diagnostics_status status() const { return m_status; }
 
   const char *message() const
@@ -611,11 +604,9 @@ public:
     return m_statement_warn_count;
   }
 
-public:
   Diagnostics_area();
   Diagnostics_area(ulonglong warning_info_id, bool allow_unlimited_warnings);
 
-public:
   void push_warning_info(Warning_info *wi)
   { m_wi_stack.push_front(wi); }
 
@@ -625,7 +616,6 @@ public:
     m_wi_stack.remove(m_wi_stack.front());
   }
 
-public:
   void set_warning_info_id(ulonglong id)
   { get_warning_info()->id(id); }
 
@@ -671,8 +661,8 @@ public:
   ulong warn_count() const
   { return get_warning_info()->warn_count(); }
 
-  Warning_info::Const_iterator sql_conditions() const
-  { return get_warning_info()->iterator(); }
+  Sql_condition_iterator sql_conditions() const
+  { return get_warning_info()->m_warn_list; }
 
   void reserve_space(THD *thd, uint count)
   { get_warning_info()->reserve_space(thd, count); }
@@ -689,7 +679,7 @@ public:
     return get_warning_info()->push_warning(thd,
                                             sql_errno, sqlstate, level, msg);
   }
-                                  
+
   void remove_sql_condition(const MYSQL_ERROR *sql_condition)
   { get_warning_info()->remove_sql_condition(sql_condition); }
 
@@ -701,16 +691,23 @@ public:
 
   void append_sp_warning_info(THD *thd, const Warning_info *sp_wi);
 
-private:
-  inline Warning_info *get_warning_info()
-  { return m_wi_stack.front(); }
-
-  inline const Warning_info *get_warning_info() const
-  { return m_wi_stack.front(); }
+  void copy_non_errors_from_wi(THD *thd, const Warning_info *src_wi);
 
 private:
+  Warning_info *get_warning_info() { return m_wi_stack.front(); }
+
+  const Warning_info *get_warning_info() const { return m_wi_stack.front(); }
+
+private:
+  /** True if status information is sent to the client. */
+  bool m_is_sent;
+
+  /** Set to make set_error_status after set_{ok,eof}_status possible. */
+  bool m_can_overwrite_status;
+
   /** Message buffer. Can be used by OK or ERROR status. */
   char m_message[MYSQL_ERRMSG_SIZE];
+
   /**
     SQL error number. One of ER_ codes from share/errmsg.txt.
     Set by set_error_status.
@@ -731,12 +728,14 @@ private:
     can not be changed.
   */
   ulonglong    m_affected_rows;
+
   /**
     Similarly to the previous member, this is a replacement of
     thd->first_successful_insert_id_in_prev_stmt, which is used
     to implement LAST_INSERT_ID().
   */
   ulonglong   m_last_insert_id;
+
   /**
     Number of warnings of this last statement. May differ from
     the number of warnings returned by SHOW WARNINGS e.g. in case
@@ -744,6 +743,7 @@ private:
     them.
   */
   uint	     m_statement_warn_count;
+
   enum_diagnostics_status m_status;
 
   Warning_info m_main_wi;
@@ -756,9 +756,12 @@ private:
 
 void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
                   uint code, const char *msg);
+
 void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
                          uint code, const char *format, ...);
+
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
+
 uint32 convert_error_message(char *to, uint32 to_length,
                              const CHARSET_INFO *to_cs,
                              const char *from, uint32 from_length,
