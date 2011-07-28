@@ -366,9 +366,9 @@ Diagnostics_area::reset_diagnostics_area()
 */
 
 void
-Diagnostics_area::set_ok_status(THD *thd, ulonglong affected_rows_arg,
-                                ulonglong last_insert_id_arg,
-                                const char *message_arg)
+Diagnostics_area::set_ok_status(ulonglong affected_rows,
+                                ulonglong last_insert_id,
+                                const char *message)
 {
   DBUG_ENTER("set_ok_status");
   DBUG_ASSERT(! is_set());
@@ -379,11 +379,11 @@ Diagnostics_area::set_ok_status(THD *thd, ulonglong affected_rows_arg,
   if (is_error() || is_disabled())
     return;
 
-  m_statement_warn_count= thd->get_stmt_da()->current_statement_warn_count();
-  m_affected_rows= affected_rows_arg;
-  m_last_insert_id= last_insert_id_arg;
-  if (message_arg)
-    strmake(m_message, message_arg, sizeof(m_message) - 1);
+  m_statement_warn_count= current_statement_warn_count();
+  m_affected_rows= affected_rows;
+  m_last_insert_id= last_insert_id;
+  if (message)
+    strmake(m_message, message, sizeof(m_message) - 1);
   else
     m_message[0]= '\0';
   m_status= DA_OK;
@@ -415,24 +415,46 @@ Diagnostics_area::set_eof_status(THD *thd)
   */
   m_statement_warn_count= (thd->spcont ?
                            0 :
-                           thd->get_stmt_da()->current_statement_warn_count());
+                           current_statement_warn_count());
 
   m_status= DA_EOF;
   DBUG_VOID_RETURN;
 }
 
 /**
-  Set ERROR status.
+  Set ERROR status in the Diagnostics Area. This function should be used to
+  report fatal errors (such as out-of-memory errors) when no further
+  processing is possible.
 
-  Note, that error_condition may be NULL. It happens if a) OOM error is
-  being reported; or b) when Warning_info is full.
+  @param sql_errno        SQL-condition error number
 */
 
 void
-Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
-                                   const char *message_arg,
+Diagnostics_area::set_error_status(uint sql_errno)
+{
+  set_error_status(sql_errno,
+                   ER(sql_errno),
+                   mysql_errno_to_sqlstate(sql_errno),
+                   NULL);
+}
+
+/**
+  Set ERROR status in the Diagnostics Area.
+
+  @note error_condition may be NULL. It happens if a) OOM error is being
+  reported; or b) when Warning_info is full.
+
+  @param sql_errno        SQL-condition error number
+  @param message          SQL-condition message
+  @param sqlstate         SQL-condition state
+  @param error_condition  SQL-condition object representing the error state
+*/
+
+void
+Diagnostics_area::set_error_status(uint sql_errno,
+                                   const char *message,
                                    const char *sqlstate,
-                                   MYSQL_ERROR *error_condition)
+                                   const MYSQL_ERROR *error_condition)
 {
   DBUG_ENTER("set_error_status");
   /*
@@ -441,6 +463,13 @@ Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
     an error can happen during the flush.
   */
   DBUG_ASSERT(! is_set() || can_overwrite_status);
+
+  // message must be set properly by the caller.
+  DBUG_ASSERT(message);
+
+  // sqlstate must be set properly by the caller.
+  DBUG_ASSERT(sqlstate);
+
 #ifdef DBUG_OFF
   /*
     In production, refuse to overwrite a custom response with an
@@ -450,13 +479,10 @@ Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
     return;
 #endif
 
-  if (sqlstate == NULL)
-    sqlstate= mysql_errno_to_sqlstate(sql_errno_arg);
-
-  m_sql_errno= sql_errno_arg;
+  m_sql_errno= sql_errno;
   memcpy(m_sqlstate, sqlstate, SQLSTATE_LENGTH);
   m_sqlstate[SQLSTATE_LENGTH]= '\0';
-  strmake(m_message, message_arg, sizeof(m_message)-1);
+  strmake(m_message, message, sizeof(m_message)-1);
 
   m_current_wi->set_error_condition(error_condition);
 
@@ -601,10 +627,10 @@ void Warning_info::merge_with_routine_info(THD *thd, const Warning_info *source)
   }
 }
 
-bool Warning_info::remove_sql_condition(const MYSQL_ERROR *sql_condition)
+void Warning_info::remove_sql_condition(const MYSQL_ERROR *sql_condition)
 {
   if (!sql_condition)
-    return false;
+    return;
 
   Warning_info::Iterator it(m_warn_list);
   MYSQL_ERROR *err;
@@ -621,7 +647,7 @@ bool Warning_info::remove_sql_condition(const MYSQL_ERROR *sql_condition)
   }
 
   if (!found)
-    return false;
+    return;
 
   m_warn_count[sql_condition->get_level()]--;
   m_current_statement_warn_count--;
@@ -629,16 +655,13 @@ bool Warning_info::remove_sql_condition(const MYSQL_ERROR *sql_condition)
   if (sql_condition == m_error_condition)
     m_error_condition= NULL;
 
-  return true;
+  return;
 }
 
 void Warning_info::reserve_space(THD *thd, uint count)
 {
-  while ((m_warn_list.elements() > 0) &&
-        ((m_warn_list.elements() + count) > thd->variables.max_error_count))
-  {
+  while ((m_warn_list.elements() + count) > thd->variables.max_error_count)
     m_warn_list.remove(m_warn_list.front());
-  }
 }
 
 /**

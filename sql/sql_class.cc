@@ -1060,7 +1060,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
       (level == MYSQL_ERROR::WARN_LEVEL_NOTE))
     DBUG_RETURN(NULL);
 
-  wi->opt_clear_warning_info(query_id);
+  da->opt_clear_warning_info(query_id);
 
   /*
     TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
@@ -1129,7 +1129,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
       if (!da->is_error())
       {
         set_row_count_func(-1);
-        da->set_error_status(this, sql_errno, msg, sqlstate, cond);
+        da->set_error_status(sql_errno, msg, sqlstate, cond);
       }
     }
   }

@@ -477,12 +477,21 @@ bool Sql_cmd_signal::execute(THD *thd)
 }
 
 
+/**
+  Execute RESIGNAL SQL-statement.
+
+  @param thd Thread context.
+
+  @return Error status
+  @retval true  in case of error
+  @retval false on success
+*/
+
 bool Sql_cmd_resignal::execute(THD *thd)
 {
   Diagnostics_area *da= thd->get_stmt_da();
   Warning_info *wi= da->get_warning_info();
   MYSQL_ERROR *signaled;
-  int result= TRUE;
 
   DBUG_ENTER("Sql_cmd_resignal::execute");
 
@@ -491,26 +500,21 @@ bool Sql_cmd_resignal::execute(THD *thd)
   if (! thd->spcont || ! (signaled= thd->spcont->raised_condition()))
   {
     thd->raise_error(ER_RESIGNAL_WITHOUT_ACTIVE_HANDLER);
-    DBUG_RETURN(result);
+    DBUG_RETURN(true);
   }
 
-  if (m_cond)
+  if (m_cond) // RESIGNAL with signal_value.
   {
     query_cache_abort(&thd->query_cache_tls);
 
     /* Make room for 2 conditions. */
     wi->reserve_space(thd, 2);
 
-    MYSQL_ERROR *cond= wi->push_warning(thd,
-                                        signaled->get_sql_errno(),
-                                        signaled->get_sqlstate(),
-                                        signaled->get_level(),
-                                        signaled->get_message_text());
+    MYSQL_ERROR *cond= wi->push_warning(thd, signaled);
+
     if (cond)
       cond->copy_opt_attributes(signaled);
   }
 
-  result= raise_condition(thd, signaled);
-
-  DBUG_RETURN(result);
+  DBUG_RETURN(raise_condition(thd, signaled));
 }
