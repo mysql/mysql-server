@@ -379,7 +379,7 @@ Diagnostics_area::set_ok_status(THD *thd, ulonglong affected_rows_arg,
   if (is_error() || is_disabled())
     return;
 
-  m_statement_warn_count= thd->get_stmt_wi()->statement_warn_count();
+  m_statement_warn_count= thd->get_stmt_wi()->current_statement_warn_count();
   m_affected_rows= affected_rows_arg;
   m_last_insert_id= last_insert_id_arg;
   if (message_arg)
@@ -414,7 +414,8 @@ Diagnostics_area::set_eof_status(THD *thd)
     anyway.
   */
   m_statement_warn_count= (thd->spcont ?
-                           0 : thd->get_stmt_wi()->statement_warn_count());
+                           0 :
+                           thd->get_stmt_wi()->current_statement_warn_count());
 
   m_status= DA_EOF;
   DBUG_VOID_RETURN;
@@ -480,7 +481,7 @@ Diagnostics_area::disable_status()
 }
 
 Warning_info::Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings)
-  :m_statement_warn_count(0),
+  :m_current_statement_warn_count(0),
   m_current_row_for_warning(1),
   m_warn_id(warn_id_arg),
   m_error_condition(NULL),
@@ -510,7 +511,7 @@ void Warning_info::clear_warning_info(ulonglong warn_id_arg)
   m_warn_list.empty();
   free_root(&m_warn_root, MYF(0));
   memset(m_warn_count, 0, sizeof(m_warn_count));
-  m_statement_warn_count= 0;
+  m_current_statement_warn_count= 0;
   m_current_row_for_warning= 1; /* Start counting from the first row */
   clear_error_condition();
 }
@@ -603,7 +604,7 @@ bool Warning_info::remove_sql_condition(const MYSQL_ERROR *sql_condition)
     return false;
 
   m_warn_count[sql_condition->get_level()]--;
-  m_statement_warn_count--;
+  m_current_statement_warn_count--;
 
   if (sql_condition == m_error_condition)
     m_error_condition= NULL;
@@ -646,7 +647,7 @@ MYSQL_ERROR *Warning_info::push_warning(THD *thd,
     m_warn_count[(uint) level]++;
   }
 
-  m_statement_warn_count++;
+  m_current_statement_warn_count++;
   return cond;
 }
 

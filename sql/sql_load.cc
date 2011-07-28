@@ -596,7 +596,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   sprintf(name, ER(ER_LOAD_INFO), (ulong) info.records, (ulong) info.deleted,
 	  (ulong) (info.records - info.copied),
-          (ulong) thd->get_stmt_wi()->statement_warn_count());
+          (ulong) thd->get_stmt_wi()->current_statement_warn_count());
 
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
