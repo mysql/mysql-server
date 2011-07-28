@@ -154,20 +154,21 @@ fts_ast_free_list(
 	node = node->list.head;
 
 	while (node) {
-		fts_ast_free_node(node);
-
-		node = node->next;
+		node = fts_ast_free_node(node);
 	}
 }
 
-/********************************************************************
-Free a fts_ast_node_t instance. */
-
-void
+/********************************************************************//**
+Free a fts_ast_node_t instance.
+@return next node to free */
+UNIV_INTERN
+fts_ast_node_t*
 fts_ast_free_node(
 /*==============*/
 	fts_ast_node_t*	node)			/* in: the node to free */
 {
+	fts_ast_node_t*	next_node;
+
 	switch(node->type) {
 	case FTS_AST_TEXT:
 		if (node->text.ptr) {
@@ -196,7 +197,12 @@ fts_ast_free_node(
 		ut_error;
 	}
 
+	/* Get next node before freeing the node itself */
+	next_node = node->next;
+
 	ut_free(node);
+
+	return(next_node);
 }
 
 /********************************************************************

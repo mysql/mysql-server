@@ -124,13 +124,14 @@ fts_ast_term_set_distance(
 	fts_ast_node_t*	node,			/* in/out: text node */
 	ulint		distance);		/* in: the text proximity
 						distance */
-/********************************************************************
-Free an AST node*/
-extern
-void
+/********************************************************************//**
+Free a fts_ast_node_t instance.
+@return next node to free */
+UNIV_INTERN
+fts_ast_node_t*
 fts_ast_free_node(
 /*==============*/
-	fts_ast_node_t*	node);			/* in: node to free */
+	fts_ast_node_t*	node);			/*!< in: node to free */
 /********************************************************************
 Add a sub-expression to an AST*/
 extern
