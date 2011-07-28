@@ -11,7 +11,7 @@ logfile=$(mktemp /tmp/toku_cilkscreen.XXXXXXXX)
 cilkscreen $* 2>$logfile
 exitcode=$?
 if [ $exitcode = 0 ] ; then
-    cat $logfile >/dev/fd/2
+    cat $logfile >>/dev/fd/2
     grep "No errors found by Cilkscreen" $logfile >/dev/null 2>&1
     exitcode=$?
 fi
