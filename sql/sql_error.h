@@ -271,6 +271,14 @@ class Warning_info
   /** Indicates if push_warning() allows unlimited number of warnings. */
   bool               m_allow_unlimited_warnings;
 
+  /** Read only status. */
+  bool m_read_only;
+
+  /** Pointers for participating in the stack of Warning_info objects. */
+  Warning_info *m_next_in_da;
+  Warning_info **m_prev_in_da;
+
+
 private:
   Warning_info(const Warning_info &rhs); /* Not implemented */
   Warning_info& operator=(const Warning_info &rhs); /* Not implemented */
@@ -279,6 +287,7 @@ public:
   Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings);
   ~Warning_info();
 
+public:
   /** Type of the warning list. */
   typedef MYSQL_ERROR_list List;
 
@@ -288,14 +297,28 @@ public:
   /** Const iterator used to iterate through the warning list. */
   typedef List::Const_Iterator Const_iterator;
 
+public:
+  /**
+    Checks if Warning_info contains SQL-condition with the given message.
+
+    @param message_str    Message string.
+    @param message_length Length of message string.
+
+    @return true if the Warning_info contains an SQL-condition with the given
+    message.
+  */
+
   bool has_sql_condition(const char *message_str, ulong message_length) const;
 
   /**
     Reset the warning information. Clear all warnings,
     the number of warnings, reset current row counter
     to point to the first row.
+
+    @param new_id new Warning_info id.
   */
-  void clear_warning_info(ulonglong warn_id_arg);
+  void clear(ulonglong new_id);
+
   /**
     Only clear warning info if haven't yet done that already
     for the current query. Allows to be issued at any time
@@ -304,31 +327,34 @@ public:
 
     @todo: This is a sign of sloppy coding. Instead we need to
     designate one place in a statement life cycle where we call
-    clear_warning_info().
+    Warning_info::clear().
+
+    @param query_id Current query id.
   */
-  void opt_clear_warning_info(ulonglong query_id)
+  void opt_clear(ulonglong query_id)
   {
     if (query_id != m_warn_id)
-      clear_warning_info(query_id);
+      clear(query_id);
   }
 
   /**
     Concatenate the list of warnings.
-    It's considered tolerable to lose a warning.
+
+    It's considered tolerable to lose an SQL-condition in case of OOM-error,
+    or if the number of SQL-conditions in the Warning_info reached top limit.
+
+    @param thd    Thread context.
+    @param source Warning_info object to copy SQL-conditions from.
   */
   void append_warning_info(THD *thd, const Warning_info *source);
-
-  /**
-    Conditional merge of related warning information areas.
-  */
-  void merge_with_routine_info(THD *thd, const Warning_info *source);
 
   /**
     Reset between two COM_ commands. Warnings are preserved
     between commands, but statement_warn_count indicates
     the number of warnings of this particular statement only.
   */
-  void reset_for_next_command() { m_current_statement_warn_count= 0; }
+  void reset_for_next_command()
+  { m_current_statement_warn_count= 0; }
 
   /**
     Remove given SQL-condition from the list.
@@ -362,36 +388,60 @@ public:
     also the value of session variable @@error_count.
   */
   ulong error_count() const
-  {
-    return m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR];
-  }
+  { return m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR]; }
 
   /** Id of the warning information area. */
-  ulonglong warn_id() const { return m_warn_id; }
+  ulonglong id() const { return m_warn_id; }
+
+  /** Set id of the warning information area. */
+  void id(ulonglong id) { m_warn_id= id; }
 
   /** Do we have any errors and warnings that we can *show*? */
   bool is_empty() const { return m_warn_list.is_empty(); }
 
   /** Increment the current row counter to point at the next row. */
   void inc_current_row_for_warning() { m_current_row_for_warning++; }
+
   /** Reset the current row counter. Start counting from the first row. */
   void reset_current_row_for_warning() { m_current_row_for_warning= 1; }
+
   /** Return the current counter value. */
   ulong current_row_for_warning() const { return m_current_row_for_warning; }
 
+  /** Return the number of warnings thrown by the current statement. */
   ulong current_statement_warn_count() const
   { return m_current_statement_warn_count; }
 
   /** Make sure there is room for the given number of conditions. */
   void reserve_space(THD *thd, uint count);
 
-  /** Add a new condition to the current list. */
+  /**
+    Add a new SQL-condition to the current list and increment the respective
+    counters.
+
+    @param thd        Thread context.
+    @param sql_errno  SQL-condition error number.
+    @param sqlstate   SQL-condition state.
+    @param level      SQL-condition level.
+    @param msg        SQL-condition message.
+
+    @return a pointer to the added SQL-condition.
+  */
   MYSQL_ERROR *push_warning(THD *thd,
-                            uint sql_errno, const char* sqlstate,
+                            uint sql_errno,
+                            const char* sqlstate,
                             MYSQL_ERROR::enum_warning_level level,
                             const char* msg);
 
-  /** Add a new condition to the current list. */
+  /**
+    Add a new SQL-condition to the current list and increment the respective
+    counters.
+
+    @param thd            Thread context.
+    @param sql_condition  SQL-condition to copy values from.
+
+    @return a pointer to the added SQL-condition.
+  */
   MYSQL_ERROR *push_warning(THD *thd, const MYSQL_ERROR *sql_condition);
 
   /**
@@ -403,37 +453,48 @@ public:
     - SHOW WARNINGS
     - SHOW ERRORS
     - GET DIAGNOSTICS
-    @param read_only the read only property to set
+    @param read_only the read only property to set.
   */
   void set_read_only(bool read_only)
   { m_read_only= read_only; }
 
   /**
     Read only status.
-    @return the read only property
+    @return the read only property.
   */
   bool is_read_only() const
   { return m_read_only; }
 
+  /**
+    @return SQL-condition, which corresponds to the error state in
+    Diagnostics_area.
+
+    @see m_error_condition.
+  */
   const MYSQL_ERROR *get_error_condition() const
   { return m_error_condition; }
 
+  /**
+    Set SQL-condition, which corresponds to the error state in Diagnostics_area.
+
+    @see m_error_condition.
+  */
   void set_error_condition(const MYSQL_ERROR *error_condition)
   { m_error_condition= error_condition; }
 
+  /**
+    Reset SQL-condition, which corresponds to the error state in
+    Diagnostics_area.
+
+    @see m_error_condition.
+  */
   void clear_error_condition()
   { m_error_condition= NULL; }
 
 private:
-  /** Read only status. */
-  bool m_read_only;
-
-  /** Pointers for participating in the stack of Warning_info objects. */
-  Warning_info *m_next_in_da;
-  Warning_info **m_prev_in_da;
-
-  friend class Sql_cmd_resignal; // for setting m_warn_id directly.
-  friend class Diagnostics_area; // for m_next_in_da / m_prev_in_da.
+  // for:
+  //   - m_next_in_da / m_prev_in_da
+  friend class Diagnostics_area;
 };
 
 extern char *err_conv(char *buff, uint to_length, const char *from,
@@ -552,15 +613,9 @@ public:
 
 public:
   Diagnostics_area();
-  Diagnostics_area(ulonglong warn_id, bool allow_unlimited_warnings);
+  Diagnostics_area(ulonglong warning_info_id, bool allow_unlimited_warnings);
 
 public:
-  inline Warning_info *get_warning_info()
-  { return m_wi_stack.front(); }
-
-  inline const Warning_info *get_warning_info() const
-  { return m_wi_stack.front(); }
-
   void push_warning_info(Warning_info *wi)
   { m_wi_stack.push_front(wi); }
 
@@ -571,8 +626,11 @@ public:
   }
 
 public:
+  void set_warning_info_id(ulonglong id)
+  { get_warning_info()->id(id); }
+
   ulonglong warning_info_id() const
-  { return get_warning_info()->warn_id(); }
+  { return get_warning_info()->id(); }
 
   bool is_warning_info_empty() const
   { return get_warning_info()->is_empty(); }
@@ -587,10 +645,10 @@ public:
   { get_warning_info()->reset_for_next_command(); }
 
   void clear_warning_info(ulonglong id)
-  { get_warning_info()->clear_warning_info(id); }
+  { get_warning_info()->clear(id); }
 
   void opt_clear_warning_info(ulonglong query_id)
-  { get_warning_info()->opt_clear_warning_info(query_id); }
+  { get_warning_info()->opt_clear(query_id); }
 
   ulong current_row_for_warning() const
   { return get_warning_info()->current_row_for_warning(); }
@@ -615,6 +673,40 @@ public:
 
   Warning_info::Const_iterator sql_conditions() const
   { return get_warning_info()->iterator(); }
+
+  void reserve_space(THD *thd, uint count)
+  { get_warning_info()->reserve_space(thd, count); }
+
+  MYSQL_ERROR *push_warning(THD *thd, const MYSQL_ERROR *sql_condition)
+  { return get_warning_info()->push_warning(thd, sql_condition); }
+
+  MYSQL_ERROR *push_warning(THD *thd,
+                            uint sql_errno,
+                            const char* sqlstate,
+                            MYSQL_ERROR::enum_warning_level level,
+                            const char* msg)
+  {
+    return get_warning_info()->push_warning(thd,
+                                            sql_errno, sqlstate, level, msg);
+  }
+                                  
+  void remove_sql_condition(const MYSQL_ERROR *sql_condition)
+  { get_warning_info()->remove_sql_condition(sql_condition); }
+
+  const MYSQL_ERROR *get_error_condition() const
+  { return get_warning_info()->get_error_condition(); }
+
+  void copy_sql_conditions_to_wi(THD *thd, Warning_info *dst_wi) const
+  { dst_wi->append_warning_info(thd, get_warning_info()); }
+
+  void append_sp_warning_info(THD *thd, const Warning_info *sp_wi);
+
+private:
+  inline Warning_info *get_warning_info()
+  { return m_wi_stack.front(); }
+
+  inline const Warning_info *get_warning_info() const
+  { return m_wi_stack.front(); }
 
 private:
   /** Message buffer. Can be used by OK or ERROR status. */

@@ -1138,7 +1138,6 @@ static void
 find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 {
   Diagnostics_area *da= thd->get_stmt_da();
-  Warning_info *wi= da->get_warning_info();
 
   if (thd->is_error())
   {
@@ -1148,7 +1147,7 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
                           MYSQL_ERROR::WARN_LEVEL_ERROR,
                           da->message()))
     {
-      wi->remove_sql_condition(wi->get_error_condition());
+      da->remove_sql_condition(da->get_error_condition());
     }
   }
   else if (thd->get_stmt_da()->current_statement_warn_count())
@@ -1168,7 +1167,7 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
                             err->get_level(),
                             err->get_message_text()))
       {
-        wi->remove_sql_condition(err);
+        da->remove_sql_condition(err);
         break;
       }
     }
@@ -1222,7 +1221,6 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
   Diagnostics_area *da= thd->get_stmt_da();
-  Warning_info *main_wi= da->get_warning_info();
   Warning_info sp_wi(da->warning_info_id(), false);
 
   /*
@@ -1296,7 +1294,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   old_arena= thd->stmt_arena;
 
   /* Push a new warning information area. */
-  sp_wi.append_warning_info(thd, main_wi);
+  da->copy_sql_conditions_to_wi(thd, &sp_wi);
   da->push_warning_info(&sp_wi);
 
   /*
@@ -1504,9 +1502,10 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       - if there was an exception during execution, warning info should be
         propagated to the caller in any case.
   */
-  if (err_status || merge_da_on_success)
-    main_wi->merge_with_routine_info(thd, &sp_wi);
   da->pop_warning_info();
+
+  if (err_status || merge_da_on_success)
+    da->append_sp_warning_info(thd, &sp_wi);
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",

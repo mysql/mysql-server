@@ -1052,7 +1052,6 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
                                   const char* msg)
 {
   Diagnostics_area *da= get_stmt_da();
-  Warning_info *wi= da->get_warning_info();
   MYSQL_ERROR *cond= NULL;
   DBUG_ENTER("THD::raise_condition");
 
@@ -1104,7 +1103,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   cond= DBUG_EVALUATE_IF(
     "simulate_out_of_memory",
     NULL,
-    wi->push_warning(this, sql_errno, sqlstate, level, msg));
+    da->push_warning(this, sql_errno, sqlstate, level, msg));
 
   if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
   {

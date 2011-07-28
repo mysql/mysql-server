@@ -326,9 +326,9 @@ Diagnostics_area::Diagnostics_area()
   reset_diagnostics_area();
 }
 
-Diagnostics_area::Diagnostics_area(ulonglong warn_id,
+Diagnostics_area::Diagnostics_area(ulonglong warning_info_id,
                                    bool allow_unlimited_warnings)
- : m_main_wi(warn_id, allow_unlimited_warnings)
+ : m_main_wi(warning_info_id, allow_unlimited_warnings)
 {
   push_warning_info(&m_main_wi);
 
@@ -522,16 +522,11 @@ Warning_info::Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings)
   memset(m_warn_count, 0, sizeof(m_warn_count));
 }
 
-
 Warning_info::~Warning_info()
 {
   free_root(&m_warn_root,MYF(0));
 }
 
-
-/**
-  Checks if Warning_info contains SQL-condition with the given message.
-*/
 
 bool Warning_info::has_sql_condition(const char *message_str,
                                      ulong message_length) const
@@ -549,13 +544,9 @@ bool Warning_info::has_sql_condition(const char *message_str,
 }
 
 
-/**
-  Reset the warning information of this connection.
-*/
-
-void Warning_info::clear_warning_info(ulonglong warn_id_arg)
+void Warning_info::clear(ulonglong new_id)
 {
-  m_warn_id= warn_id_arg;
+  id(new_id);
   m_warn_list.empty();
   free_root(&m_warn_root, MYF(0));
   memset(m_warn_count, 0, sizeof(m_warn_count));
@@ -564,11 +555,6 @@ void Warning_info::clear_warning_info(ulonglong warn_id_arg)
   clear_error_condition();
 }
 
-
-/**
-  Concatenate the list of warnings.
-  It's considered tolerable to lose a warning.
-*/
 
 void Warning_info::append_warning_info(THD *thd, const Warning_info *source)
 {
@@ -593,40 +579,48 @@ void Warning_info::append_warning_info(THD *thd, const Warning_info *source)
 /**
   Append warnings only if the original contents of the routine
   warning info was replaced.
+
+  @param thd    Thread context.
+  @param sp_wi  Stored-program Warning_info
 */
-void Warning_info::merge_with_routine_info(THD *thd, const Warning_info *source)
+void Diagnostics_area::append_sp_warning_info(THD *thd,
+                                              const Warning_info *sp_wi)
 {
+  Warning_info *wi= get_warning_info();
+
   /*
     If a routine body is empty or if a routine did not
-    generate any warnings (thus m_warn_id didn't change),
+    generate any warnings (thus wi->m_warn_id didn't change),
     do not duplicate our own contents by appending the
     contents of the called routine. We know that the called
     routine did not change its warning info.
 
     On the other hand, if the routine body is not empty and
     some statement in the routine generates a warning or
-    uses tables, m_warn_id is guaranteed to have changed.
+    uses tables, wi->m_warn_id is guaranteed to have changed.
     In this case we know that the routine warning info
     contains only new warnings, and thus we perform a copy.
   */
-  if (m_warn_id != source->m_warn_id)
-  {
-    /*
-      If the invocation of the routine was a standalone statement,
-      rather than a sub-statement, in other words, if it's a CALL
-      of a procedure, rather than invocation of a function or a
-      trigger, we need to clear the current contents of the caller's
-      warning info.
 
-      This is per MySQL rules: if a statement generates a warning,
-      warnings from the previous statement are flushed.  Normally
-      it's done in push_warning(). However, here we don't use
-      push_warning() to avoid invocation of condition handlers or
-      escalation of warnings to errors.
-    */
-    opt_clear_warning_info(thd->query_id);
-    append_warning_info(thd, source);
-  }
+  if (wi->id() == sp_wi->id())
+    return;
+
+  /*
+    If the invocation of the routine was a standalone statement,
+    rather than a sub-statement, in other words, if it's a CALL
+    of a procedure, rather than invocation of a function or a
+    trigger, we need to clear the current contents of the caller's
+    warning info.
+
+    This is per MySQL rules: if a statement generates a warning,
+    warnings from the previous statement are flushed.  Normally
+    it's done in push_warning(). However, here we don't use
+    push_warning() to avoid invocation of condition handlers or
+    escalation of warnings to errors.
+  */
+
+  wi->opt_clear(thd->query_id);
+  wi->append_warning_info(thd, sp_wi);
 }
 
 void Warning_info::remove_sql_condition(const MYSQL_ERROR *sql_condition)
@@ -666,10 +660,6 @@ void Warning_info::reserve_space(THD *thd, uint count)
     m_warn_list.remove(m_warn_list.front());
 }
 
-/**
-  Add a warning to the list of warnings. Increment the respective
-  counters.
-*/
 MYSQL_ERROR *Warning_info::push_warning(THD *thd,
                                         uint sql_errno, const char* sqlstate,
                                         MYSQL_ERROR::enum_warning_level level,
