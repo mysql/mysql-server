@@ -178,9 +178,9 @@ bool Owned_groups::is_partial(rpl_sidno sidno, rpl_gno gno) const
 }
 
 
-enum_group_status Owned_groups::get_partial_set(Group_set *gs) const
+enum_group_status Owned_groups::get_partial_groups(Group_set *gs) const
 {
-  DBUG_ENTER("Owned_groups::get_partial_set");
+  DBUG_ENTER("Owned_groups::get_partial_groups");
   rpl_sidno max_sidno= get_max_sidno();
   for (int sidno= 1; sidno <= max_sidno; sidno++)
   {

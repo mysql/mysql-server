@@ -3438,7 +3438,7 @@ static bool check_ugid_next_list(sys_var *self, THD *thd, set_var *var)
   if (check_top_level_stmt_and_super(self, thd, var) ||
       check_outside_transaction(self, thd, var))
     DBUG_RETURN(true);
-  if (thd->server_status & SERVER_STATUS_IN_MASTER_SUPER_GROUP)
+  if (thd->variables.ugid_has_ongoing_super_group)
   {
     my_error(ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP, MYF(0));
     DBUG_RETURN(true);
@@ -3457,7 +3457,7 @@ static bool check_ugid_next(sys_var *self, THD *thd, set_var *var)
   if (check_top_level_stmt_and_super(self, thd, var))
     DBUG_RETURN(true);
 
-  if (thd->server_status & SERVER_STATUS_IN_MASTER_SUPER_GROUP)
+  if (thd->variables.ugid_has_ongoing_super_group)
   {
     // Inside a master-super-group, UGID_NEXT is read-only if
     // UGID_NEXT_LIST is NULL.
@@ -3492,7 +3492,7 @@ export sys_var *Sys_ugid_next_ptr= &Sys_ugid_next;
 
 static Sys_var_mybool Sys_ugid_end(
        "ugid_end",
-       "If true, the next statement is the last one in a group.",
+       "If 1, the next statement will end the group.",
        SESSION_ONLY(ugid_end), NO_CMD_LINE,
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_top_level_stmt_and_super));
@@ -3500,10 +3500,25 @@ export sys_var *Sys_ugid_end_ptr= &Sys_ugid_end;
 
 static Sys_var_mybool Sys_ugid_commit(
        "ugid_commit",
-       "If true, the next statement is the last one in a super-group.",
+       "If 1, the next statement will commit the super-group.",
        SESSION_ONLY(ugid_commit), NO_CMD_LINE,
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_top_level_stmt_and_super));
 export sys_var *Sys_ugid_commit_ptr= &Sys_ugid_commit;
+
+static Sys_var_mybool Sys_ugid_has_ongoing_super_group(
+       "ugid_has_ongoing_super_group",
+       "Read-only variable that is set to 1 while the server re-executes a super-group.",
+       READ_ONLY SESSION_ONLY(ugid_has_ongoing_super_group), NO_CMD_LINE,
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_top_level_stmt_and_super));
+
+static Sys_var_ugid_ended_groups Sys_ugid_ended_groups(
+       "ugid_ended_groups",
+       "The global variable contains the set of groups that are ended in the binary log. The session variable contains the set of groups that are ended in the current transaction.");
+
+static Sys_var_ugid_partial_groups Sys_ugid_partial_groups(
+       "ugid_partial_groups",
+       "The global variable contains the set of groups that are partial in the binary log. The session variable contains the set of groups that are partial in the current transaction.");
 
 #endif

@@ -35,13 +35,14 @@ const char *log_bin_basename= 0;
 MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
 
 static int binlog_init(void *p);
-static void binlog_start_trans_and_stmt(THD *thd, Log_event *start_event);
+static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event);
 static int binlog_close_connection(handlerton *hton, THD *thd);
 static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv);
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv);
 static int binlog_commit(handlerton *hton, THD *thd, bool all);
 static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
+
 
 /*
   Helper class to hold a mutex for the duration of the
@@ -137,6 +138,11 @@ public:
   bool is_trx_cache() const
   {
     return trx_cache;
+  }
+
+  my_off_t get_byte_position() const
+  {
+    return my_b_tell(&cache_log);
   }
 
   virtual void reset()
@@ -273,11 +279,6 @@ public:
     m_cannot_rollback= TRUE;
   }
 
-  my_off_t get_byte_position() const
-  {
-    return my_b_tell(&cache_log);
-  }
-
   my_off_t get_prev_position() const
   {
      return before_stmt_pos;
@@ -373,6 +374,16 @@ private:
   binlog_cache_mngr(const binlog_cache_mngr& info);
 };
 
+
+static binlog_cache_mngr *thd_get_cache_mngr(const THD *thd)
+{
+  // If opt_bin_log is not set, binlog_hton->slot == -1 and hence
+  // thd_get_ha_data(thd, hton) segfaults.
+  DBUG_ASSERT(opt_bin_log);
+  return (binlog_cache_mngr *)thd_get_ha_data(thd, binlog_hton);
+}
+
+
 /**
   Checks if the BINLOG_CACHE_SIZE's value is greater than MAX_BINLOG_CACHE_SIZE.
   If this happens, the BINLOG_CACHE_SIZE is set to MAX_BINLOG_CACHE_SIZE.
@@ -445,8 +456,7 @@ binlog_trans_log_savepos(THD *thd, my_off_t *pos)
 {
   DBUG_ENTER("binlog_trans_log_savepos");
   DBUG_ASSERT(pos != NULL);
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   DBUG_ASSERT(mysql_bin_log.is_open());
   *pos= cache_mngr->trx_cache.get_byte_position();
   DBUG_PRINT("return", ("*pos: %lu", (ulong) *pos));
@@ -475,11 +485,10 @@ binlog_trans_log_truncate(THD *thd, my_off_t pos)
   DBUG_ENTER("binlog_trans_log_truncate");
   DBUG_PRINT("enter", ("pos: %lu", (ulong) pos));
 
-  DBUG_ASSERT(thd_get_ha_data(thd, binlog_hton) != NULL);
+  DBUG_ASSERT(thd_get_cache_mngr(thd) != NULL);
   DBUG_ASSERT(pos != ~(my_off_t) 0);
 
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   cache_mngr->trx_cache.restore_savepoint(pos);
   DBUG_VOID_RETURN;
 }
@@ -510,10 +519,11 @@ static int binlog_init(void *p)
 static int binlog_close_connection(handlerton *hton, THD *thd)
 {
   DBUG_ENTER("binlog_close_connection");
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   DBUG_ASSERT(cache_mngr->trx_cache.is_binlog_empty() &&
-              cache_mngr->stmt_cache.is_binlog_empty());
+              cache_mngr->stmt_cache.is_binlog_empty() &&
+              cache_mngr->trx_cache.is_group_cache_empty() &&
+              cache_mngr->stmt_cache.is_group_cache_empty());
   thd_set_ha_data(thd, binlog_hton, NULL);
   cache_mngr->~binlog_cache_mngr();
   my_free(cache_mngr);
@@ -531,7 +541,8 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
     nonzero if an error pops up when flushing the cache.
 */
 static inline int
-binlog_flush_cache(THD *thd, binlog_cache_data* cache_data, Log_event *end_evt)
+binlog_flush_cache(THD *thd, binlog_cache_mngr *cache_mngr,
+                   binlog_cache_data* cache_data, Log_event *end_evt)
 {
   DBUG_ENTER("binlog_flush_cache");
   int error= 0;
@@ -544,9 +555,18 @@ binlog_flush_cache(THD *thd, binlog_cache_data* cache_data, Log_event *end_evt)
     if (thd->binlog_flush_pending_rows_event(TRUE, cache_data->is_trx_cache()))
       DBUG_RETURN(1);
 
+    my_off_t before_commit_event= cache_data->get_byte_position();
     if (end_evt->write(&cache_data->cache_log))
       DBUG_RETURN(1);
  
+    my_off_t offset_after_last_statement=
+      cache_data->get_byte_position() - before_commit_event;
+    ugid_flush_group_cache(thd, &mysql_bin_log.sid_lock,
+                           &mysql_bin_log.group_log_state,
+                           &cache_data->group_cache,
+                           &cache_mngr->trx_cache.group_cache,
+                           offset_after_last_statement);
+
     /*
       Doing a commit or a rollback including non-transactional tables,
       i.e., ending a transaction where we might write the transaction
@@ -584,7 +604,7 @@ binlog_commit_flush_stmt_cache(THD *thd,
   binlog_cache_data* cache_data= &cache_mngr->stmt_cache;
   Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"),
                           cache_data->is_trx_cache(), FALSE, TRUE, 0, TRUE);
-  return binlog_flush_cache(thd, cache_data, &end_evt);
+  return binlog_flush_cache(thd, cache_mngr, cache_data, &end_evt);
 }
 
 /**
@@ -602,7 +622,7 @@ binlog_commit_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr)
   binlog_cache_data* cache_data= &cache_mngr->trx_cache;
   Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"),
                           cache_data->is_trx_cache(), FALSE, TRUE, 0, TRUE);
-  return binlog_flush_cache(thd, cache_data, &end_evt);
+  return binlog_flush_cache(thd, cache_mngr, cache_data, &end_evt);
 }
 
 /**
@@ -620,7 +640,7 @@ binlog_rollback_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr)
   binlog_cache_data* cache_data= &cache_mngr->trx_cache;
   Query_log_event end_evt(thd, STRING_WITH_LEN("ROLLBACK"),
                           cache_data->is_trx_cache(), FALSE, TRUE, 0, TRUE);
-  return binlog_flush_cache(thd, cache_data, &end_evt);
+  return binlog_flush_cache(thd, cache_mngr, cache_data, &end_evt);
 }
 
 /**
@@ -638,7 +658,7 @@ binlog_commit_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr,
                               my_xid xid)
 {
   Xid_log_event end_evt(thd, xid);
-  return binlog_flush_cache(thd, &cache_mngr->trx_cache, &end_evt);
+  return binlog_flush_cache(thd, cache_mngr, &cache_mngr->trx_cache, &end_evt);
 }
 
 /**
@@ -716,8 +736,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
 {
   int error= 0;
   DBUG_ENTER("binlog_commit");
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
 
   DBUG_PRINT("debug",
              ("all: %d, in_transaction: %s, all.cannot_safely_rollback(): %s, stmt.cannot_safely_rollback(): %s",
@@ -751,14 +770,8 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
      - We are in a transaction and a full transaction is committed.
     Otherwise, we accumulate the changes.
   */
-  if (!error)
-  {
-    if (ending_trans(thd, all))
-      error= binlog_commit_flush_trx_cache(thd, cache_mngr);
-    else
-      error=
-        ugid_after_flush_trx_cache(thd, &cache_mngr->trx_cache.group_cache);
-  }
+  if (!error && ending_trans(thd, all))
+    error= binlog_commit_flush_trx_cache(thd, cache_mngr);
 
   /*
     This is part of the stmt rollback.
@@ -782,8 +795,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
 {
   DBUG_ENTER("binlog_rollback");
   int error= 0;
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
 
   DBUG_PRINT("debug", ("all: %s, all.cannot_safely_rollback(): %s, stmt.cannot_safely_rollback(): %s",
                        YESNO(all),
@@ -1141,8 +1153,7 @@ err:
 bool
 trans_has_updated_trans_table(const THD* thd)
 {
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
 
   return (cache_mngr ? !cache_mngr->trx_cache.is_binlog_empty() : 0);
 }
@@ -1209,8 +1220,7 @@ bool ending_single_stmt_trans(THD* thd, const bool all)
 */
 bool trans_cannot_safely_rollback(const THD* thd)
 {
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
 
   return cache_mngr->trx_cache_cannot_rollback();
 }
@@ -3554,8 +3564,7 @@ MYSQL_BIN_LOG::remove_pending_rows_event(THD *thd, bool is_transactional)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::remove_pending_rows_event");
 
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
 
   DBUG_ASSERT(cache_mngr);
 
@@ -3591,8 +3600,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   DBUG_PRINT("enter", ("event: 0x%lx", (long) event));
 
   int error= 0;
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
 
   DBUG_ASSERT(cache_mngr);
 
@@ -3686,10 +3694,11 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 
     DBUG_ASSERT(event_info->is_using_trans_cache() || event_info->is_using_stmt_cache());
     
-    binlog_start_trans_and_stmt(thd, event_info);
+    if (binlog_start_trans_and_stmt(thd, event_info))
+      DBUG_RETURN(error);
 
     bool is_trans_cache= event_info->is_using_trans_cache();
-    binlog_cache_mngr *cache_mngr= (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+    binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
     IO_CACHE *file= cache_mngr->get_binlog_cache_log(is_trans_cache);
     binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
     
@@ -4633,8 +4642,7 @@ void MYSQL_BIN_LOG::close()
 int MYSQL_BIN_LOG::log_xid(THD *thd, my_xid xid)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::log_xid");
-  binlog_cache_mngr *cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
   /*
     We always commit the entire transaction when writing an XID. Also
     note that the return value is inverted.
@@ -4753,11 +4761,10 @@ Group_cache *THD::get_group_cache(bool is_transactional)
 {
   DBUG_ENTER("THD::get_group_cache(bool)");
 
-  // if opt_bin_log==0, it is not safe to call thd_get_ha_data because
-  // binlog_hton has not been completely set up
+  // If opt_bin_log==0, it is not safe to call thd_get_cache_mngr
+  // because binlog_hton has not been completely set up.
   DBUG_ASSERT(opt_bin_log);
-  binlog_cache_mngr *cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
+  binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(this);
 
   // cache_mngr is NULL until we call thd->binlog_setup_trx_data, so
   // we assert that this has been done.
@@ -4779,8 +4786,7 @@ Group_cache *THD::get_group_cache(bool is_transactional)
 int THD::binlog_setup_trx_data()
 {
   DBUG_ENTER("THD::binlog_setup_trx_data");
-  binlog_cache_mngr *cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
+  binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(this);
 
   if (cache_mngr)
     DBUG_RETURN(0);                             // Already set up
@@ -4797,7 +4803,7 @@ int THD::binlog_setup_trx_data()
   }
   thd_set_ha_data(this, binlog_hton, cache_mngr);
 
-  cache_mngr= new (thd_get_ha_data(this, binlog_hton))
+  cache_mngr= new (thd_get_cache_mngr(this))
               binlog_cache_mngr(max_binlog_stmt_cache_size,
                                 &binlog_stmt_cache_use,
                                 &binlog_stmt_cache_disk_use,
@@ -4835,27 +4841,28 @@ int THD::binlog_setup_trx_data()
   @param start_event The first event requested to be written into the
                      binary log
  */
-inline void binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
+inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
 {
   DBUG_ENTER("binlog_start_trans_and_stmt");
  
   /*
     Initialize the cache manager if this was not done yet.
   */ 
-  thd->binlog_setup_trx_data();
+  if (thd->binlog_setup_trx_data())
+    DBUG_RETURN(1);
 
   /*
     If the event is requesting immediatly logging, there is no need to go
     further and set savepoint and register callbacks.
   */ 
   if (start_event->is_using_immediate_logging())
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(0);
 
   /*
     Retrieve the appropriated cache.
   */
   bool is_transactional= start_event->is_using_trans_cache();
-  binlog_cache_mngr *cache_mngr= (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
   binlog_cache_data *cache= cache_mngr->get_binlog_cache_data(is_transactional);
  
   /*
@@ -4904,10 +4911,11 @@ inline void binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
       cache_mngr->get_binlog_cache_log(is_transactional);
     Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"),
                           is_transactional, FALSE, TRUE, 0, TRUE);
-    qinfo.write(file);
+    if (qinfo.write(file))
+      DBUG_RETURN(1);
   }
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 /**
@@ -4947,8 +4955,7 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
 
   binlog_start_trans_and_stmt(this, &the_event);
 
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(this);
 
   IO_CACHE *file=
     cache_mngr->get_binlog_cache_log(is_transactional);
@@ -4984,8 +4991,7 @@ Rows_log_event*
 THD::binlog_get_pending_rows_event(bool is_transactional) const
 {
   Rows_log_event* rows= NULL;
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(this);
 
   /*
     This is less than ideal, but here's the story: If there is no cache_mngr,
@@ -5015,8 +5021,7 @@ THD::binlog_get_pending_rows_event(bool is_transactional) const
 void
 THD::binlog_set_pending_rows_event(Rows_log_event* ev, bool is_transactional)
 {
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(this);
 
   DBUG_ASSERT(cache_mngr);
 

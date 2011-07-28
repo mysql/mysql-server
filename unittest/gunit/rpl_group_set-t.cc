@@ -449,11 +449,15 @@ TEST_F(GroupTest, Group_containers)
 
 #define END_LOOP_B } } } } pop_errtext()
 
+  // Do not generate warnings (because that causes segfault when done
+  // from a unittest).
+  global_system_variables.log_warnings= 0;
+
   // Create Sid_maps.
   Checkable_rwlock &lock= mysql_bin_log.sid_lock;
   Sid_map **sid_maps= new Sid_map*[2];
-  for (int i= 0; i < 2; i++)
-    sid_maps[i]= new Sid_map(&lock);
+  sid_maps[0]= &mysql_bin_log.sid_map;
+  sid_maps[1]= new Sid_map(&lock);
   /*
     Make sid_maps[0] and sid_maps[1] different: sid_maps[0] is
     generated in order; sid_maps[1] is generated in the order that
@@ -493,14 +497,14 @@ TEST_F(GroupTest, Group_containers)
     Construct a Group_set that contains the set of all groups from
     which we sample.
   */
-  enum_group_status error;
+  enum_group_status status;
   static char all_groups_str[100*100];
   char *s= all_groups_str;
   s += sprintf(s, "%s:1", uuids[0]);
   for (rpl_sidno sidno= 2; sidno <= N_SIDS; sidno++)
     s += sprintf(s, ",\n%s:1-%d", uuids[sidno - 1], sidno * sidno);
-  Group_set all_groups(sid_maps[0], all_groups_str, &error);
-  EXPECT_EQ(GS_SUCCESS, error) << errtext;
+  Group_set all_groups(sid_maps[0], all_groups_str, &status);
+  EXPECT_EQ(GS_SUCCESS, status) << errtext;
 
   // The set of groups that were added in some previous stage.
   Group_set done_groups(sid_maps[0]);
@@ -577,8 +581,8 @@ TEST_F(GroupTest, Group_containers)
         break;
       case METHOD_ALL_TEXTS_CONCATENATED:
         group_set.clear();
-        error= group_set.add(done_str);
-        EXPECT_EQ(GS_SUCCESS, error) << errtext;
+        status= group_set.add(done_str);
+        EXPECT_EQ(GS_SUCCESS, status) << errtext;
       case MAX_METHOD:
         break;
       }
@@ -587,20 +591,6 @@ TEST_F(GroupTest, Group_containers)
     // Add groups to Group_caches.
     BEGIN_LOOP_B
     {
-#define END_SUPER_GROUP                                                 \
-      {                                                                 \
-        lock.unlock();                                                  \
-        ugid_before_flush_trx_cache(thd, &lock, &group_log_state, &trx_cache); \
-        ugid_flush_group_cache(thd, &lock, &group_log_state, &trx_cache); \
-        /* Here we would like to call ugid_after_flush_trx_cache, */    \
-        /* but that would invoke trans_commit which does not work */    \
-        /* when the server is not running.  So instead we simulate */   \
-        /* the call by clearing the */                                  \
-        /* SERVER_STATUS_IN_MASTER_SUPER_GROUP flag. */                 \
-        thd->server_status &= ~SERVER_STATUS_IN_MASTER_SUPER_GROUP;     \
-        lock.rdlock();                                                  \
-      }
-
       Group_set ended_groups(sid_maps[0]);
       BEGIN_SUBSTAGE_LOOP(this, &stage, true)
       {
@@ -711,29 +701,57 @@ TEST_F(GroupTest, Group_containers)
         }
 
         ugid_flush_group_cache(thd, &lock, &group_log_state,
-                               &stmt_cache, &trx_cache);
+                               &stmt_cache, &trx_cache,
+                               20 + rand() % 100/*binlog_offset_after_last_statement*/);
         ugid_before_flush_trx_cache(thd, &lock, &group_log_state, &trx_cache);
         if (ugid_commit)
         {
           // simulate ugid_after_flush_trx_cache() but don't
           // execute a COMMIT statement
-          thd->server_status &= ~SERVER_STATUS_IN_MASTER_SUPER_GROUP;
+          thd->variables.ugid_has_ongoing_super_group= 0;
           ugid_flush_group_cache(thd, &lock, &group_log_state,
-                                 &trx_cache, &trx_cache);
+                                 &trx_cache, &trx_cache,
+                                 20 + rand() % 100/*binlog_offset_after_last_statement*/);
         }
       } END_SUBSTAGE_LOOP(this);
 
       group_set.clear();
-      group_log_state.owned_groups.get_partial_set(&group_set);
+      group_log_state.owned_groups.get_partial_groups(&group_set);
       group_set.add(&group_log_state.ended_groups);
     } END_LOOP_B;
 
+    // add stage.set to done_groups, and check the
+    // Group_set::is_subset function.
+
+    // check if stage.set is a subset of done_groups and vice versa
+    bool stage_subset_of_done= true;
+    bool done_subset_of_stage= true;
+    Group_set::Group_iterator git(&all_groups);
+    Group g= git.get();
+    while (g.sidno != 0 && (stage_subset_of_done || done_subset_of_stage))
+    {
+      bool stage_contains= stage.set.contains_group(g.sidno, g.gno);
+      bool done_contains= done_groups.contains_group(g.sidno, g.gno);
+      if (stage_contains && !done_contains)
+        stage_subset_of_done= false;
+      if (!stage_contains && done_contains)
+        done_subset_of_stage= false;
+      git.next();
+      g= git.get();
+    }
+    // check the Group_set::is_subset function
+    ASSERT_EQ(stage_subset_of_done, stage.set.is_subset(&done_groups));
+    ASSERT_EQ(done_subset_of_stage, done_groups.is_subset(&stage.set));
+    Group_set old_done_groups(&done_groups, &status);
+    ASSERT_EQ(GS_SUCCESS, status);
     done_groups.add(&stage.set);
+    ASSERT_EQ(true, old_done_groups.is_subset(&done_groups));
+    ASSERT_EQ(true, stage.set.is_subset(&done_groups));
 
     /*
       Verify that all group sets are equal.  We test both a.equals(b)
       and b.equals(a) and a.equals(a), because we want to verify that
-      the equals function is correct too.  We compare both the sets
+      Group_set::equals is correct too.  We compare both the sets
       using Group_set::equals, and the output of to_string() using
       EXPECT_STREQ.
     */
@@ -750,10 +768,10 @@ TEST_F(GroupTest, Group_containers)
           char *buf2= new char[group_set_2.get_string_length() + 1];
           group_set_2.to_string(buf2);
           ASSERT_STREQ(buf1, buf2) << errtext << " i=" << i;
-          delete(buf2);
+          delete buf2;
         }
       }
-      delete(buf1);
+      delete buf1;
     } END_LOOP_A;
     BEGIN_LOOP_B
     {
@@ -775,7 +793,7 @@ TEST_F(GroupTest, Group_containers)
   for (int i= 0; i < N_COMBINATIONS; i++)
     delete containers[i];
   delete containers;
-  for (int i= 0; i < 2; i++)
-    delete sid_maps[i];
+  delete sid_maps[1];
+  delete sid_maps;
   free(thd);
 }

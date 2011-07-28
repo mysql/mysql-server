@@ -6538,3 +6538,9 @@ ER_UGID_END_IS_ON_BUT_UGID_NEXT_IS_AUTO_OR_ANON
 
 ER_UGID_NEXT_CANT_BE_AUTOMATIC_IF_UGID_NEXT_LIST_IS_NON_NULL
   eng "The system variable @@SESSION.UGID_NEXT cannot be 'AUTOMATIC' when @@SESSION.UGID_NEXT_LIST is non-NULL."
+
+ER_SKIPPING_LOGGED_GROUP
+  eng "Skipping group %s because it has already been executed and logged."
+
+ER_UGID_END_REQUIRES_UGID_COMMIT_WHEN_UGID_NEXT_LIST_IS_NULL
+  eng "When UGID_NEXT_LIST = NULL and UGID_NEXT has the form UUID:NUMBER, UGID_END cannot be set if UGID_COMMIT is not set."

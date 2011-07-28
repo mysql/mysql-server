@@ -192,8 +192,8 @@ Group_cache::add_dummy_subgroups_if_missing(const Group_log_state *gls,
 }
 
 
-enum_group_status Group_cache::update_group_log_state(const THD *thd,
-                                                      Group_log_state *gls) const
+enum_group_status
+Group_cache::update_group_log_state(const THD *thd, Group_log_state *gls) const
 {
   DBUG_ENTER("Group_cache::update_group_log_state");
 
@@ -285,7 +285,9 @@ void Group_cache::generate_automatic_gno(const THD *thd, Group_log_state *gls)
 }
 
 
-enum_group_status Group_cache::write_to_log(Group_cache *trx_group_cache)
+enum_group_status
+Group_cache::write_to_log(Group_cache *trx_group_cache,
+                          rpl_binlog_pos offset_after_last_statement)
 {
   DBUG_ENTER("Group_cache::write_to_log(Group_cache *)");
   //printf("Group_cache::write_to_log(Group_cache *)\n");
@@ -331,6 +333,36 @@ enum_group_status Group_cache::write_to_log(Group_cache *trx_group_cache)
 
   // @todo write to log when log has been implemented
 
+  DBUG_RETURN(GS_SUCCESS);
+}
+
+
+enum_group_status Group_cache::get_ended_groups(Group_set *gs) const
+{
+  DBUG_ENTER("Group_cache::get_groups");
+  int n_subgroups= get_n_subgroups();
+  for (int i= 0; i < n_subgroups; i++)
+  {
+    Cached_subgroup *cs= get_unsafe_pointer(i);
+    if (cs->group_end)
+      GROUP_STATUS_THROW(gs->add(cs->sidno, cs->gno));
+  }
+  DBUG_RETURN(GS_SUCCESS);
+}
+
+
+enum_group_status Group_cache::get_partial_groups(Group_set *gs) const
+{
+  DBUG_ENTER("Group_cache::get_groups");
+  Group_set ended_groups(gs->get_sid_map());
+  GROUP_STATUS_THROW(get_ended_groups(&ended_groups));
+  int n_subgroups= get_n_subgroups();
+  for (int i= 0; i < n_subgroups; i++)
+  {
+    Cached_subgroup *cs= get_unsafe_pointer(i);
+    if (!ended_groups.contains_group(cs->sidno, cs->gno))
+      GROUP_STATUS_THROW(gs->add(cs->sidno, cs->gno));
+  }
   DBUG_RETURN(GS_SUCCESS);
 }
 

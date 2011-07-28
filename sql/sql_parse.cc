@@ -1974,6 +1974,22 @@ err:
 }
 
 
+void implicit_commit_after(THD *thd)
+{
+  /* No transaction control allowed in sub-statements. */
+  DBUG_ASSERT(! thd->in_sub_stmt);
+  /* If commit fails, we should be able to reset the OK status. */
+  thd->get_stmt_da()->can_overwrite_status= TRUE;
+  /* Commit the normal transaction if one is active. */
+  trans_commit_implicit(thd);
+  thd->get_stmt_da()->can_overwrite_status= FALSE;
+  thd->mdl_context.release_transactional_locks();
+
+  if (thd->variables.ugid_commit)
+    thd->variables.ugid_has_ongoing_super_group= 0;
+}
+
+
 /**
   Execute command saved in thd and lex->sql_command.
 
@@ -2190,13 +2206,21 @@ mysql_execute_command(THD *thd)
   {
     // Initialize the cache manager if this was not done yet.
     thd->binlog_setup_trx_data();
-    if (ugid_before_statement(thd, &mysql_bin_log.sid_lock,
-                              &mysql_bin_log.group_log_state,
-                              thd->get_group_cache(false),
-                              thd->get_group_cache(true)))
-    {
+    enum_ugid_statement_status state=
+      ugid_before_statement(thd, &mysql_bin_log.sid_lock,
+                            &mysql_bin_log.group_log_state,
+                            thd->get_group_cache(false),
+                            thd->get_group_cache(true));
+    if (state == UGID_STATEMENT_CANCEL)
       // error has already been printed; don't print anything more here
       DBUG_RETURN(-1);
+    else if (state == UGID_STATEMENT_SKIP)
+    {
+      // even if statement is skipped, we have to check if ugid_commit
+      // causes it to commit the master-super-group.
+      if (thd->variables.ugid_commit)
+        implicit_commit_after(thd);
+      DBUG_RETURN(0);
     }
   }
 
@@ -4609,16 +4633,11 @@ finish:
     DEBUG_SYNC(thd, "execute_command_after_close_tables");
 #endif
 
-  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END))
+  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
+      (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt &&
+       thd->variables.ugid_commit))
   {
-    /* No transaction control allowed in sub-statements. */
-    DBUG_ASSERT(! thd->in_sub_stmt);
-    /* If commit fails, we should be able to reset the OK status. */
-    thd->get_stmt_da()->can_overwrite_status= TRUE;
-    /* Commit the normal transaction if one is active. */
-    trans_commit_implicit(thd);
-    thd->get_stmt_da()->can_overwrite_status= FALSE;
-    thd->mdl_context.release_transactional_locks();
+    implicit_commit_after(thd);
   }
   else if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
   {

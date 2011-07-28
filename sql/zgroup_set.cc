@@ -49,10 +49,17 @@ Group_set::Group_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
 
 
 Group_set::Group_set(Sid_map *_sid_map, const char *text,
-                     enum_group_status *error, Checkable_rwlock *_sid_lock)
+                     enum_group_status *status, Checkable_rwlock *_sid_lock)
 {
   init(_sid_map, _sid_lock);
-  *error= add(text);
+  *status= add(text);
+}
+
+
+Group_set::Group_set(Group_set *other, enum_group_status *status)
+{
+  init(other->sid_map, other->sid_lock);
+  *status= add(other);
 }
 
 
@@ -229,7 +236,7 @@ enum_group_status Group_set::add(Interval_iterator *ivitp,
   Interval *iv;
   Interval_iterator ivit= *ivitp;
   cached_string_length= -1;
-  // points to the 'next' pointer of the previous interval
+
   while ((iv= ivit.get()) != NULL)
   {
     if (start <= iv->end)
@@ -276,7 +283,6 @@ enum_group_status Group_set::add(Interval_iterator *ivitp,
 enum_group_status Group_set::add(rpl_sidno sidno, rpl_gno start, rpl_gno end)
 {
   DBUG_ENTER("Group_set::add(rpl_sidno, rpl_gno, rpl_gno)");
-  DBUG_PRINT("info", ("adding %d:%lld-%lld", sidno, start, end));
   DBUG_ASSERT(sidno >= 1 && start > 0 && end > start);
   ensure_sidno(sidno);
   Interval_iterator ivit(this, sidno);
@@ -305,7 +311,6 @@ enum_group_status Group_set::add(const char *text)
 {
 #define SKIP_WHITESPACE() while (isspace(*s)) s++
   DBUG_ENTER("Group_set::add(const char*)");
-  DBUG_PRINT("info", ("adding text=%p=%s", text, text));
   const char *s= text;
 
   SKIP_WHITESPACE();
@@ -442,7 +447,6 @@ bool Group_set::is_valid(const char *text)
 enum_group_status Group_set::add(rpl_sidno sidno, Const_interval_iterator other_ivit)
 {
   DBUG_ENTER("Group_set::add(rpl_sidno, Interval_iterator)");
-  DBUG_PRINT("info", ("adding sidno=%d", sidno));
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
   Interval *iv;
   Interval_iterator ivit(this, sidno);
@@ -666,13 +670,7 @@ bool Group_set::equals(const Group_set *other) const
     const rpl_sid *sid= sid_map->sidno_to_sid(sidno);
     const rpl_sid *other_sid= other_sid_map->sidno_to_sid(other_sidno);
     if (!sid->equals(other_sid))
-    {
-      /*
-      printf("sids don't match: sid_i=%d other_sid_i=%d\n",
-             sid_i, other_sid_i);
-      */
       DBUG_RETURN(false);
-    }
     // check if all intervals are equal
     Const_interval_iterator ivit(this, sidno);
     Const_interval_iterator other_ivit(other, other_sidno);
@@ -680,14 +678,7 @@ bool Group_set::equals(const Group_set *other) const
     const Interval *other_iv= other_ivit.get();
     do {
       if (!iv->equals(other_iv))
-      {
-        /*
-        printf("sid_i %d/%d differs on interval (%lld,%lld) vs (%lld,%lld)\n",
-               sid_i, other_sid_i,
-               iv->start, iv->end, other_iv->start, other_iv->end);
-        */
         DBUG_RETURN(false);
-      }
       ivit.next();
       other_ivit.next();
       iv= ivit.get();
@@ -697,6 +688,58 @@ bool Group_set::equals(const Group_set *other) const
       DBUG_RETURN(false);
     sid_i++;
     other_sid_i++;
+  }
+  DBUG_ASSERT(0); // not reached
+  DBUG_RETURN(true);
+}
+
+
+bool Group_set::is_subset(const Group_set *super) const
+{
+  DBUG_ENTER("Group_set::is_subset");
+  Sid_map *super_sid_map= super->sid_map;
+  rpl_sidno map_max_sidno= sid_map->get_max_sidno();
+
+  int sidno= 0, super_sidno= 0;
+  Const_interval_iterator ivit(this), super_ivit(super);
+  const Interval *iv, *super_iv;
+  while (1)
+  {
+    // Find the next sidno that has one or more Intervals in this Group_set.
+    do
+    {
+      sidno++;
+      if (sidno > map_max_sidno)
+        DBUG_RETURN(true);
+      ivit.init(this, sidno);
+      iv= ivit.get();
+    } while (iv == NULL);
+    // get corresponding super_sidno
+    if (super_sid_map == sid_map)
+      super_sidno= sidno;
+    else
+    {
+      super_sidno= super_sid_map->sid_to_sidno(sid_map->sidno_to_sid(sidno));
+      if (super_sidno == 0)
+        DBUG_RETURN(false);
+    }
+    super_ivit.init(super, super_sidno);
+    super_iv= super_ivit.get();
+    // check if all intervals for this sidno are contained in some
+    // interval of super
+    do {
+      if (super_iv == NULL)
+        DBUG_RETURN(false);
+      while (iv->start > super_iv->end)
+      {
+        super_ivit.next();
+        super_iv= super_ivit.get();
+      }
+      if (iv->start < super_iv->start || iv->end > super_iv->end)
+        DBUG_RETURN(false);
+      ivit.next();
+      iv= ivit.get();
+    } while (iv != NULL);
   }
   DBUG_ASSERT(0); // not reached
   DBUG_RETURN(true);
