@@ -6718,7 +6718,7 @@ create_table_def(
 	if (strcmp(strchr(table_name, '/') + 1,
 		   "innodb_table_monitor") == 0) {
 		push_warning(
-			(THD*) trx->mysql_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			(THD*) trx->mysql_thd, Sql_condition::WARN_LEVEL_WARN,
 			HA_ERR_WRONG_COMMAND,
 			DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 	}
