@@ -352,6 +352,7 @@ Diagnostics_area::reset_diagnostics_area()
   m_last_insert_id= 0;
   m_statement_warn_count= 0;
 #endif
+  m_current_wi->clear_error_condition();
   is_sent= FALSE;
   /** Tiny reset in debug mode to see garbage right away */
   m_status= DA_EMPTY;
@@ -421,12 +422,16 @@ Diagnostics_area::set_eof_status(THD *thd)
 
 /**
   Set ERROR status.
+
+  Note, that error_condition may be NULL. It happens if a) OOM error is
+  being reported; or b) when Warning_info is full.
 */
 
 void
 Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
                                    const char *message_arg,
-                                   const char *sqlstate)
+                                   const char *sqlstate,
+                                   MYSQL_ERROR *error_condition)
 {
   DBUG_ENTER("set_error_status");
   /*
@@ -452,6 +457,8 @@ Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
   m_sqlstate[SQLSTATE_LENGTH]= '\0';
   strmake(m_message, message_arg, sizeof(m_message)-1);
 
+  m_current_wi->set_error_condition(error_condition);
+
   m_status= DA_ERROR;
   DBUG_VOID_RETURN;
 }
@@ -476,6 +483,7 @@ Warning_info::Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings)
   :m_statement_warn_count(0),
   m_current_row_for_warning(1),
   m_warn_id(warn_id_arg),
+  m_error_condition(NULL),
   m_allow_unlimited_warnings(allow_unlimited_warnings),
   m_read_only(FALSE)
 {
@@ -504,7 +512,34 @@ void Warning_info::clear_warning_info(ulonglong warn_id_arg)
   memset(m_warn_count, 0, sizeof(m_warn_count));
   m_statement_warn_count= 0;
   m_current_row_for_warning= 1; /* Start counting from the first row */
+  clear_error_condition();
 }
+
+
+/**
+  Concatenate the list of warnings.
+  It's considered tolerable to lose a warning.
+*/
+
+void Warning_info::append_warning_info(THD *thd, const Warning_info *source)
+{
+  const MYSQL_ERROR *err;
+  Const_iterator it(source->m_warn_list);
+  const MYSQL_ERROR *src_error_condition = source->get_error_condition();
+
+  /*
+    Don't use ::push_warning() to avoid invocation of condition
+    handlers or escalation of warnings to errors.
+  */
+  while ((err= it++))
+  {
+    MYSQL_ERROR *new_error= Warning_info::push_warning(thd, err);
+
+    if (src_error_condition && src_error_condition == err)
+      set_error_condition(new_error);
+  }
+}
+
 
 /**
   Append warnings only if the original contents of the routine

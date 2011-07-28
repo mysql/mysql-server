@@ -1100,6 +1100,12 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   if (handle_condition(sql_errno, sqlstate, level, msg, &cond))
     DBUG_RETURN(cond);
 
+  /* When simulating OOM, skip writing to error log to avoid mtr errors. */
+  cond= DBUG_EVALUATE_IF(
+    "simulate_out_of_memory",
+    NULL,
+    get_stmt_wi()->push_warning(this, sql_errno, sqlstate, level, msg));
+
   if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
   {
     is_slave_error=  1; // needed to catch query errors during replication
@@ -1123,17 +1129,13 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
       if (!da->is_error())
       {
         set_row_count_func(-1);
-        da->set_error_status(this, sql_errno, msg, sqlstate);
+        da->set_error_status(this, sql_errno, msg, sqlstate, cond);
       }
     }
   }
 
   query_cache_abort(&query_cache_tls);
 
-  /* When simulating OOM, skip writing to error log to avoid mtr errors */
-  DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(NULL););
-
-  cond= wi->push_warning(this, sql_errno, sqlstate, level, msg);
   DBUG_RETURN(cond);
 }
 
