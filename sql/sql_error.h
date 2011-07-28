@@ -30,10 +30,8 @@ class THD;
   Representation of a SQL condition.
   A SQL condition can be a completion condition (note, warning),
   or an exception condition (error, not found).
-  @note This class is named MYSQL_ERROR instead of SQL_condition for
-  historical reasons, to facilitate merging code with previous releases.
 */
-class MYSQL_ERROR : public Sql_alloc
+class Sql_condition : public Sql_alloc
 {
 public:
   /*
@@ -75,12 +73,12 @@ public:
     Get the error level of this condition.
     @return the error level condition item.
   */
-  MYSQL_ERROR::enum_warning_level get_level() const
+  Sql_condition::enum_warning_level get_level() const
   { return m_level; }
 
 private:
   /*
-    The interface of MYSQL_ERROR is mostly private, by design,
+    The interface of Sql_condition is mostly private, by design,
     so that only the following code:
     - various raise_error() or raise_warning() methods in class THD,
     - the implementation of SIGNAL / RESIGNAL
@@ -101,12 +99,12 @@ private:
   /**
     Default constructor.
     This constructor is usefull when allocating arrays.
-    Note that the init() method should be called to complete the MYSQL_ERROR.
+    Note that the init() method should be called to complete the Sql_condition.
   */
-  MYSQL_ERROR();
+  Sql_condition();
 
   /**
-    Complete the MYSQL_ERROR initialisation.
+    Complete the Sql_condition initialisation.
     @param mem_root The memory root to use for the condition items
     of this condition
   */
@@ -117,17 +115,17 @@ private:
     @param mem_root The memory root to use for the condition items
     of this condition
   */
-  MYSQL_ERROR(MEM_ROOT *mem_root);
+  Sql_condition(MEM_ROOT *mem_root);
 
   /** Destructor. */
-  ~MYSQL_ERROR()
+  ~Sql_condition()
   {}
 
   /**
     Copy optional condition items attributes.
     @param cond the condition to copy.
   */
-  void copy_opt_attributes(const MYSQL_ERROR *cond);
+  void copy_opt_attributes(const Sql_condition *cond);
 
   /**
     Set this condition area with a fixed message text.
@@ -138,7 +136,7 @@ private:
     @param MyFlags additional flags.
   */
   void set(uint sql_errno, const char* sqlstate,
-           MYSQL_ERROR::enum_warning_level level,
+           Sql_condition::enum_warning_level level,
            const char* msg);
 
   /**
@@ -200,11 +198,11 @@ private:
   char m_returned_sqlstate[SQLSTATE_LENGTH+1];
 
   /** Severity (error, warning, note) of this condition. */
-  MYSQL_ERROR::enum_warning_level m_level;
+  Sql_condition::enum_warning_level m_level;
 
   /** Pointers for participating in the list of conditions. */
-  MYSQL_ERROR *next_in_wi;
-  MYSQL_ERROR **prev_in_wi;
+  Sql_condition *next_in_wi;
+  Sql_condition **prev_in_wi;
 
   /** Memory root to use to hold condition item values. */
   MEM_ROOT *m_mem_root;
@@ -218,22 +216,22 @@ private:
 class Warning_info
 {
   /** The type of the counted and doubly linked list of conditions. */
-  typedef I_P_List<MYSQL_ERROR,
-                   I_P_List_adapter<MYSQL_ERROR,
-                                    &MYSQL_ERROR::next_in_wi,
-                                    &MYSQL_ERROR::prev_in_wi>,
+  typedef I_P_List<Sql_condition,
+                   I_P_List_adapter<Sql_condition,
+                                    &Sql_condition::next_in_wi,
+                                    &Sql_condition::prev_in_wi>,
                    I_P_List_counter,
-                   I_P_List_fast_push_back<MYSQL_ERROR> >
-          MYSQL_ERROR_list;
+                   I_P_List_fast_push_back<Sql_condition> >
+          Sql_condition_list;
 
   /** A memory root to allocate warnings and errors */
   MEM_ROOT           m_warn_root;
 
   /** List of warnings of all severities (levels). */
-  MYSQL_ERROR_list   m_warn_list;
+  Sql_condition_list   m_warn_list;
 
   /** A break down of the number of warnings per severity (level). */
-  uint	             m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
+  uint	             m_warn_count[(uint) Sql_condition::WARN_LEVEL_END];
 
   /**
     The number of warnings of the current statement. Warning_info
@@ -266,7 +264,7 @@ class Warning_info
        - Max number of Warning_info elements has been reached (thus, there is
          no corresponding SQL-condition object in Warning_info).
   */
-  const MYSQL_ERROR *m_error_condition;
+  const Sql_condition *m_error_condition;
 
   /** Indicates if push_warning() allows unlimited number of warnings. */
   bool               m_allow_unlimited_warnings;
@@ -348,7 +346,7 @@ private:
 
     @param sql_condition The SQL-condition to remove (may be NULL).
   */
-  void remove_sql_condition(const MYSQL_ERROR *sql_condition);
+  void remove_sql_condition(const Sql_condition *sql_condition);
 
   /**
     Used for @@warning_count system variable, which prints
@@ -360,9 +358,9 @@ private:
       This may be higher than warn_list.elements() if we have
       had more warnings than thd->variables.max_error_count.
     */
-    return (m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_NOTE] +
-            m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR] +
-            m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_WARN]);
+    return (m_warn_count[(uint) Sql_condition::WARN_LEVEL_NOTE] +
+            m_warn_count[(uint) Sql_condition::WARN_LEVEL_ERROR] +
+            m_warn_count[(uint) Sql_condition::WARN_LEVEL_WARN]);
   }
 
   /**
@@ -370,7 +368,7 @@ private:
     also the value of session variable @@error_count.
   */
   ulong error_count() const
-  { return m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR]; }
+  { return m_warn_count[(uint) Sql_condition::WARN_LEVEL_ERROR]; }
 
   /** Id of the warning information area. */
   ulonglong id() const { return m_warn_id; }
@@ -409,11 +407,11 @@ private:
 
     @return a pointer to the added SQL-condition.
   */
-  MYSQL_ERROR *push_warning(THD *thd,
-                            uint sql_errno,
-                            const char* sqlstate,
-                            MYSQL_ERROR::enum_warning_level level,
-                            const char* msg);
+  Sql_condition *push_warning(THD *thd,
+                              uint sql_errno,
+                              const char* sqlstate,
+                              Sql_condition::enum_warning_level level,
+                              const char* msg);
 
   /**
     Add a new SQL-condition to the current list and increment the respective
@@ -424,7 +422,7 @@ private:
 
     @return a pointer to the added SQL-condition.
   */
-  MYSQL_ERROR *push_warning(THD *thd, const MYSQL_ERROR *sql_condition);
+  Sql_condition *push_warning(THD *thd, const Sql_condition *sql_condition);
 
   /**
     Set the read only status for this statement area.
@@ -453,7 +451,7 @@ private:
 
     @see m_error_condition.
   */
-  const MYSQL_ERROR *get_error_condition() const
+  const Sql_condition *get_error_condition() const
   { return m_error_condition; }
 
   /**
@@ -461,7 +459,7 @@ private:
 
     @see m_error_condition.
   */
-  void set_error_condition(const MYSQL_ERROR *error_condition)
+  void set_error_condition(const Sql_condition *error_condition)
   { m_error_condition= error_condition; }
 
   /**
@@ -530,7 +528,7 @@ private:
 
 public:
   /** Const iterator used to iterate through the warning list. */
-  typedef Warning_info::MYSQL_ERROR_list::Const_Iterator
+  typedef Warning_info::Sql_condition_list::Const_Iterator
     Sql_condition_iterator;
 
   enum enum_diagnostics_status
@@ -565,7 +563,7 @@ public:
   void set_error_status(uint sql_errno,
                         const char *message,
                         const char *sqlstate,
-                        const MYSQL_ERROR *error_condition);
+                        const Sql_condition *error_condition);
 
   void disable_status();
 
@@ -680,23 +678,23 @@ public:
   void reserve_space(THD *thd, uint count)
   { get_warning_info()->reserve_space(thd, count); }
 
-  MYSQL_ERROR *push_warning(THD *thd, const MYSQL_ERROR *sql_condition)
+  Sql_condition *push_warning(THD *thd, const Sql_condition *sql_condition)
   { return get_warning_info()->push_warning(thd, sql_condition); }
 
-  MYSQL_ERROR *push_warning(THD *thd,
-                            uint sql_errno,
-                            const char* sqlstate,
-                            MYSQL_ERROR::enum_warning_level level,
-                            const char* msg)
+  Sql_condition *push_warning(THD *thd,
+                              uint sql_errno,
+                              const char* sqlstate,
+                              Sql_condition::enum_warning_level level,
+                              const char* msg)
   {
     return get_warning_info()->push_warning(thd,
                                             sql_errno, sqlstate, level, msg);
   }
 
-  void remove_sql_condition(const MYSQL_ERROR *sql_condition)
+  void remove_sql_condition(const Sql_condition *sql_condition)
   { get_warning_info()->remove_sql_condition(sql_condition); }
 
-  const MYSQL_ERROR *get_error_condition() const
+  const Sql_condition *get_error_condition() const
   { return get_warning_info()->get_error_condition(); }
 
   void copy_sql_conditions_to_wi(THD *thd, Warning_info *dst_wi) const
@@ -768,10 +766,10 @@ private:
 ///////////////////////////////////////////////////////////////////////////
 
 
-void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+void push_warning(THD *thd, Sql_condition::enum_warning_level level,
                   uint code, const char *msg);
 
-void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
+void push_warning_printf(THD *thd, Sql_condition::enum_warning_level level,
                          uint code, const char *format, ...);
 
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);

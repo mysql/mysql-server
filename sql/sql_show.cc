@@ -601,8 +601,8 @@ public:
   }
 
   bool handle_condition(THD *thd, uint sql_errno, const char * /* sqlstate */,
-                        MYSQL_ERROR::enum_warning_level level,
-                        const char *message, MYSQL_ERROR ** /* cond_hdl */)
+                        Sql_condition::enum_warning_level level,
+                        const char *message, Sql_condition ** /* cond_hdl */)
   {
     /*
        The handler does not handle the errors raised by itself.
@@ -632,7 +632,7 @@ public:
 
     case ER_NO_SUCH_TABLE:
       /* Established behavior: warn if underlying tables are missing. */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 
                           ER_VIEW_INVALID,
                           ER(ER_VIEW_INVALID),
                           m_top_view->get_db_name(),
@@ -642,7 +642,7 @@ public:
 
     case ER_SP_DOES_NOT_EXIST:
       /* Established behavior: warn if underlying functions are missing. */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 
                           ER_VIEW_INVALID,
                           ER(ER_VIEW_INVALID),
                           m_top_view->get_db_name(),
@@ -3427,7 +3427,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     */
     DBUG_ASSERT(can_deadlock);
 
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_WARN_I_S_SKIPPED_TABLE,
                         ER(ER_WARN_I_S_SKIPPED_TABLE),
                         table_list.db, table_list.table_name);
@@ -3548,9 +3548,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl)
+                        Sql_condition ** cond_hdl)
   {
     if (sql_errno == ER_PARSE_ERROR ||
         sql_errno == ER_TRG_NO_DEFINER ||
@@ -4127,7 +4127,7 @@ err:
 
     if (thd->is_error())
     {
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
     }
@@ -4284,7 +4284,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
         rather than in SHOW COLUMNS
       */
       if (thd->is_error())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
       res= 0;
@@ -4945,7 +4945,7 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
         rather than in SHOW KEYS
       */
       if (thd->is_error())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
       res= 0;
@@ -5164,7 +5164,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
     if (schema_table_store_record(thd, table))
       DBUG_RETURN(1);
     if (res && thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
   }
   if (res)
@@ -5198,7 +5198,7 @@ static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
@@ -5301,7 +5301,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
@@ -5382,7 +5382,7 @@ static int get_schema_key_column_usage_record(THD *thd,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
@@ -5669,7 +5669,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
@@ -6198,7 +6198,7 @@ get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
@@ -6824,7 +6824,7 @@ static bool do_fill_table(THD *thd,
     da->push_warning(thd,
                      da->sql_errno(),
                      da->get_sqlstate(),
-                     MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     Sql_condition::WARN_LEVEL_ERROR,
                      da->message());
   }
 

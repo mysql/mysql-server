@@ -216,7 +216,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
   uint len;
   Diagnostics_area::Sql_condition_iterator it=
     thd->get_stmt_da()->sql_conditions();
-  const MYSQL_ERROR *err;
+  const Sql_condition *err;
   buff[0]= 0;
 
   for (err= it++, slider= buff; err && slider < buff_end - 1;

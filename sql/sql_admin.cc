@@ -480,12 +480,12 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     {
       DBUG_PRINT("admin", ("open table failed"));
       if (thd->get_stmt_da()->is_warning_info_empty())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
       if (table->view &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
       if (thd->get_stmt_da()->is_error() &&
           table_not_corrupt_error(thd->get_stmt_da()->sql_errno()))
@@ -640,7 +640,7 @@ send_result:
     {
       Diagnostics_area::Sql_condition_iterator it=
         thd->get_stmt_da()->sql_conditions();
-      const MYSQL_ERROR *err;
+      const Sql_condition *err;
       while ((err= it++))
       {
         protocol->prepare_for_resend();

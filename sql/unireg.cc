@@ -62,9 +62,9 @@ struct Pack_header_error_handler: public Internal_error_handler
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
   bool is_handled;
   Pack_header_error_handler() :is_handled(FALSE) {}
 };
@@ -75,9 +75,9 @@ Pack_header_error_handler::
 handle_condition(THD *,
                  uint sql_errno,
                  const char*,
-                 MYSQL_ERROR::enum_warning_level,
+                 Sql_condition::enum_warning_level,
                  const char*,
-                 MYSQL_ERROR ** cond_hdl)
+                 Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   is_handled= (sql_errno == ER_TOO_MANY_FIELDS);
@@ -240,7 +240,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                 real_table_name, static_cast<ulong>(TABLE_COMMENT_MAXLEN));
     /* do not push duplicate warnings */
     if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    ER_TOO_LONG_TABLE_COMMENT, warn_buff);
     create_info->comment.length= tmp_len;
   }
@@ -750,7 +750,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
                   static_cast<ulong>(COLUMN_COMMENT_MAXLEN));
       /* do not push duplicate warnings */
       if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_TOO_LONG_FIELD_COMMENT, warn_buff);
       field->comment.length= tmp_len;
     }

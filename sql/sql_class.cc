@@ -756,9 +756,9 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 bool Drop_table_error_handler::handle_condition(THD *thd,
                                                 uint sql_errno,
                                                 const char* sqlstate,
-                                                MYSQL_ERROR::enum_warning_level level,
+                                                Sql_condition::enum_warning_level level,
                                                 const char* msg,
-                                                MYSQL_ERROR ** cond_hdl)
+                                                Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
@@ -927,9 +927,9 @@ void THD::push_internal_handler(Internal_error_handler *handler)
 
 bool THD::handle_condition(uint sql_errno,
                            const char* sqlstate,
-                           MYSQL_ERROR::enum_warning_level level,
+                           Sql_condition::enum_warning_level level,
                            const char* msg,
-                           MYSQL_ERROR ** cond_hdl)
+                           Sql_condition ** cond_hdl)
 {
   if (!m_internal_handler)
   {
@@ -966,7 +966,7 @@ void THD::raise_error(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_ERROR,
+                         Sql_condition::WARN_LEVEL_ERROR,
                          msg);
 }
 
@@ -982,7 +982,7 @@ void THD::raise_error_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_ERROR,
+                         Sql_condition::WARN_LEVEL_ERROR,
                          ebuff);
   DBUG_VOID_RETURN;
 }
@@ -992,7 +992,7 @@ void THD::raise_warning(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_WARN,
+                         Sql_condition::WARN_LEVEL_WARN,
                          msg);
 }
 
@@ -1008,7 +1008,7 @@ void THD::raise_warning_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_WARN,
+                         Sql_condition::WARN_LEVEL_WARN,
                          ebuff);
   DBUG_VOID_RETURN;
 }
@@ -1022,7 +1022,7 @@ void THD::raise_note(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_NOTE,
+                         Sql_condition::WARN_LEVEL_NOTE,
                          msg);
   DBUG_VOID_RETURN;
 }
@@ -1041,22 +1041,22 @@ void THD::raise_note_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_NOTE,
+                         Sql_condition::WARN_LEVEL_NOTE,
                          ebuff);
   DBUG_VOID_RETURN;
 }
 
-MYSQL_ERROR* THD::raise_condition(uint sql_errno,
-                                  const char* sqlstate,
-                                  MYSQL_ERROR::enum_warning_level level,
-                                  const char* msg)
+Sql_condition* THD::raise_condition(uint sql_errno,
+                                    const char* sqlstate,
+                                    Sql_condition::enum_warning_level level,
+                                    const char* msg)
 {
   Diagnostics_area *da= get_stmt_da();
-  MYSQL_ERROR *cond= NULL;
+  Sql_condition *cond= NULL;
   DBUG_ENTER("THD::raise_condition");
 
   if (!(variables.option_bits & OPTION_SQL_NOTES) &&
-      (level == MYSQL_ERROR::WARN_LEVEL_NOTE))
+      (level == Sql_condition::WARN_LEVEL_NOTE))
     DBUG_RETURN(NULL);
 
   da->opt_clear_warning_info(query_id);
@@ -1073,24 +1073,24 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   if (sqlstate == NULL)
    sqlstate= mysql_errno_to_sqlstate(sql_errno);
 
-  if ((level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
+  if ((level == Sql_condition::WARN_LEVEL_WARN) &&
       really_abort_on_warning())
   {
     /*
       FIXME:
       push_warning and strict SQL_MODE case.
     */
-    level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+    level= Sql_condition::WARN_LEVEL_ERROR;
     killed= THD::KILL_BAD_DATA;
   }
 
   switch (level)
   {
-  case MYSQL_ERROR::WARN_LEVEL_NOTE:
-  case MYSQL_ERROR::WARN_LEVEL_WARN:
+  case Sql_condition::WARN_LEVEL_NOTE:
+  case Sql_condition::WARN_LEVEL_WARN:
     got_warning= 1;
     break;
-  case MYSQL_ERROR::WARN_LEVEL_ERROR:
+  case Sql_condition::WARN_LEVEL_ERROR:
     break;
   default:
     DBUG_ASSERT(FALSE);
@@ -1105,7 +1105,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
     NULL,
     da->push_warning(this, sql_errno, sqlstate, level, msg));
 
-  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+  if (level == Sql_condition::WARN_LEVEL_ERROR)
   {
     is_slave_error=  1; // needed to catch query errors during replication
 
@@ -2418,7 +2418,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
         Non-ASCII separator arguments are not fully supported
     */
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
                  ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   }
@@ -2449,7 +2449,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
       (exchange->opt_enclosed && non_string_results &&
        field_term_length && strchr(NUMERIC_CHARS, field_term_char)))
   {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                  ER_AMBIGUOUS_FIELD_TERM, ER(ER_AMBIGUOUS_FIELD_TERM));
     is_ambiguous_field_term= TRUE;
   }
@@ -2530,7 +2530,7 @@ bool select_export::send_data(List<Item> &items)
         convert_to_printable(printable_buff, sizeof(printable_buff),
                              error_pos, res->ptr() + res->length() - error_pos,
                              res->charset(), 6);
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
@@ -2541,7 +2541,7 @@ bool select_export::send_data(List<Item> &items)
         /*
           result is longer than UINT_MAX32 and doesn't fit into String
         */
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
                             item->full_name(), static_cast<long>(row_count));
       }
@@ -3284,7 +3284,7 @@ bool select_dumpvar::send_data(List<Item> &items)
 bool select_dumpvar::send_eof()
 {
   if (! row_count)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                  ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
   /*
     Don't send EOF if we're in error condition (which implies we've already

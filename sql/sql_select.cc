@@ -5836,7 +5836,7 @@ warn_index_not_applicable(THD *thd, const Field *field,
     for (uint j=0 ; j < field->table->s->keys ; j++)
       if (cant_use_index.is_set(j))
         push_warning_printf(thd,
-                            MYSQL_ERROR::WARN_LEVEL_WARN, 
+                            Sql_condition::WARN_LEVEL_WARN, 
                             ER_WARN_INDEX_NOT_APPLICABLE,
                             ER(ER_WARN_INDEX_NOT_APPLICABLE),
                             "ref",
@@ -22245,7 +22245,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
         warning so the user knows that the field from the FROM clause
         overshadows the column reference from the SELECT list.
       */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_NON_UNIQ_ERROR,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_NON_UNIQ_ERROR,
                           ER(ER_NON_UNIQ_ERROR),
                           ((Item_ident*) order_item)->field_name,
                           current_thd->where);

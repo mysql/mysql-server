@@ -985,7 +985,7 @@ static void print_could_not_discover_error(THD *thd,
                    schema->db, schema->name, schema->query,
                    schema->node_id, my_errno);
   Warning_info::Const_iterator it= thd->get_stmt_da()->sql_conditions();
-  const MYSQL_ERROR *err;
+  const Sql_condition *err;
   while ((err= it++))
     sql_print_warning("NDB Binlog: (%d)%s", err->get_sql_errno(),
                       err->get_message_text());
@@ -1230,7 +1230,7 @@ ndbcluster_update_slock(THD *thd,
     char buf[1024];
     my_snprintf(buf, sizeof(buf), "Could not release lock on '%s.%s'",
                 db, table_name);
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                         ndb_error->code, ndb_error->message, buf);
   }
@@ -1550,7 +1550,7 @@ err:
   }
 end:
   if (ndb_error)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                         ndb_error->code,
                         ndb_error->message,
@@ -2721,7 +2721,7 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
                       "with BLOB attribute and no PK is not supported",
                       share->key);
       if (push_warning)
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA_CREATE_OPTION,
                             ER(ER_ILLEGAL_HA_CREATE_OPTION),
                             ndbcluster_hton_name,
@@ -2765,7 +2765,7 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
         failed, print a warning
       */
       if (push_warning > 1)
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
@@ -2793,7 +2793,7 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
         dict->dropEvent(my_event.getName()))
     {
       if (push_warning > 1)
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
@@ -2812,7 +2812,7 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
     if (dict->createEvent(my_event))
     {
       if (push_warning > 1)
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
@@ -2825,7 +2825,7 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
       DBUG_RETURN(-1);
     }
 #ifdef NDB_BINLOG_EXTRA_WARNINGS
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                         0, "NDB Binlog: Removed trailing event",
                         "NDB");
@@ -2936,7 +2936,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
     {
       sql_print_error("NDB Binlog: Creating NdbEventOperation failed for"
                       " %s",event_name);
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                           ndb->getNdbError().code,
                           ndb->getNdbError().message,
@@ -2985,7 +2985,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
             sql_print_error("NDB Binlog: Creating NdbEventOperation"
                             " blob field %u handles failed (code=%d) for %s",
                             j, op->getNdbError().code, event_name);
-            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+            push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                                 ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                                 op->getNdbError().code,
                                 op->getNdbError().message,
@@ -3024,7 +3024,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
         retries= 0;
       if (retries == 0)
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG), 
                             op->getNdbError().code, op->getNdbError().message,
                             "NDB");
@@ -3092,7 +3092,7 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
     if (dict->getNdbError().code != 4710)
     {
       /* drop event failed for some reason, issue a warning */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                           dict->getNdbError().code,
                           dict->getNdbError().message, "NDB");

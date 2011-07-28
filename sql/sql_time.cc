@@ -303,7 +303,7 @@ str_to_datetime_with_warn(const CHARSET_INFO *cs,
                                       MODE_NO_ZERO_DATE))),
                            &was_cut);
   if (was_cut || ts_type <= MYSQL_TIMESTAMP_ERROR)
-    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    make_truncated_value_warning(current_thd, Sql_condition::WARN_LEVEL_WARN,
                                  str, length, ts_type,  NullS);
   return ts_type;
 }
@@ -358,7 +358,7 @@ str_to_time_with_warn(const CHARSET_INFO *cs,
   int warning;
   bool ret_val= str_to_time(str, length, l_time, &warning);
   if (ret_val || warning)
-    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    make_truncated_value_warning(current_thd, Sql_condition::WARN_LEVEL_WARN,
                                  str, length, MYSQL_TIMESTAMP_TIME, NullS);
   return ret_val;
 }
@@ -788,7 +788,7 @@ void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
 }
 
 
-void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+void make_truncated_value_warning(THD *thd, Sql_condition::enum_warning_level level,
                                   const char *str_val,
 				  uint str_length, timestamp_type time_type,
                                   const char *field_name)
@@ -935,7 +935,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL inter
   return 0;					// Ok
 
 invalid_date:
-  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+  push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                       ER_DATETIME_FUNCTION_OVERFLOW,
                       ER(ER_DATETIME_FUNCTION_OVERFLOW),
                       "datetime");
