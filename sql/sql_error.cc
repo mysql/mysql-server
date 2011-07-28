@@ -319,17 +319,19 @@ MYSQL_ERROR::set_sqlstate(const char* sqlstate)
 }
 
 Diagnostics_area::Diagnostics_area()
- : m_main_wi(0, false),
-   m_current_wi(&m_main_wi)
+ : m_main_wi(0, false)
 {
+  push_warning_info(&m_main_wi);
+
   reset_diagnostics_area();
 }
 
 Diagnostics_area::Diagnostics_area(ulonglong warn_id,
                                    bool allow_unlimited_warnings)
- : m_main_wi(warn_id, allow_unlimited_warnings),
-   m_current_wi(&m_main_wi)
+ : m_main_wi(warn_id, allow_unlimited_warnings)
 {
+  push_warning_info(&m_main_wi);
+
   reset_diagnostics_area();
 }
 
@@ -352,7 +354,7 @@ Diagnostics_area::reset_diagnostics_area()
   m_last_insert_id= 0;
   m_statement_warn_count= 0;
 #endif
-  m_current_wi->clear_error_condition();
+  get_warning_info()->clear_error_condition();
   is_sent= FALSE;
   /** Tiny reset in debug mode to see garbage right away */
   m_status= DA_EMPTY;
@@ -484,7 +486,7 @@ Diagnostics_area::set_error_status(uint sql_errno,
   m_sqlstate[SQLSTATE_LENGTH]= '\0';
   strmake(m_message, message, sizeof(m_message)-1);
 
-  m_current_wi->set_error_condition(error_condition);
+  get_warning_info()->set_error_condition(error_condition);
 
   m_status= DA_ERROR;
   DBUG_VOID_RETURN;

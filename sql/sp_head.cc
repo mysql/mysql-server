@@ -1297,7 +1297,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
 
   /* Push a new warning information area. */
   sp_wi.append_warning_info(thd, main_wi);
-  da->set_warning_info(&sp_wi);
+  da->push_warning_info(&sp_wi);
 
   /*
     Switch query context. This has to be done early as this is sometimes
@@ -1506,7 +1506,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   */
   if (err_status || merge_da_on_success)
     main_wi->merge_with_routine_info(thd, &sp_wi);
-  da->set_warning_info(main_wi);
+  da->pop_warning_info();
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",

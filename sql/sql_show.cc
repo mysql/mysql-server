@@ -6811,12 +6811,12 @@ static bool do_fill_table(THD *thd,
   Warning_info *wi= da->get_warning_info();
   Warning_info wi_tmp(thd->query_id, true);
 
-  da->set_warning_info(&wi_tmp);
+  da->push_warning_info(&wi_tmp);
 
   bool res= table_list->schema_table->fill_table(
     thd, table_list, join_table->condition());
 
-  da->set_warning_info(wi);
+  da->pop_warning_info();
 
   // Pass an error if any.
 
