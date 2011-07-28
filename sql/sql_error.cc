@@ -580,6 +580,46 @@ void Warning_info::merge_with_routine_info(THD *thd, const Warning_info *source)
   }
 }
 
+bool Warning_info::remove_sql_condition(const MYSQL_ERROR *sql_condition)
+{
+  if (!sql_condition)
+    return false;
+
+  Warning_info::Iterator it(m_warn_list);
+  MYSQL_ERROR *err;
+  bool found = false;
+
+  while ((err= it++))
+  {
+    if (err == sql_condition)
+    {
+      m_warn_list.remove(err);
+      found= true;
+      break;
+    }
+  }
+
+  if (!found)
+    return false;
+
+  m_warn_count[sql_condition->get_level()]--;
+  m_statement_warn_count--;
+
+  if (sql_condition == m_error_condition)
+    m_error_condition= NULL;
+
+  return true;
+}
+
+void Warning_info::reserve_space(THD *thd, uint count)
+{
+  while ((m_warn_list.elements() > 0) &&
+        ((m_warn_list.elements() + count) > thd->variables.max_error_count))
+  {
+    m_warn_list.remove(m_warn_list.front());
+  }
+}
+
 /**
   Add a warning to the list of warnings. Increment the respective
   counters.

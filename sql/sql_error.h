@@ -320,6 +320,11 @@ public:
   void reset_for_next_command() { m_statement_warn_count= 0; }
 
   /**
+    Remove given SQL-condition from the list.
+  */
+  bool remove_sql_condition(const MYSQL_ERROR *sql_condition);
+
+  /**
     Used for @@warning_count system variable, which prints
     the number of rows returned by SHOW WARNINGS.
   */
@@ -362,6 +367,9 @@ public:
   ulong current_row_for_warning() const { return m_current_row_for_warning; }
 
   ulong statement_warn_count() const { return m_statement_warn_count; }
+
+  /** Make sure there is room for the given number of conditions. */
+  void reserve_space(THD *thd, uint count);
 
   /** Add a new condition to the current list. */
   MYSQL_ERROR *push_warning(THD *thd,

@@ -1140,18 +1140,27 @@ void sp_head::recursion_level_error(THD *thd)
 static void
 find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 {
+  Diagnostics_area *da= thd->get_stmt_da();
+  Warning_info *wi= da->get_warning_info();
+
   if (thd->is_error())
   {
-    ctx->find_handler(thd,
-                      thd->get_stmt_da()->sql_errno(),
-                      thd->get_stmt_da()->get_sqlstate(),
-                      MYSQL_ERROR::WARN_LEVEL_ERROR,
-                      thd->get_stmt_da()->message());
+    if (!ctx->find_handler(thd,
+                          da->sql_errno(),
+                          da->get_sqlstate(),
+                          MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          da->message()))
+    {
+      return;
+    }
+
+    wi->remove_sql_condition(wi->get_error_condition());
   }
   else if (thd->get_stmt_wi()->statement_warn_count())
   {
     Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
     const MYSQL_ERROR *err;
+
     while ((err= it++))
     {
       if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_WARN &&
@@ -1164,6 +1173,7 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
                             err->get_level(),
                             err->get_message_text()))
       {
+        wi->remove_sql_condition(err);
         break;
       }
     }

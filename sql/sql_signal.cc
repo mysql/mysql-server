@@ -479,12 +479,13 @@ bool Sql_cmd_signal::execute(THD *thd)
 
 bool Sql_cmd_resignal::execute(THD *thd)
 {
+  Warning_info *wi= thd->get_stmt_wi();
   MYSQL_ERROR *signaled;
   int result= TRUE;
 
   DBUG_ENTER("Sql_cmd_resignal::execute");
 
-  thd->get_stmt_wi()->m_warn_id= thd->query_id;
+  wi->m_warn_id= thd->query_id;
 
   if (! thd->spcont || ! (signaled= thd->spcont->raised_condition()))
   {
@@ -492,14 +493,22 @@ bool Sql_cmd_resignal::execute(THD *thd)
     DBUG_RETURN(result);
   }
 
-  if (m_cond == NULL)
+  if (m_cond)
   {
-    /* RESIGNAL without signal_value */
-    result= raise_condition(thd, signaled);
-    DBUG_RETURN(result);
+    query_cache_abort(&thd->query_cache_tls);
+
+    /* Make room for 2 conditions. */
+    wi->reserve_space(thd, 2);
+
+    MYSQL_ERROR *cond= wi->push_warning(thd,
+                                        signaled->get_sql_errno(),
+                                        signaled->get_sqlstate(),
+                                        signaled->get_level(),
+                                        signaled->get_message_text());
+    if (cond)
+      cond->copy_opt_attributes(signaled);
   }
 
-  /* RESIGNAL with signal_value */
   result= raise_condition(thd, signaled);
 
   DBUG_RETURN(result);
