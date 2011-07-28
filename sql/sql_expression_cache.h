@@ -85,6 +85,8 @@ private:
   List<Item> &items;
   /* Value Item example */
   Item *val;
+  /* hit/miss counters */
+  uint hit, miss;
   /* Set on if the object has been succesfully initialized with init() */
   bool inited;
 };

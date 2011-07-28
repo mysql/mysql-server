@@ -16,6 +16,17 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
+/**
+  Minimum hit ration to proceed on disk if in memory table overflowed.
+  hit_rate = hit / (miss + hit);
+*/
+#define EXPCACHE_MIN_HIT_RATE_FOR_DISK_TABLE 0.7
+/**
+  Minimum hit ratio to keep in memory table (do not switch cache off)
+  hit_rate = hit / (miss + hit);
+*/
+#define EXPCACHE_MIN_HIT_RATE_FOR_MEM_TABLE  0.2
+
 /*
   Expression cache is used only for caching subqueries now, so its statistic
   variables we call subquery_cache*.
@@ -26,7 +37,7 @@ Expression_cache_tmptable::Expression_cache_tmptable(THD *thd,
                                                      List<Item> &dependants,
                                                      Item *value)
   :cache_table(NULL), table_thd(thd), items(dependants), val(value),
-   inited (0)
+   hit(0), miss(0), inited (0)
 {
   DBUG_ENTER("Expression_cache_tmptable::Expression_cache_tmptable");
   DBUG_VOID_RETURN;
@@ -180,10 +191,12 @@ Expression_cache::result Expression_cache_tmptable::check_value(Item **value)
     if (res)
     {
       subquery_cache_miss++;
+      miss++;
       DBUG_RETURN(MISS);
     }
 
     subquery_cache_hit++;
+    hit++;
     *value= cached_result;
     DBUG_RETURN(Expression_cache::HIT);
   }
@@ -224,12 +237,35 @@ my_bool Expression_cache_tmptable::put_value(Item *value)
   if ((error= cache_table->file->ha_write_tmp_row(cache_table->record[0])))
   {
     /* create_myisam_from_heap will generate error if needed */
-    if (cache_table->file->is_fatal_error(error, HA_CHECK_DUP) &&
-        create_internal_tmp_table_from_heap(table_thd, cache_table,
-                                            cache_table_param.start_recinfo,
-                                            &cache_table_param.recinfo,
-                                            error, 1))
+    if (cache_table->file->is_fatal_error(error, HA_CHECK_DUP))
       goto err;
+    else
+    {
+      double hit_rate= ((double)hit / ((double)hit + miss));
+      DBUG_ASSERT(miss > 0);
+      if (hit_rate < EXPCACHE_MIN_HIT_RATE_FOR_MEM_TABLE)
+      {
+        DBUG_PRINT("info", ("hit rate is not so good to keep the cache"));
+        free_tmp_table(table_thd, cache_table);
+        cache_table= NULL;
+        DBUG_RETURN(FALSE);
+      }
+      else if (hit_rate < EXPCACHE_MIN_HIT_RATE_FOR_DISK_TABLE)
+      {
+        DBUG_PRINT("info", ("hit rate is not so good to go to disk"));
+        if (cache_table->file->ha_delete_all_rows() ||
+            cache_table->file->ha_write_tmp_row(cache_table->record[0]))
+          goto err;
+      }
+      else
+      {
+        if (create_internal_tmp_table_from_heap(table_thd, cache_table,
+                                                cache_table_param.start_recinfo,
+                                                &cache_table_param.recinfo,
+                                                error, 1))
+          goto err;
+      }
+    }
   }
   cache_table->status= 0; /* cache_table->record contains an existed record */
   ref.has_record= TRUE; /* the same as above */
