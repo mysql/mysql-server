@@ -279,6 +279,8 @@ public:
   /** Const iterator used to iterate through the warning list. */
   typedef List::Const_Iterator Const_iterator;
 
+  bool has_sql_condition(const char *message_str, ulong message_length) const;
+
   /**
     Reset the warning information. Clear all warnings,
     the number of warnings, reset current row counter
@@ -541,6 +543,9 @@ public:
 
   ulong current_statement_warn_count() const
   { return get_warning_info()->current_statement_warn_count(); }
+
+  bool has_sql_condition(const char *message_str, ulong message_length) const
+  { return get_warning_info()->has_sql_condition(message_str, message_length); }
 
   void reset_for_next_command()
   { get_warning_info()->reset_for_next_command(); }

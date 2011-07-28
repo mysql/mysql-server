@@ -2942,21 +2942,6 @@ const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
 }
 
 
-bool check_duplicate_warning(THD *thd, char *msg, ulong length)
-{
-  Warning_info::Const_iterator it= thd->get_stmt_da()->sql_conditions();
-  const MYSQL_ERROR *err;
-  while ((err= it++))
-  {
-    if (strncmp(msg, err->get_message_text(), length) == 0)
-    {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 /*
   Preparation for table creation
 
@@ -3818,7 +3803,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_INDEX_COMMENT),
                   key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
       /* do not push duplicate warnings */
-      if (!check_duplicate_warning(thd, warn_buff, strlen(warn_buff)))
+      if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      ER_TOO_LONG_INDEX_COMMENT, warn_buff);
 

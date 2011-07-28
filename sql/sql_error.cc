@@ -502,6 +502,26 @@ Warning_info::~Warning_info()
 
 
 /**
+  Checks if Warning_info contains SQL-condition with the given message.
+*/
+
+bool Warning_info::has_sql_condition(const char *message_str,
+                                     ulong message_length) const
+{
+  Warning_info::Const_iterator it(m_warn_list);
+  const MYSQL_ERROR *err;
+
+  while ((err= it++))
+  {
+    if (strncmp(message_str, err->get_message_text(), message_length) == 0)
+      return true;
+  }
+
+  return false;
+}
+
+
+/**
   Reset the warning information of this connection.
 */
 
