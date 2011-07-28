@@ -201,7 +201,6 @@ private:
   /** Severity (error, warning, note) of this condition. */
   MYSQL_ERROR::enum_warning_level m_level;
 
-
   /** Pointers for participating in the list of conditions. */
   MYSQL_ERROR *next_in_wi;
   MYSQL_ERROR **prev_in_wi;
@@ -429,7 +428,12 @@ private:
   /** Read only status. */
   bool m_read_only;
 
-  friend class Sql_cmd_resignal;
+  /** Pointers for participating in the stack of Warning_info objects. */
+  Warning_info *m_next_in_da;
+  Warning_info **m_prev_in_da;
+
+  friend class Sql_cmd_resignal; // for setting m_warn_id directly.
+  friend class Diagnostics_area; // for m_next_in_da / m_prev_in_da.
 };
 
 extern char *err_conv(char *buff, uint to_length, const char *from,
@@ -473,6 +477,15 @@ public:
 
 class Diagnostics_area
 {
+public:
+  /** The type of the counted and doubly linked list of conditions. */
+  typedef I_P_List<Warning_info,
+                   I_P_List_adapter<Warning_info,
+                                    &Warning_info::m_next_in_da,
+                                    &Warning_info::m_prev_in_da>,
+                   I_P_List_counter,
+                   I_P_List_fast_push_back<Warning_info> >
+          Warning_info_list;
 public:
   enum enum_diagnostics_status
   {
@@ -543,13 +556,19 @@ public:
 
 public:
   inline Warning_info *get_warning_info()
-  { return m_current_wi; }
+  { return m_wi_stack.front(); }
 
   inline const Warning_info *get_warning_info() const
-  { return m_current_wi; }
+  { return m_wi_stack.front(); }
 
-  inline void set_warning_info(Warning_info *wi)
-  { m_current_wi= wi; }
+  void push_warning_info(Warning_info *wi)
+  { m_wi_stack.push_front(wi); }
+
+  void pop_warning_info()
+  {
+    DBUG_ASSERT(m_wi_stack.elements() > 0);
+    m_wi_stack.remove(m_wi_stack.front());
+  }
 
 public:
   ulonglong warning_info_id() const
@@ -636,7 +655,8 @@ private:
   enum_diagnostics_status m_status;
 
   Warning_info m_main_wi;
-  Warning_info *m_current_wi;
+
+  Warning_info_list m_wi_stack;
 };
 
 ///////////////////////////////////////////////////////////////////////////
