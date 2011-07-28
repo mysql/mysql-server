@@ -1508,3 +1508,25 @@ col_date_key
 NULL
 DROP TABLE t1,t2;
 #
+#
+# Bug#12799731 - CRASH IN END_READ_RECORD.
+#
+create table t1(f1 char(255) charset utf8);
+insert into t1 values('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
+set @save_heap_size= @@max_heap_table_size;
+set @@max_heap_table_size= 1;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '1'
+flush status;
+select count(*) from t1 join (
+select t1.f1 from t1 join t1 as t2 join t1 as t3) tt on t1.f1 = tt.f1;
+count(*)
+1000
+Should be greater than 1000 as it also includes records dumped from
+heap to myisam.
+show status like 'Handler_write';
+Variable_name	Value
+Handler_write	1021
+set @@max_heap_table_size= @save_heap_size;
+drop table t1;
+#
