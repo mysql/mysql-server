@@ -59,10 +59,12 @@ enum enum_group_status
 };
 
 /**
-  If the given value is GS_SUCCESS, do nothing; otherwise return the value.
+  Given a value of type enum_group_status: if the value is GS_SUCCESS, do nothing; otherwise return the value. This is used to propagate errors to the caller.
+
 */
 #define GROUP_STATUS_THROW(VAL)                                         \
-  do {                                                                  \
+  do                                                                    \
+  {                                                                     \
     enum_group_status _group_status_throw_val= VAL;                     \
     if ( _group_status_throw_val != GS_SUCCESS)                         \
       DBUG_RETURN(_group_status_throw_val);                             \
@@ -627,6 +629,14 @@ public:
   */
   Group_set(Sid_map *sid_map, const char *text, enum_group_status *status,
             Checkable_rwlock *sid_lock= NULL);
+  /**
+    Constructs a new Group_set that shares the same sid_map and
+    sid_lock objects and contains a copy of all groups.
+
+    @param other The Group_set to copy.
+    @param status Will be set to GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+  */
+  Group_set(Group_set *other, enum_group_status *status);
   //Group_set(Sid_map *sid_map, Group_set *relative_to, Sid_map *sid_map_enc, const unsigned char *encoded, int length, enum_group_status *status);
   /// Destroy this Group_set.
   ~Group_set();
@@ -697,6 +707,8 @@ public:
   enum_group_status ensure_sidno(rpl_sidno sidno);
   /// Returns true if this Group_set is equal to the other Group_set.
   bool equals(const Group_set *other) const;
+  /// Returns true if this Group_set is a subset of the other Group_set.
+  bool is_subset(const Group_set *super) const;
   /// Returns true if this Group_set is empty.
   bool is_empty() const
   {
@@ -804,7 +816,7 @@ public:
   static const String_format sql_string_format;
 
   /// Return the Sid_map associated with this Group_set.
-  const Sid_map *get_sid_map() const { return sid_map; }
+  Sid_map *get_sid_map() const { return sid_map; }
 
   /**
     Represents one element in the linked list of intervals associated
@@ -1281,7 +1293,7 @@ public:
     @param gs Group_set that will be updated.
     @return GS_SUCCESS or GS_OUT_OF_MEMORY
   */
-  enum_group_status get_partial_set(Group_set *gs) const;
+  enum_group_status get_partial_groups(Group_set *gs) const;
 
 private:
   /// Represents one owned group.
@@ -1448,14 +1460,15 @@ public:
   void wait_for_sidno(THD *thd, const Sid_map *sm, Group g, Rpl_owner_id owner);
   /**
     Locks one mutex for each SIDNO where the given Group_set has at
-    least one group. Locks are acquired in order of increasing SIDNO.
+    least one group. If the Group_set is not given, locks all
+    mutexes.  Locks are acquired in order of increasing SIDNO.
   */
-  void lock_sidnos(const Group_set *set);
+  void lock_sidnos(const Group_set *set= NULL);
   /**
     Unlocks the mutex for each SIDNO where the given Group_set has at
-    least one group.
+    least one group.  If the Group_set is not given, unlocks all mutexes.
   */
-  void unlock_sidnos(const Group_set *set);
+  void unlock_sidnos(const Group_set *set= NULL);
   /**
     Waits for the condition variable for each SIDNO where the given
     Group_set has at least one group.
@@ -1468,6 +1481,10 @@ public:
     @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
   */
   enum_group_status ensure_sidno();
+  /// Return a pointer to the Group_set that contains the ended groups.
+  const Group_set *get_ended_groups() { return &ended_groups; }
+  /// Return a pointer to the Owned_groups that contains the owned groups.
+  const Owned_groups *get_owned_groups() { return &owned_groups; }
 private:
   /// Error messages.
   static const uint COND_MESSAGE_MAX_TEXT_LENGTH;
@@ -1545,6 +1562,14 @@ struct Ugid_specification
   static enum_type get_type(const char *text);
   /// Returns true if the given string is a valid Ugid_specification.
   static bool is_valid(const char *text) { return get_type(text) != INVALID; }
+#ifndef NO_DBUG
+  void print() const
+  {
+    char buf[MAX_TEXT_LENGTH + 1];
+    to_string(buf);
+    printf("%s\n", buf);
+  }
+#endif
 };
 
 
@@ -1654,7 +1679,8 @@ public:
     prevent sub-groups of the group from being logged after ended
     sub-groups of the group.
   */
-  enum_group_status write_to_log(Group_cache *trx_group_cache);
+  enum_group_status write_to_log(Group_cache *trx_group_cache,
+                                 rpl_binlog_pos offset_after_last_statement);
   /**
     Generates GNO for all groups that are committed for the first time
     in this Group_cache.
@@ -1685,6 +1711,20 @@ public:
     @retval false The group is not ended in this Group_cache.
   */
   bool group_is_ended(rpl_sidno sidno, rpl_gno gno) const;
+  /**
+    Add all groups that exist but are unended in this Group_cache to the given Group_set.
+
+    @param gs The Group_set to which groups are added.
+    @return GS_SUCCESS or GS_OUT_OF_MEMORY
+  */
+  enum_group_status get_partial_groups(Group_set *gs) const;
+  /**
+    Add all groups that exist and are ended in this Group_cache to the given Group_set.
+
+    @param gs The Group_set to which groups are added.
+    @return GS_SUCCESS or GS_OUT_OF_MEMORY
+  */
+  enum_group_status get_ended_groups(Group_set *gs) const;
 private:
   /**
     Represents a sub-group in the group cache.
@@ -1750,18 +1790,35 @@ private:
 
 
 /**
+  Indicates if a statement should be skipped or not. Used as return
+  value from ugid_before_statement.
+*/
+enum enum_ugid_statement_status
+{
+  /// Statement can execute.
+  UGID_STATEMENT_EXECUTE,
+  /// Statement should be cancelled.
+  UGID_STATEMENT_CANCEL,
+  /**
+    Statement should be skipped, but there may be an implicit commit
+    after the statement if ugid_commit is set.
+  */
+  UGID_STATEMENT_SKIP
+};
+/**
   Before the transaction cache is flushed, this function checks if we
   need to add an ending dummy groups sub-groups.
 */
-int ugid_before_statement(THD *thd, Checkable_rwlock *lock,
-                          Group_log_state *gls,
-                          Group_cache *gsc, Group_cache *gtc);
+enum_ugid_statement_status
+ugid_before_statement(THD *thd, Checkable_rwlock *lock,
+                      Group_log_state *gls,
+                      Group_cache *gsc, Group_cache *gtc);
 int ugid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
                                 Group_log_state *gls, Group_cache *gc);
-int ugid_after_flush_trx_cache(THD *thd, Group_cache *gc);
 int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
-                           Group_log_state *gls, Group_cache *gc,
-                           Group_cache *trx_cache);
+                           Group_log_state *gls,
+                           Group_cache *gc, Group_cache *trx_cache,
+                           rpl_binlog_pos offset_after_last_statement);
 
 
 #endif /* HAVE_UGID */

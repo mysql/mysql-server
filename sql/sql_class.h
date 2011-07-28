@@ -520,6 +520,7 @@ typedef struct system_variables
   Group_set_or_null ugid_next_list;
   my_bool ugid_end;
   my_bool ugid_commit;
+  my_bool ugid_has_ongoing_super_group;
 #endif
 
 } SV;

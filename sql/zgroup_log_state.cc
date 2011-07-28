@@ -158,18 +158,18 @@ void Group_log_state::wait_for_sidno(THD *thd, const Sid_map *sm,
 
 void Group_log_state::lock_sidnos(const Group_set *gs)
 {
-  rpl_sidno max_sidno= gs->get_max_sidno();
+  rpl_sidno max_sidno= gs ? gs->get_max_sidno() : sid_map->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
-    if (gs->contains_sidno(sidno))
+    if (!gs || gs->contains_sidno(sidno))
       lock_sidno(sidno);
 }
 
 
 void Group_log_state::unlock_sidnos(const Group_set *gs)
 {
-  rpl_sidno max_sidno= gs->get_max_sidno();
+  rpl_sidno max_sidno= gs ? gs->get_max_sidno() : sid_map->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
-    if (gs->contains_sidno(sidno))
+    if (!gs || gs->contains_sidno(sidno))
       unlock_sidno(sidno);
 }
 
