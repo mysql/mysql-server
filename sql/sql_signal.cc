@@ -490,12 +490,13 @@ bool Sql_cmd_signal::execute(THD *thd)
 bool Sql_cmd_resignal::execute(THD *thd)
 {
   Diagnostics_area *da= thd->get_stmt_da();
-  Warning_info *wi= da->get_warning_info();
   MYSQL_ERROR *signaled;
 
   DBUG_ENTER("Sql_cmd_resignal::execute");
 
-  wi->m_warn_id= thd->query_id;
+  // This is a way to force sql_conditions from the current Warning_info to be
+  // passed to the caller's Warning_info.
+  da->set_warning_info_id(thd->query_id);
 
   if (! thd->spcont || ! (signaled= thd->spcont->raised_condition()))
   {
@@ -508,9 +509,9 @@ bool Sql_cmd_resignal::execute(THD *thd)
     query_cache_abort(&thd->query_cache_tls);
 
     /* Make room for 2 conditions. */
-    wi->reserve_space(thd, 2);
+    da->reserve_space(thd, 2);
 
-    MYSQL_ERROR *cond= wi->push_warning(thd, signaled);
+    MYSQL_ERROR *cond= da->push_warning(thd, signaled);
 
     if (cond)
       cond->copy_opt_attributes(signaled);

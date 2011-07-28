@@ -6808,7 +6808,6 @@ static bool do_fill_table(THD *thd,
   // that problem we create a Warning_info instance, which is capable of
   // storing "unlimited" number of warnings.
   Diagnostics_area *da= thd->get_stmt_da();
-  Warning_info *wi= da->get_warning_info();
   Warning_info wi_tmp(thd->query_id, true);
 
   da->push_warning_info(&wi_tmp);
@@ -6822,7 +6821,7 @@ static bool do_fill_table(THD *thd,
 
   if (da->is_error())
   {
-    wi->push_warning(thd,
+    da->push_warning(thd,
                      da->sql_errno(),
                      da->get_sqlstate(),
                      MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -6840,7 +6839,7 @@ static bool do_fill_table(THD *thd,
   while ((err= it++))
   {
     if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_ERROR)
-      wi->push_warning(thd, err);
+      da->push_warning(thd, err);
   }
 
   return res;
