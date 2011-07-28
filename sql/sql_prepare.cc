@@ -2965,8 +2965,7 @@ Reprepare_observer::report_error(THD *thd)
     that this thread execution stops and returns to the caller,
     backtracking all the way to Prepared_statement::execute_loop().
   */
-  thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE,
-                                       ER(ER_NEED_REPREPARE), "HY000", NULL);
+  thd->get_stmt_da()->set_error_status(ER_NEED_REPREPARE);
   m_invalidated= TRUE;
 
   return TRUE;

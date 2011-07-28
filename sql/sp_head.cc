@@ -1100,9 +1100,6 @@ void sp_head::recursion_level_error(THD *thd)
   precedence. I.e. error handler will be executed. If there is no handler
   for that error, condition will remain unhandled.
 
-  Once a warning or an error has been handled it is not removed from
-  Warning Info.
-
   According to The Standard (quoting PeterG):
 
     An SQL procedure statement works like this ...
@@ -1145,16 +1142,14 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 
   if (thd->is_error())
   {
-    if (!ctx->find_handler(thd,
+    if (ctx->find_handler(thd,
                           da->sql_errno(),
                           da->get_sqlstate(),
                           MYSQL_ERROR::WARN_LEVEL_ERROR,
                           da->message()))
     {
-      return;
+      wi->remove_sql_condition(wi->get_error_condition());
     }
-
-    wi->remove_sql_condition(wi->get_error_condition());
   }
   else if (thd->get_stmt_da()->current_statement_warn_count())
   {

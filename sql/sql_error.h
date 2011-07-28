@@ -256,6 +256,16 @@ class Warning_info
   /**
     A pointer to an element of m_warn_list. It determines SQL-condition
     instance which corresponds to the error state in Diagnostics_area.
+  
+    This is needed for properly processing SQL-conditions in SQL-handlers.
+    When an SQL-handler is found for the current error state in Diagnostics_area,
+    this pointer is needed to remove the corresponding SQL-condition from the
+    Warning_info list.
+  
+    @note m_error_condition might be NULL in the following cases:
+       - Diagnostics_area set to fatal error state (like OOM);
+       - Max number of Warning_info elements has been reached (thus, there is
+         no corresponding SQL-condition object in Warning_info).
   */
   const MYSQL_ERROR *m_error_condition;
 
@@ -323,8 +333,10 @@ public:
 
   /**
     Remove given SQL-condition from the list.
+    
+    @param sql_condition The SQL-condition to remove (may be NULL).
   */
-  bool remove_sql_condition(const MYSQL_ERROR *sql_condition);
+  void remove_sql_condition(const MYSQL_ERROR *sql_condition);
 
   /**
     Used for @@warning_count system variable, which prints
@@ -480,12 +492,18 @@ public:
   /** Set to make set_error_status after set_{ok,eof}_status possible. */
   bool can_overwrite_status;
 
-  void set_ok_status(THD *thd, ulonglong affected_rows_arg,
-                     ulonglong last_insert_id_arg,
+  void set_ok_status(ulonglong affected_rows,
+                     ulonglong last_insert_id,
                      const char *message);
+
   void set_eof_status(THD *thd);
-  void set_error_status(THD *thd, uint sql_errno_arg, const char *message_arg,
-                        const char *sqlstate, MYSQL_ERROR *error_condition);
+
+  void set_error_status(uint sql_errno);
+
+  void set_error_status(uint sql_errno,
+                        const char *message,
+                        const char *sqlstate,
+                        const MYSQL_ERROR *error_condition);
 
   void disable_status();
 
@@ -530,7 +548,6 @@ public:
   inline const Warning_info *get_warning_info() const
   { return m_current_wi; }
 
-public:
   inline void set_warning_info(Warning_info *wi)
   { m_current_wi= wi; }
 
