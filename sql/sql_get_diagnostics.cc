@@ -266,11 +266,13 @@ Condition_information::aggregate(THD *thd, const Diagnostics_area *da)
 Item *
 Condition_information_item::make_utf8_string_item(THD *thd, const String *str)
 {
+  /* Default is utf8 character set and utf8_general_ci collation. */
+  const CHARSET_INFO *to_cs= &my_charset_utf8_general_ci;
   /* If a charset was not set, assume that no conversion is needed. */
-  const CHARSET_INFO *cs= str->charset() ? str->charset() : &my_charset_utf8_bin;
-  Item_string *item= new Item_string(str->ptr(), str->length(), cs);
+  const CHARSET_INFO *from_cs= str->charset() ? str->charset() : to_cs;
+  Item_string *item= new Item_string(str->ptr(), str->length(), from_cs);
   /* If necessary, convert the string (ignoring errors), then copy it over. */
-  return item ? item->charset_converter(&my_charset_utf8_bin, false) : NULL;
+  return item ? item->charset_converter(to_cs, false) : NULL;
 }
 
 
