@@ -28,6 +28,7 @@
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_account.h"
 #include "pfs_host.h"
 #include "pfs_user.h"
 #include "pfs_account.h"
@@ -154,7 +155,7 @@ static struct st_mysql_show_var pfs_status_vars[]=
   {"Performance_schema_users_lost",
     (char*) &user_lost, SHOW_LONG},
   {"Performance_schema_accounts_lost",
-    (char*) &user_lost, SHOW_LONG},
+    (char*) &account_lost, SHOW_LONG},
   {"Performance_schema_stage_classes_lost",
     (char*) &stage_class_lost, SHOW_LONG},
   {"Performance_schema_statement_classes_lost",
