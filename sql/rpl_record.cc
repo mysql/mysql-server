@@ -313,7 +313,7 @@ unpack_row(Relay_log_info const *rli,
         else
         {
           f->set_default();
-          push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_BAD_NULL_ERROR, ER(ER_BAD_NULL_ERROR),
                               f->field_name);
         }
@@ -475,7 +475,7 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
       {
         f->set_default();
         push_warning_printf(current_thd,
-                            MYSQL_ERROR::WARN_LEVEL_WARN,
+                            Sql_condition::WARN_LEVEL_WARN,
                             ER_NO_DEFAULT_FOR_FIELD,
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             f->field_name);

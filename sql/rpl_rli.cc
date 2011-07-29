@@ -1004,9 +1004,9 @@ void Relay_log_info::clear_tables_to_lock()
 
 void Relay_log_info::slave_close_thread_tables(THD *thd)
 {
-  thd->get_stmt_da()->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-  thd->get_stmt_da()->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
 
   close_thread_tables(thd);
   /*

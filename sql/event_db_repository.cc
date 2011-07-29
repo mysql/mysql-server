@@ -676,7 +676,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     if (create_if_not)
     {
       *event_already_exists= true;
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                           ER_EVENT_ALREADY_EXISTS, ER(ER_EVENT_ALREADY_EXISTS),
                           parse_data->name.str);
       ret= 0;
@@ -906,7 +906,7 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
     goto end;
   }
 
-  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+  push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                       ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
                       "Event", name.str);
   ret= 0;

@@ -447,9 +447,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char *sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR **cond_hdl);
+                        Sql_condition **cond_hdl);
 
   bool need_reopen() const { return m_need_reopen; };
   void init() { m_need_reopen= FALSE; };
@@ -468,9 +468,9 @@ Sql_handler_lock_error_handler::
 handle_condition(THD *thd,
                  uint sql_errno,
                  const char *sqlstate,
-                 MYSQL_ERROR::enum_warning_level level,
+                 Sql_condition::enum_warning_level level,
                  const char* msg,
-                 MYSQL_ERROR **cond_hdl)
+                 Sql_condition **cond_hdl)
 {
   *cond_hdl= NULL;
   if (sql_errno == ER_LOCK_ABORTED)

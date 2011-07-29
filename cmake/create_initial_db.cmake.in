@@ -58,7 +58,7 @@ SET(BOOTSTRAP_COMMAND
   --basedir=.
   --datadir=.
   --default-storage-engine=MyISAM
-  --default-temp-storage-engine=MyISAM
+  --default-tmp-storage-engine=MyISAM
   --loose-skip-innodb
   --loose-skip-ndbcluster
   --max_allowed_packet=8M
