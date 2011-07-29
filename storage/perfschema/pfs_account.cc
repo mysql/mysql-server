@@ -559,7 +559,8 @@ void purge_all_account(void)
   {
     if (pfs->m_lock.is_populated())
     {
-      pfs->m_disconnected_count= 0;
+      pfs->aggregate_stats();
+
       if (pfs->get_refcount() == 0)
         purge_account(thread, pfs);
     }
