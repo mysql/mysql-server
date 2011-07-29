@@ -3,7 +3,7 @@
 --source include/load_sysvars.inc
 
 ######################################################################
-#           START OF default_temp_storage_engine TESTS               #
+#           START OF default_tmp_storage_engine TESTS               #
 ######################################################################
 
 
@@ -11,84 +11,84 @@
 #                 Save initial value                        #
 #############################################################
 
-SET @start_global_value = @@global.default_temp_storage_engine;
+SET @start_global_value = @@global.default_tmp_storage_engine;
 SELECT @start_global_value;
-SET @start_session_value = @@session.default_temp_storage_engine;
+SET @start_session_value = @@session.default_tmp_storage_engine;
 SELECT @start_session_value;
 
 
 --echo '#--------------------FN_DYNVARS_005_01-------------------------#'
 ######################################################################
-#     Display the DEFAULT value of default_temp_storage_engine       #
+#     Display the DEFAULT value of default_tmp_storage_engine       #
 ######################################################################
 
-SET @@global.default_temp_storage_engine = INNODB;
-SET @@global.default_temp_storage_engine = DEFAULT;
-SELECT @@global.default_temp_storage_engine;
+SET @@global.default_tmp_storage_engine = INNODB;
+SET @@global.default_tmp_storage_engine = DEFAULT;
+SELECT @@global.default_tmp_storage_engine;
 
-SET @@session.default_temp_storage_engine = INNODB;
-SET @@session.default_temp_storage_engine = DEFAULT;
-SELECT @@session.default_temp_storage_engine;
+SET @@session.default_tmp_storage_engine = INNODB;
+SET @@session.default_tmp_storage_engine = DEFAULT;
+SELECT @@session.default_tmp_storage_engine;
 
 
 --echo '#--------------------FN_DYNVARS_005_02-------------------------#'
 ########################################################################
-# Change the value of default_temp_storage_engine to a valid value for GLOBAL Scope #
+# Change the value of default_tmp_storage_engine to a valid value for GLOBAL Scope #
 ########################################################################
 
-SET @@global.default_temp_storage_engine = MYISAM;
-SELECT @@global.default_temp_storage_engine;
-SET @@global.default_temp_storage_engine = MERGE;
-SELECT @@global.default_temp_storage_engine;
-SET @@global.default_temp_storage_engine = MEMORY;
-SELECT @@global.default_temp_storage_engine;
-SET @@global.default_temp_storage_engine = INNODB;
-SELECT @@global.default_temp_storage_engine;
+SET @@global.default_tmp_storage_engine = MYISAM;
+SELECT @@global.default_tmp_storage_engine;
+SET @@global.default_tmp_storage_engine = MERGE;
+SELECT @@global.default_tmp_storage_engine;
+SET @@global.default_tmp_storage_engine = MEMORY;
+SELECT @@global.default_tmp_storage_engine;
+SET @@global.default_tmp_storage_engine = INNODB;
+SELECT @@global.default_tmp_storage_engine;
 
 
 --echo '#--------------------FN_DYNVARS_005_03-------------------------#'
 #########################################################################
-# Change the value of default_temp_storage_engine to a valid value for SESSION Scope #
+# Change the value of default_tmp_storage_engine to a valid value for SESSION Scope #
 #########################################################################
  
-SET @@session.default_temp_storage_engine = MYISAM;
-SELECT @@session.default_temp_storage_engine;
-SET @@session.default_temp_storage_engine = MERGE;
-SELECT @@session.default_temp_storage_engine;
-SET @@session.default_temp_storage_engine = MEMORY;
-SELECT @@session.default_temp_storage_engine;
-SET @@session.default_temp_storage_engine = INNODB;
-SELECT @@session.default_temp_storage_engine;
+SET @@session.default_tmp_storage_engine = MYISAM;
+SELECT @@session.default_tmp_storage_engine;
+SET @@session.default_tmp_storage_engine = MERGE;
+SELECT @@session.default_tmp_storage_engine;
+SET @@session.default_tmp_storage_engine = MEMORY;
+SELECT @@session.default_tmp_storage_engine;
+SET @@session.default_tmp_storage_engine = INNODB;
+SELECT @@session.default_tmp_storage_engine;
 
 
 --echo '#------------------FN_DYNVARS_005_04-----------------------#'
 ##################################################################
-# Change the value of default_temp_storage_engine to an invalid value         #
+# Change the value of default_tmp_storage_engine to an invalid value         #
 ##################################################################
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@global.default_temp_storage_engine = 8199;
+SET @@global.default_tmp_storage_engine = 8199;
 
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@global.default_temp_storage_engine = NULL;
+SET @@global.default_tmp_storage_engine = NULL;
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@global.default_temp_storage_engine = -1024;
+SET @@global.default_tmp_storage_engine = -1024;
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@global.default_temp_storage_engine = 65530.34;
+SET @@global.default_tmp_storage_engine = 65530.34;
 
 --Error ER_UNKNOWN_STORAGE_ENGINE
-SET @@global.default_temp_storage_engine = FILE;
+SET @@global.default_tmp_storage_engine = FILE;
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@session.default_temp_storage_engine = 8199;
+SET @@session.default_tmp_storage_engine = 8199;
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@session.default_temp_storage_engine = 65530.34;
+SET @@session.default_tmp_storage_engine = 65530.34;
 
 --Error ER_UNKNOWN_STORAGE_ENGINE
-SET @@session.default_temp_storage_engine = RECORD;
+SET @@session.default_tmp_storage_engine = RECORD;
 
 
 --echo '#------------------FN_DYNVARS_005_05-----------------------#'
@@ -97,18 +97,18 @@ SET @@session.default_temp_storage_engine = RECORD;
 ####################################################################
 
 
-SELECT @@global.default_temp_storage_engine =
+SELECT @@global.default_tmp_storage_engine =
  VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-  WHERE VARIABLE_NAME='default_temp_storage_engine';
+  WHERE VARIABLE_NAME='default_tmp_storage_engine';
 
 --echo '#------------------FN_DYNVARS_005_06-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
-SELECT @@session.default_temp_storage_engine =
+SELECT @@session.default_tmp_storage_engine =
  VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
-  WHERE VARIABLE_NAME='default_temp_storage_engine';
+  WHERE VARIABLE_NAME='default_tmp_storage_engine';
 
 
 --echo '#------------------FN_DYNVARS_005_07-----------------------#'
@@ -117,10 +117,10 @@ SELECT @@session.default_temp_storage_engine =
 ####################################################################
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@global.default_temp_storage_engine = TRUE;
+SET @@global.default_tmp_storage_engine = TRUE;
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@global.default_temp_storage_engine = FALSE;
+SET @@global.default_tmp_storage_engine = FALSE;
 
 
 --echo '#---------------------FN_DYNVARS_001_8----------------------#'
@@ -129,29 +129,29 @@ SET @@global.default_temp_storage_engine = FALSE;
 #  SCOPE points to same session variable                      #
 ###############################################################
 
-SET @@default_temp_storage_engine = MYISAM;
-SELECT @@default_temp_storage_engine = @@local.default_temp_storage_engine;
-SELECT @@local.default_temp_storage_engine = @@session.default_temp_storage_engine;
+SET @@default_tmp_storage_engine = MYISAM;
+SELECT @@default_tmp_storage_engine = @@local.default_tmp_storage_engine;
+SELECT @@local.default_tmp_storage_engine = @@session.default_tmp_storage_engine;
 
 
 --echo '#---------------------FN_DYNVARS_001_9----------------------#'
 #########################################################################
-#   Check if default_temp_storage_engine can be accessed with and without @@ sign    #
+#   Check if default_tmp_storage_engine can be accessed with and without @@ sign    #
 #########################################################################
 
-SET default_temp_storage_engine = MEMORY;
-SELECT @@default_temp_storage_engine;
+SET default_tmp_storage_engine = MEMORY;
+SELECT @@default_tmp_storage_engine;
 --Error ER_UNKNOWN_TABLE
-SELECT local.default_temp_storage_engine;
+SELECT local.default_tmp_storage_engine;
 --Error ER_UNKNOWN_TABLE
-SELECT session.default_temp_storage_engine;
+SELECT session.default_tmp_storage_engine;
 --Error ER_BAD_FIELD_ERROR
-SELECT default_temp_storage_engine = @@session.default_temp_storage_engine;
+SELECT default_tmp_storage_engine = @@session.default_tmp_storage_engine;
 
 # check the old obsolete name
-SET @@default_temp_storage_engine = @start_global_value;
+SET @@default_tmp_storage_engine = @start_global_value;
 
-SET default_temp_storage_engine = MyISAM;
+SET default_tmp_storage_engine = MyISAM;
 SET default_storage_engine = MyISAM;
 CREATE TABLE t1 (a INT);
 CREATE TEMPORARY TABLE t2 (b INT);
@@ -159,7 +159,7 @@ SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
 
-SET default_temp_storage_engine = InnoDB;
+SET default_tmp_storage_engine = InnoDB;
 CREATE TABLE t1 (a INT);
 CREATE TEMPORARY TABLE t2 (b INT);
 SHOW CREATE TABLE t1;
@@ -173,7 +173,7 @@ SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
 
-SET default_temp_storage_engine = DEFAULT;
+SET default_tmp_storage_engine = DEFAULT;
 SET default_storage_engine = DEFAULT;
 CREATE TABLE t1 (a INT);
 CREATE TEMPORARY TABLE t2 (b INT);
@@ -185,13 +185,13 @@ DROP TABLE t1, t2;
 #     Restore initial value        #
 ####################################
 
-SET @@global.default_temp_storage_engine = @start_global_value;
-SELECT @@global.default_temp_storage_engine;
-SET @@session.default_temp_storage_engine = @start_session_value;
-SELECT @@session.default_temp_storage_engine;
+SET @@global.default_tmp_storage_engine = @start_global_value;
+SELECT @@global.default_tmp_storage_engine;
+SET @@session.default_tmp_storage_engine = @start_session_value;
+SELECT @@session.default_tmp_storage_engine;
 
 
 #############################################################
-#       END OF default_temp_storage_engine TESTS            #
+#       END OF default_tmp_storage_engine TESTS            #
 #############################################################
 

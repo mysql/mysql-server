@@ -1785,7 +1785,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
                         sig_wait, sig_glob, error));});
         if (error == ETIMEDOUT || error == ETIME)
         {
-          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                        ER_DEBUG_SYNC_TIMEOUT, ER(ER_DEBUG_SYNC_TIMEOUT));
           break;
         }
