@@ -4660,10 +4660,10 @@ root	localhost	1	1
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	1	1
-user1	0	0
-user2	0	0
-user3	0	0
-user4	0	0
+user1	0	1
+user2	0	1
+user3	0	1
+user4	0	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 truncate performance_schema.users;

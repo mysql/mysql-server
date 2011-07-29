@@ -18,6 +18,7 @@
 #include "table_users.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_account.h"
 #include "pfs_user.h"
 #include "pfs_visitor.h"
 
@@ -79,6 +80,7 @@ table_users::delete_all_rows(void)
   reset_events_statements_by_thread();
   reset_events_statements_by_account();
   reset_events_statements_by_user();
+  purge_all_account();
   purge_all_user();
   return 0;
 }

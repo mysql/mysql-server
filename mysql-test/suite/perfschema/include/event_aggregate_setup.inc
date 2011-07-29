@@ -57,19 +57,19 @@
 # t/event_aggregate_<account><user><host>
 #
 # <account> corresponds to different sizing settings for 
-# the variable performance-schema-max-user-hosts
-# - (blank): max-user-host sufficient to represent all records
-# - no_uh: max-user-host set to 0
+# the variable performance-schema-accounts-size
+# - (blank): accounts-size sufficient to represent all records
+# - no_a: accounts-size set to 0
 #
 # <user> corresponds to different sizing settings for 
-# the variable performance-schema-max-users
-# - (blank): max-user sufficient to represent all records
-# - no_u: max-user set to 0
+# the variable performance-schema-users-size
+# - (blank): users-size sufficient to represent all records
+# - no_u: users-size set to 0
 #
 # <host> corresponds to different sizing settings for 
-# the variable performance-schema-max-hosts
-# - (blank): max-host sufficient to represent all records
-# - no_h: max-host set to 0
+# the variable performance-schema-hosts-size
+# - (blank): hosts-size sufficient to represent all records
+# - no_h: hosts-size set to 0
 
 # ========================================
 # HELPER include/event_aggregate_setup.inc
