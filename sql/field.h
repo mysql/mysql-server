@@ -264,7 +264,17 @@ public:
   */
   virtual void sql_type(String &str) const =0;
   inline bool is_null(my_ptrdiff_t row_offset= 0)
-  { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : table->null_row; }
+  {
+    /*
+      If the field is NULLable, it has a valid null_ptr pointer, and its
+      NULLity is recorded in the "null_bit" bit of null_ptr[row_offset].
+      Otherwise, it can still be NULL, if it belongs to the inner table of an
+      outer join and the row is NULL-complemented: that case is recorded in
+      TABLE::null_row.
+    */
+    return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) :
+      table->null_row;
+  }
   inline bool is_real_null(my_ptrdiff_t row_offset= 0)
     { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : 0; }
   inline bool is_null_in_record(const uchar *record)
