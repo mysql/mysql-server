@@ -8,20 +8,6 @@
 SET @orig = @@global.innodb_buffer_pool_filename;
 SELECT @orig;
 
-# Do a dump and check that the file has been created
-
-SET GLOBAL innodb_buffer_pool_dump_now = ON;
--- let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
-
-# Wait for the dump to complete
-let $wait_condition =
-  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
-  FROM information_schema.global_status
-  WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
--- source include/wait_condition.inc
-
--- file_exists $file
-
 # Try with a non-default filename
 
 SET GLOBAL innodb_buffer_pool_filename = 'innodb_foobar_dump';

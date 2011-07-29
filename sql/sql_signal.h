@@ -46,9 +46,9 @@ protected:
     @param level the level to assign
     @param sqlcode the sql code to assign
   */
-  static void assign_defaults(MYSQL_ERROR *cond,
+  static void assign_defaults(Sql_condition *cond,
                               bool set_level_code,
-                              MYSQL_ERROR::enum_warning_level level,
+                              Sql_condition::enum_warning_level level,
                               int sqlcode);
 
   /**
@@ -57,7 +57,7 @@ protected:
     @param thd the current thread.
     @param cond the condition to update.
   */
-  void eval_defaults(THD *thd, MYSQL_ERROR *cond);
+  void eval_defaults(THD *thd, Sql_condition *cond);
 
   /**
     Evaluate each signal condition items for this statement.
@@ -65,7 +65,7 @@ protected:
     @param cond the condition to update.
     @return 0 on success.
   */
-  int eval_signal_informations(THD *thd, MYSQL_ERROR *cond);
+  int eval_signal_informations(THD *thd, Sql_condition *cond);
 
   /**
     Raise a SQL condition.
@@ -73,7 +73,7 @@ protected:
     @param cond the condition to raise.
     @return false on success.
   */
-  bool raise_condition(THD *thd, MYSQL_ERROR *cond);
+  bool raise_condition(THD *thd, Sql_condition *cond);
 
   /**
     The condition to signal or resignal.

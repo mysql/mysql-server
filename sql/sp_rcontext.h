@@ -139,10 +139,10 @@ class sp_rcontext : public Sql_alloc
   find_handler(THD *thd,
                uint sql_errno,
                const char *sqlstate,
-               MYSQL_ERROR::enum_warning_level level,
+               Sql_condition::enum_warning_level level,
                const char *msg);
 
-  MYSQL_ERROR *
+  Sql_condition *
   raised_condition() const;
 
   void
@@ -228,7 +228,7 @@ private:
     SQL conditions caught by each handler.
     This is an array indexed by handler index.
   */
-  MYSQL_ERROR *m_raised_conditions;
+  Sql_condition *m_raised_conditions;
 
   uint m_hcount;                // Stack pointer for m_handler
   uint *m_hstack;               // Return stack for continue handlers

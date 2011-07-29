@@ -126,7 +126,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
   {
     switch (thd->lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                    ER_EVENT_CANNOT_CREATE_IN_THE_PAST,
                    ER(ER_EVENT_CANNOT_CREATE_IN_THE_PAST));
       break;
@@ -143,7 +143,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
   {
     status= Event_parse_data::DISABLED;
     status_changed= true;
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                  ER_EVENT_EXEC_TIME_IN_THE_PAST,
                  ER(ER_EVENT_EXEC_TIME_IN_THE_PAST));
   }

@@ -616,12 +616,12 @@ sub optimize_cases {
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
       my $default_engine=
 	mtr_match_prefix($opt, "--default-storage-engine=");
-      my $default_temp_engine=
-	mtr_match_prefix($opt, "--default-temp-storage-engine=");
+      my $default_tmp_engine=
+	mtr_match_prefix($opt, "--default-tmp-storage-engine=");
 
       # Allow use of uppercase, convert to all lower case
       $default_engine =~ tr/A-Z/a-z/;
-      $default_temp_engine =~ tr/A-Z/a-z/;
+      $default_tmp_engine =~ tr/A-Z/a-z/;
 
       if (defined $default_engine){
 
@@ -644,26 +644,26 @@ sub optimize_cases {
 	$tinfo->{'innodb_test'}= 1
 	  if ( $default_engine =~ /^innodb/i );
       }
-      if (defined $default_temp_engine){
+      if (defined $default_tmp_engine){
 
 	#print " $tinfo->{name}\n";
-	#print " - The test asked to use '$default_temp_engine' as temp engine\n";
+	#print " - The test asked to use '$default_tmp_engine' as temp engine\n";
 
-	#my $engine_value= $::mysqld_variables{$default_temp_engine};
+	#my $engine_value= $::mysqld_variables{$default_tmp_engine};
 	#print " - The mysqld_variables says '$engine_value'\n";
 
-	if ( ! exists $::mysqld_variables{$default_temp_engine} and
-	     ! exists $builtin_engines{$default_temp_engine} )
+	if ( ! exists $::mysqld_variables{$default_tmp_engine} and
+	     ! exists $builtin_engines{$default_tmp_engine} )
 	{
 	  $tinfo->{'skip'}= 1;
 	  $tinfo->{'comment'}=
-	    "'$default_temp_engine' not supported";
+	    "'$default_tmp_engine' not supported";
 	}
 
 	$tinfo->{'ndb_test'}= 1
-	  if ( $default_temp_engine =~ /^ndb/i );
+	  if ( $default_tmp_engine =~ /^ndb/i );
 	$tinfo->{'innodb_test'}= 1
-	  if ( $default_temp_engine =~ /^innodb/i );
+	  if ( $default_tmp_engine =~ /^innodb/i );
       }
     }
 
@@ -1014,8 +1014,8 @@ sub collect_one_test_case {
     # the default storage engine is innodb.
     push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=MyISAM");
     push(@{$tinfo->{'slave_opt'}}, "--default-storage-engine=MyISAM");
-    push(@{$tinfo->{'master_opt'}}, "--default-temp-storage-engine=MyISAM");
-    push(@{$tinfo->{'slave_opt'}}, "--default-temp-storage-engine=MyISAM");
+    push(@{$tinfo->{'master_opt'}}, "--default-tmp-storage-engine=MyISAM");
+    push(@{$tinfo->{'slave_opt'}}, "--default-tmp-storage-engine=MyISAM");
   }
 
   if ( $tinfo->{'need_binlog'} )
