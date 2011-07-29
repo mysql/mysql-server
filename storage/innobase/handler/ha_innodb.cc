@@ -2659,6 +2659,15 @@ innobase_change_buffering_inited_ok:
 	row_rollback_on_timeout = (ibool) innobase_rollback_on_timeout;
 
 	srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
+	if (innobase_locks_unsafe_for_binlog) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Warning: Using " 
+			"innodb_locks_unsafe_for_binlog is DEPRECATED. "
+			"This option may be removed in future releases. "
+			"Please use READ COMMITTED transaction isolation "
+			"level instead, see " REFMAN "set-transaction.html.\n");
+	}
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
@@ -12255,6 +12264,8 @@ static MYSQL_SYSVAR_BOOL(large_prefix, innobase_large_prefix,
 
 static MYSQL_SYSVAR_BOOL(locks_unsafe_for_binlog, innobase_locks_unsafe_for_binlog,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "DEPRECATED. This option may be removed in future releases. "
+  "Please use READ COMMITTED transaction isolation level instead. "
   "Force InnoDB to not use next-key locking, to use only row-level locking.",
   NULL, NULL, FALSE);
 
