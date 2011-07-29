@@ -339,7 +339,7 @@ static char *lc_time_names_name;
 char *my_bind_addr_str;
 static char *default_collation_name;
 char *default_storage_engine;
-char *default_temp_storage_engine;
+char *default_tmp_storage_engine;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
 static bool binlog_format_used= false;
@@ -2891,7 +2891,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
       thd->is_fatal_error= 1;
     (void) thd->raise_condition(error,
                                 NULL,
-                                MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                Sql_condition::WARN_LEVEL_ERROR,
                                 str);
   }
 
@@ -3343,7 +3343,7 @@ int init_common_variables()
 #else
   default_storage_engine= const_cast<char *>("InnoDB");
 #endif
-  default_temp_storage_engine= default_storage_engine;
+  default_tmp_storage_engine= default_storage_engine;
 
   /*
     Add server status variables to the dynamic list of
@@ -4147,7 +4147,7 @@ static int init_server_components()
     }
   }
 
-  proc_info_hook= set_thd_proc_info;
+  proc_info_hook= set_thd_stage_info;
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /*
@@ -4402,7 +4402,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (initialize_storage_engine(default_storage_engine, "",
                                 &global_system_variables.table_plugin))
     unireg_abort(1);
-  if (initialize_storage_engine(default_temp_storage_engine, " temp",
+  if (initialize_storage_engine(default_tmp_storage_engine, " temp",
                                 &global_system_variables.temp_table_plugin))
     unireg_abort(1);
 
@@ -6168,9 +6168,9 @@ struct my_option my_long_options[]=
   {"default-storage-engine", 0, "The default storage engine for new tables",
    &default_storage_engine, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0 },
-  {"default-temp-storage-engine", 0, 
+  {"default-tmp-storage-engine", 0, 
     "The default storage engine for new explict temporary tables",
-   &default_temp_storage_engine, 0, 0, GET_STR, REQUIRED_ARG,
+   &default_tmp_storage_engine, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0 },
   {"default-time-zone", 0, "Set the default time zone.",
    &default_tz_name, &default_tz_name,
@@ -8481,6 +8481,7 @@ PSI_stage_info stage_logging_slow_query= { 0, "logging slow query", 0};
 PSI_stage_info stage_making_temp_file_append_before_load_data= { 0, "Making temporary file (append) before replaying LOAD DATA INFILE.", 0};
 PSI_stage_info stage_making_temp_file_create_before_load_data= { 0, "Making temporary file (create) before replaying LOAD DATA INFILE.", 0};
 PSI_stage_info stage_manage_keys= { 0, "manage keys", 0};
+PSI_stage_info stage_master_has_sent_all_binlog_to_slave= { 0, "Master has sent all binlog to slave; waiting for binlog to be updated", 0};
 PSI_stage_info stage_opening_tables= { 0, "Opening tables", 0};
 PSI_stage_info stage_optimizing= { 0, "optimizing", 0};
 PSI_stage_info stage_preparing= { 0, "preparing", 0};
@@ -8500,6 +8501,7 @@ PSI_stage_info stage_sending_binlog_event_to_slave= { 0, "Sending binlog event t
 PSI_stage_info stage_sending_cached_result_to_client= { 0, "sending cached result to client", 0};
 PSI_stage_info stage_sending_data= { 0, "Sending data", 0};
 PSI_stage_info stage_setup= { 0, "setup", 0};
+PSI_stage_info stage_slave_has_read_all_relay_log= { 0, "Slave has read all relay log; waiting for the slave I/O thread to update it", 0};
 PSI_stage_info stage_sorting_for_group= { 0, "Sorting for group", 0};
 PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
 PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
@@ -8523,8 +8525,13 @@ PSI_stage_info stage_waiting_for_handler_open= { 0, "waiting for handler open", 
 PSI_stage_info stage_waiting_for_insert= { 0, "Waiting for INSERT", 0};
 PSI_stage_info stage_waiting_for_master_to_send_event= { 0, "Waiting for master to send event", 0};
 PSI_stage_info stage_waiting_for_master_update= { 0, "Waiting for master update", 0};
+PSI_stage_info stage_waiting_for_relay_log_space= { 0, "Waiting for the slave SQL thread to free enough relay log space", 0};
 PSI_stage_info stage_waiting_for_slave_mutex_on_exit= { 0, "Waiting for slave mutex on exit", 0};
+PSI_stage_info stage_waiting_for_slave_thread_to_start= { 0, "Waiting for slave thread to start", 0};
+PSI_stage_info stage_waiting_for_table_flush= { 0, "Waiting for table flush", 0};
+PSI_stage_info stage_waiting_for_query_cache_lock= { 0, "Waiting for query cache lock", 0};
 PSI_stage_info stage_waiting_for_the_next_event_in_relay_log= { 0, "Waiting for the next event in relay log", 0};
+PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position= { 0, "Waiting for the slave SQL thread to advance position", 0};
 PSI_stage_info stage_waiting_to_finalize_termination= { 0, "Waiting to finalize termination", 0};
 PSI_stage_info stage_waiting_to_get_readlock= { 0, "Waiting to get readlock", 0};
 
@@ -8573,6 +8580,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_making_temp_file_append_before_load_data,
   & stage_making_temp_file_create_before_load_data,
   & stage_manage_keys,
+  & stage_master_has_sent_all_binlog_to_slave,
   & stage_opening_tables,
   & stage_optimizing,
   & stage_preparing,
@@ -8592,6 +8600,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_sending_cached_result_to_client,
   & stage_sending_data,
   & stage_setup,
+  & stage_slave_has_read_all_relay_log,
   & stage_sorting_for_group,
   & stage_sorting_for_order,
   & stage_sorting_result,
@@ -8616,7 +8625,11 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_master_to_send_event,
   & stage_waiting_for_master_update,
   & stage_waiting_for_slave_mutex_on_exit,
+  & stage_waiting_for_slave_thread_to_start,
+  & stage_waiting_for_table_flush,
+  & stage_waiting_for_query_cache_lock,
   & stage_waiting_for_the_next_event_in_relay_log,
+  & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,
   & stage_waiting_to_get_readlock
 };

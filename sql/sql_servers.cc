@@ -627,7 +627,7 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 
   if (close_cached_connection_tables(thd, &name))
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_UNKNOWN_ERROR, "Server connection in use");
   }
 
@@ -1056,7 +1056,7 @@ int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 
   if (close_cached_connection_tables(thd, &name))
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_UNKNOWN_ERROR, "Server connection in use");
   }
 
