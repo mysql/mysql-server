@@ -4670,8 +4670,23 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   }
   else
   {
-    /* Aggregate to the socket instrument (event count and byte count) */
-    byte_stat->aggregate_counted(bytes);
+    /*
+	   A state of IDLE means that this is a recv() following an idle period.
+	   The division of the wait time between the idle period and the actual
+	   recv() is unknown, so the entire wait time will later be assigned to the
+	   global IDLE class. However, incrementing the recv() operation count
+	   without assigning any wait time will throw off the stats, so we fudge a
+	   little and assign the current min wait as a best guess.
+	*/
+	if (socket_idle)
+	{
+      byte_stat->aggregate(byte_stat->m_min, bytes);
+	}
+    else
+	{
+      /* Aggregate to the socket instrument (event count and byte count) */
+	  byte_stat->aggregate_counted(bytes);
+	}
   }
 
   /** Global thread aggregation */
