@@ -1,0 +1,316 @@
+# The logging of commands and result sets is mostly disabled.
+# There are some messages which help to observe the progress of the test.
+# In case some check fails
+# - a message about this will be printed
+# - some SQL commands which show the unexpected state will be executed
+#   (logging enabled)
+# - the test might abort
+#
+# 0. Build or set prequisites
+# 1. Check the base line
+# 2. Check connect
+# 2.1 Connect fails because the user is unknown
+#     length of user name = 4 character
+#     length of default db = 9 character
+ERROR 28000: Access denied for user 'boot'@'localhost' (using password: NO)
+# 2.2 Connect fails because the user is unknown
+#     length of user name = 14 character (10 more than in 2.1)
+#     length of default db = 9 character
+ERROR 28000: Access denied for user 'boot0123456789'@'localhost' (using password: NO)
+# 2.3 Connect should pass, host = localhost
+#     length of user name  = 4 character
+#     length of default db = 9 character
+# 2.4 Connect should pass, host = localhost
+#     length of user name  = 4 character
+#     length of default db = 14 character (5 more than 2.3)
+# 3 Check SELECTs
+# 3.1 Check a SELECT ending with server sending an error message.
+#     Error message is short (unknown table).
+SELECT col2 FROM does_not_exist;
+ERROR 42S02: Table 'mysqltest.does_not_exist' doesn't exist
+# 3.2 Check a SELECT ending with server sending an error message.
+#     Error message is longer (syntax error).
+#     Now the statement is a bit longer but the error message
+#     length does again not depend on statement.
+SELECT col2 FROM does_not_exist WHERE col1 = 0;
+ERROR 42S02: Table 'mysqltest.does_not_exist' doesn't exist
+# 3.3 Check a SELECT earning an empty result set.
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0;
+col2
+# 3.4 Check a SELECT earning an empty result set.
+#     Short column name is replaced by longer alias.
+SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0;
+my_lovely_col
+# 3.5 Check a SELECT earning one row with an empty string.
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
+col2
+
+# 3.6 Check a SELECT earning one row with one string one char long.
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2;
+col2
+a
+# 3.7 Check a SELECT earning one row with one string 1024 char long.
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3;
+col2
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+# 4. Check delta details
+# 4.1 Check that increased COUNT_* leads to increased
+#     - increased COUNT_* leads to increased
+#       SUM_TIMER_* and SUM_NUMBER_OF_BYTES_*
+#     - no change in COUNT_* leads to no change in
+#       SUM_TIMER_* and SUM_NUMBER_OF_BYTES_*
+# 4.2 Results must be stable
+#     Everything except "client_connection" for default connection
+#     because the default connection runs include/wait_till_sleep.inc
+#     which means a varying amount of statements.
+# The statistics looks suspicious.
+# We expect
+#    COUNT(DISTINCT COUNT_READ)                = 1 AND
+COUNT(DISTINCT SUM_NUMBER_OF_BYTES_READ)  = 1 AND
+COUNT(DISTINCT COUNT_WRITE)               = 1 AND
+COUNT(DISTINCT SUM_NUMBER_OF_BYTES_WRITE) = 1 AND
+COUNT(DISTINCT COUNT_MISC)                = 1
+# for GROUP BY EVENT_NAME, statement
+SELECT EVENT_NAME, statement
+FROM mysqltest.socket_summary_by_instance_detail
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+GROUP BY EVENT_NAME, statement
+HAVING (COUNT(DISTINCT COUNT_READ)                = 1 AND
+COUNT(DISTINCT SUM_NUMBER_OF_BYTES_READ)  = 1 AND
+COUNT(DISTINCT COUNT_WRITE)               = 1 AND
+COUNT(DISTINCT SUM_NUMBER_OF_BYTES_WRITE) = 1 AND
+COUNT(DISTINCT COUNT_MISC)                = 1) <> 1
+ORDER BY EVENT_NAME, statement;
+EVENT_NAME	statement
+wait/io/socket/sql/client_connection	Connect (con1,localhost,root,,mysqlsupertest,,)
+SELECT COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
+COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
+COUNT_MISC,  Statement, EVENT_NAME, statement, run
+FROM mysqltest.socket_summary_by_instance_detail t1
+WHERE (EVENT_NAME, statement) IN
+(SELECT EVENT_NAME, statement FROM mysqltest.socket_summary_by_instance_detail
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+GROUP BY EVENT_NAME, statement
+HAVING (COUNT(DISTINCT COUNT_READ)                = 1 AND
+COUNT(DISTINCT SUM_NUMBER_OF_BYTES_READ)  = 1 AND
+COUNT(DISTINCT COUNT_WRITE)               = 1 AND
+COUNT(DISTINCT SUM_NUMBER_OF_BYTES_WRITE) = 1 AND
+COUNT(DISTINCT COUNT_MISC)                = 1) <> 1)
+AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+ORDER BY EVENT_NAME, statement, run;
+COUNT_READ	SUM_NUMBER_OF_BYTES_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_WRITE	COUNT_MISC	Statement	EVENT_NAME	statement	run
+3	79	2	101	1	Connect (con1,localhost,root,,mysqlsupertest,,)	wait/io/socket/sql/client_connection	Connect (con1,localhost,root,,mysqlsupertest,,)	1
+3	79	2	101	1	Connect (con1,localhost,root,,mysqlsupertest,,)	wait/io/socket/sql/client_connection	Connect (con1,localhost,root,,mysqlsupertest,,)	2
+4	79	2	101	2	Connect (con1,localhost,root,,mysqlsupertest,,)	wait/io/socket/sql/client_connection	Connect (con1,localhost,root,,mysqlsupertest,,)	3
+# 4.3 Check the connects
+# 4.3.1 Failing connects with different length of user name
+#       FIXME: To be implemented after the bug fixes
+SELECT t2.COUNT_READ                - t1.COUNT_READ,
+t2.SUM_NUMBER_OF_BYTES_READ  - t1.SUM_NUMBER_OF_BYTES_READ,
+t2.COUNT_WRITE               - t1.COUNT_WRITE,
+t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE,
+t2.COUNT_MISC                - t1.COUNT_MISC, EVENT_NAME
+FROM mysqltest.socket_summary_by_instance_detail t2
+JOIN mysqltest.socket_summary_by_instance_detail t1
+USING (EVENT_NAME,run)
+WHERE t2.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND t1.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND t2.statement LIKE 'Connect%abc0123456789,%'
+  AND t1.statement LIKE 'Connect%abc,%'
+  AND run = 1;
+t2.COUNT_READ                - t1.COUNT_READ	t2.SUM_NUMBER_OF_BYTES_READ  - t1.SUM_NUMBER_OF_BYTES_READ	t2.COUNT_WRITE               - t1.COUNT_WRITE	t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE	t2.COUNT_MISC                - t1.COUNT_MISC	EVENT_NAME
+SELECT COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
+COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
+COUNT_MISC,  Statement, EVENT_NAME
+FROM mysqltest.socket_summary_by_instance_detail t2
+WHERE
+t2.statement LIKE 'Connect%abc0123456789,%'
+  AND run = 1;
+COUNT_READ	SUM_NUMBER_OF_BYTES_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_WRITE	COUNT_MISC	Statement	EVENT_NAME
+SELECT COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
+COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
+COUNT_MISC,  Statement, EVENT_NAME
+FROM mysqltest.socket_summary_by_instance_detail t2
+WHERE t2.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND t2.statement LIKE 'Connect%abc0123456789,%'
+  AND run = 1;
+COUNT_READ	SUM_NUMBER_OF_BYTES_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_WRITE	COUNT_MISC	Statement	EVENT_NAME
+SELECT COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
+COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
+COUNT_MISC,  Statement, EVENT_NAME
+FROM mysqltest.socket_summary_by_instance_detail t1
+WHERE t1.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND t1.statement LIKE 'Connect%abc,%'
+  AND run = 1;
+COUNT_READ	SUM_NUMBER_OF_BYTES_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_WRITE	COUNT_MISC	Statement	EVENT_NAME
+# 4.3.2 Failing (->2.1) vs. passing (-> 2.3) connect
+#       FIXME: To be implemented after the bug fixes
+# 4.3.3 2.3 vs. 2.4
+#       FIXME: To be implemented after the bug fixes
+# 4.4 Check the differences caused by SQL statements
+#       FIXME: To be implemented after the bug fixes
+# Dump detailed differences after - before statement execution
+# 1. The statement executing connection and hopefully noone else
+SELECT EVENT_NAME,
+COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
+COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
+COUNT_MISC,  statement
+FROM mysqltest.socket_summary_by_instance_detail
+WHERE EVENT_NAME LIKE '%client_connection%'
+     AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+ORDER BY statement, run;
+EVENT_NAME	COUNT_READ	SUM_NUMBER_OF_BYTES_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_WRITE	COUNT_MISC	statement
+wait/io/socket/sql/client_connection	3	79	2	101	1	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/client_connection	3	79	2	101	1	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/client_connection	4	79	2	101	2	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/client_connection	3	74	2	101	1	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/client_connection	3	74	2	101	1	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/client_connection	3	74	2	101	1	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/client_connection	3	69	1	87	1	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	3	69	1	87	1	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	3	69	1	87	1	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	3	36	1	59	1	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/client_connection	3	36	1	59	1	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/client_connection	3	36	1	59	1	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/client_connection	3	51	1	59	1	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/client_connection	3	51	1	59	1	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/client_connection	3	51	1	59	1	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/client_connection	3	53	1	78	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	3	53	1	78	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	3	53	1	78	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	3	53	1	83	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/client_connection	3	53	1	83	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/client_connection	3	53	1	83	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/client_connection	3	53	1	84	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/client_connection	3	53	1	84	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/client_connection	3	53	1	84	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/client_connection	3	53	1	1109	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+wait/io/socket/sql/client_connection	3	53	1	1109	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+wait/io/socket/sql/client_connection	3	53	1	1109	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+# 2. The connection default
+SELECT EVENT_NAME,
+COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
+COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
+COUNT_MISC,  statement
+FROM mysqltest.socket_summary_by_instance_detail
+WHERE OBJECT_INSTANCE_BEGIN = @default_object_instance_begin
+ORDER BY statement,run;
+EVENT_NAME	COUNT_READ	SUM_NUMBER_OF_BYTES_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_WRITE	COUNT_MISC	statement
+wait/io/socket/sql/client_connection	3	124	1	50	1	Connect (con1,localhost,boot,,mysqltest,,)
+wait/io/socket/sql/client_connection	3	124	1	50	1	Connect (con1,localhost,boot,,mysqltest,,)
+wait/io/socket/sql/client_connection	3	124	1	50	1	Connect (con1,localhost,boot,,mysqltest,,)
+wait/io/socket/sql/client_connection	3	124	1	50	1	Connect (con1,localhost,boot0123456789,,mysqltest,,)
+wait/io/socket/sql/client_connection	3	124	1	50	1	Connect (con1,localhost,boot0123456789,,mysqltest,,)
+wait/io/socket/sql/client_connection	3	124	1	50	1	Connect (con1,localhost,boot0123456789,,mysqltest,,)
+wait/io/socket/sql/client_connection	7	267	3	179	1	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/client_connection	7	267	3	179	1	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/client_connection	7	267	3	179	1	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/client_connection	7	267	3	179	1	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/client_connection	7	267	3	179	1	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/client_connection	7	267	3	179	1	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/client_connection	8	267	3	179	2	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+wait/io/socket/sql/client_connection	7	267	3	179	1	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+# 3. The "server_unix_socket"
+SELECT EVENT_NAME,
+COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
+COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
+COUNT_MISC,  statement
+FROM mysqltest.socket_summary_by_instance_detail
+WHERE EVENT_NAME LIKE '%server_unix_socket%'
+   ORDER BY statement,run;
+EVENT_NAME	COUNT_READ	SUM_NUMBER_OF_BYTES_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_WRITE	COUNT_MISC	statement
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,boot,,mysqltest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,boot,,mysqltest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,boot,,mysqltest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,boot0123456789,,mysqltest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,boot0123456789,,mysqltest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,boot0123456789,,mysqltest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	1	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+wait/io/socket/sql/server_unix_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+# 4. The "server_tcpip_socket"
+SELECT EVENT_NAME,
+COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
+COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
+COUNT_MISC,  statement
+FROM mysqltest.socket_summary_by_instance_detail
+WHERE EVENT_NAME LIKE '%server_tcpip_socket%'
+   ORDER BY statement,run;
+EVENT_NAME	COUNT_READ	SUM_NUMBER_OF_BYTES_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_WRITE	COUNT_MISC	statement
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,boot,,mysqltest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,boot,,mysqltest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,boot,,mysqltest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,boot0123456789,,mysqltest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,boot0123456789,,mysqltest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,boot0123456789,,mysqltest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,root,,mysqlsupertest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	Connect (con1,localhost,root,,mysqltest,,)
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM does_not_exist WHERE col1 = 0
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+wait/io/socket/sql/server_tcpip_socket	0	0	0	0	0	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+# 5. Cleanup
