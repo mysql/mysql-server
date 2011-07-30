@@ -15114,7 +15114,6 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       condition is true => a match is found.
     */
     bool found= 1;
-    bool use_not_exists_opt= 0;
     while (join_tab->first_unmatched && found)
     {
       /*
@@ -15130,8 +15129,6 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       first_unmatched->found= 1;
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
-        if (tab->table->reginfo.not_exists_optimize)
-          use_not_exists_opt= 1;
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
@@ -15142,7 +15139,11 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
         {
           /* The condition attached to table tab is false */
           if (tab == join_tab)
+          {
             found= 0;
+            if (tab->table->reginfo.not_exists_optimize)
+              DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+          }            
           else
           {
             /*
@@ -15150,7 +15151,10 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
               not to the last table of the current nest level.
             */
             join->return_tab= tab;
-            DBUG_RETURN(NESTED_LOOP_OK);
+            if (tab->table->reginfo.not_exists_optimize)
+              DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+            else
+              DBUG_RETURN(NESTED_LOOP_OK);
           }
         }
       }
@@ -15164,8 +15168,6 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       join_tab->first_unmatched= first_unmatched;
     }
 
-    if (use_not_exists_opt)
-      DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
     JOIN_TAB *return_tab= join->return_tab;
     join_tab->found_match= TRUE;
 

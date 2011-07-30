@@ -1236,5 +1236,35 @@ SELECT t1.pk, t1.a, t2.pk, t2.a,t3.pk, t3.a
 DROP TABLE t1, t2, t3;
 
 
+#
+# LP BUG#817360: Nested left joins + not-exist optimization
+#
+
+CREATE TABLE t1 (a int NOT NULL );
+INSERT INTO t1 VALUES (9), (9);
+
+CREATE TABLE t2 (a int NOT NULL );
+INSERT INTO t2 VALUES (9);
+
+CREATE TABLE t3 (a int NOT NULL, b int);
+INSERT INTO t3 VALUES (19,9);
+
+CREATE TABLE t4 (b int) ;
+
+SELECT * FROM t1 LEFT JOIN
+             ((t2 LEFT JOIN t3 ON t2.a=t3.b) LEFT JOIN t4 ON t3.a=t4.b)
+             ON t1.a=t2.a;
+SELECT * FROM t1 LEFT JOIN
+             ((t2 LEFT JOIN t3 ON t2.a=t3.b) LEFT JOIN t4 ON t3.a=t4.b)
+             ON t1.a=t2.a
+   WHERE t3.a IS NULL;
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN
+             ((t2 LEFT JOIN t3 ON t2.a=t3.b) LEFT JOIN t4 ON t3.a=t4.b)
+             ON t1.a=t2.a
+   WHERE t3.a IS NULL;
+
+DROP TABLE t1,t2,t3,t4;
+
 --echo End of 5.0 tests
 
