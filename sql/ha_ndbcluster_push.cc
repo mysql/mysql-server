@@ -282,14 +282,15 @@ NdbQuery* ndb_pushed_join::make_query_instance(
    * after the keyFieldParams[]. 
    */
   uint outer_fields= get_field_referrences_count();
+  NdbQueryParamValue* extendedParams = NULL;
   if (unlikely(outer_fields > 0))
   {
     uint size= sizeof(NdbQueryParamValue) * (paramCnt+outer_fields);
-    NdbQueryParamValue* extendedParams = reinterpret_cast<NdbQueryParamValue*>(alloca(size));
+    extendedParams = reinterpret_cast<NdbQueryParamValue*>(my_alloca(size));
     // Copy specified keyFieldParams[] first
     for (uint i= 0; i < paramCnt; i++)
     {
-      extendedParams[i]= keyFieldParams[i];
+      new (extendedParams + i) NdbQueryParamValue(keyFieldParams[i]);
     }
 
     // There may be referrences to Field values from tables outside the scope of
@@ -298,12 +299,20 @@ NdbQuery* ndb_pushed_join::make_query_instance(
     {
       Field* field= m_referred_fields[i];
       DBUG_ASSERT(!field->is_real_null());  // Checked by ::check_if_pushable()
-      extendedParams[paramCnt+i]= NdbQueryParamValue(field->ptr, false);
+      new (extendedParams + paramCnt + i) NdbQueryParamValue(field->ptr, false);
     }
     paramValues= extendedParams;
   }
 
   NdbQuery* query= trans->createQuery(&get_query_def(), paramValues);
+  if (unlikely(extendedParams != NULL))
+  {
+    for (uint i = 0; i < paramCnt + outer_fields; i++)
+    {
+      extendedParams[i].~NdbQueryParamValue();
+    }
+    my_afree(extendedParams);
+  }
   DBUG_RETURN(query);
 }
 
