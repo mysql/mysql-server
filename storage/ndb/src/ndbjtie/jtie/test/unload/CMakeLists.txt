@@ -17,6 +17,6 @@
 FILE(GLOB src ${CMAKE_CURRENT_SOURCE_DIR}/test/*.java)
 
 CREATE_JAR(jtie-test-unload ${src}
-  CLASSPATH ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
+  CLASSPATH ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
   DEPENDENCIES jtie.jar)
 

@@ -18,6 +18,6 @@ FILE(GLOB src1 ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/*.java)
 FILE(GLOB src2 ${CMAKE_CURRENT_SOURCE_DIR}/test/*.java)
 
 CREATE_JAR(jtie-test-myjapi ${src1} ${src2}
-  CLASSPATH ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
+  CLASSPATH ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
   DEPENDENCIES jtie.jar)
 

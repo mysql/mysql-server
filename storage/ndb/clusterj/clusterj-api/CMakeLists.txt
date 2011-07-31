@@ -29,4 +29,4 @@ CREATE_MANIFEST(manifest.mf ${CLUSTERJ_API_EXPORTS} clusterj-api)
 
 CREATE_JAR(clusterj-api ${JAVA_SOURCES}
   CLASSPATH target/classes
-  MANIFEST manifest.mf)
+  MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/manifest.mf)

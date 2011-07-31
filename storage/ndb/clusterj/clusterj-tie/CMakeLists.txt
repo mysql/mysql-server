@@ -17,10 +17,10 @@ FILE(GLOB JAVA_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clust
 
 SET ( CLASSPATH 
   target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes)
+  ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes)
 
 SET ( JAR_DEPENDENCIES
   clusterj-core.jar

@@ -25,7 +25,7 @@ ENDFOREACH()
 
 SET ( CLASSPATH 
   target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
   ${WITH_CLASSPATH})
 
 SET(CLUSTERJ_JPATEST_EXPORTS com.mysql.clusterj.jpatest,com.mysql.clusterj.jpatest.model)
@@ -33,7 +33,7 @@ CREATE_MANIFEST(manifest.mf ${CLUSTERJ_JPATEST_EXPORTS} clusterj-jpatest)
 
 CREATE_JAR(clusterj-jpatest ${JAVA_SOURCES} 
   CLASSPATH ${CLASSPATH}
-  MANIFEST manifest.mf
+  MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/manifest.mf
   ENHANCE ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources/META-INF/persistence.xml
   DEPENDENCIES clusterjpa.jar
   EXTRA_FILES src/main/resources/META-INF)
