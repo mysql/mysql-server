@@ -509,7 +509,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 		   (ulonglong) 1 << (share->base.rec_reflength*8))-1);
 
     max_key_file_length=
-      _ma_safe_mul(maria_block_size,
+      _ma_safe_mul(share->base.block_size,
 		  ((ulonglong) 1 << (share->base.key_reflength*8))-1);
 #if SIZEOF_OFF_T == 4
     set_if_smaller(max_data_file_length, INT_MAX32);
@@ -826,7 +826,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     share->base.margin_key_file_length=(share->base.max_key_file_length -
 					(keys ? MARIA_INDEX_BLOCK_MARGIN *
 					 share->block_size * keys : 0));
-    share->block_size= share->base.block_size;
+
     my_free(disk_cache, MYF(0));
     _ma_setup_functions(share);
     if ((*share->once_init)(share, info.dfile.file))

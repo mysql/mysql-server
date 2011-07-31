@@ -326,7 +326,15 @@ int maria_create(const char *name, enum data_file_type datafile_type,
              (~(ulonglong) 0)/ci->max_rows < (ulonglong) pack_reclength)
       ci->data_file_length= ~(ulonglong) 0;
     else
-      ci->data_file_length=(ulonglong) ci->max_rows*pack_reclength;
+    {
+      ci->data_file_length= _ma_safe_mul(ci->max_rows, pack_reclength);
+      if (datafile_type == BLOCK_RECORD)
+      {
+        /* Assume that blocks are only half full (very pessimistic!) */
+        ci->data_file_length= _ma_safe_mul(ci->data_file_length, 2);
+        set_if_bigger(ci->data_file_length, maria_block_size*2);
+      }
+    }
   }
   else if (!ci->max_rows)
   {
@@ -338,7 +346,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       ulonglong data_file_length= ci->data_file_length;
       if (!data_file_length)
         data_file_length= ((((ulonglong) 1 << ((BLOCK_RECORD_POINTER_SIZE-1) *
-                                               8)) -1) * maria_block_size);
+                                               8))/2 -1) * maria_block_size);
       if (rows_per_page > 0)
       {
         set_if_smaller(rows_per_page, MAX_ROWS_PER_PAGE);
@@ -360,11 +368,11 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   {
     /*
       The + 1 is for record position withing page
-      The / 2 is because we need one bit for knowing if there is transid's
+      The * 2 is because we need one bit for knowing if there is transid's
       after the row pointer
     */
     pointer= maria_get_pointer_length((ci->data_file_length /
-                                       (maria_block_size * 2)), 3) + 1;
+                                       maria_block_size) * 2, 3) + 1;
     set_if_smaller(pointer, BLOCK_RECORD_POINTER_SIZE);
 
     if (!max_rows)

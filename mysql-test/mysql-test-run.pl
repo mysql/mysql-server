@@ -4459,6 +4459,7 @@ sub extract_warning_lines ($$) {
      qr|mysqld: Table '\./mtr/test_suppressions' is marked as crashed and should be repaired|,
      qr|Can't open shared library.*ha_archive|,
      qr|InnoDB: Error: table 'test/bug39438'|,
+     qr|table.*is full|,
     );
 
   my $matched_lines= [];
