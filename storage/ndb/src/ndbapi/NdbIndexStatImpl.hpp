@@ -282,19 +282,11 @@ public:
   // default memory allocator
   struct MemDefault : public Mem {
     virtual void* mem_alloc(UintPtr bytes);
-    virtual void mem_free(void* p);
-    virtual UintPtr mem_used() const;
+    virtual void mem_free(void* ptr);
     MemDefault();
     virtual ~MemDefault();
-  private:
-    enum { MemMagic = 0xf1f2f3f4 };
-    struct Item {
-      Uint32 m_magic;
-      size_t m_size;
-    };
-    size_t m_used;
   };
-  static MemDefault g_mem_default_handler;
+  MemDefault c_mem_default_handler;
 
   // error
   const NdbIndexStat::Error& getNdbError() const;

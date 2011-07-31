@@ -327,15 +327,15 @@ public:
   static void get_rule(const Stat& stat, char* buffer);
 
   /*
-   * Memory allocator for the stats caches.  By default each instance
-   * uses its own malloc-based implementation.
+   * Memory allocator for stats cache data (key and value byte arrays).
+   * Implementation default uses malloc/free.  The memory in use is the
+   * sum of CacheInfo::m_totalBytes from all cache types.
    */
   struct Mem {
     Mem();
     virtual ~Mem();
     virtual void* mem_alloc(UintPtr size) = 0;
     virtual void mem_free(void* ptr) = 0;
-    virtual UintPtr mem_used() const = 0;
   };
 
   /*
