@@ -31,15 +31,15 @@ FILE(GLOB JAVA_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clust
 
 SET(CLASSPATH 
   target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
   ${WITH_CLASSPATH})
 
 SET(CLUSTERJPA_EXPORTS "${CLUSTERJ_EXPORTS},com.mysql.clusterj.openjpa")
 CREATE_MANIFEST(clusterjpa_manifest.mf ${CLUSTERJPA_EXPORTS} clusterjpa)
 CREATE_JAR(clusterjpa ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
-  MANIFEST clusterjpa_manifest.mf
+  MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/clusterjpa_manifest.mf
   DEPENDENCIES ${DEP}
   MERGE_JARS ${JARS})
 

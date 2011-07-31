@@ -59,5 +59,5 @@ CREATE_MANIFEST(clusterj_manifest.mf ${CLUSTERJ_EXPORTS} clusterj)
 
 CREATE_JAR(clusterj
   MERGE_JARS ${JARS}
-  MANIFEST clusterj_manifest.mf
+  MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/clusterj_manifest.mf
   DEPENDENCIES ${DEP} )

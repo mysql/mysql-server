@@ -16,9 +16,9 @@
 FILE(GLOB JAVA_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test/*.java)
 
 SET ( CLASSPATH 
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/test/myjapi/target/classes)
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/test/myjapi/target/classes)
 
 CREATE_JAR(ndbjtie-test ${JAVA_SOURCES} 
   CLASSPATH ${CLASSPATH} 

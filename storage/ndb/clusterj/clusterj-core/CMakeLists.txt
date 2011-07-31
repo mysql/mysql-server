@@ -29,7 +29,7 @@ ENDFOREACH()
 
 SET ( CLASSPATH 
   target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes)
+  ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-api/target/classes)
 
 CREATE_JAR(clusterj-core ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
