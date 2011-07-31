@@ -1,5 +1,7 @@
 --source include/have_innodb_plugin.inc
 
+--source include/long_test.inc
+
 set session transaction isolation level read committed;
 
 create table innodb_bug52663 (what varchar(5), id integer, count integer, primary key

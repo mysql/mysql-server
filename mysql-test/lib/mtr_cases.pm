@@ -890,7 +890,8 @@ sub collect_one_test_case {
     if ( -f "$testdir/$tname.slave-mi");
 
 
-  my @source_files = tags_from_test_file($tinfo,"$testdir/${tname}.test");
+  my ($master_opts, $slave_opts)=
+    tags_from_test_file($tinfo, "$testdir/${tname}.test", $suitedir);
 
   # Get default storage engine from suite.opt file
 
@@ -1043,16 +1044,8 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # Append mysqld extra options to master and slave, as appropriate
   # ----------------------------------------------------------------------
-  for (@source_files) {
-    s/\.\w+$//;
-    push @{$tinfo->{master_opt}}, opts_from_file("$_.opt");
-    push @{$tinfo->{slave_opt}}, opts_from_file("$_.opt");
-    push @{$tinfo->{master_opt}}, opts_from_file("$_-master.opt");
-    push @{$tinfo->{slave_opt}}, opts_from_file("$_-slave.opt");
-  }
-
-  push(@{$tinfo->{'master_opt'}}, @::opt_extra_mysqld_opt);
-  push(@{$tinfo->{'slave_opt'}}, @::opt_extra_mysqld_opt);
+  push @{$tinfo->{'master_opt'}}, @$master_opts, @::opt_extra_mysqld_opt;
+  push @{$tinfo->{'slave_opt'}}, @$slave_opts, @::opt_extra_mysqld_opt;
 
   process_opts($tinfo, 'master_opt');
   process_opts($tinfo, 'slave_opt');
@@ -1061,73 +1054,113 @@ sub collect_one_test_case {
 }
 
 
-# List of tags in the .test files that if found should set
-# the specified value in "tinfo"
-my @tags=
-(
- ["include/big_test.inc", "big_test", 1],
- ["include/have_debug.inc", "need_debug", 1],
- ["include/have_ndb.inc", "ndb_test", 1],
- ["include/have_multi_ndb.inc", "ndb_test", 1],
- ["include/master-slave.inc", "rpl_test", 1],
- ["include/ndb_master-slave.inc", "rpl_test", 1],
- ["include/ndb_master-slave.inc", "ndb_test", 1],
- ["include/not_embedded.inc", "not_embedded", 1],
- ["include/not_valgrind.inc", "not_valgrind", 1],
- ["include/have_example_plugin.inc", "example_plugin_test", 1],
- ["include/have_ssl.inc", "need_ssl", 1],
- ["include/long_test.inc", "long_test", 1],
-);
+my $tags_map= {'big_test' => ['big_test', 1],
+               'have_debug' => ['need_debug', 1],
+               'have_ndb' => ['ndb_test', 1],
+               'have_multi_ndb' => ['ndb_test', 1],
+               'master-slave' => ['rpl_test', 1],
+               'ndb_master-slave' => ['rpl_test', 1, 'ndb_test', 1],
+               'not_embedded' => ['not_embedded', 1],
+               'not_valgrind' => ['not_valgrind', 1],
+               'have_example_plugin' => ['example_plugin_test', 1],
+               'have_oqgraph_engine' => ['oqgraph_test', 1],
+               'have_ssl' => ['need_ssl', 1],
+               'long_test' => ['long_test', 1],
+};
+my $tags_regex_string= join('|', keys %$tags_map);
+my $tags_regex= qr:include/($tags_regex_string)\.inc:o;
 
+my $file_to_tags= { };
+my $file_to_master_opts= { };
+my $file_to_slave_opts= { };
 
-sub tags_from_test_file {
-  my $tinfo= shift;
-  my $file= shift;
-  #mtr_verbose("$file");
-  my $F= IO::File->new($file) or mtr_error("can't open file \"$file\": $!");
-  my @all_files=($file);
+# Get various tags from a file, recursively scanning also included files.
+# And get options from .opt file, also recursively for included files.
+# Return a list of [TAG_TO_SET, VALUE_TO_SET_TO] of found tags.
+# Also returns lists of options for master and slave found in .opt files.
+# Each include file is scanned only once, and subsequent calls just look up the
+# cached result.
+# We need to be a bit careful about speed here; previous version of this code
+# took forever to scan the full test suite.
+sub get_tags_from_file {
+  my ($file, $suitedir)= @_;
 
-  while ( my $line= <$F> )
+  return ($file_to_tags->{$file}, $file_to_master_opts->{$file},
+          $file_to_slave_opts->{$file})
+    if exists($file_to_tags->{$file});
+
+  my $F= IO::File->new($file)
+    or mtr_error("can't open file \"$file\": $!");
+
+  my $tags= [];
+  my $master_opts= [];
+  my $slave_opts= [];
+
+  while (my $line= <$F>)
   {
+    # Ignore comments.
+    next if $line =~ /^\#/;
 
-    # Skip line if it start's with #
-    next if ( $line =~ /^#/ );
-
-    # Match this line against tag in "tags" array
-    foreach my $tag (@tags)
+    # Add any tag we find.
+    if ($line =~ /$tags_regex/o)
     {
-      if ( index($line, $tag->[0]) >= 0 )
+      my $to_set= $tags_map->{$1};
+      for (my $i= 0; $i < @$to_set; $i+= 2)
       {
-	# Tag matched, assign value to "tinfo"
-	$tinfo->{"$tag->[1]"}= $tag->[2];
+        push @$tags, [$to_set->[$i], $to_set->[$i+1]];
       }
     }
 
-    # If test sources another file, open it as well
-    if ( $line =~ /^\-\-([[:space:]]*)source(.*)$/ or
-	 $line =~ /^([[:space:]]*)source(.*);$/ )
+    # Check for a sourced include file.
+    if ($line =~ /^(--)?[[:space:]]*source[[:space:]]+([^;[:space:]]+)/)
     {
-      my $value= $2;
-      $value =~ s/^\s+//;  # Remove leading space
-      $value =~ s/[[:space:]]+$//;  # Remove ending space
-
-      # Sourced file may exist relative to test or
-      # in global location
-      foreach my $sourced_file (dirname($file). "/$value",
-				"$::glob_mysql_test_dir/$value")
+      my $include= $2;
+      # Sourced file may exist relative to test file, or in global location.
+      # Note that for the purpose of tag collection we ignore
+      # non-existing files, and let mysqltest handle the error
+      # (e.g. mysqltest.test needs this)
+      for my $sourced_file (dirname($file) . '/' . $include,
+                            $suitedir . '/' . $include,
+                            $::glob_mysql_test_dir . '/' . $include)
       {
-	if ( -f $sourced_file )
-	{
-	  # Only source the file if it exists, we may get
-	  # false positives in the regexes above if someone
-	  # writes "source nnnn;" in a test case(such as mysqltest.test)
-	  unshift @all_files, tags_from_test_file($tinfo, $sourced_file);
-	  last;
-	}
+        if (-e $sourced_file)
+        {
+          my ($sub_tags, $sub_master_opts, $sub_slave_opts)=
+            get_tags_from_file($sourced_file, $suitedir);
+          push @$tags, @$sub_tags;
+          push @$master_opts, @$sub_master_opts;
+          push @$slave_opts, @$sub_slave_opts;
+          last;
+        }
       }
     }
   }
-  @all_files;
+
+  # Add options from main file _after_ those of any includes; this allows a
+  # test file to override options set by includes (eg. rpl.rpl_ddl uses this
+  # to enable innodb, then disable innodb in the slave.
+  my $file_no_ext= $file;
+  $file_no_ext =~ s/\.\w+$//;
+  my @common_opts= opts_from_file("$file_no_ext.opt");
+  push @$master_opts, @common_opts, opts_from_file("$file_no_ext-master.opt");
+  push @$slave_opts, @common_opts, opts_from_file("$file_no_ext-slave.opt");
+
+  # Save results so we can reuse without parsing if seen again.
+  $file_to_tags->{$file}= $tags;
+  $file_to_master_opts->{$file}= $master_opts;
+  $file_to_slave_opts->{$file}= $slave_opts;
+  return ($tags, $master_opts, $slave_opts);
+}
+
+sub tags_from_test_file {
+  my ($tinfo, $file, $suitedir)= @_;
+
+  my ($tags, $master_opts, $slave_opts)= get_tags_from_file($file, $suitedir);
+  for (@$tags)
+  {
+    $tinfo->{$_->[0]}= $_->[1];
+  }
+  return ($master_opts, $slave_opts);
 }
 
 sub unspace {
