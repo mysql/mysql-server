@@ -45,7 +45,7 @@ NdbIndexStatImpl::NdbIndexStatImpl(NdbIndexStat& facade) :
   init();
   m_query_mutex = NdbMutex_Create();
   assert(m_query_mutex != 0);
-  m_mem_handler = &g_mem_default_handler;
+  m_mem_handler = &c_mem_default_handler;
 }
 
 void
@@ -1183,13 +1183,12 @@ NdbIndexStatImpl::read_commit(Con& con)
 int
 NdbIndexStatImpl::save_start(Con& con)
 {
-  Mem* mem = m_mem_handler;
   if (m_cacheBuild != 0)
   {
     free_cache(m_cacheBuild);
     m_cacheBuild = 0;
   }
-  con.m_cacheBuild = (Cache*)mem->mem_alloc(sizeof(Cache));
+  con.m_cacheBuild = new Cache;
   if (con.m_cacheBuild == 0)
   {
     setError(NoMemError, __LINE__);
@@ -1725,7 +1724,7 @@ NdbIndexStatImpl::free_cache(Cache* c)
   mem->mem_free(c->m_addrArray);
   mem->mem_free(c->m_keyArray);
   mem->mem_free(c->m_valueArray);
-  mem->mem_free(c);
+  delete c;
 }
 
 void
@@ -2245,57 +2244,26 @@ NdbIndexStatImpl::query_keycmp(const Cache& c,
 
 // mem alloc - default impl
 
-NdbIndexStatImpl::MemDefault
-NdbIndexStatImpl::g_mem_default_handler;
-
 NdbIndexStatImpl::MemDefault::MemDefault()
 {
-  m_used = 0;
 }
 
 NdbIndexStatImpl::MemDefault::~MemDefault()
 {
-  assert(m_used == 0);
 }
 
 void*
 NdbIndexStatImpl::MemDefault::mem_alloc(UintPtr size)
 {
-  if (size == 0 || size % 4 != 0)
-  {
-    size += 4 - size % 4;
-  }
-  Item* item = (Item*)malloc(sizeof(Item) + size);
-  if (item != 0)
-  {
-    item->m_magic = MemMagic;
-    item->m_size = size;
-    void* ptr = &item[1];
-    m_used += size;
-    return ptr;
-  }
-  return 0;
+  void* ptr = malloc(size);
+  return ptr;
 }
 
 void
 NdbIndexStatImpl::MemDefault::mem_free(void* ptr)
 {
   if (ptr != 0)
-  {
-    Item* item = (Item*)ptr - 1;
-    assert(item->m_magic == MemMagic);
-    size_t size = item->m_size;
-    item->m_magic = 0;
-    free(item);
-    assert(m_used >= size);
-    m_used -= size;
-  }
-}
-
-UintPtr
-NdbIndexStatImpl::MemDefault::mem_used() const
-{
-  return m_used;
+    free(ptr);
 }
 
 // error

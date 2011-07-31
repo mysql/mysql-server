@@ -88,11 +88,13 @@ doconnect()
     CHK2(g_ncc->connect(6, 5) == 0, getNdbError(g_ncc));
     CHK2(g_ncc->wait_until_ready(30, 10) == 0, getNdbError(g_ncc));
 
-    g_ndb = new Ndb(g_ncc, _dbname);
-    CHK2(g_ndb->init() == 0, g_ndb->getNdbError());
-    CHK2(g_ndb->waitUntilReady(30) == 0, g_ndb->getNdbError());
-
-    g_dic = g_ndb->getDictionary();
+    if (!_sys_any)
+    {
+      g_ndb = new Ndb(g_ncc, _dbname);
+      CHK2(g_ndb->init() == 0, g_ndb->getNdbError());
+      CHK2(g_ndb->waitUntilReady(30) == 0, g_ndb->getNdbError());
+      g_dic = g_ndb->getDictionary();
+    }
 
     g_ndb_sys = new Ndb(g_ncc, NDB_INDEX_STAT_DB);
     CHK2(g_ndb_sys->init() == 0, g_ndb_sys->getNdbError());
@@ -112,7 +114,7 @@ dodisconnect()
   delete g_ndb_sys;
   delete g_ndb;
   delete g_ncc;
-    g_info << "disconnected" << endl;
+  g_info << "disconnected" << endl;
 }
 
 static const char*
