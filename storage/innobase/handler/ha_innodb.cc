@@ -381,7 +381,7 @@ static PSI_file_info	all_innodb_files[] = {
 #endif /* HAVE_PSI_INTERFACE */
 
 /*************************************************************//**
-Check whether valid argument given to innodb_*_stopword_table.
+Check whether valid argument given to innodb_ft_*_stopword_table.
 This function is registered as a callback with MySQL.
 @return 0 for valid stopword table */
 static
@@ -444,7 +444,7 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
   NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
 
-static MYSQL_THDVAR_STR(user_stopword_table, PLUGIN_VAR_OPCMDARG,
+static MYSQL_THDVAR_STR(ft_user_stopword_table, PLUGIN_VAR_OPCMDARG,
   "User supplied stopword table name, effective in the session level.",
   innodb_stopword_table_validate, innodb_session_stopword_update, NULL);
 
@@ -7939,7 +7939,7 @@ innobase_fts_load_stopword(
 {
 	fts_load_stopword(table,
 			  fts_server_stopword_table,
-			  THDVAR(thd, user_stopword_table),
+			  THDVAR(thd, ft_user_stopword_table),
 			  THDVAR(thd, ft_enable_stopword), FALSE);
 }
 /*****************************************************************//**
@@ -8359,7 +8359,7 @@ ha_innobase::create(
 	if (fts_indexes > 0) {
 		fts_load_stopword(innobase_table,
 				  fts_server_stopword_table,
-				  THDVAR(thd, user_stopword_table),
+				  THDVAR(thd, ft_user_stopword_table),
 				  THDVAR(thd, ft_enable_stopword), FALSE);
 	}
 
@@ -13398,7 +13398,7 @@ static MYSQL_SYSVAR_STR(file_format_max, innobase_file_format_max,
   innodb_file_format_max_validate,
   innodb_file_format_max_update, "Antelope");
 
-static MYSQL_SYSVAR_STR(server_stopword_table, innobase_server_stopword_table,
+static MYSQL_SYSVAR_STR(ft_server_stopword_table, innobase_server_stopword_table,
   PLUGIN_VAR_OPCMDARG,
   "The user supplied stopword table name.",
   innodb_stopword_table_validate,
@@ -13847,9 +13847,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(optimize_fulltext_only),
   MYSQL_SYSVAR(rollback_on_timeout),
-  MYSQL_SYSVAR(server_stopword_table),
   MYSQL_SYSVAR(ft_aux_table),
   MYSQL_SYSVAR(ft_enable_diag_print),
+  MYSQL_SYSVAR(ft_server_stopword_table),
+  MYSQL_SYSVAR(ft_user_stopword_table),
   MYSQL_SYSVAR(disable_sort_file_cache),
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(stats_sample_pages),
@@ -13870,7 +13871,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(version),
-  MYSQL_SYSVAR(user_stopword_table),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),
   MYSQL_SYSVAR(change_buffering),
@@ -13921,13 +13921,13 @@ i_s_innodb_buffer_page,
 i_s_innodb_buffer_page_lru,
 i_s_innodb_buffer_stats,
 i_s_innodb_metrics,
-i_s_innodb_stopword,
-i_s_innodb_fts_inserted,
-i_s_innodb_fts_deleted,
-i_s_innodb_fts_being_deleted,
-i_s_innodb_fts_config,
-i_s_innodb_fts_index_cache,
-i_s_innodb_fts_index_table,
+i_s_innodb_ft_default_stopword,
+i_s_innodb_ft_inserted,
+i_s_innodb_ft_deleted,
+i_s_innodb_ft_being_deleted,
+i_s_innodb_ft_config,
+i_s_innodb_ft_index_cache,
+i_s_innodb_ft_index_table,
 i_s_innodb_sys_tables,
 i_s_innodb_sys_tablestats,
 i_s_innodb_sys_indexes,

@@ -2383,7 +2383,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_metrics =
 	/* void* */
 	STRUCT_FLD(__reserved1, NULL)
 };
-/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_stopwords */
+/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_ft_default_stopword */
 static ST_FIELD_INFO	i_s_stopword_fields_info[] =
 {
 #define STOPWORD_VALUE	0
@@ -2399,7 +2399,7 @@ static ST_FIELD_INFO	i_s_stopword_fields_info[] =
 };
 
 /*******************************************************************//**
-Fill the dynamic table information_schema.innodb_default_stopword.
+Fill the dynamic table information_schema.innodb_ft_default_stopword.
 @return	0 on success, 1 on failure */
 static
 int
@@ -2431,7 +2431,7 @@ i_s_stopword_fill(
 }
 
 /*******************************************************************//**
-Bind the dynamic table information_schema.innodb_default_stopword.
+Bind the dynamic table information_schema.innodb_ft_default_stopword.
 @return	0 on success */
 static
 int
@@ -2448,7 +2448,7 @@ i_s_stopword_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_stopword =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_default_stopword =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -2460,7 +2460,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_stopword =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_DEFAULT_STOPWORD"),
+	STRUCT_FLD(name, "INNODB_FT_DEFAULT_STOPWORD"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -2497,9 +2497,9 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_stopword =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FTS_DELETED
-INFORMATION_SCHEMA.INNODB_FTS_BEING_DELETED and
-INFORMATION_SCHEMA.INNODB_FTS_INSERTED */
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
+INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED and
+INFORMATION_SCHEMA.INNODB_FT_INSERTED */
 static ST_FIELD_INFO	i_s_fts_doc_fields_info[] =
 {
 #define	I_S_FTS_DOC_ID			0
@@ -2515,8 +2515,8 @@ static ST_FIELD_INFO	i_s_fts_doc_fields_info[] =
 };
 
 /*******************************************************************//**
-Fill the dynamic table INFORMATION_SCHEMA.INNODB_FTS_DELETED or
-INFORMATION_SCHEMA.INNODB_FTS_BEING_DELETED
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED or
+INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
 @return	0 on success, 1 on failure */
 static
 int
@@ -2579,7 +2579,7 @@ i_s_fts_deleted_generic_fill(
 }
 
 /*******************************************************************//**
-Fill the dynamic table INFORMATION_SCHEMA.INNODB_FTS_DELETED
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
 @return	0 on success, 1 on failure */
 static
 int
@@ -2595,7 +2595,7 @@ i_s_fts_deleted_fill(
 }
 
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.INNODB_FTS_DELETED
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
 @return	0 on success */
 static
 int
@@ -2612,7 +2612,7 @@ i_s_fts_deleted_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_deleted =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_deleted =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -2624,7 +2624,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_deleted =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_FTS_DELETED"),
+	STRUCT_FLD(name, "INNODB_FT_DELETED"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -2662,7 +2662,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_deleted =
 };
 
 /*******************************************************************//**
-Fill the dynamic table INFORMATION_SCHEMA.INNODB_FTS_BEING_DELETED
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
 @return	0 on success, 1 on failure */
 static
 int
@@ -2678,7 +2678,7 @@ i_s_fts_being_deleted_fill(
 }
 
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.INNODB_FTS_BEING_DELETED
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
 @return	0 on success */
 static
 int
@@ -2695,7 +2695,7 @@ i_s_fts_being_deleted_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_being_deleted =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_being_deleted =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -2707,7 +2707,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_being_deleted =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_FTS_BEING_DELETED"),
+	STRUCT_FLD(name, "INNODB_FT_BEING_DELETED"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -2745,7 +2745,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_being_deleted =
 };
 
 /*******************************************************************//**
-Fill the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INSERTED.
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INSERTED.
 @return	0 on success, 1 on failure */
 static
 int
@@ -2806,7 +2806,7 @@ i_s_fts_inserted_fill(
 }
 
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INSERTED
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INSERTED
 @return	0 on success */
 static
 int
@@ -2823,7 +2823,7 @@ i_s_fts_inserted_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_inserted =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_inserted =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -2835,7 +2835,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_inserted =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_FTS_INSERTED"),
+	STRUCT_FLD(name, "INNODB_FT_INSERTED"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -2872,8 +2872,8 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_inserted =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INDEX_CACHED and
-INFORMATION_SCHEMA.INNODB_FTS_INDEX_TABLE */
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED and
+INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE */
 static ST_FIELD_INFO	i_s_fts_index_fields_info[] =
 {
 #define	I_S_FTS_WORD			0
@@ -2935,7 +2935,7 @@ static ST_FIELD_INFO	i_s_fts_index_fields_info[] =
 
 /*******************************************************************//**
 Go through the Doc Node and its ilist, fill the dynamic table
-INFORMATION_SCHEMA.INNODB_FTS_INDEX_CACHED for one FTS index on the table.
+INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED for one FTS index on the table.
 @return	0 on success, 1 on failure */
 static
 int
@@ -3019,7 +3019,7 @@ i_s_fts_index_cache_fill_one_index(
 	DBUG_RETURN(0);
 }
 /*******************************************************************//**
-Fill the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INDEX_CACHED
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED
 @return	0 on success, 1 on failure */
 static
 int
@@ -3064,7 +3064,7 @@ i_s_fts_index_cache_fill(
 }
 
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INDEX_CACHE
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
 @return	0 on success */
 static
 int
@@ -3081,7 +3081,7 @@ i_s_fts_index_cache_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_index_cache =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_index_cache =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -3093,7 +3093,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_index_cache =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_FTS_INDEX_CACHE"),
+	STRUCT_FLD(name, "INNODB_FT_INDEX_CACHE"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -3219,7 +3219,7 @@ i_s_fts_index_table_fill_selected(
 
 /*******************************************************************//**
 Go through a FTS index and its auxiliary tables, fetch rows in each table
-and fill INFORMATION_SCHEMA.INNODB_FTS_INDEX_TABLE.
+and fill INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE.
 @return	0 on success, 1 on failure */
 static
 int
@@ -3320,7 +3320,7 @@ i_s_fts_index_table_fill_one_index(
 	DBUG_RETURN(0);
 }
 /*******************************************************************//**
-Fill the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INDEX_TABLE
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE
 @return	0 on success, 1 on failure */
 static
 int
@@ -3359,7 +3359,7 @@ i_s_fts_index_table_fill(
 }
 
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INDEX_TABLE
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE
 @return	0 on success */
 static
 int
@@ -3376,7 +3376,7 @@ i_s_fts_index_table_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_index_table =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_index_table =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -3388,7 +3388,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_index_table =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_FTS_INDEX_TABLE"),
+	STRUCT_FLD(name, "INNODB_FT_INDEX_TABLE"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -3425,7 +3425,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_index_table =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FTS_CONFIG */
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FT_CONFIG */
 static ST_FIELD_INFO	i_s_fts_config_fields_info[] =
 {
 #define	FTS_CONFIG_KEY			0
@@ -3464,7 +3464,7 @@ static const char* fts_config_key[] = {
 };
 
 /*******************************************************************//**
-Fill the dynamic table INFORMATION_SCHEMA.INNODB_FTS_CONFIG
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_CONFIG
 @return	0 on success, 1 on failure */
 static
 int
@@ -3553,7 +3553,7 @@ i_s_fts_config_fill(
 }
 
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.INNODB_FTS_CONFIG
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_CONFIG
 @return	0 on success */
 static
 int
@@ -3570,7 +3570,7 @@ i_s_fts_config_init(
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_config =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_config =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -3582,7 +3582,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_config =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_FTS_CONFIG"),
+	STRUCT_FLD(name, "INNODB_FT_CONFIG"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */

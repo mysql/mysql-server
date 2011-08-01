@@ -3,7 +3,7 @@
 -- source include/have_innodb.inc
 
 
-select * from information_schema.innodb_default_stopword;
+select * from information_schema.innodb_ft_default_stopword;
 
 # Create FTS table
 CREATE TABLE articles (
@@ -26,24 +26,24 @@ INSERT INTO articles (title,body) VALUES
 SELECT * FROM articles WHERE MATCH (title,body)
         AGAINST ('the' IN NATURAL LANGUAGE MODE);
 
-let $innodb_server_stopword_table_orig=`select @@innodb_server_stopword_table`;
+let $innodb_ft_server_stopword_table_orig=`select @@innodb_ft_server_stopword_table`;
 let $innodb_ft_enable_stopword_orig=`select @@innodb_ft_enable_stopword`;
-let $innodb_user_stopword_table_orig=`select @@innodb_user_stopword_table`;
+let $innodb_ft_user_stopword_table_orig=`select @@innodb_ft_user_stopword_table`;
 
-select @@innodb_server_stopword_table;
+select @@innodb_ft_server_stopword_table;
 select @@innodb_ft_enable_stopword;
-select @@innodb_user_stopword_table;
+select @@innodb_ft_user_stopword_table;
 
 # Provide user defined stopword table, if not (correctly) defined,
 # it will be rejected
 --error 1231
-set global innodb_server_stopword_table = "not_defined";
+set global innodb_ft_server_stopword_table = "not_defined";
 
 # Define a correct formated user stopword table
 create table user_stopword(value varchar(30)) engine = innodb;
 
 # The set operation should be successful
-set global innodb_server_stopword_table = "test/user_stopword";
+set global innodb_ft_server_stopword_table = "test/user_stopword";
 
 # Nothing inserted into the default stopword, so essentially
 # nothing get screened. The new stopword could only be
@@ -86,7 +86,7 @@ create table user_stopword_session(value varchar(30)) engine = innodb;
 
 insert into user_stopword_session values("session");
 
-set session innodb_user_stopword_table="test/user_stopword_session";
+set session innodb_ft_user_stopword_table="test/user_stopword_session";
 
 CREATE TABLE articles_4 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
@@ -114,5 +114,5 @@ drop table user_stopword;
 drop table user_stopword_session;
 
 eval SET GLOBAL innodb_ft_enable_stopword=$innodb_ft_enable_stopword_orig;
-eval SET GLOBAL innodb_server_stopword_table=default;
+eval SET GLOBAL innodb_ft_server_stopword_table=default;
 

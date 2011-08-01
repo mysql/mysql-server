@@ -1,4 +1,4 @@
-select * from information_schema.innodb_default_stopword;
+select * from information_schema.innodb_ft_default_stopword;
 value
 a
 about
@@ -52,19 +52,19 @@ INSERT INTO articles (title,body) VALUES
 SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('the' IN NATURAL LANGUAGE MODE);
 id	title	body
-select @@innodb_server_stopword_table;
-@@innodb_server_stopword_table
+select @@innodb_ft_server_stopword_table;
+@@innodb_ft_server_stopword_table
 NULL
 select @@innodb_ft_enable_stopword;
 @@innodb_ft_enable_stopword
 1
-select @@innodb_user_stopword_table;
-@@innodb_user_stopword_table
+select @@innodb_ft_user_stopword_table;
+@@innodb_ft_user_stopword_table
 NULL
-set global innodb_server_stopword_table = "not_defined";
-ERROR 42000: Variable 'innodb_server_stopword_table' can't be set to the value of 'not_defined'
+set global innodb_ft_server_stopword_table = "not_defined";
+ERROR 42000: Variable 'innodb_ft_server_stopword_table' can't be set to the value of 'not_defined'
 create table user_stopword(value varchar(30)) engine = innodb;
-set global innodb_server_stopword_table = "test/user_stopword";
+set global innodb_ft_server_stopword_table = "test/user_stopword";
 CREATE TABLE articles_2 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),
@@ -91,7 +91,7 @@ AGAINST ('this' IN NATURAL LANGUAGE MODE);
 id	title	body
 create table user_stopword_session(value varchar(30)) engine = innodb;
 insert into user_stopword_session values("session");
-set session innodb_user_stopword_table="test/user_stopword_session";
+set session innodb_ft_user_stopword_table="test/user_stopword_session";
 CREATE TABLE articles_4 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),
@@ -114,4 +114,4 @@ drop table articles_4;
 drop table user_stopword;
 drop table user_stopword_session;
 SET GLOBAL innodb_ft_enable_stopword=1;
-SET GLOBAL innodb_server_stopword_table=default;
+SET GLOBAL innodb_ft_server_stopword_table=default;
