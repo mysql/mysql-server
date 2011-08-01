@@ -7,8 +7,8 @@ create table t2 (id int(10) unsigned not null auto_increment primary key, v varc
 lock tables t1 write,t2 write;
 show table status like "t_";
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MARIA	10	Page	0	0	8192	268320768	8192	0	1	#	#	#	latin1_swedish_ci	NULL	max_rows=2 row_format=PAGE	
-t2	MARIA	10	Page	0	0	8192	17592186011648	8192	0	1	#	#	#	latin1_swedish_ci	NULL	max_rows=20000000 row_format=PAGE	
+t1	Aria	10	Page	0	0	8192	268320768	8192	0	1	#	#	#	latin1_swedish_ci	NULL	max_rows=2 row_format=PAGE	
+t2	Aria	10	Page	0	0	8192	17592186011648	8192	0	1	#	#	#	latin1_swedish_ci	NULL	max_rows=20000000 row_format=PAGE	
 insert into t1 values(null, repeat("ab",100),repeat("def",1000));
 insert into t1 values(null, repeat("de",200),repeat("ghi",2000));
 insert into t1 values(null, repeat("fe",300),repeat("ghi",3000));
