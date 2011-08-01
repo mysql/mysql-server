@@ -6,16 +6,13 @@
 drop table if exists t1;
 --enable_warnings
 
-let $default_engine = `select @@SESSION.default_storage_engine`;
---replace_result $default_engine <default_engine>
 
 # Create FTS table
---replace_result $default_engine <default_engine>
 EVAL CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) ENGINE= $default_engine;
+        ) ENGINE= InnoDB;
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -26,12 +23,13 @@ INSERT INTO t1 (a,b) VALUES
         ('when To Use MySQL Well','After that you went through a ...'),
         ('where will Optimizing MySQL','what In this tutorial we will show ...');
 
-# Try to Search default stopword from innodb
+# Try to Search default stopword from innodb, "where", "will", "what"
+# and "when" are all stopwords
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("where will");
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("when");
-# query expansion
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("what" WITH QUERY EXPANSION);
-# boolean
+
+# boolean No result expected
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("whe*" IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+what +will" IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+from" IN BOOLEAN MODE);
@@ -74,7 +72,7 @@ SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"Trial version"@0' IN BOOLEAN MODE);
 
-# This should return the first document but no rows are returned. @ is word seperator
+# @ is word seperator
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"request docteam@oraclehelp.com"@10' IN BOOLEAN MODE);
@@ -82,28 +80,24 @@ SELECT * FROM t1
 # This should only return the first document
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"@1255 minute"@10' IN BOOLEAN MODE);
+        AGAINST ('"1255 minute"@10' IN BOOLEAN MODE);
 
-# This should only return the first document
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"@1255"@10' IN BOOLEAN MODE);
+        AGAINST ('"1255"@10' IN BOOLEAN MODE);
 
-# This should only return the first document
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('@1255' WITH QUERY EXPANSION);
+        AGAINST ('1255' WITH QUERY EXPANSION);
 
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"request docteam"@10' IN BOOLEAN MODE);
 
-# This should only return the first document
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"@1255 minute"' IN BOOLEAN MODE);
+        AGAINST ('"1255 minute"' IN BOOLEAN MODE);
 
-# This should only return the first document
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('request docteam@oraclehelp.com');

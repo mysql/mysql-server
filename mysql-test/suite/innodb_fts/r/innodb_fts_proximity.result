@@ -3,7 +3,7 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) ENGINE= <default_engine>;
+) ENGINE= InnoDB;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
@@ -59,16 +59,19 @@ AGAINST ('"request docteam@oraclehelp.com"@10' IN BOOLEAN MODE);
 id	a	b
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"@1255 minute"@10' IN BOOLEAN MODE);
+AGAINST ('"1255 minute"@10' IN BOOLEAN MODE);
 id	a	b
+5	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"@1255"@10' IN BOOLEAN MODE);
+AGAINST ('"1255"@10' IN BOOLEAN MODE);
 id	a	b
+5	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('@1255' WITH QUERY EXPANSION);
+AGAINST ('1255' WITH QUERY EXPANSION);
 id	a	b
+5	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
 SELECT * FROM t1
 WHERE MATCH (a,b)
 AGAINST ('"request docteam"@10' IN BOOLEAN MODE);
@@ -76,8 +79,9 @@ id	a	b
 4	MySQL Tutorial	request docteam@oraclehelp.com ...
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"@1255 minute"' IN BOOLEAN MODE);
+AGAINST ('"1255 minute"' IN BOOLEAN MODE);
 id	a	b
+5	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
 SELECT * FROM t1
 WHERE MATCH (a,b)
 AGAINST ('request docteam@oraclehelp.com');
