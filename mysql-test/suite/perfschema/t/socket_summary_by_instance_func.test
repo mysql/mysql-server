@@ -458,11 +458,11 @@ if(1)
 # There is no client_connection entry for a connect which fails.
 
 let $my_val=
-t2.COUNT_READ - t1.COUNT_READ,
 t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ,
-t2.COUNT_WRITE - t1.COUNT_WRITE,
-t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE,
-t2.COUNT_MISC - t1.COUNT_MISC;
+t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE;
+# t2.COUNT_WRITE - t1.COUNT_WRITE,
+# t2.COUNT_READ - t1.COUNT_READ,
+# t2.COUNT_MISC - t1.COUNT_MISC;
 
 # Successful connections with different username lengths
 eval
