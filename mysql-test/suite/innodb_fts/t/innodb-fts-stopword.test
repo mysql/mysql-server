@@ -45,6 +45,14 @@ create table user_stopword(value varchar(30)) engine = innodb;
 # The set operation should be successful
 set global innodb_ft_server_stopword_table = "test/user_stopword";
 
+drop index title on articles;
+
+create fulltext index idx on articles(title, body);
+
+# Now we should be able to find "the"
+SELECT * FROM articles WHERE MATCH (title,body)
+        AGAINST ('the' IN NATURAL LANGUAGE MODE);
+
 # Nothing inserted into the default stopword, so essentially
 # nothing get screened. The new stopword could only be
 # effective for table created thereafter
@@ -106,10 +114,29 @@ SELECT * FROM articles_4 WHERE MATCH (title,body)
 SELECT * FROM articles_4 WHERE MATCH (title,body)
         AGAINST ('this' IN NATURAL LANGUAGE MODE);
 
+--connect (con1,localhost,root,,)
+CREATE TABLE articles_5 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+INSERT INTO articles_5 (title, body)
+        VALUES ('test for session stopwords','this should also be excluded...');
+
+# "session" should be found since the stopword table is session specific
+SELECT * FROM articles_5 WHERE MATCH (title,body)
+        AGAINST ('session' IN NATURAL LANGUAGE MODE);
+
+
+--disconnect con1
+--connection default
 drop table articles;
 drop table articles_2;
 drop table articles_3;
 drop table articles_4;
+drop table articles_5;
 drop table user_stopword;
 drop table user_stopword_session;
 

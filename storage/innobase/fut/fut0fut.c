@@ -409,6 +409,7 @@ static
 ibool
 fts_load_user_stopword(
 /*===================*/
+	fts_t*		fts,			/*!< in: FTS struct */
 	const char*	stopword_table_name,	/*!< in: Stopword table
 						name */
 	fts_stopword_t*	stopword_info)		/*!< in: Stopword info */
@@ -418,11 +419,14 @@ fts_load_user_stopword(
 	ulint		error = DB_SUCCESS;
 	ibool		ret = TRUE;
 	trx_t*		trx;
+	ibool		has_lock = fts->fts_status & TABLE_DICT_LOCKED;
 
 	trx = trx_allocate_for_background();
 	trx->op_info = "Load user stopword table into FTS cache";
 
-	row_mysql_lock_data_dictionary(trx);
+	if (!has_lock) {
+		row_mysql_lock_data_dictionary(trx);
+	}
 
 	/* Validate the user table existence and in the right
 	format */
@@ -488,7 +492,9 @@ fts_load_user_stopword(
 	que_graph_free(graph);
 
 cleanup:
-	row_mysql_unlock_data_dictionary(trx);
+	if (!has_lock) {
+		row_mysql_unlock_data_dictionary(trx);
+	}
 
 	trx_free_for_background(trx);
 	return(ret);
@@ -4843,7 +4849,7 @@ fts_add_thread(
 
 		/* Load the stopword if it has not been loaded */
 		if (cache->stopword_info.status & STOPWORD_NOT_INIT) {
-			fts_load_stopword(table, NULL, NULL, TRUE, TRUE);
+			fts_load_stopword(table, NULL, NULL, NULL, TRUE, TRUE);
 		}
 
 		rw_lock_x_unlock(&cache->lock);
@@ -6169,6 +6175,7 @@ fts_load_stopword(
 /*==============*/
 	const dict_table_t*
 			table,			/*!< in: Table with FTS */
+	trx_t*		trx,			/*!< in: Transactions */
 	const char*	global_stopword_table,	/*!< in: Global stopword table
 						name */
 	const char*	session_stopword_table,	/*!< in: Session stopword table
@@ -6184,8 +6191,8 @@ fts_load_stopword(
 	ulint		use_stopword;
 	fts_cache_t*	cache;
 	const char*	stopword_to_use;
-	trx_t*		trx;
-	byte		str_buffer[FTS_MAX_WORD_LEN + 1];
+	ibool		new_trx = FALSE;
+	byte		str_buffer[MAX_FULL_NAME_LEN + 1];
 
 	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE, table);
 
@@ -6196,8 +6203,11 @@ fts_load_stopword(
 		return(TRUE);
 	}
 
-        trx = trx_allocate_for_background();
-        trx->op_info = "upload FTS stopword";
+	if (!trx) {
+		trx = trx_allocate_for_background();
+		trx->op_info = "upload FTS stopword";
+		new_trx = TRUE;
+	}
 
 	/* First check whether stopword filtering is turned off */
 	if (reload) {
@@ -6245,7 +6255,7 @@ fts_load_stopword(
 	}
 
 	if (stopword_to_use
-	    && fts_load_user_stopword(stopword_to_use,
+	    && fts_load_user_stopword(table->fts, stopword_to_use,
 				      &cache->stopword_info)) {
 		/* Save the stopword table name to the configure
 		table */
@@ -6262,13 +6272,15 @@ fts_load_stopword(
 	}
 
 cleanup:
-	if (error == DB_SUCCESS) {
-		fts_sql_commit(trx);
-	} else {
-		fts_sql_rollback(trx);
-	}
+	if (new_trx) {
+		if (error == DB_SUCCESS) {
+			fts_sql_commit(trx);
+		} else {
+			fts_sql_rollback(trx);
+		}
 
-	trx_free_for_background(trx);
+		trx_free_for_background(trx);
+	}
 
 	return(error == DB_SUCCESS);
 }
@@ -6455,7 +6467,7 @@ fts_init_index(
 	if (has_fts) {
 		if (table->fts->cache->stopword_info.status
 		    & STOPWORD_NOT_INIT) {
-			fts_load_stopword(table, NULL, NULL, TRUE, FALSE);
+			fts_load_stopword(table, NULL, NULL, NULL, TRUE, TRUE);
 		}
 
 		/* Register the table with the optimize thread. */

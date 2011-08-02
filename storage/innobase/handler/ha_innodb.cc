@@ -7929,18 +7929,20 @@ ha_innobase::update_create_info(
 }
 
 /*****************************************************************//**
-Initialize the table FTS stopword list */
+Initialize the table FTS stopword list
+@TRUE if succeed */
 UNIV_INTERN
-void
+ibool
 innobase_fts_load_stopword(
 /*=======================*/
-	dict_table_t*	table,	/*!< Table has the FTS */
-	 THD*		thd)	/*!< current thread */
+	dict_table_t*	table,	/*!< in: Table has the FTS */
+	trx_t*		trx,	/*!< in: transaction */
+	THD*		thd)	/*!< in: current thread */
 {
-	fts_load_stopword(table,
-			  fts_server_stopword_table,
-			  THDVAR(thd, ft_user_stopword_table),
-			  THDVAR(thd, ft_enable_stopword), FALSE);
+	return (fts_load_stopword(table, trx,
+				  fts_server_stopword_table,
+				  THDVAR(thd, ft_user_stopword_table),
+				  THDVAR(thd, ft_enable_stopword), FALSE));
 }
 /*****************************************************************//**
 Creates a new table to an InnoDB database.
@@ -8357,10 +8359,12 @@ ha_innobase::create(
 
 	/* Load server stopword into FTS cache */
 	if (fts_indexes > 0) {
-		fts_load_stopword(innobase_table,
-				  fts_server_stopword_table,
-				  THDVAR(thd, ft_user_stopword_table),
-				  THDVAR(thd, ft_enable_stopword), FALSE);
+		if (!innobase_fts_load_stopword(innobase_table, NULL, thd)) {
+			dict_table_close(innobase_table, FALSE);
+			srv_active_wake_master_thread();
+			trx_free_for_mysql(trx);
+			DBUG_RETURN(DB_ERROR);
+		}
 	}
 
 	/* Note: We can't call update_thd() as prebuilt will not be
@@ -12241,7 +12245,7 @@ innodb_stopword_table_validate(
 
 	stopword_table_name = value->val_str(value, buff, &len);
 
-	trx = thd_to_trx(thd);
+	trx = check_trx_exists(thd);
 
 	row_mysql_lock_data_dictionary(trx);
 

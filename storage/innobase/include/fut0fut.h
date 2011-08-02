@@ -100,6 +100,7 @@ fts_load_stopword(
 /*==============*/
 	const dict_table_t*
 			table,			/*!< in: Table with FTS */
+	trx_t*		trx,			/*!< in: Transaction */
 	const char*	global_stopword_table,	/*!< in: Global stopword table
 						name */
 	const char*	session_stopword_table,	/*!< in: Session stopword table
