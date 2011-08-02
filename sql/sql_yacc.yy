@@ -764,7 +764,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   timestamp_type date_time_type;
   st_select_lex *select_lex;
   chooser_compare_func_creator boolfunc2creator;
-  struct sp_cond_type *spcondtype;
+  struct sp_condition_value *spcondvalue;
   struct { int vars, conds, hndlrs, curs; } spblock;
   sp_name *spname;
   LEX *lex;
@@ -1628,7 +1628,7 @@ END_OF_INPUT
 %type <NONE> case_stmt_specification simple_case_stmt searched_case_stmt
 
 %type <num>  sp_decl_idents sp_opt_inout sp_handler_type sp_hcond_list
-%type <spcondtype> sp_cond sp_hcond sqlstate signal_value opt_signal_value
+%type <spcondvalue> sp_cond sp_hcond sqlstate signal_value opt_signal_value
 %type <spblock> sp_decls sp_decl
 %type <lex> sp_cursor_stmt
 %type <spname> sp_name
@@ -2585,7 +2585,7 @@ sp_fdparam:
             }
             sp_variable *spvar= spc->push_variable(&$1,
                                                    (enum enum_field_types)$3,
-                                                   sp_param_in);
+                                                   sp_variable::MODE_IN);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
                                                    (enum enum_field_types) $3,
@@ -2622,7 +2622,7 @@ sp_pdparam:
             }
             sp_variable *spvar= spc->push_variable(&$3,
                                                    (enum enum_field_types)$4,
-                                                   (sp_param_mode_t)$1);
+                                                   (sp_variable::enum_mode)$1);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
                                                    (enum enum_field_types) $4,
@@ -2636,10 +2636,10 @@ sp_pdparam:
         ;
 
 sp_opt_inout:
-          /* Empty */ { $$= sp_param_in; }
-        | IN_SYM      { $$= sp_param_in; }
-        | OUT_SYM     { $$= sp_param_out; }
-        | INOUT_SYM   { $$= sp_param_inout; }
+          /* Empty */ { $$= sp_variable::MODE_IN; }
+        | IN_SYM      { $$= sp_variable::MODE_IN; }
+        | OUT_SYM     { $$= sp_variable::MODE_OUT; }
+        | INOUT_SYM   { $$= sp_variable::MODE_INOUT; }
         ;
 
 sp_proc_stmts:
@@ -2768,7 +2768,7 @@ sp_decl:
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
 
-            lex->spcont= lex->spcont->push_context(LABEL_HANDLER_SCOPE);
+            lex->spcont= lex->spcont->push_context(sp_pcontext::HANDLER_SCOPE);
 
             sp_pcontext *ctx= lex->spcont;
             sp_instr_hpush_jump *i=
@@ -2909,10 +2909,10 @@ sp_cond:
               my_error(ER_WRONG_VALUE, MYF(0), "CONDITION", "0");
               MYSQL_YYABORT;
             }
-            $$= (sp_cond_type *)YYTHD->alloc(sizeof(sp_cond_type));
+            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_cond_type::number;
+            $$->type= sp_condition_value::number;
             $$->mysqlerr= $1;
           }
         | sqlstate
@@ -2926,10 +2926,10 @@ sqlstate:
               my_error(ER_SP_BAD_SQLSTATE, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            $$= (sp_cond_type *)YYTHD->alloc(sizeof(sp_cond_type));
+            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_cond_type::state;
+            $$->type= sp_condition_value::state;
             memcpy($$->sqlstate, $3.str, SQLSTATE_LENGTH);
             $$->sqlstate[SQLSTATE_LENGTH]= '\0';
           }
@@ -2956,24 +2956,24 @@ sp_hcond:
           }
         | SQLWARNING_SYM /* SQLSTATEs 01??? */
           {
-            $$= (sp_cond_type *)YYTHD->alloc(sizeof(sp_cond_type));
+            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_cond_type::warning;
+            $$->type= sp_condition_value::warning;
           }
         | not FOUND_SYM /* SQLSTATEs 02??? */
           {
-            $$= (sp_cond_type *)YYTHD->alloc(sizeof(sp_cond_type));
+            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_cond_type::notfound;
+            $$->type= sp_condition_value::notfound;
           }
         | SQLEXCEPTION_SYM /* All other SQLSTATEs */
           {
-            $$= (sp_cond_type *)YYTHD->alloc(sizeof(sp_cond_type));
+            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_cond_type::exception;
+            $$->type= sp_condition_value::exception;
           }
         ;
 
@@ -2996,7 +2996,7 @@ signal_value:
           ident
           {
             LEX *lex= Lex;
-            sp_cond_type *cond;
+            sp_condition_value *cond;
             if (lex->spcont == NULL)
             {
               /* SIGNAL foo cannot be used outside of stored programs */
@@ -3009,7 +3009,7 @@ signal_value:
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            if (cond->type != sp_cond_type::state)
+            if (cond->type != sp_condition_value::state)
             {
               my_error(ER_SIGNAL_BAD_CONDITION_TYPE, MYF(0));
               MYSQL_YYABORT;
@@ -3145,7 +3145,7 @@ sp_decl_idents:
               my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            spc->push_variable(&$1, (enum_field_types)0, sp_param_in);
+            spc->push_variable(&$1, (enum_field_types)0, sp_variable::MODE_IN);
             $$= 1;
           }
         | sp_decl_idents ',' ident
@@ -3160,7 +3160,7 @@ sp_decl_idents:
               my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            spc->push_variable(&$3, (enum_field_types)0, sp_param_in);
+            spc->push_variable(&$3, (enum_field_types)0, sp_variable::MODE_IN);
             $$= $1 + 1;
           }
         ;
@@ -3314,11 +3314,11 @@ sp_proc_stmt_leave:
                 When jumping to a BEGIN-END block end, the target jump
                 points to the block hpop/cpop cleanup instructions,
                 so we should exclude the block context here.
-                When jumping to something else (i.e., SP_LAB_ITER),
+                When jumping to something else (i.e., sp_label::ITERATION),
                 there are no hpop/cpop at the jump destination,
                 so we should include the block context here for cleanup.
               */
-              bool exclusive= (lab->type == SP_LAB_BEGIN);
+              bool exclusive= (lab->type == sp_label::BEGIN);
 
               n= ctx->diff_handlers(lab->ctx, exclusive);
               if (n)
@@ -3353,7 +3353,7 @@ sp_proc_stmt_iterate:
             sp_pcontext *ctx= lex->spcont;
             sp_label *lab= ctx->find_label($2.str);
 
-            if (! lab || lab->type != SP_LAB_ITER)
+            if (! lab || lab->type != sp_label::ITERATION)
             {
               my_error(ER_SP_LILABEL_MISMATCH, MYF(0), "ITERATE", $2.str);
               MYSQL_YYABORT;
@@ -3680,7 +3680,7 @@ sp_labeled_control:
             {
               lab= lex->spcont->push_label($1.str,
                                            lex->sphead->instructions());
-              lab->type= SP_LAB_ITER;
+              lab->type= sp_label::ITERATION;
             }
           }
           sp_unlabeled_control sp_opt_label
@@ -3720,7 +3720,7 @@ sp_labeled_block:
 
             lab= lex->spcont->push_label($1.str,
                                          lex->sphead->instructions());
-            lab->type= SP_LAB_BEGIN;
+            lab->type= sp_label::BEGIN;
           }
           sp_block_content sp_opt_label
           {
@@ -3743,7 +3743,7 @@ sp_unlabeled_block:
             LEX *lex= Lex;
             uint ip= lex->sphead->instructions();
             sp_label *lab= lex->spcont->push_label((char *)"", ip);
-            lab->type= SP_LAB_BEGIN;
+            lab->type= sp_label::BEGIN;
           }
           sp_block_content
           {
@@ -3758,7 +3758,7 @@ sp_block_content:
               together. No [[NOT] ATOMIC] yet, and we need to figure out how
               make it coexist with the existing BEGIN COMMIT/ROLLBACK. */
             LEX *lex= Lex;
-            lex->spcont= lex->spcont->push_context(LABEL_DEFAULT_SCOPE);
+            lex->spcont= lex->spcont->push_context(sp_pcontext::REGULAR_SCOPE);
           }
           sp_decls
           sp_proc_stmts
