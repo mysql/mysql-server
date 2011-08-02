@@ -157,11 +157,12 @@ CREATE TABLE t1 (f1 INT);
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
 
-# EXPLAIN EXTENDED (with subselect). used to crash. should give NOTICE.
---error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+# EXPLAIN EXTENDED (with subselect). used to crash.
+# This is actually a valid query for this sql_mode,
+# but it was transformed in such a way that it failed, see
+# Bug#12329653 - EXPLAIN, UNION, PREPARED STATEMENT, CRASH, SQL_FULL_GROUP_BY
 EXPLAIN EXTENDED SELECT 1 FROM t1
                           WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
-SHOW WARNINGS;
 
 SET SESSION sql_mode=@old_sql_mode;
 
@@ -372,5 +373,24 @@ EXECUTE s;
 
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
+
+--echo #
+--echo # WL#4897: Add EXPLAIN INSERT/UPDATE/DELETE
+--echo # 
+--echo # Coverage tests after code refactoring
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 VALUES (3),(4),(5);
+
+# LIMIT <offset> is for SELECT, not for EXPLAIN OUTPUT:
+--echo # EXPLAIN must return 3 rows:
+EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
+
+DROP TABLE t1, t2;
+
+--echo # End WL#4897
 
 --echo End of 6.0 tests.

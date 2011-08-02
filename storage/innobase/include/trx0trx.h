@@ -668,7 +668,7 @@ struct trx_struct{
 					max trx id shortly before the
 					transaction is moved to
 					COMMITTED_IN_MEMORY state.
-					Protected by trx_sys_t::lock
+					Protected by trx_sys_t::mutex
 					when trx->in_trx_list. Initially
 					set to IB_ULONGLONG_MAX. */
 

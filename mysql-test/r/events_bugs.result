@@ -419,7 +419,7 @@ SET TIME_ZONE= '+04:00';
 ALTER EVENT e1 DO SELECT 2;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP EVENT e1;
 SET TIME_ZONE='+05:00';
 CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO
@@ -796,6 +796,20 @@ COUNT(*)
 DROP EVENT IF EXISTS event_Bug12546938;
 DROP TABLE table_bug12546938;
 SET GLOBAL EVENT_SCHEDULER = OFF;
+DROP DATABASE IF EXISTS event_test11764334;
+CREATE DATABASE event_test11764334;
+USE event_test11764334;
+CREATE EVENT ev1 ON SCHEDULE EVERY 3 SECOND DISABLE DO SELECT 1;
+SHOW EVENTS IN event_test11764334 WHERE NAME='ev1';
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+event_test11764334	ev1	root@localhost	SYSTEM	RECURRING	NULL	3	SECOND	#	#	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+ALTER EVENT ev1 ON SCHEDULE EVERY 4 SECOND;
+SHOW EVENTS IN event_test11764334 WHERE NAME='ev1';
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+event_test11764334	ev1	root@localhost	SYSTEM	RECURRING	NULL	4	SECOND	#	#	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP EVENT ev1;
+DROP DATABASE event_test11764334;
+USE test;
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
 SET @@global.concurrent_insert= @concurrent_insert;

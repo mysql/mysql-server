@@ -44,6 +44,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "data0type.h"
 #include "dict0dict.h"
 #include "buf0buf.h"
+#include "buf0dump.h"
 #include "os0file.h"
 #include "os0thread.h"
 #include "fil0fil.h"
@@ -63,6 +64,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 #ifndef UNIV_HOTBACKUP
+# include "trx0rseg.h"
 # include "os0proc.h"
 # include "sync0sync.h"
 # include "buf0flu.h"
@@ -110,7 +112,7 @@ UNIV_INTERN ibool	srv_is_being_started = FALSE;
 /** TRUE if the server was successfully started */
 UNIV_INTERN ibool	srv_was_started = FALSE;
 /** TRUE if innobase_start_or_create_for_mysql() has been called */
-static ibool	srv_start_has_been_called = FALSE;
+static ibool		srv_start_has_been_called = FALSE;
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
@@ -131,6 +133,10 @@ static os_fast_mutex_t	srv_os_test_mutex;
 /** Name of srv_monitor_file */
 static char*	srv_monitor_file_name;
 #endif /* !UNIV_HOTBACKUP */
+
+/** Default undo  tablespace size in UNIV_PAGEs count (10MB). */
+static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
+	((1024 * 1024) * 10) / UNIV_PAGE_SIZE;
 
 /** */
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
@@ -492,12 +498,6 @@ io_handler_thread(
 	OS_THREAD_DUMMY_RETURN;
 }
 #endif /* !UNIV_HOTBACKUP */
-
-#ifdef __WIN__
-#define SRV_PATH_SEPARATOR	'\\'
-#else
-#define SRV_PATH_SEPARATOR	'/'
-#endif
 
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
@@ -960,6 +960,315 @@ skip_size_check:
 	return(DB_SUCCESS);
 }
 
+/*********************************************************************//**
+Create undo tablespace.
+@return	DB_SUCCESS or error code */
+static
+enum db_err
+srv_undo_tablespace_create(
+/*=======================*/
+	const char*	name,		/*!< in: tablespace name */
+	ulint		size)		/*!< in: tablespace size in pages */
+{
+	os_file_t	fh;
+	ibool		ret;
+	enum db_err	err = DB_SUCCESS;
+
+	os_file_create_subdirs_if_needed(name);
+
+	fh = os_file_create(
+		innodb_file_data_key, name, OS_FILE_CREATE,
+		OS_FILE_NORMAL, OS_DATA_FILE, &ret);
+
+	if (ret == FALSE
+	    && os_file_get_last_error(FALSE) != OS_FILE_ALREADY_EXISTS
+#ifdef UNIV_AIX
+	    /* AIX 5.1 after security patch ML7 may have
+	    errno set to 0 here, which causes our function
+	    to return 100; work around that AIX problem */
+	    && os_file_get_last_error(FALSE) != 100
+#endif
+		) {
+
+		fprintf(stderr, "InnoDB: Error in creating %s\n", name);
+
+		err = DB_ERROR;
+	} else {
+		/* We created the data file and now write it full of zeros */
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Data file %s did not"
+				" exist: new to be created\n", name);
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Setting file %s size to %lu MB\n",
+				name, size >> (20 - UNIV_PAGE_SIZE_SHIFT));
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Database physically writes the"
+				" file full: wait...\n");
+
+		ret = os_file_set_size(name, fh, size << UNIV_PAGE_SIZE_SHIFT);
+
+		if (!ret) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Error in creating %s:"
+					" probably out of disk space\n", name);
+
+			err = DB_ERROR;
+		}
+	}
+
+	return(err);
+}
+
+/*********************************************************************//**
+Open an undo tablespace.
+@return	DB_SUCCESS or error code */
+static
+enum db_err
+srv_undo_tablespace_open(
+/*=====================*/
+	const char*	name,		/*!< in: tablespace name */
+	ulint		space)		/*!< in: tablespace id */
+{
+	os_file_t	fh;
+	enum db_err	err;
+	ibool		ret;
+
+	fh = os_file_create(
+		innodb_file_data_key, name,
+		OS_FILE_OPEN_RETRY
+		| OS_FILE_ON_ERROR_NO_EXIT
+		| OS_FILE_ON_ERROR_SILENT,
+		OS_FILE_NORMAL,
+		OS_DATA_FILE,
+		&ret);
+
+	/* If the file open was successful then load the tablespace. */
+
+	if (ret) {
+		os_offset_t	size;
+		os_offset_t	n_pages;
+
+		size = os_file_get_size(fh);
+		ut_a(size != (os_offset_t) -1);
+
+		ret = os_file_close(fh);
+		ut_a(ret);
+
+		/* Load the tablespace into InnoDB's internal
+		data structures. */
+
+		/* We set the biggest space id to the undo tablespace
+		because InnoDB hasn't opened any other tablespace apart
+		from the system tablespace. */
+
+		fil_set_max_space_id_if_bigger(space);
+
+		/* Set the compressed page size to 0 (non-compressed) */
+
+		fil_space_create(name, space, 0, FIL_TABLESPACE);
+
+		ut_a(fil_validate());
+
+		n_pages = size / UNIV_PAGE_SIZE;
+
+		/* On 64 bit Windows ulint can be 32 bit and os_offset_t
+		is 64 bit. It is OK to cast the n_pages to ulint because
+		the unit has been scaled to pages and they are always
+		32 bit. */
+		fil_node_create(name, (ulint) n_pages, space, FALSE);
+
+		err = DB_SUCCESS;
+	} else {
+		err = DB_ERROR;
+	}
+
+	return(err);
+}
+
+/********************************************************************
+Opens the configured number of undo tablespaces.
+@return	DB_SUCCESS or error code */
+static
+enum db_err
+srv_undo_tablespaces_init(
+/*======================*/
+	ibool		create_new_db,		/*!< in: TRUE if new db being
+						created */
+	const ulint	n_conf_tablespaces)	/*!< in: configured undo
+						tablespaces */
+{
+	ulint		i;
+	enum db_err	err = DB_SUCCESS;
+	ulint		prev_space_id = 0;
+	ulint		n_undo_tablespaces;
+	ulint		undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
+
+	ut_a(n_conf_tablespaces <= TRX_SYS_N_RSEGS);
+
+	memset(undo_tablespace_ids, 0x0, sizeof(undo_tablespace_ids));
+
+	/* Create the undo spaces only if we are creating a new
+	instance. We don't allow creating of new undo tablespaces
+	in an existing instance (yet).  This restriction exists because
+	we check in several places for SYSTEM tablespaces to be less than
+	the min of user defined tablespace ids. Once we implement saving
+	the location of the undo tablespaces and their space ids this
+	restriction will/should be lifted. */
+
+	for (i = 0; create_new_db && i < n_conf_tablespaces; ++i) {
+		char	name[OS_FILE_MAX_PATH];
+
+		ut_snprintf(
+			name, sizeof(name),
+			"%s%cundo%03lu",
+			srv_undo_dir, SRV_PATH_SEPARATOR, i + 1);
+
+		/* Undo space ids start from 1. */
+		err = srv_undo_tablespace_create(
+			name, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
+
+		if (err != DB_SUCCESS) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: Could not create "
+				"undo tablespace '%s'.\n", name);
+
+			return(err);
+		}
+	}
+
+	/* Get the tablespace ids of all the undo segments excluding
+	the system tablespace (0). If we are creating a new instance then
+	we build the undo_tablespace_ids ourselves since they don't
+	already exist. */
+
+	if (!create_new_db) {
+		n_undo_tablespaces = trx_rseg_get_n_undo_tablespaces(
+			undo_tablespace_ids);
+	} else {
+		n_undo_tablespaces = n_conf_tablespaces;
+
+		for (i = 1; i <= n_undo_tablespaces; ++i) {
+			undo_tablespace_ids[i - 1] = i;
+		}
+
+		undo_tablespace_ids[i] = ULINT_UNDEFINED;
+	}
+
+	/* Open all the undo tablespaces that are currently in use. If we
+	fail to open any of these it is a fatal error. The tablespace ids
+	should be contiguous. It is a fatal error because they are required
+	for recovery and are referenced by the UNDO logs (a.k.a RBS). */
+
+	for (i = 0; i < n_undo_tablespaces; ++i) {
+		char	name[OS_FILE_MAX_PATH];
+
+		ut_snprintf(
+			name, sizeof(name),
+			"%s%cundo%03lu",
+			srv_undo_dir, SRV_PATH_SEPARATOR,
+			undo_tablespace_ids[i]);
+
+		/* Should be no gaps in undo tablespace ids. */
+		ut_a(prev_space_id + 1 == undo_tablespace_ids[i]);
+
+		/* The system space id should not be in this array. */
+		ut_a(undo_tablespace_ids[i] != 0);
+		ut_a(undo_tablespace_ids[i] != ULINT_UNDEFINED);
+
+		/* Undo space ids start from 1. */
+
+		err = srv_undo_tablespace_open(name, undo_tablespace_ids[i]);
+
+		if (err != DB_SUCCESS) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: Error opening undo "
+				"tablespace %s.\n", name);
+
+			return(err);
+		}
+
+		prev_space_id = undo_tablespace_ids[i];
+	}
+
+	/* Open any extra unused undo tablespaces. These must be contiguous.
+	We stop at the first failure. These are undo tablespaces that are
+	not in use and therefore not required by recovery. We only check
+	that there are no gaps. */
+
+	for (i = prev_space_id + 1; i < TRX_SYS_N_RSEGS; ++i) {
+		char	name[OS_FILE_MAX_PATH];
+
+		ut_snprintf(
+			name, sizeof(name),
+			"%s%cundo%03lu", srv_undo_dir, SRV_PATH_SEPARATOR, i);
+
+		/* Undo space ids start from 1. */
+		err = srv_undo_tablespace_open(name, i);
+
+		if (err != DB_SUCCESS) {
+			break;
+		}
+
+		++n_undo_tablespaces;
+	}
+
+	/* If the user says that there are fewer than what we find we
+	tolerate that discrepancy but not the inverse. Because there could
+	be unused undo tablespaces for future use. */
+
+	if (n_conf_tablespaces > n_undo_tablespaces) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Expected to open %lu undo "
+			"tablespaces but was able\n",
+			n_conf_tablespaces);
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: to find only %lu undo "
+			"tablespaces.\n", n_undo_tablespaces);
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Set the "
+			"innodb_undo_tablespaces parameter to "
+			"the\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: correct value and retry. Suggested "
+			"value is %lu\n", n_undo_tablespaces);
+
+		return(err != DB_SUCCESS ? err : DB_ERROR);
+	}
+
+	if (n_undo_tablespaces > 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Opened %lu undo tablespaces\n",
+			n_conf_tablespaces);
+	}
+
+	if (create_new_db) {
+		mtr_t	mtr;
+
+		mtr_start(&mtr);
+
+		/* The undo log tablespace */
+		for (i = 1; i <= n_undo_tablespaces; ++i) {
+
+			fsp_header_init(
+				i, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+		}
+
+		mtr_commit(&mtr);
+	}
+
+	return(DB_SUCCESS);
+}
+
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
@@ -985,8 +1294,6 @@ innobase_start_or_create_for_mysql(void)
 	ulint		err;
 	ulint		i;
 	ulint		io_limit;
-	my_bool		srv_file_per_table_original_value
-		= srv_file_per_table;
 	mtr_t		mtr;
 	ib_bh_t*	ib_bh;
 
@@ -1032,11 +1339,6 @@ innobase_start_or_create_for_mysql(void)
 			"of memory.\n");
 	}
 
-	/* System tables are created in tablespace 0.  Thus, we must
-	temporarily clear srv_file_per_table.  This is ok, because the
-	server will not accept connections (which could modify
-	innodb_file_per_table) until this function has returned. */
-	srv_file_per_table = FALSE;
 #ifdef UNIV_DEBUG
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
@@ -1324,8 +1626,7 @@ innobase_start_or_create_for_mysql(void)
 		    srv_n_write_io_threads,
 		    SRV_MAX_N_PENDING_SYNC_IOS);
 
-	fil_init(srv_file_per_table ? 50000 : 5000,
-		 srv_max_n_open_files);
+	fil_init(srv_file_per_table ? 50000 : 5000, srv_max_n_open_files);
 
 	/* Print time to initialize the buffer pool */
 	ut_print_timestamp(stderr);
@@ -1531,6 +1832,17 @@ innobase_start_or_create_for_mysql(void)
 
 	fil_open_log_and_system_tablespace_files();
 
+	err = srv_undo_tablespaces_init(create_new_db, srv_undo_tablespaces);
+
+	/* If the force recovery is set very high then we carry on regardless
+	of all errors. Basically this is fingers crossed mode. */
+
+	if (err != DB_SUCCESS
+	    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+
+		return((int) err);
+	}
+
 	if (log_created && !create_new_db
 #ifdef UNIV_LOG_ARCHIVE
 	    && !srv_archive_recovery
@@ -1653,7 +1965,7 @@ innobase_start_or_create_for_mysql(void)
 	} else {
 
 		/* Check if we support the max format that is stamped
-		on the system tablespace. 
+		on the system tablespace.
 		Note:  We are NOT allowed to make any modifications to
 		the TRX_SYS_PAGE_NO page before recovery  because this
 		page also contains the max_trx_id etc. important system
@@ -1799,7 +2111,16 @@ innobase_start_or_create_for_mysql(void)
 	running in single threaded mode essentially. Only the IO threads
 	should be running at this stage. */
 
-	trx_sys_create_rsegs(TRX_SYS_N_RSEGS - 1);
+	ut_a(srv_undo_logs > 0);
+	ut_a(srv_undo_logs <= TRX_SYS_N_RSEGS);
+
+	/* Note: We set the config variable here to the number of rollback
+	segments that are actually active. This allows the user to discover
+	the currently configured number of undo segments in an existing
+	instance. */
+
+	srv_undo_logs = trx_sys_create_rsegs(
+		srv_undo_tablespaces, srv_undo_logs);
 
 	/* Create the thread which watches the timeouts for lock waits */
 	os_thread_create(&lock_wait_timeout_thread, NULL,
@@ -2076,7 +2397,8 @@ innobase_start_or_create_for_mysql(void)
 		ibuf_update_max_tablespace_id();
 	}
 
-	srv_file_per_table = srv_file_per_table_original_value;
+	/* Create the buffer pool dump/load thread */
+	os_thread_create(buf_dump_thread, NULL, NULL);
 
 	srv_was_started = TRUE;
 

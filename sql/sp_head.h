@@ -581,17 +581,6 @@ public:
   virtual int execute(THD *thd, uint *nextp) = 0;
 
   /**
-    Execute <code>open_and_lock_tables()</code> for this statement.
-    Open and lock the tables used by this statement, as a pre-requisite
-    to execute the core logic of this instruction with
-    <code>exec_core()</code>.
-    @param thd the current thread
-    @param tables the list of tables to open and lock
-    @return zero on success, non zero on failure.
-  */
-  int exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables);
-
-  /**
     Get the continuation destination of this instruction.
     @return the continuation destination
   */
@@ -1019,7 +1008,7 @@ class sp_instr_hpush_jump : public sp_instr_jump
 public:
 
   sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, int htype, uint fp)
-    : sp_instr_jump(ip, ctx), m_type(htype), m_frame(fp)
+    : sp_instr_jump(ip, ctx), m_type(htype), m_frame(fp), m_opt_hpop(0)
   {
     m_cond.empty();
   }
@@ -1041,6 +1030,15 @@ public:
     return m_ip;
   }
 
+  virtual void backpatch(uint dest, sp_pcontext *dst_ctx)
+  {
+    DBUG_ASSERT(!m_dest || !m_opt_hpop);
+    if (!m_dest)
+      m_dest= dest;
+    else
+      m_opt_hpop= dest;
+  }
+
   inline void add_condition(struct sp_cond_type *cond)
   {
     m_cond.push_front(cond);
@@ -1050,6 +1048,7 @@ private:
 
   int m_type;			///< Handler type
   uint m_frame;
+  uint m_opt_hpop;              // hpop marking end of handler scope.
   List<struct sp_cond_type> m_cond;
 
 }; // class sp_instr_hpush_jump : public sp_instr_jump
@@ -1349,6 +1348,8 @@ sp_prepare_func_item(THD* thd, Item **it_addr);
 
 bool
 sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr);
+
+bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access);
 
 /**
   @} (end of group Stored_Routines)

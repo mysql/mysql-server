@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ bool sp_rcontext::init(THD *thd)
   if (init_var_table(thd) || init_var_items())
     return TRUE;
 
-  if (!(m_raised_conditions= new (thd->mem_root) MYSQL_ERROR[handler_count]))
+  if (!(m_raised_conditions= new (thd->mem_root) Sql_condition[handler_count]))
     return TRUE;
 
   for (i= 0; i<handler_count; i++)
@@ -204,7 +204,7 @@ bool
 sp_rcontext::find_handler(THD *thd,
                           uint sql_errno,
                           const char *sqlstate,
-                          MYSQL_ERROR::enum_warning_level level,
+                          Sql_condition::enum_warning_level level,
                           const char *msg)
 {
   int i= m_hcount;
@@ -248,7 +248,7 @@ sp_rcontext::find_handler(THD *thd,
       break;
     case sp_cond_type_t::warning:
       if ((IS_WARNING_CONDITION(sqlstate) ||
-           level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
+           level == Sql_condition::WARN_LEVEL_WARN) &&
           m_hfound < 0)
 	m_hfound= i;
       break;
@@ -258,7 +258,7 @@ sp_rcontext::find_handler(THD *thd,
       break;
     case sp_cond_type_t::exception:
       if (IS_EXCEPTION_CONDITION(sqlstate) &&
-	  level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
+	  level == Sql_condition::WARN_LEVEL_ERROR &&
 	  m_hfound < 0)
 	m_hfound= i;
       break;
@@ -281,7 +281,7 @@ sp_rcontext::find_handler(THD *thd,
     (warning or "not found") we will simply resume execution.
   */
   if (m_prev_runtime_ctx && IS_EXCEPTION_CONDITION(sqlstate) &&
-      level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+      level == Sql_condition::WARN_LEVEL_ERROR)
   {
     return m_prev_runtime_ctx->find_handler(thd, sql_errno, sqlstate,
                                             level, msg);
@@ -442,13 +442,13 @@ sp_rcontext::exit_handler()
   DBUG_VOID_RETURN;
 }
 
-MYSQL_ERROR*
+Sql_condition*
 sp_rcontext::raised_condition() const
 {
   if (m_ihsp > 0)
   {
     uint hindex= m_in_handler[m_ihsp - 1].index;
-    MYSQL_ERROR *raised= & m_raised_conditions[hindex];
+    Sql_condition *raised= & m_raised_conditions[hindex];
     return raised;
   }
 
@@ -576,7 +576,7 @@ sp_cursor::fetch(THD *thd, List<struct sp_variable> *vars)
   }
 
   DBUG_EXECUTE_IF("bug23032_emit_warning",
-                  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                  push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                                ER_UNKNOWN_ERROR,
                                ER(ER_UNKNOWN_ERROR)););
 

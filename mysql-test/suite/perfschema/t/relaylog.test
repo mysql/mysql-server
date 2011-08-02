@@ -41,6 +41,8 @@ drop table test.t1;
 # To ensure robustness:
 # - log file rotation is limited to file .000001 and .000002
 # - statistics are normalized to "NONE" or "MANY"
+# - statistics on ::update_cond conditions are not collected,
+#   since this is too much dependent on execution.
 #
 
 connection master;
@@ -84,7 +86,9 @@ select
   EVENT_NAME,
   if (count_star > 0, "MANY", "NONE") as COUNT_STAR
   from performance_schema.events_waits_summary_global_by_event_name
-  where event_name like "%MYSQL_BIN_LOG%" order by event_name;
+  where event_name like "%MYSQL_BIN_LOG%"
+  and event_name not like "%MYSQL_BIN_LOG::update_cond"
+  order by event_name;
 
 -- echo "Expect no slave relay log"
 
@@ -95,7 +99,9 @@ select * from performance_schema.file_summary_by_event_name
   where event_name like "%relaylog%" order by event_name;
 
 select * from performance_schema.events_waits_summary_global_by_event_name
-  where event_name like "%MYSQL_RELAY_LOG%" order by event_name;
+  where event_name like "%MYSQL_RELAY_LOG%"
+  and event_name not like "%MYSQL_RELAY_LOG::update_cond"
+  order by event_name;
 
 sync_slave_with_master;
 -- echo "============ Performance schema on slave ============"
@@ -142,7 +148,9 @@ select
   EVENT_NAME,
   if (count_star > 0, "MANY", "NONE") as COUNT_STAR
   from performance_schema.events_waits_summary_global_by_event_name
-  where event_name like "%MYSQL_BIN_LOG%" order by event_name;
+  where event_name like "%MYSQL_BIN_LOG%"
+  and event_name not like "%MYSQL_BIN_LOG::update_cond"
+  order by event_name;
 
 -- echo "Expect a slave relay log"
 
@@ -173,7 +181,9 @@ select
   EVENT_NAME,
   if (count_star > 0, "MANY", "NONE") as COUNT_STAR
   from performance_schema.events_waits_summary_global_by_event_name
-  where event_name like "%MYSQL_RELAY_LOG%" order by event_name;
+  where event_name like "%MYSQL_RELAY_LOG%"
+  and event_name not like "%MYSQL_RELAY_LOG::update_cond"
+  order by event_name;
 
 --source include/stop_slave.inc
 

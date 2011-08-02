@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -435,8 +435,6 @@ protected:
   friend uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
   friend range_seq_t quick_range_seq_init(void *init_param,
                                           uint n_ranges, uint flags);
-  friend void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
-                              bool distinct,const char *message);
   friend class QUICK_SELECT_DESC;
   friend class QUICK_INDEX_MERGE_SELECT;
   friend class QUICK_ROR_INTERSECT_SELECT;
@@ -927,6 +925,17 @@ class SQL_SELECT :public Sql_alloc {
   key_map needed_reg;		// Possible quick keys after prev tables.
   table_map const_tables,read_tables;
   bool	free_cond;
+
+  /**
+    Used for QS_DYNAMIC_RANGE, i.e., "Range checked for each record".
+    Used by optimizer tracing to decide whether or not dynamic range
+    analysis of this select has been traced already. If optimizer
+    trace option DYNAMIC_RANGE is enabled, range analysis will be
+    traced with different ranges for every record to the left of this
+    table in the join. If disabled, range analysis will only be traced
+    for the first range.
+  */
+  bool traced_before;
 
   SQL_SELECT();
   ~SQL_SELECT();

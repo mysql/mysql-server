@@ -20,7 +20,7 @@
 # =======================================
 
 echo "================== Step 1 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -43,7 +43,7 @@ echo "================== con1 connected ==================";
 --connection default
 
 echo "================== Step 2 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -58,7 +58,7 @@ echo "================== con1 marker ==================";
 --connection default
 
 echo "================== Step 3 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -73,7 +73,7 @@ echo "================== con2 connected ==================";
 --connection default
 
 echo "================== Step 4 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -88,7 +88,7 @@ echo "================== con2 marker ==================";
 --connection default
 
 echo "================== Step 5 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -99,7 +99,7 @@ echo "================== con3 connected ==================";
 --connection default
 
 echo "================== Step 6 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -114,7 +114,7 @@ echo "================== con3 marker ==================";
 --connection default
 
 echo "================== Step 7 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -125,7 +125,7 @@ echo "================== con4 connected ==================";
 --connection default
 
 echo "================== Step 8 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -140,7 +140,7 @@ echo "================== con4 marker ==================";
 --connection default
 
 echo "================== Step 9 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -155,7 +155,7 @@ let $wait_condition=
 echo "================== con1 disconnected ==================";
 
 echo "================== Step 10 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -170,7 +170,7 @@ let $wait_condition=
 echo "================== con2 disconnected ==================";
 
 echo "================== Step 11 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -185,7 +185,7 @@ let $wait_condition=
 echo "================== con3 disconnected ==================";
 
 echo "================== Step 12 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -200,7 +200,7 @@ let $wait_condition=
 echo "================== con4 disconnected ==================";
 
 echo "================== Step 13 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -211,7 +211,7 @@ truncate performance_schema.events_waits_summary_by_thread_by_event_name;
 echo "================== BY_THREAD truncated ==================";
 
 echo "================== Step 14 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 
@@ -220,7 +220,7 @@ truncate performance_schema.events_waits_summary_global_by_event_name;
 echo "================== GLOBAL truncated ==================";
 
 echo "================== Step 18 ==================";
-execute dump_thread;
+call dump_thread();
 execute dump_global;
 execute dump_history;
 

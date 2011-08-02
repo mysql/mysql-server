@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_priv.h"
 #ifndef MYSQL_CLIENT
@@ -99,7 +99,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
     if (open_and_lock_tables(ev_thd, rli->tables_to_lock, FALSE, 0))
     {
-      uint actual_error= ev_thd->stmt_da->sql_errno();
+      uint actual_error= ev_thd->get_stmt_da()->sql_errno();
       if (ev_thd->is_slave_error || ev_thd->is_fatal_error)
       {
         /*
@@ -108,7 +108,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on opening tables",
-                    (actual_error ? ev_thd->stmt_da->message() :
+                    (actual_error ? ev_thd->get_stmt_da()->message() :
                      "unexpected success or fatal error"));
         ev_thd->is_slave_error= 1;
       }
@@ -242,10 +242,10 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
   break;
 
       default:
-  rli->report(ERROR_LEVEL, ev_thd->stmt_da->sql_errno(),
+  rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->sql_errno(),
                     "Error in %s event: row application failed. %s",
                     ev->get_type_str(),
-                    ev_thd->is_error() ? ev_thd->stmt_da->message() : "");
+                    ev_thd->is_error() ? ev_thd->get_stmt_da()->message() : "");
   thd->is_slave_error= 1;
   break;
       }
@@ -259,12 +259,12 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
   if (error)
   {                     /* error has occured during the transaction */
-    rli->report(ERROR_LEVEL, ev_thd->stmt_da->sql_errno(),
+    rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->sql_errno(),
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
                 ev->get_type_str(), table->s->db.str,
                 table->s->table_name.str,
-                ev_thd->is_error() ? ev_thd->stmt_da->message() : "");
+                ev_thd->is_error() ? ev_thd->get_stmt_da()->message() : "");
 
     /*
       If one day we honour --skip-slave-errors in row-based replication, and

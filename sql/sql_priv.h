@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@
 #define WARN_DEPRECATED(Thd,Old,New)                            \
   do {                                                                      \
     if (((THD *) Thd) != NULL)                                              \
-      push_warning_printf(((THD *) Thd), MYSQL_ERROR::WARN_LEVEL_WARN,      \
+      push_warning_printf(((THD *) Thd), Sql_condition::WARN_LEVEL_WARN,    \
                         ER_WARN_DEPRECATED_SYNTAX,                          \
                         ER(ER_WARN_DEPRECATED_SYNTAX),                      \
                         (Old), (New));                                      \
@@ -295,13 +295,6 @@ enum enum_yes_no_unknown
 #endif /* MYSQL_SERVER */
 
 #ifdef MYSQL_SERVER
-/*
-  A set of constants used for checking non aggregated fields and sum
-  functions mixture in the ONLY_FULL_GROUP_BY_MODE.
-*/
-#define NON_AGG_FIELD_USED  1
-#define SUM_FUNC_USED       2
-
 /*
   External variables
 */

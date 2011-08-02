@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+*/
 
 #include "client_priv.h"
 #include <sslopt-vars.h>
@@ -241,6 +243,7 @@ get_one_option(int optid, const struct my_option *opt,
   switch (optid) {
 
   case '?':
+    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
     printf("%s  Ver %s Distrib %s, for %s (%s)\n",
            my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
     puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));

@@ -20,7 +20,7 @@
 #include "table.h"                              /* TABLE */
 #include "sql_string.h"                         /* String */
 #include "my_decimal.h"                         /* my_decimal */
-#include "sql_error.h"                          /* MYSQL_ERROR */
+#include "sql_error.h"                          /* Sql_condition */
 
 #define DATETIME_DEC                     6
 
@@ -480,15 +480,15 @@ public:
   { return DERIVATION_IMPLICIT; }
   virtual uint repertoire(void) const { return MY_REPERTOIRE_UNICODE30; }
   virtual void set_derivation(enum Derivation derivation_arg) { }
-  bool set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
+  bool set_warning(Sql_condition::enum_warning_level, unsigned int code,
                    int cuted_increment);
-  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, uint code, 
+  void set_datetime_warning(Sql_condition::enum_warning_level, uint code, 
                             const char *str, uint str_len,
                             timestamp_type ts_type, int cuted_increment);
-  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, uint code, 
+  void set_datetime_warning(Sql_condition::enum_warning_level, uint code, 
                             longlong nr, timestamp_type ts_type,
                             int cuted_increment);
-  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, const uint code, 
+  void set_datetime_warning(Sql_condition::enum_warning_level, const uint code, 
                             double nr, timestamp_type ts_type);
   inline bool check_overflow(int op_result)
   {
@@ -2087,7 +2087,13 @@ public:
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   int  store_decimal(const my_decimal *);
-  int  reset(void) { return !maybe_null() || Field_blob::reset(); }
+
+  /**
+    Non-nullable GEOMETRY types cannot have defaults,
+    but the underlying blob must still be reset.
+   */
+  int reset(void) { return Field_blob::reset() || !maybe_null(); }
+
   geometry_type get_geometry_type() { return geom_type; };
   Field_geom *clone(MEM_ROOT *mem_root) const {
     DBUG_ASSERT(type() == MYSQL_TYPE_GEOMETRY);

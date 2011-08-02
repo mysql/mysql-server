@@ -64,6 +64,7 @@ FILES
 GLOBAL_STATUS
 GLOBAL_VARIABLES
 KEY_COLUMN_USAGE
+OPTIMIZER_TRACE
 PARAMETERS
 PARTITIONS
 PLUGINS
@@ -789,6 +790,8 @@ table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_DEFAULT
 information_schema	COLUMNS	COLUMN_TYPE
 information_schema	EVENTS	EVENT_DEFINITION
+information_schema	OPTIMIZER_TRACE	QUERY
+information_schema	OPTIMIZER_TRACE	TRACE
 information_schema	PARAMETERS	DTD_IDENTIFIER
 information_schema	PARTITIONS	PARTITION_EXPRESSION
 information_schema	PARTITIONS	SUBPARTITION_EXPRESSION
@@ -885,7 +888,7 @@ table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	30
+information_schema	31
 mysql	25
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1111,7 +1114,7 @@ CREATE PROCEDURE p1 ()
 BEGIN
 SELECT 'foo' FROM DUAL;
 END |
-ERROR 42000: Unknown database 'information_schema'
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 select ROUTINE_NAME from routines where ROUTINE_SCHEMA='information_schema';
 ROUTINE_NAME
 grant all on information_schema.* to 'user1'@'localhost';
@@ -1335,6 +1338,7 @@ FILES	information_schema.FILES	1
 GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
 GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
 PARAMETERS	information_schema.PARAMETERS	1
 PARTITIONS	information_schema.PARTITIONS	1
 PLUGINS	information_schema.PLUGINS	1
@@ -1574,7 +1578,7 @@ explain extended select 1 from information_schema.tables;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
 Warnings:
-Note	1003	select 1 AS `1` from `information_schema`.`tables`
+Note	1003	/* select#1 */ select 1 AS `1` from `information_schema`.`tables`
 use information_schema;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation

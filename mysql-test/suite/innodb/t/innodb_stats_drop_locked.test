@@ -4,7 +4,6 @@
 #
 
 -- source include/have_innodb.inc
--- source suite/innodb/include/innodb_stats_bootstrap.inc
 
 -- disable_warnings
 -- disable_query_log
@@ -57,7 +56,3 @@ WHERE table_name='innodb_stats_drop_locked';
 
 SELECT table_name FROM mysql.innodb_index_stats
 WHERE table_name='innodb_stats_drop_locked';
-
--- disable_query_log
-DROP TABLE mysql.innodb_index_stats;
-DROP TABLE mysql.innodb_table_stats;

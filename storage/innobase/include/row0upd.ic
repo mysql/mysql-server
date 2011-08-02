@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -171,7 +171,7 @@ row_upd_rec_sys_fields(
 		ulint	offset = index->trx_id_offset;
 
 		if (!offset) {
-			offset = row_get_trx_id_offset(rec, index, offsets);
+			offset = row_get_trx_id_offset(index, offsets);
 		}
 
 #if DATA_TRX_ID + 1 != DATA_ROLL_PTR

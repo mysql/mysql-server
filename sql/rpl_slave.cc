@@ -1,4 +1,4 @@
-/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -606,7 +606,19 @@ static void set_thd_in_use_temporary_tables(Relay_log_info *rli)
   TABLE *table;
 
   for (table= rli->save_temporary_tables ; table ; table= table->next)
+  {
     table->in_use= rli->info_thd;
+    if (table->file != NULL)
+    {
+      /*
+        Since we are stealing opened temporary tables from one thread to another,
+        we need to let the performance schema know that,
+        for aggregates per thread to work properly.
+      */
+      table->file->unbind_psi();
+      table->file->rebind_psi();
+    }
+  }
 }
 
 int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
@@ -840,8 +852,10 @@ int start_slave_thread(
     while (start_id == *slave_run_id && thd != NULL)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
-      const char *old_msg= thd->enter_cond(start_cond, cond_lock,
-                                           "Waiting for slave thread to start");
+      PSI_stage_info saved_stage= {0, "", 0};
+      thd->ENTER_COND(start_cond, cond_lock,
+                      & stage_waiting_for_slave_thread_to_start,
+                      & saved_stage);
       /*
         It is not sufficient to test this at loop bottom. We must test
         it after registering the mutex in enter_cond(). If the kill
@@ -851,7 +865,7 @@ int start_slave_thread(
       */
       if (!thd->killed)
         mysql_cond_wait(start_cond, cond_lock);
-      thd->exit_cond(old_msg);
+      thd->EXIT_COND(& saved_stage);
       mysql_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
       if (thd->killed)
       {
@@ -1807,20 +1821,20 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
 {
   bool slave_killed=0;
   Master_info* mi = rli->mi;
-  const char *save_proc_info;
+  PSI_stage_info old_stage;
   THD* thd = mi->info_thd;
   DBUG_ENTER("wait_for_relay_log_space");
 
   mysql_mutex_lock(&rli->log_space_lock);
-  save_proc_info= thd->enter_cond(&rli->log_space_cond,
-                                  &rli->log_space_lock,
-                                  "\
-Waiting for the slave SQL thread to free enough relay log space");
+  thd->ENTER_COND(&rli->log_space_cond,
+                  &rli->log_space_lock,
+                  &stage_waiting_for_relay_log_space,
+                  &old_stage);
   while (rli->log_space_limit < rli->log_space_total &&
          !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
     mysql_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
-  thd->exit_cond(save_proc_info);
+  thd->EXIT_COND(&old_stage);
   DBUG_RETURN(slave_killed);
 }
 
@@ -2067,11 +2081,11 @@ bool show_master_info(THD* thd, Master_info* mi)
       non-volotile members like mi->info_thd, which is guarded by the mutex.
     */
     mysql_mutex_lock(&mi->run_lock);
-    protocol->store(mi->info_thd ? mi->info_thd->proc_info : "", &my_charset_bin);
+    protocol->store(mi->info_thd ? mi->info_thd->get_proc_info() : "", &my_charset_bin);
     mysql_mutex_unlock(&mi->run_lock);
 
     mysql_mutex_lock(&mi->rli->run_lock);
-    const char *slave_sql_running_state= mi->rli->info_thd ? mi->rli->info_thd->proc_info : "";
+    const char *slave_sql_running_state= mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "";
     mysql_mutex_unlock(&mi->rli->run_lock);
 
     mysql_mutex_lock(&mi->data_lock);
@@ -2359,7 +2373,6 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
 {
   bool ret;
   struct timespec abstime;
-  const char *old_proc_info;
   mysql_mutex_t *lock= &info->sleep_lock;
   mysql_cond_t *cond= &info->sleep_cond;
 
@@ -2367,7 +2380,7 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
   set_timespec(abstime, seconds);
 
   mysql_mutex_lock(lock);
-  old_proc_info= thd->enter_cond(cond, lock, thd->proc_info);
+  thd->ENTER_COND(cond, lock, NULL, NULL);
 
   while (! (ret= func(thd, info)))
   {
@@ -2377,7 +2390,7 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
   }
 
   /* Implicitly unlocks the mutex. */
-  thd->exit_cond(old_proc_info);
+  thd->EXIT_COND(NULL);
 
   return ret;
 }
@@ -2927,7 +2940,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
         else
         {
           thd->is_fatal_error= 1;
-          rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
+          rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                       "Slave SQL thread retried transaction %lu time(s) "
                       "in vain, giving up. Consider raising the value of "
                       "the slave_transaction_retries variable.", rli->trans_retries);
@@ -3639,9 +3652,9 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
 
   if (check_temp_dir(rli->slave_patternload_file))
   {
-    rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(), 
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(), 
                 "Unable to use slave's temporary directory %s - %s", 
-                slave_load_tmpdir, thd->stmt_da->message());
+                slave_load_tmpdir, thd->get_stmt_da()->message());
     goto err;
   }
 
@@ -3651,7 +3664,7 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
     execute_init_command(thd, &opt_init_slave, &LOCK_sys_init_slave);
     if (thd->is_slave_error)
     {
-      rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
+      rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                   "Slave SQL thread aborted. Can't execute init_slave query");
       goto err;
     }
@@ -3718,20 +3731,22 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
 
         if (thd->is_error())
         {
-          char const *const errmsg= thd->stmt_da->message();
+          char const *const errmsg= thd->get_stmt_da()->message();
 
           DBUG_PRINT("info",
-                     ("thd->stmt_da->sql_errno()=%d; rli->last_error.number=%d",
-                      thd->stmt_da->sql_errno(), last_errno));
+                     ("thd->get_stmt_da()->sql_errno()=%d; "
+                      "rli->last_error.number=%d",
+                      thd->get_stmt_da()->sql_errno(), last_errno));
           if (last_errno == 0)
           {
             /*
  	      This function is reporting an error which was not reported
  	      while executing exec_relay_log_event().
  	    */ 
-            rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(), "%s", errmsg);
+            rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+                        "%s", errmsg);
           }
-          else if (last_errno != thd->stmt_da->sql_errno())
+          else if (last_errno != thd->get_stmt_da()->sql_errno())
           {
             /*
              * An error was reported while executing exec_relay_log_event()
@@ -3740,13 +3755,14 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
              * what caused the problem.
              */  
             sql_print_error("Slave (additional info): %s Error_code: %d",
-                            errmsg, thd->stmt_da->sql_errno());
+                            errmsg, thd->get_stmt_da()->sql_errno());
           }
         }
 
         /* Print any warnings issued */
-        List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
-        MYSQL_ERROR *err;
+        Diagnostics_area::Sql_condition_iterator it=
+          thd->get_stmt_da()->sql_conditions();
+        const Sql_condition *err;
         /*
           Added controlled slave thread cancel for replication
           of user-defined variables.
@@ -5485,7 +5501,7 @@ uint sql_slave_skip_counter;
 
   @param mi Pointer to Master_info object for the slave's IO thread.
 
-  @param net_report If true, saves the exit status into thd->stmt_da.
+  @param net_report If true, saves the exit status into Diagnostics_area.
 
   @retval 0 success
   @retval 1 error
@@ -5571,7 +5587,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
           /* Issuing warning then started without --skip-slave-start */
           if (!opt_skip_slave_start)
-            push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+            push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                          ER_MISSING_SKIP_SLAVE,
                          ER(ER_MISSING_SKIP_SLAVE));
         }
@@ -5579,7 +5595,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         mysql_mutex_unlock(&mi->rli->data_lock);
       }
       else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
+        push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
                      ER(ER_UNTIL_COND_IGNORED));
 
       if (!slave_errno)
@@ -5594,7 +5610,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
   else
   {
     /* no error if all threads are already started, only a warning */
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_SLAVE_WAS_RUNNING,
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_SLAVE_WAS_RUNNING,
                  ER(ER_SLAVE_WAS_RUNNING));
   }
 
@@ -5621,7 +5637,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
   @param mi Pointer to Master_info object for the slave's IO thread.
 
-  @param net_report If true, saves the exit status into thd->stmt_da.
+  @param net_report If true, saves the exit status into Diagnostics_area.
 
   @retval 0 success
   @retval 1 error
@@ -5659,7 +5675,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
   {
     //no error if both threads are already stopped, only a warning
     slave_errno= 0;
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_SLAVE_WAS_NOT_RUNNING,
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_SLAVE_WAS_NOT_RUNNING,
                  ER(ER_SLAVE_WAS_NOT_RUNNING));
   }
   unlock_slave_threads(mi);
@@ -5715,8 +5731,8 @@ int reset_slave(THD *thd, Master_info* mi)
     goto err;
   }
 
-  /* Clear master's log coordinates */
-  mi->init_master_log_pos();
+  /* Clear master's log coordinates and associated information */
+  mi->clear_in_memory_info(thd->lex->reset_slave_info.all);
 
   if (remove_info(mi))
   {
@@ -5904,7 +5920,7 @@ bool change_master(THD* thd, Master_info* mi)
   if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
       lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key ||
       lex_mi->ssl_verify_server_cert )
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                  ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
 #endif
 

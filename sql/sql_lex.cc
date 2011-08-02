@@ -380,6 +380,8 @@ void lex_start(THD *thd)
   lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
   lex->select_lex.init_order();
   lex->select_lex.group_list.empty();
+  if (lex->select_lex.group_list_ptrs)
+    lex->select_lex.group_list_ptrs->clear();
   lex->describe= DESCRIBE_NONE;
   lex->subqueries= FALSE;
   lex->context_analysis_only= 0;
@@ -1217,8 +1219,12 @@ int lex_one_token(void *arg, void *yythd)
     {
       uint double_quotes= 0;
       char quote_char= c;                       // Used char
-      while ((c=lip->yyGet()))
+      for(;;)
       {
+        c= lip->yyGet();
+        if (c == 0)
+          return ABORT_SYM;                     // Unmatched quotes
+
 	int var_length;
 	if ((var_length= my_mbcharlen(cs, c)) == 1)
 	{
@@ -1757,7 +1763,7 @@ void st_select_lex::init_query()
   parent_lex->push_context(&context);
   cond_count= between_count= with_wild= 0;
   max_equal_elems= 0;
-  ref_pointer_array= 0;
+  ref_pointer_array.reset();
   select_n_where_fields= 0;
   select_n_having_items= 0;
   subquery_in_having= explicit_limit= 0;
@@ -1769,6 +1775,8 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
 }
 
 void st_select_lex::init_select()
@@ -1776,6 +1784,8 @@ void st_select_lex::init_select()
   st_select_lex_node::init_select();
   sj_nests.empty();
   group_list.empty();
+  if (group_list_ptrs)
+    group_list_ptrs->clear();
   type= db= 0;
   having= 0;
   table_join_options= 0;
@@ -1799,7 +1809,8 @@ void st_select_lex::init_select()
   non_agg_fields.empty();
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
-  full_group_by_flag= 0;
+  m_non_agg_field_used= false;
+  m_agg_func_used= false;
 }
 
 /*
@@ -2132,20 +2143,42 @@ ulong st_select_lex::get_table_join_options()
 
 bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 {
-  if (ref_pointer_array)
-    return 0;
+#ifdef DBUG_OFF
+  if (!ref_pointer_array.is_null())
+    return false;
+#endif
+
+  // find_order_in_list() may need some extra space, so multiply by two.
+  order_group_num*= 2;
 
   /*
     We have to create array in prepared statement memory if it is
     prepared statement
   */
   Query_arena *arena= thd->stmt_arena;
-  return (ref_pointer_array=
-          (Item **)arena->alloc(sizeof(Item*) * (n_child_sum_items +
-                                                 item_list.elements +
-                                                 select_n_having_items +
-                                                 select_n_where_fields +
-                                                 order_group_num)*5)) == 0;
+  const uint n_elems= (n_child_sum_items +
+                       item_list.elements +
+                       select_n_having_items +
+                       select_n_where_fields +
+                       order_group_num) * 5;
+  DBUG_PRINT("info", ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u",
+                      this,
+                      n_elems, // :
+                      n_sum_items,
+                      n_child_sum_items,
+                      item_list.elements,
+                      select_n_having_items,
+                      select_n_where_fields,
+                      order_group_num));
+  if (!ref_pointer_array.is_null())
+  {
+    DBUG_ASSERT(ref_pointer_array.size() == n_elems);
+    return false;
+  }
+  Item **array= static_cast<Item**>(arena->alloc(sizeof(Item*) * n_elems));
+  ref_pointer_array= Ref_ptr_array(array, n_elems);
+
+  return array == NULL;
 }
 
 
@@ -3059,6 +3092,8 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
     The passed WHERE and HAVING are to be saved for the future executions.
     This function saves it, and returns a copy which can be thrashed during
     this execution of the statement. By saving/thrashing here we mean only
+    We also save the chain of ORDER::next in group_list, in case
+    the list is modified by remove_const().
     AND/OR trees.
     The function also calls fix_prepare_info_in_table_list that saves all
     ON expressions.    
@@ -3070,14 +3105,27 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
   if (!thd->stmt_arena->is_conventional() && first_execution)
   {
     first_execution= 0;
+    if (group_list.first)
+    {
+      if (!group_list_ptrs)
+      {
+        void *mem= thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
+        group_list_ptrs= new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
+      }
+      group_list_ptrs->reserve(group_list.elements);
+      for (ORDER *order= group_list.first; order; order= order->next)
+      {
+        group_list_ptrs->push_back(order);
+      }
+    }
     if (*conds)
     {
-      prep_where= *conds;
+      prep_where= (*conds)->real_item();
       *conds= where= prep_where->copy_andor_structure(thd);
     }
     if (*having_conds)
     {
-      prep_having= *having_conds;
+      prep_having= (*having_conds)->real_item();
       *having_conds= having= prep_having->copy_andor_structure(thd);
     }
     fix_prepare_info_in_table_list(thd, table_list.first);

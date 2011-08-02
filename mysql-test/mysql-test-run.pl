@@ -163,7 +163,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema,funcs_1";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema,funcs_1,opt_trace";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -171,6 +171,7 @@ our $exe_mysql;
 our $exe_mysqladmin;
 our $exe_mysqltest;
 our $exe_libtool;
+our $exe_mysql_embedded;
 
 our $opt_big_test= 0;
 
@@ -188,6 +189,7 @@ my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
 my $opt_view_protocol;
+my $opt_trace_protocol;
 my $opt_explain_protocol;
 
 our $opt_debug;
@@ -197,7 +199,7 @@ our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
 # -1 indicates use default, override with env.var.
-my $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
+our $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
 # Unit test report stored here for delayed printing
 my $ctest_report;
 
@@ -1042,6 +1044,7 @@ sub command_line_setup {
              'ps-protocol'              => \$opt_ps_protocol,
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
+             'opt-trace-protocol'       => \$opt_trace_protocol,
              'explain-protocol'         => \$opt_explain_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
@@ -1367,6 +1370,12 @@ sub command_line_setup {
       collect_option('default-storage-engine', $1);
       mtr_report("Using default engine '$1'")
     }
+    if ( $arg =~ /default-tmp-storage-engine=(\S+)/ )
+    {
+      # Save this for collect phase
+      collect_option('default-tmp-storage-engine', $1);
+      mtr_report("Using default tmp engine '$1'")
+    }
   }
 
   if (IS_WINDOWS and defined $opt_mem) {
@@ -1675,6 +1684,13 @@ sub command_line_setup {
       unless @valgrind_args;
   }
 
+  if ( $opt_trace_protocol )
+  {
+    push(@opt_extra_mysqld_opt, "--optimizer_trace=enabled=on,one_line=off");
+    # some queries yield big traces:
+    push(@opt_extra_mysqld_opt, "--optimizer-trace-max-mem-size=1000000");
+  }
+
   if ( $opt_valgrind )
   {
     # Set valgrind_options to default unless already defined
@@ -1951,6 +1967,8 @@ sub executable_setup () {
   # Look for the client binaries
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
+
+  $exe_mysql_embedded= mtr_exe_maybe_exists("$basedir/libmysqld/examples/mysql_embedded");
 
   if ( ! $opt_skip_ndbcluster )
   {
@@ -2356,6 +2374,7 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
+  $ENV{'MYSQL_EMBEDDED'}=           $exe_mysql_embedded;
 
   # ----------------------------------------------------
   # bug25714 executable may _not_ exist in
@@ -5446,6 +5465,11 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--view-protocol");
   }
 
+  if ( $opt_trace_protocol )
+  {
+    mtr_add_arg($args, "--opt-trace-protocol");
+  }
+
   if ( $opt_cursor_protocol )
   {
     mtr_add_arg($args, "--cursor-protocol");
@@ -5951,6 +5975,7 @@ Options to control what engine/variation to run
   cursor-protocol       Use the cursor protocol between client and server
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
+  opt-trace-protocol    Print optimizer trace
   explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT queries
   sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
@@ -6052,7 +6077,9 @@ Options for debugging the product
   ddd                   Start mysqld in ddd
   debug                 Dump trace output for all servers and client programs
   debug-common          Same as debug, but sets 'd' debug flags to
-                        "query,info,error,enter,exit"
+                        "query,info,error,enter,exit"; you need this if you
+                        want both to see debug printouts and to use
+                        DBUG_EXECUTE_IF.
   debug-server          Use debug version of server, but without turning on
                         tracing
   debugger=NAME         Start mysqld in the selected debugger

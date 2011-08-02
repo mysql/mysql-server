@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,6 +101,11 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
 
 static const char *HA_ERR(int i)
 {
+  /* 
+    This function should only be called in case of an error
+    was detected 
+   */
+  DBUG_ASSERT(i != 0);
   switch (i) {
   case HA_ERR_KEY_NOT_FOUND: return "HA_ERR_KEY_NOT_FOUND";
   case HA_ERR_FOUND_DUPP_KEY: return "HA_ERR_FOUND_DUPP_KEY";
@@ -152,7 +158,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
   }
-  return 0;
+  return "No Error!";
 }
 
 /**
@@ -204,12 +210,13 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                            TABLE *table, const char * type,
                                            const char *log_name, ulong pos)
 {
-  const char *handler_error= HA_ERR(ha_error);
+  const char *handler_error= (ha_error ? HA_ERR(ha_error) : NULL);
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end= buff + sizeof(buff);
   uint len;
-  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
-  MYSQL_ERROR *err;
+  Diagnostics_area::Sql_condition_iterator it=
+    thd->get_stmt_da()->sql_conditions();
+  const Sql_condition *err;
   buff[0]= 0;
 
   for (err= it++, slider= buff; err && slider < buff_end - 1;
@@ -221,7 +228,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
   }
 
   if (ha_error != 0)
-    rli->report(level, thd->is_error() ? thd->stmt_da->sql_errno() : 0,
+    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0,
                 "Could not execute %s event on table %s.%s;"
                 "%s handler error %s; "
                 "the event's master log %s, end_log_pos %lu",
@@ -229,7 +236,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                 buff, handler_error == NULL ? "<unknown>" : handler_error,
                 log_name, pos);
   else
-    rli->report(level, thd->is_error() ? thd->stmt_da->sql_errno() : 0,
+    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0,
                 "Could not execute %s event on table %s.%s;"
                 "%s the event's master log %s, end_log_pos %lu",
                 type, table->s->db.str, table->s->table_name.str,
@@ -372,13 +379,13 @@ inline int ignored_error_code(int err_code)
 */ 
 int convert_handler_error(int error, THD* thd, TABLE *table)
 {
-  uint actual_error= (thd->is_error() ? thd->stmt_da->sql_errno() :
+  uint actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
                            0);
 
   if (actual_error == 0)
   {
     table->file->print_error(error, MYF(0));
-    actual_error= (thd->is_error() ? thd->stmt_da->sql_errno() :
+    actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
       if (global_system_variables.log_warnings)
@@ -3760,7 +3767,7 @@ START SLAVE; . Query: '%s'", expected_error, thd->query());
     }
 
     /* If the query was not ignored, it is printed to the general log */
-    if (!thd->is_error() || thd->stmt_da->sql_errno() != ER_SLAVE_IGNORED_TABLE)
+    if (!thd->is_error() || thd->get_stmt_da()->sql_errno() != ER_SLAVE_IGNORED_TABLE)
       general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
 compare_errors:
@@ -3772,14 +3779,14 @@ compare_errors:
       not exist errors", we silently clear the error if TEMPORARY was used.
     */
     if (thd->lex->sql_command == SQLCOM_DROP_TABLE && thd->lex->drop_temporary &&
-        thd->is_error() && thd->stmt_da->sql_errno() == ER_BAD_TABLE_ERROR &&
+        thd->is_error() && thd->get_stmt_da()->sql_errno() == ER_BAD_TABLE_ERROR &&
         !expected_error)
-      thd->stmt_da->reset_diagnostics_area();
+      thd->get_stmt_da()->reset_diagnostics_area();
     /*
       If we expected a non-zero error code, and we don't get the same error
       code, and it should be ignored or is related to a concurrency issue.
     */
-    actual_error= thd->is_error() ? thd->stmt_da->sql_errno() : 0;
+    actual_error= thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
                        expected_error, actual_error));
 
@@ -3796,7 +3803,7 @@ Error on slave: actual message='%s', error code=%d. \
 Default database: '%s'. Query: '%s'",
                       ER_SAFE(expected_error),
                       expected_error,
-                      actual_error ? thd->stmt_da->message() : "no error",
+                      actual_error ? thd->get_stmt_da()->message() : "no error",
                       actual_error,
                       print_slave_db_safe(db), query_arg);
       thd->is_slave_error= 1;
@@ -3820,7 +3827,7 @@ Default database: '%s'. Query: '%s'",
     {
       rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' on query. Default database: '%s'. Query: '%s'",
-                      (actual_error ? thd->stmt_da->message() :
+                      (actual_error ? thd->get_stmt_da()->message() :
                        "unexpected success or fatal error"),
                       print_slave_db_safe(thd->db), query_arg);
       thd->is_slave_error= 1;
@@ -5300,7 +5307,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   {
     thd->set_time((time_t)when);
     thd->set_query_id(next_query_id());
-    thd->warning_info->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];
@@ -5450,9 +5457,9 @@ error:
   thd->catalog= 0;
   thd->set_db(NULL, 0);                   /* will free the current database */
   thd->reset_query();
-  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-  thd->stmt_da->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
   close_thread_tables(thd);
   /*
     - If inside a multi-statement transaction,
@@ -5479,8 +5486,8 @@ error:
     int sql_errno;
     if (thd->is_error())
     {
-      err= thd->stmt_da->message();
-      sql_errno= thd->stmt_da->sql_errno();
+      err= thd->get_stmt_da()->message();
+      sql_errno= thd->get_stmt_da()->sql_errno();
     }
     else
     {
@@ -8046,7 +8053,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     if (open_and_lock_tables(thd, rli->tables_to_lock, FALSE, 0))
     {
-      uint actual_error= thd->stmt_da->sql_errno();
+      uint actual_error= thd->get_stmt_da()->sql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)
       {
         /*
@@ -8057,7 +8064,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error executing row event: '%s'",
-                    (actual_error ? thd->stmt_da->message() :
+                    (actual_error ? thd->get_stmt_da()->message() :
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
@@ -8133,7 +8140,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (table)
   {
-    bool transactional_table= table->file->has_transactions();
     /*
       table == NULL means that this table should not be replicated
       (this was set up by Table_map_log_event::do_apply_event()
@@ -8204,6 +8210,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     // row processing loop
 
+    const uchar *saved_m_curr_row= m_curr_row;
     while (error == 0)
     {
       /* in_use can have been set to NULL in close_tables_for_reopen */
@@ -8213,7 +8220,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       error= do_exec_row(rli);
 
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      if (error)
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
 
       table->in_use = old_thd;
@@ -8222,7 +8230,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         int actual_error= convert_handler_error(error, thd, table);
         bool idempotent_error= (idempotent_error_code(error) &&
-                               (slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT));
+                                slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT);
         bool ignored_error= (idempotent_error == 0 ?
                              ignored_error_code(actual_error) : 0);
 
@@ -8240,39 +8248,52 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         }
       }
 
-      /*
-       If m_curr_row_end  was not set during event execution (e.g., because
-       of errors) we can't proceed to the next row. If the error is transient
-       (i.e., error==0 at this point) we must call unpack_current_row() to set 
-       m_curr_row_end.
-      */ 
-   
       DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
                           (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
 
-      if (!m_curr_row_end && !error)
-        error= unpack_current_row(rli, &m_cols);
+      if (!error)
+      {
+        /*
+          If m_curr_row_end  was not set during event execution (e.g., because
+          of errors) we can't proceed to the next row. If the error is transient
+          (i.e., error == 0 at this point) we must call unpack_current_row() to
+          set m_curr_row_end.
+        */ 
+        if (!m_curr_row_end)
+          error= unpack_current_row(rli, &m_cols);
   
+        m_curr_row= m_curr_row_end;
+      }
+
       // at this moment m_curr_row_end should be set
       DBUG_ASSERT(error || m_curr_row_end != NULL); 
       DBUG_ASSERT(error || m_curr_row <= m_curr_row_end);
       DBUG_ASSERT(error || m_curr_row_end <= m_rows_end);
-  
-      m_curr_row= m_curr_row_end;
  
-      if (error == 0 && !transactional_table)
-      {
-        /*
-          We rely on trans_commit_stmt() to propagate unsafe_rollback_flags
-          from statement to transaction level. For that reason, only the
-          statement level is set.
-        */
-        thd->transaction.stmt.mark_modified_non_trans_table();
-      }
-
       if (m_curr_row == m_rows_end)
         break;
     } // row processing loop
+
+    if (saved_m_curr_row != m_curr_row && !table->file->has_transactions())
+    {
+      /*
+        Usually, the trans_commit_stmt() propagates unsafe_rollback_flags
+        from statement to transaction level. However, we cannot rely on
+        this when row format is in use as several events can be processed
+        before calling this function. This happens because it is called
+        only when the latest event generated by a statement is processed.
+
+        There are however upper level functions that execute per event
+        and check transaction's status. So if the unsafe_rollback_flags
+        are not propagated here, this can lead to errors.
+
+        For example, a transaction that updates non-transactional tables
+        may be stopped in the middle thus leading to inconsistencies
+        after a restart.
+      */
+      thd->transaction.stmt.mark_modified_non_trans_table();
+      thd->transaction.merge_unsafe_rollback_flags();
+    }
 
     /*
       Restore the sql_mode after the rows event is processed.
@@ -8845,6 +8866,97 @@ Table_map_log_event::~Table_map_log_event()
  */
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+
+enum enum_tbl_map_status
+{
+  /* no duplicate identifier found */
+  OK_TO_PROCESS= 0,
+
+  /* this table map must be filtered out */
+  FILTERED_OUT= 1,
+
+  /* identifier mapping table with different properties */
+  SAME_ID_MAPPING_DIFFERENT_TABLE= 2,
+  
+  /* a duplicate identifier was found mapping the same table */
+  SAME_ID_MAPPING_SAME_TABLE= 3
+};
+
+/*
+  Checks if this table map event should be processed or not. First
+  it checks the filtering rules, and then looks for duplicate identifiers
+  in the existing list of rli->tables_to_lock.
+
+  It checks that there hasn't been any corruption by verifying that there
+  are no duplicate entries with different properties.
+
+  In some cases, some binary logs could get corrupted, showing several
+  tables mapped to the same table_id, 0 (see: BUG#56226). Thus we do this
+  early sanity check for such cases and avoid that the server crashes 
+  later.
+
+  In some corner cases, the master logs duplicate table map events, i.e.,
+  same id, same database name, same table name (see: BUG#37137). This is
+  different from the above as it's the same table that is mapped again 
+  to the same identifier. Thus we cannot just check for same ids and 
+  assume that the event is corrupted we need to check every property. 
+
+  NOTE: in the event that BUG#37137 ever gets fixed, this extra check 
+        will still be valid because we would need to support old binary 
+        logs anyway.
+
+  @param rli The relay log info reference.
+  @param table_list A list element containing the table to check against.
+  @return OK_TO_PROCESS 
+            if there was no identifier already in rli->tables_to_lock 
+            
+          FILTERED_OUT
+            if the event is filtered according to the filtering rules
+
+          SAME_ID_MAPPING_DIFFERENT_TABLE 
+            if the same identifier already maps a different table in 
+            rli->tables_to_lock
+
+          SAME_ID_MAPPING_SAME_TABLE 
+            if the same identifier already maps the same table in 
+            rli->tables_to_lock.
+*/
+static enum_tbl_map_status
+check_table_map(Relay_log_info const *rli, RPL_TABLE_LIST *table_list)
+{
+  DBUG_ENTER("check_table_map");
+  enum_tbl_map_status res= OK_TO_PROCESS;
+
+  if (rli->info_thd->slave_thread /* filtering is for slave only */ &&
+      (!rpl_filter->db_ok(table_list->db) ||
+       (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
+    res= FILTERED_OUT;
+  else
+  {
+    for(RPL_TABLE_LIST *ptr= static_cast<RPL_TABLE_LIST*>(rli->tables_to_lock);
+        ptr; 
+        ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_local))
+    {
+      if (ptr->table_id == table_list->table_id)
+      {
+
+        if (strcmp(ptr->db, table_list->db) || 
+            strcmp(ptr->alias, table_list->table_name) || 
+            ptr->lock_type != TL_WRITE) // the ::do_apply_event always sets TL_WRITE
+          res= SAME_ID_MAPPING_DIFFERENT_TABLE;
+        else
+          res= SAME_ID_MAPPING_SAME_TABLE;
+
+        break;
+      }
+    }
+  }
+
+  DBUG_PRINT("debug", ("check of table map ended up with: %u", res));
+
+  DBUG_RETURN(res);
+}
+
 int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 {
   RPL_TABLE_LIST *table_list;
@@ -8881,18 +8993,11 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                              tname_mem, strlen(tname_mem),
                              tname_mem, TL_WRITE);
 
-  table_list->table_id= m_table_id;
+  table_list->table_id= DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id);
   table_list->updating= 1;
-
-  int error= 0;
-
-  if (rli->info_thd->slave_thread /* filtering is for slave only */ &&
-      (!rpl_filter->db_ok(table_list->db) ||
-       (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
-  {
-    my_free(memory);
-  }
-  else
+  DBUG_PRINT("debug", ("table: %s is mapped to %u", table_list->table_name, table_list->table_id));
+  enum_tbl_map_status tblmap_status= check_table_map(rli, table_list);
+  if (tblmap_status == OK_TO_PROCESS)
   {
     DBUG_ASSERT(thd->lex->query_tables != table_list);
 
@@ -8922,8 +9027,48 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
     const_cast<Relay_log_info*>(rli)->tables_to_lock_count++;
     /* 'memory' is freed in clear_tables_to_lock */
   }
+  else  // FILTERED_OUT, SAME_ID_MAPPING_*
+  {
+    /*
+      If mapped already but with different properties, we raise an
+      error.
+      If mapped already but with same properties we skip the event.
+      If filtered out we skip the event.
 
-  DBUG_RETURN(error);
+      In all three cases, we need to free the memory previously 
+      allocated.
+     */
+    if (tblmap_status == SAME_ID_MAPPING_DIFFERENT_TABLE)
+    {
+      /*
+        Something bad has happened. We need to stop the slave as strange things
+        could happen if we proceed: slave crash, wrong table being updated, ...
+        As a consequence we push an error in this case.
+       */
+
+      char buf[256];
+
+      my_snprintf(buf, sizeof(buf), 
+                  "Found table map event mapping table id %u which "
+                  "was already mapped but with different settings.",
+                  table_list->table_id);
+
+      if (thd->slave_thread)
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+                    ER(ER_SLAVE_FATAL_ERROR), buf);
+      else
+        /* 
+          For the cases in which a 'BINLOG' statement is set to 
+          execute in a user session 
+         */
+        my_printf_error(ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR), 
+                        MYF(0), buf);
+    } 
+    
+    my_free(memory);
+  }
+
+  DBUG_RETURN(tblmap_status == SAME_ID_MAPPING_DIFFERENT_TABLE);
 }
 
 Log_event::enum_skip_reason
@@ -10101,7 +10246,8 @@ TABLE_SCAN:
   restart_ha_rnd_next:
       error= table->file->ha_rnd_next(table->record[0]);
 
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      if (error)
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
 
       case 0:

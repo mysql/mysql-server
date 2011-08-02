@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -103,6 +103,7 @@ SELECT EVENT_ID FROM performance_schema.events_waits_current
 WHERE 1 = 2;
 CREATE EVENT t_ps_event
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+ON COMPLETION PRESERVE
 DO INSERT INTO t_event
    SELECT DISTINCT EVENT_ID
    FROM performance_schema.events_waits_current
@@ -174,7 +175,7 @@ delimiter ;|
 SELECT t_ps_func(connection_id()) = @p_id;
 
 # We might reach this point too early which means the event scheduler has not
-# execute our "t_ps_event". Therefore we poll till the record was inserted
+# executed our "t_ps_event". Therefore we poll till the record was inserted
 # and run our test statement afterwards.
 let $wait_timeout= 20;
 let $wait_condition= SELECT COUNT(*) = 1 FROM t_event;
@@ -185,6 +186,7 @@ SELECT * FROM t_event;
 # Clean up
 DROP PROCEDURE t_ps_proc;
 DROP FUNCTION t_ps_func;
+DROP EVENT t_ps_event;
 DROP TABLE t1;
 DROP TABLE t_event;
 

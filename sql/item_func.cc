@@ -392,7 +392,7 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
   See comments in Item_cmp_func::split_sum_func()
 */
 
-void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
+void Item_func::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                                List<Item> &fields)
 {
   Item **arg, **arg_end;
@@ -405,11 +405,13 @@ void Item_func::update_used_tables()
 {
   used_tables_cache=0;
   const_item_cache=1;
+  with_subselect= false;
   for (uint i=0 ; i < arg_count ; i++)
   {
     args[i]->update_used_tables();
     used_tables_cache|=args[i]->used_tables();
     const_item_cache&=args[i]->const_item();
+    with_subselect|= args[i]->has_subquery();
   }
 }
 
@@ -650,7 +652,7 @@ void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
   if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_DIVISION_BY_ZERO,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_DIVISION_BY_ZERO,
                  ER(ER_DIVISION_BY_ZERO));
   null_value= 1;
 }
@@ -972,7 +974,7 @@ longlong Item_func_signed::val_int_from_str(int *error)
   if (*error > 0 || end != start+ length)
   {
     ErrConvString err(res);
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
                         err.ptr());
@@ -997,7 +999,7 @@ longlong Item_func_signed::val_int()
   value= val_int_from_str(&error);
   if (value < 0 && error == 0)
   {
-    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                  "Cast to signed converted positive out-of-range integer to "
                  "it's negative complement");
   }
@@ -1038,7 +1040,7 @@ longlong Item_func_unsigned::val_int()
 
   value= val_int_from_str(&error);
   if (error < 0)
-    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                  "Cast to unsigned converted negative integer to it's "
                  "positive complement");
   return value;
@@ -1106,7 +1108,7 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
   return dec;
 
 err:
-  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+  push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
                       name, 1L);
@@ -1619,8 +1621,13 @@ longlong Item_func_int_div::val_int()
       return 0;
     }
 
+    my_decimal truncated;
+    const bool do_truncate= true;
+    if (my_decimal_round(E_DEC_FATAL_ERROR, &tmp, 0, do_truncate, &truncated))
+      DBUG_ASSERT(false);
+
     longlong res;
-    if (my_decimal2int(E_DEC_FATAL_ERROR, &tmp, unsigned_flag, &res) &
+    if (my_decimal2int(E_DEC_FATAL_ERROR, &truncated, unsigned_flag, &res) &
         E_DEC_OVERFLOW)
       raise_integer_overflow();
     return res;
@@ -4052,7 +4059,7 @@ longlong Item_func_benchmark::val_int()
     {
       char buff[22];
       llstr(((longlong) loop_count), buff);
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
                           "count", buff, "benchmark");
     }
@@ -4973,8 +4980,9 @@ longlong Item_func_get_user_var::val_int()
 
 */
 
-int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                        LEX_STRING &name, user_var_entry **out_entry)
+static int
+get_var_with_binlog(THD *thd, enum_sql_command sql_command,
+                    LEX_STRING &name, user_var_entry **out_entry)
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
@@ -5104,7 +5112,7 @@ void Item_func_get_user_var::fix_length_and_dec()
     'var_entry' is NULL only if there occured an error during the call to
     get_var_with_binlog.
   */
-  if (var_entry)
+  if (!error && var_entry)
   {
     m_cached_result_type= var_entry->type;
     unsigned_flag= var_entry->unsigned_flag;
@@ -5311,13 +5319,14 @@ void Item_func_get_system_var::fix_length_and_dec()
     case SHOW_LONG:
     case SHOW_INT:
     case SHOW_HA_ROWS:
+    case SHOW_LONGLONG:
       unsigned_flag= TRUE;
       collation.set_numeric();
       fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
       decimals=0;
       break;
-    case SHOW_LONGLONG:
-      unsigned_flag= TRUE;
+    case SHOW_SIGNED_LONG:
+      unsigned_flag= FALSE;
       collation.set_numeric();
       fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
       decimals=0;
@@ -5384,6 +5393,7 @@ enum Item_result Item_func_get_system_var::result_type() const
     case SHOW_MY_BOOL:
     case SHOW_INT:
     case SHOW_LONG:
+    case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
     case SHOW_HA_ROWS:
       return INT_RESULT;
@@ -5408,6 +5418,7 @@ enum_field_types Item_func_get_system_var::field_type() const
     case SHOW_MY_BOOL:
     case SHOW_INT:
     case SHOW_LONG:
+    case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
     case SHOW_HA_ROWS:
       return MYSQL_TYPE_LONGLONG;
@@ -5479,6 +5490,7 @@ longlong Item_func_get_system_var::val_int()
   {
     case SHOW_INT:      get_sys_var_safe (uint);
     case SHOW_LONG:     get_sys_var_safe (ulong);
+    case SHOW_SIGNED_LONG: get_sys_var_safe (long);
     case SHOW_LONGLONG: get_sys_var_safe (ulonglong);
     case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
     case SHOW_BOOL:     get_sys_var_safe (bool);
@@ -5582,6 +5594,7 @@ String* Item_func_get_system_var::val_str(String* str)
 
     case SHOW_INT:
     case SHOW_LONG:
+    case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
     case SHOW_HA_ROWS:
     case SHOW_BOOL:
@@ -5674,6 +5687,7 @@ double Item_func_get_system_var::val_real()
       }
     case SHOW_INT:
     case SHOW_LONG:
+    case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
     case SHOW_HA_ROWS:
     case SHOW_BOOL:

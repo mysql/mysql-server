@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -129,6 +129,7 @@ extern my_bool opt_enable_shared_memory;
 extern char *default_tz_name;
 extern Time_zone *default_tz;
 extern char *default_storage_engine;
+extern char *default_tmp_storage_engine;
 extern bool opt_endinfo, using_udf_functions;
 extern my_bool locked_in_memory;
 extern bool opt_using_transactions;
@@ -353,6 +354,7 @@ extern PSI_stage_info stage_logging_slow_query;
 extern PSI_stage_info stage_making_temp_file_append_before_load_data;
 extern PSI_stage_info stage_making_temp_file_create_before_load_data;
 extern PSI_stage_info stage_manage_keys;
+extern PSI_stage_info stage_master_has_sent_all_binlog_to_slave;
 extern PSI_stage_info stage_opening_tables;
 extern PSI_stage_info stage_optimizing;
 extern PSI_stage_info stage_preparing;
@@ -372,6 +374,7 @@ extern PSI_stage_info stage_sending_binlog_event_to_slave;
 extern PSI_stage_info stage_sending_cached_result_to_client;
 extern PSI_stage_info stage_sending_data;
 extern PSI_stage_info stage_setup;
+extern PSI_stage_info stage_slave_has_read_all_relay_log;
 extern PSI_stage_info stage_sorting_for_group;
 extern PSI_stage_info stage_sorting_for_order;
 extern PSI_stage_info stage_sorting_result;
@@ -395,8 +398,13 @@ extern PSI_stage_info stage_waiting_for_handler_open;
 extern PSI_stage_info stage_waiting_for_insert;
 extern PSI_stage_info stage_waiting_for_master_to_send_event;
 extern PSI_stage_info stage_waiting_for_master_update;
+extern PSI_stage_info stage_waiting_for_relay_log_space;
 extern PSI_stage_info stage_waiting_for_slave_mutex_on_exit;
+extern PSI_stage_info stage_waiting_for_slave_thread_to_start;
+extern PSI_stage_info stage_waiting_for_query_cache_lock;
+extern PSI_stage_info stage_waiting_for_table_flush;
 extern PSI_stage_info stage_waiting_for_the_next_event_in_relay_log;
+extern PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position;
 extern PSI_stage_info stage_waiting_to_finalize_termination;
 extern PSI_stage_info stage_waiting_to_get_readlock;
 
@@ -547,7 +555,9 @@ enum enum_query_type
   /// In utf8.
   QT_TO_SYSTEM_CHARSET= (1 << 0),
   /// Without character set introducers.
-  QT_WITHOUT_INTRODUCERS= (1 << 1)
+  QT_WITHOUT_INTRODUCERS= (1 << 1),
+  /// When printing a SELECT, add its number (select_lex->number)
+  QT_SHOW_SELECT_NUMBER= (1 << 2)
 };
 
 /* query_id */

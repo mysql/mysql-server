@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -54,11 +54,11 @@ SET(BOOTSTRAP_COMMAND
   --no-defaults 
   ${CONSOLE}
   --bootstrap
-  --default-storage-engine=myisam
   --lc-messages-dir=${CMAKE_CURRENT_BINARY_DIR}/share
   --basedir=.
   --datadir=.
   --default-storage-engine=MyISAM
+  --default-tmp-storage-engine=MyISAM
   --loose-skip-innodb
   --loose-skip-ndbcluster
   --max_allowed_packet=8M
