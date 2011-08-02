@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,14 +17,92 @@
 #define HOSTNAME_INCLUDED
 
 #include "my_global.h"                          /* uint */
+#include "hash_filo.h"
+
+#include <netdb.h> /* INET6_ADDRSTRLEN */
+
+struct Host_errors
+{
+public:
+  Host_errors();
+  ~Host_errors();
+
+  void reset();
+  void aggregate(const Host_errors *errors);
+
+  /** Number of blocking errors. */
+  uint get_blocking_errors();
+
+  /** Number of errors from getnameinfo(). */
+  uint m_nameinfo_errors;
+  /** Number of errors from is_hostname_valid(). */
+  uint m_format_errors;
+  /** Number of errors from getaddrinfo(). */
+  uint m_addrinfo_errors;
+  /** Number of errors from Forward-confirmed reverse DNS checks. */
+  uint m_FCrDNS_errors;
+  /** Number of errors from authentication. */
+  uint m_handshake_errors;
+  /** Number of errors from host grants. */
+  uint m_host_acl_errors;
+};
+
+/** Size of IP address string in the hash cache. */
+#define HOST_ENTRY_KEY_SIZE INET6_ADDRSTRLEN
+
+/**
+  An entry in the hostname hash table cache.
+
+  Host name cache does two things:
+    - caches host names to save DNS look ups;
+    - counts errors from IP.
+
+  Host name can be empty (that means DNS look up failed),
+  but errors still are counted.
+*/
+class Host_entry : public hash_filo_element
+{
+public:
+  Host_entry *next()
+  { return (Host_entry*) hash_filo_element::next(); }
+
+  /**
+    Client IP address. This is the key used with the hash table.
+
+    The client IP address is always expressed in IPv6, even when the
+    network IPv6 stack is not present.
+
+    This IP address is never used to connect to a socket.
+  */
+  char ip_key[HOST_ENTRY_KEY_SIZE];
+
+  /**
+    One of the host names for the IP address. May be a zero length string.
+  */
+  char m_hostname[HOSTNAME_LENGTH + 1];
+  /** Length in bytes of @c m_hostname. */
+  uint m_hostname_length;
+  /* Flag that indicate if the hostname was validated. */
+  bool m_host_validated;
+  /** Error statistics. */
+  Host_errors m_errors;
+};
+
+/** The size of the host_cache. */
+extern ulong host_cache_size;
 
 bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                     const char *ip_string,
                     char **hostname, uint *connect_errors);
-void inc_host_errors(const char *ip_string);
+void inc_host_errors(const char *ip_string, const Host_errors *errors);
 void reset_host_errors(const char *ip_string);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);
+uint hostname_cache_size();
+void hostname_cache_resize(uint size);
+void hostname_cache_lock();
+void hostname_cache_unlock();
+Host_entry *hostname_cache_first();
 
 #endif /* HOSTNAME_INCLUDED */

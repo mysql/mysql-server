@@ -27,6 +27,7 @@ events_waits_summary_global_by_event_name
 file_instances
 file_summary_by_event_name
 file_summary_by_instance
+host_cache
 mutex_instances
 objects_summary_global_by_type
 performance_timers
@@ -411,6 +412,19 @@ file_summary_by_instance	CREATE TABLE `file_summary_by_instance` (
   `COUNT_WRITE` bigint(20) unsigned NOT NULL,
   `SUM_NUMBER_OF_BYTES_READ` bigint(20) NOT NULL,
   `SUM_NUMBER_OF_BYTES_WRITE` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table host_cache;
+Table	Create Table
+host_cache	CREATE TABLE `host_cache` (
+  `IP` varchar(64) NOT NULL,
+  `HOST` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `SUM_BLOCKING_ERRORS` bigint(20) NOT NULL,
+  `COUNT_NAMEINFO_ERRORS` bigint(20) NOT NULL,
+  `COUNT_FORMAT_ERRORS` bigint(20) NOT NULL,
+  `COUNT_ADDRINFO_ERRORS` bigint(20) NOT NULL,
+  `COUNT_FCRDNS_ERRORS` bigint(20) NOT NULL,
+  `COUNT_HOST_ACL_ERRORS` bigint(20) NOT NULL,
+  `COUNT_USER_ACL_ERRORS` bigint(20) NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table mutex_instances;
 Table	Create Table

@@ -61,6 +61,7 @@ table_ews_global_by_event_name.h
 table_file_instances.h
 table_file_summary.h
 table_helper.h
+table_host_cache.h
 table_os_global_by_type.h
 table_performance_timers.h
 table_setup_actors.h
@@ -106,6 +107,7 @@ table_ews_global_by_event_name.cc
 table_file_instances.cc
 table_file_summary.cc
 table_helper.cc
+table_host_cache.cc
 table_os_global_by_type.cc
 table_performance_timers.cc
 table_setup_actors.cc

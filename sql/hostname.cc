@@ -26,6 +26,10 @@
 
 #include "sql_priv.h"
 #include "hostname.h"
+#include "my_global.h"
+#ifndef __WIN__
+#include <netdb.h>        // getservbyname, servent
+#endif
 #include "hash_filo.h"
 #include <m_ctype.h>
 #include "log.h"                                // sql_print_warning,
@@ -45,52 +49,52 @@ extern "C" {					// Because of SCO 3.2V4.2
 }
 #endif
 
-/*
-  HOST_ENTRY_KEY_SIZE -- size of IP address string in the hash cache.
-*/
+Host_errors::Host_errors()
+: m_nameinfo_errors(0), m_format_errors(0),
+  m_addrinfo_errors(0), m_FCrDNS_errors(0)
+{}
+    
+Host_errors::~Host_errors()
+{}
 
-#define HOST_ENTRY_KEY_SIZE INET6_ADDRSTRLEN
-
-/**
-  An entry in the hostname hash table cache.
-
-  Host name cache does two things:
-    - caches host names to save DNS look ups;
-    - counts connect errors from IP.
-
-  Host name can be NULL (that means DNS look up failed), but connect errors
-  still are counted.
-*/
-
-class Host_entry :public hash_filo_element
+void Host_errors::reset()
 {
-public:
-  /**
-    Client IP address. This is the key used with the hash table.
+  m_nameinfo_errors= 0;
+  m_format_errors= 0;
+  m_addrinfo_errors= 0;
+  m_FCrDNS_errors= 0;
+}
 
-    The client IP address is always expressed in IPv6, even when the
-    network IPv6 stack is not present.
+uint Host_errors::get_blocking_errors()
+{
+  // FIXME
+  return m_nameinfo_errors;
+}
 
-    This IP address is never used to connect to a socket.
-  */
-  char ip_key[HOST_ENTRY_KEY_SIZE];
-
-  /**
-    Number of errors during handshake phase from the IP address.
-  */
-  uint connect_errors;
-
-  /**
-    One of the host names for the IP address. May be NULL.
-  */
-  const char *hostname;
-};
+void Host_errors::aggregate(const Host_errors *errors)
+{
+  m_nameinfo_errors+= errors->m_nameinfo_errors;
+  m_format_errors+= errors->m_format_errors;
+  m_addrinfo_errors+= errors->m_addrinfo_errors;
+  m_FCrDNS_errors+= errors->m_FCrDNS_errors;
+}
 
 static hash_filo *hostname_cache;
+ulong host_cache_size;
 
 void hostname_cache_refresh()
 {
   hostname_cache->clear();
+}
+
+uint hostname_cache_size()
+{
+  return hostname_cache->size();
+}
+
+void hostname_cache_resize(uint size)
+{
+  hostname_cache->resize(size);
 }
 
 bool hostname_cache_init()
@@ -115,6 +119,16 @@ void hostname_cache_free()
   hostname_cache= NULL;
 }
 
+void hostname_cache_lock()
+{
+  mysql_mutex_lock(&hostname_cache->lock);
+}
+
+void hostname_cache_unlock()
+{
+  mysql_mutex_unlock(&hostname_cache->lock);
+}
+
 static void prepare_hostname_cache_key(const char *ip_string,
                                        char *ip_key)
 {
@@ -125,65 +139,83 @@ static void prepare_hostname_cache_key(const char *ip_string,
   memcpy(ip_key, ip_string, ip_string_length);
 }
 
+Host_entry *hostname_cache_first()
+{ return (Host_entry *) hostname_cache->first(); }
+
 static inline Host_entry *hostname_cache_search(const char *ip_key)
 {
   return (Host_entry *) hostname_cache->search((uchar *) ip_key, 0);
 }
 
-static bool add_hostname_impl(const char *ip_key, const char *hostname)
+static bool add_hostname_impl(const char *ip_key, const char *hostname,
+                              bool validated, Host_errors *errors)
 {
-  if (hostname_cache_search(ip_key))
-    return FALSE;
+  Host_entry *entry;
+  bool duplicate;
 
-  size_t hostname_size= hostname ? strlen(hostname) + 1 : 0;
+  entry= hostname_cache_search(ip_key);
 
-  Host_entry *entry= (Host_entry *) malloc(sizeof (Host_entry) + hostname_size);
-
-  if (!entry)
-    return TRUE;
-
-  char *hostname_copy;
-
-  memcpy(&entry->ip_key, ip_key, HOST_ENTRY_KEY_SIZE);
-
-  if (hostname_size)
+  if (likely(entry == NULL))
   {
-    hostname_copy= (char *) (entry + 1);
-    memcpy(hostname_copy, hostname, hostname_size);
+    entry= (Host_entry *) malloc(sizeof (Host_entry));
+    if (entry == NULL)
+      return TRUE;
 
-    DBUG_PRINT("info", ("Adding '%s' -> '%s' to the hostname cache...'",
-                        (const char *) ip_key,
-                        (const char *) hostname_copy));
+    duplicate= false;
+    memcpy(&entry->ip_key, ip_key, HOST_ENTRY_KEY_SIZE);
+    entry->m_errors.reset();
   }
   else
   {
-    hostname_copy= NULL;
+    duplicate= true;
+  }
 
-    DBUG_PRINT("info", ("Adding '%s' -> NULL to the hostname cache...'",
+  if (hostname != NULL)
+  {
+    uint len= strlen(hostname);
+    if (len > sizeof(entry->m_hostname) - 1)
+      len= sizeof(entry->m_hostname) - 1;
+    memcpy(entry->m_hostname, hostname, len);
+    entry->m_hostname[len]= '\0';
+    entry->m_hostname_length= len;
+
+    DBUG_PRINT("info", ("Adding/Updating '%s' -> '%s' to the hostname cache...'",
+                        (const char *) ip_key,
+                        (const char *) entry->m_hostname));
+  }
+  else
+  {
+    entry->m_hostname_length= 0;
+
+    DBUG_PRINT("info", ("Adding '%s' -> empty to the hostname cache...'",
                         (const char *) ip_key));
   }
 
-  entry->hostname= hostname_copy;
-  entry->connect_errors= 0;
+  entry->m_host_validated= validated;
+  entry->m_errors.aggregate(errors);
 
-  return hostname_cache->add(entry);
+  if (! duplicate)
+    hostname_cache->add(entry);
+
+  return FALSE;
 }
 
-static bool add_hostname(const char *ip_key, const char *hostname)
+static bool add_hostname(const char *ip_key, const char *hostname,
+                         bool validated, Host_errors *errors)
 {
   if (specialflag & SPECIAL_NO_HOST_CACHE)
     return FALSE;
 
   mysql_mutex_lock(&hostname_cache->lock);
 
-  bool err_status= add_hostname_impl(ip_key, hostname);
+  bool err_status= add_hostname_impl(ip_key, hostname, validated, errors);
 
   mysql_mutex_unlock(&hostname_cache->lock);
 
   return err_status;
 }
 
-void inc_host_errors(const char *ip_string)
+void inc_host_errors(const char *ip_string, const Host_errors *errors)
 {
   if (!ip_string)
     return;
@@ -196,7 +228,7 @@ void inc_host_errors(const char *ip_string)
   Host_entry *entry= hostname_cache_search(ip_key);
 
   if (entry)
-    entry->connect_errors++;
+    entry->m_errors.aggregate(errors);
 
   mysql_mutex_unlock(&hostname_cache->lock);
 }
@@ -215,7 +247,7 @@ void reset_host_errors(const char *ip_string)
   Host_entry *entry= hostname_cache_search(ip_key);
 
   if (entry)
-    entry->connect_errors= 0;
+    entry->m_errors.reset();
 
   mysql_mutex_unlock(&hostname_cache->lock);
 }
@@ -297,6 +329,7 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   const struct sockaddr *ip= (const sockaddr *) ip_storage;
   int err_code;
   bool err_status;
+  Host_errors errors;
 
   DBUG_ENTER("ip_to_hostname");
   DBUG_PRINT("info", ("IP address: '%s'; family: %d.",
@@ -330,21 +363,24 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
     if (entry)
     {
-      *connect_errors= entry->connect_errors;
+      *connect_errors= entry->m_errors.get_blocking_errors();
       *hostname= NULL;
 
-      if (entry->hostname)
-        *hostname= my_strdup(entry->hostname, MYF(0));
+      if (entry->m_host_validated)
+      {
+        if (entry->m_hostname_length)
+          *hostname= my_strdup(entry->m_hostname, MYF(0));
 
-      DBUG_PRINT("info",("IP (%s) has been found in the cache. "
-                         "Hostname: '%s'; connect_errors: %d",
-                         (const char *) ip_key,
-                         (const char *) (*hostname? *hostname : "null"),
-                         (int) *connect_errors));
+        DBUG_PRINT("info",("IP (%s) has been found in the cache. "
+                           "Hostname: '%s'; connect_errors: %d",
+                           (const char *) ip_key,
+                           (const char *) (*hostname? *hostname : "null"),
+                           (int) *connect_errors));
 
-      mysql_mutex_unlock(&hostname_cache->lock);
+        mysql_mutex_unlock(&hostname_cache->lock);
 
-      DBUG_RETURN(FALSE);
+        DBUG_RETURN(FALSE);
+      }
     }
 
     mysql_mutex_unlock(&hostname_cache->lock);
@@ -362,35 +398,47 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   err_code= vio_getnameinfo(ip, hostname_buffer, NI_MAXHOST, NULL, 0,
                             NI_NAMEREQD);
 
+  if (err_code == EAI_NONAME)
+  {
+    /*
+      There is no reverse address mapping for the IP address. A host name
+      can not be resolved.
+    */
+
+    DBUG_PRINT("error", ("IP address '%s' could not be resolved: "
+                         "no reverse address mapping.",
+                         (const char *) ip_key));
+
+    sql_print_warning("IP address '%s' could not be resolved: "
+                      "no reverse address mapping.",
+                      (const char *) ip_key);
+
+    (void) add_hostname(ip_key, NULL, true, &errors);
+
+    *hostname= NULL;
+    *connect_errors= 0; /* New IP added to the cache. */
+
+    /* This is a success, regardless of whether a record was added or not in the cache. */
+    DBUG_RETURN(FALSE);
+  }
+
   if (err_code)
   {
-    // NOTE: gai_strerror() returns a string ending by a dot.
-
-    DBUG_PRINT("error", ("IP address '%s' could not be resolved: %s",
+    DBUG_PRINT("error", ("IP address '%s' could not be resolved: "
+                         "getnameinfo() returned %d.",
                          (const char *) ip_key,
-                         (const char *) gai_strerror(err_code)));
+                         (int) err_code));
 
-    sql_print_warning("IP address '%s' could not be resolved: %s",
+    sql_print_warning("IP address '%s' could not be resolved: "
+                      "getnameinfo() returned error (code: %d).",
                       (const char *) ip_key,
-                      (const char *) gai_strerror(err_code));
+                      (int) err_code);
 
-    if (vio_is_no_name_error(err_code))
-    {
-      /*
-        The no-name error means that there is no reverse address mapping
-        for the IP address. A host name can not be resolved.
+    /* Count nameinfo errors for this IP */
+    errors.m_nameinfo_errors= 1;
+    (void) add_hostname(ip_key, NULL, false, &errors);
 
-        If it is not the no-name error, we should not cache the hostname
-        (or rather its absence), because the failure might be transient.
-      */
-
-      add_hostname(ip_key, NULL);
-
-      *hostname= NULL;
-      *connect_errors= 0; /* New IP added to the cache. */
-    }
-
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(TRUE);
   }
 
   DBUG_PRINT("info", ("IP '%s' resolved to '%s'.",
@@ -426,7 +474,8 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) ip_key,
                       (const char *) hostname_buffer);
 
-    err_status= add_hostname(ip_key, NULL);
+    errors.m_format_errors= 1;
+    err_status= add_hostname(ip_key, NULL, false, &errors);
 
     *hostname= NULL;
     *connect_errors= 0; /* New IP added to the cache. */
@@ -458,7 +507,8 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
       indefinitely.
     */
 
-    err_status= add_hostname(ip_key, NULL);
+    errors.m_addrinfo_errors= 1;
+    err_status= add_hostname(ip_key, NULL, false, &errors);
 
     *hostname= NULL;
     *connect_errors= 0; /* New IP added to the cache. */
@@ -540,14 +590,15 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   if (*hostname)
   {
-    err_status= add_hostname(ip_key, *hostname);
+    err_status= add_hostname(ip_key, *hostname, true, &errors);
     *connect_errors= 0;
   }
   else
   {
     DBUG_PRINT("error",("Couldn't verify hostname with getaddrinfo()."));
 
-    err_status= add_hostname(ip_key, NULL);
+    errors.m_FCrDNS_errors= 1;
+    err_status= add_hostname(ip_key, NULL, false, &errors);
     *hostname= NULL;
     *connect_errors= 0;
   }
