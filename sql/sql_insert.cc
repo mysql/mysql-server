@@ -631,7 +631,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   lock_type= table_list->lock_type;
 
   thd_proc_info(thd, "init");
-  thd->used_tables=0;
+  thd->lex->used_tables=0;
   values= its++;
   value_count= values->elements;
 
@@ -779,7 +779,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     else
     {
-      if (thd->used_tables)			// Column used in values()
+      if (thd->lex->used_tables)		      // Column used in values()
 	restore_record(table,s->default_values);	// Get empty record
       else
       {
