@@ -550,7 +550,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
 
     if (!ref->fixed && ref->fix_fields(thd, 0))
       return TRUE;
-    thd->used_tables|= item->used_tables();
+    thd->lex->used_tables|= item->used_tables();
   }
   return false;
 }
@@ -2742,7 +2742,7 @@ JOIN::optimize()
 
     if (exec_tmp_table1->distinct)
     {
-      table_map used_tables= thd->used_tables;
+      table_map used_tables= thd->lex->used_tables;
       JOIN_TAB *last_join_tab= join_tab+tables-1;
       do
       {
@@ -3763,7 +3763,7 @@ mysql_select(THD *thd,
     if (!(join= new JOIN(thd, fields, select_options, result)))
 	DBUG_RETURN(TRUE); /* purecov: inspected */
     THD_STAGE_INFO(thd, stage_init);
-    thd->used_tables=0;                         // Updated by setup_fields
+    thd->lex->used_tables=0;                         // Updated by setup_fields
     err= join->prepare(tables, wild_num,
                        conds, og_num, order, group, having, proc_param,
                        select_lex, unit);
