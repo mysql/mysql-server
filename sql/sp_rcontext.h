@@ -36,23 +36,23 @@ class Server_side_cursor;
 #define SP_HANDLER_CONTINUE  2
 #define SP_HANDLER_UNDO      3
 
-typedef struct
+struct sp_handler
 {
   /** Condition caught by this HANDLER. */
-  struct sp_cond_type *cond;
+  sp_cond_type *cond;
   /** Location (instruction pointer) of the handler code. */
   uint handler;
   /** Handler type (EXIT, CONTINUE). */
   int type;
-} sp_handler_t;
+};
 
-typedef struct
+struct sp_active_handler
 {
   /** Instruction pointer of the active handler. */
   uint ip;
   /** Handler index of the active handler. */
   uint index;
-} sp_active_handler_t;
+};
 
 /*
   This class is a runtime context of a Stored Routine. It is used in an
@@ -131,7 +131,7 @@ class sp_rcontext : public Sql_alloc
     SQL handlers support.
   */
 
-  void push_handler(struct sp_cond_type *cond, uint h, int type);
+  void push_handler(sp_cond_type *cond, uint h, int type);
 
   void pop_handlers(uint count);
 
@@ -222,7 +222,7 @@ private:
   */
   bool in_sub_stmt;
 
-  sp_handler_t *m_handler;      // Visible handlers
+  sp_handler *m_handler;      // Visible handlers
 
   /**
     SQL conditions caught by each handler.
@@ -234,7 +234,7 @@ private:
   uint *m_hstack;               // Return stack for continue handlers
   uint m_hsp;                   // Stack pointer for m_hstack
   /** Active handler stack. */
-  sp_active_handler_t *m_in_handler;
+  sp_active_handler *m_in_handler;
   uint m_ihsp;                  // Stack pointer for m_in_handler
   int m_hfound;                 // Set by find_handler; -1 if not found
 
@@ -263,12 +263,12 @@ private:
 
 class Select_fetch_into_spvars: public select_result_interceptor
 {
-  List<struct sp_variable> *spvar_list;
+  List<sp_variable> *spvar_list;
   uint field_count;
 public:
   Select_fetch_into_spvars() {}               /* Remove gcc warning */
   uint get_field_count() { return field_count; }
-  void set_spvar_list(List<struct sp_variable> *vars) { spvar_list= vars; }
+  void set_spvar_list(List<sp_variable> *vars) { spvar_list= vars; }
 
   virtual bool send_eof() { return FALSE; }
   virtual bool send_data(List<Item> &items);
@@ -305,7 +305,7 @@ public:
   }
 
   int
-  fetch(THD *, List<struct sp_variable> *vars);
+  fetch(THD *, List<sp_variable> *vars);
 
   inline sp_instr_cpush *
   get_instr()

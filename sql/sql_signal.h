@@ -28,7 +28,7 @@ protected:
     @param cond the condition signaled if any, or NULL.
     @param set collection of signal condition item assignments.
   */
-  Sql_cmd_common_signal(const sp_cond_type_t *cond,
+  Sql_cmd_common_signal(const sp_cond_type *cond,
                         const Set_signal_information& set)
     : Sql_cmd(),
       m_cond(cond),
@@ -79,7 +79,7 @@ protected:
     The condition to signal or resignal.
     This member is optional and can be NULL (RESIGNAL).
   */
-  const sp_cond_type_t *m_cond;
+  const sp_cond_type *m_cond;
 
   /**
     Collection of 'SET item = value' assignments in the
@@ -99,7 +99,7 @@ public:
     @param cond the SQL condition to signal (required).
     @param set the collection of signal informations to signal.
   */
-  Sql_cmd_signal(const sp_cond_type_t *cond,
+  Sql_cmd_signal(const sp_cond_type *cond,
                  const Set_signal_information& set)
     : Sql_cmd_common_signal(cond, set)
   {}
@@ -126,7 +126,7 @@ public:
     @param cond the SQL condition to resignal (optional, may be NULL).
     @param set the collection of signal informations to resignal.
   */
-  Sql_cmd_resignal(const sp_cond_type_t *cond,
+  Sql_cmd_resignal(const sp_cond_type *cond,
                    const Set_signal_information& set)
     : Sql_cmd_common_signal(cond, set)
   {}

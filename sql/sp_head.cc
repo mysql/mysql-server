@@ -2126,7 +2126,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!arg_item)
         break;
 
-      sp_variable_t *spvar= m_pcont->find_variable(i);
+      sp_variable *spvar= m_pcont->find_variable(i);
 
       if (!spvar)
         continue;
@@ -2248,7 +2248,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!arg_item)
         break;
 
-      sp_variable_t *spvar= m_pcont->find_variable(i);
+      sp_variable *spvar= m_pcont->find_variable(i);
 
       if (spvar->mode == sp_param_in)
         continue;
@@ -2408,7 +2408,7 @@ sp_head::restore_lex(THD *thd)
   Put the instruction on the backpatch list, associated with the label.
 */
 int
-sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
+sp_head::push_backpatch(sp_instr *i, sp_label *lab)
 {
   bp_t *bp= (bp_t *)sql_alloc(sizeof(bp_t));
 
@@ -2424,7 +2424,7 @@ sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
   the current position.
 */
 void
-sp_head::backpatch(sp_label_t *lab)
+sp_head::backpatch(sp_label *lab)
 {
   bp_t *bp;
   uint dest= instructions();
@@ -3273,7 +3273,7 @@ sp_instr_set::print(String *str)
 {
   /* set name@offset ... */
   int rsrv = SP_INSTR_UINT_MAXLEN+6;
-  sp_variable_t *var = m_ctx->find_variable(m_offset);
+  sp_variable *var = m_ctx->find_variable(m_offset);
 
   /* 'var' should always be non-null, but just in case... */
   if (var)
@@ -3544,8 +3544,8 @@ int
 sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hpush_jump::execute");
-  List_iterator_fast<sp_cond_type_t> li(m_cond);
-  sp_cond_type_t *p;
+  List_iterator_fast<sp_cond_type> li(m_cond);
+  sp_cond_type *p;
 
   while ((p= li++))
     thd->spcont->push_handler(p, m_ip+1, m_type);
@@ -3911,8 +3911,8 @@ sp_instr_cfetch::execute(THD *thd, uint *nextp)
 void
 sp_instr_cfetch::print(String *str)
 {
-  List_iterator_fast<struct sp_variable> li(m_varlist);
-  sp_variable_t *pv;
+  List_iterator_fast<sp_variable> li(m_varlist);
+  sp_variable *pv;
   LEX_STRING n;
   my_bool found= m_ctx->find_cursor(m_cursor, &n);
   /* cfetch name@offset vars... */
