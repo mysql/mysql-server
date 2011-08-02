@@ -14,6 +14,8 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
@@ -44,6 +46,12 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_index_stats
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.innodb_table_stats
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
@@ -72,6 +80,8 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
@@ -100,6 +110,12 @@ mysql.help_keyword                                 Table is already up to date
 mysql.help_relation                                Table is already up to date
 mysql.help_topic                                   Table is already up to date
 mysql.host                                         Table is already up to date
+mysql.innodb_index_stats
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.innodb_table_stats
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.ndb_binlog_index                             Table is already up to date
 mysql.plugin                                       Table is already up to date
 mysql.proc                                         Table is already up to date

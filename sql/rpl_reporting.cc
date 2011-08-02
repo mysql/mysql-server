@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg) co
   DBUG_ENTER("has_temporary_error");
 
   DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
-                  if (thd->stmt_da->is_error())
+                  if (thd->get_stmt_da()->is_error())
                   {
                     thd->clear_error();
                     my_error(ER_LOCK_DEADLOCK, MYF(0));
@@ -63,7 +63,7 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg) co
   if (thd->is_fatal_error || !thd->is_error())
     DBUG_RETURN(0);
 
-  error= (error_arg == 0)? thd->stmt_da->sql_errno() : error_arg;
+  error= (error_arg == 0)? thd->get_stmt_da()->sql_errno() : error_arg;
 
   /*
     Temporary error codes:
@@ -79,8 +79,8 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg) co
   /*
     currently temporary error set in ndbcluster
   */
-  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
-  MYSQL_ERROR *err;
+  List_iterator_fast<Sql_condition> it(thd->warning_info->warn_list());
+  Sql_condition *err;
   while ((err= it++))
   {
     DBUG_PRINT("info", ("has condition %d %s", err->get_sql_errno(),

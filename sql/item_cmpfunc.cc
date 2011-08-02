@@ -690,7 +690,7 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   }
 
   if (error > 0)
-    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                                  str->ptr(), str->length(),
                                  warn_type, warn_name);
 
@@ -2720,37 +2720,43 @@ Item_func_if::fix_fields(THD *thd, Item **ref)
 }
 
 
+void Item_func_if::cache_type_info(Item *source)
+{
+  collation.set(source->collation);
+  cached_field_type=  source->field_type();
+  cached_result_type= source->result_type();
+  decimals=           source->decimals;
+  max_length=         source->max_length;
+  maybe_null=         source->maybe_null;
+  unsigned_flag=      source->unsigned_flag;
+}
+
+
 void
 Item_func_if::fix_length_and_dec()
 {
-  maybe_null=args[1]->maybe_null || args[2]->maybe_null;
-  decimals= max(args[1]->decimals, args[2]->decimals);
-  unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
-
-  enum Item_result arg1_type=args[1]->result_type();
-  enum Item_result arg2_type=args[2]->result_type();
-  bool null1=args[1]->const_item() && args[1]->null_value;
-  bool null2=args[2]->const_item() && args[2]->null_value;
-
-  if (null1)
+  // Let IF(cond, expr, NULL) and IF(cond, NULL, expr) inherit type from expr.
+  if (args[1]->type() == NULL_ITEM)
   {
-    cached_result_type= arg2_type;
-    collation.set(args[2]->collation);
-    cached_field_type= args[2]->field_type();
-    max_length= args[2]->max_length;
+    cache_type_info(args[2]);
+    maybe_null= true;
+    // If both arguments are NULL, make resulting type BINARY(0).
+    if (args[2]->type() == NULL_ITEM)
+      cached_field_type= MYSQL_TYPE_STRING;
     return;
   }
-
-  if (null2)
+  if (args[2]->type() == NULL_ITEM)
   {
-    cached_result_type= arg1_type;
-    collation.set(args[1]->collation);
-    cached_field_type= args[1]->field_type();
-    max_length= args[1]->max_length;
+    cache_type_info(args[1]);
+    maybe_null= true;
     return;
   }
 
   agg_result_type(&cached_result_type, args + 1, 2);
+  maybe_null= args[1]->maybe_null || args[2]->maybe_null;
+  decimals= max(args[1]->decimals, args[2]->decimals);
+  unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
+
   if (cached_result_type == STRING_RESULT)
   {
     if (agg_arg_charsets_for_string_result(collation, args + 1, 2))
@@ -3102,11 +3108,35 @@ void Item_func_case::agg_num_lengths(Item *arg)
 }
 
 
+/**
+  Check if (*place) and new_value points to different Items and call
+  THD::change_item_tree() if needed.
+
+  This function is a workaround for implementation deficiency in
+  Item_func_case. The problem there is that the 'args' attribute contains
+  Items from different expressions.
+ 
+  The function must not be used elsewhere and will be remove eventually.
+*/
+
+static void change_item_tree_if_needed(THD *thd,
+                                       Item **place,
+                                       Item *new_value)
+{
+  if (*place == new_value)
+    return;
+
+  thd->change_item_tree(place, new_value);
+}
+
+
 void Item_func_case::fix_length_and_dec()
 {
   Item **agg;
   uint nagg;
   uint found_types= 0;
+  THD *thd= current_thd;
+
   if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
     return;
   
@@ -3131,9 +3161,10 @@ void Item_func_case::fix_length_and_dec()
       Some of the items might have been changed to Item_func_conv_charset.
     */
     for (nagg= 0 ; nagg < ncases / 2 ; nagg++)
-      args[nagg * 2 + 1]= agg[nagg];
+      change_item_tree_if_needed(thd, &args[nagg * 2 + 1], agg[nagg]);
+
     if (else_expr_num != -1)
-      args[else_expr_num]= agg[nagg++];
+      change_item_tree_if_needed(thd, &args[else_expr_num], agg[nagg++]);
   }
   else
     collation.set_numeric();
@@ -3193,9 +3224,10 @@ void Item_func_case::fix_length_and_dec()
         arrray, because some of the items might have been changed to converters
         (e.g. Item_func_conv_charset, or Item_string for constants).
       */
-      args[first_expr_num]= agg[0];
+      change_item_tree_if_needed(thd, &args[first_expr_num], agg[0]);
+
       for (nagg= 0; nagg < ncases / 2; nagg++)
-        args[nagg * 2]= agg[nagg + 1];
+        change_item_tree_if_needed(thd, &args[nagg * 2], agg[nagg + 1]);
     }
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
@@ -4591,7 +4623,7 @@ void Item_cond::traverse_cond(Cond_traverser traverser,
     that have or refer (HAVING) to a SUM expression.
 */
 
-void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
+void Item_cond::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                                List<Item> &fields)
 {
   List_iterator<Item> li(list);
@@ -4615,11 +4647,13 @@ void Item_cond::update_used_tables()
 
   used_tables_cache=0;
   const_item_cache=1;
+  with_subselect= false;
   while ((item=li++))
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
+    with_subselect|= item->has_subquery();
   }
 }
 
@@ -4803,6 +4837,8 @@ void Item_is_not_null_test::update_used_tables()
   else
   {
     args[0]->update_used_tables();
+    with_subselect= args[0]->has_subquery();
+
     if (!(used_tables_cache=args[0]->used_tables()) && !with_subselect)
     {
       /* Remember if the value is always NULL or never NULL */
@@ -4858,21 +4894,20 @@ longlong Item_func_like::val_int()
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
-  if (args[1]->const_item())
-  {
-    String* res2= args[1]->val_str((String *)&cmp.value2);
-    const char *ptr2;
+  if (!args[1]->const_item())
+    return OPTIMIZE_NONE;
 
-    if (!res2 || !(ptr2= res2->ptr()))
-      return OPTIMIZE_NONE;
+  String* res2= args[1]->val_str((String *)&cmp.value2);
+  if (!res2)
+    return OPTIMIZE_NONE;
 
-    if (*ptr2 != wild_many)
-    {
-      if (args[0]->result_type() != STRING_RESULT || *ptr2 != wild_one)
-	return OPTIMIZE_OP;
-    }
-  }
-  return OPTIMIZE_NONE;
+  if (!res2->length()) // Can optimize empty wildcard: column LIKE ''
+    return OPTIMIZE_OP;
+
+  DBUG_ASSERT(res2->ptr());
+  char first= res2->ptr()[0];
+  return (first == wild_many || first == wild_one) ?
+    OPTIMIZE_NONE : OPTIMIZE_OP;
 }
 
 
@@ -5827,12 +5862,14 @@ void Item_equal::update_used_tables()
   not_null_tables_cache= used_tables_cache= 0;
   if ((const_item_cache= cond_false))
     return;
+  with_subselect= false;
   while ((item=li++))
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     /* see commentary at Item_equal::update_const() */
     const_item_cache&= item->const_item() && !item->is_outer_field();
+    with_subselect|= item->has_subquery();
   }
 }
 
@@ -5921,6 +5958,49 @@ void Item_equal::print(String *str, enum_query_type query_type)
     item->print(str, query_type);
   }
   str->append(')');
+}
+
+
+void Item_func_trig_cond::print(String *str, enum_query_type query_type)
+{
+  /*
+    Print:
+    trigcond_if(<property><(optional list of source tables)>, condition, TRUE)
+    which means: if a certain property (<property>) is true, then return
+    the value of <condition>, else return TRUE. If source tables are
+    present, they are the owner of the property.
+  */
+  str->append(func_name());
+  str->append("_if(");
+  switch(trig_type)
+  {
+  case IS_NOT_NULL_COMPL:
+    str->append("is_not_null_compl");
+    break;
+  case FOUND_MATCH:
+    str->append("found_match");
+    break;
+  case OUTER_FIELD_IS_NOT_NULL:
+    str->append("outer_field_is_not_null");
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+  if (trig_tab != NULL)
+  {
+    str->append("(");
+    str->append(trig_tab->table->alias);
+    if (trig_tab->last_inner != trig_tab)
+    {
+      /* case of t1 LEFT JOIN (t2,t3,...): print range of inner tables */
+      str->append("..");
+      str->append(trig_tab->last_inner->table->alias);
+    }
+    str->append(")");
+  }
+  str->append(", ");
+  args[0]->print(str, query_type);
+  str->append(", true)");
 }
 
 

@@ -1,7 +1,8 @@
 #ifndef HA_PARTITION_INCLUDED
 #define HA_PARTITION_INCLUDED
 
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -299,6 +300,8 @@ public:
     If the object was opened it will also be closed before being deleted.
   */
   virtual int open(const char *name, int mode, uint test_if_locked);
+  virtual void unbind_psi();
+  virtual void rebind_psi();
   virtual int close(void);
 
   /*

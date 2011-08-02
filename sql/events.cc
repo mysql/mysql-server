@@ -1,4 +1,5 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -944,6 +945,19 @@ static PSI_thread_info all_events_threads[]=
   { &key_thread_event_scheduler, "event_scheduler", PSI_FLAG_GLOBAL},
   { &key_thread_event_worker, "event_worker", 0}
 };
+#endif /* HAVE_PSI_INTERFACE */
+
+PSI_stage_info stage_waiting_on_empty_queue= { 0, "Waiting on empty queue", 0};
+PSI_stage_info stage_waiting_for_next_activation= { 0, "Waiting for next activation", 0};
+PSI_stage_info stage_waiting_for_scheduler_to_stop= { 0, "Waiting for the scheduler to stop", 0};
+
+#ifdef HAVE_PSI_INTERFACE
+PSI_stage_info *all_events_stages[]=
+{
+  & stage_waiting_on_empty_queue,
+  & stage_waiting_for_next_activation,
+  & stage_waiting_for_scheduler_to_stop
+};
 
 static void init_events_psi_keys(void)
 {
@@ -958,6 +972,10 @@ static void init_events_psi_keys(void)
 
   count= array_elements(all_events_threads);
   mysql_thread_register(category, all_events_threads, count);
+
+  count= array_elements(all_events_stages);
+  mysql_stage_register(category, all_events_stages, count);
+
 }
 #endif /* HAVE_PSI_INTERFACE */
 

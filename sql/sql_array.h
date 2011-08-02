@@ -1,7 +1,7 @@
 #ifndef SQL_ARRAY_INCLUDED
 #define SQL_ARRAY_INCLUDED
 
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,60 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <my_sys.h>
+
+/**
+   A wrapper class which provides array bounds checking.
+   We do *not* own the array, we simply have a pointer to the first element,
+   and a length.
+
+   @remark
+   We want the compiler-generated versions of:
+   - the copy CTOR (memberwise initialization)
+   - the assignment operator (memberwise assignment)
+
+   @param Element_type The type of the elements of the container.
+ */
+template <typename Element_type> class Bounds_checked_array
+{
+public:
+  Bounds_checked_array() : m_array(NULL), m_size(0) {}
+
+  Bounds_checked_array(Element_type *el, size_t size)
+    : m_array(el), m_size(size)
+  {}
+
+  void reset() { m_array= NULL; m_size= 0; }
+
+  Element_type &operator[](size_t n)
+  {
+    DBUG_ASSERT(n < m_size);
+    return m_array[n];
+  }
+
+  const Element_type &operator[](size_t n) const
+  {
+    DBUG_ASSERT(n < m_size);
+    return m_array[n];
+  }
+
+  size_t element_size() const { return sizeof(Element_type); }
+  size_t size() const         { return m_size; }
+
+  bool is_null() const { return m_array == NULL; }
+
+  void pop_front()
+  {
+    DBUG_ASSERT(m_size > 0);
+    m_array+= 1;
+    m_size-= 1;
+  }
+
+  Element_type *array() const { return m_array; }
+
+private:
+  Element_type *m_array;
+  size_t        m_size;
+};
 
 /*
   A typesafe wrapper around DYNAMIC_ARRAY
@@ -36,27 +90,55 @@ public:
     my_init_dynamic_array(&array, sizeof(Elem), prealloc, increment);
   }
 
+  /**
+     @note Though formally this could be declared "const" it would be
+     misleading at it returns a non-const pointer to array's data.
+  */
   Elem& at(int idx)
   {
     return *(((Elem*)array.buffer) + idx);
   }
+  /// Const variant of at(), which cannot change data
+  const Elem& at(int idx) const
+  {
+    return *(((Elem*)array.buffer) + idx);
+  }
 
+  /// @returns pointer to first element; undefined behaviour if array is empty
   Elem *front()
   {
+    DBUG_ASSERT(array.elements >= 1);
     return (Elem*)array.buffer;
   }
 
+  /// @returns pointer to last element; undefined behaviour if array is empty.
   Elem *back()
   {
-    return ((Elem*)array.buffer) + array.elements;
+    DBUG_ASSERT(array.elements >= 1);
+    return ((Elem*)array.buffer) + (array.elements - 1);
   }
 
-  bool append(Elem &el)
+  /**
+     @retval false ok
+     @retval true  OOM, @c my_error() has been called.
+  */
+  bool append(const Elem &el)
   {
-    return (insert_dynamic(&array, &el));
+    return insert_dynamic(&array, &el);
   }
 
-  int elements()
+  /// Pops the last element. Does nothing if array is empty.
+  void pop()
+  {
+    (void)pop_dynamic(&array);
+  }
+
+  void del(uint idx)
+  {
+    delete_dynamic_element(&array, idx);
+  }
+
+  int elements() const
   {
     return array.elements;
   }

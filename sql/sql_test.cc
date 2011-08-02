@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "sql_base.h" // table_def_cache, table_cache_count, unused_tables
 #include "sql_show.h" // calc_sum_of_all_status
 #include "sql_select.h"
+#include "opt_trace.h"
 #include "keycaches.h"
 #include <hash.h>
 #include <thr_alarm.h>
@@ -91,7 +92,7 @@ static void print_cached_tables(void)
   {
     share= (TABLE_SHARE*) my_hash_element(&table_def_cache, idx);
 
-    I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
+    TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
     while ((entry= it++))
     {
       printf("%-14.14s %-32s%6ld%8ld%6d  %s\n",
@@ -237,45 +238,37 @@ TEST_join(JOIN *join)
   DBUG_VOID_RETURN;
 }
 
-#define FT_KEYPART   (MAX_REF_PARTS+10)
+#endif /* !DBUG_OFF */
 
-void print_keyuse(const Key_use *keyuse)
+void print_keyuse_array(Opt_trace_context *trace,
+                        const Key_use_array *keyuse_array)
 {
-  char buff[256];
-  char buf2[64]; 
-  const char *fieldname;
-  String str(buff,(uint32) sizeof(buff), system_charset_info);
-  str.length(0);
-  //TODO fix QT_
-  keyuse->val->print(&str, QT_ORDINARY);
-  str.append('\0');
-  if (keyuse->keypart == FT_KEYPART)
-    fieldname= "FT_KEYPART";
-  else
-    fieldname= keyuse->table->key_info[keyuse->key].key_part[keyuse->keypart].field->field_name;
-  longlong2str(keyuse->used_tables, buf2, 16); 
-  DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE, "Key_use: %s.%s=%s  optimize= %d used_tables=%s "
-          "ref_table_rows= %lu keypart_map= %0lx\n",
-          keyuse->table->alias, fieldname, str.ptr(),
-          keyuse->optimize, buf2, (ulong)keyuse->ref_table_rows, 
-          keyuse->keypart_map);
-  DBUG_UNLOCK_FILE;
-  //key_part_map keypart_map; --?? there can be several? 
+#if !defined(DBUG_OFF) || defined(OPTIMIZER_TRACE)
+  if (unlikely(!trace->is_started()))
+    return;
+  Opt_trace_object wrapper(trace);
+  Opt_trace_array  trace_key_uses(trace, "ref_optimizer_key_uses");
+  DBUG_PRINT("opt", ("Key_use array (%zu elements)", keyuse_array->size()));
+  for (uint i= 0; i < keyuse_array->size(); i++)
+  {
+    const Key_use &keyuse= keyuse_array->at(i);
+     // those are too obscure for opt trace
+    DBUG_PRINT("opt", ("Key_use: optimize= %d used_tables=0x%llx "
+                       "ref_table_rows= %lu keypart_map= %0lx",
+                       keyuse.optimize, keyuse.used_tables,
+                       (ulong)keyuse.ref_table_rows, keyuse.keypart_map));
+    Opt_trace_object(trace).
+      add_utf8_table(keyuse.table).
+      add_utf8("field", (keyuse.keypart == FT_KEYPART) ? "<fulltext>" :
+               keyuse.table->key_info[keyuse.key].
+               key_part[keyuse.keypart].field->field_name).
+      add("equals", keyuse.val).
+      add("null_rejecting", keyuse.null_rejecting);
+  }
+#endif /* !DBUG_OFF || OPTIMIZER_TRACE */
 }
 
-
-/* purecov: begin inspected */
-void print_keyuse_array(const Key_use_array *keyuse_array)
-{
-  DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE, "Key_use array (%d elements)\n",
-          (int) keyuse_array->size());
-  DBUG_UNLOCK_FILE;
-  for(uint i=0; i < keyuse_array->size(); i++)
-    print_keyuse(&keyuse_array->at(i));
-}
-
+#ifndef DBUG_OFF
 
 /* 
   Print the current state during query optimization.
@@ -399,7 +392,7 @@ void print_sjm(TABLE_LIST *emb_sj_nest)
   DBUG_UNLOCK_FILE;
 }
 /* purecov: end */
-#endif
+#endif  /* !DBUG_OFF */
 
 C_MODE_START
 static int dl_compare(const void *p1, const void *p2);

@@ -1969,6 +1969,9 @@ static int my_xpath_parse_UnionExpr(MY_XPATH *xpath)
 static int
 my_xpath_parse_FilterExpr_opt_slashes_RelativeLocationPath(MY_XPATH *xpath)
 {
+  Item *context= xpath->context;
+  int rc;
+
   if (!my_xpath_parse_FilterExpr(xpath))
     return 0;
 
@@ -1982,8 +1985,22 @@ my_xpath_parse_FilterExpr_opt_slashes_RelativeLocationPath(MY_XPATH *xpath)
     return 0;
   }
 
-  my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH);
-  return my_xpath_parse_RelativeLocationPath(xpath);
+  /*
+    The context for the next relative path is the nodeset
+    returned by FilterExpr
+  */
+  xpath->context= xpath->item;
+
+  /* treat double slash (//) as /descendant-or-self::node()/ */
+  if (my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH))
+    xpath->context= new Item_nodeset_func_descendantbyname(xpath->context,
+                                                           "*", 1, xpath->pxml, 1);
+  rc= my_xpath_parse_RelativeLocationPath(xpath);
+
+  /* push back the context and restore the item */
+  xpath->item= xpath->context;
+  xpath->context= context;
+  return rc;
 }
 static int my_xpath_parse_PathExpr(MY_XPATH *xpath)
 {
@@ -2778,7 +2795,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
                 my_xml_error_lineno(&p) + 1,
                 (ulong) my_xml_error_pos(&p) + 1,
                 my_xml_error_string(&p));
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_WRONG_VALUE,
                         ER(ER_WRONG_VALUE), "XML", buf);
   }

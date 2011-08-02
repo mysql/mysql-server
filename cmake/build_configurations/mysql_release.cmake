@@ -1,4 +1,4 @@
-# Copyright (C) 2010 Sun Microsystems, Inc
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -210,8 +210,8 @@ IF(UNIX)
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
         SET(COMMON_C_FLAGS                   "-g -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
         SET(COMMON_CXX_FLAGS                 "-g0 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -features=no%except -xlibmil -xlibmopt -xtarget=generic")
-        SET(CMAKE_C_FLAGS_DEBUG              "${COMMON_C_FLAGS}")
-        SET(CMAKE_CXX_FLAGS_DEBUG            "${COMMON_CXX_FLAGS}")
+        SET(CMAKE_C_FLAGS_DEBUG              "-xO1 ${COMMON_C_FLAGS}")
+        SET(CMAKE_CXX_FLAGS_DEBUG            "-xO1 ${COMMON_CXX_FLAGS}")
         IF(32BIT)
           SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-xO2 ${COMMON_C_FLAGS}")
           SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-xO2 ${COMMON_CXX_FLAGS}")

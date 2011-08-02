@@ -152,15 +152,31 @@ while ($i)
        let $k=3;
        while ($k)
        {
-         SELECT (SELECT COUNT(*) from t1),
-                (SELECT COUNT(*) from t2),
-                (SELECT COUNT(*) from t3);
+         SELECT (SELECT COUNT(*) from t1) AS c1,
+                (SELECT COUNT(*) from t2) AS c2,
+                (SELECT COUNT(*) from t3) AS c3;
+
+         let $query=
+         SELECT * FROM t1 WHERE (t1.i) IN 
+           (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+         eval EXPLAIN $query;
+         eval $query;
+
+         eval PREPARE stmt FROM "$query";
+         EXECUTE stmt;
+         EXECUTE stmt;
+         DEALLOCATE PREPARE stmt;
 
          let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
          eval $query;
+
+         eval PREPARE stmt FROM "$query";
+         EXECUTE stmt;
+         EXECUTE stmt;
+         DEALLOCATE PREPARE stmt;
 
          let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
@@ -3263,6 +3279,95 @@ select name from t2, t1
 drop table t1,t2,t3,t4;
 
 --echo #
+--echo # Bug#43768 Prepared query with nested subqueries core dump on second execution
+--echo #
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  partner_id VARCHAR(35)
+);
+
+INSERT INTO t1 VALUES
+ (1, 'partner1'), (2, 'partner2'),
+ (3, 'partner3'), (4, 'partner4');
+
+CREATE TABLE t2 (
+  id INT NOT NULL,
+  t1_line_id INT,
+  article_id VARCHAR(20),
+  PRIMARY KEY(id, t1_line_id)
+);
+
+INSERT INTO t2 VALUES
+ (1, 1, 'sup'), (2, 1, 'sup'),
+ (2, 2, 'sup'), (2, 3, 'sup'),
+ (2, 4, 'imp'), (3, 1, 'sup'),
+ (4, 1, 'sup');
+
+CREATE TABLE t3 (
+  user_id VARCHAR(50),
+  article_id VARCHAR(20) NOT NULL,
+  PRIMARY KEY(user_id)
+);
+
+INSERT INTO t3 VALUES('nicke', 'imp');
+
+EXPLAIN
+SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+    SELECT t2.id
+    FROM t2
+    WHERE article_id IN (
+      SELECT article_id FROM t3
+      WHERE user_id = 'nicke'
+    )
+  );
+
+SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+    SELECT t2.id
+    FROM t2
+    WHERE article_id IN (
+      SELECT article_id FROM t3
+      WHERE user_id = 'nicke'
+    )
+  );
+
+PREPARE stmt FROM
+'EXPLAIN SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+    SELECT t2.id
+    FROM t2
+    WHERE article_id IN (
+      SELECT article_id FROM t3
+      WHERE user_id = \'nicke\'
+    )
+  )';
+EXECUTE stmt;
+EXECUTE stmt;
+
+PREPARE stmt FROM
+'SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+    SELECT t2.id
+    FROM t2
+    WHERE article_id IN (
+      SELECT article_id FROM t3
+      WHERE user_id = \'nicke\'
+    )
+  )';
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1,t2,t3;
+
+--echo # End of Bug#43768
+
+--echo #
 --echo # Bug#53058 - semijoin execution of subquery with outerjoin yields wrong result
 --echo #
 CREATE TABLE t1 (i INTEGER);
@@ -3540,3 +3645,266 @@ ORDER BY a;
 
 DROP TABLE t1;
 DROP VIEW v1;
+
+--echo #
+--echo # Bug#12546542 MISSING ROW WHEN USING OPTIMIZER_JOIN_CACHE_LEVEL>=3
+--echo #
+CREATE TABLE t1 (
+  f2 varchar(1024)
+);
+INSERT INTO t1 VALUES ('v'),('we');
+CREATE TABLE t2 (
+  col_varchar_1024_utf8 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+  col_int_key int,
+  col_int int
+);
+INSERT INTO t2 VALUES ('we',4,NULL),('v',1305673728,6);
+CREATE TABLE t3 (
+  col_int_key int,
+  col_int int
+);
+INSERT INTO t3 VALUES (4,4);
+
+SELECT *
+FROM t1
+WHERE f2 IN (SELECT a1.col_varchar_1024_utf8 AS f2
+             FROM t2 AS a1 LEFT JOIN t3 AS a2
+             ON a1.col_int_key = a2.col_int_key
+             WHERE a1.col_int BETWEEN 1 AND 10 OR a2.col_int IS NOT NULL);
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # BUG#12616344 - JCL: DIFFERENT RESULT SET AND DIFFERENT AMOUNT
+--echo # OF ROWS WHEN JCL>=3
+--echo #
+# duplicate of Bug#12546542 but still tested as query is different
+CREATE TABLE t1 (col_int_nokey int, col_int_key int, col_varchar_key varchar(1));
+INSERT INTO t1 VALUES (0,4,'c'),(1,6,'u');
+CREATE TABLE t2 (pk int, col_int_nokey int, col_varchar_nokey varchar(1));
+INSERT INTO t2 VALUES (1,4,'b'),(94,6,'u');
+CREATE TABLE t3 (pk int, col_int_nokey int, col_varchar_key varchar(1));
+INSERT INTO t3 VALUES (1,4,'j'),(2,6,'v');
+SELECT table2.col_int_key
+from t3 as table1 join t1 as table2 on table2.col_int_nokey 
+where table1.col_int_nokey in 
+( 
+ select subquery2_t2.col_int_nokey 
+ from t3 as subquery2_t1 
+      right join
+        t2 as subquery2_t2
+        join t1 as subquery2_t3
+        on subquery2_t3.col_int_key = subquery2_t2.col_int_nokey
+      on subquery2_t3.col_varchar_key = subquery2_t2.col_varchar_nokey 
+ where subquery2_t1.col_varchar_key != table1.col_varchar_key
+       or subquery2_t2.pk <= table1.pk
+);
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#12608157: ASSERT IN FIELD_LONG::VAL_INT WHEN USING MEMORY ENGINE
+--echo #
+
+CREATE TABLE t1 (i1 int);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (i1 int, i2 int) ENGINE=memory;
+INSERT INTO t2 VALUES (1, 2),(7, 3);
+
+SELECT GRANDPARENT1.i1
+FROM t2 AS GRANDPARENT1 
+WHERE GRANDPARENT1.i2
+      IN ( SELECT PARENT1.i2
+           FROM t2 AS PARENT1 JOIN t1 AS PARENT2 ON (PARENT1.i1 = PARENT2.i1)
+           WHERE 
+              GRANDPARENT1.i1 IN ( SELECT CHILD1.i1 FROM t2 AS CHILD1 )
+           ORDER BY PARENT1.i1)
+ORDER BY GRANDPARENT1.i2 ;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#12640083: Same query executed as WHERE subquery gives different
+--echo #              results on IN() compare
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_varchar_1024_utf8_key varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_1024_utf8_key(col_varchar_1024_utf8_key(333)),
+  KEY col_varchar_10_latin1_key(col_varchar_10_latin1_key)
+);
+
+INSERT INTO t1 VALUES
+(1, 'a', 'a'),
+(2, 'ab', 'ab'),
+(3, 'abc', 'abc'),
+(4, 'abcd', 'abcd');
+
+CREATE TABLE t2 (
+  pk int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+) ENGINE=Innodb;
+
+CREATE TABLE t3
+SELECT alias1.col_varchar_10_latin1_key
+FROM t1 AS alias1
+     LEFT JOIN t1 AS alias2
+       JOIN t2 AS alias3
+       ON alias2.col_varchar_10_latin1_key
+     ON alias1.col_varchar_1024_utf8_key
+WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk; 
+
+let $query=
+SELECT * 
+FROM t3 
+WHERE col_varchar_10_latin1_key IN (
+    SELECT alias1.col_varchar_10_latin1_key 
+    FROM t1 AS alias1
+         LEFT JOIN t1 AS alias2
+           JOIN t2 AS alias3
+           ON alias2.col_varchar_10_latin1_key
+         ON alias1.col_varchar_1024_utf8_key
+    WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of the test for bug#12640083.
+
+--echo #
+--echo # Bug#12603200 - Assert in QUICK_INDEX_MERGE_SELECT::need_sorted_output
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_key int NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY(pk),
+  KEY col_int_key(col_int_key),
+  KEY col_varchar_key(col_varchar_key, col_int_key)
+) engine=innodb;
+
+INSERT INTO t1 VALUES
+(1,7,'a','a'),
+(2,0,'v','v'),
+(3,9,'c','c'),
+(4,3,'m','m'),
+(5,2,'a','a'),
+(6,1,'d','d'),
+(7,8,'y','y'),
+(8,6,'t','t'),
+(11,7,'a','x'),
+(12,0,'v','v'),
+(13,9,'c','c'),
+(14,3,'m','m'),
+(15,2,'a','x'),
+(16,1,'d','d'),
+(17,8,'y','y'),
+(18,6,'t','u');
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_key int NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY(pk),
+  KEY col_varchar_key(col_varchar_key, col_int_key)
+) engine=innodb;
+
+INSERT INTO t2(pk,col_int_key,col_varchar_key) VALUES
+(8,7,'c'),
+(11,4,'l'),
+(12,7,'b'),
+(13,0,'c'),
+(14,2,'i'),
+(15,9,'h'),
+(16,4,'q'),
+(17,1,'m'),
+(18,9,'b'),
+(19,2,'e'),
+(20,1,'c'),
+(21,7,'z'),
+(22,4,'l'),
+(23,7,'z'),
+(24,0,'c'),
+(25,2,'i'),
+(26,9,'h'),
+(27,4,'q'),
+(28,0,'a'),
+(29,1,'d');
+
+let $query=
+SELECT outr.col_varchar_key AS x, outr.pk AS y
+FROM t1 AS outr
+WHERE outr.col_varchar_key IN (SELECT innr.col_varchar_key
+                               FROM t2 AS innr
+                               WHERE innr.col_varchar_key = 'a' OR innr.pk = 8)
+  AND outr.col_varchar_nokey < 't'
+ORDER BY outr.col_varchar_key, outr.pk;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of bug#12603200
+
+--echo #
+--echo # Bug#12603183: Segfault in hp_movelink
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1) ,
+  col_varchar_nokey varchar(1) ,
+  KEY col_varchar_key(col_varchar_key)
+);
+
+INSERT INTO t1 VALUES
+('i','i'),
+('h','h'),
+('q','q'),
+('a','a'),
+('v','v'),
+('u','u'),
+('s','s'),
+('y','y'),
+('z','z'),
+('h','h'),
+('p','p'),
+('e','e'),
+('i','i'),
+('y','y'),
+('w','w');
+
+CREATE TABLE t2 (
+  col_varchar_nokey varchar(1)
+);
+
+INSERT INTO t2 VALUES
+('b');
+
+let $query=
+SELECT grandparent1.col_varchar_nokey
+FROM t1 AS grandparent1 LEFT JOIN t2 AS grandparent2 USING (col_varchar_nokey)
+WHERE (grandparent1.col_varchar_key) IN
+   (SELECT parent1.col_varchar_nokey
+    FROM t1 AS parent1
+    WHERE parent1.col_varchar_key IN
+       (SELECT child1.col_varchar_nokey AS c1
+        FROM t1 AS child1 LEFT JOIN t2 AS child2
+                ON (child1.col_varchar_key > child2.col_varchar_nokey)));
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo -- Notice that Materialize-scan algorithm reports wrong result for this query.
+--echo -- This problem will be filed as a separate bug and dealt with in WL#5561.
+
+DROP TABLE t1, t2;
+
+--echo # End of the test for bug#12603183.

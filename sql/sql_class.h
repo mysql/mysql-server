@@ -34,9 +34,33 @@
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
-
+#include "opt_trace_context.h"    /* Opt_trace_context */
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
+
+/**
+  The meat of thd_proc_info(THD*, char*), a macro that packs the last
+  three calling-info parameters.
+*/
+extern "C"
+const char *set_thd_proc_info(void *thd_arg, const char *info,
+                              const char *calling_func,
+                              const char *calling_file,
+                              const unsigned int calling_line);
+
+#define thd_proc_info(thd, msg) \
+  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
+
+extern "C"
+void set_thd_stage_info(void *thd,
+                        const PSI_stage_info *new_stage,
+                        PSI_stage_info *old_stage,
+                        const char *calling_func,
+                        const char *calling_file,
+                        const unsigned int calling_line);
+                        
+#define THD_STAGE_INFO(thd, stage) \
+  (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
 class Reprepare_observer;
 class Relay_log_info;
@@ -419,6 +443,11 @@ typedef struct system_variables
   ulonglong long_query_time;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
+  ulonglong optimizer_trace; ///< bitmap to tune optimizer tracing
+  ulonglong optimizer_trace_features; ///< bitmap to select features to trace
+  long      optimizer_trace_offset;
+  long      optimizer_trace_limit;
+  ulong     optimizer_trace_max_mem_size;
   sql_mode_t sql_mode; ///< which non-standard SQL behaviour should be enabled
   ulonglong option_bits; ///< OPTION_xxx constants, e.g. OPTION_PROFILING
   ha_rows select_limit;
@@ -490,6 +519,7 @@ typedef struct system_variables
   my_bool big_tables;
 
   plugin_ref table_plugin;
+  plugin_ref temp_table_plugin;
 
   /* Only charset part of these variables is sensible */
   const CHARSET_INFO *character_set_filesystem;
@@ -629,7 +659,7 @@ mysqld_collation_get_by_name(const char *name,
     my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
     if (loader.error[0])
       push_warning_printf(current_thd,
-                          MYSQL_ERROR::WARN_LEVEL_WARN,
+                          Sql_condition::WARN_LEVEL_WARN,
                           ER_UNKNOWN_COLLATION, "%s", loader.error);
   }
   return cs;
@@ -1456,9 +1486,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl) = 0;
+                                Sql_condition ** cond_hdl) = 0;
 
 private:
   Internal_error_handler *m_prev_internal_handler;
@@ -1477,9 +1507,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl)
+                        Sql_condition ** cond_hdl)
   {
     /* Ignore error */
     return TRUE;
@@ -1503,9 +1533,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl);
+                        Sql_condition ** cond_hdl);
 
 private:
 };
@@ -1787,6 +1817,19 @@ public:
   */
   const char *proc_info;
 
+private:
+  unsigned int m_current_stage_key;
+
+public:
+  void enter_stage(const PSI_stage_info *stage,
+                   PSI_stage_info *old_stage,
+                   const char *calling_func,
+                   const char *calling_file,
+                   const unsigned int calling_line);
+
+  const char *get_proc_info() const
+  { return proc_info; }
+
   /*
     Used in error messages to tell user in what part of MySQL we found an
     error. E. g. when where= "having clause", if fix_fields() fails, user
@@ -1980,17 +2023,17 @@ public:
     void push_unsafe_rollback_warnings(THD *thd)
     {
       if (all.has_modified_non_trans_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
 
       if (all.has_created_temp_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
 
       if (all.has_dropped_temp_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
     }
@@ -2281,8 +2324,6 @@ public:
   table_map  used_tables;
   USER_CONN *user_connect;
   const CHARSET_INFO *db_charset;
-  Warning_info *warning_info;
-  Diagnostics_area *stmt_da;
 #if defined(ENABLED_PROFILING)
   PROFILING  profiling;
 #endif
@@ -2558,22 +2599,20 @@ public:
 
   // Begin implementation of MDL_context_owner interface.
 
-  /*
-    For enter_cond() / exit_cond() to work the mutex must be got before
-    enter_cond(); this mutex is then released by exit_cond().
-    Usage must be: lock mutex; enter_cond(); your code; exit_cond().
-  */
-  inline const char* enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
-                                const char* msg)
+  inline void
+  enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
+             const PSI_stage_info *stage, PSI_stage_info *old_stage,
+             const char *src_function, const char *src_file,
+             int src_line)
   {
-    const char* old_msg = proc_info;
     mysql_mutex_assert_owner(mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
-    proc_info = msg;
-    return old_msg;
+    enter_stage(stage, old_stage, src_function, src_file, src_line);
   }
-  inline void exit_cond(const char* old_msg)
+  inline void exit_cond(const PSI_stage_info *stage,
+                        const char *src_function, const char *src_file,
+                        int src_line)
   {
     /*
       Putting the mutex unlock in thd->exit_cond() ensures that
@@ -2585,7 +2624,7 @@ public:
     mysql_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
     mysys_var->current_cond = 0;
-    proc_info = old_msg;
+    enter_stage(stage, NULL, src_function, src_file, src_line);
     mysql_mutex_unlock(&mysys_var->mutex);
     return;
   }
@@ -2633,26 +2672,23 @@ public:
     else
       start_utime= utime_after_lock= my_micro_time_and_time(&start_time);
 
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   inline void set_current_time()
   {
     start_time= my_time(MY_WME);
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   inline void set_time(time_t t)
   {
     start_time= user_time= t;
     start_utime= utime_after_lock= my_micro_time();
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_start_time(start_time);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_start_time)(start_time);
 #endif
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
@@ -2787,8 +2823,8 @@ public:
   inline void clear_error()
   {
     DBUG_ENTER("clear_error");
-    if (stmt_da->is_error())
-      stmt_da->reset_diagnostics_area();
+    if (get_stmt_da()->is_error())
+      get_stmt_da()->reset_diagnostics_area();
     is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
@@ -2815,7 +2851,7 @@ public:
   */
   inline void fatal_error()
   {
-    DBUG_ASSERT(stmt_da->is_error() || killed);
+    DBUG_ASSERT(get_stmt_da()->is_error() || killed);
     is_fatal_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
@@ -2832,7 +2868,21 @@ public:
 
     To raise this flag, use my_error().
   */
-  inline bool is_error() const { return stmt_da->is_error(); }
+  inline bool is_error() const { return get_stmt_da()->is_error(); }
+
+  /// Returns Diagnostics-area for the current statement.
+  Diagnostics_area *get_stmt_da()
+  { return m_stmt_da; }
+
+  /// Returns Diagnostics-area for the current statement.
+  const Diagnostics_area *get_stmt_da() const
+  { return m_stmt_da; }
+
+  /// Sets Diagnostics-area for the current statement.
+  void set_stmt_da(Diagnostics_area *da)
+  { m_stmt_da= da; }
+
+public:
   inline const CHARSET_INFO *charset()
   { return variables.character_set_client; }
   void update_charset();
@@ -2875,7 +2925,7 @@ public:
   inline void send_kill_message() const
   {
     int err= killed_errno();
-    if (err)
+    if (err && !get_stmt_da()->is_set())
     {
       if ((err == KILL_CONNECTION) && !shutdown_in_progress)
         err = KILL_QUERY;
@@ -3008,9 +3058,9 @@ public:
     }
     db_length= db ? new_db_len : 0;
     result= new_db && !db;
-#ifdef HAVE_PSI_INTERFACE
-    if (result && PSI_server)
-      PSI_server->set_thread_db(new_db, new_db_len);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    if (result)
+      PSI_CALL(set_thread_db)(new_db, new_db_len);
 #endif
     return result;
   }
@@ -3030,9 +3080,8 @@ public:
   {
     db= new_db;
     db_length= new_db_len;
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-      PSI_server->set_thread_db(new_db, new_db_len);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_CALL(set_thread_db)(new_db, new_db_len);
 #endif
   }
   /*
@@ -3074,15 +3123,16 @@ public:
   */
   virtual bool handle_condition(uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
 
   /**
     Remove the error handler last pushed.
   */
   Internal_error_handler *pop_internal_handler();
 
+  Opt_trace_context opt_trace; ///< optimizer trace of current statement
   /**
     Raise an exception condition.
     @param code the MYSQL_ERRNO error code of the error
@@ -3130,7 +3180,7 @@ private:
   friend class Sql_cmd_common_signal;
   friend class Sql_cmd_signal;
   friend class Sql_cmd_resignal;
-  friend void push_warning(THD*, MYSQL_ERROR::enum_warning_level, uint, const char*);
+  friend void push_warning(THD*, Sql_condition::enum_warning_level, uint, const char*);
   friend void my_message_sql(uint, const char *, myf);
 
   /**
@@ -3141,10 +3191,10 @@ private:
     @param msg the condition message text
     @return The condition raised, or NULL
   */
-  MYSQL_ERROR*
+  Sql_condition*
   raise_condition(uint sql_errno,
                   const char* sqlstate,
-                  MYSQL_ERROR::enum_warning_level level,
+                  Sql_condition::enum_warning_level level,
                   const char* msg);
 
 public:
@@ -3186,7 +3236,19 @@ public:
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
 
-    mdl_context.set_explicit_duration_for_all_locks();
+    if (mode_arg == LTM_LOCK_TABLES)
+    {
+      /*
+        When entering LOCK TABLES mode we should set explicit duration
+        for all metadata locks acquired so far in order to avoid releasing
+        them till UNLOCK TABLES statement.
+        We don't do this when entering prelocked mode since sub-statements
+        don't release metadata locks and restoring status-quo after leaving
+        prelocking mode gets complicated.
+      */
+      mdl_context.set_explicit_duration_for_all_locks();
+    }
+
     locked_tables_mode= mode_arg;
   }
   void leave_locked_tables_mode();
@@ -3223,8 +3285,8 @@ private:
     tree itself is reused between executions and thus is stored elsewhere.
   */
   MEM_ROOT main_mem_root;
-  Warning_info main_warning_info;
   Diagnostics_area main_da;
+  Diagnostics_area *m_stmt_da;
 
   /**
     It will be set TURE if CURRENT_USER() is called in account management
@@ -3247,24 +3309,24 @@ private:
 };
 
 
-/** A short cut for thd->stmt_da->set_ok_status(). */
+/** A short cut for thd->get_stmt_da()->set_ok_status(). */
 
 inline void
 my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
   thd->set_row_count_func(affected_rows);
-  thd->stmt_da->set_ok_status(thd, affected_rows, id, message);
+  thd->get_stmt_da()->set_ok_status(affected_rows, id, message);
 }
 
 
-/** A short cut for thd->stmt_da->set_eof_status(). */
+/** A short cut for thd->get_stmt_da()->set_eof_status(). */
 
 inline void
 my_eof(THD *thd)
 {
   thd->set_row_count_func(-1);
-  thd->stmt_da->set_eof_status(thd);
+  thd->get_stmt_da()->set_eof_status(thd);
 }
 
 #define tmp_disable_binlog(A)       \
@@ -3346,6 +3408,14 @@ public:
   */
   virtual void cleanup();
   void set_thd(THD *thd_arg) { thd= thd_arg; }
+
+  /**
+    If we execute EXPLAIN SELECT ... LIMIT (or any other EXPLAIN query)
+    we have to ignore offset value sending EXPLAIN output rows since
+    offset value belongs to the underlying query, not to the whole EXPLAIN.
+  */
+  void reset_offset_limit_cnt() { unit->offset_limit_cnt= 0; }
+
 #ifdef EMBEDDED_LIBRARY
   virtual void begin_dataset() {}
 #else
@@ -4053,6 +4123,14 @@ public:
 */
 #define CF_WRITE_RPL_INFO_COMMAND (1U << 12)
 
+/**
+  Identifies statements that can be explained with EXPLAIN.
+*/
+#define CF_CAN_BE_EXPLAINED       (1U << 13)
+
+/** Identifies statements which may generate an optimizer trace */
+#define CF_OPTIMIZER_TRACE        (1U << 14)
+
 /* Bits in server_command_flags */
 
 /**
@@ -4075,14 +4153,6 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);
-
-/*
-  This prototype is placed here instead of in item_func.h because it
-  depends on the definition of enum_sql_command, which is in this
-  file.
- */
-int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                        LEX_STRING &name, user_var_entry **out_entry);
 
 /* Inline functions */
 
@@ -4107,24 +4177,5 @@ inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 }
 
 #endif /* MYSQL_SERVER */
-
-/**
-  The meat of thd_proc_info(THD*, char*), a macro that packs the last
-  three calling-info parameters.
-*/
-extern "C"
-const char *set_thd_proc_info(void *thd_arg, const char *info,
-                              const char *calling_func,
-                              const char *calling_file,
-                              const unsigned int calling_line);
-
-#define thd_proc_info(thd, msg) \
-  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
-
-#define THD_STAGE_INFO(thd, stage) \
-  { \
-    set_thd_proc_info(thd, stage.m_name, __func__, __FILE__, __LINE__); \
-    MYSQL_SET_STAGE(stage.m_key, __FILE__, __LINE__); \
-  }
 
 #endif /* SQL_CLASS_INCLUDED */

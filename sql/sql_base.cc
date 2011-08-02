@@ -62,9 +62,9 @@ bool
 No_such_table_error_handler::handle_condition(THD *,
                                               uint sql_errno,
                                               const char*,
-                                              MYSQL_ERROR::enum_warning_level,
+                                              Sql_condition::enum_warning_level,
                                               const char*,
-                                              MYSQL_ERROR ** cond_hdl)
+                                              Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   if (sql_errno == ER_NO_SUCH_TABLE)
@@ -87,6 +87,69 @@ bool No_such_table_error_handler::safely_trapped_errors()
   */
   return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
 }
+
+
+/**
+  This internal handler is used to trap ER_NO_SUCH_TABLE and
+  ER_WRONG_MRG_TABLE errors during CHECK/REPAIR TABLE for MERGE
+  tables.
+*/
+
+class Repair_mrg_table_error_handler : public Internal_error_handler
+{
+public:
+  Repair_mrg_table_error_handler()
+    : m_handled_errors(false), m_unhandled_errors(false)
+  {}
+
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_warning_level level,
+                        const char* msg,
+                        Sql_condition ** cond_hdl);
+
+  /**
+    Returns TRUE if there were ER_NO_SUCH_/WRONG_MRG_TABLE and there
+    were no unhandled errors. FALSE otherwise.
+  */
+  bool safely_trapped_errors()
+  {
+    /*
+      Check for m_handled_errors is here for extra safety.
+      It can be useful in situation when call to open_table()
+      fails because some error which was suppressed by another
+      error handler (e.g. in case of MDL deadlock which we
+      decided to solve by back-off and retry).
+    */
+    return (m_handled_errors && (! m_unhandled_errors));
+  }
+
+private:
+  bool m_handled_errors;
+  bool m_unhandled_errors;
+};
+
+
+bool
+Repair_mrg_table_error_handler::handle_condition(THD *,
+                                                 uint sql_errno,
+                                                 const char*,
+                                                 Sql_condition::enum_warning_level level,
+                                                 const char*,
+                                                 Sql_condition ** cond_hdl)
+{
+  *cond_hdl= NULL;
+  if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
+  {
+    m_handled_errors= true;
+    return TRUE;
+  }
+
+  m_unhandled_errors= true;
+  return FALSE;
+}
+
 
 /**
   @defgroup Data_Dictionary Data Dictionary
@@ -182,7 +245,7 @@ static void check_unused(void)
   {
     share= (TABLE_SHARE*) my_hash_element(&table_def_cache, idx);
 
-    I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
+    TABLE_SHARE::TABLE_list::Iterator it(share->free_tables);
     while ((entry= it++))
     {
       /* We must not have TABLEs in the free list that have their file closed. */
@@ -466,6 +529,8 @@ static void table_def_use_table(THD *thd, TABLE *table)
   DBUG_ASSERT(table->db_stat && table->file);
   /* The children must be detached from the table. */
   DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+
+  table->file->rebind_psi();
 }
 
 
@@ -476,11 +541,14 @@ static void table_def_use_table(THD *thd, TABLE *table)
 static void table_def_unuse_table(TABLE *table)
 {
   DBUG_ASSERT(table->in_use);
+  DBUG_ASSERT(table->file);
 
   /* We shouldn't put the table to 'unused' list if the share is old. */
   DBUG_ASSERT(! table->s->has_old_version());
 
   table->in_use= 0;
+  table->file->unbind_psi();
+
   /* Remove table from the list of tables used in this share. */
   table->s->used_tables.remove(table);
   /* Add table to the list of unused TABLE objects for this share. */
@@ -582,8 +650,9 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   share->ref_count++;				// Mark in use
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely(PSI_server != NULL))
-    share->m_psi= PSI_server->get_table_share(false, share);
+  share->m_psi= PSI_CALL(get_table_share)(false, share);
+#else
+  share->m_psi= NULL;
 #endif
 
   DBUG_PRINT("exit", ("share: 0x%lx  ref_count: %u",
@@ -676,8 +745,11 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
 
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
-  if (share || (thd->is_error() && thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE))
+  if (share || (thd->is_error() &&
+      thd->get_stmt_da()->sql_errno() != ER_NO_SUCH_TABLE))
+  {
     DBUG_RETURN(share);
+  }
 
   *error= 0;
 
@@ -854,7 +926,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 		  share->db.str)+1,
 	   share->table_name.str);
     (*start_list)->in_use= 0;
-    I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
+    TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
     while (it++)
       ++(*start_list)->in_use;
     (*start_list)->locked= 0;                   /* Obsolete. */
@@ -935,7 +1007,7 @@ void free_io_cache(TABLE *table)
 
 static void kill_delayed_threads_for_table(TABLE_SHARE *share)
 {
-  I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
+  TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
   TABLE *tab;
 
   mysql_mutex_assert_owner(&LOCK_open);
@@ -1728,14 +1800,14 @@ bool close_temporary_tables(THD *thd)
       qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
 
-      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->set_overwrite_status(true);
       if ((error= (mysql_bin_log.write(&qinfo) || error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection
           has been closed already. So lets print a message to the
           error log instead of pushing yet another error into the
-          stmt_da.
+          Diagnostics_area.
 
           Also, we keep the error flag so that we propagate the error
           up in the stack. This way, if we're the SQL thread we notice
@@ -1746,7 +1818,7 @@ bool close_temporary_tables(THD *thd)
         sql_print_error("Failed to write the DROP statement for "
                         "temporary tables to binary log");
       }
-      thd->stmt_da->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->set_overwrite_status(false);
 
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
       thd->thread_specific_used= save_thread_specific_used;
@@ -2393,9 +2465,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
 
 private:
   /** Open table context to be used for back-off request. */
@@ -2412,9 +2484,9 @@ private:
 bool MDL_deadlock_handler::handle_condition(THD *,
                                             uint sql_errno,
                                             const char*,
-                                            MYSQL_ERROR::enum_warning_level,
+                                            Sql_condition::enum_warning_level,
                                             const char*,
-                                            MYSQL_ERROR ** cond_hdl)
+                                            Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   if (! m_is_active && sql_errno == ER_LOCK_DEADLOCK)
@@ -4013,7 +4085,7 @@ recover_from_failed_open(THD *thd)
         ha_create_table_from_engine(thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->warning_info->clear_warning_info(thd->query_id);
+        thd->get_stmt_da()->clear_warning_info(thd->query_id);
         thd->clear_error();                 // Clear error message
         thd->mdl_context.release_transactional_locks();
         break;
@@ -4420,6 +4492,24 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
 
     thd->pop_internal_handler();
     safe_to_ignore_table= no_such_table_handler.safely_trapped_errors();
+  }
+  else if (tables->parent_l && (thd->open_options & HA_OPEN_FOR_REPAIR))
+  {
+    /*
+      Also fail silently for underlying tables of a MERGE table if this
+      table is opened for CHECK/REPAIR TABLE statement. This is needed
+      to provide complete list of problematic underlying tables in
+      CHECK/REPAIR TABLE output.
+    */
+    Repair_mrg_table_error_handler repair_mrg_table_handler;
+    thd->push_internal_handler(&repair_mrg_table_handler);
+
+    error= open_temporary_table(thd, tables);
+    if (!error && !tables->table)
+      error= open_table(thd, tables, new_frm_mem, ot_ctx);
+
+    thd->pop_internal_handler();
+    safe_to_ignore_table= repair_mrg_table_handler.safely_trapped_errors();
   }
   else
   {
@@ -5564,7 +5654,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
       mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
       goto err;
     }
-    if (!thd->lex->describe)
+    if (!preserve_items_for_printing(thd))
       mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
   }
 
@@ -5959,8 +6049,9 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   }
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely(PSI_server != NULL))
-    share->m_psi= PSI_server->get_table_share(true, share);
+  share->m_psi= PSI_CALL(get_table_share)(true, share);
+#else
+  share->m_psi= NULL;
 #endif
 
   if (open_table_from_share(thd, share, table_name,
@@ -6876,29 +6967,9 @@ find_field_in_tables(THD *thd, Item_ident *item,
   if (last_table)
     last_table= last_table->next_name_resolution_table;
 
-#ifndef DBUG_OFF
-  uint loop_count= 0;
-  TABLE_LIST *one_node;
-#endif
   for (; cur_table != last_table ;
        cur_table= cur_table->next_name_resolution_table)
   {
-#ifndef DBUG_OFF
-    ++loop_count;
-    if (loop_count == 1000) // not normal, record one node we meet
-      one_node= cur_table;
-    if ((loop_count > 1000) && (one_node == cur_table))
-    {
-      /*
-        Meeting same node again: cycle, infinite loop. Raise an error which
-        doesn't stop RQG, so that Roel can continue working while we fix the
-        bug. We cannot continue the statement though.
-      */
-      my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0),
-               "HITTING BUG#12567331 INFINITE LOOP DETECTED - ASK GUILHEM AND ROEL");
-      return NULL;
-    }
-#endif
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, length,
                                               item->name, db, table_name, ref,
                                               (thd->lex->sql_command ==
@@ -8022,7 +8093,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 ** Check that all given fields exists and fill struct with current data
 ****************************************************************************/
 
-bool setup_fields(THD *thd, Item **ref_pointer_array,
+bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &fields, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func)
 {
@@ -8052,8 +8123,11 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     TODO: remove it when (if) we made one list for allfields and
     ref_pointer_array
   */
-  if (ref_pointer_array)
-    memset(ref_pointer_array, 0, sizeof(Item *) * fields.elements);
+  if (!ref_pointer_array.is_null())
+  {
+    DBUG_ASSERT(ref_pointer_array.size() >= fields.elements);
+    memset(ref_pointer_array.array(), 0, sizeof(Item *) * fields.elements);
+  }
 
   /*
     We call set_entry() there (before fix_fields() of the whole list of field
@@ -8071,7 +8145,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   while ((var= li++))
     var->set_entry(thd, FALSE);
 
-  Item **ref= ref_pointer_array;
+  Ref_ptr_array ref= ref_pointer_array;
   thd->lex->current_select->cur_pos_in_select_list= 0;
   while ((item= it++))
   {
@@ -8084,8 +8158,11 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
       DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
       DBUG_RETURN(TRUE); /* purecov: inspected */
     }
-    if (ref)
-      *(ref++)= item;
+    if (!ref.is_null())
+    {
+      ref[0]= item;
+      ref.pop_front();
+    }
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
@@ -9012,7 +9089,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   {
     if (share->ref_count)
     {
-      I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
+      TABLE_SHARE::TABLE_list::Iterator it(share->free_tables);
 #ifndef DBUG_OFF
       if (remove_type == TDC_RT_REMOVE_ALL)
       {
@@ -9020,7 +9097,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
       }
       else if (remove_type == TDC_RT_REMOVE_NOT_OWN)
       {
-        I_P_List_iterator<TABLE, TABLE_share> it2(share->used_tables);
+        TABLE_SHARE::TABLE_list::Iterator it2(share->used_tables);
         while ((table= it2++))
           if (table->in_use != thd)
           {

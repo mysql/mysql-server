@@ -1863,9 +1863,6 @@ revoke select on Foo.* from myuser@localhost;
 delete from mysql.user where User='myuser';
 flush privileges;
 
-# Wait till we reached the initial number of concurrent sessions
---source include/wait_until_count_sessions.inc
-
 --echo #########################################################################
 --echo #
 --echo # Bug#38347: ALTER ROUTINE privilege allows SHOW CREATE TABLE.
@@ -2212,3 +2209,40 @@ grant select on mysqltest_db1.t1 to mysqltest_u1;
 show grants for mysqltest_u1;
 drop database mysqltest_db1;
 drop user mysqltest_u1;
+
+
+--echo #
+--echo # Bug#11756966 - 48958: STORED PROCEDURES CAN BE LEVERAGED TO BYPASS
+--echo #                DATABASE SECURITY
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS secret;
+DROP DATABASE IF EXISTS no_such_db;
+--enable_warnings
+
+CREATE DATABASE secret;
+GRANT USAGE ON *.* TO 'untrusted'@localhost;
+
+--echo # Connection con1
+connect (con1, localhost, untrusted);
+SHOW GRANTS;
+SHOW DATABASES;
+
+--echo # Both statements below should fail with the same error.
+--echo # They used to give different errors, thereby
+--echo # hinting that the secret database exists.
+--error ER_DBACCESS_DENIED_ERROR
+CREATE PROCEDURE no_such_db.foo() BEGIN END;
+--error ER_DBACCESS_DENIED_ERROR
+CREATE PROCEDURE secret.peek_at_secret() BEGIN END;
+
+--echo # Connection default
+--connection default
+disconnect con1;
+DROP USER 'untrusted'@localhost;
+DROP DATABASE secret;
+
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

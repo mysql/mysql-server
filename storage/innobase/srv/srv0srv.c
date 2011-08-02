@@ -82,6 +82,8 @@ UNIV_INTERN ulint	srv_dml_needed_delay = 0;
 UNIV_INTERN ibool	srv_monitor_active = FALSE;
 UNIV_INTERN ibool	srv_error_monitor_active = FALSE;
 
+UNIV_INTERN ibool	srv_buf_dump_thread_active = FALSE;
+
 UNIV_INTERN const char*	srv_main_thread_op_info = "";
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
@@ -93,6 +95,16 @@ UNIV_INTERN const char	srv_mysql50_table_name_prefix[9] = "#mysql50#";
 names, where the file name itself may also contain a path */
 
 UNIV_INTERN char*	srv_data_home	= NULL;
+
+/** Rollback files directory, can be absolute. */
+UNIV_INTERN char*	srv_undo_dir = NULL;
+
+/** The number of tablespaces to use for rollback segments. */
+UNIV_INTERN ulong	srv_undo_tablespaces = 8;
+
+/* The number of rollback segments to use */
+UNIV_INTERN ulong	srv_undo_logs = 1;
+
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN char*	srv_arch_dir	= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
@@ -206,6 +218,8 @@ UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
 
+/* Switch to enable random read ahead. */
+UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
@@ -248,9 +262,6 @@ UNIV_INTERN ulong srv_n_purge_threads = 0;
 
 /* the number of pages to purge in one batch */
 UNIV_INTERN ulong srv_purge_batch_size = 20;
-
-/* the number of rollback segments to use */
-UNIV_INTERN ulong srv_rollback_segments = TRX_SYS_N_RSEGS;
 
 /* variable counts amount of data read in total (in bytes) */
 UNIV_INTERN ulint srv_data_read = 0;
@@ -584,6 +595,17 @@ UNIV_INTERN os_event_t	srv_monitor_event;
 /** Event to signal the error thread */
 UNIV_INTERN os_event_t	srv_error_event;
 
+/** Event to signal the buffer pool dump/load thread */
+UNIV_INTERN os_event_t	srv_buf_dump_event;
+
+/** The buffer pool dump/load file name */
+UNIV_INTERN char*	srv_buf_dump_filename;
+
+/** Boolean config knobs that tell InnoDB to dump the buffer pool at shutdown
+and/or load it during startup. */
+UNIV_INTERN char	srv_buffer_pool_dump_at_shutdown = FALSE;
+UNIV_INTERN char	srv_buffer_pool_load_at_startup = FALSE;
+
 /***********************************************************************
 Prints counters for work done by srv_master_thread. */
 static
@@ -901,6 +923,8 @@ srv_init(void)
 
 	srv_monitor_event = os_event_create(NULL);
 
+	srv_buf_dump_event = os_event_create("buf_dump_event");
+
 	UT_LIST_INIT(srv_sys->tasks);
 
 	/* Create dummy indexes for infimum and supremum records */
@@ -928,6 +952,9 @@ srv_free(void)
 	srv_sys = NULL;
 
 	trx_i_s_cache_free(trx_i_s_cache);
+
+	os_event_free(srv_buf_dump_event);
+	srv_buf_dump_event = NULL;
 }
 
 /*********************************************************************//**
@@ -1184,7 +1211,7 @@ srv_printf_innodb_monitor(
 		(long) srv_conc_n_threads,
 		srv_conc_get_waiting_threads());
 
-	/* This is a dirty read, without holding trx_sys->read_view_mutex. */
+	/* This is a dirty read, without holding trx_sys->mutex. */
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
 
@@ -1275,6 +1302,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
 	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
 	export_vars.innodb_buffer_pool_reads = srv_buf_pool_reads;
+	export_vars.innodb_buffer_pool_read_ahead_rnd
+		= stat.n_ra_pages_read_rnd;
 	export_vars.innodb_buffer_pool_read_ahead
 		= stat.n_ra_pages_read;
 	export_vars.innodb_buffer_pool_read_ahead_evicted
@@ -1452,6 +1481,9 @@ loop:
 
 			last_table_monitor_time = ut_time();
 
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
+
 			fputs("===========================================\n",
 			      stderr);
 
@@ -1466,6 +1498,9 @@ loop:
 			      "END OF INNODB TABLE MONITOR OUTPUT\n"
 			      "==================================\n",
 			      stderr);
+
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 		}
 	}
 
@@ -1666,11 +1701,14 @@ srv_any_background_threads_are_active(void)
 		thread_active = "srv_lock_timeout thread";
 	} else if (srv_monitor_active) {
 		thread_active = "srv_monitor_thread";
+	} else if (srv_buf_dump_thread_active) {
+		thread_active = "buf_dump_thread";
 	}
 
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);
 	os_event_set(srv_timeout_event);
+	os_event_set(srv_buf_dump_event);
 
 	return(thread_active);
 }

@@ -711,8 +711,6 @@ looping	i
 looping	1
 looping	i
 looping	0
-Warnings:
-Error	1062	Duplicate entry '1' for key 'a'
 call proc_26977_works(2);
 do something
 do something
@@ -732,8 +730,6 @@ looping	i
 looping	0
 optimizer: keep hreturn
 optimizer: keep hreturn
-Warnings:
-Error	1062	Duplicate entry '2' for key 'a'
 drop table t1;
 drop procedure proc_26977_broken;
 drop procedure proc_26977_works;
@@ -928,20 +924,16 @@ CALL p1();
 Warning found!
 Warning found!
 Level	Code	Message
-Warning	1105	Unknown error
 Warning found!
 Warning found!
 Level	Code	Message
-Warning	1105	Unknown error
 Warning found!
 Warning found!
 Level	Code	Message
-Warning	1105	Unknown error
 End of Result Set found!
 End of Result Set found!
 Level	Code	Message
 Warning	1105	Unknown error
-Error	1329	No data - zero rows fetched, selected, or processed
 SET SESSION debug="-d,bug23032_emit_warning";
 DROP PROCEDURE p1;
 DROP TABLE t1;

@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Return error-text for system error messages and handler messages */
 
@@ -27,8 +28,9 @@
 #include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"
 #include "../storage/ndb/include/mgmapi/mgmapi_error.h"
 #endif
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-static my_bool verbose, print_all_codes;
+static my_bool verbose;
 
 #include "../include/my_base.h"
 #include "../mysys/my_handler_errors.h"
@@ -63,11 +65,6 @@ static struct my_option my_long_options[] =
   {"ndb", 257, "Ndbcluster storage engine specific error codes.", &ndb_code,
    &ndb_code, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-#ifdef HAVE_SYS_ERRLIST
-  {"all", 'a', "Print all the error messages and the number.",
-   &print_all_codes, &print_all_codes, 0, GET_BOOL, NO_ARG,
-   0, 0, 0, 0, 0, 0},
-#endif
   {"silent", 's', "Only print the error message.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Print error code and message (default).", &verbose,
@@ -75,30 +72,6 @@ static struct my_option my_long_options[] =
   {"version", 'V', "Displays version information and exits.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-};
-
-
-typedef struct ha_errors {
-  int errcode;
-  const char *msg;
-} HA_ERRORS;
-
-
-static HA_ERRORS ha_errlist[]=
-{
-  { -30999, "DB_INCOMPLETE: Sync didn't finish"},
-  { -30998, "DB_KEYEMPTY: Key/data deleted or never created"},
-  { -30997, "DB_KEYEXIST: The key/data pair already exists"},
-  { -30996, "DB_LOCK_DEADLOCK: Deadlock"},
-  { -30995, "DB_LOCK_NOTGRANTED: Lock unavailable"},
-  { -30994, "DB_NOSERVER: Server panic return"},
-  { -30993, "DB_NOSERVER_HOME: Bad home sent to server"},
-  { -30992, "DB_NOSERVER_ID: Bad ID sent to server"},
-  { -30991, "DB_NOTFOUND: Key/data pair not found (EOF)"},
-  { -30990, "DB_OLD_VERSION: Out-of-date version"},
-  { -30989, "DB_RUNRECOVERY: Panic return"},
-  { -30988, "DB_VERIFY_BAD: Verify failed; bad format"},
-  { 0,NullS },
 };
 
 
@@ -112,7 +85,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   printf("Print a description for a system error code or a MySQL error code.\n");
   printf("If you want to get the error for a negative error code, you should use\n-- before the first error code to tell perror that there was no more options.\n\n");
   printf("Usage: %s [OPTIONS] [ERRORCODE [ERRORCODE...]]\n",my_progname);
@@ -150,7 +123,7 @@ static int get_options(int *argc,char ***argv)
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  if (!*argc && !print_all_codes)
+  if (!*argc)
   {
     usage();
     return 1;
@@ -161,8 +134,6 @@ static int get_options(int *argc,char ***argv)
 
 static const char *get_ha_error_msg(int code)
 {
-  HA_ERRORS *ha_err_ptr;
-
   /*
     If you got compilation error here about compile_time_assert array, check
     that every HA_ERR_xxx constant has a corresponding error message in
@@ -174,9 +145,6 @@ static const char *get_ha_error_msg(int code)
   if (code >= HA_ERR_FIRST && code <= HA_ERR_LAST)
     return handler_error_messages[code - HA_ERR_FIRST];
 
-  for (ha_err_ptr=ha_errlist ; ha_err_ptr->errcode ;ha_err_ptr++)
-    if (ha_err_ptr->errcode == code)
-      return ha_err_ptr->msg;
   return NullS;
 }
 
@@ -291,22 +259,6 @@ int main(int argc,char *argv[])
   my_handler_error_register();
 
   error=0;
-#ifdef HAVE_SYS_ERRLIST
-  if (print_all_codes)
-  {
-    HA_ERRORS *ha_err_ptr;
-    for (code=1 ; code < sys_nerr ; code++)
-    {
-      if (sys_errlist[code] && sys_errlist[code][0])
-      {						/* Skip if no error-text */
-	printf("%3d = %s\n",code,sys_errlist[code]);
-      }
-    }
-    for (ha_err_ptr=ha_errlist ; ha_err_ptr->errcode ;ha_err_ptr++)
-      printf("%3d = %s\n",ha_err_ptr->errcode,ha_err_ptr->msg);
-  }
-  else
-#endif
   {
     /*
       On some system, like Linux, strerror(unknown_error) returns a

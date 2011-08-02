@@ -23,6 +23,7 @@
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "field.h"                              /* Derivation */
+#include "sql_array.h"
 
 class Protocol;
 struct TABLE_LIST;
@@ -30,6 +31,7 @@ void item_init(void);			/* Init item functions */
 class Item_field;
 class user_var_entry;
 
+typedef Bounds_checked_array<Item*> Ref_ptr_array;
 
 static inline uint32
 char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
@@ -571,7 +573,8 @@ public:
  protected:
   my_bool with_subselect;               /* If this item is a subselect or some
                                            of its arguments is or contains a
-                                           subselect. Computed by fix_fields. */
+                                           subselect. Computed by fix_fields
+                                           and updated by update_used_tables. */
 
  public:
   // alloc & destruct is done as start of select using sql_alloc
@@ -931,10 +934,11 @@ public:
 
   void print_item_w_name(String *, enum_query_type query_type);
   virtual void update_used_tables() {}
-  virtual void split_sum_func(THD *thd, Item **ref_pointer_array,
+  virtual void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                               List<Item> &fields) {}
   /* Called for items that really have to be split */
-  void split_sum_func2(THD *thd, Item **ref_pointer_array, List<Item> &fields,
+  void split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
+                       List<Item> &fields,
                        Item **ref, bool skip_registered);
   virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   virtual bool get_time(MYSQL_TIME *ltime);
@@ -1738,6 +1742,8 @@ public:
   String *val_str(String *str) { return field->val_str(str); }
   my_decimal *val_decimal(my_decimal *dec) { return field->val_decimal(dec); }
   void make_field(Send_field *tmp_field);
+  CHARSET_INFO *charset_for_protocol(void) const
+  { return (CHARSET_INFO *)field->charset_for_protocol(); }
 };
 
 
@@ -2701,6 +2707,14 @@ public:
     return (*ref)->is_outer_field();
   }
 
+  /**
+    Checks if the item tree that ref points to contains a subquery.
+  */
+  virtual bool has_subquery() const 
+  { 
+    DBUG_ASSERT(ref);
+    return (*ref)->has_subquery();
+  }
 };
 
 

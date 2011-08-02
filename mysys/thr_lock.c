@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
 Read and write locks for Posix threads. All tread must acquire
@@ -400,7 +400,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   mysql_cond_t *cond= &thread_var->suspend;
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
-  const char *old_proc_info;
+  PSI_stage_info old_stage;
   DBUG_ENTER("wait_for_lock");
 
   /*
@@ -439,8 +439,9 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   thread_var->current_cond=  cond;
   data->cond= cond;
 
-  old_proc_info= proc_info_hook(NULL, "Waiting for table level lock",
-                                __func__, __FILE__, __LINE__);
+  proc_info_hook(NULL, &stage_waiting_for_table_level_lock,
+                 &old_stage,
+                 __func__, __FILE__, __LINE__);
 
   /*
     Since before_lock_wait potentially can create more threads to
@@ -530,7 +531,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   thread_var->current_cond=  0;
   mysql_mutex_unlock(&thread_var->mutex);
 
-  proc_info_hook(NULL, old_proc_info, __func__, __FILE__, __LINE__);
+  proc_info_hook(NULL, &old_stage, NULL, __func__, __FILE__, __LINE__);
 
   DBUG_RETURN(result);
 }

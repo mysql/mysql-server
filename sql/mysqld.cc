@@ -64,6 +64,7 @@
 #include "scheduler.h"
 #include "debug_sync.h"
 #include "sql_callback.h"
+#include "opt_trace_context.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -338,6 +339,7 @@ static char *lc_time_names_name;
 char *my_bind_addr_str;
 static char *default_collation_name;
 char *default_storage_engine;
+char *default_tmp_storage_engine;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
 static bool binlog_format_used= false;
@@ -2128,8 +2130,7 @@ static bool cache_thread()
       Delete the instrumentation for the job that just completed,
       before parking this pthread in the cache (blocked on COND_thread_cache).
     */
-    if (likely(PSI_server != NULL))
-      PSI_server->delete_current_thread();
+    PSI_CALL(delete_current_thread)();
 #endif
 
     while (!abort_loop && ! wake_thread && ! kill_cached_threads)
@@ -2150,13 +2151,9 @@ static bool cache_thread()
         Create new instrumentation for the new THD job,
         and attach it to this running pthread.
       */
-      if (likely(PSI_server != NULL))
-      {
-        PSI_thread *psi= PSI_server->new_thread(key_thread_one_connection,
-                                                thd, thd->thread_id);
-        if (likely(psi != NULL))
-          PSI_server->set_thread(psi);
-      }
+      PSI_thread *psi= PSI_CALL(new_thread)(key_thread_one_connection,
+                                            thd, thd->thread_id);
+      PSI_CALL(set_thread)(psi);
 #endif
 
       /*
@@ -2522,6 +2519,15 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
     my_safe_print_str(thd->query(), min(1024, thd->query_length()));
     fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
     fprintf(stderr, "Status: %s\n", kreason);
+#ifdef OPTIMIZER_TRACE
+    if (thd->opt_trace.is_started())
+    {
+      const size_t max_print_len= 4096; // print those final bytes
+      const char *tail= thd->opt_trace.get_tail(max_print_len);
+      fprintf(stderr, "Tail of Optimizer trace (%p): ", tail);
+      my_safe_print_str(tail, max_print_len);
+    }
+#endif
     fputc('\n', stderr);
   }
   fprintf(stderr, "\
@@ -2786,8 +2792,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 	abort_loop=1;				// mark abort for threads
 #ifdef HAVE_PSI_THREAD_INTERFACE
         /* Delete the instrumentation for the signal thread */
-        if (likely(PSI_server != NULL))
-          PSI_server->delete_current_thread();
+        PSI_CALL(delete_current_thread)();
 #endif
 #ifdef USE_ONE_SIGNAL_HAND
 	pthread_t tmp;
@@ -2886,7 +2891,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
       thd->is_fatal_error= 1;
     (void) thd->raise_condition(error,
                                 NULL,
-                                MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                Sql_condition::WARN_LEVEL_ERROR,
                                 str);
   }
 
@@ -3338,6 +3343,7 @@ int init_common_variables()
 #else
   default_storage_engine= const_cast<char *>("InnoDB");
 #endif
+  default_tmp_storage_engine= default_storage_engine;
 
   /*
     Add server status variables to the dynamic list of
@@ -4046,6 +4052,44 @@ err:
   DBUG_RETURN(1);
 }
 
+
+static bool
+initialize_storage_engine(char *se_name, const char *se_kind,
+                          plugin_ref *dest_plugin)
+{
+  LEX_STRING name= { se_name, strlen(se_name) };
+  plugin_ref plugin;
+  handlerton *hton;
+  if ((plugin= ha_resolve_by_name(0, &name, FALSE)))
+    hton= plugin_data(plugin, handlerton*);
+  else
+  {
+    sql_print_error("Unknown/unsupported storage engine: %s", se_name);
+    return true;
+  }
+  if (!ha_storage_engine_is_enabled(hton))
+  {
+    if (!opt_bootstrap)
+    {
+      sql_print_error("Default%s storage engine (%s) is not available",
+                      se_kind, se_name);
+      return true;
+    }
+    DBUG_ASSERT(*dest_plugin);
+  }
+  else
+  {
+    /*
+      Need to unlock as global_system_variables.table_plugin
+      was acquired during plugin_init()
+    */
+    plugin_unlock(0, *dest_plugin);
+    *dest_plugin= plugin;
+  }
+  return false;
+}
+
+
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
@@ -4103,7 +4147,7 @@ static int init_server_components()
     }
   }
 
-  proc_info_hook= set_thd_proc_info;
+  proc_info_hook= set_thd_stage_info;
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /*
@@ -4353,38 +4397,14 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 #endif
 
   /*
-    Set the default storage engine
+    Set the default storage engines
   */
-  LEX_STRING name= { default_storage_engine, strlen(default_storage_engine) };
-  plugin_ref plugin;
-  handlerton *hton;
-  if ((plugin= ha_resolve_by_name(0, &name)))
-    hton= plugin_data(plugin, handlerton*);
-  else
-  {
-    sql_print_error("Unknown/unsupported storage engine: %s",
-                    default_storage_engine);
+  if (initialize_storage_engine(default_storage_engine, "",
+                                &global_system_variables.table_plugin))
     unireg_abort(1);
-  }
-  if (!ha_storage_engine_is_enabled(hton))
-  {
-    if (!opt_bootstrap)
-    {
-      sql_print_error("Default storage engine (%s) is not available",
-                      default_storage_engine);
-      unireg_abort(1);
-    }
-    DBUG_ASSERT(global_system_variables.table_plugin);
-  }
-  else
-  {
-    /*
-      Need to unlock as global_system_variables.table_plugin
-      was acquired during plugin_init()
-    */
-    plugin_unlock(0, global_system_variables.table_plugin);
-    global_system_variables.table_plugin= plugin;
-  }
+  if (initialize_storage_engine(default_tmp_storage_engine, " temp",
+                                &global_system_variables.temp_table_plugin))
+    unireg_abort(1);
 
   tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
                                (TC_LOG *) &mysql_bin_log :
@@ -4673,27 +4693,29 @@ int mysqld_main(int argc, char **argv)
     if available.
   */
   if (PSI_hook)
-    PSI_server= (PSI*) PSI_hook->get_interface(PSI_CURRENT_VERSION);
-
-  if (PSI_server)
   {
-    /*
-      Now that we have parsed the command line arguments, and have initialized
-      the performance schema itself, the next step is to register all the
-      server instruments.
-    */
-    init_server_psi_keys();
-    /* Instrument the main thread */
-    PSI_thread *psi= PSI_server->new_thread(key_thread_main, NULL, 0);
-    if (psi)
-      PSI_server->set_thread(psi);
+    PSI *psi_server= (PSI*) PSI_hook->get_interface(PSI_CURRENT_VERSION);
+    if (likely(psi_server != NULL))
+    {
+      set_psi_server(psi_server);
 
-    /*
-      Now that some instrumentation is in place,
-      recreate objects which were initialised early,
-      so that they are instrumented as well.
-    */
-    my_thread_global_reinit();
+      /*
+        Now that we have parsed the command line arguments, and have initialized
+        the performance schema itself, the next step is to register all the
+        server instruments.
+      */
+      init_server_psi_keys();
+      /* Instrument the main thread */
+      PSI_thread *psi= PSI_CALL(new_thread)(key_thread_main, NULL, 0);
+      PSI_CALL(set_thread)(psi);
+
+      /*
+        Now that some instrumentation is in place,
+        recreate objects which were initialised early,
+        so that they are instrumented as well.
+      */
+      my_thread_global_reinit();
+    }
   }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -4994,8 +5016,7 @@ int mysqld_main(int argc, char **argv)
     Disable the main thread instrumentation,
     to avoid recording events during the shutdown.
   */
-  if (PSI_server)
-    PSI_server->delete_current_thread();
+  PSI_CALL(delete_current_thread)();
 #endif
 
   /* Wait until cleanup is done */
@@ -5487,6 +5508,9 @@ void handle_connections_sockets()
 #endif
 
   DBUG_ENTER("handle_connections_sockets");
+
+  (void) ip_flags;
+  (void) socket_flags;
 
 #ifndef HAVE_POLL
   FD_ZERO(&clientFDs);
@@ -6143,6 +6167,10 @@ struct my_option my_long_options[]=
      to a compiler bug in Sun Studio compiler. */
   {"default-storage-engine", 0, "The default storage engine for new tables",
    &default_storage_engine, 0, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0 },
+  {"default-tmp-storage-engine", 0, 
+    "The default storage engine for new explict temporary tables",
+   &default_tmp_storage_engine, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0 },
   {"default-time-zone", 0, "Set the default time zone.",
    &default_tz_name, &default_tz_name,
@@ -7949,11 +7977,14 @@ fn_format_relative_to_data_home(char * to, const char *name,
 bool is_secure_file_path(char *path)
 {
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
+  size_t opt_secure_file_priv_len;
   /*
     All paths are secure if opt_secure_file_path is 0
   */
   if (!opt_secure_file_priv)
     return TRUE;
+
+  opt_secure_file_priv_len= strlen(opt_secure_file_priv);
 
   if (strlen(path) >= FN_REFLEN)
     return FALSE;
@@ -7972,10 +8003,23 @@ bool is_secure_file_path(char *path)
       return FALSE;
   }
   convert_dirname(buff2, buff1, NullS);
-  if (strncmp(opt_secure_file_priv, buff2, strlen(opt_secure_file_priv)))
-    return FALSE;
+  if (!lower_case_file_system)
+  {
+    if (strncmp(opt_secure_file_priv, buff2, opt_secure_file_priv_len))
+      return FALSE;
+  }
+  else
+  {
+    if (files_charset_info->coll->strnncoll(files_charset_info,
+                                            (uchar *) buff2, strlen(buff2),
+                                            (uchar *) opt_secure_file_priv,
+                                            opt_secure_file_priv_len,
+                                            TRUE))
+      return FALSE;
+  }
   return TRUE;
 }
+
 
 static int fix_paths(void)
 {
@@ -8039,6 +8083,7 @@ static int fix_paths(void)
   {
     if (*opt_secure_file_priv == 0)
     {
+      my_free(opt_secure_file_priv);
       opt_secure_file_priv= 0;
     }
     else
@@ -8436,6 +8481,7 @@ PSI_stage_info stage_logging_slow_query= { 0, "logging slow query", 0};
 PSI_stage_info stage_making_temp_file_append_before_load_data= { 0, "Making temporary file (append) before replaying LOAD DATA INFILE.", 0};
 PSI_stage_info stage_making_temp_file_create_before_load_data= { 0, "Making temporary file (create) before replaying LOAD DATA INFILE.", 0};
 PSI_stage_info stage_manage_keys= { 0, "manage keys", 0};
+PSI_stage_info stage_master_has_sent_all_binlog_to_slave= { 0, "Master has sent all binlog to slave; waiting for binlog to be updated", 0};
 PSI_stage_info stage_opening_tables= { 0, "Opening tables", 0};
 PSI_stage_info stage_optimizing= { 0, "optimizing", 0};
 PSI_stage_info stage_preparing= { 0, "preparing", 0};
@@ -8455,6 +8501,7 @@ PSI_stage_info stage_sending_binlog_event_to_slave= { 0, "Sending binlog event t
 PSI_stage_info stage_sending_cached_result_to_client= { 0, "sending cached result to client", 0};
 PSI_stage_info stage_sending_data= { 0, "Sending data", 0};
 PSI_stage_info stage_setup= { 0, "setup", 0};
+PSI_stage_info stage_slave_has_read_all_relay_log= { 0, "Slave has read all relay log; waiting for the slave I/O thread to update it", 0};
 PSI_stage_info stage_sorting_for_group= { 0, "Sorting for group", 0};
 PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
 PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
@@ -8478,8 +8525,13 @@ PSI_stage_info stage_waiting_for_handler_open= { 0, "waiting for handler open", 
 PSI_stage_info stage_waiting_for_insert= { 0, "Waiting for INSERT", 0};
 PSI_stage_info stage_waiting_for_master_to_send_event= { 0, "Waiting for master to send event", 0};
 PSI_stage_info stage_waiting_for_master_update= { 0, "Waiting for master update", 0};
+PSI_stage_info stage_waiting_for_relay_log_space= { 0, "Waiting for the slave SQL thread to free enough relay log space", 0};
 PSI_stage_info stage_waiting_for_slave_mutex_on_exit= { 0, "Waiting for slave mutex on exit", 0};
+PSI_stage_info stage_waiting_for_slave_thread_to_start= { 0, "Waiting for slave thread to start", 0};
+PSI_stage_info stage_waiting_for_table_flush= { 0, "Waiting for table flush", 0};
+PSI_stage_info stage_waiting_for_query_cache_lock= { 0, "Waiting for query cache lock", 0};
 PSI_stage_info stage_waiting_for_the_next_event_in_relay_log= { 0, "Waiting for the next event in relay log", 0};
+PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position= { 0, "Waiting for the slave SQL thread to advance position", 0};
 PSI_stage_info stage_waiting_to_finalize_termination= { 0, "Waiting to finalize termination", 0};
 PSI_stage_info stage_waiting_to_get_readlock= { 0, "Waiting to get readlock", 0};
 
@@ -8528,6 +8580,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_making_temp_file_append_before_load_data,
   & stage_making_temp_file_create_before_load_data,
   & stage_manage_keys,
+  & stage_master_has_sent_all_binlog_to_slave,
   & stage_opening_tables,
   & stage_optimizing,
   & stage_preparing,
@@ -8547,6 +8600,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_sending_cached_result_to_client,
   & stage_sending_data,
   & stage_setup,
+  & stage_slave_has_read_all_relay_log,
   & stage_sorting_for_group,
   & stage_sorting_for_order,
   & stage_sorting_result,
@@ -8571,7 +8625,11 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_master_to_send_event,
   & stage_waiting_for_master_update,
   & stage_waiting_for_slave_mutex_on_exit,
+  & stage_waiting_for_slave_thread_to_start,
+  & stage_waiting_for_table_flush,
+  & stage_waiting_for_query_cache_lock,
   & stage_waiting_for_the_next_event_in_relay_log,
+  & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,
   & stage_waiting_to_get_readlock
 };

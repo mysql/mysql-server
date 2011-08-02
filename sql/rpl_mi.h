@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -119,7 +119,8 @@ protected:
   my_off_t master_log_pos;
 
 public:
-  void init_master_log_pos();
+  void clear_in_memory_info(bool all);
+
   inline const char* get_master_log_name() { return master_log_name; }
   inline ulonglong get_master_log_pos() { return master_log_pos; }
   inline void set_master_log_name(const char *log_file_name)
@@ -137,6 +138,8 @@ public:
   size_t get_number_info_mi_fields();
 
 private:
+  void init_master_log_pos();
+
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to, bool force);
 

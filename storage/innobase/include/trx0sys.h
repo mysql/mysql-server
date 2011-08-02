@@ -132,8 +132,7 @@ ib_bh_t*
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*****************************************************************//**
-Creates the trx_sys instance and initializes ib_bh, lock and
-read_view_mutex. */
+Creates the trx_sys instance and initializes ib_bh and mutex. */
 UNIV_INTERN
 void
 trx_sys_create(void);
@@ -161,16 +160,6 @@ trx_sys_get_nth_rseg(
 /*=================*/
 	trx_sys_t*	sys,	/*!< in: trx system */
 	ulint		n);	/*!< in: index of slot */
-/***************************************************************//**
-Sets the pointer in the nth slot of the rseg array. */
-UNIV_INLINE
-void
-trx_sys_set_nth_rseg(
-/*=================*/
-	trx_sys_t*	sys,	/*!< in/out: trx system */
-	ulint		n,	/*!< in: index of slot */
-	trx_rseg_t*	rseg);	/*!< in: pointer to rseg object, NULL if slot
-				not in use */
 /**********************************************************************//**
 Gets a pointer to the transaction system file copy and x-locks its page.
 @return	pointer to system file copy, page x-locked */
@@ -328,8 +317,20 @@ UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
-	const trx_t*	in_trx);/*!< in: transaction */
+	const trx_t*	in_trx)		/*!< in: transaction */
+	__attribute__((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/***********************************************************//**
+Assert that a transaction has been recovered.
+@return TRUE */
+UNIV_INLINE
+ibool
+trx_assert_recovered(
+/*=================*/
+	trx_id_t	trx_id)		/*!< in: transaction identifier */
+	__attribute__((warn_unused_result));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 /*****************************************************************//**
 Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL
@@ -405,11 +406,13 @@ trx_sys_file_format_max_set(
 	const char**	name);		/*!< out: max file format name or
 					NULL if not needed. */
 /*********************************************************************
-Creates the rollback segments */
+Creates the rollback segments
+@return number of rollback segments that are active. */
 UNIV_INTERN
-void
+ulint
 trx_sys_create_rsegs(
 /*=================*/
+	ulint	n_spaces,	/*!< number of tablespaces for UNDO logs */
 	ulint	n_rsegs);	/*!< number of rollback segments to create */
 /*****************************************************************//**
 Get the number of transaction in the system, independent of their state.
@@ -670,9 +673,9 @@ struct trx_doublewrite_struct{
 /** The transaction system central memory data structure. */
 struct trx_sys_struct{
 
-	rw_lock_t	lock;		/*!< read-write lock protecting most
-					fields in this structure except when
-					noted otherwise */
+	mutex_t		mutex;		/*!< mutex protecting most fields in
+					this structure except when noted
+					otherwise */
 	ulint		n_mysql_trx;	/*!< Number of transactions currently
 					allocated for MySQL */
 	ulint		n_prepared_trx;	/*!< Number of transactions currently
@@ -687,7 +690,7 @@ struct trx_sys_struct{
 	UT_LIST_BASE_NODE_T(trx_t) mysql_trx_list;
 					/*!< List of transactions created
 					for MySQL */
-	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
+	trx_rseg_t*	const rseg_array[TRX_SYS_N_RSEGS];
 					/*!< Pointer array to rollback
 					segments; NULL if slot not in use;
 					created and destroyed in
@@ -698,7 +701,6 @@ struct trx_sys_struct{
 					list (update undo logs for committed
 					transactions), protected by
 					rseg->mutex */
-	mutex_t		read_view_mutex;/*!< Protects the view_list */
 	UT_LIST_BASE_NODE_T(read_view_t) view_list;
 					/*!< List of read views sorted
 					on trx no, biggest first */

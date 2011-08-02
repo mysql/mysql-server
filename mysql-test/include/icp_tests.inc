@@ -924,3 +924,43 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#12355958 "FAILING ASSERTION: TRX->LOCK.N_ACTIVE_THRS == 1"
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY, 
+  a INTEGER NOT NULL, 
+  b CHAR(1), 
+  KEY(b)
+);
+
+INSERT INTO t1 VALUES (23,5,'d');
+
+let query=
+SELECT a1.pk 
+FROM t1 AS a1 JOIN (SELECT * FROM t1 LIMIT 1) AS a2 ON a2.b = a1.b
+WHERE a1.a = (SELECT pk FROM t1 LIMIT 1) 
+      AND (a1.a != a2.a OR a1.b IS NULL);
+
+eval EXPLAIN $query;
+eval $query;
+
+# Re-run the same query using a view. This will test the code with
+# an Item_ref object in the condition tree (note: in order for this
+# to trigger the bug the patch for Bug#59696 needs to be applied first).
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+let query=
+SELECT a1.pk 
+FROM v1 AS a1 JOIN (SELECT * FROM v1 LIMIT 1) AS a2 ON a2.b = a1.b
+WHERE a1.a = (SELECT pk FROM v1 LIMIT 1) 
+      AND (a1.a != a2.a OR a1.b IS NULL);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP VIEW v1;
+DROP TABLE t1;

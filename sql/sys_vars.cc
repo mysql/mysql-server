@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
+  @file
+  Definitions of all server's session or global variables.
+
   How to add new variables:
 
   1. copy one of the existing variables, and edit the declaration.
@@ -40,6 +43,7 @@
 #include "rpl_slave.h"
 #include "rpl_info_factory.h"
 #include "transaction.h"
+#include "opt_trace.h"
 #include "mysqld.h"
 #include "lock.h"
 #include "sql_time.h"                       // known_date_time_formats
@@ -1271,7 +1275,7 @@ check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
   val= var->save_result.ulonglong_value;
   if (val < (longlong) global_system_variables.net_buffer_length)
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
                         "max_allowed_packet", "net_buffer_length");
   }
@@ -1514,7 +1518,7 @@ check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
   val= var->save_result.ulonglong_value;
   if (val > (longlong) global_system_variables.max_allowed_packet)
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
                         "max_allowed_packet", "net_buffer_length");
   }
@@ -1658,6 +1662,66 @@ static Sys_var_flagset Sys_optimizer_switch(
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(fix_optimizer_switch));
+
+#ifdef OPTIMIZER_TRACE
+
+static Sys_var_flagset Sys_optimizer_trace(
+       "optimizer_trace",
+       "Controls tracing of the Optimizer:"
+       " optimizer_trace=option=val[,option=val...], where option is one of"
+       " {enabled, end_marker, one_line}"
+       " and val is one of {on, off, default}",
+       SESSION_VAR(optimizer_trace), CMD_LINE(REQUIRED_ARG),
+       Opt_trace_context::flag_names,
+       DEFAULT(Opt_trace_context::FLAG_DEFAULT));
+// @see set_var::is_var_optimizer_trace()
+export sys_var *Sys_optimizer_trace_ptr= &Sys_optimizer_trace;
+
+/**
+  Note how "misc" is not here: it is not accessible to the user; disabling
+  "misc" would disable the top object, which would make an empty trace.
+*/
+static Sys_var_flagset Sys_optimizer_trace_features(
+       "optimizer_trace_features",
+       "Enables/disables tracing of selected features of the Optimizer:"
+       " optimizer_trace_features=option=val[,option=val...], where option is one of"
+       " {greedy_search, range_optimizer, dynamic_range, repeated_subselect}"
+       " and val is one of {on, off, default}",
+       SESSION_VAR(optimizer_trace_features), CMD_LINE(REQUIRED_ARG),
+       Opt_trace_context::feature_names,
+       DEFAULT(Opt_trace_context::default_features));
+
+/** Delete all old optimizer traces */
+static bool optimizer_trace_update(sys_var *self, THD *thd,
+                                   enum_var_type type)
+{
+  thd->opt_trace.reset();
+  return false;
+}
+
+static Sys_var_long Sys_optimizer_trace_offset(
+       "optimizer_trace_offset",
+       "Offset of first optimizer trace to show; see manual",
+       SESSION_VAR(optimizer_trace_offset), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(LONG_MIN, LONG_MAX), DEFAULT(-1), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(optimizer_trace_update));
+
+static Sys_var_long Sys_optimizer_trace_limit(
+       "optimizer_trace_limit",
+       "Maximum number of shown optimizer traces",
+       SESSION_VAR(optimizer_trace_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, LONG_MAX), DEFAULT(1), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(optimizer_trace_update));
+
+static Sys_var_ulong Sys_optimizer_trace_max_mem_size(
+       "optimizer_trace_max_mem_size",
+       "Maximum allowed cumulated size of stored optimizer traces",
+       SESSION_VAR(optimizer_trace_max_mem_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*16), BLOCK_SIZE(1));
+
+#endif
 
 static Sys_var_charptr Sys_pid_file(
        "pid_file", "Pid file used by safe_mysqld",
@@ -1979,7 +2043,7 @@ static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
      requested cache size. See also query_cache_size_arg
   */
   if (query_cache_size != new_cache_size)
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_WARN_QC_RESIZE, ER(ER_WARN_QC_RESIZE),
                         query_cache_size, new_cache_size);
 
@@ -2444,6 +2508,12 @@ static Sys_var_plugin Sys_default_storage_engine(
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
 
+static Sys_var_plugin Sys_default_tmp_storage_engine(
+       "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",
+       SESSION_VAR(temp_table_plugin), NO_CMD_LINE,
+       MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
+
 //  Alias for @@default_storage_engine
 static Sys_var_plugin Sys_storage_engine(
        "storage_engine", "Alias for @@default_storage_engine. Deprecated",
@@ -2846,7 +2916,7 @@ static Sys_var_session_special Sys_rand_seed2(
 
 static ulonglong read_error_count(THD *thd)
 {
-  return thd->warning_info->error_count();
+  return thd->get_stmt_da()->error_count();
 }
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_error_count(
@@ -2858,7 +2928,7 @@ static Sys_var_session_special Sys_error_count(
 
 static ulonglong read_warning_count(THD *thd)
 {
-  return thd->warning_info->warn_count();
+  return thd->get_stmt_da()->warn_count();
 }
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_warning_count(
@@ -3230,7 +3300,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                      slave_net_timeout,
                      (active_mi? active_mi->heartbeat_period : 0.0)));
   if (active_mi && slave_net_timeout < active_mi->heartbeat_period)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                         ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
@@ -3372,7 +3442,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
                    &locale->errmsgs->errmsgs,
                    ER_ERROR_LAST - ER_ERROR_FIRST + 1))
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                           "Can't process error message file for locale '%s'",
                           locale->name);
       mysql_mutex_unlock(&LOCK_error_messages);

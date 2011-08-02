@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -408,23 +408,28 @@ TODO list:
 struct Query_cache_wait_state
 {
   THD *m_thd;
-  const char *m_proc_info;
+  PSI_stage_info m_old_stage;
+  const char *m_func;
+  const char *m_file;
+  int m_line;
 
   Query_cache_wait_state(THD *thd, const char *func,
                          const char *file, unsigned int line)
   : m_thd(thd),
-    m_proc_info(NULL)
+    m_old_stage(),
+    m_func(func), m_file(file), m_line(line)
   {
     if (m_thd)
-      m_proc_info= set_thd_proc_info(m_thd,
-                                     "Waiting for query cache lock",
-                                     func, file, line);
+      set_thd_stage_info(m_thd,
+                         &stage_waiting_for_query_cache_lock,
+                         &m_old_stage,
+                         m_func, m_file, m_line);
   }
 
   ~Query_cache_wait_state()
   {
     if (m_thd)
-      set_thd_proc_info(m_thd, m_proc_info, NULL, NULL, 0);
+      set_thd_stage_info(m_thd, &m_old_stage, NULL, m_func, m_file, m_line);
   }
 };
 
@@ -993,7 +998,7 @@ void Query_cache::end_of_result(THD *thd)
     DBUG_VOID_RETURN;
 
   /* Ensure that only complete results are cached. */
-  DBUG_ASSERT(thd->stmt_da->is_eof());
+  DBUG_ASSERT(thd->get_stmt_da()->is_eof());
 
   if (thd->killed)
   {
@@ -1756,8 +1761,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     response, we can't handle it anyway.
   */
   (void) trans_commit_stmt(thd);
-  if (!thd->stmt_da->is_set())
-    thd->stmt_da->disable_status();
+  if (!thd->get_stmt_da()->is_set())
+    thd->get_stmt_da()->disable_status();
 
   BLOCK_UNLOCK_RD(query_block);
   MYSQL_QUERY_CACHE_HIT(thd->query(), (ulong) thd->limit_found_rows);

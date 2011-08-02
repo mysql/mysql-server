@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Tests for the performance schema
 
@@ -151,16 +151,44 @@ create table test.t3 like test.t1;
 # explicitly instead of:
 #   like 't%'
 
-prepare dump_thread from
-  "select event_name, count_star
-  from performance_schema.events_waits_summary_by_thread_by_event_name
-  where event_name in
-  (\'wait/io/table/sql/handler\',
-   \'wait/lock/table/sql/handler\')
-  and thread_id in
-  (select thread_id from performance_schema.threads
-   where processlist_user in (\'user1\', \'user2\', \'user3\', \'user4\'))
-  order by thread_id, event_name;";
+--disable_warnings
+drop procedure if exists dump_thread;
+drop procedure if exists dump_one_thread;
+--enable_warnings
+
+delimiter $$;
+
+create procedure dump_thread()
+begin
+  call dump_one_thread('user1');
+  call dump_one_thread('user2');
+  call dump_one_thread('user3');
+  call dump_one_thread('user4');
+end
+$$
+
+create procedure dump_one_thread(in username varchar(64))
+begin
+  declare my_thread_id int;
+
+  set my_thread_id = (select thread_id from performance_schema.threads
+                        where processlist_user=username);
+
+  if (my_thread_id is not null) then
+    select username, event_name, count_star
+      from performance_schema.events_waits_summary_by_thread_by_event_name
+      where event_name in
+      ('wait/io/table/sql/handler',
+       'wait/lock/table/sql/handler')
+      and thread_id = my_thread_id
+      order by event_name;
+  else
+    select username, "not found" as status;
+  end if;
+end
+$$
+
+delimiter ;$$
 
 prepare dump_global from
   "select event_name, count_star

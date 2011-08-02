@@ -19,7 +19,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a
 2
@@ -29,7 +29,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 a
 2
@@ -40,7 +40,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where
 2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
 drop table t1, t2, t3;
 create table t1 (a int, b int, index a (a,b));
 create table t2 (a int, index a (a));
@@ -62,7 +62,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a)))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a)))
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a
 2
@@ -72,7 +72,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index; Using where
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 a
 2
@@ -83,7 +83,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	ref	a	a	10	func,test.t3.a	1167	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 from `test`.`t1` join `test`.`t3` where ((`test`.`t1`.`b` = `test`.`t3`.`a`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t3` where ((`test`.`t1`.`b` = `test`.`t3`.`a`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
 insert into t1 values (3,31);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a
@@ -99,7 +99,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index; Using where
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
 drop table t0, t1, t2, t3;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -169,7 +169,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t10	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where
 2	DEPENDENT SUBQUERY	t12	eq_ref	PRIMARY	PRIMARY	4	test.t10.a	1	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t10` join `test`.`t12` where ((`test`.`t12`.`pk` = `test`.`t10`.`a`) and (<cache>(`test`.`t1`.`a`) = `test`.`t10`.`pk`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t10` join `test`.`t12` where ((`test`.`t12`.`pk` = `test`.`t10`.`a`) and (<cache>(`test`.`t1`.`a`) = `test`.`t10`.`pk`))))
 subqueries within outer joins go into ON expr.
 explAin extended
 select * from t1 left join (t2 A, t2 B) on ( A.A= t1.A And B.A in (select pk from t10));
@@ -179,7 +179,7 @@ id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
 1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (BNL, incrementAl Buffers)
 2	DEPENDENT SUBQUERY	t10	unique_suBquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`A`.`A` AS `A`,`test`.`A`.`B` AS `B`,`test`.`B`.`A` AS `A`,`test`.`B`.`B` AS `B` from `test`.`t1` left join (`test`.`t2` `A` join `test`.`t2` `B`) on(((`test`.`A`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`B`.`A`,<exists>(<primAry_index_lookup>(<cAche>(`test`.`B`.`A`) in t10 on PRIMARY))))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`A`.`A` AS `A`,`test`.`A`.`B` AS `B`,`test`.`B`.`A` AS `A`,`test`.`B`.`B` AS `B` from `test`.`t1` left join (`test`.`t2` `A` join `test`.`t2` `B`) on(((`test`.`A`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`B`.`A`,<exists>(<primAry_index_lookup>(<cAche>(`test`.`B`.`A`) in t10 on PRIMARY))))) where 1
 t2 should be wrapped into OJ-nest, so we have "t1 LJ (t2 J t10)"
 explAin extended
 select * from t1 left join t2 on (t2.A= t1.A And t2.A in (select pk from t10));
@@ -188,7 +188,7 @@ id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (BNL, incrementAl Buffers)
 2	DEPENDENT SUBQUERY	t10	unique_suBquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`t2`.`A` AS `A`,`test`.`t2`.`B` AS `B` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`t2`.`A`,<exists>(<primAry_index_lookup>(<cAche>(`test`.`t2`.`A`) in t10 on PRIMARY))))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`t2`.`A` AS `A`,`test`.`t2`.`B` AS `B` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`t2`.`A`,<exists>(<primAry_index_lookup>(<cAche>(`test`.`t2`.`A`) in t10 on PRIMARY))))) where 1
 we shouldn't flatten if we're going to get a join of > MAX_TABLES.
 explain select * from 
 t1 s00, t1 s01,  t1 s02, t1 s03, t1 s04,t1 s05,t1 s06,t1 s07,t1 s08,t1 s09,
@@ -300,7 +300,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	103	100.00	Using where
 2	DEPENDENT SUBQUERY	t10	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index; Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`a`) in t10 on PRIMARY where ((`test`.`t10`.`pk` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t10`.`pk`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`a`) in t10 on PRIMARY where ((`test`.`t10`.`pk` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t10`.`pk`)))))
 drop table t0, t1, t2;
 drop table t10, t11, t12;
 #
@@ -310,11 +310,26 @@ drop table t10, t11, t12;
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
 CREATE TABLE t3 (i INTEGER);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 0	0	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -323,6 +338,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -372,11 +394,26 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 0	0	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -385,6 +422,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -435,11 +479,26 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 0	0	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -448,6 +507,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -501,11 +567,26 @@ i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
 INSERT INTO t2 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 0	1	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -514,6 +595,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -563,11 +651,27 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 0	1	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -577,6 +681,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -628,11 +739,27 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 0	1	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -642,6 +769,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -697,11 +831,26 @@ i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
 INSERT INTO t2 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 0	2	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -710,6 +859,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -761,11 +917,27 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 0	2	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -775,6 +947,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -827,11 +1006,27 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 0	2	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -841,6 +1036,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -899,11 +1101,26 @@ DELETE FROM t3;
 INSERT INTO t2 VALUES (0);
 DELETE FROM t2;
 INSERT INTO t1 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 1	0	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -912,6 +1129,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -961,11 +1185,26 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 1	0	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -974,6 +1213,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1025,11 +1271,26 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 1	0	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1038,6 +1299,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1092,11 +1360,26 @@ i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
 INSERT INTO t2 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 1	1	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1105,6 +1388,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1154,11 +1444,30 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 1	1	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1169,6 +1478,15 @@ SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1222,11 +1540,30 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 1	1	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1237,6 +1574,15 @@ SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1294,11 +1640,26 @@ i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
 INSERT INTO t2 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 1	2	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1307,6 +1668,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1358,11 +1726,30 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 1	2	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1373,6 +1760,15 @@ SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1427,11 +1823,30 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 1	2	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1442,6 +1857,15 @@ SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1503,11 +1927,26 @@ DELETE FROM t3;
 INSERT INTO t2 VALUES (0);
 DELETE FROM t2;
 INSERT INTO t1 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 2	0	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1516,6 +1955,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1565,11 +2011,26 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 2	0	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1578,6 +2039,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1629,11 +2097,26 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 2	0	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1642,6 +2125,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1697,11 +2187,26 @@ i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
 INSERT INTO t2 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 2	1	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1710,6 +2215,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1759,11 +2271,30 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 2	1	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1774,6 +2305,15 @@ SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1827,11 +2367,30 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 2	1	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1842,6 +2401,15 @@ SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1901,11 +2469,26 @@ i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
 INSERT INTO t2 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 2	2	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1914,6 +2497,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+EXECUTE stmt;
+i
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1965,11 +2555,30 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 2	2	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1980,6 +2589,15 @@ SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+EXECUTE stmt;
+i
+2
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2034,11 +2652,33 @@ SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
-SELECT (SELECT COUNT(*) from t1),
-(SELECT COUNT(*) from t2),
-(SELECT COUNT(*) from t3);
-(SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
+SELECT (SELECT COUNT(*) from t1) AS c1,
+(SELECT COUNT(*) from t2) AS c2,
+(SELECT COUNT(*) from t3) AS c3;
+c1	c2	c3
 2	2	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
+i
+2
+1
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+1
+EXECUTE stmt;
+i
+2
+1
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2050,6 +2690,17 @@ SELECT * FROM t1 WHERE (t1.i) IN
 i
 2
 1
+PREPARE stmt FROM "SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i)";
+EXECUTE stmt;
+i
+2
+1
+EXECUTE stmt;
+i
+2
+1
+DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2795,7 +3446,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(select 1 from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select b1 from t2_16 where b1 > '0');
@@ -2809,7 +3460,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(select `test`.`t2_16`.`b1`,`test`.`t2_16`.`b2` from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(/* select#2 */ select `test`.`t2_16`.`b1`,`test`.`t2_16`.`b2` from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`))))
 select left(a1,7), left(a2,7)
 from t1_16
 where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
@@ -2823,7 +3474,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(select 1 from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = substr(`test`.`t2_16`.`b1`,1,16)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = substr(`test`.`t2_16`.`b1`,1,16)))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
@@ -2837,7 +3488,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
@@ -2852,7 +3503,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
@@ -2889,7 +3540,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (BNL, incremental buffers)
 4	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(concat(`test`.`t1`.`a1`,'x'),<exists>(select 1 from `test`.`t1_16` where (<in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(select `test`.`t2_16`.`b1`,`test`.`t2_16`.`b2` from `test`.`t2_16` join `test`.`t2` where ((`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and <in_optimizer>(`test`.`t2`.`b1`,<exists>(select 1 from `test`.`t3` where ((`test`.`t3`.`c2` > '0') and (<cache>(`test`.`t2`.`b1`) = `test`.`t3`.`c1`)))) and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`)))) and (<cache>(concat(`test`.`t1`.`a1`,'x')) = left(`test`.`t1_16`.`a1`,8)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(concat(`test`.`t1`.`a1`,'x'),<exists>(/* select#2 */ select 1 from `test`.`t1_16` where (<in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(/* select#3 */ select `test`.`t2_16`.`b1`,`test`.`t2_16`.`b2` from `test`.`t2_16` join `test`.`t2` where ((`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and <in_optimizer>(`test`.`t2`.`b1`,<exists>(/* select#4 */ select 1 from `test`.`t3` where ((`test`.`t3`.`c2` > '0') and (<cache>(`test`.`t2`.`b1`) = `test`.`t3`.`c1`)))) and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`)))) and (<cache>(concat(`test`.`t1`.`a1`,'x')) = left(`test`.`t1_16`.`a1`,8)))))
 drop table t1_16, t2_16, t3_16, t1, t2, t3;
 set @blob_len = 512;
 set @suffix_len = @blob_len - @prefix_len;
@@ -2923,7 +3574,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(select 1 from `test`.`t2_512` where ((`test`.`t2_512`.`b1` > '0') and (<cache>(`test`.`t1_512`.`a1`) = `test`.`t2_512`.`b1`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_512` where ((`test`.`t2_512`.`b1` > '0') and (<cache>(`test`.`t1_512`.`a1`) = `test`.`t2_512`.`b1`))))
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select b1 from t2_512 where b1 > '0');
@@ -2937,7 +3588,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>((`test`.`t1_512`.`a1`,`test`.`t1_512`.`a2`),<exists>(select `test`.`t2_512`.`b1`,`test`.`t2_512`.`b2` from `test`.`t2_512` where ((`test`.`t2_512`.`b1` > '0') and (<cache>(`test`.`t1_512`.`a1`) = `test`.`t2_512`.`b1`) and (<cache>(`test`.`t1_512`.`a2`) = `test`.`t2_512`.`b2`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>((`test`.`t1_512`.`a1`,`test`.`t1_512`.`a2`),<exists>(/* select#2 */ select `test`.`t2_512`.`b1`,`test`.`t2_512`.`b2` from `test`.`t2_512` where ((`test`.`t2_512`.`b1` > '0') and (<cache>(`test`.`t1_512`.`a1`) = `test`.`t2_512`.`b1`) and (<cache>(`test`.`t1_512`.`a2`) = `test`.`t2_512`.`b2`))))
 select left(a1,7), left(a2,7)
 from t1_512
 where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
@@ -2951,7 +3602,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(select 1 from `test`.`t2_512` where ((`test`.`t2_512`.`b1` > '0') and (<cache>(`test`.`t1_512`.`a1`) = substr(`test`.`t2_512`.`b1`,1,512)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_512` where ((`test`.`t2_512`.`b1` > '0') and (<cache>(`test`.`t1_512`.`a1`) = substr(`test`.`t2_512`.`b1`,1,512)))))
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
@@ -2965,7 +3616,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -2978,7 +3629,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -3016,7 +3667,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,<exists>(select 1 from `test`.`t2_513` where ((`test`.`t2_513`.`b1` > '0') and (<cache>(`test`.`t1_513`.`a1`) = `test`.`t2_513`.`b1`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_513` where ((`test`.`t2_513`.`b1` > '0') and (<cache>(`test`.`t1_513`.`a1`) = `test`.`t2_513`.`b1`))))
 select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select b1 from t2_513 where b1 > '0');
@@ -3030,7 +3681,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>((`test`.`t1_513`.`a1`,`test`.`t1_513`.`a2`),<exists>(select `test`.`t2_513`.`b1`,`test`.`t2_513`.`b2` from `test`.`t2_513` where ((`test`.`t2_513`.`b1` > '0') and (<cache>(`test`.`t1_513`.`a1`) = `test`.`t2_513`.`b1`) and (<cache>(`test`.`t1_513`.`a2`) = `test`.`t2_513`.`b2`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>((`test`.`t1_513`.`a1`,`test`.`t1_513`.`a2`),<exists>(/* select#2 */ select `test`.`t2_513`.`b1`,`test`.`t2_513`.`b2` from `test`.`t2_513` where ((`test`.`t2_513`.`b1` > '0') and (<cache>(`test`.`t1_513`.`a1`) = `test`.`t2_513`.`b1`) and (<cache>(`test`.`t1_513`.`a2`) = `test`.`t2_513`.`b2`))))
 select left(a1,7), left(a2,7)
 from t1_513
 where (a1,a2) in (select b1, b2 from t2_513 where b1 > '0');
@@ -3044,7 +3695,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,<exists>(select 1 from `test`.`t2_513` where ((`test`.`t2_513`.`b1` > '0') and (<cache>(`test`.`t1_513`.`a1`) = substr(`test`.`t2_513`.`b1`,1,513)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_513` where ((`test`.`t2_513`.`b1` > '0') and (<cache>(`test`.`t1_513`.`a1`) = substr(`test`.`t2_513`.`b1`,1,513)))))
 select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select substring(b1,1,513) from t2_513 where b1 > '0');
@@ -3058,7 +3709,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,<exists>(select group_concat(`test`.`t2_513`.`b1` separator ',') from `test`.`t2_513` group by `test`.`t2_513`.`b2` having (<cache>(`test`.`t1_513`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_513`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_513`.`b1` separator ',') from `test`.`t2_513` group by `test`.`t2_513`.`b2` having (<cache>(`test`.`t1_513`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_513`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select group_concat(b1) from t2_513 group by b2);
@@ -3096,7 +3747,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(select 1 from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = `test`.`t2_1024`.`b1`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = `test`.`t2_1024`.`b1`))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select b1 from t2_1024 where b1 > '0');
@@ -3110,7 +3761,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>((`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a2`),<exists>(select `test`.`t2_1024`.`b1`,`test`.`t2_1024`.`b2` from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = `test`.`t2_1024`.`b1`) and (<cache>(`test`.`t1_1024`.`a2`) = `test`.`t2_1024`.`b2`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>((`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a2`),<exists>(/* select#2 */ select `test`.`t2_1024`.`b1`,`test`.`t2_1024`.`b2` from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = `test`.`t2_1024`.`b1`) and (<cache>(`test`.`t1_1024`.`a2`) = `test`.`t2_1024`.`b2`))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
@@ -3124,7 +3775,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(select 1 from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = substr(`test`.`t2_1024`.`b1`,1,1024)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = substr(`test`.`t2_1024`.`b1`,1,1024)))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
@@ -3138,7 +3789,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -3151,7 +3802,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -3189,7 +3840,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(select 1 from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = `test`.`t2_1025`.`b1`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = `test`.`t2_1025`.`b1`))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select b1 from t2_1025 where b1 > '0');
@@ -3203,7 +3854,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>((`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a2`),<exists>(select `test`.`t2_1025`.`b1`,`test`.`t2_1025`.`b2` from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = `test`.`t2_1025`.`b1`) and (<cache>(`test`.`t1_1025`.`a2`) = `test`.`t2_1025`.`b2`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>((`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a2`),<exists>(/* select#2 */ select `test`.`t2_1025`.`b1`,`test`.`t2_1025`.`b2` from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = `test`.`t2_1025`.`b1`) and (<cache>(`test`.`t1_1025`.`a2`) = `test`.`t2_1025`.`b2`))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
@@ -3217,7 +3868,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(select 1 from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = substr(`test`.`t2_1025`.`b1`,1,1025)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = substr(`test`.`t2_1025`.`b1`,1,1025)))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
@@ -3231,7 +3882,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -3244,7 +3895,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -3413,7 +4064,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ref	vkey	vkey	4	test.t1.vnokey	2	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`pk`,<exists>(select 1 from `test`.`t0` `t1` join `test`.`t0` `t2` where ((`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) and (<cache>(`test`.`t0`.`pk`) = `test`.`t1`.`pk`))))
+Note	1003	/* select#1 */ select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`pk`,<exists>(/* select#2 */ select 1 from `test`.`t0` `t1` join `test`.`t0` `t2` where ((`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) and (<cache>(`test`.`t0`.`pk`) = `test`.`t1`.`pk`))))
 SELECT vkey FROM t0 WHERE pk IN 
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 vkey
@@ -4133,7 +4784,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	cona	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	Using where
 Warnings:
-Note	1003	select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` where <in_optimizer>(`test`.`a`.`idIndividual`,<exists>(select 1 from `test`.`t3` `cona` join `test`.`t2` `c` where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`cona`.`postalStripped` = 'T2H3B2') and (<cache>(`test`.`a`.`idIndividual`) = `test`.`c`.`idObj`))))
+Note	1003	/* select#1 */ select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` where <in_optimizer>(`test`.`a`.`idIndividual`,<exists>(/* select#2 */ select 1 from `test`.`t3` `cona` join `test`.`t2` `c` where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`cona`.`postalStripped` = 'T2H3B2') and (<cache>(`test`.`a`.`idIndividual`) = `test`.`c`.`idObj`))))
 drop table t1,t2,t3;
 CREATE TABLE t1 (one int, two int, flag char(1));
 CREATE TABLE t2 (one int, two int, flag char(1));
@@ -4205,19 +4856,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and trigcond(((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`))) and trigcond(((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)))) having (trigcond(<is_not_null_test>(`test`.`t2`.`one`)) and trigcond(<is_not_null_test>(`test`.`t2`.`two`))))) AS `test` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
 explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = 'N') and (<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) and (<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = 'N') and (<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) and (<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`))))
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where (`test`.`t2`.`flag` = '0') group by `test`.`t2`.`one`,`test`.`t2`.`two` having (trigcond(((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`))) and trigcond(((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`))) and trigcond(<is_not_null_test>(`test`.`t2`.`one`)) and trigcond(<is_not_null_test>(`test`.`t2`.`two`))))) AS `test` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where (`test`.`t2`.`flag` = '0') group by `test`.`t2`.`one`,`test`.`t2`.`two` having (trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a char(5), b char(5));
 INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
@@ -4502,7 +5153,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
 Warnings:
-Note	1003	select `test`.`t1`.`id` AS `id` from `test`.`t1` where <in_optimizer>(1,<exists>(select 1 from `test`.`t2` where <in_optimizer>(1,<exists>(select 1 from `test`.`t3` where 1))))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where <in_optimizer>(1,<exists>(/* select#2 */ select 1 from `test`.`t2` where <in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t3` where 1))))
 delete from t2;
 delete from t3;
 INSERT INTO t1 VALUES(30),(40),(50),(60),(70),(80),(90);
@@ -4744,7 +5395,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`a`,<exists>(select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t0`.`a`) and (<cache>(`test`.`t0`.`a`) = `test`.`t1`.`a`))))
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t0`.`a`) and (<cache>(`test`.`t0`.`a`) = `test`.`t1`.`a`))))
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
 create temporary table tmp select * from t0 where t0.a in 
@@ -5085,7 +5736,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),<exists>(select `test`.`t2`.`a`,`test`.`t2`.`b` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),<exists>(/* select#2 */ select `test`.`t2`.`a`,`test`.`t2`.`b` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`))))
 SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
 pk
 2
@@ -5094,7 +5745,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`c`),<exists>(select `test`.`t2`.`b`,`test`.`t2`.`c` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`c`) = `test`.`t2`.`c`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`c`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`c` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`c`) = `test`.`t2`.`c`))))
 SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
 pk
 1
@@ -5104,7 +5755,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`d`),<exists>(select `test`.`t2`.`b`,`test`.`t2`.`d` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`d`) = `test`.`t2`.`d`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`d`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`d` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`d`) = `test`.`t2`.`d`))))
 SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
 pk
 2
@@ -5113,7 +5764,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`e`),<exists>(select `test`.`t2`.`b`,`test`.`t2`.`e` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`e`) = `test`.`t2`.`e`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`e`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`e` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`e`) = `test`.`t2`.`e`))))
 SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
 pk
 1
@@ -5123,7 +5774,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`f`),<exists>(select `test`.`t2`.`b`,`test`.`t2`.`f` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`f`) = `test`.`t2`.`f`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`f`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`f` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`f`) = `test`.`t2`.`f`))))
 SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
 pk
 1
@@ -5133,7 +5784,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`g`),<exists>(select `test`.`t2`.`b`,`test`.`t2`.`g` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`g`) = `test`.`t2`.`g`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`g`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`g` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`g`) = `test`.`t2`.`g`))))
 SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
 pk
 1
@@ -5143,7 +5794,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`h`),<exists>(select `test`.`t2`.`b`,`test`.`t2`.`h` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`h`) = `test`.`t2`.`h`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`h`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`h` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`h`) = `test`.`t2`.`h`))))
 SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
 pk
 1
@@ -5153,7 +5804,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`i`),<exists>(select `test`.`t2`.`b`,`test`.`t2`.`i` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`i`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`i` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))))
 SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
 pk
 1
@@ -5163,7 +5814,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`j`),<exists>(select `test`.`t2`.`b`,`test`.`t2`.`j` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`j`) = `test`.`t2`.`j`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`j`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`j` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`j`) = `test`.`t2`.`j`))))
 SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
 pk
 1
@@ -5173,7 +5824,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`k`),<exists>(select `test`.`t2`.`b`,`test`.`t2`.`k` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`k`) = `test`.`t2`.`k`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`k`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`k` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`k`) = `test`.`t2`.`k`))))
 SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
 pk
 1
@@ -5244,6 +5895,100 @@ H
 I
 drop table t1,t2,t3,t4;
 #
+# Bug#43768 Prepared query with nested subqueries core dump on second execution
+#
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+partner_id VARCHAR(35)
+);
+INSERT INTO t1 VALUES
+(1, 'partner1'), (2, 'partner2'),
+(3, 'partner3'), (4, 'partner4');
+CREATE TABLE t2 (
+id INT NOT NULL,
+t1_line_id INT,
+article_id VARCHAR(20),
+PRIMARY KEY(id, t1_line_id)
+);
+INSERT INTO t2 VALUES
+(1, 1, 'sup'), (2, 1, 'sup'),
+(2, 2, 'sup'), (2, 3, 'sup'),
+(2, 4, 'imp'), (3, 1, 'sup'),
+(4, 1, 'sup');
+CREATE TABLE t3 (
+user_id VARCHAR(50),
+article_id VARCHAR(20) NOT NULL,
+PRIMARY KEY(user_id)
+);
+INSERT INTO t3 VALUES('nicke', 'imp');
+EXPLAIN
+SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+SELECT t2.id
+FROM t2
+WHERE article_id IN (
+SELECT article_id FROM t3
+WHERE user_id = 'nicke'
+    )
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	PRIMARY	PRIMARY	4	func	1	Using where
+3	DEPENDENT SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	
+SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+SELECT t2.id
+FROM t2
+WHERE article_id IN (
+SELECT article_id FROM t3
+WHERE user_id = 'nicke'
+    )
+);
+partner_id
+partner2
+PREPARE stmt FROM
+'EXPLAIN SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+    SELECT t2.id
+    FROM t2
+    WHERE article_id IN (
+      SELECT article_id FROM t3
+      WHERE user_id = \'nicke\'
+    )
+  )';
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	PRIMARY	PRIMARY	4	func	1	Using where
+3	DEPENDENT SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	PRIMARY	PRIMARY	4	func	1	Using where
+3	DEPENDENT SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	
+PREPARE stmt FROM
+'SELECT t1.partner_id
+FROM t1
+WHERE t1.id IN (
+    SELECT t2.id
+    FROM t2
+    WHERE article_id IN (
+      SELECT article_id FROM t3
+      WHERE user_id = \'nicke\'
+    )
+  )';
+EXECUTE stmt;
+partner_id
+partner2
+EXECUTE stmt;
+partner_id
+partner2
+DROP TABLE t1,t2,t3;
+# End of Bug#43768
+#
 # Bug#53058 - semijoin execution of subquery with outerjoin yields wrong result
 #
 CREATE TABLE t1 (i INTEGER);
@@ -5259,7 +6004,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
-Note	1003	select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`)) where (<cache>(`test`.`t1`.`i`) = `test`.`t3`.`i`)))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`)) where (<cache>(`test`.`t1`.`i`) = `test`.`t3`.`i`)))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t3 LEFT JOIN t2 ON t2.i=t3.i);
 i
@@ -5578,5 +6323,293 @@ a
 0
 DROP TABLE t1;
 DROP VIEW v1;
+#
+# Bug#12546542 MISSING ROW WHEN USING OPTIMIZER_JOIN_CACHE_LEVEL>=3
+#
+CREATE TABLE t1 (
+f2 varchar(1024)
+);
+INSERT INTO t1 VALUES ('v'),('we');
+CREATE TABLE t2 (
+col_varchar_1024_utf8 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+col_int_key int,
+col_int int
+);
+INSERT INTO t2 VALUES ('we',4,NULL),('v',1305673728,6);
+CREATE TABLE t3 (
+col_int_key int,
+col_int int
+);
+INSERT INTO t3 VALUES (4,4);
+SELECT *
+FROM t1
+WHERE f2 IN (SELECT a1.col_varchar_1024_utf8 AS f2
+FROM t2 AS a1 LEFT JOIN t3 AS a2
+ON a1.col_int_key = a2.col_int_key
+WHERE a1.col_int BETWEEN 1 AND 10 OR a2.col_int IS NOT NULL);
+f2
+v
+we
+DROP TABLE t1,t2,t3;
+#
+# BUG#12616344 - JCL: DIFFERENT RESULT SET AND DIFFERENT AMOUNT
+# OF ROWS WHEN JCL>=3
+#
+CREATE TABLE t1 (col_int_nokey int, col_int_key int, col_varchar_key varchar(1));
+INSERT INTO t1 VALUES (0,4,'c'),(1,6,'u');
+CREATE TABLE t2 (pk int, col_int_nokey int, col_varchar_nokey varchar(1));
+INSERT INTO t2 VALUES (1,4,'b'),(94,6,'u');
+CREATE TABLE t3 (pk int, col_int_nokey int, col_varchar_key varchar(1));
+INSERT INTO t3 VALUES (1,4,'j'),(2,6,'v');
+SELECT table2.col_int_key
+from t3 as table1 join t1 as table2 on table2.col_int_nokey 
+where table1.col_int_nokey in 
+( 
+select subquery2_t2.col_int_nokey 
+from t3 as subquery2_t1 
+right join
+t2 as subquery2_t2
+join t1 as subquery2_t3
+on subquery2_t3.col_int_key = subquery2_t2.col_int_nokey
+on subquery2_t3.col_varchar_key = subquery2_t2.col_varchar_nokey 
+where subquery2_t1.col_varchar_key != table1.col_varchar_key
+or subquery2_t2.pk <= table1.pk
+);
+col_int_key
+6
+6
+DROP TABLE t1,t2,t3;
+#
+# Bug#12608157: ASSERT IN FIELD_LONG::VAL_INT WHEN USING MEMORY ENGINE
+#
+CREATE TABLE t1 (i1 int);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (i1 int, i2 int) ENGINE=memory;
+INSERT INTO t2 VALUES (1, 2),(7, 3);
+SELECT GRANDPARENT1.i1
+FROM t2 AS GRANDPARENT1 
+WHERE GRANDPARENT1.i2
+IN ( SELECT PARENT1.i2
+FROM t2 AS PARENT1 JOIN t1 AS PARENT2 ON (PARENT1.i1 = PARENT2.i1)
+WHERE 
+GRANDPARENT1.i1 IN ( SELECT CHILD1.i1 FROM t2 AS CHILD1 )
+ORDER BY PARENT1.i1)
+ORDER BY GRANDPARENT1.i2 ;
+i1
+1
+DROP TABLE t1,t2;
+#
+# Bug#12640083: Same query executed as WHERE subquery gives different
+#              results on IN() compare
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_varchar_1024_utf8_key varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_1024_utf8_key(col_varchar_1024_utf8_key(333)),
+KEY col_varchar_10_latin1_key(col_varchar_10_latin1_key)
+);
+INSERT INTO t1 VALUES
+(1, 'a', 'a'),
+(2, 'ab', 'ab'),
+(3, 'abc', 'abc'),
+(4, 'abcd', 'abcd');
+CREATE TABLE t2 (
+pk int NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk)
+) ENGINE=Innodb;
+CREATE TABLE t3
+SELECT alias1.col_varchar_10_latin1_key
+FROM t1 AS alias1
+LEFT JOIN t1 AS alias2
+JOIN t2 AS alias3
+ON alias2.col_varchar_10_latin1_key
+ON alias1.col_varchar_1024_utf8_key
+WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk;
+EXPLAIN SELECT * 
+FROM t3 
+WHERE col_varchar_10_latin1_key IN (
+SELECT alias1.col_varchar_10_latin1_key 
+FROM t1 AS alias1
+LEFT JOIN t1 AS alias2
+JOIN t2 AS alias3
+ON alias2.col_varchar_10_latin1_key
+ON alias1.col_varchar_1024_utf8_key
+WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	alias1	ref	PRIMARY,col_varchar_10_latin1_key	col_varchar_10_latin1_key	13	func	2	Using where
+2	DEPENDENT SUBQUERY	alias3	index	NULL	PRIMARY	4	NULL	1	Using where; Using index; Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	alias2	index	NULL	col_varchar_10_latin1_key	13	NULL	4	Using where; Using index; Using join buffer (BNL, incremental buffers)
+SELECT * 
+FROM t3 
+WHERE col_varchar_10_latin1_key IN (
+SELECT alias1.col_varchar_10_latin1_key 
+FROM t1 AS alias1
+LEFT JOIN t1 AS alias2
+JOIN t2 AS alias3
+ON alias2.col_varchar_10_latin1_key
+ON alias1.col_varchar_1024_utf8_key
+WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
+col_varchar_10_latin1_key
+a
+ab
+DROP TABLE t1, t2, t3;
+# End of the test for bug#12640083.
+#
+# Bug#12603200 - Assert in QUICK_INDEX_MERGE_SELECT::need_sorted_output
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_key int NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY(pk),
+KEY col_int_key(col_int_key),
+KEY col_varchar_key(col_varchar_key, col_int_key)
+) engine=innodb;
+INSERT INTO t1 VALUES
+(1,7,'a','a'),
+(2,0,'v','v'),
+(3,9,'c','c'),
+(4,3,'m','m'),
+(5,2,'a','a'),
+(6,1,'d','d'),
+(7,8,'y','y'),
+(8,6,'t','t'),
+(11,7,'a','x'),
+(12,0,'v','v'),
+(13,9,'c','c'),
+(14,3,'m','m'),
+(15,2,'a','x'),
+(16,1,'d','d'),
+(17,8,'y','y'),
+(18,6,'t','u');
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int_key int NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY(pk),
+KEY col_varchar_key(col_varchar_key, col_int_key)
+) engine=innodb;
+INSERT INTO t2(pk,col_int_key,col_varchar_key) VALUES
+(8,7,'c'),
+(11,4,'l'),
+(12,7,'b'),
+(13,0,'c'),
+(14,2,'i'),
+(15,9,'h'),
+(16,4,'q'),
+(17,1,'m'),
+(18,9,'b'),
+(19,2,'e'),
+(20,1,'c'),
+(21,7,'z'),
+(22,4,'l'),
+(23,7,'z'),
+(24,0,'c'),
+(25,2,'i'),
+(26,9,'h'),
+(27,4,'q'),
+(28,0,'a'),
+(29,1,'d');
+EXPLAIN SELECT outr.col_varchar_key AS x, outr.pk AS y
+FROM t1 AS outr
+WHERE outr.col_varchar_key IN (SELECT innr.col_varchar_key
+FROM t2 AS innr
+WHERE innr.col_varchar_key = 'a' OR innr.pk = 8)
+AND outr.col_varchar_nokey < 't'
+ORDER BY outr.col_varchar_key, outr.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	outr	ALL	NULL	NULL	NULL	NULL	16	Using where; Using filesort
+2	DEPENDENT SUBQUERY	innr	index_subquery	PRIMARY,col_varchar_key	col_varchar_key	3	func	1	Using index; Using where
+SELECT outr.col_varchar_key AS x, outr.pk AS y
+FROM t1 AS outr
+WHERE outr.col_varchar_key IN (SELECT innr.col_varchar_key
+FROM t2 AS innr
+WHERE innr.col_varchar_key = 'a' OR innr.pk = 8)
+AND outr.col_varchar_nokey < 't'
+ORDER BY outr.col_varchar_key, outr.pk;
+x	y
+a	1
+a	5
+c	3
+c	13
+DROP TABLE t1, t2;
+# End of bug#12603200
+#
+# Bug#12603183: Segfault in hp_movelink
+#
+CREATE TABLE t1 (
+col_varchar_key varchar(1) ,
+col_varchar_nokey varchar(1) ,
+KEY col_varchar_key(col_varchar_key)
+);
+INSERT INTO t1 VALUES
+('i','i'),
+('h','h'),
+('q','q'),
+('a','a'),
+('v','v'),
+('u','u'),
+('s','s'),
+('y','y'),
+('z','z'),
+('h','h'),
+('p','p'),
+('e','e'),
+('i','i'),
+('y','y'),
+('w','w');
+CREATE TABLE t2 (
+col_varchar_nokey varchar(1)
+);
+INSERT INTO t2 VALUES
+('b');
+EXPLAIN SELECT grandparent1.col_varchar_nokey
+FROM t1 AS grandparent1 LEFT JOIN t2 AS grandparent2 USING (col_varchar_nokey)
+WHERE (grandparent1.col_varchar_key) IN
+(SELECT parent1.col_varchar_nokey
+FROM t1 AS parent1
+WHERE parent1.col_varchar_key IN
+(SELECT child1.col_varchar_nokey AS c1
+FROM t1 AS child1 LEFT JOIN t2 AS child2
+ON (child1.col_varchar_key > child2.col_varchar_nokey)));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	grandparent1	ALL	NULL	NULL	NULL	NULL	15	Using where
+1	PRIMARY	grandparent2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	parent1	ALL	NULL	NULL	NULL	NULL	15	Using where
+3	DEPENDENT SUBQUERY	child1	ALL	NULL	NULL	NULL	NULL	15	Using where
+3	DEPENDENT SUBQUERY	child2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (BNL, incremental buffers)
+SELECT grandparent1.col_varchar_nokey
+FROM t1 AS grandparent1 LEFT JOIN t2 AS grandparent2 USING (col_varchar_nokey)
+WHERE (grandparent1.col_varchar_key) IN
+(SELECT parent1.col_varchar_nokey
+FROM t1 AS parent1
+WHERE parent1.col_varchar_key IN
+(SELECT child1.col_varchar_nokey AS c1
+FROM t1 AS child1 LEFT JOIN t2 AS child2
+ON (child1.col_varchar_key > child2.col_varchar_nokey)));
+col_varchar_nokey
+i
+h
+q
+a
+v
+u
+s
+y
+z
+h
+p
+e
+i
+y
+w
+-- Notice that Materialize-scan algorithm reports wrong result for this query.
+-- This problem will be filed as a separate bug and dealt with in WL#5561.
+DROP TABLE t1, t2;
+# End of the test for bug#12603183.
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;

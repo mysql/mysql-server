@@ -1,4 +1,5 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   This handler was developed by Mikael Ronstrom for version 5.1 of MySQL.
@@ -2967,6 +2969,33 @@ err_alloc:
   DBUG_RETURN(error);
 }
 
+void ha_partition::unbind_psi()
+{
+  uint i;
+
+  DBUG_ENTER("ha_partition::unbind_psi");
+  handler::unbind_psi();
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    DBUG_ASSERT(m_file[i] != NULL);
+    m_file[i]->unbind_psi();
+  }
+  DBUG_VOID_RETURN;
+}
+
+void ha_partition::rebind_psi()
+{
+  uint i;
+
+  DBUG_ENTER("ha_partition::rebind_psi");
+  handler::rebind_psi();
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    DBUG_ASSERT(m_file[i] != NULL);
+    m_file[i]->rebind_psi();
+  }
+  DBUG_VOID_RETURN;
+}
 
 /**
   Clone the open and locked partitioning handler.
@@ -3611,9 +3640,13 @@ exit:
     index)
     mysql_update does not set table->next_number_field, so we use
     table->found_next_number_field instead.
+    Also checking that the field is marked in the write set.
   */
-  if (table->found_next_number_field && new_data == table->record[0] &&
-      !table->s->next_number_keypart)
+  if (table->found_next_number_field &&
+      new_data == table->record[0] &&
+      !table->s->next_number_keypart &&
+      bitmap_is_set(table->write_set,
+                    table->found_next_number_field->field_index))
   {
     if (!table_share->ha_part_data->auto_inc_initialized)
       info(HA_STATUS_AUTO);
@@ -4276,6 +4309,7 @@ void ha_partition::position(const uchar *record)
 void ha_partition::column_bitmaps_signal()
 {
     handler::column_bitmaps_signal();
+    /* Must read all partition fields to make position() call possible */
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
 }
  

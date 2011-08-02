@@ -825,8 +825,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
     char *password= get_field(&mem, table->field[2]);
     uint password_len= password ? strlen(password) : 0;
-    user.auth_string.str= password ? password : const_cast<char*>("");
-    user.auth_string.length= password_len;
     set_user_salt(&user, password, password_len);
 
     if (set_user_plugin(&user, password_len))
@@ -915,7 +913,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           char *tmpstr= get_field(&mem, table->field[next_field++]);
           if (tmpstr)
           {
-            if (user.auth_string.length)
+            if (password_len)
             {
               sql_print_warning("'user' entry '%s@%s' has both a password "
                                 "and an authentication plugin specified. The "
@@ -1146,9 +1144,9 @@ my_bool acl_reload(THD *thd)
       Execution might have been interrupted; only print the error message
       if an error condition has been raised.
     */
-    if (thd->stmt_da->is_error())
+    if (thd->get_stmt_da()->is_error())
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
-                      thd->stmt_da->message());
+                      thd->get_stmt_da()->message());
     goto end;
   }
 
@@ -1483,8 +1481,8 @@ static void acl_insert_user(const char *user, const char *host,
   {
     acl_user.plugin= password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 ?
       old_password_plugin_name : native_password_plugin_name;
-    acl_user.auth_string.str= strmake_root(&mem, password, password_len);
-    acl_user.auth_string.length= password_len;
+    acl_user.auth_string.str= const_cast<char*>("");
+    acl_user.auth_string.length= 0;
   }
 
   acl_user.access=privileges;
@@ -1888,7 +1886,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       my_strcasecmp(system_charset_info, acl_user->plugin.str,
                     old_password_plugin_name.str))
   {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                  ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
   }
   /* update loaded acl entry: */
@@ -6967,9 +6965,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
 
   bool has_errors() { return is_grave; }
 
@@ -6982,18 +6980,18 @@ Silence_routine_definer_errors::handle_condition(
   THD *thd,
   uint sql_errno,
   const char*,
-  MYSQL_ERROR::enum_warning_level level,
+  Sql_condition::enum_warning_level level,
   const char* msg,
-  MYSQL_ERROR ** cond_hdl)
+  Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
-  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+  if (level == Sql_condition::WARN_LEVEL_ERROR)
   {
     switch (sql_errno)
     {
       case ER_NONEXISTING_PROC_GRANT:
         /* Convert the error into a warning. */
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      sql_errno, msg);
         return TRUE;
       default:
@@ -7171,7 +7169,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
       }
       else
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_PASSWD_LENGTH,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_PASSWD_LENGTH,
                             ER(ER_PASSWD_LENGTH), SCRAMBLED_PASSWORD_CHAR_LENGTH);
         return TRUE;
       }
@@ -8313,7 +8311,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
 
   if (!mpvio->acl_user)
   {
-    login_failed_error(mpvio, 0);
+    login_failed_error(mpvio, mpvio->auth_info.password_used);
     DBUG_RETURN (1);
   }
 
@@ -8461,7 +8459,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
         old_password_plugin, otherwise MySQL will think that server 
         and client plugins don't match.
       */
-      if (mpvio->acl_user->auth_string.length == 0)
+      if (mpvio->acl_user->salt_len == 0)
         mpvio->acl_user_plugin= old_password_plugin_name;
     }
   }
@@ -8761,6 +8759,14 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
       return packet_error;
   }
 
+  /*
+    Set the default for the password supplied flag for non-existing users
+    as the default plugin (native passsword authentication) would do it
+    for compatibility reasons.
+  */
+  if (passwd_len)
+    mpvio->auth_info.password_used= PASSWORD_USED_YES;
+
   size_t client_plugin_len= 0;
   char *client_plugin= get_string(&end, &bytes_remaining_in_packet,
                                   &client_plugin_len);
@@ -8840,7 +8846,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
         old_password_plugin, otherwise MySQL will think that server 
         and client plugins don't match.
       */
-      if (mpvio->acl_user->auth_string.length == 0)
+      if (mpvio->acl_user->salt_len == 0)
         mpvio->acl_user_plugin= old_password_plugin_name;
     }
   }
@@ -9538,18 +9544,15 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
     sctx->external_user= my_strdup(mpvio.auth_info.external_user, MYF(0));
 
   if (res == CR_OK_HANDSHAKE_COMPLETE)
-    thd->stmt_da->disable_status();
+    thd->get_stmt_da()->disable_status();
   else
     my_ok(thd);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (likely(PSI_server != NULL))
-  {
-    PSI_server->set_thread_user_host(thd->main_security_ctx.user,
-                                     strlen(thd->main_security_ctx.user),
-                                     thd->main_security_ctx.host_or_ip,
-                                     strlen(thd->main_security_ctx.host_or_ip));
-  }
+  PSI_CALL(set_thread_user_host)(thd->main_security_ctx.user,
+                                 strlen(thd->main_security_ctx.user),
+                                 thd->main_security_ctx.host_or_ip,
+                                 strlen(thd->main_security_ctx.host_or_ip));
 #endif
 
   /* Ready to handle queries */
@@ -9628,7 +9631,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 #endif
 
   if (pkt_len == 0) /* no password */
-    DBUG_RETURN(info->auth_string[0] ? CR_ERROR : CR_OK);
+    DBUG_RETURN(mpvio->acl_user->salt_len != 0 ? CR_ERROR : CR_OK);
 
   info->password_used= PASSWORD_USED_YES;
   if (pkt_len == SCRAMBLE_LENGTH)
@@ -9677,7 +9680,7 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     pkt_len= strnlen((char*)pkt, pkt_len);
 
   if (pkt_len == 0) /* no password */
-    return info->auth_string[0] ? CR_ERROR : CR_OK;
+    return mpvio->acl_user->salt_len != 0 ? CR_ERROR : CR_OK;
 
   if (secure_auth(mpvio))
     return CR_ERROR;
