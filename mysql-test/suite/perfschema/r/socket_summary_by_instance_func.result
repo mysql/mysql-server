@@ -87,6 +87,7 @@ WHERE t2.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
 AND t1.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
 AND t2.statement LIKE 'Connect%root0123456789,%'
   AND t1.statement LIKE 'Connect%root012345,%'
+  AND t1.statement NOT LIKE '%server_unix_socket%'
   AND run = 1;
 t2.COUNT_READ - t1.COUNT_READ	t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ	t2.COUNT_WRITE - t1.COUNT_WRITE	t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE	t2.COUNT_MISC - t1.COUNT_MISC	EVENT_NAME
 0	0	0	0	0	wait/io/socket/sql/server_unix_socket
