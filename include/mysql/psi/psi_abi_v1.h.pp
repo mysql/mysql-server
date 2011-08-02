@@ -18,6 +18,7 @@ struct PSI_mutex_locker;
 struct PSI_rwlock_locker;
 struct PSI_cond_locker;
 struct PSI_file_locker;
+struct PSI_digest_locker;
 enum PSI_mutex_operation
 {
   PSI_MUTEX_LOCK= 0,
@@ -170,6 +171,10 @@ struct PSI_table_locker_state_v1
   void *m_wait;
   uint m_index;
 };
+struct PSI_digest_locker_state_v1
+{
+  int m_token_count;
+};
 struct PSI_statement_locker_state_v1
 {
   my_bool m_discarded;
@@ -195,6 +200,7 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_range;
   ulong m_sort_rows;
   ulong m_sort_scan;
+  struct PSI_digest_locker_state_v1 m_digest_state;
 };
 typedef void (*register_mutex_v1_t)
   (const char *category, struct PSI_mutex_info_v1 *info, int count);
@@ -372,6 +378,12 @@ typedef void (*set_statement_no_good_index_used_t)
   (struct PSI_statement_locker *locker);
 typedef void (*end_statement_v1_t)
   (struct PSI_statement_locker *locker, void *stmt_da);
+typedef struct PSI_digest_locker * (*digest_start_v1_t)
+  (struct PSI_digest_locker *locker);
+typedef void (*digest_add_token_v1_t)
+  (struct PSI_digest_locker *locker, uint token, char *yytext, int yylen);
+typedef void (*digest_end_v1_t)
+  (struct PSI_digest_locker *locker);
 struct PSI_v1
 {
   register_mutex_v1_t register_mutex;
@@ -462,6 +474,9 @@ struct PSI_v1
   set_statement_no_index_used_t set_statement_no_index_used;
   set_statement_no_good_index_used_t set_statement_no_good_index_used;
   end_statement_v1_t end_statement;
+  digest_start_v1_t digest_start;
+  digest_add_token_v1_t digest_add_token;
+  digest_end_v1_t digest_end;
 };
 typedef struct PSI_v1 PSI;
 typedef struct PSI_mutex_info_v1 PSI_mutex_info;

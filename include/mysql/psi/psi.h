@@ -257,6 +257,12 @@ struct PSI_cond_locker;
 */
 struct PSI_file_locker;
 
+/**
+  Interface for an instrumented statement digest operation.
+  This is an opaque structure.
+*/
+struct PSI_digest_locker;
+
 /** Operation performed on an instrumented mutex. */
 enum PSI_mutex_operation
 {
@@ -744,6 +750,11 @@ struct PSI_table_locker_state_v1
   uint m_index;
 };
 
+struct PSI_digest_locker_state_v1
+{
+  int m_token_count;
+};
+
 /**
   State data storage for @c get_thread_statement_locker_v1_t,
   @c get_thread_statement_locker_v1_t.
@@ -802,6 +813,7 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_rows;
   /** Metric, number of sort scans. */
   ulong m_sort_scan;
+  struct PSI_digest_locker_state_v1 m_digest_state;
 };
 
 /* Using typedef to make reuse between PSI_v1 and PSI_v2 easier later. */
@@ -1550,6 +1562,15 @@ typedef void (*set_statement_no_good_index_used_t)
 typedef void (*end_statement_v1_t)
   (struct PSI_statement_locker *locker, void *stmt_da);
 
+typedef struct PSI_digest_locker * (*digest_start_v1_t)
+  (struct PSI_digest_locker *locker);
+
+typedef void (*digest_add_token_v1_t)
+  (struct PSI_digest_locker *locker, uint token, char *yytext, int yylen);
+
+typedef void (*digest_end_v1_t)
+  (struct PSI_digest_locker *locker);
+
 /**
   Performance Schema Interface, version 1.
   @since PSI_VERSION_1
@@ -1731,6 +1752,12 @@ struct PSI_v1
   set_statement_no_good_index_used_t set_statement_no_good_index_used;
   /** @sa end_statement_v1_t. */
   end_statement_v1_t end_statement;
+  /** @sa digest_start_v1_t. */
+  digest_start_v1_t digest_start;
+  /** @sa digest_add_token_v1_t. */
+  digest_add_token_v1_t digest_add_token;
+  /** @sa digest_end_v1_t. */
+  digest_end_v1_t digest_end;
 };
 
 /** @} (end of group Group_PSI_v1) */

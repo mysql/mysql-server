@@ -18,6 +18,7 @@ struct PSI_mutex_locker;
 struct PSI_rwlock_locker;
 struct PSI_cond_locker;
 struct PSI_file_locker;
+struct PSI_digest_locker;
 enum PSI_mutex_operation
 {
   PSI_MUTEX_LOCK= 0,

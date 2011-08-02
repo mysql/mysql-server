@@ -2041,6 +2041,11 @@ public:
     NOTE: this member must be used within MYSQLlex() function only.
   */
   CHARSET_INFO *m_underscore_cs;
+  
+  /**
+    attribute for statement digest. 
+  */
+  PSI_digest_locker* m_digest_psi;
 };
 
 /* The state of the lex parsing. This is saved in the THD struct */

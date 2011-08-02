@@ -543,6 +543,24 @@ static void end_statement_noop(PSI_statement_locker *locker, void *stmt_da)
   return;
 }
 
+static struct PSI_digest_locker* digest_start_noop(PSI_digest_locker *locker)
+{
+  return NULL;
+}
+
+static void digest_add_token_noop(PSI_digest_locker *locker,
+                                uint token,
+                                char *yytext,
+                                int yylen)
+{
+  return;
+}
+
+static void digest_end_noop(PSI_digest_locker *locker)
+{
+  return;
+}
+
 static PSI PSI_noop=
 {
   register_mutex_noop,
@@ -631,7 +649,10 @@ static PSI PSI_noop=
   inc_statement_sort_scan_noop,
   set_statement_no_index_used_noop,
   set_statement_no_good_index_used_noop,
-  end_statement_noop
+  end_statement_noop,
+  digest_start_noop,
+  digest_add_token_noop,
+  digest_end_noop
 };
 
 /**

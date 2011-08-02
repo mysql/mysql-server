@@ -54,6 +54,7 @@
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "pfs_global.h"
+#include "pfs_digest.h"
 
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
@@ -1072,11 +1073,24 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= thread_max * statement_stack_max * sizeof(PFS_events_statements);
       total_memory+= size;
       break;
+    case 92:
+      name= "events_statements_summary_by_digest.row_size";
+      size= sizeof(PFS_statements_digest_stat);
+      break;
+    case 93:
+      name= "events_statements_summary_by_digest.row_count";
+      size= statement_digest_max;
+      break;
+    case 94:
+      name= "events_statements_summary_by_digest.memory";
+      size= statement_digest_max * sizeof(PFS_statements_digest_stat);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 92:
+    case 95:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */
