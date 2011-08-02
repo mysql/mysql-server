@@ -19,7 +19,7 @@
 
 #include "sql_class.h"                    // select_result_interceptor
 
-struct sp_cond_type;
+struct sp_condition_value;
 class sp_cursor;
 struct sp_variable;
 class sp_lex_keeper;
@@ -39,7 +39,7 @@ class Server_side_cursor;
 struct sp_handler
 {
   /** Condition caught by this HANDLER. */
-  sp_cond_type *cond;
+  sp_condition_value *cond;
   /** Location (instruction pointer) of the handler code. */
   uint handler;
   /** Handler type (EXIT, CONTINUE). */
@@ -131,7 +131,7 @@ class sp_rcontext : public Sql_alloc
     SQL handlers support.
   */
 
-  void push_handler(sp_cond_type *cond, uint h, int type);
+  void push_handler(sp_condition_value *cond, uint h, int type);
 
   void pop_handlers(uint count);
 

@@ -53,7 +53,7 @@ struct sp_label;
 class sp_instr;
 class sp_instr_opt_meta;
 class sp_instr_jump_if_not;
-struct sp_cond_type;
+struct sp_condition_value;
 struct sp_variable;
 
 /*************************************************************************/
@@ -1039,7 +1039,7 @@ public:
       m_opt_hpop= dest;
   }
 
-  inline void add_condition(sp_cond_type *cond)
+  inline void add_condition(sp_condition_value *cond)
   {
     m_cond.push_front(cond);
   }
@@ -1049,7 +1049,7 @@ private:
   int m_type;			///< Handler type
   uint m_frame;
   uint m_opt_hpop;              // hpop marking end of handler scope.
-  List<sp_cond_type> m_cond;
+  List<sp_condition_value> m_cond;
 
 }; // class sp_instr_hpush_jump : public sp_instr_jump
 

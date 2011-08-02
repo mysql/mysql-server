@@ -54,7 +54,7 @@ sp_pcontext::sp_pcontext()
   : Sql_alloc(),
   m_max_var_index(0), m_max_cursor_index(0), m_max_handler_index(0),
   m_context_handlers(0), m_parent(NULL), m_pboundary(0),
-  m_label_scope(LABEL_DEFAULT_SCOPE)
+  m_scope(REGULAR_SCOPE)
 {
   (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
@@ -62,13 +62,13 @@ sp_pcontext::sp_pcontext()
   (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_conds, sizeof(sp_cond_type *),
+  (void) my_init_dynamic_array(&m_conds, sizeof(sp_condition_value *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type *),
+  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_condition_value *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   m_label.empty();
@@ -78,11 +78,11 @@ sp_pcontext::sp_pcontext()
   m_num_case_exprs= 0;
 }
 
-sp_pcontext::sp_pcontext(sp_pcontext *prev, label_scope_type label_scope)
+sp_pcontext::sp_pcontext(sp_pcontext *prev, sp_pcontext::enum_scope scope)
   : Sql_alloc(),
   m_max_var_index(0), m_max_cursor_index(0), m_max_handler_index(0),
   m_context_handlers(0), m_parent(prev), m_pboundary(0),
-  m_label_scope(label_scope)
+  m_scope(scope)
 {
   (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
@@ -90,13 +90,13 @@ sp_pcontext::sp_pcontext(sp_pcontext *prev, label_scope_type label_scope)
   (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_conds, sizeof(sp_cond_type *),
+  (void) my_init_dynamic_array(&m_conds, sizeof(sp_condition_value *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type *),
+  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_condition_value *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   m_label.empty();
@@ -126,9 +126,9 @@ sp_pcontext::destroy()
 }
 
 sp_pcontext *
-sp_pcontext::push_context(label_scope_type label_scope)
+sp_pcontext::push_context(sp_pcontext::enum_scope scope)
 {
-  sp_pcontext *child= new sp_pcontext(this, label_scope);
+  sp_pcontext *child= new sp_pcontext(this, scope);
 
   if (child)
     m_children.push_back(child);
@@ -244,7 +244,7 @@ sp_pcontext::find_variable(uint offset)
 
 sp_variable *
 sp_pcontext::push_variable(LEX_STRING *name, enum enum_field_types type,
-                           sp_param_mode_t mode)
+                           sp_variable::enum_mode mode)
 {
   sp_variable *p= (sp_variable *)sql_alloc(sizeof(sp_variable));
 
@@ -274,7 +274,7 @@ sp_pcontext::push_label(char *name, uint ip)
   {
     lab->name= name;
     lab->ip= ip;
-    lab->type= SP_LAB_IMPL;
+    lab->type= sp_label::IMPLICIT;
     lab->ctx= this;
     m_label.push_front(lab);
   }
@@ -299,15 +299,15 @@ sp_pcontext::find_label(char *name)
     In short, a DECLARE HANDLER block can not refer
     to labels from the parent context, as they are out of scope.
   */
-  if (m_parent && (m_label_scope == LABEL_DEFAULT_SCOPE))
+  if (m_parent && (m_scope == REGULAR_SCOPE))
     return m_parent->find_label(name);
   return NULL;
 }
 
 int
-sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type *val)
+sp_pcontext::push_cond(LEX_STRING *name, sp_condition_value *val)
 {
-  sp_cond *p= (sp_cond *)sql_alloc(sizeof(sp_cond));
+  sp_condition *p= (sp_condition *)sql_alloc(sizeof(sp_condition));
 
   if (p == NULL)
     return 1;
@@ -320,14 +320,14 @@ sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type *val)
 /*
   See comment for find_variable() above
 */
-sp_cond_type *
+sp_condition_value *
 sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
 {
   uint i= m_conds.elements;
 
   while (i--)
   {
-    sp_cond *p;
+    sp_condition *p;
 
     get_dynamic(&m_conds, (uchar*)&p, i);
     if (my_strnncoll(system_charset_info,
@@ -348,24 +348,24 @@ sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
   Returns TRUE if found.
 */
 bool
-sp_pcontext::find_handler(sp_cond_type *cond)
+sp_pcontext::find_handler(sp_condition_value *cond)
 {
   uint i= m_handlers.elements;
 
   while (i--)
   {
-    sp_cond_type *p;
+    sp_condition_value *p;
 
     get_dynamic(&m_handlers, (uchar*)&p, i);
     if (cond->type == p->type)
     {
       switch (p->type)
       {
-      case sp_cond_type::number:
+      case sp_condition_value::number:
 	if (cond->mysqlerr == p->mysqlerr)
 	  return TRUE;
 	break;
-      case sp_cond_type::state:
+      case sp_condition_value::state:
 	if (strcmp(cond->sqlstate, p->sqlstate) == 0)
 	  return TRUE;
 	break;

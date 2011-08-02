@@ -2131,7 +2131,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!spvar)
         continue;
 
-      if (spvar->mode != sp_param_in)
+      if (spvar->mode != sp_variable::MODE_IN)
       {
         Settable_routine_parameter *srp=
           arg_item->get_settable_routine_parameter();
@@ -2143,10 +2143,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
           break;
         }
 
-        srp->set_required_privilege(spvar->mode == sp_param_inout);
+        srp->set_required_privilege(spvar->mode == sp_variable::MODE_INOUT);
       }
 
-      if (spvar->mode == sp_param_out)
+      if (spvar->mode == sp_variable::MODE_OUT)
       {
         Item_null *null_item= new Item_null();
 
@@ -2250,7 +2250,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
       sp_variable *spvar= m_pcont->find_variable(i);
 
-      if (spvar->mode == sp_param_in)
+      if (spvar->mode == sp_variable::MODE_IN)
         continue;
 
       Settable_routine_parameter *srp=
@@ -3544,8 +3544,8 @@ int
 sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hpush_jump::execute");
-  List_iterator_fast<sp_cond_type> li(m_cond);
-  sp_cond_type *p;
+  List_iterator_fast<sp_condition_value> li(m_cond);
+  sp_condition_value *p;
 
   while ((p= li++))
     thd->spcont->push_handler(p, m_ip+1, m_type);
