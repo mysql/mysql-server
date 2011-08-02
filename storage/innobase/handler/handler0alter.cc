@@ -1150,7 +1150,7 @@ ha_innobase::add_index(
 					 prebuilt->table->name, TRUE);
 
 		indexed_table->fts->fts_status |= TABLE_DICT_LOCKED;
-		innobase_fts_load_stopword(indexed_table, ha_thd());
+		innobase_fts_load_stopword(indexed_table, trx, ha_thd());
 		indexed_table->fts->fts_status &= ~TABLE_DICT_LOCKED;
 	}
 

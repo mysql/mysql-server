@@ -8,7 +8,7 @@ drop table if exists t1;
 
 
 # Create FTS table
-EVAL CREATE TABLE t1 (
+CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT

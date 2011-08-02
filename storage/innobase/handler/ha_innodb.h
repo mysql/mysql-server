@@ -451,13 +451,15 @@ innobase_fts_close_ranking(
 /*==========================*/
 	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
 /*****************************************************************//**
-Initialize the table FTS stopword list */
+Initialize the table FTS stopword list
+@return TRUE is succeed */
 extern "C"
-void
+ibool
 innobase_fts_load_stopword(
 /*=======================*/
-	dict_table_t*	table,		/*!< Table has the FTS */
-	THD*		thd);		/*!< current thread */
+	dict_table_t*	table,		/*!< in: Table has the FTS */
+	trx_t*		trx,		/*!< in: transaction */
+	THD*		thd);		/*!< in: current thread */
 
 /** Some defines for innobase_fts_check_doc_id_index() return value */
 #define	FTS_INCORRECT_DOC_ID_INDEX	1
