@@ -30,6 +30,6 @@ struct PFS_statements_digest_stat
 };
 
 int init_digest(unsigned int digest_sizing);
-int cleanup_digest();
+void cleanup_digest();
 
 #endif

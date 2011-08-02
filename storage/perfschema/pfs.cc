@@ -4237,6 +4237,33 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       break;
   }
 }
+
+static struct PSI_digest_locker* digest_start_v1(PSI_digest_locker *locker)
+{
+  //printf("\n inside digest_start_v1 \n");
+  /* TBD. */
+  
+  return NULL;
+}
+
+static void digest_add_token_v1(PSI_digest_locker *locker, 
+                                uint token, 
+                                char *yytext, 
+                                int yylen)
+{
+
+  //printf("\n inside digest_add_token_v1 \n");
+  //printf("\n Got Token [%s,%d]\n",yytext,yylen);
+  /* TBD. */
+}
+
+static void digest_end_v1(PSI_digest_locker *locker)
+{
+  //printf("\n inside digest_end_v1 \n");
+  /* TBD. */
+}
+
+
 /**
   Implementation of the instrumentation interface.
   @sa PSI_v1.
@@ -4329,7 +4356,10 @@ PSI_v1 PFS_v1=
   inc_statement_sort_scan_v1,
   set_statement_no_index_used_v1,
   set_statement_no_good_index_used_v1,
-  end_statement_v1
+  end_statement_v1,
+  digest_start_v1,
+  digest_add_token_v1,
+  digest_end_v1
 };
 
 static void* get_interface(int version)
