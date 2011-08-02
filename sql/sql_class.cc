@@ -649,7 +649,6 @@ THD::THD()
   is_slave_error= thread_specific_used= FALSE;
   hash_clear(&handler_tables_hash);
   tmp_table=0;
-  used_tables=0;
   cuted_fields= sent_row_count= row_count= 0L;
   limit_found_rows= 0;
   row_count_func= -1;

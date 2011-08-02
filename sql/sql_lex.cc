@@ -360,6 +360,7 @@ void lex_start(THD *thd)
   lex->server_options.port= -1;
 
   lex->is_lex_started= TRUE;
+  lex->used_tables= 0;
   DBUG_VOID_RETURN;
 }
 
