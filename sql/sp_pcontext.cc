@@ -56,19 +56,19 @@ sp_pcontext::sp_pcontext()
   m_context_handlers(0), m_parent(NULL), m_pboundary(0),
   m_label_scope(LABEL_DEFAULT_SCOPE)
 {
-  (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable_t *),
+  (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_conds, sizeof(sp_cond_type_t *),
+  (void) my_init_dynamic_array(&m_conds, sizeof(sp_cond_type *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type_t *),
+  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   m_label.empty();
@@ -84,19 +84,19 @@ sp_pcontext::sp_pcontext(sp_pcontext *prev, label_scope_type label_scope)
   m_context_handlers(0), m_parent(prev), m_pboundary(0),
   m_label_scope(label_scope)
 {
-  (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable_t *),
+  (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_conds, sizeof(sp_cond_type_t *),
+  (void) my_init_dynamic_array(&m_conds, sizeof(sp_cond_type *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type_t *),
+  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_cond_type *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   m_label.empty();
@@ -198,14 +198,14 @@ sp_pcontext::diff_cursors(sp_pcontext *ctx, bool exclusive)
   variables will in most cases be low (a handfull).
   ...and, this is only called during parsing.
 */
-sp_variable_t *
+sp_variable *
 sp_pcontext::find_variable(LEX_STRING *name, my_bool scoped)
 {
   uint i= m_vars.elements - m_pboundary;
 
   while (i--)
   {
-    sp_variable_t *p;
+    sp_variable *p;
 
     get_dynamic(&m_vars, (uchar*)&p, i);
     if (my_strnncoll(system_charset_info,
@@ -227,12 +227,12 @@ sp_pcontext::find_variable(LEX_STRING *name, my_bool scoped)
     at the end, of invokation. (Top frame only, so no recursion then.)
   - For printing of sp_instr_set. (Debug mode only.)
 */
-sp_variable_t *
+sp_variable *
 sp_pcontext::find_variable(uint offset)
 {
   if (m_var_offset <= offset && offset < m_var_offset + m_vars.elements)
   {                           // This frame
-    sp_variable_t *p;
+    sp_variable *p;
 
     get_dynamic(&m_vars, (uchar*)&p, offset - m_var_offset);
     return p;
@@ -242,11 +242,11 @@ sp_pcontext::find_variable(uint offset)
   return NULL;                  // index out of bounds
 }
 
-sp_variable_t *
+sp_variable *
 sp_pcontext::push_variable(LEX_STRING *name, enum enum_field_types type,
                            sp_param_mode_t mode)
 {
-  sp_variable_t *p= (sp_variable_t *)sql_alloc(sizeof(sp_variable_t));
+  sp_variable *p= (sp_variable *)sql_alloc(sizeof(sp_variable));
 
   if (!p)
     return NULL;
@@ -265,10 +265,10 @@ sp_pcontext::push_variable(LEX_STRING *name, enum enum_field_types type,
 }
 
 
-sp_label_t *
+sp_label *
 sp_pcontext::push_label(char *name, uint ip)
 {
-  sp_label_t *lab = (sp_label_t *)sql_alloc(sizeof(sp_label_t));
+  sp_label *lab = (sp_label *)sql_alloc(sizeof(sp_label));
 
   if (lab)
   {
@@ -281,11 +281,11 @@ sp_pcontext::push_label(char *name, uint ip)
   return lab;
 }
 
-sp_label_t *
+sp_label *
 sp_pcontext::find_label(char *name)
 {
-  List_iterator_fast<sp_label_t> li(m_label);
-  sp_label_t *lab;
+  List_iterator_fast<sp_label> li(m_label);
+  sp_label *lab;
 
   while ((lab= li++))
     if (my_strcasecmp(system_charset_info, name, lab->name) == 0)
@@ -305,9 +305,9 @@ sp_pcontext::find_label(char *name)
 }
 
 int
-sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type_t *val)
+sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type *val)
 {
-  sp_cond_t *p= (sp_cond_t *)sql_alloc(sizeof(sp_cond_t));
+  sp_cond *p= (sp_cond *)sql_alloc(sizeof(sp_cond));
 
   if (p == NULL)
     return 1;
@@ -320,14 +320,14 @@ sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type_t *val)
 /*
   See comment for find_variable() above
 */
-sp_cond_type_t *
+sp_cond_type *
 sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
 {
   uint i= m_conds.elements;
 
   while (i--)
   {
-    sp_cond_t *p;
+    sp_cond *p;
 
     get_dynamic(&m_conds, (uchar*)&p, i);
     if (my_strnncoll(system_charset_info,
@@ -348,24 +348,24 @@ sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
   Returns TRUE if found.
 */
 bool
-sp_pcontext::find_handler(sp_cond_type_t *cond)
+sp_pcontext::find_handler(sp_cond_type *cond)
 {
   uint i= m_handlers.elements;
 
   while (i--)
   {
-    sp_cond_type_t *p;
+    sp_cond_type *p;
 
     get_dynamic(&m_handlers, (uchar*)&p, i);
     if (cond->type == p->type)
     {
       switch (p->type)
       {
-      case sp_cond_type_t::number:
+      case sp_cond_type::number:
 	if (cond->mysqlerr == p->mysqlerr)
 	  return TRUE;
 	break;
-      case sp_cond_type_t::state:
+      case sp_cond_type::state:
 	if (strcmp(cond->sqlstate, p->sqlstate) == 0)
 	  return TRUE;
 	break;
@@ -423,7 +423,7 @@ sp_pcontext::retrieve_field_definitions(List<Create_field> *field_def_lst)
 
   for (uint i = 0; i < m_vars.elements; ++i)
   {
-    sp_variable_t *var_def;
+    sp_variable *var_def;
     get_dynamic(&m_vars, (uchar*) &var_def, i);
 
     field_def_lst->push_back(&var_def->field_def);

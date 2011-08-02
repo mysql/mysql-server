@@ -78,12 +78,12 @@ bool sp_rcontext::init(THD *thd)
 
   return
     !(m_handler=
-      (sp_handler_t*)thd->alloc(handler_count * sizeof(sp_handler_t))) ||
+      (sp_handler*)thd->alloc(handler_count * sizeof(sp_handler))) ||
     !(m_hstack=
       (uint*)thd->alloc(handler_count * sizeof(uint))) ||
     !(m_in_handler=
-      (sp_active_handler_t*)thd->alloc(handler_count *
-                                       sizeof(sp_active_handler_t))) ||
+      (sp_active_handler*)thd->alloc(handler_count *
+                                     sizeof(sp_active_handler))) ||
     !(m_cstack=
       (sp_cursor**)thd->alloc(m_root_parsing_ctx->max_cursor_index() *
                               sizeof(sp_cursor*))) ||
@@ -224,7 +224,7 @@ sp_rcontext::find_handler(THD *thd,
   /* Search handlers from the latest (innermost) to the oldest (outermost) */
   while (i--)
   {
-    sp_cond_type_t *cond= m_handler[i].cond;
+    sp_cond_type *cond= m_handler[i].cond;
     int j= m_ihsp;
 
     /* Check active handlers, to avoid invoking one recursively */
@@ -236,27 +236,27 @@ sp_rcontext::find_handler(THD *thd,
 
     switch (cond->type)
     {
-    case sp_cond_type_t::number:
+    case sp_cond_type::number:
       if (sql_errno == cond->mysqlerr &&
-          (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_cond_type_t::number))
+          (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_cond_type::number))
 	m_hfound= i;		// Always the most specific
       break;
-    case sp_cond_type_t::state:
+    case sp_cond_type::state:
       if (strcmp(sqlstate, cond->sqlstate) == 0 &&
-	  (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_cond_type_t::state))
+	  (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_cond_type::state))
 	m_hfound= i;
       break;
-    case sp_cond_type_t::warning:
+    case sp_cond_type::warning:
       if ((IS_WARNING_CONDITION(sqlstate) ||
            level == Sql_condition::WARN_LEVEL_WARN) &&
           m_hfound < 0)
 	m_hfound= i;
       break;
-    case sp_cond_type_t::notfound:
+    case sp_cond_type::notfound:
       if (IS_NOT_FOUND_CONDITION(sqlstate) && m_hfound < 0)
 	m_hfound= i;
       break;
-    case sp_cond_type_t::exception:
+    case sp_cond_type::exception:
       if (IS_EXCEPTION_CONDITION(sqlstate) &&
 	  level == Sql_condition::WARN_LEVEL_ERROR &&
 	  m_hfound < 0)
@@ -314,7 +314,7 @@ sp_rcontext::pop_cursors(uint count)
 }
 
 void
-sp_rcontext::push_handler(struct sp_cond_type *cond, uint h, int type)
+sp_rcontext::push_handler(sp_cond_type *cond, uint h, int type)
 {
   DBUG_ENTER("sp_rcontext::push_handler");
   DBUG_ASSERT(m_hcount < m_root_parsing_ctx->max_handler_index());
@@ -561,7 +561,7 @@ sp_cursor::destroy()
 
 
 int
-sp_cursor::fetch(THD *thd, List<struct sp_variable> *vars)
+sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 {
   if (! server_side_cursor)
   {
@@ -714,9 +714,9 @@ int Select_fetch_into_spvars::prepare(List<Item> &fields, SELECT_LEX_UNIT *u)
 
 bool Select_fetch_into_spvars::send_data(List<Item> &items)
 {
-  List_iterator_fast<struct sp_variable> spvar_iter(*spvar_list);
+  List_iterator_fast<sp_variable> spvar_iter(*spvar_list);
   List_iterator_fast<Item> item_iter(items);
-  sp_variable_t *spvar;
+  sp_variable *spvar;
   Item *item;
 
   /* Must be ensured by the caller */
