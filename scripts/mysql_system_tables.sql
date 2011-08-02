@@ -408,6 +408,27 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE HOST_CACHE
+--
+
+SET @cmd="CREATE TABLE performance_schema.host_cache("
+  "IP VARCHAR(64) not null,"
+  "HOST VARCHAR(255) collate utf8_bin,"
+  "SUM_BLOCKING_ERRORS BIGINT not null,"
+  "COUNT_NAMEINFO_ERRORS BIGINT not null,"
+  "COUNT_FORMAT_ERRORS BIGINT not null,"
+  "COUNT_ADDRINFO_ERRORS BIGINT not null,"
+  "COUNT_FCRDNS_ERRORS BIGINT not null,"
+  "COUNT_HOST_ACL_ERRORS BIGINT not null,"
+  "COUNT_USER_ACL_ERRORS BIGINT not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE MUTEX_INSTANCES
 --
 

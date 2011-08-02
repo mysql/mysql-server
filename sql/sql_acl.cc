@@ -1753,6 +1753,13 @@ bool acl_check_host(const char *host, const char *ip)
     }
   }
   mysql_mutex_unlock(&acl_cache->lock);
+  if (ip != NULL)
+  {
+    /* Increment HOST_CACHE.COUNT_HOST_ACL_ERRORS. */
+    Host_errors errors;
+    errors.m_host_acl_errors= 1;
+    inc_host_errors(ip, &errors);
+  }
   return 1;					// Host is not allowed
 }
 
@@ -9060,7 +9067,9 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
 err:
   if (mpvio->status == MPVIO_EXT::FAILURE)
   {
-    inc_host_errors(mpvio->ip);
+    Host_errors errors;
+    errors.m_handshake_errors= 1;
+    inc_host_errors(mpvio->ip, &errors);
     my_error(ER_HANDSHAKE_ERROR, MYF(0));
   }
   DBUG_RETURN(-1);
@@ -9643,7 +9652,9 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                 CR_ERROR : CR_OK);
   }
 
-  inc_host_errors(mpvio->ip);
+  Host_errors errors;
+  errors.m_handshake_errors= 1;
+  inc_host_errors(mpvio->ip, &errors);
   my_error(ER_HANDSHAKE_ERROR, MYF(0));
   DBUG_RETURN(CR_ERROR);
 }
@@ -9697,7 +9708,9 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                              CR_ERROR : CR_OK;
   }
 
-  inc_host_errors(mpvio->ip);
+  Host_errors errors;
+  errors.m_handshake_errors= 1;
+  inc_host_errors(mpvio->ip, &errors);
   my_error(ER_HANDSHAKE_ERROR, MYF(0));
   return CR_ERROR;
 }

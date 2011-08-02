@@ -293,6 +293,15 @@ def	performance_schema	file_summary_by_instance	COUNT_READ	3	NULL	NO	bigint	NULL
 def	performance_schema	file_summary_by_instance	COUNT_WRITE	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	file_summary_by_instance	SUM_NUMBER_OF_BYTES_READ	5	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	file_summary_by_instance	SUM_NUMBER_OF_BYTES_WRITE	6	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	IP	1	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	host_cache	HOST	2	NULL	YES	varchar	255	765	NULL	NULL	utf8	utf8_bin	varchar(255)			select,insert,update,references	
+def	performance_schema	host_cache	SUM_BLOCKING_ERRORS	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_NAMEINFO_ERRORS	4	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_FORMAT_ERRORS	5	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_ADDRINFO_ERRORS	6	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_FCRDNS_ERRORS	7	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_HOST_ACL_ERRORS	8	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_USER_ACL_ERRORS	9	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	mutex_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
 def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	mutex_instances	LOCKED_BY_THREAD_ID	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	

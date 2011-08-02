@@ -464,11 +464,20 @@ static int check_connection(THD *thd)
 
     if (vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST))
     {
+      /*
+        Since we can not even get the peer IP address,
+        there is nothing to show in the host_cache,
+        so increment the global status variable "peer_address_errors".
+      */
+      peer_addr_errors++;
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
+    {
+      /* FIXME: no error accounting in host_cache. */
       return 1; /* The error is set by my_strdup(). */
+    }
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
     if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
@@ -516,7 +525,10 @@ static int check_connection(THD *thd)
   vio_keepalive(net->vio, TRUE);
   
   if (thd->packet.alloc(thd->variables.net_buffer_length))
+  {
+    /* FIXME: no error accounting in host_cache. */
     return 1; /* The error is set by alloc(). */
+  }
 
   return acl_authenticate(thd, connect_errors, 0);
 }
