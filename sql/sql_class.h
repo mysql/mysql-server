@@ -2315,13 +2315,6 @@ public:
   void set_status_no_index_used();
   void set_status_no_good_index_used();
 
-  /*
-    The set of those tables whose fields are referenced in all subqueries
-    of the query.
-    TODO: possibly this it is incorrect to have used tables in THD because
-    with more than one subquery, it is not clear what does the field mean.
-  */
-  table_map  used_tables;
   USER_CONN *user_connect;
   const CHARSET_INFO *db_charset;
 #if defined(ENABLED_PROFILING)
