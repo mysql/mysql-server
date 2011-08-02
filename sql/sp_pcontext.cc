@@ -62,7 +62,7 @@ sp_pcontext::sp_pcontext()
   (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_conds, sizeof(sp_condition_value *),
+  (void) my_init_dynamic_array(&m_conds, sizeof(sp_condition *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
@@ -90,7 +90,7 @@ sp_pcontext::sp_pcontext(sp_pcontext *prev, sp_pcontext::enum_scope scope)
   (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_conds, sizeof(sp_condition_value *),
+  (void) my_init_dynamic_array(&m_conds, sizeof(sp_condition *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
