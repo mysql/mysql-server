@@ -474,7 +474,7 @@ WHERE t2.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
   AND t1.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
   AND t2.statement LIKE 'Connect%root0123456789,%'
   AND t1.statement LIKE 'Connect%root012345,%'
-  AND t1.statement NOT LIKE '%server_unix_socket%'
+  AND t1.EVENT_NAME NOT LIKE '%server_unix_socket%'
   AND run = 1;
 
 #eval
