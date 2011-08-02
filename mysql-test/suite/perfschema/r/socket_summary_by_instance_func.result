@@ -75,11 +75,8 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 #     which means a varying amount of statements.
 # 4.3 Check the connects
 # 4.3.1 Successful connects with different length of user name
-SELECT t2.COUNT_READ - t1.COUNT_READ,
-t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ,
-t2.COUNT_WRITE - t1.COUNT_WRITE,
-t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE,
-t2.COUNT_MISC - t1.COUNT_MISC, EVENT_NAME
+SELECT t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ,
+t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE, EVENT_NAME
 FROM mysqltest.socket_summary_by_instance_detail t2
 JOIN mysqltest.socket_summary_by_instance_detail t1
 USING (EVENT_NAME,run)
@@ -89,9 +86,9 @@ AND t2.statement LIKE 'Connect%root0123456789,%'
   AND t1.statement LIKE 'Connect%root012345,%'
   AND t1.EVENT_NAME NOT LIKE '%server_unix_socket%'
   AND run = 1;
-t2.COUNT_READ - t1.COUNT_READ	t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ	t2.COUNT_WRITE - t1.COUNT_WRITE	t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE	t2.COUNT_MISC - t1.COUNT_MISC	EVENT_NAME
-0	0	0	0	0	wait/io/socket/sql/server_tcpip_socket
-1	4	0	0	1	wait/io/socket/sql/client_connection
+t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ	t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE	EVENT_NAME
+0	0	wait/io/socket/sql/server_tcpip_socket
+4	0	wait/io/socket/sql/client_connection
 # 4.3.2 Failing (->2.1) vs. passing (-> 2.3) connect
 #       FIXME: To be implemented after the bug fixes
 # 4.3.3 2.3 vs. 2.4
