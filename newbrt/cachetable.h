@@ -269,10 +269,11 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                             CACHETABLE_FLUSH_CALLBACK flush_callback, 
                             CACHETABLE_FETCH_CALLBACK fetch_callback, 
                             CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback,
-                            CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
-                            CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
+                            CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
+                            CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
                             void *read_extraargs, 
-                            void *write_extraargs);
+                            void *write_extraargs,
+                            BOOL *doing_prefetch);
 // Effect: Prefetch a memory object for a given key into the cachetable
 // Precondition: The cachetable mutex is NOT held.
 // Postcondition: The cachetable mutex is NOT held.

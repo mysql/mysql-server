@@ -8,6 +8,15 @@
 #include "threadpool.h"
 #include <compress.h>
 
+#if defined(HAVE_CILK)
+#include <cilk/cilk.h>
+#define cilk_worker_count (__cilkrts_get_nworkers())
+#else
+#define cilk_spawn
+#define cilk_sync
+#define cilk_for for
+#define cilk_worker_count 1
+#endif
 
 static BRT_UPGRADE_STATUS_S upgrade_status;  // accountability, used in backwards_x.c
 
@@ -607,6 +616,27 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
     toku_free(new_pivots);
 }
 
+static void
+serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]);
+
+
+// tests are showing that serial insertions are slightly faster 
+// using the pthreads than using CILK. Disabling CILK until we have
+// some evidence that it is faster
+//#ifdef HAVE_CILK
+#if 0
+
+static void
+serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]) {
+#pragma cilk grainsize = 1
+    cilk_for (int i = 0; i < npartitions; i++) {
+        serialize_brtnode_partition(node, i, &sb[i]);
+        compress_brtnode_sub_block(&sb[i]);
+    }
+}
+
+#else
+
 struct serialize_compress_work {
     struct work base;
     BRTNODE node;
@@ -657,6 +687,8 @@ serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]) {
     }
 }
 
+#endif
+
 // Writes out each child to a separate malloc'd buffer, then compresses
 // all of them, and writes the uncompressed header, to bytes_to_write,
 // which is malloc'd.
@@ -677,7 +709,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     // Each partition represents a compressed sub block
     // For internal nodes, a sub block is a message buffer
     // For leaf nodes, a sub block is a basement node
-    struct sub_block sb[npartitions];
+    struct sub_block *MALLOC_N(npartitions, sb);
     struct sub_block sb_node_info;
     for (int i = 0; i < npartitions; i++) {
         sub_block_init(&sb[i]);;
@@ -687,15 +719,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     //
     // First, let's serialize and compress the individual sub blocks
     //
-#if 0
-    // TODO: (Zardosht) cilkify this
-    for (int i = 0; i < npartitions; i++) {
-        serialize_brtnode_partition(node, i, &sb[i]);
-        compress_brtnode_sub_block(&sb[i]);
-    }
-#else
     serialize_and_compress(node, npartitions, sb);
-#endif
 
     //
     // Now lets create a sub-block that has the common node information,
@@ -722,7 +746,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     // set the node bp_offset
     //
     node->bp_offset = serialize_node_header_size(node) + sb_node_info.compressed_size + 4;
-    
+
     char *data = toku_xmalloc(total_node_size);
     char *curr_ptr = data;
     // now create the final serialized node
@@ -763,6 +787,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
         toku_free(sb[i].uncompressed_ptr);
     }
 
+    toku_free(sb);
     return 0;
 }
 
@@ -1071,7 +1096,7 @@ setup_available_brtnode_partition(BRTNODE node, int i) {
 
 static void
 setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* bfe) {
-    if (bfe->type == brtnode_fetch_subset) {
+    if (bfe->type == brtnode_fetch_subset && bfe->search != NULL) {
         // we do not take into account prefetching yet
         // as of now, if we need a subset, the only thing
         // we can possibly require is a single basement node
@@ -1085,18 +1110,30 @@ setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* bfe) {
             bfe->search
             );
     }
+    int lc, rc;
+    if (bfe->type == brtnode_fetch_subset || bfe->type == brtnode_fetch_prefetch) {
+        lc = toku_bfe_leftmost_child_wanted(bfe, node);
+        rc = toku_bfe_rightmost_child_wanted(bfe, node);
+    } else {
+        lc = -1;
+        rc = -1;
+    }
     //
     // setup memory needed for the node
     //
+    //printf("node height %d, blocknum %"PRId64", type %d lc %d rc %d\n", node->height, node->thisnodename.b, bfe->type, lc, rc);
     for (int i = 0; i < node->n_children; i++) {
         BP_INIT_UNTOUCHED_CLOCK(node,i);
-        BP_STATE(node,i) = toku_bfe_wants_child_available(bfe,i) ? PT_AVAIL : PT_COMPRESSED;
+        BP_STATE(node, i) = ((toku_bfe_wants_child_available(bfe, i) || (lc <= i && i <= rc))
+                             ? PT_AVAIL : PT_COMPRESSED);
         BP_WORKDONE(node,i) = 0;
         if (BP_STATE(node,i) == PT_AVAIL) {
+	    //printf(" %d is available\n", i);
             setup_available_brtnode_partition(node, i);
             BP_TOUCH_CLOCK(node,i);
         }
         else if (BP_STATE(node,i) == PT_COMPRESSED) {
+	    //printf(" %d is compressed\n", i);
             set_BSB(node, i, sub_block_creat());
         }
         else {
@@ -1153,15 +1190,34 @@ deserialize_brtnode_partition(
     assert(rb.ndone == rb.size);
 }
 
+static void
+decompress_and_deserialize_worker(struct rbuf curr_rbuf, struct sub_block curr_sb, BRTNODE node, int child)
+{
+    read_and_decompress_sub_block(&curr_rbuf, &curr_sb);
+    // at this point, sb->uncompressed_ptr stores the serialized node partition
+    deserialize_brtnode_partition(&curr_sb, node, child);
+    toku_free(curr_sb.uncompressed_ptr);
+}
+
+static void
+check_and_copy_compressed_sub_block_worker(struct rbuf curr_rbuf, struct sub_block curr_sb, BRTNODE node, int child)
+{
+    read_compressed_sub_block(&curr_rbuf, &curr_sb);
+    SUB_BLOCK bp_sb = BSB(node, child);
+    bp_sb->compressed_size = curr_sb.compressed_size;
+    bp_sb->uncompressed_size = curr_sb.uncompressed_size;
+    bp_sb->compressed_ptr = toku_xmalloc(bp_sb->compressed_size);
+    memcpy(bp_sb->compressed_ptr, curr_sb.compressed_ptr, bp_sb->compressed_size);
+}
 
 //
 // deserializes a brtnode that is in rb (with pointer of rb just past the magic) into a BRTNODE
 //
 static int
 deserialize_brtnode_from_rbuf(
-    BRTNODE *brtnode, 
-    BLOCKNUM blocknum, 
-    u_int32_t fullhash, 
+    BRTNODE *brtnode,
+    BLOCKNUM blocknum,
+    u_int32_t fullhash,
     struct brtnode_fetch_extra* bfe,
     struct rbuf *rb
     )
@@ -1206,22 +1262,21 @@ deserialize_brtnode_from_rbuf(
     toku_free(sb_node_info.uncompressed_ptr);
 
     //
-    // now that we have read and decompressed up until 
+    // now that we have read and decompressed up until
     // the start of the bp's, we can set the node->bp_offset
     // so future partial fetches know where to get bp's
     //
     node->bp_offset = rb->ndone;
 
-    // now that the node info has been deserialized, we can proceed to deserialize 
+    // now that the node info has been deserialized, we can proceed to deserialize
     // the individual sub blocks
-    assert(bfe->type == brtnode_fetch_none || bfe->type == brtnode_fetch_subset || bfe->type == brtnode_fetch_all);
+    assert(bfe->type == brtnode_fetch_none || bfe->type == brtnode_fetch_subset || bfe->type == brtnode_fetch_all || bfe->type == brtnode_fetch_prefetch);
 
     // setup the memory of the partitions
     // for partitions being decompressed, create either FIFO or basement node
     // for partitions staying compressed, create sub_block
     setup_brtnode_partitions(node,bfe);
-    
-    // TODO: (Zardosht) Cilkify this
+
     for (int i = 0; i < node->n_children; i++) {
         u_int32_t curr_offset = (i==0) ? 0 : BP_OFFSET(node,i-1);
         u_int32_t curr_size = (i==0) ? BP_OFFSET(node,i) : (BP_OFFSET(node,i) - BP_OFFSET(node,i-1));
@@ -1230,46 +1285,35 @@ deserialize_brtnode_from_rbuf(
         // we need to intialize curr_rbuf to point to this place
         struct rbuf curr_rbuf  = {.buf = NULL, .size = 0, .ndone = 0};
         rbuf_init(&curr_rbuf, rb->buf + rb->ndone + curr_offset, curr_size);
-        
-        struct sub_block curr_sb;
-	sub_block_init(&curr_sb);
 
         //
         // now we are at the point where we have:
         //  - read the entire compressed node off of disk,
-        //  - decompressed the pivot and offset information, 
+        //  - decompressed the pivot and offset information,
         //  - have arrived at the individual partitions.
         //
-        // Based on the information in bfe, we want to decompress a subset of 
+        // Based on the information in bfe, we want to decompress a subset of
         // of the compressed partitions (also possibly none or possibly all)
         // The partitions that we want to decompress and make available
         // to the node, we do, the rest we simply copy in compressed
         // form into the node, and set the state of the partition to PT_COMPRESSED
         //
 
+        struct sub_block curr_sb;
+        sub_block_init(&curr_sb);
+
         //  case where we read and decompress the partition
         // deserialize_brtnode_info figures out what the state
         // should be and sets up the memory so that we are ready to use it
         if (BP_STATE(node,i) == PT_AVAIL) {
-            read_and_decompress_sub_block(&curr_rbuf, &curr_sb);
-            // at this point, sb->uncompressed_ptr stores the serialized node partition
-            deserialize_brtnode_partition(&curr_sb, node, i);
-            toku_free(curr_sb.uncompressed_ptr);
+            cilk_spawn decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i);
         }
         // case where we leave the partition in the compressed state
         else if (BP_STATE(node,i) == PT_COMPRESSED) {
-            read_compressed_sub_block(&curr_rbuf, &curr_sb);
-            SUB_BLOCK bp_sb = BSB(node, i);
-            bp_sb->compressed_size = curr_sb.compressed_size;
-            bp_sb->uncompressed_size = curr_sb.uncompressed_size;
-            bp_sb->compressed_ptr = toku_xmalloc(bp_sb->compressed_size);
-            memcpy(
-                bp_sb->compressed_ptr, 
-                curr_sb.compressed_ptr, 
-                bp_sb->compressed_size
-                );
+            cilk_spawn check_and_copy_compressed_sub_block_worker(curr_rbuf, curr_sb, node, i);
         }
     }
+    cilk_sync;
     *brtnode = node;
     r = 0;
 cleanup:

@@ -192,6 +192,7 @@ typedef struct brt_cursor *BRT_CURSOR;
 int toku_brt_cursor (BRT, BRT_CURSOR*, TOKUTXN, BOOL)  __attribute__ ((warn_unused_result));
 void toku_brt_cursor_set_leaf_mode(BRT_CURSOR);
 int toku_brt_cursor_is_leaf_mode(BRT_CURSOR);
+void toku_brt_cursor_set_range_lock(BRT_CURSOR, const DBT *, const DBT *, BOOL, BOOL);
 
 // get is deprecated in favor of the individual functions below
 int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags)  __attribute__ ((warn_unused_result));

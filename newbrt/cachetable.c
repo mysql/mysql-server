@@ -24,6 +24,7 @@
 // use worker threads 0->no 1->yes
 static void cachetable_writer(WORKITEM);
 static void cachetable_reader(WORKITEM);
+static void cachetable_partial_reader(WORKITEM);
 
 #define TRACE_CACHETABLE 0
 #if TRACE_CACHETABLE
@@ -1466,6 +1467,44 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p, BOOL write_if_dirty)
     }
 }
 
+static void
+do_partial_fetch(CACHETABLE ct, CACHEFILE cachefile, PAIR p, CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback, void *read_extraargs)
+{
+    long old_size = p->size;
+    long size = 0;
+    //
+    // The reason we have this assert is a sanity check
+    // to make sure that it is ok to set the 
+    // state of the pair to CTPAIR_READING.
+    // 
+    // As of this writing, the checkpoint code assumes
+    // that every pair that is in the CTPAIR_READING state
+    // is not dirty. Because we require dirty nodes to be
+    // fully in memory, we should never have a dirty node 
+    // require a partial fetch. So, just to be sure that 
+    // we can set the pair to CTPAIR_READING, we assert
+    // that the pair is not dirty
+    //
+    assert(!p->dirty);
+    p->state = CTPAIR_READING;
+
+    rwlock_prefer_read_lock(&cachefile->fdlock, ct->mutex);
+    cachetable_unlock(ct);
+    int r = pf_callback(p->value, read_extraargs, cachefile->fd, &size);
+    lazy_assert_zero(r);
+    cachetable_lock(ct);
+    rwlock_read_unlock(&cachefile->fdlock);
+    p->size = size;
+    ct->size_current += size;
+    ct->size_current -= old_size;
+    p->state = CTPAIR_IDLE;
+    if (p->cq) {
+        workitem_init(&p->asyncwork, NULL, p);
+        workqueue_enq(p->cq, &p->asyncwork, 1);
+    }
+    rwlock_write_unlock(&p->rwlock);
+}
+
 // for debugging
 // valid only if this function is called only by a single thread
 static u_int64_t get_and_pin_footprint = 0;
@@ -1570,22 +1609,11 @@ int toku_cachetable_get_and_pin (
                 if (do_wait_time) {
                     cachetable_waittime += get_tnow() - t0;
                 }
-	        t0 = get_tnow();
-                long old_size = p->size;
-                long size = 0;
-                rwlock_prefer_read_lock(&cachefile->fdlock, ct->mutex);
-                cachetable_unlock(ct);
-                int r = pf_callback(p->value, read_extraargs, cachefile->fd, &size);
-                cachetable_lock(ct);
-                rwlock_read_unlock(&cachefile->fdlock);
-                p->size = size;
-                // set the state of the pair back
-                p->state = CTPAIR_IDLE;
-                ct->size_current += size;
-                ct->size_current -= old_size;
-                lazy_assert_zero(r);                
+                t0 = get_tnow();
+
+                do_partial_fetch(ct, cachefile, p, pf_callback, read_extraargs);
+
                 cachetable_waittime += get_tnow() - t0;
-                rwlock_write_unlock(&p->rwlock);
                 rwlock_read_lock(&p->rwlock, ct->mutex);
             }
 
@@ -1917,10 +1945,11 @@ int toku_cachetable_get_and_pin_nonblocking (
                         run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
                         if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
                         // Now wait for the I/O to occur.
-                        rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
-                        long old_size = p->size;
-                        long size = 0;
+
+                        do_partial_fetch(ct, cf, p, pf_callback, read_extraargs);
+
                         cachetable_unlock(ct);
+<<<<<<< .working
                         int r = pf_callback(p->value, read_extraargs, cf->fd, &size);
                         lazy_assert_zero(r);
                         cachetable_lock(ct);
@@ -1932,6 +1961,8 @@ int toku_cachetable_get_and_pin_nonblocking (
                         ct->size_current -= old_size;
                         rwlock_write_unlock(&p->rwlock);
                         cachetable_unlock(ct);
+=======
+>>>>>>> .merge-right.r33536
                         if (ct->ydb_lock_callback) ct->ydb_lock_callback();
                         return TOKUDB_TRY_AGAIN;
                     }
@@ -1982,17 +2013,21 @@ struct cachefile_prefetch_args {
     void* read_extraargs;
 };
 
-//
-// PREFETCHING DOES NOT WORK IN MAXWELL AS OF NOW!
-//
+struct cachefile_partial_prefetch_args {
+    PAIR p;
+    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback;
+    void *read_extraargs;
+};
+
 int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
-                            CACHETABLE_FLUSH_CALLBACK flush_callback, 
-                            CACHETABLE_FETCH_CALLBACK fetch_callback, 
+                            CACHETABLE_FLUSH_CALLBACK flush_callback,
+                            CACHETABLE_FETCH_CALLBACK fetch_callback,
                             CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback,
-                            CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
-                            CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
-                            void *read_extraargs, 
-                            void *write_extraargs)
+                            CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
+                            CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
+                            void *read_extraargs,
+                            void *write_extraargs,
+                            BOOL *doing_prefetch)
 // Effect: See the documentation for this function in cachetable.h
 {
     // TODO: Fix prefetching, as part of ticket 3635
@@ -2005,12 +2040,15 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
     // It may be another callback. That is way too many callbacks that are being used
     // Fixing this in a clean, simple way requires some thought.
     if (0) printf("%s:%d %"PRId64"\n", __FUNCTION__, __LINE__, key.b);
+    if (doing_prefetch) {
+        *doing_prefetch = FALSE;
+    }
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
     // lookup
     PAIR p;
     for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain) {
-	if (p->key.b==key.b && p->cachefile==cf) {
+        if (p->key.b==key.b && p->cachefile==cf) {
             //Maybe check for pending and do write_pair_for_checkpoint()?
             pair_touch(p);
             break;
@@ -2020,15 +2058,36 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
     // if not found then create a pair in the READING state and fetch it
     if (p == 0) {
         cachetable_prefetches++;
-	p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, pe_callback, write_extraargs, CACHETABLE_CLEAN);
+        p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, pe_callback, write_extraargs, CACHETABLE_CLEAN);
         assert(p);
         rwlock_write_lock(&p->rwlock, ct->mutex);
-        struct cachefile_prefetch_args *cpargs = toku_xmalloc(sizeof(struct cachefile_prefetch_args));
+        struct cachefile_prefetch_args *MALLOC(cpargs);
         cpargs->p = p;
         cpargs->fetch_callback = fetch_callback;
         cpargs->read_extraargs = read_extraargs;
         workitem_init(&p->asyncwork, cachetable_reader, cpargs);
         workqueue_enq(&ct->wq, &p->asyncwork, 0);
+        if (doing_prefetch) {
+            *doing_prefetch = TRUE;
+        }
+    } else if (p->state == CTPAIR_IDLE && (rwlock_users(&p->rwlock)==0)) {
+        // nobody else is using the node, so we should go ahead and prefetch
+        rwlock_read_lock(&p->rwlock, ct->mutex);
+        BOOL partial_fetch_required = pf_req_callback(p->value, read_extraargs);
+        rwlock_read_unlock(&p->rwlock);
+
+        if (partial_fetch_required) {
+            rwlock_write_lock(&p->rwlock, ct->mutex);
+            struct cachefile_partial_prefetch_args *MALLOC(cpargs);
+            cpargs->p = p;
+            cpargs->pf_callback = pf_callback;
+            cpargs->read_extraargs = read_extraargs;
+            workitem_init(&p->asyncwork, cachetable_partial_reader, cpargs);
+            workqueue_enq(&ct->wq, &p->asyncwork, 0);
+            if (doing_prefetch) {
+                *doing_prefetch = TRUE;
+            }
+        }
     }
     cachetable_unlock(ct);
     return 0;
@@ -2691,12 +2750,21 @@ static void cachetable_reader(WORKITEM wi) {
     // This is only called in toku_cachefile_prefetch, by putting it on a workqueue
     // The problem is described in comments in toku_cachefile_prefetch
     cachetable_fetch_pair(
-        ct, 
-        cpargs->p->cachefile, 
-        cpargs->p, 
-        cpargs->fetch_callback, 
+        ct,
+        cpargs->p->cachefile,
+        cpargs->p,
+        cpargs->fetch_callback,
         cpargs->read_extraargs
         );
+    cachetable_unlock(ct);
+    toku_free(cpargs);
+}
+
+static void cachetable_partial_reader(WORKITEM wi) {
+    struct cachefile_partial_prefetch_args *cpargs = workitem_arg(wi);
+    CACHETABLE ct = cpargs->p->cachefile->cachetable;
+    cachetable_lock(ct);
+    do_partial_fetch(ct, cpargs->p->cachefile, cpargs->p, cpargs->pf_callback, cpargs->read_extraargs);
     cachetable_unlock(ct);
     toku_free(cpargs);
 }
