@@ -1949,20 +1949,6 @@ int toku_cachetable_get_and_pin_nonblocking (
                         do_partial_fetch(ct, cf, p, pf_callback, read_extraargs);
 
                         cachetable_unlock(ct);
-<<<<<<< .working
-                        int r = pf_callback(p->value, read_extraargs, cf->fd, &size);
-                        lazy_assert_zero(r);
-                        cachetable_lock(ct);
-                        rwlock_read_unlock(&cf->fdlock);
-                        p->size = size;
-                        // set the state of the pair back
-                        p->state = CTPAIR_IDLE;
-                        ct->size_current += size;
-                        ct->size_current -= old_size;
-                        rwlock_write_unlock(&p->rwlock);
-                        cachetable_unlock(ct);
-=======
->>>>>>> .merge-right.r33536
                         if (ct->ydb_lock_callback) ct->ydb_lock_callback();
                         return TOKUDB_TRY_AGAIN;
                     }
