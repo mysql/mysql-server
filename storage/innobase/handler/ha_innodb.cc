@@ -11497,6 +11497,39 @@ innodb_change_buffering_update(
 		 *static_cast<const char*const*>(save);
 }
 
+/*************************************************************//**
+Just emit a warning that the usage of the variable is deprecated.
+@return	0 */
+static
+void
+innodb_stats_sample_pages_update(
+/*=============================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+#define STATS_SAMPLE_PAGES_DEPRECATED_MSG \
+	"Using innodb_stats_sample_pages is deprecated and " \
+	"the variable may be removed in future releases. " \
+	"Please use innodb_stats_transient_sample_pages " \
+	"instead."
+
+	push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+		     HA_ERR_WRONG_COMMAND, STATS_SAMPLE_PAGES_DEPRECATED_MSG);
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		" InnoDB: Warning: %s\n",
+		STATS_SAMPLE_PAGES_DEPRECATED_MSG);
+
+	srv_stats_transient_sample_pages =
+		*static_cast<const unsigned long long*>(save);
+}
+
 /****************************************************************//**
 Update the monitor counter according to the "set_option",  turn
 on/off or reset specified monitor counter. */
@@ -12316,7 +12349,7 @@ static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
 static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_transient_sample_pages,
   PLUGIN_VAR_RQCMDARG,
   "Deprecated, use innodb_stats_transient_sample_pages instead",
-  NULL, NULL, 8, 1, ~0ULL, 0);
+  NULL, innodb_stats_sample_pages_update, 8, 1, ~0ULL, 0);
 
 static MYSQL_SYSVAR_ULONGLONG(stats_transient_sample_pages,
   srv_stats_transient_sample_pages,
