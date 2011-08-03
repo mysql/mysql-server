@@ -520,7 +520,6 @@ round : disabled for debugging
 rowid_order_innodb : disabled for debugging
 row : disabled for debugging
 rpl_mysqldump_slave : disabled for debugging
-schema : disabled for debugging
 secure_file_priv_win : disabled for debugging
 select_all_jcl6 : disabled for debugging
 select_all : disabled for debugging

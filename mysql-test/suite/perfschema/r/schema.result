@@ -485,6 +485,72 @@ setup_timers	CREATE TABLE `setup_timers` (
   `NAME` varchar(64) NOT NULL,
   `TIMER_NAME` enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND','TICK') NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table socket_instances;
+Table	Create Table
+socket_instances	CREATE TABLE `socket_instances` (
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
+  `THREAD_ID` int(11) DEFAULT NULL,
+  `SOCKET_ID` int(11) NOT NULL,
+  `IP` varchar(64) NOT NULL,
+  `PORT` int(11) NOT NULL,
+  `STATE` enum('IDLE','ACTIVE') NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table socket_summary_by_instance;
+Table	Create Table
+socket_summary_by_instance	CREATE TABLE `socket_summary_by_instance` (
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `COUNT_READ` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_READ` bigint(20) unsigned NOT NULL,
+  `COUNT_WRITE` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WRITE` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WRITE` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WRITE` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WRITE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_WRITE` bigint(20) unsigned NOT NULL,
+  `COUNT_MISC` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_MISC` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_MISC` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_MISC` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_MISC` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table socket_summary_by_event_name;
+Table	Create Table
+socket_summary_by_event_name	CREATE TABLE `socket_summary_by_event_name` (
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `COUNT_READ` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_READ` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_READ` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_READ` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_READ` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_READ` bigint(20) unsigned NOT NULL,
+  `COUNT_WRITE` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WRITE` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WRITE` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WRITE` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WRITE` bigint(20) unsigned NOT NULL,
+  `SUM_NUMBER_OF_BYTES_WRITE` bigint(20) unsigned NOT NULL,
+  `COUNT_MISC` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_MISC` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_MISC` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_MISC` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_MISC` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table table_io_waits_summary_by_index_usage;
 Table	Create Table
 table_io_waits_summary_by_index_usage	CREATE TABLE `table_io_waits_summary_by_index_usage` (
