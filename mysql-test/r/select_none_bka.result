@@ -1508,7 +1508,7 @@ explain extended select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where
 Warnings:
-Note	1003	select count(0) AS `count(*)`,min(`test`.`t2`.`fld4`) AS `min(fld4)`,max(`test`.`t2`.`fld4`) AS `max(fld4)`,sum(`test`.`t2`.`fld1`) AS `sum(fld1)`,avg(`test`.`t2`.`fld1`) AS `avg(fld1)`,std(`test`.`t2`.`fld1`) AS `std(fld1)`,variance(`test`.`t2`.`fld1`) AS `variance(fld1)` from `test`.`t2` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld4` <> ''))
+Note	1003	/* select#1 */ select count(0) AS `count(*)`,min(`test`.`t2`.`fld4`) AS `min(fld4)`,max(`test`.`t2`.`fld4`) AS `max(fld4)`,sum(`test`.`t2`.`fld1`) AS `sum(fld1)`,avg(`test`.`t2`.`fld1`) AS `avg(fld1)`,std(`test`.`t2`.`fld1`) AS `std(fld1)`,variance(`test`.`t2`.`fld1`) AS `variance(fld1)` from `test`.`t2` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld4` <> ''))
 select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr limit 3;
 companynr	count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fld1)
 00	82	Anthony	windmills	10355753	126289.6707	115550.9757	13352027981.7087
@@ -4054,10 +4054,10 @@ join_0.c1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by NULL,NULL,NULL,NULL,NULL
+Note	1003	/* select#1 */ select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by NULL,NULL,NULL,NULL,NULL
 SHOW WARNINGS;
 Level	Code	Message
-Note	1003	select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by NULL,NULL,NULL,NULL,NULL
+Note	1003	/* select#1 */ select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by NULL,NULL,NULL,NULL,NULL
 DROP TABLE t1;
 SELECT 1 AS ` `;
 
@@ -4384,12 +4384,12 @@ EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND a = b LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 1)) limit 2
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 1)) limit 2
 EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND b = a LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` > 1)) limit 2
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` > 1)) limit 2
 DROP TABLE t1;
 #
 # Bug#47019: Assertion failed: 0, file .\rt_mbr.c, line 138 when 
@@ -4459,7 +4459,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:0
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '2001-01-01 00:00:00' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where 1
 DROP TABLE t1;
 CREATE TABLE t1(a DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01');
@@ -4470,7 +4470,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:0
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '2001-01-01' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01' AS `a` from dual where 1
 DROP TABLE t1;
 CREATE TABLE t1(a TIMESTAMP NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01');
@@ -4481,7 +4481,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:0
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '2001-01-01 00:00:00' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where 1
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4492,7 +4492,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b VARCHAR(20) NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4502,7 +4502,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 0
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 0
 SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
 a	b
 2001-01-01 00:00:00	2001-01-01
@@ -4510,7 +4510,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4529,7 +4529,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	y	system	NULL	NULL	NULL	NULL	1	100.00	
 1	SIMPLE	z	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a` from dual where 1
 DROP TABLE t1;
 #
 # Bug #49897: crash in ptr_compare when char(0) NOT NULL 
@@ -4643,7 +4643,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '1' AS `a`,'1' AS `b` from dual where 1
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from dual where 1
 SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 a	b
 1	1
@@ -4653,17 +4653,17 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND c=c) OR b > 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
 DROP TABLE t1;
 #
 # Bug#45266: Uninitialized variable lead to an empty result.
@@ -4758,7 +4758,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE a = 1 + 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = <cache>((1 + 1)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = <cache>((1 + 1)))
 SELECT * FROM t1 HAVING a = 1 + 1;
 a
 2
@@ -4766,7 +4766,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 HAVING a = 1 + 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` having (`test`.`t1`.`a` = <cache>((1 + 1)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` having (`test`.`t1`.`a` = <cache>((1 + 1)))
 SELECT * FROM t1, t2 WHERE a = b + (1 + 1);
 a	b
 4	2
@@ -4775,7 +4775,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,'2' AS `b` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(('2' + (1 + 1))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'2' AS `b` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(('2' + (1 + 1))))
 SELECT * FROM t2 LEFT JOIN t1 ON a = b + 1;
 b	a
 2	3
@@ -4784,12 +4784,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	select '2' AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '2' AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t1` where 1
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a > UNIX_TIMESTAMP('2009-03-10 00:00:00');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(unix_timestamp('2009-03-10 00:00:00')))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(unix_timestamp('2009-03-10 00:00:00')))
 CREATE FUNCTION f1() RETURNS INT DETERMINISTIC
 BEGIN
 SET @cnt := @cnt + 1;
@@ -4806,7 +4806,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE a = f1();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(`f1`()))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(`f1`()))
 DROP TABLE t1, t2;
 DROP FUNCTION f1;
 # End of bug#33546

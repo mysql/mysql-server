@@ -42,6 +42,13 @@ class Item_subselect :public Item_result_field
 {
 private:
   bool value_assigned; /* value already assigned to subselect */
+  /**
+      Whether or not execution of this subselect has been traced by
+      optimizer tracing already. If optimizer trace option
+      REPEATED_SUBSELECT is disabled, this is used to disable tracing
+      after the first one.
+  */
+  bool traced_before;
 public:
   /* 
     Used inside Item_subselect::fix_fields() according to this scenario:

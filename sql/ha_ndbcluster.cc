@@ -4614,8 +4614,8 @@ void ha_ndbcluster::transaction_checks(THD *thd)
 
       \Alfranio
     */
-    thd->transaction.all.mark_modified_non_trans_table();
     thd->transaction.stmt.mark_modified_non_trans_table();
+    thd->transaction.merge_unsafe_rollback_flags();
   }
   else if (!thd->transaction.on)
     m_transaction_on= FALSE;

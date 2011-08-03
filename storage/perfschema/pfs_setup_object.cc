@@ -251,7 +251,7 @@ int reset_setup_object()
 
   for ( ; pfs < pfs_last; pfs++)
   {
-    if (pfs->m_enabled && pfs->m_lock.is_populated())
+    if (pfs->m_lock.is_populated())
     {
       lf_hash_delete(&setup_object_hash, pins,
                      pfs->m_key.m_hash_key, pfs->m_key.m_key_length);

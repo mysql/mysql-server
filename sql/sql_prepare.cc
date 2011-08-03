@@ -114,6 +114,7 @@ When one supplies long data for a placeholder:
 #include <mysql_com.h>
 #endif
 #include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
+#include "opt_trace.h"                          // Opt_trace_object
 
 /**
   A result class used to send cursor rows using the binary protocol.
@@ -1961,6 +1962,17 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   /* Reset warning count for each query that uses tables */
   if (tables)
     thd->get_stmt_wi()->opt_clear_warning_info(thd->query_id);
+
+  /*
+    For the optimizer trace, this is the symmetric, for statement preparation,
+    of what is done at statement execution (in mysql_execute_command()).
+  */
+  Opt_trace_start ots(thd, tables, sql_command, &lex->var_list,
+                      thd->query(), thd->query_length(), NULL,
+                      thd->variables.character_set_client);
+
+  Opt_trace_object trace_command(&thd->opt_trace);
+  Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
 
   if (sql_command_flags[sql_command] & CF_HA_CLOSE)
     mysql_ha_rm_tables(thd, tables);
