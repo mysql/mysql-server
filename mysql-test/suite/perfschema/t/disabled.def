@@ -136,7 +136,6 @@ query_cache : disabled for debugging
 read_only : disabled for debugging
 relaylog : disabled for debugging
 rollback_table_io : disabled for debugging
-schema : disabled for debugging
 selects : disabled for debugging
 server_init : disabled for debugging
 setup_actors : disabled for debugging
