@@ -1710,3 +1710,24 @@ object_type	object_schema	object_name	count_star
 TABLE	test	t1	0
 TABLE	test	t2	0
 TABLE	test	t3	0
+show status like "performance_schema%";
+Variable_name	Value
+Performance_schema_accounts_lost	0
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_hosts_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_stage_classes_lost	0
+Performance_schema_statement_classes_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+Performance_schema_users_lost	0
