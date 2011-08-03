@@ -99,6 +99,7 @@ typedef struct __toku_engine_status {
   u_int64_t        cachetable_wait_reading; /* how many times get_and_pin waits for a node to be read */ 
   u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ 
   u_int64_t        cachetable_wait_checkpoint; /* how many times get_and_pin waits for a node to be written for a checkpoint*/ 
+  u_int64_t        cachetable_evictions;    /* how many cache table blocks are evicted */ 
   u_int64_t        puts;                    /* how many times has a newly created node been put into the cachetable */ 
   u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ 
   u_int64_t        maybe_get_and_pins;      /* how many times has maybe_get_and_pin(_clean) been called */ 

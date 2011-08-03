@@ -51,7 +51,7 @@ static u_int64_t cachetable_lock_released = 0;
 static u_int64_t local_checkpoint;        // number of times a local checkpoint was taken for a commit (2440)
 static u_int64_t local_checkpoint_files;  // number of files subject to local checkpoint taken for a commit (2440)
 static u_int64_t local_checkpoint_during_checkpoint;  // number of times a local checkpoint happened during normal checkpoint (2440)
-
+static u_int64_t cachetable_evictions;
 
 
 enum ctpair_state {
@@ -1069,6 +1069,7 @@ static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p) {
         long size = p->size;
 
         rwlock_prefer_read_lock(&cachefile->fdlock, ct->mutex);
+        cachetable_evictions++;
         cachetable_unlock(ct);
 
         flush_callback(cachefile, cachefile->fd, key, value, write_extraargs, size, FALSE, FALSE, TRUE);
@@ -1964,7 +1965,6 @@ int toku_cachetable_get_and_pin_nonblocking (
 	    case CTPAIR_READING:
 	    case CTPAIR_WRITING:
                 wait_on_io:
-                cachetable_miss++;
 		run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
 		if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
 		// Now wait for the I/O to occur.
@@ -1980,13 +1980,15 @@ int toku_cachetable_get_and_pin_nonblocking (
     assert(p==0);
 
     // Not found
-    cachetable_miss++;
     p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, pe_callback, write_extraargs, CACHETABLE_CLEAN);
     assert(p);
     rwlock_write_lock(&p->rwlock, ct->mutex);
     run_unlockers(unlockers); // we hold the ct mutex.
     if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
+    u_int64_t t0 = get_tnow();
     int r = cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs);
+    cachetable_miss++;
+    cachetable_misstime += get_tnow() - t0;
     cachetable_unlock(ct);
     if (ct->ydb_lock_callback) ct->ydb_lock_callback();
     if (r!=0) return r;
@@ -2317,13 +2319,6 @@ toku_cachetable_close (CACHETABLE *ctp) {
     toku_free(ct);
     *ctp = 0;
     return 0;
-}
-
-void toku_cachetable_get_miss_times(CACHETABLE UU(ct), uint64_t *misscount, uint64_t *misstime) {
-    if (misscount) 
-        *misscount = cachetable_miss;
-    if (misstime) 
-        *misstime = cachetable_misstime;
 }
 
 int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
@@ -2955,6 +2950,7 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
     s->local_checkpoint      = local_checkpoint;
     s->local_checkpoint_files = local_checkpoint_files;
     s->local_checkpoint_during_checkpoint = local_checkpoint_during_checkpoint;
+    s->evictions = cachetable_evictions;
 }
 
 char *
