@@ -1610,9 +1610,6 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto before_trg_err;
 
         table->file->restore_auto_increment(prev_insert_id);
-        if (table->next_number_field)
-          table->file->adjust_next_insert_id_after_explicit_value(
-            table->next_number_field->val_int());
         info->touched++;
         if (!records_are_comparable(table) || compare_records(table))
         {
@@ -1649,8 +1646,6 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if (table->next_number_field)
           table->file->adjust_next_insert_id_after_explicit_value(
             table->next_number_field->val_int());
-        info->touched++;
-
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
