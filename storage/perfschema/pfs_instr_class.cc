@@ -1223,7 +1223,8 @@ void update_table_share_derived_flags(PFS_thread *thread)
 
   for ( ; pfs < pfs_last; pfs++)
   {
-    pfs->refresh_setup_object_flags(thread);
+    if (pfs->m_lock.is_populated())
+      pfs->refresh_setup_object_flags(thread);
   }
 }
 
