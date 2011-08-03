@@ -2754,7 +2754,7 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
     fprintf(stderr, "\nTrying to get some variables.\n"
                     "Some pointers may be invalid and cause the dump to abort.\n");
     fprintf(stderr, "Query (%p): ", thd->query());
-    my_safe_print_str(thd->query(), thd->query_length());
+    my_safe_print_str(thd->query(), min(65536,thd->query_length()));
     fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
     fprintf(stderr, "Status: %s\n", kreason);
     fprintf(stderr, "Optimizer switch: %s\n", optimizer_switch_str);
