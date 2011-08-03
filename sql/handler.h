@@ -1314,9 +1314,22 @@ public:
   bool mrr_have_range;
   /* Current range (the one we're now returning rows from) */
   KEY_MULTI_RANGE mrr_cur_range;
-  
-  /** The following are for read_range() */
-  key_range save_end_range, *end_range;
+
+protected:
+  /*
+    Storage space for the end range value. Should only be accessed using
+    the end_range pointer. The content is invalid when end_range is NULL.
+  */
+  key_range save_end_range;
+
+public:  
+  /*
+    End value for a range scan. If this is NULL the range scan has no
+    end value. Should also be NULL when there is no ongoing range scan.
+    Used by the read_range() functions and also evaluated by pushed
+    index conditions.
+  */
+  key_range *end_range;
   KEY_PART_INFO *range_key_part;
   int key_compare_result_on_equal;
   bool eq_range;
@@ -1400,7 +1413,7 @@ public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), in_range_check_pushed_down(FALSE),
+    ref(0), end_range(NULL), in_range_check_pushed_down(false),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
