@@ -65,8 +65,7 @@ echo "================== con1 connected ==================";
 # Wait for the connect to complete
 let $wait_condition=
   select count(*) = 1 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user1';
 --source include/wait_condition.inc
 
 echo "================== Step 2 ==================";
@@ -127,9 +126,8 @@ echo "================== con2 connected ==================";
 
 # Wait for the connect to complete
 let $wait_condition=
-  select count(*) = 2 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user2';
 --source include/wait_condition.inc
 
 echo "================== Step 4 ==================";
@@ -186,9 +184,8 @@ echo "================== con3 connected ==================";
 
 # Wait for the connect to complete
 let $wait_condition=
-  select count(*) = 3 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user3';
 --source include/wait_condition.inc
 
 echo "================== Step 6 ==================";
@@ -245,9 +242,8 @@ echo "================== con4 connected ==================";
 
 # Wait for the connect to complete
 let $wait_condition=
-  select count(*) = 4 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user4';
 --source include/wait_condition.inc
 
 echo "================== Step 8 ==================";
@@ -349,9 +345,8 @@ execute dump_objects_summary;
 
 # Wait for the disconnect to complete
 let $wait_condition=
-  select count(*) = 3 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 0 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user1';
 --source include/wait_condition.inc
 
 echo "================== con1 disconnected ==================";
@@ -369,9 +364,8 @@ execute dump_objects_summary;
 
 # Wait for the disconnect to complete
 let $wait_condition=
-  select count(*) = 2 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 0 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user2';
 --source include/wait_condition.inc
 
 echo "================== con2 disconnected ==================";
@@ -389,9 +383,8 @@ execute dump_objects_summary;
 
 # Wait for the disconnect to complete
 let $wait_condition=
-  select count(*) = 1 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 0 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user3';
 --source include/wait_condition.inc
 
 echo "================== con3 disconnected ==================";
@@ -410,8 +403,7 @@ execute dump_objects_summary;
 # Wait for the disconnect to complete
 let $wait_condition=
   select count(*) = 0 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user4';
 --source include/wait_condition.inc
 
 echo "================== con4 disconnected ==================";
@@ -452,4 +444,7 @@ execute dump_index_io;
 execute dump_table_io;
 execute dump_table_lock;
 execute dump_objects_summary;
+
+# On test failures, may help to track the root cause
+show status like "performance_schema%";
 
