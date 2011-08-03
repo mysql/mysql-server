@@ -110,7 +110,7 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         this.classMapping = classMapping;
         classMapping.resolve(0xffffffff);
         oidClass = classMapping.getObjectIdType();
-        this.describedType = classMapping.getDescribedType();
+        this.describedType = (Class<T>)classMapping.getDescribedType();
         if (classMapping.getPCSuperclass() != null) {
             // persistent subclasses are not supported
             message = local.message("ERR_Subclass", this.describedType);
@@ -370,19 +370,24 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
                 classMapping.getPrimaryKeyFieldMappings();
         int numberOfFields = classMapping.getFieldMappings().length;
         Object[] keyValues = new Object[numberOfFields];
+        boolean nullKeyValue = false;
         if (primaryKeyFieldMappings.length != 1) {
         // for each key field, use the field value accessor to get the
         // value from the Oid and put it into the proper place in keyValues
             for (NdbOpenJPADomainFieldHandlerImpl fmd: primaryKeyFields) {
                 // store the key value from the oid into the keyValues array
                 // this can be improved with a smarter KeyValueHandlerImpl
-                keyValues[fmd.getFieldNumber()] = fmd.getKeyValue(keys);
+                Object keyValue = fmd.getKeyValue(keys);
+                keyValues[fmd.getFieldNumber()] = keyValue;
+                if (keyValue == null) {
+                    nullKeyValue = true;
+                }
             }
         } else {
             keyValues[primaryKeyFieldMappings[0].getIndex()] = keys;
         }
         KeyValueHandlerImpl keyHandler = new KeyValueHandlerImpl(keyValues);
-        return keyHandler;
+        return nullKeyValue?null:keyHandler;
     }
 
     public ValueHandler getValueHandler(Object instance) {
