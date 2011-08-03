@@ -652,7 +652,7 @@ void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
   if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_DIVISION_BY_ZERO,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_DIVISION_BY_ZERO,
                  ER(ER_DIVISION_BY_ZERO));
   null_value= 1;
 }
@@ -974,7 +974,7 @@ longlong Item_func_signed::val_int_from_str(int *error)
   if (*error > 0 || end != start+ length)
   {
     ErrConvString err(res);
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
                         err.ptr());
@@ -999,7 +999,7 @@ longlong Item_func_signed::val_int()
   value= val_int_from_str(&error);
   if (value < 0 && error == 0)
   {
-    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                  "Cast to signed converted positive out-of-range integer to "
                  "it's negative complement");
   }
@@ -1040,7 +1040,7 @@ longlong Item_func_unsigned::val_int()
 
   value= val_int_from_str(&error);
   if (error < 0)
-    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                  "Cast to unsigned converted negative integer to it's "
                  "positive complement");
   return value;
@@ -1108,7 +1108,7 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
   return dec;
 
 err:
-  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+  push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
                       name, 1L);
@@ -4059,7 +4059,7 @@ longlong Item_func_benchmark::val_int()
     {
       char buff[22];
       llstr(((longlong) loop_count), buff);
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
                           "count", buff, "benchmark");
     }

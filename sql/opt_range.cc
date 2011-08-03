@@ -6287,7 +6287,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
         param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
-              MYSQL_ERROR::WARN_LEVEL_WARN, 
+              Sql_condition::WARN_LEVEL_WARN, 
               ER_WARN_INDEX_NOT_APPLICABLE,
               ER(ER_WARN_INDEX_NOT_APPLICABLE),
               "range",
@@ -6420,7 +6420,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
         param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
-              MYSQL_ERROR::WARN_LEVEL_WARN, 
+              Sql_condition::WARN_LEVEL_WARN, 
               ER_WARN_INDEX_NOT_APPLICABLE,
               ER(ER_WARN_INDEX_NOT_APPLICABLE),
               "range",

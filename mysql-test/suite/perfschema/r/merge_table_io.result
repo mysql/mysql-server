@@ -6,6 +6,7 @@ update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/table/%";
 truncate table performance_schema.events_waits_history_long;
 flush status;
+flush tables;
 drop table if exists test.no_index_tab;
 drop table if exists test.no_index_tab_1;
 drop table if exists test.no_index_tab_2;
