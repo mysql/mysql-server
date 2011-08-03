@@ -1247,6 +1247,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("cachetable maybe_get_and_pins", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.maybe_get_and_pin_hits);  
       STATPRINT("cachetable maybe_get_and_pin_hits", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_evictions);  
+      STATPRINT("cachetable evictions", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_current);  
       STATPRINT("cachetable size_current", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_limit);  
