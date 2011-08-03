@@ -190,6 +190,7 @@ The following options may be given as the first argument:
  The maximum length of the result of function 
  GROUP_CONCAT()
  -?, --help          Display this help and exit.
+ --host-cache-size=# How many host names should be cached to avoid resolving.
  --ignore-builtin-innodb 
  Disable initialization of builtin InnoDB plugin
  --init-connect=name Command(s) that are executed for each new connection
@@ -837,6 +838,7 @@ gdb FALSE
 general-log FALSE
 group-concat-max-len 1024
 help TRUE
+host-cache-size 128
 ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
