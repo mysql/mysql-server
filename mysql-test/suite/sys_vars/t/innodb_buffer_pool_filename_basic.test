@@ -8,6 +8,15 @@
 SET @orig = @@global.innodb_buffer_pool_filename;
 SELECT @orig;
 
+# Make sure that --force-restart in the .opt file has worked and that
+# the value of this status variable is not something like
+# 'Buffer pool(s) dump completed at ' left from previous runs because if
+# it is then the following wait condition may be satisfied without the
+# dump actually being complete and file_exists may fail.
+SELECT variable_value
+FROM information_schema.global_status
+WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+
 # Try with a non-default filename
 
 SET GLOBAL innodb_buffer_pool_filename = 'innodb_foobar_dump';
