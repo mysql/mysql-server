@@ -435,6 +435,7 @@ void lex_start(THD *thd)
   lex->server_options.port= -1;
 
   lex->is_lex_started= TRUE;
+  lex->used_tables= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1219,8 +1220,12 @@ int lex_one_token(void *arg, void *yythd)
     {
       uint double_quotes= 0;
       char quote_char= c;                       // Used char
-      while ((c=lip->yyGet()))
+      for(;;)
       {
+        c= lip->yyGet();
+        if (c == 0)
+          return ABORT_SYM;                     // Unmatched quotes
+
 	int var_length;
 	if ((var_length= my_mbcharlen(cs, c)) == 1)
 	{

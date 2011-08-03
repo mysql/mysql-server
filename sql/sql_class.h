@@ -659,7 +659,7 @@ mysqld_collation_get_by_name(const char *name,
     my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
     if (loader.error[0])
       push_warning_printf(current_thd,
-                          MYSQL_ERROR::WARN_LEVEL_WARN,
+                          Sql_condition::WARN_LEVEL_WARN,
                           ER_UNKNOWN_COLLATION, "%s", loader.error);
   }
   return cs;
@@ -1486,9 +1486,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl) = 0;
+                                Sql_condition ** cond_hdl) = 0;
 
 private:
   Internal_error_handler *m_prev_internal_handler;
@@ -1507,9 +1507,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl)
+                        Sql_condition ** cond_hdl)
   {
     /* Ignore error */
     return TRUE;
@@ -1533,9 +1533,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl);
+                        Sql_condition ** cond_hdl);
 
 private:
 };
@@ -2023,17 +2023,17 @@ public:
     void push_unsafe_rollback_warnings(THD *thd)
     {
       if (all.has_modified_non_trans_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
 
       if (all.has_created_temp_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
 
       if (all.has_dropped_temp_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
     }
@@ -2315,13 +2315,6 @@ public:
   void set_status_no_index_used();
   void set_status_no_good_index_used();
 
-  /*
-    The set of those tables whose fields are referenced in all subqueries
-    of the query.
-    TODO: possibly this it is incorrect to have used tables in THD because
-    with more than one subquery, it is not clear what does the field mean.
-  */
-  table_map  used_tables;
   USER_CONN *user_connect;
   const CHARSET_INFO *db_charset;
 #if defined(ENABLED_PROFILING)
@@ -2870,10 +2863,6 @@ public:
   */
   inline bool is_error() const { return get_stmt_da()->is_error(); }
 
-  /// Returns Warning-information-area for the current diagnostics area.
-  Warning_info *get_stmt_wi()
-  { return get_stmt_da()->get_warning_info(); }
-
   /// Returns Diagnostics-area for the current statement.
   Diagnostics_area *get_stmt_da()
   { return m_stmt_da; }
@@ -3127,9 +3116,9 @@ public:
   */
   virtual bool handle_condition(uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
 
   /**
     Remove the error handler last pushed.
@@ -3184,7 +3173,7 @@ private:
   friend class Sql_cmd_common_signal;
   friend class Sql_cmd_signal;
   friend class Sql_cmd_resignal;
-  friend void push_warning(THD*, MYSQL_ERROR::enum_warning_level, uint, const char*);
+  friend void push_warning(THD*, Sql_condition::enum_warning_level, uint, const char*);
   friend void my_message_sql(uint, const char *, myf);
 
   /**
@@ -3195,10 +3184,10 @@ private:
     @param msg the condition message text
     @return The condition raised, or NULL
   */
-  MYSQL_ERROR*
+  Sql_condition*
   raise_condition(uint sql_errno,
                   const char* sqlstate,
-                  MYSQL_ERROR::enum_warning_level level,
+                  Sql_condition::enum_warning_level level,
                   const char* msg);
 
 public:
@@ -3320,7 +3309,7 @@ my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
   thd->set_row_count_func(affected_rows);
-  thd->get_stmt_da()->set_ok_status(thd, affected_rows, id, message);
+  thd->get_stmt_da()->set_ok_status(affected_rows, id, message);
 }
 
 

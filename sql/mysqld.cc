@@ -340,7 +340,7 @@ static char *lc_time_names_name;
 char *my_bind_addr_str;
 static char *default_collation_name;
 char *default_storage_engine;
-char *default_temp_storage_engine;
+char *default_tmp_storage_engine;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
 static bool binlog_format_used= false;
@@ -2900,7 +2900,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
       thd->is_fatal_error= 1;
     (void) thd->raise_condition(error,
                                 NULL,
-                                MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                Sql_condition::WARN_LEVEL_ERROR,
                                 str);
   }
 
@@ -3352,7 +3352,7 @@ int init_common_variables()
 #else
   default_storage_engine= const_cast<char *>("InnoDB");
 #endif
-  default_temp_storage_engine= default_storage_engine;
+  default_tmp_storage_engine= default_storage_engine;
 
   /*
     Add server status variables to the dynamic list of
@@ -4411,7 +4411,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (initialize_storage_engine(default_storage_engine, "",
                                 &global_system_variables.table_plugin))
     unireg_abort(1);
-  if (initialize_storage_engine(default_temp_storage_engine, " temp",
+  if (initialize_storage_engine(default_tmp_storage_engine, " temp",
                                 &global_system_variables.temp_table_plugin))
     unireg_abort(1);
 
@@ -6187,9 +6187,9 @@ struct my_option my_long_options[]=
   {"default-storage-engine", 0, "The default storage engine for new tables",
    &default_storage_engine, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0 },
-  {"default-temp-storage-engine", 0, 
+  {"default-tmp-storage-engine", 0, 
     "The default storage engine for new explict temporary tables",
-   &default_temp_storage_engine, 0, 0, GET_STR, REQUIRED_ARG,
+   &default_tmp_storage_engine, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0 },
   {"default-time-zone", 0, "Set the default time zone.",
    &default_tz_name, &default_tz_name,

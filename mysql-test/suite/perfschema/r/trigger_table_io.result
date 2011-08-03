@@ -6,6 +6,7 @@ update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/table/%";
 truncate table performance_schema.events_waits_history_long;
 flush status;
+flush tables;
 drop table if exists test.t1;
 drop table if exists test.t2;
 create table test.t1 (a int, v int) engine = MyISAM;

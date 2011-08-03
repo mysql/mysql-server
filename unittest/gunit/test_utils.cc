@@ -92,9 +92,9 @@ Mock_error_handler::~Mock_error_handler()
 bool Mock_error_handler::handle_condition(THD *thd,
                                           uint sql_errno,
                                           const char* sqlstate,
-                                          MYSQL_ERROR::enum_warning_level level,
+                                          Sql_condition::enum_warning_level level,
                                           const char* msg,
-                                          MYSQL_ERROR ** cond_hdl)
+                                          Sql_condition ** cond_hdl)
 {
   EXPECT_EQ(m_expected_error, sql_errno);
   ++m_handle_called;

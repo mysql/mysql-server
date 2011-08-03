@@ -1211,7 +1211,7 @@ srv_printf_innodb_monitor(
 		(long) srv_conc_n_threads,
 		srv_conc_get_waiting_threads());
 
-	/* This is a dirty read, without holding trx_sys->read_view_mutex. */
+	/* This is a dirty read, without holding trx_sys->mutex. */
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
 
@@ -1481,6 +1481,9 @@ loop:
 
 			last_table_monitor_time = ut_time();
 
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
+
 			fputs("===========================================\n",
 			      stderr);
 
@@ -1495,6 +1498,9 @@ loop:
 			      "END OF INNODB TABLE MONITOR OUTPUT\n"
 			      "==================================\n",
 			      stderr);
+
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 		}
 	}
 
