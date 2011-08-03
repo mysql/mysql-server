@@ -66,6 +66,7 @@ import org.apache.openjpa.kernel.OpenJPAStateManager;
 import org.apache.openjpa.meta.JavaTypes;
 import org.apache.openjpa.util.IntId;
 import org.apache.openjpa.util.LongId;
+import org.apache.openjpa.util.ObjectId;
 import org.apache.openjpa.util.OpenJPAId;
 import org.apache.openjpa.util.StringId;
 
@@ -717,7 +718,11 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
     }
 
     protected Object getKeyValue(Object keys) {
-        return getKeyValue(oidField, keys);
+        Object key = keys;
+        if (keys instanceof ObjectId) {
+            key = ((ObjectId)keys).getId();
+        }
+        return getKeyValue(oidField, key);
     }
 
     protected static Object getKeyValue(Field field, Object keys) {
@@ -733,9 +738,12 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
             if (logger.isDetailEnabled()) logger.detail("For field " + fieldName + " keys: " + keys + " value returned is " + result);
             return result;
         } catch (IllegalArgumentException ex) {
-            throw new ClusterJUserException("keys: " + keys);
+            String message = "IllegalArgumentException, field " + field.getDeclaringClass().getName() + ":" + field.getName() + " keys: " + keys;
+            logger.error(message);
+            throw new ClusterJUserException(message, ex);
         } catch (IllegalAccessException ex) {
-            throw new ClusterJUserException("keys: " + keys);
+            String message = "IllegalAccessException, field " + field.getDeclaringClass().getName() + ":" + field.getName() + " keys: " + keys;
+            throw new ClusterJUserException(message, ex);
         }
     }
 
