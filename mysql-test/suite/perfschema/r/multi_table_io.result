@@ -24,6 +24,7 @@ update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/table/%";
 truncate table performance_schema.events_waits_history_long;
 flush status;
+flush tables;
 update performance_schema.setup_consumers set enabled = 'YES';
 insert into test1.t2 select * from test.t1;
 insert into marker set a = 1;
