@@ -184,7 +184,7 @@ buf_LRU_make_block_old(
 /*===================*/
 	buf_page_t*	bpage);	/*!< in: control block */
 /**********************************************************************//**
-Updates buf_LRU_old_ratio.
+Updates buf_pool->LRU_old_ratio.
 @return	updated old_pct */
 UNIV_INTERN
 ulint
@@ -193,7 +193,7 @@ buf_LRU_old_ratio_update(
 	uint	old_pct,/*!< in: Reserve this percentage of
 			the buffer pool for "old" blocks. */
 	ibool	adjust);/*!< in: TRUE=adjust the LRU list;
-			FALSE=just assign buf_LRU_old_ratio
+			FALSE=just assign buf_pool->LRU_old_ratio
 			during the initialization of InnoDB */
 /********************************************************************//**
 Update the historical stats that we are collecting for LRU eviction
@@ -222,18 +222,15 @@ buf_LRU_print(void);
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /** @name Heuristics for detecting index scan @{ */
-/** Reserve this much/BUF_LRU_OLD_RATIO_DIV of the buffer pool for
-"old" blocks.  Protected by buf_pool->mutex. */
-extern uint	buf_LRU_old_ratio;
-/** The denominator of buf_LRU_old_ratio. */
+/** The denominator of buf_pool->LRU_old_ratio. */
 #define BUF_LRU_OLD_RATIO_DIV	1024
-/** Maximum value of buf_LRU_old_ratio.
+/** Maximum value of buf_pool->LRU_old_ratio.
 @see buf_LRU_old_adjust_len
-@see buf_LRU_old_ratio_update */
+@see buf_pool->LRU_old_ratio_update */
 #define BUF_LRU_OLD_RATIO_MAX	BUF_LRU_OLD_RATIO_DIV
-/** Minimum value of buf_LRU_old_ratio.
+/** Minimum value of buf_pool->LRU_old_ratio.
 @see buf_LRU_old_adjust_len
-@see buf_LRU_old_ratio_update
+@see buf_pool->LRU_old_ratio_update
 The minimum must exceed
 (BUF_LRU_OLD_TOLERANCE + 5) * BUF_LRU_OLD_RATIO_DIV / BUF_LRU_OLD_MIN_LEN. */
 #define BUF_LRU_OLD_RATIO_MIN	51

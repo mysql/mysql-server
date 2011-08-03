@@ -425,6 +425,24 @@ The following options may be given as the first argument:
  mrr_cost_based, materialization, semijoin, loosescan,
  firstmatch, block_nested_loop, batch_key_access} and val
  is one of {on, off, default}
+ --optimizer-trace=name 
+ Controls tracing of the Optimizer:
+ optimizer_trace=option=val[,option=val...], where option
+ is one of {enabled, end_marker, one_line} and val is one
+ of {on, off, default}
+ --optimizer-trace-features=name 
+ Enables/disables tracing of selected features of the
+ Optimizer:
+ optimizer_trace_features=option=val[,option=val...],
+ where option is one of {greedy_search, range_optimizer,
+ dynamic_range, repeated_subselect} and val is one of {on,
+ off, default}
+ --optimizer-trace-limit=# 
+ Maximum number of shown optimizer traces
+ --optimizer-trace-max-mem-size=# 
+ Maximum allowed cumulated size of stored optimizer traces
+ --optimizer-trace-offset=# 
+ Offset of first optimizer trace to show; see manual
  --performance-schema 
  Enable the performance schema.
  --performance-schema-events-stages-history-long-size=# 
@@ -900,6 +918,11 @@ old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
 optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on,block_nested_loop=on
+optimizer-trace 
+optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
+optimizer-trace-limit 1
+optimizer-trace-max-mem-size 16384
+optimizer-trace-offset -1
 performance-schema FALSE
 performance-schema-events-stages-history-long-size 10000
 performance-schema-events-stages-history-size 10

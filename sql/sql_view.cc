@@ -32,6 +32,7 @@
 #include "sp_head.h"
 #include "sp_cache.h"
 #include "datadict.h"   // dd_frm_type()
+#include "opt_trace.h"  // opt_trace_disable_etc
 
 #define MD5_BUFF_LENGTH 33
 
@@ -591,6 +592,17 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
+  /*
+    Make sure the view doesn't have so many columns that we hit the
+    64k header limit if the view is materialized as a MyISAM table.
+  */
+  if (select_lex->item_list.elements > MAX_FIELDS)
+  {
+    my_error(ER_TOO_MANY_FIELDS, MYF(0));
+    res= TRUE;
+    goto err;
+  }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     Compare/check grants on view with grants of underlying tables
@@ -1077,6 +1089,12 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       not changed since PREPARE or the previous execution: the only case
       when this information is changed is execution of UPDATE on a view, but
       the original want_access is restored in its end.
+
+      Optimizer trace: because tables have been unfolded already, they are
+      in lex->query_tables of the statement using the view. So privileges on
+      them are checked as done for explicitely listed tables, in constructor
+      of Opt_trace_start. Security context change is checked in
+      prepare_security() below.
     */
     if (!table->prelocking_placeholder && table->prepare_security(thd))
     {
@@ -1131,6 +1149,13 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   table->view_suid= TRUE;
   table->definer.user.str= table->definer.host.str= 0;
   table->definer.user.length= table->definer.host.length= 0;
+
+  Opt_trace_object trace_wrapper(&thd->opt_trace);
+  Opt_trace_object trace_view(&thd->opt_trace, "view");
+  // When reading I_S.VIEWS, table->alias may be NULL
+  trace_view.add_utf8("database", table->db, table->db_length).
+    add_utf8("view", table->alias ? table->alias : table->table_name).
+    add("in_select#", old_lex->select_lex.select_number);
 
   /*
     TODO: when VIEWs will be stored in cache, table mem_root should
@@ -1223,6 +1248,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     view_select= &lex->select_lex;
     view_select->select_number= ++thd->select_number;
 
+    trace_view.add("select#", view_select->select_number);
+
     sql_mode_t saved_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
@@ -1278,23 +1305,28 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       underlying tables.
       Skip this step if we are opening view for prelocking only.
     */
-    if (!table->prelocking_placeholder && old_lex->describe &&
-        is_explainable_query(old_lex->sql_command))
+    if (!table->prelocking_placeholder)
     {
-      if (check_table_access(thd, SELECT_ACL, view_tables, FALSE,
-                             UINT_MAX, TRUE) &&
-          check_table_access(thd, SHOW_VIEW_ACL, table, FALSE, UINT_MAX, TRUE))
+      // If executing prepared statement: see "Optimizer trace" note above.
+      opt_trace_disable_if_no_view_access(thd, table, view_tables);
+
+      if (old_lex->describe && is_explainable_query(old_lex->sql_command))
       {
-        my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
-        goto err;
+        if (check_table_access(thd, SELECT_ACL, view_tables, false, UINT_MAX,
+                               true) &&
+            check_table_access(thd, SHOW_VIEW_ACL, table, false, UINT_MAX,
+                               true))
+        {
+          my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
+          goto err;
+        }
       }
-    }
-    else if (!table->prelocking_placeholder &&
-             (old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
-             !table->belong_to_view)
-    {
-      if (check_table_access(thd, SHOW_VIEW_ACL, table, FALSE, UINT_MAX, FALSE))
-        goto err;
+      else if ((old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
+               !table->belong_to_view)
+      {
+        if (check_table_access(thd, SHOW_VIEW_ACL, table, FALSE, UINT_MAX, FALSE))
+          goto err;
+      }
     }
 
     if (!(table->view_tables=
@@ -1481,6 +1513,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
+      trace_view.add("merged", true);
       table->updatable= (table->updatable_view != 0);
       table->effective_with_check=
         old_lex->get_effective_with_check(table);
@@ -1572,6 +1605,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
     table->effective_algorithm= VIEW_ALGORITHM_TMPTABLE;
     DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
+    trace_view.add("materialized", true);
     view_select->linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
     table->effective_with_check= VIEW_CHECK_NONE;

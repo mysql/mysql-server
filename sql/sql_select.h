@@ -35,6 +35,7 @@
 /* Values in optimize */
 #define KEY_OPTIMIZE_EXISTS		1
 #define KEY_OPTIMIZE_REF_OR_NULL	2
+#define FT_KEYPART                      (MAX_REF_PARTS+10)
 
 /**
   Information about usage of an index to satisfy an equality condition.
@@ -468,7 +469,7 @@ public:
   {
     return first_inner && first_inner == this;
   }
-  Item *condition()
+  Item *condition() const
   {
     return m_condition;
   }
@@ -895,11 +896,14 @@ protected:
   /* Shall skip record from the join buffer if its match flag is on */
   virtual bool skip_record_if_match();
 
-  /*  Read all flag and data fields of a record from the join buffer */
-  int read_all_record_fields();
-  
-  /* Read all flag fields of a record from the join buffer */
-  uint read_flag_fields();
+  /* Read some flag and data fields of a record from the join buffer */
+  int read_some_record_fields();
+
+  /* Read some flag fields of a record from the join buffer */
+  void read_some_flag_fields();
+
+  /* Read all flag fields of the record which is at position rec_ptr */
+  void read_all_flag_fields_by_pos(uchar *rec_ptr);
 
   /* Read a data record field from the join buffer */
   uint read_record_field(CACHE_FIELD *copy, bool last_record);
@@ -2343,6 +2347,7 @@ int test_if_item_cache_changed(List<Cached_item> &list);
 void calc_used_field_length(THD *thd, JOIN_TAB *join_tab);
 int join_init_read_record(JOIN_TAB *tab);
 int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl); 
+
 inline bool optimizer_flag(THD *thd, uint flag)
 { 
   return (thd->variables.optimizer_switch & flag);
@@ -2354,5 +2359,19 @@ ORDER *simple_remove_const(ORDER *order, Item *where);
 bool const_expression_in_where(Item *cond, Item *comp_item,
                                Field *comp_field= NULL,
                                Item **const_item= NULL);
+
+/**
+  Printing the transformed query in EXPLAIN EXTENDED or optimizer trace
+  requires non-destroyed JOINs for subquery engines. So items must be
+  preserved until end of mysql_execute_command().
+*/
+static inline bool preserve_items_for_printing(const THD *thd)
+{
+  return (thd->lex->describe
+#ifdef OPTIMIZER_TRACE
+          || thd->opt_trace.support_I_S()
+#endif
+          );
+}
 
 #endif /* SQL_SELECT_INCLUDED */

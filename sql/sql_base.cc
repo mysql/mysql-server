@@ -466,6 +466,8 @@ static void table_def_use_table(THD *thd, TABLE *table)
   DBUG_ASSERT(table->db_stat && table->file);
   /* The children must be detached from the table. */
   DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+
+  table->file->rebind_psi();
 }
 
 
@@ -476,11 +478,14 @@ static void table_def_use_table(THD *thd, TABLE *table)
 static void table_def_unuse_table(TABLE *table)
 {
   DBUG_ASSERT(table->in_use);
+  DBUG_ASSERT(table->file);
 
   /* We shouldn't put the table to 'unused' list if the share is old. */
   DBUG_ASSERT(! table->s->has_old_version());
 
   table->in_use= 0;
+  table->file->unbind_psi();
+
   /* Remove table from the list of tables used in this share. */
   table->s->used_tables.remove(table);
   /* Add table to the list of unused TABLE objects for this share. */
@@ -5568,7 +5573,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
       mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
       goto err;
     }
-    if (!thd->lex->describe)
+    if (!preserve_items_for_printing(thd))
       mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
   }
 
