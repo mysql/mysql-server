@@ -469,7 +469,7 @@ static int check_connection(THD *thd)
         there is nothing to show in the host_cache,
         so increment the global status variable "peer_address_errors".
       */
-      peer_addr_errors++;
+      statistic_increment(peer_addr_errors, &LOCK_status);
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
