@@ -4964,10 +4964,12 @@ toku_brt_cursor_set_range_lock(BRT_CURSOR cursor, const DBT *left, const DBT *ri
                                BOOL left_is_neg_infty, BOOL right_is_pos_infty)
 {
     if (cursor->range_lock_left_key.data) {
-        toku_destroy_dbt(&cursor->range_lock_left_key);
+        toku_free(cursor->range_lock_left_key.data);
+        toku_init_dbt(&cursor->range_lock_left_key);
     }
     if (cursor->range_lock_right_key.data) {
-        toku_destroy_dbt(&cursor->range_lock_right_key);
+        toku_free(cursor->range_lock_right_key.data);
+        toku_init_dbt(&cursor->range_lock_right_key);
     }
 
     if (left_is_neg_infty) {
@@ -4999,9 +5001,11 @@ int toku_brt_cursor_close(BRT_CURSOR cursor) {
     brt_cursor_invalidate_no_callback(cursor);
     brt_cursor_cleanup_dbts(cursor);
     if (cursor->range_lock_left_key.data) {
+        toku_free(cursor->range_lock_left_key.data);
         toku_destroy_dbt(&cursor->range_lock_left_key);
     }
     if (cursor->range_lock_right_key.data) {
+        toku_free(cursor->range_lock_right_key.data);
         toku_destroy_dbt(&cursor->range_lock_right_key);
     }
     toku_list_remove(&cursor->cursors_link);
