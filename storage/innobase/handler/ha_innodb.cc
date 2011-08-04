@@ -2641,6 +2641,29 @@ innobase_change_buffering_inited_ok:
 
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
+	if (innobase_additional_mem_pool_size
+	    != 8*1024*1024L /* the default */ ) {
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Warning: Using " 
+			"innodb_additional_mem_pool_size is DEPRECATED. "
+			"This option may be removed in future releases, "
+			"together with the InnoDB's internal memory "
+			"allocator.\n");
+	}
+
+	if (!srv_use_sys_malloc ) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Warning: Setting " 
+			"innodb_use_sys_malloc to FALSE is DEPRECATED. "
+			"This option may be removed in future releases, "
+			"together with the option innodb_use_sys_malloc "
+			"and with the InnoDB's internal memory "
+			"allocator.\n");
+	}
+
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
@@ -12379,6 +12402,9 @@ static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
 
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "DEPRECATED. This option may be removed in future releases, "
+  "together with the option innodb_use_sys_malloc and with the InnoDB's "
+  "internal memory allocator. "
   "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
   NULL, NULL, 8*1024*1024L, 512*1024L, LONG_MAX, 1024);
 
@@ -12575,6 +12601,8 @@ static MYSQL_SYSVAR_STR(version, innodb_version_str,
 
 static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "DEPRECATED. This option may be removed in future releases, "
+  "together with the InnoDB's internal memory allocator. "
   "Use OS memory allocator instead of InnoDB's internal memory allocator",
   NULL, NULL, TRUE);
 
