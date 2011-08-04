@@ -532,3 +532,218 @@ DROP TABLE articles,user_stopword,server_stopword;
 SET SESSION innodb_ft_enable_stopword=1;
 SET GLOBAL innodb_ft_server_stopword_table=default;
 SET SESSION innodb_ft_user_stopword_table=default;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT `idx` (title,body)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE articles;
+Table	Create Table
+articles	CREATE TABLE `articles` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `title` varchar(200) DEFAULT NULL,
+  `body` text,
+  PRIMARY KEY (`id`),
+  FULLTEXT KEY `idx` (`title`,`body`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO articles (title,body) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+('when To Use MySQL Well','After that you went through a ...'),
+('where will Optimizing MySQL','In what tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+SET SESSION innodb_ft_enable_stopword = 0;
+select @@innodb_ft_enable_stopword;
+@@innodb_ft_enable_stopword
+0
+ALTER TABLE articles DROP INDEX idx;
+ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
+"In connection 1"
+select @@innodb_ft_enable_stopword;
+@@innodb_ft_enable_stopword
+1
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("where will");
+id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("when");
+id	title	body
+2	when To Use MySQL Well	After that you went through a ...
+6	MySQL Security	When configured properly, MySQL ...
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("what" WITH QUERY EXPANSION);
+id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+6	MySQL Security	When configured properly, MySQL ...
+2	when To Use MySQL Well	After that you went through a ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("whe*" IN BOOLEAN MODE);
+id	title	body
+2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	In what tutorial we will show ...
+6	MySQL Security	When configured properly, MySQL ...
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+what +will" IN BOOLEAN MODE);
+id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+from" IN BOOLEAN MODE);
+id	title	body
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+where +(show what)" IN BOOLEAN MODE);
+id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@6' IN BOOLEAN MODE);
+id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@9' IN BOOLEAN MODE);
+id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
+SET SESSION innodb_ft_enable_stopword = 1;
+select @@innodb_ft_enable_stopword;
+@@innodb_ft_enable_stopword
+1
+ALTER TABLE articles DROP INDEX idx;
+ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("where will");
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("when");
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("what" WITH QUERY EXPANSION);
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("whe*" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+what +will" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+from" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+where +(show what)" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@6' IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@9' IN BOOLEAN MODE);
+id	title	body
+"In connection default"
+select @@innodb_ft_enable_stopword;
+@@innodb_ft_enable_stopword
+0
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("where will");
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("when");
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("what" WITH QUERY EXPANSION);
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("whe*" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+what +will" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+from" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+where +(show what)" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@6' IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"where will"@9' IN BOOLEAN MODE);
+id	title	body
+INSERT INTO articles(title,body) values ('the record will' , 'not index the , will words');
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+the +will" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"the will"@11' IN BOOLEAN MODE);
+id	title	body
+SET SESSION innodb_ft_enable_stopword = 1;
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+the +will" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('"the will"@11' IN BOOLEAN MODE);
+id	title	body
+"In connection 1"
+SET SESSION innodb_ft_enable_stopword = 1;
+create table user_stopword(value varchar(30)) engine = innodb;
+set session innodb_ft_user_stopword_table = "test/user_stopword";
+insert into user_stopword values("this"),("will"),("the");
+ALTER TABLE articles DROP INDEX idx;
+ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+show +will" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('will');
+id	title	body
+"In connection default"
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+show +will" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('will');
+id	title	body
+select @@innodb_ft_user_stopword_table;
+@@innodb_ft_user_stopword_table
+NULL
+create table user_stopword_1(value varchar(30)) engine = innodb;
+set session innodb_ft_user_stopword_table = "test/user_stopword_1";
+insert into user_stopword_1 values("when");
+SET SESSION innodb_ft_enable_stopword = 1;
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+when" IN BOOLEAN MODE);
+id	title	body
+2	when To Use MySQL Well	After that you went through a ...
+6	MySQL Security	When configured properly, MySQL ...
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('when');
+id	title	body
+2	when To Use MySQL Well	After that you went through a ...
+6	MySQL Security	When configured properly, MySQL ...
+ALTER TABLE articles DROP INDEX idx;
+ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+when" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('when');
+id	title	body
+"In connection 1"
+SET SESSION innodb_ft_enable_stopword = 1;
+SET SESSION innodb_ft_user_stopword_table=default;
+select @@innodb_ft_user_stopword_table;
+@@innodb_ft_user_stopword_table
+NULL
+select @@innodb_ft_server_stopword_table;
+@@innodb_ft_server_stopword_table
+NULL
+create table server_stopword(value varchar(30)) engine = innodb;
+SET GLOBAL innodb_ft_server_stopword_table = "test/server_stopword";
+select @@innodb_ft_server_stopword_table;
+@@innodb_ft_server_stopword_table
+test/server_stopword
+insert into server_stopword values("when"),("the");
+ALTER TABLE articles DROP INDEX idx;
+ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+when" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('the');
+id	title	body
+"In connection default"
+SET SESSION innodb_ft_enable_stopword = 1;
+SET SESSION innodb_ft_user_stopword_table=default;
+select @@innodb_ft_server_stopword_table;
+@@innodb_ft_server_stopword_table
+test/server_stopword
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+will +where" IN BOOLEAN MODE);
+id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('where');
+id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
+insert into server_stopword values("where"),("will");
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+will +where" IN BOOLEAN MODE);
+id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('where');
+id	title	body
+3	where will Optimizing MySQL	In what tutorial we will show ...
+ALTER TABLE articles DROP INDEX idx;
+ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+when" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('the');
+id	title	body
+SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+will +where" IN BOOLEAN MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('where');
+id	title	body
+"In connection default"
+DROP TABLE articles,user_stopword,user_stopword_1,server_stopword;
+SET SESSION innodb_ft_enable_stopword=1;
+SET GLOBAL innodb_ft_server_stopword_table=default;
+SET SESSION innodb_ft_user_stopword_table=default;
