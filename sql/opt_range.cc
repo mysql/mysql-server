@@ -9044,11 +9044,53 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
         This is the case ("cmp>=0" means that tmp.max >= key2.min):
         key2:              [----]
         tmp:     [------------*****]
+      */
 
+      if (!tmp->next_key_part)
+      {
+        /*
+          tmp->next_key_part is empty: cut the range that is covered
+          by tmp from key2. 
+          Reason: (key2->next_key_part OR tmp->next_key_part) will be
+          empty and therefore equal to tmp->next_key_part. Thus, this
+          part of the key2 range is completely covered by tmp.
+        */
+        if (tmp->cmp_max_to_max(key2) >= 0)
+        {
+          /*
+            tmp covers the entire range in key2. 
+            key2:              [----]
+            tmp:     [-----------------]
+
+            Move on to next range in key2
+          */
+          key2->increment_use_count(-1); // Free not used tree
+          key2=key2->next;
+          continue;
+        }
+        else
+        {
+          /*
+            This is the case:
+            key2:           [-------]
+            tmp:     [---------]
+
+            Result:
+            key2:               [---]
+            tmp:     [---------]
+          */
+          key2->copy_max_to_min(tmp);
+          continue;
+        }
+      }
+
+      /*
         The ranges are overlapping but have not been merged because
-        next_key_part of tmp and key2 are different
+        next_key_part of tmp and key2 differ. 
+        key2:              [----]
+        tmp:     [------------*****]
 
-        Result:
+        Split tmp in two where key2 starts:
         key2:              [----]
         key1:    [--------][--*****]
                  ^         ^
@@ -9057,7 +9099,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
       SEL_ARG *new_arg=tmp->clone_first(key2);
       if (!new_arg)
         return 0;                               // OOM
-      if ((new_arg->next_key_part= key1->next_key_part))
+      if ((new_arg->next_key_part= tmp->next_key_part))
         new_arg->increment_use_count(key1->use_count+1);
       tmp->copy_min_to_min(key2);
       key1=key1->insert(new_arg);
@@ -9166,12 +9208,21 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
                       ^        ^
                       new_arg  tmp
           Steps:
+           0) If tmp->next_key_part is empty: do nothing. Reason:
+              (key2_cpy->next_key_part OR tmp->next_key_part) will be
+              empty and therefore equal to tmp->next_key_part. Thus,
+              the range in key2_cpy is completely covered by tmp
            1) Make new_arg with range [tmp.min, key2_cpy.max].
               new_arg->next_key_part is OR between next_key_part
               of tmp and key2_cpy
            2) Make tmp the range [key2.max, tmp.max]
            3) Insert new_arg into key1
         */
+        if (!tmp->next_key_part) // Step 0
+        {
+          key2_cpy.increment_use_count(-1);     // Free not used tree
+          break;
+        }
         SEL_ARG *new_arg=tmp->clone_last(&key2_cpy);
         if (!new_arg)
           return 0; // OOM

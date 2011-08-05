@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1, t2, t3;
+drop table if exists t1, t2, t3, t10, t100;
 --enable_warnings
 
 CREATE TABLE t1 (
@@ -1401,4 +1401,50 @@ create table t1 (f1 datetime, key (f1));
 insert into t1 values ('2000-03-09 15:56:59'),('2000-05-05 23:24:28'),('2000-06-13 13:12:06');
 select  min(f1)  from t1 where f1 >= '2006-05-25 07:00:20' and f1 between '2003-11-23 10:00:09' and '2010-01-01 01:01:01' and f1 > '2001-01-01 01:01:01';
 drop table t1;
+
+--echo #
+--echo # BUG#11765831: 'RANGE ACCESS' MAY INCORRECTLY FILTER 
+--echo #               AWAY QUALIFYING ROWS
+--echo #
+
+CREATE TABLE t10(
+  K INT NOT NULL AUTO_INCREMENT,
+  I INT, J INT,
+  PRIMARY KEY(K),
+  KEY(I,J)
+);
+INSERT INTO t10(I,J) VALUES (6,1),(6,2),(6,3),(6,4),(6,5),
+                            (6,6),(6,7),(6,8),(6,9),(6,0);
+
+CREATE TABLE t100 LIKE t10;
+INSERT INTO t100(I,J) SELECT X.I, X.K+(10*Y.K) FROM t10 AS X,t10 AS Y;
+
+# Insert offending value:
+INSERT INTO t100(I,J) VALUES(8,26);
+
+let $query= SELECT * FROM t100 WHERE I <> 6 OR (I <> 8 AND J = 5);
+
+#Verify that 'range' access will be used
+--echo
+--eval EXPLAIN $query
+
+# Only row 101,8,26 should be returned
+--echo
+--eval $query
+
+DROP TABLE t10,t100;
+
+--echo #
+--echo # lp:817363: Wrong result with sort_union and multipart key in maria-5.3
+--echo # 
+CREATE TABLE t1 (a int NOT NULL , b int, c int, d varchar(32), KEY (d,b), PRIMARY KEY (a)) ;
+INSERT INTO t1 VALUES (7,7,NULL,'e'),(8,1,0,'p'),(9,7,1,'s'),(10,1,1,'j'),(12,2,0,'c'),(13,0,0,'a'),(14,1,1,'q');
+
+SELECT c FROM t1                  WHERE d='q' OR d>='q' OR a > 97 OR (d IN ('j','s','i') AND b = 102);
+SELECT c FROM t1 ignore index (d) WHERE d='q' OR d>='q' OR a > 97 OR (d IN ('j','s','i') AND b = 102);
+
+SELECT * FROM t1 ignore index(d) WHERE d = 'q' OR d >= 'q' OR (d IN ( 'j' , 's' , 'i' ) AND ( b = 102 ));
+SELECT * FROM t1 force index(d)  WHERE d = 'q' OR d >= 'q' OR (d IN ( 'j' , 's' , 'i' ) AND ( b = 102 ));
+
+DROP TABLE t1;
 
