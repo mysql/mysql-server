@@ -1873,4 +1873,40 @@ SELECT * FROM t100 WHERE I <> 6 OR (I <> 8 AND J = 5);
 K	I	J
 101	8	26
 DROP TABLE t10,t100;
+#
+# BUG#12698916 - JOIN QUERY GIVES WRONG RESULT AT 2ND EXEC. OR
+# AFTER FLUSH TABLES [-INT VS NULL]
+#
+CREATE TABLE t1 (col_int INT, pk INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (-100,1),(1,6);
+CREATE TABLE t2 (
+col_int_key INT,
+col_varchar VARCHAR(100) NOT NULL DEFAULT "DEFAULT",
+pk INT NOT NULL,
+PRIMARY KEY (pk),
+KEY (col_int_key)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES
+(1,"GOOD",1),(100,"",2),(200,"",3),(300,"",4),(400,"",5),(500,"",8);
+EXPLAIN SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ref	PRIMARY,col_int_key	col_int_key	5	test.t1.col_int	1	Using where
+SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+col_int	pk	col_int_key	col_varchar	pk
+1	6	1	GOOD	1
+# need FLUSH so that InnoDB statistics change and thus plan changes
+FLUSH TABLES;
+EXPLAIN SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	6	Range checked for each record (index map: 0x3)
+SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+col_int	pk	col_int_key	col_varchar	pk
+1	6	1	GOOD	1
+DROP TABLE t1,t2;
 set optimizer_switch=default;
