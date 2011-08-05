@@ -2488,7 +2488,7 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
     xpath->item= new Item_func_get_user_var(name);
   else
   {
-    sp_variable_t *spv;
+    sp_variable *spv;
     sp_pcontext *spc;
     LEX *lex;
     if ((lex= current_thd->lex) &&

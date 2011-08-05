@@ -2248,3 +2248,1723 @@ table3.col_varchar_10_utf8_key	{
   ] /* steps */
 }	0	0
 DROP TABLE t1,t2,t3;
+
+Tests of tracing of the "eq_ref optimization" of plan search
+
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, key(a));
+create table t2 (a int, b int, key(a));
+create table t3 (a int, b int, key(a));
+insert into t1 select a,a from t0;
+insert into t2 select a,a from t0;
+insert into t3 select a,a from t0;
+set @old_opt_switch=@@optimizer_switch;
+explain select * 
+from t0 where a in
+(select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
+2	DEPENDENT SUBQUERY	t1	index	a	a	5	NULL	10	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.a	1	Using index
+2	DEPENDENT SUBQUERY	t3	ref	a	a	5	test.t2.a	1	Using where; Using index
+select * from information_schema.optimizer_trace;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+explain select * 
+from t0 where a in
+(select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a)	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select (`test`.`t2`.`a` + `test`.`t3`.`a`) from (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))))"
+                },
+                {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "IN (SELECT)",
+                    "to": "semijoin",
+                    "chosen": false
+                  } /* transformation */
+                },
+                {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "IN (SELECT)",
+                    "to": "materialization",
+                    "chosen": false
+                  } /* transformation */
+                },
+                {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "IN (SELECT)",
+                    "to": "EXISTS (CORRELATED SELECT)",
+                    "chosen": true,
+                    "evaluating_constant_where_conditions": [
+                    ] /* evaluating_constant_where_conditions */
+                  } /* transformation */
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "expanded_query": "/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`)))) where (<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`))))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "<in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`)))) where (<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`))))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "subselect_equality_propagation": [
+                  ] /* subselect_equality_propagation */,
+                  "resulting_condition": "<in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`)))) where (<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`))))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "subselect_constant_propagation": [
+                  ] /* subselect_constant_propagation */,
+                  "resulting_condition": "<in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`)))) where (<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`))))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "subselect_cond_removal": [
+                  ] /* subselect_cond_removal */,
+                  "resulting_condition": "<in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`)))) where (<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`))))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "records_estimation": [
+              {
+                "database": "test",
+                "table": "t0",
+                "table_scan": {
+                  "records": 10,
+                  "cost": 2
+                } /* table_scan */
+              }
+            ] /* records_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "database": "test",
+                "table": "t0",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "records": 10,
+                      "cost": 2.0171,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 4.0171,
+                "records_for_plan": 10,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "<in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`)))) where (<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`))))",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "database": "test",
+                  "table": "t0",
+                  "attached": "<in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`)))) where (<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`))))"
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "database": "test",
+                "table": "t0",
+                "scan_type": "table"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_optimization": {
+              "select#": 2,
+              "steps": [
+                {
+                  "condition_processing": {
+                    "condition": "WHERE",
+                    "original_condition": "((<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`)) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))",
+                    "steps": [
+                      {
+                        "transformation": "equality_propagation",
+                        "resulting_condition": "((<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`)) and multiple equal(`test`.`t2`.`a`, `test`.`t1`.`a`, `test`.`t3`.`a`))"
+                      },
+                      {
+                        "transformation": "constant_propagation",
+                        "resulting_condition": "((<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`)) and multiple equal(`test`.`t2`.`a`, `test`.`t1`.`a`, `test`.`t3`.`a`))"
+                      },
+                      {
+                        "transformation": "trivial_condition_removal",
+                        "resulting_condition": "((<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`)) and multiple equal(`test`.`t2`.`a`, `test`.`t1`.`a`, `test`.`t3`.`a`))"
+                      }
+                    ] /* steps */
+                  } /* condition_processing */
+                },
+                {
+                  "ref_optimizer_key_uses": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "field": "a",
+                      "equals": "`test`.`t2`.`a`",
+                      "null_rejecting": true
+                    },
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "field": "a",
+                      "equals": "`test`.`t3`.`a`",
+                      "null_rejecting": true
+                    },
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "field": "a",
+                      "equals": "`test`.`t1`.`a`",
+                      "null_rejecting": true
+                    },
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "field": "a",
+                      "equals": "`test`.`t3`.`a`",
+                      "null_rejecting": true
+                    },
+                    {
+                      "database": "test",
+                      "table": "t3",
+                      "field": "a",
+                      "equals": "`test`.`t2`.`a`",
+                      "null_rejecting": true
+                    },
+                    {
+                      "database": "test",
+                      "table": "t3",
+                      "field": "a",
+                      "equals": "`test`.`t1`.`a`",
+                      "null_rejecting": true
+                    }
+                  ] /* ref_optimizer_key_uses */
+                },
+                {
+                  "records_estimation": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "table_scan": {
+                        "records": 10,
+                        "cost": 2
+                      } /* table_scan */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "table_scan": {
+                        "records": 10,
+                        "cost": 2
+                      } /* table_scan */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t3",
+                      "table_scan": {
+                        "records": 10,
+                        "cost": 2
+                      } /* table_scan */
+                    }
+                  ] /* records_estimation */
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "ref",
+                            "index": "a",
+                            "usable": false,
+                            "chosen": false
+                          },
+                          {
+                            "access_type": "scan",
+                            "records": 10,
+                            "cost": 2.022,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */,
+                      "cost_for_plan": 4.022,
+                      "records_for_plan": 10,
+                      "rest_of_plan": [
+                        {
+                          "database": "test",
+                          "table": "t2",
+                          "best_access_path": {
+                            "considered_access_paths": [
+                              {
+                                "access_type": "ref",
+                                "index": "a",
+                                "records": 1,
+                                "cost": 10.2,
+                                "chosen": true
+                              },
+                              {
+                                "access_type": "scan",
+                                "using_join_cache": true,
+                                "records": 8,
+                                "cost": 2.4227,
+                                "chosen": false
+                              }
+                            ] /* considered_access_paths */
+                          } /* best_access_path */,
+                          "cost_for_plan": 16.022,
+                          "records_for_plan": 10,
+                          "rest_of_plan": [
+                            {
+                              "database": "test",
+                              "table": "t3",
+                              "best_access_path": {
+                                "considered_access_paths": [
+                                  {
+                                    "access_type": "ref",
+                                    "index": "a",
+                                    "records": 1,
+                                    "cost": 10.2,
+                                    "chosen": true
+                                  },
+                                  {
+                                    "access_type": "scan",
+                                    "using_join_cache": true,
+                                    "records": 8,
+                                    "cost": 2.4237,
+                                    "chosen": false
+                                  }
+                                ] /* considered_access_paths */
+                              } /* best_access_path */,
+                              "added_to_eq_ref_extension": true,
+                              "cost_for_plan": 28.022,
+                              "records_for_plan": 10,
+                              "chosen": true
+                            }
+                          ] /* rest_of_plan */
+                        }
+                      ] /* rest_of_plan */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "ref",
+                            "index": "a",
+                            "usable": false,
+                            "chosen": false
+                          },
+                          {
+                            "access_type": "scan",
+                            "records": 10,
+                            "cost": 2.022,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */,
+                      "cost_for_plan": 4.022,
+                      "records_for_plan": 10,
+                      "rest_of_plan": [
+                        {
+                          "database": "test",
+                          "table": "t1",
+                          "best_access_path": {
+                            "considered_access_paths": [
+                              {
+                                "access_type": "ref",
+                                "index": "a",
+                                "records": 1,
+                                "cost": 10.2,
+                                "chosen": true
+                              },
+                              {
+                                "access_type": "scan",
+                                "using_join_cache": true,
+                                "records": 8,
+                                "cost": 2.4229,
+                                "chosen": false
+                              }
+                            ] /* considered_access_paths */
+                          } /* best_access_path */,
+                          "cost_for_plan": 16.022,
+                          "records_for_plan": 10,
+                          "rest_of_plan": [
+                            {
+                              "database": "test",
+                              "table": "t3",
+                              "best_access_path": {
+                                "considered_access_paths": [
+                                  {
+                                    "access_type": "ref",
+                                    "index": "a",
+                                    "records": 1,
+                                    "cost": 10.2,
+                                    "chosen": true
+                                  },
+                                  {
+                                    "access_type": "scan",
+                                    "using_join_cache": true,
+                                    "records": 8,
+                                    "cost": 2.4237,
+                                    "chosen": false
+                                  }
+                                ] /* considered_access_paths */
+                              } /* best_access_path */,
+                              "added_to_eq_ref_extension": true,
+                              "cost_for_plan": 28.022,
+                              "records_for_plan": 10,
+                              "pruned_by_cost": true
+                            },
+                            {
+                              "database": "test",
+                              "table": "t3",
+                              "best_access_path": {
+                                "considered_access_paths": [
+                                  {
+                                    "access_type": "ref",
+                                    "index": "a",
+                                    "records": 1,
+                                    "cost": 10.2,
+                                    "chosen": true
+                                  },
+                                  {
+                                    "access_type": "scan",
+                                    "using_join_cache": true,
+                                    "records": 8,
+                                    "cost": 2.4237,
+                                    "chosen": false
+                                  }
+                                ] /* considered_access_paths */
+                              } /* best_access_path */,
+                              "cost_for_plan": 28.022,
+                              "records_for_plan": 10,
+                              "pruned_by_cost": true
+                            }
+                          ] /* rest_of_plan */
+                        },
+                        {
+                          "database": "test",
+                          "table": "t3",
+                          "best_access_path": {
+                            "considered_access_paths": [
+                              {
+                                "access_type": "ref",
+                                "index": "a",
+                                "records": 1,
+                                "cost": 10.2,
+                                "chosen": true
+                              },
+                              {
+                                "access_type": "scan",
+                                "using_join_cache": true,
+                                "records": 8,
+                                "cost": 2.4229,
+                                "chosen": false
+                              }
+                            ] /* considered_access_paths */
+                          } /* best_access_path */,
+                          "cost_for_plan": 16.022,
+                          "records_for_plan": 10,
+                          "pruned_by_heuristic": true
+                        }
+                      ] /* rest_of_plan */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t3",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "ref",
+                            "index": "a",
+                            "usable": false,
+                            "chosen": false
+                          },
+                          {
+                            "access_type": "scan",
+                            "records": 10,
+                            "cost": 2.022,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */,
+                      "cost_for_plan": 4.022,
+                      "records_for_plan": 10,
+                      "rest_of_plan": [
+                        {
+                          "database": "test",
+                          "table": "t1",
+                          "best_access_path": {
+                            "considered_access_paths": [
+                              {
+                                "access_type": "ref",
+                                "index": "a",
+                                "records": 1,
+                                "cost": 10.2,
+                                "chosen": true
+                              },
+                              {
+                                "access_type": "scan",
+                                "using_join_cache": true,
+                                "records": 8,
+                                "cost": 2.4229,
+                                "chosen": false
+                              }
+                            ] /* considered_access_paths */
+                          } /* best_access_path */,
+                          "cost_for_plan": 16.022,
+                          "records_for_plan": 10,
+                          "rest_of_plan": [
+                            {
+                              "database": "test",
+                              "table": "t2",
+                              "best_access_path": {
+                                "considered_access_paths": [
+                                  {
+                                    "access_type": "ref",
+                                    "index": "a",
+                                    "records": 1,
+                                    "cost": 10.2,
+                                    "chosen": true
+                                  },
+                                  {
+                                    "access_type": "scan",
+                                    "using_join_cache": true,
+                                    "records": 8,
+                                    "cost": 2.4237,
+                                    "chosen": false
+                                  }
+                                ] /* considered_access_paths */
+                              } /* best_access_path */,
+                              "added_to_eq_ref_extension": true,
+                              "cost_for_plan": 28.022,
+                              "records_for_plan": 10,
+                              "pruned_by_cost": true
+                            },
+                            {
+                              "database": "test",
+                              "table": "t2",
+                              "best_access_path": {
+                                "considered_access_paths": [
+                                  {
+                                    "access_type": "ref",
+                                    "index": "a",
+                                    "records": 1,
+                                    "cost": 10.2,
+                                    "chosen": true
+                                  },
+                                  {
+                                    "access_type": "scan",
+                                    "using_join_cache": true,
+                                    "records": 8,
+                                    "cost": 2.4237,
+                                    "chosen": false
+                                  }
+                                ] /* considered_access_paths */
+                              } /* best_access_path */,
+                              "cost_for_plan": 28.022,
+                              "records_for_plan": 10,
+                              "pruned_by_cost": true
+                            }
+                          ] /* rest_of_plan */
+                        },
+                        {
+                          "database": "test",
+                          "table": "t2",
+                          "best_access_path": {
+                            "considered_access_paths": [
+                              {
+                                "access_type": "ref",
+                                "index": "a",
+                                "records": 1,
+                                "cost": 10.2,
+                                "chosen": true
+                              },
+                              {
+                                "access_type": "scan",
+                                "using_join_cache": true,
+                                "records": 8,
+                                "cost": 2.4229,
+                                "chosen": false
+                              }
+                            ] /* considered_access_paths */
+                          } /* best_access_path */,
+                          "cost_for_plan": 16.022,
+                          "records_for_plan": 10,
+                          "pruned_by_heuristic": true
+                        }
+                      ] /* rest_of_plan */
+                    }
+                  ] /* considered_execution_plans */
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": "((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`) and (<cache>(`test`.`t0`.`a`) = (`test`.`t1`.`a` + `test`.`t1`.`a`)))",
+                    "attached_conditions_computation": [
+                    ] /* attached_conditions_computation */,
+                    "attached_conditions_summary": [
+                      {
+                        "database": "test",
+                        "table": "t1",
+                        "attached": "(<cache>(`test`.`t0`.`a`) = (`test`.`t1`.`a` + `test`.`t1`.`a`))"
+                      },
+                      {
+                        "database": "test",
+                        "table": "t2",
+                        "attached": null
+                      },
+                      {
+                        "database": "test",
+                        "table": "t3",
+                        "attached": "(`test`.`t3`.`a` = `test`.`t1`.`a`)"
+                      }
+                    ] /* attached_conditions_summary */
+                  } /* attaching_conditions_to_tables */
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "scan_type": "index"
+                    },
+                    {
+                      "database": "test",
+                      "table": "t2"
+                    },
+                    {
+                      "database": "test",
+                      "table": "t3"
+                    }
+                  ] /* refine_plan */
+                }
+              ] /* steps */
+            } /* join_optimization */
+          },
+          {
+            "join_execution": {
+              "select#": 2,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          }
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+set optimizer_switch=@old_opt_switch;
+drop table t0,t1,t2,t3;
+CREATE TABLE t1 (
+OBJECTID int(11) NOT NULL default '0',
+SORTORDER int(11) NOT NULL auto_increment,
+KEY t1_SortIndex (SORTORDER),
+KEY t1_IdIndex (OBJECTID)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (
+ID int(11) default NULL,
+PARID int(11) default NULL,
+UNIQUE KEY t2_ID_IDX (ID),
+KEY t2_PARID_IDX (PARID)
+) engine=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (1000,0),(1001,0),(1002,0),(1003,0),(1008,1),(1009,1),(1010,1),(1011,1),(1016,2);
+CREATE TABLE t3 (
+ID int(11) default NULL,
+DATA decimal(10,2) default NULL,
+UNIQUE KEY t3_ID_IDX (ID)
+) engine=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t3 VALUES (1000,0.00),(1001,0.25),(1002,0.50),(1003,0.75),(1008,1.00),(1009,1.25),(1010,1.50),(1011,1.75);
+select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from t1 join t2 on (t1.ObjectID = t2.ID) join t3 on (t1.ObjectID = t3.ID) group by t2.ParID order by DATA DESC) as tmp;
+497	ID	NULL
+select * from information_schema.optimizer_trace;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from t1 join t2 on (t1.ObjectID = t2.ID) join t3 on (t1.ObjectID = t3.ID) group by t2.ParID order by DATA DESC) as tmp	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 2,
+        "steps": [
+          {
+            "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 2,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`) and (`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(multiple equal(`test`.`t1`.`OBJECTID`, `test`.`t3`.`ID`, `test`.`t2`.`ID`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(multiple equal(`test`.`t1`.`OBJECTID`, `test`.`t3`.`ID`, `test`.`t2`.`ID`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "multiple equal(`test`.`t1`.`OBJECTID`, `test`.`t3`.`ID`, `test`.`t2`.`ID`)"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "database": "test",
+                "table": "t1",
+                "field": "OBJECTID",
+                "equals": "`test`.`t3`.`ID`",
+                "null_rejecting": true
+              },
+              {
+                "database": "test",
+                "table": "t1",
+                "field": "OBJECTID",
+                "equals": "`test`.`t2`.`ID`",
+                "null_rejecting": true
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "field": "ID",
+                "equals": "`test`.`t1`.`OBJECTID`",
+                "null_rejecting": false
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "field": "ID",
+                "equals": "`test`.`t3`.`ID`",
+                "null_rejecting": true
+              },
+              {
+                "database": "test",
+                "table": "t3",
+                "field": "ID",
+                "equals": "`test`.`t1`.`OBJECTID`",
+                "null_rejecting": false
+              },
+              {
+                "database": "test",
+                "table": "t3",
+                "field": "ID",
+                "equals": "`test`.`t2`.`ID`",
+                "null_rejecting": true
+              }
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "records_estimation": [
+              {
+                "database": "test",
+                "table": "t1",
+                "records": 1,
+                "cost": 1,
+                "table_type": "system"
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "const_keys_added": {
+                  "keys": [
+                    "t2_PARID_IDX"
+                  ] /* keys */,
+                  "cause": "group_by"
+                } /* const_keys_added */,
+                "range_analysis": {
+                  "table_scan": {
+                    "records": 9,
+                    "cost": 5.9198
+                  } /* table_scan */,
+                  "potential_range_indices": [
+                    {
+                      "index": "t2_ID_IDX",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "t2_PARID_IDX",
+                      "usable": true,
+                      "key_parts": [
+                        "PARID"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indices */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* group_index_range */
+                } /* range_analysis */
+              },
+              {
+                "database": "test",
+                "table": "t3",
+                "const_keys_added": {
+                  "keys": [
+                  ] /* keys */,
+                  "cause": "group_by"
+                } /* const_keys_added */,
+                "range_analysis": {
+                  "table_scan": {
+                    "records": 8,
+                    "cost": 5.7195
+                  } /* table_scan */
+                } /* range_analysis */
+              }
+            ] /* records_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "database": "test",
+                "table": "t3",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "t3_ID_IDX",
+                      "records": 0.8,
+                      "cost": 0.96,
+                      "chosen": true
+                    },
+                    {
+                      "access_type": "scan",
+                      "cost": 2,
+                      "records": 8,
+                      "cause": "cost",
+                      "chosen": false
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 0.96,
+                "records_for_plan": 0.8,
+                "rest_of_plan": [
+                  {
+                    "database": "test",
+                    "table": "t2",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "ref",
+                          "index": "t2_ID_IDX",
+                          "records": 2,
+                          "cost": 2,
+                          "chosen": true
+                        },
+                        {
+                          "access_type": "scan",
+                          "cost": 2,
+                          "records": 9,
+                          "cause": "cost",
+                          "chosen": false
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "added_to_eq_ref_extension": false
+                  },
+                  {
+                    "database": "test",
+                    "table": "t2",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "ref",
+                          "index": "t2_ID_IDX",
+                          "records": 2,
+                          "cost": 2,
+                          "chosen": true
+                        },
+                        {
+                          "access_type": "scan",
+                          "cost": 2,
+                          "records": 9,
+                          "cause": "cost",
+                          "chosen": false
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 2.88,
+                    "records_for_plan": 1.6,
+                    "chosen": true
+                  }
+                ] /* rest_of_plan */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "t2_ID_IDX",
+                      "records": 0.9,
+                      "cost": 1.08,
+                      "chosen": true
+                    },
+                    {
+                      "access_type": "scan",
+                      "cost": 2,
+                      "records": 9,
+                      "cause": "cost",
+                      "chosen": false
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 1.08,
+                "records_for_plan": 0.9,
+                "pruned_by_heuristic": true
+              }
+            ] /* considered_execution_plans */
+          }
+        ] /* steps */,
+        "empty_result": {
+          "cause": "no matching row in const table"
+        } /* empty_result */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 2,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    },
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from `test`.`t1` join `test`.`t2` join `test`.`t3` where multiple equal(NULL, `test`.`t3`.`ID`, `test`.`t2`.`ID`) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc) `tmp`"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "records_estimation": [
+              {
+                "database": "",
+                "table": "tmp",
+                "records": 1,
+                "cost": 1,
+                "table_type": "system"
+              }
+            ] /* records_estimation */
+          }
+        ] /* steps */,
+        "empty_result": {
+          "cause": "no matching row in const table"
+        } /* empty_result */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+drop table t1,t2,t3;
+CREATE TABLE t1 (
+t1_id bigint(21) NOT NULL auto_increment,
+_field_72 varchar(128) DEFAULT '' NOT NULL,
+_field_95 varchar(32),
+_field_115 tinyint(4) DEFAULT '0' NOT NULL,
+_field_122 tinyint(4) DEFAULT '0' NOT NULL,
+_field_126 tinyint(4),
+_field_134 tinyint(4),
+PRIMARY KEY (t1_id),
+UNIQUE _field_72 (_field_72),
+KEY _field_115 (_field_115),
+KEY _field_122 (_field_122)
+);
+INSERT INTO t1 VALUES (1,'admin','21232f297a57a5a743894a0e4a801fc3',0,1,NULL,NULL);
+INSERT INTO t1 VALUES (2,'hroberts','7415275a8c95952901e42b13a6b78566',0,1,NULL,NULL);
+INSERT INTO t1 VALUES (3,'guest','d41d8cd98f00b204e9800998ecf8427e',1,0,NULL,NULL);
+CREATE TABLE t2 (
+seq_0_id bigint(21) DEFAULT '0' NOT NULL,
+seq_1_id bigint(21) DEFAULT '0' NOT NULL,
+PRIMARY KEY (seq_0_id,seq_1_id)
+);
+INSERT INTO t2 VALUES (1,1);
+INSERT INTO t2 VALUES (2,1);
+INSERT INTO t2 VALUES (2,2);
+CREATE TABLE t3 (
+t3_id bigint(21) NOT NULL auto_increment,
+_field_131 varchar(128),
+_field_133 tinyint(4) DEFAULT '0' NOT NULL,
+_field_135 datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+_field_137 tinyint(4),
+_field_139 datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+_field_140 blob,
+_field_142 tinyint(4) DEFAULT '0' NOT NULL,
+_field_145 tinyint(4) DEFAULT '0' NOT NULL,
+_field_148 tinyint(4) DEFAULT '0' NOT NULL,
+PRIMARY KEY (t3_id),
+KEY _field_133 (_field_133),
+KEY _field_135 (_field_135),
+KEY _field_139 (_field_139),
+KEY _field_142 (_field_142),
+KEY _field_145 (_field_145),
+KEY _field_148 (_field_148)
+);
+INSERT INTO t3 VALUES (1,'test job 1',0,'0000-00-00 00:00:00',0,'1999-02-25 22:43:32','test\r\njob\r\n1',0,0,0);
+INSERT INTO t3 VALUES (2,'test job 2',0,'0000-00-00 00:00:00',0,'1999-02-26 21:08:04','',0,0,0);
+CREATE TABLE t4 (
+seq_0_id bigint(21) DEFAULT '0' NOT NULL,
+seq_1_id bigint(21) DEFAULT '0' NOT NULL,
+PRIMARY KEY (seq_0_id,seq_1_id)
+);
+INSERT INTO t4 VALUES (1,1);
+INSERT INTO t4 VALUES (2,1);
+CREATE TABLE t5 (
+t5_id bigint(21) NOT NULL auto_increment,
+_field_149 tinyint(4),
+_field_156 varchar(128) DEFAULT '' NOT NULL,
+_field_157 varchar(128) DEFAULT '' NOT NULL,
+_field_158 varchar(128) DEFAULT '' NOT NULL,
+_field_159 varchar(128) DEFAULT '' NOT NULL,
+_field_160 varchar(128) DEFAULT '' NOT NULL,
+_field_161 varchar(128) DEFAULT '' NOT NULL,
+PRIMARY KEY (t5_id),
+KEY _field_156 (_field_156),
+KEY _field_157 (_field_157),
+KEY _field_158 (_field_158),
+KEY _field_159 (_field_159),
+KEY _field_160 (_field_160),
+KEY _field_161 (_field_161)
+);
+INSERT INTO t5 VALUES (1,0,'tomato','','','','','');
+INSERT INTO t5 VALUES (2,0,'cilantro','','','','','');
+CREATE TABLE t6 (
+seq_0_id bigint(21) DEFAULT '0' NOT NULL,
+seq_1_id bigint(21) DEFAULT '0' NOT NULL,
+PRIMARY KEY (seq_0_id,seq_1_id)
+);
+INSERT INTO t6 VALUES (1,1);
+INSERT INTO t6 VALUES (1,2);
+INSERT INTO t6 VALUES (2,2);
+CREATE TABLE t7 (
+t7_id bigint(21) NOT NULL auto_increment,
+_field_143 tinyint(4),
+_field_165 varchar(32),
+_field_166 smallint(6) DEFAULT '0' NOT NULL,
+PRIMARY KEY (t7_id),
+KEY _field_166 (_field_166)
+);
+INSERT INTO t7 VALUES (1,0,'High',1);
+INSERT INTO t7 VALUES (2,0,'Medium',2);
+INSERT INTO t7 VALUES (3,0,'Low',3);
+select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field_135), min(t3._field_139), min(t3._field_137), min(link_alias_142._field_165), min(link_alias_133._field_72), min(t3._field_145), min(link_alias_148._field_156), replace(min(t3._field_140), "\r","^M"),t3.t3_id from t3 left join t4 on t4.seq_0_id = t3.t3_id left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id left join t6 on t6.seq_0_id = t3.t3_id left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id left join t2 on t2.seq_0_id = t3.t3_id left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id where t3.t3_id in (1) group by t3.t3_id order by link_alias_142._field_166, _field_139, link_alias_133._field_72, _field_135, link_alias_148._field_156;
+replace(t3._field_140, "\r","^M")	t3_id	min(t3._field_131)	min(t3._field_135)	min(t3._field_139)	min(t3._field_137)	min(link_alias_142._field_165)	min(link_alias_133._field_72)	min(t3._field_145)	min(link_alias_148._field_156)	replace(min(t3._field_140), "\r","^M")	t3_id
+test^M
+job^M
+1	1	test job 1	0000-00-00 00:00:00	1999-02-25 22:43:32	0	High	admin	0	tomato	test^M
+job^M
+1	1
+select * from information_schema.optimizer_trace;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field_135), min(t3._field_139), min(t3._field_137), min(link_alias_142._field_165), min(link_alias_133._field_72), min(t3._field_145), min(link_alias_148._field_156), replace(min(t3._field_140), "\r","^M"),t3.t3_id from t3 left join t4 on t4.seq_0_id = t3.t3_id left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id left join t6 on t6.seq_0_id = t3.t3_id left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id left join t2 on t2.seq_0_id = t3.t3_id left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id where t3.t3_id in (1) group by t3.t3_id order by link_alias_142._field_166, _field_139, link_alias_133._field_72, _field_135, link_alias_148._field_156	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select replace(`test`.`t3`.`_field_140`,'\\r','^M') AS `replace(t3._field_140, \"\\r\",\"^M\")`,`test`.`t3`.`t3_id` AS `t3_id`,min(`test`.`t3`.`_field_131`) AS `min(t3._field_131)`,min(`test`.`t3`.`_field_135`) AS `min(t3._field_135)`,min(`test`.`t3`.`_field_139`) AS `min(t3._field_139)`,min(`test`.`t3`.`_field_137`) AS `min(t3._field_137)`,min(`test`.`link_alias_142`.`_field_165`) AS `min(link_alias_142._field_165)`,min(`test`.`link_alias_133`.`_field_72`) AS `min(link_alias_133._field_72)`,min(`test`.`t3`.`_field_145`) AS `min(t3._field_145)`,min(`test`.`link_alias_148`.`_field_156`) AS `min(link_alias_148._field_156)`,replace(min(`test`.`t3`.`_field_140`),'\\r','^M') AS `replace(min(t3._field_140), \"\\r\",\"^M\")`,`test`.`t3`.`t3_id` AS `t3_id` from ((((((`test`.`t3` left join `test`.`t4` on((`test`.`t4`.`seq_0_id` = `test`.`t3`.`t3_id`))) left join `test`.`t7` `link_alias_142` on((`test`.`t4`.`seq_1_id` = `test`.`link_alias_142`.`t7_id`))) left join `test`.`t6` on((`test`.`t6`.`seq_0_id` = `test`.`t3`.`t3_id`))) left join `test`.`t1` `link_alias_133` on((`test`.`t6`.`seq_1_id` = `test`.`link_alias_133`.`t1_id`))) left join `test`.`t2` on((`test`.`t2`.`seq_0_id` = `test`.`t3`.`t3_id`))) left join `test`.`t5` `link_alias_148` on((`test`.`t2`.`seq_1_id` = `test`.`link_alias_148`.`t5_id`))) where (`test`.`t3`.`t3_id` = 1) group by `test`.`t3`.`t3_id` order by `test`.`link_alias_142`.`_field_166`,`test`.`t3`.`_field_139`,`test`.`link_alias_133`.`_field_72`,`test`.`t3`.`_field_135`,`test`.`link_alias_148`.`_field_156`"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`test`.`t3`.`t3_id` = 1)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "multiple equal(1, `test`.`t3`.`t3_id`)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "multiple equal(1, `test`.`t3`.`t3_id`)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "multiple equal(1, `test`.`t3`.`t3_id`)"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "database": "test",
+                "table": "t3",
+                "field": "t3_id",
+                "equals": "1",
+                "null_rejecting": false
+              },
+              {
+                "database": "test",
+                "table": "t4",
+                "field": "seq_0_id",
+                "equals": "1",
+                "null_rejecting": false
+              },
+              {
+                "database": "test",
+                "table": "link_alias_142",
+                "field": "t7_id",
+                "equals": "`test`.`t4`.`seq_1_id`",
+                "null_rejecting": true
+              },
+              {
+                "database": "test",
+                "table": "t6",
+                "field": "seq_0_id",
+                "equals": "1",
+                "null_rejecting": false
+              },
+              {
+                "database": "test",
+                "table": "link_alias_133",
+                "field": "t1_id",
+                "equals": "`test`.`t6`.`seq_1_id`",
+                "null_rejecting": true
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "field": "seq_0_id",
+                "equals": "1",
+                "null_rejecting": false
+              },
+              {
+                "database": "test",
+                "table": "link_alias_148",
+                "field": "t5_id",
+                "equals": "`test`.`t2`.`seq_1_id`",
+                "null_rejecting": true
+              }
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "records_estimation": [
+              {
+                "database": "test",
+                "table": "t3",
+                "records": 1,
+                "cost": 1,
+                "table_type": "const"
+              },
+              {
+                "database": "test",
+                "table": "t4",
+                "range_analysis": {
+                  "table_scan": {
+                    "records": 2,
+                    "cost": 4.5083
+                  } /* table_scan */,
+                  "potential_range_indices": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "seq_0_id",
+                        "seq_1_id"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indices */,
+                  "best_covering_index_scan": {
+                    "index": "PRIMARY",
+                    "cost": 1.4435,
+                    "chosen": true
+                  } /* best_covering_index_scan */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "PRIMARY",
+                        "ranges": [
+                          "1 <= seq_0_id <= 1"
+                        ] /* ranges */,
+                        "index_only": true,
+                        "records": 1,
+                        "cost": 2.21,
+                        "rowid_ordered": false,
+                        "chosen": false,
+                        "cause": "cost"
+                      }
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */
+                } /* range_analysis */
+              },
+              {
+                "database": "test",
+                "table": "link_alias_142",
+                "const_keys_added": {
+                  "keys": [
+                    "PRIMARY"
+                  ] /* keys */,
+                  "cause": "group_by"
+                } /* const_keys_added */,
+                "range_analysis": {
+                  "table_scan": {
+                    "records": 3,
+                    "cost": 4.7156
+                  } /* table_scan */,
+                  "potential_range_indices": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "t7_id"
+                      ] /* key_parts */
+                    },
+                    {
+                      "index": "_field_166",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    }
+                  ] /* potential_range_indices */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* group_index_range */
+                } /* range_analysis */
+              },
+              {
+                "database": "test",
+                "table": "t6",
+                "range_analysis": {
+                  "table_scan": {
+                    "records": 3,
+                    "cost": 4.7125
+                  } /* table_scan */,
+                  "potential_range_indices": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "seq_0_id",
+                        "seq_1_id"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indices */,
+                  "best_covering_index_scan": {
+                    "index": "PRIMARY",
+                    "cost": 1.687,
+                    "chosen": true
+                  } /* best_covering_index_scan */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "PRIMARY",
+                        "ranges": [
+                          "1 <= seq_0_id <= 1"
+                        ] /* ranges */,
+                        "index_only": true,
+                        "records": 1,
+                        "cost": 2.21,
+                        "rowid_ordered": false,
+                        "chosen": false,
+                        "cause": "cost"
+                      }
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */
+                } /* range_analysis */
+              },
+              {
+                "database": "test",
+                "table": "link_alias_133",
+                "const_keys_added": {
+                  "keys": [
+                    "PRIMARY"
+                  ] /* keys */,
+                  "cause": "group_by"
+                } /* const_keys_added */,
+                "range_analysis": {
+                  "table_scan": {
+                    "records": 3,
+                    "cost": 4.741
+                  } /* table_scan */,
+                  "potential_range_indices": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "t1_id"
+                      ] /* key_parts */
+                    },
+                    {
+                      "index": "_field_72",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "_field_115",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "_field_122",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    }
+                  ] /* potential_range_indices */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* group_index_range */
+                } /* range_analysis */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "range_analysis": {
+                  "table_scan": {
+                    "records": 3,
+                    "cost": 4.7125
+                  } /* table_scan */,
+                  "potential_range_indices": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "seq_0_id",
+                        "seq_1_id"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indices */,
+                  "best_covering_index_scan": {
+                    "index": "PRIMARY",
+                    "cost": 1.687,
+                    "chosen": true
+                  } /* best_covering_index_scan */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "PRIMARY",
+                        "ranges": [
+                          "1 <= seq_0_id <= 1"
+                        ] /* ranges */,
+                        "index_only": true,
+                        "records": 1,
+                        "cost": 2.21,
+                        "rowid_ordered": false,
+                        "chosen": false,
+                        "cause": "cost"
+                      }
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */
+                } /* range_analysis */
+              },
+              {
+                "database": "test",
+                "table": "link_alias_148",
+                "const_keys_added": {
+                  "keys": [
+                    "PRIMARY"
+                  ] /* keys */,
+                  "cause": "group_by"
+                } /* const_keys_added */,
+                "range_analysis": {
+                  "table_scan": {
+                    "records": 2,
+                    "cost": 4.5137
+                  } /* table_scan */,
+                  "potential_range_indices": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "t5_id"
+                      ] /* key_parts */
+                    },
+                    {
+                      "index": "_field_156",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "_field_157",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "_field_158",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "_field_159",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "_field_160",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "_field_161",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    }
+                  ] /* potential_range_indices */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* group_index_range */
+                } /* range_analysis */
+              }
+            ] /* records_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "database": "test",
+                "table": "t4",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "PRIMARY",
+                      "records": 1,
+                      "cost": 1.2,
+                      "chosen": true
+                    },
+                    {
+                      "access_type": "scan",
+                      "cost": 2,
+                      "records": 2,
+                      "cause": "cost",
+                      "chosen": false
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 1.2,
+                "records_for_plan": 1,
+                "rest_of_plan": [
+                  {
+                    "database": "test",
+                    "table": "link_alias_142",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "ref",
+                          "index": "PRIMARY",
+                          "records": 1,
+                          "cost": 1.2,
+                          "chosen": true
+                        },
+                        {
+                          "access_type": "scan",
+                          "cost": 2,
+                          "records": 3,
+                          "cause": "cost",
+                          "chosen": false
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "added_to_eq_ref_extension": true,
+                    "cost_for_plan": 2.4,
+                    "records_for_plan": 1,
+                    "rest_of_plan": [
+                      {
+                        "database": "test",
+                        "table": "t6",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "access_type": "ref",
+                              "index": "PRIMARY",
+                              "records": 1,
+                              "cost": 1.2,
+                              "chosen": true
+                            },
+                            {
+                              "access_type": "scan",
+                              "cost": 2,
+                              "records": 3,
+                              "cause": "cost",
+                              "chosen": false
+                            }
+                          ] /* considered_access_paths */
+                        } /* best_access_path */,
+                        "added_to_eq_ref_extension": true,
+                        "cost_for_plan": 3.6,
+                        "records_for_plan": 1,
+                        "rest_of_plan": [
+                          {
+                            "database": "test",
+                            "table": "link_alias_133",
+                            "best_access_path": {
+                              "considered_access_paths": [
+                                {
+                                  "access_type": "ref",
+                                  "index": "PRIMARY",
+                                  "records": 1,
+                                  "cost": 1.2,
+                                  "chosen": true
+                                },
+                                {
+                                  "access_type": "scan",
+                                  "cost": 2,
+                                  "records": 3,
+                                  "cause": "cost",
+                                  "chosen": false
+                                }
+                              ] /* considered_access_paths */
+                            } /* best_access_path */,
+                            "added_to_eq_ref_extension": true,
+                            "cost_for_plan": 4.8,
+                            "records_for_plan": 1,
+                            "rest_of_plan": [
+                              {
+                                "database": "test",
+                                "table": "t2",
+                                "best_access_path": {
+                                  "considered_access_paths": [
+                                    {
+                                      "access_type": "ref",
+                                      "index": "PRIMARY",
+                                      "records": 1,
+                                      "cost": 1.2,
+                                      "chosen": true
+                                    },
+                                    {
+                                      "access_type": "scan",
+                                      "cost": 2,
+                                      "records": 3,
+                                      "cause": "cost",
+                                      "chosen": false
+                                    }
+                                  ] /* considered_access_paths */
+                                } /* best_access_path */,
+                                "added_to_eq_ref_extension": true,
+                                "cost_for_plan": 6,
+                                "records_for_plan": 1,
+                                "rest_of_plan": [
+                                  {
+                                    "database": "test",
+                                    "table": "link_alias_148",
+                                    "best_access_path": {
+                                      "considered_access_paths": [
+                                        {
+                                          "access_type": "ref",
+                                          "index": "PRIMARY",
+                                          "records": 1,
+                                          "cost": 1.2,
+                                          "chosen": true
+                                        },
+                                        {
+                                          "access_type": "scan",
+                                          "cost": 2,
+                                          "records": 2,
+                                          "cause": "cost",
+                                          "chosen": false
+                                        }
+                                      ] /* considered_access_paths */
+                                    } /* best_access_path */,
+                                    "added_to_eq_ref_extension": true,
+                                    "cost_for_plan": 7.2,
+                                    "records_for_plan": 1,
+                                    "chosen": true
+                                  }
+                                ] /* rest_of_plan */
+                              }
+                            ] /* rest_of_plan */
+                          }
+                        ] /* rest_of_plan */
+                      }
+                    ] /* rest_of_plan */
+                  }
+                ] /* rest_of_plan */
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "1",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "database": "test",
+                  "table": "t4",
+                  "attached": null
+                },
+                {
+                  "database": "test",
+                  "table": "link_alias_142",
+                  "attached": null
+                },
+                {
+                  "database": "test",
+                  "table": "t6",
+                  "attached": null
+                },
+                {
+                  "database": "test",
+                  "table": "link_alias_133",
+                  "attached": null
+                },
+                {
+                  "database": "test",
+                  "table": "t2",
+                  "attached": null
+                },
+                {
+                  "database": "test",
+                  "table": "link_alias_148",
+                  "attached": null
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "database": "test",
+                "table": "t4"
+              },
+              {
+                "database": "test",
+                "table": "link_alias_142"
+              },
+              {
+                "database": "test",
+                "table": "t6"
+              },
+              {
+                "database": "test",
+                "table": "link_alias_133"
+              },
+              {
+                "database": "test",
+                "table": "t2"
+              },
+              {
+                "database": "test",
+                "table": "link_alias_148"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+drop table t1,t2,t3,t4,t5,t6,t7;
