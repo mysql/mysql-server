@@ -158,14 +158,14 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err,
     It's one case when we can push an error even though there
     is an OK or EOF already.
   */
-  thd->get_stmt_da()->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
 
   /* Abort multi-result sets */
   thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
 
   error= net_send_error_packet(thd, sql_errno, err, sqlstate);
 
-  thd->get_stmt_da()->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
 
   DBUG_RETURN(error);
 }
@@ -239,7 +239,7 @@ net_send_ok(THD *thd,
     int2store(pos, server_status);
     pos+=2;
   }
-  thd->get_stmt_da()->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
 
   if (message && message[0])
     pos= net_store_data(pos, (uchar*) message, strlen(message));
@@ -248,7 +248,7 @@ net_send_ok(THD *thd,
     error= net_flush(net);
 
 
-  thd->get_stmt_da()->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
   DBUG_PRINT("info", ("OK sent, so no more error sending allowed"));
 
   DBUG_RETURN(error);
@@ -288,11 +288,11 @@ net_send_eof(THD *thd, uint server_status, uint statement_warn_count)
   /* Set to TRUE if no active vio, to work well in case of --init-file */
   if (net->vio != 0)
   {
-    thd->get_stmt_da()->can_overwrite_status= TRUE;
+    thd->get_stmt_da()->set_overwrite_status(true);
     error= write_eof_packet(thd, net, server_status, statement_warn_count);
     if (!error)
       error= net_flush(net);
-    thd->get_stmt_da()->can_overwrite_status= FALSE;
+    thd->get_stmt_da()->set_overwrite_status(false);
     DBUG_PRINT("info", ("EOF sent, so no more error sending allowed"));
   }
   DBUG_RETURN(error);
@@ -483,11 +483,11 @@ static uchar *net_store_length_fast(uchar *packet, uint length)
 void Protocol::end_statement()
 {
   DBUG_ENTER("Protocol::end_statement");
-  DBUG_ASSERT(! thd->get_stmt_da()->is_sent);
+  DBUG_ASSERT(! thd->get_stmt_da()->is_sent());
   bool error= FALSE;
 
   /* Can not be true, but do not take chances in production. */
-  if (thd->get_stmt_da()->is_sent)
+  if (thd->get_stmt_da()->is_sent())
     DBUG_VOID_RETURN;
 
   switch (thd->get_stmt_da()->status()) {
@@ -517,7 +517,7 @@ void Protocol::end_statement()
     break;
   }
   if (!error)
-    thd->get_stmt_da()->is_sent= TRUE;
+    thd->get_stmt_da()->set_is_sent(true);
   DBUG_VOID_RETURN;
 }
 
@@ -635,9 +635,9 @@ bool Protocol::flush()
 {
 #ifndef EMBEDDED_LIBRARY
   bool error;
-  thd->get_stmt_da()->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
   error= net_flush(&thd->net);
-  thd->get_stmt_da()->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
   return error;
 #else
   return 0;
@@ -798,7 +798,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
       Send no warning information, as it will be sent at statement end.
     */
     if (write_eof_packet(thd, &thd->net, thd->server_status,
-                         thd->get_stmt_wi()->statement_warn_count()))
+                         thd->get_stmt_da()->current_statement_warn_count()))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(prepare_for_send(list->elements));

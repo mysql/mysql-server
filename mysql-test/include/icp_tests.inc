@@ -964,3 +964,39 @@ eval $query;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#12601961 "SEGFAULT IN HANDLER::COMPARE_KEY2"
+--echo #
+
+# Note: Until Bug#12724899 is fixed this test should only run
+# with InnoDB as storage engine since the query produces
+# wrong result when using MyISAM.
+
+let $se= `select @@default_storage_engine`;
+
+if ($se == 'InnoDB' )
+{
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL, 
+  i1 INTEGER NOT NULL,
+  c1 VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,3,'j'), (20,8,'e');
+
+let query=
+SELECT alias2.i1
+FROM t1 AS alias1 STRAIGHT_JOIN t1 AS alias2
+ON alias2.pk AND alias2.pk <= alias1.c1
+WHERE alias2.pk = 1;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1;
+
+}
+

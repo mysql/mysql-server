@@ -1370,11 +1370,11 @@ sub command_line_setup {
       collect_option('default-storage-engine', $1);
       mtr_report("Using default engine '$1'")
     }
-    if ( $arg =~ /default-temp-storage-engine=(\S+)/ )
+    if ( $arg =~ /default-tmp-storage-engine=(\S+)/ )
     {
       # Save this for collect phase
-      collect_option('default-temp-storage-engine', $1);
-      mtr_report("Using default temp engine '$1'")
+      collect_option('default-tmp-storage-engine', $1);
+      mtr_report("Using default tmp engine '$1'")
     }
   }
 
