@@ -2796,8 +2796,6 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   DBUG_ASSERT(state != NULL);
   PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*> (socket);
 
-  return NULL;
-
   if (unlikely(pfs_socket == NULL))
     return NULL;
 
