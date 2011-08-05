@@ -22,13 +22,6 @@
   http://dev.mysql.com/doc/mysqltest/en/index.html
 
   Please keep the test framework tools identical in all versions!
-
-  Written by:
-  Sasha Pachev <sasha@mysql.com>
-  Matt Wagner  <matt@mysql.com>
-  Monty
-  Jani
-  Holyfoot
 */
 
 #define MTEST_VERSION "3.3"
@@ -6424,7 +6417,7 @@ void print_version(void)
 void usage()
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
   my_print_help(my_long_options);
@@ -7896,6 +7889,7 @@ void display_opt_trace(struct st_connection *cn,
 {
   if (!disable_query_log &&
       opt_trace_protocol_enabled &&
+      !cn->pending &&
       !command->expected_errors.count &&
       match_re(&opt_trace_re, command->query))
   {
@@ -7910,11 +7904,11 @@ void display_opt_trace(struct st_connection *cn,
     command->query_len= query_str.length;
     command->end= strend(command->query);
 
-    /* sorted trace is not readable at all*/
-    my_bool save_display_result_sorted= display_result_sorted;
+    /* Sorted trace is not readable at all, don't bother to lower case */
+    /* No need to keep old values, will be reset anyway */
     display_result_sorted= FALSE;
+    display_result_lower= FALSE;
     run_query(cn, command, flags);
-    display_result_sorted= save_display_result_sorted;
 
     dynstr_free(&query_str);
     *command= save_command;
@@ -7925,6 +7919,7 @@ void display_opt_trace(struct st_connection *cn,
 void run_explain(struct st_connection *cn, struct st_command *command, int flags)
 {
   if (explain_protocol_enabled &&
+      (flags & QUERY_REAP_FLAG) &&
       !command->expected_errors.count &&
       match_re(&explain_re, command->query))
   {

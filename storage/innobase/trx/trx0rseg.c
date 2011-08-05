@@ -309,7 +309,7 @@ trx_rseg_create(
 	mtr_start(&mtr);
 
 	/* To obey the latching order, acquire the file space
-	x-latch before the trx_sys->lock. */
+	x-latch before the trx_sys->mutex. */
 	mtr_x_lock(fil_space_get_latch(space, NULL), &mtr);
 
 	slot_no = trx_sysf_rseg_find_free(&mtr);
