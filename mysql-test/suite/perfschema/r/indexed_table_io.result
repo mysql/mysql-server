@@ -8,6 +8,7 @@ update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/table/%";
 truncate table performance_schema.events_waits_history_long;
 flush status;
+flush tables;
 create table test.no_index_tab
 ( a int, b char(30) default 'Default') engine = MyISAM;
 create table test.index_tab
