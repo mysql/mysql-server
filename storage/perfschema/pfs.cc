@@ -2820,7 +2820,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     flags= STATE_FLAG_THREAD;
 
     /* Sockets in IDLE state are timed separately */
-	if (pfs_socket->m_timed)
+	  if (pfs_socket->m_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2865,9 +2865,9 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
 
       /*
         Even if timing is disabled, end_socket_wait() still needs a locker to
-		capture the number of bytes sent or received by the socket operation.
-		For operations that do not have a byte count, then just increment the
-		event counter and return a NULL locker.
+	  	  capture the number of bytes sent or received by the socket operation.
+        For operations that do not have a byte count, then just increment the
+        event counter and return a NULL locker.
       */
       switch (op)
       {
@@ -4613,8 +4613,6 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   DBUG_ASSERT(state != NULL);
   PFS_socket *socket= reinterpret_cast<PFS_socket *>(state->m_socket);
   DBUG_ASSERT(socket != NULL);
-  PFS_thread *thread= reinterpret_cast<PFS_thread *>(state->m_thread);
-  DBUG_ASSERT(thread != NULL);
 
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
@@ -4626,39 +4624,39 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   
   switch (state->m_operation)
   {
-  /** Group read operations */
-  case PSI_SOCKET_RECV:
-  case PSI_SOCKET_RECVFROM:
-  case PSI_SOCKET_RECVMSG:
-    byte_stat= &socket->m_socket_stat.m_io_stat.m_read;
-    break;
-  /** Group write operations */
-  case PSI_SOCKET_SEND:
-  case PSI_SOCKET_SENDTO:
-  case PSI_SOCKET_SENDMSG:
-    byte_stat= &socket->m_socket_stat.m_io_stat.m_write;
-    break;
-  /** Group remainging operations as miscellaneous */
-  case PSI_SOCKET_CONNECT:
-  case PSI_SOCKET_CREATE:
-  case PSI_SOCKET_BIND:
-  case PSI_SOCKET_SEEK:
-  case PSI_SOCKET_OPT:
-  case PSI_SOCKET_STAT:
-  case PSI_SOCKET_SHUTDOWN:
-  case PSI_SOCKET_SELECT:
-    byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
-    break;
-  case PSI_SOCKET_CLOSE:
-    byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
-    /* This socket will no longer be used by the server */
-    socket_closed= true;
-    break;
+    /** Group read operations */
+    case PSI_SOCKET_RECV:
+    case PSI_SOCKET_RECVFROM:
+    case PSI_SOCKET_RECVMSG:
+      byte_stat= &socket->m_socket_stat.m_io_stat.m_read;
+      break;
+    /** Group write operations */
+    case PSI_SOCKET_SEND:
+    case PSI_SOCKET_SENDTO:
+    case PSI_SOCKET_SENDMSG:
+      byte_stat= &socket->m_socket_stat.m_io_stat.m_write;
+      break;
+    /** Group remainging operations as miscellaneous */
+    case PSI_SOCKET_CONNECT:
+    case PSI_SOCKET_CREATE:
+    case PSI_SOCKET_BIND:
+    case PSI_SOCKET_SEEK:
+    case PSI_SOCKET_OPT:
+    case PSI_SOCKET_STAT:
+    case PSI_SOCKET_SHUTDOWN:
+    case PSI_SOCKET_SELECT:
+      byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
+      break;
+    case PSI_SOCKET_CLOSE:
+      byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
+      /* This socket will no longer be used by the server */
+      socket_closed= true;
+      break;
 
-  default:
-    DBUG_ASSERT(false);
-    byte_stat= NULL;
-    break;
+    default:
+      DBUG_ASSERT(false);
+      byte_stat= NULL;
+      break;
   }
 
   /** Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
@@ -4693,6 +4691,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   /** Global thread aggregation */
   if (flags & STATE_FLAG_THREAD)
   {
+    PFS_thread *thread= reinterpret_cast<PFS_thread *>(state->m_thread);
     DBUG_ASSERT(thread != NULL);
 
     PFS_single_stat *event_name_array;
@@ -4721,10 +4720,6 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     /* Aggregate to EVENTS_WAITS_CURRENT and EVENTS_WAITS_HISTORY */
     if (flags & STATE_FLAG_EVENT)
     {
-      DBUG_ASSERT(flags & STATE_FLAG_THREAD);
-      PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
-      DBUG_ASSERT(thread != NULL);
-
       PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
       DBUG_ASSERT(wait != NULL);
 
