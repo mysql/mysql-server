@@ -92,7 +92,7 @@ enum enum_vio_type vio_type(Vio* vio);
 /* Return last error number */
 int	vio_errno(Vio*vio);
 /* Get socket number */
-my_socket vio_getfd(Vio *vio);
+my_socket vio_fd(Vio*vio);
 /* Remote peer's address and name in text form */
 my_bool vio_peer_addr(Vio *vio, char *buf, uint16 *port, size_t buflen);
 /* Wait for an I/O event notification. */
@@ -232,7 +232,6 @@ struct st_vio
   my_bool (*has_data) (Vio*);
   int (*io_wait)(Vio*, enum enum_vio_io_event, int);
   my_bool (*connect)(Vio*, struct sockaddr *, socklen_t, int);
-  my_socket (*viogetfd)(Vio *);
 #ifdef _WIN32
   OVERLAPPED overlapped;
   HANDLE hPipe;

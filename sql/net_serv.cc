@@ -107,7 +107,7 @@ my_bool my_net_init(NET *net, Vio* vio)
   if (vio)
   {
     /* For perl DBI/DBD. */
-    net->fd= vio_getfd(vio);
+    net->fd= vio_fd(vio);
     vio_fastsend(vio);
   }
   DBUG_RETURN(0);

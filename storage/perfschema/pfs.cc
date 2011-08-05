@@ -2796,6 +2796,8 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   DBUG_ASSERT(state != NULL);
   PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*> (socket);
 
+  return NULL;
+
   if (unlikely(pfs_socket == NULL))
     return NULL;
 
@@ -2820,7 +2822,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     flags= STATE_FLAG_THREAD;
 
     /* Sockets in IDLE state are timed separately */
-	if (pfs_socket->m_timed && !pfs_socket->m_idle)
+	if (pfs_socket->m_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2855,7 +2857,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   else
   {
     /* Sockets in IDLE state are counted but not timed */
-	if (pfs_socket->m_timed && !pfs_socket->m_idle)
+	if (pfs_socket->m_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -2866,8 +2868,8 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       /*
         Even if timing is disabled, end_socket_wait() still needs a locker to
 		capture the number of bytes sent or received by the socket operation.
-		However, for operations that do not have a byte count, then just
-		increment the event counter and return a NULL locker.
+		For operations that do not have a byte count, then just increment the
+		event counter and return a NULL locker.
       */
       switch (op)
       {
@@ -2894,6 +2896,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   state->m_flags= flags;
   state->m_socket= socket;
   state->m_operation= op;
+  state->m_idle= pfs_socket->m_idle;
   return reinterpret_cast<PSI_socket_locker*> (state);
 }
 
@@ -4584,7 +4587,7 @@ static void start_socket_wait_v1(PSI_socket_locker *locker,
   register uint flags= state->m_flags;
   ulonglong timer_start= 0;
 
-  if (flags & STATE_FLAG_TIMED)
+  if (flags & STATE_FLAG_TIMED && !state->m_idle)
   {
     timer_start= get_timer_raw_value_and_function(wait_timer, &state->m_timer);
     state->m_timer_start= timer_start;
@@ -4618,7 +4621,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
   bool socket_closed= false;
-  bool socket_idle= socket->m_idle;
+  bool socket_idle= state->m_idle;
   PFS_byte_stat *byte_stat;
   register uint flags= state->m_flags;
   size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
@@ -4663,31 +4666,31 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   /** Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_end= state->m_timer();
-    wait_time= timer_end - state->m_timer_start;
+    if (!socket_idle)
+	  {
+	    timer_end= state->m_timer();
+	    wait_time= timer_end - state->m_timer_start;
+    }
+    else
+    {
+      /*
+	     A state of IDLE means that this is a RECV operation following a (possibly
+       very long) idle period. The split between the idle time and the RECV is
+       unknown, so the entire wait time will be later assigned to the global
+       IDLE class. Incrementing the RECV count with a zero wait time will throw
+       off the stats, so assign the current min wait as a best guess.
+	    */
+      wait_time= byte_stat->m_min;
+    }
+
     /* Aggregate to the socket instrument for now (timed) */
     byte_stat->aggregate(wait_time, bytes);
   }
   else
   {
-    /*
-	   A state of IDLE means that this is a recv() following an idle period.
-	   The division of the wait time between the idle period and the actual
-	   recv() is unknown, so the entire wait time will later be assigned to the
-	   global IDLE class. However, incrementing the recv() operation count
-	   without assigning any wait time will throw off the stats, so we fudge a
-	   little and assign the current min wait as a best guess.
-	*/
-	if (socket_idle)
-	{
-      byte_stat->aggregate(byte_stat->m_min, bytes);
-	}
-    else
-	{
-      /* Aggregate to the socket instrument (event count and byte count) */
+    /* Aggregate to the socket instrument (event count and byte count) */
 	  byte_stat->aggregate_counted(bytes);
 	}
-  }
 
   /** Global thread aggregation */
   if (flags & STATE_FLAG_THREAD)

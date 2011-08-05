@@ -111,7 +111,8 @@ size_t vio_read(Vio *vio, uchar *buf, size_t size)
   if (vio->read_timeout >= 0)
     flags= VIO_DONTWAIT;
 
-  while ((ret= mysql_socket_recv(vio->mysql_socket, (SOCKBUF_T *)buf, size, flags)) == -1)
+  while ((ret= recv(vio->mysql_socket.fd, (char*)buf, size, flags)) == -1)
+//while ((ret= mysql_socket_recv(vio->mysql_socket, (SOCKBUF_T *)buf, size, flags)) == -1)
   {
     int error= socket_errno;
 
@@ -438,7 +439,7 @@ enum enum_vio_type vio_type(Vio* vio)
   return vio->type;
 }
 
-my_socket vio_getfd(Vio* vio)
+my_socket vio_fd(Vio* vio)
 {
   return mysql_socket_getfd(vio->mysql_socket);
 }

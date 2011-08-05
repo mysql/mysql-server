@@ -1450,7 +1450,7 @@ void destroy_socket(PFS_socket *pfs)
   DBUG_ASSERT(pfs != NULL);
   PFS_socket_class *klass= pfs->m_class;
 
-  /* Aggregate to SOCKET_SUMMARY_BY_INSTANCE and BY_EVENT_NAME */
+  /* Aggregate to SOCKET_SUMMARY_BY_EVENT_NAME */
   klass->m_socket_stat.m_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
   pfs->m_socket_stat.reset();
 
