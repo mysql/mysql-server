@@ -2717,7 +2717,6 @@ fil_create_new_single_table_tablespace(
 	char*			path;
 	ibool			success;
 	os_file_create_t	create_mode;
-	os_file_create_t	error_ignore;
 
 	ut_a(space_id > 0);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
@@ -2739,8 +2738,6 @@ fil_create_new_single_table_tablespace(
 	synchronization protection. It could be changed during this execution
 	path. It might not have the same value as the one when building the
 	table definition */
-
-	error_ignore = srv_file_per_table ? OS_FILE_ON_ERROR_NO_EXIT : 0;
 
 	create_mode = srv_file_per_table
 		    ? OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT

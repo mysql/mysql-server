@@ -30,6 +30,11 @@ drop user user3@localhost;
 drop user user4@localhost;
 flush privileges;
 
+drop procedure dump_thread;
+drop procedure dump_one_thread;
+drop prepare dump_global;
+drop prepare dump_history;
+
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors
   select * from test.setup_actors;
