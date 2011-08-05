@@ -111,8 +111,7 @@ size_t vio_read(Vio *vio, uchar *buf, size_t size)
   if (vio->read_timeout >= 0)
     flags= VIO_DONTWAIT;
 
-  while ((ret= recv(vio->mysql_socket.fd, (char*)buf, size, flags)) == -1)
-//while ((ret= mysql_socket_recv(vio->mysql_socket, (SOCKBUF_T *)buf, size, flags)) == -1)
+  while ((ret= mysql_socket_recv(vio->mysql_socket, (SOCKBUF_T *)buf, size, flags)) == -1)
   {
     int error= socket_errno;
 
