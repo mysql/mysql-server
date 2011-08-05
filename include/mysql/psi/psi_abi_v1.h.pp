@@ -248,6 +248,7 @@ struct PSI_socket_locker_state_v1
   const char* m_src_file;
   int m_src_line;
   void *m_wait;
+  my_bool m_idle;
 };
 typedef void (*register_mutex_v1_t)
   (const char *category, struct PSI_mutex_info_v1 *info, int count);
