@@ -6,6 +6,7 @@ update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/table/%";
 truncate table performance_schema.events_waits_history_long;
 flush status;
+flush tables;
 # We are forced to suppress here the server response.
 optimize table mysql.db;
 update performance_schema.setup_consumers set enabled='YES';
