@@ -76,16 +76,20 @@ if(`SELECT COUNT(*) $part1`)
 #
 #    If we run this check sufficient frequent than AVG_TIMER_* can be removed from other checks.
 #-----------------------------------------------------------------------------------------------
+let $my_lo= 0.80;
+let $my_hi= 1.01;
+
 let $my_rules=
-COUNT_STAR  * AVG_TIMER_WAIT  BETWEEN SUM_TIMER_WAIT  * 0.99 AND SUM_TIMER_WAIT  * 1.01 AND
-COUNT_READ  * AVG_TIMER_READ  BETWEEN SUM_TIMER_READ  * 0.99 AND SUM_TIMER_READ  * 1.01 AND
-COUNT_WRITE * AVG_TIMER_WRITE BETWEEN SUM_TIMER_WRITE * 0.99 AND SUM_TIMER_WRITE * 1.01 AND
-COUNT_MISC  * AVG_TIMER_MISC  BETWEEN SUM_TIMER_MISC  * 0.99 AND SUM_TIMER_MISC  * 1.01;
+COUNT_STAR  * AVG_TIMER_WAIT  BETWEEN SUM_TIMER_WAIT  * $my_lo AND SUM_TIMER_WAIT  * $my_hi AND
+COUNT_READ  * AVG_TIMER_READ  BETWEEN SUM_TIMER_READ  * $my_lo AND SUM_TIMER_READ  * $my_hi AND
+COUNT_WRITE * AVG_TIMER_WRITE BETWEEN SUM_TIMER_WRITE * $my_lo AND SUM_TIMER_WRITE * $my_hi AND
+COUNT_MISC  * AVG_TIMER_MISC  BETWEEN SUM_TIMER_MISC  * $my_lo AND SUM_TIMER_MISC  * $my_hi;
+
 let $part=
-SUM_TIMER_WAIT  * 0.99, COUNT_STAR  * AVG_TIMER_WAIT,  SUM_TIMER_WAIT  * 1.01,
-SUM_TIMER_READ  * 0.99, COUNT_READ  * AVG_TIMER_READ,  SUM_TIMER_READ  * 1.01,
-SUM_TIMER_WRITE * 0.99, COUNT_WRITE * AVG_TIMER_WRITE, SUM_TIMER_WRITE * 1.01,
-SUM_TIMER_MISC  * 0.99, COUNT_MISC  * AVG_TIMER_MISC,  SUM_TIMER_MISC  * 1.01;
+SUM_TIMER_WAIT  * $my_lo, COUNT_STAR  * AVG_TIMER_WAIT,  SUM_TIMER_WAIT  * $my_hi, COUNT_STAR,
+SUM_TIMER_READ  * $my_lo, COUNT_READ  * AVG_TIMER_READ,  SUM_TIMER_READ  * $my_hi, COUNT_READ,
+SUM_TIMER_WRITE * $my_lo, COUNT_WRITE * AVG_TIMER_WRITE, SUM_TIMER_WRITE * $my_hi, COUNT_WRITE,
+SUM_TIMER_MISC  * $my_lo, COUNT_MISC  * AVG_TIMER_MISC,  SUM_TIMER_MISC  * $my_hi, COUNT_MISC;
 
 if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instance
     WHERE pk = 'After'`)
@@ -120,6 +124,7 @@ AVG_TIMER_WAIT  >= MIN_TIMER_WAIT  AND MAX_TIMER_WAIT  >= AVG_TIMER_WAIT  AND
 AVG_TIMER_READ  >= MIN_TIMER_READ  AND MAX_TIMER_READ  >= AVG_TIMER_READ  AND
 AVG_TIMER_WRITE >= MIN_TIMER_WRITE AND MAX_TIMER_WRITE >= AVG_TIMER_WRITE AND
 AVG_TIMER_MISC  >= MIN_TIMER_MISC  AND MAX_TIMER_MISC  >= AVG_TIMER_MISC;
+
 let $part=
 MIN_TIMER_WAIT,  AVG_TIMER_WAIT,  MAX_TIMER_WAIT,
 MIN_TIMER_READ,  AVG_TIMER_READ,  MAX_TIMER_READ,
@@ -154,6 +159,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
 let $my_rules=
 COUNT_STAR     = COUNT_READ     + COUNT_WRITE     + COUNT_MISC      AND
 SUM_TIMER_WAIT = SUM_TIMER_READ + SUM_TIMER_WRITE + SUM_TIMER_MISC;
+
 let $part=
 COUNT_STAR, COUNT_READ + COUNT_WRITE + COUNT_MISC, COUNT_READ, COUNT_WRITE, COUNT_MISC,
 SUM_TIMER_WAIT, SUM_TIMER_READ + SUM_TIMER_WRITE + SUM_TIMER_MISC, SUM_TIMER_READ,
@@ -184,6 +190,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
 #---------------------------------------------------------------------------------
 let $my_rules=
 MIN_TIMER_WAIT >= mysqltest.min_of_triple(MIN_TIMER_READ,MIN_TIMER_WRITE,MIN_TIMER_MISC);
+
 let $part=
 MIN_TIMER_WAIT,
 mysqltest.min_of_triple(MIN_TIMER_READ, MIN_TIMER_WRITE, MIN_TIMER_MISC) AS "Min_of_Triple",
@@ -214,6 +221,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
 #---------------------------------------------------------------------------------
 let $my_rules=
 MAX_TIMER_WAIT >= mysqltest.max_of_triple(MAX_TIMER_READ,MAX_TIMER_WRITE,MAX_TIMER_MISC);
+
 let $part=
 MAX_TIMER_WAIT,
 mysqltest.max_of_triple(MAX_TIMER_READ, MAX_TIMER_WRITE, MAX_TIMER_MISC) AS "Max_of_Triple",
