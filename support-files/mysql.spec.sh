@@ -127,13 +127,13 @@
       %define distro_description        Oracle Enterprise Linux 4
       %define distro_releasetag         oel4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-      %define distro_requires           chkconfig coreutils grep procps shadow-utils
+      %define distro_requires           chkconfig coreutils grep procps shadow-utils net-tools
     %else
       %if "%oelver" == "5"
         %define distro_description      Oracle Enterprise Linux 5
         %define distro_releasetag       oel5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-        %define distro_requires         chkconfig coreutils grep procps shadow-utils
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Enterprise Linux %{oelver} is unsupported}
       %endif
@@ -145,13 +145,13 @@
         %define distro_description      Red Hat Enterprise Linux 4
         %define distro_releasetag       rhel4
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-        %define distro_requires         chkconfig coreutils grep procps shadow-utils
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %if "%rhelver" == "5"
           %define distro_description    Red Hat Enterprise Linux 5
           %define distro_releasetag     rhel5
           %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-          %define distro_requires       chkconfig coreutils grep procps shadow-utils
+          %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
         %else
           %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
         %endif
