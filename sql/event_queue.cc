@@ -544,9 +544,6 @@ Event_queue::dbug_dump_queue(time_t now)
 #endif
 }
 
-static const char *queue_empty_msg= "Waiting on empty queue";
-static const char *queue_wait_msg= "Waiting for next activation";
-
 /*
   Checks whether the top of the queue is elligible for execution and
   returns an Event_job_data instance in case it should be executed.
@@ -593,7 +590,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
       mysql_audit_release(thd);
 
       /* Wait on condition until signaled. Release LOCK_queue while waiting. */
-      cond_wait(thd, NULL, queue_empty_msg, SCHED_FUNC, __LINE__);
+      cond_wait(thd, NULL, & stage_waiting_on_empty_queue, SCHED_FUNC, __FILE__, __LINE__);
 
       continue;
     }
@@ -615,7 +612,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
       /* Release any held audit resources before waiting */
       mysql_audit_release(thd);
 
-      cond_wait(thd, &top_time, queue_wait_msg, SCHED_FUNC, __LINE__);
+      cond_wait(thd, &top_time, &stage_waiting_for_next_activation, SCHED_FUNC, __FILE__, __LINE__);
 
       continue;
     }
@@ -746,16 +743,16 @@ Event_queue::unlock_data(const char *func, uint line)
 */
 
 void
-Event_queue::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
-                       const char *func, uint line)
+Event_queue::cond_wait(THD *thd, struct timespec *abstime, const PSI_stage_info *stage,
+                       const char *src_func, const char *src_file, uint src_line)
 {
   DBUG_ENTER("Event_queue::cond_wait");
   waiting_on_cond= TRUE;
-  mutex_last_unlocked_at_line= line;
+  mutex_last_unlocked_at_line= src_line;
   mutex_queue_data_locked= FALSE;
-  mutex_last_unlocked_in_func= func;
+  mutex_last_unlocked_in_func= src_func;
 
-  thd->enter_cond(&COND_queue_state, &LOCK_event_queue, msg);
+  thd->enter_cond(&COND_queue_state, &LOCK_event_queue, stage, NULL, src_func, src_file, src_line);
 
   if (!thd->killed)
   {
@@ -765,8 +762,8 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
       mysql_cond_timedwait(&COND_queue_state, &LOCK_event_queue, abstime);
   }
 
-  mutex_last_locked_in_func= func;
-  mutex_last_locked_at_line= line;
+  mutex_last_locked_in_func= src_func;
+  mutex_last_locked_at_line= src_line;
   mutex_queue_data_locked= TRUE;
   waiting_on_cond= FALSE;
 
@@ -774,8 +771,8 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
     This will free the lock so we need to relock. Not the best thing to
     do but we need to obey cond_wait()
   */
-  thd->exit_cond("");
-  lock_data(func, line);
+  thd->exit_cond(NULL, src_func, src_file, src_line);
+  lock_data(src_func, src_line);
 
   DBUG_VOID_RETURN;
 }
