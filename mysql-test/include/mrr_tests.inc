@@ -209,10 +209,12 @@ set read_rnd_buffer_size=64;
 
 # By default InnoDB will fill values only for key parts used by the query,
 # which will cause DS-MRR to supply an invalid tuple on scan restoration. 
-# Verify that DS-MRR's code extra(HA_EXTRA_RETRIEVE_ALL_COLS) call has effect:
+# This test was originally developed for verifying that DS-MRR's code 
+# extra(HA_EXTRA_RETRIEVE_ALL_COLS) call has effect. This has now been 
+# replaced by using the table's read_set bitmap.
 create table t1(a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-create table t2(a char(8), b char(8), c char(8), filler char(100), key(a,b,c) );
+create table t2(a char(8), b char(8), c char(8), filler char(100), key k1(a,b,c) );
 
 insert into t2 select 
   concat('a-', 1000 + A.a, '-a'),
@@ -221,9 +223,17 @@ insert into t2 select
   'filler'
 from t1 A, t1 B, t1 C;
 
-explain
-select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
-select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+# The use of "force index" is to ensure the query is done as a range scan.
+# Without "force index", InnoDB's record count estimate is sometimes 
+# ~400 instead of 1000, which causes a table scan.
+let query=
+select count(length(a) + length(filler))
+from t2 force index (k1)
+where a>='a-1000-a' and a <'a-1001-a';
+
+eval EXPLAIN $query;
+eval $query;
+
 drop table t2;
 
 # Try a very big rowid

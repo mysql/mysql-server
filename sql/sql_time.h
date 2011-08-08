@@ -19,7 +19,7 @@
 #include "my_global.h"                          /* ulong */
 #include "my_time.h"
 #include "mysql_time.h"                         /* timestamp_type */
-#include "sql_error.h"                          /* MYSQL_ERROR */
+#include "sql_error.h"                          /* Sql_condition */
 #include "structs.h"                            /* INTERVAL */
 
 typedef enum enum_mysql_timestamp_type timestamp_type;
@@ -41,7 +41,7 @@ timestamp_type str_to_datetime_with_warn(const CHARSET_INFO *cs,
                                          const char *str, uint length,
                                          MYSQL_TIME *l_time, uint flags);
 void make_truncated_value_warning(THD *thd,
-                                  MYSQL_ERROR::enum_warning_level level,
+                                  Sql_condition::enum_warning_level level,
                                   const char *str_val, uint str_length,
                                   timestamp_type time_type,
                                   const char *field_name);

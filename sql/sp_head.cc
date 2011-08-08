@@ -1100,9 +1100,6 @@ void sp_head::recursion_level_error(THD *thd)
   precedence. I.e. error handler will be executed. If there is no handler
   for that error, condition will remain unhandled.
 
-  Once a warning or an error has been handled it is not removed from
-  Warning Info.
-
   According to The Standard (quoting PeterG):
 
     An SQL procedure statement works like this ...
@@ -1140,22 +1137,29 @@ void sp_head::recursion_level_error(THD *thd)
 static void
 find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 {
+  Diagnostics_area *da= thd->get_stmt_da();
+
   if (thd->is_error())
   {
-    ctx->find_handler(thd,
-                      thd->get_stmt_da()->sql_errno(),
-                      thd->get_stmt_da()->get_sqlstate(),
-                      MYSQL_ERROR::WARN_LEVEL_ERROR,
-                      thd->get_stmt_da()->message());
+    if (ctx->find_handler(thd,
+                          da->sql_errno(),
+                          da->get_sqlstate(),
+                          Sql_condition::WARN_LEVEL_ERROR,
+                          da->message()))
+    {
+      da->remove_sql_condition(da->get_error_condition());
+    }
   }
-  else if (thd->get_stmt_wi()->statement_warn_count())
+  else if (thd->get_stmt_da()->current_statement_warn_count())
   {
-    Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
-    const MYSQL_ERROR *err;
+    Diagnostics_area::Sql_condition_iterator it=
+      thd->get_stmt_da()->sql_conditions();
+    const Sql_condition *err;
+
     while ((err= it++))
     {
-      if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_WARN &&
-          err->get_level() != MYSQL_ERROR::WARN_LEVEL_NOTE)
+      if (err->get_level() != Sql_condition::WARN_LEVEL_WARN &&
+          err->get_level() != Sql_condition::WARN_LEVEL_NOTE)
         continue;
 
       if (ctx->find_handler(thd,
@@ -1164,6 +1168,7 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
                             err->get_level(),
                             err->get_message_text()))
       {
+        da->remove_sql_condition(err);
         break;
       }
     }
@@ -1217,8 +1222,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
   Diagnostics_area *da= thd->get_stmt_da();
-  Warning_info *saved_warning_info;
-  Warning_info warning_info(thd->get_stmt_wi()->warn_id(), false);
+  Warning_info sp_wi(da->warning_info_id(), false);
 
   /*
     Just reporting a stack overrun error
@@ -1291,9 +1295,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   old_arena= thd->stmt_arena;
 
   /* Push a new warning information area. */
-  warning_info.append_warning_info(thd, thd->get_stmt_wi());
-  saved_warning_info= thd->get_stmt_wi();
-  da->set_warning_info(&warning_info);
+  da->copy_sql_conditions_to_wi(thd, &sp_wi);
+  da->push_warning_info(&sp_wi);
 
   /*
     Switch query context. This has to be done early as this is sometimes
@@ -1393,7 +1396,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     }
 
     /* Reset number of warnings for this query. */
-    thd->get_stmt_wi()->reset_for_next_command();
+    thd->get_stmt_da()->reset_for_next_command();
 
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
@@ -1500,9 +1503,39 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       - if there was an exception during execution, warning info should be
         propagated to the caller in any case.
   */
+  da->pop_warning_info();
+
   if (err_status || merge_da_on_success)
-    saved_warning_info->merge_with_routine_info(thd, thd->get_stmt_wi());
-  da->set_warning_info(saved_warning_info);
+  {
+    /*
+      If a routine body is empty or if a routine did not generate any warnings,
+      do not duplicate our own contents by appending the contents of the called
+      routine. We know that the called routine did not change its warning info.
+
+      On the other hand, if the routine body is not empty and some statement in
+      the routine generates a warning or uses tables, warning info is guaranteed
+      to have changed. In this case we know that the routine warning info
+      contains only new warnings, and thus we perform a copy.
+    */
+    if (da->warning_info_changed(&sp_wi))
+    {
+      /*
+        If the invocation of the routine was a standalone statement,
+        rather than a sub-statement, in other words, if it's a CALL
+        of a procedure, rather than invocation of a function or a
+        trigger, we need to clear the current contents of the caller's
+        warning info.
+
+        This is per MySQL rules: if a statement generates a warning,
+        warnings from the previous statement are flushed.  Normally
+        it's done in push_warning(). However, here we don't use
+        push_warning() to avoid invocation of condition handlers or
+        escalation of warnings to errors.
+      */
+      da->opt_clear_warning_info(thd->query_id);
+      da->copy_sql_conditions_from_wi(thd, &sp_wi);
+    }
+  }
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",
@@ -1965,7 +1998,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       if (mysql_bin_log.write(&qinfo) &&
           thd->binlog_evt_union.unioned_events_trans)
       {
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                      "Invoked ROUTINE modified a transactional table but MySQL "
                      "failed to reflect this change in the binary log");
         err_status= TRUE;
@@ -2093,12 +2126,12 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!arg_item)
         break;
 
-      sp_variable_t *spvar= m_pcont->find_variable(i);
+      sp_variable *spvar= m_pcont->find_variable(i);
 
       if (!spvar)
         continue;
 
-      if (spvar->mode != sp_param_in)
+      if (spvar->mode != sp_variable::MODE_IN)
       {
         Settable_routine_parameter *srp=
           arg_item->get_settable_routine_parameter();
@@ -2110,10 +2143,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
           break;
         }
 
-        srp->set_required_privilege(spvar->mode == sp_param_inout);
+        srp->set_required_privilege(spvar->mode == sp_variable::MODE_INOUT);
       }
 
-      if (spvar->mode == sp_param_out)
+      if (spvar->mode == sp_variable::MODE_OUT)
       {
         Item_null *null_item= new Item_null();
 
@@ -2143,9 +2176,9 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
     if (!thd->in_sub_stmt)
     {
-      thd->get_stmt_da()->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->set_overwrite_status(true);
       thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-      thd->get_stmt_da()->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->set_overwrite_status(false);
     }
 
     thd_proc_info(thd, "closing tables");
@@ -2215,9 +2248,9 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!arg_item)
         break;
 
-      sp_variable_t *spvar= m_pcont->find_variable(i);
+      sp_variable *spvar= m_pcont->find_variable(i);
 
-      if (spvar->mode == sp_param_in)
+      if (spvar->mode == sp_variable::MODE_IN)
         continue;
 
       Settable_routine_parameter *srp=
@@ -2375,7 +2408,7 @@ sp_head::restore_lex(THD *thd)
   Put the instruction on the backpatch list, associated with the label.
 */
 int
-sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
+sp_head::push_backpatch(sp_instr *i, sp_label *lab)
 {
   bp_t *bp= (bp_t *)sql_alloc(sizeof(bp_t));
 
@@ -2391,7 +2424,7 @@ sp_head::push_backpatch(sp_instr *i, sp_label_t *lab)
   the current position.
 */
 void
-sp_head::backpatch(sp_label_t *lab)
+sp_head::backpatch(sp_label *lab)
 {
   bp_t *bp;
   uint dest= instructions();
@@ -2892,7 +2925,7 @@ sp_head::show_routine_code(THD *thd)
         Since this is for debugging purposes only, we don't bother to
         introduce a special error code for it.
       */
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR, tmp);
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR, tmp);
     }
     protocol->prepare_for_resend();
     protocol->store((longlong)ip);
@@ -3017,9 +3050,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     /* Here we also commit or rollback the current statement. */
     if (! thd->in_sub_stmt)
     {
-      thd->get_stmt_da()->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->set_overwrite_status(true);
       thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-      thd->get_stmt_da()->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->set_overwrite_status(false);
     }
     thd_proc_info(thd, "closing tables");
     close_thread_tables(thd);
@@ -3240,7 +3273,7 @@ sp_instr_set::print(String *str)
 {
   /* set name@offset ... */
   int rsrv = SP_INSTR_UINT_MAXLEN+6;
-  sp_variable_t *var = m_ctx->find_variable(m_offset);
+  sp_variable *var = m_ctx->find_variable(m_offset);
 
   /* 'var' should always be non-null, but just in case... */
   if (var)
@@ -3511,8 +3544,8 @@ int
 sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hpush_jump::execute");
-  List_iterator_fast<sp_cond_type_t> li(m_cond);
-  sp_cond_type_t *p;
+  List_iterator_fast<sp_condition_value> li(m_cond);
+  sp_condition_value *p;
 
   while ((p= li++))
     thd->spcont->push_handler(p, m_ip+1, m_type);
@@ -3878,8 +3911,8 @@ sp_instr_cfetch::execute(THD *thd, uint *nextp)
 void
 sp_instr_cfetch::print(String *str)
 {
-  List_iterator_fast<struct sp_variable> li(m_varlist);
-  sp_variable_t *pv;
+  List_iterator_fast<sp_variable> li(m_varlist);
+  sp_variable *pv;
   LEX_STRING n;
   my_bool found= m_ctx->find_cursor(m_cursor, &n);
   /* cfetch name@offset vars... */

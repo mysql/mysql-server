@@ -15,6 +15,7 @@ update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/table/%";
 truncate table performance_schema.events_waits_history_long;
 flush status;
+flush tables;
 update performance_schema.setup_consumers set enabled = 'YES';
 set autocommit = off;
 delete from test.t1 where col1 = 1;

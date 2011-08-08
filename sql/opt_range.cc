@@ -1545,7 +1545,13 @@ end:
   head->prepare_for_position();
   head->file= org_file;
   bitmap_copy(&column_bitmap, head->read_set);
-  head->column_bitmaps_set(&column_bitmap, &column_bitmap);
+
+  /*
+    We have prepared a column_bitmap which get_next() will use. To do this we
+    used TABLE::read_set/write_set as playground; restore them to their
+    original value to not pollute other scans.
+  */
+  head->column_bitmaps_set(save_read_set, save_write_set);
 
   DBUG_RETURN(0);
 
@@ -1588,9 +1594,16 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
   while ((quick= quick_it++))
   {
+#ifndef DBUG_OFF
+    const MY_BITMAP * const save_read_set= quick->head->read_set;
+    const MY_BITMAP * const save_write_set= quick->head->write_set;
+#endif
     if (quick->init_ror_merged_scan(FALSE))
       DBUG_RETURN(1);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
+    // Sets are shared by all members of "quick_selects" so must not change
+    DBUG_ASSERT(quick->head->read_set == save_read_set);
+    DBUG_ASSERT(quick->head->write_set == save_write_set);
     /* All merged scans share the same record buffer in intersection. */
     quick->record= head->record[0];
   }
@@ -6287,7 +6300,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
         param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
-              MYSQL_ERROR::WARN_LEVEL_WARN, 
+              Sql_condition::WARN_LEVEL_WARN, 
               ER_WARN_INDEX_NOT_APPLICABLE,
               ER(ER_WARN_INDEX_NOT_APPLICABLE),
               "range",
@@ -6420,7 +6433,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
         param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
-              MYSQL_ERROR::WARN_LEVEL_WARN, 
+              Sql_condition::WARN_LEVEL_WARN, 
               ER_WARN_INDEX_NOT_APPLICABLE,
               ER(ER_WARN_INDEX_NOT_APPLICABLE),
               "range",

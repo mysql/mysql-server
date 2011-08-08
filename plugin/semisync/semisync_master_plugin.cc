@@ -354,6 +354,16 @@ static PSI_cond_info all_semisync_conds[]=
 {
   { &key_ss_cond_COND_binlog_send_, "COND_binlog_send_", 0}
 };
+#endif /* HAVE_PSI_INTERFACE */
+
+PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave=
+{ 0, "Waiting for semi-sync ACK from slave", 0};
+
+#ifdef HAVE_PSI_INTERFACE
+PSI_stage_info *all_semisync_stages[]=
+{
+  & stage_waiting_for_semi_sync_ack_from_slave
+};
 
 static void init_semisync_psi_keys(void)
 {
@@ -365,6 +375,9 @@ static void init_semisync_psi_keys(void)
 
   count= array_elements(all_semisync_conds);
   mysql_cond_register(category, all_semisync_conds, count);
+
+  count= array_elements(all_semisync_stages);
+  mysql_stage_register(category, all_semisync_stages, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

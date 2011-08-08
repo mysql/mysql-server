@@ -25,11 +25,10 @@
 
 #include <opt_trace.h>
 #include <mysys_err.h>                          // for testing of OOM
+#include "mysqld.h"                             // system_charset_info
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>                           // for WEXITSTATUS
 #endif
-
-CHARSET_INFO *system_charset_info= &my_charset_utf8_general_ci;
 
 namespace {
 
@@ -86,6 +85,10 @@ class TraceContentTest : public ::testing::Test
 public:
   Opt_trace_context trace;
 protected:
+  static void SetUpTestCase()
+  {
+    system_charset_info= &my_charset_utf8_general_ci;
+  }
   virtual void SetUp()
   {
     error_handler_hook= my_error_handler;
