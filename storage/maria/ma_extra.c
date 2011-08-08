@@ -319,7 +319,6 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     my_bool do_flush= test(function != HA_EXTRA_PREPARE_FOR_DROP);
     my_bool save_global_changed;
     enum flush_type type;
-    pthread_mutex_lock(&THR_LOCK_maria);
     /*
       This share, to have last_version=0, needs to save all its data/index
       blocks to disk if this is not for a DROP TABLE. Otherwise they would be
@@ -353,12 +352,14 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     type= do_flush ? FLUSH_RELEASE : FLUSH_IGNORE_CHANGED;
     save_global_changed= share->global_changed;
     share->global_changed= 1;                 /* Don't increment open count */
+    pthread_mutex_unlock(&share->intern_lock);
     if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                               type, type))
     {
       error=my_errno;
       share->changed= 1;
     }
+    pthread_mutex_lock(&share->intern_lock);
     share->global_changed= save_global_changed;
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {
@@ -395,10 +396,9 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
         error= my_errno;
       share->bitmap.changed_not_flushed= 0;
     }
-    /* For protection against Checkpoint, we set under intern_lock: */
+    /* last_version must be protected by intern_lock; See collect_tables() */
     share->last_version= 0L;			/* Impossible version */
     pthread_mutex_unlock(&share->intern_lock);
-    pthread_mutex_unlock(&THR_LOCK_maria);
     break;
   }
   case HA_EXTRA_PREPARE_FOR_FORCED_CLOSE:

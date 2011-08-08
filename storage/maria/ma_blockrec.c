@@ -3643,6 +3643,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
       }
     }
   }
+  _ma_bitmap_unlock(share);
   if (share->now_transactional)
   {
     if (_ma_write_clr(info, info->cur_row.orig_undo_lsn,
@@ -3652,7 +3653,6 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
                       &lsn, (void*) 0))
       res= 1;
   }
-  _ma_bitmap_unlock(share);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }

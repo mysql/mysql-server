@@ -922,7 +922,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     {
       /*
         We must have internal_lock before bitmap_lock because we call
-        _ma_flush_tables_files() with internal_lock locked.
+        _ma_flush_table_files() with internal_lock locked.
       */
       pthread_mutex_lock(&share->intern_lock);
       pthread_mutex_lock(&share->bitmap.bitmap_lock);
