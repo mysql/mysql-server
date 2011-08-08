@@ -274,6 +274,8 @@ os_cond_module_init(void)
 #ifdef __WIN__
 	HMODULE		h_dll;
 
+	if (!srv_use_native_conditions)
+		return;
 
 	h_dll = GetModuleHandle("kernel32");
 
