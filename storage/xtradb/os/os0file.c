@@ -53,6 +53,10 @@ Created 10/21/1995 Heikki Tuuri
 # endif /* __WIN__ */
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef _WIN32
+#define IOCP_SHUTDOWN_KEY (ULONG_PTR)-1
+#endif
+
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
 my_umask */
@@ -3235,9 +3239,7 @@ os_aio_array_wake_win_aio_at_shutdown(
 {
 	if(completion_port)
 	{
-		ut_a(CloseHandle(completion_port));
-		completion_port = 0;
-
+		PostQueuedCompletionStatus(completion_port, 0, IOCP_SHUTDOWN_KEY, NULL);
 	}
 }
 #endif
@@ -3836,10 +3838,16 @@ os_aio_windows_handle(
 	BOOL		ret;
 	DWORD		len;
 	BOOL		retry		= FALSE;
-	ULONG_PTR dummy_key;
+	ULONG_PTR key;
 
-	ret = GetQueuedCompletionStatus(completion_port, &len, &dummy_key, 
+	ret = GetQueuedCompletionStatus(completion_port, &len, &key, 
 		(OVERLAPPED **)&slot, INFINITE);
+
+	/* If shutdown key was received, repost the shutdown message and exit */
+	if (ret && (key == IOCP_SHUTDOWN_KEY)) {
+		PostQueuedCompletionStatus(completion_port, 0, key, NULL);
+		os_thread_exit(NULL);
+	}
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
 		os_thread_exit(NULL);
