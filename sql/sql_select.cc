@@ -7189,6 +7189,32 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
   DBUG_RETURN(FALSE);
 }
 
+/* 
+  Check if a set of tables specified by used_tables can be accessed when
+  we're doing scan on join_tab jtab.
+*/
+static bool are_tables_local(JOIN_TAB *jtab, table_map used_tables)
+{
+  if (jtab->bush_root_tab)
+  {
+    /*
+      jtab is inside execution join nest. We may not refer to outside tables,
+      except the const tables.
+    */
+    table_map local_tables= jtab->emb_sj_nest->nested_join->used_tables |
+                            jtab->join->const_table_map;
+    return !test(used_tables & ~local_tables);
+  }
+
+  /* 
+    If we got here then jtab is at top level. 
+     - all other tables at top level are accessible,
+     - tables in join nests are accessible too, because all their columns that 
+       are needed at top level will be unpacked when scanning the
+       materialization table.
+  */
+  return TRUE;
+}
 
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
                                KEYUSE *org_keyuse, table_map used_tables)
@@ -7234,14 +7260,17 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
     {
       if (!(~used_tables & keyuse->used_tables))
       {
-        if ((is_hash_join_key_no(key) && 
-            (keyparts == 0 || keyuse->keypart != (keyuse-1)->keypart)) ||
-            (!is_hash_join_key_no(key) && keyparts == keyuse->keypart &&
-             !(found_part_ref_or_null & keyuse->optimize)))
+        if  (are_tables_local(j, keyuse->val->used_tables()))
         {
-           length+= keyinfo->key_part[keyparts].store_length;
-           keyparts++;
-           found_part_ref_or_null|= keyuse->optimize & ~KEY_OPTIMIZE_EQ;
+          if ((is_hash_join_key_no(key) && 
+              (keyparts == 0 || keyuse->keypart != (keyuse-1)->keypart)) ||
+              (!is_hash_join_key_no(key) && keyparts == keyuse->keypart &&
+               !(found_part_ref_or_null & keyuse->optimize)))
+          {
+             length+= keyinfo->key_part[keyparts].store_length;
+             keyparts++;
+             found_part_ref_or_null|= keyuse->optimize & ~KEY_OPTIMIZE_EQ;
+          }
         }
       }
       keyuse++;
