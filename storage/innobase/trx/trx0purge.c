@@ -263,11 +263,9 @@ trx_purge_add_update_undo_to_history(
 #ifdef HAVE_ATOMIC_BUILTINS
 	os_atomic_increment_ulint(&trx_sys->rseg_history_len, 1);
 #else
-	rw_lock_x_lock(&trx_sys->lock);
-
+	mutex_enter(&trx_sys->mutex);
 	++trx_sys->rseg_history_len;
-
-	rw_lock_x_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	srv_wake_purge_thread_if_not_active();
@@ -371,11 +369,9 @@ trx_purge_free_segment(
 #ifdef HAVE_ATOMIC_BUILTINS
 	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, n_removed_logs);
 #else
-	rw_lock_x_lock(&trx_sys->lock);
-
+	mutex_enter(&trx_sys->mutex);
 	trx_sys->rseg_history_len -= n_removed_logs;
-
-	rw_lock_x_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	do {
@@ -460,11 +456,9 @@ loop:
 		os_atomic_decrement_ulint(
 			&trx_sys->rseg_history_len, n_removed_logs);
 #else
-		rw_lock_x_lock(&trx_sys->lock);
-
+		mutex_enter(&trx_sys->mutex);
 		trx_sys->rseg_history_len -= n_removed_logs;
-
-		rw_lock_x_unlock(&trx_sys->lock);
+		mutex_exit(&trx_sys->mutex);	
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
@@ -593,7 +587,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
-		rw_lock_s_lock(&trx_sys->lock);
+		mutex_enter(&trx_sys->mutex);
 
 		/* Add debug code to track history list corruption reported
 		on the MySQL mailing list on Nov 9, 2004. The fut0lst.c
@@ -615,7 +609,7 @@ trx_purge_rseg_get_next_history_log(
 				(ulong) trx_sys->rseg_history_len);
 		}
 
-		rw_lock_s_unlock(&trx_sys->lock);
+		mutex_exit(&trx_sys->mutex);
 
 		return;
 	}
@@ -1095,7 +1089,7 @@ trx_purge_dml_delay(void)
 	'consistent read view', then the DML statements cannot be delayed.
 	Also, srv_max_purge_lag <= 0 means 'infinity'. Note: we do a dirty
 	read of the trx_sys_t data structure here, without holding
-	trx_sys->read_view_mutex. */
+	trx_sys->mutex. */
 	if (srv_max_purge_lag > 0
 	    && !UT_LIST_GET_LAST(trx_sys->view_list)) {
 		float	ratio = (float) trx_sys->rseg_history_len

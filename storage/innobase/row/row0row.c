@@ -233,10 +233,7 @@ row_build(
 
 	ut_ad(index && rec && heap);
 	ut_ad(dict_index_is_clust(index));
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!mutex_own(&trx_sys->mutex));
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,

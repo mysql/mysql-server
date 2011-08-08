@@ -212,7 +212,6 @@ SET(TESTS
   mdl_mytap
   my_bitmap
   my_regex
-  opt_trace
   sql_list
   sql_plist
   thread_utils
@@ -223,6 +222,7 @@ SET(SERVER_TESTS
   item
   my_decimal
   opt_range
+  opt_trace
 )
 
 FOREACH(test ${TESTS})

@@ -1761,9 +1761,6 @@ set @@join_buffer_size=default;
 --echo # JCL>=5 AND MRR ENABLED"
 --echo
 
-SET @old_optimizer_switch=@@optimizer_switch;
-SET optimizer_switch='mrr=on,mrr_cost_based=off';
-
 CREATE TABLE t1 (  col_int_key int(11) NOT NULL,
    col_varchar_key varchar(1) NOT NULL,    
    KEY col_int_key (col_int_key),
@@ -1795,14 +1792,10 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1,t2;
-SET @@optimizer_switch=@old_optimizer_switch;
 
 --echo
 --echo # BUG#12619510 "JCL: MORE ROWS AND DIFFERENT OUTPUT WITH JCL>=5"
 --echo
-
-SET @old_optimizer_switch=@@optimizer_switch;
-SET optimizer_switch='mrr=on,mrr_cost_based=off';
 
 CREATE TABLE t1 (
 col_int_key int(11) NOT NULL,
@@ -1855,14 +1848,10 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1,t2;
-SET @@optimizer_switch=@old_optimizer_switch;
 
 --echo
 --echo # BUG#12619868 "JCL: MORE ROWS OF OUTPUT WHEN JCL>=5"
 --echo
-
-SET @old_optimizer_switch=@@optimizer_switch;
-SET optimizer_switch='mrr=on,mrr_cost_based=off';
 
 CREATE TABLE t1 (col_varchar_key varchar(1));
 CREATE TABLE t2 (
@@ -1902,15 +1891,11 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1,t2;
-SET @@optimizer_switch=@old_optimizer_switch;
 
 --echo
 --echo # BUG#12722133 - JCL: JOIN QUERY GIVES DIFFERENT RESULTS AT
 --echo # JCL=6 ONLY [NULL VERSUS NULL+#INTS]
 --echo
-
-SET @old_optimizer_switch=@@optimizer_switch;
-SET optimizer_switch='mrr=on,mrr_cost_based=off';
 
 CREATE TABLE t1 (pk INTEGER PRIMARY KEY, k INTEGER, i INTEGER, KEY k(k));
 CREATE TABLE t2 LIKE t1;
@@ -1932,7 +1917,6 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1, t2, t3, t4; 
-SET @@optimizer_switch=@old_optimizer_switch;
 
 --echo
 --echo # BUG#12827509 - BNL/BKA: SELECT LEFT/RIGHT JOIN QUERY GIVES 

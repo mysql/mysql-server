@@ -132,13 +132,7 @@ static const ulint	FILE_FORMAT_NAME_N
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
-/* Key to register the trx_sys->read_view_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	read_view_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
-#ifdef UNIV_PFS_RWLOCK
-/* Key to register the trx_sys->lock with performance schema */
-UNIV_INTERN mysql_pfs_key_t	trx_sys_rw_lock_key;
+UNIV_INTERN mysql_pfs_key_t	trx_sys_mutex_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifndef UNIV_HOTBACKUP
@@ -648,9 +642,7 @@ trx_in_trx_list(
 {
 	const trx_t*	trx;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	ut_ad(trx_assert_started(in_trx));
 
@@ -675,10 +667,7 @@ trx_sys_flush_max_trx_id(void)
 	mtr_t		mtr;
 	trx_sysf_t*	sys_header;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -1034,7 +1023,7 @@ trx_sys_init_at_db_start(void)
 	the debug code (assertions). We are still running in single threaded
 	bootstrap mode. */
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
 		const trx_t*	trx;
@@ -1065,7 +1054,7 @@ trx_sys_init_at_db_start(void)
 			(ullint) trx_sys->max_trx_id);
 	}
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	UT_LIST_INIT(trx_sys->view_list);
 
@@ -1075,8 +1064,7 @@ trx_sys_init_at_db_start(void)
 }
 
 /*****************************************************************//**
-Creates the trx_sys instance and initializes ib_bh, lock and
-read_view_mutex. */
+Creates the trx_sys instance and initializes ib_bh and mutex. */
 UNIV_INTERN
 void
 trx_sys_create(void)
@@ -1086,10 +1074,7 @@ trx_sys_create(void)
 
 	trx_sys = mem_zalloc(sizeof(*trx_sys));
 
-	rw_lock_create(trx_sys_rw_lock_key, &trx_sys->lock, SYNC_TRX_SYS);
-
-	mutex_create(
-		read_view_mutex_key, &trx_sys->read_view_mutex, SYNC_READ_VIEW);
+	mutex_create(trx_sys_mutex_key, &trx_sys->mutex, SYNC_TRX_SYS);
 }
 
 /*****************************************************************//**
@@ -1669,7 +1654,7 @@ trx_sys_close(void)
 	/* Check that all read views are closed except read view owned
 	by a purge. */
 
-	mutex_enter(&trx_sys->read_view_mutex);
+	mutex_enter(&trx_sys->mutex);
 
 	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
 		fprintf(stderr,
@@ -1679,7 +1664,7 @@ trx_sys_close(void)
 			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
 	}
 
-	mutex_exit(&trx_sys->read_view_mutex);
+	mutex_exit(&trx_sys->mutex);
 
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
@@ -1698,7 +1683,7 @@ trx_sys_close(void)
 	mem_free(trx_doublewrite);
 	trx_doublewrite = NULL;
 
-	rw_lock_x_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	/* Only prepared transactions may be left in the system. Free them. */
 	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == trx_sys->n_prepared_trx);
@@ -1706,8 +1691,6 @@ trx_sys_close(void)
 	while ((trx = UT_LIST_GET_FIRST(trx_sys->trx_list)) != NULL) {
 		trx_free_prepared(trx);
 	}
-
-	mutex_free(&trx_sys->read_view_mutex);
 
 	/* There can't be any active transactions. */
 	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
@@ -1738,9 +1721,9 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 
-	rw_lock_x_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
-	rw_lock_free(&trx_sys->lock);
+	mutex_free(&trx_sys->mutex);
 
 	mem_free(trx_sys);
 
@@ -1757,14 +1740,14 @@ trx_sys_any_active_transactions(void)
 {
 	ulint	total_trx = 0;
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	total_trx = UT_LIST_GET_LEN(trx_sys->trx_list)
 		+ trx_sys->n_mysql_trx;
 	ut_a(total_trx >= trx_sys->n_prepared_trx);
 	total_trx -= trx_sys->n_prepared_trx;
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	return(total_trx);
 }
@@ -1780,10 +1763,7 @@ trx_sys_validate_trx_list(void)
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_EX)
-	      || rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
