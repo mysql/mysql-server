@@ -1,9 +1,15 @@
+2011-08-08	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#12770537 I_S.TABLES.DATA_LENGTH DOES NOT SHOW ON-DISK SIZE
+	FOR COMPRESSED INNODB
+
 2011-07-19	The InnoDB Team
 
 	* buf/buf0buf.c, buf/buf0rea.c, handler/ha_innodb.cc,
 	include/buf0buf.h, include/buf0buf.ic, include/srv0srv.h,
 	srv/srv0srv.c:
-	Fix bug#Bug 12356373 by reintroducing random readahead
+	Fix Bug#12356373 by reintroducing random readahead
 
 2011-06-30	The InnoDB Team
 
