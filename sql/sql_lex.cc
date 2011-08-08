@@ -908,11 +908,17 @@ int MYSQLlex(void *arg, void *yythd)
     Passing token to PS function to calculate statement digest
     for this statement.
   */
-  if( PSI_server != NULL && token != END_OF_INPUT && token != 0)
+  if(token != END_OF_INPUT && token != 0)
   {
-    uint yylen;
+    uint yylen=0,yylen_temp=0;
     char yychar[TOCK_NAME_LENGTH]={'\0'};
-    yylen = lip->yyLength() + 1;
+    /* 
+      get the length of processed token and make sure it doesn't exceed
+      TOCK_NAME_LENGTH. If it does, truncate it to TOCK_NAME_LENGTH.
+    */
+    yylen_temp = lip->yyLength_PS();
+    yylen = yylen_temp < TOCK_NAME_LENGTH ? yylen_temp : TOCK_NAME_LENGTH-1;
+
     strncpy(yychar, lip->get_cpp_tok_start(), yylen);
     PSI_server->digest_add_token(lip->m_digest_psi,token,yychar,yylen);
   }
