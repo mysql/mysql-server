@@ -220,7 +220,9 @@ function build() {
 
     # cilk tests
     if [ 0 = 1 ] ; then 
-    runcmd 0 $productbuilddir/newbrt/tests make cilkscreen_brtloader DEBUG=1 BRTLOADER=cilk -s SUMMARIZE=1 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir make clean >>$tracefile 2>&1
+    runcmd 0 $productbuilddir make release CC=icc DEBUG=1 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/newbrt/tests make cilkscreen_brtloader -k -s SUMMARIZE=1 CC=icc DEBUG=1 >>$tracefile 2>&1
     fi
 
     # cxx
