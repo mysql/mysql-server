@@ -382,9 +382,14 @@ if(`SELECT COUNT(*) FROM mysqltest.socket_summary_by_instance_detail
    --echo #    $my_rules
    --echo #
    eval
-   SELECT *
-   FROM mysqltest.socket_summary_by_instance_detail
-   ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
+   SELECT EVENT_NAME, lpad(OBJECT_INSTANCE_BEGIN,20,' ') as OBJECT_INSTANCE,
+   lpad(COUNT_READ,7, ' ')  as CREAD,  lpad(SUM_TIMER_READ,12,' ')  as TREAD, lpad(SUM_NUMBER_OF_BYTES_READ,7,' ')  as BREAD,
+   lpad(COUNT_WRITE,7, ' ') as CWRITE, lpad(SUM_TIMER_WRITE,12,' ') as TWRITE,lpad(SUM_NUMBER_OF_BYTES_WRITE,7,' ') as BWRITE,
+   lpad(COUNT_MISC,7,' ')   as CMISC,  lpad(SUM_TIMER_MISC,13,' ')  as TMISC,
+   rpad(statement,50,' ') as STATEMENT, lpad(run, 5, ' ') as RUN
+   FROM mysqltest.socket_summary_by_instance_detail order by EVENT_NAME, OBJECT_INSTANCE_BEGIN;
+
+
 }
 --echo # 4.2 Results must be stable
 --echo #     Everything except "client_connection" for default connection
@@ -452,20 +457,21 @@ if(`SELECT COUNT(statement) $part`)
    ORDER BY EVENT_NAME, statement, run;
 
    --echo CWP Debug 1 - Dump mysqltest.socket_summary_by_instance_detail
-   SELECT EVENT_NAME, lpad(OBJECT_INSTANCE_BEGIN,20,' ') as OBJECT_INSTANCE, lpad(COUNT_READ,5,' ') as CREAD, lpad(sum_timer_read,12,' ') as TREAD,
-   lpad(sum_number_of_bytes_read, 7,' ') as BREAD, lpad(count_write,7,' ') as CWRITE, lpad(sum_timer_write,12,' ') as TWRITE,
-   lpad(sum_number_of_bytes_write,7,' ') as BWRITE, lpad(count_misc,7,' ') as CMISC, lpad(sum_timer_misc,13,' ') as TMISC,
+   SELECT EVENT_NAME, lpad(OBJECT_INSTANCE_BEGIN,20,' ') as OBJECT_INSTANCE,
+   lpad(COUNT_READ,7, ' ')  as CREAD,  lpad(SUM_TIMER_READ,12,' ')  as TREAD, lpad(SUM_NUMBER_OF_BYTES_READ,7,' ')  as BREAD,
+   lpad(COUNT_WRITE,7, ' ') as CWRITE, lpad(SUM_TIMER_WRITE,12,' ') as TWRITE,lpad(SUM_NUMBER_OF_BYTES_WRITE,7,' ') as BWRITE,
+   lpad(COUNT_MISC,7,' ')   as CMISC,  lpad(SUM_TIMER_MISC,13,' ')  as TMISC,
    rpad(statement,50,' ') as STATEMENT, lpad(run, 5, ' ') as RUN
    FROM mysqltest.socket_summary_by_instance_detail order by EVENT_NAME, statement, run;
 
    --echo CWP Debug 2 - Std dev and coefficient of variation for mysqltest.socket_summary_by_instance_detail
-   select rpad(event_name,39,' ') as EVENT_NAME1, rpad(statement,49,' ') as STATEMENT1,
-   lpad(count(count_read), 5,' ') as COUNT_READ,
-   lpad(std(count_read)/avg(count_read),10,' ') as CV_COUNT_READ,
-   lpad(std(sum_number_of_bytes_read)/avg(sum_number_of_bytes_read),10,' ') as CV_BYTES_READ,
-   lpad(std(count_write)/avg(count_write),10,' ') as CV_COUNT_WRITE,
-   lpad(std(sum_number_of_bytes_write)/avg(sum_number_of_bytes_write),10,' ') as CV_BYTES_WRITE,
-   lpad(std(count_misc)/avg(count_misc),10,' ') as CV_COUNT_MISC
+   select rpad(EVENT_NAME,39,' ') as EVENT_NAME1, rpad(statement,49,' ') as STATEMENT1,
+   lpad(count(COUNT_READ),5,' ') as COUNT_READ,
+   lpad(std(COUNT_READ)/avg(COUNT_READ),10,' ') as CV_COUNT_READ,
+   lpad(std(SUM_NUMBER_OF_BYTES_READ)/avg(SUM_NUMBER_OF_BYTES_READ),10,' ') as CV_BYTES_READ,
+   lpad(std(COUNT_WRITE)/avg(COUNT_WRITE),10,' ') as CV_COUNT_WRITE,
+   lpad(std(SUM_NUMBER_OF_BYTES_WRITE)/avg(SUM_NUMBER_OF_BYTES_WRITE),10,' ') as CV_BYTES_WRITE,
+   lpad(std(COUNT_MISC)/avg(COUNT_MISC),10,' ') as CV_COUNT_MISC
    from mysqltest.socket_summary_by_instance_detail
    WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
    group by EVENT_NAME1, STATEMENT1;
