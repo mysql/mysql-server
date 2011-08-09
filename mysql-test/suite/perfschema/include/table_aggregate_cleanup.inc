@@ -30,7 +30,8 @@ drop user user3@localhost;
 drop user user4@localhost;
 flush privileges;
 
-drop prepare dump_thread;
+drop procedure dump_thread;
+drop procedure dump_one_thread;
 drop prepare dump_global;
 drop prepare dump_history;
 drop prepare dump_index_io;

@@ -177,6 +177,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
   THD::killed_state killed_status= THD::NOT_KILLED;
+  bool is_concurrent;
 #endif
   char *db = table_list->db;			// This is never null
   /*
@@ -187,7 +188,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
   bool transactional_table;
-  bool is_concurrent;
   DBUG_ENTER("mysql_load");
 
   /*
@@ -214,7 +214,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       !field_term->is_ascii() ||
       !ex->line_term->is_ascii() || !ex->line_start->is_ascii())
   {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
                  ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   } 
@@ -256,7 +256,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   table= table_list->table;
   transactional_table= table->file->has_transactions();
+#ifndef EMBEDDED_LIBRARY
   is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
+#endif
 
   if (!fields_vars.elements)
   {
@@ -594,7 +596,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   sprintf(name, ER(ER_LOAD_INFO), (ulong) info.records, (ulong) info.deleted,
 	  (ulong) (info.records - info.copied),
-          (ulong) thd->get_stmt_wi()->statement_warn_count());
+          (ulong) thd->get_stmt_da()->current_statement_warn_count());
 
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
@@ -834,10 +836,10 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       if (pos == read_info.row_end)
       {
         thd->cuted_fields++;			/* Not enough fields */
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_WARN_TOO_FEW_RECORDS,
                             ER(ER_WARN_TOO_FEW_RECORDS),
-                            thd->get_stmt_wi()->current_row_for_warning());
+                            thd->get_stmt_da()->current_row_for_warning());
         if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
             ((Field_timestamp*) field)->set_time();
       }
@@ -858,10 +860,10 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (pos != read_info.row_end)
     {
       thd->cuted_fields++;			/* To long row */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER(ER_WARN_TOO_MANY_RECORDS),
-                          thd->get_stmt_wi()->current_row_for_warning());
+                          thd->get_stmt_da()->current_row_for_warning());
     }
 
     if (thd->killed ||
@@ -894,12 +896,12 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (read_info.line_cuted)
     {
       thd->cuted_fields++;			/* To long row */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER(ER_WARN_TOO_MANY_RECORDS),
-                          thd->get_stmt_wi()->current_row_for_warning());
+                          thd->get_stmt_da()->current_row_for_warning());
     }
-    thd->get_stmt_wi()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_warning();
 continue_loop:;
   }
   DBUG_RETURN(test(read_info.error));
@@ -963,7 +965,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           if (field->reset())
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0), field->field_name,
-                     thd->get_stmt_wi()->current_row_for_warning());
+                     thd->get_stmt_da()->current_row_for_warning());
             DBUG_RETURN(1);
           }
           field->set_null();
@@ -972,7 +974,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             if (field->type() == MYSQL_TYPE_TIMESTAMP)
               ((Field_timestamp*) field)->set_time();
             else if (field != table->next_number_field)
-              field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+              field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
           }
 	}
@@ -1035,7 +1037,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           if (field->reset())
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0),field->field_name,
-                     thd->get_stmt_wi()->current_row_for_warning());
+                     thd->get_stmt_da()->current_row_for_warning());
             DBUG_RETURN(1);
           }
           if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
@@ -1047,10 +1049,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             in the end ?)
           */
           thd->cuted_fields++;
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER(ER_WARN_TOO_FEW_RECORDS),
-                              thd->get_stmt_wi()->current_row_for_warning());
+                              thd->get_stmt_da()->current_row_for_warning());
         }
         else if (item->type() == Item::STRING_ITEM)
         {
@@ -1094,13 +1096,13 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (read_info.line_cuted)
     {
       thd->cuted_fields++;			/* To long row */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WARN_TOO_MANY_RECORDS, ER(ER_WARN_TOO_MANY_RECORDS),
-                          thd->get_stmt_wi()->current_row_for_warning());
+                          thd->get_stmt_da()->current_row_for_warning());
       if (thd->killed)
         DBUG_RETURN(1);
     }
-    thd->get_stmt_wi()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_warning();
 continue_loop:;
   }
   DBUG_RETURN(test(read_info.error));
@@ -1120,12 +1122,9 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   List_iterator_fast<Item> it(fields_vars);
   Item *item;
   TABLE *table= table_list->table;
-  bool no_trans_update_stmt;
   const CHARSET_INFO *cs= read_info.read_charset;
   DBUG_ENTER("read_xml_field");
-  
-  no_trans_update_stmt= !table->file->has_transactions();
-  
+
   for ( ; ; it.rewind())
   {
     if (thd->killed)
@@ -1181,7 +1180,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             if (field->type() == FIELD_TYPE_TIMESTAMP)
               ((Field_timestamp *) field)->set_time();
             else if (field != table->next_number_field)
-              field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+              field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
           }
         }
@@ -1231,10 +1230,10 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             in the end ?)
           */
           thd->cuted_fields++;
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER(ER_WARN_TOO_FEW_RECORDS),
-                              thd->get_stmt_wi()->current_row_for_warning());
+                              thd->get_stmt_da()->current_row_for_warning());
         }
         else
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
@@ -1264,7 +1263,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       We don't need to reset auto-increment field since we are restoring
       its default value at the beginning of each loop iteration.
     */
-    thd->get_stmt_wi()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_warning();
     continue_loop:;
   }
   DBUG_RETURN(test(read_info.error) || thd->is_error());

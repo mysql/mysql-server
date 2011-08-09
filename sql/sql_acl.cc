@@ -1886,7 +1886,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       my_strcasecmp(system_charset_info, acl_user->plugin.str,
                     old_password_plugin_name.str))
   {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                  ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
   }
   /* update loaded acl entry: */
@@ -6965,9 +6965,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
 
   bool has_errors() { return is_grave; }
 
@@ -6980,18 +6980,18 @@ Silence_routine_definer_errors::handle_condition(
   THD *thd,
   uint sql_errno,
   const char*,
-  MYSQL_ERROR::enum_warning_level level,
+  Sql_condition::enum_warning_level level,
   const char* msg,
-  MYSQL_ERROR ** cond_hdl)
+  Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
-  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+  if (level == Sql_condition::WARN_LEVEL_ERROR)
   {
     switch (sql_errno)
     {
       case ER_NONEXISTING_PROC_GRANT:
         /* Convert the error into a warning. */
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      sql_errno, msg);
         return TRUE;
       default:
@@ -7169,7 +7169,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
       }
       else
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_PASSWD_LENGTH,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_PASSWD_LENGTH,
                             ER(ER_PASSWD_LENGTH), SCRAMBLED_PASSWORD_CHAR_LENGTH);
         return TRUE;
       }

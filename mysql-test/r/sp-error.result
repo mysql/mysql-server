@@ -1338,8 +1338,6 @@ set @in_func := 0;
 select func_20713_a();
 func_20713_a()
 NULL
-Warnings:
-Error	1146	Table 'test.bogus_table_20713' doesn't exist
 select @in_func;
 @in_func
 2
@@ -1347,8 +1345,6 @@ set @in_func := 0;
 select func_20713_b();
 func_20713_b()
 NULL
-Warnings:
-Error	1146	Table 'test.bogus_table_20713' doesn't exist
 select @in_func;
 @in_func
 2
@@ -1764,77 +1760,103 @@ DROP PROCEDURE p2;
 
 # - Case 2
 
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT);
 CREATE PROCEDURE p1()
 BEGIN
 DECLARE c INT DEFAULT 0;
-DECLARE CONTINUE HANDLER FOR SQLWARNING SET c = c + 1;
-CALL p2();
-CALL p3();
-CALL p4();
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+SET c = c + 1;
+SELECT 'Warning caught!' AS Msg;
+END;
+CALL p2(); # 1 warning
+CALL p3(); # 1 warning
+CALL p4(); # No warnings
+CALL p5(); # 1 warning
 SELECT c;
 SELECT @@warning_count;
 SHOW WARNINGS;
 END|
 CREATE PROCEDURE p2()
 BEGIN
-SELECT CAST('10 ' as unsigned integer);
+SELECT CAST('2 ' as unsigned integer);
 END|
 CREATE PROCEDURE p3()
 BEGIN
-SELECT CAST('10 ' as unsigned integer);
-SELECT 1;
+SELECT CAST('3 ' as unsigned integer);
+SELECT 1; # does not clear the warning
 END|
 CREATE PROCEDURE p4()
 BEGIN
-SELECT CAST('10 ' as unsigned integer);
-CALL p2();
+SELECT CAST('4 ' as unsigned integer);
+INSERT INTO t1 VALUES(1); # Clears the warning
 END|
 CREATE PROCEDURE p5()
 BEGIN
-SELECT CAST('10 ' as unsigned integer);
+SELECT CAST('5 ' as unsigned integer);
+CALL p2();
+END|
+CREATE PROCEDURE p6()
+BEGIN
+SELECT CAST('6 ' as unsigned integer);
 SHOW WARNINGS;
 END|
-CREATE PROCEDURE P6()
+CREATE PROCEDURE p7()
 BEGIN
 DECLARE c INT DEFAULT 0;
-DECLARE CONTINUE HANDLER FOR SQLWARNING SET c = c + 1;
-CALL p5();
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+SET c = c + 1;
+SELECT 'Warning caught!' AS Msg;
+END;
+CALL p6();
 SELECT c;
 END|
+
 CALL p1();
-CAST('10 ' as unsigned integer)
-10
-CAST('10 ' as unsigned integer)
-10
+CAST('2 ' as unsigned integer)
+2
+Msg
+Warning caught!
+CAST('3 ' as unsigned integer)
+3
 1
 1
-CAST('10 ' as unsigned integer)
-10
-CAST('10 ' as unsigned integer)
-10
+Msg
+Warning caught!
+CAST('4 ' as unsigned integer)
+4
+CAST('5 ' as unsigned integer)
+5
+CAST('2 ' as unsigned integer)
+2
+Msg
+Warning caught!
 c
 3
 @@warning_count
-1
+0
 Level	Code	Message
-Warning	1292	Truncated incorrect INTEGER value: '10 '
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '10 '
-CALL p6();
-CAST('10 ' as unsigned integer)
-10
+
+CALL p7();
+CAST('6 ' as unsigned integer)
+6
 Level	Code	Message
-Warning	1292	Truncated incorrect INTEGER value: '10 '
+Warning	1292	Truncated incorrect INTEGER value: '6 '
+Msg
+Warning caught!
 c
 1
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '10 '
+
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;
 DROP PROCEDURE p4;
 DROP PROCEDURE p5;
 DROP PROCEDURE p6;
+DROP PROCEDURE p7;
+DROP TABLE t1;
 
 # - Case 3: check that "Exception trumps No Data".
 
@@ -1881,7 +1903,6 @@ exception
 exception
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '10 '
-Error	1048	Column 'b' cannot be null
 DROP TABLE t1;
 DROP PROCEDURE p1;
 #
@@ -1925,11 +1946,8 @@ CALL p1();
 NULL
 warning caught (expected)
 warning caught (expected)
-Warnings:
-Warning	1365	Division by 0
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1365	Division by 0
 CALL p2();
 5 / 0
 NULL

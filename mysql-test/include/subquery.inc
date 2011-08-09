@@ -4034,6 +4034,30 @@ SET SESSION sql_mode=@old_sql_mode;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
+--echo #
+
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2(a1 int);
+INSERT INTO t2 VALUES (3);
+
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+
+## All these are subject to the transformation
+## '1 < some (...)' => '1 < max(...)'
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2 FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2.0 FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 'a' FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
+
+SET SESSION sql_mode=@old_sql_mode;
+
+DROP TABLE t1, t2;
+
 --echo End of 5.0 tests.
 
 #

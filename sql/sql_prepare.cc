@@ -114,6 +114,7 @@ When one supplies long data for a placeholder:
 #include <mysql_com.h>
 #endif
 #include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
+#include "opt_trace.h"                          // Opt_trace_object
 
 /**
   A result class used to send cursor rows using the binary protocol.
@@ -340,7 +341,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
   buff[9]= 0;                                   // Guard against a 4.1 client
-  tmp= min(stmt->thd->get_stmt_wi()->statement_warn_count(), 65535);
+  tmp= min(stmt->thd->get_stmt_da()->current_statement_warn_count(), 65535);
   int2store(buff+10, tmp);
 
   /*
@@ -1471,7 +1472,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
-  thd->used_tables= 0;                        // Updated by setup_fields
+  thd->lex->used_tables= 0;                        // Updated by setup_fields
   thd->thd_marker.emb_on_expr_nest= 0;
 
   /*
@@ -1645,7 +1646,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   if (specific_prepare && (*specific_prepare)(thd))
     DBUG_RETURN(TRUE);
 
-  thd->used_tables= 0;                        // Updated by setup_fields
+  thd->lex->used_tables= 0;                        // Updated by setup_fields
 
   /* Calls JOIN::prepare */
   DBUG_RETURN(lex->unit.prepare(thd, 0, setup_tables_done_option));
@@ -1960,7 +1961,18 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 
   /* Reset warning count for each query that uses tables */
   if (tables)
-    thd->get_stmt_wi()->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
+
+  /*
+    For the optimizer trace, this is the symmetric, for statement preparation,
+    of what is done at statement execution (in mysql_execute_command()).
+  */
+  Opt_trace_start ots(thd, tables, sql_command, &lex->var_list,
+                      thd->query(), thd->query_length(), NULL,
+                      thd->variables.character_set_client);
+
+  Opt_trace_object trace_command(&thd->opt_trace);
+  Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
 
   if (sql_command_flags[sql_command] & CF_HA_CLOSE)
     mysql_ha_rm_tables(thd, tables);
@@ -2953,8 +2965,7 @@ Reprepare_observer::report_error(THD *thd)
     that this thread execution stops and returns to the caller,
     backtracking all the way to Prepared_statement::execute_loop().
   */
-  thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE,
-                                       ER(ER_NEED_REPREPARE), "HY000");
+  thd->get_stmt_da()->set_error_status(ER_NEED_REPREPARE);
   m_invalidated= TRUE;
 
   return TRUE;
@@ -3564,7 +3575,7 @@ Prepared_statement::reprepare()
       Sic: we can't simply silence warnings during reprepare, because if
       it's failed, we need to return all the warnings to the user.
     */
-    thd->get_stmt_wi()->clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->clear_warning_info(thd->query_id);
   }
   return error;
 }
@@ -3952,7 +3963,7 @@ Ed_connection::free_old_result()
   }
   m_current_rset= m_rsets;
   m_diagnostics_area.reset_diagnostics_area();
-  m_diagnostics_area.get_warning_info()->clear_warning_info(m_thd->query_id);
+  m_diagnostics_area.clear_warning_info(m_thd->query_id);
 }
 
 

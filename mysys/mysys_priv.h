@@ -54,6 +54,8 @@ extern PSI_thread_key key_thread_alarm;
 
 #endif /* HAVE_PSI_INTERFACE */
 
+extern PSI_stage_info stage_waiting_for_table_level_lock;
+
 extern mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open, THR_LOCK_keycache;
 extern mysql_mutex_t THR_LOCK_lock, THR_LOCK_net;
 extern mysql_mutex_t THR_LOCK_charset;

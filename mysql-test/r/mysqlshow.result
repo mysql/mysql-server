@@ -90,6 +90,7 @@ Database: information_schema
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | KEY_COLUMN_USAGE                      |
+| OPTIMIZER_TRACE                       |
 | PARAMETERS                            |
 | PARTITIONS                            |
 | PLUGINS                               |
@@ -143,6 +144,7 @@ Database: INFORMATION_SCHEMA
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | KEY_COLUMN_USAGE                      |
+| OPTIMIZER_TRACE                       |
 | PARAMETERS                            |
 | PARTITIONS                            |
 | PLUGINS                               |

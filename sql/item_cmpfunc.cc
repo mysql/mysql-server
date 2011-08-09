@@ -690,7 +690,7 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   }
 
   if (error > 0)
-    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                                  str->ptr(), str->length(),
                                  warn_type, warn_name);
 
@@ -2720,37 +2720,43 @@ Item_func_if::fix_fields(THD *thd, Item **ref)
 }
 
 
+void Item_func_if::cache_type_info(Item *source)
+{
+  collation.set(source->collation);
+  cached_field_type=  source->field_type();
+  cached_result_type= source->result_type();
+  decimals=           source->decimals;
+  max_length=         source->max_length;
+  maybe_null=         source->maybe_null;
+  unsigned_flag=      source->unsigned_flag;
+}
+
+
 void
 Item_func_if::fix_length_and_dec()
 {
-  maybe_null=args[1]->maybe_null || args[2]->maybe_null;
-  decimals= max(args[1]->decimals, args[2]->decimals);
-  unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
-
-  enum Item_result arg1_type=args[1]->result_type();
-  enum Item_result arg2_type=args[2]->result_type();
-  bool null1=args[1]->const_item() && args[1]->null_value;
-  bool null2=args[2]->const_item() && args[2]->null_value;
-
-  if (null1 && args[2]->type() != NULL_ITEM)
+  // Let IF(cond, expr, NULL) and IF(cond, NULL, expr) inherit type from expr.
+  if (args[1]->type() == NULL_ITEM)
   {
-    cached_result_type= arg2_type;
-    collation.set(args[2]->collation);
-    cached_field_type= args[2]->field_type();
-    max_length= args[2]->max_length;
+    cache_type_info(args[2]);
+    maybe_null= true;
+    // If both arguments are NULL, make resulting type BINARY(0).
+    if (args[2]->type() == NULL_ITEM)
+      cached_field_type= MYSQL_TYPE_STRING;
     return;
   }
-
-  if (null2 && args[1]->type() != NULL_ITEM)
+  if (args[2]->type() == NULL_ITEM)
   {
-    cached_result_type= arg1_type;
-    collation.set(args[1]->collation);
-    cached_field_type= args[1]->field_type();
-    max_length= args[1]->max_length;
+    cache_type_info(args[1]);
+    maybe_null= true;
     return;
   }
 
   agg_result_type(&cached_result_type, args + 1, 2);
+  maybe_null= args[1]->maybe_null || args[2]->maybe_null;
+  decimals= max(args[1]->decimals, args[2]->decimals);
+  unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
+
   if (cached_result_type == STRING_RESULT)
   {
     if (agg_arg_charsets_for_string_result(collation, args + 1, 2))
@@ -4888,21 +4894,20 @@ longlong Item_func_like::val_int()
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
-  if (args[1]->const_item())
-  {
-    String* res2= args[1]->val_str((String *)&cmp.value2);
-    const char *ptr2;
+  if (!args[1]->const_item())
+    return OPTIMIZE_NONE;
 
-    if (!res2 || !(ptr2= res2->ptr()))
-      return OPTIMIZE_NONE;
+  String* res2= args[1]->val_str((String *)&cmp.value2);
+  if (!res2)
+    return OPTIMIZE_NONE;
 
-    if (*ptr2 != wild_many)
-    {
-      if (args[0]->result_type() != STRING_RESULT || *ptr2 != wild_one)
-	return OPTIMIZE_OP;
-    }
-  }
-  return OPTIMIZE_NONE;
+  if (!res2->length()) // Can optimize empty wildcard: column LIKE ''
+    return OPTIMIZE_OP;
+
+  DBUG_ASSERT(res2->ptr());
+  char first= res2->ptr()[0];
+  return (first == wild_many || first == wild_one) ?
+    OPTIMIZE_NONE : OPTIMIZE_OP;
 }
 
 
@@ -5953,6 +5958,49 @@ void Item_equal::print(String *str, enum_query_type query_type)
     item->print(str, query_type);
   }
   str->append(')');
+}
+
+
+void Item_func_trig_cond::print(String *str, enum_query_type query_type)
+{
+  /*
+    Print:
+    trigcond_if(<property><(optional list of source tables)>, condition, TRUE)
+    which means: if a certain property (<property>) is true, then return
+    the value of <condition>, else return TRUE. If source tables are
+    present, they are the owner of the property.
+  */
+  str->append(func_name());
+  str->append("_if(");
+  switch(trig_type)
+  {
+  case IS_NOT_NULL_COMPL:
+    str->append("is_not_null_compl");
+    break;
+  case FOUND_MATCH:
+    str->append("found_match");
+    break;
+  case OUTER_FIELD_IS_NOT_NULL:
+    str->append("outer_field_is_not_null");
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+  if (trig_tab != NULL)
+  {
+    str->append("(");
+    str->append(trig_tab->table->alias);
+    if (trig_tab->last_inner != trig_tab)
+    {
+      /* case of t1 LEFT JOIN (t2,t3,...): print range of inner tables */
+      str->append("..");
+      str->append(trig_tab->last_inner->table->alias);
+    }
+    str->append(")");
+  }
+  str->append(", ");
+  args[0]->print(str, query_type);
+  str->append(", true)");
 }
 
 

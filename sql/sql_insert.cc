@@ -77,6 +77,7 @@
 #include "transaction.h"
 #include "sql_audit.h"
 #include "debug_sync.h"
+#include "opt_explain.h"
 
 #ifndef EMBEDDED_LIBRARY
 static bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
@@ -455,11 +456,12 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
         the statement indirectly via a stored function or trigger:
         if it is used, that will lead to a deadlock between the
         client connection and the delayed thread.
+      - we're running the EXPLAIN INSERT command
     */
     if (specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE) ||
         thd->variables.max_insert_delayed_threads == 0 ||
         thd->locked_tables_mode > LTM_LOCK_TABLES ||
-        thd->lex->uses_stored_routines())
+        thd->lex->uses_stored_routines() || thd->lex->describe)
     {
       *lock_type= TL_WRITE;
       return;
@@ -500,6 +502,7 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
         thread may be old and use the before-the-change value.
       */
       *lock_type= TL_WRITE;
+      return;
     }
   }
 }
@@ -659,6 +662,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 		  bool ignore)
 {
   int error, res;
+  bool err= true;
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   bool was_insert_delayed= (table_list->lock_type ==  TL_WRITE_DELAYED);
@@ -719,7 +723,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   lock_type= table_list->lock_type;
 
   THD_STAGE_INFO(thd, stage_init);
-  thd->used_tables=0;
+  thd->lex->used_tables=0;
   values= its++;
   value_count= values->elements;
 
@@ -731,7 +735,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                            !ignore && (thd->variables.sql_mode &
                                        (MODE_STRICT_TRANS_TABLES |
                                         MODE_STRICT_ALL_TABLES))))
-    goto abort;
+    goto exit_without_my_ok;
 
   /* mysql_prepare_insert set table_list->table if it was not set */
   table= table_list->table;
@@ -762,15 +766,26 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (values->elements != value_count)
     {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
-      goto abort;
+      goto exit_without_my_ok;
     }
     if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_READ, 0, 0))
-      goto abort;
+      goto exit_without_my_ok;
   }
   its.rewind ();
  
   /* Restore the current context. */
   ctx_state.restore_state(context, table_list);
+
+  if (thd->lex->describe)
+  {
+    /*
+      Send "No tables used" and stop execution here since
+      there is no SELECT to explain.
+    */
+
+    err= explain_no_table(thd, "No tables used");
+    goto exit_without_my_ok;
+  }
 
   /*
     Fill in the given fields and dump it to the table file
@@ -799,7 +814,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       (info.handle_duplicates == DUP_UPDATE) &&
       (table->next_number_field != NULL) &&
       rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
-    goto abort;
+    goto exit_without_my_ok;
 #endif
 
   error=0;
@@ -874,7 +889,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     else
     {
-      if (thd->used_tables)			// Column used in values()
+      if (thd->lex->used_tables)		      // Column used in values()
 	restore_record(table,s->default_values);	// Get empty record
       else
       {
@@ -933,7 +948,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       error=write_record(thd, table ,&info);
     if (error)
       break;
-    thd->get_stmt_wi()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_warning();
   }
 
   free_underlaid_joins(thd, &thd->lex->select_lex);
@@ -1070,7 +1085,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
   if (error)
-    goto abort;
+    goto exit_without_my_ok;
   if (values_list.elements == 1 && (!(thd->variables.option_bits & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
   {
@@ -1088,17 +1103,17 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (lock_type == TL_WRITE_DELAYED) ? (ulong) 0 :
 	      (ulong) (info.records - info.copied),
-              (ulong) thd->get_stmt_wi()->statement_warn_count());
+              (ulong) thd->get_stmt_da()->current_statement_warn_count());
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (ulong) (info.deleted + updated),
-              (ulong) thd->get_stmt_wi()->statement_warn_count());
+              (ulong) thd->get_stmt_da()->current_statement_warn_count());
     ::my_ok(thd, info.copied + info.deleted + updated, id, buff);
   }
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
 
-abort:
+exit_without_my_ok:
 #ifndef EMBEDDED_LIBRARY
   if (lock_type == TL_WRITE_DELAYED)
     end_delayed_insert(thd);
@@ -1108,7 +1123,7 @@ abort:
   if (!joins_freed)
     free_underlaid_joins(thd, &thd->lex->select_lex);
   thd->abort_on_warning= 0;
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(err);
 }
 
 
@@ -1613,9 +1628,6 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           goto before_trg_err;
 
         table->file->restore_auto_increment(prev_insert_id);
-        if (table->next_number_field)
-          table->file->adjust_next_insert_id_after_explicit_value(
-            table->next_number_field->val_int());
         info->touched++;
         if (!records_are_comparable(table) || compare_records(table))
         {
@@ -1652,8 +1664,6 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if (table->next_number_field)
           table->file->adjust_next_insert_id_after_explicit_value(
             table->next_number_field->val_int());
-        info->touched++;
-
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
@@ -1798,7 +1808,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       }
       if (view)
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,
                             ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
                             table_list->view_db.str,
@@ -1806,7 +1816,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       }
       else
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_NO_DEFAULT_FOR_FIELD,
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             (*field)->field_name);
@@ -2634,8 +2644,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   if (my_thread_init())
   {
     /* Can't use my_error since store_globals has not yet been called */
-    thd->get_stmt_da()->set_error_status(thd, ER_OUT_OF_RESOURCES,
-                                         ER(ER_OUT_OF_RESOURCES), NULL);
+    thd->get_stmt_da()->set_error_status(ER_OUT_OF_RESOURCES);
     di->handler_thread_initialized= TRUE;
   }
   else
@@ -2645,8 +2654,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
     if (init_thr_lock() || thd->store_globals())
     {
       /* Can't use my_error since store_globals has perhaps failed */
-      thd->get_stmt_da()->set_error_status(thd, ER_OUT_OF_RESOURCES,
-                                           ER(ER_OUT_OF_RESOURCES), NULL);
+      thd->get_stmt_da()->set_error_status(ER_OUT_OF_RESOURCES);
       di->handler_thread_initialized= TRUE;
       thd->fatal_error();
       goto err;
@@ -3330,7 +3338,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
   else if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-           thd->locked_tables_mode <= LTM_LOCK_TABLES)
+           thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+           !thd->lex->describe)
   {
     /*
       We must not yet prepare the result table if it is the same as one of the 
@@ -3396,7 +3405,8 @@ int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
   if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
-      thd->locked_tables_mode <= LTM_LOCK_TABLES)
+      thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+      !thd->lex->describe)
     table->file->ha_start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
 }
@@ -3577,11 +3587,11 @@ bool select_insert::send_eof()
   if (info.ignore)
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.records - info.copied),
-            (ulong) thd->get_stmt_wi()->statement_warn_count());
+            (ulong) thd->get_stmt_da()->current_statement_warn_count());
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.deleted+info.updated),
-            (ulong) thd->get_stmt_wi()->statement_warn_count());
+            (ulong) thd->get_stmt_da()->current_statement_warn_count());
   row_count= info.copied + info.deleted +
              ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
               info.touched : info.updated);

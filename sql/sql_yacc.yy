@@ -464,7 +464,7 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
 */
 
 static bool
-set_local_variable(THD *thd, sp_variable_t *spv, Item *val)
+set_local_variable(THD *thd, sp_variable *spv, Item *val)
 {
   Item *it;
   LEX *lex= thd->lex;
@@ -764,7 +764,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   timestamp_type date_time_type;
   st_select_lex *select_lex;
   chooser_compare_func_creator boolfunc2creator;
-  struct sp_cond_type *spcondtype;
+  struct sp_condition_value *spcondvalue;
   struct { int vars, conds, hndlrs, curs; } spblock;
   sp_name *spname;
   LEX *lex;
@@ -1628,7 +1628,7 @@ END_OF_INPUT
 %type <NONE> case_stmt_specification simple_case_stmt searched_case_stmt
 
 %type <num>  sp_decl_idents sp_opt_inout sp_handler_type sp_hcond_list
-%type <spcondtype> sp_cond sp_hcond sqlstate signal_value opt_signal_value
+%type <spcondvalue> sp_cond sp_hcond sqlstate signal_value opt_signal_value
 %type <spblock> sp_decls sp_decl
 %type <lex> sp_cursor_stmt
 %type <spname> sp_name
@@ -1980,7 +1980,7 @@ master_def:
             }
             if (Lex->mi.heartbeat_period > slave_net_timeout)
             {
-              push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+              push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
                                   ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                                   ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
             }
@@ -1988,7 +1988,7 @@ master_def:
             {
               if (Lex->mi.heartbeat_period != 0.0)
               {
-                push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+                push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
                                     ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
                                     ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
                 Lex->mi.heartbeat_period= 0.0;
@@ -2091,7 +2091,7 @@ create:
               lex->create_info.db_type=
                 lex->create_info.options & HA_LEX_CREATE_TMP_TABLE ?
                 ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
-              push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+              push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
                                   ER_WARN_USING_OTHER_HANDLER,
                                   ER(ER_WARN_USING_OTHER_HANDLER),
                                   ha_resolve_storage_engine_name(lex->create_info.db_type),
@@ -2583,9 +2583,9 @@ sp_fdparam:
               my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            sp_variable_t *spvar= spc->push_variable(&$1,
-                                                     (enum enum_field_types)$3,
-                                                     sp_param_in);
+            sp_variable *spvar= spc->push_variable(&$1,
+                                                   (enum enum_field_types)$3,
+                                                   sp_variable::MODE_IN);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
                                                    (enum enum_field_types) $3,
@@ -2620,9 +2620,9 @@ sp_pdparam:
               my_error(ER_SP_DUP_PARAM, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            sp_variable_t *spvar= spc->push_variable(&$3,
-                                                     (enum enum_field_types)$4,
-                                                     (sp_param_mode_t)$1);
+            sp_variable *spvar= spc->push_variable(&$3,
+                                                   (enum enum_field_types)$4,
+                                                   (sp_variable::enum_mode)$1);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
                                                    (enum enum_field_types) $4,
@@ -2636,10 +2636,10 @@ sp_pdparam:
         ;
 
 sp_opt_inout:
-          /* Empty */ { $$= sp_param_in; }
-        | IN_SYM      { $$= sp_param_in; }
-        | OUT_SYM     { $$= sp_param_out; }
-        | INOUT_SYM   { $$= sp_param_inout; }
+          /* Empty */ { $$= sp_variable::MODE_IN; }
+        | IN_SYM      { $$= sp_variable::MODE_IN; }
+        | OUT_SYM     { $$= sp_variable::MODE_OUT; }
+        | INOUT_SYM   { $$= sp_variable::MODE_INOUT; }
         ;
 
 sp_proc_stmts:
@@ -2711,7 +2711,7 @@ sp_decl:
             for (uint i = num_vars-$2 ; i < num_vars ; i++)
             {
               uint var_idx= pctx->var_context2runtime(i);
-              sp_variable_t *spvar= pctx->find_variable(var_idx);
+              sp_variable *spvar= pctx->find_variable(var_idx);
             
               if (!spvar)
                 MYSQL_YYABORT;
@@ -2768,15 +2768,21 @@ sp_decl:
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
 
-            lex->spcont= lex->spcont->push_context(LABEL_HANDLER_SCOPE);
+            lex->spcont= lex->spcont->push_context(sp_pcontext::HANDLER_SCOPE);
 
             sp_pcontext *ctx= lex->spcont;
             sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, $2,
                                       ctx->current_var_count());
-            if (i == NULL ||
-                sp->add_instr(i) ||
-                sp->push_backpatch(i, ctx->push_label((char *)"", 0)))
+            if (i == NULL || sp->add_instr(i))
+              MYSQL_YYABORT;
+
+            /* For continue handlers, mark end of handler scope. */
+            if ($2 == SP_HANDLER_CONTINUE &&
+                sp->push_backpatch(i, ctx->last_label()))
+              MYSQL_YYABORT;
+
+            if (sp->push_backpatch(i, ctx->push_label(empty_c_string, 0)))
               MYSQL_YYABORT;
           }
           sp_hcond_list sp_proc_stmt
@@ -2784,7 +2790,7 @@ sp_decl:
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
             sp_pcontext *ctx= lex->spcont;
-            sp_label_t *hlab= lex->spcont->pop_label(); /* After this hdlr */
+            sp_label *hlab= lex->spcont->pop_label(); /* After this hdlr */
             sp_instr_hreturn *i;
 
             if ($2 == SP_HANDLER_CONTINUE)
@@ -2903,10 +2909,10 @@ sp_cond:
               my_error(ER_WRONG_VALUE, MYF(0), "CONDITION", "0");
               MYSQL_YYABORT;
             }
-            $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
+            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_cond_type_t::number;
+            $$->type= sp_condition_value::number;
             $$->mysqlerr= $1;
           }
         | sqlstate
@@ -2920,10 +2926,10 @@ sqlstate:
               my_error(ER_SP_BAD_SQLSTATE, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
+            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_cond_type_t::state;
+            $$->type= sp_condition_value::state;
             memcpy($$->sqlstate, $3.str, SQLSTATE_LENGTH);
             $$->sqlstate[SQLSTATE_LENGTH]= '\0';
           }
@@ -2950,24 +2956,24 @@ sp_hcond:
           }
         | SQLWARNING_SYM /* SQLSTATEs 01??? */
           {
-            $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
+            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_cond_type_t::warning;
+            $$->type= sp_condition_value::warning;
           }
         | not FOUND_SYM /* SQLSTATEs 02??? */
           {
-            $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
+            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_cond_type_t::notfound;
+            $$->type= sp_condition_value::notfound;
           }
         | SQLEXCEPTION_SYM /* All other SQLSTATEs */
           {
-            $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
+            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_cond_type_t::exception;
+            $$->type= sp_condition_value::exception;
           }
         ;
 
@@ -2990,7 +2996,7 @@ signal_value:
           ident
           {
             LEX *lex= Lex;
-            sp_cond_type_t *cond;
+            sp_condition_value *cond;
             if (lex->spcont == NULL)
             {
               /* SIGNAL foo cannot be used outside of stored programs */
@@ -3003,7 +3009,7 @@ signal_value:
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            if (cond->type != sp_cond_type_t::state)
+            if (cond->type != sp_condition_value::state)
             {
               my_error(ER_SIGNAL_BAD_CONDITION_TYPE, MYF(0));
               MYSQL_YYABORT;
@@ -3139,7 +3145,7 @@ sp_decl_idents:
               my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            spc->push_variable(&$1, (enum_field_types)0, sp_param_in);
+            spc->push_variable(&$1, (enum_field_types)0, sp_variable::MODE_IN);
             $$= 1;
           }
         | sp_decl_idents ',' ident
@@ -3154,7 +3160,7 @@ sp_decl_idents:
               my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            spc->push_variable(&$3, (enum_field_types)0, sp_param_in);
+            spc->push_variable(&$3, (enum_field_types)0, sp_variable::MODE_IN);
             $$= $1 + 1;
           }
         ;
@@ -3292,7 +3298,7 @@ sp_proc_stmt_leave:
             LEX *lex= Lex;
             sp_head *sp = lex->sphead;
             sp_pcontext *ctx= lex->spcont;
-            sp_label_t *lab= ctx->find_label($2.str);
+            sp_label *lab= ctx->find_label($2.str);
 
             if (! lab)
             {
@@ -3308,11 +3314,11 @@ sp_proc_stmt_leave:
                 When jumping to a BEGIN-END block end, the target jump
                 points to the block hpop/cpop cleanup instructions,
                 so we should exclude the block context here.
-                When jumping to something else (i.e., SP_LAB_ITER),
+                When jumping to something else (i.e., sp_label::ITERATION),
                 there are no hpop/cpop at the jump destination,
                 so we should include the block context here for cleanup.
               */
-              bool exclusive= (lab->type == SP_LAB_BEGIN);
+              bool exclusive= (lab->type == sp_label::BEGIN);
 
               n= ctx->diff_handlers(lab->ctx, exclusive);
               if (n)
@@ -3345,9 +3351,9 @@ sp_proc_stmt_iterate:
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
             sp_pcontext *ctx= lex->spcont;
-            sp_label_t *lab= ctx->find_label($2.str);
+            sp_label *lab= ctx->find_label($2.str);
 
-            if (! lab || lab->type != SP_LAB_ITER)
+            if (! lab || lab->type != sp_label::ITERATION)
             {
               my_error(ER_SP_LILABEL_MISMATCH, MYF(0), "ITERATE", $2.str);
               MYSQL_YYABORT;
@@ -3456,7 +3462,7 @@ sp_fetch_list:
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
             sp_pcontext *spc= lex->spcont;
-            sp_variable_t *spv;
+            sp_variable *spv;
 
             if (!spc || !(spv = spc->find_variable(&$1)))
             {
@@ -3476,7 +3482,7 @@ sp_fetch_list:
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
             sp_pcontext *spc= lex->spcont;
-            sp_variable_t *spv;
+            sp_variable *spv;
 
             if (!spc || !(spv = spc->find_variable(&$3)))
             {
@@ -3663,7 +3669,7 @@ sp_labeled_control:
           {
             LEX *lex= Lex;
             sp_pcontext *ctx= lex->spcont;
-            sp_label_t *lab= ctx->find_label($1.str);
+            sp_label *lab= ctx->find_label($1.str);
 
             if (lab)
             {
@@ -3674,13 +3680,13 @@ sp_labeled_control:
             {
               lab= lex->spcont->push_label($1.str,
                                            lex->sphead->instructions());
-              lab->type= SP_LAB_ITER;
+              lab->type= sp_label::ITERATION;
             }
           }
           sp_unlabeled_control sp_opt_label
           {
             LEX *lex= Lex;
-            sp_label_t *lab= lex->spcont->pop_label();
+            sp_label *lab= lex->spcont->pop_label();
 
             if ($5.str)
             {
@@ -3704,7 +3710,7 @@ sp_labeled_block:
           {
             LEX *lex= Lex;
             sp_pcontext *ctx= lex->spcont;
-            sp_label_t *lab= ctx->find_label($1.str);
+            sp_label *lab= ctx->find_label($1.str);
 
             if (lab)
             {
@@ -3714,12 +3720,12 @@ sp_labeled_block:
 
             lab= lex->spcont->push_label($1.str,
                                          lex->sphead->instructions());
-            lab->type= SP_LAB_BEGIN;
+            lab->type= sp_label::BEGIN;
           }
           sp_block_content sp_opt_label
           {
             LEX *lex= Lex;
-            sp_label_t *lab= lex->spcont->pop_label();
+            sp_label *lab= lex->spcont->pop_label();
 
             if ($5.str)
             {
@@ -3736,8 +3742,8 @@ sp_unlabeled_block:
           { /* Unlabeled blocks get a secret label. */
             LEX *lex= Lex;
             uint ip= lex->sphead->instructions();
-            sp_label_t *lab= lex->spcont->push_label((char *)"", ip);
-            lab->type= SP_LAB_BEGIN;
+            sp_label *lab= lex->spcont->push_label((char *)"", ip);
+            lab->type= sp_label::BEGIN;
           }
           sp_block_content
           {
@@ -3752,7 +3758,7 @@ sp_block_content:
               together. No [[NOT] ATOMIC] yet, and we need to figure out how
               make it coexist with the existing BEGIN COMMIT/ROLLBACK. */
             LEX *lex= Lex;
-            lex->spcont= lex->spcont->push_context(LABEL_DEFAULT_SCOPE);
+            lex->spcont= lex->spcont->push_context(sp_pcontext::REGULAR_SCOPE);
           }
           sp_decls
           sp_proc_stmts
@@ -3788,7 +3794,7 @@ sp_unlabeled_control:
           {
             LEX *lex= Lex;
             uint ip= lex->sphead->instructions();
-            sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
+            sp_label *lab= lex->spcont->last_label();  /* Jumping back */
             sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
             if (i == NULL ||
                 lex->sphead->add_instr(i))
@@ -3816,7 +3822,7 @@ sp_unlabeled_control:
           {
             LEX *lex= Lex;
             uint ip= lex->sphead->instructions();
-            sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
+            sp_label *lab= lex->spcont->last_label();  /* Jumping back */
             sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
             if (i == NULL ||
                 lex->sphead->add_instr(i))
@@ -3829,7 +3835,7 @@ sp_unlabeled_control:
           {
             LEX *lex= Lex;
             uint ip= lex->sphead->instructions();
-            sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
+            sp_label *lab= lex->spcont->last_label();  /* Jumping back */
             sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
                                                                $5, lab->ip,
                                                                lex);
@@ -5265,7 +5271,7 @@ storage_engines:
                 MYSQL_YYABORT;
               }
               $$= 0;
-              push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+              push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                                   ER_UNKNOWN_STORAGE_ENGINE,
                                   ER(ER_UNKNOWN_STORAGE_ENGINE),
                                   $1.str);
@@ -10096,7 +10102,7 @@ limit_option:
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
           Lex_input_stream *lip= & thd->m_parser_state->m_lip;
-          sp_variable_t *spv;
+          sp_variable *spv;
           sp_pcontext *spc = lex->spcont;
           if (spc && (spv = spc->find_variable(&$1)))
           {
@@ -10296,7 +10302,7 @@ select_var_ident:
         | ident_or_text
           {
             LEX *lex=Lex;
-            sp_variable_t *t;
+            sp_variable *t;
 
             if (!lex->spcont || !(t=lex->spcont->find_variable(&$1)))
             {
@@ -11411,11 +11417,16 @@ describe:
           }
         | describe_command opt_extended_describe
           { Lex->describe|= DESCRIBE_NORMAL; }
+          explanable_command
+          { Lex->select_lex.options|= SELECT_DESCRIBE; }
+        ;
+
+explanable_command:
           select
-          {
-            LEX *lex=Lex;
-            lex->select_lex.options|= SELECT_DESCRIBE;
-          }
+        | insert
+        | replace
+        | update
+        | delete
         ;
 
 describe_command:
@@ -11545,8 +11556,14 @@ reset_options:
 
 reset_option:
           SLAVE               { Lex->type|= REFRESH_SLAVE; }
+          slave_reset_options { }
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
         | QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
+        ;
+
+slave_reset_options:
+          /* empty */ { Lex->reset_slave_info.all= false; }
+        | ALL         { Lex->reset_slave_info.all= true; }
         ;
 
 purge:
@@ -12125,7 +12142,7 @@ simple_ident:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             Lex_input_stream *lip= YYLIP;
-            sp_variable_t *spv;
+            sp_variable *spv;
             sp_pcontext *spc = lex->spcont;
             if (spc && (spv = spc->find_variable(&$1)))
             {
@@ -13081,7 +13098,7 @@ sys_option_value:
             else
             {
               sp_pcontext *spc= lex->spcont;
-              sp_variable_t *spv= spc->find_variable(name);
+              sp_variable *spv= spc->find_variable(name);
 
               if ($1)
               {
@@ -13229,7 +13246,7 @@ internal_variable_name:
           {
             THD *thd= YYTHD;
             sp_pcontext *spc= thd->lex->spcont;
-            sp_variable_t *spv;
+            sp_variable *spv;
 
             /* Best effort lookup for system variable. */
             if (!spc || !(spv = spc->find_variable(&$1)))
@@ -14676,7 +14693,7 @@ sf_tail:
                 If a collision exists, it should not be silenced but fixed.
               */
               push_warning_printf(thd,
-                                  MYSQL_ERROR::WARN_LEVEL_NOTE,
+                                  Sql_condition::WARN_LEVEL_NOTE,
                                   ER_NATIVE_FCT_NAME_COLLISION,
                                   ER(ER_NATIVE_FCT_NAME_COLLISION),
                                   sp->m_name.str);

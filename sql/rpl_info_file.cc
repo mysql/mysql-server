@@ -482,8 +482,9 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
           (decimal size + space) - 1 + `\n' + '\0'
     */
     size_t max_size= (1 + num_items) * (sizeof(long) * 3 + 1) + 1;
-    buf_act= (char*) my_malloc(max_size, MYF(MY_WME));
-    buffer_act= &buf_act;
+    if (! (buf_act= (char*) my_malloc(max_size, MYF(MY_WME))))
+      DBUG_RETURN(TRUE);
+    *buffer_act= buf_act;
     memcpy(buf_act, buf, read_size);
     snd_size= my_b_gets(f, buf_act + read_size, max_size - read_size);
     if (snd_size == 0 ||

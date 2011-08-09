@@ -41,4 +41,12 @@ include/stop_slave_sql.inc
 reset slave;
 include/check_slave_no_error.inc
 change master to master_user='root';
+reset slave;
+include/start_slave.inc
+include/stop_slave.inc
+reset slave all;
+start slave;
+ERROR HY000: The server is not configured as slave; fix in config file or with CHANGE MASTER TO
+CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT;
+include/start_slave.inc
 include/rpl_end.inc

@@ -25,6 +25,8 @@
 #include "my_sys.h"
 #include "mysql/psi/psi.h"
 
+C_MODE_START
+
 static void register_mutex_noop(const char *category,
                                 PSI_mutex_info *info,
                                 int count)
@@ -129,6 +131,16 @@ static PSI_table*
 open_table_noop(PSI_table_share *share, const void *identity)
 {
   return NULL;
+}
+
+static void unbind_table_noop(PSI_table *table)
+{
+  return;
+}
+
+static void rebind_table_noop(PSI_table *table)
+{
+  return;
 }
 
 static void close_table_noop(PSI_table *table)
@@ -550,6 +562,8 @@ static PSI PSI_noop=
   release_table_share_noop,
   drop_table_share_noop,
   open_table_noop,
+  unbind_table_noop,
+  rebind_table_noop,
   close_table_noop,
   create_file_noop,
   spawn_thread_noop,
@@ -619,8 +633,6 @@ static PSI PSI_noop=
   set_statement_no_good_index_used_noop,
   end_statement_noop
 };
-
-C_MODE_START
 
 /**
   Hook for the instrumentation interface.
