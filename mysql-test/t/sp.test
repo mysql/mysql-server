@@ -8376,6 +8376,7 @@ SET @@GLOBAL.init_connect= @old_init_connect;
 DROP PROCEDURE p2;
 DROP PROCEDURE p5;
 
+
 --echo #
 --echo # Bug#11840395 (formerly known as bug#60347):
 --echo # The string "versiondata" seems
