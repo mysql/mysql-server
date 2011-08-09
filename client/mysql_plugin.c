@@ -35,7 +35,8 @@ static uint opt_verbose=0;
 static uint opt_no_defaults= 0;
 static uint opt_print_defaults= 0;
 static char *opt_datadir=0, *opt_basedir=0,
-            *opt_plugin_dir=0, *opt_plugin_ini=0;
+            *opt_plugin_dir=0, *opt_plugin_ini=0,
+            *opt_mysqld=0, *opt_my_print_defaults=0;
 static char bootstrap[FN_REFLEN];
 
 
@@ -66,6 +67,11 @@ static struct my_option my_long_options[] =
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"print-defaults", 'P', "Show default values from configuration file.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"mysqld", 'm', "Path to mysqld executable. Example: /sbin/temp1/mysql/bin",
+    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"my-print-defaults", 'f', "Path to my_print_defaults executable. "
+   "Example: /source/temp11/extra",
+    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v',
     "More verbose output; you can use this multiple times to get even more "
     "verbose output.",
@@ -317,6 +323,7 @@ static int get_default_values()
   int ret= 0;
   FILE *file= 0;
 
+  bzero(tool_path, FN_REFLEN);
   if ((error= find_tool("my_print_defaults" FN_EXEEXT, tool_path)))
     goto exit;
   else
@@ -335,6 +342,10 @@ static int get_default_values()
   
       snprintf(defaults_cmd, sizeof(defaults_cmd), format_str,
                add_quotes(tool_path), add_quotes(defaults_file));
+      if (opt_verbose)
+      {
+        printf("# my_print_defaults found: %s\n", tool_path);
+      }
     }
 #else
     snprintf(defaults_cmd, sizeof(defaults_cmd),
@@ -438,6 +449,14 @@ static void print_default_values(void)
   {
     printf("--plugin_ini=%s ", opt_plugin_ini);
   }
+  if (opt_mysqld)
+  {
+    printf("--mysqld=%s ", opt_mysqld);
+  }
+  if (opt_my_print_defaults)
+  {
+    printf("--my_print_defaults=%s ", opt_my_print_defaults);
+  }
   printf("\n");
 }
 
@@ -486,6 +505,12 @@ get_one_option(int optid,
   case 'i':
     opt_plugin_ini= my_strdup(argument, MYF(MY_FAE));
     break;
+  case 'm':
+    opt_mysqld= my_strdup(argument, MYF(MY_FAE));
+    break;
+  case 'f':
+    opt_my_print_defaults= my_strdup(argument, MYF(MY_FAE));
+    break;
   }
   return 0;
 }
@@ -526,10 +551,11 @@ static int search_dir(const char * base_path, const char *tool_name,
                       const char *subdir, char *tool_path)
 {
   char new_path[FN_REFLEN];
+  char source_path[FN_REFLEN];
 
-  strcpy(new_path, base_path);
-  strcat(new_path, subdir);
-  fn_format(new_path, new_path, "", tool_name, MY_UNPACK_FILENAME);
+  strcpy(source_path, base_path);
+  strcat(source_path, subdir);
+  fn_format(new_path, tool_name, source_path, "", MY_UNPACK_FILENAME);
   if (file_exists(new_path))
   {
     strcpy(tool_path, new_path);
@@ -634,10 +660,10 @@ static int load_plugin_data(char *plugin_name, char *config_file)
     }
     if (i == -1) // if first pass, read this line as so_name
     {
-      /* save so_name */
-      plugin_data.so_name= my_strdup(line, MYF(MY_WME));
       /* Add proper file extension for soname */
-      strcat((char *)plugin_data.so_name, FN_SOEXT);
+      strcat(line, FN_SOEXT);
+      /* save so_name */
+      plugin_data.so_name= my_strdup(line, MYF(MY_WME|MY_ZEROFILL));
       i++;
     }
     else
@@ -902,6 +928,18 @@ static int check_access()
             opt_plugin_ini);
     goto exit;
   }
+  if ((error= my_access(opt_mysqld, F_OK)))
+  {
+    fprintf(stderr, "ERROR: Cannot access mysqld path '%s'.\n",
+            opt_mysqld);
+    goto exit;
+  }
+  if ((error= my_access(opt_my_print_defaults, F_OK)))
+  {
+    fprintf(stderr, "ERROR: Cannot access my-print-defaults path '%s'.\n",
+            opt_my_print_defaults);
+    goto exit;
+  }
 
 exit:
   return error;
@@ -922,9 +960,9 @@ static int find_tool(const char *tool_name, char *tool_path)
   int i= 0;
 
   const char *paths[]= {
-    opt_basedir, "/usr", "/usr/local/mysql", "/usr/sbin", "/usr/share",
-    "/extra", "/extra/debug", "/extra/release", "/bin", "/usr/bin",
-    "/mysql/bin"
+    opt_basedir, opt_mysqld, opt_my_print_defaults, "/usr",
+    "/usr/local/mysql", "/usr/sbin", "/usr/share", "/extra", "/extra/debug",
+    "/extra/release", "/bin", "/usr/bin", "/mysql/bin"
   };
   for (i= 0; i < (int)array_elements(paths); i++)
   {
