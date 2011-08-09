@@ -737,7 +737,7 @@ bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
 
   bool res= FALSE;
 
-  if (unit->optimized && !unit->uncacheable && !unit->describe)
+  if (unit->optimized)
     return FALSE;
   lex->current_select= first_select;
 

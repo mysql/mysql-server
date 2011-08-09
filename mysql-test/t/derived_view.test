@@ -726,5 +726,16 @@ SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b;
 DROP VIEW v1,v2;
 DROP TABLE t1;
 
+--echo #
+--echo # LP bug #819716: crash with embedded tableless materialized derived
+--echo #                 with a variable 
+--echo #
+
+set optimizer_switch='derived_merge=off';
+EXPLAIN
+SELECT * FROM (SELECT * FROM (SELECT @b) AS t) AS s;
+SELECT * FROM (SELECT * FROM (SELECT @b) AS t) AS s;
+set optimizer_switch=@exit_optimizer_switch;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
