@@ -742,7 +742,7 @@ NdbIndexStatImpl::set_index(const NdbDictionary::Index& index,
     // rir + rpk
     if (m_valueSpec.add(type, m_valueAttrs) == -1)
     {
-      setError(InternalError, __LINE__);
+      setError(InternalError, __LINE__, m_valueSpec.get_error_code());
       return -1;
     }
   }
@@ -1156,12 +1156,12 @@ NdbIndexStatImpl::read_next(Con& con)
   // create consistent NdbPack::Data instances
   if (m_keyData.desc_all(m_keyAttrs) == -1)
   {
-    setError(InternalError, __LINE__);
+    setError(InternalError, __LINE__, m_keyData.get_error_code());
     return -1;
   }
   if (m_valueData.desc_all(m_valueAttrs) == -1)
   {
-    setError(InternalError, __LINE__);
+    setError(InternalError, __LINE__, m_valueData.get_error_code());
     return -1;
   }
   return 0;
@@ -1856,7 +1856,7 @@ NdbIndexStatImpl::convert_range(Range& range,
         }
         if (bound.m_data.add(data, &len_out) == -1)
         {
-          setError(InternalError, __LINE__);
+          setError(InternalError, __LINE__, bound.m_data.get_error_code());
           return -1;
         }
       }
@@ -1864,7 +1864,7 @@ NdbIndexStatImpl::convert_range(Range& range,
       {
         if (bound.m_data.add_null(&len_out) == -1)
         {
-          setError(InternalError, __LINE__);
+          setError(InternalError, __LINE__, bound.m_data.get_error_code());
           return -1;
         }
       }
