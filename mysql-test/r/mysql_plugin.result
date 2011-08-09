@@ -49,6 +49,14 @@ ERROR: Cannot access basedir at '/basedir_not_there/'.
 #
 ERROR: Cannot read plugin config file daemon_example. File does not exist.
 # 
+# Attempt to use bad paths - mysqld
+#
+ERROR: Cannot access mysqld path '/mysqld_not_there/'.
+# 
+# Attempt to use bad paths - my_print_defaults
+#
+ERROR: Cannot access my-print-defaults path '/my_print_defaults_not_there/'.
+# 
 # Missing library
 #
 ERROR: The plugin library is missing or in a different location.
@@ -90,6 +98,10 @@ Options:
   -n, --no-defaults   Do not read values from configuration file.
   -P, --print-defaults 
                       Show default values from configuration file.
+  -m, --mysqld=name   Path to mysqld executable. Example: /sbin/temp1/mysql/bin
+  -f, --my-print-defaults=name 
+                      Path to my_print_defaults executable. Example:
+                      /source/temp11/extra
   -v, --verbose       More verbose output; you can use this multiple times to
                       get even more verbose output.
   -V, --version       Output version information and exit.
