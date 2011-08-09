@@ -1153,13 +1153,30 @@ NdbIndexStatImpl::read_next(Con& con)
       setError(con, __LINE__);
     return ret;
   }
-  // create consistent NdbPack::Data instances
-  if (m_keyData.desc_all(m_keyAttrs) == -1)
+
+  /*
+   * Key and value are raw data and little-endian.  Create the complete
+   * NdbPack::Data instance and convert it to native-endian.
+   */
+  const NdbPack::Endian::Value from_endian = NdbPack::Endian::Little;
+  const NdbPack::Endian::Value to_endian = NdbPack::Endian::Native;
+
+  if (m_keyData.desc_all(m_keyAttrs, from_endian) == -1)
   {
     setError(InternalError, __LINE__, m_keyData.get_error_code());
     return -1;
   }
-  if (m_valueData.desc_all(m_valueAttrs) == -1)
+  if (m_keyData.convert(to_endian) == -1)
+  {
+    setError(InternalError, __LINE__, m_keyData.get_error_code());
+    return -1;
+  }
+  if (m_valueData.desc_all(m_valueAttrs, from_endian) == -1)
+  {
+    setError(InternalError, __LINE__, m_valueData.get_error_code());
+    return -1;
+  }
+  if (m_valueData.convert(to_endian) == -1)
   {
     setError(InternalError, __LINE__, m_valueData.get_error_code());
     return -1;
