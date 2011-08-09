@@ -2894,7 +2894,6 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   state->m_flags= flags;
   state->m_socket= socket;
   state->m_operation= op;
-  state->m_idle= pfs_socket->m_idle;
   return reinterpret_cast<PSI_socket_locker*> (state);
 }
 
@@ -4581,11 +4580,13 @@ static void start_socket_wait_v1(PSI_socket_locker *locker,
 {
   PSI_socket_locker_state *state= reinterpret_cast<PSI_socket_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
+  PFS_socket *socket= reinterpret_cast<PFS_socket *>(state->m_socket);
+  DBUG_ASSERT(socket != NULL);
 
   register uint flags= state->m_flags;
   ulonglong timer_start= 0;
 
-  if (flags & STATE_FLAG_TIMED && !state->m_idle)
+  if (flags & STATE_FLAG_TIMED && !socket->m_idle)
   {
     timer_start= get_timer_raw_value_and_function(wait_timer, &state->m_timer);
     state->m_timer_start= timer_start;
@@ -4617,7 +4618,6 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
   bool socket_closed= false;
-  bool socket_idle= state->m_idle;
   PFS_byte_stat *byte_stat;
   register uint flags= state->m_flags;
   size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
@@ -4662,7 +4662,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   /** Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED)
   {
-    if (!socket_idle)
+    if (!socket->m_idle)
 	  {
 	    timer_end= state->m_timer();
 	    wait_time= timer_end - state->m_timer_start;
@@ -4670,13 +4670,12 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     else
     {
       /*
-	     A state of IDLE means that this is a RECV operation following a (possibly
-       very long) idle period. The split between the idle time and the RECV is
-       unknown, so the entire wait time will be later assigned to the global
-       IDLE class. Incrementing the RECV count with a zero wait time will throw
-       off the stats, so assign the current min wait as a best guess.
+	     If idle, then this was a RECV operation that blocked on the socket for an
+       indeterminate time waiting for data, so the wait time will later be
+       recorded as an IDLE event. The duration of the actual RECV is unknown and
+       is therefore set to zero.
 	    */
-      wait_time= byte_stat->m_min;
+      wait_time= 0;
     }
 
     /* Aggregate to the socket instrument for now (timed) */
@@ -4733,10 +4732,6 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
       thread->m_events_waits_count--;
     }
   }
-
-  /* Clear IDLE state */
-  if (socket_idle)
-    socket->m_idle= false;
 
   /* This socket will no longer be used */
   if (socket_closed)

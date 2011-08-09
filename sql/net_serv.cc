@@ -44,6 +44,7 @@
 #include <signal.h>
 #include <errno.h>
 #include "probes_mysql.h"
+#include "mysql/psi/mysql_idle.h"
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
@@ -103,6 +104,7 @@ my_bool my_net_init(NET *net, Vio* vio)
   net->where_b = net->remain_in_buf=0;
   net->last_errno=0;
   net->unused= 0;
+  net->mysql_socket_idle= FALSE;
 
   if (vio)
   {
@@ -711,12 +713,36 @@ static my_bool net_read_packet_header(NET *net)
 {
   uchar pkt_nr;
   size_t count= NET_HEADER_SIZE;
+  MYSQL_IDLE_WAIT_VARIABLES(idle_locker, idle_state) /* no ; */
 
   if (net->compress)
     count+= COMP_HEADER_SIZE;
 
-  if (net_read_raw_loop(net, count))
-    return TRUE;
+  /*
+    If the server is IDLE, waiting for the next command:
+    - do not time the wait on the socket
+    - time the wait as IDLE server time instead.
+  */
+  #ifdef HAVE_PSI_INTERFACE
+  if (net->mysql_socket_idle)
+  {
+    mysql_socket_set_state(net->vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
+    MYSQL_START_IDLE_WAIT(idle_locker, &idle_state);
+
+    my_bool rc= net_read_raw_loop(net, count);
+
+    MYSQL_END_IDLE_WAIT(idle_locker);
+    mysql_socket_set_state(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
+
+    if (rc)
+      return TRUE;
+  }
+  else
+  #endif
+  {
+    if (net_read_raw_loop(net, count))
+       return TRUE;
+  }
 
   DBUG_DUMP("packet_header", net->buff + net->where_b, NET_HEADER_SIZE);
 
