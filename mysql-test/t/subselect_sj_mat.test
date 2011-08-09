@@ -875,6 +875,259 @@ execute st1;
 execute st1;
 drop table t1;
 
+--echo #
+--echo # BUG#49630: Segfault in select_describe() with double 
+--echo #            nested subquery and materialization
+--echo #
+
+CREATE TABLE t1 (t1i int);
+CREATE TABLE t2 (t2i int);
+CREATE TABLE t3 (t3i int);
+CREATE TABLE t4 (t4i int);
+
+INSERT INTO t1 VALUES (1); # Note: t1 must be const table
+INSERT INTO t2 VALUES (1),(2);
+INSERT INTO t3 VALUES (1),(2);
+INSERT INTO t4 VALUES (1),(2);
+
+--echo
+EXPLAIN 
+SELECT t1i
+FROM t1 JOIN t4 ON t1i=t4i  
+WHERE (t1i)  IN (  
+   SELECT t2i
+   FROM t2  
+   WHERE (t2i)  IN (  
+     SELECT t3i
+     FROM t3  
+     GROUP BY t3i
+     )  
+ );
+
+DROP TABLE t1,t2,t3,t4;
+
+
+#
+# Bug #52538 Valgrind bug: Item_in_subselect::init_left_expr_cache()
+#
+CREATE TABLE t1 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+
+  col_varchar_key VARCHAR(1),
+
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+)
+;
+
+INSERT INTO t1 (
+  col_int_key, col_int_nokey, col_varchar_key
+) 
+VALUES
+(2, NULL, 'w'),
+(9, 7, 'm'),
+(3, 9, 'm'),
+(9, 7, 'k'),
+(NULL, 4, 'r'),
+(9, 2, 't'),
+(3, 6, 'j'),
+(8, 8, 'u'),
+(8, NULL, 'h'),
+(53, 5, 'o'),
+(0, NULL, NULL),
+(5, 6, 'k'),
+(166, 188, 'e'),
+(3, 2, 'n'),
+(0, 1, 't'),
+(1, 1, 'c'),
+(9, 0, 'm'),
+(5, 9, 'y'),
+(6, NULL, 'f'),
+(2, 4, 'd')
+;
+
+SELECT table2.col_varchar_key AS field1,
+       table2.col_int_nokey AS field2
+FROM ( t1 AS table1 LEFT OUTER JOIN t1 AS table2
+       ON (table2.col_varchar_key = table1.col_varchar_key  ) ) 
+WHERE table1.pk = 6
+HAVING  ( field2 ) IN 
+( SELECT SUBQUERY2_t2.col_int_nokey AS SUBQUERY2_field2 
+  FROM ( t1 AS SUBQUERY2_t1 JOIN t1 AS SUBQUERY2_t2
+         ON (SUBQUERY2_t2.col_varchar_key = SUBQUERY2_t1.col_varchar_key ) ) )
+ORDER BY field2 
+;
+
+drop table t1;
+
+
+--echo #
+--echo # BUG#53103: MTR test ps crashes in optimize_cond() 
+--echo #            when running with --debug
+--echo #
+
+CREATE TABLE t1(track varchar(15));
+
+INSERT INTO t1 VALUES ('CAD'), ('CAD');
+
+PREPARE STMT FROM
+"SELECT 1 FROM t1
+  WHERE
+        track IN (SELECT track FROM t1
+                                    GROUP BY track 
+                                      HAVING track>='CAD')";
+EXECUTE STMT ;
+EXECUTE STMT ;
+
+DEALLOCATE PREPARE STMT;
+DROP TABLE t1; 
+
+--echo # End of BUG#53103
+
+--echo #
+--echo # BUG#54511 - Assertion failed: cache != 0L in file 
+--echo #             sql_select.cc::sub_select_cache on HAVING
+--echo #
+
+CREATE TABLE t1 (i int(11));
+CREATE TABLE t2 (c char(1));
+CREATE TABLE t3 (c char(1));
+
+# These records are needed for the test to fail with MyISAM. The test
+# fails with InnoDB without these (difference due to optimization of
+# aggregates available only in MyISAM)
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES ('a'), ('b');
+INSERT INTO t3 VALUES ('x'), ('y');
+
+SELECT COUNT( i ),i
+FROM t1
+HAVING ('c')  
+  IN (SELECT t2.c FROM (t2 JOIN t3));
+
+DROP TABLE t1,t2,t3;
+
+--echo # End BUG#54511
+
+--echo #
+--echo # BUG#56367 - Assertion exec_method != EXEC_MATERIALIZATION...
+--echo #             on subquery in FROM
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (1);
+
+let $query =
+SELECT a FROM (
+  SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
+) table1;
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End BUG#56367
+
+--echo #
+--echo # Bug#59833 - materialization=on/off leads to different result set
+--echo #             when using IN
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  f1 int DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  f1 int DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (10,0);
+INSERT INTO t2 VALUES (10,0),(11,0);
+
+let $query=
+SELECT * FROM t1 JOIN t2 USING (f1)
+WHERE t1.f1 IN (SELECT t1.pk FROM t1 ORDER BY t1.f1);
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End Bug#59833
+
+--echo #
+--echo # Bug#11852644 - CRASH IN ITEM_REF::SAVE_IN_FIELD ON SELECT DISTINCT
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key (col_varchar_key)) 
+;
+
+INSERT INTO t1 VALUES
+('v','v'),('r','r');
+
+CREATE TABLE t2 (
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key(col_varchar_key)) 
+;
+
+INSERT INTO t2 VALUES
+('r','r'),('c','c');
+
+CREATE VIEW v3 AS SELECT * FROM t2;
+
+SELECT DISTINCT alias2.col_varchar_key 
+FROM t1 AS alias1 JOIN v3 AS alias2 
+ON alias2.col_varchar_key = alias1.col_varchar_key
+HAVING col_varchar_key IN (SELECT col_varchar_nokey FROM t2)
+;
+
+DROP TABLE t1, t2;
+DROP VIEW v3;
+
+--echo # End Bug#11852644
+
+--echo
+--echo # Bug#12668294 - GROUP BY ON EMPTY RESULT GIVES EMPTY ROW
+--echo # INSTEAD OF NULL WHEN MATERIALIZATION ON
+--echo
+
+CREATE TABLE t1 (col_int_nokey INT) ENGINE=MEMORY;
+CREATE TABLE t2 (col_int_nokey INT) ENGINE=MEMORY;
+INSERT INTO t2 VALUES (8),(7);
+CREATE TABLE t3 (col_int_nokey INT) ENGINE=MEMORY;
+INSERT INTO t3 VALUES (7);
+
+SELECT MIN(t3.col_int_nokey),t1.col_int_nokey AS field3
+FROM t3
+     LEFT JOIN t1
+     ON t1.col_int_nokey
+WHERE (194, 200) IN (
+                     SELECT SQ4_alias1.col_int_nokey,
+                     SQ4_alias2.col_int_nokey
+                     FROM t2 AS SQ4_alias1
+                          JOIN
+                          t2 AS SQ4_alias2
+                          ON SQ4_alias2.col_int_nokey = 5
+                    )
+GROUP BY field3 ;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3; 
+
 #
 # Bug #44303 Assertion failures in Field_new_decimal::store_decimal
 #            when executing materialized InsideOut semijoin
