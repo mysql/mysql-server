@@ -686,7 +686,11 @@ int table_events_waits_common::read_row_values(TABLE *table,
       case 16: /* NUMBER_OF_BYTES */
         if ((m_row.m_operation == OPERATION_TYPE_FILEREAD) ||
             (m_row.m_operation == OPERATION_TYPE_FILEWRITE) ||
-            (m_row.m_operation == OPERATION_TYPE_FILECHSIZE))
+            (m_row.m_operation == OPERATION_TYPE_FILECHSIZE) ||
+            (m_row.m_operation == OPERATION_TYPE_SOCKETSEND) ||
+            (m_row.m_operation == OPERATION_TYPE_SOCKETRECV) ||
+            (m_row.m_operation == OPERATION_TYPE_SOCKETSENDTO) ||
+            (m_row.m_operation == OPERATION_TYPE_SOCKETRECVFROM))
           set_field_ulonglong(f, m_row.m_number_of_bytes);
         else
           f->set_null();
