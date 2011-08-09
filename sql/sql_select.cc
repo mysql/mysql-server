@@ -3330,7 +3330,9 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
 	  {
             if (table->key_info[key].flags & HA_NOSAME)
             {
-	      if (const_ref == eq_part)
+	      if (const_ref == eq_part &&
+                  !((outer_join & table->map) &&
+                    (*s->on_expr_ref)->is_expensive()))
 	      {					// Found everything for ref.
 	        int tmp;
 	        ref_changed = 1;
