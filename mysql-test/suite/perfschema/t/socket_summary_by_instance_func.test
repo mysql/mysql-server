@@ -456,7 +456,7 @@ if(`SELECT COUNT(statement) $part`)
      AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
    ORDER BY EVENT_NAME, statement, run;
 
-   --echo CWP Debug 1 - Dump mysqltest.socket_summary_by_instance_detail
+   --echo Debug 4.2a - Dump mysqltest.socket_summary_by_instance_detail
    SELECT EVENT_NAME, lpad(OBJECT_INSTANCE_BEGIN,20,' ') as OBJECT_INSTANCE,
    lpad(COUNT_READ,7, ' ')  as CREAD,  lpad(SUM_TIMER_READ,12,' ')  as TREAD, lpad(SUM_NUMBER_OF_BYTES_READ,7,' ')  as BREAD,
    lpad(COUNT_WRITE,7, ' ') as CWRITE, lpad(SUM_TIMER_WRITE,12,' ') as TWRITE,lpad(SUM_NUMBER_OF_BYTES_WRITE,7,' ') as BWRITE,
@@ -464,7 +464,7 @@ if(`SELECT COUNT(statement) $part`)
    rpad(statement,50,' ') as STATEMENT, lpad(run, 5, ' ') as RUN
    FROM mysqltest.socket_summary_by_instance_detail order by EVENT_NAME, statement, run;
 
-   --echo CWP Debug 2 - Std dev and coefficient of variation for mysqltest.socket_summary_by_instance_detail
+   --echo Debug 4.2b - Std dev and coefficient of variation for mysqltest.socket_summary_by_instance_detail
    select rpad(EVENT_NAME,39,' ') as EVENT_NAME1, rpad(statement,49,' ') as STATEMENT1,
    lpad(count(COUNT_READ),5,' ') as COUNT_READ,
    lpad(std(COUNT_READ)/avg(COUNT_READ),10,' ') as CV_COUNT_READ,
