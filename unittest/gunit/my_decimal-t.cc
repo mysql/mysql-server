@@ -16,16 +16,46 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
+#include "test_utils.h"
+
 #include <my_decimal.h>
 
 namespace {
 
+using my_testing::Server_initializer;
+using my_testing::Mock_error_handler;
+
 class DecimalTest : public ::testing::Test
 {
 protected:
+  static void SetUpTestCase()
+  {
+    Server_initializer::SetUpTestCase();
+  }
+
+  static void TearDownTestCase()
+  {
+    Server_initializer::TearDownTestCase();
+  }
+
+  virtual void SetUp()
+  {
+    initializer.SetUp();
+  }
+
+  virtual void TearDown()
+  {
+    initializer.TearDown();
+  }
+
+  THD *thd() { return initializer.thd(); }
+
+  Server_initializer initializer;
+
   my_decimal d1;
   my_decimal d2;
 };
+
 
 TEST_F(DecimalTest, CopyAndCompare)
 {
@@ -52,6 +82,146 @@ TEST_F(DecimalTest, CopyAndCompare)
   EXPECT_EQ(0, ulonglong2decimal(val, &d1));
   EXPECT_EQ(1, my_decimal_cmp(&d1, &d2));
   EXPECT_EQ(1, my_decimal_cmp(&d1, &d3));
+}
+
+
+TEST_F(DecimalTest, Swap)
+{
+  ulonglong val1= 1;
+  ulonglong val2= 2;
+  EXPECT_EQ(0, ulonglong2decimal(val1, &d1));
+  EXPECT_EQ(0, ulonglong2decimal(val2, &d2));
+  my_decimal d1copy(d1);
+  my_decimal d2copy(d2);
+  EXPECT_EQ(0, my_decimal_cmp(&d1, &d1copy));
+  EXPECT_EQ(0, my_decimal_cmp(&d2, &d2copy));
+  d1.swap(d2);
+  EXPECT_EQ(0, my_decimal_cmp(&d2, &d1copy));
+  EXPECT_EQ(0, my_decimal_cmp(&d1, &d2copy));
+}
+
+
+
+int chars_2_decimal(const char *chars, my_decimal *to)
+{
+  char *end= strend(chars);
+  return string2decimal(chars, to, &end);
+}
+
+
+/*
+  This is a simple iterative implementation based on addition and subtraction,
+  for verifying the result of decimal_mod().
+
+  decimal_mod() says:
+  DESCRIPTION
+    the modulus R in    R = M mod N
+    is defined as
+
+    0 <= |R| < |M|
+    sign R == sign M
+    R = M - k*N, where k is integer
+
+    thus, there's no requirement for M or N to be integers
+ */
+int decimal_modulo(uint mask,
+                   my_decimal *res,
+                   const my_decimal *m,
+                   const my_decimal *n)
+{
+  my_decimal abs_m(*m);
+  my_decimal abs_n(*n);
+  abs_m.sign(false);
+  abs_n.sign(false);
+
+  my_decimal r;
+  my_decimal k1(abs_n);
+  my_decimal kn(decimal_zero);
+  my_decimal next_r(abs_m);
+  int ret;
+  do
+  {
+    r= next_r;
+
+    my_decimal res;
+    if ((ret= my_decimal_add(E_DEC_FATAL_ERROR, &res, &k1, &kn)) != E_DEC_OK)
+    {
+      ADD_FAILURE();
+      return ret;
+    }
+    kn= res;
+
+    if ((ret= my_decimal_sub(E_DEC_FATAL_ERROR,
+                             &next_r, &abs_m, &kn) != E_DEC_OK))
+    {
+      ADD_FAILURE();
+      return ret;
+    }
+  } while (my_decimal_cmp(&next_r, &decimal_zero) >= 0);
+  r.sign(m->sign());
+  *res= r;
+  return 0;
+}
+
+
+struct Mod_data
+{
+  const char *a;
+  const char *b;
+  const char *result;
+};
+
+Mod_data mod_test_input[]=
+{
+  { "234"     , "10",      "4"      },
+  { "234.567" , "10.555",  "2.357"  },
+  { "-234.567", "10.555",  "-2.357" },
+  { "234.567" , "-10.555", "2.357"  },
+  { "-234.567", "-10.555", "-2.357" },
+  { "999"     , "0.1",     "0.0"    },
+  { "999"     , "0.7",     "0.1"    },
+  { "10"      , "123",     "10"     },
+  { NULL, NULL, NULL}
+};
+
+
+TEST_F(DecimalTest, Modulo)
+{
+  my_decimal expected_result;
+  my_decimal xxx_result;
+  my_decimal mod_result;
+  char buff_x[DECIMAL_MAX_STR_LENGTH];
+  char buff_m[DECIMAL_MAX_STR_LENGTH];
+
+  for (Mod_data *pd= mod_test_input; pd->a; ++pd)
+  {
+    int bufsz_x= sizeof(buff_x);
+    int bufsz_m= sizeof(buff_m);
+
+    EXPECT_EQ(0, chars_2_decimal(pd->a, &d1));
+    EXPECT_EQ(0, chars_2_decimal(pd->b, &d2));
+    EXPECT_EQ(0, chars_2_decimal(pd->result, &expected_result));
+
+    EXPECT_EQ(0, my_decimal_mod(E_DEC_FATAL_ERROR, &mod_result, &d1, &d2));
+    EXPECT_EQ(0, decimal2string(&mod_result, buff_m, &bufsz_m, 0, 0, 0));
+    EXPECT_EQ(0, my_decimal_cmp(&expected_result, &mod_result))
+      << " a:" << pd->a
+      << " b:" << pd->b
+      << " expected:" << pd->result
+      << " got mod:" << buff_m
+      ;
+
+    EXPECT_EQ(0, decimal_modulo(E_DEC_FATAL_ERROR, &xxx_result, &d1, &d2));
+    EXPECT_EQ(0, decimal2string(&xxx_result, buff_x, &bufsz_x, 0, 0, 0));
+    EXPECT_EQ(0, my_decimal_cmp(&expected_result, &xxx_result))
+      << " a:" << pd->a
+      << " b:" << pd->b
+      << " expected:" << pd->result
+      << " got mod:" << buff_m
+      << " got xxx:" << buff_x
+      ;
+  }
+
 }
 
 }

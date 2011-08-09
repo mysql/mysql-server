@@ -241,7 +241,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
   stmt->field_count= 0;
-  mysql->warning_count= thd->get_stmt_wi()->statement_warn_count();
+  mysql->warning_count= thd->get_stmt_da()->current_statement_warn_count();
 
   if (thd->first_data)
   {
@@ -1047,7 +1047,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 
   if (flags & SEND_EOF)
     write_eof_packet(thd, thd->server_status,
-                     thd->get_stmt_wi()->statement_warn_count());
+                     thd->get_stmt_da()->current_statement_warn_count());
 
   DBUG_RETURN(prepare_for_send(list->elements));
  err:
@@ -1155,8 +1155,7 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
                            const char *sqlstate)
 {
   uint error;
-  uchar converted_err[MYSQL_ERRMSG_SIZE];
-  uint32 converted_err_len;
+  char converted_err[MYSQL_ERRMSG_SIZE];
   MYSQL_DATA *data= thd->cur_data;
   struct embedded_query_result *ei;
 
@@ -1171,12 +1170,12 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
 
   ei= data->embedded_info;
   ei->last_errno= sql_errno;
-  converted_err_len= convert_error_message((char*)converted_err,
-                                           sizeof(converted_err),
-                                           thd->variables.character_set_results,
-                                           err, strlen(err),
-                                           system_charset_info, &error);
-  strmake(ei->info, (const char*) converted_err, sizeof(ei->info)-1);
+  convert_error_message(converted_err, sizeof(converted_err),
+                        thd->variables.character_set_results,
+                        err, strlen(err),
+                        system_charset_info, &error);
+  /* Converted error message is always null-terminated. */
+  strmake(ei->info, converted_err, sizeof(ei->info)-1);
   strmov(ei->sqlstate, sqlstate);
   ei->server_status= thd->server_status;
   thd->cur_data= 0;

@@ -35,6 +35,7 @@
 /* Values in optimize */
 #define KEY_OPTIMIZE_EXISTS		1
 #define KEY_OPTIMIZE_REF_OR_NULL	2
+#define FT_KEYPART                      (MAX_REF_PARTS+10)
 
 /**
   Information about usage of an index to satisfy an equality condition.
@@ -469,7 +470,7 @@ public:
   {
     return first_inner && first_inner == this;
   }
-  Item *condition()
+  Item *condition() const
   {
     return m_condition;
   }
@@ -2322,8 +2323,6 @@ bool mysql_select(THD *thd,
                   select_result *result, SELECT_LEX_UNIT *unit, 
                   SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
-bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
-                         select_result *result);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
                         Field **def_field,
@@ -2347,6 +2346,7 @@ int test_if_item_cache_changed(List<Cached_item> &list);
 void calc_used_field_length(THD *thd, JOIN_TAB *join_tab);
 int join_init_read_record(JOIN_TAB *tab);
 int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl); 
+
 inline bool optimizer_flag(THD *thd, uint flag)
 { 
   return (thd->variables.optimizer_switch & flag);
@@ -2358,5 +2358,19 @@ ORDER *simple_remove_const(ORDER *order, Item *where);
 bool const_expression_in_where(Item *cond, Item *comp_item,
                                Field *comp_field= NULL,
                                Item **const_item= NULL);
+
+/**
+  Printing the transformed query in EXPLAIN EXTENDED or optimizer trace
+  requires non-destroyed JOINs for subquery engines. So items must be
+  preserved until end of mysql_execute_command().
+*/
+static inline bool preserve_items_for_printing(const THD *thd)
+{
+  return (thd->lex->describe
+#ifdef OPTIMIZER_TRACE
+          || thd->opt_trace.support_I_S()
+#endif
+          );
+}
 
 #endif /* SQL_SELECT_INCLUDED */

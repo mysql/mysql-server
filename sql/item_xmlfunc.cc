@@ -2488,7 +2488,7 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
     xpath->item= new Item_func_get_user_var(name);
   else
   {
-    sp_variable_t *spv;
+    sp_variable *spv;
     sp_pcontext *spc;
     LEX *lex;
     if ((lex= current_thd->lex) &&
@@ -2795,7 +2795,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
                 my_xml_error_lineno(&p) + 1,
                 (ulong) my_xml_error_pos(&p) + 1,
                 my_xml_error_string(&p));
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_WRONG_VALUE,
                         ER(ER_WRONG_VALUE), "XML", buf);
   }

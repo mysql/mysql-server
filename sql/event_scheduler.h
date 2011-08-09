@@ -114,8 +114,8 @@ private:
   unlock_data(const char *func, uint line);
 
   void
-  cond_wait(THD *thd, struct timespec *abstime, const char* msg,
-            const char *func, uint line);
+  cond_wait(THD *thd, struct timespec *abstime, const PSI_stage_info *stage,
+            const char *src_func, const char *src_file, uint src_line);
 
   mysql_mutex_t LOCK_scheduler_state;
 
