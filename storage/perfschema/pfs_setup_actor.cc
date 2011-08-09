@@ -163,48 +163,45 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
   if (unlikely(pins == NULL))
     return HA_ERR_OUT_OF_MEM;
 
-  /* user is not constant, just using it for noise on insert */
-  uint i= randomized_index(user, setup_actor_max);
+  static uint setup_actor_monotonic_index= 0;
+  uint index;
+  uint attempts= 0;
+  PFS_setup_actor *pfs;
 
-  /*
-    Pass 1: [random, setup_actor_max - 1]
-    Pass 2: [0, setup_actor_max - 1]
-  */
-  int pass;
-  for (pass= 1; pass <= 2; i=0, pass++)
+  while (++attempts <= setup_actor_max)
   {
-    PFS_setup_actor *pfs= setup_actor_array + i;
-    PFS_setup_actor *pfs_last= setup_actor_array + setup_actor_max;
-    for ( ; pfs < pfs_last; pfs++)
+    /* See create_mutex() */
+    PFS_atomic::add_u32(& setup_actor_monotonic_index, 1);
+    index= setup_actor_monotonic_index % setup_actor_max;
+    pfs= setup_actor_array + index;
+
+    if (pfs->m_lock.is_free())
     {
-      if (pfs->m_lock.is_free())
+      if (pfs->m_lock.free_to_dirty())
       {
-        if (pfs->m_lock.free_to_dirty())
+        set_setup_actor_key(&pfs->m_key,
+                            user->ptr(), user->length(),
+                            host->ptr(), host->length(),
+                            role->ptr(), role->length());
+        pfs->m_username= &pfs->m_key.m_hash_key[0];
+        pfs->m_username_length= user->length();
+        pfs->m_hostname= pfs->m_username + pfs->m_username_length + 1;
+        pfs->m_hostname_length= host->length();
+        pfs->m_rolename= pfs->m_hostname + pfs->m_hostname_length + 1;
+        pfs->m_rolename_length= role->length();
+
+        int res;
+        res= lf_hash_insert(&setup_actor_hash, pins, &pfs);
+        if (likely(res == 0))
         {
-          set_setup_actor_key(&pfs->m_key,
-                              user->ptr(), user->length(),
-                              host->ptr(), host->length(),
-                              role->ptr(), role->length());
-          pfs->m_username= &pfs->m_key.m_hash_key[0];
-          pfs->m_username_length= user->length();
-          pfs->m_hostname= pfs->m_username + pfs->m_username_length + 1;
-          pfs->m_hostname_length= host->length();
-          pfs->m_rolename= pfs->m_hostname + pfs->m_hostname_length + 1;
-          pfs->m_rolename_length= role->length();
-
-          int res;
-          res= lf_hash_insert(&setup_actor_hash, pins, &pfs);
-          if (likely(res == 0))
-          {
-            pfs->m_lock.dirty_to_allocated();
-            return 0;
-          }
-
-          pfs->m_lock.dirty_to_free();
-          if (res > 0)
-            return HA_ERR_FOUND_DUPP_KEY;
-          return HA_ERR_OUT_OF_MEM;
+          pfs->m_lock.dirty_to_allocated();
+          return 0;
         }
+
+        pfs->m_lock.dirty_to_free();
+        if (res > 0)
+          return HA_ERR_FOUND_DUPP_KEY;
+        return HA_ERR_OUT_OF_MEM;
       }
     }
   }
