@@ -5161,6 +5161,9 @@ void handle_connections_sockets()
 
   DBUG_ENTER("handle_connections_sockets");
 
+  (void) ip_flags;
+  (void) socket_flags;
+
 #ifndef HAVE_POLL
   FD_ZERO(&clientFDs);
 #endif
@@ -6705,7 +6708,7 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)

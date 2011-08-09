@@ -520,11 +520,11 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
     thd= current_thd;
 
   const char *old_info= thd->proc_info;
-  const char *basename= calling_file ? base_name(calling_file) : NULL;
-  DBUG_PRINT("proc_info", ("%s:%d  %s", basename, calling_line, info));
+  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, info));
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.status_change(info, calling_function, basename, calling_line);
+  thd->profiling.status_change(info,
+                               calling_function, calling_file, calling_line);
 #endif
   thd->proc_info= info;
   return old_info;
@@ -795,7 +795,6 @@ THD::THD()
   is_slave_error= thread_specific_used= FALSE;
   my_hash_clear(&handler_tables_hash);
   tmp_table=0;
-  used_tables=0;
   cuted_fields= 0L;
   sent_row_count= 0L;
   limit_found_rows= 0;
