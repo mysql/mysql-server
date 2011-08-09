@@ -66,7 +66,7 @@ if(`SELECT COUNT(*) $part1`)
    SELECT 'not in socket_instances' AS state, EVENT_NAME, OBJECT_INSTANCE_BEGIN
    $part1;
    --echo # abort 1
-   exit;
+#  exit;
 }
 
 --vertical_results
@@ -104,7 +104,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    WHERE pk = 'After'
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
    --echo # abort 2
-   exit;
+#  exit;
 }
 
 
@@ -144,7 +144,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    WHERE pk = 'After'
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
    --echo # abort 3
-   exit;
+#  exit;
 }
 
 
@@ -179,7 +179,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    WHERE pk = 'After'
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
    --echo # abort 4
-   exit;
+#  exit;
 }
 
 
@@ -210,7 +210,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    WHERE pk = 'After'
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
    --echo # abort 5
-   exit;
+#  exit;
 }
 
 
@@ -241,7 +241,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    WHERE pk = 'After'
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
    --echo # abort 6
-   exit;
+#  exit;
 }
 
 --horizontal_results
