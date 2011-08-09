@@ -1382,7 +1382,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   if (open_normal_and_derived_tables(thd, tables, 0))
     goto error;
 
-  thd->used_tables= 0;                        // Updated by setup_fields
+  thd->lex->used_tables= 0;                        // Updated by setup_fields
 
   /*
     JOIN::prepare calls
@@ -1551,7 +1551,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   if (specific_prepare && (*specific_prepare)(thd))
     DBUG_RETURN(TRUE);
 
-  thd->used_tables= 0;                        // Updated by setup_fields
+  thd->lex->used_tables= 0;                        // Updated by setup_fields
 
   /* Calls JOIN::prepare */
   DBUG_RETURN(lex->unit.prepare(thd, 0, setup_tables_done_option));
