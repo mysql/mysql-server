@@ -369,7 +369,8 @@ AND
 AND
 ((COUNT_MISC = 0 AND SUM_TIMER_MISC = 0)
   OR
- (COUNT_MISC > 0 AND SUM_TIMER_MISC > 0));
+ (COUNT_MISC > 0));
+#(COUNT_MISC > 0 AND SUM_TIMER_MISC > 0));
 
 if(`SELECT COUNT(*) FROM mysqltest.socket_summary_by_instance_detail
     WHERE NOT ( $my_rules )`)
