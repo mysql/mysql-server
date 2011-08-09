@@ -973,6 +973,7 @@ v16 VARCHAR(500), v17 VARCHAR(500), v18 VARCHAR(500)
 CREATE INDEX idx1 ON t1(a,v1);
 INSERT INTO t1 VALUES(9,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
 UPDATE t1 SET a=1000;
+DELETE FROM t1;
 DROP TABLE t1;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;

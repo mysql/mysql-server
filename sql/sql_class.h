@@ -1960,13 +1960,6 @@ public:
   */
   ha_rows    examined_row_count;
 
-  /*
-    The set of those tables whose fields are referenced in all subqueries
-    of the query.
-    TODO: possibly this it is incorrect to have used tables in THD because
-    with more than one subquery, it is not clear what does the field mean.
-  */
-  table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
   Warning_info *warning_info;
@@ -3641,14 +3634,6 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);
-
-/*
-  This prototype is placed here instead of in item_func.h because it
-  depends on the definition of enum_sql_command, which is in this
-  file.
- */
-int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                        LEX_STRING &name, user_var_entry **out_entry);
 
 /* Inline functions */
 

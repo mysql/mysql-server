@@ -11321,7 +11321,10 @@ flush_option:
         | STATUS_SYM
           { Lex->type|= REFRESH_STATUS; }
         | SLAVE
-          { Lex->type|= REFRESH_SLAVE; }
+          { 
+            Lex->type|= REFRESH_SLAVE;
+            Lex->reset_slave_info.all= false;
+          }
         | MASTER_SYM
           { Lex->type|= REFRESH_MASTER; }
         | DES_KEY_FILE
@@ -11352,8 +11355,14 @@ reset_options:
 
 reset_option:
           SLAVE               { Lex->type|= REFRESH_SLAVE; }
+          slave_reset_options { }
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
         | QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
+        ;
+
+slave_reset_options:
+          /* empty */ { Lex->reset_slave_info.all= false; }
+        | ALL         { Lex->reset_slave_info.all= true; }
         ;
 
 purge:
