@@ -3590,12 +3590,16 @@ buf_print_io(
 
 	/* Statistics about read ahead algorithm */
 	fprintf(file, "Pages read ahead %.2f/s,"
-		" evicted without access %.2f/s\n",
+		" evicted without access %.2f/s,"
+		" Random read ahead %.2f/s\n",
 		(buf_pool->stat.n_ra_pages_read
 		- buf_pool->old_stat.n_ra_pages_read)
 		/ time_elapsed,
 		(buf_pool->stat.n_ra_pages_evicted
 		- buf_pool->old_stat.n_ra_pages_evicted)
+		/ time_elapsed,
+		(buf_pool->stat.n_ra_pages_read_rnd
+		- buf_pool->old_stat.n_ra_pages_read_rnd)
 		/ time_elapsed);
 
 	/* Print some values to help us with visualizing what is
