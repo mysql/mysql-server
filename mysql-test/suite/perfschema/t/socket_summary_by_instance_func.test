@@ -77,17 +77,29 @@ if($my_socket_debug)
 #    cause that the test needs maintenance.
 # Advantage:
 #    More thorough checks.
+#
 let $print_details= 0;
+
 #
 # Number of attempts within the test checking the stability of counter increments.
+#
 let $loop_rounds= 3;
+
 #
 # Additional SCHEMA used for
 # - detection of our "worker" session within the PROCESSLIST.
 #   No other connection should use this schema as default schema.
 # - easy cleanup because auxiliary objects are stored there
+#
 CREATE SCHEMA mysqltest;
 CREATE SCHEMA mysqlsupertest;
+
+#
+# Clear summary tables of previous entries
+#
+TRUNCATE performance_schema.socket_summary_by_instance;
+TRUNCATE performance_schema.socket_summary_by_event_name;
+
 #
 # Auxiliary tables for storing current values at certain points of time.
 # We store states of performance_schema.socket_summary_by_instance here
@@ -96,9 +108,11 @@ CREATE SCHEMA mysqlsupertest;
 # - to minimize the impact of statements used for the checks on results.
 # CREATE TEMPORARY TABLE my_socket_summary_by_instance AS
 # would be nice but the optimizer does not support important statements.
+#
 CREATE TABLE mysqltest.my_socket_summary_by_instance AS
 SELECT *, 'Pseudo_Before' AS pk FROM performance_schema.socket_summary_by_instance
 WHERE 1 = 0;
+
 CREATE TABLE mysqltest.socket_summary_by_instance_detail AS
 SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,
        COUNT_READ, SUM_TIMER_READ, SUM_NUMBER_OF_BYTES_READ,
@@ -106,27 +120,34 @@ SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,
        COUNT_MISC, SUM_TIMER_MISC
 FROM performance_schema.socket_summary_by_instance
 WHERE 1 = 2;
+
 ALTER TABLE mysqltest.socket_summary_by_instance_detail
 ADD statement VARCHAR(300), ADD run INTEGER;
+
 #
 # Auxiliary SQL functions used to shorten some commands.
+#
 CREATE FUNCTION mysqltest.min_of_triple
    (f1 BIGINT UNSIGNED, f2 BIGINT UNSIGNED, f3 BIGINT UNSIGNED)
    RETURNS BIGINT UNSIGNED
    RETURN IF(IF(f1 < f2,f1,f2) < f3,IF(f1 < f2,f1,f2), f3);
+
 CREATE FUNCTION mysqltest.max_of_triple
    (f1 BIGINT UNSIGNED, f2 BIGINT UNSIGNED, f3 BIGINT UNSIGNED)
    RETURNS BIGINT UNSIGNED
    RETURN IF(IF(f1 > f2,f1,f2) > f3,IF(f1 > f2,f1,f2), f3);
 #
 # Auxiliary table for experiments with SELECTs earning different result sets.
+#
 CREATE TABLE mysqltest.my_aux (col1 INTEGER, col2 VARCHAR(1024), PRIMARY KEY(col1));
 INSERT INTO mysqltest.my_aux SET col1 = 1, col2 = REPEAT('a',0);
 INSERT INTO mysqltest.my_aux SET col1 = 2, col2 = REPEAT('a',1);
 INSERT INTO mysqltest.my_aux SET col1 = 3, col2 = REPEAT('a',1024);
+
 #
 # Auxiliary mysqltest variables used to shorten commands and to ensure
 # that we run all time the right operation.
+#
 let $truncate=
 TRUNCATE TABLE mysqltest.my_socket_summary_by_instance;
 #
