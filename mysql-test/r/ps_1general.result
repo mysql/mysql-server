@@ -777,3 +777,14 @@ execute stmt1 ;
 prepare stmt1 from ' select * from t5 ' ;
 execute stmt1 ;
 drop table t1, t5, t9;
+#
+# testcase for bug#11765413 - Crash with dependent subquery and
+#                             prepared statement
+create table t1 (c1 int);
+insert into t1 values (1);
+prepare stmt1 from "select 1 from t1 where 1=(select 1 from t1 having c1)";
+execute stmt1;
+1
+1
+drop prepare stmt1;
+drop table t1;
