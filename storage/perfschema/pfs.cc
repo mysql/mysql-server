@@ -2804,6 +2804,8 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   if (!pfs_socket->m_enabled)
     return NULL;
 
+  state->m_idle= pfs_socket->m_idle;
+
   register uint flags;
 
   if (flag_thread_instrumentation)
@@ -4586,7 +4588,7 @@ static void start_socket_wait_v1(PSI_socket_locker *locker,
   register uint flags= state->m_flags;
   ulonglong timer_start= 0;
 
-  if (flags & STATE_FLAG_TIMED && !socket->m_idle)
+  if (flags & STATE_FLAG_TIMED && !state->m_idle)
   {
     timer_start= get_timer_raw_value_and_function(wait_timer, &state->m_timer);
     state->m_timer_start= timer_start;
@@ -4662,7 +4664,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   /** Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED)
   {
-    if (!socket->m_idle)
+    if (!state->m_idle)
 	  {
 	    timer_end= state->m_timer();
 	    wait_time= timer_end - state->m_timer_start;

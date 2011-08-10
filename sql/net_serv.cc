@@ -45,6 +45,7 @@
 #include <errno.h>
 #include "probes_mysql.h"
 #include "mysql/psi/mysql_idle.h"
+#include "mysql/psi/mysql_socket.h"
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
@@ -723,22 +724,22 @@ static my_bool net_read_packet_header(NET *net)
     - do not time the wait on the socket
     - time the wait as IDLE server time instead.
   */
-  #ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_SOCKET_INTERFACE
   if (net->mysql_socket_idle)
   {
-    mysql_socket_set_state(net->vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
+    MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
     MYSQL_START_IDLE_WAIT(idle_locker, &idle_state);
 
     my_bool rc= net_read_raw_loop(net, count);
 
     MYSQL_END_IDLE_WAIT(idle_locker);
-    mysql_socket_set_state(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
+    MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
 
     if (rc)
       return TRUE;
   }
   else
-  #endif
+#endif
   {
     if (net_read_raw_loop(net, count))
        return TRUE;

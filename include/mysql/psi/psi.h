@@ -953,6 +953,8 @@ struct PSI_socket_locker_state_v1
   int m_src_line;
   /** Internal data. */
   void *m_wait;
+  /** Idle state. */
+  my_bool m_idle;
 };
 
 /* Using typedef to make reuse between PSI_v1 and PSI_v2 easier later. */
