@@ -36,7 +36,7 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.13"
+#define DUMP_VERSION "10.14"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -632,8 +632,13 @@ static void write_header(FILE *sql_file, char *db_name)
 
     if (!path)
     {
+      if (!opt_no_create_info)
+      {
+        /* We don't need unique checks as the table is created just before */
+        fprintf(md_result_file,"\
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\n");
+      }
       fprintf(md_result_file,"\
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\n\
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\n\
 ");
     }
@@ -663,8 +668,12 @@ static void write_footer(FILE *sql_file)
     if (!path)
     {
       fprintf(md_result_file,"\
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n\
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n");
+      if (!opt_no_create_info)
+      {
+        fprintf(md_result_file,"\
 /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;\n");
+      }
     }
     if (opt_set_charset)
       fprintf(sql_file,
