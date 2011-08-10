@@ -12430,6 +12430,11 @@ static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Number of rw_locks protecting buffer pool page_hash. Rounded up to the next power of 2",
   NULL, NULL, 16, 1, MAX_PAGE_HASH_LOCKS, 0);
+
+static MYSQL_SYSVAR_ULONG(doublewrite_batch_size, srv_doublewrite_batch_size,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Number of pages reserved in doublewrite buffer for batch flushing",
+  NULL, NULL, 120, 1, 127, 0);
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
 static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
@@ -12467,6 +12472,16 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_load_at_startup, srv_buffer_pool_load_at_st
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Load the buffer pool from a file named @@innodb_buffer_pool_filename",
   NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_ULONG(lru_scan_depth, srv_LRU_scan_depth,
+  PLUGIN_VAR_RQCMDARG,
+  "How deep to scan LRU to keep it clean",
+  NULL, NULL, 1024, 100, ~0L, 0);
+
+static MYSQL_SYSVAR_BOOL(flush_neighbors, srv_flush_neighbors,
+  PLUGIN_VAR_NOCMDARG,
+  "Flush neighbors from buffer pool when flushing a block.",
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
@@ -12698,6 +12713,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(buffer_pool_load_now),
   MYSQL_SYSVAR(buffer_pool_load_abort),
   MYSQL_SYSVAR(buffer_pool_load_at_startup),
+  MYSQL_SYSVAR(lru_scan_depth),
+  MYSQL_SYSVAR(flush_neighbors),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
@@ -12770,6 +12787,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_batch_size),
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),
+  MYSQL_SYSVAR(doublewrite_batch_size),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(undo_logs),

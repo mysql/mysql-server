@@ -1207,6 +1207,8 @@ buf_pool_init_instance(
 
 	/* All fields are initialized by mem_zalloc(). */
 
+	buf_pool->try_LRU_scan = TRUE;
+
 	buf_pool_mutex_exit(buf_pool);
 
 	return(DB_SUCCESS);
@@ -3683,9 +3685,6 @@ buf_page_create(
 
 	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
 
-	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(buf_pool);
-
 	frame = block->frame;
 
 	memset(frame + FIL_PAGE_PREV, 0xff, 4);
@@ -4075,7 +4074,6 @@ buf_pool_invalidate_instance(
 /*=========================*/
 	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
 {
-	ibool		freed;
 	enum buf_flush	i;
 
 	buf_pool_mutex_enter(buf_pool);
@@ -4104,13 +4102,10 @@ buf_pool_invalidate_instance(
 
 	ut_ad(buf_all_freed_instance(buf_pool));
 
-	freed = TRUE;
-
-	while (freed) {
-		freed = buf_LRU_search_and_free_block(buf_pool, 100);
-	}
-
 	buf_pool_mutex_enter(buf_pool);
+
+	while (buf_LRU_scan_and_free_block(buf_pool, TRUE)) {
+	}
 
 	ut_ad(UT_LIST_GET_LEN(buf_pool->LRU) == 0);
 	ut_ad(UT_LIST_GET_LEN(buf_pool->unzip_LRU) == 0);
@@ -4118,7 +4113,6 @@ buf_pool_invalidate_instance(
 	buf_pool->freed_page_clock = 0;
 	buf_pool->LRU_old = NULL;
 	buf_pool->LRU_old_len = 0;
-	buf_pool->LRU_flush_ended = 0;
 
 	memset(&buf_pool->stat, 0x00, sizeof(buf_pool->stat));
 	buf_refresh_io_stats(buf_pool);
@@ -4156,6 +4150,7 @@ buf_pool_validate_instance(
 	buf_chunk_t*	chunk;
 	ulint		i;
 	ulint		n_lru_flush	= 0;
+	ulint		n_page_flush	= 0;
 	ulint		n_list_flush	= 0;
 	ulint		n_lru		= 0;
 	ulint		n_flush		= 0;
@@ -4219,9 +4214,13 @@ buf_pool_validate_instance(
 							&block->page)) {
 					case BUF_FLUSH_LRU:
 						n_lru_flush++;
+						goto assert_s_latched;
+					case BUF_FLUSH_SINGLE_PAGE:
+						n_page_flush++;
+assert_s_latched:
 						ut_a(rw_lock_is_locked(
 							     &block->lock,
-							     RW_LOCK_SHARED));
+								     RW_LOCK_SHARED));
 						break;
 					case BUF_FLUSH_LIST:
 						n_list_flush++;
@@ -4312,6 +4311,9 @@ buf_pool_validate_instance(
 				case BUF_FLUSH_LRU:
 					n_lru_flush++;
 					break;
+				case BUF_FLUSH_SINGLE_PAGE:
+					n_page_flush++;
+					break;
 				case BUF_FLUSH_LIST:
 					n_list_flush++;
 					break;
@@ -4362,6 +4364,7 @@ buf_pool_validate_instance(
 
 	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] == n_list_flush);
 	ut_a(buf_pool->n_flush[BUF_FLUSH_LRU] == n_lru_flush);
+	ut_a(buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] == n_page_flush);
 
 	buf_pool_mutex_exit(buf_pool);
 
@@ -4429,7 +4432,7 @@ buf_print_instance(
 		"modified database pages %lu\n"
 		"n pending decompressions %lu\n"
 		"n pending reads %lu\n"
-		"n pending flush LRU %lu list %lu\n"
+		"n pending flush LRU %lu list %lu single page %lu\n"
 		"pages made young %lu, not young %lu\n"
 		"pages read %lu, created %lu, written %lu\n",
 		(ulong) size,
@@ -4440,6 +4443,7 @@ buf_print_instance(
 		(ulong) buf_pool->n_pend_reads,
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LIST],
+		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE],
 		(ulong) buf_pool->stat.n_pages_made_young,
 		(ulong) buf_pool->stat.n_pages_not_made_young,
 		(ulong) buf_pool->stat.n_pages_read,
@@ -4790,6 +4794,10 @@ buf_stats_get_pool_info(
 		 (buf_pool->n_flush[BUF_FLUSH_LIST]
 		  + buf_pool->init_flush[BUF_FLUSH_LIST]);
 
+	pool_info->n_pending_flush_single_page =
+		 (buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]
+		  + buf_pool->init_flush[BUF_FLUSH_SINGLE_PAGE]);
+
 	buf_flush_list_mutex_exit(buf_pool);
 
 	current_time = time(NULL);
@@ -4894,7 +4902,7 @@ buf_print_io_instance(
 		"Old database pages %lu\n"
 		"Modified db pages  %lu\n"
 		"Pending reads %lu\n"
-		"Pending writes: LRU %lu, flush list %lu\n",
+		"Pending writes: LRU %lu, flush list %lu single page %lu\n",
 		pool_info->pool_size,
 		pool_info->free_list_len,
 		pool_info->lru_len,
@@ -4902,7 +4910,8 @@ buf_print_io_instance(
 		pool_info->flush_list_len,
 		pool_info->n_pend_reads,
 		pool_info->n_pending_flush_lru,
-		pool_info->n_pending_flush_list);
+		pool_info->n_pending_flush_list,
+		pool_info->n_pending_flush_single_page);
 
 	fprintf(file,
 		"Pages made young %lu, not young %lu\n"
@@ -5090,6 +5099,7 @@ buf_pool_check_no_pending_io(void)
 
 		pending_io += buf_pool->n_pend_reads
 			      + buf_pool->n_flush[BUF_FLUSH_LRU]
+			      + buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]
 			      + buf_pool->n_flush[BUF_FLUSH_LIST];
 
 	}
