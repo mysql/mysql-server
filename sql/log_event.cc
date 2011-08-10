@@ -101,6 +101,11 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
 
 static const char *HA_ERR(int i)
 {
+  /* 
+    This function should only be called in case of an error
+    was detected 
+   */
+  DBUG_ASSERT(i != 0);
   switch (i) {
   case HA_ERR_KEY_NOT_FOUND: return "HA_ERR_KEY_NOT_FOUND";
   case HA_ERR_FOUND_DUPP_KEY: return "HA_ERR_FOUND_DUPP_KEY";
@@ -153,7 +158,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
   }
-  return 0;
+  return "No Error!";
 }
 
 /**
@@ -205,12 +210,13 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                            TABLE *table, const char * type,
                                            const char *log_name, ulong pos)
 {
-  const char *handler_error= HA_ERR(ha_error);
+  const char *handler_error= (ha_error ? HA_ERR(ha_error) : NULL);
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end= buff + sizeof(buff);
   uint len;
-  Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
-  const MYSQL_ERROR *err;
+  Diagnostics_area::Sql_condition_iterator it=
+    thd->get_stmt_da()->sql_conditions();
+  const Sql_condition *err;
   buff[0]= 0;
 
   for (err= it++, slider= buff; err && slider < buff_end - 1;
@@ -5301,7 +5307,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   {
     thd->set_time((time_t)when);
     thd->set_query_id(next_query_id());
-    thd->get_stmt_wi()->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];
@@ -5451,9 +5457,9 @@ error:
   thd->catalog= 0;
   thd->set_db(NULL, 0);                   /* will free the current database */
   thd->reset_query();
-  thd->get_stmt_da()->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-  thd->get_stmt_da()->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
   close_thread_tables(thd);
   /*
     - If inside a multi-statement transaction,
@@ -8134,7 +8140,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (table)
   {
-    bool transactional_table= table->file->has_transactions();
     /*
       table == NULL means that this table should not be replicated
       (this was set up by Table_map_log_event::do_apply_event()
@@ -8205,6 +8210,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     // row processing loop
 
+    const uchar *saved_m_curr_row= m_curr_row;
     while (error == 0)
     {
       /* in_use can have been set to NULL in close_tables_for_reopen */
@@ -8214,7 +8220,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       error= do_exec_row(rli);
 
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      if (error)
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
 
       table->in_use = old_thd;
@@ -8223,7 +8230,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         int actual_error= convert_handler_error(error, thd, table);
         bool idempotent_error= (idempotent_error_code(error) &&
-                               (slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT));
+                                slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT);
         bool ignored_error= (idempotent_error == 0 ?
                              ignored_error_code(actual_error) : 0);
 
@@ -8241,39 +8248,52 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         }
       }
 
-      /*
-       If m_curr_row_end  was not set during event execution (e.g., because
-       of errors) we can't proceed to the next row. If the error is transient
-       (i.e., error==0 at this point) we must call unpack_current_row() to set 
-       m_curr_row_end.
-      */ 
-   
       DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
                           (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
 
-      if (!m_curr_row_end && !error)
-        error= unpack_current_row(rli, &m_cols);
+      if (!error)
+      {
+        /*
+          If m_curr_row_end  was not set during event execution (e.g., because
+          of errors) we can't proceed to the next row. If the error is transient
+          (i.e., error == 0 at this point) we must call unpack_current_row() to
+          set m_curr_row_end.
+        */ 
+        if (!m_curr_row_end)
+          error= unpack_current_row(rli, &m_cols);
   
+        m_curr_row= m_curr_row_end;
+      }
+
       // at this moment m_curr_row_end should be set
       DBUG_ASSERT(error || m_curr_row_end != NULL); 
       DBUG_ASSERT(error || m_curr_row <= m_curr_row_end);
       DBUG_ASSERT(error || m_curr_row_end <= m_rows_end);
-  
-      m_curr_row= m_curr_row_end;
  
-      if (error == 0 && !transactional_table)
-      {
-        /*
-          We rely on trans_commit_stmt() to propagate unsafe_rollback_flags
-          from statement to transaction level. For that reason, only the
-          statement level is set.
-        */
-        thd->transaction.stmt.mark_modified_non_trans_table();
-      }
-
       if (m_curr_row == m_rows_end)
         break;
     } // row processing loop
+
+    if (saved_m_curr_row != m_curr_row && !table->file->has_transactions())
+    {
+      /*
+        Usually, the trans_commit_stmt() propagates unsafe_rollback_flags
+        from statement to transaction level. However, we cannot rely on
+        this when row format is in use as several events can be processed
+        before calling this function. This happens because it is called
+        only when the latest event generated by a statement is processed.
+
+        There are however upper level functions that execute per event
+        and check transaction's status. So if the unsafe_rollback_flags
+        are not propagated here, this can lead to errors.
+
+        For example, a transaction that updates non-transactional tables
+        may be stopped in the middle thus leading to inconsistencies
+        after a restart.
+      */
+      thd->transaction.stmt.mark_modified_non_trans_table();
+      thd->transaction.merge_unsafe_rollback_flags();
+    }
 
     /*
       Restore the sql_mode after the rows event is processed.
@@ -10226,7 +10246,8 @@ TABLE_SCAN:
   restart_ha_rnd_next:
       error= table->file->ha_rnd_next(table->record[0]);
 
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      if (error)
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
 
       case 0:

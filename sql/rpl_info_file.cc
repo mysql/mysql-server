@@ -126,6 +126,7 @@ int Rpl_info_file::do_prepare_info_for_write()
 
 int Rpl_info_file::do_check_info()
 {
+#ifndef NO_DBUG
   /*
     This function checks if the file exists and in other modules
     further actions are taken based on this. If the file exists
@@ -141,10 +142,10 @@ int Rpl_info_file::do_check_info()
   */
   if (my_access(info_fname, F_OK | R_OK | W_OK))
     sql_print_information("Info file %s cannot be accessed (errno %d)."
-                          " Most likely this is a new slave or you are "
+                          " Most likely this is a new slave or you are"
                           " changing the repository type.", info_fname,
                           errno);
-  
+#endif
   return my_access(info_fname, F_OK);
 }
 

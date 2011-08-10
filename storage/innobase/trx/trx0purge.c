@@ -263,11 +263,9 @@ trx_purge_add_update_undo_to_history(
 #ifdef HAVE_ATOMIC_BUILTINS
 	os_atomic_increment_ulint(&trx_sys->rseg_history_len, 1);
 #else
-	rw_lock_x_lock(&trx_sys->lock);
-
+	mutex_enter(&trx_sys->mutex);
 	++trx_sys->rseg_history_len;
-
-	rw_lock_x_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	srv_wake_purge_thread_if_not_active();
@@ -371,11 +369,9 @@ trx_purge_free_segment(
 #ifdef HAVE_ATOMIC_BUILTINS
 	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, n_removed_logs);
 #else
-	rw_lock_x_lock(&trx_sys->lock);
-
+	mutex_enter(&trx_sys->mutex);
 	trx_sys->rseg_history_len -= n_removed_logs;
-
-	rw_lock_x_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	do {
@@ -460,11 +456,9 @@ loop:
 		os_atomic_decrement_ulint(
 			&trx_sys->rseg_history_len, n_removed_logs);
 #else
-		rw_lock_x_lock(&trx_sys->lock);
-
+		mutex_enter(&trx_sys->mutex);
 		trx_sys->rseg_history_len -= n_removed_logs;
-
-		rw_lock_x_unlock(&trx_sys->lock);
+		mutex_exit(&trx_sys->mutex);	
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
@@ -593,7 +587,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
-		rw_lock_s_lock(&trx_sys->lock);
+		mutex_enter(&trx_sys->mutex);
 
 		/* Add debug code to track history list corruption reported
 		on the MySQL mailing list on Nov 9, 2004. The fut0lst.c
@@ -615,7 +609,7 @@ trx_purge_rseg_get_next_history_log(
 				(ulong) trx_sys->rseg_history_len);
 		}
 
-		rw_lock_s_unlock(&trx_sys->lock);
+		mutex_exit(&trx_sys->mutex);
 
 		return;
 	}
@@ -703,8 +697,10 @@ trx_purge_get_rseg_with_min_trx_id(
 
 	ut_a(purge_sys->rseg->last_page_no != FIL_NULL);
 
-	/* We assume in purge of externally stored fields that space id == 0 */
-	ut_a(purge_sys->rseg->space == 0);
+	/* We assume in purge of externally stored fields that space id is
+	in the range of UNDO tablespace space ids */
+	ut_a(purge_sys->rseg->space <= srv_undo_tablespaces);
+
 	zip_size = purge_sys->rseg->zip_size;
 
 	ut_a(purge_sys->iter.trx_no <= purge_sys->rseg->last_trx_no);
@@ -741,7 +737,8 @@ trx_purge_read_undo_rec(
 		mtr_start(&mtr);
 
 		undo_rec = trx_undo_get_first_rec(
-			0 /* System space id */, zip_size,
+			purge_sys->rseg->space,
+			zip_size,
 			purge_sys->hdr_page_no,
 			purge_sys->hdr_offset, RW_S_LATCH, &mtr);
 
@@ -1092,7 +1089,7 @@ trx_purge_dml_delay(void)
 	'consistent read view', then the DML statements cannot be delayed.
 	Also, srv_max_purge_lag <= 0 means 'infinity'. Note: we do a dirty
 	read of the trx_sys_t data structure here, without holding
-	trx_sys->read_view_mutex. */
+	trx_sys->mutex. */
 	if (srv_max_purge_lag > 0
 	    && !UT_LIST_GET_LAST(trx_sys->view_list)) {
 		float	ratio = (float) trx_sys->rseg_history_len

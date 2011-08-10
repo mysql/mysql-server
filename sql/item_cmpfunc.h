@@ -436,7 +436,7 @@ public:
 };
 
 class Item_maxmin_subselect;
-
+struct st_join_table;
 /*
   trigcond<param>(arg) ::= param? arg : TRUE
 
@@ -468,9 +468,47 @@ class Item_maxmin_subselect;
 
 class Item_func_trig_cond: public Item_bool_func
 {
-  bool *trig_var;
 public:
-  Item_func_trig_cond(Item *a, bool *f) : Item_bool_func(a) { trig_var= f; }
+  enum enum_trig_type
+  {
+    /**
+       In t1 LEFT JOIN t2, ON can be tested on t2's row only if that row is
+       not NULL-complemented
+    */
+    IS_NOT_NULL_COMPL,
+    /**
+       In t1 LEFT JOIN t2, the WHERE pushed to t2 can be tested only after at
+       least one t2's row has been found
+    */
+    FOUND_MATCH,
+    /**
+       In IN->EXISTS subquery transformation, new predicates are added:
+       WHERE inner_field=outer_field OR inner_field IS NULL,
+       as well as
+       HAVING inner_field IS NOT NULL,
+       are disabled if outer_field is a NULL value
+    */
+    OUTER_FIELD_IS_NOT_NULL
+  };
+private:
+  /** Pointer to trigger variable */
+  bool *trig_var;
+  /** Optional table(s) which are the source of trig_var; for printing */
+  const struct st_join_table *trig_tab;
+  /** Type of trig_var; for printing */
+  enum_trig_type trig_type;
+public:
+  /**
+     @param a             the item for <condition>
+     @param f             pointer to trigger variable
+     @param tab           optional table which is source of 'f',
+                          NULL if not applicable
+     @param trig_type_arg type of 'f'
+  */
+  Item_func_trig_cond(Item *a, bool *f, struct st_join_table *tab,
+                      enum_trig_type trig_type_arg)
+    : Item_bool_func(a), trig_var(f), trig_tab(tab), trig_type(trig_type_arg)
+  {}
   longlong val_int() { return *trig_var ? args[0]->val_int() : 1; }
   enum Functype functype() const { return TRIG_COND_FUNC; };
   const char *func_name() const { return "trigcond"; };
@@ -478,21 +516,24 @@ public:
   bool *get_trig_var() { return trig_var; }
   /* The following is needed for ICP: */
   table_map used_tables() const { return args[0]->used_tables(); }
+  void print(String *str, enum_query_type query_type);
 };
+
 
 class Item_func_not_all :public Item_func_not
 {
   /* allow to check presence of values in max/min optimization */
   Item_sum_hybrid *test_sum_item;
   Item_maxmin_subselect *test_sub_item;
+  Item_subselect *subselect;
 
   bool abort_on_null;
 public:
   bool show;
 
   Item_func_not_all(Item *a)
-    :Item_func_not(a), test_sum_item(0), test_sub_item(0), abort_on_null(0),
-     show(0)
+    :Item_func_not(a), test_sum_item(0), test_sub_item(0), subselect(0),
+     abort_on_null(0), show(0)
     {}
   virtual void top_level_item() { abort_on_null= 1; }
   bool top_level() { return abort_on_null; }
@@ -502,6 +543,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void set_sum_test(Item_sum_hybrid *item) { test_sum_item= item; };
   void set_sub_test(Item_maxmin_subselect *item) { test_sub_item= item; };
+  void set_subselect(Item_subselect *item) { subselect= item; }
   bool empty_underlying_subquery();
   Item *neg_transformer(THD *thd);
 };
@@ -778,6 +820,8 @@ public:
   void fix_length_and_dec();
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
+private:
+  void cache_type_info(Item *source);
 };
 
 

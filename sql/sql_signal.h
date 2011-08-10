@@ -28,7 +28,7 @@ protected:
     @param cond the condition signaled if any, or NULL.
     @param set collection of signal condition item assignments.
   */
-  Sql_cmd_common_signal(const sp_cond_type_t *cond,
+  Sql_cmd_common_signal(const sp_condition_value *cond,
                         const Set_signal_information& set)
     : Sql_cmd(),
       m_cond(cond),
@@ -46,9 +46,9 @@ protected:
     @param level the level to assign
     @param sqlcode the sql code to assign
   */
-  static void assign_defaults(MYSQL_ERROR *cond,
+  static void assign_defaults(Sql_condition *cond,
                               bool set_level_code,
-                              MYSQL_ERROR::enum_warning_level level,
+                              Sql_condition::enum_warning_level level,
                               int sqlcode);
 
   /**
@@ -57,7 +57,7 @@ protected:
     @param thd the current thread.
     @param cond the condition to update.
   */
-  void eval_defaults(THD *thd, MYSQL_ERROR *cond);
+  void eval_defaults(THD *thd, Sql_condition *cond);
 
   /**
     Evaluate each signal condition items for this statement.
@@ -65,7 +65,7 @@ protected:
     @param cond the condition to update.
     @return 0 on success.
   */
-  int eval_signal_informations(THD *thd, MYSQL_ERROR *cond);
+  int eval_signal_informations(THD *thd, Sql_condition *cond);
 
   /**
     Raise a SQL condition.
@@ -73,13 +73,13 @@ protected:
     @param cond the condition to raise.
     @return false on success.
   */
-  bool raise_condition(THD *thd, MYSQL_ERROR *cond);
+  bool raise_condition(THD *thd, Sql_condition *cond);
 
   /**
     The condition to signal or resignal.
     This member is optional and can be NULL (RESIGNAL).
   */
-  const sp_cond_type_t *m_cond;
+  const sp_condition_value *m_cond;
 
   /**
     Collection of 'SET item = value' assignments in the
@@ -99,7 +99,7 @@ public:
     @param cond the SQL condition to signal (required).
     @param set the collection of signal informations to signal.
   */
-  Sql_cmd_signal(const sp_cond_type_t *cond,
+  Sql_cmd_signal(const sp_condition_value *cond,
                  const Set_signal_information& set)
     : Sql_cmd_common_signal(cond, set)
   {}
@@ -126,7 +126,7 @@ public:
     @param cond the SQL condition to resignal (optional, may be NULL).
     @param set the collection of signal informations to resignal.
   */
-  Sql_cmd_resignal(const sp_cond_type_t *cond,
+  Sql_cmd_resignal(const sp_condition_value *cond,
                    const Set_signal_information& set)
     : Sql_cmd_common_signal(cond, set)
   {}
