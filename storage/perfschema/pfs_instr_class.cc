@@ -1045,6 +1045,10 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
   const uint retry_max= 3;
   bool enabled= true;
   bool timed= true;
+  static uint table_share_monotonic_index= 0;
+  uint index;
+  uint attempts= 0;
+  PFS_table_share *pfs;
 
 search:
   entry= reinterpret_cast<PFS_table_share**>
@@ -1052,7 +1056,6 @@ search:
                     key.m_hash_key, key.m_key_length));
   if (entry && (entry != MY_ERRPTR))
   {
-    PFS_table_share *pfs;
     pfs= *entry;
     pfs->inc_refcount() ;
     if (compare_keys(pfs, share) != 0)
@@ -1080,58 +1083,53 @@ search:
     */
   }
 
-  PFS_scan scan;
-  uint random= randomized_index(table_name, table_share_max);
-
-  for (scan.init(random, table_share_max);
-       scan.has_pass();
-       scan.next_pass())
+  while (++attempts <= table_share_max)
   {
-    PFS_table_share *pfs= table_share_array + scan.first();
-    PFS_table_share *pfs_last= table_share_array + scan.last();
-    for ( ; pfs < pfs_last; pfs++)
+    /* See create_mutex() */
+    PFS_atomic::add_u32(& table_share_monotonic_index, 1);
+    index= table_share_monotonic_index % table_share_max;
+    pfs= table_share_array + index;
+
+    if (pfs->m_lock.is_free())
     {
-      if (pfs->m_lock.is_free())
+      if (pfs->m_lock.free_to_dirty())
       {
-        if (pfs->m_lock.free_to_dirty())
+        pfs->m_key= key;
+        pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
+        pfs->m_schema_name_length= schema_name_length;
+        pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
+        pfs->m_table_name_length= table_name_length;
+        pfs->m_enabled= enabled;
+        pfs->m_timed= timed;
+        pfs->init_refcount();
+        pfs->m_table_stat.reset();
+        set_keys(pfs, share);
+
+        int res;
+        res= lf_hash_insert(&table_share_hash, pins, &pfs);
+        if (likely(res == 0))
         {
-          pfs->m_key= key;
-          pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
-          pfs->m_schema_name_length= schema_name_length;
-          pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
-          pfs->m_table_name_length= table_name_length;
-          pfs->m_enabled= enabled;
-          pfs->m_timed= timed;
-          pfs->init_refcount();
-          pfs->m_table_stat.reset();
-          set_keys(pfs, share);
-
-          int res;
-          res= lf_hash_insert(&table_share_hash, pins, &pfs);
-          if (likely(res == 0))
-          {
-            pfs->m_lock.dirty_to_allocated();
-            return pfs;
-          }
-
-          pfs->m_lock.dirty_to_free();
-
-          if (res > 0)
-          {
-            /* Duplicate insert by another thread */
-            if (++retry_count > retry_max)
-            {
-              /* Avoid infinite loops */
-              table_share_lost++;
-              return NULL;
-            }
-            goto search;
-          }
-
-          /* OOM in lf_hash_insert */
-          table_share_lost++;
-          return NULL;
+          pfs->m_lock.dirty_to_allocated();
+          return pfs;
         }
+
+        pfs->m_lock.dirty_to_free();
+
+        if (res > 0)
+        {
+          /* Duplicate insert by another thread */
+          if (++retry_count > retry_max)
+          {
+            /* Avoid infinite loops */
+            table_share_lost++;
+            return NULL;
+          }
+          goto search;
+        }
+
+        /* OOM in lf_hash_insert */
+        table_share_lost++;
+        return NULL;
       }
     }
   }
@@ -1293,7 +1291,8 @@ void update_table_share_derived_flags(PFS_thread *thread)
 
   for ( ; pfs < pfs_last; pfs++)
   {
-    pfs->refresh_setup_object_flags(thread);
+    if (pfs->m_lock.is_populated())
+      pfs->refresh_setup_object_flags(thread);
   }
 }
 

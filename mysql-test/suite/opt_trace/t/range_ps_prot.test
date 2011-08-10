@@ -1,0 +1,8 @@
+if (`SELECT $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0
+        OR $PS_PROTOCOL = 0`)
+{
+   --skip Need ps-protocol
+}
+
+# The main testing script
+--source suite/opt_trace/include/range.inc

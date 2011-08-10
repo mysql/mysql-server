@@ -19,6 +19,7 @@
 #include <m_string.h>
 #include <m_ctype.h>
 #include <signal.h>
+#include <mysql/psi/mysql_stage.h>
 #ifdef __WIN__
 #ifdef _MSC_VER
 #include <locale.h>
@@ -97,10 +98,6 @@ my_bool my_init(void)
 
 #if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
   fastmutex_global_init();              /* Must be called early */
-#endif
-
-#if defined(HAVE_PTHREAD_INIT)
-  pthread_init();			/* Must be called before DBUG_ENTER */
 #endif
 
   /* $HOME is needed early to parse configuration files located in ~/ */
@@ -457,6 +454,9 @@ static my_bool win32_init_tcp_ip()
 }
 #endif /* __WIN__ */
 
+PSI_stage_info stage_waiting_for_table_level_lock=
+{0, "Waiting for table level lock", 0};
+
 #ifdef HAVE_PSI_INTERFACE
 
 #if !defined(HAVE_PREAD) && !defined(_WIN32)
@@ -538,6 +538,11 @@ static PSI_file_info all_mysys_files[]=
   { &key_file_cnf, "cnf", 0}
 };
 
+PSI_stage_info *all_mysys_stages[]=
+{
+  & stage_waiting_for_table_level_lock
+};
+
 void my_init_mysys_psi_keys()
 {
   const char* category= "mysys";
@@ -556,6 +561,9 @@ void my_init_mysys_psi_keys()
 
   count= sizeof(all_mysys_files)/sizeof(all_mysys_files[0]);
   mysql_file_register(category, all_mysys_files, count);
+
+  count= array_elements(all_mysys_stages);
+  mysql_stage_register(category, all_mysys_stages, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

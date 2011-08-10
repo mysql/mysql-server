@@ -111,7 +111,7 @@ extern mysql_pfs_key_t	trx_undo_mutex_key;
 extern mysql_pfs_key_t	trx_mutex_key;
 extern mysql_pfs_key_t	lock_sys_mutex_key;
 extern mysql_pfs_key_t	lock_sys_wait_mutex_key;
-extern mysql_pfs_key_t	read_view_mutex_key;
+extern mysql_pfs_key_t	trx_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_tasks_mutex_key;
 extern mysql_pfs_key_t	srv_conc_mutex_key;
@@ -604,7 +604,7 @@ V
 lock_sys_mutex				Mutex protecting lock_sys_t
 |
 V
-trx_sys->lock				RW-lock protecting trx_sys_t
+trx_sys->mutex				Mutex protecting trx_sys_t
 |
 V
 Threads mutex				Background thread scheduling mutex
@@ -688,7 +688,6 @@ or row lock! */
 #define SYNC_LOCK_SYS		299
 #define SYNC_TRX_SYS		298
 #define SYNC_TRX		297
-#define SYNC_READ_VIEW		296
 #define SYNC_THREADS		295
 #define SYNC_REC_LOCK		294
 #define SYNC_TRX_SYS_HEADER	290
