@@ -274,7 +274,7 @@ function build() {
     # put the trace into svn
     if [ $docommit -ne 0 ] ; then
 	testresult="PASS"
-	if [ $nfail -ne 0 ] ; then testresult="FAIL"; fi
+	if [ $nfail -ne 0 ] ; then testresult="FAIL=$nfail"; fi
 
 	local cf=`mktemp`
 	echo "$testresult tokudb-build $productname-$BDB $system $release $arch $nodename" >$cf
