@@ -62,6 +62,7 @@ class Master_info : public Slave_reporting_capability
   Master_info(bool is_slave_recovery);
   ~Master_info();
   bool shall_ignore_server_id(ulong s_id);
+  void clear_in_memory_info(bool all);
 
   /* the variables below are needed because we can change masters on the fly */
   char master_log_name[FN_REFLEN];
@@ -113,7 +114,6 @@ class Master_info : public Slave_reporting_capability
   DYNAMIC_ARRAY ignore_server_ids;
   ulong master_id;
 };
-void init_master_log_pos(Master_info* mi);
 int init_master_info(Master_info* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
 		     bool abort_if_no_master_info_file,
