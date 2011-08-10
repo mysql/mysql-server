@@ -176,16 +176,6 @@ mtr_set_savepoint(
 			/* out: savepoint */
 	mtr_t*	mtr);	/* in: mtr */
 /**************************************************************
-Releases the latches stored in an mtr memo down to a savepoint.
-NOTE! The mtr must not have made changes to buffer pages after the
-savepoint, as these can be handled only by mtr_commit. */
-
-void
-mtr_rollback_to_savepoint(
-/*======================*/
-	mtr_t*	mtr,		/* in: mtr */
-	ulint	savepoint);	/* in: savepoint */
-/**************************************************************
 Releases the (index tree) s-latch stored in an mtr memo after a
 savepoint. */
 UNIV_INLINE

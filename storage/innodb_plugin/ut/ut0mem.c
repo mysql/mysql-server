@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -487,53 +487,6 @@ ut_strlcpy_rev(
 	}
 
 	return(src_size);
-}
-
-/**********************************************************************//**
-Make a quoted copy of a NUL-terminated string.	Leading and trailing
-quotes will not be included; only embedded quotes will be escaped.
-See also ut_strlenq() and ut_memcpyq().
-@return	pointer to end of dest */
-UNIV_INTERN
-char*
-ut_strcpyq(
-/*=======*/
-	char*		dest,	/*!< in: output buffer */
-	char		q,	/*!< in: the quote character */
-	const char*	src)	/*!< in: null-terminated string */
-{
-	while (*src) {
-		if ((*dest++ = *src++) == q) {
-			*dest++ = q;
-		}
-	}
-
-	return(dest);
-}
-
-/**********************************************************************//**
-Make a quoted copy of a fixed-length string.  Leading and trailing
-quotes will not be included; only embedded quotes will be escaped.
-See also ut_strlenq() and ut_strcpyq().
-@return	pointer to end of dest */
-UNIV_INTERN
-char*
-ut_memcpyq(
-/*=======*/
-	char*		dest,	/*!< in: output buffer */
-	char		q,	/*!< in: the quote character */
-	const char*	src,	/*!< in: string to be quoted */
-	ulint		len)	/*!< in: length of src */
-{
-	const char*	srcend = src + len;
-
-	while (src < srcend) {
-		if ((*dest++ = *src++) == q) {
-			*dest++ = q;
-		}
-	}
-
-	return(dest);
 }
 
 #ifndef UNIV_HOTBACKUP
