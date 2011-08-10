@@ -127,13 +127,13 @@
       %define distro_description        Oracle Enterprise Linux 4
       %define distro_releasetag         oel4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-      %define distro_requires           chkconfig coreutils grep procps shadow-utils
+      %define distro_requires           chkconfig coreutils grep procps shadow-utils net-tools
     %else
       %if "%oelver" == "5"
         %define distro_description      Oracle Enterprise Linux 5
         %define distro_releasetag       oel5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-        %define distro_requires         chkconfig coreutils grep procps shadow-utils
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Enterprise Linux %{oelver} is unsupported}
       %endif
@@ -145,13 +145,13 @@
         %define distro_description      Red Hat Enterprise Linux 4
         %define distro_releasetag       rhel4
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-        %define distro_requires         chkconfig coreutils grep procps shadow-utils
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %if "%rhelver" == "5"
           %define distro_description    Red Hat Enterprise Linux 5
           %define distro_releasetag     rhel5
           %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-          %define distro_requires       chkconfig coreutils grep procps shadow-utils
+          %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
         %else
           %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
         %endif
@@ -1123,6 +1123,7 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-embedded%{product_suffix}
 %defattr(-, root, root, 0755)
+%attr(755, root, root) %{_bindir}/mysql_embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 
@@ -1135,6 +1136,10 @@ echo "====="                                     >> $STATUS_HISTORY
 * Mon Jul 25 2011 Chuck Bell <chuck.bell@oracle.com>
 
 - Added the mysql_plugin client - enables or disables plugins.
+
+* Thu Jul 21 2011 Sunanda Menon <sunanda.menon@oracle.com>
+
+- Fix bug#12561297: Added the MySQL embedded binary
 
 * Thu Jul 07 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
