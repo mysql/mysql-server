@@ -2271,8 +2271,14 @@ restart:
                           ("block->hash_link: %p  hash_link: %p  "
                            "block->status: %u", block->hash_link,
                            hash_link, block->status ));
-      KEYCACHE_DBUG_ASSERT(block->hash_link == hash_link &&
-                           hash_link->block == block);
+      /*
+        block->hash_link != hash_link can only happen when
+        the block is in PCBLOCK_IN_SWITCH above (is flushed out
+        to be replaced by another block). The SWITCH code will change
+        block->hash_link to point to hash_link.
+      */
+      KEYCACHE_DBUG_ASSERT(block->hash_link == hash_link ||
+                           block->status & PCBLOCK_IN_SWITCH);
       page_status= (((block->hash_link == hash_link) &&
                      (block->status & PCBLOCK_READ)) ?
                     PAGE_READ : PAGE_WAIT_TO_BE_READ);
