@@ -197,9 +197,6 @@ UNIV_INTERN uint	ibuf_debug;
 /** The insert buffer control structure */
 UNIV_INTERN ibuf_t*	ibuf			= NULL;
 
-/** Counter for ibuf_should_try() */
-UNIV_INTERN ulint	ibuf_flush_count	= 0;
-
 #ifdef UNIV_PFS_MUTEX
 UNIV_INTERN mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	ibuf_mutex_key;
