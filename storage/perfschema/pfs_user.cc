@@ -227,6 +227,8 @@ search:
     return pfs;
   }
 
+  lf_hash_search_unpin(pins);
+
   PFS_scan scan;
   uint random= randomized_index(username, user_max);
 
@@ -350,8 +352,9 @@ void purge_user(PFS_thread *thread, PFS_user *user)
                      user->m_key.m_hash_key, user->m_key.m_key_length);
       user->m_lock.allocated_to_free();
     }
-    lf_hash_search_unpin(pins);
   }
+
+  lf_hash_search_unpin(pins);
 }
 
 /** Purge non connected users, reset stats of connected users. */

@@ -1109,6 +1109,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   uint retry_count= 0;
   const uint retry_max= 3;
 search:
+
   entry= reinterpret_cast<PFS_file**>
     (lf_hash_search(&filename_hash, pins,
                     normalized_filename, normalized_length));
@@ -1119,6 +1120,8 @@ search:
     lf_hash_search_unpin(pins);
     return pfs;
   }
+
+  lf_hash_search_unpin(pins);
 
   /* filename is not constant, just using it for noise on create */
   uint random= randomized_index(filename, file_max);
