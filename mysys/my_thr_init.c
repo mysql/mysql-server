@@ -382,8 +382,7 @@ void my_thread_end(void)
     This must be done before trashing st_my_thread_var,
     because the LF_HASH depends on it.
   */
-  if (PSI_server)
-    PSI_server->delete_current_thread();
+  PSI_CALL(delete_current_thread)();
 #endif
 
   if (tmp && tmp->init)

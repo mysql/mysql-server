@@ -119,10 +119,12 @@ void cleanup_setup_actor_hash(void)
 
 static LF_PINS* get_setup_actor_hash_pins(PFS_thread *thread)
 {
-  if (! setup_actor_hash_inited)
-    return NULL;
   if (unlikely(thread->m_setup_actor_hash_pins == NULL))
+  {
+    if (! setup_actor_hash_inited)
+      return NULL;
     thread->m_setup_actor_hash_pins= lf_hash_get_pins(&setup_actor_hash);
+  }
   return thread->m_setup_actor_hash_pins;
 }
 
@@ -236,6 +238,8 @@ int delete_setup_actor(const String *user, const String *host, const String *rol
     pfs->m_lock.allocated_to_free();
   }
 
+  lf_hash_search_unpin(pins);
+
   return 0;
 }
 
@@ -317,9 +321,12 @@ void lookup_setup_actor(PFS_thread *thread,
 
     if (entry && (entry != MY_ERRPTR))
     {
+      lf_hash_search_unpin(pins);
       *enabled= true;
       return;
     }
+
+    lf_hash_search_unpin(pins);
   }
   *enabled= false;
   return;
