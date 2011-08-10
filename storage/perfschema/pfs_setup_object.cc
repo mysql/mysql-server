@@ -234,6 +234,8 @@ int delete_setup_object(enum_object_type object_type, const String *schema,
     pfs->m_lock.allocated_to_free();
   }
 
+  lf_hash_search_unpin(pins);
+
   setup_objects_version++;
   return 0;
 }
@@ -328,8 +330,11 @@ void lookup_setup_object(PFS_thread *thread,
       pfs= *entry;
       *enabled= pfs->m_enabled;
       *timed= pfs->m_timed;
+      lf_hash_search_unpin(pins);
       return;
     }
+
+    lf_hash_search_unpin(pins);
   }
   *enabled= false;
   *timed= false;

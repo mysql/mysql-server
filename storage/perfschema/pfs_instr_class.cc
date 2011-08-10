@@ -1065,6 +1065,8 @@ search:
     return pfs;
   }
 
+  lf_hash_search_unpin(pins);
+
   if (retry_count == 0)
   {
     lookup_setup_object(thread,
@@ -1189,11 +1191,12 @@ void drop_table_share(PFS_thread *thread,
   if (entry && (entry != MY_ERRPTR))
   {
     PFS_table_share *pfs= *entry;
-    lf_hash_search_unpin(pins);
     lf_hash_delete(&table_share_hash, pins,
                    pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
     pfs->m_lock.allocated_to_free();
   }
+
+  lf_hash_search_unpin(pins);
 }
 
 /**

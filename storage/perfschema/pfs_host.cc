@@ -226,6 +226,8 @@ search:
     return pfs;
   }
 
+  lf_hash_search_unpin(pins);
+
   PFS_scan scan;
   uint random= randomized_index(hostname, host_max);
 
@@ -349,8 +351,9 @@ void purge_host(PFS_thread *thread, PFS_host *host)
                      host->m_key.m_hash_key, host->m_key.m_key_length);
       host->m_lock.allocated_to_free();
     }
-    lf_hash_search_unpin(pins);
   }
+
+  lf_hash_search_unpin(pins);
 }
 
 /** Purge non connected hosts, reset stats of connected hosts. */

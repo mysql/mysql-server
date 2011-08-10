@@ -82,6 +82,8 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+--source ../include/no_protocol.inc
+--source ../include/wait_for_pfs_thread_count.inc
 
 --disable_query_log
 grant ALL on *.* to user1@localhost;

@@ -241,6 +241,8 @@ int delete_setup_actor(const String *user, const String *host, const String *rol
     pfs->m_lock.allocated_to_free();
   }
 
+  lf_hash_search_unpin(pins);
+
   return 0;
 }
 
@@ -322,9 +324,12 @@ void lookup_setup_actor(PFS_thread *thread,
 
     if (entry && (entry != MY_ERRPTR))
     {
+      lf_hash_search_unpin(pins);
       *enabled= true;
       return;
     }
+
+    lf_hash_search_unpin(pins);
   }
   *enabled= false;
   return;
