@@ -1710,7 +1710,7 @@ static int lt_do_escalation(toku_lock_tree* lt) {
     OMTVALUE dbv;
 
     assert(toku_omt_size(lt->dbs) > 0);  // there is at least one db associated with this locktree
-    r = toku_omt_fetch(lt->dbs, 0, &dbv, NULL);
+    r = toku_omt_fetch(lt->dbs, 0, &dbv);
     assert(r == 0);
     db = dbv;
     lt_set_comparison_functions(lt, db);
@@ -2143,7 +2143,7 @@ static void lt_add_db(toku_lock_tree* tree, DB *db) {
         int r;
         OMTVALUE get_dbv = NULL;
         uint32_t index;
-        r = toku_omt_find_zero(tree->dbs, find_db, db, &get_dbv, &index, NULL);
+        r = toku_omt_find_zero(tree->dbs, find_db, db, &get_dbv, &index);
         assert(r == DB_NOTFOUND);
         r = toku_omt_insert_at(tree->dbs, db, index);
         assert_zero(r);
@@ -2155,7 +2155,7 @@ static void lt_remove_db(toku_lock_tree* tree, DB *db) {
         int r;
         OMTVALUE get_dbv = NULL;
         uint32_t index;
-        r = toku_omt_find_zero(tree->dbs, find_db, db, &get_dbv, &index, NULL);
+        r = toku_omt_find_zero(tree->dbs, find_db, db, &get_dbv, &index);
         assert_zero(r);
         assert(db == get_dbv);
         r = toku_omt_delete_at(tree->dbs, index);

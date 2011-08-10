@@ -99,7 +99,7 @@ static void file_map_close_dictionaries(struct file_map *fmap, BOOL recovery_suc
         if (n == 0)
             break;
         OMTVALUE v;
-        r = toku_omt_fetch(fmap->filenums, n-1, &v, NULL);
+        r = toku_omt_fetch(fmap->filenums, n-1, &v);
         assert(r == 0);
         r = toku_omt_delete_at(fmap->filenums, n-1);
         assert(r == 0);
@@ -150,7 +150,7 @@ static int file_map_insert (struct file_map *fmap, FILENUM fnum, BRT brt, char *
 
 static void file_map_remove(struct file_map *fmap, FILENUM fnum) {
     OMTVALUE v; u_int32_t idx;
-    int r = toku_omt_find_zero(fmap->filenums, file_map_h, &fnum, &v, &idx, NULL);
+    int r = toku_omt_find_zero(fmap->filenums, file_map_h, &fnum, &v, &idx);
     if (r == 0) {
         struct file_map_tuple *tuple = v;
         r = toku_omt_delete_at(fmap->filenums, idx);
@@ -162,7 +162,7 @@ static void file_map_remove(struct file_map *fmap, FILENUM fnum) {
 // Look up file info: given FILENUM, return file_map_tuple (or DB_NOTFOUND)
 static int file_map_find(struct file_map *fmap, FILENUM fnum, struct file_map_tuple **file_map_tuple) {
     OMTVALUE v; u_int32_t idx;
-    int r = toku_omt_find_zero(fmap->filenums, file_map_h, &fnum, &v, &idx, NULL);
+    int r = toku_omt_find_zero(fmap->filenums, file_map_h, &fnum, &v, &idx);
     if (r == 0) {
         struct file_map_tuple *tuple = v;
         assert(tuple->filenum.fileid == fnum.fileid);
@@ -1142,7 +1142,7 @@ static void recover_abort_live_txns(RECOVER_ENV renv) {
         if (n_live_txns == 0)
             break;
         OMTVALUE v;
-        r = toku_omt_fetch(renv->logger->live_txns, n_live_txns-1, &v, NULL);
+        r = toku_omt_fetch(renv->logger->live_txns, n_live_txns-1, &v);
         if (r != 0)
             break;
         TOKUTXN txn = (TOKUTXN) v;

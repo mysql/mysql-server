@@ -1192,7 +1192,7 @@ int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
 
     OMTVALUE txnfound;
     int rval;
-    int r = toku_omt_find_zero(logger->live_txns, find_by_xid, &txnid, &txnfound, NULL, NULL);
+    int r = toku_omt_find_zero(logger->live_txns, find_by_xid, &txnid, &txnfound, NULL);
     if (r==0) {
         TOKUTXN txn = txnfound;
         assert(txn->txnid64==txnid);

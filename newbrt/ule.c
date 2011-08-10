@@ -137,7 +137,7 @@ get_next_older_txnid(TXNID xc, OMT omt) {
     OMTVALUE v;
     uint32_t idx;
     TXNID rval;
-    r = toku_omt_find(omt, toku_find_pair_by_xid, &xc, -1, &v, &idx, NULL);
+    r = toku_omt_find(omt, toku_find_pair_by_xid, &xc, -1, &v, &idx);
     if (r==0) {
         xid = v;
         invariant(*xid < xc); //sanity check
@@ -157,7 +157,7 @@ toku_get_youngest_live_list_txnid_for(TXNID xc, OMT live_list_reverse) {
     uint32_t idx;
     TXNID rval;
     int r;
-    r = toku_omt_find_zero(live_list_reverse, toku_find_pair_by_xid, &xc, &pairv, &idx, NULL);
+    r = toku_omt_find_zero(live_list_reverse, toku_find_pair_by_xid, &xc, &pairv, &idx);
     if (r==0) {
         pair = pairv;
         invariant(pair->xid1 == xc); //sanity check
@@ -226,7 +226,7 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse) {
         {
             u_int32_t idx;
             OMTVALUE txnagain;
-            int r = toku_omt_find_zero(snapshot_xids, toku_find_xid_by_xid, &tl1, &txnagain, &idx, NULL);
+            int r = toku_omt_find_zero(snapshot_xids, toku_find_xid_by_xid, &tl1, &txnagain, &idx);
             invariant(r==0); //make sure that the txn you are claiming is live is actually live
         }
         //

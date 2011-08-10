@@ -114,7 +114,7 @@ live_list_reverse_note_txn_start_iter(OMTVALUE live_xidv, u_int32_t UU(index), v
 
     int r;
     OMT reverse = txn->logger->live_list_reverse;
-    r = toku_omt_find_zero(reverse, toku_find_pair_by_xid, live_xid, &pairv, &idx, NULL);
+    r = toku_omt_find_zero(reverse, toku_find_pair_by_xid, live_xid, &pairv, &idx);
     if (r==0) {
         pair = pairv;
         invariant(pair->xid1 == *live_xid); //sanity check
@@ -488,7 +488,7 @@ TXNID toku_get_oldest_in_live_root_txn_list(TOKUTXN txn) {
     invariant(toku_omt_size(omt)>0);
     OMTVALUE v;
     int r;
-    r = toku_omt_fetch(omt, 0, &v, NULL);
+    r = toku_omt_fetch(omt, 0, &v);
     assert_zero(r);
     TXNID *xidp = v;
     return *xidp;
@@ -509,7 +509,7 @@ BOOL toku_is_txn_in_live_root_txn_list(TOKUTXN txn, TXNID xid) {
     OMTVALUE txnidpv;
     uint32_t index;
     BOOL retval = FALSE;
-    int r = toku_omt_find_zero(omt, find_xidp, &xid, &txnidpv, &index, NULL);
+    int r = toku_omt_find_zero(omt, find_xidp, &xid, &txnidpv, &index);
     if (r==0) {
         TXNID *txnidp = txnidpv;
         invariant(*txnidp == xid);
@@ -536,19 +536,19 @@ verify_snapshot_system(TOKULOGGER logger) {
     //set up arrays for easier access
     for (i = 0; i < num_snapshot_txnids; i++) {
         OMTVALUE v;
-        r = toku_omt_fetch(logger->snapshot_txnids, i, &v, NULL);
+        r = toku_omt_fetch(logger->snapshot_txnids, i, &v);
         assert_zero(r);
         snapshot_txnids[i] = *(TXNID*)v;
     }
     for (i = 0; i < num_live_txns; i++) {
         OMTVALUE v;
-        r = toku_omt_fetch(logger->live_txns, i, &v, NULL);
+        r = toku_omt_fetch(logger->live_txns, i, &v);
         assert_zero(r);
         live_txns[i] = v;
     }
     for (i = 0; i < num_live_list_reverse; i++) {
         OMTVALUE v;
-        r = toku_omt_fetch(logger->live_list_reverse, i, &v, NULL);
+        r = toku_omt_fetch(logger->live_list_reverse, i, &v);
         assert_zero(r);
         live_list_reverse[i] = v;
     }
@@ -566,7 +566,7 @@ verify_snapshot_system(TOKULOGGER logger) {
             {
                 for (j = 0; j < num_live_root_txn_list; j++) {
                     OMTVALUE v;
-                    r = toku_omt_fetch(snapshot_txn->live_root_txn_list, j, &v, NULL);
+                    r = toku_omt_fetch(snapshot_txn->live_root_txn_list, j, &v);
                     assert_zero(r);
                     live_root_txn_list[j] = *(TXNID*)v;
                 }
@@ -595,7 +595,7 @@ verify_snapshot_system(TOKULOGGER logger) {
                 OMTVALUE v2;
                 r = toku_omt_find_zero(logger->snapshot_txnids,
                                        toku_find_xid_by_xid,
-                                       &pair->xid2, &v2, &index, NULL);
+                                       &pair->xid2, &v2, &index);
                 assert_zero(r);
             }
             for (j = 0; j < num_live_txns; j++) {
@@ -621,7 +621,7 @@ verify_snapshot_system(TOKULOGGER logger) {
                 OMTVALUE v2;
                 r = toku_omt_find_zero(logger->snapshot_txnids,
                                        toku_find_xid_by_xid,
-                                       &txn->txnid64, &v2, &index, NULL);
+                                       &txn->txnid64, &v2, &index);
                 invariant(r==0 || r==DB_NOTFOUND);
                 invariant((r==0) == (expect!=0));
             }

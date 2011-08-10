@@ -410,7 +410,7 @@ is_filenum_reserved(CACHETABLE ct, FILENUM filenum) {
     int r;
     BOOL rval;
 
-    r = toku_omt_find_zero(ct->reserved_filenums, find_by_filenum, &filenum, &v, NULL, NULL);
+    r = toku_omt_find_zero(ct->reserved_filenums, find_by_filenum, &filenum, &v, NULL);
     if (r==0) {
         FILENUM* found = v;
         assert(found->fileid == filenum.fileid);
@@ -429,7 +429,7 @@ reserve_filenum(CACHETABLE ct, FILENUM filenum) {
     assert(filenum.fileid != FILENUM_NONE.fileid);
 
     uint32_t index;
-    r = toku_omt_find_zero(ct->reserved_filenums, find_by_filenum, &filenum, NULL, &index, NULL);
+    r = toku_omt_find_zero(ct->reserved_filenums, find_by_filenum, &filenum, NULL, &index);
     assert(r==DB_NOTFOUND);
     FILENUM *XMALLOC(entry);
     *entry = filenum;
@@ -443,7 +443,7 @@ unreserve_filenum(CACHETABLE ct, FILENUM filenum) {
     int r;
 
     uint32_t index;
-    r = toku_omt_find_zero(ct->reserved_filenums, find_by_filenum, &filenum, &v, &index, NULL);
+    r = toku_omt_find_zero(ct->reserved_filenums, find_by_filenum, &filenum, &v, &index);
     assert(r==0);
     FILENUM* found = v;
     assert(found->fileid == filenum.fileid);

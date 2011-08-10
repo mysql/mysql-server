@@ -48,15 +48,6 @@ struct omt {
         struct omt_array a;
         struct omt_tree t;
     } i;
-    OMTCURSOR  associated; // the OMTs associated with this.
-};
-
-struct omt_cursor {
-    OMT omt;   // The omt this cursor is associated with.  NULL if not present.
-    void (*invalidate)(OMTCURSOR, void*);
-    void *invalidate_extra;
-    u_int32_t index; // This is the state for the initial implementation
-    OMTCURSOR next,prev; // circular linked list of all OMTCURSORs associated with omt.
 };
 
 static inline int
@@ -66,7 +57,6 @@ omt_create_no_array(OMT *omtp) {
     result->is_array       = TRUE;
     result->i.a.num_values = 0;
     result->i.a.start_idx  = 0;
-    result->associated = NULL;
     *omtp = result;
     return 0;
 }
@@ -97,82 +87,6 @@ toku_omt_create_steal_sorted_array(OMT *omtp, OMTVALUE **valuesp, u_int32_t numv
     result->i.a.values     = *valuesp;
     *valuesp = NULL; //Remove caller's reference.
     return 0;
-}
-
-int toku_omt_cursor_create (OMTCURSOR *omtcp) {
-    OMTCURSOR MALLOC(c);
-    if (c==NULL) return errno;
-    c->omt = NULL;
-    c->next = c->prev = NULL;
-    c->invalidate = NULL;
-    c->invalidate_extra = NULL;
-    *omtcp = c;
-    return 0;
-}
-
-OMT toku_omt_cursor_get_omt(OMTCURSOR c) {
-    return c->omt;
-}
-
-void toku_omt_cursor_set_invalidate_callback(OMTCURSOR c, void (*f)(OMTCURSOR,void*), void* extra) {
-    c->invalidate = f;
-    c->invalidate_extra = extra;
-}
-
-void toku_omt_cursor_invalidate (OMTCURSOR c) {
-    //If already invalid, do nothing.
-    if (c==NULL || c->omt==NULL) return;
-    if (c->invalidate) c->invalidate(c, c->invalidate_extra);
-    if (c->next == c) {
-	// It's the last one.
-	c->omt->associated = NULL;
-    } else {
-	OMTCURSOR next = c->next;
-	OMTCURSOR prev = c->prev;
-	if (c->omt->associated == c) {
-	    c->omt->associated = next;
-	}
-	next->prev = prev;
-	prev->next = next;
-    }
-    c->next = c->prev = NULL;
-    c->omt = NULL;
-}
-
-void toku_omt_cursor_destroy (OMTCURSOR *p) {
-    toku_omt_cursor_invalidate(*p);
-    toku_free(*p);
-    *p = NULL;
-}
-
-static void invalidate_cursors (OMT omt) {
-    OMTCURSOR assoced;
-    while ((assoced = omt->associated)) {
-	toku_omt_cursor_invalidate(assoced);
-    }
-}
-
-static void associate (OMT omt, OMTCURSOR c)
-{
-    if (c->omt==omt) return;
-    toku_omt_cursor_invalidate(c);
-    if (omt->associated==NULL) {
-	c->prev = c;
-	c->next = c;
-	omt->associated = c;
-    } else {
-	c->prev = omt->associated->prev;
-	c->next = omt->associated;
-	omt->associated->prev->next = c;
-	omt->associated->prev = c;
-    }
-    c->omt = omt;
-}
-
-void
-toku_omt_cursor_associate(OMT omt, OMTCURSOR c) {
-    assert(c->omt==NULL||c->omt==omt);
-    associate(omt, c);
 }
 
 static inline u_int32_t nweight(OMT omt, node_idx idx) {
@@ -639,50 +553,6 @@ static inline int find_internal_plus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE,
     }
 }
 
-
-
-int toku_omt_cursor_is_valid (OMTCURSOR c) {
-    return c->omt!=NULL;
-}
-
-void toku_omt_cursor_set_index(OMTCURSOR c, u_int32_t index) {
-    assert(c->omt);
-    c->index = index;
-}
-
-int toku_omt_cursor_next (OMTCURSOR c, OMTVALUE *v) {
-    if (c->omt == NULL) return EINVAL;
-    int r = toku_omt_fetch(c->omt, c->index+1, v, NULL);
-    if (r==0) c->index++;
-    else      toku_omt_cursor_invalidate(c);
-    return r;
-}
-
-int toku_omt_cursor_prev (OMTCURSOR c, OMTVALUE *v) {
-    if (c->omt == NULL) return EINVAL;
-    if (c->index==0) {
-       toku_omt_cursor_invalidate(c);
-       return EINVAL;
-    }
-    c->index--;
-    int r = toku_omt_fetch(c->omt, c->index, v, NULL);
-    assert(r==0);
-    return r;
-}
-
-int toku_omt_cursor_current (OMTCURSOR c, OMTVALUE *v) {
-    if (c->omt == NULL) return EINVAL;
-    int r = toku_omt_fetch(c->omt, c->index, v, NULL);
-    assert(r==0);
-    return r;
-}
-
-int toku_omt_cursor_current_index(OMTCURSOR c, u_int32_t *index) {
-    if (c->omt == NULL) return EINVAL;
-    *index = c->index;
-    return 0;
-}
-
 //TODO: Put all omt API functions here.
 int toku_omt_create (OMT *omtp) {
     return omt_create_internal(omtp, 2);
@@ -690,7 +560,6 @@ int toku_omt_create (OMT *omtp) {
 
 void toku_omt_destroy(OMT *omtp) {
     OMT omt=*omtp;
-    invalidate_cursors(omt);
     if (omt->is_array) toku_free(omt->i.a.values);
     else               toku_free(omt->i.t.nodes);
     toku_free(omt);
@@ -713,7 +582,6 @@ int toku_omt_create_from_sorted_array(OMT *omtp, OMTVALUE *values, u_int32_t num
 
 int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index) {
     int r;
-    invalidate_cursors(omt);
     if (index>omt_size(omt)) return EINVAL;
     if ((r=maybe_resize_or_convert(omt, 1+omt_size(omt)))) return r;
     if (omt->is_array && index!=omt->i.a.num_values &&
@@ -739,7 +607,6 @@ int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index) {
 
 int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index) {
     if (index>=omt_size(omt)) return EINVAL;
-    invalidate_cursors(omt);
     if (omt->is_array) {
         set_at_internal_array(omt, value, index);
     }
@@ -752,7 +619,6 @@ int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index) {
 int toku_omt_delete_at(OMT omt, u_int32_t index) {
     OMTVALUE v;
     int r;
-    invalidate_cursors(omt);
     if (index>=omt_size(omt)) return EINVAL;
     if ((r=maybe_resize_or_convert(omt, -1+omt_size(omt)))) return r;
     if (omt->is_array && index!=0 && index!=omt->i.a.num_values-1) {
@@ -772,17 +638,13 @@ int toku_omt_delete_at(OMT omt, u_int32_t index) {
     return 0;
 }
 
-int toku_omt_fetch(OMT V, u_int32_t i, OMTVALUE *v, OMTCURSOR c) {
+int toku_omt_fetch(OMT V, u_int32_t i, OMTVALUE *v) {
     if (i>=omt_size(V)) return EINVAL;
     if (V->is_array) {
         fetch_internal_array(V, i, v);
     }
     else {
         fetch_internal(V, V->i.t.root, i, v);
-    }
-    if (c) {
-	associate(V,c);
-	c->index = i;
     }
     return 0;
 }
@@ -796,7 +658,6 @@ free_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
 
 
 void toku_omt_free_items(OMT omt) {
-    invalidate_cursors(omt);
     int r = toku_omt_iterate(omt, free_item, NULL);
     lazy_assert_zero(r);
 }
@@ -820,9 +681,7 @@ int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v,
     int r;
     u_int32_t idx;
 
-    invalidate_cursors(omt);
-
-    r = toku_omt_find_zero(omt, h, v, NULL, &idx, NULL);
+    r = toku_omt_find_zero(omt, h, v, NULL, &idx);
     if (r==0) {
         if (index) *index = idx;
         return DB_KEYEXIST;
@@ -835,7 +694,7 @@ int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v,
     return 0;
 }
 
-int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index, OMTCURSOR c) {
+int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index) {
     u_int32_t tmp_index;
     if (index==NULL) index=&tmp_index;
     int r;
@@ -845,16 +704,10 @@ int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVAL
     else {
         r = find_internal_zero(V, V->i.t.root, h, extra, value, index);
     }
-    if (c && r==0) {
-	associate(V,c);
-	c->index = *index;
-    } else {
-	toku_omt_cursor_invalidate(c);
-    }
     return r;
 }
 
-int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *index, OMTCURSOR c) {
+int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *index) {
     u_int32_t tmp_index;
     int r;
     if (index==NULL) index=&tmp_index;
@@ -875,19 +728,12 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
             r = find_internal_plus( V, V->i.t.root, h, extra, value, index);
         }
     }
-    if (c && r==0) {
-	associate(V,c);
-	c->index=*index;
-    } else {
-	toku_omt_cursor_invalidate(c);
-    }
     return r;
 }
 
 int toku_omt_split_at(OMT omt, OMT *newomtp, u_int32_t index) {
     int r;
     OMT newomt;
-    invalidate_cursors(omt);
     if (index>omt_size(omt)) return EINVAL;
 
     if ((r=omt_convert_to_array(omt))) return r;
@@ -909,8 +755,6 @@ int toku_omt_split_at(OMT omt, OMT *newomtp, u_int32_t index) {
 int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomtp) {
     int r;
     OMT newomt = 0;
-    invalidate_cursors(leftomt);
-    invalidate_cursors(rightomt);
     u_int32_t newsize = omt_size(leftomt)+omt_size(rightomt);
     if ((r = omt_create_internal(&newomt, newsize))) return r;
 
@@ -938,7 +782,6 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomtp) {
 }
 
 void toku_omt_clear(OMT omt) {
-    invalidate_cursors(omt);
     if (omt->is_array) {
         omt->i.a.start_idx  = 0;
         omt->i.a.num_values = 0;

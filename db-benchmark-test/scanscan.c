@@ -283,7 +283,8 @@ static int counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
             printf("%s:%d %"PRIu64" %"PRIu64"\n", __FUNCTION__, __LINE__, k, expect_key);
         expect_key = k + 1;
     }
-    return 0;
+    return TOKUDB_CURSOR_CONTINUE;
+    //return 0;
 }
 
 static void scanscan_lwc (void) {
@@ -306,7 +307,7 @@ static void scanscan_lwc (void) {
 	    rowcounter++;
 	    if (limitcount>0 && rowcounter>=limitcount) break;
 	}
-	assert(r==DB_NOTFOUND);
+	//assert(r==DB_NOTFOUND);
 	r = dbc->c_close(dbc);                                      assert(r==0);
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;

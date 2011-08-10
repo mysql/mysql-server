@@ -2819,7 +2819,7 @@ env_note_db_opened(DB_ENV *env, DB *db) {
     OMTVALUE dbv;
     uint32_t idx;
     env->i->num_open_dbs++;
-    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx, NULL);
+    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert(r==DB_NOTFOUND); //Must not already be there.
     r = toku_omt_insert_at(env->i->open_dbs, db, idx);
     assert(r==0);
@@ -2834,7 +2834,7 @@ env_note_db_closed(DB_ENV *env, DB *db) {
     OMTVALUE dbv;
     uint32_t idx;
     env->i->num_open_dbs--;
-    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx, NULL);
+    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert(r==0); //Must already be there.
     assert((DB*)dbv == db);
     r = toku_omt_delete_at(env->i->open_dbs, idx);
@@ -2850,7 +2850,7 @@ env_note_zombie_db(DB_ENV *env, DB *db) {
     OMTVALUE dbv;
     uint32_t idx;
     env->i->num_zombie_dbs++;
-    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx, NULL);
+    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert(r==DB_NOTFOUND); //Must not already be there.
     r = toku_omt_insert_at(env->i->open_dbs, db, idx);
     assert(r==0);
@@ -2865,7 +2865,7 @@ env_note_zombie_db_closed(DB_ENV *env, DB *db) {
     OMTVALUE dbv;
     uint32_t idx;
     env->i->num_zombie_dbs--;
-    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx, NULL);
+    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
     assert(r==0); //Must already be there.
     assert((DB*)dbv == db);
     r = toku_omt_delete_at(env->i->open_dbs, idx);
@@ -2907,7 +2907,7 @@ env_is_db_with_dname_open(DB_ENV *env, const char *dname) {
     BOOL rval;
     OMTVALUE dbv;
     uint32_t idx;
-    r = toku_omt_find_zero(env->i->open_dbs, find_open_db_by_dname, (void*)dname, &dbv, &idx, NULL);
+    r = toku_omt_find_zero(env->i->open_dbs, find_open_db_by_dname, (void*)dname, &dbv, &idx);
     if (r==0) {
         DB *db = dbv;
         assert(strcmp(dname, db->i->dname) == 0);
@@ -2928,7 +2928,7 @@ env_get_zombie_db_with_dname(DB_ENV *env, const char *dname) {
     DB* rval;
     OMTVALUE dbv;
     uint32_t idx;
-    r = toku_omt_find_zero(env->i->open_dbs, find_zombie_db_by_dname, (void*)dname, &dbv, &idx, NULL);
+    r = toku_omt_find_zero(env->i->open_dbs, find_zombie_db_by_dname, (void*)dname, &dbv, &idx);
     if (r==0) {
         DB *db = dbv;
         assert(db);
@@ -3461,7 +3461,7 @@ c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, 
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
         context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
-        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+        r = context->r_user_callback;
     }
 
     //Give brt-layer an error (if any) to return from toku_brt_cursor_first
@@ -3512,7 +3512,7 @@ c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
         context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
-        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+        r = context->r_user_callback;
     }
 
     //Give brt-layer an error (if any) to return from toku_brt_cursor_last
@@ -3567,7 +3567,7 @@ c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
         context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
-        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+        r = context->r_user_callback;
     }
 
     //Give brt-layer an error (if any) to return from toku_brt_cursor_next
@@ -3622,7 +3622,7 @@ c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
         context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
-        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+        r = context->r_user_callback;
     }
 
     //Give brt-layer an error (if any) to return from toku_brt_cursor_prev
@@ -3660,7 +3660,7 @@ c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val
     //Call application-layer callback if found.
     if (key!=NULL) {
         context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
-        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+        r = context->r_user_callback;
     }
 
     //Give brt-layer an error (if any) to return from toku_brt_cursor_current
@@ -3724,7 +3724,7 @@ c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, vo
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
         context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
-        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+        r = context->r_user_callback;
     }
 
     //Give brt-layer an error (if any) to return from toku_brt_cursor_set
@@ -3779,7 +3779,7 @@ c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec v
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
         context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
-        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+        r = context->r_user_callback;
     }
 
     //Give brt-layer an error (if any) to return from toku_brt_cursor_set_range
@@ -3835,7 +3835,7 @@ c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, b
     //Call application-layer callback if found and locks were successfully obtained.
     if (r==0 && key!=NULL) {
         context->r_user_callback = super_context->f(&found_key, &found_val, context->f_extra);
-        if (context->r_user_callback) r = TOKUDB_USER_CALLBACK_ERROR;
+        r = context->r_user_callback;
     }
 
     //Give brt-layer an error (if any) to return from toku_brt_cursor_set_range_reverse
