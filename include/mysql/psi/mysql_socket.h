@@ -93,19 +93,29 @@ mysql_socket_invalid()
   return mysql_socket;
 }
 
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+  #define MYSQL_SOCKET_SET_STATE(SOCKET, STATE) \
+    inline_mysql_socket_set_state(SOCKET, STATE)
+#else
+  #define MYSQL_SOCKET_SET_STATE(SOCKET, STATE) \
+    do {} while (0)
+#endif
+
 /**
   Set the state (IDLE, ACTIVE) of an instrumented socket.
   @param socket the instrumented socket
   @param state the new state
   @sa PSI_socket_state
 */
+#ifdef HAVE_PSI_SOCKET_INTERFACE
 static inline void
-mysql_socket_set_state(MYSQL_SOCKET socket, enum PSI_socket_state state)
+inline_mysql_socket_set_state(MYSQL_SOCKET socket, enum PSI_socket_state state)
 {
 #ifdef HAVE_PSI_SOCKET_INTERFACE
   PSI_CALL(set_socket_state)(socket.m_psi, state);
 #endif
 }
+#endif
 
 /**
   Set socket descriptor and address.
