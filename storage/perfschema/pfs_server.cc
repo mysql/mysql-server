@@ -32,6 +32,9 @@
 #include "pfs_timer.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
+#include "pfs_host.h"
+#include "pfs_user.h"
+#include "pfs_account.h"
 #include "pfs_defaults.h"
 
 PFS_global_param pfs_param;
@@ -85,7 +88,13 @@ initialize_performance_schema(const PFS_global_param *param)
       init_setup_actor(param) ||
       init_setup_actor_hash() ||
       init_setup_object(param) ||
-      init_setup_object_hash())
+      init_setup_object_hash() ||
+      init_host(param) ||
+      init_host_hash() ||
+      init_user(param) ||
+      init_user_hash() ||
+      init_account(param) ||
+      init_account_hash())
   {
     /*
       The performance schema initialization failed.
@@ -137,6 +146,12 @@ static void cleanup_performance_schema(void)
   cleanup_setup_actor_hash();
   cleanup_setup_object();
   cleanup_setup_object_hash();
+  cleanup_host();
+  cleanup_host_hash();
+  cleanup_user();
+  cleanup_user_hash();
+  cleanup_account();
+  cleanup_account_hash();
   PFS_atomic::cleanup();
 }
 
@@ -155,4 +170,5 @@ void shutdown_performance_schema(void)
     THR_PFS_initialized= false;
   }
 }
+
 
