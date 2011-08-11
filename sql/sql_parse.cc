@@ -2617,6 +2617,12 @@ mysql_execute_command(THD *thd)
       goto end_with_restore_list;
 #endif
     /*
+      If no engine type was given, work out the default now
+      rather than at parse-time.
+    */
+    if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
+      create_info.db_type= ha_default_handlerton(thd);
+    /*
       If we are using SET CHARSET without DEFAULT, add an implicit
       DEFAULT to not confuse old users. (This may change).
     */
