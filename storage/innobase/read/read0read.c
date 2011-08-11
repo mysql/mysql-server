@@ -519,7 +519,6 @@ read_view_remove(
 /*=============*/
 	read_view_t*	view)	/*!< in: read view */
 {
-	/* We acquire an S lock for the debug validate code. */
 	mutex_enter(&trx_sys->mutex);
 
 	ut_ad(read_view_validate(view));
