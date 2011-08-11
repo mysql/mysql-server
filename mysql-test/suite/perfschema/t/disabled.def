@@ -1,170 +1,28 @@
-start_server_innodb : merge
-pfs_upgrade : merge
-start_server_no_cond_class : merge
-start_server_no_cond_inst : merge
-start_server_no_file_class : merge
-start_server_no_file_inst : merge
-start_server_no_mutex_class : merge
-start_server_no_mutex_inst : merge
-start_server_no_rwlock_class : merge
-start_server_no_rwlock_inst : merge
-start_server_no_setup_actors : merge
-start_server_no_setup_objects : merge
-start_server_no_stage_class : merge
-start_server_no_stages_history : merge
-start_server_no_stages_history_long : merge
-start_server_no_statement_class : merge
-start_server_no_statements_history : merge
-start_server_no_statements_history_long : merge
-start_server_no_table_hdl : merge
-start_server_no_table_inst : merge
-start_server_no_thread_class : merge
-start_server_no_thread_inst : merge
-start_server_off : merge
-start_server_on : merge
-cnf_option : merge
-short_option_1 : merge
-no_threads : merge
-selects : merge
-event_aggregate_no_a_no_u_no_h : merge
-event_aggregate_no_a_no_h : merge
-event_aggregate_no_a_no_u : merge
-event_aggregate_no_a : merge
-event_aggregate_no_u_no_h : merge
-event_aggregate_no_h : merge
-event_aggregate_no_u : merge
-event_aggregate : merge
-tampered_perfschema_table1 : merge
-start_server_off : merge
-start_server_no_stages_history_long : merge
-start_server_no_stages_history : merge
-start_server_no_statements_history_long : merge
-start_server_no_statements_history : merge
-start_server_no_cond_class : merge
-start_server_no_cond_inst : merge
-start_server_no_file_class : merge
-start_server_no_file_inst : merge
-start_server_no_mutex_class : merge
-start_server_no_mutex_inst : merge
-start_server_no_rwlock_class : merge
-start_server_no_rwlock_inst : merge
-start_server_no_stage_class : merge
-start_server_no_statement_class : merge
-start_server_no_table_hdl : merge
-start_server_no_table_inst : merge
-start_server_no_thread_class : merge
-start_server_no_thread_inst : merge
-start_server_no_setup_actors : merge
-start_server_no_setup_objects : merge
-start_server_on : merge
-connection_3a_3u : merge
-connection_3a : merge
-thread_cache : merge
-connection_3u : merge
-socket_instances_func_win : merge
-one_thread_per_con : merge
-short_option_2 : merge
-aggregate : merge
-all_tests : merge
-bad_option_1 : merge
-bad_option_2 : merge
-bad_option_3 : merge
-bad_option_4 : merge
-bad_option_5 : merge
-checksum : merge
-column_privilege : merge
-connection : merge
-csv_table_io : merge
-ddl_accounts : merge
-ddl_cond_instances : merge
-ddl_esgs_by_account_by_event_name : merge
-ddl_esgs_by_host_by_event_name : merge
-ddl_esgs_by_thread_by_event_name : merge
-ddl_esgs_by_user_by_event_name : merge
-ddl_esgs_global_by_event_name : merge
-ddl_esms_by_account_by_event_name : merge
-ddl_esms_by_host_by_event_name : merge
-ddl_esms_by_thread_by_event_name : merge
-ddl_esms_by_user_by_event_name : merge
-ddl_esms_global_by_event_name : merge
-ddl_events_stages_current : merge
-ddl_events_stages_history : merge
-ddl_events_stages_history_long : merge
-ddl_events_statements_current : merge
-ddl_events_statements_history : merge
-ddl_events_statements_history_long : merge
-ddl_events_waits_current : merge
-ddl_events_waits_history : merge
-ddl_events_waits_history_long : merge
-ddl_ews_by_account_by_event_name : merge
-ddl_ews_by_host_by_event_name : merge
-ddl_ews_by_instance : merge
-ddl_ews_by_thread_by_event_name : merge
-ddl_ews_by_user_by_event_name : merge
-ddl_ews_global_by_event_name : merge
-ddl_file_instances : merge
-ddl_fs_by_event_name : merge
-ddl_fs_by_instance : merge
-ddl_hosts : merge
-ddl_mutex_instances : merge
-ddl_os_global_by_type : merge
-ddl_performance_timers : merge
-ddl_rwlock_instances : merge
-ddl_setup_actors : merge
-ddl_setup_consumers : merge
-ddl_setup_instruments : merge
-ddl_setup_objects : merge
-ddl_setup_timers : merge
-ddl_socket_instances : merge
-ddl_socket_summary_by_event_name : merge
-ddl_socket_summary_by_instance : merge
-ddl_threads : merge
-ddl_tiws_by_index_usage : merge
-ddl_tiws_by_table : merge
-ddl_tlws_by_table : merge
-ddl_users : merge
-dml_accounts : merge
-dml_cond_instances : merge
-dml_esgs_by_account_by_event_name : merge
-dml_esgs_by_host_by_event_name : merge
-dml_esgs_by_thread_by_event_name : merge
-dml_esgs_by_user_by_event_name : merge
-dml_esgs_global_by_event_name : merge
-dml_esms_by_account_by_event_name : merge
-dml_esms_by_host_by_event_name : merge
-dml_esms_by_thread_by_event_name : merge
-dml_esms_by_user_by_event_name : merge
-dml_esms_global_by_event_name : merge
-dml_events_stages_current : merge
-dml_events_stages_history : merge
-dml_events_stages_history_long : merge
-dml_events_statements_current : merge
-dml_events_statements_history : merge
-dml_events_statements_history_long : merge
-dml_events_waits_current : merge
-dml_events_waits_history : merge
-dml_events_waits_history_long : merge
-dml_ews_by_account_by_event_name : merge
-dml_ews_by_host_by_event_name : merge
-dml_ews_by_instance : merge
-dml_ews_by_thread_by_event_name : merge
-dml_ews_by_user_by_event_name : merge
-dml_ews_global_by_event_name : merge
-dml_file_instances : merge
-dml_fs_by_event_name : merge
-dml_fs_by_instance : merge
-cnf_option : merge
-short_option_1 : merge
-no_threads : merge
-selects : merge
-threads_mysql : merge
-event_aggregate_no_a_no_u_no_h : merge
-event_aggregate_no_a_no_h : merge
-event_aggregate_no_a_no_u : merge
-event_aggregate_no_a : merge
-event_aggregate_no_u_no_h : merge
-event_aggregate_no_h : merge
-event_aggregate_no_u : merge
-event_aggregate : merge
-tampered_perfschema_table1 : merge
-start_server_off : merge
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+socket_summary_by_instance_func        : WL#4896 "Performance Schema Net IO" - Disable until debugged
+
