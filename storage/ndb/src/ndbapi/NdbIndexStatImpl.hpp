@@ -29,6 +29,7 @@ class NdbTransaction;
 class NdbIndexScanOperation;
 class NdbRecAttr;
 class NdbOperation;
+class NdbEventOperation;
 
 extern const uint g_ndb_index_stat_head_frm_len;
 extern const uint8 g_ndb_index_stat_head_frm_data[];
@@ -71,6 +72,7 @@ public:
   Cache* m_cacheClean;
   // mutex for query cache switch, memory barrier would do
   NdbMutex* m_query_mutex;
+  NdbEventOperation* m_eventOp;
   Mem* m_mem_handler;
   NdbIndexStat::Error m_error;
 
@@ -98,6 +100,7 @@ public:
   int get_systables(Sys& sys);
   int create_systables(Ndb* ndb);
   int drop_systables(Ndb* ndb);
+  int check_systables(Sys& sys);
   int check_systables(Ndb* ndb);
 
   // operation context
@@ -278,6 +281,17 @@ public:
   void query_interpolate(const Cache&, const Bound&, StatBound&);
   void query_search(const Cache&, const Bound&, StatBound&);
   int query_keycmp(const Cache&, const Bound&, uint pos, Uint32& numEq);
+
+  // events and polling
+  int create_sysevents(Ndb* ndb);
+  int drop_sysevents(Ndb* ndb);
+  int check_sysevents(Ndb* ndb);
+  //
+  int create_listener(Ndb* ndb);
+  int execute_listener(Ndb* ndb);
+  int poll_listener(Ndb* ndb, int max_wait_ms);
+  int next_listener(Ndb* ndb);
+  int drop_listener(Ndb* ndb);
 
   // default memory allocator
   struct MemDefault : public Mem {

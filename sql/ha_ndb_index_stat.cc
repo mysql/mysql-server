@@ -498,8 +498,8 @@ struct Ndb_index_stat_glob {
   uint list_count[Ndb_index_stat::LT_Count]; /* Temporary use */
   uint total_count;
   uint force_update;
-  uint no_stats;
   uint wait_update;
+  uint no_stats;
   uint cache_query_bytes; /* In use */
   uint cache_clean_bytes; /* Obsolete versions not yet removed */
   Ndb_index_stat_glob() :
@@ -890,6 +890,39 @@ ndb_index_stat_free(NDB_SHARE *share)
   pthread_mutex_unlock(&ndb_index_stat_list_mutex);
 }
 
+/* Find entry across shares */
+/* wl4124_todo mutex overkill, hash table, can we find table share */
+Ndb_index_stat*
+ndb_index_stat_find_entry(int index_id, int index_version, int table_id)
+{
+  DBUG_ENTER("ndb_index_stat_find_entry");
+  pthread_mutex_lock(&ndbcluster_mutex);
+  pthread_mutex_lock(&ndb_index_stat_list_mutex);
+  DBUG_PRINT("index_stat", ("find index:%d version:%d table:%d",
+                            index_id, index_version, table_id));
+
+  int lt;
+  for (lt=1; lt < Ndb_index_stat::LT_Count; lt++)
+  {
+    Ndb_index_stat *st=ndb_index_stat_list[lt].head;
+    while (st != 0)
+    {
+      if (st->index_id == index_id &&
+          st->index_version == index_version)
+      {
+        pthread_mutex_unlock(&ndb_index_stat_list_mutex);
+        pthread_mutex_unlock(&ndbcluster_mutex);
+        DBUG_RETURN(st);
+      }
+      st= st->list_next;
+    }
+  }
+
+  pthread_mutex_unlock(&ndb_index_stat_list_mutex);
+  pthread_mutex_unlock(&ndbcluster_mutex);
+  DBUG_RETURN(0);
+}
+
 /* Statistics thread sub-routines */
 
 void
@@ -931,12 +964,14 @@ ndb_index_stat_cache_clean(Ndb_index_stat *st)
 
 /* Misc in/out parameters for process steps */
 struct Ndb_index_stat_proc {
+  NdbIndexStat* is_util; // For metadata and polling
   Ndb *ndb;
   time_t now;
   int lt;
   bool busy;
   bool end;
   Ndb_index_stat_proc() :
+    is_util(0),
     ndb(0),
     now(0),
     lt(0),
@@ -1383,6 +1418,75 @@ ndb_index_stat_proc_error(Ndb_index_stat_proc &pr)
     pr.busy= true;
 }
 
+void
+ndb_index_stat_proc_event(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
+{
+  /*
+    Put on Check list if idle.
+    We get event also for our own analyze but this should not matter.
+   */
+  pr.lt= st->lt;
+  if (st->lt == Ndb_index_stat::LT_Idle ||
+      st->lt == Ndb_index_stat::LT_Error)
+    pr.lt= Ndb_index_stat::LT_Check;
+}
+
+void
+ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
+{
+  NdbIndexStat *is= pr.is_util;
+  Ndb *ndb= pr.ndb;
+  int ret;
+  ret= is->poll_listener(ndb, 0);
+  DBUG_PRINT("index_stat", ("poll_listener ret: %d", ret));
+  if (ret == -1)
+  {
+    // wl4124_todo report error
+    DBUG_ASSERT(false);
+    return;
+  }
+  if (ret == 0)
+    return;
+
+  while (1)
+  {
+    ret= is->next_listener(ndb);
+    DBUG_PRINT("index_stat", ("next_listener ret: %d", ret));
+    if (ret == -1)
+    {
+      // wl4124_todo report error
+      DBUG_ASSERT(false);
+      return;
+    }
+    if (ret == 0)
+      break;
+
+    NdbIndexStat::Head head;
+    is->get_head(head);
+    DBUG_PRINT("index_stat", ("next_listener eventType: %d indexId: %u",
+                              head.m_eventType, head.m_indexId));
+
+    Ndb_index_stat *st= ndb_index_stat_find_entry(head.m_indexId,
+                                                  head.m_indexVersion,
+                                                  head.m_tableId);
+    /*
+      Another process can update stats for an index which is not found
+      in this mysqld.  Ignore it.
+     */
+    if (st != 0)
+    {
+      DBUG_PRINT("index_stat", ("st %s proc %s", st->id, "Event"));
+      ndb_index_stat_proc_event(pr, st);
+      if (pr.lt != st->lt)
+        ndb_index_stat_list_move(st, pr.lt);
+    }
+    else
+    {
+      DBUG_PRINT("index_stat", ("entry not found in this mysqld"));
+    }
+  }
+}
+
 #ifndef DBUG_OFF
 void
 ndb_index_stat_report(const Ndb_index_stat_glob& old_glob)
@@ -1466,6 +1570,7 @@ ndb_index_stat_proc(Ndb_index_stat_proc &pr)
   ndb_index_stat_proc_evict(pr);
   ndb_index_stat_proc_delete(pr);
   ndb_index_stat_proc_error(pr);
+  ndb_index_stat_proc_event(pr);
 
 #ifndef DBUG_OFF
   ndb_index_stat_report(old_glob);
@@ -1511,10 +1616,13 @@ ndb_index_stat_end()
 
 /* Index stats thread */
 
-static int
-ndb_index_stat_check_or_create_systables(NdbIndexStat* is, Ndb* ndb)
+int
+ndb_index_stat_check_or_create_systables(Ndb_index_stat_proc &pr)
 {
   DBUG_ENTER("ndb_index_stat_check_or_create_systables");
+
+  NdbIndexStat *is= pr.is_util;
+  Ndb *ndb= pr.ndb;
 
   if (is->check_systables(ndb) == 0)
   {
@@ -1542,6 +1650,82 @@ ndb_index_stat_check_or_create_systables(NdbIndexStat* is, Ndb* ndb)
   DBUG_RETURN(-1);
 }
 
+int
+ndb_index_stat_check_or_create_sysevents(Ndb_index_stat_proc &pr)
+{
+  DBUG_ENTER("ndb_index_stat_check_or_create_sysevents");
+
+  NdbIndexStat *is= pr.is_util;
+  Ndb *ndb= pr.ndb;
+
+  if (is->check_sysevents(ndb) == 0)
+  {
+    DBUG_PRINT("index_stat", ("using existing index stats events"));
+    DBUG_RETURN(0);
+  }
+
+  if (is->create_sysevents(ndb) == 0)
+  {
+    DBUG_PRINT("index_stat", ("created index stats events"));
+    DBUG_RETURN(0);
+  }
+
+  if (is->getNdbError().code == 746)
+  {
+    // race between mysqlds, maybe
+    DBUG_PRINT("index_stat", ("create index stats events failed: error %d line %d",
+                              is->getNdbError().code, is->getNdbError().line));
+    DBUG_RETURN(-1);
+  }
+
+  sql_print_warning("create index stats events failed: error %d line %d",
+                    is->getNdbError().code, is->getNdbError().line);
+  DBUG_RETURN(-1);
+}
+
+int
+ndb_index_stat_start_listener(Ndb_index_stat_proc &pr)
+{
+  DBUG_ENTER("ndb_index_stat_start_listener");
+
+  NdbIndexStat *is= pr.is_util;
+  Ndb *ndb= pr.ndb;
+
+  if (is->create_listener(ndb) == -1)
+  {
+    sql_print_warning("create index stats listener failed: error %d line %d",
+                      is->getNdbError().code, is->getNdbError().line);
+    DBUG_RETURN(-1);
+  }
+
+  if (is->execute_listener(ndb) == -1)
+  {
+    sql_print_warning("execute index stats listener failed: error %d line %d",
+                      is->getNdbError().code, is->getNdbError().line);
+    DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+int
+ndb_index_stat_stop_listener(Ndb_index_stat_proc &pr)
+{
+  DBUG_ENTER("ndb_index_stat_stop_listener");
+
+  NdbIndexStat *is= pr.is_util;
+  Ndb *ndb= pr.ndb;
+
+  if (is->drop_listener(ndb) == -1)
+  {
+    sql_print_warning("drop index stats listener failed: error %d line %d",
+                      is->getNdbError().code, is->getNdbError().line);
+    DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(0);
+}
+
 pthread_handler_t
 ndb_index_stat_thread_func(void *arg __attribute__((unused)))
 {
@@ -1551,6 +1735,10 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
 
   my_thread_init();
   DBUG_ENTER("ndb_index_stat_thread_func");
+
+  Ndb_index_stat_proc pr;
+  NdbIndexStat is_util;
+  pr.is_util= &is_util;
 
   // wl4124_todo remove useless stuff copied from utility thread
  
@@ -1638,10 +1826,13 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
     pthread_mutex_lock(&LOCK_ndb_index_stat_thread);
     goto ndb_index_stat_thread_end;
   }
+  pr.ndb= thd_ndb->ndb;
 
   ndb_index_stat_allow(1);
   bool enable_ok;
   enable_ok= false;
+  bool have_listener;
+  have_listener= false;
 
   set_timespec(abstime, 0);
   for (;;)
@@ -1662,9 +1853,6 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
     /* const bool enable_ok_new= THDVAR(NULL, index_stat_enable); */
     const bool enable_ok_new= ndb_index_stat_get_enable(NULL);
 
-    Ndb_index_stat_proc pr;
-    pr.ndb= thd_ndb->ndb;
-
     do
     {
       if (enable_ok != enable_ok_new)
@@ -1674,12 +1862,23 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
 
         if (enable_ok_new)
         {
-          // at enable check or create stats tables
-          NdbIndexStat is;
-          if (ndb_index_stat_check_or_create_systables(&is, thd_ndb->ndb) == -1)
+          // at enable check or create stats tables and events
+          if (ndb_index_stat_check_or_create_systables(pr) == -1 ||
+              ndb_index_stat_check_or_create_sysevents(pr) == -1 ||
+              ndb_index_stat_start_listener(pr) == -1)
           {
             // try again in next loop
             break;
+          }
+          have_listener= true;
+        }
+        else
+        {
+          // not a normal use-case
+          if (have_listener)
+          {
+            if (ndb_index_stat_stop_listener(pr) == 0)
+              have_listener= false;
           }
         }
         enable_ok= enable_ok_new;
@@ -1711,6 +1910,11 @@ ndb_index_stat_thread_end:
   net_end(&thd->net);
 
 ndb_index_stat_thread_fail:
+  if (have_listener)
+  {
+    if (ndb_index_stat_stop_listener(pr) == 0)
+      have_listener= false;
+  }
   if (thd_ndb)
   {
     ha_ndbcluster::release_thd_ndb(thd_ndb);
