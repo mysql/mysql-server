@@ -114,10 +114,12 @@ void cleanup_setup_object_hash(void)
 
 static LF_PINS* get_setup_object_hash_pins(PFS_thread *thread)
 {
-  if (! setup_object_hash_inited)
-    return NULL;
   if (unlikely(thread->m_setup_object_hash_pins == NULL))
+  {
+    if (! setup_object_hash_inited)
+      return NULL;
     thread->m_setup_object_hash_pins= lf_hash_get_pins(&setup_object_hash);
+  }
   return thread->m_setup_object_hash_pins;
 }
 
@@ -231,6 +233,8 @@ int delete_setup_object(enum_object_type object_type, const String *schema,
     pfs->m_lock.allocated_to_free();
   }
 
+  lf_hash_search_unpin(pins);
+
   setup_objects_version++;
   return 0;
 }
@@ -325,8 +329,11 @@ void lookup_setup_object(PFS_thread *thread,
       pfs= *entry;
       *enabled= pfs->m_enabled;
       *timed= pfs->m_timed;
+      lf_hash_search_unpin(pins);
       return;
     }
+
+    lf_hash_search_unpin(pins);
   }
   *enabled= false;
   *timed= false;

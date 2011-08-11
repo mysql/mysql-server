@@ -92,9 +92,9 @@ ulong table_share_max= 0;
 /** Number of table share lost. @sa table_share_array */
 ulong table_share_lost= 0;
 
-static PFS_mutex_class *mutex_class_array= NULL;
-static PFS_rwlock_class *rwlock_class_array= NULL;
-static PFS_cond_class *cond_class_array= NULL;
+PFS_mutex_class *mutex_class_array= NULL;
+PFS_rwlock_class *rwlock_class_array= NULL;
+PFS_cond_class *cond_class_array= NULL;
 
 /**
   Current number or elements in thread_class_array.
@@ -139,7 +139,7 @@ C_MODE_END
 static volatile uint32 file_class_dirty_count= 0;
 static volatile uint32 file_class_allocated_count= 0;
 
-static PFS_file_class *file_class_array= NULL;
+PFS_file_class *file_class_array= NULL;
 
 static volatile uint32 stage_class_dirty_count= 0;
 static volatile uint32 stage_class_allocated_count= 0;
@@ -1068,6 +1068,8 @@ search:
     return pfs;
   }
 
+  lf_hash_search_unpin(pins);
+
   if (retry_count == 0)
   {
     lookup_setup_object(thread,
@@ -1161,24 +1163,6 @@ void release_table_share(PFS_table_share *pfs)
 }
 
 /**
-  Purge an instrumented table share from the performance schema buffers.
-  The table share is removed from the hash index, and freed.
-  @param thread The running thread
-  @param pfs The table share to purge
-*/
-void purge_table_share(PFS_thread *thread, PFS_table_share *pfs)
-{
-  if (pfs->get_refcount() == 1)
-  {
-    LF_PINS* pins= get_table_share_hash_pins(thread);
-    if (likely(pins != NULL))
-      lf_hash_delete(&table_share_hash, pins,
-                     pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
-    pfs->m_lock.allocated_to_free();
-  }
-}
-
-/**
   Drop the instrumented table share associated with a table.
   @param thread The running thread
   @param temporary True for TEMPORARY TABLE
@@ -1205,11 +1189,12 @@ void drop_table_share(PFS_thread *thread,
   if (entry && (entry != MY_ERRPTR))
   {
     PFS_table_share *pfs= *entry;
-    lf_hash_search_unpin(pins);
     lf_hash_delete(&table_share_hash, pins,
                    pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
     pfs->m_lock.allocated_to_free();
   }
+
+  lf_hash_search_unpin(pins);
 }
 
 /**
@@ -1220,58 +1205,6 @@ void drop_table_share(PFS_thread *thread,
 PFS_table_share *sanitize_table_share(PFS_table_share *unsafe)
 {
   SANITIZE_ARRAY_BODY(PFS_table_share, table_share_array, table_share_max, unsafe);
-}
-
-const char *sanitize_table_schema_name(const char *unsafe)
-{
-  intptr ptr= (intptr) unsafe;
-  intptr first= (intptr) &table_share_array[0];
-  intptr last= (intptr) &table_share_array[table_share_max];
-
-  PFS_table_share dummy;
-
-  /* Check if unsafe points inside table_share_array[] */
-  if (likely((first <= ptr) && (ptr < last)))
-  {
-    intptr offset= (ptr - first) % sizeof(PFS_table_share);
-    intptr from= my_offsetof(PFS_table_share, m_key.m_hash_key);
-    intptr len= sizeof(dummy.m_key.m_hash_key);
-    /* Check if unsafe points inside PFS_table_share::m_key::m_hash_key */
-    if (likely((from <= offset) && (offset < from + len)))
-    {
-      PFS_table_share *base= (PFS_table_share*) (ptr - offset);
-      /* Check if unsafe really is the schema name */
-      if (likely(base->m_schema_name == unsafe))
-        return unsafe;
-    }
-  }
-  return NULL;
-}
-
-const char *sanitize_table_object_name(const char *unsafe)
-{
-  intptr ptr= (intptr) unsafe;
-  intptr first= (intptr) &table_share_array[0];
-  intptr last= (intptr) &table_share_array[table_share_max];
-
-  PFS_table_share dummy;
-
-  /* Check if unsafe points inside table_share_array[] */
-  if (likely((first <= ptr) && (ptr < last)))
-  {
-    intptr offset= (ptr - first) % sizeof(PFS_table_share);
-    intptr from= my_offsetof(PFS_table_share, m_key.m_hash_key);
-    intptr len= sizeof(dummy.m_key.m_hash_key);
-    /* Check if unsafe points inside PFS_table_share::m_key::m_hash_key */
-    if (likely((from <= offset) && (offset < from + len)))
-    {
-      PFS_table_share *base= (PFS_table_share*) (ptr - offset);
-      /* Check if unsafe really is the table name */
-      if (likely(base->m_table_name == unsafe))
-        return unsafe;
-    }
-  }
-  return NULL;
 }
 
 /** Reset the io statistics per file class. */
