@@ -30,6 +30,7 @@ void test_no_instruments()
   int rc;
   PFS_global_param param;
 
+  memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
   param.m_mutex_class_sizing= 0;
   param.m_rwlock_class_sizing= 0;
@@ -50,6 +51,9 @@ void test_no_instruments()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
@@ -83,6 +87,7 @@ void test_no_instances()
   PFS_table *table;
   PFS_global_param param;
 
+  memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
   param.m_mutex_class_sizing= 1;
   param.m_rwlock_class_sizing= 1;
@@ -103,6 +108,9 @@ void test_no_instances()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
@@ -217,6 +225,7 @@ void test_with_instances()
   PFS_table *table_2;
   PFS_global_param param;
 
+  memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
   param.m_mutex_class_sizing= 1;
   param.m_rwlock_class_sizing= 1;
@@ -237,6 +246,9 @@ void test_with_instances()
   param.m_events_waits_history_long_sizing= 10000;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
