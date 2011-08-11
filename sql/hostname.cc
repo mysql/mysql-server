@@ -24,12 +24,9 @@
   doesn't resemble an IP address.
 */
 
+#include "my_global.h"
 #include "sql_priv.h"
 #include "hostname.h"
-#include "my_global.h"
-#ifndef __WIN__
-#include <netdb.h>        // getservbyname, servent
-#endif
 #include "hash_filo.h"
 #include <m_ctype.h>
 #include "log.h"                                // sql_print_warning,

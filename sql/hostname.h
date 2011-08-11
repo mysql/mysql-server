@@ -19,7 +19,9 @@
 #include "my_global.h"                          /* uint */
 #include "hash_filo.h"
 
+#ifndef __WIN__
 #include <netdb.h> /* INET6_ADDRSTRLEN */
+#endif
 
 struct Host_errors
 {
