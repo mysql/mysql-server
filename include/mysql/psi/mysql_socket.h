@@ -211,14 +211,6 @@ mysql_socket_setfd(MYSQL_SOCKET *mysql_socket, my_socket fd)
 #endif
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  #define MYSQL_SOCKET_SET_STATE(SOCKET, STATE) \
-    inline_mysql_socket_set_state(SOCKET, STATE)
-#else
-  #define MYSQL_SOCKET_SET_STATE(SOCKET, STATE) \
-    do {} while (0)
-#endif
-
-#ifdef HAVE_PSI_SOCKET_INTERFACE
 /**
   Instrumentation calls for MYSQL_START_SOCKET_WAIT.
   @sa MYSQL_START_SOCKET_WAIT.
