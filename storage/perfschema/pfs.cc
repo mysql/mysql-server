@@ -2857,7 +2857,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     flags= STATE_FLAG_THREAD;
 
     /* Sockets in IDLE state are timed separately */
-	  if (pfs_socket->m_timed)
+    if (pfs_socket->m_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2892,7 +2892,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   else
   {
     /* Sockets in IDLE state are counted but not timed */
-	if (pfs_socket->m_timed)
+  if (pfs_socket->m_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -2902,7 +2902,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
 
       /*
         Even if timing is disabled, end_socket_wait() still needs a locker to
-	  	  capture the number of bytes sent or received by the socket operation.
+        capture the number of bytes sent or received by the socket operation.
         For operations that do not have a byte count, then just increment the
         event counter and return a NULL locker.
       */
