@@ -665,11 +665,13 @@ const char* Log_event::get_type_str()
 
 #ifndef MYSQL_CLIENT
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
-  :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg), thd(thd_arg)
+  :log_pos(0), temp_buf(0), exec_time(0), thd(thd_arg)
 {
   server_id=	thd->server_id;
   when=		thd->start_time;
   cache_stmt=	using_trans;
+  flags= flags_arg |
+    (thd->options & OPTION_DO_NOT_REPLICATE ? LOG_EVENT_DO_NOT_REPLICATE_F : 0);
 }
 
 
@@ -825,7 +827,9 @@ Log_event::do_shall_skip(Relay_log_info *rli)
                       rli->replicate_same_server_id,
                       rli->slave_skip_counter));
   if ((server_id == ::server_id && !rli->replicate_same_server_id) ||
-      (rli->slave_skip_counter == 1 && rli->is_in_group()))
+      (rli->slave_skip_counter == 1 && rli->is_in_group()) ||
+      (flags & LOG_EVENT_DO_NOT_REPLICATE_F
+       && opt_replicate_ignore_do_not_replicate))
     return EVENT_SKIP_IGNORE;
   if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
@@ -3482,6 +3486,14 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
   DBUG_ENTER("Query_log_event::do_shall_skip");
   DBUG_PRINT("debug", ("query: %s; q_len: %d", query, q_len));
   DBUG_ASSERT(query && q_len > 0);
+
+  /*
+    An event skipped due to @@do_not_replicate must not be counted towards the
+    number of events to be skipped due to @@sql_slave_skip_counter.
+  */
+  if (flags & LOG_EVENT_DO_NOT_REPLICATE_F &&
+      opt_replicate_ignore_do_not_replicate)
+    DBUG_RETURN(Log_event::EVENT_SKIP_IGNORE);
 
   if (rli->slave_skip_counter > 0)
   {
@@ -9780,7 +9792,7 @@ st_print_event_info::st_print_event_info()
    auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
-   thread_id(0), thread_id_printed(false),
+   thread_id(0), thread_id_printed(false), do_not_replicate(0),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE)
 {
   /*

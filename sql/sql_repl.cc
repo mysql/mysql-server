@@ -338,6 +338,41 @@ Increase max_allowed_packet on master";
 
 
 /*
+  Helper function for mysql_binlog_send() to write an event down the slave
+  connection.
+
+  Returns NULL on success, error message string on error.
+*/
+static const char *
+send_event_to_slave(THD *thd, NET *net, String* const packet)
+{
+  thd_proc_info(thd, "Sending binlog event to slave");
+
+  /*
+    Skip events with the @@do_not_replicate flag set, if slave requested
+    skipping of such events.
+  */
+  if (thd->options & OPTION_DO_NOT_REPLICATE)
+  {
+    uint16 flags= uint2korr(&((*packet)[FLAGS_OFFSET+1]));
+    if (flags & LOG_EVENT_DO_NOT_REPLICATE_F)
+      return NULL;
+  }
+
+  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
+    return "Failed on my_net_write()";
+
+  DBUG_PRINT("info", ("log event code %d", (*packet)[LOG_EVENT_OFFSET+1] ));
+  if ((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
+  {
+    if (send_file(thd))
+      return "failed in send_file()";
+  }
+
+  return NULL;    /* Success */
+}
+
+/*
   TODO: Clean up loop to only have one call to send_file()
 */
 
@@ -349,9 +384,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   char search_file_name[FN_REFLEN], *name;
   IO_CACHE log;
   File file = -1;
-  String* packet = &thd->packet;
+  String* const packet = &thd->packet;
   int error;
-  const char *errmsg = "Unknown error";
+  const char *errmsg = "Unknown error", *tmp_msg;
   NET* net = &thd->net;
   pthread_mutex_t *log_lock;
   bool binlog_can_be_corrupted= FALSE;
@@ -588,9 +623,9 @@ impossible position";
       else if ((*packet)[EVENT_TYPE_OFFSET+1] == STOP_EVENT)
         binlog_can_be_corrupted= FALSE;
 
-      if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
+      if ((tmp_msg= send_event_to_slave(thd, net, packet)))
       {
-	errmsg = "Failed on my_net_write()";
+	errmsg = tmp_msg;
 	my_errno= ER_UNKNOWN_ERROR;
 	goto err;
       }
@@ -603,17 +638,6 @@ impossible position";
                         }
                       });
 
-      DBUG_PRINT("info", ("log event code %d",
-			  (*packet)[LOG_EVENT_OFFSET+1] ));
-      if ((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
-      {
-	if (send_file(thd))
-	{
-	  errmsg = "failed in send_file()";
-	  my_errno= ER_UNKNOWN_ERROR;
-	  goto err;
-	}
-      }
       packet->set("\0", 1, &my_charset_bin);
     }
 
@@ -713,23 +737,12 @@ impossible position";
 
 	if (read_packet)
 	{
-	  thd_proc_info(thd, "Sending binlog event to slave");
-	  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
-	  {
-	    errmsg = "Failed on my_net_write()";
-	    my_errno= ER_UNKNOWN_ERROR;
-	    goto err;
-	  }
-
-	  if ((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
-	  {
-	    if (send_file(thd))
-	    {
-	      errmsg = "failed in send_file()";
-	      my_errno= ER_UNKNOWN_ERROR;
-	      goto err;
-	    }
-	  }
+          if ((tmp_msg= send_event_to_slave(thd, net, packet)))
+          {
+            errmsg = tmp_msg;
+            my_errno= ER_UNKNOWN_ERROR;
+            goto err;
+          }
 	  packet->set("\0", 1, &my_charset_bin);
 	  /*
 	    No need to net_flush because we will get to flush later when

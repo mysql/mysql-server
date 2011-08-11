@@ -1283,6 +1283,25 @@ public:
   bool is_readonly() const;
 };
 
+
+#ifdef HAVE_REPLICATION
+/**
+  Handler for setting the system variable --replicate-ignore-do-not-replicate.
+*/
+
+class sys_var_replicate_ignore_do_not_replicate :public sys_var_bool_ptr
+{
+public:
+  sys_var_replicate_ignore_do_not_replicate(sys_var_chain *chain,
+                                            const char *name_arg,
+                                            my_bool *value_arg) :
+    sys_var_bool_ptr(chain, name_arg, value_arg) {};
+  ~sys_var_replicate_ignore_do_not_replicate() {};
+  bool update(THD *thd, set_var *var);
+};
+#endif
+
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/

@@ -491,6 +491,19 @@ struct sql_ex_info
 #define LOG_EVENT_RELAY_LOG_F 0x40
 
 /**
+   @def LOG_EVENT_DO_NOT_REPLICATE_F
+
+   Flag set by application creating the event (with @@do_not_replicate); the
+   slave will skip replication of such events if
+   --replicate-ignore-do-not-replicate is set.
+
+   This is a MariaDB flag; we allocate it from the end of the available
+   values to reduce risk of conflict with new MySQL flags.
+*/
+#define LOG_EVENT_DO_NOT_REPLICATE_F 0x8000
+
+
+/**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must
@@ -656,6 +669,11 @@ typedef struct st_print_event_info
   uint charset_database_number;
   uint thread_id;
   bool thread_id_printed;
+  /*
+    Track when @@do_not_replicate changes so we need to output a SET
+    statement for it.
+  */
+  int do_not_replicate;
 
   st_print_event_info();
 
@@ -910,8 +928,8 @@ public:
 
   /**
     Some 16 flags. See the definitions above for LOG_EVENT_TIME_F,
-    LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F, and
-    LOG_EVENT_SUPPRESS_USE_F for notes.
+    LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F,
+    LOG_EVENT_SUPPRESS_USE_F, and LOG_EVENT_DO_NOT_REPLICATE_F for notes.
   */
   uint16 flags;
 
@@ -3915,6 +3933,8 @@ public:
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
     m_message.str= NULL;                    /* Just as a precaution */
     m_message.length= 0;
+    /* Replicate the incident irregardless of @@do_not_replicate. */
+    flags&= ~LOG_EVENT_DO_NOT_REPLICATE_F;
     DBUG_VOID_RETURN;
   }
 
@@ -3924,6 +3944,8 @@ public:
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
     m_message= msg;
+    /* Replicate the incident irregardless of @@do_not_replicate. */
+    flags&= ~LOG_EVENT_DO_NOT_REPLICATE_F;
     DBUG_VOID_RETURN;
   }
 #endif

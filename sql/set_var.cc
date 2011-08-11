@@ -117,6 +117,7 @@ static bool set_option_log_bin_bit(THD *thd, set_var *var);
 static bool set_option_autocommit(THD *thd, set_var *var);
 static int  check_log_update(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
+static int check_do_not_replicate(THD *thd, set_var *var);
 static int  check_pseudo_thread_id(THD *thd, set_var *var);
 void fix_binlog_format_after_update(THD *thd, enum_var_type type);
 static void fix_low_priority_updates(THD *thd, enum_var_type type);
@@ -830,6 +831,10 @@ static sys_var_thd_bit  sys_profiling(&vars, "profiling", NULL,
 static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
 					      &SV::profiling_history_size);
 #endif
+static sys_var_thd_bit  sys_do_not_replicate(&vars, "do_not_replicate",
+                                             check_do_not_replicate,
+                                             set_option_bit,
+                                             OPTION_DO_NOT_REPLICATE);
 
 /* Local state variables */
 
@@ -906,6 +911,12 @@ static sys_var_thd_set sys_log_slow_verbosity(&vars,
                                               "log_slow_verbosity",
                                               &SV::log_slow_verbosity,
                                               &log_slow_verbosity_typelib);
+#ifdef HAVE_REPLICATION
+static sys_var_replicate_ignore_do_not_replicate
+  sys_replicate_ignore_do_not_replicate(&vars,
+                                        "replicate_ignore_do_not_replicate",
+                                        &opt_replicate_ignore_do_not_replicate);
+#endif
 
 /* Global read-only variable containing hostname */
 static sys_var_const_str        sys_hostname(&vars, "hostname", glob_hostname);
@@ -3268,6 +3279,25 @@ static bool set_log_update(THD *thd, set_var *var)
 }
 
 
+static int check_do_not_replicate(THD *thd, set_var *var)
+{
+  /*
+    We must not change @@do_not_replicate in the middle of a transaction or
+    statement, as that could result in only part of the transaction / statement
+    being replicated.
+    (This would be particularly serious if we were to replicate eg.
+    Rows_log_event without Table_map_log_event or transactional updates without
+    the COMMIT).
+  */
+  if (thd->locked_tables || thd->active_transaction())
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    return 1;
+  }
+  return 0;
+}
+
+
 static int check_pseudo_thread_id(THD *thd, set_var *var)
 {
   var->save_result.ulonglong_value= var->value->val_int();
@@ -4410,6 +4440,32 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
 
   DBUG_RETURN((bool) res);
 }
+
+
+#ifdef HAVE_REPLICATION
+bool sys_var_replicate_ignore_do_not_replicate::update(THD *thd, set_var *var)
+{
+  bool result;
+  int thread_mask;
+  DBUG_ENTER("sys_var_replicate_ignore_do_not_replicate::update");
+
+  /* Slave threads must be stopped to change the variable. */
+  pthread_mutex_lock(&LOCK_active_mi);
+  lock_slave_threads(active_mi);
+  init_thread_mask(&thread_mask, active_mi, 0 /*not inverse*/);
+  if (thread_mask) // We refuse if any slave thread is running
+  {
+    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+    result= TRUE;
+  }
+  else
+    result= sys_var_bool_ptr::update(thd, var);
+
+  unlock_slave_threads(active_mi);
+  pthread_mutex_unlock(&LOCK_active_mi);
+  DBUG_RETURN(result);
+}
+#endif
 
 
 uchar *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,

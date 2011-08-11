@@ -33,6 +33,7 @@
 
 void mysql_client_binlog_statement(THD* thd)
 {
+  ulonglong save_do_not_replicate;
   DBUG_ENTER("mysql_client_binlog_statement");
   DBUG_PRINT("info",("binlog base64: '%*s'",
                      (int) (thd->lex->comment.length < 2048 ?
@@ -213,7 +214,15 @@ void mysql_client_binlog_statement(THD* thd)
         reporting.
       */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+      save_do_not_replicate= thd->options & OPTION_DO_NOT_REPLICATE;
+      thd->options= (thd->options & ~OPTION_DO_NOT_REPLICATE) |
+        (ev->flags & LOG_EVENT_DO_NOT_REPLICATE_F ?
+         OPTION_DO_NOT_REPLICATE : 0);
+
       err= ev->apply_event(rli);
+
+      thd->options= (thd->options & ~OPTION_DO_NOT_REPLICATE) |
+        save_do_not_replicate;
 #else
       err= 0;
 #endif

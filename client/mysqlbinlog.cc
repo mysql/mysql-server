@@ -671,6 +671,31 @@ print_use_stmt(PRINT_EVENT_INFO* pinfo, const Query_log_event *ev)
 
 
 /**
+   Print "SET do_not_replicate=..." statement when needed.
+
+   Not all servers support this (only MariaDB from some version on). So we
+   mark the SET to only execute from the version of MariaDB that supports it,
+   and also only output it if we actually see events with the flag set, to not
+   get spurious errors on MySQL@Oracle servers of higher version that do not
+   support the flag.
+
+   So we start out assuming @@do_not_replicate is 0, and only output a SET
+   statement when it changes.
+*/
+static void
+print_do_not_replicate_statement(PRINT_EVENT_INFO *pinfo, const Log_event *ev)
+{
+  int cur_val;
+
+  cur_val= (ev->flags & LOG_EVENT_DO_NOT_REPLICATE_F) != 0;
+  if (cur_val == pinfo->do_not_replicate)
+    return;                                     /* Not changed. */
+  fprintf(result_file, "/*!50400 SET do_not_replicate=%d*/%s\n",
+          cur_val, pinfo->delimiter);
+  pinfo->do_not_replicate= cur_val;
+}
+
+/**
   Prints the given event in base64 format.
 
   The header is printed to the head cache and the body is printed to
@@ -802,7 +827,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           goto end;
       }
       else
+      {
+        print_do_not_replicate_statement(print_event_info, ev);
         ev->print(result_file, print_event_info);
+      }
       break;
     }
 
@@ -832,7 +860,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           goto end;
       }
       else
+      {
+        print_do_not_replicate_statement(print_event_info, ev);
         ce->print(result_file, print_event_info, TRUE);
+      }
 
       // If this binlog is not 3.23 ; why this test??
       if (glob_description_event->binlog_version >= 3)
@@ -927,6 +958,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       if (!shall_skip_database(exlq->db))
       {
         print_use_stmt(print_event_info, exlq);
+        print_do_not_replicate_statement(print_event_info, ev);
         if (fname)
         {
           convert_path_to_forward_slashes(fname);
@@ -1030,6 +1062,12 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       }
       /* FALL THROUGH */
     }
+    case INTVAR_EVENT:
+    case RAND_EVENT:
+    case USER_VAR_EVENT:
+    case XID_EVENT:
+      print_do_not_replicate_statement(print_event_info, ev);
+      /* Fall through ... */
     default:
       ev->print(result_file, print_event_info);
     }

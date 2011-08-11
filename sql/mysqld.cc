@@ -553,6 +553,8 @@ uint    opt_large_page_size= 0;
 uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+my_bool opt_replicate_ignore_do_not_replicate;
+
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -6085,7 +6087,8 @@ enum options_mysqld
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
   OPT_DEFAULT_CHARACTER_SET_OLD,
-  OPT_MAX_LONG_DATA_SIZE
+  OPT_MAX_LONG_DATA_SIZE,
+  OPT_REPLICATE_IGNORE_DO_NOT_REPLICATE
 };
 
 
@@ -6782,6 +6785,11 @@ each time the SQL thread starts.",
    "cross database updates. If you need cross database updates to work, "
    "make sure you have 3.23.28 or later, and use replicate-wild-ignore-"
    "table=db_name.%. ", 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"replicate-ignore-do-not-replicate", OPT_REPLICATE_IGNORE_DO_NOT_REPLICATE,
+   "Tells the slave thread not to replicate events that were created with"
+   "@@do_not_replicat=1.", &opt_replicate_ignore_do_not_replicate,
+   &opt_replicate_ignore_do_not_replicate, 0, GET_BOOL, NO_ARG,
+   0, 0, 0 ,0, 0, 0},
   {"replicate-ignore-table", OPT_REPLICATE_IGNORE_TABLE,
    "Tells the slave thread to not replicate to the specified table. To specify "
    "more than one table to ignore, use the directive multiple times, once for "

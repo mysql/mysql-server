@@ -1176,6 +1176,38 @@ when it try to get the value of TIME_ZONE global variable from master.";
     }
   }
 
+  /*
+    Request the master to filter away events with the @@do_not_replicate flag
+    set, if we are running with --replicate-ignore-do_not_replicate=1.
+  */
+  if (opt_replicate_ignore_do_not_replicate)
+  {
+    if (!mysql_real_query(mysql, STRING_WITH_LEN("SET do_not_replicate=1")))
+    {
+      err_code= mysql_errno(mysql);
+      if (is_network_error(err_code))
+      {
+        mi->report(ERROR_LEVEL, err_code,
+                   "Setting master-side filtering of @@do_not_replicate failed "
+                   "with error: %s", mysql_error(mysql));
+        goto network_err;
+      }
+      else if (err_code == ER_UNKNOWN_SYSTEM_VARIABLE)
+      {
+        /*
+          The master is older than the slave and does not support the
+          @@do_not_replicate feature.
+          This is not a problem, as such master will not generate events with
+          the @@do_not_replicate flag set in the first place. We will still
+          do slave-side filtering of such events though, to handle the (rare)
+          case of downgrading a master and receiving old events generated from
+          before the downgrade with the @@do_not_replicate flag set.
+        */
+        DBUG_PRINT("info", ("Old master does not support master-side filtering "
+                            "of @@do_not_replicate events."));
+      }
+    }
+  }
 err:
   if (errmsg)
   {
@@ -2114,6 +2146,8 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   thd->lex->current_select= 0;
   if (!ev->when)
     ev->when= my_time(0);
+  thd->options= (thd->options & ~OPTION_DO_NOT_REPLICATE) |
+    (ev->flags & LOG_EVENT_DO_NOT_REPLICATE_F ? OPTION_DO_NOT_REPLICATE : 0);
   ev->thd = thd; // because up to this point, ev->thd == 0
 
   int reason= ev->shall_skip(rli);
@@ -3582,6 +3616,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 {
   int error= 0;
   ulong inc_pos;
+  ulong event_pos;
   Relay_log_info *rli= &mi->rli;
   pthread_mutex_t *log_lock= rli->relay_log.get_log_lock();
   DBUG_ENTER("queue_event");
@@ -3664,6 +3699,23 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   default:
     inc_pos= event_len;
     break;
+  }
+
+  /*
+    If we filter events master-side (eg. @@do_not_replicate), we will see holes
+    in the event positions from the master. If we see such a hole, adjust
+    mi->master_log_pos accordingly so we maintain the correct position (for
+    reconnect, MASTER_POS_WAIT(), etc.)
+  */
+  if (inc_pos > 0 &&
+      event_len >= LOG_POS_OFFSET+4 &&
+      (event_pos= uint4korr(buf+LOG_POS_OFFSET)) > mi->master_log_pos + inc_pos)
+  {
+    inc_pos= event_pos - mi->master_log_pos;
+    DBUG_PRINT("info", ("Adjust master_log_pos %lu->%lu to account for "
+                        "master-side filtering",
+                        (unsigned long)(mi->master_log_pos + inc_pos),
+                        event_pos));
   }
 
   /*

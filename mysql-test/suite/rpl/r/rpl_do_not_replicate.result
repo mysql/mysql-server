@@ -1,0 +1,162 @@
+include/master-slave.inc
+[connection master]
+CREATE USER 'nonsuperuser'@'127.0.0.1';
+GRANT ALTER,CREATE,DELETE,DROP,EVENT,INSERT,PROCESS,REPLICATION SLAVE,
+SELECT,UPDATE ON *.* TO 'nonsuperuser'@'127.0.0.1';
+SET GLOBAL replicate_ignore_do_not_replicate=1;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+DROP USER'nonsuperuser'@'127.0.0.1';
+SET GLOBAL replicate_ignore_do_not_replicate=1;
+ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+STOP SLAVE;
+SET GLOBAL replicate_ignore_do_not_replicate=1;
+START SLAVE;
+SET do_not_replicate=0;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
+INSERT INTO t1(a) VALUES (1);
+INSERT INTO t2(a) VALUES (1);
+SET do_not_replicate=1;
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
+INSERT INTO t1(a) VALUES (2);
+INSERT INTO t2(a) VALUES (2);
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+SELECT * FROM t1;
+a	b
+1	NULL
+SELECT * FROM t2;
+a	b
+1	NULL
+DROP TABLE t3;
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+STOP SLAVE;
+SET GLOBAL replicate_ignore_do_not_replicate=0;
+START SLAVE;
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
+INSERT INTO t3(a) VALUES(2);
+SELECT * FROM t3;
+a	b
+2	NULL
+DROP TABLE t3;
+TRUNCATE t1;
+RESET MASTER;
+SET do_not_replicate=0;
+INSERT INTO t1 VALUES (1,0);
+SET do_not_replicate=1;
+INSERT INTO t1 VALUES (2,0);
+SET do_not_replicate=0;
+INSERT INTO t1 VALUES (3,0);
+SELECT * FROM t1 ORDER by a;
+a	b
+1	0
+2	0
+3	0
+STOP SLAVE;
+SET GLOBAL replicate_ignore_do_not_replicate=1;
+TRUNCATE t1;
+SELECT * FROM t1 ORDER by a;
+a	b
+1	0
+2	0
+3	0
+START SLAVE;
+SELECT * FROM t1 ORDER by a;
+a	b
+1	0
+3	0
+TRUNCATE t1;
+STOP SLAVE;
+SET GLOBAL sql_slave_skip_counter=2;
+SET GLOBAL replicate_ignore_do_not_replicate=1;
+START SLAVE;
+SET @old_binlog_format= @@binlog_format;
+SET binlog_format= statement;
+SET do_not_replicate=0;
+INSERT INTO t1 VALUES (1,5);
+SET do_not_replicate=1;
+INSERT INTO t1 VALUES (2,5);
+SET do_not_replicate=0;
+INSERT INTO t1 VALUES (3,5);
+INSERT INTO t1 VALUES (4,5);
+SET binlog_format= @old_binlog_format;
+SELECT * FROM t1;
+a	b
+4	5
+TRUNCATE t1;
+BINLOG '66I6Tg8BAAAAZgAAAGoAAAABAAQANS40LjAtTWFyaWFEQi12YWxncmluZC1tYXgtZGVidWctbG9n
+AAAAAAAAAAAAAAAAAADrojpOEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC';
+BINLOG 'HaM6ThMBAAAAKgAAANgAAAAAgA8AAAAAAAEABHRlc3QAAnQxAAIDAwAC
+HaM6ThcBAAAAJgAAAP4AAAAAgA8AAAAAAAEAAv/8AQAAAAgAAAA=';
+BINLOG 'JqM6ThMBAAAAKgAAALEBAAAAAA8AAAAAAAEABHRlc3QAAnQxAAIDAwAC
+JqM6ThcBAAAAJgAAANcBAAAAAA8AAAAAAAEAAv/8AgAAAAgAAAA=';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	8
+2	8
+SELECT * FROM t1 ORDER by a;
+a	b
+2	8
+SET do_not_replicate=0;
+BEGIN;
+SET do_not_replicate=0;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SET do_not_replicate=1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+ROLLBACK;
+SET do_not_replicate=1;
+BEGIN;
+SET do_not_replicate=0;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SET do_not_replicate=1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+COMMIT;
+SET autocommit=0;
+INSERT INTO t2(a) VALUES(100);
+SET do_not_replicate=1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+ROLLBACK;
+SET autocommit=1;
+SET do_not_replicate=1;
+CREATE FUNCTION foo (x INT) RETURNS INT BEGIN SET SESSION do_not_replicate=x; RETURN x; END|
+CREATE PROCEDURE bar(x INT) BEGIN SET SESSION do_not_replicate=x; END|
+CREATE FUNCTION baz (x INT) RETURNS INT BEGIN CALL bar(x); RETURN x; END|
+SELECT foo(0);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SELECT baz(0);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SET @a= foo(1);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SET @a= baz(1);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UPDATE t2 SET b=foo(0);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UPDATE t2 SET b=baz(0);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t1 VALUES (101, foo(1));
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+INSERT INTO t1 VALUES (101, baz(0));
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SELECT @@do_not_replicate;
+@@do_not_replicate
+1
+CALL bar(0);
+SELECT @@do_not_replicate;
+@@do_not_replicate
+0
+CALL bar(1);
+SELECT @@do_not_replicate;
+@@do_not_replicate
+1
+DROP FUNCTION foo;
+DROP PROCEDURE bar;
+DROP FUNCTION baz;
+SET do_not_replicate=0;
+DROP TABLE t1,t2;
+STOP SLAVE;
+SET GLOBAL replicate_ignore_do_not_replicate=0;
+START SLAVE;
+include/rpl_end.inc
