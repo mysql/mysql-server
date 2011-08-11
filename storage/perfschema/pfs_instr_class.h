@@ -353,8 +353,6 @@ PFS_stage_class *find_stage_class(PSI_stage_key key);
 PFS_stage_class *sanitize_stage_class(PFS_stage_class *unsafe);
 PFS_statement_class *find_statement_class(PSI_statement_key key);
 PFS_statement_class *sanitize_statement_class(PFS_statement_class *unsafe);
-const char *sanitize_table_schema_name(const char *unsafe);
-const char *sanitize_table_object_name(const char *unsafe);
 PFS_instr_class *find_table_class(uint index);
 PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe);
 
@@ -362,7 +360,6 @@ PFS_table_share *find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,
                                             const TABLE_SHARE *share);
 void release_table_share(PFS_table_share *pfs);
-void purge_table_share(PFS_thread *thread, PFS_table_share *pfs);
 void drop_table_share(PFS_thread *thread,
                       bool temporary,
                       const char *schema_name, uint schema_name_length,
@@ -386,6 +383,13 @@ extern ulong statement_class_max;
 extern ulong statement_class_lost;
 extern ulong table_share_max;
 extern ulong table_share_lost;
+
+/* Exposing the data directly, for iterators. */
+
+extern PFS_mutex_class *mutex_class_array;
+extern PFS_rwlock_class *rwlock_class_array;
+extern PFS_cond_class *cond_class_array;
+extern PFS_file_class *file_class_array;
 extern PFS_table_share *table_share_array;
 
 void reset_file_class_io();
