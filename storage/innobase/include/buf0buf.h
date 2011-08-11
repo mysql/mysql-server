@@ -145,6 +145,10 @@ struct buf_pool_info_struct{
 	ulint	n_pend_reads;		/*!< buf_pool->n_pend_reads, pages
 					pending read */
 	ulint	n_pending_flush_lru;	/*!< Pages pending flush in LRU */
+	ulint	n_pending_flush_single_page;/*!< Pages pending to be
+					flushed as part of single page
+					flushes issued by various user
+					threads */
 	ulint	n_pending_flush_list;	/*!< Pages pending flush in FLUSH
 					LIST */
 	ulint	n_pages_made_young;	/*!< number of pages made young */
@@ -1844,10 +1848,16 @@ struct buf_pool_struct{
 					to read this for heuristic
 					purposes without holding any
 					mutex or latch */
-	ulint		LRU_flush_ended;/*!< when an LRU flush ends for a page,
-					this is incremented by one; this is
-					set to zero when a buffer block is
-					allocated */
+	ibool		try_LRU_scan;	/*!< Set to FALSE when an LRU
+					scan for free block fails. This
+					flag is used to avoid repeated
+					scans of LRU list when we know
+					that there is no free block
+					available in the scan depth for
+					eviction. Set to TRUE whenever
+					we flush a batch from the
+					buffer pool. Protected by the
+					buf_pool->mutex */
 	/* @} */
 
 	/** @name LRU replacement algorithm fields */

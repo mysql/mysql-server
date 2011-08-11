@@ -22,6 +22,10 @@
 #include "pfs_engine_table.h"
 #include "pfs_instr_class.h"
 
+struct PFS_host;
+struct PFS_user;
+struct PFS_account;
+
 /**
   @file storage/perfschema/table_helper.h
   Performance schema table helpers (declarations).
@@ -57,6 +61,52 @@ struct PFS_object_view_constants
   static const uint VIEW_EVENT= 2;
   static const uint VIEW_PROCEDURE= 3;
   static const uint VIEW_FUNCTION= 4;
+};
+
+/** Row fragment for column HOST. */
+struct PFS_host_row
+{
+  /** Column HOST. */
+  char m_hostname[HOSTNAME_LENGTH];
+  /** Length in bytes of @c m_hostname. */
+  uint m_hostname_length;
+
+  /** Build a row from a memory buffer. */
+  int make_row(PFS_host *pfs);
+  /** Set a table field from the row. */
+  void set_field(Field *f);
+};
+
+/** Row fragment for column USER. */
+struct PFS_user_row
+{
+  /** Column USER. */
+  char m_username[USERNAME_LENGTH];
+  /** Length in bytes of @c m_username. */
+  uint m_username_length;
+
+  /** Build a row from a memory buffer. */
+  int make_row(PFS_user *pfs);
+  /** Set a table field from the row. */
+  void set_field(Field *f);
+};
+
+/** Row fragment for columns USER, HOST. */
+struct PFS_account_row
+{
+  /** Column USER. */
+  char m_username[USERNAME_LENGTH];
+  /** Length in bytes of @c m_username. */
+  uint m_username_length;
+  /** Column HOST. */
+  char m_hostname[HOSTNAME_LENGTH];
+  /** Length in bytes of @c m_hostname. */
+  uint m_hostname_length;
+
+  /** Build a row from a memory buffer. */
+  int make_row(PFS_account *pfs);
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
 };
 
 /** Row fragment for column EVENT_NAME. */
@@ -362,6 +412,23 @@ struct PFS_statement_stat_row
   void set_field(uint index, Field *f);
 };
 
+struct PFS_connection_stat_row
+{
+  ulonglong m_current_connections;
+  ulonglong m_total_connections;
+
+  inline void set(const PFS_connection_stat *stat)
+  {
+    m_current_connections= stat->m_current_connections;
+    m_total_connections= stat->m_total_connections;
+  }
+
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+};
+
+void set_field_object_type(Field *f, enum_object_type object_type);
+
 /** Row fragment for socket io statistics columns. */
 struct PFS_socket_io_stat_row
 {
@@ -369,7 +436,7 @@ struct PFS_socket_io_stat_row
   PFS_byte_stat_row m_write;
   PFS_byte_stat_row m_misc;
   PFS_byte_stat_row m_all;
-
+  
   inline void set(time_normalizer *normalizer, const PFS_socket_io_stat *stat)
   {
     PFS_byte_stat all;
@@ -395,8 +462,6 @@ struct PFS_socket_io_stat_row
     m_all.set(normalizer, &all);
   }
 };
-
-void set_field_object_type(Field *f, enum_object_type object_type);
 
 /** @} */
 
