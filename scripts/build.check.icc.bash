@@ -267,10 +267,9 @@ function build() {
 
     # put the trace into svn
     if [ $docommit -ne 0 ] ; then
-	if [ $nfail = 0 ] ; then
-	    testresult="PASS=$npass"
-	else
-	    testresult="FAIL=$nfail PASS=$npass"
+	testresult="PASS=$npass"
+	if [ $nfail != 0 ] ; then
+	    testresult="FAIL=$nfail $testresult"
 	fi
 
 	local cf=`mktemp`
