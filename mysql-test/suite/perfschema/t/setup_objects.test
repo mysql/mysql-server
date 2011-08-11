@@ -20,6 +20,14 @@
 drop table if exists test.setup_objects;
 --enable_warnings
 
+# Make sure only table io / table lock is instrumented and timed
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES', timed='YES'
+  where name in ('wait/io/table/sql/handler', 'wait/lock/table/sql/handler');
+
+# Remove noise from previous tests
+truncate table performance_schema.events_waits_history_long;
+
 # Save the setup
 create table test.setup_objects as select * from performance_schema.setup_objects;
 truncate table performance_schema.setup_objects;
@@ -199,4 +207,6 @@ drop database db5;
 truncate table performance_schema.setup_objects;
 insert into performance_schema.setup_objects select * from test.setup_objects;
 drop table test.setup_objects;
+
+update performance_schema.setup_instruments set enabled='YES', timed='YES';
 

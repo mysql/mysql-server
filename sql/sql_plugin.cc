@@ -2279,7 +2279,9 @@ static void update_func_str(THD *thd, struct st_mysql_sys_var *var,
   *(char **)tgt= *(char **) save;
   if (var->flags & PLUGIN_VAR_MEMALLOC)
   {
-    *(char **)tgt= my_strdup(*(char **) save, MYF(0));
+    if (*(char **) save != NULL) {
+      *(char **)tgt= my_strdup(*(char **) save, MYF(0));
+    }
     my_free(old);
   }
 }
