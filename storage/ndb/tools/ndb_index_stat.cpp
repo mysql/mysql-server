@@ -35,6 +35,8 @@ static my_bool _sys_create = false;
 static my_bool _sys_create_if_not_exist = false;
 static my_bool _sys_create_if_not_valid = false;
 static my_bool _sys_check = false;
+static my_bool _sys_skip_tables = false;
+static my_bool _sys_skip_events = false;
 static int _sys_any = 0;
 // other
 static my_bool _verbose = false;
@@ -382,69 +384,146 @@ dosys()
   {
     if (_sys_drop)
     {
-      g_info << "dropping any sys tables" << endl;
-      CHK2(g_is->drop_systables(g_ndb_sys) == 0, g_is->getNdbError());
-      CHK2(g_is->check_systables(g_ndb_sys) == -1, "unexpected success");
-      CHK2(g_is->getNdbError().code == NdbIndexStat::NoSysTables,
-           "unexpected error: " << g_is->getNdbError());
+      if (!_sys_skip_events)
+      {
+        g_info << "dropping sys events" << endl;
+        CHK2(g_is->drop_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
+        CHK2(g_is->check_sysevents(g_ndb_sys) == -1, "unexpected success");
+        CHK2(g_is->getNdbError().code == NdbIndexStat::NoSysEvents,
+             "unexpected error: " << g_is->getNdbError());
+      }
+
+      if (!_sys_skip_tables)
+      {
+        g_info << "dropping all sys tables" << endl;
+        CHK2(g_is->drop_systables(g_ndb_sys) == 0, g_is->getNdbError());
+        CHK2(g_is->check_systables(g_ndb_sys) == -1, "unexpected success");
+        CHK2(g_is->getNdbError().code == NdbIndexStat::NoSysTables,
+             "unexpected error: " << g_is->getNdbError());
+      }
       g_info << "drop done" << endl;
     }
 
     if (_sys_create)
     {
-      g_info << "creating all sys tables" << endl;
-      CHK2(g_is->create_systables(g_ndb_sys) == 0, g_is->getNdbError());
-      CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
-      g_info << "create done" << endl;
+      if (!_sys_skip_tables)
+      {
+        g_info << "creating all sys tables" << endl;
+        CHK2(g_is->create_systables(g_ndb_sys) == 0, g_is->getNdbError());
+        CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
+      }
+
+      if (!_sys_skip_events)
+      {
+        g_info << "creating sys events" << endl;
+        CHK2(g_is->create_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
+        CHK2(g_is->check_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
+        g_info << "create done" << endl;
+      }
     }
 
     if (_sys_create_if_not_exist)
     {
-      if (g_is->check_systables(g_ndb_sys) == -1)
+      if (!_sys_skip_tables)
       {
-        CHK2(g_is->getNdbError().code == NdbIndexStat::NoSysTables,
-             g_is->getNdbError());
-        g_info << "creating all sys tables" << endl;
-        CHK2(g_is->create_systables(g_ndb_sys) == 0, g_is->getNdbError());
-        CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
-        g_info << "create done" << endl;
+        if (g_is->check_systables(g_ndb_sys) == -1)
+        {
+          CHK2(g_is->getNdbError().code == NdbIndexStat::NoSysTables,
+               g_is->getNdbError());
+          g_info << "creating all sys tables" << endl;
+          CHK2(g_is->create_systables(g_ndb_sys) == 0, g_is->getNdbError());
+          CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
+          g_info << "create done" << endl;
+        }
+        else
+        {
+          g_info << "using existing sys tables" << endl;
+        }
       }
-      else
+
+      if (!_sys_skip_events)
       {
-        g_info << "using existing sys tables" << endl;
+        if (g_is->check_sysevents(g_ndb_sys) == -1)
+        {
+          CHK2(g_is->getNdbError().code == NdbIndexStat::NoSysEvents,
+               g_is->getNdbError());
+          g_info << "creating sys events" << endl;
+          CHK2(g_is->create_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
+          g_info << "create done" << endl;
+        }
+        else
+        {
+          g_info << "using existing sys events" << endl;
+        }
       }
     }
 
     if (_sys_create_if_not_valid)
     {
-      if (g_is->check_systables(g_ndb_sys) == -1)
+      if (!_sys_skip_tables)
       {
-        if (g_is->getNdbError().code != NdbIndexStat::NoSysTables)
+        if (g_is->check_systables(g_ndb_sys) == -1)
         {
-          CHK2(g_is->getNdbError().code == NdbIndexStat::BadSysTables,
-               g_is->getNdbError());
-          g_info << "dropping invalid sys tables" << endl;
-          CHK2(g_is->drop_systables(g_ndb_sys) == 0, g_is->getNdbError());
-          CHK2(g_is->check_systables(g_ndb_sys) == -1, "unexpected success");
-          CHK2(g_is->getNdbError().code == NdbIndexStat::NoSysTables,
-               "unexpected error: " << g_is->getNdbError());
-          g_info << "drop done" << endl;
+          if (g_is->getNdbError().code != NdbIndexStat::NoSysTables)
+          {
+            CHK2(g_is->getNdbError().code == NdbIndexStat::BadSysTables,
+                 g_is->getNdbError());
+            g_info << "dropping invalid sys tables" << endl;
+            CHK2(g_is->drop_systables(g_ndb_sys) == 0, g_is->getNdbError());
+            CHK2(g_is->check_systables(g_ndb_sys) == -1, "unexpected success");
+            CHK2(g_is->getNdbError().code == NdbIndexStat::NoSysTables,
+                 "unexpected error: " << g_is->getNdbError());
+            g_info << "drop done" << endl;
+          }
+          g_info << "creating all sys tables" << endl;
+          CHK2(g_is->create_systables(g_ndb_sys) == 0, g_is->getNdbError());
+          CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
+          g_info << "create done" << endl;
         }
-        g_info << "creating all sys tables" << endl;
-        CHK2(g_is->create_systables(g_ndb_sys) == 0, g_is->getNdbError());
-        CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
-        g_info << "create done" << endl;
+        else
+        {
+          g_info << "using existing sys tables" << endl;
+        }
       }
-      else
+      if (!_sys_skip_events)
       {
-        g_info << "using existing sys tables" << endl;
+        if (g_is->check_sysevents(g_ndb_sys) == -1)
+        {
+          if (g_is->getNdbError().code != NdbIndexStat::NoSysEvents)
+          {
+            CHK2(g_is->getNdbError().code == NdbIndexStat::BadSysEvents,
+                 g_is->getNdbError());
+            g_info << "dropping invalid sys events" << endl;
+            CHK2(g_is->drop_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
+            CHK2(g_is->check_sysevents(g_ndb_sys) == -1, "unexpected success");
+            CHK2(g_is->getNdbError().code == NdbIndexStat::NoSysEvents,
+                 "unexpected error: " << g_is->getNdbError());
+            g_info << "drop done" << endl;
+          }
+          g_info << "creating sys events" << endl;
+          CHK2(g_is->create_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
+          CHK2(g_is->check_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
+          g_info << "create done" << endl;
+        }
+        else
+        {
+          g_info << "using existing sys events" << endl;
+        }
       }
     }
 
     if (_sys_check)
     {
-      CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
-      g_info << "sys tables ok" << endl;
+      if (!_sys_skip_tables)
+      {
+        CHK2(g_is->check_systables(g_ndb_sys) == 0, g_is->getNdbError());
+        g_info << "sys tables ok" << endl;
+      }
+      if (!_sys_skip_events)
+      {
+        CHK2(g_is->check_sysevents(g_ndb_sys) == 0, g_is->getNdbError());
+        g_info << "sys events ok" << endl;
+      }
     }
   }
   while (0);
@@ -514,24 +593,32 @@ my_long_options[] =
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   // sys options
   { "sys-drop", ++oi,
-    "Drop any stats tables in NDB kernel (all stats is lost)",
+    "Drop any stats tables and events in NDB kernel (all stats is lost)",
     (uchar **)&_sys_drop, (uchar **)&_sys_drop, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "sys-create", ++oi,
-    "Create stats tables in NDB kernel (must not exist)",
+    "Create stats tables and events in NDB kernel (must not exist)",
     (uchar **)&_sys_create, (uchar **)&_sys_create, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "sys-create-if-not-exist", ++oi,
-    "Like --sys-create but do nothing if correct stats tables exist",
+    "Like --sys-create but do nothing if correct objects exist",
     (uchar **)&_sys_create_if_not_exist, (uchar **)&_sys_create_if_not_exist, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "sys-create-if-not-valid", ++oi,
-    "Like --sys-create-if-not-exist but first drop any invalid tables",
+    "Like --sys-create-if-not-exist but first drop any invalid objects",
     (uchar **)&_sys_create_if_not_valid, (uchar **)&_sys_create_if_not_valid, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "sys-check", ++oi,
-    "Check that correct stats tables exist in NDB kernel",
+    "Check that correct stats tables and events exist in NDB kernel",
     (uchar **)&_sys_check, (uchar **)&_sys_check, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "sys-skip-tables", ++oi,
+    "Do not apply sys options to tables",
+    (uchar **)&_sys_skip_tables, (uchar **)&_sys_skip_tables, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "sys-skip-events", ++oi,
+    "Do not apply sys options to events",
+    (uchar **)&_sys_skip_events, (uchar **)&_sys_skip_events, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   // other
   { "verbose", 'v',
@@ -581,7 +668,9 @@ checkopts(int argc, char** argv)
       (_sys_create_if_not_exist != 0) +
       (_sys_create_if_not_valid != 0) +
       (_sys_drop != 0) +
-      ( _sys_check != 0);
+      ( _sys_check != 0) +
+      (_sys_skip_tables != 0) +
+      (_sys_skip_events != 0);
     if (!_sys_any)
     {
       if (_dbname == 0)

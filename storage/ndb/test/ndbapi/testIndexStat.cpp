@@ -134,6 +134,7 @@ static NdbIndexScanOperation* g_rangescan_op = 0;
 
 static NdbIndexStat* g_is = 0;
 static bool g_has_created_stat_tables = false;
+static bool g_has_created_stat_events = false;
 
 static uint
 urandom()
@@ -213,7 +214,7 @@ errdb()
       ll0(++any << " rangescan_op: error " << e);
   }
   if (g_is != 0) {
-    const NdbError& e = g_is->getNdbError();
+    const NdbIndexStat::Error& e = g_is->getNdbError();
     if (e.code != 0)
       ll0(++any << " stat: error " << e);
   }
@@ -1518,6 +1519,40 @@ readstat()
   return 0;
 }
 
+// test polling after updatestat
+
+static int
+startlistener()
+{
+  ll1("startlistener");
+  chkdb(g_is->create_listener(g_ndb_sys) == 0);
+  chkdb(g_is->execute_listener(g_ndb_sys) == 0);
+  return 0;
+}
+
+static int
+runlistener()
+{
+  ll1("runlistener");
+  int ret;
+  chkdb((ret = g_is->poll_listener(g_ndb_sys, 10000)) != -1);
+  chkrc(ret == 1);
+  // one event is expected
+  chkdb((ret = g_is->next_listener(g_ndb_sys)) != -1);
+  chkrc(ret == 1);
+  chkdb((ret = g_is->next_listener(g_ndb_sys)) != -1);
+  chkrc(ret == 0);
+  return 0;
+}
+
+static int
+stoplistener()
+{
+  ll1("stoplistener");
+  chkdb(g_is->drop_listener(g_ndb_sys) != -1);
+  return 0;
+}
+
 // stats queries
 
 // exact stats from scan results
@@ -2081,6 +2116,7 @@ runtest()
   chkrc(createindex() == 0);
   chkrc(createNdbRecords() == 0);
   chkrc(definestat() == 0);
+  chkrc(startlistener() == 0);
 
   for (g_loop = 0; g_opts.loops == 0 || g_loop < g_opts.loops; g_loop++) {
     ll0("=== loop " << g_loop << " ===");
@@ -2094,6 +2130,7 @@ runtest()
     makeranges();
     chkrc(scanranges() == 0);
     chkrc(updatestat() == 0);
+    chkrc(runlistener() == 0);
     chkrc(readstat() == 0);
     chkrc(queryranges() == 0);
     loopstats();
@@ -2101,6 +2138,7 @@ runtest()
   }
   finalstats();
 
+  chkrc(stoplistener() == 0);
   if (!g_opts.keeptable)
     chkrc(droptable() == 0);
   freeranges();
@@ -2234,22 +2272,66 @@ docreate_stat_tables()
 {
   if (g_is->check_systables(g_ndb_sys) == 0)
     return 0;
+  ll1("check_systables: " << g_is->getNdbError());
 
-  if (g_is->create_systables(g_ndb_sys) == 0)
-  {
-    g_has_created_stat_tables = true;
-    return 0;
-  }
-  return -1;
+  ll0("create stat tables");
+  chkdb(g_is->create_systables(g_ndb_sys) == 0);
+  g_has_created_stat_tables = true;
+  return 0;
 }
 
 static
-void
+int
 dodrop_stat_tables()
 {
   if (g_has_created_stat_tables == false)
-    return;
-  g_is->drop_systables(g_ndb_sys);
+    return 0;
+
+  ll0("drop stat tables");
+  chkdb(g_is->drop_systables(g_ndb_sys) == 0);
+  return 0;
+}
+
+static int
+docreate_stat_events()
+{
+  if (g_is->check_sysevents(g_ndb_sys) == 0)
+    return 0;
+  ll1("check_sysevents: " << g_is->getNdbError());
+
+  ll0("create stat events");
+  chkdb(g_is->create_sysevents(g_ndb_sys) == 0);
+  g_has_created_stat_events = true;
+  return 0;
+}
+
+static int
+dodrop_stat_events()
+{
+  if (g_has_created_stat_events == false)
+    return 0;
+
+  ll0("drop stat events");
+  chkdb(g_is->drop_sysevents(g_ndb_sys) == 0);
+  return 0;
+}
+
+static int
+docreate_sys_objects()
+{
+  require(g_is != 0 && g_ndb_sys != 0);
+  chkrc(docreate_stat_tables() == 0);
+  chkrc(docreate_stat_events() == 0);
+  return 0;
+}
+
+static int
+dodrop_sys_objects()
+{
+  require(g_is != 0 && g_ndb_sys != 0);
+  chkrc(dodrop_stat_events() == 0);
+  chkrc(dodrop_stat_tables() == 0);
+  return 0;
 }
 
 int
@@ -2277,17 +2359,22 @@ main(int argc, char** argv)
     ll0("connect failed");
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  if (docreate_stat_tables() == -1){
-    ll0("failed to create stat tables");
-    return NDBT_ProgramExit(NDBT_FAILED);
+  if (docreate_sys_objects() == -1) {
+    ll0("failed to check or create stat tables and events");
+    goto failed;
   }
   if (runtest() == -1) {
     ll0("test failed");
-    dodrop_stat_tables();
-    dodisconnect();
-    return NDBT_ProgramExit(NDBT_FAILED);
+    goto failed;
   }
-  dodrop_stat_tables();
+  if (dodrop_sys_objects() == -1) {
+    ll0("failed to drop created stat tables or events");
+    goto failed;
+  }
   dodisconnect();
   return NDBT_ProgramExit(NDBT_OK);
+failed:
+  (void)dodrop_sys_objects();
+  dodisconnect();
+  return NDBT_ProgramExit(NDBT_FAILED);
 }

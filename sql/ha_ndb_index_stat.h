@@ -19,6 +19,8 @@
 
 extern struct st_ndb_status g_ndb_status;
 
+extern pthread_mutex_t ndbcluster_mutex;
+
 extern pthread_t ndb_index_stat_thread;
 extern pthread_cond_t COND_ndb_index_stat_thread;
 extern pthread_mutex_t LOCK_ndb_index_stat_thread;

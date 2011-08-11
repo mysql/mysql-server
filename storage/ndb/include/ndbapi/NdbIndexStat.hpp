@@ -100,7 +100,10 @@ public:
     InvalidCache = 4718,
     InternalError = 4719,
     BadSysTables = 4720,  // sys tables partly missing or invalid
-    HaveSysTables = 4244  // create error if all sys tables exist
+    HaveSysTables = 4244, // create error if all sys tables exist
+    NoSysEvents = 4710,
+    BadSysEvents = BadSysTables,
+    HaveSysEvents = 746
   };
 
   /*
@@ -191,6 +194,7 @@ public:
    */
   struct Head {
     Int32 m_found;        // -1 no read done, 0 = no record, 1 = exists
+    Int32 m_eventType;    // if polling, NdbDictionary::Event::TE_INSERT etc
     Uint32 m_indexId;
     Uint32 m_indexVersion;
     Uint32 m_tableId;
@@ -325,6 +329,42 @@ public:
    */
   enum { RuleBufferBytes = 80 };
   static void get_rule(const Stat& stat, char* buffer);
+
+  /*
+   * Events (there is 1) for polling.  These are dictionary objects.
+   * Correct sys tables must exist.  Drop ignores non-existing events.
+   */
+  int create_sysevents(Ndb* ndb);
+  int drop_sysevents(Ndb* ndb);
+  int check_sysevents(Ndb* ndb);
+
+  /*
+   * Create listener for stats updates.  Only 1 is allowed.
+   */
+  int create_listener(Ndb* ndb);
+
+  /*
+   * Start listening for events (call NdbEventOperation::execute).
+   */
+  int execute_listener(Ndb* ndb);
+
+  /*
+   * Poll the listener (call Ndb::pollEvents).  Returns 1 if there are
+   * events available and 0 otherwise, or -1 on failure as usual.
+   */
+  int poll_listener(Ndb* ndb, int max_wait_ms);
+
+  /*
+   * Get next available event.  Returns 1 if a new event was returned
+   * and 0 otherwise, or -1 on failure as usual.  Use get_heed() to
+   * retrieve event type and data.
+   */
+  int next_listener(Ndb* ndb);
+
+  /*
+   * Drop the listener.
+   */
+  int drop_listener(Ndb* ndb);
 
   /*
    * Memory allocator for stats cache data (key and value byte arrays).
