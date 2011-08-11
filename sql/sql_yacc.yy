@@ -5036,8 +5036,7 @@ create_table_option:
           ENGINE_SYM opt_equal storage_engines
           {
             Lex->create_info.db_type= $3;
-            if ($3)
-              Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE;
+            Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE;
           }
         | MAX_ROWS opt_equal ulonglong_num
           {
@@ -6748,6 +6747,11 @@ alter_list_item:
           {
             LEX *lex=Lex;
             lex->alter_info.flags|= ALTER_OPTIONS;
+            if ((lex->create_info.used_fields & HA_CREATE_USED_ENGINE) &&
+                !lex->create_info.db_type)
+            {
+              lex->create_info.used_fields&= ~HA_CREATE_USED_ENGINE;
+            }
           }
         | FORCE_SYM
           {
