@@ -44,6 +44,9 @@ struct PFS_thread_class;
 */
 
 struct PFS_thread;
+struct PFS_host;
+struct PFS_user;
+struct PFS_account;
 
 /** Base structure for wait instruments. */
 struct PFS_instr
@@ -322,6 +325,12 @@ struct PFS_thread : PFS_connection_slice
   LF_PINS *m_setup_actor_hash_pins;
   /** Pins for setup_object_hash. */
   LF_PINS *m_setup_object_hash_pins;
+  /** Pins for host_hash. */
+  LF_PINS *m_host_hash_pins;
+  /** Pins for user_hash. */
+  LF_PINS *m_user_hash_pins;
+  /** Pins for account_hash. */
+  LF_PINS *m_account_hash_pins;
   /** Internal thread identifier, unique. */
   ulong m_thread_internal_id;
   /** Parent internal thread identifier. */
@@ -423,6 +432,10 @@ struct PFS_thread : PFS_connection_slice
   /** Size of @c m_events_statements_stack. */
   uint m_events_statements_count;
   PFS_events_statements *m_statement_stack;
+
+  PFS_host *m_host;
+  PFS_user *m_user;
+  PFS_account *m_account;
 };
 
 extern PFS_single_stat *global_instr_class_waits_array;
@@ -433,7 +446,6 @@ PFS_mutex *sanitize_mutex(PFS_mutex *unsafe);
 PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);
 PFS_cond *sanitize_cond(PFS_cond *unsafe);
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
-const char *sanitize_file_name(const char *unsafe);
 PFS_file *sanitize_file(PFS_file *unsafe);
 
 int init_instruments(const PFS_global_param *param);
@@ -504,14 +516,22 @@ void aggregate_all_event_names(PFS_single_stat *from_array,
 
 void aggregate_all_stages(PFS_stage_stat *from_array,
                           PFS_stage_stat *to_array);
+void aggregate_all_stages(PFS_stage_stat *from_array,
+                          PFS_stage_stat *to_array_1,
+                          PFS_stage_stat *to_array_2);
 
 void aggregate_all_statements(PFS_statement_stat *from_array,
                               PFS_statement_stat *to_array);
+void aggregate_all_statements(PFS_statement_stat *from_array,
+                              PFS_statement_stat *to_array_1,
+                              PFS_statement_stat *to_array_2);
 
 void aggregate_thread(PFS_thread *thread);
 void aggregate_thread_waits(PFS_thread *thread);
 void aggregate_thread_stages(PFS_thread *thread);
 void aggregate_thread_statements(PFS_thread *thread);
+void clear_thread_account(PFS_thread *thread);
+void set_thread_account(PFS_thread *thread);
 
 /** Update derived flags for all mutex instances. */
 void update_mutex_derived_flags();
