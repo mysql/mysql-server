@@ -1,5 +1,10 @@
 2011-08-08	The InnoDB Team
 
+	* row/row0sel.c:
+	Fix Bug#12835650 VARCHAR maximum length performance impact
+
+2011-08-08	The InnoDB Team
+
 	* handler/ha_innodb.cc:
 	Fix Bug#12770537 I_S.TABLES.DATA_LENGTH DOES NOT SHOW ON-DISK SIZE
 	FOR COMPRESSED INNODB
