@@ -1365,7 +1365,11 @@ public:
       const_item_cache= 1;
     }
     else
+    {
       args[0]->update_used_tables();
+      used_tables_cache= args[0]->used_tables();
+      const_item_cache= args[0]->const_item();
+    }
   }
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
