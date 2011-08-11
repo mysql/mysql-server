@@ -481,7 +481,7 @@ if(`SELECT COUNT(statement) $part`)
 --echo # 4.3.1 Successful connects with different length of user name
 #            --> t2.statement LIKE 'Connect%root0123456789,%'
 #            --> t1.statement LIKE 'Connect%root012345,%'
-if(1)
+if(0)
 {
 # There is no client_connection entry for a connect which fails.
 
