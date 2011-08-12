@@ -1503,3 +1503,34 @@ let $query= SELECT * FROM t100 WHERE I <> 6 OR (I <> 8 AND J = 5);
 --eval $query
 
 DROP TABLE t10,t100;
+
+--echo #
+--echo # BUG#12698916 - JOIN QUERY GIVES WRONG RESULT AT 2ND EXEC. OR
+--echo # AFTER FLUSH TABLES [-INT VS NULL]
+--echo #
+CREATE TABLE t1 (col_int INT, pk INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (-100,1),(1,6);
+
+CREATE TABLE t2 (
+  col_int_key INT,
+  col_varchar VARCHAR(100) NOT NULL DEFAULT "DEFAULT",
+  pk INT NOT NULL,
+  PRIMARY KEY (pk),
+  KEY (col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES
+(1,"GOOD",1),(100,"",2),(200,"",3),(300,"",4),(400,"",5),(500,"",8);
+
+let $query=SELECT t1.*,t2.* FROM t1 straight_join t2
+ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
+
+eval EXPLAIN $query;
+eval $query;
+--echo # need FLUSH so that InnoDB statistics change and thus plan changes
+FLUSH TABLES;
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
