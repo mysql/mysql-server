@@ -235,7 +235,9 @@ private:
     //
     DB_TXN *transaction;
     bool is_fast_alter_running;
-    bool use_write_locks;
+
+    // external_lock will set this true for read operations that will be closely followed by write operations.
+    bool use_write_locks; // use write locks for reads
 
     //
     // instance of cursor being used for init_xxx and rnd_xxx functions

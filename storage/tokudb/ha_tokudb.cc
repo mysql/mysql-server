@@ -1238,6 +1238,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     }
     num_DBs_locked_in_bulk = false;
     lock_count = 0;
+    use_write_locks = false;
 }
 
 //
