@@ -127,13 +127,13 @@
       %define distro_description        Oracle Enterprise Linux 4
       %define distro_releasetag         oel4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-      %define distro_requires           chkconfig coreutils grep procps shadow-utils
+      %define distro_requires           chkconfig coreutils grep procps shadow-utils net-tools
     %else
       %if "%oelver" == "5"
         %define distro_description      Oracle Enterprise Linux 5
         %define distro_releasetag       oel5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-        %define distro_requires         chkconfig coreutils grep procps shadow-utils
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Enterprise Linux %{oelver} is unsupported}
       %endif
@@ -145,13 +145,13 @@
         %define distro_description      Red Hat Enterprise Linux 4
         %define distro_releasetag       rhel4
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-        %define distro_requires         chkconfig coreutils grep procps shadow-utils
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %if "%rhelver" == "5"
           %define distro_description    Red Hat Enterprise Linux 5
           %define distro_releasetag     rhel5
           %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-          %define distro_requires       chkconfig coreutils grep procps shadow-utils
+          %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
         %else
           %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
         %endif
@@ -1000,6 +1000,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysql_setpermission
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
+%attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_zap
 %attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysqld_multi
@@ -1017,6 +1018,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_sbindir}/rcmysql
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
@@ -1131,6 +1133,10 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Jul 25 2011 Chuck Bell <chuck.bell@oracle.com>
+
+- Added the mysql_plugin client - enables or disables plugins.
+
 * Thu Jul 21 2011 Sunanda Menon <sunanda.menon@oracle.com>
 
 - Fix bug#12561297: Added the MySQL embedded binary
