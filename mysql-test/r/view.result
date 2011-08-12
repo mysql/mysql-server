@@ -4280,11 +4280,11 @@ f1	f2	f3	f4
 EXECUTE stmt1;
 f1	f2	f3	f4
 DEALLOCATE PREPARE stmt1;
+DROP VIEW v1;
+DROP TABLE t1;
 #
 # LP BUG#806071 (2 views with ORDER BY)
 #
-DROP VIEW v1;
-DROP TABLE t1;
 CREATE TABLE t1 (f1 int);
 INSERT INTO t1 VALUES (1),(1);
 CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT f1 FROM t1;
@@ -4304,5 +4304,51 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1926	View 'test'.'v2' ORDER BY clause ignored because there is other ORDER BY clause already.
 Note	1003	select `v1`.`f1` AS `f1`,`v1`.`f1` AS `f1` from `test`.`v1` join `test`.`v1` order by `v1`.`f1`
-drop view v1, v2;
-drop table t1;
+DROP VIEW v1, v2;
+DROP TABLE t1;
+#
+# LP bug #823189: dependent subquery with RIGHT JOIN
+#                 referencing view in WHERE
+#
+CREATE TABLE t1 (a varchar(32));
+INSERT INTO t1 VALUES ('y'), ('w');
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (10);
+CREATE TABLE t3 (a varchar(32), b int);
+CREATE TABLE t4 (a varchar(32));
+INSERT INTO t4 VALUES ('y'), ('w');
+CREATE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= t1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` join `test`.`t2` where (not(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` left join `test`.`t3` on(multiple equal(NULL, `test`.`t4`.`a`)) where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or isnull(NULL)))) having trigcond(<is_not_null_test>(NULL))))))
+SELECT * FROM t1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= t1.a);
+a	a
+EXPLAIN EXTENDED
+SELECT * FROM v1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= v1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'v1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` join `test`.`t2` where (not(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` left join `test`.`t3` on(multiple equal(NULL, `test`.`t4`.`a`)) where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or isnull(NULL)))) having trigcond(<is_not_null_test>(NULL))))))
+SELECT * FROM v1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= v1.a);
+a	a
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4;

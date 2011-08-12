@@ -2606,7 +2606,10 @@ public:
   {
     return (*ref)->const_item();
   }
-  table_map not_null_tables() const { return (*ref)->not_null_tables(); }
+  table_map not_null_tables() const 
+  { 
+    return depended_from ? 0 : (*ref)->not_null_tables();
+  }
   void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)

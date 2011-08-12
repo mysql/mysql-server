@@ -4231,12 +4231,12 @@ EXECUTE stmt1;
 
 DEALLOCATE PREPARE stmt1;
 
+DROP VIEW v1;
+DROP TABLE t1;
+
 --echo #
 --echo # LP BUG#806071 (2 views with ORDER BY)
 --echo #
-
-DROP VIEW v1;
-DROP TABLE t1;
 
 CREATE TABLE t1 (f1 int);
 INSERT INTO t1 VALUES (1),(1);
@@ -4247,5 +4247,42 @@ CREATE ALGORITHM=MERGE VIEW v2 AS SELECT f1 FROM v1 ORDER BY f1;
 SELECT * FROM v2 AS a1, v2 AS a2;
 EXPLAIN EXTENDED SELECT * FROM v2 AS a1, v2 AS a2;
 
-drop view v1, v2;
-drop table t1;
+DROP VIEW v1, v2;
+DROP TABLE t1;
+
+--echo #
+--echo # LP bug #823189: dependent subquery with RIGHT JOIN
+--echo #                 referencing view in WHERE
+--echo #
+
+CREATE TABLE t1 (a varchar(32));
+INSERT INTO t1 VALUES ('y'), ('w');
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (10);
+
+CREATE TABLE t3 (a varchar(32), b int);
+
+CREATE TABLE t4 (a varchar(32));
+INSERT INTO t4 VALUES ('y'), ('w');
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2
+  WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+                       WHERE t4.a >= t1.a);
+SELECT * FROM t1, t2
+  WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+                       WHERE t4.a >= t1.a);
+
+EXPLAIN EXTENDED
+SELECT * FROM v1, t2
+  WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+                       WHERE t4.a >= v1.a);
+SELECT * FROM v1, t2
+  WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+                       WHERE t4.a >= v1.a);
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4;
