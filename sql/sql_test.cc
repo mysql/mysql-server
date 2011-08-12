@@ -571,13 +571,13 @@ void mysql_print_status()
   process_key_caches(print_key_cache_status);
   mysql_mutex_lock(&LOCK_status);
   printf("\nhandler status:\n\
-read_key:   %10lu\n\
-read_next:  %10lu\n\
-read_rnd    %10lu\n\
-read_first: %10lu\n\
-write:      %10lu\n\
-delete      %10lu\n\
-update:     %10lu\n",
+read_key:   %10llu\n\
+read_next:  %10llu\n\
+read_rnd    %10llu\n\
+read_first: %10llu\n\
+write:      %10llu\n\
+delete      %10llu\n\
+update:     %10llu\n",
 	 tmp.ha_read_key_count,
 	 tmp.ha_read_next_count,
 	 tmp.ha_read_rnd_count,
@@ -591,7 +591,7 @@ Opened tables: %10lu\n\
 Open tables:   %10lu\n\
 Open files:    %10lu\n\
 Open streams:  %10lu\n",
-	 tmp.opened_tables,
+	 (ulong) tmp.opened_tables,
 	 (ulong) cached_open_tables(),
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);

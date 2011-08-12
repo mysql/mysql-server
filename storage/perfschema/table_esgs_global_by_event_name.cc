@@ -157,7 +157,9 @@ void table_esgs_global_by_event_name
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_stage_visitor visitor(klass);
-  PFS_connection_iterator::visit_global(true, & visitor);
+  PFS_connection_iterator::visit_global(true, /* hosts */
+                                        false, /* users */
+                                        true, true, & visitor);
 
   time_normalizer *normalizer= time_normalizer::get(stage_timer);
   m_row.m_stat.set(normalizer, & visitor.m_stat);

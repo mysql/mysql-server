@@ -560,7 +560,7 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
                                              Item_subselect *parent,
 					     st_select_lex *select_lex,
 					     bool max_arg)
-  :Item_singlerow_subselect(), was_values(TRUE)
+  :Item_singlerow_subselect(), was_values(false)
 {
   DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
   max= max_arg;
@@ -584,15 +584,7 @@ void Item_maxmin_subselect::cleanup()
   DBUG_ENTER("Item_maxmin_subselect::cleanup");
   Item_singlerow_subselect::cleanup();
 
-  /*
-    By default it is TRUE to avoid TRUE reporting by
-    Item_func_not_all/Item_func_nop_all if this item was never called.
-
-    Engine exec() set it to FALSE by reset_value_registration() call.
-    select_max_min_finder_subselect::send_data() set it back to TRUE if some
-    value will be found.
-  */
-  was_values= TRUE;
+  was_values= false;
   DBUG_VOID_RETURN;
 }
 
@@ -1242,6 +1234,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       if (upper_item)
         upper_item->set_sub_test(item);
     }
+    if (upper_item)
+      upper_item->set_subselect(this);
     /* fix fields is already called for  left expression */
     substitution= func->create(left_expr, subs);
     DBUG_RETURN(RES_OK);

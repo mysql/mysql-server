@@ -32,19 +32,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0types.h"
 
 /******************************************************************//**
-Tries to remove LRU flushed blocks from the end of the LRU list and put them
-to the free list. This is beneficial for the efficiency of the insert buffer
-operation, as flushed pages from non-unique non-clustered indexes are here
-taken out of the buffer pool, and their inserts redirected to the insert
-buffer. Otherwise, the flushed blocks could get modified again before read
-operations need new buffer blocks, and the i/o work done in flushing would be
-wasted. */
-UNIV_INTERN
-void
-buf_LRU_try_free_flushed_blocks(
-/*============================*/
-	buf_pool_t*	buf_pool);	/*!< in: buffer pool instance */
-/******************************************************************//**
 Returns TRUE if less than 25 % of the buffer pool is available. This can be
 used in heuristics to prevent huge transactions eating up the whole buffer
 pool for their locks.
@@ -60,9 +47,6 @@ These are low-level functions
 
 /** Minimum LRU list length for which the LRU_old pointer is defined */
 #define BUF_LRU_OLD_MIN_LEN	512	/* 8 megabytes of 16k pages */
-
-/** Maximum LRU list search length in buf_flush_LRU_recommendation() */
-#define BUF_LRU_FREE_SEARCH_LEN(b)	(5 + 2 * BUF_READ_AHEAD_AREA(b))
 
 /******************************************************************//**
 Invalidates all pages belonging to a given tablespace when we are deleting
@@ -108,19 +92,13 @@ Try to free a replaceable block.
 @return	TRUE if found and freed */
 UNIV_INTERN
 ibool
-buf_LRU_search_and_free_block(
-/*==========================*/
+buf_LRU_scan_and_free_block(
+/*========================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	ulint		n_iterations);	/*!< in: how many times this has
-					been called repeatedly without
-					result: a high value means that
-					we should search farther; if
-					n_iterations < 10, then we search
-					n_iterations / 10 * buf_pool->curr_size
-					pages from the end of the LRU list; if
-					n_iterations < 5, then we will
-					also search n_iterations / 5
-					of the unzip_LRU list. */
+	ibool		scan_all)	/*!< in: scan whole LRU list
+					if TRUE, otherwise scan only
+					'old' blocks. */
+	__attribute__((nonnull,warn_unused_result));
 /******************************************************************//**
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
@@ -134,6 +112,27 @@ buf_LRU_get_free_only(
 Returns a free block from the buf_pool. The block is taken off the
 free list. If it is empty, blocks are moved from the end of the
 LRU list to the free list.
+This function is called from a user thread when it needs a clean
+block to read in a page. Note that we only ever get a block from
+the free list. Even when we flush a page or find a page in LRU scan
+we put it to free list to be used.
+* iteration 0:
+  * get a block from free list, success:done
+  * if there is an LRU flush batch in progress:
+    * wait for batch to end: retry free list
+  * if buf_pool->try_LRU_scan is set
+    * scan LRU up to srv_LRU_scan_depth to find a clean block
+    * the above will put the block on free list
+    * success:retry the free list
+  * flush one dirty page from tail of LRU to disk
+    * the above will put the block on free list
+    * success: retry the free list
+* iteration 1:
+  * same as iteration 0 except:
+    * scan whole LRU list
+    * scan LRU list even if buf_pool->try_LRU_scan is not set
+* iteration > 1:
+  * same as iteration 1 but sleep 100ms
 @return	the free control block, in state BUF_BLOCK_READY_FOR_USE */
 UNIV_INTERN
 buf_block_t*
@@ -141,7 +140,15 @@ buf_LRU_get_free_block(
 /*===================*/
 	buf_pool_t*	buf_pool)	/*!< in/out: buffer pool instance */
 	__attribute__((nonnull,warn_unused_result));
-
+/******************************************************************//**
+Determines if the unzip_LRU list should be used for evicting a victim
+instead of the general LRU list.
+@return	TRUE if should use unzip_LRU */
+UNIV_INTERN
+ibool
+buf_LRU_evict_from_unzip_LRU(
+/*=========================*/
+	buf_pool_t*	buf_pool);
 /******************************************************************//**
 Puts a block back to the free list. */
 UNIV_INTERN

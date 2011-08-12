@@ -5502,3 +5502,32 @@ eval $query;
 eval explain $query;
 
 DROP TABLE t1,t3;
+
+--echo #
+--echo # Bug#12795555: Missing rows with ALL/ANY subquery
+--echo #
+# Test the case when Item_maxmin_subselect is used
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VAlUES (NULL),(1),(NULL),(2);
+SELECT f1 FROM t1 WHERE f1 < ALL (SELECT 1 FROM DUAL WHERE 0);
+DROP TABLE t1;
+# Test the case when Item_sum_[max|min] is used
+CREATE TABLE t1 (k VARCHAR(1), KEY k(k));
+INSERT INTO t1 VALUES ('r'), (NULL), (NULL);
+
+CREATE TABLE t2 (c VARCHAR(1));
+INSERT INTO t2 VALUES ('g'), (NULL);
+
+CREATE TABLE t3 (c VARCHAR(1));
+
+SELECT COUNT(*)
+FROM t1 JOIN t2
+WHERE t1.k < ALL(
+  SELECT c
+  FROM t3
+);
+
+DROP TABLE t1, t2, t3; 
+
+--echo #
+
