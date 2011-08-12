@@ -5691,6 +5691,19 @@ trace
             } /* attaching_conditions_to_tables */
           },
           {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t1`.`a`",
+              "items": [
+                {
+                  "item": "`test`.`t1`.`a`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t1`.`a`"
+            } /* clause_processing */
+          },
+          {
             "refine_plan": [
               {
                 "database": "test",

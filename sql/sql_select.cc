@@ -97,11 +97,14 @@ static Item*
 make_cond_after_sjm(Item * root_cond,Item *cond, table_map tables, table_map sjm_tables);
 static bool make_join_select(JOIN *join, Item *item);
 static bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after);
-static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables);
+static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
+                               table_map *cached_eq_ref_tables,
+                               table_map *eq_ref_tables);
 static void update_depend_map(JOIN *join);
 static void update_depend_map(JOIN *join, ORDER *order);
 static ORDER *remove_const(JOIN *join,ORDER *first_order,Item *cond,
-			   bool change_list, bool *simple_order);
+                           bool change_list, bool *simple_order,
+                           const char *clause_type);
 static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
                             List<Item> &fields, bool send_row,
                             ulonglong select_options, const char *info,
@@ -2228,7 +2231,7 @@ JOIN::optimize()
   /* Optimize distinct away if possible */
   {
     ORDER *org_order= order;
-    order=remove_const(this, order,conds,1, &simple_order);
+    order= remove_const(this, order, conds, 1, &simple_order, "ORDER BY");
     if (thd->is_error())
     {
       error= 1;
@@ -2376,7 +2379,7 @@ JOIN::optimize()
     ORDER *old_group_list;
     group_list= remove_const(this, (old_group_list= group_list), conds,
                              rollup.state == ROLLUP::STATE_NONE,
-			     &simple_group);
+                             &simple_group, "GROUP BY");
     if (thd->is_error())
     {
       error= 1;
@@ -2399,7 +2402,7 @@ JOIN::optimize()
   if (procedure && procedure->group)
   {
     group_list= procedure->group= remove_const(this, procedure->group, conds,
-					       1, &simple_group);
+                                               1, &simple_group, "PROCEDURE");
     if (thd->is_error())
     {
       error= 1;
@@ -12684,25 +12687,32 @@ void JOIN::cleanup(bool full)
   SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b ORDER BY t1.a,t2.c
   SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t2.b,t1.a
   @endcode
+
+  @param  JOIN         join object
+  @param  start_order  clause being analyzed (ORDER BY, GROUP BY...)
+  @param  tab          table
+  @param  cached_eq_ref_tables  bitmap: bit Z is set if the table of map Z
+  was already the subject of an eq_ref_table() call for the same clause; then
+  the return value of this previous call can be found at bit Z of
+  'eq_ref_tables'
+  @param  eq_ref_tables see above.
 */
 
 static bool
-eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
+eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab,
+             table_map *cached_eq_ref_tables, table_map *eq_ref_tables)
 {
-  if (tab->cached_eq_ref_table)			// If cached
-    return tab->eq_ref_table;
-  tab->cached_eq_ref_table=1;
   /* We can skip const tables only if not an outer table */
   if (tab->type == JT_CONST && !tab->first_inner)
-    return (tab->eq_ref_table=1);		/* purecov: inspected */
+    return true;
   if (tab->type != JT_EQ_REF || tab->table->maybe_null)
-    return (tab->eq_ref_table=0);		// We must use this
-  Item **ref_item=tab->ref.items;
-  Item **end=ref_item+tab->ref.key_parts;
-  uint found=0;
-  table_map map=tab->table->map;
+    return false;
 
-  for (; ref_item != end ; ref_item++)
+  const table_map map= tab->table->map;
+  uint found= 0;
+
+  for (Item **ref_item= tab->ref.items, **end= ref_item + tab->ref.key_parts ;
+       ref_item != end ; ref_item++)
   {
     if (! (*ref_item)->const_item())
     {						// Not a const ref
@@ -12721,8 +12731,9 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
         }
 	continue;				// Used in ORDER BY
       }
-      if (!only_eq_ref_tables(join,start_order, (*ref_item)->used_tables()))
-	return (tab->eq_ref_table=0);
+      if (!only_eq_ref_tables(join, start_order, (*ref_item)->used_tables(),
+                              cached_eq_ref_tables, eq_ref_tables))
+        return false;
     }
   }
   /* Check that there was no reference to table before sort order */
@@ -12734,24 +12745,43 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
       continue;
     }
     if (start_order->depend_map & map)
-      return (tab->eq_ref_table=0);
+      return false;
   }
-  return tab->eq_ref_table=1;
+  return true;
 }
 
 
+/// @see eq_ref_table()
 static bool
-only_eq_ref_tables(JOIN *join,ORDER *order,table_map tables)
+only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
+                   table_map *cached_eq_ref_tables, table_map *eq_ref_tables)
 {
   if (specialflag &  SPECIAL_SAFE_MODE)
-    return 0;			// skip this optimize /* purecov: inspected */
+    return false;               // skip this optimize /* purecov: inspected */
   tables&= ~PSEUDO_TABLE_BITS;
   for (JOIN_TAB **tab=join->map2table ; tables ; tab++, tables>>=1)
   {
-    if (tables & 1 && !eq_ref_table(join, order, *tab))
-      return 0;
+    if (tables & 1)
+    {
+      const table_map map= (*tab)->table->map;
+      bool is_eq_ref;
+      if (*cached_eq_ref_tables & map) // then there exists a cached bit
+        is_eq_ref= *eq_ref_tables & map;
+      else
+      {
+        is_eq_ref= eq_ref_table(join, order, *tab,
+                                cached_eq_ref_tables, eq_ref_tables);
+        if (is_eq_ref)
+          *eq_ref_tables|= map;
+        else
+          *eq_ref_tables&= ~map;
+        *cached_eq_ref_tables|= map; // now there exists a cached bit
+      }
+      if (!is_eq_ref)
+        return false;
+    }
   }
-  return 1;
+  return true;
 }
 
 
@@ -12815,13 +12845,14 @@ static void update_depend_map(JOIN *join, ORDER *order)
   simple_order is set to 1 if sort_order only uses fields from head table
   and the head table is not a LEFT JOIN table.
 
-  @param join			Join handler
-  @param first_order		List of SORT or GROUP order
-  @param cond			WHERE statement
-  @param change_list		Set to 1 if we should remove things from list.
-                               If this is not set, then only simple_order is
-                               calculated.
-  @param simple_order		Set to 1 if we are only using simple expressions
+  @param join                   Join handler
+  @param first_order            List of SORT or GROUP order
+  @param cond                   WHERE statement
+  @param change_list            Set to 1 if we should remove things from list.
+                                If this is not set, then only simple_order is
+                                calculated.
+  @param simple_order           Set to 1 if we are only using simple expressions
+  @param clause_type            "ORDER BY" etc for printing in optimizer trace
 
   @return
     Returns new sort order
@@ -12829,15 +12860,32 @@ static void update_depend_map(JOIN *join, ORDER *order)
 
 static ORDER *
 remove_const(JOIN *join,ORDER *first_order, Item *cond,
-             bool change_list, bool *simple_order)
+             bool change_list, bool *simple_order, const char *clause_type)
 {
   if (join->tables == join->const_tables)
     return change_list ? 0 : first_order;		// No need to sort
+
+  Opt_trace_context * const trace= &join->thd->opt_trace;
+  Opt_trace_disable_I_S trace_disabled(trace, first_order == NULL);
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_simpl(trace, "clause_processing");
+  if (trace->is_started())
+  {
+    trace_simpl.add_alnum("clause", clause_type);
+    String str;
+    st_select_lex::print_order(&str, first_order,
+                               enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                               QT_SHOW_SELECT_NUMBER));
+    trace_simpl.add_utf8("original_clause", str.ptr(), str.length());
+  }
+  Opt_trace_array trace_each_item(trace, "items");
 
   ORDER *order,**prev_ptr;
   table_map first_table= join->join_tab[join->const_tables].table->map;
   table_map not_const_tables= ~join->const_table_map;
   table_map ref;
+  // Caches to avoid repeating eq_ref_table() calls, @see eq_ref_table()
+  table_map eq_ref_tables= 0, cached_eq_ref_tables= 0;
   DBUG_ENTER("remove_const");
 
   prev_ptr= &first_order;
@@ -12848,6 +12896,8 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
   update_depend_map(join, first_order);
   for (order=first_order; order ; order=order->next)
   {
+    Opt_trace_object trace_one_item(trace);
+    trace_one_item.add("item", order->item[0]);
     table_map order_tables=order->item[0]->used_tables();
     if (order->item[0]->with_sum_func ||
         /*
@@ -12868,7 +12918,7 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
       if (order->item[0]->has_subquery() && 
           !(join->select_lex->options & SELECT_DESCRIBE))
         order->item[0]->val_str(&order->item[0]->str_value);
-      DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
+      trace_one_item.add("uses_only_constant_tables", true);
       continue;					// skip const item
     }
     else
@@ -12879,15 +12929,16 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
       {
 	if (cond && const_expression_in_where(cond,order->item[0]))
 	{
-	  DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
+          trace_one_item.add("equals_constant_in_where", true);
 	  continue;
 	}
 	if ((ref=order_tables & (not_const_tables ^ first_table)))
 	{
 	  if (!(order_tables & first_table) &&
-              only_eq_ref_tables(join,first_order, ref))
+              only_eq_ref_tables(join, first_order, ref,
+                                 &cached_eq_ref_tables, &eq_ref_tables))
 	  {
-	    DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
+            trace_one_item.add("eq_ref_to_preceding_items", true);
 	    continue;
 	  }
 	  *simple_order=0;			// Must do a temp table to sort
@@ -12903,6 +12954,18 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
   if (prev_ptr == &first_order)			// Nothing to sort/group
     *simple_order=1;
   DBUG_PRINT("exit",("simple_order: %d",(int) *simple_order));
+
+  trace_each_item.end();
+  trace_simpl.add("resulting_clause_is_simple", *simple_order);
+  if (trace->is_started() && change_list)
+  {
+    String str;
+    st_select_lex::print_order(&str, first_order,
+                               enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                               QT_SHOW_SELECT_NUMBER));
+    trace_simpl.add_utf8("resulting_clause", str.ptr(), str.length());
+  }
+
   DBUG_RETURN(first_order);
 }
 
