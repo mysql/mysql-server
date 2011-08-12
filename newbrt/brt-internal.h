@@ -184,11 +184,13 @@ static inline void fill_bfe_for_min_read(struct brtnode_fetch_extra *bfe, struct
 static inline void destroy_bfe_for_prefetch(struct brtnode_fetch_extra *bfe) {
     assert(bfe->type == brtnode_fetch_prefetch);
     if (bfe->range_lock_left_key != NULL) {
+        toku_free(bfe->range_lock_left_key->data);
         toku_destroy_dbt(bfe->range_lock_left_key);
         toku_free(bfe->range_lock_left_key);
         bfe->range_lock_left_key = NULL;
     }
     if (bfe->range_lock_right_key != NULL) {
+        toku_free(bfe->range_lock_right_key->data);
         toku_destroy_dbt(bfe->range_lock_right_key);
         toku_free(bfe->range_lock_right_key);
         bfe->range_lock_right_key = NULL;
