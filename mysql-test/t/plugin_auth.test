@@ -543,4 +543,35 @@ DROP USER bug12610784@localhost;
 --exec $MYSQL -uunknown 2>&1
 
 
+--echo #
+--echo # Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM 
+--echo #   AUTHENTICATION SETTINGS
+--echo #
+
+CREATE USER bug12818542@localhost 
+  IDENTIFIED WITH 'test_plugin_server' AS 'bug12818542_dest';
+CREATE USER bug12818542_dest@localhost 
+  IDENTIFIED BY 'bug12818542_dest_passwd';
+GRANT PROXY ON bug12818542_dest@localhost TO bug12818542@localhost;
+
+connect(bug12818542_con,localhost,bug12818542,bug12818542_dest);
+connection bug12818542_con;
+SELECT USER(),CURRENT_USER();
+
+SET PASSWORD = PASSWORD('bruhaha');
+
+connection default;
+disconnect bug12818542_con;
+
+connect(bug12818542_con2,localhost,bug12818542,bug12818542_dest);
+connection bug12818542_con2;
+SELECT USER(),CURRENT_USER();
+
+connection default;
+disconnect bug12818542_con2;
+
+DROP USER bug12818542@localhost;
+DROP USER bug12818542_dest@localhost;
+
+
 --echo End of 5.5 tests
