@@ -373,9 +373,10 @@ buf_page_get_flush_type(
 	switch (flush_type) {
 	case BUF_FLUSH_LRU:
 	case BUF_FLUSH_LIST:
+	case BUF_FLUSH_SINGLE_PAGE:
 		return(flush_type);
 	case BUF_FLUSH_N_TYPES:
-		break;
+		ut_error;
 	}
 	ut_error;
 #endif /* UNIV_DEBUG */

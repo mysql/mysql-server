@@ -2150,7 +2150,7 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 
 
 
-void handler::ha_statistic_increment(ulong SSV::*offset) const
+void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
   status_var_increment(table->in_use->status_var.*offset);
 }
