@@ -157,6 +157,10 @@ error:
 
 Expression_cache_tmptable::~Expression_cache_tmptable()
 {
+  /* Add accumulated statistics */
+  statistic_add(subquery_cache_miss, miss, &LOCK_status);
+  statistic_add(subquery_cache_hit, hit, &LOCK_status);
+
   if (cache_table)
     free_tmp_table(table_thd, cache_table);
 }
@@ -188,14 +192,13 @@ Expression_cache::result Expression_cache_tmptable::check_value(Item **value)
                         (uint)cache_table->status, (uint)ref.has_record));
     if ((res= join_read_key2(table_thd, NULL, cache_table, &ref)) == 1)
       DBUG_RETURN(ERROR);
+
     if (res)
     {
-      subquery_cache_miss++;
       miss++;
       DBUG_RETURN(MISS);
     }
 
-    subquery_cache_hit++;
     hit++;
     *value= cached_result;
     DBUG_RETURN(Expression_cache::HIT);
