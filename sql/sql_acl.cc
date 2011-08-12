@@ -1881,17 +1881,17 @@ bool change_password(THD *thd, const char *host, const char *user,
     goto end;
   }
 
+  /* update loaded acl entry: */
+  set_user_salt(acl_user, new_password, new_password_len);
+
   if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
                     native_password_plugin_name.str) &&
       my_strcasecmp(system_charset_info, acl_user->plugin.str,
                     old_password_plugin_name.str))
-  {
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
-  }
-  /* update loaded acl entry: */
-  set_user_salt(acl_user, new_password, new_password_len);
-  set_user_plugin(acl_user, new_password_len);
+  else
+    set_user_plugin(acl_user, new_password_len);
 
   if (update_user_table(thd, table,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
