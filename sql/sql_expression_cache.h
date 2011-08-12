@@ -70,6 +70,7 @@ public:
   void init();
 
 private:
+  void disable_cache();
 
   /* tmp table parameters */
   TMP_TABLE_PARAM cache_table_param;

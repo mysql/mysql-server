@@ -26,6 +26,11 @@
   hit_rate = hit / (miss + hit);
 */
 #define EXPCACHE_MIN_HIT_RATE_FOR_MEM_TABLE  0.2
+/**
+  Number of cache miss to check hit ratio (maximum cache performance
+  impact in the case when the cache is not applicable)
+*/
+#define EXPCACHE_CHECK_HIT_RATIO_AFTER 200
 
 /*
   Expression cache is used only for caching subqueries now, so its statistic
@@ -42,6 +47,17 @@ Expression_cache_tmptable::Expression_cache_tmptable(THD *thd,
   DBUG_ENTER("Expression_cache_tmptable::Expression_cache_tmptable");
   DBUG_VOID_RETURN;
 };
+
+
+/**
+  Disable cache
+*/
+
+void Expression_cache_tmptable::disable_cache()
+{
+  free_tmp_table(table_thd, cache_table);
+  cache_table= NULL;
+}
 
 
 /**
@@ -148,9 +164,7 @@ void Expression_cache_tmptable::init()
   DBUG_VOID_RETURN;
 
 error:
-  /* switch off cache */
-  free_tmp_table(table_thd, cache_table);
-  cache_table= NULL;
+  disable_cache();
   DBUG_VOID_RETURN;
 }
 
@@ -162,7 +176,7 @@ Expression_cache_tmptable::~Expression_cache_tmptable()
   statistic_add(subquery_cache_hit, hit, &LOCK_status);
 
   if (cache_table)
-    free_tmp_table(table_thd, cache_table);
+    disable_cache();
 }
 
 
@@ -195,7 +209,15 @@ Expression_cache::result Expression_cache_tmptable::check_value(Item **value)
 
     if (res)
     {
-      miss++;
+      if (((++miss) == EXPCACHE_CHECK_HIT_RATIO_AFTER) &&
+          ((double)hit / ((double)hit + miss)) <
+          EXPCACHE_MIN_HIT_RATE_FOR_MEM_TABLE)
+      {
+        DBUG_PRINT("info",
+                   ("Early check: hit rate is not so good to keep the cache"));
+        disable_cache();
+      }
+
       DBUG_RETURN(MISS);
     }
 
@@ -249,8 +271,7 @@ my_bool Expression_cache_tmptable::put_value(Item *value)
       if (hit_rate < EXPCACHE_MIN_HIT_RATE_FOR_MEM_TABLE)
       {
         DBUG_PRINT("info", ("hit rate is not so good to keep the cache"));
-        free_tmp_table(table_thd, cache_table);
-        cache_table= NULL;
+        disable_cache();
         DBUG_RETURN(FALSE);
       }
       else if (hit_rate < EXPCACHE_MIN_HIT_RATE_FOR_DISK_TABLE)
@@ -277,8 +298,7 @@ my_bool Expression_cache_tmptable::put_value(Item *value)
   DBUG_RETURN(FALSE);
 
 err:
-  free_tmp_table(table_thd, cache_table);
-  cache_table= NULL;
+  disable_cache();
   DBUG_RETURN(TRUE);
 }
 
