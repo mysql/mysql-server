@@ -907,7 +907,7 @@ void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
   fprintf(DBUG_FILE,"\nDump of bitmap page at %s\n", llstr(page, llbuff));
 
   page++;                                       /* Skip bitmap page */
-  for (pos= data, end= pos + bitmap->total_size;
+  for (pos= data, end= pos + bitmap->max_total_size;
        pos < end ;
        pos+= 6)
   {
