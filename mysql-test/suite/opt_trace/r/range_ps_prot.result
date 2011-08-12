@@ -789,6 +789,19 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t2`.`key2`",
+              "items": [
+                {
+                  "item": "`test`.`t2`.`key2`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t2`.`key2`"
+            } /* clause_processing */
+          },
+          {
             "refine_plan": [
               {
                 "database": "test",
@@ -983,6 +996,19 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t2`.`key2`",
+              "items": [
+                {
+                  "item": "`test`.`t2`.`key2`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t2`.`key2`"
+            } /* clause_processing */
           },
           {
             "refine_plan": [
@@ -1258,6 +1284,19 @@ GROUP BY key2	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t2`.`key2`",
+              "items": [
+                {
+                  "item": "`test`.`t2`.`key2`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t2`.`key2`"
+            } /* clause_processing */
           },
           {
             "refine_plan": [
@@ -3602,6 +3641,20 @@ EXPLAIN SELECT 1 FROM
             } /* attaching_conditions_to_tables */
           },
           {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "1",
+              "items": [
+                {
+                  "item": "1",
+                  "uses_only_constant_tables": true
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": ""
+            } /* clause_processing */
+          },
+          {
             "refine_plan": [
               {
                 "database": "test",
@@ -3892,6 +3945,20 @@ EXPLAIN SELECT 1 FROM
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "1",
+              "items": [
+                {
+                  "item": "1",
+                  "uses_only_constant_tables": true
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": ""
+            } /* clause_processing */
           },
           {
             "refine_plan": [
@@ -4215,6 +4282,19 @@ SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY topic)	{
                         } /* attaching_conditions_to_tables */
                       },
                       {
+                        "clause_processing": {
+                          "clause": "GROUP BY",
+                          "original_clause": "`test`.`t1`.`topic`",
+                          "items": [
+                            {
+                              "item": "`test`.`t1`.`topic`"
+                            }
+                          ] /* items */,
+                          "resulting_clause_is_simple": true,
+                          "resulting_clause": "`test`.`t1`.`topic`"
+                        } /* clause_processing */
+                      },
+                      {
                         "refine_plan": [
                           {
                             "database": "test",
@@ -4408,6 +4488,22 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "`test`.`t1`.`i1`,`test`.`t1`.`i2`",
+              "items": [
+                {
+                  "item": "`test`.`t1`.`i1`"
+                },
+                {
+                  "item": "`test`.`t1`.`i2`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t1`.`i1`,`test`.`t1`.`i2`"
+            } /* clause_processing */
           },
           {
             "refine_plan": [
@@ -4672,6 +4768,19 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "`test`.`t1`.`i1` desc",
+              "items": [
+                {
+                  "item": "`test`.`t1`.`i1`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t1`.`i1` desc"
+            } /* clause_processing */
+          },
+          {
             "records_estimation_for_index_ordering": {
               "database": "test",
               "table": "t1",
@@ -4724,6 +4833,19 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 } /* analyzing_range_alternatives */
               } /* range_analysis */
             } /* records_estimation_for_index_ordering */
+          },
+          {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t1`.`i1` desc",
+              "items": [
+                {
+                  "item": "`test`.`t1`.`i1`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t1`.`i1` desc"
+            } /* clause_processing */
           },
           {
             "refine_plan": [
@@ -5477,6 +5599,20 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t1`.`a`",
+              "items": [
+                {
+                  "item": "`test`.`t1`.`a`",
+                  "equals_constant_in_where": true
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": ""
+            } /* clause_processing */
           },
           {
             "refine_plan": [
