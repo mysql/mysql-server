@@ -504,7 +504,7 @@ protected:
 */
 #define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
 #define OPTION_PROFILING                (ULL(1) << 33)
-#define OPTION_DO_NOT_REPLICATE         (ULL(1) << 34) // THD, user
+#define OPTION_SKIP_REPLICATION         (ULL(1) << 34) // THD, user
 
 
 
@@ -2065,7 +2065,7 @@ extern my_bool opt_old_style_user_limits, trust_function_creators;
 extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern my_bool opt_enable_shared_memory;
-extern my_bool opt_replicate_ignore_do_not_replicate;
+extern my_bool opt_replicate_events_marked_for_skip;
 extern char *default_tz_name;
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS

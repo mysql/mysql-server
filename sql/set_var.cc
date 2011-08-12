@@ -117,7 +117,7 @@ static bool set_option_log_bin_bit(THD *thd, set_var *var);
 static bool set_option_autocommit(THD *thd, set_var *var);
 static int  check_log_update(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
-static int check_do_not_replicate(THD *thd, set_var *var);
+static int check_skip_replication(THD *thd, set_var *var);
 static int  check_pseudo_thread_id(THD *thd, set_var *var);
 void fix_binlog_format_after_update(THD *thd, enum_var_type type);
 static void fix_low_priority_updates(THD *thd, enum_var_type type);
@@ -831,10 +831,20 @@ static sys_var_thd_bit  sys_profiling(&vars, "profiling", NULL,
 static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
 					      &SV::profiling_history_size);
 #endif
-static sys_var_thd_bit  sys_do_not_replicate(&vars, "do_not_replicate",
-                                             check_do_not_replicate,
+/*
+  When this is set by a connection, binlogged events will be marked with a
+  corresponding flag. The slave can be configured to not replicate events
+  so marked.
+  In the binlog dump thread on the master, this variable is re-used for a
+  related purpose: The slave sets this flag when connecting to the master to
+  request that the master filter out (ie. not send) any events with the flag
+  set, thus saving network traffic on events that would be ignored by the
+  slave anyway.
+*/
+static sys_var_thd_bit  sys_skip_replication(&vars, "skip_replication",
+                                             check_skip_replication,
                                              set_option_bit,
-                                             OPTION_DO_NOT_REPLICATE);
+                                             OPTION_SKIP_REPLICATION);
 
 /* Local state variables */
 
@@ -912,10 +922,10 @@ static sys_var_thd_set sys_log_slow_verbosity(&vars,
                                               &SV::log_slow_verbosity,
                                               &log_slow_verbosity_typelib);
 #ifdef HAVE_REPLICATION
-static sys_var_replicate_ignore_do_not_replicate
-  sys_replicate_ignore_do_not_replicate(&vars,
-                                        "replicate_ignore_do_not_replicate",
-                                        &opt_replicate_ignore_do_not_replicate);
+static sys_var_replicate_events_marked_for_skip
+  sys_replicate_events_marked_for_skip(&vars,
+                                       "replicate_events_marked_for_skip",
+                                       &opt_replicate_events_marked_for_skip);
 #endif
 
 /* Global read-only variable containing hostname */
@@ -3279,10 +3289,10 @@ static bool set_log_update(THD *thd, set_var *var)
 }
 
 
-static int check_do_not_replicate(THD *thd, set_var *var)
+static int check_skip_replication(THD *thd, set_var *var)
 {
   /*
-    We must not change @@do_not_replicate in the middle of a transaction or
+    We must not change @@skip_replication in the middle of a transaction or
     statement, as that could result in only part of the transaction / statement
     being replicated.
     (This would be particularly serious if we were to replicate eg.
@@ -4443,11 +4453,11 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
 
 
 #ifdef HAVE_REPLICATION
-bool sys_var_replicate_ignore_do_not_replicate::update(THD *thd, set_var *var)
+bool sys_var_replicate_events_marked_for_skip::update(THD *thd, set_var *var)
 {
   bool result;
   int thread_mask;
-  DBUG_ENTER("sys_var_replicate_ignore_do_not_replicate::update");
+  DBUG_ENTER("sys_var_replicate_events_marked_for_skip::update");
 
   /* Slave threads must be stopped to change the variable. */
   pthread_mutex_lock(&LOCK_active_mi);

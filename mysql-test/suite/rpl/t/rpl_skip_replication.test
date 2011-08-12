@@ -2,33 +2,33 @@
 --source include/have_innodb.inc
 
 connection slave;
-# Test that SUPER is required to change @@replicate_ignore_do_not_replicate.
+# Test that SUPER is required to change @@replicate_events_marked_for_skip.
 CREATE USER 'nonsuperuser'@'127.0.0.1';
 GRANT ALTER,CREATE,DELETE,DROP,EVENT,INSERT,PROCESS,REPLICATION SLAVE,
       SELECT,UPDATE ON *.* TO 'nonsuperuser'@'127.0.0.1';
 connect(nonpriv, 127.0.0.1, nonsuperuser,, test, $SLAVE_MYPORT,);
 connection nonpriv;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET GLOBAL replicate_ignore_do_not_replicate=1;
+SET GLOBAL replicate_events_marked_for_skip=0;
 disconnect nonpriv;
 connection slave;
 DROP USER'nonsuperuser'@'127.0.0.1';
 
 --error ER_SLAVE_MUST_STOP
-SET GLOBAL replicate_ignore_do_not_replicate=1;
+SET GLOBAL replicate_events_marked_for_skip=0;
 STOP SLAVE;
-SET GLOBAL replicate_ignore_do_not_replicate=1;
+SET GLOBAL replicate_events_marked_for_skip=0;
 START SLAVE;
 
 connection master;
-SET do_not_replicate=0;
+SET skip_replication=0;
 
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
 CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
 INSERT INTO t1(a) VALUES (1);
 INSERT INTO t2(a) VALUES (1);
 
-SET do_not_replicate=1;
+SET skip_replication=1;
 
 CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
 INSERT INTO t1(a) VALUES (2);
@@ -52,7 +52,7 @@ FLUSH NO_WRITE_TO_BINLOG LOGS;
 sync_slave_with_master;
 connection slave;
 STOP SLAVE;
-SET GLOBAL replicate_ignore_do_not_replicate=0;
+SET GLOBAL replicate_events_marked_for_skip=1;
 START SLAVE;
 
 connection master;
@@ -65,7 +65,7 @@ connection master;
 DROP TABLE t3;
 
 #
-# Test that the slave will preserve the @@do_not_replicate flag in its
+# Test that the slave will preserve the @@skip_replication flag in its
 # own binlog.
 #
 
@@ -75,36 +75,36 @@ connection slave;
 RESET MASTER;
 
 connection master;
-SET do_not_replicate=0;
+SET skip_replication=0;
 INSERT INTO t1 VALUES (1,0);
-SET do_not_replicate=1;
+SET skip_replication=1;
 INSERT INTO t1 VALUES (2,0);
-SET do_not_replicate=0;
+SET skip_replication=0;
 INSERT INTO t1 VALUES (3,0);
 
 sync_slave_with_master;
 connection slave;
-# Since slave has @@replicate_ignore_do_not_replicate=0, it should have
+# Since slave has @@replicate_events_marked_for_skip=1, it should have
 # applied all events.
 SELECT * FROM t1 ORDER by a;
 
 STOP SLAVE;
-SET GLOBAL replicate_ignore_do_not_replicate=1;
+SET GLOBAL replicate_events_marked_for_skip=0;
 let $SLAVE_DATADIR= `select @@datadir`;
 
 connection master;
 TRUNCATE t1;
 
 # Now apply the slave binlog to the master, to check that both the slave
-# and mysqlbinlog will preserve the @@do_not_replicate flag.
---exec $MYSQL_BINLOG $SLAVE_DATADIR/slave-bin.000001 > $MYSQLTEST_VARDIR/tmp/rpl_do_not_replicate.binlog
---exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/rpl_do_not_replicate.binlog
+# and mysqlbinlog will preserve the @@skip_replication flag.
+--exec $MYSQL_BINLOG $SLAVE_DATADIR/slave-bin.000001 > $MYSQLTEST_VARDIR/tmp/rpl_skip_replication.binlog
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/rpl_skip_replication.binlog
 
 # The master should have all three events.
 SELECT * FROM t1 ORDER by a;
 
 # The slave should be missing event 2, which is marked with the
-# @@do_not_replicate flag.
+# @@skip_replication flag.
 
 connection slave;
 START SLAVE;
@@ -116,7 +116,7 @@ connection slave;
 SELECT * FROM t1 ORDER by a;
 
 #
-# Test that @@sql_slave_skip_counter does not count skipped @@do_not_replicate
+# Test that @@sql_slave_skip_counter does not count skipped @@skip_replication
 # events.
 #
 
@@ -127,18 +127,18 @@ sync_slave_with_master;
 connection slave;
 STOP SLAVE;
 SET GLOBAL sql_slave_skip_counter=2;
-SET GLOBAL replicate_ignore_do_not_replicate=1;
+SET GLOBAL replicate_events_marked_for_skip=0;
 START SLAVE;
 
 connection master;
 # Need to fix @@binlog_format to get consistent event count.
 SET @old_binlog_format= @@binlog_format;
 SET binlog_format= statement;
-SET do_not_replicate=0;
+SET skip_replication=0;
 INSERT INTO t1 VALUES (1,5);
-SET do_not_replicate=1;
+SET skip_replication=1;
 INSERT INTO t1 VALUES (2,5);
-SET do_not_replicate=0;
+SET skip_replication=0;
 INSERT INTO t1 VALUES (3,5);
 INSERT INTO t1 VALUES (4,5);
 SET binlog_format= @old_binlog_format;
@@ -148,12 +148,12 @@ connection slave;
 
 # The slave should have skipped the first three inserts (number 1 and 3 due
 # to @@sql_slave_skip_counter=2, number 2 due to
-# @@replicate_ignore_do_not_replicate=1). So only number 4 should be left.
+# @@replicate_events_marked_for_skip=0). So only number 4 should be left.
 SELECT * FROM t1;
 
 
 #
-# Check that BINLOG statement preserves the @@do_not_replicate flag.
+# Check that BINLOG statement preserves the @@skip_replication flag.
 #
 connection master;
 TRUNCATE t1;
@@ -161,10 +161,10 @@ TRUNCATE t1;
 # Format description log event.
 BINLOG '66I6Tg8BAAAAZgAAAGoAAAABAAQANS40LjAtTWFyaWFEQi12YWxncmluZC1tYXgtZGVidWctbG9n
 AAAAAAAAAAAAAAAAAADrojpOEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC';
-# INSERT INTO t1 VALUES (1,8)  # with @@do_not_replicate=1
+# INSERT INTO t1 VALUES (1,8)  # with @@skip_replication=1
 BINLOG 'HaM6ThMBAAAAKgAAANgAAAAAgA8AAAAAAAEABHRlc3QAAnQxAAIDAwAC
 HaM6ThcBAAAAJgAAAP4AAAAAgA8AAAAAAAEAAv/8AQAAAAgAAAA=';
-# INSERT INTO t1 VALUES (2,8)  # with @@do_not_replicate=0
+# INSERT INTO t1 VALUES (2,8)  # with @@skip_replication=0
 BINLOG 'JqM6ThMBAAAAKgAAALEBAAAAAA8AAAAAAAEABHRlc3QAAnQxAAIDAwAC
 JqM6ThcBAAAAJgAAANcBAAAAAA8AAAAAAAEAAv/8AgAAAAgAAAA=';
 
@@ -172,40 +172,40 @@ SELECT * FROM t1 ORDER BY a;
 sync_slave_with_master;
 connection slave;
 # Slave should have only the second insert, the first should be ignored due to
-# the @@do_not_replicate flag.
+# the @@skip_replication flag.
 SELECT * FROM t1 ORDER by a;
 
 
-# Test that it is not possible to d change @@do_not_replicate inside a
+# Test that it is not possible to d change @@skip_replication inside a
 # transaction or statement, thereby replicating only parts of statements
 # or transactions.
 connection master;
-SET do_not_replicate=0;
+SET skip_replication=0;
 
 BEGIN;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
-SET do_not_replicate=0;
+SET skip_replication=0;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
-SET do_not_replicate=1;
+SET skip_replication=1;
 ROLLBACK;
-SET do_not_replicate=1;
+SET skip_replication=1;
 BEGIN;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
-SET do_not_replicate=0;
+SET skip_replication=0;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
-SET do_not_replicate=1;
+SET skip_replication=1;
 COMMIT;
 SET autocommit=0;
 INSERT INTO t2(a) VALUES(100);
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
-SET do_not_replicate=1;
+SET skip_replication=1;
 ROLLBACK;
 SET autocommit=1;
 
-SET do_not_replicate=1;
+SET skip_replication=1;
 --delimiter |
-CREATE FUNCTION foo (x INT) RETURNS INT BEGIN SET SESSION do_not_replicate=x; RETURN x; END|
-CREATE PROCEDURE bar(x INT) BEGIN SET SESSION do_not_replicate=x; END|
+CREATE FUNCTION foo (x INT) RETURNS INT BEGIN SET SESSION skip_replication=x; RETURN x; END|
+CREATE PROCEDURE bar(x INT) BEGIN SET SESSION skip_replication=x; END|
 CREATE FUNCTION baz (x INT) RETURNS INT BEGIN CALL bar(x); RETURN x; END|
 --delimiter ;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
@@ -224,22 +224,22 @@ UPDATE t2 SET b=baz(0);
 INSERT INTO t1 VALUES (101, foo(1));
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 INSERT INTO t1 VALUES (101, baz(0));
-SELECT @@do_not_replicate;
+SELECT @@skip_replication;
 CALL bar(0);
-SELECT @@do_not_replicate;
+SELECT @@skip_replication;
 CALL bar(1);
-SELECT @@do_not_replicate;
+SELECT @@skip_replication;
 DROP FUNCTION foo;
 DROP PROCEDURE bar;
 DROP FUNCTION baz;
 
 # Clean up.
 connection master;
-SET do_not_replicate=0;
+SET skip_replication=0;
 DROP TABLE t1,t2;
 connection slave;
 STOP SLAVE;
-SET GLOBAL replicate_ignore_do_not_replicate=0;
+SET GLOBAL replicate_events_marked_for_skip=1;
 START SLAVE;
 
 --source include/rpl_end.inc

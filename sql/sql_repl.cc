@@ -349,13 +349,17 @@ send_event_to_slave(THD *thd, NET *net, String* const packet)
   thd_proc_info(thd, "Sending binlog event to slave");
 
   /*
-    Skip events with the @@do_not_replicate flag set, if slave requested
+    Skip events with the @@skip_replication flag set, if slave requested
     skipping of such events.
   */
-  if (thd->options & OPTION_DO_NOT_REPLICATE)
+  if (thd->options & OPTION_SKIP_REPLICATION)
   {
+    /*
+      The first byte of the packet is a '\0' to distinguish it from an error
+      packet. So the actual event starts at offset +1.
+    */
     uint16 flags= uint2korr(&((*packet)[FLAGS_OFFSET+1]));
-    if (flags & LOG_EVENT_DO_NOT_REPLICATE_F)
+    if (flags & LOG_EVENT_SKIP_REPLICATION_F)
       return NULL;
   }
 

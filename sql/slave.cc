@@ -1177,18 +1177,18 @@ when it try to get the value of TIME_ZONE global variable from master.";
   }
 
   /*
-    Request the master to filter away events with the @@do_not_replicate flag
-    set, if we are running with --replicate-ignore-do_not_replicate=1.
+    Request the master to filter away events with the @@skip_replication flag
+    set, if we are running with --replicate-events-marked-for-skip=0.
   */
-  if (opt_replicate_ignore_do_not_replicate)
+  if (!opt_replicate_events_marked_for_skip)
   {
-    if (!mysql_real_query(mysql, STRING_WITH_LEN("SET do_not_replicate=1")))
+    if (mysql_real_query(mysql, STRING_WITH_LEN("SET skip_replication=1")))
     {
       err_code= mysql_errno(mysql);
       if (is_network_error(err_code))
       {
         mi->report(ERROR_LEVEL, err_code,
-                   "Setting master-side filtering of @@do_not_replicate failed "
+                   "Setting master-side filtering of @@skip_replication failed "
                    "with error: %s", mysql_error(mysql));
         goto network_err;
       }
@@ -1196,15 +1196,24 @@ when it try to get the value of TIME_ZONE global variable from master.";
       {
         /*
           The master is older than the slave and does not support the
-          @@do_not_replicate feature.
+          @@skip_replication feature.
           This is not a problem, as such master will not generate events with
-          the @@do_not_replicate flag set in the first place. We will still
+          the @@skip_replication flag set in the first place. We will still
           do slave-side filtering of such events though, to handle the (rare)
           case of downgrading a master and receiving old events generated from
-          before the downgrade with the @@do_not_replicate flag set.
+          before the downgrade with the @@skip_replication flag set.
         */
         DBUG_PRINT("info", ("Old master does not support master-side filtering "
-                            "of @@do_not_replicate events."));
+                            "of @@skip_replication events."));
+      }
+      else
+      {
+        /* Fatal error */
+        errmsg= "The slave I/O thread stops because a fatal error is "
+          "encountered when it tries to request filtering of events marked "
+          "with the @@skip_replication flag.";
+        sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+        goto err;
       }
     }
   }
@@ -2146,8 +2155,8 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   thd->lex->current_select= 0;
   if (!ev->when)
     ev->when= my_time(0);
-  thd->options= (thd->options & ~OPTION_DO_NOT_REPLICATE) |
-    (ev->flags & LOG_EVENT_DO_NOT_REPLICATE_F ? OPTION_DO_NOT_REPLICATE : 0);
+  thd->options= (thd->options & ~OPTION_SKIP_REPLICATION) |
+    (ev->flags & LOG_EVENT_SKIP_REPLICATION_F ? OPTION_SKIP_REPLICATION : 0);
   ev->thd = thd; // because up to this point, ev->thd == 0
 
   int reason= ev->shall_skip(rli);
@@ -3627,7 +3636,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
 
-  LINT_INIT(inc_pos);
   pthread_mutex_lock(&mi->data_lock);
 
   switch (buf[EVENT_TYPE_OFFSET]) {
@@ -3702,7 +3710,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
 
   /*
-    If we filter events master-side (eg. @@do_not_replicate), we will see holes
+    If we filter events master-side (eg. @@skip_replication), we will see holes
     in the event positions from the master. If we see such a hole, adjust
     mi->master_log_pos accordingly so we maintain the correct position (for
     reconnect, MASTER_POS_WAIT(), etc.)

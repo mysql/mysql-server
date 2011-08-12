@@ -1286,17 +1286,17 @@ public:
 
 #ifdef HAVE_REPLICATION
 /**
-  Handler for setting the system variable --replicate-ignore-do-not-replicate.
+  Handler for setting the system variable --replicate-events-marked-for-skip.
 */
 
-class sys_var_replicate_ignore_do_not_replicate :public sys_var_bool_ptr
+class sys_var_replicate_events_marked_for_skip :public sys_var_bool_ptr
 {
 public:
-  sys_var_replicate_ignore_do_not_replicate(sys_var_chain *chain,
-                                            const char *name_arg,
-                                            my_bool *value_arg) :
+  sys_var_replicate_events_marked_for_skip(sys_var_chain *chain,
+                                           const char *name_arg,
+                                           my_bool *value_arg) :
     sys_var_bool_ptr(chain, name_arg, value_arg) {};
-  ~sys_var_replicate_ignore_do_not_replicate() {};
+  ~sys_var_replicate_events_marked_for_skip() {};
   bool update(THD *thd, set_var *var);
 };
 #endif
