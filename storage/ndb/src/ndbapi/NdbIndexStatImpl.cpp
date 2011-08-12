@@ -2339,6 +2339,7 @@ NdbIndexStatImpl::check_sysevents(Ndb* ndb)
     setError(dic->getNdbError().code, __LINE__);
     return -1;
   }
+  delete ev; // getEvent() creates new instance
   return 0;
 }
 

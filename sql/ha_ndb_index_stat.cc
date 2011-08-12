@@ -1740,6 +1740,9 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
   NdbIndexStat is_util;
   pr.is_util= &is_util;
 
+  bool have_listener;
+  have_listener= false;
+
   // wl4124_todo remove useless stuff copied from utility thread
  
   pthread_mutex_lock(&LOCK_ndb_index_stat_thread);
@@ -1831,8 +1834,6 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
   ndb_index_stat_allow(1);
   bool enable_ok;
   enable_ok= false;
-  bool have_listener;
-  have_listener= false;
 
   set_timespec(abstime, 0);
   for (;;)
