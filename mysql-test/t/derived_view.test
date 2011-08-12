@@ -760,5 +760,28 @@ SELECT * FROM v1 WHERE b IS NULL;
 DROP VIEW v1;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # LP bug #823835: a duplicate of #823189 with derived table
+--echo #
+
+CREATE TABLE t1 (a varchar(32)) ;
+INSERT INTO t1 VALUES ('r'), ('p');
+
+CREATE TABLE t2 (a int NOT NULL, b varchar(32)) ;
+INSERT INTO t2 VALUES (28,'j');
+
+CREATE TABLE t3 (a int);
+INSERT INTO t3 VALUES (0), (0);
+
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT * FROM t1) AS t
+WHERE EXISTS (SELECT t2.a FROM t3 RIGHT JOIN t2 ON (t3.a = t2.a)
+                WHERE t2.b < t.a);
+SELECT * FROM (SELECT * FROM t1) AS t
+WHERE EXISTS (SELECT t2.a FROM t3 RIGHT JOIN t2 ON (t3.a = t2.a)
+                WHERE t2.b < t.a);
+
+DROP TABLE t1,t2,t3;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
