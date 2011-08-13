@@ -4871,7 +4871,6 @@ int toku_brt_cursor (
     toku_init_dbt(&cursor->range_lock_right_key);
     cursor->left_is_neg_infty = FALSE;
     cursor->right_is_pos_infty = FALSE;
-    cursor->oldest_living_xid = ttxn ? toku_logger_get_oldest_living_xid(ttxn->logger, NULL) : TXNID_NONE;
     cursor->is_snapshot_read = is_snapshot_read;
     cursor->is_leaf_mode = FALSE;
     cursor->ttxn = ttxn;
