@@ -3302,9 +3302,9 @@ NdbQueryImpl::OrderedFragSet::getEmpty()
 bool 
 NdbQueryImpl::OrderedFragSet::verifySortOrder() const
 {
-  for(int i = 0; i<m_activeFragCount-2; i++)
+  for (int i = 0; i<m_activeFragCount-1; i++)
   {
-    if(compare(*m_activeFrags[i], *m_activeFrags[i+1]) < 0)
+    if (compare(*m_activeFrags[i], *m_activeFrags[i+1]) < 0)
     {
       assert(false);
       return false;
@@ -3736,7 +3736,7 @@ NdbQueryOperationImpl::nextResult(bool fetchAllowed, bool forceSend)
 void 
 NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
 {
-  const char* buff = resultStream.getReceiver().get_row();
+  const char* buff = resultStream.getReceiver().peek_row();
   assert(buff!=NULL || (m_firstRecAttr==NULL && m_ndbRecord==NULL));
 
   m_isRowNull = false;
