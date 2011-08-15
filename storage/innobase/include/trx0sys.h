@@ -659,6 +659,14 @@ struct trx_doublewrite_struct{
 	ulint	block2;		/*!< page number of the second block */
 	ulint	first_free;	/*!< first free position in write_buf measured
 				in units of UNIV_PAGE_SIZE */
+	ulint	n_reserved;	/*!< number of slots currently reserved
+				for single page flushes. */
+	ibool*	in_use;		/*!< flag used to indicate if a slot is
+				in use. Only used for single page
+				flushes. */
+	ibool	batch_running;	/*!< set to TRUE if currently a batch
+				is being written from the doublewrite
+				buffer. */
 	byte*	write_buf;	/*!< write buffer used in writing to the
 				doublewrite buffer, aligned to an
 				address divisible by UNIV_PAGE_SIZE
