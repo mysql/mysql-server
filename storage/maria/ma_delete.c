@@ -571,6 +571,7 @@ static int del(MARIA_HA *info, MARIA_KEY *key,
   endpos= leaf_page->buff + leaf_length;
   tmp_key.keyinfo= keyinfo;
   tmp_key.data=    keybuff;
+  next_buff= 0;
 
   if (!(key_start= _ma_get_last_key(&tmp_key, leaf_page, endpos)))
     DBUG_RETURN(-1);
@@ -597,9 +598,11 @@ static int del(MARIA_HA *info, MARIA_KEY *key,
           /* underflow writes "next_page" to disk */
 	  ret_value= underflow(info, keyinfo, leaf_page, &next_page,
                                endpos);
-	  if (ret_value == 0 && leaf_page->size >
-              share->max_index_block_size)
+          if (ret_value < 0)
+            goto err;
+	  if (leaf_page->size > share->max_index_block_size)
 	  {
+            DBUG_ASSERT(ret_value == 0);
 	    ret_value= (_ma_split_page(info, key, leaf_page,
                                        share->max_index_block_size,
                                        (uchar*) 0, 0, 0,
@@ -632,6 +635,7 @@ static int del(MARIA_HA *info, MARIA_KEY *key,
 	goto err;
     }
     my_afree(next_buff);
+    DBUG_ASSERT(leaf_page->size <= share->max_index_block_size);
     DBUG_RETURN(ret_value);
   }
 
@@ -709,10 +713,14 @@ static int del(MARIA_HA *info, MARIA_KEY *key,
                   KEY_OP_DEBUG_LOG_ADD_2))
     goto err;
 
+  DBUG_ASSERT(leaf_page->size <= share->max_index_block_size);
   DBUG_RETURN(new_leaf_length <=
               (info->quick_mode ? MARIA_MIN_KEYBLOCK_LENGTH :
                (uint) keyinfo->underflow_block_length));
 err:
+  if (next_buff)
+    my_afree(next_buff);
+
   DBUG_RETURN(-1);
 } /* del */
 
@@ -731,9 +739,18 @@ err:
      leaf_page is saved to disk
      Caller must save anc_buff
 
+     For the algoritm to work, we have to ensure for packed keys that
+     key_length + (underflow_length + max_block_length + key_length) / 2
+     <= block_length.
+     From which follows that underflow_length <= block_length - key_length *3
+     For not packed keys we have:
+     (underflow_length + max_block_length + key_length) / 2 <= block_length
+     From which follows that underflow_length < block_length - key_length
+     This is ensured by setting of underflow_block_length.
+
    @return
    @retval  0  ok
-   @retval  1  ok, but anc_buff did underflow
+   @retval  1  ok, but anc_page did underflow
    @retval -1  error
  */
 
@@ -1153,7 +1170,7 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     _ma_kpointer(info,leaf_key.data + leaf_key.data_length +
                  leaf_key.ref_length, leaf_page->pos);
 
-    /* Save key in anc_page */
+    /* Save parting key found by _ma_find_half_pos() in anc_page */
     DBUG_DUMP("anc_buff", anc_buff, new_anc_length);
     DBUG_DUMP_KEY("key_to_anc", &leaf_key);
     anc_end_pos= anc_buff + new_anc_length;
@@ -1191,6 +1208,7 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     bmove(leaf_buff+p_length+t_length, half_pos, tmp_length);
     (*keyinfo->store_key)(keyinfo,leaf_buff+p_length, &key_inserted);
     new_leaf_length= tmp_length + t_length + p_length;
+    DBUG_ASSERT(new_leaf_length <= share->max_index_block_size);
 
     leaf_page->size= new_leaf_length;
     leaf_page->flag= page_flag;
@@ -1232,7 +1250,6 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       /*
         Log changes to next page
         This contains original data with some suffix data deleted
-
       */
       DBUG_ASSERT(new_buff_length <= buff_length);
       if (_ma_log_suffix(&next_page, buff_length, new_buff_length))

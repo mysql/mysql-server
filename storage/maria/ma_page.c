@@ -193,6 +193,7 @@ my_bool _ma_write_keypage(MARIA_PAGE *page, enum pagecache_page_lock lock,
     nod_flag=    _ma_test_if_nod(share, buff);
 
     DBUG_ASSERT(page->size == page_length);
+    DBUG_ASSERT(page->size <= share->max_index_block_size);
     DBUG_ASSERT(page->flag == _ma_get_keypage_flag(share, buff));
 
     if (page->pos < share->base.keystart ||

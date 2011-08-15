@@ -1991,14 +1991,22 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
   {
     /* Not at end of bitmap */
     uint bitmap_pattern;
+    uint byte_offset;
+
     offset_page= (uint) ((page % share->bitmap.pages_covered) -1) * 3;
     offset= offset_page & 7;
-    data= bitmap_buff + offset_page / 8;
+    byte_offset= offset_page / 8;
+    data= bitmap_buff + byte_offset;
     bitmap_pattern= uint2korr(data);
+    if (byte_offset + 1 == share->bitmap.max_total_size)
+    {
+      /* On last byte of bitmap; Remove possible checksum */
+      bitmap_pattern&= 0xff;
+    }
     if (((bitmap_pattern >> offset)) ||
-        (data + 2 < bitmap_buff + share->bitmap.max_total_size &&
-         _ma_check_if_zero(data+2, bitmap_buff + share->bitmap.max_total_size -
-                           data - 2)))
+        (byte_offset + 2 < share->bitmap.max_total_size &&
+         _ma_check_if_zero(data+2, share->bitmap.max_total_size -
+                           byte_offset - 2)))
     {
       ulonglong bitmap_page;
       bitmap_page= page / share->bitmap.pages_covered;

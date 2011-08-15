@@ -59,7 +59,6 @@
 
 /* Minimum header size needed for a new row */
 #define BASE_ROW_HEADER_SIZE FLAG_SIZE
-#define TRANS_ROW_EXTRA_HEADER_SIZE TRANSID_SIZE
 
 #define PAGE_TYPE_MASK 7
 enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_TYPE };

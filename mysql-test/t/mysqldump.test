@@ -661,6 +661,10 @@ a int(10), b varchar(30), c datetime, d blob, e text);
 insert into t1 values (NULL), (10), (20);
 insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thirty");
 --exec $MYSQL_DUMP  --skip-comments --xml --no-create-info test
+
+# Test if UNIQUE_CHECK is done correctly
+--exec $MYSQL_DUMP  --skip-comments --no-create-info test
+--exec $MYSQL_DUMP  --skip-comments test
 drop table t1, t2;
 
 

@@ -1721,7 +1721,7 @@ struct st_row_pos_info
 
 
 static my_bool get_head_or_tail_page(MARIA_HA *info,
-                                     MARIA_BITMAP_BLOCK *block,
+                                     const MARIA_BITMAP_BLOCK *block,
                                      uchar *buff, uint length, uint page_type,
                                      enum pagecache_page_lock lock,
                                      struct st_row_pos_info *res)
@@ -1821,7 +1821,7 @@ crashed:
 */
 
 static my_bool get_rowpos_in_head_or_tail_page(MARIA_HA *info,
-                                               MARIA_BITMAP_BLOCK *block,
+                                               const MARIA_BITMAP_BLOCK *block,
                                                uchar *buff, uint length,
                                                uint page_type,
                                                enum pagecache_page_lock lock,
@@ -2257,7 +2257,7 @@ static void store_extent_info(uchar *to,
   for (block= first_block, end_block= first_block+count ;
        block < end_block; block++)
   {
-    /* The following is only false for marker blocks */
+    /* The following is only false for marker (unused) blocks */
     if (likely(block->used & BLOCKUSED_USED))
     {
       uint page_count= block->page_count;
@@ -3088,9 +3088,10 @@ static my_bool write_block_record(MARIA_HA *info,
           extent_data= row_extents_second_part +
             ((last_head_block - head_block) - 2) * ROW_EXTENT_SIZE;
         }
-        DBUG_ASSERT(uint2korr(extent_data+5) & TAIL_BIT);
+        /* Write information for tail block in the reserved space */
         page_store(extent_data, head_tail_block->page);
-        int2store(extent_data + PAGE_STORE_SIZE, head_tail_block->page_count);
+        pagerange_store(extent_data + PAGE_STORE_SIZE,
+                        head_tail_block->page_count);
       }
     }
     else
@@ -3643,6 +3644,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
       }
     }
   }
+  _ma_bitmap_unlock(share);
   if (share->now_transactional)
   {
     if (_ma_write_clr(info, info->cur_row.orig_undo_lsn,
@@ -3652,7 +3654,6 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
                       &lsn, (void*) 0))
       res= 1;
   }
-  _ma_bitmap_unlock(share);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }

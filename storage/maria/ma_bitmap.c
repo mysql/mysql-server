@@ -907,7 +907,7 @@ void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
   fprintf(DBUG_FILE,"\nDump of bitmap page at %s\n", llstr(page, llbuff));
 
   page++;                                       /* Skip bitmap page */
-  for (pos= data, end= pos + bitmap->total_size;
+  for (pos= data, end= pos + bitmap->max_total_size;
        pos < end ;
        pos+= 6)
   {
@@ -1853,7 +1853,7 @@ static void use_head(MARIA_HA *info, pgcache_page_no_t page, uint size,
     find_where_to_split_row()
     share           Maria share
     row		    Information of what is in the row (from calc_record_size())
-    extents_length  Number of bytes needed to store all extents
+    extents         Max number of extents we have to store in header
     split_size	    Free size on the page (The head length must be less
                     than this)
 
@@ -1862,7 +1862,7 @@ static void use_head(MARIA_HA *info, pgcache_page_no_t page, uint size,
 */
 
 static uint find_where_to_split_row(MARIA_SHARE *share, MARIA_ROW *row,
-                                    uint extents_length, uint split_size)
+                                    uint extents, uint split_size)
 {
   uint *lengths, *lengths_end;
   /*
@@ -1872,19 +1872,20 @@ static uint find_where_to_split_row(MARIA_SHARE *share, MARIA_ROW *row,
     - One extent
   */
   uint row_length= (row->min_length +
-                    size_to_store_key_length(extents_length) +
+                    size_to_store_key_length(extents) +
                     ROW_EXTENT_SIZE);
-  DBUG_ASSERT(row_length < split_size);
+  DBUG_ASSERT(row_length <= split_size);
+
   /*
     Store first in all_field_lengths the different parts that are written
     to the row. This needs to be in same order as in
     ma_block_rec.c::write_block_record()
   */
-  row->null_field_lengths[-3]= extents_length;
+  row->null_field_lengths[-3]= extents * ROW_EXTENT_SIZE;
   row->null_field_lengths[-2]= share->base.fixed_not_null_fields_length;
   row->null_field_lengths[-1]= row->field_lengths_length;
   for (lengths= row->null_field_lengths - EXTRA_LENGTH_FIELDS,
-       lengths_end= (lengths + share->base.pack_fields - share->base.blobs +
+       lengths_end= (lengths + share->base.fields - share->base.blobs +
                      EXTRA_LENGTH_FIELDS); lengths < lengths_end; lengths++)
   {
     if (row_length + *lengths > split_size)
@@ -2040,18 +2041,19 @@ my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
   head_length+= ELEMENTS_RESERVED_FOR_MAIN_PART * ROW_EXTENT_SIZE;
 
   /* The first segment size is stored in 'row_length' */
-  row_length= find_where_to_split_row(share, row, extents_length,
+  row_length= find_where_to_split_row(share, row, row->extents_count + 
+                                      ELEMENTS_RESERVED_FOR_MAIN_PART-1,
                                       max_page_size);
 
   full_page_size= MAX_TAIL_SIZE(share->block_size);
   position= 0;
-  if (head_length - row_length <= full_page_size)
+  rest_length= head_length - row_length;
+  if (rest_length <= full_page_size)
     position= ELEMENTS_RESERVED_FOR_MAIN_PART -2;    /* Only head and tail */
   if (find_head(info, row_length, position))
     goto abort;
   row->space_on_head_page= row_length;
 
-  rest_length= head_length - row_length;
   if (write_rest_of_head(info, position, rest_length))
     goto abort;
 
@@ -2137,16 +2139,22 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
   /* Allocate enough space */
   head_length+= ELEMENTS_RESERVED_FOR_MAIN_PART * ROW_EXTENT_SIZE;
 
-  /* The first segment size is stored in 'row_length' */
-  row_length= find_where_to_split_row(share, row, extents_length, free_size);
+  /*
+    The first segment size is stored in 'row_length'
+    We have to add ELEMENTS_RESERVED_FOR_MAIN_PART here as the extent
+    information may be up to this size when the header splits.
+  */
+  row_length= find_where_to_split_row(share, row, row->extents_count + 
+                                      ELEMENTS_RESERVED_FOR_MAIN_PART-1,
+                                      free_size);
 
   position= 0;
-  if (head_length - row_length < MAX_TAIL_SIZE(share->block_size))
+  rest_length= head_length - row_length;
+  if (rest_length <= MAX_TAIL_SIZE(share->block_size))
     position= ELEMENTS_RESERVED_FOR_MAIN_PART -2;    /* Only head and tail */
   use_head(info, page, row_length, position);
   row->space_on_head_page= row_length;
 
-  rest_length= head_length - row_length;
   if (write_rest_of_head(info, position, rest_length))
     goto abort;
 
