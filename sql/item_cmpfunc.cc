@@ -327,6 +327,20 @@ longlong Item_func_not_all::val_int()
 
 bool Item_func_not_all::empty_underlying_subquery()
 {
+  DBUG_ASSERT(subselect || !(test_sum_item || test_sub_item));
+  /*
+   When outer argument is NULL the subquery has not yet been evaluated, we
+   need to evaluate it to get to know whether it returns any rows to return
+   the correct result. 'ANY' subqueries are an exception because the
+   result would be false or null which for a top level item always mean false.
+   The subselect->unit->item->... chain should be used instead of
+   subselect->... to workaround subquery transformation which could make
+   subselect->engine unusable.
+  */
+  if (subselect && 
+      subselect->substype() != Item_subselect::ANY_SUBS &&
+      !subselect->unit->item->is_evaluated())
+    subselect->unit->item->exec();
   return ((test_sum_item && !test_sum_item->any_value()) ||
           (test_sub_item && !test_sub_item->any_value()));
 }

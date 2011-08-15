@@ -178,6 +178,10 @@ extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 extern ulint    srv_buf_pool_instances; /*!< requested number of buffer pool instances */
 extern ulong	srv_n_page_hash_locks;	/*!< number of locks to
 					protect buf_pool->page_hash */
+extern ulong	srv_LRU_scan_depth;	/*!< Scan depth for LRU
+					flush batch */
+extern my_bool	srv_flush_neighbors;	/*!< whether or not to flush
+					neighbors of a block */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulint	srv_mem_pool_size;
@@ -230,6 +234,7 @@ extern unsigned long long	srv_stats_transient_sample_pages;
 extern unsigned long long	srv_stats_persistent_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
+extern ulong	srv_doublewrite_batch_size;
 extern ibool	srv_use_checksums;
 
 extern ulong	srv_max_buf_pool_modified_pct;
