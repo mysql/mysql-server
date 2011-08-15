@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -828,7 +828,7 @@ dict_truncate_index_tree(
 	appropriate field in the SYS_INDEXES record: this mini-transaction
 	marks the B-tree totally truncated */
 
-	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
+	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, NULL, mtr);
 
 	btr_free_root(space, zip_size, root_page_no, mtr);
 create:
