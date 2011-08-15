@@ -897,11 +897,14 @@ protected:
   /* Shall skip record from the join buffer if its match flag is on */
   virtual bool skip_record_if_match();
 
-  /*  Read all flag and data fields of a record from the join buffer */
-  int read_all_record_fields();
-  
-  /* Read all flag fields of a record from the join buffer */
-  uint read_flag_fields();
+  /* Read some flag and data fields of a record from the join buffer */
+  int read_some_record_fields();
+
+  /* Read some flag fields of a record from the join buffer */
+  void read_some_flag_fields();
+
+  /* Read all flag fields of the record which is at position rec_ptr */
+  void read_all_flag_fields_by_pos(uchar *rec_ptr);
 
   /* Read a data record field from the join buffer */
   uint read_record_field(CACHE_FIELD *copy, bool last_record);
