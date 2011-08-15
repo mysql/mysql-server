@@ -14,14 +14,23 @@ disconnect nonpriv;
 connection slave;
 DROP USER'nonsuperuser'@'127.0.0.1';
 
+SELECT @@global.replicate_events_marked_for_skip;
 --error ER_SLAVE_MUST_STOP
 SET GLOBAL replicate_events_marked_for_skip=0;
+SELECT @@global.replicate_events_marked_for_skip;
 STOP SLAVE;
+--error ER_GLOBAL_VARIABLE
+SET SESSION replicate_events_marked_for_skip=0;
+SELECT @@global.replicate_events_marked_for_skip;
 SET GLOBAL replicate_events_marked_for_skip=0;
+SELECT @@global.replicate_events_marked_for_skip;
 START SLAVE;
 
 connection master;
-SET skip_replication=0;
+SELECT @@skip_replication;
+--error ER_LOCAL_VARIABLE
+SET GLOBAL skip_replication=1;
+SELECT @@skip_replication;
 
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
 CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=innodb;

@@ -6,12 +6,33 @@ SELECT,UPDATE ON *.* TO 'nonsuperuser'@'127.0.0.1';
 SET GLOBAL replicate_events_marked_for_skip=0;
 ERROR 42000: Access denied; you need the SUPER privilege for this operation
 DROP USER'nonsuperuser'@'127.0.0.1';
+SELECT @@global.replicate_events_marked_for_skip;
+@@global.replicate_events_marked_for_skip
+1
 SET GLOBAL replicate_events_marked_for_skip=0;
 ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+SELECT @@global.replicate_events_marked_for_skip;
+@@global.replicate_events_marked_for_skip
+1
 STOP SLAVE;
+SET SESSION replicate_events_marked_for_skip=0;
+ERROR HY000: Variable 'replicate_events_marked_for_skip' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@global.replicate_events_marked_for_skip;
+@@global.replicate_events_marked_for_skip
+1
 SET GLOBAL replicate_events_marked_for_skip=0;
+SELECT @@global.replicate_events_marked_for_skip;
+@@global.replicate_events_marked_for_skip
+0
 START SLAVE;
-SET skip_replication=0;
+SELECT @@skip_replication;
+@@skip_replication
+0
+SET GLOBAL skip_replication=1;
+ERROR HY000: Variable 'skip_replication' is a SESSION variable and can't be used with SET GLOBAL
+SELECT @@skip_replication;
+@@skip_replication
+0
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
 CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
 INSERT INTO t1(a) VALUES (1);
