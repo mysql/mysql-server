@@ -655,8 +655,8 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
-                   "MySQL thread id %lu, query id %lu",
-                   thd->thread_id, (ulong) thd->query_id);
+                   "MySQL thread id %lu, OS thread handle 0x%lx, query id %lu",
+                   thd->thread_id, (ulong) thd->real_id, (ulong) thd->query_id);
   str.length(0);
   str.append(header, len);
 
