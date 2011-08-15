@@ -12185,7 +12185,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->read_record.unlock_row= rr_unlock_row;
     tab->next_select=sub_select;		/* normal select */
     tab->cache_idx_cond= 0;
-    tab->sorted= sorted;
+    /*
+      For eq_ref there is at most one join match for each row from
+      previous tables so ordering is not useful.
+    */
+    tab->sorted= (tab->type != JT_EQ_REF) ? sorted : false;
     sorted= false;                              // only first must be sorted
     table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
     pick_table_access_method (tab);
