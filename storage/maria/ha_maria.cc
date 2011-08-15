@@ -874,7 +874,7 @@ double ha_maria::scan_time()
 }
 
 /*
-  We need to be able to store at least two keys on an index page as the
+  We need to be able to store at least 2 keys on an index page as the
   splitting algorithms depends on this. (With only one key on a page
   we also can't use any compression, which may make the index file much
   larger)

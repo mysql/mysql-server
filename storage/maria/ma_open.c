@@ -563,21 +563,40 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
     share->block_size= share->base.block_size;   /* Convenience */
     share->max_index_block_size= share->block_size - KEYPAGE_CHECKSUM_SIZE;
+    share->keypage_header= ((share->base.born_transactional ?
+                             LSN_STORE_SIZE + TRANSID_SIZE :
+                             0) + KEYPAGE_KEYID_SIZE + KEYPAGE_FLAG_SIZE +
+                            KEYPAGE_USED_SIZE);
     {
       HA_KEYSEG *pos=share->keyparts;
       uint32 ftkey_nr= 1;
       for (i=0 ; i < keys ; i++)
       {
-        share->keyinfo[i].share= share;
-	disk_pos=_ma_keydef_read(disk_pos, &share->keyinfo[i]);
-        share->keyinfo[i].key_nr= i;
+        MARIA_KEYDEF *keyinfo= &share->keyinfo[i];
+        keyinfo->share= share;
+	disk_pos=_ma_keydef_read(disk_pos, keyinfo);
+        keyinfo->key_nr= i;
+
+        /* See ma_delete.cc::underflow() */
+        if (!(keyinfo->flag & (HA_BINARY_PACK_KEY | HA_PACK_KEY)))
+          keyinfo->underflow_block_length= keyinfo->block_length/3;
+        else
+        {
+          /* Packed key, ensure we don't get overflow in underflow() */
+          keyinfo->underflow_block_length=
+            max((int) (share->max_index_block_size - keyinfo->maxlength * 3),
+                (int) (share->keypage_header + share->base.key_reflength));
+          set_if_smaller(keyinfo->underflow_block_length,
+                         keyinfo->block_length/3);
+        }
+
         disk_pos_assert(share,
-                        disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
+                        disk_pos + keyinfo->keysegs * HA_KEYSEG_SIZE,
  			end_pos);
-        if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
+        if (keyinfo->key_alg == HA_KEY_ALG_RTREE)
           share->have_rtree= 1;
-	share->keyinfo[i].seg=pos;
-	for (j=0 ; j < share->keyinfo[i].keysegs; j++,pos++)
+	keyinfo->seg=pos;
+	for (j=0 ; j < keyinfo->keysegs; j++,pos++)
 	{
 	  disk_pos=_ma_keyseg_read(disk_pos, pos);
 	  if (pos->type == HA_KEYTYPE_TEXT ||
@@ -595,25 +614,25 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	  else if (pos->type == HA_KEYTYPE_BINARY)
 	    pos->charset= &my_charset_bin;
 	}
-	if (share->keyinfo[i].flag & HA_SPATIAL)
+	if (keyinfo->flag & HA_SPATIAL)
 	{
 #ifdef HAVE_SPATIAL
 	  uint sp_segs=SPDIMS*2;
-	  share->keyinfo[i].seg=pos-sp_segs;
-	  share->keyinfo[i].keysegs--;
+	  keyinfo->seg=pos-sp_segs;
+	  keyinfo->keysegs--;
           versioning= 0;
 #else
 	  my_errno=HA_ERR_UNSUPPORTED;
 	  goto err;
 #endif
 	}
-        else if (share->keyinfo[i].flag & HA_FULLTEXT)
+        else if (keyinfo->flag & HA_FULLTEXT)
 	{
           versioning= 0;
           DBUG_ASSERT(fulltext_keys);
           {
             uint k;
-            share->keyinfo[i].seg=pos;
+            keyinfo->seg=pos;
             for (k=0; k < FT_SEGS; k++)
             {
               *pos= ft_keysegs[k];
@@ -628,8 +647,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           }
           if (!share->ft2_keyinfo.seg)
           {
-            memcpy(&share->ft2_keyinfo, &share->keyinfo[i],
-                   sizeof(MARIA_KEYDEF));
+            memcpy(&share->ft2_keyinfo, keyinfo, sizeof(MARIA_KEYDEF));
             share->ft2_keyinfo.keysegs=1;
             share->ft2_keyinfo.flag=0;
             share->ft2_keyinfo.keylength=
@@ -639,10 +657,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
             share->ft2_keyinfo.end=pos;
             setup_key_functions(& share->ft2_keyinfo);
           }
-          share->keyinfo[i].ftkey_nr= ftkey_nr++;
+          keyinfo->ftkey_nr= ftkey_nr++;
 	}
-        setup_key_functions(share->keyinfo+i);
-	share->keyinfo[i].end=pos;
+        setup_key_functions(keyinfo);
+	keyinfo->end=pos;
 	pos->type=HA_KEYTYPE_END;			/* End */
 	pos->length=share->base.rec_reflength;
 	pos->null_bit=0;
@@ -686,10 +704,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                          share->base.null_bytes +
                          share->base.pack_bytes +
                          test(share->options & HA_OPTION_CHECKSUM));
-    share->keypage_header= ((share->base.born_transactional ?
-                             LSN_STORE_SIZE + TRANSID_SIZE :
-                             0) + KEYPAGE_KEYID_SIZE + KEYPAGE_FLAG_SIZE +
-                            KEYPAGE_USED_SIZE);
     share->kfile.file= kfile;
 
     if (open_flags & HA_OPEN_COPY)
@@ -1580,7 +1594,6 @@ uchar *_ma_keydef_read(uchar *ptr, MARIA_KEYDEF *keydef)
    keydef->keylength	= mi_uint2korr(ptr);	ptr+= 2;
    keydef->minlength	= mi_uint2korr(ptr);	ptr+= 2;
    keydef->maxlength	= mi_uint2korr(ptr);	ptr+= 2;
-   keydef->underflow_block_length=keydef->block_length/3;
    keydef->version	= 0;			/* Not saved */
    keydef->parser       = &ft_default_parser;
    keydef->ftkey_nr     = 0;
