@@ -1,0 +1,2 @@
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix --vardir=var-n_mix --mysqld=--binlog-format=mixed --skip-ndb --suite=perfschema socket_summary_by_instance_func_dbg.test
+

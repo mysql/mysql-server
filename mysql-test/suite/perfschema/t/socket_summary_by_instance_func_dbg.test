@@ -28,29 +28,33 @@
 #
 # Set this to enable debugging output
 let $my_socket_debug=0;
+
 #
 # Determine if IPV6 supported
 #
 let $check_ipv6_just_check=1;
 --source include/check_ipv6.inc
+
 #
 # Determine if IPV4 mapped to IPV6 supported
 #
 let $check_ipv4_mapped_just_check=1;
 --source include/check_ipv4_mapped.inc
+
 #
 # Set the localhost IP default to use when establishing connections
 let $my_localhost=127.0.0.1;
+
 if($check_ipv6_supported)
 {
   let $my_localhost=::1;
 }
+
 if($check_ipv4_mapped_supported)
 {
   let $my_localhost=::ffff:127.0.0.1;
 }
-#
-let $my_socket_debug=0;
+
 if($my_socket_debug)
 {
   --echo IPV6=$check_ipv6_supported, IPV4_MAPPED=$check_ipv4_mapped_supported, LOCALHOST=$my_localhost
@@ -66,7 +70,10 @@ if($my_socket_debug)
 --echo # - the test might abort
 --echo #
 
---disable_query_log
+if (!$my_socket_debug)
+{
+  --disable_query_log
+}
 
 --echo # 0. Build or set prequisites
 #===================================
@@ -78,12 +85,28 @@ if($my_socket_debug)
 # Advantage:
 #    More thorough checks.
 #
-let $print_details= 1;
+let $print_details= $my_socket_debug;
 
 #
 # Number of attempts within the test checking the stability of counter increments.
 #
 let $loop_rounds= 3;
+
+#
+# Disable instrumentation for the default connection to simplify record-keeping
+#
+--echo # Disable instrumenation for the default connection thread
+eval UPDATE performance_schema.threads
+SET INSTRUMENTED='NO'
+WHERE PROCESSLIST_ID = CONNECTION_ID();
+
+#
+# Disable instrumentation for other event types to isolate net IO
+#
+--echo # Disable all instrumentation except net IO
+UPDATE performance_schema.setup_instruments
+SET ENABLED='NO', TIMED='NO'
+WHERE NAME NOT LIKE '%socket%' AND NAME NOT LIKE '%idle%';
 
 #
 # Additional SCHEMA used for
@@ -93,12 +116,6 @@ let $loop_rounds= 3;
 #
 CREATE SCHEMA mysqltest;
 CREATE SCHEMA mysqlsupertest;
-
-#
-# Clear summary tables of previous entries
-#
-TRUNCATE performance_schema.socket_summary_by_instance;
-TRUNCATE performance_schema.socket_summary_by_event_name;
 
 #
 # Auxiliary tables for storing current values at certain points of time.
@@ -147,18 +164,18 @@ INSERT INTO mysqltest.my_aux SET col1 = 3, col2 = REPEAT('a',1024);
 #
 # Auxiliary mysqltest variables used to shorten commands and to ensure
 # that we run all time the right operation.
-#
+
 let $truncate=
 TRUNCATE TABLE mysqltest.my_socket_summary_by_instance;
-#
+
 let $insert_before=
 INSERT INTO mysqltest.my_socket_summary_by_instance
 SELECT *,'Before' FROM performance_schema.socket_summary_by_instance;
-#
+
 let $insert_after=
 INSERT INTO mysqltest.my_socket_summary_by_instance
 SELECT *,'After' FROM performance_schema.socket_summary_by_instance;
-#
+
 let $insert_pseudo_before=
 INSERT INTO mysqltest.my_socket_summary_by_instance
 (EVENT_NAME, OBJECT_INSTANCE_BEGIN,
@@ -167,8 +184,7 @@ COUNT_READ, SUM_TIMER_READ, MIN_TIMER_READ, AVG_TIMER_READ, MAX_TIMER_READ,
 SUM_NUMBER_OF_BYTES_READ,
 COUNT_WRITE, SUM_TIMER_WRITE, MIN_TIMER_WRITE, AVG_TIMER_WRITE, MAX_TIMER_WRITE,
 SUM_NUMBER_OF_BYTES_WRITE,
-COUNT_MISC, SUM_TIMER_MISC, MIN_TIMER_MISC, AVG_TIMER_MISC, MAX_TIMER_MISC,
-pk)
+COUNT_MISC, SUM_TIMER_MISC, MIN_TIMER_MISC, AVG_TIMER_MISC, MAX_TIMER_MISC, pk)
 SELECT EVENT_NAME, OBJECT_INSTANCE_BEGIN,
 0, 0, 0, 0, 0,
 0, 0, 0, 0, 0,
@@ -182,7 +198,7 @@ WHERE OBJECT_INSTANCE_BEGIN NOT IN
       (SELECT OBJECT_INSTANCE_BEGIN
        FROM mysqltest.my_socket_summary_by_instance t2
        WHERE pk = 'Before');
-#
+
 let $insert_delta=
 INSERT INTO mysqltest.socket_summary_by_instance_detail
       (EVENT_NAME,OBJECT_INSTANCE_BEGIN,
@@ -203,7 +219,7 @@ FROM mysqltest.my_socket_summary_by_instance t1
 JOIN mysqltest.my_socket_summary_by_instance t2
 USING (EVENT_NAME,OBJECT_INSTANCE_BEGIN)
 WHERE t1.pk = 'After' AND t2.pk LIKE '%Before';
-#
+
 let $get_object_instance_begin=
 SELECT OBJECT_INSTANCE_BEGIN INTO @con1_object_instance_begin
 FROM performance_schema.socket_summary_by_instance AS t1
@@ -211,147 +227,215 @@ WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN)
       NOT IN (SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN
               FROM mysqltest.my_socket_summary_by_instance AS t2
               WHERE pk = 'Before');
-#
+
+let $get_object_instance_begin_default=
+SELECT OBJECT_INSTANCE_BEGIN INTO @con1_object_instance_begin
+FROM performance_schema.socket_summary_by_instance
+WHERE EVENT_NAME LIKE "%client_connection%";
+
 let $column_list=
 COUNT_READ,  SUM_TIMER_READ,  SUM_NUMBER_OF_BYTES_READ,
 COUNT_WRITE, SUM_TIMER_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
-COUNT_MISC,  SUM_TIMER_MISC,  Statement;
-let $counter_column_list=
+COUNT_MISC,  SUM_TIMER_MISC,  statement;
+
+let $column_list_formatted=
+lpad(COUNT_READ,7,' ')  as CREAD,  lpad(SUM_TIMER_READ,12,' ')  as TREAD, lpad(SUM_NUMBER_OF_BYTES_READ,7,' ')  as BREAD,
+lpad(COUNT_WRITE,7,' ') as CWRITE, lpad(SUM_TIMER_WRITE,12,' ') as TWRITE,lpad(SUM_NUMBER_OF_BYTES_WRITE,7,' ') as BWRITE,
+lpad(COUNT_MISC,7,' ')  as CMISC,  lpad(SUM_TIMER_MISC,13,' ')  as TMISC,
+rpad(statement,50,' ') as STATEMENT50;
+
+let $counter_list=
 COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
 COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
-COUNT_MISC,  Statement;
+COUNT_MISC;
 
+let $counter_list_formatted=
+lpad(COUNT_READ,7,' ')  as CREAD,  lpad(SUM_NUMBER_OF_BYTES_READ,7,' ')  as BREAD,
+lpad(COUNT_WRITE,7,' ') as CWRITE, lpad(SUM_NUMBER_OF_BYTES_WRITE,7,' ') as BWRITE,
+lpad(COUNT_MISC,7,' ')  as CMISC;
+
+let $cv_column_list_formatted=
+rpad(EVENT_NAME,40,' ') as EVENT_NAME40, rpad(statement,50,' ') as STATEMENT50,
+lpad(count(COUNT_READ),5,' ') as CREAD,
+lpad(std(COUNT_READ)/avg(COUNT_READ),10,' ') as CV_CREAD,
+lpad(std(SUM_NUMBER_OF_BYTES_READ)/avg(SUM_NUMBER_OF_BYTES_READ),10,' ') as CV_BREAD,
+lpad(std(COUNT_WRITE)/avg(COUNT_WRITE),10,' ') as CV_CWRITE,
+lpad(std(SUM_NUMBER_OF_BYTES_WRITE)/avg(SUM_NUMBER_OF_BYTES_WRITE),10,' ') as CV_BWRITE,
+lpad(std(COUNT_MISC)/avg(COUNT_MISC),10,' ') as CV_CMISC;
+
+let $count_client_connections=
+SELECT COUNT(*) INTO @client_connections
+FROM performance_schema.socket_instances
+WHERE EVENT_NAME LIKE "%client_connection%";
+
+#
 # Determine OBJECT_INSTANCE_BEGIN of the connection default
 # which acts as the observer
-eval $truncate;
-eval $insert_before;
---disconnect default
---connect (default,localhost,root,,,,)
-eval $insert_after;
-eval $get_object_instance_begin;
+
+--echo # Confirm only one client connection
+eval $count_client_connections;
+if (`SELECT @client_connections != 1`)
+{
+  --echo # There should be one client connection
+  --echo # abort
+  exit;
+}
+
+--echo # Get the default OBJECT_INSTANCE_BEGIN
+eval $get_object_instance_begin_default;
 SET @default_object_instance_begin = @con1_object_instance_begin;
+if ($my_socket_debug)
+{
+  SELECT @default_object_instance_begin AS "Default Object Instance Begin";
+}
 
+#
+# Truncate the temporary and socket summary tables to start with clean stats
+#
+--echo # Truncate my_socket_summary_by_instance
+eval $truncate;
+--echo # Truncate socket summary tables
+TRUNCATE performance_schema.socket_summary_by_instance;
+TRUNCATE performance_schema.socket_summary_by_event_name;
+
+#========================================================================
 --echo # 1. Check the base line
-#==============================
---source ../include/socket_summary_check.inc
+--source ../include/socket_summary_check_dbg.inc
 
---disable_query_log
---disable_query_log
+if (!$my_socket_debug)
+{
+  --disable_query_log
+  --disable_result_log
+}
 
+#========================================================================
 --echo # 2. Check connect
 let $is_connect= 1;
 --echo # 2.1 Connect fails because the user is unknown
 --echo #     length of user name = 4 character
 --echo #     length of default db = 9 character
-#========================================================================
+
 let $connect_host= localhost;
 let $connect_db= mysqltest;
 let $connect_user= boot;
---source ../include/socket_event.inc
+--source ../include/socket_event_dbg.inc
 
+#========================================================================
 --echo # 2.2 Connect fails because the user is unknown
 --echo #     length of user name = 14 character (10 more than in 2.1)
 --echo #     length of default db = 9 character
-#========================================================================
+
 let $connect_host= localhost;
 let $connect_db= mysqltest;
 let $connect_user= boot0123456789;
---source ../include/socket_event.inc
+--source ../include/socket_event_dbg.inc
 
+#========================================================================
 --echo # 2.3 Connect should pass, host = localhost
 --echo #     length of user name  = 4 character
 --echo #     length of default db = 9 character
-#========================================================================
+
 let $connect_host= localhost;
 let $connect_db= mysqltest;
 let $connect_user= root;
---source ../include/socket_event.inc
+--source ../include/socket_event_dbg.inc
 
+#========================================================================
 --echo # 2.4 Connect should pass, host = localhost
 --echo #     length of user name  = 4 character
 --echo #     length of default db = 14 character (5 more than 2.3)
-#========================================================================
+
 let $connect_host= localhost;
 let $connect_db= mysqlsupertest;
 let $connect_user= root;
---source ../include/socket_event.inc
+--source ../include/socket_event_dbg.inc
 
+#========================================================================
 --echo # 2.5 Connect should pass, host = localhost
 --echo #     length of user name  = 10 character
 --echo #     length of default db = 9 character
-#========================================================================
+
 GRANT ALL PRIVILEGES ON *.* TO 'root012345'@'localhost';
 let $connect_host= localhost;
 let $connect_db= mysqltest;
 let $connect_user= root012345;
---source ../include/socket_event.inc
+--source ../include/socket_event_dbg.inc
 DROP USER 'root012345'@'localhost';
 
+#========================================================================
 --echo # 2.6 Connect should pass, host = localhost
 --echo #     length of user name  = 14 character
 --echo #     length of default db = 9 character
-#========================================================================
+
 GRANT ALL PRIVILEGES ON *.* to 'root0123456789'@'localhost';
 let $connect_host= localhost;
 let $connect_db= mysqltest;
 let $connect_user= root0123456789;
---source ../include/socket_event.inc
+--source ../include/socket_event_dbg.inc
 DROP USER 'root0123456789'@'localhost';
 
-#========================================================================
 --connect (con1,$my_localhost,root,,mysqltest,,)
 --connection default
 --source ../include/wait_till_sleep.inc
 --disable_query_log
 
+#========================================================================
 --echo # 3 Check SELECTs
 let $is_connect= 0;
 eval $get_object_instance_begin;
 --echo # 3.1 Check a SELECT ending with server sending an error message.
 --echo #     Error message is short (unknown table).
-#========================================================================
-let $statement= SELECT col2 FROM does_not_exist;
---source ../include/socket_event.inc
 
+let $statement= SELECT col2 FROM does_not_exist;
+--source ../include/socket_event_dbg.inc
+
+#========================================================================
 --echo # 3.2 Check a SELECT ending with server sending an error message.
 --echo #     Error message is longer (syntax error).
 --echo #     Now the statement is a bit longer but the error message
 --echo #     length does again not depend on statement.
-#=======================================================================
+#
 let $statement= SELECT col2 FROM does_not_exist WHERE col1 = 0;
---source ../include/socket_event.inc
+--source ../include/socket_event_dbg.inc
 
+#========================================================================
 --echo # 3.3 Check a SELECT earning an empty result set.
-#=======================================================
-let $statement= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0;
---source ../include/socket_event.inc
 
+let $statement= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0;
+--source ../include/socket_event_dbg.inc
+
+#========================================================================
 --echo # 3.4 Check a SELECT earning an empty result set.
 --echo #     Short column name is replaced by longer alias.
-#==========================================================
+
 let $statement= SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0;
---source ../include/socket_event.inc
+--source ../include/socket_event_dbg.inc
 
+#========================================================================
 --echo # 3.5 Check a SELECT earning one row with an empty string.
-#================================================================
+
 let $statement= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
---source ../include/socket_event.inc
+--source ../include/socket_event_dbg.inc
 
+#========================================================================
 --echo # 3.6 Check a SELECT earning one row with one string one char long.
-#=========================================================================
+
 let $statement= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2;
---source ../include/socket_event.inc
+--source ../include/socket_event_dbg.inc
 
+#========================================================================
 --echo # 3.7 Check a SELECT earning one row with one string 1024 char long.
-#==========================================================================
-let $statement= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3;
---source ../include/socket_event.inc
 
+let $statement= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3;
+--source ../include/socket_event_dbg.inc
+
+#========================================================================
 --echo # 4. Check delta details
-#==========================================================================
+#
 # 4.0 0. Negative deltas cannot have happened because the counter columns within
 #        socket_summary_by_instance_detail are defined as UNSIGNED BIGINT.
 #        = The INSERT would have been failed.
+#
 --echo # 4.1 Check that increased COUNT_* leads to increased
 --echo #     - increased COUNT_* leads to increased
 --echo #       SUM_TIMER_* and SUM_NUMBER_OF_BYTES_*
@@ -359,21 +443,14 @@ let $statement= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3;
 --echo #       SUM_TIMER_* and SUM_NUMBER_OF_BYTES_*
 
 let $my_rules=
-((COUNT_READ = 0 AND SUM_TIMER_READ = 0 AND SUM_NUMBER_OF_BYTES_READ = 0)
+((COUNT_READ = 0 AND (SUM_TIMER_READ > 0 OR SUM_NUMBER_OF_BYTES_READ > 0))
   OR
- (COUNT_READ > 0 AND SUM_TIMER_READ > 0 AND SUM_NUMBER_OF_BYTES_READ > 0))
-AND
-((COUNT_WRITE = 0 AND SUM_TIMER_WRITE = 0 AND SUM_NUMBER_OF_BYTES_WRITE = 0)
+ (COUNT_WRITE = 0 AND (SUM_TIMER_WRITE > 0 OR SUM_NUMBER_OF_BYTES_WRITE > 0))
   OR
- (COUNT_WRITE > 0 AND SUM_TIMER_WRITE > 0 AND SUM_NUMBER_OF_BYTES_WRITE > 0))
-AND
-((COUNT_MISC = 0 AND SUM_TIMER_MISC = 0)
-  OR
- (COUNT_MISC > 0));
-#(COUNT_MISC > 0 AND SUM_TIMER_MISC > 0));
+ (COUNT_MISC = 0 AND SUM_TIMER_MISC > 0));
 
 if(`SELECT COUNT(*) FROM mysqltest.socket_summary_by_instance_detail
-    WHERE NOT ( $my_rules )`)
+    WHERE ( $my_rules )`)
 {
    --enable_query_log
    --enable_result_log
@@ -383,161 +460,198 @@ if(`SELECT COUNT(*) FROM mysqltest.socket_summary_by_instance_detail
    --echo #
    eval
    SELECT EVENT_NAME, lpad(OBJECT_INSTANCE_BEGIN,20,' ') as OBJECT_INSTANCE,
-   lpad(COUNT_READ,7, ' ')  as CREAD,  lpad(SUM_TIMER_READ,12,' ')  as TREAD, lpad(SUM_NUMBER_OF_BYTES_READ,7,' ')  as BREAD,
-   lpad(COUNT_WRITE,7, ' ') as CWRITE, lpad(SUM_TIMER_WRITE,12,' ') as TWRITE,lpad(SUM_NUMBER_OF_BYTES_WRITE,7,' ') as BWRITE,
-   lpad(COUNT_MISC,7,' ')   as CMISC,  lpad(SUM_TIMER_MISC,13,' ')  as TMISC,
-   rpad(statement,50,' ') as STATEMENT, lpad(run, 5, ' ') as RUN
-   FROM mysqltest.socket_summary_by_instance_detail order by EVENT_NAME, OBJECT_INSTANCE_BEGIN;
-
-
+   lpad(COUNT_READ,7,' ')  AS CREAD,  lpad(SUM_TIMER_READ,12,' ')  AS TREAD, lpad(SUM_NUMBER_OF_BYTES_READ,7,' ')  AS BREAD,
+   lpad(COUNT_WRITE,7,' ') AS CWRITE, lpad(SUM_TIMER_WRITE,12,' ') AS TWRITE,lpad(SUM_NUMBER_OF_BYTES_WRITE,7,' ') AS BWRITE,
+   lpad(COUNT_MISC,7,' ')  AS CMISC,  lpad(SUM_TIMER_MISC,13,' ')  AS TMISC,
+   rpad(statement,50,' ') AS STATEMENT, lpad(run, 5, ' ') AS RUN
+   FROM mysqltest.socket_summary_by_instance_detail ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
 }
+
+#========================================================================
 --echo # 4.2 Results must be stable
 --echo #     Everything except "client_connection" for default connection
 --echo #     because the default connection runs include/wait_till_sleep.inc
 --echo #     which means a varying amount of statements.
-#==========================================================================
-# This check might fail after the bug fixes
+#
 # Enable the following lines for debugging the check
+#
 # UPDATE mysqltest.socket_summary_by_instance_detail
 # SET COUNT_READ = 13
 # WHERE statement LIKE 'Connect%abc%'
-#   AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
 # LIMIT 1;
+#
 # UPDATE mysqltest.socket_summary_by_instance_detail
 # SET COUNT_WRITE = 13
 # WHERE statement LIKE '%WHERE col1 = 3'
-#   AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
 #   AND EVENT_NAME LIKE '%client_connection'
 # LIMIT 1;
 
-#let $my_rules=
-#COUNT(DISTINCT COUNT_READ)                = 1 AND
-#COUNT(DISTINCT SUM_NUMBER_OF_BYTES_READ)  = 1 AND
-#COUNT(DISTINCT COUNT_WRITE)               = 1 AND
-#COUNT(DISTINCT SUM_NUMBER_OF_BYTES_WRITE) = 1 AND
-#COUNT(DISTINCT COUNT_MISC)                = 1;
+let $my_rules1=
+COUNT(DISTINCT COUNT_READ)                = 1 AND
+COUNT(DISTINCT SUM_NUMBER_OF_BYTES_READ)  = 1 AND
+COUNT(DISTINCT COUNT_WRITE)               = 1 AND
+COUNT(DISTINCT SUM_NUMBER_OF_BYTES_WRITE) = 1 AND
+COUNT(DISTINCT COUNT_MISC)                = 1;
 
 # Compute coefficient of variation (CV) to detect 'notable' variances in the
 # byte count and operation counts. The acceptable range for the CV is purely
 # subjective, however, the CV is a dimensionless quantity therefore valid
 # across platforms.
 
-let $my_rules=
+let $my_rules2=
 STD(COUNT_READ)/AVG(COUNT_READ)                               <= 0.2 AND
 STD(SUM_NUMBER_OF_BYTES_READ)/AVG(SUM_NUMBER_OF_BYTES_READ)   <= 0.2 AND
 STD(COUNT_WRITE)/AVG(COUNT_WRITE)                             <= 0.2 AND
 STD(SUM_NUMBER_OF_BYTES_WRITE)/AVG(SUM_NUMBER_OF_BYTES_WRITE) <= 0.2 AND
 STD(COUNT_MISC)/AVG(COUNT_MISC)                               <= 0.4;
 
-let $part=
+let $part1=
 FROM mysqltest.socket_summary_by_instance_detail
 WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
-GROUP BY EVENT_NAME, statement
-HAVING ($my_rules) <> 1;
+GROUP BY EVENT_NAME, STATEMENT
+HAVING ($my_rules1) <> 1;
 
-if(`SELECT COUNT(statement) $part`)
+let $part2=
+FROM mysqltest.socket_summary_by_instance_detail
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+GROUP BY EVENT_NAME, STATEMENT
+HAVING ($my_rules2) <> 1;
+
+if (0)
+#if(`SELECT COUNT(statement) $part1`)
 {
+   --echo # 4.2a Error: Distinct operation count failed
    --enable_query_log
    --enable_result_log
-   --echo # The statistics looks suspicious.
-   --echo # We expect
-   --echo #    $my_rules
+   --echo # The statistics looks suspicious. We expect:
+   --echo #    $my_rules1
    --echo # for GROUP BY EVENT_NAME, statement
-   select @default_object_instance_begin as 'Default Object Instance';
-   eval
-   SELECT EVENT_NAME, statement
-   $part
-   ORDER BY EVENT_NAME, statement;
-   eval
-   SELECT object_instance_begin, $counter_column_list, EVENT_NAME, statement, run
+   SELECT @default_object_instance_begin AS 'Default Object Instance';
+   --echo
+   --echo #
+   --echo # 4.2b - List inconsistent rows
+   --echo #
+
+   eval SELECT OBJECT_INSTANCE_BEGIN, EVENT_NAME, run, $counter_list_formatted, statement
    FROM mysqltest.socket_summary_by_instance_detail t1
    WHERE (EVENT_NAME, statement) IN
-         (SELECT EVENT_NAME, statement $part)
+         (SELECT EVENT_NAME, statement $part1)
      AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
    ORDER BY EVENT_NAME, statement, run;
 
-   --echo Debug 4.2a - Dump mysqltest.socket_summary_by_instance_detail
-   SELECT EVENT_NAME, lpad(OBJECT_INSTANCE_BEGIN,20,' ') as OBJECT_INSTANCE,
-   lpad(COUNT_READ,7,' ')  as CREAD,  lpad(SUM_TIMER_READ,12,' ')  as TREAD, lpad(SUM_NUMBER_OF_BYTES_READ,7,' ')  as BREAD,
-   lpad(COUNT_WRITE,7,' ') as CWRITE, lpad(SUM_TIMER_WRITE,12,' ') as TWRITE,lpad(SUM_NUMBER_OF_BYTES_WRITE,7,' ') as BWRITE,
-   lpad(COUNT_MISC,7,' ')  as CMISC,  lpad(SUM_TIMER_MISC,13,' ')  as TMISC,
-   rpad(statement,50,' ') as STATEMENT, lpad(run, 5, ' ') as RUN
-   FROM mysqltest.socket_summary_by_instance_detail order by EVENT_NAME, statement, run;
+   --echo #
+   --echo # 4.2c - Dump all rows
+   --echo #
 
-   --echo Debug 4.2b - Std dev and coefficient of variation for mysqltest.socket_summary_by_instance_detail
-   select rpad(EVENT_NAME,39,' ') as EVENT_NAME1, rpad(statement,49,' ') as STATEMENT1,
-   lpad(count(COUNT_READ),5,' ') as COUNT_READ,
-   lpad(std(COUNT_READ)/avg(COUNT_READ),10,' ') as CV_COUNT_READ,
-   lpad(std(SUM_NUMBER_OF_BYTES_READ)/avg(SUM_NUMBER_OF_BYTES_READ),10,' ') as CV_BYTES_READ,
-   lpad(std(COUNT_WRITE)/avg(COUNT_WRITE),10,' ') as CV_COUNT_WRITE,
-   lpad(std(SUM_NUMBER_OF_BYTES_WRITE)/avg(SUM_NUMBER_OF_BYTES_WRITE),10,' ') as CV_BYTES_WRITE,
-   lpad(std(COUNT_MISC)/avg(COUNT_MISC),10,' ') as CV_COUNT_MISC
-   from mysqltest.socket_summary_by_instance_detail
-   WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
-   group by EVENT_NAME1, STATEMENT1;
+   eval SELECT OBJECT_INSTANCE_BEGIN, EVENT_NAME, run, $counter_list_formatted, statement
+   FROM mysqltest.socket_summary_by_instance_detail
+   ORDER BY EVENT_NAME, statement, run;
 }
 
+if(`SELECT COUNT(statement) $part2`)
+{
+   --echo # 4.2d Error: Coefficient of Variation failed
+   --enable_query_log
+   --enable_result_log
+   --echo # The statistics looks suspicious. We expect:
+   --echo #    $my_rules2
+   --echo # for GROUP BY EVENT_NAME, statement
+   SELECT @default_object_instance_begin AS 'Default Object Instance';
+   --echo
+   --echo #
+   --echo # 4.2e - List inconsistent rows
+   --echo #
+
+   eval SELECT OBJECT_INSTANCE_BEGIN, EVENT_NAME, run, $counter_list_formatted, statement
+   FROM mysqltest.socket_summary_by_instance_detail t1
+   WHERE (EVENT_NAME, statement) IN
+         (SELECT EVENT_NAME, statement $part2)
+     AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+   ORDER BY EVENT_NAME, statement, run;
+
+   --echo #
+   --echo # 4.2f - Dump all rows
+   --echo #
+
+   eval SELECT OBJECT_INSTANCE_BEGIN, EVENT_NAME, run, $counter_list_formatted, statement
+   FROM mysqltest.socket_summary_by_instance_detail
+   ORDER BY EVENT_NAME, statement, run;
+
+   --echo #
+   --echo # 4.2g - Std dev and coefficient of variation for mysqltest.socket_summary_by_instance_detail
+   --echo #
+
+   eval SELECT $cv_column_list_formatted
+   FROM mysqltest.socket_summary_by_instance_detail
+   WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+   GROUP BY EVENT_NAME40, STATEMENT50;
+}
+
+#========================================================================
 --echo # 4.3 Check the connects
 --echo # 4.3.1 Successful connects with different length of user name
 #            --> t2.statement LIKE 'Connect%root0123456789,%'
 #            --> t1.statement LIKE 'Connect%root012345,%'
-if(1)
-{
+
 # There is no client_connection entry for a connect which fails.
 
 let $my_val=
-t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ,
-t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE;
+t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ as DIFF_BREAD,
+t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE as DIFF_BWRITE;
 # t2.COUNT_WRITE - t1.COUNT_WRITE,
 # t2.COUNT_READ - t1.COUNT_READ,
 # t2.COUNT_MISC - t1.COUNT_MISC;
 
-# Successful connections with different username lengths
+let $my_val_not_null=
+t2.COUNT_READ > 0 and t1.COUNT_READ > 0 and
+t2.COUNT_WRITE > 0 and t1.COUNT_WRITE > 0;
+
+#
+# Successful connects with different length of user name
+#
 eval
 SELECT $my_val, EVENT_NAME
 FROM mysqltest.socket_summary_by_instance_detail t2
 JOIN mysqltest.socket_summary_by_instance_detail t1
-USING (EVENT_NAME,run)
+USING (EVENT_NAME, run)
 WHERE t2.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
   AND t1.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
   AND t2.statement LIKE 'Connect%root0123456789,%'
   AND t1.statement LIKE 'Connect%root012345,%'
   AND t1.EVENT_NAME NOT LIKE '%server_unix_socket%'
+  AND $my_val_not_null
   AND run = 1;
 
-#eval
-#SELECT $counter_column_list, EVENT_NAME
-#FROM mysqltest.socket_summary_by_instance_detail t2
-#WHERE t2.statement LIKE 'Connect%root0123456789,%'
-#  AND run = 1;
+#
+# Successful connects with different length of user name
+#
+eval
+SELECT $counter_list, EVENT_NAME, statement
+FROM mysqltest.socket_summary_by_instance_detail t2
+WHERE t2.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+  AND t2.statement LIKE 'Connect%root0123456789,%'
+  AND run = 1;
 
-#eval
-#SELECT $counter_column_list, EVENT_NAME
-#FROM mysqltest.socket_summary_by_instance_detail t2
-#WHERE t2.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
-#  AND t2.statement LIKE 'Connect%root0123456789,%'
-#  AND run = 1;
+eval
+SELECT $counter_list, EVENT_NAME, statement
+FROM mysqltest.socket_summary_by_instance_detail t1
+WHERE t1.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+  AND t1.statement LIKE 'Connect%root012345,%'
+  AND run = 1;
 
-#eval
-#SELECT $counter_column_list, EVENT_NAME
-#FROM mysqltest.socket_summary_by_instance_detail t1
-#WHERE t1.OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
-#  AND t1.statement LIKE 'Connect%root012345,%'
-#  AND run = 1;
-}
-
+#========================================================================
 --echo # 4.3.2 Failing (->2.1) vs. passing (-> 2.3) connect
 --echo #       FIXME: To be implemented after the bug fixes
 # The difference in fail/pass must somewhere show up.
-#==========================================================================
+#
 
+#========================================================================
 --echo # 4.3.3 2.3 vs. 2.4
 --echo #       FIXME: To be implemented after the bug fixes
 # The difference in schema name length must somewhere show up.
-#==========================================================================
+#
 
-
-
+#========================================================================
 --echo # 4.4 Check the differences caused by SQL statements
 #            --> Statement NOT LIKE '%Connect%'
 --echo #       FIXME: To be implemented after the bug fixes
@@ -610,6 +724,7 @@ if($print_details)
    --horizontal_results
    --echo # Dump detailed differences after - before statement execution
    --echo # 1. The statement executing connection and hopefully noone else
+
    SELECT EVENT_NAME,
           COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
           COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
@@ -618,14 +733,15 @@ if($print_details)
    WHERE EVENT_NAME LIKE '%client_connection%'
      AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
    ORDER BY statement, run;
+
    --echo # 2. The connection default
    SELECT EVENT_NAME,
           COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
           COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
           COUNT_MISC,  statement
    FROM mysqltest.socket_summary_by_instance_detail
-   WHERE OBJECT_INSTANCE_BEGIN = @default_object_instance_begin
    ORDER BY statement,run;
+
    --echo # 3. The "server_unix_socket"
    # WHERE OBJECT_INSTANCE_BEGIN = @con1_object_instance_begin
    SELECT EVENT_NAME,
@@ -635,6 +751,7 @@ if($print_details)
    FROM mysqltest.socket_summary_by_instance_detail
    WHERE EVENT_NAME LIKE '%server_unix_socket%'
    ORDER BY statement,run;
+
    --echo # 4. The "server_tcpip_socket"
    SELECT EVENT_NAME,
           COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
@@ -645,9 +762,9 @@ if($print_details)
    ORDER BY statement,run;
 }
 
+#========================================================================
 --echo # 5. Cleanup
-#==================
-# Cleanup
+
 --disable_query_log
 DROP SCHEMA mysqltest;
 DROP SCHEMA mysqlsupertest;
