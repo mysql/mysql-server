@@ -25,7 +25,7 @@
 #include "pfs_events.h"
 
 struct PFS_thread;
-struct PFS_user_host;
+struct PFS_account;
 struct PFS_user;
 struct PFS_host;
 
@@ -108,11 +108,11 @@ void reset_events_statements_current();
 void reset_events_statements_history();
 void reset_events_statements_history_long();
 void reset_events_statements_by_thread();
-void reset_events_statements_by_user_host();
+void reset_events_statements_by_account();
 void reset_events_statements_by_user();
 void reset_events_statements_by_host();
 void reset_events_statements_global();
-void aggregate_user_host_statements(PFS_user_host *user_host);
+void aggregate_account_statements(PFS_account *account);
 void aggregate_user_statements(PFS_user *user);
 void aggregate_host_statements(PFS_host *host);
 

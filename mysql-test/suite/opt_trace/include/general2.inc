@@ -398,3 +398,167 @@ table3.col_varchar_10_utf8_key
 select * from information_schema.optimizer_trace;
 
 DROP TABLE t1,t2,t3;
+
+--echo
+--echo Tests of tracing of the "eq_ref optimization" of plan search
+--echo
+
+# test for trace point "chosen:true","pruned_by_cost:true" and
+# "added_to_eq_ref_extension:true" (from main.subquery_sj_none_jcl7)
+
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, key(a));
+create table t2 (a int, b int, key(a));
+create table t3 (a int, b int, key(a));
+insert into t1 select a,a from t0;
+insert into t2 select a,a from t0;
+insert into t3 select a,a from t0;
+
+set @old_opt_switch=@@optimizer_switch;
+# The SET below must not be output, because only servers supporting
+# semijoin will execute it (would make varying output).
+if (`select locate('semijoin', @@optimizer_switch) > 0`)
+{
+--disable_query_log
+  set optimizer_switch="semijoin=off,materialization=off";
+--enable_query_log
+}
+explain select * 
+from t0 where a in
+(select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
+
+select * from information_schema.optimizer_trace;
+set optimizer_switch=@old_opt_switch;
+drop table t0,t1,t2,t3;
+
+# test for trace point "added_to_eq_ref_extension:false" (from main.derived)
+
+CREATE TABLE t1 (
+OBJECTID int(11) NOT NULL default '0',
+SORTORDER int(11) NOT NULL auto_increment,
+KEY t1_SortIndex (SORTORDER),
+KEY t1_IdIndex (OBJECTID)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (
+ID int(11) default NULL,
+PARID int(11) default NULL,
+UNIQUE KEY t2_ID_IDX (ID),
+KEY t2_PARID_IDX (PARID)
+) engine=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (1000,0),(1001,0),(1002,0),(1003,0),(1008,1),(1009,1),(1010,1),(1011,1),(1016,2);
+CREATE TABLE t3 (
+ID int(11) default NULL,
+DATA decimal(10,2) default NULL,
+UNIQUE KEY t3_ID_IDX (ID)
+) engine=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t3 VALUES (1000,0.00),(1001,0.25),(1002,0.50),(1003,0.75),(1008,1.00),(1009,1.25),(1010,1.50),(1011,1.75);
+
+select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from t1 join t2 on (t1.ObjectID = t2.ID) join t3 on (t1.ObjectID = t3.ID) group by t2.ParID order by DATA DESC) as tmp;
+select * from information_schema.optimizer_trace;
+drop table t1,t2,t3;
+
+# test of multiple nested trace points "added_to_eq_ref_extension:true"
+# (eq_ref optimization finding a sequence of eq_ref-joined tables) (from
+# main.type_blob)
+
+CREATE TABLE t1 (
+t1_id bigint(21) NOT NULL auto_increment,
+_field_72 varchar(128) DEFAULT '' NOT NULL,
+_field_95 varchar(32),
+_field_115 tinyint(4) DEFAULT '0' NOT NULL,
+_field_122 tinyint(4) DEFAULT '0' NOT NULL,
+_field_126 tinyint(4),
+_field_134 tinyint(4),
+PRIMARY KEY (t1_id),
+UNIQUE _field_72 (_field_72),
+KEY _field_115 (_field_115),
+KEY _field_122 (_field_122)
+);
+INSERT INTO t1 VALUES (1,'admin','21232f297a57a5a743894a0e4a801fc3',0,1,NULL,NULL);
+INSERT INTO t1 VALUES (2,'hroberts','7415275a8c95952901e42b13a6b78566',0,1,NULL,NULL);
+INSERT INTO t1 VALUES (3,'guest','d41d8cd98f00b204e9800998ecf8427e',1,0,NULL,NULL);
+
+CREATE TABLE t2 (
+seq_0_id bigint(21) DEFAULT '0' NOT NULL,
+seq_1_id bigint(21) DEFAULT '0' NOT NULL,
+PRIMARY KEY (seq_0_id,seq_1_id)
+);
+INSERT INTO t2 VALUES (1,1);
+INSERT INTO t2 VALUES (2,1);
+INSERT INTO t2 VALUES (2,2);
+
+CREATE TABLE t3 (
+t3_id bigint(21) NOT NULL auto_increment,
+_field_131 varchar(128),
+_field_133 tinyint(4) DEFAULT '0' NOT NULL,
+_field_135 datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+_field_137 tinyint(4),
+_field_139 datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+_field_140 blob,
+_field_142 tinyint(4) DEFAULT '0' NOT NULL,
+_field_145 tinyint(4) DEFAULT '0' NOT NULL,
+_field_148 tinyint(4) DEFAULT '0' NOT NULL,
+PRIMARY KEY (t3_id),
+KEY _field_133 (_field_133),
+KEY _field_135 (_field_135),
+KEY _field_139 (_field_139),
+KEY _field_142 (_field_142),
+KEY _field_145 (_field_145),
+KEY _field_148 (_field_148)
+);
+INSERT INTO t3 VALUES (1,'test job 1',0,'0000-00-00 00:00:00',0,'1999-02-25 22:43:32','test\r\njob\r\n1',0,0,0);
+INSERT INTO t3 VALUES (2,'test job 2',0,'0000-00-00 00:00:00',0,'1999-02-26 21:08:04','',0,0,0);
+
+CREATE TABLE t4 (
+seq_0_id bigint(21) DEFAULT '0' NOT NULL,
+seq_1_id bigint(21) DEFAULT '0' NOT NULL,
+PRIMARY KEY (seq_0_id,seq_1_id)
+);
+INSERT INTO t4 VALUES (1,1);
+INSERT INTO t4 VALUES (2,1);
+
+CREATE TABLE t5 (
+t5_id bigint(21) NOT NULL auto_increment,
+_field_149 tinyint(4),
+_field_156 varchar(128) DEFAULT '' NOT NULL,
+_field_157 varchar(128) DEFAULT '' NOT NULL,
+_field_158 varchar(128) DEFAULT '' NOT NULL,
+_field_159 varchar(128) DEFAULT '' NOT NULL,
+_field_160 varchar(128) DEFAULT '' NOT NULL,
+_field_161 varchar(128) DEFAULT '' NOT NULL,
+PRIMARY KEY (t5_id),
+KEY _field_156 (_field_156),
+KEY _field_157 (_field_157),
+KEY _field_158 (_field_158),
+KEY _field_159 (_field_159),
+KEY _field_160 (_field_160),
+KEY _field_161 (_field_161)
+);
+INSERT INTO t5 VALUES (1,0,'tomato','','','','','');
+INSERT INTO t5 VALUES (2,0,'cilantro','','','','','');
+
+CREATE TABLE t6 (
+seq_0_id bigint(21) DEFAULT '0' NOT NULL,
+seq_1_id bigint(21) DEFAULT '0' NOT NULL,
+PRIMARY KEY (seq_0_id,seq_1_id)
+);
+INSERT INTO t6 VALUES (1,1);
+INSERT INTO t6 VALUES (1,2);
+INSERT INTO t6 VALUES (2,2);
+
+CREATE TABLE t7 (
+t7_id bigint(21) NOT NULL auto_increment,
+_field_143 tinyint(4),
+_field_165 varchar(32),
+_field_166 smallint(6) DEFAULT '0' NOT NULL,
+PRIMARY KEY (t7_id),
+KEY _field_166 (_field_166)
+);
+INSERT INTO t7 VALUES (1,0,'High',1);
+INSERT INTO t7 VALUES (2,0,'Medium',2);
+INSERT INTO t7 VALUES (3,0,'Low',3);
+
+select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field_135), min(t3._field_139), min(t3._field_137), min(link_alias_142._field_165), min(link_alias_133._field_72), min(t3._field_145), min(link_alias_148._field_156), replace(min(t3._field_140), "\r","^M"),t3.t3_id from t3 left join t4 on t4.seq_0_id = t3.t3_id left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id left join t6 on t6.seq_0_id = t3.t3_id left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id left join t2 on t2.seq_0_id = t3.t3_id left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id where t3.t3_id in (1) group by t3.t3_id order by link_alias_142._field_166, _field_139, link_alias_133._field_72, _field_135, link_alias_148._field_156;
+select * from information_schema.optimizer_trace;
+drop table t1,t2,t3,t4,t5,t6,t7;

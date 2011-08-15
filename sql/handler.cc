@@ -2150,7 +2150,7 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 
 
 
-void handler::ha_statistic_increment(ulong SSV::*offset) const
+void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
   status_var_increment(table->in_use->status_var.*offset);
 }
@@ -2321,6 +2321,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(end_range == NULL);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,

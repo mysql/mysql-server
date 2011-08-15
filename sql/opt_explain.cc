@@ -1013,7 +1013,7 @@ bool Explain_join::explain_extra()
     explain_tmptable_and_filesort(need_tmp_table, need_order, &str_extra);
     need_tmp_table= need_order= false;
 
-    if (distinct && test_all_bits(used_tables,thd->used_tables))
+    if (distinct && test_all_bits(used_tables, thd->lex->used_tables))
       str_extra.append(STRING_WITH_LEN("; Distinct"));
 
     if (tab->loosescan_match_tab)

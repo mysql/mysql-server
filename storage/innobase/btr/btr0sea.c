@@ -1034,7 +1034,11 @@ btr_search_drop_page_hash_index(
 	buf_block_t*	block)	/*!< in: block containing index page,
 				s- or x-latched, or an index page
 				for which we know that
-				block->buf_fix_count == 0 */
+				block->buf_fix_count == 0 or it is an
+				index page which has already been
+				removed from the buf_pool->page_hash
+				i.e.: it is in state
+				BUF_BLOCK_REMOVE_HASH */
 {
 	hash_table_t*		table;
 	ulint			n_fields;
@@ -1082,7 +1086,8 @@ retry:
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
 	      || rw_lock_own(&(block->lock), RW_LOCK_EX)
-	      || (block->page.buf_fix_count == 0));
+	      || block->page.buf_fix_count == 0
+	      || buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
 #endif /* UNIV_SYNC_DEBUG */
 
 	n_fields = block->curr_n_fields;
