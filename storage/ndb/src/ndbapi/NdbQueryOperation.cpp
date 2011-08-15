@@ -201,6 +201,9 @@ public:
   NdbResultStream& getResultStream(Uint32 operationNo) const
   { return m_query->getQueryOperation(operationNo).getResultStream(m_fragNo); }
   
+  Uint32 getReceiverId() const;
+  Uint32 getReceiverTcPtrI() const;
+
   /**
    * @return True if there are no more batches to be received for this fragment.
    */
@@ -876,8 +879,7 @@ void NdbRootFragment::buildReciverIdMap(NdbRootFragment* frags,
 {
   for(Uint32 fragNo = 0; fragNo < noOfFrags; fragNo++)
   {
-    const Uint32 receiverId = 
-      frags[fragNo].getResultStream(0).getReceiver().getId();
+    const Uint32 receiverId = frags[fragNo].getReceiverId();
     /** 
      * For reasons unknow, NdbObjectIdMap shifts ids two bits to the left,
      * so we must do the opposite to get a good hash distribution.
@@ -890,6 +892,7 @@ void NdbRootFragment::buildReciverIdMap(NdbRootFragment* frags,
   } 
 }
 
+//static
 NdbRootFragment* 
 NdbRootFragment::receiverIdLookup(NdbRootFragment* frags, 
                                   Uint32 noOfFrags, 
@@ -903,9 +906,7 @@ NdbRootFragment::receiverIdLookup(NdbRootFragment* frags,
   const int hash = (receiverId >> 2) % noOfFrags;
   int current = frags[hash].m_idMapHead;
   assert(current < static_cast<int>(noOfFrags));
-  while (current >= 0 && 
-         frags[current].getResultStream(0).getReceiver().getId() 
-         != receiverId)
+  while (current >= 0 && frags[current].getReceiverId() != receiverId)
   {
     current = frags[current].m_idMapNext;
     assert(current < static_cast<int>(noOfFrags));
@@ -958,14 +959,31 @@ void NdbRootFragment::setConfReceived()
 
 bool NdbRootFragment::finalBatchReceived() const
 {
-  return getResultStream(0).getReceiver().m_tcPtrI==RNIL;
+  return getReceiverTcPtrI()==RNIL;
 }
 
-bool  NdbRootFragment::isEmpty() const
+bool NdbRootFragment::isEmpty() const
 { 
   return getResultStream(0).isEmpty();
 }
 
+/**
+ * SPJ requests are identified by the receiver-id of the
+ * *root* ResultStream for each RootFragment. Furthermore
+ * a NEXTREQ use the tcPtrI saved in this ResultStream to
+ * identify the 'cursor' to restart.
+ *
+ * We provide some convenient accessors for fetching this info 
+ */
+Uint32 NdbRootFragment::getReceiverId() const
+{
+  return getResultStream(0).getReceiver().getId();
+}
+
+Uint32 NdbRootFragment::getReceiverTcPtrI() const
+{
+  return getResultStream(0).getReceiver().m_tcPtrI;
+}
 
 ///////////////////////////////////////////
 /////////  NdbQuery API methods ///////////
@@ -2868,8 +2886,7 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
   scanNextReq->transId2 = (Uint32) (transId >> 32);
   tSignal.setLength(ScanNextReq::SignalLength);
 
-  const uint32 receiverId = 
-    emptyFrag.getResultStream(0).getReceiver().m_tcPtrI;
+  const uint32 receiverId = emptyFrag.getReceiverTcPtrI();
   LinearSectionIterator receiverIdIter(&receiverId ,1);
 
   GenericSectionPtr secs[1];
