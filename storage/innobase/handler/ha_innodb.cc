@@ -11402,7 +11402,8 @@ mysql_declare_plugin(innobase)
   INNODB_VERSION_SHORT,
   innodb_status_variables_export,/* status variables             */
   innobase_system_variables, /* system variables */
-  NULL /* reserved */
+  NULL, /* reserved */
+  0,    /* flags */
 },
 i_s_innodb_trx,
 i_s_innodb_locks,

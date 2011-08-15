@@ -6415,3 +6415,8 @@ ER_ERROR_IN_TRIGGER_BODY
 ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
   eng "Unknown trigger has an error in its body: '%-.256s'"
 
+ER_PLUGIN_NO_UNINSTALL
+  eng "Plugin '%s' is marked as not dynamically uninstallable. You have to stop the server to uninstall it."
+
+ER_PLUGIN_NO_INSTALL
+  eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
