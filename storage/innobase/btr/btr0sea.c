@@ -852,6 +852,7 @@ btr_search_guess_on_hash(
 	btr_pcur_t	pcur;
 #endif
 	ut_ad(index && info && tuple && cursor && mtr);
+	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad((latch_mode == BTR_SEARCH_LEAF)
 	      || (latch_mode == BTR_MODIFY_LEAF));
 
