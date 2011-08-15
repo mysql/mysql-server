@@ -80,12 +80,28 @@ if(!$is_connect)
 # changes to the statistics of the additional connection after this point of time.
 #=================================================================================
 --connection default
-if($my_errno)
+# Variants:
+#----------
+# 1. Connect failed ($my_errno <> 0) 
+#    no entry in performance_schema.threads -> wait_till_sleep.inc cannot be used
+#    Just 3 seconds sleep
+# 2. Connect with success ($my_errno = 0) 
+#    entry in performance_schema.threads -> wait_till_sleep.inc can be used
+#    Additional 3 second sleep
+# 3. SQL command failed ($my_errno <> 0)
+#    entry in performance_schema.threads -> wait_till_sleep.inc can be used
+if($is_connect)
 {
-   # Wait a bit and hope that the counter maintenence is finished.
-   --sleep 3
+   if(!$my_errno)
+   {
+      --source ../include/wait_till_sleep.inc
+   }
+   if($my_errno)
+   {
+      --sleep 6
+   }
 }
-if(!$my_errno)
+if(!$is_connect)
 {
    --source ../include/wait_till_sleep.inc
 }
@@ -119,13 +135,29 @@ WHERE run IS NULL;
 
 if($is_connect)
 {
+   # Only in case the connect was successful ($my_errno = 0) than we have to disconnect.
    if(!$my_errno)
    {
-      --connection con1
       --disconnect con1
-      --source include/wait_until_disconnected.inc
-      --connection default
+      # Wait till the connection using the DB = 'mysqltest' or
+      # 'mysqlsupertest' has disappeared
+      let $wait_timeout= 5;
+      let $wait_condition=
+      SELECT COUNT(*) = 0
+      FROM performance_schema.threads
+      WHERE processlist_db IN ('mysqltest','mysqlsupertest');
+      --source include/wait_condition.inc
+      if (!$success)
+      {
+         --echo # Error: The disconnect of the connection with processlist_db
+         --echo #        IN ('mysqltest','mysqlsupertest') failed
+         SELECT * FROM performance_schema.threads
+         WHERE processlist_db IN ('mysqltest','mysqlsupertest');
+         --echo # abort
+         exit;
+      }
    }
+   --sleep 3
 }
 inc $loop_round;
 

@@ -2850,49 +2850,61 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     if (unlikely(pfs_thread == NULL))
       return NULL;
 
+    /*
+      If instrumentation for this thread has been disabled, then return a null
+      locker *unless* this is a socket close, in which case end_socket_wait()
+      will later call destroy_socket().
+    */
     if (!pfs_thread->m_enabled)
-      return NULL;
-
-    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
-    flags= STATE_FLAG_THREAD;
-
-    /* Sockets in IDLE state are timed separately */
-    if (pfs_socket->m_timed)
-      flags|= STATE_FLAG_TIMED;
-
-    if (flag_events_waits_current)
     {
-      if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
-      {
-        locker_lost++;
+      if (op == PSI_SOCKET_CLOSE)
+        flags= 0;
+      else
         return NULL;
+    }
+    else
+    {
+      state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+      flags= STATE_FLAG_THREAD;
+
+      /* Sockets in IDLE state are timed separately */
+      if (pfs_socket->m_timed)
+        flags|= STATE_FLAG_TIMED;
+
+      if (flag_events_waits_current)
+      {
+        if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
+        {
+          locker_lost++;
+          return NULL;
+        }
+        PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+        state->m_wait= wait;
+        flags|= STATE_FLAG_EVENT;
+
+        PFS_events_waits *parent_event= wait - 1;
+        wait->m_event_type= EVENT_TYPE_WAIT;
+        wait->m_nesting_event_id= parent_event->m_event_id;
+        wait->m_nesting_event_id= parent_event->m_event_type;
+        wait->m_thread=       pfs_thread;
+        wait->m_class=        pfs_socket->m_class;
+        wait->m_timer_start=  0;
+        wait->m_timer_end=    0;
+        wait->m_object_instance_addr= pfs_socket->m_identity;
+        wait->m_weak_socket=  pfs_socket;
+        wait->m_weak_version= pfs_socket->get_version();
+        wait->m_event_id=     pfs_thread->m_event_id++;
+        wait->m_operation=    socket_operation_map[static_cast<int>(op)];
+        wait->m_wait_class=   WAIT_CLASS_SOCKET;
+
+        pfs_thread->m_events_waits_count++;
       }
-      PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
-      state->m_wait= wait;
-      flags|= STATE_FLAG_EVENT;
-
-      PFS_events_waits *parent_event= wait - 1;
-      wait->m_event_type= EVENT_TYPE_WAIT;
-      wait->m_nesting_event_id= parent_event->m_event_id;
-      wait->m_nesting_event_id= parent_event->m_event_type;
-      wait->m_thread=       pfs_thread;
-      wait->m_class=        pfs_socket->m_class;
-      wait->m_timer_start=  0;
-      wait->m_timer_end=    0;
-      wait->m_object_instance_addr= pfs_socket->m_identity;
-      wait->m_weak_socket=  pfs_socket;
-      wait->m_weak_version= pfs_socket->get_version();
-      wait->m_event_id=     pfs_thread->m_event_id++;
-      wait->m_operation=    socket_operation_map[static_cast<int>(op)];
-      wait->m_wait_class=   WAIT_CLASS_SOCKET;
-
-      pfs_thread->m_events_waits_count++;
     }
   }
   else
   {
     /* Sockets in IDLE state are counted but not timed */
-  if (pfs_socket->m_timed)
+    if (pfs_socket->m_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -3173,7 +3185,7 @@ start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_
 
 /**
   Implementation of the mutex instrumentation interface.
-  @sa PSI_v1::end_mutex_wait.
+  @sa PSI_v1::end_idle_wait.
 */
 static void end_idle_wait_v1(PSI_idle_locker* locker)
 {
@@ -4657,6 +4669,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   PFS_byte_stat *byte_stat;
   register uint flags= state->m_flags;
   size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
+  bool misc_op=false;
   
   switch (state->m_operation)
   {
@@ -4682,11 +4695,13 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     case PSI_SOCKET_SHUTDOWN:
     case PSI_SOCKET_SELECT:
       byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
+      misc_op=true;
       break;
     case PSI_SOCKET_CLOSE:
       byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
       /* This socket will no longer be used by the server */
       socket_closed= true;
+      misc_op=true;
       break;
 
     default:
@@ -4722,6 +4737,9 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     /* Aggregate to the socket instrument (event count and byte count) */
 	  byte_stat->aggregate_counted(bytes);
 	}
+
+  if (misc_op && wait_time==0)
+    __debugbreak();
 
   /** Global thread aggregation */
   if (flags & STATE_FLAG_THREAD)
