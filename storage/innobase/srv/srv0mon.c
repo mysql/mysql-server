@@ -253,55 +253,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
 	 MONITOR_OVLD_BYTE_WRITTEN},
 
-	{"buffer_flush_adaptive_flushes", "buffer",
-	 "Occurrences of adaptive flush", 0, 0,
-	 MONITOR_NUM_ADAPTIVE_FLUSHES},
-
-	{"buffer_flush_adaptive_pages", "buffer",
-	 "Number of pages flushed as part of adaptive flushing",
-	 MONITOR_DISPLAY_CURRENT, 0,
-	 MONITOR_FLUSH_ADAPTIVE_PAGES},
-
-	{"buffer_flush_async_flushes", "buffer",
-	 "Occurrences of async flush",
-	 0, 0, MONITOR_NUM_ASYNC_FLUSHES},
-
-	{"buffer_flush_async_pages", "buffer",
-	 "Number of pages flushed as part of async flushing",
-	 MONITOR_DISPLAY_CURRENT, 0, MONITOR_FLUSH_ASYNC_PAGES},
-
-	{"buffer_flush_sync_flushes", "buffer", "Number of sync flushes",
-	 0, 0, MONITOR_NUM_SYNC_FLUSHES},
-
-	{"buffer_flush_sync_pages", "buffer",
-	 "Number of pages flushed as part of sync flushing",
-	 MONITOR_DISPLAY_CURRENT, 0, MONITOR_FLUSH_SYNC_PAGES},
-
-	{"buffer_flush_max_dirty_flushes", "buffer",
-	 "Number of flushes as part of max dirty page flush",
-	 0, 0, MONITOR_NUM_MAX_DIRTY_FLUSHES},
-
-	{"buffer_flush_max_dirty_pages", "buffer",
-	 "Number of pages flushed as part of max dirty flushing",
-	 MONITOR_DISPLAY_CURRENT, 0, MONITOR_FLUSH_MAX_DIRTY_PAGES},
-
-	{"buffer_flush_free_margin_flushes", "buffer",
-	 "Number of flushes due to lack of replaceable pages in free list",
-	 0, 0, MONITOR_NUM_FREE_MARGIN_FLUSHES},
-
-	{"buffer_flush_free_margin_pages", "buffer",
-	 "Number of pages flushed due to lack of replaceable pages"
-	 " in free list",
-	 MONITOR_DISPLAY_CURRENT, 0, MONITOR_FLUSH_FREE_MARGIN_PAGES},
-
-	{"buffer_flush_io_capacity_pct", "buffer",
-	 "Percent of Server I/O capacity during flushing",
-	 MONITOR_DISPLAY_CURRENT, 0, MONITOR_FLUSH_IO_CAPACITY_PCT},
-
-	/* Following three counters are of one monitor set, with
-	"buffer_flush_batch_scanned" being the set owner, and averaged
-	by "buffer_flush_batch_scanned_num_calls" */
-
+	/* Cumulative counter for scanning in flush batches */
 	{"buffer_flush_batch_scanned", "buffer",
 	 "Total pages scanned as part of flush batch",
 	 MONITOR_SET_OWNER,
@@ -314,16 +266,13 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_FLUSH_BATCH_SCANNED_NUM_CALL},
 
 	{"buffer_flush_batch_scanned_per_call", "buffer",
-	 "Page scanned per flush batch scanned",
+	 "Pages scanned per flush batch scan",
 	 MONITOR_SET_MEMBER, MONITOR_FLUSH_BATCH_SCANNED,
 	 MONITOR_FLUSH_BATCH_SCANNED_PER_CALL},
 
-	/* Following three counters are of one monitor set, with
-	"buffer_flush_batch_scanned" being the set owner, and averaged
-	by "buffer_flush_batch_count" */
-
+	/* Cumulative counter for pages flushed in flush batches */
 	{"buffer_flush_batch_total_pages", "buffer",
-	 "Total pages scanned as part of flush batch",
+	 "Total pages flushed as part of flush batch",
 	 MONITOR_SET_OWNER, MONITOR_FLUSH_BATCH_COUNT,
 	 MONITOR_FLUSH_BATCH_TOTAL_PAGE},
 
@@ -333,16 +282,196 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_FLUSH_BATCH_COUNT},
 
 	{"buffer_flush_batch_pages", "buffer",
-	 "Page queued as a flush batch",
+	 "Pages queued as a flush batch",
 	 MONITOR_SET_MEMBER, MONITOR_FLUSH_BATCH_TOTAL_PAGE,
 	 MONITOR_FLUSH_BATCH_PAGES},
 
-	{"buffer_flush_by_lru", "buffer",
-	 "buffer flushed via LRU list", 0, 0, MONITOR_BUF_FLUSH_LRU},
+	/* Cumulative counter for flush batches because of neighbor */
+	{"buffer_flush_neighbor_total_pages", "buffer",
+	 "Total neighbors flushed as part of neighbor flush",
+	 MONITOR_SET_OWNER, MONITOR_FLUSH_NEIGHBOR_COUNT,
+	 MONITOR_FLUSH_NEIGHBOR_TOTAL_PAGE},
 
-	{"buffer_flush_by_list", "buffer",
-	 "buffer flushed via flush list of dirty pages",
-	 0, 0, MONITOR_BUF_FLUSH_LIST},
+	{"buffer_flush_neighbor", "buffer",
+	 "Number of times neighbors flushing is invoked",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_NEIGHBOR_TOTAL_PAGE,
+	 MONITOR_FLUSH_NEIGHBOR_COUNT},
+
+	{"buffer_flush_neighbor_pages", "buffer",
+	 "Pages queued as a neighbor batch",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_NEIGHBOR_TOTAL_PAGE,
+	 MONITOR_FLUSH_NEIGHBOR_PAGES},
+
+	/* Cumulative counter for flush batches because of max_dirty */
+	{"buffer_flush_max_dirty_total_pages", "buffer",
+	 "Total pages flushed as part of max_dirty batches",
+	 MONITOR_SET_OWNER, MONITOR_FLUSH_MAX_DIRTY_COUNT,
+	 MONITOR_FLUSH_MAX_DIRTY_TOTAL_PAGE},
+
+	{"buffer_flush_max_dirty", "buffer",
+	 "Number of max_dirty batches",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_MAX_DIRTY_TOTAL_PAGE,
+	 MONITOR_FLUSH_MAX_DIRTY_COUNT},
+
+	{"buffer_flush_max_dirty_pages", "buffer",
+	 "Pages queued as a max_dirty batch",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_MAX_DIRTY_TOTAL_PAGE,
+	 MONITOR_FLUSH_MAX_DIRTY_PAGES},
+
+	/* Cumulative counter for flush batches because of adaptive */
+	{"buffer_flush_adaptive_total_pages", "buffer",
+	 "Total pages flushed as part of adaptive batches",
+	 MONITOR_SET_OWNER, MONITOR_FLUSH_ADAPTIVE_COUNT,
+	 MONITOR_FLUSH_ADAPTIVE_TOTAL_PAGE},
+
+	{"buffer_flush_adaptive", "buffer",
+	 "Number of adaptive batches",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_ADAPTIVE_TOTAL_PAGE,
+	 MONITOR_FLUSH_ADAPTIVE_COUNT},
+
+	{"buffer_flush_adaptive_pages", "buffer",
+	 "Pages queued as an adaptive batch",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_ADAPTIVE_TOTAL_PAGE,
+	 MONITOR_FLUSH_ADAPTIVE_PAGES},
+
+	/* Cumulative counter for flush batches because of async */
+	{"buffer_flush_async_total_pages", "buffer",
+	 "Total pages flushed as part of async batches",
+	 MONITOR_SET_OWNER, MONITOR_FLUSH_ASYNC_COUNT,
+	 MONITOR_FLUSH_ASYNC_TOTAL_PAGE},
+
+	{"buffer_flush_async", "buffer",
+	 "Number of async batches",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_ASYNC_TOTAL_PAGE,
+	 MONITOR_FLUSH_ASYNC_COUNT},
+
+	{"buffer_flush_async_pages", "buffer",
+	 "Pages queued as an async batch",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_ASYNC_TOTAL_PAGE,
+	 MONITOR_FLUSH_ASYNC_PAGES},
+
+	/* Cumulative counter for flush batches because of sync */
+	{"buffer_flush_sync_total_pages", "buffer",
+	 "Total pages flushed as part of sync batches",
+	 MONITOR_SET_OWNER, MONITOR_FLUSH_SYNC_COUNT,
+	 MONITOR_FLUSH_SYNC_TOTAL_PAGE},
+
+	{"buffer_flush_sync", "buffer",
+	 "Number of sync batches",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_SYNC_TOTAL_PAGE,
+	 MONITOR_FLUSH_SYNC_COUNT},
+
+	{"buffer_flush_sync_pages", "buffer",
+	 "Pages queued as a sync batch",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_SYNC_TOTAL_PAGE,
+	 MONITOR_FLUSH_SYNC_PAGES},
+
+	/* Cumulative counter for flush batches because of background */
+	{"buffer_flush_background_total_pages", "buffer",
+	 "Total pages flushed as part of background batches",
+	 MONITOR_SET_OWNER, MONITOR_FLUSH_BACKGROUND_COUNT,
+	 MONITOR_FLUSH_BACKGROUND_TOTAL_PAGE},
+
+	{"buffer_flush_background", "buffer",
+	 "Number of background batches",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_BACKGROUND_TOTAL_PAGE,
+	 MONITOR_FLUSH_BACKGROUND_COUNT},
+
+	{"buffer_flush_background_pages", "buffer",
+	 "Pages queued as a background batch",
+	 MONITOR_SET_MEMBER, MONITOR_FLUSH_BACKGROUND_TOTAL_PAGE,
+	 MONITOR_FLUSH_BACKGROUND_PAGES},
+
+	/* Cumulative counter for LRU batch scan */
+	{"buffer_LRU_batch_scanned", "buffer",
+	 "Total pages scanned as part of LRU batch",
+	 MONITOR_SET_OWNER, MONITOR_LRU_BATCH_SCANNED_NUM_CALL,
+	 MONITOR_LRU_BATCH_SCANNED},
+
+	{"buffer_LRU_batch_num_scan", "buffer",
+	 "Number of times LRU batch is called",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_SCANNED,
+	 MONITOR_LRU_BATCH_SCANNED_NUM_CALL},
+
+	{"buffer_LRU_batch_scanned_per_call", "buffer",
+	 "Pages scanned per LRU batch call",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_SCANNED,
+	 MONITOR_LRU_BATCH_SCANNED_PER_CALL},
+
+	/* Cumulative counter for LRU batch pages flushed */
+	{"buffer_LRU_batch_total_pages", "buffer",
+	 "Total pages flushed as part of LRU batches",
+	 MONITOR_SET_OWNER, MONITOR_LRU_BATCH_COUNT,
+	 MONITOR_LRU_BATCH_TOTAL_PAGE},
+
+	{"buffer_LRU_batches", "buffer",
+	 "Number of LRU batches",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_COUNT},
+
+	{"buffer_LRU_batch_pages", "buffer",
+	 "Pages queued as an LRU batch",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_PAGES},
+
+	/* Cumulative counter for single page LRU scans */
+	{"buffer_LRU_single_flush_scanned", "buffer",
+	 "Total pages scanned as part of single page LRU flush",
+	 MONITOR_SET_OWNER,
+	 MONITOR_LRU_SINGLE_FLUSH_SCANNED_NUM_CALL,
+	 MONITOR_LRU_SINGLE_FLUSH_SCANNED},
+
+	{"buffer_LRU_single_flush_num_scan", "buffer",
+	 "Number of times single page LRU flush is called",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_SINGLE_FLUSH_SCANNED,
+	 MONITOR_LRU_SINGLE_FLUSH_SCANNED_NUM_CALL},
+
+	{"buffer_LRU_single_flush_scanned_per_call", "buffer",
+	 "Page scanned per single LRU flush",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_SINGLE_FLUSH_SCANNED,
+	 MONITOR_LRU_SINGLE_FLUSH_SCANNED_PER_CALL},
+
+	{"buffer_LRU_single_flush_failure_count", "Buffer",
+	 "Number of times attempt to flush a single page from LRU failed",
+	 0, 0, MONITOR_LRU_SINGLE_FLUSH_FAILURE_COUNT},
+
+	{"buffer_LRU_get_free_search", "Buffer",
+	 "Number of searches performed for a clean page",
+	 0, 0, MONITOR_LRU_GET_FREE_SEARCH},
+
+	/* Cumulative counter for LRU search scans */
+	{"buffer_LRU_search_scanned", "buffer",
+	 "Total pages scanned as part of LRU search",
+	 MONITOR_SET_OWNER,
+	 MONITOR_LRU_SEARCH_SCANNED_NUM_CALL,
+	 MONITOR_LRU_SEARCH_SCANNED},
+
+	{"buffer_LRU_search_num_scan", "buffer",
+	 "Number of times LRU search is performed",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_SEARCH_SCANNED,
+	 MONITOR_LRU_SEARCH_SCANNED_NUM_CALL},
+
+	{"buffer_LRU_search_scanned_per_call", "buffer",
+	 "Page scanned per single LRU search",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_SEARCH_SCANNED,
+	 MONITOR_LRU_SEARCH_SCANNED_PER_CALL},
+
+	/* Cumulative counter for LRU unzip search scans */
+	{"buffer_LRU_unzip_search_scanned", "buffer",
+	 "Total pages scanned as part of LRU unzip search",
+	 MONITOR_SET_OWNER,
+	 MONITOR_LRU_UNZIP_SEARCH_SCANNED_NUM_CALL,
+	 MONITOR_LRU_UNZIP_SEARCH_SCANNED},
+
+	{"buffer_LRU_unzip_search_num_scan", "buffer",
+	 "Number of times LRU unzip search is performed",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_UNZIP_SEARCH_SCANNED,
+	 MONITOR_LRU_UNZIP_SEARCH_SCANNED_NUM_CALL},
+
+	{"buffer_LRU_unzip_search_scanned_per_call", "buffer",
+	 "Page scanned per single LRU unzip search",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_UNZIP_SEARCH_SCANNED,
+	 MONITOR_LRU_UNZIP_SEARCH_SCANNED_PER_CALL},
 
 	/* ========== Counters for Buffer Page I/O ========== */
 	{"module_buffer_page", "buffer_page_io", "Buffer Page I/O Module",
