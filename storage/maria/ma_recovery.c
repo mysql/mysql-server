@@ -320,25 +320,32 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
   skip_DDLs= skip_DDLs_arg;
   skipped_undo_phase= 0;
 
+  trnman_init(max_trid_in_control_file);
+
   if (from_lsn == LSN_IMPOSSIBLE)
   {
     if (last_checkpoint_lsn == LSN_IMPOSSIBLE)
     {
       from_lsn= translog_first_lsn_in_log();
       if (unlikely(from_lsn == LSN_ERROR))
+      {
+        trnman_destroy();
         goto err;
+      }
     }
     else
     {
       from_lsn= parse_checkpoint_record(last_checkpoint_lsn);
       if (from_lsn == LSN_ERROR)
+      {
+        trnman_destroy();
         goto err;
+      }
     }
   }
 
   now= my_getsystime();
   in_redo_phase= TRUE;
-  trnman_init(max_trid_in_control_file);
   if (run_redo_phase(from_lsn, end_lsn, apply))
   {
     ma_message_no_user(0, "Redo phase failed");
