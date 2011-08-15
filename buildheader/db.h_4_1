@@ -199,6 +199,12 @@ typedef struct __toku_engine_status {
   u_int64_t        env_panic;               /* non-zero if environment is panicked */ 
   u_int64_t        logger_panic;            /* non-zero if logger is panicked */ 
   u_int64_t        logger_panic_errno;      /* non-zero if environment is panicked */ 
+  uint64_t         malloc_count;            /* number of malloc operations */ 
+  uint64_t         free_count;              /* number of free operations */ 
+  uint64_t         realloc_count;           /* number of realloc operations */ 
+  uint64_t         mem_requested;           /* number of bytes requested via malloc/realloc */ 
+  uint64_t         mem_used;                /* number of bytes used (obtained from malloc_usable_size()) */ 
+  uint64_t         mem_freed;               /* number of bytes freed */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,

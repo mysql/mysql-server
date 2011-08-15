@@ -593,6 +593,12 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        env_panic;               /* non-zero if environment is panicked */ \n");
     printf("  u_int64_t        logger_panic;            /* non-zero if logger is panicked */ \n");
     printf("  u_int64_t        logger_panic_errno;      /* non-zero if environment is panicked */ \n");
+    printf("  uint64_t         malloc_count;            /* number of malloc operations */ \n");
+    printf("  uint64_t         free_count;              /* number of free operations */ \n");
+    printf("  uint64_t         realloc_count;           /* number of realloc operations */ \n");
+    printf("  uint64_t         mem_requested;           /* number of bytes requested via malloc/realloc */ \n");
+    printf("  uint64_t         mem_used;                /* number of bytes used (obtained from malloc_usable_size()) */ \n");
+    printf("  uint64_t         mem_freed;               /* number of bytes freed */ \n");
     printf("} ENGINE_STATUS;\n");
 
     print_dbtype();
