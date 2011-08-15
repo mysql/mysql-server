@@ -3,16 +3,16 @@
 let $wait_timeout= 5;
 let $wait_condition=
 SELECT COUNT(*) = 1
-FROM INFORMATION_SCHEMA.PROCESSLIST
-WHERE DB IN ('mysqltest','mysqlsupertest') AND Command = 'Sleep';
+FROM performance_schema.threads
+WHERE processlist_db IN ('mysqltest','mysqlsupertest')
+  AND processlist_command = 'Sleep';
 --source include/wait_condition.inc
 if (!$success)
 {
-  --echo # Error: We did not reach the expected state where Command = 'Sleep'
-  --echo #        The current (maybe better) state is:
-  SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
-  WHERE DB IN ('mysqltest','mysqlsupertest');
-  --echo # abort
-  exit;
+   --echo # Error: We did not reach the expected state where processlist_command = 'Sleep'
+   SELECT * FROM performance_schema.threads
+   WHERE processlist_db IN ('mysqltest','mysqlsupertest');
+   --echo # abort
+   exit;
 }
 

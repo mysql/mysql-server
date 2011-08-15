@@ -39,32 +39,63 @@ DROP USER 'root0123456789'@'localhost';
 SELECT col2 FROM does_not_exist;
 ERROR 42S02: Table 'mysqltest.does_not_exist' doesn't exist
 # 3.2 Check a SELECT ending with server sending an error message.
-#     Error message is longer (syntax error).
 #     Now the statement is a bit longer but the error message
 #     length does again not depend on statement.
 SELECT col2 FROM does_not_exist WHERE col1 = 0;
 ERROR 42S02: Table 'mysqltest.does_not_exist' doesn't exist
-# 3.3 Check a SELECT earning an empty result set.
+# 3.3 Check a SELECT ending with server sending an error message.
+#     The statement has the same length like in 3.2 but the error
+#     message is now different and much longer.
+SELECT col2 FROM does_not_exist WHERE col1 A 0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'A 0' at line 1
+# 3.4 Check a SELECT ending with server sending an error message.
+#     Statement and error message are a bit longer than in 3.1
+#     because the table name is longer.
+SELECT col2 FROM does_not_exist0123;
+ERROR 42S02: Table 'mysqltest.does_not_exist0123' doesn't exist
+# 3.5 Check a SELECT earning an empty result set.
 SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0;
 col2
-# 3.4 Check a SELECT earning an empty result set.
+# 3.6 Check a SELECT earning an empty result set.
 #     Short column name is replaced by longer alias.
-SELECT col2 "my_lovely_col" FROM mysqltest.my_aux WHERE col1 = 0;
+SELECT col2 AS my_lovely_col FROM mysqltest.my_aux WHERE col1 = 0;
 my_lovely_col
-# 3.5 Check a SELECT earning one row with an empty string.
+# 3.7 Check a SELECT earning one row with an empty string.
 SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
 col2
 
-# 3.6 Check a SELECT earning one row with one string one char long.
+# 3.8 Check a SELECT earning one row with one string one char long.
 SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2;
 col2
 a
-# 3.7 Check a SELECT earning one row with one string 1024 char long.
+# 3.9 Check a SELECT earning one row with one string 1024 char long.
 SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3;
 col2
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+# 3.10 Check a SELECT earning two rows with an empty string
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
+col2
+
+
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION DISTINCT
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
+col2
+
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3;
+col2
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+SELECT col2 FROM mysqltest.my_aux WHERE col1 < 3;
+col2
+
+a
 # 4. Check delta details
-# 4.1 Check that increased COUNT_* leads to increased
+# 4.1 Check that
 #     - increased COUNT_* leads to increased
 #       SUM_TIMER_* and SUM_NUMBER_OF_BYTES_*
 #     - no change in COUNT_* leads to no change in
@@ -73,12 +104,295 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 #     Everything except "client_connection" for default connection
 #     because the default connection runs include/wait_till_sleep.inc
 #     which means a varying amount of statements.
-# 4.3 Check the connects
-# 4.3.1 Successful connects with different length of user name
-# 4.3.2 Failing (->2.1) vs. passing (-> 2.3) connect
-#       FIXME: To be implemented after the bug fixes
-# 4.3.3 2.3 vs. 2.4
-#       FIXME: To be implemented after the bug fixes
-# 4.4 Check the differences caused by SQL statements
-#       FIXME: To be implemented after the bug fixes
-# 5. Cleanup
+# 4.3 Check the differences caused by SQL statements
+# 4.3.1 Compare impact of statements
+#       SELECT col2 FROM does_not_exist WHERE col1 = 0
+#       SELECT col2 FROM does_not_exist
+# 4.3.2 Compare impact of statements
+#       SELECT col2 FROM does_not_exist WHERE col1 A 0
+#       SELECT col2 FROM does_not_exist WHERE col1 = 0
+# 4.3.3 Compare impact of statements
+#       SELECT col2 FROM does_not_exist0123
+#       SELECT col2 FROM does_not_exist
+# 4.3.4 Compare impact of statements
+#       SELECT col2 AS my_lovely_col FROM mysqltest.my_aux WHERE col1 = 0
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+# 4.3.5 Compare impact of statements
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 0
+# 4.3.6 Compare impact of statements
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 2
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+# 4.3.7 Compare impact of statements
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+# 4.3.8 Compare impact of statements
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+# The compared statistics looks suspicious
+# We expect
+0
+
+SELECT 0 AS Expect_1
+FROM mysqltest.socket_summary_by_instance_detail t1
+JOIN mysqltest.socket_summary_by_instance_detail t2
+USING (EVENT_NAME, OBJECT_INSTANCE_BEGIN, run)
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND t2.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1' AND t1.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1';
+Expect_1
+0
+
+SELECT t2.COUNT_READ - t1.COUNT_READ AS D_COUNT_READ,
+t2.COUNT_READ                 AS S2_COUNT_READ,
+t1.COUNT_READ                 AS S1_COUNT_READ,
+t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ AS D_SUM_NUMBER_OF_BYTES_READ,
+t2.SUM_NUMBER_OF_BYTES_READ                               AS S2_SUM_NUMBER_OF_BYTES_READ,
+t1.SUM_NUMBER_OF_BYTES_READ                               AS S1_SUM_NUMBER_OF_BYTES_READ,
+t2.COUNT_WRITE - t1.COUNT_WRITE AS D_COUNT_WRITE,
+t2.COUNT_WRITE                  AS S2_COUNT_WRITE,
+t1.COUNT_WRITE                  AS S1_COUNT_WRITE,
+t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE AS D_UM_NUMBER_OF_BYTES_WRITE,
+t2.SUM_NUMBER_OF_BYTES_WRITE                                AS S2_SUM_NUMBER_OF_BYTES_WRITE,
+t1.SUM_NUMBER_OF_BYTES_WRITE                                AS S1_SUM_NUMBER_OF_BYTES_WRITE,
+t2.COUNT_MISC - t1.COUNT_MISC AS D_COUNT_MISC,
+t2.COUNT_MISC                 AS S2_COUNT_MISC,
+t1.COUNT_MISC                 AS S1_COUNT_MISC
+FROM mysqltest.socket_summary_by_instance_detail t1
+JOIN mysqltest.socket_summary_by_instance_detail t2
+USING (EVENT_NAME, OBJECT_INSTANCE_BEGIN, run)
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND t1.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1' AND t2.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1';
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(`mysqltest`.`t2`.`SUM_NUMBER_OF_BYTES_WRITE` - `mysqltest`.`t1`.`SUM_NUMBER_OF_BYTES_WRITE`)'
+
+SELECT LPAD(COUNT_READ, 8, ' ') AS CNT_READ, LPAD(SUM_NUMBER_OF_BYTES_READ,  10,' ') AS BYTES_READ,
+LPAD(COUNT_WRITE,9, ' ') AS CNT_WRITE,LPAD(SUM_NUMBER_OF_BYTES_WRITE, 11,' ') AS BYTES_WRITE,
+LPAD(COUNT_MISC, 8, ' ') AS CNT_MISC, statement
+FROM mysqltest.socket_summary_by_instance_detail
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND statement IN('SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1','SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1');
+CNT_READ	BYTES_READ	CNT_WRITE	BYTES_WRITE	CNT_MISC	statement
+       2	        53	        1	         83	       2	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+       2	       112	        1	         67	       2	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+# 4.3.9 Compare impact of statements
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION DISTINCT
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+# The compared statistics looks suspicious
+# We expect
+0
+
+SELECT 0 AS Expect_1
+FROM mysqltest.socket_summary_by_instance_detail t1
+JOIN mysqltest.socket_summary_by_instance_detail t2
+USING (EVENT_NAME, OBJECT_INSTANCE_BEGIN, run)
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND t2.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION DISTINCT
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1' AND t1.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1';
+Expect_1
+0
+
+SELECT t2.COUNT_READ - t1.COUNT_READ AS D_COUNT_READ,
+t2.COUNT_READ                 AS S2_COUNT_READ,
+t1.COUNT_READ                 AS S1_COUNT_READ,
+t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ AS D_SUM_NUMBER_OF_BYTES_READ,
+t2.SUM_NUMBER_OF_BYTES_READ                               AS S2_SUM_NUMBER_OF_BYTES_READ,
+t1.SUM_NUMBER_OF_BYTES_READ                               AS S1_SUM_NUMBER_OF_BYTES_READ,
+t2.COUNT_WRITE - t1.COUNT_WRITE AS D_COUNT_WRITE,
+t2.COUNT_WRITE                  AS S2_COUNT_WRITE,
+t1.COUNT_WRITE                  AS S1_COUNT_WRITE,
+t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE AS D_UM_NUMBER_OF_BYTES_WRITE,
+t2.SUM_NUMBER_OF_BYTES_WRITE                                AS S2_SUM_NUMBER_OF_BYTES_WRITE,
+t1.SUM_NUMBER_OF_BYTES_WRITE                                AS S1_SUM_NUMBER_OF_BYTES_WRITE,
+t2.COUNT_MISC - t1.COUNT_MISC AS D_COUNT_MISC,
+t2.COUNT_MISC                 AS S2_COUNT_MISC,
+t1.COUNT_MISC                 AS S1_COUNT_MISC
+FROM mysqltest.socket_summary_by_instance_detail t1
+JOIN mysqltest.socket_summary_by_instance_detail t2
+USING (EVENT_NAME, OBJECT_INSTANCE_BEGIN, run)
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND t1.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1' AND t2.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION DISTINCT
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1';
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(`mysqltest`.`t2`.`SUM_NUMBER_OF_BYTES_WRITE` - `mysqltest`.`t1`.`SUM_NUMBER_OF_BYTES_WRITE`)'
+
+SELECT LPAD(COUNT_READ, 8, ' ') AS CNT_READ, LPAD(SUM_NUMBER_OF_BYTES_READ,  10,' ') AS BYTES_READ,
+LPAD(COUNT_WRITE,9, ' ') AS CNT_WRITE,LPAD(SUM_NUMBER_OF_BYTES_WRITE, 11,' ') AS BYTES_WRITE,
+LPAD(COUNT_MISC, 8, ' ') AS CNT_MISC, statement
+FROM mysqltest.socket_summary_by_instance_detail
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND statement IN('SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION DISTINCT
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1','SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1');
+CNT_READ	BYTES_READ	CNT_WRITE	BYTES_WRITE	CNT_MISC	statement
+       2	        53	        1	         83	       2	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+       2	       117	        1	         62	       2	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+UNION DISTINCT
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+# 4.3.10 Compare impact of statements
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+# The compared statistics looks suspicious
+# We expect
+0
+
+SELECT 0 AS Expect_1
+FROM mysqltest.socket_summary_by_instance_detail t1
+JOIN mysqltest.socket_summary_by_instance_detail t2
+USING (EVENT_NAME, OBJECT_INSTANCE_BEGIN, run)
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND t2.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3' AND t1.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3';
+Expect_1
+0
+
+SELECT t2.COUNT_READ - t1.COUNT_READ AS D_COUNT_READ,
+t2.COUNT_READ                 AS S2_COUNT_READ,
+t1.COUNT_READ                 AS S1_COUNT_READ,
+t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ AS D_SUM_NUMBER_OF_BYTES_READ,
+t2.SUM_NUMBER_OF_BYTES_READ                               AS S2_SUM_NUMBER_OF_BYTES_READ,
+t1.SUM_NUMBER_OF_BYTES_READ                               AS S1_SUM_NUMBER_OF_BYTES_READ,
+t2.COUNT_WRITE - t1.COUNT_WRITE AS D_COUNT_WRITE,
+t2.COUNT_WRITE                  AS S2_COUNT_WRITE,
+t1.COUNT_WRITE                  AS S1_COUNT_WRITE,
+t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE AS D_UM_NUMBER_OF_BYTES_WRITE,
+t2.SUM_NUMBER_OF_BYTES_WRITE                                AS S2_SUM_NUMBER_OF_BYTES_WRITE,
+t1.SUM_NUMBER_OF_BYTES_WRITE                                AS S1_SUM_NUMBER_OF_BYTES_WRITE,
+t2.COUNT_MISC - t1.COUNT_MISC AS D_COUNT_MISC,
+t2.COUNT_MISC                 AS S2_COUNT_MISC,
+t1.COUNT_MISC                 AS S1_COUNT_MISC
+FROM mysqltest.socket_summary_by_instance_detail t1
+JOIN mysqltest.socket_summary_by_instance_detail t2
+USING (EVENT_NAME, OBJECT_INSTANCE_BEGIN, run)
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND t1.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3' AND t2.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3';
+D_COUNT_READ	0
+S2_COUNT_READ	2
+S1_COUNT_READ	2
+D_SUM_NUMBER_OF_BYTES_READ	59
+S2_SUM_NUMBER_OF_BYTES_READ	112
+S1_SUM_NUMBER_OF_BYTES_READ	53
+D_COUNT_WRITE	0
+S2_COUNT_WRITE	1
+S1_COUNT_WRITE	1
+D_UM_NUMBER_OF_BYTES_WRITE	1010
+S2_SUM_NUMBER_OF_BYTES_WRITE	2119
+S1_SUM_NUMBER_OF_BYTES_WRITE	1109
+D_COUNT_MISC	0
+S2_COUNT_MISC	2
+S1_COUNT_MISC	2
+
+SELECT LPAD(COUNT_READ, 8, ' ') AS CNT_READ, LPAD(SUM_NUMBER_OF_BYTES_READ,  10,' ') AS BYTES_READ,
+LPAD(COUNT_WRITE,9, ' ') AS CNT_WRITE,LPAD(SUM_NUMBER_OF_BYTES_WRITE, 11,' ') AS BYTES_WRITE,
+LPAD(COUNT_MISC, 8, ' ') AS CNT_MISC, statement
+FROM mysqltest.socket_summary_by_instance_detail
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND statement IN('SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3','SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3');
+CNT_READ	BYTES_READ	CNT_WRITE	BYTES_WRITE	CNT_MISC	statement
+       2	        53	        1	       1109	       2	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+       2	       112	        1	       2119	       2	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+UNION ALL
+SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+# 4.3.11 Compare impact of statements
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 < 3
+#       SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+# The compared statistics looks suspicious
+# We expect
+0
+
+SELECT 0 AS Expect_1
+FROM mysqltest.socket_summary_by_instance_detail t1
+JOIN mysqltest.socket_summary_by_instance_detail t2
+USING (EVENT_NAME, OBJECT_INSTANCE_BEGIN, run)
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND t2.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 < 3' AND t1.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1';
+Expect_1
+0
+
+SELECT t2.COUNT_READ - t1.COUNT_READ AS D_COUNT_READ,
+t2.COUNT_READ                 AS S2_COUNT_READ,
+t1.COUNT_READ                 AS S1_COUNT_READ,
+t2.SUM_NUMBER_OF_BYTES_READ - t1.SUM_NUMBER_OF_BYTES_READ AS D_SUM_NUMBER_OF_BYTES_READ,
+t2.SUM_NUMBER_OF_BYTES_READ                               AS S2_SUM_NUMBER_OF_BYTES_READ,
+t1.SUM_NUMBER_OF_BYTES_READ                               AS S1_SUM_NUMBER_OF_BYTES_READ,
+t2.COUNT_WRITE - t1.COUNT_WRITE AS D_COUNT_WRITE,
+t2.COUNT_WRITE                  AS S2_COUNT_WRITE,
+t1.COUNT_WRITE                  AS S1_COUNT_WRITE,
+t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE AS D_UM_NUMBER_OF_BYTES_WRITE,
+t2.SUM_NUMBER_OF_BYTES_WRITE                                AS S2_SUM_NUMBER_OF_BYTES_WRITE,
+t1.SUM_NUMBER_OF_BYTES_WRITE                                AS S1_SUM_NUMBER_OF_BYTES_WRITE,
+t2.COUNT_MISC - t1.COUNT_MISC AS D_COUNT_MISC,
+t2.COUNT_MISC                 AS S2_COUNT_MISC,
+t1.COUNT_MISC                 AS S1_COUNT_MISC
+FROM mysqltest.socket_summary_by_instance_detail t1
+JOIN mysqltest.socket_summary_by_instance_detail t2
+USING (EVENT_NAME, OBJECT_INSTANCE_BEGIN, run)
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND t1.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1' AND t2.statement = 'SELECT col2 FROM mysqltest.my_aux WHERE col1 < 3';
+D_COUNT_READ	0
+S2_COUNT_READ	2
+S1_COUNT_READ	2
+D_SUM_NUMBER_OF_BYTES_READ	0
+S2_SUM_NUMBER_OF_BYTES_READ	53
+S1_SUM_NUMBER_OF_BYTES_READ	53
+D_COUNT_WRITE	0
+S2_COUNT_WRITE	1
+S1_COUNT_WRITE	1
+D_UM_NUMBER_OF_BYTES_WRITE	6
+S2_SUM_NUMBER_OF_BYTES_WRITE	89
+S1_SUM_NUMBER_OF_BYTES_WRITE	83
+D_COUNT_MISC	0
+S2_COUNT_MISC	2
+S1_COUNT_MISC	2
+
+SELECT LPAD(COUNT_READ, 8, ' ') AS CNT_READ, LPAD(SUM_NUMBER_OF_BYTES_READ,  10,' ') AS BYTES_READ,
+LPAD(COUNT_WRITE,9, ' ') AS CNT_WRITE,LPAD(SUM_NUMBER_OF_BYTES_WRITE, 11,' ') AS BYTES_WRITE,
+LPAD(COUNT_MISC, 8, ' ') AS CNT_MISC, statement
+FROM mysqltest.socket_summary_by_instance_detail
+WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+AND EVENT_NAME LIKE ('%client_connection')
+AND run = 1
+AND statement IN('SELECT col2 FROM mysqltest.my_aux WHERE col1 < 3','SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1');
+CNT_READ	BYTES_READ	CNT_WRITE	BYTES_WRITE	CNT_MISC	statement
+       2	        53	        1	         83	       2	SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+       2	        53	        1	         89	       2	SELECT col2 FROM mysqltest.my_aux WHERE col1 < 3

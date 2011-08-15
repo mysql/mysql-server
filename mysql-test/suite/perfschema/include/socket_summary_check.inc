@@ -47,6 +47,7 @@
 # Insert the current state into mysqltest.my_socket_summary_by_instance.
 eval $insert_after;
 --enable_query_log
+--enable_result_log
 
 
 # 1. The content of socket_summary_by_instance must be consistent to the
@@ -76,8 +77,8 @@ if(`SELECT COUNT(*) $part1`)
 #
 #    If we run this check sufficient frequent than AVG_TIMER_* can be removed from other checks.
 #-----------------------------------------------------------------------------------------------
-let $my_lo= 0.99;
-let $my_hi= 1.01;
+let $my_lo= 0.98;
+let $my_hi= 1.02;
 
 let $my_rules=
 COUNT_STAR  * AVG_TIMER_WAIT  BETWEEN SUM_TIMER_WAIT  * $my_lo AND SUM_TIMER_WAIT  * $my_hi AND
@@ -101,16 +102,18 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    SELECT EVENT_NAME, OBJECT_INSTANCE_BEGIN,
       $part
    FROM mysqltest.my_socket_summary_by_instance
-   WHERE pk = 'After'
+   WHERE pk = 'After' AND NOT ($my_rules)
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
 
-   -- echo # Debug 2a: Dump socket_summary_by_instance
+   --echo # Debug 2a: Dump socket_summary_by_instance
    eval
    SELECT EVENT_NAME, OBJECT_INSTANCE_BEGIN,
       $part
    FROM performance_schema.socket_summary_by_instance
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
    --echo # abort 2
+   # MLML? SHOW STATUS LIKE 'Performance_schema_socket_%_lost';
+   SHOW STATUS LIKE 'Performance_schema_%_lost';
 #  exit;
 }
 
@@ -148,8 +151,9 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    SELECT EVENT_NAME, OBJECT_INSTANCE_BEGIN,
       $part
    FROM mysqltest.my_socket_summary_by_instance
-   WHERE pk = 'After'
+   WHERE pk = 'After' AND NOT ($my_rules)
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
+   
    --echo # abort 3
 #  exit;
 }
