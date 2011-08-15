@@ -355,7 +355,6 @@ buf_read_page(
 	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
 	ulint	offset)	/*!< in: page number */
 {
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 	ib_int64_t	tablespace_version;
 	ulint		count;
 	ulint		err;
@@ -379,9 +378,6 @@ buf_read_page(
 			(ulong) space, (ulong) offset);
 	}
 
-	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(buf_pool);
-
 	/* Increment number of I/O operations used for LRU policy. */
 	buf_LRU_stat_inc_io();
 
@@ -401,7 +397,6 @@ buf_read_page_async(
 	ulint	space,	/*!< in: space id */
 	ulint	offset)	/*!< in: page number */
 {
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 	ulint		zip_size;
 	ib_int64_t	tablespace_version;
 	ulint		count;
@@ -421,9 +416,6 @@ buf_read_page_async(
 				  space, zip_size, FALSE,
 				  tablespace_version, offset);
 	srv_buf_pool_reads += count;
-
-	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(buf_pool);
 
 	/* We do not increment number of I/O operations used for LRU policy
 	here (buf_LRU_stat_inc_io()). We use this in heuristics to decide
@@ -701,9 +693,6 @@ buf_read_ahead_linear(
 
 	os_aio_simulated_wake_handler_threads();
 
-	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(buf_pool);
-
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints && (count > 0)) {
 		fprintf(stderr,
@@ -788,9 +777,6 @@ tablespace_deleted:
 	}
 
 	os_aio_simulated_wake_handler_threads();
-
-	/* Flush pages from the end of all the LRU lists if necessary */
-	buf_flush_free_margins();
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
@@ -882,9 +868,6 @@ buf_read_recv_pages(
 	}
 
 	os_aio_simulated_wake_handler_threads();
-
-	/* Flush pages from the end of all the LRU lists if necessary */
-	buf_flush_free_margins();
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
