@@ -9651,7 +9651,8 @@ mysql_declare_plugin(mysql_password)
   0x0100,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
   NULL,                                         /* system variables */
-  NULL                                          /* config options   */
+  NULL,                                         /* config options   */
+  0,                                            /* flags            */
 },
 {
   MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
@@ -9665,7 +9666,8 @@ mysql_declare_plugin(mysql_password)
   0x0100,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
   NULL,                                         /* system variables */
-  NULL                                          /* config options   */
+  NULL,                                         /* config options   */
+  0,                                            /* flags            */
 }
 mysql_declare_plugin_end;
 
