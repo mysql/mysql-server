@@ -4669,7 +4669,6 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   PFS_byte_stat *byte_stat;
   register uint flags= state->m_flags;
   size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
-  bool misc_op=false;
   
   switch (state->m_operation)
   {
@@ -4695,13 +4694,11 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     case PSI_SOCKET_SHUTDOWN:
     case PSI_SOCKET_SELECT:
       byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
-      misc_op=true;
       break;
     case PSI_SOCKET_CLOSE:
       byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
       /* This socket will no longer be used by the server */
       socket_closed= true;
-      misc_op=true;
       break;
 
     default:
@@ -4737,9 +4734,6 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     /* Aggregate to the socket instrument (event count and byte count) */
 	  byte_stat->aggregate_counted(bytes);
 	}
-
-  if (misc_op && wait_time==0)
-    __debugbreak();
 
   /** Global thread aggregation */
   if (flags & STATE_FLAG_THREAD)
