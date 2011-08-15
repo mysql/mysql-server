@@ -2512,11 +2512,13 @@ class InitialReceiverIdIterator: public GenericSectionIterator
 {
 public:
   
-  InitialReceiverIdIterator(const NdbQueryImpl& query)
-    :m_query(query),
+  InitialReceiverIdIterator(NdbRootFragment rootFrags[],
+                            Uint32 cnt)
+    :m_rootFrags(rootFrags),
+     m_fragCount(cnt),
      m_currFragNo(0)
   {}
-  
+
   virtual ~InitialReceiverIdIterator() {};
   
   /**
@@ -2537,8 +2539,11 @@ private:
    * improving efficiency.
    */
   static const Uint32 bufSize = 16;
-  /** The query with the scan root operation that we list receiver ids for.*/
-  const NdbQueryImpl& m_query;
+
+  /** Set of root fragments which we want to itterate receiver ids for.*/
+  NdbRootFragment* m_rootFrags;
+  const Uint32 m_fragCount;
+
   /** The next fragment numnber to be processed. (Range for 0 to no of 
    * fragments.)*/
   Uint32 m_currFragNo;
@@ -2548,25 +2553,25 @@ private:
 
 const Uint32* InitialReceiverIdIterator::getNextWords(Uint32& sz)
 {
-  sz = 0;
   /**
    * For the initial batch, we want to retrieve one batch for each fragment
    * whether it is a sorted scan or not.
    */
-  if (m_currFragNo >= m_query.getRootFragCount())
+  if (m_currFragNo >= m_fragCount)
   {
+    sz = 0;
     return NULL;
   }
   else
   {
-    const NdbQueryOperationImpl& root = m_query.getQueryOperation(0U);
-    while (sz < bufSize && 
-           m_currFragNo < m_query.getRootFragCount())
+    Uint32 cnt = 0;
+    while (cnt < bufSize && m_currFragNo < m_fragCount)
     {
-      m_receiverIds[sz] = root.getReceiver(m_currFragNo).getId();
-      sz++;
+      m_receiverIds[cnt] = m_rootFrags[m_currFragNo].getReceiverId();
+      cnt++;
       m_currFragNo++;
     }
+    sz = cnt;
     return m_receiverIds;
   }
 }
@@ -2708,7 +2713,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
      * Section 2 : Optional KEYINFO section
      */
     GenericSectionPtr secs[3];
-    InitialReceiverIdIterator receiverIdIter(*this);
+    InitialReceiverIdIterator receiverIdIter(m_rootFrags, m_rootFragCount);
     LinearSectionIterator attrInfoIter(m_attrInfo.addr(), m_attrInfo.getSize());
     LinearSectionIterator keyInfoIter(m_keyInfo.addr(), m_keyInfo.getSize());
  
