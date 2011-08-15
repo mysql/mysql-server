@@ -143,7 +143,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	  (READ_CACHE_USED | WRITE_CACHE_USED | OPT_NO_ROWS)) &&
 	!share->state.header.uniques)
       if (!(init_io_cache(&info->rec_cache, info->dfile.file, cache_size,
-			 WRITE_CACHE,share->state.state.data_file_length,
+                          WRITE_CACHE, info->state->data_file_length,
 			  (pbool) (info->lock_type != F_UNLCK),
 			  MYF(share->write_flag & MY_WAIT_IF_FULL))))
       {
