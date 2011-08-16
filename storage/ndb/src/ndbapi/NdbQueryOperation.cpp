@@ -247,6 +247,16 @@ public:
    */
   bool isEmpty() const;
 
+  /** 
+   * This method is used for marking which streams belonging to this
+   * NdbRootFragment which has remaining batches for a sub scan
+   * instantiated from the current batch of its parent operation.
+   */
+  void setRemainingSubScans(Uint32 nodeMask)
+  { 
+    m_remainingScans = nodeMask;
+  }
+
   /** Release resources after last row has been returned */
   void postFetchRelease();
 
@@ -279,6 +289,12 @@ private:
    * Each element is true iff a SCAN_TABCONF (for that fragment) or 
    * TCKEYCONF message has been received */
   bool m_confReceived;
+
+  /**
+   * A bitmask of operation id's for which we will receive more
+   * ResultSets in a NEXTREQ.
+   */
+  Uint32 m_remainingScans;
 
   /** 
    * Used for implementing a hash map from root receiver ids to a 
@@ -353,7 +369,7 @@ public:
    * Update whatever required before the appl. are allowed to navigate the result.
    * @return true if node and all its siblings have returned all rows.
    */ 
-  bool prepareResultSet();
+  bool prepareResultSet(Uint32 remainingScans);
 
   /**
    * Navigate within the current result batch to resp. first and next row.
@@ -373,29 +389,23 @@ public:
   { return m_iterState == Iter_finished; }
 
   /** 
-   * This method is
-   * used for marking a stream as holding the last batch of a sub scan. 
-   * This means that it is the last batch of the scan that was instantiated 
-   * from the current batch of its parent operation.
-   */
-  void setSubScanCompletion(bool complete)
-  { 
-    // Lookups should always be 'complete'
-    assert(complete || isScanResult());
-    m_subScanComplete = complete; 
-  }
-
-  /** 
    * This method 
-   * returns true if this result stream holds the last batch of a sub scan
+   * returns true if this result stream holds the last batch of a sub scan.
    * This means that it is the last batch of the scan that was instantiated 
    * from the current batch of its parent operation.
    */
-  bool isSubScanComplete() const
+  bool isSubScanComplete(Uint32 remainingScans) const
   { 
-    // Lookups should always be 'complete'
-    assert(m_subScanComplete || isScanResult());
-    return m_subScanComplete; 
+    /**
+     * Find the node number seen by the SPJ block. Since a unique index
+     * operation will have two distincts nodes in the tree used by the
+     * SPJ block, this number may be different from 'opNo'.
+     */
+    const Uint32 internalOpNo = m_operation.getQueryOperationDef().getQueryOperationId();
+
+    const bool complete = !((remainingScans >> internalOpNo) & 1);
+    assert(complete || isScanResult());    // Lookups should always be 'complete'
+    return complete; 
   }
 
   bool isScanQuery() const
@@ -508,14 +518,6 @@ private:
    */
   Uint16 m_currentRow;
   
-  /** 
-   * This field is only used for result streams of scan operations. If set,
-   * it indicates that the stream is holding the last batch of a sub scan. 
-   * This means that it is the last batch of the scan that was instantiated 
-   * from the current batch of its parent operation.
-   */
-  bool m_subScanComplete;
-
   /** Max #rows which this stream may recieve in its TupleSet structures */
   Uint32 m_maxRows;
 
@@ -611,7 +613,6 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
   m_rowCount(0),
   m_iterState(Iter_notStarted),
   m_currentRow(tupleNotFound),
-  m_subScanComplete(true),
   m_maxRows(0),
   m_tupleSet(NULL)
 {};
@@ -827,10 +828,10 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len,
  *    rows.
  */
 bool 
-NdbResultStream::prepareResultSet()
+NdbResultStream::prepareResultSet(Uint32 remainingScans)
 {
-  bool isComplete = isSubScanComplete();  //Childs with more rows
-  assert(isComplete || isScanResult());   //Lookups always 'complete'
+  bool isComplete = isSubScanComplete(remainingScans); //Childs with more rows
+  assert(isComplete || isScanResult());                //Lookups always 'complete'
 
   // Set correct #rows received in the NdbReceiver.
   getReceiver().m_result_rows = getRowCount();
@@ -866,7 +867,7 @@ NdbResultStream::prepareResultSet()
   {
     const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
     NdbResultStream& childStream = m_rootFrag.getResultStream(child);
-    const bool allSubScansComplete = childStream.prepareResultSet();
+    const bool allSubScansComplete = childStream.prepareResultSet(remainingScans);
 
     Uint32 childId = child.getQueryOperationDef().getQueryOperationIx();
 
@@ -1035,6 +1036,7 @@ NdbRootFragment::NdbRootFragment():
   m_resultStreams(NULL),
   m_outstandingResults(0),
   m_confReceived(false),
+  m_remainingScans(0),
   m_idMapHead(-1),
   m_idMapNext(-1)
 {
@@ -1097,13 +1099,25 @@ void NdbRootFragment::reset()
   assert(m_fragNo!=voidFragNo);
   assert(m_outstandingResults == 0);
   assert(m_confReceived);
+
+  for (unsigned opNo=0; opNo<m_query->getNoOfOperations(); opNo++) 
+  {
+    if (!m_resultStreams[opNo].isSubScanComplete(m_remainingScans))
+    {
+      /**
+       * Reset m_resultStreams[] and all its descendants, since all these
+       * streams will get a new set of rows in the next batch.
+       */ 
+      m_resultStreams[opNo].reset();
+    }
+  }
   m_confReceived = false;
 }
 
 void NdbRootFragment::prepareResultSet()
 {
   NdbResultStream& rootStream = getResultStream(0);
-  rootStream.prepareResultSet();  
+  rootStream.prepareResultSet(m_remainingScans);  
 
   /* Position at the first (sorted?) row available from this fragments.
    */
@@ -3004,21 +3018,6 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
 
   emptyFrag.reset();
 
-  for (unsigned opNo=0; opNo<m_countOperations; opNo++) 
-  {
-    NdbResultStream& resultStream = 
-       emptyFrag.getResultStream(opNo);
-
-    if (!resultStream.isSubScanComplete())
-    {
-      /**
-       * Reset resultstream and all its descendants, since all these
-       * streams will get a new set of rows in the next batch.
-       */ 
-      resultStream.reset();
-    }
-  }
-
   Ndb& ndb = *getNdbTransaction().getNdb();
   NdbApiSignal tSignal(&ndb);
   tSignal.setSignal(GSN_SCAN_NEXTREQ, refToBlock(m_scanTransaction->m_tcRef));
@@ -4798,6 +4797,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     return false;
   }
   rootFrag->setConfReceived();
+  rootFrag->setRemainingSubScans(nodeMask);
   rootFrag->incrOutstandingResults(rowCount);
 
   // Handle for SCAN_NEXTREQ, RNIL -> EOF
@@ -4809,31 +4809,6 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
            << "} fragNo" << rootFrag->getFragNo()
            << endl;
   }
-
-  const NdbQueryDefImpl& queryDef = m_queryImpl.getQueryDef();
-  /* Mark each scan node to indicate if the current batch is the last in the
-   * current sub-scan or not.
-   */
-  for (Uint32 opNo = 0; opNo < queryDef.getNoOfOperations(); opNo++)
-  {
-    const NdbQueryOperationImpl& op = m_queryImpl.getQueryOperation(opNo);
-    /**
-     * Find the node number seen by the SPJ block. Since a unique index
-     * operation will have two distincts nodes in the tree used by the
-     * SPJ block, this number may be different from 'opNo'.
-     */
-    const Uint32 internalOpNo = op.getQueryOperationDef().getQueryOperationId();
-    assert(internalOpNo >= opNo);
-    const bool complete = ((nodeMask >> internalOpNo) & 1) == 0;
-
-    // Lookups should always be 'complete'
-    assert(complete ||  op.getQueryOperationDef().isScanOperation());
-    rootFrag->getResultStream(opNo).setSubScanCompletion(complete);
-  }
-  // Check that nodeMask does not have more bits than we have operations. 
-  assert(nodeMask >> 
-         (1+queryDef.getQueryOperation(queryDef.getNoOfOperations() - 1)
-          .getQueryOperationId()) == 0);
 
   bool ret = false;
   if (rootFrag->isFragBatchComplete())
