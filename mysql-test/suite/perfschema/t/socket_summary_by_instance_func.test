@@ -78,7 +78,7 @@ if($my_socket_debug)
 # Advantage:
 #    More thorough checks.
 #
-let $print_details= 1;
+let $print_details= 0;
 
 #
 # Number of attempts within the test checking the stability of counter increments.
@@ -726,43 +726,43 @@ t2.SUM_NUMBER_OF_BYTES_WRITE - t1.SUM_NUMBER_OF_BYTES_WRITE = 1024 + 2 AND
 t2.COUNT_MISC                - t1.COUNT_MISC                = 0;
 --source ../include/socket_check1.inc
 
-let $stmt2= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
-UNION ALL
-SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
-let $stmt1= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
+#let $stmt2= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+#UNION ALL
+#SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
+#let $stmt1= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
 # CNT_READ BYTES_READ CNT_WRITE BYTES_WRITE CNT_MISC statement
 #        3         53         1          83        1 SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
 #        3        112         1          67        1 SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
 #                                                    UNION ALL
 #                                                    SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
 # MLML: The BYTES_WRITE seem to be wrong.
-let $my_rules= 0;
---source ../include/socket_check1.inc
+#let $my_rules= 0;
+#--source ../include/socket_check1.inc
 
-let $stmt2= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
-UNION DISTINCT
-SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
-let $stmt1= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
+#let $stmt2= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
+#UNION DISTINCT
+#SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
+#let $stmt1= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
 # CNT_READ BYTES_READ CNT_WRITE BYTES_WRITE CNT_MISC statement
 #        3         53         1          83        1 SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
 #        3        117         1          62        1 SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
 #                                                    UNION DISTINCT
 #                                                    SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1
 # MLML: The BYTES_WRITE seem to be wrong.
-let $my_rules= 0;
---source ../include/socket_check1.inc
+#let $my_rules= 0;
+#--source ../include/socket_check1.inc
 
-let $stmt2= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
-UNION ALL
-SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3;
-let $stmt1= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3;
+#let $stmt2= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
+#UNION ALL
+#SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3;
+#let $stmt1= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3;
 # CNT_READ BYTES_READ CNT_WRITE BYTES_WRITE CNT_MISC statement
 #        3         53         1        1109        1 SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
 #        3        112         1        2119        1 SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
 #                                                    UNION ALL
 #                                                    SELECT col2 FROM mysqltest.my_aux WHERE col1 = 3
-let $my_rules= 0;
---source ../include/socket_check1.inc
+#let $my_rules= 0;
+#--source ../include/socket_check1.inc
 
 let $stmt2= SELECT col2 FROM mysqltest.my_aux WHERE col1 < 3;
 let $stmt1= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
@@ -772,10 +772,9 @@ let $stmt1= SELECT col2 FROM mysqltest.my_aux WHERE col1 = 1;
 # stmt2 Gives one row with string 1 byte long and one row with an empty string.
 # stmt1 Gives one row with an empty string.
 # BYTES_WRITE might be ok here.
-let $my_rules= 0;
---source ../include/socket_check1.inc
+#let $my_rules= 0;
+#--source ../include/socket_check1.inc
 
-exit;
 if(0)
 {
 --echo # 4.3 Check the connects

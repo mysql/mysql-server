@@ -2836,10 +2836,8 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
 
   DBUG_ASSERT(pfs_socket->m_class != NULL);
 
-  if (!pfs_socket->m_enabled)
+  if (!pfs_socket->m_enabled || pfs_socket->m_idle)
     return NULL;
-
-  state->m_idle= pfs_socket->m_idle;
 
   register uint flags;
 
@@ -2867,8 +2865,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
       flags= STATE_FLAG_THREAD;
 
-      /* Sockets in IDLE state are timed separately */
-      if (pfs_socket->m_timed)
+      if (pfs_socket->m_timed & !pfs_socket->m_idle)
         flags|= STATE_FLAG_TIMED;
 
       if (flag_events_waits_current)
@@ -2884,8 +2881,8 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
 
         PFS_events_waits *parent_event= wait - 1;
         wait->m_event_type= EVENT_TYPE_WAIT;
-        wait->m_nesting_event_id= parent_event->m_event_id;
-        wait->m_nesting_event_id= parent_event->m_event_type;
+        wait->m_nesting_event_id=   parent_event->m_event_id;
+        wait->m_nesting_event_type= parent_event->m_event_type;
         wait->m_thread=       pfs_thread;
         wait->m_class=        pfs_socket->m_class;
         wait->m_timer_start=  0;
@@ -2903,7 +2900,6 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   }
   else
   {
-    /* Sockets in IDLE state are counted but not timed */
     if (pfs_socket->m_timed)
     {
       flags= STATE_FLAG_TIMED;
@@ -3152,9 +3148,10 @@ start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_
       state->m_wait= wait;
       flags|= STATE_FLAG_EVENT;
 
-#ifdef HAVE_NESTED_EVENTS
-      wait->m_nesting_event_id= (wait - 1)->m_event_id;
-#endif
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
       wait->m_class= &global_idle_class;
@@ -4634,7 +4631,7 @@ static void start_socket_wait_v1(PSI_socket_locker *locker,
   register uint flags= state->m_flags;
   ulonglong timer_start= 0;
 
-  if (flags & STATE_FLAG_TIMED && !state->m_idle)
+  if (flags & STATE_FLAG_TIMED)
   {
     timer_start= get_timer_raw_value_and_function(wait_timer, &state->m_timer);
     state->m_timer_start= timer_start;
@@ -4710,21 +4707,8 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   /** Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED)
   {
-    if (!state->m_idle)
-	  {
-	    timer_end= state->m_timer();
-	    wait_time= timer_end - state->m_timer_start;
-    }
-    else
-    {
-      /*
-	     If idle, then this was a RECV operation that blocked on the socket for an
-       indeterminate time waiting for data, so the wait time will later be
-       recorded as an IDLE event. The duration of the actual RECV is unknown and
-       is therefore set to zero.
-	    */
-      wait_time= 0;
-    }
+    timer_end= state->m_timer();
+	  wait_time= timer_end - state->m_timer_start;
 
     /* Aggregate to the socket instrument for now (timed) */
     byte_stat->aggregate(wait_time, bytes);
@@ -4752,16 +4736,8 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
       PFS_single_stat stat;
       socket->m_socket_stat.m_io_stat.sum_waits(&stat);
 
-      if (flags & STATE_FLAG_TIMED)
-      {
-        /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-        event_name_array[index].aggregate(&stat);
-      }
-      else
-      {
-        /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted). */
-        event_name_array[index].aggregate_counted(stat.m_count);
-      }
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[index].aggregate(&stat);
     }
 
     /* Aggregate to EVENTS_WAITS_CURRENT and EVENTS_WAITS_HISTORY */
