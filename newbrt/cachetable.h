@@ -364,7 +364,7 @@ u_int32_t toku_cachefile_fullhash_of_header (CACHEFILE cachefile);
 void toku_cachetable_print_state (CACHETABLE ct);
 
 // Get the state of the cachetable. This is used to verify the cachetable
-void toku_cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr);
+void toku_cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr, int64_t *size_max_ptr);
 
 // Get the state of a cachetable entry by key. This is used to verify the cachetable
 int toku_cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, CACHEFILE cf,
@@ -406,6 +406,7 @@ typedef struct cachetable_status {
     u_int64_t get_and_pin_if_in_memorys; // how many times has get_and_pin_if_in_memory been called?
     int64_t   size_current;            // the sum of the sizes of the nodes represented in the cachetable
     int64_t   size_limit;              // the limit to the sum of the node sizes
+    int64_t   size_max;                // high water mark of size_current (max value size_current ever had)
     int64_t   size_writing;            // the sum of the sizes of the nodes being written
     u_int64_t get_and_pin_footprint;   
     uint64_t  local_checkpoint;        // number of times a local checkpoint was taken for a commit (2440)

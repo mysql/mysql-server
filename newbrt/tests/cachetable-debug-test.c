@@ -40,8 +40,8 @@ cachetable_debug_test (int n) {
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
-    int num_entries, hash_size; long size_current, size_limit;
-    toku_cachetable_get_state(ct, &num_entries, &hash_size, &size_current, &size_limit);
+    int num_entries, hash_size; long size_current, size_limit, size_max;
+    toku_cachetable_get_state(ct, &num_entries, &hash_size, &size_current, &size_limit, &size_max);
     assert(num_entries == 0);
     assert(size_current == 0);
     assert(size_limit == n);
@@ -66,7 +66,7 @@ cachetable_debug_test (int n) {
         r = toku_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, 1);
         assert(r == 0);
 
-        toku_cachetable_get_state(ct, &num_entries, &hash_size, &size_current, &size_limit);
+        toku_cachetable_get_state(ct, &num_entries, &hash_size, &size_current, &size_limit, &size_max);
         assert(num_entries == i);
         assert(size_current == i);
         assert(size_limit == n);

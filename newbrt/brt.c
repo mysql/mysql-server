@@ -639,6 +639,11 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (!keep_me) {
+	uint64_t bytes_freed = brtnode_memory_size(brtnode);
+	if (brtnode->height == 0)
+	    brt_status.bytes_leaf -= bytes_freed;
+	else
+	    brt_status.bytes_nonleaf -= bytes_freed;
 	toku_brtnode_free(&brtnode);
     }
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
@@ -660,6 +665,10 @@ int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM noden
 	*dirtyp = (*result)->dirty;
     }
     //    printf("fetch node %"PRIu64"\n", nodename.b);
+    if ((*result)->height == 0)
+	brt_status.bytes_leaf += *sizep;
+    else
+	brt_status.bytes_nonleaf += *sizep;
     return r;
 }
 
@@ -713,6 +722,11 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_
         }
     }
     *bytes_freed = orig_size - brtnode_memory_size(node);
+    invariant(*bytes_freed >= 0);
+    if (node->height == 0)
+	brt_status.bytes_leaf -= *bytes_freed;
+    else
+	brt_status.bytes_nonleaf -= *bytes_freed;
     return 0;
 }
 
@@ -811,6 +825,7 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
 // could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
 int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, long* sizep) {
     BRTNODE node = brtnode_pv;
+    long orig_size = brtnode_memory_size(node);
     struct brtnode_fetch_extra *bfe = read_extraargs;
     // there must be a reason this is being called. If we get a garbage type or the type is brtnode_fetch_none,
     // then something went wrong
@@ -844,6 +859,11 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, lon
     }
     cilk_sync;
     *sizep = brtnode_memory_size(node);
+    uint64_t bytes_added = *sizep - orig_size;
+    if (node->height == 0)
+	brt_status.bytes_leaf += bytes_added;
+    else
+	brt_status.bytes_nonleaf += bytes_added;
     return 0;
 }
 
