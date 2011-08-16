@@ -123,6 +123,9 @@ const char * environmentdictionary = "tokudb.environment";
 const char * fileopsdirectory = "tokudb.directory";
 
 static int env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt);
+static int toku_maybe_get_engine_status_text (char* buff, int buffsize);  // for use by toku_assert
+static void toku_maybe_set_env_panic(int code, char * msg);               // for use by toku_assert
+
 
 static const char single_process_lock_file[] = "/__tokudb_lock_dont_delete_me_";
 
@@ -1011,6 +1014,7 @@ cleanup:
     if (r == 0) {
 	errno = 0; // tabula rasa.   If there's a crash after env was successfully opened, no misleading errno will have been left around by this code.
 	most_recent_env = env;
+	toku_assert_set_fpointers(toku_maybe_get_engine_status_text, toku_maybe_set_env_panic);
     }
     return r;
 }
@@ -2213,14 +2217,6 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 
     return r;
 }
-
-static int toku_maybe_get_engine_status_text (char* buff, int buffsize);
-static void toku_maybe_set_env_panic(int code, char * msg);
-
-// assign values to global pointers so that other files can access via tentative definition if linked to this library (.so)
-int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize) = toku_maybe_get_engine_status_text;
-void (*toku_maybe_set_env_panic_p)(int code, char* msg) = toku_maybe_set_env_panic;
-
 
 // intended for use by toku_assert logic, when env is not known
 static int 

@@ -17,9 +17,15 @@
 static void *backtrace_pointers[N_POINTERS];
 #endif
 
-int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize);  // tentative definition: if linked to ydb, will have non-zero value
-void (*toku_maybe_set_env_panic_p)(int code, char* msg);  // tentative definition: if linked to ydb, will have non-zero value
+// Function pointers are zero by default so asserts can be used by brt-layer tests without an environment.
+static int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize) = 0;
+static void (*toku_maybe_set_env_panic_p)(int code, char* msg) = 0;
 
+void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(char*, int), 
+			       void (*toku_maybe_set_env_panic_pointer)(int, char*)) {
+    toku_maybe_get_engine_status_text_p = toku_maybe_get_engine_status_text_pointer;
+    toku_maybe_set_env_panic_p = toku_maybe_set_env_panic_pointer;
+}
 
 void (*do_assert_hook)(void) = NULL;
 
