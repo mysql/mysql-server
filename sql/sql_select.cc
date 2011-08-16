@@ -6948,7 +6948,15 @@ make_join_readinfo(JOIN *join, ulonglong options)
          (join->sort_by_table == (TABLE *) 1 && i != join->const_tables)))
       ordered_set= 1;
 
+#ifdef MCP_BUG12798270
     tab->sorted= sorted;
+#else
+    /*
+      For eq_ref there is at most one join match for each row from
+      previous tables so ordering is not useful.
+    */
+    tab->sorted= (tab->type != JT_EQ_REF) ? sorted : false;
+#endif
     sorted= 0;                                  // only first must be sorted
     table->status=STATUS_NO_RECORD;
     pick_table_access_method (tab);
