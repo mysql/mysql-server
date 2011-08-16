@@ -446,7 +446,8 @@ AND
 # MLML: Ask Chris, if this is really correct.
 
 if(`SELECT COUNT(*) FROM mysqltest.socket_summary_by_instance_detail
-    WHERE NOT ( $my_rules )`)
+    WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+    AND NOT ( $my_rules )`)
 {
    --enable_query_log
    --enable_result_log
