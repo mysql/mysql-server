@@ -1784,8 +1784,14 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     /* A dynamic range access was used last. Clean up after it */
     join_tab->select->set_quick(NULL);
 
+  /* Materialize table prior reading it */
+  if (join_tab->materialize_table &&
+      !join_tab->table->pos_in_table_list->materialized &&
+      (error= (*join_tab->materialize_table)(join_tab)))
+    return NESTED_LOOP_ERROR;
+
   /* Start retrieving all records of the joined table */
-  if ((error= join_init_read_record(join_tab))) 
+  if ((error= (*join_tab->read_first_record)(join_tab))) 
     return error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
 
   info= &join_tab->read_record;
@@ -2277,6 +2283,12 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
   if (!records)
     return NESTED_LOOP_OK;  
                    
+  /* Materialize table prior reading it */
+  if (join_tab->materialize_table &&
+      !join_tab->table->pos_in_table_list->materialized &&
+      (error= (*join_tab->materialize_table)(join_tab)))
+    return NESTED_LOOP_ERROR;
+
   rc= init_join_matching_records(&seq_funcs, records);
   if (rc != NESTED_LOOP_OK)
     return rc;

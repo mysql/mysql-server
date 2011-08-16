@@ -6135,6 +6135,11 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   lex->add_to_query_tables(ptr);
   ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
                         MDL_TRANSACTION);
+  if (table->is_derived_table())
+  {
+    ptr->effective_algorithm= DERIVED_ALGORITHM_TMPTABLE;
+    ptr->derived_key_list.empty();
+  }
   DBUG_RETURN(ptr);
 }
 
