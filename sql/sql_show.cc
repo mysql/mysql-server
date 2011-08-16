@@ -42,6 +42,7 @@
 #include "sp_pcontext.h"
 #include "set_var.h"
 #include "sql_trigger.h"
+#include "sql_derived.h"
 #include "authors.h"
 #include "contributors.h"
 #include "sql_partition.h"
@@ -880,7 +881,8 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
                                      MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
     DBUG_VOID_RETURN;
   table= table_list->table;
-
+  /* Create derived tables result table prior to reading it's fields list. */
+  mysql_handle_single_derived(thd->lex, table_list, &mysql_derived_create);
   List<Item> field_list;
 
   Field **ptr,*field;
@@ -3113,6 +3115,7 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
                                             MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
                                             (can_deadlock ?
                                              MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
+    lex->select_lex.handle_derived(lex, &mysql_derived_create);
   }
   /*
     Restore old value of sql_command back as it is being looked at in
@@ -6937,11 +6940,9 @@ bool get_schema_tables_result(JOIN *join,
       {
         result= 1;
         join->error= 1;
-        tab->read_record.file= table_list->table->file;
         table_list->schema_table_state= executed_place;
         break;
       }
-      tab->read_record.file= table_list->table->file;
       table_list->schema_table_state= executed_place;
     }
   }

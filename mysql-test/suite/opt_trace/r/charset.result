@@ -152,44 +152,6 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
       } /* join_preparation */
     },
     {
-      "join_optimization": {
-        "select#": 2,
-        "steps": [
-          {
-            "records_estimation": [
-              {
-                "database": "test",
-                "table": "t1",
-                "records": 1,
-                "cost": 1,
-                "table_type": "system"
-              }
-            ] /* records_estimation */
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": null,
-              "attached_conditions_computation": [
-              ] /* attached_conditions_computation */,
-              "attached_conditions_summary": [
-              ] /* attached_conditions_summary */
-            } /* attaching_conditions_to_tables */
-          },
-          {
-            "refine_plan": [
-            ] /* refine_plan */
-          }
-        ] /* steps */
-      } /* join_optimization */
-    },
-    {
-      "join_execution": {
-        "select#": 2,
-        "steps": [
-        ] /* steps */
-      } /* join_execution */
-    },
-    {
       "join_preparation": {
         "select#": 1,
         "steps": [
@@ -203,6 +165,44 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "join_optimization": {
+              "select#": 2,
+              "steps": [
+                {
+                  "records_estimation": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "records": 1,
+                      "cost": 1,
+                      "table_type": "system"
+                    }
+                  ] /* records_estimation */
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": null,
+                    "attached_conditions_computation": [
+                    ] /* attached_conditions_computation */,
+                    "attached_conditions_summary": [
+                    ] /* attached_conditions_summary */
+                  } /* attaching_conditions_to_tables */
+                },
+                {
+                  "refine_plan": [
+                  ] /* refine_plan */
+                }
+              ] /* steps */
+            } /* join_optimization */
+          },
+          {
+            "join_execution": {
+              "select#": 2,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          },
           {
             "condition_processing": {
               "condition": "WHERE",
