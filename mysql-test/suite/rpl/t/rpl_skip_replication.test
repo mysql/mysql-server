@@ -9,20 +9,20 @@ GRANT ALTER,CREATE,DELETE,DROP,EVENT,INSERT,PROCESS,REPLICATION SLAVE,
 connect(nonpriv, 127.0.0.1, nonsuperuser,, test, $SLAVE_MYPORT,);
 connection nonpriv;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET GLOBAL replicate_events_marked_for_skip=0;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
 disconnect nonpriv;
 connection slave;
 DROP USER'nonsuperuser'@'127.0.0.1';
 
 SELECT @@global.replicate_events_marked_for_skip;
 --error ER_SLAVE_MUST_STOP
-SET GLOBAL replicate_events_marked_for_skip=0;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
 SELECT @@global.replicate_events_marked_for_skip;
 STOP SLAVE;
 --error ER_GLOBAL_VARIABLE
-SET SESSION replicate_events_marked_for_skip=0;
+SET SESSION replicate_events_marked_for_skip=FILTER_ON_MASTER;
 SELECT @@global.replicate_events_marked_for_skip;
-SET GLOBAL replicate_events_marked_for_skip=0;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
 SELECT @@global.replicate_events_marked_for_skip;
 START SLAVE;
 
@@ -37,6 +37,8 @@ CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
 INSERT INTO t1(a) VALUES (1);
 INSERT INTO t2(a) VALUES (1);
 
+
+# Test that master-side filtering works.
 SET skip_replication=1;
 
 CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
@@ -59,12 +61,46 @@ DROP TABLE t3;
 
 FLUSH NO_WRITE_TO_BINLOG LOGS;
 sync_slave_with_master;
+
+
+# Test that slave-side filtering works.
 connection slave;
 STOP SLAVE;
-SET GLOBAL replicate_events_marked_for_skip=1;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
 START SLAVE;
 
 connection master;
+SET skip_replication=1;
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
+INSERT INTO t1(a) VALUES (3);
+INSERT INTO t2(a) VALUES (3);
+
+# Inject a rotate event in the binlog stream sent to slave (otherwise we will
+# fail sync_slave_with_master as the last event on the master is not present
+# on the slave).
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+
+sync_slave_with_master;
+connection slave;
+SHOW TABLES;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master;
+DROP TABLE t3;
+
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+sync_slave_with_master;
+connection slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+
+
+# Test that events with @@skip_replication=1 are not filtered when filtering is
+# not set on slave.
+connection master;
+SET skip_replication=1;
 CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
 INSERT INTO t3(a) VALUES(2);
 sync_slave_with_master;
@@ -93,12 +129,12 @@ INSERT INTO t1 VALUES (3,0);
 
 sync_slave_with_master;
 connection slave;
-# Since slave has @@replicate_events_marked_for_skip=1, it should have
+# Since slave has @@replicate_events_marked_for_skip=REPLICATE, it should have
 # applied all events.
 SELECT * FROM t1 ORDER by a;
 
 STOP SLAVE;
-SET GLOBAL replicate_events_marked_for_skip=0;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
 let $SLAVE_DATADIR= `select @@datadir`;
 
 connection master;
@@ -136,7 +172,7 @@ sync_slave_with_master;
 connection slave;
 STOP SLAVE;
 SET GLOBAL sql_slave_skip_counter=2;
-SET GLOBAL replicate_events_marked_for_skip=0;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
 START SLAVE;
 
 connection master;
@@ -157,7 +193,8 @@ connection slave;
 
 # The slave should have skipped the first three inserts (number 1 and 3 due
 # to @@sql_slave_skip_counter=2, number 2 due to
-# @@replicate_events_marked_for_skip=0). So only number 4 should be left.
+# @@replicate_events_marked_for_skip=FILTER_ON_SLAVE). So only number 4
+# should be left.
 SELECT * FROM t1;
 
 
@@ -242,13 +279,79 @@ DROP FUNCTION foo;
 DROP PROCEDURE bar;
 DROP FUNCTION baz;
 
+
+# Test that master-side filtering happens on the master side, and that
+# slave-side filtering happens on the slave.
+
+# First test that events do not reach the slave when master-side filtering
+# is configured. Do this by replicating first with only the IO thread running
+# and master-side filtering; then change to no filtering and start the SQL
+# thread. This should still skip the events, as master-side filtering
+# means the events never reached the slave.
+connection master;
+SET skip_replication= 0;
+TRUNCATE t1;
+sync_slave_with_master;
+connection slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+START SLAVE IO_THREAD;
+connection master;
+SET skip_replication= 1;
+INSERT INTO t1(a) VALUES (1);
+SET skip_replication= 0;
+INSERT INTO t1(a) VALUES (2);
+--source include/save_master_pos.inc
+connection slave;
+--source include/sync_io_with_master.inc
+STOP SLAVE IO_THREAD;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+connection master;
+sync_slave_with_master;
+connection slave;
+# Now only the second insert of (2) should be visible, as the first was
+# filtered on the master, so even though the SQL thread ran without skipping
+# events, it will never see the event in the first place.
+SELECT * FROM t1;
+
+# Now tests that when slave-side filtering is configured, events _do_ reach
+# the slave.
+connection master;
+SET skip_replication= 0;
+TRUNCATE t1;
+sync_slave_with_master;
+connection slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
+START SLAVE IO_THREAD;
+connection master;
+SET skip_replication= 1;
+INSERT INTO t1(a) VALUES (1);
+SET skip_replication= 0;
+INSERT INTO t1(a) VALUES (2);
+--source include/save_master_pos.inc
+connection slave;
+--source include/sync_io_with_master.inc
+STOP SLAVE IO_THREAD;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+connection master;
+sync_slave_with_master;
+connection slave;
+# Now both inserts should be visible. Since filtering was configured to be
+# slave-side, the event is in the relay log, and when the SQL thread ran we
+# had disabled filtering again.
+SELECT * FROM t1 ORDER BY a;
+
+
 # Clean up.
 connection master;
 SET skip_replication=0;
 DROP TABLE t1,t2;
 connection slave;
 STOP SLAVE;
-SET GLOBAL replicate_events_marked_for_skip=1;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
 START SLAVE;
 
 --source include/rpl_end.inc

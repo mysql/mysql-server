@@ -828,8 +828,8 @@ Log_event::do_shall_skip(Relay_log_info *rli)
                       rli->slave_skip_counter));
   if ((server_id == ::server_id && !rli->replicate_same_server_id) ||
       (rli->slave_skip_counter == 1 && rli->is_in_group()) ||
-      (flags & LOG_EVENT_SKIP_REPLICATION_F
-       && !opt_replicate_events_marked_for_skip))
+      (flags & LOG_EVENT_SKIP_REPLICATION_F &&
+       opt_replicate_events_marked_for_skip != RPL_SKIP_REPLICATE))
     return EVENT_SKIP_IGNORE;
   if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
@@ -3492,7 +3492,7 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
     number of events to be skipped due to @@sql_slave_skip_counter.
   */
   if (flags & LOG_EVENT_SKIP_REPLICATION_F &&
-      !opt_replicate_events_marked_for_skip)
+      opt_replicate_events_marked_for_skip != RPL_SKIP_REPLICATE)
     DBUG_RETURN(Log_event::EVENT_SKIP_IGNORE);
 
   if (rli->slave_skip_counter > 0)

@@ -389,6 +389,16 @@ TYPELIB plugin_maturity_values=
 
 const int server_maturity= MariaDB_PLUGIN_MATURITY_UNKNOWN;
 
+/* These names must match RPL_SKIP_XXX #defines in slave.h. */
+static const char *replicate_events_marked_for_skip_names[]=
+{ "replicate", "filter_on_slave", "filter_on_master", 0 };
+
+TYPELIB replicate_events_marked_for_skip_typelib=
+{
+  array_elements(replicate_events_marked_for_skip_names) - 1, "",
+  replicate_events_marked_for_skip_names, 0
+};
+
 const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 #if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
@@ -553,7 +563,7 @@ uint    opt_large_page_size= 0;
 uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
-my_bool opt_replicate_events_marked_for_skip;
+uint opt_replicate_events_marked_for_skip;
 
 /*
   True if there is at least one per-hour limit for some user, so we should
@@ -6785,12 +6795,6 @@ each time the SQL thread starts.",
    "cross database updates. If you need cross database updates to work, "
    "make sure you have 3.23.28 or later, and use replicate-wild-ignore-"
    "table=db_name.%. ", 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"replicate-events-marked-for-skip", OPT_REPLICATE_EVENTS_MARKED_FOR_SKIP,
-   "Tells the slave thread to replicate events that were created with"
-   "@@skip_replication=1. Default true. If set to false, such events will not"
-   "be replicated.", &opt_replicate_events_marked_for_skip,
-   &opt_replicate_events_marked_for_skip, 0, GET_BOOL, NO_ARG,
-   1, 0, 0 ,0, 0, 0},
   {"replicate-ignore-table", OPT_REPLICATE_IGNORE_TABLE,
    "Tells the slave thread to not replicate to the specified table. To specify "
    "more than one table to ignore, use the directive multiple times, once for "
@@ -6807,6 +6811,16 @@ each time the SQL thread starts.",
    "Can't be set to 1 if --log-slave-updates is used.",
    &replicate_same_server_id, &replicate_same_server_id,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"replicate-events-marked-for-skip", OPT_REPLICATE_EVENTS_MARKED_FOR_SKIP,
+   "Whether the slave should replicate events that were created with "
+   "@@skip_replication=1 on the master. Default REPLICATE (no events are "
+   "skipped). Other values are FILTER_ON_SLAVE (events will be sent by the "
+   "master but ignored by the slave) and FILTER_ON_MASTER (events marked with "
+    "@@skip_replication=1 will be filtered on the master and never be sent to "
+   "the slave).", &opt_replicate_events_marked_for_skip,
+   &opt_replicate_events_marked_for_skip,
+   &replicate_events_marked_for_skip_typelib, GET_ENUM, REQUIRED_ARG,
+   RPL_SKIP_REPLICATE, 0, 0 ,0, 0, 0},
 #endif
   {"replicate-wild-do-table", OPT_REPLICATE_WILD_DO_TABLE,
    "Tells the slave thread to restrict replication to the tables that match "

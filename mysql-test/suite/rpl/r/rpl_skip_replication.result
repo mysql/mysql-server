@@ -3,27 +3,27 @@ include/master-slave.inc
 CREATE USER 'nonsuperuser'@'127.0.0.1';
 GRANT ALTER,CREATE,DELETE,DROP,EVENT,INSERT,PROCESS,REPLICATION SLAVE,
 SELECT,UPDATE ON *.* TO 'nonsuperuser'@'127.0.0.1';
-SET GLOBAL replicate_events_marked_for_skip=0;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
 ERROR 42000: Access denied; you need the SUPER privilege for this operation
 DROP USER'nonsuperuser'@'127.0.0.1';
 SELECT @@global.replicate_events_marked_for_skip;
 @@global.replicate_events_marked_for_skip
-1
-SET GLOBAL replicate_events_marked_for_skip=0;
+replicate
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
 ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
 SELECT @@global.replicate_events_marked_for_skip;
 @@global.replicate_events_marked_for_skip
-1
+replicate
 STOP SLAVE;
-SET SESSION replicate_events_marked_for_skip=0;
+SET SESSION replicate_events_marked_for_skip=FILTER_ON_MASTER;
 ERROR HY000: Variable 'replicate_events_marked_for_skip' is a GLOBAL variable and should be set with SET GLOBAL
 SELECT @@global.replicate_events_marked_for_skip;
 @@global.replicate_events_marked_for_skip
-1
-SET GLOBAL replicate_events_marked_for_skip=0;
+replicate
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
 SELECT @@global.replicate_events_marked_for_skip;
 @@global.replicate_events_marked_for_skip
-0
+filter_on_master
 START SLAVE;
 SELECT @@skip_replication;
 @@skip_replication
@@ -55,8 +55,29 @@ a	b
 DROP TABLE t3;
 FLUSH NO_WRITE_TO_BINLOG LOGS;
 STOP SLAVE;
-SET GLOBAL replicate_events_marked_for_skip=1;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
 START SLAVE;
+SET skip_replication=1;
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
+INSERT INTO t1(a) VALUES (3);
+INSERT INTO t2(a) VALUES (3);
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+SELECT * FROM t1;
+a	b
+1	NULL
+SELECT * FROM t2;
+a	b
+1	NULL
+DROP TABLE t3;
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+SET skip_replication=1;
 CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
 INSERT INTO t3(a) VALUES(2);
 SELECT * FROM t3;
@@ -77,7 +98,7 @@ a	b
 2	0
 3	0
 STOP SLAVE;
-SET GLOBAL replicate_events_marked_for_skip=0;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
 TRUNCATE t1;
 SELECT * FROM t1 ORDER by a;
 a	b
@@ -92,7 +113,7 @@ a	b
 TRUNCATE t1;
 STOP SLAVE;
 SET GLOBAL sql_slave_skip_counter=2;
-SET GLOBAL replicate_events_marked_for_skip=0;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
 START SLAVE;
 SET @old_binlog_format= @@binlog_format;
 SET binlog_format= statement;
@@ -175,9 +196,44 @@ SELECT @@skip_replication;
 DROP FUNCTION foo;
 DROP PROCEDURE bar;
 DROP FUNCTION baz;
+SET skip_replication= 0;
+TRUNCATE t1;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+START SLAVE IO_THREAD;
+SET skip_replication= 1;
+INSERT INTO t1(a) VALUES (1);
+SET skip_replication= 0;
+INSERT INTO t1(a) VALUES (2);
+include/save_master_pos.inc
+include/sync_io_with_master.inc
+STOP SLAVE IO_THREAD;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+SELECT * FROM t1;
+a	b
+2	NULL
+SET skip_replication= 0;
+TRUNCATE t1;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
+START SLAVE IO_THREAD;
+SET skip_replication= 1;
+INSERT INTO t1(a) VALUES (1);
+SET skip_replication= 0;
+INSERT INTO t1(a) VALUES (2);
+include/save_master_pos.inc
+include/sync_io_with_master.inc
+STOP SLAVE IO_THREAD;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	NULL
+2	NULL
 SET skip_replication=0;
 DROP TABLE t1,t2;
 STOP SLAVE;
-SET GLOBAL replicate_events_marked_for_skip=1;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
 START SLAVE;
 include/rpl_end.inc

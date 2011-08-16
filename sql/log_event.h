@@ -495,7 +495,7 @@ struct sql_ex_info
 
    Flag set by application creating the event (with @@skip_replication); the
    slave will skip replication of such events if
-   --replicate-events-marked-for-skip is false.
+   --replicate-events-marked-for-skip is not set to REPLICATE.
 
    This is a MariaDB flag; we allocate it from the end of the available
    values to reduce risk of conflict with new MySQL flags.

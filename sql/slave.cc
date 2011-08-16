@@ -1178,9 +1178,10 @@ when it try to get the value of TIME_ZONE global variable from master.";
 
   /*
     Request the master to filter away events with the @@skip_replication flag
-    set, if we are running with --replicate-events-marked-for-skip=0.
+    set, if we are running with
+    --replicate-events-marked-for-skip=FILTER_ON_MASTER.
   */
-  if (!opt_replicate_events_marked_for_skip)
+  if (opt_replicate_events_marked_for_skip == RPL_SKIP_FILTER_ON_MASTER)
   {
     if (mysql_real_query(mysql, STRING_WITH_LEN("SET skip_replication=1")))
     {

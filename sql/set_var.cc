@@ -925,7 +925,9 @@ static sys_var_thd_set sys_log_slow_verbosity(&vars,
 static sys_var_replicate_events_marked_for_skip
   sys_replicate_events_marked_for_skip(&vars,
                                        "replicate_events_marked_for_skip",
-                                       &opt_replicate_events_marked_for_skip);
+                                       &opt_replicate_events_marked_for_skip,
+                                       &replicate_events_marked_for_skip_typelib,
+                                       NULL);
 #endif
 
 /* Global read-only variable containing hostname */
@@ -4469,7 +4471,7 @@ bool sys_var_replicate_events_marked_for_skip::update(THD *thd, set_var *var)
     result= TRUE;
   }
   else
-    result= sys_var_bool_ptr::update(thd, var);
+    result= sys_var_enum::update(thd, var);
 
   unlock_slave_threads(active_mi);
   pthread_mutex_unlock(&LOCK_active_mi);

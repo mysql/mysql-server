@@ -31,7 +31,8 @@ typedef struct system_variables SV;
 typedef struct my_locale_st MY_LOCALE;
 
 extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib,
-  optimizer_switch_typelib, slave_exec_mode_typelib;
+  optimizer_switch_typelib, slave_exec_mode_typelib,
+  replicate_events_marked_for_skip_typelib;
 
 typedef int (*sys_check_func)(THD *,  set_var *);
 typedef bool (*sys_update_func)(THD *, set_var *);
@@ -1289,13 +1290,15 @@ public:
   Handler for setting the system variable --replicate-events-marked-for-skip.
 */
 
-class sys_var_replicate_events_marked_for_skip :public sys_var_bool_ptr
+class sys_var_replicate_events_marked_for_skip :public sys_var_enum
 {
 public:
   sys_var_replicate_events_marked_for_skip(sys_var_chain *chain,
                                            const char *name_arg,
-                                           my_bool *value_arg) :
-    sys_var_bool_ptr(chain, name_arg, value_arg) {};
+                                           uint *value_arg,
+                                           TYPELIB *typelib,
+                                           sys_after_update_func func) :
+    sys_var_enum(chain, name_arg, value_arg, typelib, func) {};
   ~sys_var_replicate_events_marked_for_skip() {};
   bool update(THD *thd, set_var *var);
 };
