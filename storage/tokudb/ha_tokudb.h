@@ -173,6 +173,13 @@ private:
     uchar *rec_update_buff;
     ulong alloced_update_rec_buff_length;
     u_int32_t max_key_length;
+
+    uchar* range_query_buff; // range query buffer
+    u_int32_t size_range_query_buff; // size of the allocated range query buffer
+    u_int32_t bytes_used_in_range_query_buff; // number of bytes used in the range query buffer
+    u_int32_t curr_range_query_buff_offset; // current offset into the range query buffer for queries to read
+    bool doing_bulk_fetch;
+
     //
     // buffer used to temporarily store a "packed key" 
     // data pointer of a DBT will end up pointing to this
@@ -194,6 +201,15 @@ private:
     // does not carry any state throughout the class.
     //
     uchar *primary_key_buff;
+
+    //
+    // ranges of prelocked area, used to know how much to bulk fetch
+    //
+    uchar *prelocked_left_range; 
+    u_int32_t prelocked_left_range_size;
+    uchar *prelocked_right_range; 
+    u_int32_t prelocked_right_range_size;
+
 
     //
     // individual key buffer for each index
@@ -609,10 +625,21 @@ public:
 
     int check(THD *thd, HA_CHECK_OPT *check_opt);
 
+    int fill_range_query_buf(
+        bool need_val, 
+        DBT const *key, 
+        DBT  const *row, 
+        int direction,
+        THD* thd
+        );
+   
 private:
     int read_full_row(uchar * buf);
     int __close(int mutex_is_locked);
     int read_last(uint keynr);
+    int get_next(uchar* buf, int direction);
+    int read_data_from_range_query_buff(uchar* buf, bool need_val);
+    void invalidate_bulk_fetch();
 };
 
 int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn);
