@@ -888,7 +888,7 @@ public:
   bool handle_derived(struct st_lex *lex, uint phases);
   void append_table_to_list(TABLE_LIST *TABLE_LIST::*link, TABLE_LIST *table);
   bool get_free_table_map(table_map *map, uint *tablenr);
-  void remove_table_from_list(TABLE_LIST *table);
+  void replace_leaf_table(TABLE_LIST *table, List<TABLE_LIST> &tbl_list);
   void remap_tables(TABLE_LIST *derived, table_map map,
                     uint tablenr, st_select_lex *parent_lex);
   bool merge_subquery(THD *thd, TABLE_LIST *derived, st_select_lex *subq_lex,

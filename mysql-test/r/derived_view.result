@@ -704,8 +704,8 @@ SELECT t.a FROM t1 LEFT JOIN
 GROUP BY t.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` >= 1) and (`test`.`t3`.`b` > 5))) where 1 group by `test`.`t2`.`a`
 SELECT t.a FROM t1 LEFT JOIN
@@ -720,8 +720,8 @@ SELECT t.a FROM t1 LEFT JOIN
 GROUP BY t.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` >= 1) and (`test`.`t3`.`b` > 5))) where 1 group by `test`.`t2`.`a`
 SELECT t.a FROM t1 LEFT JOIN
@@ -1084,8 +1084,8 @@ EXPLAIN EXTENDED
 SELECT t.a,t.b FROM t3 RIGHT JOIN ((SELECT * FROM t1) AS t, t2) ON t2.b != 0 
 WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
@@ -1098,8 +1098,8 @@ EXPLAIN EXTENDED
 SELECT t.a,t.b FROM t3 RIGHT JOIN (v1 AS t, t2) ON t2.b != 0 
 WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
@@ -1270,4 +1270,154 @@ a
 r
 p
 DROP TABLE t1,t2,t3;
+#
+# LP bug #824463: nested outer join using a merged view
+#                 as an inner table
+#
+CREATE TABLE t1 (b int, a int) ;
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (5), (6);
+CREATE TABLE t3 (a int , c int) ;
+INSERT INTO t3 VALUES (22,1), (23,-1);
+CREATE TABLE t4 (a int);
+CREATE TABLE t5 (d int) ;
+INSERT INTO t5 VALUES (0), (7), (3), (5);
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE VIEW v3 AS SELECT * FROM t3;
+EXPLAIN EXTENDED
+SELECT STRAIGHT_JOIN *
+FROM ( t2 AS s2
+JOIN
+( t3 AS s3
+LEFT JOIN
+( t4 LEFT JOIN t3 ON t4.a != 0 )
+ON s3.a != 0)
+ON s2.a != 0)
+JOIN t5 ON s3.c != 0 AND t5.d = 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	s2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	s3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select straight_join `test`.`s2`.`a` AS `a`,`test`.`s3`.`a` AS `a`,`test`.`s3`.`c` AS `c`,`test`.`t4`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`c` AS `c`,`test`.`t5`.`d` AS `d` from `test`.`t2` `s2` join `test`.`t3` `s3` left join (`test`.`t4` left join `test`.`t3` on((`test`.`t4`.`a` <> 0))) on((`test`.`s3`.`a` <> 0)) join `test`.`t5` where ((`test`.`t5`.`d` = 0) and (`test`.`s3`.`c` <> 0) and (`test`.`s2`.`a` <> 0))
+SELECT STRAIGHT_JOIN *
+FROM ( t2 AS s2
+JOIN
+( t3 AS s3
+LEFT JOIN
+( t4 LEFT JOIN t3 ON t4.a != 0 )
+ON s3.a != 0)
+ON s2.a != 0)
+JOIN t5 ON s3.c != 0 AND t5.d = 0;
+a	a	c	a	a	c	d
+5	22	1	NULL	NULL	NULL	0
+6	22	1	NULL	NULL	NULL	0
+5	23	-1	NULL	NULL	NULL	0
+6	23	-1	NULL	NULL	NULL	0
+EXPLAIN EXTENDED
+SELECT STRAIGHT_JOIN *
+FROM t2 AS s2 , t5,
+(t3 LEFT JOIN (t4 LEFT JOIN t3 AS s3 ON t4.a != 0) ON t3.a != 0)
+WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	s2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	s3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select straight_join `test`.`s2`.`a` AS `a`,`test`.`t5`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`a` AS `a`,`test`.`s3`.`a` AS `a`,`test`.`s3`.`c` AS `c` from `test`.`t2` `s2` join `test`.`t5` join `test`.`t3` left join (`test`.`t4` left join `test`.`t3` `s3` on((`test`.`t4`.`a` <> 0))) on((`test`.`t3`.`a` <> 0)) where ((`test`.`t5`.`d` = 0) and (`test`.`s2`.`a` <> 0) and (`test`.`t3`.`c` <> 0))
+SELECT STRAIGHT_JOIN *
+FROM t2 AS s2 , t5,
+(t3 LEFT JOIN (t4 LEFT JOIN t3 AS s3 ON t4.a != 0) ON t3.a != 0)
+WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+a	d	a	c	a	a	c
+5	0	22	1	NULL	NULL	NULL
+6	0	22	1	NULL	NULL	NULL
+5	0	23	-1	NULL	NULL	NULL
+6	0	23	-1	NULL	NULL	NULL
+EXPLAIN EXTENDED
+SELECT STRAIGHT_JOIN *
+FROM v2 AS s2 , t5,
+(t3 LEFT JOIN (t4 LEFT JOIN v3 AS s3 ON t4.a != 0) ON t3.a != 0)
+WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select straight_join `test`.`t2`.`a` AS `a`,`test`.`t5`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`c` AS `c` from `test`.`t2` join `test`.`t5` join `test`.`t3` left join (`test`.`t4` left join (`test`.`t3`) on((`test`.`t4`.`a` <> 0))) on((`test`.`t3`.`a` <> 0)) where ((`test`.`t5`.`d` = 0) and (`test`.`t2`.`a` <> 0) and (`test`.`t3`.`c` <> 0))
+SELECT STRAIGHT_JOIN *
+FROM v2 AS s2 , t5,
+(t3 LEFT JOIN (t4 LEFT JOIN v3 AS s3 ON t4.a != 0) ON t3.a != 0)
+WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+a	d	a	c	a	a	c
+5	0	22	1	NULL	NULL	NULL
+6	0	22	1	NULL	NULL	NULL
+5	0	23	-1	NULL	NULL	NULL
+6	0	23	-1	NULL	NULL	NULL
+SELECT STRAIGHT_JOIN *
+FROM ( ( t2 AS s2
+LEFT JOIN
+( t3 AS s3
+LEFT JOIN
+( t4 AS s4 JOIN t3 ON s4.a != 0)
+ON s3.a != 0 )
+ON s2.a != 0)
+LEFT JOIN 
+t1 AS s1  
+ON s1.a != 0)
+JOIN t5 ON s3.c != 0;
+a	a	c	a	a	c	b	a	d
+5	22	1	NULL	NULL	NULL	NULL	NULL	0
+6	22	1	NULL	NULL	NULL	NULL	NULL	0
+5	23	-1	NULL	NULL	NULL	NULL	NULL	0
+6	23	-1	NULL	NULL	NULL	NULL	NULL	0
+5	22	1	NULL	NULL	NULL	NULL	NULL	7
+6	22	1	NULL	NULL	NULL	NULL	NULL	7
+5	23	-1	NULL	NULL	NULL	NULL	NULL	7
+6	23	-1	NULL	NULL	NULL	NULL	NULL	7
+5	22	1	NULL	NULL	NULL	NULL	NULL	3
+6	22	1	NULL	NULL	NULL	NULL	NULL	3
+5	23	-1	NULL	NULL	NULL	NULL	NULL	3
+6	23	-1	NULL	NULL	NULL	NULL	NULL	3
+5	22	1	NULL	NULL	NULL	NULL	NULL	5
+6	22	1	NULL	NULL	NULL	NULL	NULL	5
+5	23	-1	NULL	NULL	NULL	NULL	NULL	5
+6	23	-1	NULL	NULL	NULL	NULL	NULL	5
+SELECT STRAIGHT_JOIN *
+FROM ( ( v2 AS s2
+LEFT JOIN
+( v3 AS s3
+LEFT JOIN
+( t4 AS s4 JOIN v3 ON s4.a != 0)
+ON s3.a != 0 )
+ON s2.a != 0)
+LEFT JOIN 
+t1 AS s1  
+ON s1.a != 0)
+JOIN t5 ON s3.c != 0;
+a	a	c	a	a	c	b	a	d
+5	22	1	NULL	NULL	NULL	NULL	NULL	0
+6	22	1	NULL	NULL	NULL	NULL	NULL	0
+5	23	-1	NULL	NULL	NULL	NULL	NULL	0
+6	23	-1	NULL	NULL	NULL	NULL	NULL	0
+5	22	1	NULL	NULL	NULL	NULL	NULL	7
+6	22	1	NULL	NULL	NULL	NULL	NULL	7
+5	23	-1	NULL	NULL	NULL	NULL	NULL	7
+6	23	-1	NULL	NULL	NULL	NULL	NULL	7
+5	22	1	NULL	NULL	NULL	NULL	NULL	3
+6	22	1	NULL	NULL	NULL	NULL	NULL	3
+5	23	-1	NULL	NULL	NULL	NULL	NULL	3
+6	23	-1	NULL	NULL	NULL	NULL	NULL	3
+5	22	1	NULL	NULL	NULL	NULL	NULL	5
+6	22	1	NULL	NULL	NULL	NULL	NULL	5
+5	23	-1	NULL	NULL	NULL	NULL	NULL	5
+6	23	-1	NULL	NULL	NULL	NULL	NULL	5
+DROP VIEW v2,v3;
+DROP TABLE t1,t2,t3,t4,t5;
 set optimizer_switch=@exit_optimizer_switch;

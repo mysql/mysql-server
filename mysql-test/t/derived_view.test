@@ -783,5 +783,94 @@ WHERE EXISTS (SELECT t2.a FROM t3 RIGHT JOIN t2 ON (t3.a = t2.a)
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # LP bug #824463: nested outer join using a merged view
+--echo #                 as an inner table
+--echo #
+
+CREATE TABLE t1 (b int, a int) ;
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (5), (6);
+
+CREATE TABLE t3 (a int , c int) ;
+INSERT INTO t3 VALUES (22,1), (23,-1);
+
+CREATE TABLE t4 (a int);
+
+CREATE TABLE t5 (d int) ;
+INSERT INTO t5 VALUES (0), (7), (3), (5);
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE VIEW v3 AS SELECT * FROM t3;
+
+EXPLAIN EXTENDED
+SELECT STRAIGHT_JOIN *
+  FROM ( t2 AS s2
+         JOIN
+         ( t3 AS s3
+           LEFT JOIN
+           ( t4 LEFT JOIN t3 ON t4.a != 0 )
+           ON s3.a != 0)
+         ON s2.a != 0)
+       JOIN t5 ON s3.c != 0 AND t5.d = 0;
+SELECT STRAIGHT_JOIN *
+  FROM ( t2 AS s2
+         JOIN
+         ( t3 AS s3
+           LEFT JOIN
+           ( t4 LEFT JOIN t3 ON t4.a != 0 )
+           ON s3.a != 0)
+         ON s2.a != 0)
+       JOIN t5 ON s3.c != 0 AND t5.d = 0;
+
+EXPLAIN EXTENDED
+SELECT STRAIGHT_JOIN *
+  FROM t2 AS s2 , t5,
+       (t3 LEFT JOIN (t4 LEFT JOIN t3 AS s3 ON t4.a != 0) ON t3.a != 0)
+  WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+SELECT STRAIGHT_JOIN *
+  FROM t2 AS s2 , t5,
+       (t3 LEFT JOIN (t4 LEFT JOIN t3 AS s3 ON t4.a != 0) ON t3.a != 0)
+  WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+
+EXPLAIN EXTENDED
+SELECT STRAIGHT_JOIN *
+  FROM v2 AS s2 , t5,
+       (t3 LEFT JOIN (t4 LEFT JOIN v3 AS s3 ON t4.a != 0) ON t3.a != 0)
+  WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+SELECT STRAIGHT_JOIN *
+  FROM v2 AS s2 , t5,
+       (t3 LEFT JOIN (t4 LEFT JOIN v3 AS s3 ON t4.a != 0) ON t3.a != 0)
+  WHERE s2.a != 0 AND t3.c != 0 AND t5.d = 0;
+
+SELECT STRAIGHT_JOIN *
+  FROM ( ( t2 AS s2
+           LEFT JOIN
+           ( t3 AS s3
+             LEFT JOIN
+             ( t4 AS s4 JOIN t3 ON s4.a != 0)
+             ON s3.a != 0 )
+           ON s2.a != 0)
+         LEFT JOIN 
+         t1 AS s1  
+       ON s1.a != 0)
+       JOIN t5 ON s3.c != 0;
+SELECT STRAIGHT_JOIN *
+  FROM ( ( v2 AS s2
+           LEFT JOIN
+           ( v3 AS s3
+             LEFT JOIN
+             ( t4 AS s4 JOIN v3 ON s4.a != 0)
+             ON s3.a != 0 )
+           ON s2.a != 0)
+         LEFT JOIN 
+         t1 AS s1  
+       ON s1.a != 0)
+       JOIN t5 ON s3.c != 0;
+
+DROP VIEW v2,v3;
+DROP TABLE t1,t2,t3,t4,t5;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
