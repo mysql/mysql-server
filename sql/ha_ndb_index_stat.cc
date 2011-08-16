@@ -1737,8 +1737,6 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
   DBUG_ENTER("ndb_index_stat_thread_func");
 
   Ndb_index_stat_proc pr;
-  NdbIndexStat is_util;
-  pr.is_util= &is_util;
 
   bool have_listener;
   have_listener= false;
@@ -1812,6 +1810,14 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
       goto ndb_index_stat_thread_end;
   }
   pthread_mutex_unlock(&LOCK_ndb_index_stat_thread);
+
+  /* Get instance used for sys objects check and create */
+  if (!(pr.is_util= new NdbIndexStat))
+  {
+    sql_print_error("Could not allocate NdbIndexStat is_util object");
+    pthread_mutex_lock(&LOCK_ndb_index_stat_thread);
+    goto ndb_index_stat_thread_end;
+  }
 
   /* Get thd_ndb for this thread */
   if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
@@ -1915,6 +1921,11 @@ ndb_index_stat_thread_fail:
   {
     if (ndb_index_stat_stop_listener(pr) == 0)
       have_listener= false;
+  }
+  if (pr.is_util)
+  {
+    delete pr.is_util;
+    pr.is_util= 0;
   }
   if (thd_ndb)
   {
