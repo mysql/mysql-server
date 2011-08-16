@@ -11928,6 +11928,18 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
          leave it intact (otherwise it is flattened)
        */
       join->select_lex->sj_nests.push_back(table);
+
+      /* 
+        Also, walk through semi-join children and mark those that are now
+        top-level
+      */
+      TABLE_LIST *tbl;
+      List_iterator<TABLE_LIST> it(nested_join->join_list);
+      while ((tbl= it++))
+      {
+        if (!tbl->on_expr && tbl->table)
+          tbl->table->maybe_null= FALSE;
+      }
     }
     else if (nested_join && !table->on_expr)
     {
