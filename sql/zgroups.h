@@ -17,12 +17,23 @@
 #ifndef RPL_GROUPS_H_INCLUDED
 #define RPL_GROUPS_H_INCLUDED
 
+
+#include "my_base.h"
+
+
 /*
   In the current version, enable UGID only in debug builds.  We will
   enable it fully when it is more complete.
 */
 #ifndef NO_DBUG
+/*
+  The group log can only be correctly truncated if my_chsize actually
+  truncates the file. So disable UGIDs on platforms that don't support
+  truncate.
+*/
+#if defined(_WIN32) || defined(HAVE_FTRUNCATE) || defined(HAVE_CHSIZE)
 #define HAVE_UGID
+#endif
 #endif
 
 
@@ -1819,6 +1830,75 @@ int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
                            Group_log_state *gls,
                            Group_cache *gc, Group_cache *trx_cache,
                            rpl_binlog_pos offset_after_last_statement);
+
+
+class Atom_file
+{
+public:
+  Atom_file(char *file_name);
+  int open(bool write);
+  int close();
+  bool is_open() { return fd != -1; }
+  bool is_writable() { return fd != -1 && writable; }
+  size_t append(my_off_t length, uchar *data)
+  {
+    DBUG_ENTER("Atom_file::append");
+    DBUG_ASSERT(is_writable());
+    my_off_t ret= my_write(fd, data, length, MYF(MY_WME));
+    DBUG_RETURN(ret);
+  }
+  size_t pread(my_off_t offset, my_off_t length, uchar *buffer);
+  int truncate_and_append(my_off_t offset, my_off_t length, uchar *data);
+  int sync()
+  {
+    DBUG_ASSERT(is_writable());
+    return my_sync(fd, MYF(MY_WME));
+  }
+  ~Atom_file() { DBUG_ASSERT(!is_open()); }
+private:
+  static const int HEADER_LENGTH= 9;
+  int rollback();
+  int commit(my_off_t offset, my_off_t length);
+  int recover();
+  static const char *OVERWRITE_FILE_SUFFIX;
+  char file_name[FN_REFLEN];
+  char overwrite_file_name[FN_REFLEN];
+  File fd;
+  bool writable;
+  File ofd;
+  my_off_t overwrite_offset;
+};
+
+
+class Rot_file
+{
+public:
+  Rot_file(char *file_name);
+  int open(bool write);
+  int close();
+  my_off_t append(my_off_t length, char *data);
+  my_off_t pread(my_off_t offset, my_off_t length, char *buffer);
+  void set_rotation_limit(my_off_t limit);
+  my_off_t get_rotation_limit(my_off_t limit);
+  int purge(my_off_t offset);
+  int truncate(my_off_t offset);
+  int flush();
+  bool is_writable();
+  bool is_open();
+  ~Rot_file();
+private:
+  struct Sub_file
+  {
+    int fd;
+    my_off_t offset;
+    int index;
+  };
+  enum enum_state { CLOSED, OPEN_READ, OPEN_READ_WRITE };
+  char file_name[FN_REFLEN];
+  int fd;
+  enum_state state;
+  my_off_t limit;
+};
 
 
 #endif /* HAVE_UGID */

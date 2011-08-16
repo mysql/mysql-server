@@ -18,11 +18,11 @@
 #define FRIEND_OF_GROUP_SET class GroupTest_Group_containers_Test
 #define FRIEND_OF_GROUP_CACHE class GroupTest_Group_containers_Test
 #define FRIEND_OF_GROUP_LOG_STATE class GroupTest_Group_containers_Test
-#include "zgroups.h"
 #include <string.h>
 #include "sql_class.h"
 #include "my_pthread.h"
 #include "binlog.h"
+#include "zgroups.h"
 
 
 #define N_SIDS 16
@@ -592,6 +592,8 @@ TEST_F(GroupTest, Group_containers)
     BEGIN_LOOP_B
     {
       Group_set ended_groups(sid_maps[0]);
+      bool trx_contains_logged_subgroup= false;
+      bool stmt_contains_logged_subgroup= false;
       BEGIN_SUBSTAGE_LOOP(this, &stage, true)
       {
         int type_j;
@@ -646,6 +648,7 @@ TEST_F(GroupTest, Group_containers)
                                 &stmt_cache, &trx_cache);
           lock.rdlock();
           stmt_cache.add_logged_subgroup(thd, 20 + rand() % 100/*binlog_len*/);
+          stmt_contains_logged_subgroup= true;
         }
         else
         {
@@ -660,6 +663,10 @@ TEST_F(GroupTest, Group_containers)
                                   &stmt_cache, &trx_cache);
             lock.rdlock();
             cache.add_logged_subgroup(thd, 20 + rand() % 100/*binlog_len*/);
+            if (type_j == TYPE_TRX)
+              trx_contains_logged_subgroup= true;
+            else
+              stmt_contains_logged_subgroup= true;
           }
 
           ugid_next->type= Ugid_specification::UGID;
@@ -676,6 +683,10 @@ TEST_F(GroupTest, Group_containers)
             {
             case DUMMY_OFF:
               cache.add_logged_subgroup(thd, 20 + rand() % 100/*binlog_len*/);
+              if (type_j == TYPE_TRX)
+                trx_contains_logged_subgroup= true;
+              else
+                stmt_contains_logged_subgroup= true;
               break;
             case DUMMY_ON:
               cache.add_dummy_subgroup(substage.sidno, substage.gno,
@@ -697,12 +708,19 @@ TEST_F(GroupTest, Group_containers)
                                   &stmt_cache, &trx_cache);
             lock.rdlock();
             cache.add_logged_subgroup(thd, 20 + rand() % 100/*binlog_len*/);
+            if (type_j == TYPE_TRX)
+              trx_contains_logged_subgroup= true;
+            else
+              stmt_contains_logged_subgroup= true;
           }
         }
 
         ugid_flush_group_cache(thd, &lock, &group_log_state,
                                &stmt_cache, &trx_cache,
-                               20 + rand() % 100/*binlog_offset_after_last_statement*/);
+                               stmt_contains_logged_subgroup ?
+                               20 + rand() % 99/*offset_after_last_statement*/ :
+                               -1);
+        stmt_contains_logged_subgroup= false;
         ugid_before_flush_trx_cache(thd, &lock, &group_log_state, &trx_cache);
         if (ugid_commit)
         {
@@ -711,7 +729,10 @@ TEST_F(GroupTest, Group_containers)
           thd->variables.ugid_has_ongoing_super_group= 0;
           ugid_flush_group_cache(thd, &lock, &group_log_state,
                                  &trx_cache, &trx_cache,
-                                 20 + rand() % 100/*binlog_offset_after_last_statement*/);
+                                 trx_contains_logged_subgroup ?
+                                 20 + rand() % 99/*offset_after_last_statement*/ :
+                                 -1);
+          trx_contains_logged_subgroup= false;
         }
       } END_SUBSTAGE_LOOP(this);
 

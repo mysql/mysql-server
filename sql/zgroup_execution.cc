@@ -386,7 +386,7 @@ int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
                            Group_cache *trx_cache,
                            rpl_binlog_pos offset_after_last_statement)
 {
-  DBUG_ENTER("flush_group_cache");
+  DBUG_ENTER("ugid_flush_group_cache");
   lock->rdlock();
   gc->generate_automatic_gno(thd, gls);
   if (gc->write_to_log(trx_cache, offset_after_last_statement) != GS_SUCCESS)
