@@ -206,7 +206,10 @@ table_ews_by_thread_by_event_name::rnd_pos(const void *pos)
     instr_class= find_table_class(m_pos.m_index_3);
     break;
   case pos_ews_by_thread_by_event_name::VIEW_SOCKET:
-    instr_class= find_socket_class(m_pos.m_index_2);
+    instr_class= find_socket_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_thread_by_event_name::VIEW_IDLE:
+    instr_class= find_idle_class(m_pos.m_index_3);
     break;
   default:
     DBUG_ASSERT(false);
