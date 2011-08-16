@@ -173,8 +173,8 @@ Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
       debugOut << " " << prefKey.print(ctx.c_debugBuffer, DebugBufferBytes);
       debugOut << endl;
     }
-  }
 #endif
+  }
 }
 
 // node operations
