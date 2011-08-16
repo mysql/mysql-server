@@ -115,11 +115,11 @@ toku_xcalloc(size_t nmemb, size_t size) {
 
 void *
 toku_xrealloc(void *v, size_t size) {
-    size_t used_orig = malloc_usable_size(v);
+    size_t used_orig = v ? malloc_usable_size(v) : 0;
     void *p = t_xrealloc ? t_xrealloc(v, size) : os_realloc(v, size);
-    size_t used = malloc_usable_size(p);
     if (p == 0)  // avoid function call in common case
         resource_assert(p);
+    size_t used = malloc_usable_size(p);
     __sync_add_and_fetch(&status.realloc_count, 1L);
     __sync_add_and_fetch(&status.requested, size);
     __sync_add_and_fetch(&status.used, used);
