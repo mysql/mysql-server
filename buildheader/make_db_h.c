@@ -596,6 +596,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  uint64_t         malloc_count;            /* number of malloc operations */ \n");
     printf("  uint64_t         free_count;              /* number of free operations */ \n");
     printf("  uint64_t         realloc_count;           /* number of realloc operations */ \n");
+    printf("  uint64_t         malloc_fail;             /* number of failed malloc operations */ \n");
+    printf("  uint64_t         realloc_fail;            /* number of failed realloc operations */ \n");
     printf("  uint64_t         mem_requested;           /* number of bytes requested via malloc/realloc */ \n");
     printf("  uint64_t         mem_used;                /* number of bytes used (obtained from malloc_usable_size()) */ \n");
     printf("  uint64_t         mem_freed;               /* number of bytes freed */ \n");

@@ -202,6 +202,8 @@ typedef struct __toku_engine_status {
   uint64_t         malloc_count;            /* number of malloc operations */ 
   uint64_t         free_count;              /* number of free operations */ 
   uint64_t         realloc_count;           /* number of realloc operations */ 
+  uint64_t         malloc_fail;             /* number of failed malloc operations */ 
+  uint64_t         realloc_fail;            /* number of failed realloc operations */ 
   uint64_t         mem_requested;           /* number of bytes requested via malloc/realloc */ 
   uint64_t         mem_used;                /* number of bytes used (obtained from malloc_usable_size()) */ 
   uint64_t         mem_freed;               /* number of bytes freed */ 

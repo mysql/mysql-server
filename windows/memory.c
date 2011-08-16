@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 
 #include <toku_portability.h>
@@ -27,10 +28,14 @@ toku_memory_get_status(MEMORY_STATUS s) {
 
 void *toku_malloc(size_t size) {
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);
-    size_t used = malloc_usable_size(p);
-    __sync_add_and_fetch(&status.malloc_count, 1L);
-    __sync_add_and_fetch(&status.requested, size);
-    __sync_add_and_fetch(&status.used, used);
+    if (p) {
+      size_t used = malloc_usable_size(p);
+      __sync_add_and_fetch(&status.malloc_count, 1L);
+      __sync_add_and_fetch(&status.requested, size);
+      __sync_add_and_fetch(&status.used, used);
+    }
+    else
+      __sync_add_and_fetch(&status.malloc_fail, 1L);
     return p;
 }
 
@@ -44,13 +49,17 @@ toku_calloc(size_t nmemb, size_t size) {
 
 void *
 toku_realloc(void *p, size_t size) {
-    size_t used_orig = malloc_usable_size(p);
+    size_t used_orig = p ? malloc_usable_size(p) : 0;
     void *q = t_realloc ? t_realloc(p, size) : os_realloc(p, size);
-    size_t used = malloc_usable_size(q);
-    __sync_add_and_fetch(&status.realloc_count, 1L);
-    __sync_add_and_fetch(&status.requested, size);
-    __sync_add_and_fetch(&status.used, used);
-    __sync_add_and_fetch(&status.freed, used_orig);
+    if (q) {
+	size_t used = malloc_usable_size(q);
+	__sync_add_and_fetch(&status.realloc_count, 1L);
+	__sync_add_and_fetch(&status.requested, size);
+	__sync_add_and_fetch(&status.used, used);
+	__sync_add_and_fetch(&status.freed, used_orig);
+    }
+    else
+	__sync_add_and_fetch(&status.realloc_fail, 1L);
     return q;
 }
 
@@ -68,7 +77,7 @@ toku_strdup(const char *s) {
 
 void
 toku_free(void *p) {
-    size_t used = malloc_usable_size(p);
+    size_t used = p ? malloc_usable_size(p) : 0;
     __sync_add_and_fetch(&status.free_count, 1L);
     __sync_add_and_fetch(&status.freed, used);
     if (t_free)
