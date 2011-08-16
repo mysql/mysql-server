@@ -240,9 +240,11 @@ public:
   /* Use this to start writing a new log file */
   int new_file();
 
-  bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, bool incident, bool prepared);
-  int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+  bool write_event(Log_event* event_info);
+  bool write_cache(THD *thd, class binlog_cache_mngr *cache_mngr,
+                   class binlog_cache_data *binlog_cache_data,
+                   bool prepared, my_off_t offset_after_last_statement);
+  int  do_write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
@@ -253,12 +255,8 @@ public:
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-  /*
-    v stands for vector
-    invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
-  */
-  bool appendv(const char* buf,uint len,...);
-  bool append(Log_event* ev);
+  bool append_buffer(const char* buf, uint len);
+  bool append_event(Log_event* ev);
 
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);

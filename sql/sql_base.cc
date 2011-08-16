@@ -1738,7 +1738,7 @@ bool close_temporary_tables(THD *thd)
       thd->variables.character_set_client= cs_save;
 
       thd->get_stmt_da()->can_overwrite_status= TRUE;
-      if ((error= (mysql_bin_log.write(&qinfo) || error)))
+      if ((error= (mysql_bin_log.write_event(&qinfo) || error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection

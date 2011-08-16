@@ -4594,7 +4594,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   else
   {
     /* write the event to the relay log */
-    if (likely(!(rli->relay_log.appendv(buf,event_len,0))))
+    if (likely(!(rli->relay_log.append_buffer(buf,event_len))))
     {
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));

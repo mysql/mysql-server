@@ -3522,3 +3522,5 @@ static Sys_var_ugid_partial_groups Sys_ugid_partial_groups(
        "The global variable contains the set of groups that are partial in the binary log. The session variable contains the set of groups that are partial in the current transaction.");
 
 #endif
+
+//@todo: since Sys_ugid_ended_groups does not change when committing groups (see binlog.binlog_group_sets), it seems that Group_log_state is never updated. check this. /sven

@@ -292,6 +292,8 @@ Group_cache::write_to_log(Group_cache *trx_group_cache,
   DBUG_ENTER("Group_cache::write_to_log(Group_cache *)");
   //printf("Group_cache::write_to_log(Group_cache *)\n");
 
+  int n_subgroups= get_n_subgroups();
+
   /*
     If this is the stmt group cache, and the trx_group_cache contains
     a group that is ended in this cache, then we have to clear the end
@@ -300,7 +302,6 @@ Group_cache::write_to_log(Group_cache *trx_group_cache,
   */
   if (trx_group_cache != this)
   {
-    int n_subgroups= get_n_subgroups();
     for (int i= 0; i < n_subgroups; i++)
     {
       Cached_subgroup *cs= get_unsafe_pointer(i);
@@ -318,8 +319,9 @@ Group_cache::write_to_log(Group_cache *trx_group_cache,
 
 #ifndef NO_DBUG
   /*
-    Assert that UGID is valid. In particular, this ensures that group
-    numbers have been generated for automatic subgroups.
+    Assert that UGID is valid for all groups. In particular, this
+    ensures that group numbers have been generated for automatic
+    subgroups.
   */
   {
     int n_subgroups= get_n_subgroups();
@@ -330,6 +332,32 @@ Group_cache::write_to_log(Group_cache *trx_group_cache,
     }
   }
 #endif
+
+  /*
+    Find the last non-dummy group so that we can set
+    offset_after_last_statement for it.
+  */
+  Cached_subgroup *last_non_dummy= NULL;
+  // offset_after_last_statement is -1 if this Group_cache contains
+  // only dummy groups.
+#ifdef NO_DBUG
+  if (offset_after_last_statement != -1)
+#endif
+  {
+    for (int i= n_subgroups - 1; i >= 0; i--)
+    {
+      Cached_subgroup *cs= get_unsafe_pointer(i);
+      if (cs->type != DUMMY_SUBGROUP)
+      {
+        last_non_dummy= cs;
+        break;
+      }
+    }
+    DBUG_ASSERT((last_non_dummy != NULL &&
+                 offset_after_last_statement != -1) ||
+                (last_non_dummy == NULL &&
+                 offset_after_last_statement == -1));
+  }
 
   // @todo write to log when log has been implemented
 
