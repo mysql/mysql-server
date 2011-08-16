@@ -4,8 +4,8 @@
 # Scope: GLOBAL                                                               #
 # Access Type: Dynamic                                                        #
 # Data Type: Numeric                                                          #
-# Default Value: 90                                                           #
-# Range: 0-1000                                                               #
+# Default Value: 75                                                           #
+# Range: 0-99                                                                 #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-07                                                   #
