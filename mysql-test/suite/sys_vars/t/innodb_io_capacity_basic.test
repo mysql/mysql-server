@@ -54,5 +54,9 @@ select * from information_schema.global_variables where variable_name='innodb_io
 set global innodb_io_capacity=100;
 select @@global.innodb_io_capacity;
 
+#
+# cleanup
+#
+
 SET @@global.innodb_io_capacity = @start_global_value;
 SELECT @@global.innodb_io_capacity;
