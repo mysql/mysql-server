@@ -809,6 +809,7 @@ inline bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
 inline bool check_some_routine_access(THD *thd, const char *db,
                                       const char *name, bool is_proc)
 { return false; }
+#define decrease_user_connections(X) do { } while(0)       /* nothing */
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
@@ -1042,7 +1043,9 @@ bool init_new_connection_handler_thread();
 void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 void decrease_user_connections(USER_CONN *uc);
+#endif
 bool thd_init_client_charset(THD *thd, uint cs_number);
 inline bool is_supported_parser_charset(CHARSET_INFO *cs)
 {
