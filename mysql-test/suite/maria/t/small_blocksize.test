@@ -16,7 +16,6 @@ create table t1 (a int primary key auto_increment, e1 enum('a','b'), e2 enum('a'
 insert into t1 (vl,bl) values (10,10),(100,100),(1000,1000),(5000,5000),(8000,12000);
 update t1 set c="test", v1=repeat('a',vl),v2=repeat('b',vl/2),b1=repeat('c',bl),b2=repeat('d',bl);
 insert into t1 (vl,bl) values (10,10),(100,100),(1000,1000),(1000,5000);
-update t1 set c="test", v1=repeat(vl/4,'a'),v2=repeat(vl/5,'b'),b1=repeat(b1*2,'c'),b2=repeat(bl/2,'d');
 update t1 set c="test", v1=repeat('a',vl/4),v2=repeat('b',vl/5),b1=repeat('c',bl*2),b2=repeat('d',bl/2);
 insert into t1 (vl,bl) values (100,100);
 update t1 set c="test", v1=repeat('a',vl),v2=repeat('b',vl),b1=repeat('c',bl*2),b2=repeat('d',bl/2);
