@@ -347,7 +347,7 @@ public:
   void setSubScanCompletion(bool complete)
   { 
     // Lookups should always be 'complete'
-    assert(complete || m_operation.getQueryOperationDef().isScanOperation());
+    assert(complete || isScanResult());
     m_subScanComplete = complete; 
   }
 
@@ -360,7 +360,7 @@ public:
   bool isSubScanComplete() const
   { 
     // Lookups should always be 'complete'
-    assert(m_subScanComplete || m_operation.getQueryOperationDef().isScanOperation());
+    assert(m_subScanComplete || isScanResult());
     return m_subScanComplete; 
   }
 
@@ -369,6 +369,15 @@ public:
    * from their parent operation(s).
    */
   bool isAllSubScansComplete() const;
+
+  bool isScanQuery() const
+  { return (m_properties & Is_Scan_Query); }
+
+  bool isScanResult() const
+  { return (m_properties & Is_Scan_Result); }
+
+  bool isInnerJoin() const
+  { return (m_properties & Is_Inner_Join); }
 
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbResultStream&);
@@ -430,14 +439,21 @@ private:
   /** Operation to which this resultStream belong.*/
   NdbQueryOperationImpl& m_operation;
 
+  /** ResultStream for my parent operation, or NULL if I am root */
+  NdbResultStream* const m_parent;
+
+  const enum properties
+  {
+    Is_Scan_Query = 0x01,
+    Is_Scan_Result = 0x02,
+    Is_Inner_Join = 0x10
+  } m_properties;
+
   /** The receiver object that unpacks transid_AI messages.*/
   NdbReceiver m_receiver;
 
   /** Used for checking if buffer overrun occurred. */
   Uint32* m_batchOverflowCheck;
-
-  /** Max #rows which this stream may recieve in its buffer structures */
-  Uint32 m_maxRows;
 
   /** The number of transid_AI messages received.*/
   Uint32 m_rowCount;
@@ -453,7 +469,10 @@ private:
     Iter_finished
   } m_iterState;
 
-  /** Tuple id of the current tuple, or 'tupleNotFound' if Iter_notStarted or Iter_finished. */
+  /**
+   * Tuple id of the current tuple, or 'tupleNotFound'
+   * if Iter_notStarted or Iter_finished. 
+   */
   Uint16 m_currentRow;
   
   /** 
@@ -464,6 +483,10 @@ private:
    */
   bool m_subScanComplete;
 
+  /** Max #rows which this stream may recieve in its TupleSet structures */
+  Uint32 m_maxRows;
+
+  /** TupleSet contains the correlation between parent/childs */
   TupleSet* m_tupleSet;
 
   void clearTupleSet();
@@ -541,13 +564,24 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
 :
   m_rootFrag(rootFrag),
   m_operation(operation),
+  m_parent(operation.getParentOperation()
+        ? &rootFrag.getResultStream(*operation.getParentOperation())
+        : NULL),
+  m_properties(
+    (enum properties)
+     ((operation.getQueryDef().isScanQuery()
+       ? Is_Scan_Query : 0)
+     | (operation.getQueryOperationDef().isScanOperation()
+       ? Is_Scan_Result : 0)
+     | (operation.getQueryOperationDef().getMatchType() != NdbQueryOptions::MatchAll
+       ? Is_Inner_Join : 0))),
   m_receiver(operation.getQuery().getNdbTransaction().getNdb()),
   m_batchOverflowCheck(NULL),
-  m_maxRows(0),
   m_rowCount(0),
   m_iterState(Iter_notStarted),
   m_currentRow(tupleNotFound),
   m_subScanComplete(true),
+  m_maxRows(0),
   m_tupleSet(NULL)
 {};
 
@@ -570,7 +604,7 @@ NdbResultStream::prepare()
    * Neither is these structures required for operations not having respective
    * child or parent operations.
    */
-  if (m_operation.getQueryDef().isScanQuery())
+  if (isScanQuery())
   {
     m_maxRows  = m_operation.getMaxBatchRows();
     m_tupleSet = 
@@ -605,7 +639,7 @@ NdbResultStream::prepare()
 void
 NdbResultStream::reset()
 {
-  assert (m_operation.getQueryDef().isScanQuery());
+  assert (isScanQuery());
 
   // Root scan-operation need a ScanTabConf to complete
   m_rowCount = 0;
@@ -629,7 +663,7 @@ NdbResultStream::reset()
 void
 NdbResultStream::clearTupleSet()
 {
-  assert (m_operation.getQueryDef().isScanQuery());
+  assert (isScanQuery());
   for (Uint32 i=0; i<m_maxRows; i++)
   {
     m_tupleSet[i].m_parentId = tupleNotFound;
@@ -644,7 +678,7 @@ bool
 NdbResultStream::isAllSubScansComplete() const
 { 
   // Lookups should always be 'complete'
-  assert(m_subScanComplete || m_operation.getQueryOperationDef().isScanOperation());
+  assert(m_subScanComplete || isScanResult());
 
   if (!m_subScanComplete)
     return false;
@@ -666,7 +700,7 @@ NdbResultStream::setParentChildMap(Uint16 parentId,
                                    Uint16 tupleId, 
                                    Uint16 tupleNo)
 {
-  assert (m_operation.getQueryDef().isScanQuery());
+  assert (isScanQuery());
   assert (tupleNo < m_maxRows);
   assert (tupleId != tupleNotFound);
 
@@ -685,7 +719,7 @@ NdbResultStream::setParentChildMap(Uint16 parentId,
      * possible to use ::findTupleWithParentId() and ::findNextTuple()
      * to navigate even the root operation.
      */
-    assert (m_operation.getParentOperation()==NULL);
+    assert (m_parent==NULL);
     /* Link into m_hash_next in order to let ::findNextTuple() navigate correctly */
     if (tupleNo==0)
       m_tupleSet[hash].m_hash_head  = 0;
@@ -711,7 +745,7 @@ NdbResultStream::setParentChildMap(Uint16 parentId,
 Uint16
 NdbResultStream::findTupleWithParentId(Uint16 parentId) const
 {
-  assert ((parentId==tupleNotFound) == (m_operation.getParentOperation()==NULL));
+  assert ((parentId==tupleNotFound) == (m_parent==NULL));
 
   if (likely(m_rowCount>0))
   {
@@ -769,14 +803,10 @@ NdbResultStream::findNextTuple(Uint16 tupleNo) const
 Uint16
 NdbResultStream::firstResult()
 {
-  NdbQueryOperationImpl* parent = m_operation.getParentOperation();
-
   Uint16 parentId = tupleNotFound;
-  if (parent!=NULL)
+  if (m_parent!=NULL)
   {
-    const NdbResultStream& parentStream = m_rootFrag.getResultStream(*parent);
-    parentId = parentStream.getCurrentTupleId();
-
+    parentId = m_parent->getCurrentTupleId();
     if (parentId == tupleNotFound)
     {
       m_currentRow = tupleNotFound;
@@ -817,7 +847,7 @@ void
 NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len)
 {
   assert(m_iterState == Iter_notStarted);
-  if (m_operation.getQueryDef().isScanQuery())
+  if (isScanQuery())
   {
     const CorrelationData correlData(ptr, len);
 
@@ -832,7 +862,7 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len)
      * parent and child until all tuples (for this batch and 
      * root fragment) have arrived.
      */
-    setParentChildMap(m_operation.getParentOperation()==NULL
+    setParentChildMap(m_parent==NULL
                       ? tupleNotFound
                       : correlData.getParentTupleId(),
                       correlData.getTupleId(),
@@ -873,7 +903,7 @@ NdbResultStream::handleBatchComplete()
     NdbResultStream& childStream = m_rootFrag.getResultStream(child);
     childStream.handleBatchComplete();
 
-    const bool isInnerJoin = child.getQueryOperationDef().getMatchType() != NdbQueryOptions::MatchAll;
+    const bool isInnerJoin = childStream.isInnerJoin();
     const bool allSubScansComplete = childStream.isAllSubScansComplete();
 
     for (Uint32 tupleNo=0; tupleNo<getRowCount(); tupleNo++)
