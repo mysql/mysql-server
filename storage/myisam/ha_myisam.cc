@@ -123,6 +123,9 @@ static void mi_check_print_msg(HA_CHECK *param,	const char* msg_type,
   if (protocol->write())
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
 		    msgbuf);
+  else if (thd->variables.log_warnings > 2)
+    sql_print_error("%s", msgbuf);
+
 #ifdef THREAD
   if (param->need_print_msg_lock)
     pthread_mutex_unlock(&param->print_msg_mutex);
