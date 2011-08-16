@@ -1726,6 +1726,20 @@ f1	f2	f3	f3
 0	NULL	NULL	NULL
 DROP TABLE t1, t2, t3, t4;
 set @tmp803457=@@optimizer_switch;
+#
+# BUG#818280: crash in do_copy_not_null() in maria-5.3 with semijoin
+#
+CREATE TABLE t1 ( c1 int NOT NULL , c2 int NOT NULL, PRIMARY KEY (c1)) ;
+INSERT IGNORE INTO t1 VALUES (2,7),(1,3),(5,6);
+CREATE TABLE t3 ( c1 int NOT NULL , c2 int NOT NULL, PRIMARY KEY (c1)) ;
+INSERT IGNORE INTO t3 VALUES (2,7),(1,3),(5,6);
+CREATE TABLE t2 ( c1 int NOT NULL , c5 int NOT NULL );
+INSERT IGNORE INTO t2 VALUES (2,2),(2,2),(5,6);
+SELECT * FROM t1 WHERE c1 IN ( SELECT t3.c1 FROM t3 LEFT JOIN t2 ON t2 .c1 = t3 .c1 WHERE t2.c5 != 0 );
+c1	c2
+2	7
+5	6
+DROP TABLE t1, t2, t3;
 set optimizer_switch=@subselect_sj_tmp;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
