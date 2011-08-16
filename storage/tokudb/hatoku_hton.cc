@@ -1401,6 +1401,10 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("free count", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.realloc_count);
       STATPRINT("realloc count", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.malloc_fail);
+      STATPRINT("malloc fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.realloc_fail);
+      STATPRINT("realloc fail", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.mem_requested);
       STATPRINT("mem requested", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.mem_used);
