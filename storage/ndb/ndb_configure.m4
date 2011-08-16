@@ -3,7 +3,7 @@
 NDB_VERSION_MAJOR=7
 NDB_VERSION_MINOR=1
 NDB_VERSION_BUILD=15
-NDB_VERSION_STATUS=""
+NDB_VERSION_STATUS="-a"
 
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_CXX_LINKING
