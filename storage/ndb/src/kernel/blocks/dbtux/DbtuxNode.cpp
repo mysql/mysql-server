@@ -155,19 +155,26 @@ Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
 {
   const Frag& frag = node.m_frag;
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
-  KeyData prefKey(index.m_keySpec, false, 0);
-  prefKey.set_buf(node.getPref(), index.m_prefBytes);
+  /*
+   * bug#12873640
+   * Node prefix exists if it has non-zero number of attributes.  It is
+   * then a partial instance of KeyData.  If the prefix does not exist
+   * then set_buf() could overwrite m_pageId1 in first entry, causing
+   * random crash in TUP via readKeyAttrs().
+   */
   if (index.m_prefAttrs > 0) {
+    KeyData prefKey(index.m_keySpec, false, 0);
+    prefKey.set_buf(node.getPref(), index.m_prefBytes);
     jam();
     readKeyAttrs(ctx, frag, node.getEnt(0), prefKey, index.m_prefAttrs);
-  }
 #ifdef VM_TRACE
-  if (debugFlags & DebugMaint) {
-    debugOut << "setNodePref: " << node;
-    debugOut << " " << prefKey.print(ctx.c_debugBuffer, DebugBufferBytes);
-    debugOut << endl;
-  }
+    if (debugFlags & DebugMaint) {
+      debugOut << "setNodePref: " << node;
+      debugOut << " " << prefKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+      debugOut << endl;
+    }
 #endif
+  }
 }
 
 // node operations
