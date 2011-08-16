@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <malloc.h>
 #if !TOKU_WINDOWS
 #include <execinfo.h>
 #endif
@@ -53,6 +54,9 @@ toku_do_backtrace_abort(void) {
     }
     else
 	fprintf(stderr, "Engine status function not available\n");
+    fprintf(stderr, "Memory usage:\n");
+    fflush(stderr);	    // just in case malloc_stats() crashes, we still want engine status (and to know that malloc_stats() failed)
+    malloc_stats();
     fflush(stderr);	    
     
 
