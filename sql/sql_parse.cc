@@ -1132,12 +1132,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     /* Ensure we don't free security_ctx->user in case we have to revert */
     thd->security_ctx->user= 0;
+    thd->user_connect= 0;
 
     if (acl_authenticate(thd, 0, packet_length))
     {
       /* Free user if allocated by acl_authenticate */
       x_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
+      if (thd->user_connect)
+	decrease_user_connections(thd->user_connect);
       thd->user_connect= save_user_connect;
       thd->reset_db(save_db, save_db_length);
       thd->variables.character_set_client= save_character_set_client;

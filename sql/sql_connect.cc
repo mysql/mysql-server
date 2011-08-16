@@ -49,6 +49,7 @@ int get_or_create_user_conn(THD *thd, const char *user,
 
   DBUG_ASSERT(user != 0);
   DBUG_ASSERT(host != 0);
+  DBUG_ASSERT(thd->user_connect == 0);
 
   user_len= strlen(user);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
@@ -108,7 +109,7 @@ end:
 
 int check_for_max_user_connections(THD *thd, USER_CONN *uc)
 {
-  int error=0;
+  int error= 1;
   DBUG_ENTER("check_for_max_user_connections");
 
   (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -116,7 +117,6 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
       max_user_connections < (uint) uc->connections)
   {
     my_error(ER_TOO_MANY_USER_CONNECTIONS, MYF(0), uc->user);
-    error=1;
     goto end;
   }
   time_out_user_resource_limits(thd, uc);
@@ -126,7 +126,6 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
     my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user,
              "max_user_connections",
              (long) uc->user_resources.user_conn);
-    error= 1;
     goto end;
   }
   if (uc->user_resources.conn_per_hour &&
@@ -135,10 +134,10 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
     my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user,
              "max_connections_per_hour",
              (long) uc->user_resources.conn_per_hour);
-    error=1;
     goto end;
   }
   uc->conn_per_hour++;
+  error= 0;
 
 end:
   if (error)
@@ -1028,8 +1027,17 @@ void end_connection(THD *thd)
 {
   NET *net= &thd->net;
   plugin_thdvar_cleanup(thd);
+
   if (thd->user_connect)
+  {
+    /*
+      We decrease this variable early to make it easy to log again quickly.
+      This code is not critical as we will in any case do this test
+      again in thd->cleanup()
+    */
     decrease_user_connections(thd->user_connect);
+    thd->user_connect= 0;
+  }
 
   if (thd->killed || (net->error && net->vio != 0))
   {

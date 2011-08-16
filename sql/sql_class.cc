@@ -1095,6 +1095,11 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
+  if (user_connect)
+  {
+    decrease_user_connections(user_connect);
+    user_connect= 0;                            // Safety
+  }
   wt_thd_destroy(&transaction.wt);
 
 #if defined(ENABLED_DEBUG_SYNC)

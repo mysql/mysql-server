@@ -6978,7 +6978,6 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
 #undef HAVE_OPENSSL
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define initialized 0
-#define decrease_user_connections(X)        /* nothing */
 #define check_for_max_user_connections(X,Y)   0
 #define get_or_create_user_conn(A,B,C,D) 0
 #endif
@@ -8167,6 +8166,8 @@ bool acl_authenticate(THD *thd, uint connect_errors,
        max_user_connections) &&
       check_for_max_user_connections(thd, thd->user_connect))
   {
+    /* Ensure we don't decrement thd->user_connections->connections twice */
+    thd->user_connect= 0;
     status_var_increment(denied_connections);
     DBUG_RETURN(1); // The error is set in check_for_max_user_connections()
   }
@@ -8207,12 +8208,7 @@ bool acl_authenticate(THD *thd, uint connect_errors,
     if (mysql_change_db(thd, &mpvio.db, FALSE))
     {
       /* mysql_change_db() has pushed the error message. */
-      if (thd->user_connect)
-      {
-        status_var_increment(thd->status_var.access_denied_errors);
-        decrease_user_connections(thd->user_connect);
-        thd->user_connect= 0;
-      }
+      status_var_increment(thd->status_var.access_denied_errors);
       DBUG_RETURN(1);
     }
   }
