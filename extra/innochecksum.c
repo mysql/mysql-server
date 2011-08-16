@@ -48,7 +48,6 @@
 /* another argument to specify page ranges... seek to right spot and go from there */
 
 typedef unsigned long int ulint;
-typedef unsigned char uchar;
 
 /* innodb function in name; modified slightly to not have the ASM version (lots of #ifs that didn't apply) */
 ulint mach_read_from_4(uchar *b)
