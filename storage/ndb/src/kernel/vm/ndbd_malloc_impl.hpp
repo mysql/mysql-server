@@ -68,7 +68,7 @@ public:
 
   bool init(Uint32 *watchCounter, bool allow_alloc_less_than_requested = true);
   void map(Uint32 * watchCounter, bool memlock = false, Uint32 resources[] = 0);
-  void* get_memroot() const { return (void*)m_base_page;}
+  void* get_memroot() const;
   
   void dump() const ;
   
