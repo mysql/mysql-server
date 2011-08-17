@@ -110,6 +110,7 @@ enum db_err {
 					foreign keys as its prefix columns */
 	DB_TOO_BIG_INDEX_COL,		/* index column size exceeds maximum
 					limit */
+	DB_INDEX_CORRUPT,		/* we have corrupted index */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
