@@ -3404,6 +3404,11 @@ NdbQueryImpl::OrderedFragSet::~OrderedFragSet()
   m_emptiedFrags= NULL;
 }
 
+void NdbQueryImpl::OrderedFragSet::clear() 
+{ 
+  m_activeFragCount = 0;
+  m_emptiedFragCount = 0; 
+}
 
 void
 NdbQueryImpl::OrderedFragSet::prepare(NdbBulkAllocator& allocator,
@@ -3573,13 +3578,6 @@ NdbQueryImpl::OrderedFragSet::prepareMoreResults(NdbRootFragment rootFrags[], Ui
   assert(m_activeFragCount + m_emptiedFragCount + m_finalFragCount 
          <= m_capacity);
 } // OrderedFragSet::prepareMoreResults()
-
-void NdbQueryImpl::OrderedFragSet::clear() 
-{ 
-  m_activeFragCount = 0;
-  m_emptiedFragCount = 0; 
-  m_finalFragCount = 0;
-}
 
 Uint32 
 NdbQueryImpl::OrderedFragSet::getFetchMore(NdbRootFragment** &frags)
