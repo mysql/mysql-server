@@ -102,23 +102,8 @@ drop index idxā on corrupt_bit_test_ā;
 
 check table corrupt_bit_test_ā;
 
-# Shut down the server
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 20
--- source include/wait_until_disconnected.inc
-
-# Restart the server
--- disable_query_log
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
--- enable_query_log
-
 set names utf8;
 
-# The index is marked as suspect in Sys_indexes too, so after server
-# reboot, the attempt to use the index will fail too.
 -- error ER_NOT_KEYFILE
 select z from corrupt_bit_test_ā;
 

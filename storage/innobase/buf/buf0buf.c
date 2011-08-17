@@ -3487,7 +3487,6 @@ buf_mark_space_corrupt(
 	const ibool	uncompressed = (buf_page_get_state(bpage)
 					== BUF_BLOCK_FILE_PAGE);
 	ulint		space = bpage->space;
-	ulint		offset = bpage->offset;
 	ibool		ret = TRUE;
 
 	/* First unfix and release lock on the bpage */
@@ -3507,7 +3506,6 @@ buf_mark_space_corrupt(
 
 	/* Find the table with specified space id, and mark it corrupted */
 	if (dict_set_corrupted_by_space(space)) {
-		ut_ad(bpage->space == space && bpage->offset == offset);
 		buf_LRU_free_one_page(bpage);
 	} else {
 		ret = FALSE;
