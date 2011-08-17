@@ -40,7 +40,6 @@ class NdbReceiver
   friend class NdbIndexScanOperation;
   friend class NdbTransaction;
   friend class NdbRootFragment;
-  friend class ReceiverIdIterator;
   friend int compare_ndbrecord(const NdbReceiver *r1,
                       const NdbReceiver *r2,
                       const NdbRecord *key_record,
@@ -81,6 +80,12 @@ public:
   inline NdbReceiver* next() { return m_next; }
   
   void setErrorCode(int);
+
+  /* Prepare for receiving of rows into specified buffer */
+  void prepareReceive(char *buf);
+
+  /* Prepare for reading of rows from specified buffer */
+  void prepareRead(char *buf, Uint32 rows);
 
 private:
   Uint32 theMagicNumber;
@@ -227,7 +232,7 @@ private:
                     const char * & data_ptr) const;
   int getScanAttrData(const char * & data, Uint32 & size, Uint32 & pos) const;
   /** Used by NdbQueryOperationImpl, where random access to rows is needed.*/
-  void setCurrentRow(Uint32 currentRow);
+  void setCurrentRow(char* buffer, Uint32 row);
   /** Used by NdbQueryOperationImpl.*/
   Uint32 getCurrentRow() const { return m_current_row; }
 };
@@ -288,9 +293,13 @@ NdbReceiver::execSCANOPCONF(Uint32 tcPtrI, Uint32 len, Uint32 rows){
 
 inline
 void
-NdbReceiver::setCurrentRow(Uint32 currentRow)
+NdbReceiver::setCurrentRow(char* buffer, Uint32 row)
 {
-  m_current_row = currentRow;
+  m_record.m_row_buffer = buffer;
+  m_current_row = row;
+#ifdef assert
+  assert(m_current_row < m_result_rows);
+#endif
 }
 
 inline

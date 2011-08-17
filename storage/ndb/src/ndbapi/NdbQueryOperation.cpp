@@ -788,7 +788,7 @@ NdbResultStream::firstResult()
   if ((m_currentRow=findTupleWithParentId(parentId)) != tupleNotFound)
   {
     m_iterState = Iter_started;
-    m_receiver.setCurrentRow(m_currentRow);
+    m_receiver.setCurrentRow(m_buffer, m_currentRow);
     return m_currentRow;
   }
 
@@ -805,7 +805,7 @@ NdbResultStream::nextResult()
       (m_currentRow=findNextTuple(m_currentRow)) != tupleNotFound)
   {
     m_iterState = Iter_started;
-    m_receiver.setCurrentRow(m_currentRow);
+    m_receiver.setCurrentRow(m_buffer, m_currentRow);
     return m_currentRow;
   }
   m_iterState = Iter_finished;
