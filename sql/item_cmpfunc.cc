@@ -1399,6 +1399,26 @@ longlong Item_func_truth::val_int()
 }
 
 
+bool Item_in_optimizer::is_top_level_item()
+{
+  return ((Item_in_subselect *)args[1])->is_top_level_item();
+}
+
+
+bool Item_in_optimizer::eval_not_null_tables(uchar *opt_arg)
+{
+  not_null_tables_cache= 0;
+  if (is_top_level_item())
+  {
+    /*
+      It is possible to determine NULL-rejectedness of the left arguments
+      of IN only if it is a top-level predicate.
+    */
+    not_null_tables_cache= args[0]->not_null_tables();
+  }
+  return FALSE;
+}
+
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
   if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
@@ -1425,7 +1445,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     }
     used_tables_cache= args[0]->used_tables();
   }
-  not_null_tables_cache= args[0]->not_null_tables();
+  eval_not_null_tables(NULL);
   with_sum_func= args[0]->with_sum_func;
   with_field= args[0]->with_field;
   if ((const_item_cache= args[0]->const_item()))
@@ -1458,7 +1478,6 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
   with_sum_func= with_sum_func || args[1]->with_sum_func;
   with_field= with_field || args[1]->with_field;
   used_tables_cache|= args[1]->used_tables();
-  not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
   fixed= 1;
   return FALSE;

@@ -4419,6 +4419,31 @@ INSERT INTO t3 VALUES (0),(0);
 SELECT a1.f3 AS r FROM t2 AS a1 , t1 WHERE a1.f3 < ALL ( SELECT f3 FROM t3 WHERE f3 = 1 ) ;
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # BUG LP:813473: Wrong result with outer join + NOT IN subquery
+--echo # This bug is a duplicate of Bug#11764086 whose test case is added below
+--echo #
+
+CREATE TABLE t1 (c int) ;
+INSERT INTO t1 VALUES (5),(6);
+
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (20,9),(20,9);
+
+create table t3 (d int, e int);
+insert into t3 values (2, 9), (3,10);
+
+EXPLAIN
+SELECT t2.b , t1.c
+FROM t2 LEFT JOIN t1 ON t1.c < 3
+WHERE (t2.b , t1.c) NOT IN (SELECT * from t3);
+
+SELECT t2.b , t1.c
+FROM t2 LEFT JOIN t1 ON t1.c < 3
+WHERE (t2.b, t1.c) NOT IN (SELECT * from t3);
+
+drop table t1, t2, t3;
+
 --echo End of 5.3 tests
 
 --echo End of 5.5 tests.
@@ -4446,6 +4471,55 @@ SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
 SET SESSION sql_mode=@old_sql_mode;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#11764086: Null left operand to NOT IN in WHERE clause
+--echo # behaves differently than real NULL
+--echo #
+
+CREATE TABLE parent (id int);
+INSERT INTO parent VALUES (1), (2);
+
+CREATE TABLE child (parent_id int, other int);
+INSERT INTO child VALUES (1,NULL);
+
+--echo # Offending query (c.parent_id is NULL for null-complemented rows only)
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id NOT IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          );
+
+--echo # Some syntactic variations with IS FALSE and IS NOT TRUE
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          ) IS NOT TRUE;
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          ) IS FALSE;
+
+DROP TABLE parent, child;
+
+--echo # End of test for bug#11764086.
 
 --echo #
 --echo # BUG#50257: Missing info in REF column of the EXPLAIN 

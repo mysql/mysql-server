@@ -5147,6 +5147,31 @@ NULL
 NULL
 5
 DROP TABLE t1, t2, t3;
+#
+# BUG LP:813473: Wrong result with outer join + NOT IN subquery
+# This bug is a duplicate of Bug#11764086 whose test case is added below
+#
+CREATE TABLE t1 (c int) ;
+INSERT INTO t1 VALUES (5),(6);
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (20,9),(20,9);
+create table t3 (d int, e int);
+insert into t3 values (2, 9), (3,10);
+EXPLAIN
+SELECT t2.b , t1.c
+FROM t2 LEFT JOIN t1 ON t1.c < 3
+WHERE (t2.b , t1.c) NOT IN (SELECT * from t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT t2.b , t1.c
+FROM t2 LEFT JOIN t1 ON t1.c < 3
+WHERE (t2.b, t1.c) NOT IN (SELECT * from t3);
+b	c
+9	NULL
+9	NULL
+drop table t1, t2, t3;
 End of 5.3 tests
 End of 5.5 tests.
 #
@@ -5174,6 +5199,54 @@ SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
 1
 SET SESSION sql_mode=@old_sql_mode;
 DROP TABLE t1, t2;
+#
+# Bug#11764086: Null left operand to NOT IN in WHERE clause
+# behaves differently than real NULL
+#
+CREATE TABLE parent (id int);
+INSERT INTO parent VALUES (1), (2);
+CREATE TABLE child (parent_id int, other int);
+INSERT INTO child VALUES (1,NULL);
+# Offending query (c.parent_id is NULL for null-complemented rows only)
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id NOT IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+);
+id	parent_id
+1	1
+2	NULL
+# Some syntactic variations with IS FALSE and IS NOT TRUE
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+) IS NOT TRUE;
+id	parent_id
+1	1
+2	NULL
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+) IS FALSE;
+id	parent_id
+1	1
+2	NULL
+DROP TABLE parent, child;
+# End of test for bug#11764086.
 #
 # BUG#50257: Missing info in REF column of the EXPLAIN 
 #            lines for subselects

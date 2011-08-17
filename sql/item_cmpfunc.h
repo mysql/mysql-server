@@ -260,6 +260,8 @@ public:
   void set_join_tab_idx(uint join_tab_idx_arg)
   { args[1]->set_join_tab_idx(join_tab_idx_arg); }
   virtual void get_cache_parameters(List<Item> &parameters);
+  bool is_top_level_item();
+  bool eval_not_null_tables(uchar *opt_arg);
 };
 
 class Comp_creator
@@ -494,7 +496,7 @@ public:
      show(0)
     {}
   virtual void top_level_item() { abort_on_null= 1; }
-  bool top_level() { return abort_on_null; }
+  bool is_top_level_item() { return abort_on_null; }
   longlong val_int();
   enum Functype functype() const { return NOT_ALL_FUNC; }
   const char *func_name() const { return "<not>"; }
