@@ -455,7 +455,6 @@ typedef struct system_variables
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
-  ulong optimizer_join_cache_level;
   ulong lock_wait_timeout;
   ulong max_allowed_packet;
   ulong max_error_count;
@@ -1942,7 +1941,7 @@ public:
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
   /** Tells whether the given optimizer_switch flag is on */
-  inline bool optimizer_switch_flag(ulonglong flag)
+  inline bool optimizer_switch_flag(ulonglong flag) const
   {
     return (variables.optimizer_switch & flag);
   }
