@@ -51,6 +51,7 @@
                      // mysql_user_table_is_in_short_password_format
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
+#include "sql_show.h"                           // opt_ignore_db_dirs
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -3502,3 +3503,9 @@ static Sys_var_tz Sys_time_zone(
        SESSION_VAR(time_zone), NO_CMD_LINE,
        DEFAULT(&default_tz), NO_MUTEX_GUARD, IN_BINLOG);
 
+static Sys_var_charptr Sys_ignore_db_dirs(
+       "ignore_db_dirs",
+       "The list of directories to ignore when collecting database lists",
+       READ_ONLY GLOBAL_VAR(opt_ignore_db_dirs), 
+       NO_CMD_LINE,
+       IN_FS_CHARSET, DEFAULT(0));

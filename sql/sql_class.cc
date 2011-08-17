@@ -666,7 +666,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 {
   String str(buffer, length, &my_charset_latin1);
   const Security_context *sctx= &thd->main_security_ctx;
-  char header[64];
+  char header[256];
   int len;
   /*
     The pointers thd->query and thd->proc_info might change since they are
@@ -2097,7 +2097,8 @@ void THD::rollback_item_tree_changes()
 ** Functions to provide a interface to select results
 *****************************************************************************/
 
-select_result::select_result()
+select_result::select_result():
+  estimated_rowcount(0)
 {
   thd=current_thd;
 }
@@ -3317,7 +3318,11 @@ void TMP_TABLE_PARAM::init()
   quick_group= 1;
   table_charset= 0;
   precomputed_group_by= 0;
+  skip_create_table= 0;
   bit_fields_as_long= 0;
+  recinfo= 0;
+  start_recinfo= 0;
+  keyinfo= 0;
   DBUG_VOID_RETURN;
 }
 

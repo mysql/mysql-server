@@ -67,7 +67,6 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
   memset(info, 0, sizeof(*info));
   info->thd= thd;
   info->table= table;
-  info->file=  table->file;
   info->record= table->record[0];
   info->print_error= print_error;
   info->unlock_row= rr_unlock_row;
@@ -176,7 +175,6 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   memset(info, 0, sizeof(*info));
   info->thd=thd;
   info->table=table;
-  info->file= table->file;
   info->forms= &info->table;		/* Only one table */
   
   if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE &&
@@ -304,12 +302,13 @@ void end_read_record(READ_RECORD *info)
     my_free_lock(info->cache);
     info->cache=0;
   }
-  if (info->table)
+  if (info->table &&
+      (info->table->s->tmp_table != INTERNAL_TMP_TABLE || info->table->created))
   {
     filesort_free_buffers(info->table,0);
-    (void) info->file->extra(HA_EXTRA_NO_CACHE);
+    (void) info->table->file->extra(HA_EXTRA_NO_CACHE);
     if (info->read_record != rr_quick) // otherwise quick_range does it
-      (void) info->file->ha_index_or_rnd_end();
+      (void) info->table->file->ha_index_or_rnd_end();
     info->table=0;
   }
 }
@@ -367,7 +366,7 @@ static int rr_quick(READ_RECORD *info)
 
 static int rr_index_first(READ_RECORD *info)
 {
-  int tmp= info->file->ha_index_first(info->record);
+  int tmp= info->table->file->ha_index_first(info->record);
   info->read_record= rr_index;
   if (tmp)
     tmp= rr_handle_error(info, tmp);
@@ -390,7 +389,7 @@ static int rr_index_first(READ_RECORD *info)
 
 static int rr_index_last(READ_RECORD *info)
 {
-  int tmp= info->file->ha_index_last(info->record);
+  int tmp= info->table->file->ha_index_last(info->record);
   info->read_record= rr_index_desc;
   if (tmp)
     tmp= rr_handle_error(info, tmp);
@@ -416,7 +415,7 @@ static int rr_index_last(READ_RECORD *info)
 
 static int rr_index(READ_RECORD *info)
 {
-  int tmp= info->file->ha_index_next(info->record);
+  int tmp= info->table->file->ha_index_next(info->record);
   if (tmp)
     tmp= rr_handle_error(info, tmp);
   return tmp;
@@ -441,7 +440,7 @@ static int rr_index(READ_RECORD *info)
 
 static int rr_index_desc(READ_RECORD *info)
 {
-  int tmp= info->file->ha_index_prev(info->record);
+  int tmp= info->table->file->ha_index_prev(info->record);
   if (tmp)
     tmp= rr_handle_error(info, tmp);
   return tmp;
@@ -451,7 +450,7 @@ static int rr_index_desc(READ_RECORD *info)
 int rr_sequential(READ_RECORD *info)
 {
   int tmp;
-  while ((tmp=info->file->ha_rnd_next(info->record)))
+  while ((tmp=info->table->file->ha_rnd_next(info->record)))
   {
     /*
       ha_rnd_next can return RECORD_DELETED for MyISAM when one thread is
@@ -474,7 +473,7 @@ static int rr_from_tempfile(READ_RECORD *info)
   {
     if (my_b_read(info->io_cache,info->ref_pos,info->ref_length))
       return -1;					/* End of file */
-    if (!(tmp=info->file->ha_rnd_pos(info->record,info->ref_pos)))
+    if (!(tmp=info->table->file->ha_rnd_pos(info->record,info->ref_pos)))
       break;
     /* The following is extremely unlikely to happen */
     if (tmp == HA_ERR_RECORD_DELETED ||
@@ -525,7 +524,7 @@ static int rr_from_pointers(READ_RECORD *info)
     cache_pos= info->cache_pos;
     info->cache_pos+= info->ref_length;
 
-    if (!(tmp=info->file->ha_rnd_pos(info->record,cache_pos)))
+    if (!(tmp=info->table->file->ha_rnd_pos(info->record,cache_pos)))
       break;
 
     /* The following is extremely unlikely to happen */
@@ -659,7 +658,7 @@ static int rr_from_cache(READ_RECORD *info)
       record=uint3korr(position);
       position+=3;
       record_pos=info->cache+record*info->reclength;
-      if ((error=(int16) info->file->ha_rnd_pos(record_pos,info->ref_pos)))
+      if ((error=(int16) info->table->file->ha_rnd_pos(record_pos,info->ref_pos)))
       {
 	record_pos[info->error_offset]=1;
 	shortstore(record_pos,error);

@@ -1628,6 +1628,7 @@ ok:
   old_lex->all_selects_list= lex->all_selects_list;
   lex->all_selects_list->link_prev=
     (st_select_lex_node**)&old_lex->all_selects_list;
+  table->derived_key_list.empty();
 
 ok2:
   DBUG_ASSERT(lex == thd->lex);
