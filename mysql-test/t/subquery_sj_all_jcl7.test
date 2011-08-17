@@ -1,12 +1,11 @@
 # 
 # Run subquery_sj_all.test with BKA_UNIQUE enabled 
 #
-let $requires_join_cache_level = 7;
---source include/have_join_cache_level.inc
+--source include/have_debug.inc
+SET debug= '+d,test_bka_unique';
 
-set optimizer_join_cache_level=7;
-show variables like 'optimizer_join_cache_level';
+set optimizer_switch='batch_key_access=on,mrr_cost_based=off';
 
 --source t/subquery_sj_all.test
 
-set optimizer_join_cache_level=default;
+set optimizer_switch=default;
