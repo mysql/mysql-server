@@ -62,13 +62,13 @@ populate_leaf(BRTNODE leafnode, int seq, int n, int *minkey, int *maxkey) {
 }
 
 static void
-insert_into_child_buffer(BRTNODE node, int childnum, int minkey, int maxkey) {
+insert_into_child_buffer(BRT brt, BRTNODE node, int childnum, int minkey, int maxkey) {
     for (unsigned int val = htonl(minkey); val <= htonl(maxkey); val++) {
         MSN msn = next_dummymsn();
         unsigned int key = htonl(val);
         DBT thekey; toku_fill_dbt(&thekey, &key, sizeof key);
         DBT theval; toku_fill_dbt(&theval, &val, sizeof val);
-        toku_brt_append_to_child_buffer(node, childnum, BRT_INSERT, msn, xids_get_root_xids(), &thekey, &theval);
+        toku_brt_append_to_child_buffer(brt, node, childnum, BRT_INSERT, msn, xids_get_root_xids(), &thekey, &theval);
 
 	// Create bad tree (don't do following):
 	// node->max_msn_applied_to_node = msn;
@@ -95,7 +95,7 @@ make_tree(BRT brt, int height, int fanout, int nperleaf, int *seq, int *minkey, 
                 toku_brt_nonleaf_append_child(node, child, pivotkey, sizeof k);
             }
             toku_unpin_brtnode(brt, child);
-            insert_into_child_buffer(node, childnum, minkeys[childnum], maxkeys[childnum]);
+            insert_into_child_buffer(brt, node, childnum, minkeys[childnum], maxkeys[childnum]);
         }
         *minkey = minkeys[0];
         *maxkey = maxkeys[0];

@@ -109,6 +109,7 @@ Lookup:
 #include "roll.h"
 #include "toku_atomic.h"
 #include "sub_block.h"
+#include "sort.h"
 
 #if defined(HAVE_CILK)
 #include <cilk/cilk.h>
@@ -151,16 +152,6 @@ toku_assert_entire_node_in_memory(BRTNODE node) {
     for (int i = 0; i < node->n_children; i++) {
         assert(BP_STATE(node,i) == PT_AVAIL);
     }
-}
-
-//
-// MUST be called with the ydb lock held
-//
-static void
-set_new_DSN_for_node(BRTNODE node, BRT t) {
-    assert(t->h->curr_dsn.dsn > MIN_DSN.dsn);
-    node->dsn = t->h->curr_dsn;
-    t->h->curr_dsn.dsn++;
 }
 
 static u_int32_t
@@ -275,8 +266,8 @@ static long brtnode_memory_size (BRTNODE node);
 
 //
 // The intent of toku_pin_brtnode(_holding_lock) is to abstract the process of retrieving a node from
-// the rest of brt.c, so that there is only one place where we need to worry about setting
-// the DSN and applying ancestor messages to a leaf node. The idea is for all of brt.c (search, splits, merges, flushes, etc)
+// the rest of brt.c, so that there is only one place where we need to worry applying ancestor 
+// messages to a leaf node. The idea is for all of brt.c (search, splits, merges, flushes, etc)
 // to access a node via toku_pin_brtnode(_holding_lock)
 //
 int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
@@ -301,9 +292,6 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
             unlockers);
     if (r==0) {
 	BRTNODE node = node_v;
-        if (node->dsn.dsn == INVALID_DSN.dsn) {
-            set_new_DSN_for_node(node, brt);
-        }
 	maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
 	*node_p = node;
 	// printf("%*sPin %ld\n", 8-node->height, "", blocknum.b);
@@ -336,9 +324,6 @@ void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullha
         );
     assert(r==0);
     BRTNODE node = node_v;
-    if (node->dsn.dsn == INVALID_DSN.dsn) {
-        set_new_DSN_for_node(node, brt);
-    }
     maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
     *node_p = node;
 }
@@ -427,19 +412,19 @@ fixup_child_estimates (BRTNODE node, int childnum_of_node, BRTNODE child, BOOL d
     estimates.exact = TRUE;
     int i;
     for (i=0; i<child->n_children; i++) {
-	SUBTREE_EST child_se = &BP_SUBTREE_EST(child,i);
-	estimates.nkeys += child_se->nkeys;
-	estimates.ndata += child_se->ndata;
-	estimates.dsize += child_se->dsize;
-	if (!child_se->exact) estimates.exact = FALSE;
-	if (child->height>0) {
-	    if (BP_STATE(child,i) != PT_AVAIL || 
-                toku_fifo_n_entries(BNC_BUFFER(child,i))!=0) 
+        SUBTREE_EST child_se = &BP_SUBTREE_EST(child,i);
+        estimates.nkeys += child_se->nkeys;
+        estimates.ndata += child_se->ndata;
+        estimates.dsize += child_se->dsize;
+        if (!child_se->exact) estimates.exact = FALSE;
+        if (child->height>0) {
+            if (BP_STATE(child,i) != PT_AVAIL ||
+                toku_fifo_n_entries(BNC_BUFFER(child,i))!=0)
             {
                 estimates.exact=FALSE;
-	    }
-	}
-    } 
+            }
+        }
+    }
     // We only call this function if we have reason to believe that the child changed.
     BP_SUBTREE_EST(node,childnum_of_node) = estimates;
     if (dirty_it) {
@@ -483,7 +468,7 @@ toku_verify_estimates (BRT t, BRTNODE node, ANCESTORS ancestors, struct pivot_bo
                 u_int32_t fullhash = compute_child_fullhash(t->cf, node, childnum);
                 BRTNODE childnode;
                 struct brtnode_fetch_extra bfe;
-                fill_bfe_for_full_read(&bfe, t->h);
+                fill_bfe_for_full_read(&bfe, t->h, t->db, t->compare_fun);
 		toku_pin_brtnode_holding_lock(t, childblocknum, fullhash, &next_ancestors, &next_bounds, &bfe, &childnode);
                 for (int i=0; i<childnode->n_children; i++) {
             	    child_estimate += BP_SUBTREE_EST(childnode, i).ndata;
@@ -531,6 +516,8 @@ brtnode_memory_size (BRTNODE node)
                 NONLEAF_CHILDINFO childinfo = BNC(node, i);
                 retval += sizeof(*childinfo);
                 retval += toku_fifo_memory_size(BNC_BUFFER(node, i));
+                retval += toku_omt_memory_size(BNC_BROADCAST_BUFFER(node, i));
+                retval += toku_omt_memory_size(BNC_MESSAGE_TREE(node, i));
             }
             else {
                 BASEMENTNODE bn = BLB(node, i);
@@ -584,7 +571,7 @@ toku_bfe_leftmost_child_wanted(struct brtnode_fetch_extra *bfe, BRTNODE node)
     } else if (bfe->range_lock_left_key == NULL) {
         return -1;
     } else {
-        return toku_brtnode_which_child(node, bfe->range_lock_left_key, bfe->brt);
+        return toku_brtnode_which_child(node, bfe->range_lock_left_key, bfe->cmp_extra, bfe->cmp);
     }
 }
 
@@ -597,7 +584,7 @@ toku_bfe_rightmost_child_wanted(struct brtnode_fetch_extra *bfe, BRTNODE node)
     } else if (bfe->range_lock_right_key == NULL) {
         return -1;
     } else {
-        return toku_brtnode_which_child(node, bfe->range_lock_right_key, bfe->brt);
+        return toku_brtnode_which_child(node, bfe->range_lock_right_key, bfe->cmp_extra, bfe->cmp);
     }
 }
 
@@ -609,7 +596,7 @@ brt_cursor_rightmost_child_wanted(BRT_CURSOR cursor, BRT brt, BRTNODE node)
     } else if (cursor->range_lock_right_key.data == NULL) {
         return -1;
     } else {
-        return toku_brtnode_which_child(node, &cursor->range_lock_right_key, brt);
+        return toku_brtnode_which_child(node, &cursor->range_lock_right_key, brt->db, brt->compare_fun);
     }
 }
 
@@ -792,10 +779,11 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
         // we can possibly require is a single basement node
         // we find out what basement node the query cares about
         // and check if it is available
-        assert(bfe->brt);
+        assert(bfe->cmp);
         assert(bfe->search);
         bfe->child_to_read = toku_brt_search_which_child(
-            bfe->brt,
+            bfe->cmp_extra,
+            bfe->cmp,
             node,
             bfe->search
             );
@@ -847,7 +835,7 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, lon
         }
         if ((lc <= i && i <= rc) || toku_bfe_wants_child_available(bfe, i)) {
             if (BP_STATE(node,i) == PT_COMPRESSED) {
-                cilk_spawn toku_deserialize_bp_from_compressed(node, i);
+                cilk_spawn toku_deserialize_bp_from_compressed(node, i, bfe->cmp_extra, bfe->cmp);
             }
             else if (BP_STATE(node,i) == PT_ON_DISK) {
                 cilk_spawn toku_deserialize_bp_from_disk(node, i, fd, bfe);
@@ -897,17 +885,17 @@ toku_cmd_leafval_heaviside (OMTVALUE lev, void *extra) {
 }
 
 static int
-brt_compare_pivot(BRT brt, const DBT *key, bytevec ck)
+brt_compare_pivot(DB *cmp_extra, brt_compare_func cmp, const DBT *key, bytevec ck)
     __attribute__((__warn_unused_result__));
 
 static int
-brt_compare_pivot(BRT brt, const DBT *key, bytevec ck)
+brt_compare_pivot(DB *cmp_extra, brt_compare_func cmp, const DBT *key, bytevec ck)
 {
-    int cmp;
+    int r;
     DBT mydbt;
     struct kv_pair *kv = (struct kv_pair *) ck;
-    cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
-    return cmp;
+    r = cmp(cmp_extra, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
+    return r;
 }
 
 // destroys the internals of the brtnode, but it does not free the values
@@ -1025,7 +1013,6 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
     assert(height >= 0);
 
     n->max_msn_applied_to_node_on_disk = MIN_MSN;    // correct value for root node, harmless for others
-    n->dsn = INVALID_DSN; // the owner of the node should take responsibility for properly setting this
     n->nodesize = nodesize;
     n->flags = flags;
     n->thisnodename = nodename;
@@ -1089,12 +1076,6 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
 	invariant(msna.msn == msnb.msn);
 	newroot->max_msn_applied_to_node_on_disk = msna;
     }
-    {
-	DSN dsna = nodea->dsn;
-	DSN dsnb = nodeb->dsn;
-	invariant(dsna.dsn == dsnb.dsn);
-	newroot->dsn = dsna;
-    }
     BP_STATE(newroot,0) = PT_AVAIL;
     BP_STATE(newroot,1) = PT_AVAIL;
     newroot->dirty = 1;
@@ -1121,7 +1102,6 @@ toku_create_new_brtnode (BRT t, BRTNODE *result, int height, int n_children) {
     BRTNODE XMALLOC(n);
     toku_initialize_empty_brtnode(n, name, height, n_children, t->h->layout_version, t->h->nodesize, t->flags);
     assert(n->nodesize > 0);
-    set_new_DSN_for_node(n, t);
 
     u_int32_t fullhash = toku_cachetable_hash(t->cf, n->thisnodename);
     n->fullhash = fullhash;
@@ -1268,7 +1248,6 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 // Effect: Split a leaf node.
 {
     BRTNODE B;
-    DSN dsn = node->dsn;
     //printf("%s:%d splitting leaf %" PRIu64 " which is size %u (targetsize = %u)\n", __FILE__, __LINE__, node->thisnodename.b, toku_serialize_brtnode_size(node), node->nodesize);
 
     assert(node->height==0);
@@ -1354,8 +1333,6 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 	    );
 	BLB_NBYTESINBUF(node, split_node) -= diff_size;
 	BLB_NBYTESINBUF(B, 0) += diff_size;
-        BLB_MAX_DSN_APPLIED(B,0) = BLB_MAX_DSN_APPLIED(node, split_node);
-        BLB_MAX_MSN_APPLIED(B,0) = BLB_MAX_MSN_APPLIED(node, split_node);
 	subtract_estimates(&BP_SUBTREE_EST(node,split_node), &se_diff);
 	add_estimates(&BP_SUBTREE_EST(B,0), &se_diff);
 
@@ -1399,9 +1376,6 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
     node->max_msn_applied_to_node_on_disk= max_msn_applied_to_node;
     B	->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
 
-    node->dsn = dsn;
-    B->dsn = dsn;
-
     node->dirty = 1;
     B->dirty = 1;
 
@@ -1430,7 +1404,6 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
     int n_children_in_a = old_n_children/2;
     int n_children_in_b = old_n_children-n_children_in_a;
     MSN max_msn_applied_to_node = node->max_msn_applied_to_node_on_disk;
-    DSN dsn = node->dsn;
     BRTNODE B;
     assert(node->height>0);
     assert(node->n_children>=2); // Otherwise, how do we split?	 We need at least two children to split. */
@@ -1480,9 +1453,6 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
 
     node->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
     B	->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
-
-    node->dsn = dsn;
-    B->dsn = dsn;
 
     node->dirty = 1;
     B	->dirty = 1;
@@ -1603,7 +1573,7 @@ brt_split_child (BRT t, BRTNODE node, int childnum, BOOL *did_react, ANCESTORS a
 	struct ancestors next_ancestors = {node, childnum, ancestors};
 	const struct pivot_bounds next_bounds = next_pivot_keys(node, childnum, bounds);
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, t->h);
+        fill_bfe_for_full_read(&bfe, t->h, t->db, t->compare_fun);
 	toku_pin_brtnode_holding_lock(t,
 				      BP_BLOCKNUM(node, childnum),
 				      compute_child_fullhash(t->cf, node, childnum),
@@ -1892,13 +1862,6 @@ brt_leaf_put_cmd (
 
     LEAFENTRY storeddata;
     OMTVALUE storeddatav=NULL;
-    if (cmd->msn.msn <= bn->max_msn_applied.msn) {
-	brt_status.msn_discards++;
-	return;
-    }
-    else {
-	bn->max_msn_applied = cmd->msn;
-    }
 
     u_int32_t omt_size;
     int r;
@@ -2094,34 +2057,87 @@ brt_leaf_put_cmd (
     return;
 }
 
+static inline int
+key_msn_cmp(const DBT *a, const DBT *b, const MSN amsn, const MSN bmsn,
+            DB *key_cmp_extra, brt_compare_func key_cmp)
+{
+    int r = key_cmp(key_cmp_extra, a, b);
+    if (r == 0) {
+        r = (amsn.msn > bmsn.msn) - (amsn.msn < bmsn.msn);
+    }
+    return r;
+}
+
+int
+toku_fifo_entry_key_msn_heaviside(OMTVALUE v, void *extrap)
+{
+    const struct toku_fifo_entry_key_msn_heaviside_extra *extra = extrap;
+    const long offset = (long) v;
+    const struct fifo_entry *query = toku_fifo_get_entry(extra->fifo, offset);
+    DBT qdbt, tdbt;
+    const DBT *query_key = fill_dbt_for_fifo_entry(&qdbt, query);
+    const DBT *target_key = toku_fill_dbt(&tdbt, extra->key, extra->keylen);
+    return key_msn_cmp(query_key, target_key, query->msn, extra->msn,
+                       extra->cmp_extra, extra->cmp);
+}
+
+int
+toku_fifo_entry_key_msn_cmp(void *extrap, const void *ap, const void *bp)
+{
+    const struct toku_fifo_entry_key_msn_cmp_extra *extra = extrap;
+    const long ao = *(long *) ap;
+    const long bo = *(long *) bp;
+    const struct fifo_entry *a = toku_fifo_get_entry(extra->fifo, ao);
+    const struct fifo_entry *b = toku_fifo_get_entry(extra->fifo, bo);
+    DBT adbt, bdbt;
+    const DBT *akey = fill_dbt_for_fifo_entry(&adbt, a);
+    const DBT *bkey = fill_dbt_for_fifo_entry(&bdbt, b);
+    return key_msn_cmp(akey, bkey, a->msn, b->msn,
+                       extra->cmp_extra, extra->cmp);
+}
+
 // append a cmd to a nonleaf node's child buffer
 // should be static, but used by test programs
 void
-toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, MSN msn, XIDS xids, const DBT *key, const DBT *val) {
+toku_brt_append_to_child_buffer(BRT brt, BRTNODE node, int childnum, int type, MSN msn, XIDS xids, const DBT *key, const DBT *val) {
     assert(BP_STATE(node,childnum) == PT_AVAIL);
     int diff = key->size + val->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
-    int r = toku_fifo_enq(BNC_BUFFER(node,childnum), key->data, key->size, val->data, val->size, type, msn, xids);
+    long offset;
+    int r = toku_fifo_enq(BNC_BUFFER(node, childnum), key->data, key->size, val->data, val->size, type, msn, xids, &offset);
     assert_zero(r);
+    enum brt_msg_type etype = (enum brt_msg_type) type;
+    if (brt_msg_type_applies_once(etype)) {
+        struct toku_fifo_entry_key_msn_heaviside_extra extra = { .cmp_extra = brt->db, .cmp = brt->compare_fun, .fifo = BNC_BUFFER(node, childnum), .key = key->data, .keylen = key->size, .msn = msn };
+        r = toku_omt_insert(BNC_MESSAGE_TREE(node, childnum), (OMTVALUE) offset, toku_fifo_entry_key_msn_heaviside, &extra, NULL);
+        assert_zero(r);
+    } else if (brt_msg_type_applies_all(etype) || brt_msg_type_does_nothing(etype)) {
+        u_int32_t idx = toku_omt_size(BNC_BROADCAST_BUFFER(node, childnum));
+        r = toku_omt_insert_at(BNC_BROADCAST_BUFFER(node, childnum), (OMTVALUE) offset, idx);
+        assert_zero(r);
+    } else {
+        assert(FALSE);
+    }
     BNC_NBYTESINBUF(node, childnum) += diff;
     node->dirty = 1;
 }
 
-static void brt_nonleaf_cmd_once_to_child (BRTNODE node, unsigned int childnum, BRT_MSG cmd)
+static void brt_nonleaf_cmd_once_to_child (BRT brt, BRTNODE node, unsigned int childnum, BRT_MSG cmd)
 // Previously we had passive aggressive promotion, but that causes a lot of I/O a the checkpoint.  So now we are just putting it in the buffer here.
 // Also we don't worry about the node getting overfull here.  It's the caller's problem.
 {
-    toku_brt_append_to_child_buffer(node, childnum, cmd->type, cmd->msn, cmd->xids, cmd->u.id.key, cmd->u.id.val);
+    toku_brt_append_to_child_buffer(brt, node, childnum, cmd->type, cmd->msn, cmd->xids, cmd->u.id.key, cmd->u.id.val);
 }
 
 /* find the leftmost child that may contain the key */
-unsigned int toku_brtnode_which_child (BRTNODE node , const DBT *k, BRT t) {
+unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
+                                      DB *cmp_extra, brt_compare_func cmp) {
 #define DO_PIVOT_SEARCH_LR 0
 #if DO_PIVOT_SEARCH_LR
     int i;
     for (i=0; i<node->n_children-1; i++) {
-	int cmp = brt_compare_pivot(t, k, d, node->childkeys[i]);
-	if (cmp > 0) continue;
-	if (cmp < 0) return i;
+	int c = brt_compare_pivot(cmp_extra, cmp, k, d, node->childkeys[i]);
+	if (c > 0) continue;
+	if (c < 0) return i;
 	return i;
     }
     return node->n_children-1;
@@ -2133,8 +2149,8 @@ unsigned int toku_brtnode_which_child (BRTNODE node , const DBT *k, BRT t) {
     // random keys
     int i;
     for (i = node->n_children-2; i >= 0; i--) {
-	int cmp = brt_compare_pivot(t, k, d, node->childkeys[i]);
-	if (cmp > 0) return i+1;
+	int c = brt_compare_pivot(cmp_extra, cmp, k, d, node->childkeys[i]);
+	if (c > 0) return i+1;
     }
     return 0;
 #endif
@@ -2145,8 +2161,8 @@ unsigned int toku_brtnode_which_child (BRTNODE node , const DBT *k, BRT t) {
 
     // check the last key to optimize seq insertions
     int n = node->n_children-1;
-    int cmp = brt_compare_pivot(t, k, node->childkeys[n-1]);
-    if (cmp > 0) return n;
+    int c = brt_compare_pivot(cmp_extra, cmp, k, node->childkeys[n-1]);
+    if (c > 0) return n;
 
     // binary search the pivots
     int lo = 0;
@@ -2154,12 +2170,12 @@ unsigned int toku_brtnode_which_child (BRTNODE node , const DBT *k, BRT t) {
     int mi;
     while (lo < hi) {
 	mi = (lo + hi) / 2;
-	cmp = brt_compare_pivot(t, k, node->childkeys[mi]);
-	if (cmp > 0) {
+	c = brt_compare_pivot(cmp_extra, cmp, k, node->childkeys[mi]);
+	if (c > 0) {
 	    lo = mi+1;
 	    continue;
 	} 
-	if (cmp < 0) {
+	if (c < 0) {
 	    hi = mi;
 	    continue;
 	}
@@ -2177,87 +2193,39 @@ static void brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_MSG cmd)
 
     /* find the right subtree */
     //TODO: accesses key, val directly
-    unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, t);
+    unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, t->db, t->compare_fun);
 
-    brt_nonleaf_cmd_once_to_child (node, childnum, cmd);
+    brt_nonleaf_cmd_once_to_child (t, node, childnum, cmd);
 }
 
 static void
-brt_nonleaf_cmd_all (BRTNODE node, BRT_MSG cmd)
+brt_nonleaf_cmd_all (BRT t, BRTNODE node, BRT_MSG cmd)
 // Effect: Put the cmd into a nonleaf node.  We put it into all children, possibly causing the children to become reactive.
 //  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
 //  The re_array[i] gets set to the reactivity of any modified child i.	 (And there may be several such children.)
 {
     int i;
     for (i = 0; i < node->n_children; i++) {
-	brt_nonleaf_cmd_once_to_child(node, i, cmd);
+	brt_nonleaf_cmd_once_to_child(t, node, i, cmd);
     }
 }
 
 static BOOL
 brt_msg_applies_once(BRT_MSG cmd)
 {
-    BOOL ret_val;
-    
-    //TODO: Accessing type directly
-    switch (cmd->type) {
-    case BRT_INSERT_NO_OVERWRITE: 
-    case BRT_INSERT:
-    case BRT_DELETE_ANY:
-    case BRT_ABORT_ANY:
-    case BRT_COMMIT_ANY:
-    case BRT_UPDATE:
-	ret_val = TRUE;
-	break;
-    case BRT_COMMIT_BROADCAST_ALL:
-    case BRT_COMMIT_BROADCAST_TXN:
-    case BRT_ABORT_BROADCAST_TXN:
-    case BRT_OPTIMIZE:
-    case BRT_OPTIMIZE_FOR_UPGRADE:
-    case BRT_UPDATE_BROADCAST_ALL:
-    case BRT_NONE:
-	ret_val = FALSE;
-	break;
-    default:
-	assert(FALSE);
-    }
-    return ret_val;
+    return brt_msg_type_applies_once(cmd->type);
 }
 
 static BOOL
 brt_msg_applies_all(BRT_MSG cmd)
 {
-    BOOL ret_val;
-    
-    //TODO: Accessing type directly
-    switch (cmd->type) {
-    case BRT_NONE:
-    case BRT_INSERT_NO_OVERWRITE: 
-    case BRT_INSERT:
-    case BRT_DELETE_ANY:
-    case BRT_ABORT_ANY:
-    case BRT_COMMIT_ANY:
-    case BRT_UPDATE:
-	ret_val = FALSE;
-	break;
-    case BRT_COMMIT_BROADCAST_ALL:
-    case BRT_COMMIT_BROADCAST_TXN:
-    case BRT_ABORT_BROADCAST_TXN:
-    case BRT_OPTIMIZE:
-    case BRT_OPTIMIZE_FOR_UPGRADE:
-    case BRT_UPDATE_BROADCAST_ALL:
-	ret_val = TRUE;
-	break;
-    default:
-	assert(FALSE);
-    }
-    return ret_val;
+    return brt_msg_type_applies_all(cmd->type);
 }
 
 static BOOL
 brt_msg_does_nothing(BRT_MSG cmd)
 {
-    return (cmd->type == BRT_NONE);
+    return brt_msg_type_does_nothing(cmd->type);
 }
 
 static void
@@ -2287,7 +2255,7 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd)
     case BRT_OPTIMIZE:
     case BRT_OPTIMIZE_FOR_UPGRADE:
     case BRT_UPDATE_BROADCAST_ALL:
-	brt_nonleaf_cmd_all (node, cmd);  // send message to all children
+	brt_nonleaf_cmd_all (t, node, cmd);  // send message to all children
 	return;
     case BRT_NONE:
 	return;
@@ -2469,7 +2437,6 @@ maybe_merge_pinned_nodes (BRTNODE parent, int childnum_of_parent, struct kv_pair
 //  splitk		(OUT):	If the two nodes did not get merged, the new pivot key between the two nodes.
 {
     MSN msn_max;
-    DSN dsn_max;
     assert(a->height == b->height);
     toku_assert_entire_node_in_memory(parent);
     toku_assert_entire_node_in_memory(a);
@@ -2483,7 +2450,6 @@ maybe_merge_pinned_nodes (BRTNODE parent, int childnum_of_parent, struct kv_pair
 	    invariant(msn_max.msn <= parent->max_msn_applied_to_node_on_disk.msn);  // parent msn must be >= children's msn
 	}
     }
-    dsn_max = (a->dsn.dsn > b->dsn.dsn) ? a->dsn : b->dsn; // this value is ignored for leafnodes, only basement dsn is use for leafnodes
     if (a->height == 0) {
 	maybe_merge_pinned_leaf_nodes(parent, childnum_of_parent, a, b, parent_splitk, did_merge, did_rebalance, splitk);
     } else {
@@ -2494,8 +2460,6 @@ maybe_merge_pinned_nodes (BRTNODE parent, int childnum_of_parent, struct kv_pair
 	// accurate for non-leaf nodes because buffer immediately above each node has been flushed
 	a->max_msn_applied_to_node_on_disk = msn_max;
 	b->max_msn_applied_to_node_on_disk = msn_max;
-        a->dsn = dsn_max;
-        b->dsn = dsn_max;
     }
 }
 
@@ -2540,7 +2504,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_react,
 	struct ancestors next_ancestors = {node, childnuma, ancestors};
 	const struct pivot_bounds next_bounds = next_pivot_keys(node, childnuma, bounds);
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, t->h);
+        fill_bfe_for_full_read(&bfe, t->h, t->db, t->compare_fun);
 	toku_pin_brtnode_holding_lock(t, BP_BLOCKNUM(node, childnuma), childfullhash, &next_ancestors, &next_bounds, &bfe, &childa);
     }
     {
@@ -2548,7 +2512,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_react,
 	struct ancestors next_ancestors = {node, childnumb, ancestors};
 	const struct pivot_bounds next_bounds = next_pivot_keys(node, childnumb, bounds);
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, t->h);
+        fill_bfe_for_full_read(&bfe, t->h, t->db, t->compare_fun);
 	toku_pin_brtnode_holding_lock(t, BP_BLOCKNUM(node, childnumb), childfullhash, &next_ancestors, &next_bounds, &bfe, &childb);
     }
 
@@ -2698,14 +2662,11 @@ flush_some_child (BRT t, BRTNODE node, BOOL is_first_flush, BOOL flush_recursive
 static void assert_leaf_up_to_date(BRTNODE node) {
     assert(node->height == 0);
     toku_assert_entire_node_in_memory(node);
-    for (int i=0; i < node->n_children; i++) {
-	assert(BLB_MAX_DSN_APPLIED(node, i).dsn >= MIN_DSN.dsn);
-    }
 }
 
 static void
 flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, BOOL is_first_flush, BOOL flush_recursively,
-		  ANCESTORS ancestors, struct pivot_bounds const * const bounds)
+                  ANCESTORS ancestors, struct pivot_bounds const * const bounds)
 // Effect: Push everything in the CHILDNUMth buffer of node down into the child.
 //  The child may split or merge as a result of the activity.
 //  The IS_FIRST_FLUSH variable is a way to prevent the flushing from walking the entire tree.	If IS_FIRST_FLUSH==TRUE then we are allowed to flush more than one child, otherwise
@@ -2721,7 +2682,7 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
     u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnum);
     BRTNODE child;
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, t->h);
+    fill_bfe_for_full_read(&bfe, t->h, t->db, t->compare_fun);
     toku_pin_brtnode_holding_lock(t, targetchild, childfullhash, &next_ancestors, &next_bounds, &bfe, &child); // get that child node in, and apply the ancestor messages if it's a leaf.
 
     toku_assert_entire_node_in_memory(node);
@@ -2729,90 +2690,99 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
     VERIFY_NODE(t, child);
 
     FIFO fifo = BNC_BUFFER(node,childnum);
+    int r;
     if (child->height==0) {
-	// The child is a leaf node. 
-	assert_leaf_up_to_date(child); //  The child has all the messages applied to it.
-	// We've arranged that the path from the root to this child is empty, except for the childnum fifo in node.
-	// We must empty the fifo, and arrange for the child to be written to disk, and then mark it as clean and up-to-date.
-	bytevec key, val;
-	ITEMLEN keylen, vallen;
-	u_int32_t type;
-	MSN msn;
-	XIDS xids;
-	while(0==toku_fifo_peek(fifo, &key, &keylen, &val, &vallen, &type, &msn, &xids)) {
-	    int n_bytes_removed = (keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids));
+        // The child is a leaf node.
+        assert_leaf_up_to_date(child); //  The child has all the messages applied to it.
+        // We've arranged that the path from the root to this child is empty, except for the childnum fifo in node.
+        // We must empty the fifo, and arrange for the child to be written to disk, and then mark it as clean and up-to-date.
+        bytevec key, val;
+        ITEMLEN keylen, vallen;
+        u_int32_t type;
+        MSN msn;
+        XIDS xids;
+        while(0==toku_fifo_peek(fifo, &key, &keylen, &val, &vallen, &type, &msn, &xids)) {
+            int n_bytes_removed = (keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids));
 
-	    int r = toku_fifo_deq(fifo);
-	    assert(r==0);
+            r = toku_fifo_deq(fifo);
+            assert(r==0);
 
-	    BNC_NBYTESINBUF(node, childnum) -= n_bytes_removed;
-	}
-	toku_fifo_size_is_stabilized(fifo);
+            BNC_NBYTESINBUF(node, childnum) -= n_bytes_removed;
+        }
+        toku_fifo_size_is_stabilized(fifo);
 
-	invariant(BNC_NBYTESINBUF(node, childnum) == 0);
-	BP_WORKDONE(node, childnum) = 0;  // this buffer is drained, no work has been done by its contents
+        invariant(BNC_NBYTESINBUF(node, childnum) == 0);
+        toku_omt_destroy(&BNC_MESSAGE_TREE(node, childnum));
+        r = toku_omt_create(&BNC_MESSAGE_TREE(node, childnum)); resource_assert_zero(r);
+        toku_omt_destroy(&BNC_BROADCAST_BUFFER(node, childnum));
+        r = toku_omt_create(&BNC_BROADCAST_BUFFER(node, childnum)); resource_assert_zero(r);
+        BP_WORKDONE(node, childnum) = 0;  // this buffer is drained, no work has been done by its contents
 
-	node->dirty=TRUE;
-	child->dirty=TRUE;
-	fixup_child_estimates(node, childnum, child, TRUE);
-	*child_re = get_node_reactivity(child);
-	toku_unpin_brtnode(t, child);
+        node->dirty=TRUE;
+        child->dirty=TRUE;
+        fixup_child_estimates(node, childnum, child, TRUE);
+        *child_re = get_node_reactivity(child);
+        toku_unpin_brtnode(t, child);
     } else {
-	bytevec key,val;
-	ITEMLEN keylen, vallen;
-	//printf("%s:%d Try random_pick, weight=%d \n", __FILE__, __LINE__, BNC_NBYTESINBUF(node, childnum));
-	assert(toku_fifo_n_entries(fifo)>0);
-	u_int32_t type;
-	MSN msn;
-	XIDS xids;
-	while(0==toku_fifo_peek(fifo, &key, &keylen, &val, &vallen, &type, &msn, &xids)) {
-	    DBT hk,hv;
+        bytevec key,val;
+        ITEMLEN keylen, vallen;
+        //printf("%s:%d Try random_pick, weight=%d \n", __FILE__, __LINE__, BNC_NBYTESINBUF(node, childnum));
+        assert(toku_fifo_n_entries(fifo)>0);
+        u_int32_t type;
+        MSN msn;
+        XIDS xids;
+        while(0==toku_fifo_peek(fifo, &key, &keylen, &val, &vallen, &type, &msn, &xids)) {
+            DBT hk,hv;
 
-	    //TODO: Factor out (into a function) conversion of fifo_entry to message
-	    BRT_MSG_S brtcmd = { (enum brt_msg_type)type, msn, xids, .u.id= {toku_fill_dbt(&hk, key, keylen),
-										  toku_fill_dbt(&hv, val, vallen)} };
+            //TODO: Factor out (into a function) conversion of fifo_entry to message
+            BRT_MSG_S brtcmd = { (enum brt_msg_type)type, msn, xids, .u.id= {toku_fill_dbt(&hk, key, keylen),
+                                                                             toku_fill_dbt(&hv, val, vallen)} };
 
-	    int n_bytes_removed = (hk.size + hv.size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids));
+            int n_bytes_removed = (hk.size + hv.size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids));
 
-	    //printf("%s:%d random_picked\n", __FILE__, __LINE__);
-	    brtnode_put_cmd (t, child, &brtcmd);
+            //printf("%s:%d random_picked\n", __FILE__, __LINE__);
+            brtnode_put_cmd (t, child, &brtcmd);
 
-	    //printf("%s:%d %d=push_a_brt_cmd_down=();	child_did_split=%d (weight=%d)\n", __FILE__, __LINE__, r, child_did_split, BNC_NBYTESINBUF(node, childnum));
+            //printf("%s:%d %d=push_a_brt_cmd_down=();	child_did_split=%d (weight=%d)\n", __FILE__, __LINE__, r, child_did_split, BNC_NBYTESINBUF(node, childnum));
 
-	    {
-		int r = toku_fifo_deq(fifo);
-		//printf("%s:%d deleted status=%d\n", __FILE__, __LINE__, r);
-		assert(r==0);
-	    }
+            {
+                r = toku_fifo_deq(fifo);
+                //printf("%s:%d deleted status=%d\n", __FILE__, __LINE__, r);
+                assert(r==0);
+            }
 
-	    BNC_NBYTESINBUF(node, childnum) -= n_bytes_removed;
-	    node->dirty = 1;
+            BNC_NBYTESINBUF(node, childnum) -= n_bytes_removed;
+            node->dirty = 1;
 
-	}
-	toku_fifo_size_is_stabilized(fifo);
+        }
+        toku_fifo_size_is_stabilized(fifo);
 
-	invariant(BNC_NBYTESINBUF(node, childnum) == 0);
-	BP_WORKDONE(node, childnum) = 0;  // this buffer is drained, no work has been done by its contents
+        invariant(BNC_NBYTESINBUF(node, childnum) == 0);
+        toku_omt_destroy(&BNC_MESSAGE_TREE(node, childnum));
+        r = toku_omt_create(&BNC_MESSAGE_TREE(node, childnum)); resource_assert_zero(r);
+        toku_omt_destroy(&BNC_BROADCAST_BUFFER(node, childnum));
+        r = toku_omt_create(&BNC_BROADCAST_BUFFER(node, childnum)); resource_assert_zero(r);
+        BP_WORKDONE(node, childnum) = 0;  // this buffer is drained, no work has been done by its contents
 
-	if (0) printf("%s:%d done random picking\n", __FILE__, __LINE__);
+        if (0) printf("%s:%d done random picking\n", __FILE__, __LINE__);
 
-	// Having pushed all that stuff to a child, do we need to flush the child?  We may have to flush it many times if there were lots of messages that just got pushed down.
-	// If we were to only flush one child, we could possibly end up with a very big node after a while.
-	// This repeated flushing can cause some inserts to take a long time (possibly walking all over the tree).
-	// When we get the background flushing working, it may be OK if that happens, but for now, we just flush a little.
-	if (flush_recursively) {
-	    int n_flushed = 0;
-	    while (nonleaf_node_is_gorged(child) && (is_first_flush || n_flushed==0)) {
-		// don't do more than one child unless this is the first flush.
-		flush_some_child(t, child, is_first_flush && n_flushed==0, flush_recursively,
-				 &next_ancestors, &next_bounds);
-		n_flushed++;
-	    }
-	}
-	fixup_child_estimates(node, childnum, child, TRUE);
-	// Now it's possible that the child needs to be merged or split.
-	*child_re = get_node_reactivity(child);
-	toku_unpin_brtnode(t, child);
+        // Having pushed all that stuff to a child, do we need to flush the child?  We may have to flush it many times if there were lots of messages that just got pushed down.
+        // If we were to only flush one child, we could possibly end up with a very big node after a while.
+        // This repeated flushing can cause some inserts to take a long time (possibly walking all over the tree).
+        // When we get the background flushing working, it may be OK if that happens, but for now, we just flush a little.
+        if (flush_recursively) {
+            int n_flushed = 0;
+            while (nonleaf_node_is_gorged(child) && (is_first_flush || n_flushed==0)) {
+                // don't do more than one child unless this is the first flush.
+                flush_some_child(t, child, is_first_flush && n_flushed==0, flush_recursively,
+                                 &next_ancestors, &next_bounds);
+                n_flushed++;
+            }
+        }
+        fixup_child_estimates(node, childnum, child, TRUE);
+        // Now it's possible that the child needs to be merged or split.
+        *child_re = get_node_reactivity(child);
+        toku_unpin_brtnode(t, child);
     }
 }
 
@@ -2863,6 +2833,10 @@ flush_this_height1_child (BRT t, BRTNODE node, int childnum, BRTNODE child)
     }
 
     invariant(BNC_NBYTESINBUF(node, childnum) == 0);
+    toku_omt_destroy(&BNC_MESSAGE_TREE(node, childnum));
+    r = toku_omt_create(&BNC_MESSAGE_TREE(node, childnum)); resource_assert_zero(r);
+    toku_omt_destroy(&BNC_BROADCAST_BUFFER(node, childnum));
+    r = toku_omt_create(&BNC_BROADCAST_BUFFER(node, childnum)); resource_assert_zero(r);
     BP_WORKDONE(node, childnum) = 0;  // this buffer is drained, no work has been done by its contents
 
     node->dirty=TRUE;
@@ -2911,73 +2885,56 @@ brtnode_nonleaf_put_cmd_at_root (BRT t, BRTNODE node, BRT_MSG cmd)
     brt_nonleaf_put_cmd(t, node, cmd);
 }
 
-static BOOL 
-partition_requires_msg_application(BRTNODE leaf, int childnum, ANCESTORS ancestors) {
-    invariant(leaf->height == 0);
-    BOOL requires_msg_application = FALSE;
-    if (BP_STATE(leaf,childnum) != PT_AVAIL) return FALSE;
-    for (
-        ANCESTORS curr_ancestors = ancestors; 
-        curr_ancestors; 
-        curr_ancestors = curr_ancestors->next
-        ) 
-    {
-	// Note, we compare DSN of each nonleaf ancestor to DSN of relevant basement.
-        if (curr_ancestors->node->dsn.dsn > BLB_MAX_DSN_APPLIED(leaf,childnum).dsn) {
-            requires_msg_application = TRUE;
-	    brt_status.dsn_gap++;
-            break;
-        }
-    }
-    return requires_msg_application;
-}
-
-
 
 // Effect: applies the cmd to the leaf if the appropriate basement node is in memory.
 //           If the appropriate basement node is not in memory, then nothing gets applied
 //           If the appropriate basement node must be in memory, it is the caller's responsibility to ensure
 //             that it is
-void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change, ANCESTORS ancestors, uint64_t *workdone) {
+void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change, ANCESTORS UU(ancestors), uint64_t *workdone) {
     VERIFY_NODE(t, node);
     // ignore messages that have already been applied to this leaf
-    
+
     if (brt_msg_applies_once(cmd)) {
-	unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, t);
-        BOOL req_msg_app = partition_requires_msg_application(node, childnum, ancestors);
+        unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, t->db, t->compare_fun);
         // only apply the message if we have an available basement node that is up to date
         // we know it is up to date if partition_requires_msg_application returns FALSE
-        if (BP_STATE(node,childnum) == PT_AVAIL && !req_msg_app) {
-            brt_leaf_put_cmd(t, 
-			     BLB(node, childnum),
-			     &BP_SUBTREE_EST(node, childnum),
-			     cmd, 
-			     made_change,
-			     workdone
-			     );
+        if (BP_STATE(node,childnum) == PT_AVAIL) {
+            if (cmd->msn.msn > BLB(node, childnum)->max_msn_applied.msn) {
+                BLB(node, childnum)->max_msn_applied = cmd->msn;
+                brt_leaf_put_cmd(t,
+                                 BLB(node, childnum),
+                                 &BP_SUBTREE_EST(node, childnum),
+                                 cmd,
+                                 made_change,
+                                 workdone);
+            } else {
+                brt_status.msn_discards++;
+            }
         }
     }
     else if (brt_msg_applies_all(cmd)) {
-	bool bn_made_change = false;
-	for (int childnum=0; childnum<node->n_children; childnum++) {
-            BOOL req_msg_app = partition_requires_msg_application(node, childnum, ancestors);
+        bool bn_made_change = false;
+        for (int childnum=0; childnum<node->n_children; childnum++) {
             // only apply the message if we have an available basement node that is up to date
             // we know it is up to date if partition_requires_msg_application returns FALSE
-            if (BP_STATE(node,childnum) == PT_AVAIL && !req_msg_app) {
-                brt_leaf_put_cmd(
-                    t, 
-                    BLB(node, childnum),
-                    &BP_SUBTREE_EST(node,childnum),
-                    cmd, 
-                    &bn_made_change,
-		    workdone
-                    );
-                if (bn_made_change) *made_change = 1;
+            if (BP_STATE(node,childnum) == PT_AVAIL) {
+                if (cmd->msn.msn > BLB(node, childnum)->max_msn_applied.msn) {
+                    BLB(node, childnum)->max_msn_applied = cmd->msn;
+                    brt_leaf_put_cmd(t,
+                                     BLB(node, childnum),
+                                     &BP_SUBTREE_EST(node,childnum),
+                                     cmd,
+                                     &bn_made_change,
+                                     workdone);
+                    if (bn_made_change) *made_change = 1;
+                } else {
+                    brt_status.msn_discards++;
+                }
             }
-	}
+        }
     }
     else if (!brt_msg_does_nothing(cmd)) {
-	assert(FALSE);
+        assert(FALSE);
     }
     VERIFY_NODE(t, node);
 }
@@ -3051,105 +3008,6 @@ static u_int32_t get_roothash (BRT brt) {
     return rh->fullhash;
 }
 
-
-static void apply_cmd_to_in_memory_non_root_leaves (
-    BRT t,
-    CACHEKEY nodenum,
-    u_int32_t fullhash,
-    BRT_MSG cmd,
-    BRTNODE parent,
-    int parents_childnum,
-    ANCESTORS ancestors,
-    struct pivot_bounds const * const bounds,
-    uint64_t * workdone,
-    bool *made_change_p
-    );
-
-static void apply_cmd_to_in_memory_non_root_leaves_starting_at_node (BRT t,
-								     BRTNODE node,
-								     BRT_MSG cmd,
-								     BOOL is_root,
-								     BRTNODE parent,
-								     int parents_childnum,
-								     ANCESTORS ancestors,
-								     struct pivot_bounds const * const bounds,
-								     uint64_t * workdone,
-                                                                     bool *made_change_p)  {
-    bool made_change = false;
-    if (made_change_p == NULL) {
-        made_change_p = &made_change;
-    }
-    // internal node
-    if (node->height>0) {
-	if (brt_msg_applies_once(cmd)) {
-	    unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, t);
-            struct ancestors next_ancestors = {node, childnum, ancestors};
-            const struct pivot_bounds next_bounds = next_pivot_keys(node, childnum, bounds);
-	    u_int32_t child_fullhash = compute_child_fullhash(t->cf, node, childnum);
-	    if (is_root)  // record workdone in root only, if not root then this is a recursive call so just pass along pointer
-		workdone = &(BP_WORKDONE(node,childnum));
-	    apply_cmd_to_in_memory_non_root_leaves(t, BP_BLOCKNUM(node, childnum), child_fullhash, cmd, node, childnum, &next_ancestors, &next_bounds, workdone, made_change_p);
-	}
-	else if (brt_msg_applies_all(cmd)) {
-	    for (int childnum=0; childnum<node->n_children; childnum++) {
-                struct ancestors next_ancestors = {node, childnum, ancestors};
-                const struct pivot_bounds next_bounds = next_pivot_keys(node, childnum, bounds);
-                u_int32_t child_fullhash = compute_child_fullhash(t->cf, node, childnum);
-		if (is_root)
-		    workdone = &(BP_WORKDONE(node,childnum));
-		apply_cmd_to_in_memory_non_root_leaves(t, BP_BLOCKNUM(node, childnum), child_fullhash, cmd, node, childnum, &next_ancestors, &next_bounds, workdone, made_change_p);
-	    }
-	}
-    }
-    // leaf node
-    else {
-	invariant(!is_root);
-	toku_apply_cmd_to_leaf(t, node, cmd, made_change_p, ancestors, workdone);
-    }
-
-    if (*made_change_p) {
-        if (parent) {
-            fixup_child_estimates(parent, parents_childnum, node, FALSE);
-        } else {
-            invariant(is_root);  // only root has no parent
-        }
-    }
-}
-
-// apply a single message, stored in root's buffer(s), to all relevant leaves that are in memory
-static void apply_cmd_to_in_memory_non_root_leaves (
-    BRT t,
-    CACHEKEY nodenum,
-    u_int32_t fullhash,
-    BRT_MSG cmd,
-    BRTNODE parent,
-    int parents_childnum,
-    ANCESTORS ancestors,
-    struct pivot_bounds const * const bounds,
-    uint64_t * workdone,
-    bool *made_change_p
-    )
-{
-    BRTNODE node = NULL;
-    void *node_v;
-
-    int r = toku_cachetable_get_and_pin_if_in_memory(
-        t->cf,
-        nodenum,
-        fullhash,
-        &node_v
-        );
-    if (r) { goto exit; }
-
-    node = node_v;
-
-    apply_cmd_to_in_memory_non_root_leaves_starting_at_node(t, node, cmd, FALSE, parent, parents_childnum, ancestors, bounds, workdone, made_change_p);
-
-    toku_unpin_brtnode(t, node);
-exit:
-    return;
-}
-
 CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *roothash) {
     *roothash = get_roothash(brt);
     return &brt->h->root;
@@ -3173,7 +3031,7 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
 
     // get the root node
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h);
+    fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
     toku_pin_brtnode_holding_lock(brt, *rootp, fullhash, NULL, &infinite_bounds, &bfe, &node);
     toku_assert_entire_node_in_memory(node);
     cmd->msn.msn = node->max_msn_applied_to_node_on_disk.msn + 1;
@@ -3190,7 +3048,6 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
     // verify that msn of latest message was captured in root node (push_something_at_root() did not release ydb lock)
     invariant(cmd->msn.msn == node->max_msn_applied_to_node_on_disk.msn);
     if (node->height > 0) {
-	apply_cmd_to_in_memory_non_root_leaves_starting_at_node(brt, node, cmd, TRUE, NULL, -1, (ANCESTORS)NULL, &infinite_bounds, NULL, NULL);
 	if (nonleaf_node_is_gorged(node)) {
 	    // No need for a loop here.  We only inserted one message, so flushing a single child suffices.
 	    flush_some_child(brt, node, TRUE, TRUE,
@@ -3634,7 +3491,6 @@ static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum) {
     BRTNODE XMALLOC(node);
     toku_initialize_empty_brtnode(node, blocknum, 0, 1, t->h->layout_version, t->h->nodesize, t->flags);
     BP_STATE(node,0) = PT_AVAIL;
-    set_new_DSN_for_node(node, t);
 
     u_int32_t fullhash = toku_cachetable_hash(t->cf, blocknum);
     node->fullhash = fullhash;
@@ -3793,8 +3649,6 @@ brt_alloc_init_header(BRT t, TOKUTXN txn) {
     t->h->time_of_last_modification = 0;
 
     memset(&t->h->descriptor, 0, sizeof(t->h->descriptor));
-
-    t->h->curr_dsn.dsn = MIN_DSN.dsn + 1; // start at MIN_DSN + 1, as MIN_DSN is reserved for basement nodes
 
     r = brt_init_header(t, txn);
     if (r != 0) goto died2;
@@ -5038,13 +4892,13 @@ static void search_save_bound (brt_search_t *search, DBT *pivot) {
     search->have_pivot_bound = TRUE;
 }
 
-static BOOL search_pivot_is_bounded (brt_search_t *search, BRT brt, DBT *pivot)
+static BOOL search_pivot_is_bounded (brt_search_t *search, DB *cmp_extra, brt_compare_func cmp, DBT *pivot)
 // Effect:  Return TRUE iff the pivot has already been searched (for fixing #3522.)
 //  If searching from left to right, if we have already searched all the values less than pivot, we don't want to search again.
 //  If searching from right to left, if we have already searched all the vlaues greater than pivot, we don't want to search again.
 {
     if (!search->have_pivot_bound) return TRUE; // isn't bounded.
-    int comp = brt->compare_fun(brt->db, pivot, &search->pivot_bound);
+    int comp = cmp(cmp_extra, pivot, &search->pivot_bound);
     if (search->direction == BRT_SEARCH_LEFT) {
 	// searching from left to right.  If the comparison function says the pivot is <= something we already compared, don't do it again.
 	return comp>0;
@@ -5074,13 +4928,90 @@ static BOOL msg_type_has_key (enum brt_msg_type m) {
     assert(0);
 }
 
+struct store_fifo_offset_extra {
+    long *offsets;
+    int i;
+};
+
+static int
+store_fifo_offset(OMTVALUE v, u_int32_t UU(idx), void *extrap)
+{
+    struct store_fifo_offset_extra *extra = extrap;
+    const long offset = (long) v;
+    extra->offsets[extra->i] = offset;
+    extra->i++;
+    return 0;
+}
+
+static int
+fifo_offset_msn_cmp(void *extrap, const void *va, const void *vb)
+{
+    FIFO fifo = extrap;
+    const long *ao = va;
+    const long *bo = vb;
+    const struct fifo_entry *a = toku_fifo_get_entry(fifo, *ao);
+    const struct fifo_entry *b = toku_fifo_get_entry(fifo, *bo);
+    return (a->msn.msn > b->msn.msn) - (a->msn.msn < b->msn.msn);
+}
+
+static void
+do_brt_leaf_put_cmd(BRT t, BASEMENTNODE bn, SUBTREE_EST se, BRTNODE ancestor, int childnum, DBT *lbe_ptr, DBT *ubi_ptr, MSN *max_msn_applied, const struct fifo_entry *entry)
+{
+    ITEMLEN keylen = entry->keylen;
+    ITEMLEN vallen = entry->vallen;
+    enum brt_msg_type type = (enum brt_msg_type)entry->type;
+    MSN msn = entry->msn;
+    const XIDS xids = (XIDS) &entry->xids_s;
+    bytevec key = xids_get_end_of_array(xids);
+    bytevec val = (u_int8_t*)key + entry->keylen;
+
+    DBT hk;
+    toku_fill_dbt(&hk, key, keylen);
+    assert(!msg_type_has_key(type) || key_is_in_leaf_range(t, &hk, lbe_ptr, ubi_ptr));
+    DBT hv;
+    BRT_MSG_S brtcmd = { type, msn, xids, .u.id = { &hk, toku_fill_dbt(&hv, val, vallen) } };
+    bool made_change;
+    // the messages are in (key,msn) order so all the messages for one key
+    // in one buffer are in ascending msn order, so it's ok that we don't
+    // update the basement node's msn until the end
+    if (brtcmd.msn.msn > bn->max_msn_applied.msn) {
+        if (brtcmd.msn.msn > max_msn_applied->msn) {
+            *max_msn_applied = brtcmd.msn;
+        }
+        brt_leaf_put_cmd(t, bn, se, &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum));
+    } else {
+        brt_status.msn_discards++;
+    }
+}
+
+struct iterate_do_brt_leaf_put_cmd_extra {
+    BRT t;
+    BASEMENTNODE bn;
+    SUBTREE_EST se;
+    BRTNODE ancestor;
+    int childnum;
+    DBT *lbe_ptr;
+    DBT *ubi_ptr;
+    MSN *max_msn_applied;
+};
+
+static int
+iterate_do_brt_leaf_put_cmd(OMTVALUE v, u_int32_t UU(idx), void *extrap)
+{
+    struct iterate_do_brt_leaf_put_cmd_extra *e = extrap;
+    const long offset = (long) v;
+    const struct fifo_entry *entry = toku_fifo_get_entry(BNC_BUFFER(e->ancestor, e->childnum), offset);
+    do_brt_leaf_put_cmd(e->t, e->bn, e->se, e->ancestor, e->childnum, e->lbe_ptr, e->ubi_ptr, e->max_msn_applied, entry);
+    return 0;
+}
+
 static int
 apply_buffer_messages_to_basement_node (
-    BRT t, 
-    BASEMENTNODE bn, 
-    SUBTREE_EST se, 
-    BRTNODE ancestor, 
-    int childnum, 
+    BRT t,
+    BASEMENTNODE bn,
+    SUBTREE_EST se,
+    BRTNODE ancestor,
+    int childnum,
     struct pivot_bounds const * const bounds
     )
 // Effect: For each messages in ANCESTOR that is between lower_bound_exclusive (exclusive) and upper_bound_inclusive (inclusive), apply the message to the node.
@@ -5090,40 +5021,106 @@ apply_buffer_messages_to_basement_node (
 {
     assert(0 <= childnum && childnum < ancestor->n_children);
     int r = 0;
-    DBT lbe, ubi;                 // lbe is lower bound exclusive, ubi is upper bound inclusive
+
+    MSN max_msn_applied = MIN_MSN;
+    u_int32_t lbe, ubi;
+    DBT lbedbt, ubidbt;  // lbe is lower bound exclusive, ubi is upper bound inclusive
     DBT *lbe_ptr, *ubi_ptr;
-    if (bounds->lower_bound_exclusive==NULL) {
-	lbe_ptr = NULL;
+    if (bounds->lower_bound_exclusive) {
+        struct toku_fifo_entry_key_msn_heaviside_extra lbe_extra = {
+            .cmp_extra = t->db, .cmp = t->compare_fun,
+            .fifo = BNC_BUFFER(ancestor, childnum),
+            .key = kv_pair_key((struct kv_pair *) bounds->lower_bound_exclusive),
+            .keylen = kv_pair_keylen((struct kv_pair *) bounds->lower_bound_exclusive),
+            .msn = MAX_MSN };
+        // TODO: get this value and compare it with ubi to see if we even
+        // need to continue
+        OMTVALUE found_lb;
+        r = toku_omt_find(BNC_MESSAGE_TREE(ancestor, childnum),
+                          toku_fifo_entry_key_msn_heaviside, &lbe_extra,
+                          +1, &found_lb, &lbe);
+        if (r == DB_NOTFOUND) {
+            // no relevant data, we're done
+            if (toku_omt_size(BNC_BROADCAST_BUFFER(ancestor, childnum)) == 0) {
+                return 0;
+            } else {
+                lbe = 0;
+                lbe_ptr = NULL;
+                ubi = 0;
+                ubi_ptr = NULL;
+                goto just_apply_broadcast_messages;
+            }
+        }
+        if (bounds->upper_bound_inclusive) {
+            DBT ubidbt_tmp = kv_pair_key_to_dbt((struct kv_pair *) bounds->upper_bound_inclusive);
+            const long offset = (long) found_lb;
+            DBT found_lbedbt;
+            fill_dbt_for_fifo_entry(&found_lbedbt, toku_fifo_get_entry(BNC_BUFFER(ancestor, childnum), offset));
+            int c = t->compare_fun(t->db, &found_lbedbt, &ubidbt_tmp);
+            if (c > 0) {
+                if (toku_omt_size(BNC_BROADCAST_BUFFER(ancestor, childnum)) == 0) {
+                    return 0;
+                } else {
+                    lbe = 0;
+                    lbe_ptr = NULL;
+                    ubi = 0;
+                    ubi_ptr = NULL;
+                    goto just_apply_broadcast_messages;
+                }
+            }
+        }
+        lbedbt = kv_pair_key_to_dbt((struct kv_pair *) bounds->lower_bound_exclusive);
+        lbe_ptr = &lbedbt;
     } else {
-	lbe = kv_pair_key_to_dbt(bounds->lower_bound_exclusive);
-	lbe_ptr = &lbe;
+        lbe = 0;
+        lbe_ptr = NULL;
     }
-    if (bounds->upper_bound_inclusive==NULL) {
-	ubi_ptr = NULL;
+    if (bounds->upper_bound_inclusive) {
+        struct toku_fifo_entry_key_msn_heaviside_extra ubi_extra = {
+            .cmp_extra = t->db, .cmp = t->compare_fun,
+            .fifo = BNC_BUFFER(ancestor, childnum),
+            .key = kv_pair_key((struct kv_pair *) bounds->upper_bound_inclusive),
+            .keylen = kv_pair_keylen((struct kv_pair *) bounds->upper_bound_inclusive),
+            .msn = MAX_MSN };
+        r = toku_omt_find(BNC_MESSAGE_TREE(ancestor, childnum),
+                          toku_fifo_entry_key_msn_heaviside, &ubi_extra,
+                          +1, NULL, &ubi);
+        if (r == DB_NOTFOUND) {
+            ubi = toku_omt_size(BNC_MESSAGE_TREE(ancestor, childnum));
+        }
+        ubidbt = kv_pair_key_to_dbt((struct kv_pair *) bounds->upper_bound_inclusive);
+        ubi_ptr = &ubidbt;
     } else {
-	ubi = kv_pair_key_to_dbt(bounds->upper_bound_inclusive);
-	ubi_ptr = &ubi;
+        ubi = toku_omt_size(BNC_MESSAGE_TREE(ancestor, childnum));
+        ubi_ptr = NULL;
     }
-    assert(BP_STATE(ancestor,childnum) == PT_AVAIL);
-    FIFO_ITERATE(BNC_BUFFER(ancestor, childnum), key, keylen, val, vallen, type, msn, xids,
-		 ({
-		     DBT hk;
-		     toku_fill_dbt(&hk, key, keylen);
-		     if ((!msg_type_has_key(type) || key_is_in_leaf_range(t, &hk, lbe_ptr, ubi_ptr))) {
-			 DBT hv;
-			 BRT_MSG_S brtcmd = { (enum brt_msg_type)type, msn, xids, .u.id = {&hk,
-											   toku_fill_dbt(&hv, val, vallen)} };
-                         bool made_change;
-			 brt_leaf_put_cmd(t,
-					  bn, se,
-					  &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum));
-		     }
-		 }));
 
-    //F    uint64_t end_workdone = BP_WORKDONE(ancestor, childnum);
-    //    printf("                    workdone = %"PRIu64", msndiff = 0x%"PRIx64", ancestorworkdone start, end = %"PRIu64", %"PRIu64"\n", 
-    //	   workdone_this_leaf_total, node->max_msn_applied_to_node.msn - start_msn.msn, start_workdone, end_workdone);
+just_apply_broadcast_messages:
+    if (toku_omt_size(BNC_BROADCAST_BUFFER(ancestor, childnum)) > 0) {
+        const int buffer_size = ubi - lbe + toku_omt_size(BNC_BROADCAST_BUFFER(ancestor, childnum));
+        long *MALLOC_N(buffer_size, offsets);
 
+        struct store_fifo_offset_extra sfo_extra = { .offsets = offsets, .i = 0 };
+        r = toku_omt_iterate_on_range(BNC_MESSAGE_TREE(ancestor, childnum), lbe, ubi, store_fifo_offset, &sfo_extra); assert_zero(r);
+        r = toku_omt_iterate(BNC_BROADCAST_BUFFER(ancestor, childnum), store_fifo_offset, &sfo_extra); assert_zero(r);
+        invariant(sfo_extra.i == buffer_size);
+        r = mergesort_r(offsets, buffer_size, sizeof offsets[0], BNC_BUFFER(ancestor, childnum), fifo_offset_msn_cmp); assert_zero(r);
+        assert(BP_STATE(ancestor, childnum) == PT_AVAIL);
+        for (int i = 0; i < buffer_size; ++i) {
+            const struct fifo_entry *entry = toku_fifo_get_entry(BNC_BUFFER(ancestor, childnum), offsets[i]);
+            do_brt_leaf_put_cmd(t, bn, se, ancestor, childnum, lbe_ptr, ubi_ptr, &max_msn_applied, entry);
+        }
+
+        toku_free(offsets);
+    } else {
+        assert(BP_STATE(ancestor, childnum) == PT_AVAIL);
+        struct iterate_do_brt_leaf_put_cmd_extra iter_extra = { .t = t, .bn = bn, .se = se, .ancestor = ancestor, .childnum = childnum, .lbe_ptr = lbe_ptr, .ubi_ptr = ubi_ptr, .max_msn_applied = &max_msn_applied };
+        r = toku_omt_iterate_on_range(BNC_MESSAGE_TREE(ancestor, childnum), lbe, ubi, iterate_do_brt_leaf_put_cmd, &iter_extra);
+        assert_zero(r);
+    }
+    if (max_msn_applied.msn > bn->max_msn_applied.msn) {
+        bn->max_msn_applied = max_msn_applied;
+    }
     return r;
 }
 
@@ -5264,17 +5261,8 @@ maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors
     // need to apply messages to each basement node
     // TODO: (Zardosht) cilkify this
     for (int i = 0; i < node->n_children; i++) {
-        BOOL requires_msg_application = partition_requires_msg_application(
-            node,
-            i,
-            ancestors
-            );
-
-        if (!requires_msg_application) {
-            continue;
-        }
-        update_stats = TRUE;
         int height = 0;
+        if (BP_STATE(node, i) != PT_AVAIL) { continue; }
         BASEMENTNODE curr_bn = BLB(node, i);
         SUBTREE_EST curr_se = &BP_SUBTREE_EST(node,i);
         struct pivot_bounds curr_bounds = next_pivot_keys(node, i, bounds);
@@ -5292,10 +5280,8 @@ maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors
                 // we don't want to check this node again if the next time
                 // we query it, the msn hasn't changed.
                 curr_bn->max_msn_applied = curr_ancestors->node->max_msn_applied_to_node_on_disk;
+                update_stats = TRUE;
             }
-            curr_bn->max_dsn_applied = (curr_ancestors->node->dsn.dsn > curr_bn->max_dsn_applied.dsn)
-                ? curr_ancestors->node->dsn
-                : curr_bn->max_dsn_applied;
         }
     }
     // Must update the leaf estimates.	Might as well use the estimates from the soft copy (even if they make it out to disk), since they are
@@ -5343,8 +5329,6 @@ brt_search_basement_node(
     BOOL can_bulk_fetch
     )
 {
-    assert(bn->max_dsn_applied.dsn >= MIN_DSN.dsn);
-
     // Now we have to convert from brt_search_t to the heaviside function with a direction.  What a pain...
 
     int direction;
@@ -5483,7 +5467,7 @@ brt_node_maybe_prefetch(BRT brt, BRTNODE node, int childnum, BRT_CURSOR brtcurso
             BLOCKNUM nextchildblocknum = BP_BLOCKNUM(node, i);
             u_int32_t nextfullhash = compute_child_fullhash(brt->cf, node, i);
             struct brtnode_fetch_extra *MALLOC(bfe);
-            fill_bfe_for_prefetch(bfe, brt->h, brt, brtcursor);
+            fill_bfe_for_prefetch(bfe, brt->h, brt->db, brt->compare_fun, brtcursor);
             BOOL doing_prefetch = FALSE;
             toku_cachefile_prefetch(
                 brt->cf,
@@ -5540,7 +5524,8 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
     fill_bfe_for_subset_read(
         &bfe,
         brt->h,
-        brt,
+        brt->db,
+        brt->compare_fun,
         search,
         &brtcursor->range_lock_left_key,
         &brtcursor->range_lock_right_key,
@@ -5592,18 +5577,19 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
 
 int
 toku_brt_search_which_child(
-    BRT brt, 
-    BRTNODE node, 
+    DB *cmp_extra,
+    brt_compare_func cmp,
+    BRTNODE node,
     brt_search_t *search
     )
 {
-    int c;    
+    int c;
     DBT pivotkey;
     toku_init_dbt(&pivotkey);
 
     /* binary search is overkill for a small array */
     int child[node->n_children];
-    
+
     /* scan left to right or right to left depending on the search direction */
     for (c = 0; c < node->n_children; c++) {
         child[c] = (search->direction == BRT_SEARCH_LEFT) ? c : node->n_children - 1 - c;
@@ -5612,7 +5598,7 @@ toku_brt_search_which_child(
         int p = (search->direction == BRT_SEARCH_LEFT) ? child[c] : child[c] - 1;
         struct kv_pair *pivot = node->childkeys[p];
         toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot));
-        if (search_pivot_is_bounded(search, brt, &pivotkey) && search->compare(search, &pivotkey)) {
+        if (search_pivot_is_bounded(search, cmp_extra, cmp, &pivotkey) && search->compare(search, &pivotkey)) {
             return child[c];
         }
     }
@@ -5781,7 +5767,8 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
     fill_bfe_for_subset_read(
         &bfe, 
         brt->h,
-        brt,
+        brt->db,
+        brt->compare_fun,
         search,
         &brtcursor->range_lock_left_key,
         &brtcursor->range_lock_right_key,
@@ -6230,7 +6217,7 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename,
     {
 	//assert(fullhash == toku_cachetable_hash(brt->cf, nodename));
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_min_read(&bfe, brt->h);
+        fill_bfe_for_min_read(&bfe, brt->h, brt->db, brt->compare_fun);
 	toku_pin_brtnode_holding_lock(brt, nodename, fullhash,
 				      ancestors, bounds, &bfe,
 				      &node);
@@ -6318,7 +6305,7 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
     CACHEKEY root = *rootp;
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, brt->h);
+    fill_bfe_for_min_read(&bfe, brt->h, brt->db, brt->compare_fun);
     BRTNODE node;
     toku_pin_brtnode_holding_lock(brt, root, fullhash, (ANCESTORS)NULL, &infinite_bounds, &bfe, &node);
 
@@ -6344,7 +6331,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, struct kv_
     void *node_v;
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h);
+    fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
     int r = toku_cachetable_get_and_pin(
         brt->cf, 
         blocknum, 
@@ -6661,7 +6648,7 @@ static BOOL is_empty_fast_iter (BRT brt, BRTNODE node) {
 		BLOCKNUM childblocknum = BP_BLOCKNUM(node,childnum);
 		u_int32_t fullhash =  compute_child_fullhash(brt->cf, node, childnum);
                 struct brtnode_fetch_extra bfe;
-                fill_bfe_for_full_read(&bfe, brt->h);
+                fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
 		int rr = toku_cachetable_get_and_pin(
                     brt->cf, 
                     childblocknum, 
@@ -6706,7 +6693,7 @@ BOOL toku_brt_is_empty_fast (BRT brt)
     {
 	void *node_v;
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, brt->h);
+        fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
 	int rr = toku_cachetable_get_and_pin(
             brt->cf, 
             *rootp, 

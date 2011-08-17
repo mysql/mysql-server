@@ -265,6 +265,7 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse) {
 done:;
 }
 
+
 /////////////////////////////////////////////////////////////////////////////////
 // This is the big enchilada.  (Bring Tums.)  Note that this level of abstraction 
 // has no knowledge of the inner structure of either leafentry or msg.  It makes

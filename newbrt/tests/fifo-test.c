@@ -57,7 +57,7 @@ test_fifo_enq (int n) {
 	MSN msn = next_dummymsn();
 	if (startmsn.msn == ZERO_MSN.msn)
 	  startmsn = msn;
-        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, msn, xids); assert(r == 0);
+        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, msn, xids, NULL); assert(r == 0);
         xids_destroy(&xids);
     }
 

@@ -67,6 +67,7 @@ BRT_SOURCES = \
   recover \
   roll \
   rollback \
+  sort \
   sub_block \
   ule \
   threadpool \

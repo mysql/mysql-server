@@ -78,18 +78,18 @@ int toku_testsetup_get_sersize(BRT brt, BLOCKNUM diskoff) // Return the size on 
     assert(testsetup_initialized);
     void *node_v;
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h);
+    fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
     int r  = toku_cachetable_get_and_pin(
-        brt->cf, diskoff, 
-        toku_cachetable_hash(brt->cf, diskoff), 
-        &node_v, 
+        brt->cf, diskoff,
+        toku_cachetable_hash(brt->cf, diskoff),
+        &node_v,
         NULL,
-        toku_brtnode_flush_callback, 
-        toku_brtnode_fetch_callback, 
-        toku_brtnode_pe_callback, 
+        toku_brtnode_flush_callback,
+        toku_brtnode_fetch_callback,
+        toku_brtnode_pe_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-        &bfe, 
+        &bfe,
         brt->h
         );
     assert(r==0);
@@ -103,21 +103,21 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     int r;
 
     assert(testsetup_initialized);
-    
+
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h);
+    fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
     r = toku_cachetable_get_and_pin(
-        brt->cf, 
-        blocknum, 
-        toku_cachetable_hash(brt->cf, blocknum), 
-        &node_v, 
+        brt->cf,
+        blocknum,
+        toku_cachetable_hash(brt->cf, blocknum),
+        &node_v,
         NULL,
-	toku_brtnode_flush_callback, 
-	toku_brtnode_fetch_callback, 
-	toku_brtnode_pe_callback, 
+	toku_brtnode_flush_callback,
+	toku_brtnode_fetch_callback,
+	toku_brtnode_pe_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-	&bfe, 
+	&bfe,
 	brt->h
 	);
     if (r!=0) return r;
@@ -176,19 +176,19 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
     assert(testsetup_initialized);
 
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h);
+    fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
     r = toku_cachetable_get_and_pin(
-        brt->cf, 
-        blocknum, 
-        toku_cachetable_hash(brt->cf, blocknum), 
-        &node_v, 
+        brt->cf,
+        blocknum,
+        toku_cachetable_hash(brt->cf, blocknum),
+        &node_v,
         NULL,
-	toku_brtnode_flush_callback, 
-	toku_brtnode_fetch_callback, 
-	toku_brtnode_pe_callback, 
+	toku_brtnode_flush_callback,
+	toku_brtnode_fetch_callback,
+	toku_brtnode_pe_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-	&bfe, 
+	&bfe,
 	brt->h
 	);
     if (r!=0) return r;
@@ -197,12 +197,12 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
 
     DBT k;
     int childnum = toku_brtnode_which_child(node,
-				       toku_fill_dbt(&k, key, keylen),
-				       brt);
+                                            toku_fill_dbt(&k, key, keylen),
+                                            brt->db, brt->compare_fun);
 
     XIDS xids_0 = xids_get_root_xids();
     MSN msn = next_dummymsn();
-    r = toku_fifo_enq(BNC_BUFFER(node, childnum), key, keylen, val, vallen, cmdtype, msn, xids_0);
+    r = toku_fifo_enq(BNC_BUFFER(node, childnum), key, keylen, val, vallen, cmdtype, msn, xids_0, NULL);
     assert(r==0);
     // Hack to get the test working. The problem is that this test
     // is directly queueing something in a FIFO instead of 

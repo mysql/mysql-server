@@ -69,7 +69,7 @@ void toku_fifo_size_hint(FIFO fifo, size_t size) {
     }
 }
 
-int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, int type, MSN msn, XIDS xids) {
+int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, int type, MSN msn, XIDS xids, long *dest) {
     int need_space_here = sizeof(struct fifo_entry)
                           + keylen + datalen
                           + xids_get_size(xids)
@@ -80,24 +80,26 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
         fifo->memory = toku_malloc(fifo->memory_size);
     }
     if (fifo->memory_start+need_space_total > fifo->memory_size) {
-	// Out of memory at the end.
-	int next_2 = next_power_of_two(need_space_total);
-	if ((2*next_2 > fifo->memory_size)
-	    || (8*next_2 < fifo->memory_size)) {
-	    // resize the fifo
-	    char *newmem = toku_malloc(next_2);
-	    char *oldmem = fifo->memory;
-	    if (newmem==0) return ENOMEM;
-	    memcpy(newmem, oldmem+fifo->memory_start, fifo->memory_used);
-	    fifo->memory_size = next_2;
-	    fifo->memory_start = 0;
-	    fifo->memory = newmem;
-	    toku_free(oldmem);
-	} else {
-	    // slide things over
-	    memmove(fifo->memory, fifo->memory+fifo->memory_start, fifo->memory_used);
-	    fifo->memory_start = 0;
-	}
+        // Out of memory at the end.
+        int next_2 = next_power_of_two(need_space_total);
+        if ((2*next_2 > fifo->memory_size)
+            || (8*next_2 < fifo->memory_size)) {
+            // resize the fifo
+            char *newmem = toku_malloc(next_2);
+            char *oldmem = fifo->memory;
+            if (newmem==0) return ENOMEM;
+            memcpy(newmem, oldmem+fifo->memory_start, fifo->memory_used);
+            fifo->memory_size = next_2;
+            assert(fifo->memory_start == 0);
+            fifo->memory_start = 0;
+            fifo->memory = newmem;
+            toku_free(oldmem);
+        } else {
+            // slide things over
+            memmove(fifo->memory, fifo->memory+fifo->memory_start, fifo->memory_used);
+            assert(fifo->memory_start == 0);
+            fifo->memory_start = 0;
+        }
     }
     struct fifo_entry *entry = (struct fifo_entry *)(fifo->memory + fifo->memory_start + fifo->memory_used);
     entry->type = (unsigned char)type;
@@ -108,13 +110,17 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
     memcpy(e_key, key, keylen);
     entry->vallen = datalen;
     memcpy(e_key + keylen, data, datalen);
+    if (dest) {
+        assert(fifo->memory_start == 0);
+        *dest = fifo->memory_used;
+    }
     fifo->n_items_in_fifo++;
     fifo->memory_used += need_space_here;
     return 0;
 }
 
-int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd) {
-  return toku_fifo_enq(fifo, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size, cmd->type, cmd->msn, cmd->xids);
+int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd, long *dest) {
+    return toku_fifo_enq(fifo, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size, cmd->type, cmd->msn, cmd->xids, dest);
 }
 
 /* peek at the head (the oldest entry) of the fifo */
@@ -193,3 +199,10 @@ unsigned long toku_fifo_memory_size(FIFO fifo) {
     return sizeof(*fifo)+fifo->memory_size;
 }
 
+DBT *fill_dbt_for_fifo_entry(DBT *dbt, const struct fifo_entry *entry) {
+    return toku_fill_dbt(dbt, xids_get_end_of_array((XIDS) &entry->xids_s), entry->keylen);
+}
+
+const struct fifo_entry *toku_fifo_get_entry(FIFO fifo, long off) {
+    return toku_fifo_iterate_internal_get_entry(fifo, off);
+}

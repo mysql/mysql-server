@@ -107,7 +107,8 @@ struct brtnode_fetch_extra {
     // used in the case where type == brtnode_fetch_subset
     // parameters needed to find out which child needs to be decompressed (so it can be read)
     brt_search_t* search;
-    BRT brt;
+    DB *cmp_extra;
+    brt_compare_func cmp;
     DBT *range_lock_left_key, *range_lock_right_key;
     BOOL left_is_neg_infty, right_is_pos_infty;
     // this value will be set during the fetch_callback call by toku_brtnode_fetch_callback or toku_brtnode_pf_req_callback
@@ -121,11 +122,12 @@ struct brtnode_fetch_extra {
 // necessary. Used in cases where the entire node
 // is required, such as for flushes.
 //
-static inline void fill_bfe_for_full_read(struct brtnode_fetch_extra *bfe, struct brt_header *h) {
+static inline void fill_bfe_for_full_read(struct brtnode_fetch_extra *bfe, struct brt_header *h, DB *cmp_extra, brt_compare_func cmp) {
     bfe->type = brtnode_fetch_all;
     bfe->h = h;
     bfe->search = NULL;
-    bfe->brt = NULL;
+    bfe->cmp_extra = cmp_extra;
+    bfe->cmp = cmp;
     bfe->range_lock_left_key = NULL;
     bfe->range_lock_right_key = NULL;
     bfe->left_is_neg_infty = FALSE;
@@ -133,7 +135,7 @@ static inline void fill_bfe_for_full_read(struct brtnode_fetch_extra *bfe, struc
     bfe->child_to_read = -1;
 }
 
-static inline void fill_bfe_for_prefetch(struct brtnode_fetch_extra *bfe, struct brt_header *h, BRT brt, BRT_CURSOR c);
+static inline void fill_bfe_for_prefetch(struct brtnode_fetch_extra *bfe, struct brt_header *h, DB *cmp_extra, brt_compare_func cmp, BRT_CURSOR c);
 
 //
 // Helper function to fill a brtnode_fetch_extra with data
@@ -142,20 +144,22 @@ static inline void fill_bfe_for_prefetch(struct brtnode_fetch_extra *bfe, struct
 // such as for a point query.
 //
 static inline void fill_bfe_for_subset_read(
-    struct brtnode_fetch_extra *bfe, 
+    struct brtnode_fetch_extra *bfe,
     struct brt_header *h,
-    BRT brt,
+    DB *cmp_extra,
+    brt_compare_func cmp,
     brt_search_t* search,
     DBT *left,
     DBT *right,
     BOOL left_is_neg_infty,
     BOOL right_is_pos_infty
-    ) 
+    )
 {
     bfe->type = brtnode_fetch_subset;
     bfe->h = h;
     bfe->search = search;
-    bfe->brt = brt;
+    bfe->cmp_extra = cmp_extra;
+    bfe->cmp = cmp;
     bfe->range_lock_left_key = (left->data ? left : NULL);
     bfe->range_lock_right_key = (right->data ? right : NULL);
     bfe->left_is_neg_infty = left_is_neg_infty;
@@ -169,11 +173,12 @@ static inline void fill_bfe_for_subset_read(
 // necessary, only the pivots and/or subtree estimates.
 // Currently used for stat64.
 //
-static inline void fill_bfe_for_min_read(struct brtnode_fetch_extra *bfe, struct brt_header *h) {
+static inline void fill_bfe_for_min_read(struct brtnode_fetch_extra *bfe, struct brt_header *h, DB *cmp_extra, brt_compare_func cmp) {
     bfe->type = brtnode_fetch_none;
     bfe->h = h;
     bfe->search = NULL;
-    bfe->brt = NULL;
+    bfe->cmp_extra = cmp_extra;
+    bfe->cmp = cmp;
     bfe->range_lock_left_key = NULL;
     bfe->range_lock_right_key = NULL;
     bfe->left_is_neg_infty = FALSE;
@@ -197,9 +202,35 @@ static inline void destroy_bfe_for_prefetch(struct brtnode_fetch_extra *bfe) {
     }
 }
 
+struct toku_fifo_entry_key_msn_heaviside_extra {
+    DB *cmp_extra;
+    brt_compare_func cmp;
+    FIFO fifo;
+    bytevec key;
+    ITEMLEN keylen;
+    MSN msn;
+};
+
+// comparison function for inserting messages into a
+// brtnode_nonleaf_childinfo's message_tree
+int
+toku_fifo_entry_key_msn_heaviside(OMTVALUE v, void *extrap);
+
+struct toku_fifo_entry_key_msn_cmp_extra {
+    DB *cmp_extra;
+    brt_compare_func cmp;
+    FIFO fifo;
+};
+
+// same thing for qsort_r
+int
+toku_fifo_entry_key_msn_cmp(void *extrap, const void *ap, const void *bp);
+
 // data of an available partition of a nonleaf brtnode
 struct brtnode_nonleaf_childinfo {
-    FIFO         buffer;
+    FIFO buffer;
+    OMT broadcast_buffer;
+    OMT message_tree;
     unsigned int n_bytes_in_buffer; /* How many bytes are in each buffer (including overheads for the disk-representation) */
 };
 
@@ -210,7 +241,6 @@ struct brtnode_leaf_basement_node {
     unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
     unsigned int seqinsert;         /* number of sequential inserts to this leaf */
     MSN max_msn_applied; // max message sequence number applied
-    DSN max_dsn_applied; // max deserialization sequence number applied
 };
 
 #define PT_INVALID 0
@@ -277,7 +307,6 @@ struct   __attribute__((__packed__)) brtnode_partition {
 
 struct brtnode {
     MSN      max_msn_applied_to_node_on_disk; // max_msn_applied that will be written to disk
-    DSN dsn; // deserialization sequence number
     unsigned int nodesize;
     unsigned int flags;
     BLOCKNUM thisnodename;   // Which block number is this node?
@@ -374,6 +403,8 @@ static inline void set_BSB(BRTNODE node, int i, SUB_BLOCK sb) {
 
 // macros for brtnode_nonleaf_childinfo
 #define BNC_BUFFER(node,i) (BNC(node,i)->buffer)
+#define BNC_BROADCAST_BUFFER(node,i) (BNC(node,i)->broadcast_buffer)
+#define BNC_MESSAGE_TREE(node, i) (BNC(node,i)->message_tree)
 #define BNC_NBYTESINBUF(node,i) (BNC(node,i)->n_bytes_in_buffer)
 
 // brtnode leaf basementnode macros, 
@@ -443,8 +474,6 @@ struct brt_header {
     struct toku_list live_brts;
     struct toku_list zombie_brts;
     struct toku_list checkpoint_before_commit_link;
-
-    DSN curr_dsn;
 };
 
 struct brt {
@@ -488,7 +517,7 @@ int toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE
                                     BOOL for_checkpoint);
 int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *logp, struct brt_header *h);
 void toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode_fetch_extra* bfe);
-void toku_deserialize_bp_from_compressed(BRTNODE node, int childnum);
+void toku_deserialize_bp_from_compressed(BRTNODE node, int childnum, DB *cmp_extra, brt_compare_func cmp);
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, struct brtnode_fetch_extra* bfe);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
@@ -514,7 +543,7 @@ void toku_assert_entire_node_in_memory(BRTNODE node);
 void toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivotkey, size_t pivotkeysize);
 
 // append a cmd to a nonleaf node child buffer
-void toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, MSN msn, XIDS xids, const DBT *key, const DBT *val);
+void toku_brt_append_to_child_buffer(BRT brt, BRTNODE node, int childnum, int type, MSN msn, XIDS xids, const DBT *key, const DBT *val);
 
 #if 1
 #define DEADBEEF ((void*)0xDEADBEEF)
@@ -568,15 +597,20 @@ struct brt_cursor {
 };
 
 // this is in a strange place because it needs the cursor struct to be defined
-static inline void fill_bfe_for_prefetch(struct brtnode_fetch_extra *bfe, struct brt_header *h, BRT brt, BRT_CURSOR c) {
+static inline void fill_bfe_for_prefetch(struct brtnode_fetch_extra *bfe,
+                                         struct brt_header *h,
+                                         DB *cmp_extra,
+                                         brt_compare_func cmp,
+                                         BRT_CURSOR c) {
     bfe->type = brtnode_fetch_prefetch;
     bfe->h = h;
     bfe->search = NULL;
-    bfe->brt = brt;
+    bfe->cmp_extra = cmp_extra;
+    bfe->cmp = cmp;
     {
         const DBT *left = &c->range_lock_left_key;
         const DBT *right = &c->range_lock_right_key;
-        if (left->data) {
+	if (left->data) {
             MALLOC(bfe->range_lock_left_key); resource_assert(bfe->range_lock_left_key);
             toku_fill_dbt(bfe->range_lock_left_key, toku_xmemdup(left->data, left->size), left->size);
         } else {
@@ -607,12 +641,13 @@ struct pivot_bounds {
 
 int
 toku_brt_search_which_child(
-    BRT brt, 
-    BRTNODE node, 
+    DB *cmp_extra,
+    brt_compare_func cmp,
+    BRTNODE node,
     brt_search_t *search
     );
 
-bool 
+bool
 toku_bfe_wants_child_available (struct brtnode_fetch_extra* bfe, int childnum);
 
 int
@@ -645,7 +680,8 @@ void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullha
                                    struct brtnode_fetch_extra *bfe,
 				   BRTNODE *node_p);
 void toku_unpin_brtnode (BRT brt, BRTNODE node);
-unsigned int toku_brtnode_which_child (BRTNODE node , const DBT *k, BRT t)
+unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
+                                      DB *cmp_extra, brt_compare_func cmp)
     __attribute__((__warn_unused_result__));
 
 /* Stuff for testing */

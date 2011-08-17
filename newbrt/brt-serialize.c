@@ -4,6 +4,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "includes.h"
+#include "sort.h"
 #include "toku_atomic.h"
 #include "threadpool.h"
 #include <compress.h>
@@ -485,7 +486,6 @@ sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
 // Because all messages above have been applied, setting msn of all new basements 
 // to max msn of existing basements is correct.  (There cannot be any messages in
 // buffers above that still need to be applied.)
-// TODO: assert that all basement DSNs are the same.
 static void
 rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
 {
@@ -539,11 +539,8 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
     u_int32_t tmp_seqinsert = BLB_SEQINSERT(node, node->n_children-1);
 
     MSN max_msn = MIN_MSN;
-    DSN min_dsn = MAX_DSN;
     for (int i = 0; i < node->n_children; i++) {
-        DSN curr_dsn = BLB_MAX_DSN_APPLIED(node,i);
         MSN curr_msn = BLB_MAX_MSN_APPLIED(node,i);
-        min_dsn = (curr_dsn.dsn < min_dsn.dsn) ? curr_dsn : min_dsn;
         max_msn = (curr_msn.msn > max_msn.msn) ? curr_msn : max_msn;
     }
 
@@ -604,7 +601,6 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
 
         BP_STATE(node,i) = PT_AVAIL;
         BP_TOUCH_CLOCK(node,i);
-        BLB_MAX_DSN_APPLIED(node,i) = min_dsn;
         BLB_MAX_MSN_APPLIED(node,i) = max_msn;
     }
     node->max_msn_applied_to_node_on_disk = max_msn;
@@ -826,20 +822,46 @@ toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_h
 }
 
 static void
-deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf) {
+deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf,
+                         DB *cmp_extra, brt_compare_func cmp) {
+    int r;
     int n_bytes_in_buffer = 0;
     int n_in_this_buffer = rbuf_int(rbuf);
+    void **offsets;
+    void **broadcast_offsets;
+    int noffsets = 0;
+    int nbroadcast_offsets = 0;
+    if (cmp) {
+        MALLOC_N(n_in_this_buffer, offsets);
+        MALLOC_N(n_in_this_buffer, broadcast_offsets);
+    }
     for (int i = 0; i < n_in_this_buffer; i++) {
         bytevec key; ITEMLEN keylen;
         bytevec val; ITEMLEN vallen;
-        int type = rbuf_char(rbuf);
+        // this is weird but it's necessary to pass icc and gcc together
+        unsigned char ctype = rbuf_char(rbuf);
+        enum brt_msg_type type = (enum brt_msg_type) ctype;
         MSN msn = rbuf_msn(rbuf);
         XIDS xids;
         xids_create_from_buffer(rbuf, &xids);
         rbuf_bytes(rbuf, &key, &keylen); /* Returns a pointer into the rbuf. */
         rbuf_bytes(rbuf, &val, &vallen);
         //printf("Found %s,%s\n", (char*)key, (char*)val);
-        int r = toku_fifo_enq(BNC_BUFFER(node, cnum), key, keylen, val, vallen, type, msn, xids); /* Copies the data into the fifo */
+        long *dest;
+        if (cmp) {
+            if (brt_msg_type_applies_once(type)) {
+                dest = (long *) &offsets[noffsets];
+                noffsets++;
+            } else if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
+                dest = (long *) &broadcast_offsets[nbroadcast_offsets];
+                nbroadcast_offsets++;
+            } else {
+                assert(FALSE);
+            }
+        } else {
+            dest = NULL;
+        }
+        r = toku_fifo_enq(BNC_BUFFER(node, cnum), key, keylen, val, vallen, type, msn, xids, dest); /* Copies the data into the fifo */
         lazy_assert_zero(r);
         n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
         //printf("Inserted\n");
@@ -847,6 +869,17 @@ deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf) {
     }
     invariant(rbuf->ndone == rbuf->size);
 
+    if (cmp) {
+        struct toku_fifo_entry_key_msn_cmp_extra extra = { .cmp_extra = cmp_extra, .cmp = cmp, .fifo = BNC_BUFFER(node, cnum) };
+        r = mergesort_r(offsets, noffsets, sizeof offsets[0], &extra, toku_fifo_entry_key_msn_cmp);
+        assert_zero(r);
+        toku_omt_destroy(&BNC_MESSAGE_TREE(node, cnum));
+        r = toku_omt_create_steal_sorted_array(&BNC_MESSAGE_TREE(node, cnum), &offsets, noffsets, n_in_this_buffer);
+        assert_zero(r);
+        toku_omt_destroy(&BNC_BROADCAST_BUFFER(node, cnum));
+        r = toku_omt_create_steal_sorted_array(&BNC_BROADCAST_BUFFER(node, cnum), &broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
+        assert_zero(r);
+    }
     BNC_NBYTESINBUF(node, cnum) = n_bytes_in_buffer;
     BP_WORKDONE(node, cnum) = 0;
 }
@@ -897,7 +930,6 @@ BASEMENTNODE toku_create_empty_bn(void) {
 
 BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
     BASEMENTNODE XMALLOC(bn);
-    bn->max_dsn_applied = MIN_DSN;
     bn->max_msn_applied.msn = 0;
     bn->buffer = NULL;
     bn->n_bytes_in_buffer = 0;
@@ -910,7 +942,11 @@ NONLEAF_CHILDINFO toku_create_empty_nl(void) {
     NONLEAF_CHILDINFO XMALLOC(cn);
     cn->n_bytes_in_buffer = 0;
     int r = toku_fifo_create(&cn->buffer);
-    assert(r==0);
+    assert_zero(r);
+    r = toku_omt_create(&cn->message_tree);
+    assert_zero(r);
+    r = toku_omt_create(&cn->broadcast_buffer);
+    assert_zero(r);
     return cn;
 }
 
@@ -926,6 +962,8 @@ void destroy_basement_node (BASEMENTNODE bn)
 void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl)
 {
     toku_fifo_free(&nl->buffer);
+    toku_omt_destroy(&nl->message_tree);
+    toku_omt_destroy(&nl->broadcast_buffer);
     toku_free(nl);
 }
 
@@ -1023,8 +1061,6 @@ deserialize_brtnode_info(
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
     rbuf_init(&rb, sb->uncompressed_ptr, data_size);
 
-    node->dsn = INVALID_DSN;
-
     node->max_msn_applied_to_node_on_disk = rbuf_msn(&rb);
     node->nodesize = rbuf_int(&rb);
     node->flags = rbuf_int(&rb);
@@ -1087,7 +1123,6 @@ setup_available_brtnode_partition(BRTNODE node, int i) {
     if (node->height == 0) {
 	set_BLB(node, i, toku_create_empty_bn());
         BLB_MAX_MSN_APPLIED(node,i) = node->max_msn_applied_to_node_on_disk;
-        BLB_MAX_DSN_APPLIED(node,i).dsn = 0;
     }
     else {
 	set_BNC(node, i, toku_create_empty_nl());
@@ -1102,10 +1137,11 @@ setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* bfe) {
         // we can possibly require is a single basement node
         // we find out what basement node the query cares about
         // and check if it is available
-        assert(bfe->brt);
+        assert(bfe->cmp);
         assert(bfe->search);
         bfe->child_to_read = toku_brt_search_which_child(
-            bfe->brt,
+            bfe->cmp_extra,
+            bfe->cmp,
             node,
             bfe->search
             );
@@ -1142,31 +1178,32 @@ setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* bfe) {
     }
 }
 
-static void 
+static void
 deserialize_brtnode_partition(
-    struct sub_block *sb, 
-    BRTNODE node, 
-    int index
+    struct sub_block *sb,
+    BRTNODE node,
+    int index,
+    DB *cmp_extra,
+    brt_compare_func cmp
     )
 {
     verify_brtnode_sub_block(sb);
     u_int32_t data_size = sb->uncompressed_size - 4; // checksum is 4 bytes at end
-    
+
     // now with the data verified, we can read the information into the node
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
     rbuf_init(&rb, sb->uncompressed_ptr, data_size);
     u_int32_t start_of_data;
-    
+
     if (node->height > 0) {
         unsigned char ch = rbuf_char(&rb);
         assert(ch == BRTNODE_PARTITION_FIFO_MSG);
-        deserialize_child_buffer(node, index, &rb);
+        deserialize_child_buffer(node, index, &rb, cmp_extra, cmp);
     }
     else {
         unsigned char ch = rbuf_char(&rb);
         assert(ch == BRTNODE_PARTITION_OMT_LEAVES);
         BLB_OPTIMIZEDFORUPGRADE(node, index) = rbuf_int(&rb);
-        // dont need to set max_dsn_applied because creation of basement node set it to correct value
         BLB_SEQINSERT(node, index) = 0;
         u_int32_t num_entries = rbuf_int(&rb);
         OMTVALUE *XMALLOC_N(num_entries, array);
@@ -1191,11 +1228,11 @@ deserialize_brtnode_partition(
 }
 
 static void
-decompress_and_deserialize_worker(struct rbuf curr_rbuf, struct sub_block curr_sb, BRTNODE node, int child)
+decompress_and_deserialize_worker(struct rbuf curr_rbuf, struct sub_block curr_sb, BRTNODE node, int child, DB *cmp_extra, brt_compare_func cmp)
 {
     read_and_decompress_sub_block(&curr_rbuf, &curr_sb);
     // at this point, sb->uncompressed_ptr stores the serialized node partition
-    deserialize_brtnode_partition(&curr_sb, node, child);
+    deserialize_brtnode_partition(&curr_sb, node, child, cmp_extra, cmp);
     toku_free(curr_sb.uncompressed_ptr);
 }
 
@@ -1306,7 +1343,7 @@ deserialize_brtnode_from_rbuf(
         // deserialize_brtnode_info figures out what the state
         // should be and sets up the memory so that we are ready to use it
         if (BP_STATE(node,i) == PT_AVAIL) {
-            cilk_spawn decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i);
+            cilk_spawn decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i, bfe->cmp_extra, bfe->cmp);
         }
         // case where we leave the partition in the compressed state
         else if (BP_STATE(node,i) == PT_COMPRESSED) {
@@ -1358,13 +1395,13 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
         ssize_t rlen = toku_os_pread(fd, raw_block, curr_size, node_offset+curr_offset);
         lazy_assert((DISKOFF)rlen == curr_size);
     }
-    
+
     struct sub_block curr_sb;
     sub_block_init(&curr_sb);
 
     read_and_decompress_sub_block(&rb, &curr_sb);
     // at this point, sb->uncompressed_ptr stores the serialized node partition
-    deserialize_brtnode_partition(&curr_sb, node, childnum);
+    deserialize_brtnode_partition(&curr_sb, node, childnum, bfe->cmp_extra, bfe->cmp);
     if (node->height == 0) {
         toku_brt_bn_reset_stats(node, childnum);
     }
@@ -1374,13 +1411,14 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
 
 // Take a brtnode partition that is in the compressed state, and make it avail
 void
-toku_deserialize_bp_from_compressed(BRTNODE node, int childnum) {
+toku_deserialize_bp_from_compressed(BRTNODE node, int childnum,
+                                    DB *cmp_extra, brt_compare_func cmp) {
     assert(BP_STATE(node, childnum) == PT_COMPRESSED);
     SUB_BLOCK curr_sb = BSB(node, childnum);
 
     assert(curr_sb->uncompressed_ptr == NULL);
     curr_sb->uncompressed_ptr = toku_xmalloc(curr_sb->uncompressed_size);
-    
+
     setup_available_brtnode_partition(node, childnum);
     BP_STATE(node,childnum) = PT_AVAIL;
     // decompress the sub_block
@@ -1390,7 +1428,7 @@ toku_deserialize_bp_from_compressed(BRTNODE node, int childnum) {
         curr_sb->compressed_ptr,
         curr_sb->compressed_size
         );
-    deserialize_brtnode_partition(curr_sb, node, childnum);
+    deserialize_brtnode_partition(curr_sb, node, childnum, cmp_extra, cmp);
     if (node->height == 0) {
         toku_brt_bn_reset_stats(node, childnum);
     }
@@ -1784,7 +1822,6 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->dirty=0;
     h->panic = 0;
     h->panic_string = 0;
-    h->curr_dsn.dsn = MIN_DSN.dsn+1;
     toku_list_init(&h->live_brts);
     toku_list_init(&h->zombie_brts);
     toku_list_init(&h->checkpoint_before_commit_link);

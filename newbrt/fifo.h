@@ -44,9 +44,9 @@ void toku_fifo_size_is_stabilized(FIFO);
 
 int toku_fifo_n_entries(FIFO);
 
-int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd);
+int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd, long *dest);
 
-int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type, MSN msn, XIDS xids);
+int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type, MSN msn, XIDS xids, long *dest);
 
 int toku_fifo_peek (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, MSN *msn, XIDS *xids);
 
@@ -80,6 +80,9 @@ int toku_fifo_iterate_internal_start(FIFO fifo);
 int toku_fifo_iterate_internal_has_more(FIFO fifo, int off);
 int toku_fifo_iterate_internal_next(FIFO fifo, int off);
 struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off);
+
+DBT *fill_dbt_for_fifo_entry(DBT *dbt, const struct fifo_entry *entry);
+const struct fifo_entry *toku_fifo_get_entry(FIFO fifo, long off);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

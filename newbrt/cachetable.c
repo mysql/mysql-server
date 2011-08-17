@@ -42,7 +42,6 @@ static u_int64_t cachetable_puts;          // how many times has a newly created
 static u_int64_t cachetable_prefetches;    // how many times has a block been prefetched into the cachetable?
 static u_int64_t cachetable_maybe_get_and_pins;      // how many times has maybe_get_and_pin(_clean) been called?
 static u_int64_t cachetable_maybe_get_and_pin_hits;  // how many times has get_and_pin(_clean) returned with a node?
-static u_int64_t cachetable_get_and_pin_if_in_memorys; // how many times has get_and_pin_if_in_memorys been called?
 static u_int64_t cachetable_wait_checkpoint;         // number of times get_and_pin waits for a node to be written for a checkpoint
 static u_int64_t cachetable_misstime;     // time spent waiting for disk read
 static u_int64_t cachetable_waittime;     // time spent waiting for another thread to release lock (e.g. prefetch, writing)
@@ -1733,42 +1732,6 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
     return r;
 }
 
-int toku_cachetable_get_and_pin_if_in_memory (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value)
-// Effect: Lookup a key in the cachetable.  If it is found then acquire a read lock on the pair, don't update the LRU list, and return success.
-//  Unlike toku_cachetable_maybe_get_and_pin, which gives up if there is any blocking (e.g., the node is waiting to be checkpointing), this
-//  version waits.  
-// Rationale: orthodox pushing needs to get the in-memory state right. 
-//  Don't update the LRU list because we don't want this operation to cause something to stick in memory longer.
-{
-    CACHETABLE ct = cachefile->cachetable;
-    PAIR p;
-    int count = 0;
-    int r = -1;
-    cachetable_lock(ct);
-    cachetable_get_and_pin_if_in_memorys++;
-    for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
-	count++;
-	if (p->key.b==key.b && p->cachefile==cachefile) {
-	    // It's the right block.  Now we must wait.
-	    if (p->checkpoint_pending) {
-		write_pair_for_checkpoint(ct, p, FALSE);
-	    }
-	    rwlock_read_lock(&p->rwlock, ct->mutex);
-	    if (p->state == CTPAIR_INVALID) {
-		assert(0); // This is the branch that returns ENODEV in the get_and_pin code in the 5.0 branch.  Let's just crash now.
-	    }
-	    // do not increment PAIR's clock count.
-	    *value = p->value;
-	    cachetable_hit++;
-	    r = 0;
-	    break;
-	}
-    }
-    note_hash_count(count);
-    cachetable_unlock(ct);
-    return r;
-}
-
 //Used by shortcut query path.
 //Same as toku_cachetable_maybe_get_and_pin except that we don't care if the node is clean or dirty (return the node regardless).
 //All other conditions remain the same.
@@ -2955,7 +2918,6 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
     s->prefetches   = cachetable_prefetches;
     s->maybe_get_and_pins      = cachetable_maybe_get_and_pins;
     s->maybe_get_and_pin_hits  = cachetable_maybe_get_and_pin_hits;
-    s->get_and_pin_if_in_memorys = cachetable_get_and_pin_if_in_memorys;
     s->size_current = ct->size_current;          
     s->size_limit   = ct->size_limit;            
     s->size_max     = ct->size_max;

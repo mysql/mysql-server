@@ -154,7 +154,7 @@ again:
     for (i=0; i<my_n_present; i++) {
 	void *v;
 	u_int32_t fullhash = toku_cachetable_hash(my_present_items[i].cf, my_present_items[i].key);
-	int r=toku_cachetable_get_and_pin_if_in_memory(my_present_items[i].cf,
+	int r=toku_cachetable_maybe_get_and_pin_clean(my_present_items[i].cf,
 						my_present_items[i].key,
 						toku_cachetable_hash(my_present_items[i].cf, my_present_items[i].key),
 						&v);
