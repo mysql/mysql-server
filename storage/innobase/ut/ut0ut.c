@@ -728,6 +728,8 @@ ut_strerr(
 		return("No index on referencing keys in referencing table");
 	case DB_PARENT_NO_INDEX:
 		return("No index on referenced keys in referenced table");
+	case DB_INDEX_CORRUPT:
+		return("Index corrupted");
 	case DB_END_OF_INDEX:
 		return("End of index");
 	/* do not add default: in order to produce a warning if new code
