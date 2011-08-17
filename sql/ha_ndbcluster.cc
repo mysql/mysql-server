@@ -40,6 +40,7 @@
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_tables.h"
 #include "ha_ndbcluster_connection.h"
+#include "ha_ndb_index_stat.h"
 
 #include <mysql/plugin.h>
 #include <ndb_version.h>
@@ -427,7 +428,6 @@ int ndb_index_stat_thread_running= 0;
 pthread_mutex_t LOCK_ndb_index_stat_thread;
 pthread_cond_t COND_ndb_index_stat_thread;
 pthread_cond_t COND_ndb_index_stat_ready;
-pthread_mutex_t ndb_index_stat_glob_mutex;
 pthread_mutex_t ndb_index_stat_list_mutex;
 pthread_mutex_t ndb_index_stat_stat_mutex;
 pthread_cond_t ndb_index_stat_stat_cond;
@@ -1353,6 +1353,7 @@ void ha_ndbcluster::set_rec_per_key()
   */
   for (uint i=0 ; i < table_share->keys ; i++)
   {
+    KEY* key_info= table->key_info + i;
     switch (get_index_type(i))
     {
     case UNIQUE_ORDERED_INDEX:
@@ -1362,7 +1363,6 @@ void ha_ndbcluster::set_rec_per_key()
     {
       // Index is unique when all 'key_parts' are specified,
       // else distribution is unknown and not specified here.
-      KEY* key_info= table->key_info + i;
       key_info->rec_per_key[key_info->key_parts-1]= 1;
       break;
     }
@@ -1376,8 +1376,18 @@ void ha_ndbcluster::set_rec_per_key()
       if (index_stat_enable)
       {
         int err= ndb_index_stat_set_rpk(i);
-        if (err == 0)
-          break;
+        if (err != 0 &&
+            /* no stats is not unexpected error */
+            err != NdbIndexStat::NoIndexStats &&
+            /* warning was printed at first error */
+            err != Ndb_index_stat_error_HAS_ERROR)
+        {
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                              ER_CANT_GET_STAT, /* pun? */
+                              "index stats (RPK) for key %s:"
+                              " unexpected error %d",
+                              key_info->name, err);
+        }
       }
       // no fallback method...
       break;
@@ -11427,7 +11437,6 @@ static int ndbcluster_init(void *p)
   pthread_mutex_init(&LOCK_ndb_index_stat_thread, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_ndb_index_stat_thread, NULL);
   pthread_cond_init(&COND_ndb_index_stat_ready, NULL);
-  pthread_mutex_init(&ndb_index_stat_glob_mutex, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&ndb_index_stat_list_mutex, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&ndb_index_stat_stat_mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&ndb_index_stat_stat_cond, NULL);
@@ -11538,7 +11547,6 @@ static int ndbcluster_init(void *p)
     pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_ready);
-    pthread_mutex_destroy(&ndb_index_stat_glob_mutex);
     pthread_mutex_destroy(&ndb_index_stat_list_mutex);
     pthread_mutex_destroy(&ndb_index_stat_stat_mutex);
     pthread_cond_destroy(&ndb_index_stat_stat_cond);
@@ -11559,7 +11567,6 @@ static int ndbcluster_init(void *p)
     pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_ready);
-    pthread_mutex_destroy(&ndb_index_stat_glob_mutex);
     pthread_mutex_destroy(&ndb_index_stat_list_mutex);
     pthread_mutex_destroy(&ndb_index_stat_stat_mutex);
     pthread_cond_destroy(&ndb_index_stat_stat_cond);
@@ -11820,6 +11827,18 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
         if (rows < 2)
           rows = 2;
         DBUG_RETURN(rows);
+      }
+      if (err != 0 &&
+          /* no stats is not unexpected error */
+          err != NdbIndexStat::NoIndexStats &&
+          /* warning was printed at first error */
+          err != Ndb_index_stat_error_HAS_ERROR)
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_CANT_GET_STAT, /* pun? */
+                            "index stats (RIR) for key %s:"
+                            " unexpected error %d",
+                            key_info->name, err);
       }
       /*fall through*/
     }

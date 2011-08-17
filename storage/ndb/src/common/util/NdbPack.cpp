@@ -560,8 +560,11 @@ NdbPack::Data::finalize_impl()
 }
 
 int
-NdbPack::Data::desc_all(Uint32 cnt)
+NdbPack::Data::desc_all(Uint32 cnt, Endian::Value from_endian)
 {
+  if (from_endian == NdbPack::Endian::Native)
+    from_endian = NdbPack::Endian::get_endian();
+  m_endian = from_endian;
   assert(m_cnt == 0); // reset() would destroy nullmask
   for (Uint32 i = 0; i < cnt; i++)
   {
@@ -757,7 +760,7 @@ NdbPack::Spec::print(char* buf, Uint32 bufsz) const
 
 // print DataC
 
-bool g_ndb_pack_print_hex_always = false;
+bool g_ndb_pack_print_hex_always = true;
 
 NdbOut&
 operator<<(NdbOut& out, const NdbPack::DataC& a)
@@ -1836,7 +1839,7 @@ testdesc(const Tdata& tdata)
   Uint8 buf_new[Tspec::MaxBuf];
   data_new.set_buf(buf_new, sizeof(buf_new));
   memcpy(buf_new, buf_old, fullLen);
-  chk2(data_new.desc_all(cnt) == 0, data_new);
+  chk2(data_new.desc_all(cnt, NdbPack::Endian::Native) == 0, data_new);
   chk1(memcmp(buf_new, data.get_full_buf(), data.get_full_len()) == 0);
   chk1(data_new.get_data_len() == data.get_data_len());
   chk1(data_new.get_cnt() == data.get_cnt());
@@ -1903,28 +1906,17 @@ testconvert(const Tdata& tdata)
   require(data.get_cnt() == data_new.get_cnt());
   const Uint32 cnt = tdata.m_cnt;
   Uint32 num_eq;
-  switch (NdbPack::Endian::get_endian()) {
-  case NdbPack::Endian::Little:
-    chk2(data_new.convert(NdbPack::Endian::Little) == 0, data_new);
-    num_eq = ~(Uint32)0;
-    chk1(data.cmp(data_new, cnt, num_eq) == 0);
-    chk2(data_new.convert(NdbPack::Endian::Big) == 0, data_new);
-    chk2(data_new.convert(NdbPack::Endian::Little) == 0, data_new);
-    num_eq = ~(Uint32)0;
-    chk1(data.cmp(data_new, cnt, num_eq) == 0);
-    break;
-  case NdbPack::Endian::Big:
-    chk2(data_new.convert(NdbPack::Endian::Big) == 0, data_new);
-    num_eq = ~(Uint32)0;
-    chk1(data.cmp(data_new, cnt, num_eq) == 0);
-    chk2(data_new.convert(NdbPack::Endian::Little) == 0, data_new);
-    chk2(data_new.convert(NdbPack::Endian::Big) == 0, data_new);
-    num_eq = ~(Uint32)0;
-    chk1(data.cmp(data_new, cnt, num_eq) == 0);
-    break;
-  default:
-    require(false);
-    break;
+  int i;
+  for (i = 0; i < 10; i++) {
+    int k = getrandom(3); // assumes Endian::Value 0,1,2
+    NdbPack::Endian::Value v = (NdbPack::Endian::Value)k;
+    chk2(data_new.convert(v) == 0, data_new);
+    if (v == NdbPack::Endian::Native ||
+        v == NdbPack::Endian::get_endian()) {
+      num_eq = ~(Uint32)0;
+      chk1(data.cmp(data_new, cnt, num_eq) == 0);
+      require(num_eq == cnt);
+    }
   }
 }
 
