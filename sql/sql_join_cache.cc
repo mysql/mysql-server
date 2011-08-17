@@ -2462,7 +2462,7 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
     init_pos= pos;
 
     /* Read a reference to the previous cache if any */
-    uchar *prev_rec_ptr;
+    uchar *prev_rec_ptr= NULL;
     if (prev_cache)
     {
       pos+= prev_cache->get_size_of_rec_offset();
