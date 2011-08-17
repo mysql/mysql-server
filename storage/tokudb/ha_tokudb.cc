@@ -4816,6 +4816,7 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
             error = read_primary_key( buf, active_index, &curr_val, &curr_key);
         }
         else {
+            extract_hidden_primary_key(active_index, &curr_key);
             // need to extract a val and place it into buf
             if (unpack_entire_row) {
                 // get val info
@@ -4825,7 +4826,6 @@ int ha_tokudb::read_data_from_range_query_buff(uchar* buf, bool need_val) {
                 curr_pos += val_size;
                 curr_val.data = curr_val_buff;
                 curr_val.size = val_size;
-                extract_hidden_primary_key(active_index, &curr_key);
                 error = unpack_row(buf,&curr_val, &curr_key, active_index);
             }
             else {
