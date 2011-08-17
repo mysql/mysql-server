@@ -359,12 +359,14 @@ private:
     /** Reset object to an empty state.*/
     void clear();
 
-    /** Get a fragment where all rows have been consumed. (This method is 
-     * not idempotent - the fragment is removed from the set. 
-     * @return Emptied fragment (or NULL if there are no more emptied 
-     * fragments).
+    /**
+     * Get all fragments where more rows may be (pre-)fetched.
+     * (This method is not idempotent - the fragments are removed
+     * from the set.)
+     * @return Number of fragments (in &frags) from which more 
+     * results should be requested.
      */
-    NdbRootFragment* getEmpty();
+    Uint32 getFetchMore(NdbRootFragment** &rootFrags);
 
   private:
 
@@ -549,7 +551,8 @@ private:
   /** Send SCAN_NEXTREQ signal to fetch another batch from a scan query
    * @return 0 if send succeeded, -1 otherwise.
    */
-  int sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend);
+  int sendFetchMore(NdbRootFragment* rootFrags[], Uint32 cnt,
+                    bool forceSend);
 
   /** Wait for more scan results which already has been REQuested to arrive.
    * @return 0 if some rows did arrive, a negative value if there are errors (in m_error.code),
