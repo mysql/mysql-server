@@ -726,7 +726,6 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
 */
 
 #ifndef _WIN32
-//WL#4896: Use IDLE
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
