@@ -138,7 +138,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                                    uint key_len,
                                    const char *db,
                                    const char *table_name,
-                                   my_bool share_may_exist);
+                                   TABLE * table);
 int ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *table,
                             const char *event_name, NDB_SHARE *share,
                             int push_warning= 0);

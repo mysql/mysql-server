@@ -9130,8 +9130,9 @@ int ha_ndbcluster::create(const char *name,
     */
     if ((my_errno= write_ndb_file(name)))
       DBUG_RETURN(my_errno);
+
     ndbcluster_create_binlog_setup(thd, ndb, name, strlen(name),
-                                   m_dbname, m_tabname, FALSE);
+                                   m_dbname, m_tabname, form);
     DBUG_RETURN(my_errno);
   }
 
@@ -10686,7 +10687,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     }
     Ndb* ndb= check_ndb_in_thd(thd);
     ndbcluster_create_binlog_setup(thd, ndb, name, strlen(name),
-                                   m_dbname, m_tabname, FALSE);
+                                   m_dbname, m_tabname, table);
     if ((m_share=get_share(name, table, FALSE)) == 0)
     {
       local_close(thd, FALSE);
@@ -11402,7 +11403,7 @@ int ndbcluster_find_all_files(THD *thd)
         /* set up replication for this table */
         ndbcluster_create_binlog_setup(thd, ndb, key, end-key,
                                        elmt.database, elmt.name,
-                                       TRUE);
+                                       0);
       }
     }
   }
@@ -11570,7 +11571,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
       end= end1 +
         tablename_to_filename(file_name_str, end1, sizeof(name) - (end1 - name));
       ndbcluster_create_binlog_setup(thd, ndb, name, end-name,
-                                     db, file_name_str, TRUE);
+                                     db, file_name_str, 0);
     }
   }
 
@@ -13033,6 +13034,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       MEM_ROOT *old_root= *root_ptr;
       init_sql_alloc(&share->mem_root, 1024, 0);
       *root_ptr= &share->mem_root; // remember to reset before return
+      share->flags= 0;
       share->state= NSS_INITIAL;
       /* enough space for key, db, and table_name */
       share->key= (char*) alloc_root(*root_ptr, 2 * (length + 1));
