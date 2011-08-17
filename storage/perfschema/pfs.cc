@@ -4626,8 +4626,6 @@ static void start_socket_wait_v1(PSI_socket_locker *locker,
 {
   PSI_socket_locker_state *state= reinterpret_cast<PSI_socket_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
-  PFS_socket *socket= reinterpret_cast<PFS_socket *>(state->m_socket);
-  DBUG_ASSERT(socket != NULL);
 
   register uint flags= state->m_flags;
   ulonglong timer_start= 0;
