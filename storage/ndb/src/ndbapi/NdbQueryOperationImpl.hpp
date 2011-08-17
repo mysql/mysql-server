@@ -333,14 +333,16 @@ private:
 
   private:
 
-    /** Max no of fragments.*/
+    /** No of fragments to read until '::finalBatchReceived()'.*/
     int m_capacity;
     /** Number of fragments in 'm_activeFrags'.*/
     int m_activeFragCount;
-    /** Number of fragments in 'm_emptiedFrags'. */
-    int m_emptiedFragCount;
-    /** Number of fragments where the final batch has been received
-     * and consumed.*/
+    /** Number of fragments in 'm_fetchMoreFrags'. */
+    int m_fetchMoreFragCount;
+    /**
+     * Number of fragments where the final batch has been received
+     * and consumed.
+     */
     int m_finalFragCount;
     /** Ordering of index scan result.*/
     NdbQueryOptions::ScanOrdering m_ordering;
@@ -348,15 +350,18 @@ private:
     const NdbRecord* m_keyRecord;
     /** Needed for comparing records when ordering results.*/
     const NdbRecord* m_resultRecord;
-    /** Fragments where some tuples in the current batch has not yet been 
-     * consumed.*/
+    /**
+     * Fragments where some tuples in the current ResultSet has not 
+     * yet been consumed.
+     */
     NdbRootFragment** m_activeFrags;
-    /** Fragments where all tuples in the current batch have been consumed, 
-     * but where there are more batches to fetch.*/
-    NdbRootFragment** m_emptiedFrags;
-    // No copying.
-    OrderedFragSet(const OrderedFragSet&);
-    OrderedFragSet& operator=(const OrderedFragSet&);
+    /**
+     * Fragments from which we should request more ResultSets.
+     * Either due to the current batch has been consumed, or double buffering
+     * of result sets allows us to request another batch before the current
+     * has been consumed.
+     */
+    NdbRootFragment** m_fetchMoreFrags;
 
     /** Add a complete fragment that has been received.*/
     void add(NdbRootFragment& frag);
@@ -369,6 +374,10 @@ private:
 
     /** For debugging purposes.*/
     bool verifySortOrder() const;
+
+    // No copying.
+    OrderedFragSet(const OrderedFragSet&);
+    OrderedFragSet& operator=(const OrderedFragSet&);
   }; // class OrderedFragSet
 
   /** The interface that is visible to the application developer.*/
