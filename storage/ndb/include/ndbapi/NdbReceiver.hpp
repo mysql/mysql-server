@@ -140,8 +140,9 @@ private:
   /* members used for NdbRecord operation. */
   struct {
     const NdbRecord *m_ndb_record;
-    char *m_row;
-    /* Block of memory used to receive all rows in a batch during scan. */
+    /* Destination to receive next row into. */
+    char *m_row_recv;
+    /* Block of memory used to read all rows in a batch during scan. */
     char *m_row_buffer;
     /*
       Offsets between two rows in m_row_buffer.
@@ -259,7 +260,7 @@ NdbReceiver::prepareSend(){
   if (m_using_ndb_record)
   {
     if (m_type==NDB_SCANRECEIVER || m_type==NDB_QUERY_OPERATION)
-      m_record.m_row= m_record.m_row_buffer;
+      m_record.m_row_recv= m_record.m_row_buffer;
   }
   theCurrentRecAttr = theFirstRecAttr;
 }
