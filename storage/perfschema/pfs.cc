@@ -2835,7 +2835,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     return NULL;
 
   DBUG_ASSERT(pfs_socket->m_class != NULL);
-  DBUG_ASSERT(!(pfs_socket->m_idle && op != PSI_SOCKET_RECV));
+  DBUG_ASSERT(!(pfs_socket->m_idle && op == PSI_SOCKET_CLOSE));
 
   if (!pfs_socket->m_enabled || pfs_socket->m_idle)
     return NULL;
