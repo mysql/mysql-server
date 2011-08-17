@@ -3015,6 +3015,7 @@ bool mysql_insert_select_prepare(THD *thd)
       select_lex->leaf_tables_exec.push_back(table);
       table->tablenr_exec= table->table->tablenr;
       table->map_exec= table->table->map;
+      table->maybe_null_exec= table->table->maybe_null;
     }
     if (arena)
       thd->restore_active_arena(arena, &backup);

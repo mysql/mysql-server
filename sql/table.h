@@ -1448,6 +1448,7 @@ struct TABLE_LIST
   table_map     map_exec;
   /* TODO: check if this can be joined with jtbm_table_no */
   uint          tablenr_exec;
+  uint          maybe_null_exec;
 
   /* Ptr to parent MERGE table list item. See top comment in ha_myisammrg.cc */
   TABLE_LIST    *parent_l;

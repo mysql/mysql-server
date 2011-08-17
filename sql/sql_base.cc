@@ -7847,6 +7847,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       {
         table_list->table->tablenr= table_list->tablenr_exec;
         table_list->table->map= table_list->map_exec;
+        table_list->table->maybe_null= table_list->maybe_null_exec;
         table_list->table->pos_in_table_list= table_list;
       }
       select_lex->leaf_tables.push_back(table_list);

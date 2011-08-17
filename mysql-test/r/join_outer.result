@@ -1593,3 +1593,25 @@ FROM t1 LEFT JOIN t2 ON (t2.b) IN (SELECT c2 from t3) AND t2.a = 1;
 b
 NULL
 DROP TABLE t1,t2,t3;
+#
+# LP bug #825035: second execution of PS with outer join
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+CREATE TABLE t2 (a int);
+PREPARE stmt FROM 
+"SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a";
+EXECUTE stmt;
+a	a
+1	NULL
+2	NULL
+3	NULL
+4	NULL
+EXECUTE stmt;
+a	a
+1	NULL
+2	NULL
+3	NULL
+4	NULL
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1,t2;

@@ -3588,6 +3588,10 @@ bool st_select_lex::save_leaf_tables(THD *thd)
       return 1;
     table->tablenr_exec= table->table->tablenr;
     table->map_exec= table->table->map;
+    if (join && (join->select_options & SELECT_DESCRIBE))
+      table->maybe_null_exec= 0;
+    else
+      table->maybe_null_exec= table->table->maybe_null;
   }
   if (arena)
     thd->restore_active_arena(arena, &backup);

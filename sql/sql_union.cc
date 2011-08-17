@@ -371,6 +371,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     ulonglong create_options;
     uint save_tablenr= 0;
     table_map save_map= 0;
+    uint save_maybe_null= 0;
 
     while ((type= tp++))
     {
@@ -429,6 +430,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     {
       save_tablenr= result_table_list.tablenr_exec;
       save_map= result_table_list.map_exec;
+      save_maybe_null= result_table_list.maybe_null_exec;
     }
     bzero((char*) &result_table_list, sizeof(result_table_list));
     result_table_list.db= (char*) "";
@@ -438,6 +440,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     {
       result_table_list.tablenr_exec= save_tablenr;
       result_table_list.map_exec= save_map;
+      result_table_list.maybe_null_exec= save_maybe_null;
     }
 
     thd_arg->lex->current_select= lex_select_save;
