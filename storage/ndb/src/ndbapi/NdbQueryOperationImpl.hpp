@@ -281,7 +281,7 @@ private:
   class SharedFragStack{
   public:
     // For calculating need for dynamically allocated memory.
-    static const Uint32 pointersPerFragment = 2;
+    static const Uint32 pointersPerFragment = 1;
 
     explicit SharedFragStack();
 
@@ -326,7 +326,7 @@ private:
   class OrderedFragSet{
   public:
     // For calculating need for dynamically allocated memory.
-    static const Uint32 pointersPerFragment = 1;
+    static const Uint32 pointersPerFragment = 2;
 
     explicit OrderedFragSet();
 
@@ -348,9 +348,11 @@ private:
     /** Get the root fragment from which to read the next row.*/
     NdbRootFragment* getCurrent() const;
 
-    /** Re-organize the fragments after a row has been consumed. This is 
-     * needed to remove fragements that has been needed, and to re-sort 
-     * fragments if doing a sorted scan.*/
+    /**
+     * Re-organize the fragments after a row has been consumed. This is 
+     * needed to remove fragments that has been emptied, and to re-sort 
+     * fragments if doing a sorted scan.
+     */
     void reorganize();
 
     /** Add a complete fragment that has been received.*/
