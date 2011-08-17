@@ -166,12 +166,12 @@
    doing it).
 */
 #define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 7)
-#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 8)
-#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 9)
-#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 10)
-#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 11)
-#define OPTIMIZER_SWITCH_BNL                       (1ULL << 12)
-#define OPTIMIZER_SWITCH_BKA                       (1ULL << 13)
+#define OPTIMIZER_SWITCH_BNL                       (1ULL << 8)
+#define OPTIMIZER_SWITCH_BKA                       (1ULL << 9)
+#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 10)
+#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 11)
+#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 12)
+#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 13)
 #define OPTIMIZER_SWITCH_LAST                      (1ULL << 14)
 
 /**
@@ -193,11 +193,12 @@
                                   OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
                                   OPTIMIZER_SWITCH_MRR | \
                                   OPTIMIZER_SWITCH_MRR_COST_BASED | \
+                                  OPTIMIZER_SWITCH_BNL | \
                                   OPTIMIZER_SWITCH_MATERIALIZATION | \
                                   OPTIMIZER_SWITCH_SEMIJOIN | \
                                   OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                  OPTIMIZER_SWITCH_FIRSTMATCH | \
-                                  OPTIMIZER_SWITCH_BNL)
+                                  OPTIMIZER_SWITCH_FIRSTMATCH)
+
 #else
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
