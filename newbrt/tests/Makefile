@@ -156,6 +156,9 @@ check_brtloader-test-writer-errors-3: brtloader-test-writer-errors$(BINSUF)
 check_brtloader-test-writer-errors-4: brtloader-test-writer-errors$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -s -m --malloc_limit 0 -r 10000 dir.$@ $(SUMMARIZE_CMD)
 
+check_brt-serialize-benchmark: brt-serialize-benchmark$(BINSUF)
+	./$< 92 200000
+
 check_%: % $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) $(EXTRA_ARGS) $(SUMMARIZE_CMD)
 
