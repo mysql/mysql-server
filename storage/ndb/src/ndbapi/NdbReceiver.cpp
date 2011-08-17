@@ -122,7 +122,34 @@ NdbReceiver::getValues(const NdbRecord* rec, char *row_ptr)
   m_record.m_row_offset= rec->m_row_size;
 }
 
-#define KEY_ATTR_ID (~(Uint32)0)
+void
+NdbReceiver::prepareReceive(char *buf)
+{
+  /* Set pointers etc. to prepare for receiving the first row of the batch. */
+  assert(theMagicNumber == 0x11223344);
+  m_received_result_length = 0;
+  m_expected_result_length = 0;
+  if (m_using_ndb_record)
+  {
+    m_record.m_row_recv= buf;
+  }
+  theCurrentRecAttr = theFirstRecAttr;
+}
+
+void
+NdbReceiver::prepareRead(char *buf, Uint32 rows)
+{
+  /* Set pointers etc. to prepare for reading the first row of the batch. */
+  assert(theMagicNumber == 0x11223344);
+  m_current_row = 0;
+  m_result_rows = rows;
+  if (m_using_ndb_record)
+  {
+    m_record.m_row_buffer = buf;
+  }
+}
+
+ #define KEY_ATTR_ID (~(Uint32)0)
 
 /*
   Compute the batch size (rows between each NEXT_TABREQ / SCAN_TABCONF) to
