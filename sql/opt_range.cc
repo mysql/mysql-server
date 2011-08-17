@@ -13644,7 +13644,6 @@ print_key(KEY_PART *key_part, const uchar *key, uint used_length)
 {
   char buff[1024];
   const uchar *key_end= key+used_length;
-  String tmp(buff,sizeof(buff),&my_charset_bin);
   uint store_length;
   TABLE *table= key_part->field->table;
   my_bitmap_map *old_sets[2];
@@ -13653,6 +13652,7 @@ print_key(KEY_PART *key_part, const uchar *key, uint used_length)
 
   for (; key < key_end; key+=store_length, key_part++)
   {
+    String tmp(buff,sizeof(buff),&my_charset_bin);
     Field *field=      key_part->field;
     store_length= key_part->store_length;
 

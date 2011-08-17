@@ -204,6 +204,14 @@ static void do_skip(Copy_field *copy __attribute__((unused)))
 }
 
 
+/* 
+  Copy: (NULLable field) -> (NULLable field) 
+
+  note: if the record we're copying from is NULL-complemetned (i.e. 
+  from_field->table->null_row==1), it will also have all NULLable columns to be
+  set to NULLs, so we dont need to check table->null_row here.
+*/
+
 static void do_copy_null(Copy_field *copy)
 {
   if (*copy->from_null_ptr & copy->from_bit)
@@ -218,6 +226,10 @@ static void do_copy_null(Copy_field *copy)
   }
 }
 
+/*
+  Copy: (not-NULL field in table that can be NULL-complemented) -> (NULLable 
+     field)
+*/
 
 static void do_outer_field_null(Copy_field *copy)
 {
@@ -235,6 +247,7 @@ static void do_outer_field_null(Copy_field *copy)
 }
 
 
+/* Copy: (NULL-able field) -> (not NULL-able field) */
 static void do_copy_not_null(Copy_field *copy)
 {
   if (*copy->from_null_ptr & copy->from_bit)
@@ -248,6 +261,7 @@ static void do_copy_not_null(Copy_field *copy)
 }
 
 
+/* Copy: (non-NULLable field) -> (NULLable field) */
 static void do_copy_maybe_null(Copy_field *copy)
 {
   *copy->to_null_ptr&= ~copy->to_bit;
