@@ -3135,6 +3135,7 @@ retry_share:
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
  reset:
+  table->created= TRUE;
   /*
     Check that there is no reference to a condtion from an earlier query
     (cf. Bug#58553). 
@@ -5644,19 +5645,9 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
   if (lock_tables(thd, tables, counter, flags))
     goto err;
 
-  if (derived)
-  {
-    if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
-      goto err;
-    if (thd->fill_derived_tables() &&
-        mysql_handle_derived(thd->lex, &mysql_derived_filling))
-    {
-      mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
-      goto err;
-    }
-    if (!preserve_items_for_printing(thd))
-      mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
-  }
+  if (derived &&
+      (mysql_handle_derived(thd->lex, &mysql_derived_prepare)))
+    goto err;
 
   DBUG_RETURN(FALSE);
 err:
@@ -8166,6 +8157,7 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
+    thd->lex->current_select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
     thd->lex->current_select->cur_pos_in_select_list++;
   }
@@ -8473,7 +8465,10 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       views and natural joins this update is performed inside the loop below.
     */
     if (table)
+    {
       thd->lex->used_tables|= table->map;
+      thd->lex->current_select->select_list_tables|= table->map;
+    }
 
     /*
       Initialize a generic field iterator for the current table reference.
@@ -8559,6 +8554,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           if (field_table)
           {
             thd->lex->used_tables|= field_table->map;
+            thd->lex->current_select->select_list_tables|=
+              field_table->map;
             field_table->covering_keys.intersect(field->part_of_key);
             field_table->merge_keys.merge(field->part_of_key);
             field_table->used_fields++;
@@ -8566,7 +8563,11 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         }
       }
       else
+      {
         thd->lex->used_tables|= item->used_tables();
+        thd->lex->current_select->select_list_tables|=
+          item->used_tables();
+      }
       thd->lex->current_select->cur_pos_in_select_list++;
     }
     /*

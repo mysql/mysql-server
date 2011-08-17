@@ -210,6 +210,17 @@ void
 buf_LRU_stat_update(void);
 /*=====================*/
 
+/******************************************************************//**
+Remove one page from LRU list and put it to free list */
+UNIV_INTERN
+void
+buf_LRU_free_one_page(
+/*==================*/
+	buf_page_t*	bpage)	/*!< in/out: block, must contain a file page and
+				be in a state where it can be freed; there
+				may or may not be a hash index to the page */
+	__attribute__((nonnull));
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
 Validates the LRU list.

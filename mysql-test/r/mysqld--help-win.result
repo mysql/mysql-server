@@ -193,6 +193,10 @@ The following options may be given as the first argument:
  --ignore-builtin-innodb 
  Disable initialization of builtin InnoDB plugin
  --init-connect=name Command(s) that are executed for each new connection
+ --ignore-db-dir=name 
+ Specifies a directory to add to the ignore list when
+ collecting database names from the datadir. Put a blank
+ argument to reset the list accumulated so far.
  --init-file=name    Read SQL commands from this file at startup
  --init-slave=name   Command(s) that are executed by a slave server each time
  the SQL thread starts
