@@ -204,7 +204,7 @@ public:
     m_outstandingResults = 0;
   }
 
-  void setConfReceived();
+  void setConfReceived(Uint32 tcPtrI);
 
   /** 
    * The root operation will read from a number of fragments of a table.
@@ -1124,13 +1124,14 @@ void NdbRootFragment::prepareResultSet()
   rootStream.firstResult();
 }
 
-void NdbRootFragment::setConfReceived()
+void NdbRootFragment::setConfReceived(Uint32 tcPtrI)
 { 
   /* For a query with a lookup root, there may be more than one TCKEYCONF
      message. For a scan, there should only be one SCAN_TABCONF per root
      fragment. 
   */
-  assert(!m_query->getQueryDef().isScanQuery() || !m_confReceived);
+  assert(!getResultStream(0).isScanQuery() || !m_confReceived);
+  getResultStream(0).getReceiver().m_tcPtrI = tcPtrI;
   m_confReceived = true; 
 }
 
@@ -2128,15 +2129,12 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
      */
     if (fetchAllowed)
     {
-      // Ask for a new batch if we emptied one.
-      NdbRootFragment* emptyFrag = m_applFrags.getEmpty();
-      while (emptyFrag != NULL)
+      // Ask for a new batch if we emptied some.
+      NdbRootFragment** frags;
+      const Uint32 cnt = m_applFrags.getFetchMore(frags);
+      if (cnt > 0 && sendFetchMore(frags, cnt, forceSend) != 0)
       {
-        if (sendFetchMore(*emptyFrag, forceSend) != 0)
-        {
-          return NdbQuery::NextResult_error;
-        }        
-        emptyFrag = m_applFrags.getEmpty();
+        return NdbQuery::NextResult_error;
       }
     }
 
@@ -2457,7 +2455,7 @@ NdbQueryImpl::execTCKEYCONF()
   NdbRootFragment& rootFrag = m_rootFrags[0];
 
   // We will get 1 + #leaf-nodes TCKEYCONF for a lookup...
-  rootFrag.setConfReceived();
+  rootFrag.setConfReceived(RNIL);
   rootFrag.incrOutstandingResults(-1);
 
   bool ret = false;
@@ -2735,6 +2733,74 @@ const Uint32* InitialReceiverIdIterator::getNextWords(Uint32& sz)
   }
 }
   
+/** This iterator is used for inserting a sequence of 'TcPtrI'  
+ * for a NEXTREQ to a single or multiple fragments via a GenericSectionPtr.*/
+class FetchMoreTcIdIterator: public GenericSectionIterator
+{
+public:
+  FetchMoreTcIdIterator(NdbRootFragment* rootFrags[],
+                        Uint32 cnt)
+    :m_rootFrags(rootFrags),
+     m_fragCount(cnt),
+     m_currFragNo(0)
+  {}
+
+  virtual ~FetchMoreTcIdIterator() {};
+  
+  /**
+   * Get next batch of receiver ids. 
+   * @param sz This will be set to the number of receiver ids that have been
+   * put in the buffer (0 if end has been reached.)
+   * @return Array of receiver ids (or NULL if end reached.
+   */
+  virtual const Uint32* getNextWords(Uint32& sz);
+
+  virtual void reset()
+  { m_currFragNo = 0;};
+  
+private:
+  /** 
+   * Size of internal receiver id buffer. This value is arbitrary, but 
+   * a larger buffer would mean fewer calls to getNextWords(), possibly
+   * improving efficiency.
+   */
+  static const Uint32 bufSize = 16;
+
+  /** Set of root fragments which we want to itterate TcPtrI ids for.*/
+  NdbRootFragment** m_rootFrags;
+  const Uint32 m_fragCount;
+
+  /** The next fragment numnber to be processed. (Range for 0 to no of 
+   * fragments.)*/
+  Uint32 m_currFragNo;
+  /** Buffer for storing one batch of receiver ids.*/
+  Uint32 m_receiverIds[bufSize];
+};
+
+const Uint32* FetchMoreTcIdIterator::getNextWords(Uint32& sz)
+{
+  /**
+   * For the initial batch, we want to retrieve one batch for each fragment
+   * whether it is a sorted scan or not.
+   */
+  if (m_currFragNo >= m_fragCount)
+  {
+    sz = 0;
+    return NULL;
+  }
+  else
+  {
+    Uint32 cnt = 0;
+    while (cnt < bufSize && m_currFragNo < m_fragCount)
+    {
+      m_receiverIds[cnt] = m_rootFrags[m_currFragNo]->getReceiverTcPtrI();
+      cnt++;
+      m_currFragNo++;
+    }
+    sz = cnt;
+    return m_receiverIds;
+  }
+}
 
 /******************************************************************************
 int doSend()    Send serialized queryTree and parameters encapsulated in 
@@ -3011,12 +3077,19 @@ Parameters:     emptyFrag: Root frgament for which to ask for another batch.
 Remark:
 ******************************************************************************/
 int
-NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
+NdbQueryImpl::sendFetchMore(NdbRootFragment* rootFrags[],
+                            Uint32 cnt,
+                            bool forceSend)
 {
-  assert(!emptyFrag.finalBatchReceived());
   assert(getQueryDef().isScanQuery());
 
-  emptyFrag.reset();
+  for (Uint32 i=0; i<cnt; i++)
+  {
+    NdbRootFragment* rootFrag = rootFrags[i];
+    assert(rootFrag->isFragBatchComplete());
+    assert(!rootFrag->finalBatchReceived());
+    rootFrag->reset();
+  }
 
   Ndb& ndb = *getNdbTransaction().getNdb();
   NdbApiSignal tSignal(&ndb);
@@ -3033,12 +3106,11 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
   scanNextReq->transId2 = (Uint32) (transId >> 32);
   tSignal.setLength(ScanNextReq::SignalLength);
 
-  const uint32 receiverId = emptyFrag.getReceiverTcPtrI();
-  LinearSectionIterator receiverIdIter(&receiverId ,1);
+  FetchMoreTcIdIterator receiverIdIter(rootFrags, cnt);
 
   GenericSectionPtr secs[1];
   secs[ScanNextReq::ReceiverIdsSectionNum].sectionIter = &receiverIdIter;
-  secs[ScanNextReq::ReceiverIdsSectionNum].sz = 1;
+  secs[ScanNextReq::ReceiverIdsSectionNum].sz = cnt;
   
   NdbImpl * impl = ndb.theImpl;
   Uint32 nodeId = m_transaction.getConnectedNodeId();
@@ -3051,7 +3123,7 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
 
   if (unlikely(hasReceivedError()))
   {
-    // Errors arrived inbetween ::await released mutex, and fetchMore grabbed it
+    // Errors arrived inbetween ::await released mutex, and sendFetchMore grabbed it
     return -1;
   }
   if (impl->getNodeSequence(nodeId) != seq ||
@@ -3062,8 +3134,9 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
   }
   impl->do_forceSend(forceSend);
 
-  m_pendingFrags++;
+  m_pendingFrags += cnt;
   assert(m_pendingFrags <= getRootFragCount());
+
   return 0;
 } // NdbQueryImpl::sendFetchMore()
 
@@ -3449,18 +3522,13 @@ void NdbQueryImpl::OrderedFragSet::clear()
   m_finalFragCount = 0;
 }
 
-NdbRootFragment* 
-NdbQueryImpl::OrderedFragSet::getEmpty()
+Uint32 
+NdbQueryImpl::OrderedFragSet::getFetchMore(NdbRootFragment** &frags)
 {
-  if (m_emptiedFragCount > 0)
-  {
-    assert(m_emptiedFrags[m_emptiedFragCount-1]->isEmpty());
-    return m_emptiedFrags[--m_emptiedFragCount];
-  }
-  else
-  {
-    return NULL;
-  }
+  const Uint32 cnt = m_emptiedFragCount;
+  frags = m_emptiedFrags;
+  m_emptiedFragCount = 0;
+  return cnt;
 }
 
 bool 
@@ -3476,7 +3544,6 @@ NdbQueryImpl::OrderedFragSet::verifySortOrder() const
   }
   return true;
 }
-
 
 /**
  * Compare frags such that f1<f2 if f1 is empty but f2 is not.
@@ -4796,13 +4863,10 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     assert(false);
     return false;
   }
-  rootFrag->setConfReceived();
+  // Prepare for SCAN_NEXTREQ, tcPtrI==RNIL, nodeMask==0 -> EOF
+  rootFrag->setConfReceived(tcPtrI);
   rootFrag->setRemainingSubScans(nodeMask);
   rootFrag->incrOutstandingResults(rowCount);
-
-  // Handle for SCAN_NEXTREQ, RNIL -> EOF
-  NdbResultStream& resultStream = rootFrag->getResultStream(*this);
-  resultStream.getReceiver().m_tcPtrI = tcPtrI;  
 
   if(traceSignals){
     ndbout << "  resultStream {" << rootFrag->getResultStream(*this)
