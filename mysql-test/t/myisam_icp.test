@@ -195,4 +195,18 @@ drop table if exists t0, t1, t1i, t1m;
 drop table t0, t1, t1i, t1m;
 
 --enable_parsing
+
+--echo #
+--echo # BUG#826935 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed
+--echo #
+CREATE TABLE t1 ( a int, b varchar(1024), c int, KEY (c), KEY (c,a)) ;
+INSERT INTO t1 VALUES
+  (NULL,'x','-678428672'),
+  (NULL,'ok',NULL),
+  (796262400,'byluovkgwoukfxedyeffsedajyqkyhpaqqpozn', NULL),
+  (7,'STQUF',146014208),
+  (955711488,'WWVOR','-1515388928');
+SELECT b FROM t1 WHERE a != 1 AND c IS NULL ORDER BY 1;
+DROP TABLE t1;
+
 set optimizer_switch=@myisam_icp_tmp;

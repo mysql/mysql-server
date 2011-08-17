@@ -19872,7 +19872,12 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
       error=(int) cond->add(join_tab->select->cond);
     join_tab->select->cond= cond;
     if (join_tab->select->pre_idx_push_select_cond)
-      join_tab->select->pre_idx_push_select_cond= cond;
+    {
+      Item *new_cond= and_conds(join_tab->select->pre_idx_push_select_cond, cond);
+      if (!new_cond->fixed && new_cond->fix_fields(thd, &new_cond))
+        error= 1;
+      join_tab->select->pre_idx_push_select_cond= new_cond;
+    }
     join_tab->set_select_cond(cond, __LINE__);
   }
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
