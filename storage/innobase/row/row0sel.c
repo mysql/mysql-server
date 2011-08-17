@@ -3441,6 +3441,13 @@ row_search_for_mysql(
 		return(DB_MISSING_HISTORY);
 	}
 
+	if (dict_index_is_corrupted(index)) {
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+		return(DB_CORRUPTION);
+	}
+
 	if (UNIV_UNLIKELY(prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
