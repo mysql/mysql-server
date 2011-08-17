@@ -117,6 +117,7 @@ IF	:	'IF';
 IGNORE	:	'IGNORE';
 IN	:	'IN';
 INDEX	:	'INDEX';
+INDEX_SYM  :    'INDEX_SYM';
 INFILE	:	'INFILE';
 INNER	:	'INNER';
 INNODB  : 'INNODB';
@@ -819,13 +820,13 @@ STRING
 	:	'N'?			// "introducer" for the national character set (UTF8 for MySQL 4.1 and up). must immediately precede the first quote character.
 		(	'"' 
 			(	('""')=> '""'
-			|	(ESCAPE_SEQUENCE)=> ESCAPE_SEQUENCE
+//			|	(ESCAPE_SEQUENCE)=> ESCAPE_SEQUENCE
 			|	~('"'|'\\')
 			)*
 			'"'	// TODO: collapse two consecutive internal double quotes into one
 		|	'\''
 			(	('\'\'')=> '\'\''
-			|	(ESCAPE_SEQUENCE)=> ESCAPE_SEQUENCE
+//			|	(ESCAPE_SEQUENCE)=> ESCAPE_SEQUENCE
 			|	~('\''|'\\')
 			)*
 			'\''	// TODO: same as above with single quotes
@@ -869,23 +870,25 @@ REAL_ID
 
 // TODO: these are case sensitive -> specifying them as lowercase in the grammar causes them to never be matched (because ANTLR doesn't know
 // we are only serving uppercase letters. Add trueCaseLA predicates here (but beware of hoisting)
-fragment
-ESCAPE_SEQUENCE
-	:	'\\'
-		(	'0'
-		|	'\''
-		|	'"'
-		|	'b'
-		|	'n'		// TODO currently this clashes with \N == NULL. add predicate!
-		|	'r'
-		|	't'
-		|	'Z'		// this is UPPERCASE! -> use ANTLRNoCaseStringStream.trueCaseLA() in predicate to resolve
-		|	'\\'
-		|	'%'
-		|	'_'
-		|	character=.	// TODO: collapse into just $char
-		)
-	;
+// TODO: this rule is broken; it is to parse Java source files not compiled strings.
+// The entire rule should be removed...
+//fragment
+//ESCAPE_SEQUENCE
+//	:	'\\'
+//		(	'0'
+//		|	'\''
+//		|	'"'
+//		|	'b'
+//		|	'n'		// TODO currently this clashes with \N == NULL. add predicate!
+//		|	'r'
+//		|	't'
+//		|	'Z'		// this is UPPERCASE! -> use ANTLRNoCaseStringStream.trueCaseLA() in predicate to resolve
+//		|	'\\'
+//		|	'%'
+//		|	'_'
+//              |    character=.     // TODO: collapse into just $char; this might be an error
+//		)
+//	;
 		
 fragment
 DIGIT

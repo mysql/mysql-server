@@ -1,3 +1,21 @@
+set @is_enable_default = @@global.ndb_index_stat_enable;
+set @is_enable = 0;
+set @is_enable = NULL;
+# is_enable_on=0 is_enable_off=0
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
 drop table if exists t1, t2, t3, t4;
 CREATE TABLE t10(
 K INT NOT NULL AUTO_INCREMENT,
@@ -5,7 +23,8 @@ I INT, J INT,
 PRIMARY KEY(K),
 KEY(I,J),
 UNIQUE KEY(J,K)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+partition by key (K) partitions 1;
 INSERT INTO t10(I,J) VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),(0,0);
 CREATE TABLE t100 LIKE t10;
 INSERT INTO t100(I,J)
@@ -159,3 +178,20 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10000	range	J,I	J	5	NULL	1500	Using where with pushed condition
 DROP TABLE t10,t100,t10000;
 End of 5.1 tests
+set @is_enable = @is_enable_default;
+set @is_enable = NULL;
+# is_enable_on=0 is_enable_off=0
+# ndb_index_stat_enable - before
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+# ndb_index_stat_enable - after
+show global variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
+show local variables like 'ndb_index_stat_enable';
+Variable_name	Value
+ndb_index_stat_enable	OFF
