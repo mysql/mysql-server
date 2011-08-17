@@ -1450,6 +1450,7 @@ void clean_up(bool print_message)
 #endif
   my_tz_free();
   my_dboptions_cache_free();
+  ignore_db_dirs_free();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   servers_free(1);
   acl_free(1);
@@ -3267,6 +3268,9 @@ int init_common_variables()
       mysql_init_variables())
     return 1;
 
+  if (ignore_db_dirs_init())
+    return 1;
+
 #ifdef HAVE_TZNAME
   {
     struct tm tm_tmp;
@@ -3700,6 +3704,12 @@ You should consider changing lower_case_table_names to 1 or 2",
   {
     sql_print_error("An error occurred while building do_table"
                     "and ignore_table rules to hush.");
+    return 1;
+  }
+
+  if (ignore_db_dirs_process_additions())
+  {
+    sql_print_error("An error occurred while storing ignore_db_dirs to a hash.");
     return 1;
   }
 
@@ -6206,6 +6216,11 @@ struct my_option my_long_options[]=
    &opt_super_large_pages, &opt_super_large_pages, 0,
    GET_BOOL, OPT_ARG, 0, 0, 1, 0, 1, 0},
 #endif
+  {"ignore-db-dir", OPT_IGNORE_DB_DIRECTORY,
+   "Specifies a directory to add to the ignore list when collecting "
+   "database names from the datadir. Put a blank argument to reset "
+   "the list accumulated so far.", 0, 0, 0, GET_STR, REQUIRED_ARG, 
+   0, 0, 0, 0, 0, 0},
   {"language", 'L',
    "Client error messages in given language. May be given as a full path. "
    "Deprecated. Use --lc-messages-dir instead.",
@@ -7670,6 +7685,22 @@ mysqld_get_one_option(int optid,
     if (argument == NULL) /* no argument */
       log_error_file_ptr= const_cast<char*>("");
     break;
+
+  case OPT_IGNORE_DB_DIRECTORY:
+    if (*argument == 0)
+      ignore_db_dirs_reset();
+    else
+    {
+      if (push_ignored_db_dir(argument))
+      {
+        sql_print_error("Can't start server: "
+                        "cannot process --ignore-db-dir=%.*s", 
+                        FN_REFLEN, argument);
+        return 1;
+      }
+    }
+    break;
+
   }
   return 0;
 }
