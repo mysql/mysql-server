@@ -2835,6 +2835,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     return NULL;
 
   DBUG_ASSERT(pfs_socket->m_class != NULL);
+  DBUG_ASSERT(!(pfs_socket->m_idle && op != PSI_SOCKET_RECV));
 
   if (!pfs_socket->m_enabled || pfs_socket->m_idle)
     return NULL;
@@ -4708,7 +4709,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   if (flags & STATE_FLAG_TIMED)
   {
     timer_end= state->m_timer();
-	  wait_time= timer_end - state->m_timer_start;
+    wait_time= timer_end - state->m_timer_start;
 
     /* Aggregate to the socket instrument for now (timed) */
     byte_stat->aggregate(wait_time, bytes);
@@ -4716,8 +4717,8 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   else
   {
     /* Aggregate to the socket instrument (event count and byte count) */
-	  byte_stat->aggregate_counted(bytes);
-	}
+    byte_stat->aggregate_counted(bytes);
+  }
 
   /** Global thread aggregation */
   if (flags & STATE_FLAG_THREAD)
