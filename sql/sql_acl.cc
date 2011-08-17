@@ -3897,7 +3897,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     {
       result= TRUE;
       continue;
-    }  
+    }
+
     /* Create user if needed */
     error=replace_user_table(thd, tables[0].table, *Str,
 			     0, revoke_grant, create_new_users,
@@ -3954,8 +3955,19 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (write_to_binlog && should_write_to_binlog)
   {
-    if (write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
-      result= TRUE;
+    if (revoke_grant)
+    {
+      if (write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+        result= TRUE;
+    }
+    else
+    {
+      DBUG_ASSERT(thd->rewritten_query.length());
+      if (write_bin_log(thd, FALSE,
+                        thd->rewritten_query.c_ptr_safe(),
+                        thd->rewritten_query.length()))
+        result= TRUE;
+    }
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
@@ -4072,6 +4084,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       result= TRUE;
       continue;
     }
+
     /*
       No User, but a password?
       They did GRANT ... TO CURRENT_USER() IDENTIFIED BY ... !
@@ -4079,6 +4092,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     */
     if (!tmp_Str->user.str && tmp_Str->password.str)
       Str->password= tmp_Str->password;
+
     if (replace_user_table(thd, tables[0].table, *Str,
                            (!db ? rights : 0), revoke_grant, create_new_users,
                            test(thd->variables.sql_mode &
@@ -4115,8 +4129,16 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   mysql_mutex_unlock(&acl_cache->lock);
 
   if (should_write_to_binlog)
-    result= result |
-            write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  {
+    if (thd->rewritten_query.length())
+      result= result |
+          write_bin_log(thd, FALSE,
+                        thd->rewritten_query.c_ptr_safe(),
+                        thd->rewritten_query.length());
+    else
+      result= result |
+              write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  }
 
   mysql_rwlock_unlock(&LOCK_grant);
 
@@ -5177,7 +5199,7 @@ static void add_user_option(String *grant, ulong value, const char *name)
   }
 }
 
-static const char *command_array[]=
+const char *command_array[]=
 {
   "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD",
   "SHUTDOWN", "PROCESS","FILE", "GRANT", "REFERENCES", "INDEX",
@@ -5187,11 +5209,24 @@ static const char *command_array[]=
   "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE"
 };
 
-static uint command_lengths[]=
+uint command_lengths[]=
 {
   6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
   14, 13, 11, 5, 7, 17
 };
+
+
+void append_int(String *str, const char *txt, size_t len,
+                long val, int cond)
+{
+  if (cond)
+  {
+    String numbuf(42);
+    str->append(txt,len);
+    numbuf.set((longlong)val,&my_charset_bin);
+    str->append(numbuf);
+  }
+}
 
 
 static int show_routine_grants(THD *thd, LEX_USER *lex_user, HASH *hash,
@@ -6413,8 +6448,8 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   @param ident   If TRUE, append ' IDENTIFIED BY/WITH...' after the user,
                  if the given user has credentials set with 'IDENTIFIED BY/WITH'
  */
-static void append_user(String *str, LEX_USER *user, bool comma= TRUE,
-                        bool ident= FALSE)
+void append_user(String *str, LEX_USER *user, bool comma= TRUE,
+                 bool ident= FALSE)
 {
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_plugin(user->plugin.str, user->plugin.length, system_charset_info);
@@ -6472,7 +6507,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   String wrong_users;
-  String log_query;
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
@@ -6501,7 +6535,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_wrlock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
-  log_query.append(STRING_WITH_LEN("CREATE USER"));
   while ((tmp_user_name= user_list++))
   {
     if (!(user_name= get_current_user(thd, tmp_user_name)))
@@ -6510,24 +6543,20 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    log_query.append(' ');
-    append_user(&log_query, user_name, FALSE, TRUE);
-    log_query.append(',');
-
     /*
       Search all in-memory structures and grant tables
       for a mention of the new user name.
     */
     if (handle_grant_data(tables, 0, user_name, NULL))
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }
 
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }
@@ -6542,9 +6571,9 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 
   if (some_users_created)
   {
-    /* Remove the last ',' */
-    log_query.length(log_query.length()-1);
-    result|= write_bin_log(thd, FALSE, log_query.c_ptr_safe(), log_query.length());
+    result|= write_bin_log(thd, FALSE,
+                           thd->rewritten_query.c_ptr_safe(),
+                           thd->rewritten_query.length());
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
@@ -6613,7 +6642,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }  
     if (handle_grant_data(tables, 1, user_name, NULL) <= 0)
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }
@@ -6709,7 +6738,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     if (handle_grant_data(tables, 0, user_to, NULL) ||
         handle_grant_data(tables, 0, user_from, user_to) <= 0)
     {
-      append_user(&wrong_users, user_from, wrong_users.length() > 0);
+      append_user(&wrong_users, user_from, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }

@@ -13143,10 +13143,12 @@ option_value:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
+            int flags= $2 ? 0 : set_var_collation_client::SET_CS_DEFAULT;
             const CHARSET_INFO *cs2;
             cs2= $2 ? $2: global_system_variables.character_set_client;
             set_var_collation_client *var;
-            var= new set_var_collation_client(cs2,
+            var= new set_var_collation_client(flags,
+                                              cs2,
                                               thd->variables.collation_database,
                                               cs2);
             if (var == NULL)
@@ -13173,6 +13175,9 @@ option_value:
             LEX *lex= Lex;
             const CHARSET_INFO *cs2;
             const CHARSET_INFO *cs3;
+            int flags= set_var_collation_client::SET_CS_NAMES
+                       | ($2 ? 0 : set_var_collation_client::SET_CS_DEFAULT)
+                       | ($3 ? set_var_collation_client::SET_CS_COLLATE : 0);
             cs2= $2 ? $2 : global_system_variables.character_set_client;
             cs3= $3 ? $3 : cs2;
             if (!my_charset_same(cs2, cs3))
@@ -13182,7 +13187,7 @@ option_value:
               MYSQL_YYABORT;
             }
             set_var_collation_client *var;
-            var= new set_var_collation_client(cs3, cs3, cs3);
+            var= new set_var_collation_client(flags, cs3, cs3, cs3);
             if (var == NULL)
               MYSQL_YYABORT;
             lex->var_list.push_back(var);
@@ -13206,6 +13211,7 @@ option_value:
               MYSQL_YYABORT;
             user->host=null_lex_str;
             user->user.str=thd->security_ctx->user;
+            user->user.length= strlen(thd->security_ctx->user);
             set_var_password *var= new set_var_password(user, $3);
             if (var == NULL)
               MYSQL_YYABORT;
