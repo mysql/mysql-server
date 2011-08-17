@@ -19,32 +19,28 @@ use mtr||
 
 CREATE DEFINER=root@localhost PROCEDURE check_testcase_perfschema()
 BEGIN
-  -- For tests tampering with performance_schema table structure
-  DECLARE CONTINUE HANDLER for SQLEXCEPTION
   BEGIN
+    -- For tests tampering with performance_schema table structure
+    DECLARE CONTINUE HANDLER for SQLEXCEPTION
+    BEGIN
+    END;
+
+    -- Leave the instruments in the same state
+    SELECT * from performance_schema.setup_instruments
+      where enabled='NO' order by NAME;
   END;
 
-  -- Leave the instruments in the same state
-  SELECT * from performance_schema.SETUP_INSTRUMENTS
-    where enabled='NO' order by NAME;
-
   -- Leave the consumers in the same state
-  SELECT * from performance_schema.SETUP_CONSUMERS
+  SELECT * from performance_schema.setup_consumers
     order by NAME;
 
   -- Leave the actors setup in the same state
-  SELECT * from performance_schema.SETUP_ACTORS
+  SELECT * from performance_schema.setup_actors
     order by USER, HOST;
 
   -- Leave the objects setup in the same state
-  SELECT * from performance_schema.SETUP_OBJECTS
+  SELECT * from performance_schema.setup_objects
     order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
-
-  -- Leave the core objects in the same state
-  SELECT * from performance_schema.OBJECTS
-    where enabled='YES' and OBJECT_SCHEMA in ('performance_schema', 'mysql')
-    order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
-
 END||
 
 --

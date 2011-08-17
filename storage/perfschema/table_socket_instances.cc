@@ -169,6 +169,9 @@ void table_socket_instances::make_row(PFS_socket *pfs)
     m_row.m_thread_id= safe_thread->m_thread_internal_id;
     m_row.m_thread_id_set= true;
   }
+  else
+    m_row.m_thread_id_set= false;
+
 
   if (pfs->m_lock.end_optimistic_lock(&lock))
     m_row_exists= true;
