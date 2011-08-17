@@ -2291,7 +2291,9 @@ innobase_format_name(
 	const char*     bufend;
 
 	bufend = innobase_convert_name(buf, buflen, name, strlen(name),
-				       NULL, is_index_name);
+				       NULL, !is_index_name);
+
+	ut_ad((ulint) (bufend - buf) < buflen);
 
 	buf[bufend - buf] = '\0';
 }
