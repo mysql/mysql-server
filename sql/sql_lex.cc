@@ -1735,6 +1735,7 @@ void st_select_lex_unit::init_query()
   item_list.empty();
   describe= 0;
   found_rows_for_union= 0;
+  result= NULL;
 }
 
 void st_select_lex::init_query()
@@ -1776,6 +1777,7 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
+  select_list_tables= 0;
   m_non_agg_field_used= false;
   m_agg_func_used= false;
 }
@@ -3204,6 +3206,35 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
                                             current_index_hint_clause,
                                             str, length));
 }
+
+
+/**
+  @brief Process all derived tables/views of the SELECT.
+
+  @param lex    LEX of this thread
+
+  @details
+  This function runs given processor on all derived tables from the
+  table_list of this select.
+
+  @return FALSE ok.
+  @return TRUE an error occur.
+*/
+
+bool st_select_lex::handle_derived(LEX *lex,
+                                   bool (*processor)(THD*, LEX*, TABLE_LIST*))
+{
+  for (TABLE_LIST *table_ref= get_table_list();
+       table_ref;
+       table_ref= table_ref->next_local)
+  {
+    if (table_ref->is_view_or_derived() &&
+        table_ref->handle_derived(lex, processor))
+      return TRUE;
+  }
+  return FALSE;
+}
+
 
 /**
   A routine used by the parser to decide whether we are specifying a full
