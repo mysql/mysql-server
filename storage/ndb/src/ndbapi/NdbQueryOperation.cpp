@@ -3353,7 +3353,7 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbBulkAllocator& allocator,
   m_keyRecord = keyRecord;
   m_resultRecord = resultRecord;
   return 0;
-}
+} // OrderedFragSet::prepare()
 
 
 /**
@@ -3389,8 +3389,7 @@ NdbQueryImpl::OrderedFragSet::getCurrent() const
     assert(!m_activeFrags[m_activeFragCount-1]->isEmpty());
     return m_activeFrags[m_activeFragCount-1];
   }
-}
-
+} // OrderedFragSet::getCurrent()
 
 /**
  *  Keep the FragSet ordered, both with respect to specified ScanOrdering, and
@@ -3402,42 +3401,45 @@ NdbQueryImpl::OrderedFragSet::getCurrent() const
 void
 NdbQueryImpl::OrderedFragSet::reorganize()
 {
+  assert(m_activeFragCount > 0);
+  NdbRootFragment* const frag = m_activeFrags[m_activeFragCount-1];
+
   // Remove the current fragment if the batch has been emptied.
-  if (m_activeFragCount>0 && m_activeFrags[m_activeFragCount-1]->isEmpty())
+  if (frag->isEmpty())
   {
-    if (m_activeFrags[m_activeFragCount-1]->finalBatchReceived())
+    if (frag->finalBatchReceived())
     {
       m_finalFragCount++;
     }
     else
     {
-      m_emptiedFrags[m_emptiedFragCount++] = m_activeFrags[m_activeFragCount-1];
+      m_emptiedFrags[m_emptiedFragCount++] = frag;
     }
     m_activeFragCount--;
-    assert(m_activeFragCount==0 || 
-           !m_activeFrags[m_activeFragCount-1]->isEmpty());
     assert(m_activeFragCount + m_emptiedFragCount + m_finalFragCount 
            <= m_capacity);
+
+    return;  // Remaining m_activeFrags[] are sorted
   }
 
   // Reorder fragments if this is a sorted scan.
-  if (m_ordering!=NdbQueryOptions::ScanOrdering_unordered && 
-      m_activeFragCount+m_finalFragCount == m_capacity)
+  if (m_ordering!=NdbQueryOptions::ScanOrdering_unordered)
   {
     /** 
      * This is a sorted scan. There are more data to be read from 
      * m_activeFrags[m_activeFragCount-1]. Move it to its proper place.
+     *
+     * Use binary search to find the largest record that is smaller than or
+     * equal to m_activeFrags[m_activeFragCount-1].
      */
     int first = 0;
     int last = m_activeFragCount-1;
-    /* Use binary search to find the largest record that is smaller than or
-     * equal to m_activeFrags[m_activeFragCount-1] */
     int middle = (first+last)/2;
-    while(first<last)
+
+    while (first<last)
     {
       assert(middle<m_activeFragCount);
-      const int cmpRes = compare(*m_activeFrags[m_activeFragCount-1], 
-                                 *m_activeFrags[middle]);
+      const int cmpRes = compare(*frag, *m_activeFrags[middle]);
       if (cmpRes < 0)
       {
         first = middle + 1;
@@ -3453,67 +3455,29 @@ NdbQueryImpl::OrderedFragSet::reorganize()
       middle = (first+last)/2;
     }
 
-    assert(m_activeFragCount == 0 ||
-           compare(*m_activeFrags[m_activeFragCount-1], 
-                   *m_activeFrags[middle]) >= 0);
-
-    if(middle < m_activeFragCount-1)
+    // Move into correct sorted position
+    if (middle < m_activeFragCount-1)
     {
-      NdbRootFragment* const oldTop = m_activeFrags[m_activeFragCount-1];
+      assert(compare(*frag, *m_activeFrags[middle]) >= 0);
       memmove(m_activeFrags+middle+1, 
               m_activeFrags+middle, 
               (m_activeFragCount - middle - 1) * sizeof(NdbRootFragment*));
-      m_activeFrags[middle] = oldTop;
+      m_activeFrags[middle] = frag;
     }
     assert(verifySortOrder());
   }
-}
+  assert(m_activeFragCount + m_emptiedFragCount + m_finalFragCount 
+         <= m_capacity);
+} // OrderedFragSet::reorganize()
 
 void 
 NdbQueryImpl::OrderedFragSet::add(NdbRootFragment& frag)
 {
-  assert(&frag!=NULL);
+  assert(m_activeFragCount+m_finalFragCount < m_capacity);
 
-  if (frag.isEmpty())
-  {
-    if (frag.finalBatchReceived())
-    {
-      m_finalFragCount++;
-    }
-    else
-    {
-      m_emptiedFrags[m_emptiedFragCount++] = &frag;
-    }
-  }
-  else
-  {
-    assert(m_activeFragCount+m_finalFragCount < m_capacity);
-    if(m_ordering==NdbQueryOptions::ScanOrdering_unordered)
-    {
-      m_activeFrags[m_activeFragCount++] = &frag;
-    }
-    else
-    {
-      int current = 0;
-      // Insert the new frag such that the array remains sorted.
-      while(current<m_activeFragCount && 
-            compare(frag, *m_activeFrags[current]) < 0)
-      {
-        current++;
-      }
-      memmove(m_activeFrags+current+1,
-              m_activeFrags+current,
-              (m_activeFragCount - current) * sizeof(NdbRootFragment*));
-      m_activeFrags[current] = &frag;
-      m_activeFragCount++;
-      assert(verifySortOrder());
-    }
-  }
-  assert(m_activeFragCount==0 || 
-         !m_activeFrags[m_activeFragCount-1]->isEmpty());
-  assert(m_activeFragCount + m_emptiedFragCount + m_finalFragCount 
-         <= m_capacity);
-}
+  m_activeFrags[m_activeFragCount++] = &frag;  // Add avail fragment
+  reorganize();                                // Move into position
+} // OrderedFragSet::add()
 
 void NdbQueryImpl::OrderedFragSet::clear() 
 { 
