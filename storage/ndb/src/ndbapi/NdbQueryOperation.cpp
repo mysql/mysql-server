@@ -788,7 +788,7 @@ NdbResultStream::firstResult()
   if ((m_currentRow=findTupleWithParentId(parentId)) != tupleNotFound)
   {
     m_iterState = Iter_started;
-    m_receiver.setCurrentRow(m_currentRow);
+    m_receiver.setCurrentRow(m_buffer, m_currentRow);
     return m_currentRow;
   }
 
@@ -805,7 +805,7 @@ NdbResultStream::nextResult()
       (m_currentRow=findNextTuple(m_currentRow)) != tupleNotFound)
   {
     m_iterState = Iter_started;
-    m_receiver.setCurrentRow(m_currentRow);
+    m_receiver.setCurrentRow(m_buffer, m_currentRow);
     return m_currentRow;
   }
   m_iterState = Iter_finished;
@@ -829,7 +829,8 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len,
      * Store TupleCorrelation as hidden value imm. after received row
      * (NdbQueryOperationImpl::getRowSize() has reserved space for it)
      */
-    Uint32* row_recv = reinterpret_cast<Uint32*>(m_receiver.m_record.m_row);
+    Uint32* row_recv = reinterpret_cast<Uint32*>
+                         (m_receiver.m_record.m_row_recv);
     row_recv[-1] = correlation.toUint32();
   }
 } // NdbResultStream::execTRANSID_AI()
