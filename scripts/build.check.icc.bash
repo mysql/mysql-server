@@ -313,6 +313,8 @@ dowindows=0
 oschoice=linux
 deleteafter=0
 j=-1
+cc=icc
+cxx=icpc
 
 arg=$1;
 shopt -s compat31 #Necessary in some flavors of linux and windows
@@ -325,10 +327,6 @@ if [ "$arg" = "--windows=yes" -o "$arg" = "--windows=1" ] ; then
     oschoice=windows
 fi
 
-# setup default compiler
-if [ "$CC" = "" ] ; then export CC=icc; fi
-if [ "$CXX" = "" ] ; then export CXX=icpc; fi
-
 # import the environment
 while [ $# -gt 0 ] ; do
     arg=$1; shift
@@ -340,16 +338,16 @@ while [ $# -gt 0 ] ; do
         dowindows=0
     elif [ "$arg" = "--windows=yes" -o "$arg" = "--windows=1" ] ; then
         usage; exit 1
-    elif [ $arg = "--gcc44" ] ; then
-	export CC=gcc44; export CXX=g++44
-    elif [ $arg = "--icc" ] ; then
-	export CC=icc; export CXX=icpc
     elif [[ $arg =~ ^--(.*)=(.*) ]] ; then
 	eval ${BASH_REMATCH[1]}=${BASH_REMATCH[2]}
     else
 	usage; exit 1
     fi
 done
+
+# setup default compiler
+if [ "$CC" = "" ] ; then export CC=$cc; fi
+if [ "$CXX" = "" ] ; then export CXX=$cxx; fi
 
 if [ $CC = icc ] ; then
     d=/opt/intel/bin
