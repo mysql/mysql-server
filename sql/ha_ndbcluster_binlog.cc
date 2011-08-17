@@ -4683,66 +4683,33 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                                    uint key_len,
                                    const char *db,
                                    const char *table_name,
-                                   my_bool share_may_exist)
+                                   TABLE * table)
 {
   int do_event_op= ndb_binlog_running;
   DBUG_ENTER("ndbcluster_create_binlog_setup");
-  DBUG_PRINT("enter",("key: %s  key_len: %d  %s.%s  share_may_exist: %d",
-                      key, key_len, db, table_name, share_may_exist));
+  DBUG_PRINT("enter",("key: %s  key_len: %d  %s.%s",
+                      key, key_len, db, table_name));
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(table_name));
   DBUG_ASSERT(strlen(key) == key_len);
 
   pthread_mutex_lock(&ndbcluster_mutex);
-
-  /* Handle any trailing share */
-  NDB_SHARE *share= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
-                                                (const uchar*) key, key_len);
-
-  if (share && share_may_exist)
+  NDB_SHARE * share = get_share(key, table, TRUE, TRUE);
+  if (share == 0)
   {
-    if (get_binlog_nologging(share) ||
-        share->op != 0 ||
-        share->new_op != 0)
-    {
-      pthread_mutex_unlock(&ndbcluster_mutex);
-      DBUG_RETURN(0); // replication already setup, or should not
-    }
+    /**
+     * Failed to create share
+     */
+    pthread_mutex_unlock(&ndbcluster_mutex);
+    DBUG_RETURN(-1);
   }
+  pthread_mutex_unlock(&ndbcluster_mutex);
 
-  if (share)
+  pthread_mutex_lock(&share->mutex);
+  if (get_binlog_nologging(share) || share->op != 0 || share->new_op != 0)
   {
-    if (share->op || share->new_op)
-    {
-      my_errno= HA_ERR_TABLE_EXIST;
-      pthread_mutex_unlock(&ndbcluster_mutex);
-      DBUG_RETURN(1);
-    }
-    if (!share_may_exist || share->connect_count != 
-        g_ndb_cluster_connection->get_connect_count())
-    {
-      handle_trailing_share(thd, share);
-      share= NULL;
-    }
-  }
-
-  /* Create share which is needed to hold replication information */
-  if (share)
-  {
-    /* ndb_share reference create */
-    ++share->use_count;
-    DBUG_PRINT("NDB_SHARE", ("%s create  use_count: %u",
-                             share->key, share->use_count));
-  }
-  /* ndb_share reference create */
-  else if (!(share= get_share(key, 0, TRUE, TRUE)))
-  {
-    sql_print_error("NDB Binlog: "
-                    "allocating table share for %s failed", key);
-  }
-  else
-  {
-    DBUG_PRINT("NDB_SHARE", ("%s create  use_count: %u",
-                             share->key, share->use_count));
+    pthread_mutex_unlock(&share->mutex);
+    free_share(&share);
+    DBUG_RETURN(0); // replication already setup, or should not
   }
 
   if (!ndb_schema_share &&
@@ -4757,10 +4724,9 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
   if (!do_event_op)
   {
     set_binlog_nologging(share);
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    pthread_mutex_unlock(&share->mutex);
     DBUG_RETURN(0);
   }
-  pthread_mutex_unlock(&ndbcluster_mutex);
 
   while (share && !IS_TMP_PREFIX(table_name))
   {
@@ -4798,6 +4764,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     {
       if (opt_ndb_extra_logging)
         sql_print_information("NDB Binlog: NOT logging %s", share->key);
+      pthread_mutex_unlock(&share->mutex);
       DBUG_RETURN(0);
     }
 
@@ -4842,13 +4809,12 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
       /* a warning has been issued to the client */
       break;
     }
+    pthread_mutex_unlock(&share->mutex);
     DBUG_RETURN(0);
   }
 
-  if (share)
-  {
-    free_share(&share);
-  }
+  pthread_mutex_unlock(&share->mutex);
+  free_share(&share);
   DBUG_RETURN(-1);
 }
 
