@@ -9038,10 +9038,12 @@ bool Optimize_table_order::best_extension_by_limited_search(
                                              current_search_depth - 1);
             if (eq_ref_extended == ~(table_map)0)
               DBUG_RETURN(true);      // Failed
+
+            backout_nj_sj_state(remaining_tables, s);
+
             if (eq_ref_extended == remaining_tables)
               goto done;
 
-            backout_nj_sj_state(remaining_tables, s);
             continue;
           }
           else       // Skip, as described above
