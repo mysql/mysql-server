@@ -1612,10 +1612,10 @@ static const char *optimizer_switch_names[]=
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
   "index_condition_pushdown" , "mrr", "mrr_cost_based",
+  "block_nested_loop", "batch_key_access",
 #ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
 #endif
-  "block_nested_loop", "batch_key_access",
   "default", NullS
 };
 /** propagates changes to @@engine_condition_pushdown */
