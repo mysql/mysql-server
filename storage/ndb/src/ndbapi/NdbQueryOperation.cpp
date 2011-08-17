@@ -204,7 +204,7 @@ public:
     m_outstandingResults = 0;
   }
 
-  void setConfReceived();
+  void setConfReceived(Uint32 tcPtrI);
 
   /** 
    * The root operation will read from a number of fragments of a table.
@@ -1124,13 +1124,14 @@ void NdbRootFragment::prepareResultSet()
   rootStream.firstResult();
 }
 
-void NdbRootFragment::setConfReceived()
+void NdbRootFragment::setConfReceived(Uint32 tcPtrI)
 { 
   /* For a query with a lookup root, there may be more than one TCKEYCONF
      message. For a scan, there should only be one SCAN_TABCONF per root
      fragment. 
   */
-  assert(!m_query->getQueryDef().isScanQuery() || !m_confReceived);
+  assert(!getResultStream(0).isScanQuery() || !m_confReceived);
+  getResultStream(0).getReceiver().m_tcPtrI = tcPtrI;
   m_confReceived = true; 
 }
 
@@ -2457,7 +2458,7 @@ NdbQueryImpl::execTCKEYCONF()
   NdbRootFragment& rootFrag = m_rootFrags[0];
 
   // We will get 1 + #leaf-nodes TCKEYCONF for a lookup...
-  rootFrag.setConfReceived();
+  rootFrag.setConfReceived(RNIL);
   rootFrag.incrOutstandingResults(-1);
 
   bool ret = false;
@@ -4796,13 +4797,10 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     assert(false);
     return false;
   }
-  rootFrag->setConfReceived();
+  // Prepare for SCAN_NEXTREQ, tcPtrI==RNIL, nodeMask==0 -> EOF
+  rootFrag->setConfReceived(tcPtrI);
   rootFrag->setRemainingSubScans(nodeMask);
   rootFrag->incrOutstandingResults(rowCount);
-
-  // Handle for SCAN_NEXTREQ, RNIL -> EOF
-  NdbResultStream& resultStream = rootFrag->getResultStream(*this);
-  resultStream.getReceiver().m_tcPtrI = tcPtrI;  
 
   if(traceSignals){
     ndbout << "  resultStream {" << rootFrag->getResultStream(*this)
