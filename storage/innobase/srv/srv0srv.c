@@ -204,6 +204,10 @@ UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
 /* number of locks to protect buf_pool->page_hash */
 UNIV_INTERN ulong	srv_n_page_hash_locks = 16;
+/** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
+UNIV_INTERN ulong	srv_LRU_scan_depth	= 1024;
+/** whether or not to flush neighbors of a block */
+UNIV_INTERN my_bool	srv_flush_neighbors	= TRUE;
 /* previously requested size */
 UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
@@ -345,6 +349,12 @@ UNIV_INTERN unsigned long long	srv_stats_transient_sample_pages = 8;
 UNIV_INTERN unsigned long long	srv_stats_persistent_sample_pages = 20;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
+
+/** doublewrite buffer is 1MB is size i.e.: it can hold 128 16K pages.
+The following parameter is the size of the buffer that is used for
+batch flushing i.e.: LRU flushing and flush_list flushing. The rest
+of the pages are used for single page flushing. */
+UNIV_INTERN ulong	srv_doublewrite_batch_size	= 120;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
 
 UNIV_INTERN ulong	srv_replication_delay		= 0;
@@ -1481,6 +1491,9 @@ loop:
 
 			last_table_monitor_time = ut_time();
 
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
+
 			fputs("===========================================\n",
 			      stderr);
 
@@ -1495,6 +1508,9 @@ loop:
 			      "END OF INNODB TABLE MONITOR OUTPUT\n"
 			      "==================================\n",
 			      stderr);
+
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 		}
 	}
 

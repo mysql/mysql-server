@@ -280,7 +280,7 @@ void sys_var::do_deprecated_warning(THD *thd)
                         ? ER_WARN_DEPRECATED_SYNTAX
                         : ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT;
     if (thd)
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WARN_DEPRECATED_SYNTAX, ER(errmsg),
                           buf1, deprecation_substitute);
     else
@@ -318,7 +318,7 @@ bool throw_bounds_warning(THD *thd, const char *name,
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buf);
       return true;
     }
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), name, buf);
   }
@@ -338,7 +338,7 @@ bool throw_bounds_warning(THD *thd, const char *name, bool fixed, double v)
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buf);
       return true;
     }
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), name, buf);
   }

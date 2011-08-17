@@ -303,16 +303,20 @@ int mysql_update(THD *thd,
     DBUG_RETURN(1);
 
   if (thd->fill_derived_tables() &&
-      mysql_handle_derived(thd->lex, &mysql_derived_filling))
+      mysql_handle_derived(thd->lex, &mysql_derived_create))
   {
     mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
     DBUG_RETURN(1);
   }
-  if (!preserve_items_for_printing(thd))
-    mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
 
   THD_STAGE_INFO(thd, stage_init);
   table= table_list->table;
+
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+    DBUG_RETURN(1);
+  }
 
   /* Calculate "table->covering_keys" based on the WHERE */
   table->covering_keys= table->s->keys_in_use;
@@ -824,7 +828,7 @@ int mysql_update(THD *thd,
     }
     else
       table->file->unlock_row();
-    thd->get_stmt_wi()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_warning();
     if (thd->is_error())
     {
       error= 1;
@@ -930,7 +934,7 @@ int mysql_update(THD *thd,
     char buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
-                (ulong) thd->get_stmt_wi()->statement_warn_count());
+                (ulong) thd->get_stmt_da()->current_statement_warn_count());
     my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
           id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
@@ -1337,16 +1341,6 @@ int mysql_multi_update_prepare(THD *thd)
     further check in multi_update::prepare whether to use record cache.
   */
   lex->select_lex.exclude_from_table_unique_test= FALSE;
- 
-  if (thd->fill_derived_tables() &&
-      mysql_handle_derived(lex, &mysql_derived_filling))
-  {
-    mysql_handle_derived(lex, &mysql_derived_cleanup);
-    DBUG_RETURN(TRUE);
-  }
-  if (!preserve_items_for_printing(thd))
-    mysql_handle_derived(lex, &mysql_derived_cleanup);
-
   DBUG_RETURN (FALSE);
 }
 

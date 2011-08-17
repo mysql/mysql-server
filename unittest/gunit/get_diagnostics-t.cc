@@ -224,7 +224,7 @@ TEST_F(GetDiagnosticsTest, Error)
   MEM_ROOT *mem_root= thd()->mem_root;
 
   // Pre-existing warning
-  push_warning_printf(thd(), MYSQL_ERROR::WARN_LEVEL_WARN,
+  push_warning_printf(thd(), Sql_condition::WARN_LEVEL_WARN,
                       WARN_DATA_TRUNCATED, "Data truncated");
 
   // Simulate GET DIAGNOSTICS as a new command separated
@@ -246,10 +246,10 @@ TEST_F(GetDiagnosticsTest, Error)
   EXPECT_EQ(1U, thd()->get_stmt_da()->statement_warn_count());
 
   // Counted as a error
-  EXPECT_EQ(1U, thd()->get_stmt_da()->get_warning_info()->error_count());
+  EXPECT_EQ(1U, thd()->get_stmt_da()->error_count());
 
   // Error is appended
-  EXPECT_EQ(2U, thd()->get_stmt_da()->get_warning_info()->warn_count());
+  EXPECT_EQ(2U, thd()->get_stmt_da()->warn_count());
 }
 
 
@@ -261,7 +261,7 @@ TEST_F(GetDiagnosticsTest, FatalError)
   MEM_ROOT *mem_root= thd()->mem_root;
 
   // Pre-existing warning
-  push_warning_printf(thd(), MYSQL_ERROR::WARN_LEVEL_WARN,
+  push_warning_printf(thd(), Sql_condition::WARN_LEVEL_WARN,
                       WARN_DATA_TRUNCATED, "Data truncated");
 
   // Simulate GET DIAGNOSTICS as a new command separated
@@ -280,10 +280,10 @@ TEST_F(GetDiagnosticsTest, FatalError)
   EXPECT_TRUE(thd()->get_stmt_da()->is_error());
 
   // No new condition for the error
-  EXPECT_EQ(0U, thd()->get_stmt_da()->get_warning_info()->error_count());
+  EXPECT_EQ(0U, thd()->get_stmt_da()->error_count());
 
   // Fatal error is set, not appended
-  EXPECT_EQ(1U, thd()->get_stmt_da()->get_warning_info()->warn_count());
+  EXPECT_EQ(1U, thd()->get_stmt_da()->warn_count());
 }
 
 
@@ -435,11 +435,11 @@ TEST_F(GetDiagnosticsTest, ConditionInformationClassOrigin)
   String str;
 
   // "MySQL" origin
-  push_warning_printf(thd(), MYSQL_ERROR::WARN_LEVEL_WARN,
+  push_warning_printf(thd(), Sql_condition::WARN_LEVEL_WARN,
                       ER_XAER_NOTA, "Unknown XID");
 
   // "ISO 9075" origin
-  push_warning_printf(thd(), MYSQL_ERROR::WARN_LEVEL_WARN,
+  push_warning_printf(thd(), Sql_condition::WARN_LEVEL_WARN,
                       ER_UNKNOWN_ERROR, "Unknown error");
 
   // Condition 1 CLASS_ORIGIN

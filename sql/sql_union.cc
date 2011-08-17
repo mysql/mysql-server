@@ -31,10 +31,10 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)
 {
   DBUG_ENTER("mysql_union");
-  bool res;
-  if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
-                           setup_tables_done_option)))
-    res= unit->exec();
+  bool res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
+                           setup_tables_done_option) ||
+            unit->optimize() ||
+            unit->exec();
   res|= unit->cleanup();
   DBUG_RETURN(res);
 }
@@ -119,19 +119,23 @@ bool
 select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
                                   bool is_union_distinct, ulonglong options,
                                   const char *table_alias,
-                                  bool bit_fields_as_long)
+                                  bool bit_fields_as_long, bool create_table)
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param.init();
   tmp_table_param.field_count= column_types->elements;
+  tmp_table_param.skip_create_table= !create_table;
   tmp_table_param.bit_fields_as_long= bit_fields_as_long;
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  (ORDER*) 0, is_union_distinct, 1,
                                  options, HA_POS_ERROR, (char*) table_alias)))
     return TRUE;
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
-  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  if (create_table)
+  {
+    table->file->extra(HA_EXTRA_WRITE_CACHE);
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  }
   return FALSE;
 }
 
@@ -388,7 +392,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       create_options= create_options | TMP_TABLE_FORCE_MYISAM;
 
     if (union_result->create_result_table(thd, &types, test(union_distinct),
-                                          create_options, "", FALSE))
+                                          create_options, "", FALSE, TRUE))
       goto err;
     memset(&result_table_list, 0, sizeof(result_table_list));
     result_table_list.db= (char*) "";
@@ -473,10 +477,72 @@ err:
 }
 
 
+/**
+  Run optimization phase.
+
+  @return FALSE unit successfully passed optimization phase.
+  @return TRUE an error occur.
+*/
+
+bool st_select_lex_unit::optimize()
+{
+  DBUG_ENTER("st_select_lex_unit::optimize");
+
+  if (optimized && item && item->assigned() && !uncacheable && !describe)
+    DBUG_RETURN(FALSE);
+
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  {
+    DBUG_ASSERT(sl->join);
+    if (optimized)
+    {
+      saved_error= false;
+      sl->join->reset();
+    }
+    else
+    {
+      SELECT_LEX *lex_select_save= thd->lex->current_select;
+      thd->lex->current_select= sl;
+      set_limit(sl);
+      if ((sl == global_parameters && is_union()) || describe)
+      {
+        offset_limit_cnt= 0;
+        /*
+          We can't use LIMIT at this stage if we are using ORDER BY for the
+          whole UNION.
+        */
+        if (sl->order_list.first || describe)
+          select_limit_cnt= HA_POS_ERROR;
+      }
+
+      /*
+        When using braces, SQL_CALC_FOUND_ROWS affects the whole query:
+        we don't calculate found_rows() per union part.
+        Otherwise, SQL_CALC_FOUND_ROWS should be done on all sub parts.
+      */
+      sl->join->select_options= 
+        (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
+        sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
+
+      saved_error= sl->join->optimize();
+      /* Save estimated number of rows. */
+      result->estimated_rowcount+= sl->join->best_rowcount;
+      thd->lex->current_select= lex_select_save;
+    }
+    if (saved_error)
+      break;
+  }
+  if (!saved_error)
+    optimized= 1;
+
+  DBUG_RETURN(saved_error);
+}
+
+
+
 bool st_select_lex_unit::exec()
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select;
-  SELECT_LEX *select_cursor=first_select();
   ulonglong add_rows=0;
   ha_rows examined_rows= 0;
   DBUG_ENTER("st_select_lex_unit::exec");
@@ -503,40 +569,22 @@ bool st_select_lex_unit::exec()
         DBUG_ASSERT(0);
       }
     }
-    for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
+    for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     {
       ha_rows records_at_start= 0;
+      DBUG_ASSERT(sl->join);
       thd->lex->current_select= sl;
 
-      if (optimized)
+      set_limit(sl);
+      if (sl == global_parameters || describe)
       {
-        saved_error= false;
-        sl->join->reset();
-      }
-      else
-      {
-        set_limit(sl);
-        if (sl == global_parameters || describe)
-        {
-          offset_limit_cnt= 0;
-          /*
-            We can't use LIMIT at this stage if we are using ORDER BY for the
-            whole query
-          */
-          if (sl->order_list.first || describe)
-            select_limit_cnt= HA_POS_ERROR;
-        }
-
+        offset_limit_cnt= 0;
         /*
-          When using braces, SQL_CALC_FOUND_ROWS affects the whole query:
-          we don't calculate found_rows() per union part.
-          Otherwise, SQL_CALC_FOUND_ROWS should be done on all sub parts.
+          We can't use LIMIT at this stage if we are using ORDER BY for the
+          whole query
         */
-        sl->join->select_options= 
-          (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
-          sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
-
-        saved_error= sl->join->optimize();
+        if (sl->order_list.first || describe)
+          select_limit_cnt= HA_POS_ERROR;
       }
       if (!saved_error)
       {
@@ -588,7 +636,7 @@ bool st_select_lex_unit::exec()
       }
     }
   }
-  optimized= true;
+  DBUG_ASSERT(optimized);
 
   /* Send result to 'result' */
   saved_error= true;

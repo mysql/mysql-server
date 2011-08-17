@@ -62,9 +62,9 @@ bool
 No_such_table_error_handler::handle_condition(THD *,
                                               uint sql_errno,
                                               const char*,
-                                              MYSQL_ERROR::enum_warning_level,
+                                              Sql_condition::enum_warning_level,
                                               const char*,
-                                              MYSQL_ERROR ** cond_hdl)
+                                              Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   if (sql_errno == ER_NO_SUCH_TABLE)
@@ -105,9 +105,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl);
+                        Sql_condition ** cond_hdl);
 
   /**
     Returns TRUE if there were ER_NO_SUCH_/WRONG_MRG_TABLE and there
@@ -135,9 +135,9 @@ bool
 Repair_mrg_table_error_handler::handle_condition(THD *,
                                                  uint sql_errno,
                                                  const char*,
-                                                 MYSQL_ERROR::enum_warning_level level,
+                                                 Sql_condition::enum_warning_level level,
                                                  const char*,
-                                                 MYSQL_ERROR ** cond_hdl)
+                                                 Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
@@ -1800,7 +1800,7 @@ bool close_temporary_tables(THD *thd)
       qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
 
-      thd->get_stmt_da()->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->set_overwrite_status(true);
       if ((error= (mysql_bin_log.write(&qinfo) || error)))
       {
         /*
@@ -1818,7 +1818,7 @@ bool close_temporary_tables(THD *thd)
         sql_print_error("Failed to write the DROP statement for "
                         "temporary tables to binary log");
       }
-      thd->get_stmt_da()->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->set_overwrite_status(false);
 
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
       thd->thread_specific_used= save_thread_specific_used;
@@ -2465,9 +2465,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
 
 private:
   /** Open table context to be used for back-off request. */
@@ -2484,9 +2484,9 @@ private:
 bool MDL_deadlock_handler::handle_condition(THD *,
                                             uint sql_errno,
                                             const char*,
-                                            MYSQL_ERROR::enum_warning_level,
+                                            Sql_condition::enum_warning_level,
                                             const char*,
-                                            MYSQL_ERROR ** cond_hdl)
+                                            Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   if (! m_is_active && sql_errno == ER_LOCK_DEADLOCK)
@@ -3135,6 +3135,7 @@ retry_share:
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
  reset:
+  table->created= TRUE;
   /*
     Check that there is no reference to a condtion from an earlier query
     (cf. Bug#58553). 
@@ -4085,7 +4086,7 @@ recover_from_failed_open(THD *thd)
         ha_create_table_from_engine(thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->get_stmt_wi()->clear_warning_info(thd->query_id);
+        thd->get_stmt_da()->clear_warning_info(thd->query_id);
         thd->clear_error();                 // Clear error message
         thd->mdl_context.release_transactional_locks();
         break;
@@ -5644,19 +5645,9 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
   if (lock_tables(thd, tables, counter, flags))
     goto err;
 
-  if (derived)
-  {
-    if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
-      goto err;
-    if (thd->fill_derived_tables() &&
-        mysql_handle_derived(thd->lex, &mysql_derived_filling))
-    {
-      mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
-      goto err;
-    }
-    if (!preserve_items_for_printing(thd))
-      mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
-  }
+  if (derived &&
+      (mysql_handle_derived(thd->lex, &mysql_derived_prepare)))
+    goto err;
 
   DBUG_RETURN(FALSE);
 err:
@@ -8166,7 +8157,8 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
-    thd->used_tables|= item->used_tables();
+    thd->lex->current_select->select_list_tables|= item->used_tables();
+    thd->lex->used_tables|= item->used_tables();
     thd->lex->current_select->cur_pos_in_select_list++;
   }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
@@ -8473,7 +8465,10 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       views and natural joins this update is performed inside the loop below.
     */
     if (table)
-      thd->used_tables|= table->map;
+    {
+      thd->lex->used_tables|= table->map;
+      thd->lex->current_select->select_list_tables|= table->map;
+    }
 
     /*
       Initialize a generic field iterator for the current table reference.
@@ -8558,7 +8553,9 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           field_table= nj_col->table_ref->table;
           if (field_table)
           {
-            thd->used_tables|= field_table->map;
+            thd->lex->used_tables|= field_table->map;
+            thd->lex->current_select->select_list_tables|=
+              field_table->map;
             field_table->covering_keys.intersect(field->part_of_key);
             field_table->merge_keys.merge(field->part_of_key);
             field_table->used_fields++;
@@ -8566,7 +8563,11 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         }
       }
       else
-        thd->used_tables|= item->used_tables();
+      {
+        thd->lex->used_tables|= item->used_tables();
+        thd->lex->current_select->select_list_tables|=
+          item->used_tables();
+      }
       thd->lex->current_select->cur_pos_in_select_list++;
     }
     /*

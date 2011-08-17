@@ -327,6 +327,20 @@ longlong Item_func_not_all::val_int()
 
 bool Item_func_not_all::empty_underlying_subquery()
 {
+  DBUG_ASSERT(subselect || !(test_sum_item || test_sub_item));
+  /*
+   When outer argument is NULL the subquery has not yet been evaluated, we
+   need to evaluate it to get to know whether it returns any rows to return
+   the correct result. 'ANY' subqueries are an exception because the
+   result would be false or null which for a top level item always mean false.
+   The subselect->unit->item->... chain should be used instead of
+   subselect->... to workaround subquery transformation which could make
+   subselect->engine unusable.
+  */
+  if (subselect && 
+      subselect->substype() != Item_subselect::ANY_SUBS &&
+      !subselect->unit->item->is_evaluated())
+    subselect->unit->item->exec();
   return ((test_sum_item && !test_sum_item->any_value()) ||
           (test_sub_item && !test_sub_item->any_value()));
 }
@@ -690,7 +704,7 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   }
 
   if (error > 0)
-    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                                  str->ptr(), str->length(),
                                  warn_type, warn_name);
 
@@ -4894,21 +4908,20 @@ longlong Item_func_like::val_int()
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
-  if (args[1]->const_item())
-  {
-    String* res2= args[1]->val_str((String *)&cmp.value2);
-    const char *ptr2;
+  if (!args[1]->const_item())
+    return OPTIMIZE_NONE;
 
-    if (!res2 || !(ptr2= res2->ptr()))
-      return OPTIMIZE_NONE;
+  String* res2= args[1]->val_str((String *)&cmp.value2);
+  if (!res2)
+    return OPTIMIZE_NONE;
 
-    if (*ptr2 != wild_many)
-    {
-      if (args[0]->result_type() != STRING_RESULT || *ptr2 != wild_one)
-	return OPTIMIZE_OP;
-    }
-  }
-  return OPTIMIZE_NONE;
+  if (!res2->length()) // Can optimize empty wildcard: column LIKE ''
+    return OPTIMIZE_OP;
+
+  DBUG_ASSERT(res2->ptr());
+  char first= res2->ptr()[0];
+  return (first == wild_many || first == wild_one) ?
+    OPTIMIZE_NONE : OPTIMIZE_OP;
 }
 
 
@@ -5768,33 +5781,7 @@ void Item_equal::merge(Item_equal *item)
 
 void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
 {
-  bool swap;
-  List_iterator<Item_field> it(fields);
-  do
-  {
-    Item_field *item1= it++;
-    Item_field **ref1= it.ref();
-    Item_field *item2;
-
-    swap= FALSE;
-    while ((item2= it++))
-    {
-      Item_field **ref2= it.ref();
-      if (compare(item1, item2, arg) < 0)
-      {
-        Item_field *item= *ref1;
-        *ref1= *ref2;
-        *ref2= item;
-        swap= TRUE;
-      }
-      else
-      {
-        item1= item2;
-        ref1= ref2;
-      }
-    }
-    it.rewind();
-  } while (swap);
+  fields.sort((Node_cmp_func)compare, arg);
 }
 
 
