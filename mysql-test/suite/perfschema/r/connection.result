@@ -1,0 +1,875 @@
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	1	1
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user1 in con1a" as status;
+status
+user1 in con1a
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	1	1
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	1	1
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	2	2
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user1 in con1b" as status;
+status
+user1 in con1b
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	2	2
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	2	2
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	3	3
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user1 in con1c" as status;
+status
+user1 in con1c
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user1	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	4	4
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user2 in con2a" as status;
+status
+user2 in con2a
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	3	3
+user2	localhost	1	1
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	3	3
+user2	1	1
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	5	5
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user2 in con2b" as status;
+status
+user2 in con2b
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	3	3
+user2	localhost	2	2
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	3	3
+user2	2	2
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	6	6
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user2 in con2c" as status;
+status
+user2 in con2c
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user2	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	3	3
+user2	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	3	3
+user2	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	7	7
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user3 in con3a" as status;
+status
+user3 in con3a
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	3	3
+user2	localhost	3	3
+user3	localhost	1	1
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	3	3
+user2	3	3
+user3	1	1
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	8	8
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user3 in con3b" as status;
+status
+user3 in con3b
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	3	3
+user2	localhost	3	3
+user3	localhost	2	2
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	3	3
+user2	3	3
+user3	2	2
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	9	9
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user3 in con3c" as status;
+status
+user3 in con3c
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+user3	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	3	3
+user2	localhost	3	3
+user3	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	3	3
+user2	3	3
+user3	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	10	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "con1a disconnected" as status;
+status
+con1a disconnected
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+user3	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	2	3
+user2	localhost	3	3
+user3	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	2	3
+user2	3	3
+user3	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	9	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "con2a disconnected" as status;
+status
+con2a disconnected
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+user3	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	2	3
+user2	localhost	2	3
+user3	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	2	3
+user2	2	3
+user3	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	8	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "con3a disconnected" as status;
+status
+con3a disconnected
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	2	3
+user2	localhost	2	3
+user3	localhost	2	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	2	3
+user2	2	3
+user3	2	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	7	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+truncate table performance_schema.accounts;
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	2	2
+user2	localhost	2	2
+user3	localhost	2	2
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	2	3
+user2	2	3
+user3	2	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	7	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+truncate table performance_schema.users;
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	2	2
+user2	localhost	2	2
+user3	localhost	2	2
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	2	2
+user2	2	2
+user3	2	2
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	7	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+truncate table performance_schema.hosts;
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	2	2
+user2	localhost	2	2
+user3	localhost	2	2
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	2	2
+user2	2	2
+user3	2	2
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	7	7
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user4 in con4a" as status;
+status
+user4 in con4a
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	2	2
+user2	localhost	2	2
+user3	localhost	2	2
+user4	localhost	1	1
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	2	2
+user2	2	2
+user3	2	2
+user4	1	1
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	8	8
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user4 in con4b" as status;
+status
+user4 in con4b
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+user4	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	2	2
+user2	localhost	2	2
+user3	localhost	2	2
+user4	localhost	2	2
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	2	2
+user2	2	2
+user3	2	2
+user4	2	2
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	9	9
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user4 in con4c" as status;
+status
+user4 in con4c
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	2	2
+user2	localhost	2	2
+user3	localhost	2	2
+user4	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	2	2
+user2	2	2
+user3	2	2
+user4	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	10	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "con1b disconnected" as status;
+status
+con1b disconnected
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user2	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	1	2
+user2	localhost	2	2
+user3	localhost	2	2
+user4	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	1	2
+user2	2	2
+user3	2	2
+user4	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	9	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "con2b disconnected" as status;
+status
+con2b disconnected
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user2	localhost
+user3	localhost
+user3	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	1	2
+user2	localhost	1	2
+user3	localhost	2	2
+user4	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	1	2
+user2	1	2
+user3	2	2
+user4	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	8	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "con3b disconnected" as status;
+status
+con3b disconnected
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user1	localhost
+user2	localhost
+user3	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	1	2
+user2	localhost	1	2
+user3	localhost	1	2
+user4	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	1	2
+user2	1	2
+user3	1	2
+user4	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	7	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "con1c disconnected" as status;
+status
+con1c disconnected
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user2	localhost
+user3	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	0	2
+user2	localhost	1	2
+user3	localhost	1	2
+user4	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	0	2
+user2	1	2
+user3	1	2
+user4	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	6	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "con2c disconnected" as status;
+status
+con2c disconnected
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user3	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	0	2
+user2	localhost	0	2
+user3	localhost	1	2
+user4	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	0	2
+user2	0	2
+user3	1	2
+user4	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	5	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "con3c disconnected" as status;
+status
+con3c disconnected
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user1	localhost	0	2
+user2	localhost	0	2
+user3	localhost	0	2
+user4	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	0	2
+user2	0	2
+user3	0	2
+user4	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	4	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+truncate table performance_schema.accounts;
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user4	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user1	0	2
+user2	0	2
+user3	0	2
+user4	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	4	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+truncate table performance_schema.users;
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user4	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user4	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	4	10
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+truncate table performance_schema.hosts;
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user4	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user4	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	4	4
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user5 in con5a" as status;
+status
+user5 in con5a
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+user5	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user4	localhost	3	3
+user5	localhost	1	1
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user4	3	3
+user5	1	1
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	5	5
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user5 in con5b" as status;
+status
+user5 in con5b
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+user5	localhost
+user5	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user4	localhost	3	3
+user5	localhost	2	2
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user4	3	3
+user5	2	2
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	6	6
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "user5 in con5c" as status;
+status
+user5 in con5c
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+user4	localhost
+user4	localhost
+user4	localhost
+user5	localhost
+user5	localhost
+user5	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user4	localhost	3	3
+user5	localhost	3	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user4	3	3
+user5	3	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	7	7
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+select "con 5a, 5b, 5c, 6a, 6b, 6c disconnected" as status;
+status
+con 5a, 5b, 5c, 6a, 6b, 6c disconnected
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+user4	localhost	0	3
+user5	localhost	0	3
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user4	0	3
+user5	0	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	1	7
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+truncate table performance_schema.hosts;
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+user4	0	3
+user5	0	3
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	1	1
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+truncate table performance_schema.users;
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	1	1
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0
+truncate table performance_schema.accounts;
+call dump_all();
+processlist_user	processlist_host
+root	localhost
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	localhost	1	1
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+root	1	1
+HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+localhost	1	1
+variable_name	variable_value
+PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
+PERFORMANCE_SCHEMA_HOSTS_LOST	0
+PERFORMANCE_SCHEMA_USERS_LOST	0

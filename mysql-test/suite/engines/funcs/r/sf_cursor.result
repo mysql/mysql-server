@@ -34,8 +34,6 @@ END//
 SELECT sf1();
 sf1()
 0
-Warnings:
-Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -53,8 +51,6 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
-Warnings:
-Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -75,9 +71,6 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
-Warnings:
-Error	1329	No data - zero rows fetched, selected, or processed
-Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -104,8 +97,6 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
-Warnings:
-Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1

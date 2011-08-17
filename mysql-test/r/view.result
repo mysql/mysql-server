@@ -237,7 +237,7 @@ a
 3
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
 select * from t1;
 a
@@ -1555,22 +1555,22 @@ execute stmt1 using @a;
 deallocate prepare stmt1;
 select * from v3;
 a	b
-100	1000
-101	1000
-300	1000
-301	1000
-100	10
-101	10
-300	10
-301	10
-100	2000
-101	2000
-300	2000
-301	2000
 100	0
 101	0
 300	0
 301	0
+100	10
+101	10
+300	10
+301	10
+100	1000
+101	1000
+300	1000
+301	1000
+100	2000
+101	2000
+300	2000
+301	2000
 drop view v3;
 drop tables t1,t2;
 create table t1(f1 int);
@@ -3948,8 +3948,6 @@ create view a as select 1;
 end|
 call p();
 call p();
-Warnings:
-Error	1050	Table 'a' already exists
 drop view a;
 drop procedure p;
 #

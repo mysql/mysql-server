@@ -270,7 +270,7 @@ public:
   {}
 
   /** Obtain value of this condition information item. */
-  Item *get_value(THD *thd, const MYSQL_ERROR *cond);
+  Item *get_value(THD *thd, const Sql_condition *cond);
 
 private:
   /** The name of this condition information item. */

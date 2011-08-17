@@ -32,8 +32,32 @@ flush privileges;
 
 drop procedure dump_thread;
 drop procedure dump_one_thread;
-drop prepare dump_global;
-drop prepare dump_history;
+
+drop prepare dump_waits_account;
+drop prepare dump_waits_user;
+drop prepare dump_waits_host;
+drop prepare dump_waits_history;
+drop prepare dump_waits_global;
+
+drop prepare dump_stages_account;
+drop prepare dump_stages_user;
+drop prepare dump_stages_host;
+drop prepare dump_stages_history;
+drop prepare dump_stages_global;
+
+drop prepare dump_statements_account;
+drop prepare dump_statements_user;
+drop prepare dump_statements_host;
+drop prepare dump_statements_history;
+drop prepare dump_statements_global;
+
+drop prepare dump_users;
+drop prepare dump_hosts;
+drop prepare dump_accounts;
+
+truncate table performance_schema.accounts;
+truncate table performance_schema.users;
+truncate table performance_schema.hosts;
 
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors

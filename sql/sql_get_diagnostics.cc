@@ -50,7 +50,7 @@ Sql_cmd_get_diagnostics::execute(THD *thd)
   DBUG_ENTER("Sql_cmd_get_diagnostics::execute");
 
   /* Disable the unneeded read-only mode of the original DA. */
-  save_stmt_da->get_warning_info()->set_read_only(false);
+  save_stmt_da->set_warning_info_read_only(false);
 
   /* Set new diagnostics area, execute statement and restore. */
   thd->set_stmt_da(&new_stmt_da);
@@ -60,7 +60,7 @@ Sql_cmd_get_diagnostics::execute(THD *thd)
   /* Bail out early if statement succeeded. */
   if (! rv)
   {
-    thd->get_stmt_da()->set_ok_status(thd, 0, 0, NULL);
+    thd->get_stmt_da()->set_ok_status(0, 0, NULL);
     DBUG_RETURN(false);
   }
 
@@ -72,18 +72,18 @@ Sql_cmd_get_diagnostics::execute(THD *thd)
   /* In case of a fatal error, set it into the original DA.*/
   if (thd->is_fatal_error)
   {
-    save_stmt_da->set_error_status(thd, sql_errno, message, sqlstate);
+    save_stmt_da->set_error_status(sql_errno, message, sqlstate, NULL);
     DBUG_RETURN(true);
   }
 
   /* Otherwise, just append the new error as a exception condition. */
-  save_stmt_da->get_warning_info()->push_warning(thd, sql_errno, sqlstate,
-                                                 MYSQL_ERROR::WARN_LEVEL_ERROR,
-                                                 message);
+  save_stmt_da->push_warning(thd, sql_errno, sqlstate,
+                             Sql_condition::WARN_LEVEL_ERROR,
+                             message);
 
   /* Appending might have failed. */
   if (! (rv= thd->is_error()))
-    thd->get_stmt_da()->set_ok_status(thd, 0, 0, NULL);
+    thd->get_stmt_da()->set_ok_status(0, 0, NULL);
 
   DBUG_RETURN(rv);
 }
@@ -175,7 +175,7 @@ Statement_information_item::get_value(THD *thd, const Diagnostics_area *da)
   */
   case NUMBER:
   {
-    ulong count= da->get_warning_info()->cond_count();
+    ulong count= da->cond_count();
     value= new (thd->mem_root) Item_uint(count);
     break;
   }
@@ -208,10 +208,9 @@ Condition_information::aggregate(THD *thd, const Diagnostics_area *da)
 {
   bool rv= false;
   longlong cond_number;
-  const MYSQL_ERROR *cond= NULL;
+  const Sql_condition *cond= NULL;
   Condition_information_item *cond_info_item;
-  const Warning_info *wi= da->get_warning_info();
-  Warning_info::Const_iterator it_conds= wi->iterator();
+  Diagnostics_area::Sql_condition_iterator it_conds= da->sql_conditions();
   List_iterator_fast<Condition_information_item> it_items(*m_items);
   DBUG_ENTER("Condition_information::aggregate");
 
@@ -228,7 +227,7 @@ Condition_information::aggregate(THD *thd, const Diagnostics_area *da)
     @@max_error_count, which prevents conditions from being pushed, but not
     counted.
   */
-  if (cond_number < 1 || (ulonglong) cond_number > wi->cond_count())
+  if (cond_number < 1 || (ulonglong) cond_number > da->cond_count())
   {
     my_error(ER_DA_INVALID_CONDITION_NUMBER, MYF(0));
     DBUG_RETURN(true);
@@ -258,7 +257,7 @@ Condition_information::aggregate(THD *thd, const Diagnostics_area *da)
           this can be the case if the server does not or fails to process
           the error message file.
 
-  @remark See "Design notes about MYSQL_ERROR::m_message_text." in sql_error.cc
+  @remark See "Design notes about Sql_condition::m_message_text." in sql_error.cc
 
   @return Pointer to an string item, NULL on failure.
 */
@@ -288,7 +287,7 @@ Condition_information_item::make_utf8_string_item(THD *thd, const String *str)
 */
 
 Item *
-Condition_information_item::get_value(THD *thd, const MYSQL_ERROR *cond)
+Condition_information_item::get_value(THD *thd, const Sql_condition *cond)
 {
   String str;
   Item *value= NULL;

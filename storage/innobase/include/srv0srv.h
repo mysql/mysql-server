@@ -165,6 +165,10 @@ extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern char	srv_adaptive_flushing;
 
+/* If this flag is TRUE, then we will load the indexes' (and tables') metadata
+even if they are marked as "corrupted". Mostly it is for DBA to process
+corrupted index and table */
+extern my_bool	srv_load_corrupted;
 
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
@@ -178,6 +182,10 @@ extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 extern ulint    srv_buf_pool_instances; /*!< requested number of buffer pool instances */
 extern ulong	srv_n_page_hash_locks;	/*!< number of locks to
 					protect buf_pool->page_hash */
+extern ulong	srv_LRU_scan_depth;	/*!< Scan depth for LRU
+					flush batch */
+extern my_bool	srv_flush_neighbors;	/*!< whether or not to flush
+					neighbors of a block */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulint	srv_mem_pool_size;
@@ -230,6 +238,7 @@ extern unsigned long long	srv_stats_transient_sample_pages;
 extern unsigned long long	srv_stats_persistent_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
+extern ulong	srv_doublewrite_batch_size;
 extern ibool	srv_use_checksums;
 
 extern ulong	srv_max_buf_pool_modified_pct;
@@ -247,6 +256,10 @@ extern ibool	srv_print_innodb_monitor;
 extern ibool	srv_print_innodb_lock_monitor;
 extern ibool	srv_print_innodb_tablespace_monitor;
 extern ibool	srv_print_verbose_log;
+#define DEPRECATED_MSG_INNODB_TABLE_MONITOR \
+	"Using innodb_table_monitor is deprecated and it may be removed " \
+	"in future releases. Please use the InnoDB INFORMATION_SCHEMA " \
+	"tables instead, see " REFMAN "innodb-i_s-tables.html"
 extern ibool	srv_print_innodb_table_monitor;
 
 extern ibool	srv_lock_timeout_active;

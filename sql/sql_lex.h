@@ -584,9 +584,11 @@ public:
   }
   void exclude_level();
   void exclude_tree();
+  inline select_result *get_result() { return result; }
 
   /* UNION methods */
   bool prepare(THD *thd, select_result *result, ulong additional_options);
+  bool optimize();
   bool exec();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
@@ -759,6 +761,11 @@ public:
     joins on the right.
   */
   List<String> *prev_join_using;
+  /**
+    The set of those tables whose fields are referenced in the select list of
+    this select level.
+  */
+  table_map select_list_tables;
 
   void init_query();
   void init_select();
@@ -873,6 +880,7 @@ public:
   }
 
   void clear_index_hints(void) { index_hints= NULL; }
+  bool handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*));
   bool is_part_of_union() { return master_unit()->is_union(); }
 
   /*
@@ -2287,6 +2295,16 @@ struct LEX: public Query_tables_list
   
   bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
+
+  /*
+    The set of those tables whose fields are referenced in all subqueries
+    of the query.
+    TODO: possibly this it is incorrect to have used tables in LEX because
+    with subquery, it is not clear what does the field mean. To fix this
+    we should aggregate used tables information for selected expressions
+    into the select_lex.
+  */
+  table_map  used_tables;
 
   LEX();
 

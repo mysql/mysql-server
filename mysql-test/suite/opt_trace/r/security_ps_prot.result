@@ -955,7 +955,7 @@ first
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select a from (select a from t1 where a like "f%") as tt where a like "fi%"	613	0
-select a from (select a from t1 where a like "f%") as tt where a like "fi%"	4790	0
+select a from (select a from t1 where a like "f%") as tt where a like "fi%"	6269	0
 
 # For routines, as they only use t1 and we added only one
 # privilege on t1, we have nothing to remove.

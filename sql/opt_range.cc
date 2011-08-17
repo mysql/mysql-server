@@ -1545,7 +1545,13 @@ end:
   head->prepare_for_position();
   head->file= org_file;
   bitmap_copy(&column_bitmap, head->read_set);
-  head->column_bitmaps_set(&column_bitmap, &column_bitmap);
+
+  /*
+    We have prepared a column_bitmap which get_next() will use. To do this we
+    used TABLE::read_set/write_set as playground; restore them to their
+    original value to not pollute other scans.
+  */
+  head->column_bitmaps_set(save_read_set, save_write_set);
 
   DBUG_RETURN(0);
 
@@ -1588,9 +1594,16 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
   while ((quick= quick_it++))
   {
+#ifndef DBUG_OFF
+    const MY_BITMAP * const save_read_set= quick->head->read_set;
+    const MY_BITMAP * const save_write_set= quick->head->write_set;
+#endif
     if (quick->init_ror_merged_scan(FALSE))
       DBUG_RETURN(1);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
+    // Sets are shared by all members of "quick_selects" so must not change
+    DBUG_ASSERT(quick->head->read_set == save_read_set);
+    DBUG_ASSERT(quick->head->write_set == save_write_set);
     /* All merged scans share the same record buffer in intersection. */
     quick->record= head->record[0];
   }
@@ -6287,7 +6300,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
         param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
-              MYSQL_ERROR::WARN_LEVEL_WARN, 
+              Sql_condition::WARN_LEVEL_WARN, 
               ER_WARN_INDEX_NOT_APPLICABLE,
               ER(ER_WARN_INDEX_NOT_APPLICABLE),
               "range",
@@ -6420,7 +6433,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
         param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
-              MYSQL_ERROR::WARN_LEVEL_WARN, 
+              Sql_condition::WARN_LEVEL_WARN, 
               ER_WARN_INDEX_NOT_APPLICABLE,
               ER(ER_WARN_INDEX_NOT_APPLICABLE),
               "range",
@@ -11588,7 +11601,7 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
                            ha_rows records_arg, uint key_infix_len_arg,
                            uchar *key_infix_arg, MEM_ROOT *parent_alloc,
                            bool is_index_scan_arg)
-  :file(table->file), join(join_arg), index_info(index_info_arg),
+  :join(join_arg), index_info(index_info_arg),
    group_prefix_len(group_prefix_len_arg),
    group_key_parts(group_key_parts_arg), have_min(have_min_arg),
    have_max(have_max_arg), have_agg_distinct(have_agg_distinct_arg),
@@ -11721,8 +11734,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
 QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT()
 {
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT");
-  if (file->inited != handler::NONE) 
-    file->ha_index_end();
+  if (head->file->inited != handler::NONE) 
+    head->file->ha_index_end();
   if (min_max_arg_part)
     delete_dynamic(&min_max_ranges);
   free_root(&alloc,MYF(0));
@@ -11911,11 +11924,11 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
     Request ordered index access as usage of ::index_last(), 
     ::index_first() within QUICK_GROUP_MIN_MAX_SELECT depends on it.
   */
-  if ((result= file->ha_index_init(index, true)))
+  if ((result= head->file->ha_index_init(index, true)))
     DBUG_RETURN(result);
   if (quick_prefix_select && quick_prefix_select->reset())
     DBUG_RETURN(1);
-  result= file->ha_index_last(record);
+  result= head->file->ha_index_last(record);
   if (result == HA_ERR_END_OF_FILE)
     DBUG_RETURN(0);
   /* Save the prefix of the last group. */
@@ -12017,9 +12030,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
       first sub-group with the extended prefix.
     */
     if (!have_min && !have_max && key_infix_len > 0)
-      result= file->ha_index_read_map(record, group_prefix,
-                                      make_prev_keypart_map(real_key_parts),
-                                      HA_READ_KEY_EXACT);
+      result= head->file->ha_index_read_map(record, group_prefix,
+                                            make_prev_keypart_map(real_key_parts),
+                                            HA_READ_KEY_EXACT);
 
     result= have_min ? min_res : have_max ? max_res : result;
   } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
@@ -12071,9 +12084,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     /* Apply the constant equality conditions to the non-group select fields */
     if (key_infix_len > 0)
     {
-      if ((result= file->ha_index_read_map(record, group_prefix,
-                                           make_prev_keypart_map(real_key_parts),
-                                           HA_READ_KEY_EXACT)))
+      if ((result= head->file->ha_index_read_map(record, group_prefix,
+                                                 make_prev_keypart_map(real_key_parts),
+                                                 HA_READ_KEY_EXACT)))
         DBUG_RETURN(result);
     }
 
@@ -12088,9 +12101,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     {
       /* Find the first subsequent record without NULL in the MIN/MAX field. */
       key_copy(tmp_record, record, index_info, 0);
-      result= file->ha_index_read_map(record, tmp_record,
-                                      make_keypart_map(real_key_parts),
-                                      HA_READ_AFTER_KEY);
+      result= head->file->ha_index_read_map(record, tmp_record,
+                                            make_keypart_map(real_key_parts),
+                                            HA_READ_AFTER_KEY);
       /*
         Check if the new record belongs to the current group by comparing its
         prefix with the group's prefix. If it is from the next group, then the
@@ -12145,9 +12158,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max()
   if (min_max_ranges.elements > 0)
     result= next_max_in_range();
   else
-    result= file->ha_index_read_map(record, group_prefix,
-                                    make_prev_keypart_map(real_key_parts),
-                                    HA_READ_PREFIX_LAST);
+    result= head->file->ha_index_read_map(record, group_prefix,
+                                          make_prev_keypart_map(real_key_parts),
+                                          HA_READ_PREFIX_LAST);
   DBUG_RETURN(result);
 }
 
@@ -12241,7 +12254,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix()
   {
     if (!seen_first_key)
     {
-      result= file->ha_index_first(record);
+      result= head->file->ha_index_first(record);
       if (result)
         DBUG_RETURN(result);
       seen_first_key= TRUE;
@@ -12249,9 +12262,10 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix()
     else
     {
       /* Load the first key in this group into record. */
-      result= index_next_different (is_index_scan, file, index_info->key_part,
-                            record, group_prefix, group_prefix_len, 
-                            group_key_parts);
+      result= index_next_different (is_index_scan, head->file,
+                                    index_info->key_part,
+                                    record, group_prefix, group_prefix_len, 
+                                    group_key_parts);
       if (result)
         DBUG_RETURN(result);
     }
@@ -12328,7 +12342,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
                  HA_READ_AFTER_KEY : HA_READ_KEY_OR_NEXT;
     }
 
-    result= file->ha_index_read_map(record, group_prefix, keypart_map, find_flag);
+    result= head->file->ha_index_read_map(record, group_prefix, keypart_map,
+                                          find_flag);
     if (result)
     {
       if ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
@@ -12467,7 +12482,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
                  HA_READ_BEFORE_KEY : HA_READ_PREFIX_LAST_OR_PREV;
     }
 
-    result= file->ha_index_read_map(record, group_prefix, keypart_map, find_flag);
+    result= head->file->ha_index_read_map(record, group_prefix, keypart_map,
+                                          find_flag);
 
     if (result)
     {

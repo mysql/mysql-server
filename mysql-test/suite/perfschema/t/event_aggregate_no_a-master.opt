@@ -1,0 +1,3 @@
+--general_log
+--log-output=FILE
+--loose-performance_schema_accounts_size=0

@@ -6512,6 +6512,9 @@ ER_ERROR_IN_TRIGGER_BODY
 ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
   eng "Unknown trigger has an error in its body: '%-.256s'"
 
+ER_INDEX_CORRUPT
+  eng "Index %s is corrupted"
+
 ER_DA_INVALID_CONDITION_NUMBER 35000
   eng "Invalid condition number"
   por "Número de condição inválido"

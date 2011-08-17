@@ -553,6 +553,20 @@ dict_table_get_next_index(
 # define dict_table_get_next_index(index) UT_LIST_GET_NEXT(indexes, index)
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
+
+/* Skip corrupted index */
+#define dict_table_skip_corrupt_index(index)			\
+	while (index && dict_index_is_corrupted(index)) {	\
+		index = dict_table_get_next_index(index);	\
+	}
+
+/* Get the next non-corrupt index */
+#define dict_table_next_uncorrupted_index(index)		\
+do {								\
+	index = dict_table_get_next_index(index);		\
+	dict_table_skip_corrupt_index(index);			\
+} while (0)
+
 /********************************************************************//**
 Check whether the index is the clustered index.
 @return	nonzero for clustered index, zero for other indexes */
@@ -561,7 +575,7 @@ ulint
 dict_index_is_clust(
 /*================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((pure));
+	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
 Check whether the index is unique.
 @return	nonzero for unique index, zero for other indexes */
@@ -570,7 +584,7 @@ ulint
 dict_index_is_unique(
 /*=================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((pure));
+	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
 Check whether the index is the insert buffer tree.
 @return	nonzero for insert buffer, zero for other indexes */
@@ -579,7 +593,7 @@ ulint
 dict_index_is_ibuf(
 /*===============*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((pure));
+	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
 @return	nonzero for insert buffer, zero for other indexes */
@@ -588,7 +602,7 @@ ulint
 dict_index_is_sec_or_ibuf(
 /*======================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((pure));
+	__attribute__((nonnull, pure, warn_unused_result));
 
 /********************************************************************//**
 Gets the number of user-defined columns in a table in the dictionary
@@ -598,7 +612,8 @@ UNIV_INLINE
 ulint
 dict_table_get_n_user_cols(
 /*=======================*/
-	const dict_table_t*	table);	/*!< in: table */
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
 Gets the number of system columns in a table in the dictionary cache.
 @return	number of system (e.g., ROW_ID) columns of a table */
@@ -606,7 +621,8 @@ UNIV_INLINE
 ulint
 dict_table_get_n_sys_cols(
 /*======================*/
-	const dict_table_t*	table);	/*!< in: table */
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
 Gets the number of all columns (also system) in a table in the dictionary
 cache.
@@ -615,7 +631,8 @@ UNIV_INLINE
 ulint
 dict_table_get_n_cols(
 /*==================*/
-	const dict_table_t*	table);	/*!< in: table */
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, pure, warn_unused_result));
 #ifdef UNIV_DEBUG
 /********************************************************************//**
 Gets the nth column of a table.
@@ -1298,6 +1315,56 @@ UNIV_INTERN
 void
 dict_close(void);
 /*============*/
+
+/**********************************************************************//**
+Check whether the table is corrupted.
+@return	nonzero for corrupted table, zero for valid tables */
+UNIV_INLINE
+ulint
+dict_table_is_corrupted(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, pure, warn_unused_result));
+
+/**********************************************************************//**
+Check whether the index is corrupted.
+@return	nonzero for corrupted index, zero for valid indexes */
+UNIV_INLINE
+ulint
+dict_index_is_corrupted(
+/*====================*/
+	const dict_index_t*	index)	/*!< in: index */
+	__attribute__((nonnull, pure, warn_unused_result));
+
+/**********************************************************************//**
+Flags an index and table corrupted both in the data dictionary cache
+and in the system table SYS_INDEXES. */
+UNIV_INTERN
+void
+dict_set_corrupted(
+/*===============*/
+	dict_index_t*	index)		/*!< in/out: index */
+	UNIV_COLD __attribute__((nonnull));
+
+/**********************************************************************//**
+Flags an index corrupted in the data dictionary cache only. This
+is used mostly to mark a corrupted index when index's own dictionary
+is corrupted, and we force to load such index for repair purpose */
+UNIV_INTERN
+void
+dict_set_corrupted_index_cache_only(
+/*================================*/
+	dict_index_t*	index);		/*!< in/out: index */
+
+/**********************************************************************//**
+Flags a table with specified space_id corrupted in the table dictionary
+cache.
+@return TRUE if successful */
+UNIV_INTERN
+ibool
+dict_set_corrupted_by_space(
+/*========================*/
+	ulint		space_id);	/*!< in: space ID */
 
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"

@@ -2443,8 +2443,6 @@ set @@join_buffer_size=default;
 # BUG#12586926 "EXTRA ROW WITH JOIN + GROUP BY + ORDER BY WITH
 # JCL>=5 AND MRR ENABLED"
 
-SET @old_optimizer_switch=@@optimizer_switch;
-SET optimizer_switch='mrr=on,mrr_cost_based=off';
 CREATE TABLE t1 (  col_int_key int(11) NOT NULL,
 col_varchar_key varchar(1) NOT NULL,    
 KEY col_int_key (col_int_key),
@@ -2478,12 +2476,9 @@ field1	field2
 NULL	0
 2003-08-21 00:00:00	4
 DROP TABLE t1,t2;
-SET @@optimizer_switch=@old_optimizer_switch;
 
 # BUG#12619510 "JCL: MORE ROWS AND DIFFERENT OUTPUT WITH JCL>=5"
 
-SET @old_optimizer_switch=@@optimizer_switch;
-SET optimizer_switch='mrr=on,mrr_cost_based=off';
 CREATE TABLE t1 (
 col_int_key int(11) NOT NULL,
 col_datetime_key datetime NOT NULL,
@@ -2555,12 +2550,9 @@ w	0	18
 x	0	14
 y	2	7
 DROP TABLE t1,t2;
-SET @@optimizer_switch=@old_optimizer_switch;
 
 # BUG#12619868 "JCL: MORE ROWS OF OUTPUT WHEN JCL>=5"
 
-SET @old_optimizer_switch=@@optimizer_switch;
-SET optimizer_switch='mrr=on,mrr_cost_based=off';
 CREATE TABLE t1 (col_varchar_key varchar(1));
 CREATE TABLE t2 (
 pk int(11) NOT NULL,
@@ -2611,6 +2603,36 @@ NULL	7
 NULL	8
 NULL	9
 DROP TABLE t1,t2;
-SET @@optimizer_switch=@old_optimizer_switch;
+
+# BUG#12722133 - JCL: JOIN QUERY GIVES DIFFERENT RESULTS AT
+# JCL=6 ONLY [NULL VERSUS NULL+#INTS]
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, k INTEGER, i INTEGER, KEY k(k));
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+CREATE TABLE t4 LIKE t1;
+INSERT INTO t1 VALUES (6,NULL,6),(0,1,11);
+INSERT INTO t2 VALUES (1,NULL,NULL),(4,7,NULL);
+INSERT INTO t3 VALUES (2,3,0),(3,4,4);
+INSERT INTO t4 VALUES (1,9,-1),(4,7,NULL);
+EXPLAIN SELECT t2.pk as t2_pk, t4.pk as t4_pk, t4.k as t4_k, t4.i
+as t4_i FROM t1
+LEFT JOIN t2 ON t1.k = t2.pk
+LEFT JOIN t3 ON t3.i
+LEFT JOIN t4 ON t4.pk = t2.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	k	5	NULL	2	Using index
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.k	1	Using index
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	Using join buffer (BKA, incremental buffers)
+SELECT t2.pk as t2_pk, t4.pk as t4_pk, t4.k as t4_k, t4.i
+as t4_i FROM t1
+LEFT JOIN t2 ON t1.k = t2.pk
+LEFT JOIN t3 ON t3.i
+LEFT JOIN t4 ON t4.pk = t2.pk;
+t2_pk	t4_pk	t4_k	t4_i
+1	1	9	-1
+NULL	NULL	NULL	NULL
+DROP TABLE t1, t2, t3, t4;
 set optimizer_join_cache_level = default;
 set optimizer_switch = default;

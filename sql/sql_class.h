@@ -554,70 +554,75 @@ typedef struct system_variables
 
 typedef struct system_status_var
 {
-  ulong com_other;
-  ulong com_stat[(uint) SQLCOM_END];
-  ulong created_tmp_disk_tables;
-  ulong created_tmp_tables;
-  ulong ha_commit_count;
-  ulong ha_delete_count;
-  ulong ha_read_first_count;
-  ulong ha_read_last_count;
-  ulong ha_read_key_count;
-  ulong ha_read_next_count;
-  ulong ha_read_prev_count;
-  ulong ha_read_rnd_count;
-  ulong ha_read_rnd_next_count;
+  ulonglong created_tmp_disk_tables;
+  ulonglong created_tmp_tables;
+  ulonglong ha_commit_count;
+  ulonglong ha_delete_count;
+  ulonglong ha_read_first_count;
+  ulonglong ha_read_last_count;
+  ulonglong ha_read_key_count;
+  ulonglong ha_read_next_count;
+  ulonglong ha_read_prev_count;
+  ulonglong ha_read_rnd_count;
+  ulonglong ha_read_rnd_next_count;
   /*
     This number doesn't include calls to the default implementation and
     calls made by range access. The intent is to count only calls made by
     BatchedKeyAccess.
   */
-  ulong ha_multi_range_read_init_count;
-  ulong ha_rollback_count;
-  ulong ha_update_count;
-  ulong ha_write_count;
-  ulong ha_prepare_count;
-  ulong ha_discover_count;
-  ulong ha_savepoint_count;
-  ulong ha_savepoint_rollback_count;
-  ulong ha_external_lock_count;
+  ulonglong ha_multi_range_read_init_count;
+  ulonglong ha_rollback_count;
+  ulonglong ha_update_count;
+  ulonglong ha_write_count;
+  ulonglong ha_prepare_count;
+  ulonglong ha_discover_count;
+  ulonglong ha_savepoint_count;
+  ulonglong ha_savepoint_rollback_count;
+  ulonglong ha_external_lock_count;
 
+#if 0
+  /* Tatiana thinks this may be dead now. */
   /* KEY_CACHE parts. These are copies of the original */
-  ulong key_blocks_changed;
-  ulong key_blocks_used;
-  ulong key_cache_r_requests;
-  ulong key_cache_read;
-  ulong key_cache_w_requests;
-  ulong key_cache_write;
+  ulonglong key_blocks_changed;
+  ulonglong key_blocks_used;
+  ulonglong key_cache_r_requests;
+  ulonglong key_cache_read;
+  ulonglong key_cache_w_requests;
+  ulonglong key_cache_write;
   /* END OF KEY_CACHE parts */
+#endif
 
-  ulong opened_tables;
-  ulong opened_shares;
-  ulong select_full_join_count;
-  ulong select_full_range_join_count;
-  ulong select_range_count;
-  ulong select_range_check_count;
-  ulong select_scan_count;
-  ulong long_query_count;
-  ulong filesort_merge_passes;
-  ulong filesort_range_count;
-  ulong filesort_rows;
-  ulong filesort_scan_count;
+  ulonglong opened_tables;
+  ulonglong opened_shares;
+  ulonglong select_full_join_count;
+  ulonglong select_full_range_join_count;
+  ulonglong select_range_count;
+  ulonglong select_range_check_count;
+  ulonglong select_scan_count;
+  ulonglong long_query_count;
+  ulonglong filesort_merge_passes;
+  ulonglong filesort_range_count;
+  ulonglong filesort_rows;
+  ulonglong filesort_scan_count;
   /* Prepared statements and binary protocol */
-  ulong com_stmt_prepare;
-  ulong com_stmt_reprepare;
-  ulong com_stmt_execute;
-  ulong com_stmt_send_long_data;
-  ulong com_stmt_fetch;
-  ulong com_stmt_reset;
-  ulong com_stmt_close;
-  /*
-    Number of statements sent from the client
-  */
-  ulong questions;
+  ulonglong com_stmt_prepare;
+  ulonglong com_stmt_reprepare;
+  ulonglong com_stmt_execute;
+  ulonglong com_stmt_send_long_data;
+  ulonglong com_stmt_fetch;
+  ulonglong com_stmt_reset;
+  ulonglong com_stmt_close;
 
   ulonglong bytes_received;
   ulonglong bytes_sent;
+  /*
+    Number of statements sent from the client
+  */
+  ulonglong questions;
+
+  ulong com_other;
+  ulong com_stat[(uint) SQLCOM_END];
+
   /*
     IMPORTANT!
     SEE last_system_status_var DEFINITION BELOW.
@@ -659,7 +664,7 @@ mysqld_collation_get_by_name(const char *name,
     my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
     if (loader.error[0])
       push_warning_printf(current_thd,
-                          MYSQL_ERROR::WARN_LEVEL_WARN,
+                          Sql_condition::WARN_LEVEL_WARN,
                           ER_UNKNOWN_COLLATION, "%s", loader.error);
   }
   return cs;
@@ -1486,9 +1491,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl) = 0;
+                                Sql_condition ** cond_hdl) = 0;
 
 private:
   Internal_error_handler *m_prev_internal_handler;
@@ -1507,9 +1512,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl)
+                        Sql_condition ** cond_hdl)
   {
     /* Ignore error */
     return TRUE;
@@ -1533,9 +1538,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl);
+                        Sql_condition ** cond_hdl);
 
 private:
 };
@@ -2023,17 +2028,17 @@ public:
     void push_unsafe_rollback_warnings(THD *thd)
     {
       if (all.has_modified_non_trans_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
 
       if (all.has_created_temp_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
 
       if (all.has_dropped_temp_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
     }
@@ -2315,13 +2320,6 @@ public:
   void set_status_no_index_used();
   void set_status_no_good_index_used();
 
-  /*
-    The set of those tables whose fields are referenced in all subqueries
-    of the query.
-    TODO: possibly this it is incorrect to have used tables in THD because
-    with more than one subquery, it is not clear what does the field mean.
-  */
-  table_map  used_tables;
   USER_CONN *user_connect;
   const CHARSET_INFO *db_charset;
 #if defined(ENABLED_PROFILING)
@@ -2870,10 +2868,6 @@ public:
   */
   inline bool is_error() const { return get_stmt_da()->is_error(); }
 
-  /// Returns Warning-information-area for the current diagnostics area.
-  Warning_info *get_stmt_wi()
-  { return get_stmt_da()->get_warning_info(); }
-
   /// Returns Diagnostics-area for the current statement.
   Diagnostics_area *get_stmt_da()
   { return m_stmt_da; }
@@ -3127,9 +3121,9 @@ public:
   */
   virtual bool handle_condition(uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
 
   /**
     Remove the error handler last pushed.
@@ -3184,7 +3178,7 @@ private:
   friend class Sql_cmd_common_signal;
   friend class Sql_cmd_signal;
   friend class Sql_cmd_resignal;
-  friend void push_warning(THD*, MYSQL_ERROR::enum_warning_level, uint, const char*);
+  friend void push_warning(THD*, Sql_condition::enum_warning_level, uint, const char*);
   friend void my_message_sql(uint, const char *, myf);
 
   /**
@@ -3195,10 +3189,10 @@ private:
     @param msg the condition message text
     @return The condition raised, or NULL
   */
-  MYSQL_ERROR*
+  Sql_condition*
   raise_condition(uint sql_errno,
                   const char* sqlstate,
-                  MYSQL_ERROR::enum_warning_level level,
+                  Sql_condition::enum_warning_level level,
                   const char* msg);
 
 public:
@@ -3320,7 +3314,7 @@ my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
   thd->set_row_count_func(affected_rows);
-  thd->get_stmt_da()->set_ok_status(thd, affected_rows, id, message);
+  thd->get_stmt_da()->set_ok_status(affected_rows, id, message);
 }
 
 
@@ -3377,6 +3371,11 @@ protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
 public:
+  /**
+    Number of records estimated in this result.
+    Valid only for materialized derived tables/views.
+  */
+  ha_rows estimated_rowcount;
   select_result();
   virtual ~select_result() {};
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
@@ -3658,6 +3657,13 @@ public:
   */
   bool precomputed_group_by;
   bool force_copy_fields;
+  /**
+    TRUE <=> don't actually create table handler when creating the result
+    table. This allows range optimizer to add indexes later.
+    Used for materialized derived tables/views.
+    @see TABLE_LIST::update_derived_keys.
+  */
+  bool skip_create_table;
   /*
     If TRUE, create_tmp_field called from create_tmp_table will convert
     all BIT fields to 64-bit longs. This is a workaround the limitation
@@ -3669,7 +3675,7 @@ public:
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
-     bit_fields_as_long(0)
+     skip_create_table(FALSE), bit_fields_as_long(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -3700,7 +3706,9 @@ public:
   void cleanup();
   bool create_result_table(THD *thd, List<Item> *column_types,
                            bool is_distinct, ulonglong options,
-                           const char *alias, bool bit_fields_as_long);
+                           const char *alias, bool bit_fields_as_long,
+                           bool create_table);
+  friend bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived);
 };
 
 /* Base subselect interface class */

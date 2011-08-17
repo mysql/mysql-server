@@ -2,26 +2,37 @@ select TABLE_SCHEMA, lower(TABLE_NAME), TABLE_CATALOG
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 TABLE_SCHEMA	lower(TABLE_NAME)	TABLE_CATALOG
+performance_schema	accounts	def
 performance_schema	cond_instances	def
 performance_schema	events_stages_current	def
 performance_schema	events_stages_history	def
 performance_schema	events_stages_history_long	def
+performance_schema	events_stages_summary_by_account_by_event_name	def
+performance_schema	events_stages_summary_by_host_by_event_name	def
 performance_schema	events_stages_summary_by_thread_by_event_name	def
+performance_schema	events_stages_summary_by_user_by_event_name	def
 performance_schema	events_stages_summary_global_by_event_name	def
 performance_schema	events_statements_current	def
 performance_schema	events_statements_history	def
 performance_schema	events_statements_history_long	def
+performance_schema	events_statements_summary_by_account_by_event_name	def
+performance_schema	events_statements_summary_by_host_by_event_name	def
 performance_schema	events_statements_summary_by_thread_by_event_name	def
+performance_schema	events_statements_summary_by_user_by_event_name	def
 performance_schema	events_statements_summary_global_by_event_name	def
 performance_schema	events_waits_current	def
 performance_schema	events_waits_history	def
 performance_schema	events_waits_history_long	def
+performance_schema	events_waits_summary_by_account_by_event_name	def
+performance_schema	events_waits_summary_by_host_by_event_name	def
 performance_schema	events_waits_summary_by_instance	def
 performance_schema	events_waits_summary_by_thread_by_event_name	def
+performance_schema	events_waits_summary_by_user_by_event_name	def
 performance_schema	events_waits_summary_global_by_event_name	def
 performance_schema	file_instances	def
 performance_schema	file_summary_by_event_name	def
 performance_schema	file_summary_by_instance	def
+performance_schema	hosts	def
 performance_schema	mutex_instances	def
 performance_schema	objects_summary_global_by_type	def
 performance_schema	performance_timers	def
@@ -35,30 +46,42 @@ performance_schema	table_io_waits_summary_by_index_usage	def
 performance_schema	table_io_waits_summary_by_table	def
 performance_schema	table_lock_waits_summary_by_table	def
 performance_schema	threads	def
+performance_schema	users	def
 select lower(TABLE_NAME), TABLE_TYPE, ENGINE
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_TYPE	ENGINE
+accounts	BASE TABLE	PERFORMANCE_SCHEMA
 cond_instances	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_current	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_history	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_history_long	BASE TABLE	PERFORMANCE_SCHEMA
+events_stages_summary_by_account_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_stages_summary_by_host_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_summary_by_thread_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_stages_summary_by_user_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_summary_global_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_current	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_history	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_history_long	BASE TABLE	PERFORMANCE_SCHEMA
+events_statements_summary_by_account_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_statements_summary_by_host_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_summary_by_thread_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_statements_summary_by_user_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_summary_global_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_waits_current	BASE TABLE	PERFORMANCE_SCHEMA
 events_waits_history	BASE TABLE	PERFORMANCE_SCHEMA
 events_waits_history_long	BASE TABLE	PERFORMANCE_SCHEMA
+events_waits_summary_by_account_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_waits_summary_by_host_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_waits_summary_by_instance	BASE TABLE	PERFORMANCE_SCHEMA
 events_waits_summary_by_thread_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_waits_summary_by_user_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_waits_summary_global_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 file_instances	BASE TABLE	PERFORMANCE_SCHEMA
 file_summary_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 file_summary_by_instance	BASE TABLE	PERFORMANCE_SCHEMA
+hosts	BASE TABLE	PERFORMANCE_SCHEMA
 mutex_instances	BASE TABLE	PERFORMANCE_SCHEMA
 objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
 performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
@@ -72,30 +95,42 @@ table_io_waits_summary_by_index_usage	BASE TABLE	PERFORMANCE_SCHEMA
 table_io_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 table_lock_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 threads	BASE TABLE	PERFORMANCE_SCHEMA
+users	BASE TABLE	PERFORMANCE_SCHEMA
 select lower(TABLE_NAME), VERSION, ROW_FORMAT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	VERSION	ROW_FORMAT
+accounts	10	Fixed
 cond_instances	10	Dynamic
 events_stages_current	10	Dynamic
 events_stages_history	10	Dynamic
 events_stages_history_long	10	Dynamic
+events_stages_summary_by_account_by_event_name	10	Dynamic
+events_stages_summary_by_host_by_event_name	10	Dynamic
 events_stages_summary_by_thread_by_event_name	10	Dynamic
+events_stages_summary_by_user_by_event_name	10	Dynamic
 events_stages_summary_global_by_event_name	10	Dynamic
 events_statements_current	10	Dynamic
 events_statements_history	10	Dynamic
 events_statements_history_long	10	Dynamic
+events_statements_summary_by_account_by_event_name	10	Dynamic
+events_statements_summary_by_host_by_event_name	10	Dynamic
 events_statements_summary_by_thread_by_event_name	10	Dynamic
+events_statements_summary_by_user_by_event_name	10	Dynamic
 events_statements_summary_global_by_event_name	10	Dynamic
 events_waits_current	10	Dynamic
 events_waits_history	10	Dynamic
 events_waits_history_long	10	Dynamic
+events_waits_summary_by_account_by_event_name	10	Dynamic
+events_waits_summary_by_host_by_event_name	10	Dynamic
 events_waits_summary_by_instance	10	Dynamic
 events_waits_summary_by_thread_by_event_name	10	Dynamic
+events_waits_summary_by_user_by_event_name	10	Dynamic
 events_waits_summary_global_by_event_name	10	Dynamic
 file_instances	10	Dynamic
 file_summary_by_event_name	10	Dynamic
 file_summary_by_instance	10	Dynamic
+hosts	10	Fixed
 mutex_instances	10	Dynamic
 objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
@@ -109,30 +144,42 @@ table_io_waits_summary_by_index_usage	10	Dynamic
 table_io_waits_summary_by_table	10	Dynamic
 table_lock_waits_summary_by_table	10	Dynamic
 threads	10	Dynamic
+users	10	Fixed
 select lower(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_ROWS	AVG_ROW_LENGTH
+accounts	1000	0
 cond_instances	1000	0
 events_stages_current	1000	0
 events_stages_history	1000	0
 events_stages_history_long	10000	0
+events_stages_summary_by_account_by_event_name	1000	0
+events_stages_summary_by_host_by_event_name	1000	0
 events_stages_summary_by_thread_by_event_name	1000	0
+events_stages_summary_by_user_by_event_name	1000	0
 events_stages_summary_global_by_event_name	1000	0
 events_statements_current	1000	0
 events_statements_history	1000	0
 events_statements_history_long	10000	0
+events_statements_summary_by_account_by_event_name	1000	0
+events_statements_summary_by_host_by_event_name	1000	0
 events_statements_summary_by_thread_by_event_name	1000	0
+events_statements_summary_by_user_by_event_name	1000	0
 events_statements_summary_global_by_event_name	1000	0
 events_waits_current	1000	0
 events_waits_history	1000	0
 events_waits_history_long	10000	0
+events_waits_summary_by_account_by_event_name	1000	0
+events_waits_summary_by_host_by_event_name	1000	0
 events_waits_summary_by_instance	1000	0
 events_waits_summary_by_thread_by_event_name	1000	0
+events_waits_summary_by_user_by_event_name	1000	0
 events_waits_summary_global_by_event_name	1000	0
 file_instances	1000	0
 file_summary_by_event_name	1000	0
 file_summary_by_instance	1000	0
+hosts	1000	0
 mutex_instances	1000	0
 objects_summary_global_by_type	1000	0
 performance_timers	5	0
@@ -146,30 +193,42 @@ table_io_waits_summary_by_index_usage	1000	0
 table_io_waits_summary_by_table	1000	0
 table_lock_waits_summary_by_table	1000	0
 threads	1000	0
+users	1000	0
 select lower(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	DATA_LENGTH	MAX_DATA_LENGTH
+accounts	0	0
 cond_instances	0	0
 events_stages_current	0	0
 events_stages_history	0	0
 events_stages_history_long	0	0
+events_stages_summary_by_account_by_event_name	0	0
+events_stages_summary_by_host_by_event_name	0	0
 events_stages_summary_by_thread_by_event_name	0	0
+events_stages_summary_by_user_by_event_name	0	0
 events_stages_summary_global_by_event_name	0	0
 events_statements_current	0	0
 events_statements_history	0	0
 events_statements_history_long	0	0
+events_statements_summary_by_account_by_event_name	0	0
+events_statements_summary_by_host_by_event_name	0	0
 events_statements_summary_by_thread_by_event_name	0	0
+events_statements_summary_by_user_by_event_name	0	0
 events_statements_summary_global_by_event_name	0	0
 events_waits_current	0	0
 events_waits_history	0	0
 events_waits_history_long	0	0
+events_waits_summary_by_account_by_event_name	0	0
+events_waits_summary_by_host_by_event_name	0	0
 events_waits_summary_by_instance	0	0
 events_waits_summary_by_thread_by_event_name	0	0
+events_waits_summary_by_user_by_event_name	0	0
 events_waits_summary_global_by_event_name	0	0
 file_instances	0	0
 file_summary_by_event_name	0	0
 file_summary_by_instance	0	0
+hosts	0	0
 mutex_instances	0	0
 objects_summary_global_by_type	0	0
 performance_timers	0	0
@@ -183,30 +242,42 @@ table_io_waits_summary_by_index_usage	0	0
 table_io_waits_summary_by_table	0	0
 table_lock_waits_summary_by_table	0	0
 threads	0	0
+users	0	0
 select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT
+accounts	0	0	NULL
 cond_instances	0	0	NULL
 events_stages_current	0	0	NULL
 events_stages_history	0	0	NULL
 events_stages_history_long	0	0	NULL
+events_stages_summary_by_account_by_event_name	0	0	NULL
+events_stages_summary_by_host_by_event_name	0	0	NULL
 events_stages_summary_by_thread_by_event_name	0	0	NULL
+events_stages_summary_by_user_by_event_name	0	0	NULL
 events_stages_summary_global_by_event_name	0	0	NULL
 events_statements_current	0	0	NULL
 events_statements_history	0	0	NULL
 events_statements_history_long	0	0	NULL
+events_statements_summary_by_account_by_event_name	0	0	NULL
+events_statements_summary_by_host_by_event_name	0	0	NULL
 events_statements_summary_by_thread_by_event_name	0	0	NULL
+events_statements_summary_by_user_by_event_name	0	0	NULL
 events_statements_summary_global_by_event_name	0	0	NULL
 events_waits_current	0	0	NULL
 events_waits_history	0	0	NULL
 events_waits_history_long	0	0	NULL
+events_waits_summary_by_account_by_event_name	0	0	NULL
+events_waits_summary_by_host_by_event_name	0	0	NULL
 events_waits_summary_by_instance	0	0	NULL
 events_waits_summary_by_thread_by_event_name	0	0	NULL
+events_waits_summary_by_user_by_event_name	0	0	NULL
 events_waits_summary_global_by_event_name	0	0	NULL
 file_instances	0	0	NULL
 file_summary_by_event_name	0	0	NULL
 file_summary_by_instance	0	0	NULL
+hosts	0	0	NULL
 mutex_instances	0	0	NULL
 objects_summary_global_by_type	0	0	NULL
 performance_timers	0	0	NULL
@@ -220,30 +291,42 @@ table_io_waits_summary_by_index_usage	0	0	NULL
 table_io_waits_summary_by_table	0	0	NULL
 table_lock_waits_summary_by_table	0	0	NULL
 threads	0	0	NULL
+users	0	0	NULL
 select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	CREATE_TIME	UPDATE_TIME	CHECK_TIME
+accounts	NULL	NULL	NULL
 cond_instances	NULL	NULL	NULL
 events_stages_current	NULL	NULL	NULL
 events_stages_history	NULL	NULL	NULL
 events_stages_history_long	NULL	NULL	NULL
+events_stages_summary_by_account_by_event_name	NULL	NULL	NULL
+events_stages_summary_by_host_by_event_name	NULL	NULL	NULL
 events_stages_summary_by_thread_by_event_name	NULL	NULL	NULL
+events_stages_summary_by_user_by_event_name	NULL	NULL	NULL
 events_stages_summary_global_by_event_name	NULL	NULL	NULL
 events_statements_current	NULL	NULL	NULL
 events_statements_history	NULL	NULL	NULL
 events_statements_history_long	NULL	NULL	NULL
+events_statements_summary_by_account_by_event_name	NULL	NULL	NULL
+events_statements_summary_by_host_by_event_name	NULL	NULL	NULL
 events_statements_summary_by_thread_by_event_name	NULL	NULL	NULL
+events_statements_summary_by_user_by_event_name	NULL	NULL	NULL
 events_statements_summary_global_by_event_name	NULL	NULL	NULL
 events_waits_current	NULL	NULL	NULL
 events_waits_history	NULL	NULL	NULL
 events_waits_history_long	NULL	NULL	NULL
+events_waits_summary_by_account_by_event_name	NULL	NULL	NULL
+events_waits_summary_by_host_by_event_name	NULL	NULL	NULL
 events_waits_summary_by_instance	NULL	NULL	NULL
 events_waits_summary_by_thread_by_event_name	NULL	NULL	NULL
+events_waits_summary_by_user_by_event_name	NULL	NULL	NULL
 events_waits_summary_global_by_event_name	NULL	NULL	NULL
 file_instances	NULL	NULL	NULL
 file_summary_by_event_name	NULL	NULL	NULL
 file_summary_by_instance	NULL	NULL	NULL
+hosts	NULL	NULL	NULL
 mutex_instances	NULL	NULL	NULL
 objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
@@ -257,30 +340,42 @@ table_io_waits_summary_by_index_usage	NULL	NULL	NULL
 table_io_waits_summary_by_table	NULL	NULL	NULL
 table_lock_waits_summary_by_table	NULL	NULL	NULL
 threads	NULL	NULL	NULL
+users	NULL	NULL	NULL
 select lower(TABLE_NAME), TABLE_COLLATION, CHECKSUM
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_COLLATION	CHECKSUM
+accounts	utf8_general_ci	NULL
 cond_instances	utf8_general_ci	NULL
 events_stages_current	utf8_general_ci	NULL
 events_stages_history	utf8_general_ci	NULL
 events_stages_history_long	utf8_general_ci	NULL
+events_stages_summary_by_account_by_event_name	utf8_general_ci	NULL
+events_stages_summary_by_host_by_event_name	utf8_general_ci	NULL
 events_stages_summary_by_thread_by_event_name	utf8_general_ci	NULL
+events_stages_summary_by_user_by_event_name	utf8_general_ci	NULL
 events_stages_summary_global_by_event_name	utf8_general_ci	NULL
 events_statements_current	utf8_general_ci	NULL
 events_statements_history	utf8_general_ci	NULL
 events_statements_history_long	utf8_general_ci	NULL
+events_statements_summary_by_account_by_event_name	utf8_general_ci	NULL
+events_statements_summary_by_host_by_event_name	utf8_general_ci	NULL
 events_statements_summary_by_thread_by_event_name	utf8_general_ci	NULL
+events_statements_summary_by_user_by_event_name	utf8_general_ci	NULL
 events_statements_summary_global_by_event_name	utf8_general_ci	NULL
 events_waits_current	utf8_general_ci	NULL
 events_waits_history	utf8_general_ci	NULL
 events_waits_history_long	utf8_general_ci	NULL
+events_waits_summary_by_account_by_event_name	utf8_general_ci	NULL
+events_waits_summary_by_host_by_event_name	utf8_general_ci	NULL
 events_waits_summary_by_instance	utf8_general_ci	NULL
 events_waits_summary_by_thread_by_event_name	utf8_general_ci	NULL
+events_waits_summary_by_user_by_event_name	utf8_general_ci	NULL
 events_waits_summary_global_by_event_name	utf8_general_ci	NULL
 file_instances	utf8_general_ci	NULL
 file_summary_by_event_name	utf8_general_ci	NULL
 file_summary_by_instance	utf8_general_ci	NULL
+hosts	utf8_general_ci	NULL
 mutex_instances	utf8_general_ci	NULL
 objects_summary_global_by_type	utf8_general_ci	NULL
 performance_timers	utf8_general_ci	NULL
@@ -294,30 +389,42 @@ table_io_waits_summary_by_index_usage	utf8_general_ci	NULL
 table_io_waits_summary_by_table	utf8_general_ci	NULL
 table_lock_waits_summary_by_table	utf8_general_ci	NULL
 threads	utf8_general_ci	NULL
+users	utf8_general_ci	NULL
 select lower(TABLE_NAME), TABLE_COMMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_COMMENT
+accounts	
 cond_instances	
 events_stages_current	
 events_stages_history	
 events_stages_history_long	
+events_stages_summary_by_account_by_event_name	
+events_stages_summary_by_host_by_event_name	
 events_stages_summary_by_thread_by_event_name	
+events_stages_summary_by_user_by_event_name	
 events_stages_summary_global_by_event_name	
 events_statements_current	
 events_statements_history	
 events_statements_history_long	
+events_statements_summary_by_account_by_event_name	
+events_statements_summary_by_host_by_event_name	
 events_statements_summary_by_thread_by_event_name	
+events_statements_summary_by_user_by_event_name	
 events_statements_summary_global_by_event_name	
 events_waits_current	
 events_waits_history	
 events_waits_history_long	
+events_waits_summary_by_account_by_event_name	
+events_waits_summary_by_host_by_event_name	
 events_waits_summary_by_instance	
 events_waits_summary_by_thread_by_event_name	
+events_waits_summary_by_user_by_event_name	
 events_waits_summary_global_by_event_name	
 file_instances	
 file_summary_by_event_name	
 file_summary_by_instance	
+hosts	
 mutex_instances	
 objects_summary_global_by_type	
 performance_timers	
@@ -331,3 +438,4 @@ table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table	
 table_lock_waits_summary_by_table	
 threads	
+users	
