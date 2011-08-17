@@ -247,8 +247,14 @@ public:
   Uint32 getRootFragCount() const
   { return m_rootFragCount; }
 
+  NdbBulkAllocator& getResultStreamAlloc()
+  { return m_resultStreamAlloc; }
+
   NdbBulkAllocator& getTupleSetAlloc()
   { return m_tupleSetAlloc; }
+
+  NdbBulkAllocator& getRowBufferAlloc()
+  { return m_rowBufferAlloc; }
 
 private:
   /** Possible return values from NdbQueryImpl::awaitMoreResults. 
@@ -275,7 +281,7 @@ private:
   class SharedFragStack{
   public:
     // For calculating need for dynamically allocated memory.
-    static const Uint32 pointersPerFragment = 2;
+    static const Uint32 pointersPerFragment = 1;
 
     explicit SharedFragStack();
 
@@ -320,7 +326,7 @@ private:
   class OrderedFragSet{
   public:
     // For calculating need for dynamically allocated memory.
-    static const Uint32 pointersPerFragment = 1;
+    static const Uint32 pointersPerFragment = 2;
 
     explicit OrderedFragSet();
 
@@ -342,9 +348,11 @@ private:
     /** Get the root fragment from which to read the next row.*/
     NdbRootFragment* getCurrent() const;
 
-    /** Re-organize the fragments after a row has been consumed. This is 
-     * needed to remove fragements that has been needed, and to re-sort 
-     * fragments if doing a sorted scan.*/
+    /**
+     * Re-organize the fragments after a row has been consumed. This is 
+     * needed to remove fragments that has been emptied, and to re-sort 
+     * fragments if doing a sorted scan.
+     */
     void reorganize();
 
     /** Add a complete fragment that has been received.*/
@@ -353,12 +361,14 @@ private:
     /** Reset object to an empty state.*/
     void clear();
 
-    /** Get a fragment where all rows have been consumed. (This method is 
-     * not idempotent - the fragment is removed from the set. 
-     * @return Emptied fragment (or NULL if there are no more emptied 
-     * fragments).
+    /**
+     * Get all fragments where more rows may be (pre-)fetched.
+     * (This method is not idempotent - the fragments are removed
+     * from the set.)
+     * @return Number of fragments (in &frags) from which more 
+     * results should be requested.
      */
-    NdbRootFragment* getEmpty();
+    Uint32 getFetchMore(NdbRootFragment** &rootFrags);
 
   private:
 
@@ -543,7 +553,8 @@ private:
   /** Send SCAN_NEXTREQ signal to fetch another batch from a scan query
    * @return 0 if send succeeded, -1 otherwise.
    */
-  int sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend);
+  int sendFetchMore(NdbRootFragment* rootFrags[], Uint32 cnt,
+                    bool forceSend);
 
   /** Wait for more scan results which already has been REQuested to arrive.
    * @return 0 if some rows did arrive, a negative value if there are errors (in m_error.code),
@@ -577,13 +588,10 @@ private:
    *  the result.
    *  @return: 'true' if its time to resume appl. threads
    */ 
-  bool handleBatchComplete(Uint32 rootFragNo);
+  bool handleBatchComplete(NdbRootFragment& rootFrag);
 
   NdbBulkAllocator& getPointerAlloc()
   { return m_pointerAlloc; }
-  
-  NdbBulkAllocator& getRowBufferAlloc()
-  { return m_rowBufferAlloc; }
 
 }; // class NdbQueryImpl
 
@@ -705,10 +713,6 @@ public:
   int setInterpretedCode(const NdbInterpretedCode& code);
   bool hasInterpretedCode() const;
 
-  NdbResultStream& getResultStream(Uint32 rootFragNo) const;
-
-  const NdbReceiver& getReceiver(Uint32 rootFragNo) const;
-
   /** Verify magic number.*/
   bool checkMagicNumber() const
   { return m_magic == MAGIC; }
@@ -718,6 +722,12 @@ public:
    */
   Uint32 getMaxBatchRows() const
   { return m_maxBatchRows; }
+
+  /** Get size of row as required to buffer it. */  
+  Uint32 getRowSize() const;
+
+  const NdbRecord* getNdbRecord() const
+  { return m_ndbRecord; }
 
 private:
 
@@ -742,16 +752,9 @@ private:
   /** Max rows (per resultStream) in a scan batch.*/
   Uint32 m_maxBatchRows;
 
-  /** For processing results from this operation (Array of).*/
-  NdbResultStream** m_resultStreams;
   /** Buffer for parameters in serialized format */
   Uint32Buffer m_params;
 
-  /** Buffer size allocated for *each* ResultStream/Receiver when 
-   *  fetching results.*/
-  Uint32 m_bufferSize;
-  /** Used for checking if buffer overrun occurred. */
-  Uint32* m_batchOverflowCheck;
   /** User specified buffer for final storage of result.*/
   char* m_resultBuffer;
   /** User specified pointer to application pointer that should be 
@@ -819,9 +822,6 @@ private:
   Uint32 calculateBatchedRows(const NdbQueryOperationImpl* closestScan);
   void setBatchedRows(Uint32 batchedRows);
 
-  /** Construct and prepare receiver streams for result processing. */
-  int prepareReceiver();
-
   /** Prepare ATTRINFO for execution. (Add execution params++)
    *  @return possible error code.*/
   int prepareAttrInfo(Uint32Buffer& attrInfo);
@@ -863,7 +863,6 @@ private:
   bool diskInUserProjection() const
   { return m_diskInUserProjection; }
 
-  Uint32 getRowSize() const;
 }; // class NdbQueryOperationImpl
 
 

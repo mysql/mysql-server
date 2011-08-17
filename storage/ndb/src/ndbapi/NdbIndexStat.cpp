@@ -656,6 +656,82 @@ NdbIndexStat::get_rule(const Stat& stat_f, char* buffer)
   DBUG_VOID_RETURN;
 }
 
+// events and polling
+
+int
+NdbIndexStat::create_sysevents(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::create_sysevents");
+  if (m_impl.create_sysevents(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::drop_sysevents(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::drop_sysevents");
+  if (m_impl.drop_sysevents(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::check_sysevents(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::check_sysevents");
+  if (m_impl.check_sysevents(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::create_listener(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::create_listener");
+  if (m_impl.create_listener(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::execute_listener(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::execute_listener");
+  if (m_impl.execute_listener(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::poll_listener(Ndb* ndb, int max_wait_ms)
+{
+  DBUG_ENTER("NdbIndexStat::poll_listener");
+  int ret = m_impl.poll_listener(ndb, max_wait_ms);
+  if (ret == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(ret);
+}
+
+int
+NdbIndexStat::next_listener(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::next_listener");
+  int ret = m_impl.next_listener(ndb);
+  if (ret == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(ret);
+}
+
+int
+NdbIndexStat::drop_listener(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::drop_listener");
+  if (m_impl.drop_listener(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
 // mem
 
 NdbIndexStat::Mem::Mem()

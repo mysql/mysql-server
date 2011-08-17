@@ -59,7 +59,7 @@ public class NdbOpenJPABrokerFactory extends JDBCBrokerFactory {
      * Invoked from {@link Bootstrap#getBrokerFactory}.
      */
     public static NdbOpenJPABrokerFactory getInstance(ConfigurationProvider cp) {
-        Map<?, ?> props = cp.getProperties();
+        Map<String, Object> props = cp.getProperties();
         Object key = toPoolKey(props);
         NdbOpenJPABrokerFactory factory = (NdbOpenJPABrokerFactory)
             getPooledFactoryForKey(key);

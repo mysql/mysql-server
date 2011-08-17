@@ -117,7 +117,7 @@ public:
   class Endian {
   public:
     enum Value {
-      Native = 0,
+      Native = 0, // replaced by actual value
       Little = 1,
       Big = 2
     };
@@ -300,6 +300,10 @@ public:
    * Instance of an array of data values.  The values are packed into
    * a byte buffer.  The buffer is also maintained as a single varbinary
    * value if non-zero var bytes (length bytes) is specified.
+   *
+   * Data instances can be received from another source (such as table
+   * in database) and may not be native-endian.  Such instances must
+   * first be completed with desc_all() and convert().
    */
   class Data : public DataC {
   public:
@@ -324,7 +328,7 @@ public:
     // convert endian
     int convert(Endian::Value to_endian);
     // create complete instance from buffer contents
-    int desc_all(Uint32 cnt);
+    int desc_all(Uint32 cnt, Endian::Value from_endian);
     // getters
     Uint32 get_max_len() const;
     Uint32 get_max_len4() const;
@@ -351,7 +355,7 @@ public:
     const Uint32 m_varBytes;
     Uint8* m_buf;
     Uint32 m_bufMaxLen;
-    Endian::Value m_endian; // Native until finalize()
+    Endian::Value m_endian;
     // iterator on items added
     Iter m_iter;
   };
@@ -685,7 +689,7 @@ NdbPack::Data::Data(const Spec& spec, bool allNullable, Uint32 varBytes) :
 {
   m_buf = 0;
   m_bufMaxLen = 0;
-  m_endian = Endian::Native;
+  m_endian = Endian::get_endian();
 }
 
 inline void
@@ -704,7 +708,7 @@ NdbPack::Data::reset()
   m_cnt = 0;  // in DataC
   const Uint32 bytes = m_varBytes + m_spec.get_nullmask_len(m_allNullable);
   memset(m_buf, 0, bytes);
-  m_endian = Endian::Native;
+  m_endian = Endian::get_endian();
   m_iter.reset();
 }
 
@@ -713,17 +717,14 @@ NdbPack::Data::finalize()
 {
   if (m_varBytes == 0 ||
       finalize_impl() == 0)
-  {
-    m_endian = Endian::get_endian();
     return 0;
-  }
   return -1;
 }
 
 inline int
 NdbPack::Data::convert(Endian::Value to_endian)
 {
-  if (unlikely(to_endian == Endian::Native))
+  if (to_endian == Endian::Native)
     to_endian = Endian::get_endian();
   if (m_endian == to_endian)
     return 0;

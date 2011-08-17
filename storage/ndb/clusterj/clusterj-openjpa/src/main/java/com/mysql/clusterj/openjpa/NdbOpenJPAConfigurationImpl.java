@@ -30,7 +30,8 @@ import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 
-import java.util.Arrays;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -46,8 +47,11 @@ import org.apache.openjpa.lib.conf.StringValue;
  * Default implementation of the {@link NdbOpenJPAConfiguration} interface.
  * This implementation extends the JDBCConfiguration so both access
  * to MySQLd via JDBC and access to Ndb via ClusterJ are supported.
- *
+ * Type safety: The return type Map for getCacheMarshallerInstances()
+ * from the type OpenJPAConfigurationImpl needs unchecked conversion
+ * to conform to Map<String,CacheMarshaller> from the type OpenJPAConfiguration
  */
+@SuppressWarnings("unchecked")
 public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
     implements NdbOpenJPAConfiguration, com.mysql.clusterj.Constants, DomainTypeHandlerFactory {
 
@@ -72,6 +76,52 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
     private final Map<Class<?>, NdbOpenJPADomainTypeHandlerImpl<?>> domainTypeHandlerMap =
             new HashMap<Class<?>, NdbOpenJPADomainTypeHandlerImpl<?>>();
 
+    /**
+     * These are to bridge an incompatibility between OpenJPA 1.x and 2.x in the handling of configuration
+     * values. In 1.x, the IntValue.get() method returns int and in 2.x it returns Integer.
+     * Similarly, in 1.x BooleanValue.get() returns boolean and in 2.x it returns Boolean.
+     */
+    static private Method intValueMethod;
+    static private Method booleanValueMethod;
+    static {
+        try {
+            intValueMethod = IntValue.class.getMethod("get", (Class[])null);
+            booleanValueMethod = BooleanValue.class.getMethod("get", (Class[])null);
+        } catch (SecurityException e) {
+            throw new ClusterJFatalInternalException(e);
+        } catch (NoSuchMethodException e) {
+            throw new ClusterJFatalInternalException(e);
+        }
+    }
+
+    /** Return the int value from a configuration IntValue.
+     * 
+     */
+    int getIntValue(IntValue value) {
+        try {
+            return (Integer)intValueMethod.invoke(value);
+        } catch (IllegalArgumentException e) {
+            throw new ClusterJFatalInternalException(e);
+        } catch (IllegalAccessException e) {
+            throw new ClusterJFatalInternalException(e);
+        } catch (InvocationTargetException e) {
+            throw new ClusterJFatalInternalException(e);
+        }
+    }
+    /** Return the boolean value from a configuration BooleanValue.
+     * 
+     */
+    boolean getBooleanValue(BooleanValue value) {
+        try {
+            return (Boolean) booleanValueMethod.invoke(value);
+        } catch (IllegalArgumentException e) {
+            throw new ClusterJFatalInternalException(e);
+        } catch (IllegalAccessException e) {
+            throw new ClusterJFatalInternalException(e);
+        } catch (InvocationTargetException e) {
+            throw new ClusterJFatalInternalException(e);
+        }
+    }
     /**
      * Default constructor. Attempts to load default properties.
      */
@@ -143,7 +193,7 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
     }
 
     public int getConnectRetries() {
-        return connectRetries.get();
+        return getIntValue(connectRetries);
     }
 
     public void setConnectRetries(int value) {
@@ -151,7 +201,7 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
     }
 
     public int getConnectDelay() {
-        return connectDelay.get();
+        return getIntValue(connectDelay);
     }
 
     public void setConnectDelay(int value) {
@@ -159,7 +209,7 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
     }
 
     public int getConnectVerbose() {
-        return connectVerbose.get();
+        return getIntValue(connectVerbose);
     }
 
     public void setConnectVerbose(int value) {
@@ -167,7 +217,7 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
     }
 
     public int getConnectTimeoutBefore() {
-        return connectTimeoutBefore.get();
+        return getIntValue(connectTimeoutBefore);
     }
 
     public void setConnectTimeoutBefore(int value) {
@@ -175,7 +225,7 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
     }
 
     public int getConnectTimeoutAfter() {
-        return connectTimeoutAfter.get();
+        return getIntValue(connectTimeoutAfter);
     }
 
     public void setConnectTimeoutAfter(int value) {
@@ -207,7 +257,7 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
     }
 
     public int getMaxTransactions() {
-        return maxTransactions.get();
+        return getIntValue(maxTransactions);
     }
 
     public void setMaxTransactions(int value) {
@@ -215,7 +265,7 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
     }
 
     public boolean getFailOnJDBCPath() {
-        return failOnJDBCPath.get();
+        return getBooleanValue(failOnJDBCPath);
     }
 
     public void setFailOnJDBCPath(boolean value) {
@@ -327,7 +377,6 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
      * handler when performing a clusterj query for an openjpa entity. The class
      * must have already been registered via the openjpa clusterj path.
      */
-    @SuppressWarnings("unchecked")
     public <T> DomainTypeHandler<T> createDomainTypeHandler(
             Class<T> domainClass, Dictionary dictionary) {
         DomainTypeHandler<T> result = (DomainTypeHandler<T>) domainTypeHandlerMap.get(domainClass);
