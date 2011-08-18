@@ -184,6 +184,9 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
 
   vio_init(vio, type, sd, flags);
 
+  /* Preserve perfschema info for this connection */
+  vio->mysql_socket.m_psi= old_vio.mysql_socket.m_psi;
+
 #ifdef HAVE_OPENSSL
   vio->ssl_arg= ssl;
 #endif
