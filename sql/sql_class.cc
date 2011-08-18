@@ -680,8 +680,8 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
-                   "MySQL thread id %lu, query id %lu",
-                   thd->thread_id, (ulong) thd->query_id);
+                   "MySQL thread id %lu, OS thread handle 0x%lx, query id %lu",
+                   thd->thread_id, (ulong) thd->real_id, (ulong) thd->query_id);
   str.length(0);
   str.append(header, len);
 
@@ -2097,7 +2097,8 @@ void THD::rollback_item_tree_changes()
 ** Functions to provide a interface to select results
 *****************************************************************************/
 
-select_result::select_result()
+select_result::select_result():
+  estimated_rowcount(0)
 {
   thd=current_thd;
 }
@@ -3317,7 +3318,11 @@ void TMP_TABLE_PARAM::init()
   quick_group= 1;
   table_charset= 0;
   precomputed_group_by= 0;
+  skip_create_table= 0;
   bit_fields_as_long= 0;
+  recinfo= 0;
+  start_recinfo= 0;
+  keyinfo= 0;
   DBUG_VOID_RETURN;
 }
 

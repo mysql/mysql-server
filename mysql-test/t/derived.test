@@ -314,6 +314,153 @@ DROP TABLE t1;
 
 --echo # End of 5.0 tests
 
+--echo #
+--echo # Bug#55586: Crash JOIN of two subqueries in FROM + ORDER BY and GROUP BY
+--echo #
+CREATE TABLE C (
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+);
+
+INSERT INTO C VALUES (2,'w','w');
+INSERT INTO C VALUES (2,'d','d');
+--sorted_result
+SELECT SUM(DISTINCT table2.col_int_key) field1, 
+       table1.col_varchar_key field2 
+FROM 
+  (SELECT * FROM C  ) table1
+  JOIN (SELECT * FROM C  ) table2
+  ON table2 .`col_varchar_key` = table1 .`col_varchar_nokey` 
+GROUP  BY field2
+ORDER  BY field1;
+
+DROP TABLE C;
+--echo # End of test for bug#55586
+
+--echo #
+--echo # Bug#55561: Crash on JOIN with 2 FROM subqueries
+--echo #
+CREATE TABLE C (
+  col_int int DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL
+);
+
+INSERT INTO `C` VALUES (0,NULL);
+INSERT INTO `C` VALUES (5,'y');
+ 
+SELECT table1.col_varchar
+FROM 
+ ( SELECT * FROM C  ) table1  
+ JOIN ( SELECT * FROM C  ) table2  ON table2.col_varchar = table1.col_varchar
+WHERE 
+  table2.col_varchar < table2.col_varchar
+  AND table1.col_varchar != 'k' 
+LIMIT  1;
+DROP TABLE C;
+--echo # End on bug#55561
+
+--echo #
+--echo # Bug#56233: Hang during key generation for derived tables
+--echo #
+CREATE TABLE C (
+  col_varchar_10_key varchar(10) DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  pk int NOT NULL AUTO_INCREMENT,
+  col_date_key date DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_10_key` (`col_varchar_10_key`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_date_key` (`col_date_key`)
+);
+
+INSERT INTO C VALUES ('ok',3,1,'2003-04-02');
+
+CREATE ALGORITHM=TEMPTABLE VIEW viewC AS SELECT * FROM C;
+
+SELECT  table1.col_date_key AS field1 
+FROM
+  C AS table1
+WHERE 
+  (table1.col_int_key <=ANY 
+    ( SELECT SUBQUERY1_t1.col_int_key 
+      FROM viewC AS SUBQUERY1_t1 
+      WHERE SUBQUERY1_t1.col_varchar_10_key <= table1.col_varchar_10_key 
+    ) 
+  )
+;
+DROP TABLE C;
+DROP VIEW viewC;
+--echo #
+
+--echo #
+--echo # Bug#55950: FROM Subquery joined by 2 varchar fields returns empty
+--echo #            set
+--echo #
+CREATE TABLE `CC` (
+  `i1` varchar(1) DEFAULT NULL,
+  `i2` varchar(1) DEFAULT NULL
+);
+
+INSERT INTO `CC` VALUES ('m','m');
+INSERT INTO `CC` VALUES ('c','c');
+
+CREATE TABLE `C` (
+  `o1` varchar(1) DEFAULT NULL
+);
+
+INSERT INTO `C` VALUES ('m');
+ 
+SELECT table1 . o1 
+FROM C table1  
+  JOIN ( C table2  
+    JOIN ( SELECT * FROM CC ) table3  
+    ON table3 .`i1`  = table2 .o1  
+  ) ON table3 .`i2`  = table2 .o1   
+;
+
+--echo # Ref access to the derived table should be used.
+EXPLAIN SELECT table1 . o1 
+FROM C table1  
+  JOIN ( C table2  
+    JOIN ( SELECT * FROM CC ) table3  
+    ON table3 .`i1`  = table2 .o1  
+  ) ON table3 .`i2`  = table2 .o1   
+;
+
+DROP TABLE CC;
+DROP TABLE C;
+--echo # End of test for bug#55950
+
+--echo #
+--echo # Bug#56592: Subquery with DISTINCT in FROM clause returns only partial
+--echo # result
+--echo #
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (2, 9, NULL), (3, 3, '1900-01-01 00:00:00'),
+(8, 8, '1900-01-01 00:00:00'), (15, 0, '2007-12-15 12:39:34');
+
+SELECT * FROM ( 
+  SELECT DISTINCT tableB.col_datetime_key 
+  FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
+) AS FROM_SUBQUERY;
+
+EXPLAIN SELECT * FROM ( 
+  SELECT DISTINCT tableB.col_datetime_key 
+  FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
+) AS FROM_SUBQUERY;
+
+EXPLAIN SELECT * FROM ( 
+  SELECT DISTINCT tableA.col_datetime_key 
+  FROM t1 tableA LEFT JOIN t1 tableB ON tableA.pk < tableB.col_int_key
+) AS FROM_SUBQUERY;
+
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#58730 Assertion failed: table->key_read == 0 in close_thread_table,
@@ -335,3 +482,426 @@ EXPLAIN SELECT 1 FROM t1 JOIN v1 ON 1 > (SELECT 1 FROM v2);
 
 DROP TABLE t1, t2;
 DROP VIEW v1, v2;
+
+--echo #
+--echo # WL#5274: Postpone materialization of views/subqueries in FROM clause.
+--echo #          Additional tests.
+--echo #
+# TODO: update test result after WL#5275 is pushed
+CREATE TABLE t1(f1 int, f11 int);
+CREATE TABLE t2(f2 int, f22 int);
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3),(5,5),(9,9),(7,7);
+INSERT INTO t2 VALUES(1,1),(3,3),(2,2),(4,4),(8,8),(6,6);
+
+--echo for merged derived tables
+--echo  explain for simple derived
+EXPLAIN SELECT * FROM (SELECT * FROM t1) tt;
+SELECT * FROM (SELECT * FROM t1) tt;
+--echo  explain for multitable derived
+EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
+SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
+--echo  explain for derived with where
+FLUSH STATUS;
+EXPLAIN EXTENDED 
+  SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt WHERE f11=2;
+SHOW STATUS LIKE 'Handler_read%';
+FLUSH STATUS;
+SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt WHERE f11=2;
+SHOW STATUS LIKE 'Handler_read%';
+
+--echo join of derived
+EXPLAIN EXTENDED 
+  SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt JOIN
+  (SELECT * FROM t1 WHERE f1 IN (1,2)) aa ON tt.f1=aa.f1;
+SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt JOIN
+  (SELECT * FROM t1 WHERE f1 IN (1,2)) aa ON tt.f1=aa.f1;
+
+--echo for merged views
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t1 JOIN t2 ON f1=f2;
+CREATE VIEW v3 AS SELECT * FROM t1 WHERE f1 IN (2,3);
+CREATE VIEW v4 AS SELECT * FROM t2 WHERE f2 IN (2,3);
+--echo  explain for simple views
+EXPLAIN EXTENDED SELECT * FROM v1;
+SELECT * FROM v1;
+--echo  explain for multitable views
+EXPLAIN EXTENDED SELECT * FROM v2;
+SELECT * FROM v2;
+--echo  explain for views with where
+EXPLAIN EXTENDED SELECT * FROM v3 WHERE f11 IN (1,3);
+SELECT * FROM v3 WHERE f11 IN (1,3);
+--echo explain for joined views
+EXPLAIN EXTENDED
+  SELECT * FROM v3 JOIN v4 ON f1=f2;
+SELECT * FROM v3 JOIN v4 ON f1=f2;
+
+FLUSH STATUS;
+EXPLAIN EXTENDED SELECT * FROM v4 WHERE f2 IN (1,3);
+SHOW STATUS LIKE 'Handler_read%';
+FLUSH STATUS;
+SELECT * FROM v4 WHERE f2 IN (1,3);
+SHOW STATUS LIKE 'Handler_read%';
+
+--echo for materialized derived tables
+--echo  explain for simple derived
+EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM t1 GROUP BY f1) tt;
+SELECT * FROM (SELECT * FROM t1 HAVING f1=f1) tt;
+--echo  explain showing created indexes and late materialization
+FLUSH STATUS;
+EXPLAIN EXTENDED
+  SELECT * FROM t1 JOIN (SELECT * FROM t2 GROUP BY f2) tt ON f1=f2;
+SHOW STATUS LIKE 'Handler_read%';
+FLUSH STATUS;
+SELECT * FROM t1 JOIN (SELECT * FROM t2 GROUP BY f2) tt ON f1=f2;
+SHOW STATUS LIKE 'Handler_read%';
+
+--echo for materialized views
+DROP VIEW v1,v2,v3;
+CREATE VIEW v1 AS SELECT * FROM t1 GROUP BY f1;
+CREATE VIEW v2 AS SELECT * FROM t2 GROUP BY f2;
+CREATE VIEW v3 AS SELECT t1.f1,t1.f11 FROM t1 JOIN t1 AS t11 HAVING t1.f1<100;
+--echo  explain for simple derived
+EXPLAIN EXTENDED SELECT * FROM v1;
+SELECT * FROM v1;
+--echo  explain showing created indexes and late materialization for views
+FLUSH STATUS;
+EXPLAIN EXTENDED SELECT * FROM t1 JOIN v2 ON f1=f2;
+SHOW STATUS LIKE 'Handler_read%';
+FLUSH STATUS;
+SELECT * FROM t1 JOIN v2 ON f1=f2;
+SHOW STATUS LIKE 'Handler_read%';
+
+EXPLAIN EXTENDED
+  SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
+FLUSH STATUS;
+SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
+SHOW STATUS LIKE 'Handler_read%';
+--echo  explain showing late materialization for views
+EXPLAIN EXTENDED SELECT * FROM v1 JOIN v4 ON f1=f2;
+SELECT * FROM v1 JOIN v4 ON f1=f2;
+
+--echo merged derived in merged derived
+EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
+SELECT * FROM (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
+
+--echo materialized derived in merged derived
+EXPLAIN EXTENDED  SELECT * FROM (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
+SELECT * FROM (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
+
+--echo merged derived in materialized derived
+EXPLAIN  extended SELECT * FROM (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
+SELECT * FROM (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
+
+--echo materialized derived in materialized derived
+EXPLAIN EXTENDED  SELECT * FROM (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
+SELECT * FROM (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
+
+--echo mat in merged derived join mat in merged derived
+EXPLAIN EXTENDED  SELECT * FROM 
+ (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) x
+JOIN 
+ (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) z
+ ON x.f1 = z.f1;
+
+FLUSH STATUS;
+SELECT * FROM 
+ (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) x
+JOIN 
+ (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) z
+ ON x.f1 = z.f1;
+SHOW STATUS LIKE 'Handler_read%';
+FLUSH STATUS;
+
+--echo merged in merged derived join merged in merged derived
+EXPLAIN EXTENDED  SELECT * FROM 
+ (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) x
+JOIN 
+ (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) z
+ ON x.f1 = z.f1;
+
+SELECT * FROM 
+ (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) x
+JOIN 
+ (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) z
+ ON x.f1 = z.f1;
+
+--echo materialized in materialized derived join 
+--echo   materialized in materialized derived
+EXPLAIN EXTENDED  SELECT * FROM 
+ (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) x
+JOIN 
+ (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) z
+ ON x.f1 = z.f1;
+
+SELECT * FROM 
+ (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) x
+JOIN 
+ (SELECT * FROM 
+  (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) z
+ ON x.f1 = z.f1;
+
+--echo merged view in materialized derived
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
+SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
+
+--echo materialized view in merged derived
+EXPLAIN EXTENDED 
+SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
+SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
+
+--echo merged view in a merged view in a merged derived
+CREATE VIEW v6 AS SELECT * FROM v4 WHERE f2 < 7;
+EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM v6) tt;
+SELECT * FROM (SELECT * FROM v6) tt;
+
+--echo materialized view in a merged view in a materialized derived
+CREATE VIEW v7 AS SELECT * FROM v1;
+EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
+SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
+
+--echo JOIN of above two
+EXPLAIN EXTENDED SELECT * FROM v6 JOIN v7 ON f2=f1;
+SELECT * FROM v6 JOIN v7 ON f2=f1;
+
+--echo test two keys
+CREATE TABLE t3(f3 INT, f33 INT);
+INSERT INTO t1 VALUES(6,6),(8,8);
+INSERT INTO t3 VALUES(1,1),(2,2),(3,3),(5,5);
+let $query= SELECT * FROM t1 JOIN (SELECT * FROM t2) tt ON t1.f1=tt.f2
+  JOIN t3 ON tt.f22=t3.f3;
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+DROP TABLE t1,t2,t3; 
+DROP VIEW v1,v2,v3,v4,v6,v7;
+
+--echo #
+
+--echo #
+--echo # BUG#11783262: CRASH IN ITEM_FIELD::ITEM_FIELD IN ITEM.CC ON SUBQUERY
+--echo #               IN FROM WITH WL5274 
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT,
+  col_time_key time,
+  col_varchar_key VARCHAR(1),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=INNODB;
+SELECT alias1.col_time_key AS field1
+FROM ( ( SELECT SQ1_alias1.* FROM t1 AS SQ1_alias1 ) AS alias1
+  INNER JOIN t1 AS alias2
+  ON (alias2.col_int_key = alias1.col_int_key)
+  )
+WHERE alias1.col_int_key = 207
+ORDER BY alias1.col_varchar_key, field1;
+
+DROP TABLE t1; 
+--echo #
+--echo # Bug#11807437: VALGRIND WARNING IN MYSQL_DERIVED_OPTIMIZE() LINE 293
+--echo #
+CREATE TABLE t1 (
+  f1 int(11) DEFAULT NULL
+);
+
+SELECT 1
+FROM (
+  SELECT 1, 2 FROM DUAL
+  WHERE EXISTS  (
+    SELECT f1
+    FROM  t1
+    )) AS tt
+;
+
+DROP TABLE t1;
+--echo #
+
+--echo #
+--echo # Bug#11808582: VALGRIND ON WL#5274: INVALID WRITE IN MC_REPLACE_STRMEM.C:493) 
+--echo #
+CREATE TABLE t1 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  col_int_key INT,
+  col_time_key time,
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+SELECT tt.col_time_key
+FROM ( ( SELECT * FROM t1 ) AS tt
+  INNER JOIN t1
+  ON (t1.col_int_key = tt.col_int_key)
+  )
+WHERE tt.col_int_key = 207
+ORDER BY tt.col_varchar_key, tt.pk ASC, 1;
+
+DROP TABLE t1;
+--echo #
+--echo # Bug#11791677 - ASSERTION FAILED IN JOIN_MATERIALIZE_TABLE IN
+--echo #                SQL_SELECT.CC ON NESTED SUBQUERY 
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (10,8,'v'), (29,4,'c');
+  
+CREATE TABLE t2 (  
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_nokey int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (16,1,'c'), (20,4,'d');
+
+CREATE TABLE t3 (
+  `field1` varchar(1) DEFAULT NULL,
+  `field2` int(11) DEFAULT NULL
+);
+
+INSERT INTO t3 VALUES ('m',6),('c',4);
+
+SELECT *
+FROM t3
+WHERE (field1, field2) IN (
+  SELECT t1.col_varchar_key AS field1,
+         t1.col_int_key AS field2
+  FROM ( t1 INNER JOIN (
+      SELECT t2.*
+      FROM t2
+      WHERE t2.col_int_nokey < t2.pk ) AS alias2
+    ON (alias2.col_varchar_key = t1.col_varchar_key ) )
+  GROUP BY field1, field2
+  ORDER BY t1.col_int_key, t1 .pk DESC )
+;
+
+DROP TABLE t1,t2,t3;
+--echo #
+
+--echo #
+--echo # Bug#11791705 - CRASH IN JOIN_MATERIALIZE_TABLE OR ASSERTION FAIL:
+--echo #                !TAB->SAVE_READ_FIRST_RECORD
+--echo #
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (NULL),(NULL);
+
+SELECT * FROM t1
+WHERE (a, a) NOT IN
+  (SELECT * FROM (SELECT 8, 4 UNION SELECT 2, 3) tt) ;
+
+DROP TABLE t1; 
+--echo #
+--echo # Bug#11791649 - ASSERT: FIXED == 0, IN ITEM.CC ON EXPLAIN WITH VIEW
+--echo #                IN SUBQUERY 
+--echo #
+CREATE TABLE t1 (pk int);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (col_varchar_nokey varchar(1));
+INSERT INTO t2 VALUES ('m'), ('f');
+
+EXPLAIN SELECT pk
+FROM t1
+WHERE (2) IN
+  ( SELECT *
+     FROM (SELECT COUNT(col_varchar_nokey) FROM t2) d
+  )
+; 
+DROP TABLE t1,t2;
+--echo #
+
+--echo #
+--echo # Bug#12735934 - Lost LIMIT clause caused wrong result.
+--echo #
+CREATE TABLE t1 (f1 VARCHAR(1), key(f1));
+INSERT INTO t1 VALUES ('a');
+CREATE VIEW v1 AS SELECT f1 FROM t1 ORDER BY 1 LIMIT 0;
+SELECT * FROM v1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+
+--echo #
+--echo # Bug#12726927: An outdated assertion caused server failure.
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_nokey int(11) NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (10,1,'v'), (24,18,'h');
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_date_key date NOT NULL,
+  col_date_nokey date NOT NULL,
+  col_time_nokey time NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_date_key (col_date_key),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (1,'1900-01-01','1900-01-01','00:00:00','k','k');
+
+SELECT OUTR.col_date_key
+FROM t2 AS OUTR2
+  LEFT JOIN t2 AS OUTR ON OUTR2.pk < OUTR.pk
+WHERE ( OUTR.col_varchar_nokey , OUTR.col_varchar_key )
+  IN (
+    SELECT DISTINCT col_varchar_key , col_varchar_key
+    FROM t1
+    WHERE col_int_nokey XOR OUTR.col_time_nokey
+  )
+  XOR OUTR.col_date_nokey IS NULL
+;
+
+DROP TABLE t1,t2;
+--echo #
+
+--echo #
+--echo # Bug#12799731 - CRASH IN END_READ_RECORD.
+--echo #
+create table t1(f1 char(255) charset utf8);
+insert into t1 values('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
+set @save_heap_size= @@max_heap_table_size;
+set @@max_heap_table_size= 1;
+flush status;
+select count(*) from t1 join (
+  select t1.f1 from t1 join t1 as t2 join t1 as t3) tt on t1.f1 = tt.f1;
+--echo Should be greater than 1000 as it also includes records dumped from
+--echo heap to myisam.
+show status like 'Handler_write';
+set @@max_heap_table_size= @save_heap_size;
+drop table t1;
+
+--echo #
+

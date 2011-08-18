@@ -3371,6 +3371,11 @@ protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
 public:
+  /**
+    Number of records estimated in this result.
+    Valid only for materialized derived tables/views.
+  */
+  ha_rows estimated_rowcount;
   select_result();
   virtual ~select_result() {};
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
@@ -3652,6 +3657,13 @@ public:
   */
   bool precomputed_group_by;
   bool force_copy_fields;
+  /**
+    TRUE <=> don't actually create table handler when creating the result
+    table. This allows range optimizer to add indexes later.
+    Used for materialized derived tables/views.
+    @see TABLE_LIST::update_derived_keys.
+  */
+  bool skip_create_table;
   /*
     If TRUE, create_tmp_field called from create_tmp_table will convert
     all BIT fields to 64-bit longs. This is a workaround the limitation
@@ -3663,7 +3675,7 @@ public:
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
-     bit_fields_as_long(0)
+     skip_create_table(FALSE), bit_fields_as_long(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -3694,7 +3706,9 @@ public:
   void cleanup();
   bool create_result_table(THD *thd, List<Item> *column_types,
                            bool is_distinct, ulonglong options,
-                           const char *alias, bool bit_fields_as_long);
+                           const char *alias, bool bit_fields_as_long,
+                           bool create_table);
+  friend bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived);
 };
 
 /* Base subselect interface class */
