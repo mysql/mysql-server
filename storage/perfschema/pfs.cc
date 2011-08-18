@@ -2841,13 +2841,14 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     return NULL;
 
   register uint flags;
+  PFS_thread *pfs_thread= pfs_socket->m_thread_owner;
 
-  if (flag_thread_instrumentation)
+  if (flag_thread_instrumentation && likely(pfs_thread != NULL))
   {
-    PFS_thread *pfs_thread= pfs_socket->m_thread_owner;
+    // PFS_thread *pfs_thread= pfs_socket->m_thread_owner;
 
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
+    //if (unlikely(pfs_thread == NULL))
+    //  return NULL;
 
     /*
       If instrumentation for this thread has been disabled, then return a null
