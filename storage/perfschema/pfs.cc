@@ -2848,8 +2848,13 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     if (unlikely(pfs_thread == NULL))
       return NULL;
 
+#ifdef LATER
+    /*
+      Needs refinement, because of KILL.
+    */
     DBUG_ASSERT(pfs_thread ==
                 my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
+#endif
 
     if (!pfs_thread->m_enabled)
       return NULL;
