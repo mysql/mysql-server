@@ -2835,17 +2835,24 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     return NULL;
 
   DBUG_ASSERT(pfs_socket->m_class != NULL);
-  DBUG_ASSERT(!(pfs_socket->m_idle && op == PSI_SOCKET_CLOSE));
+
+  my_bool socket_close= false;
+  register uint flags= 0;
 
   if (!pfs_socket->m_enabled || pfs_socket->m_idle)
-    return NULL;
+  {
+    if (op == PSI_SOCKET_CLOSE)
+      socket_close= true;
+    else
+      return NULL;
+  }
 
-  register uint flags;
   PFS_thread *pfs_thread= pfs_socket->m_thread_owner;
 
-  if (flag_thread_instrumentation && likely(pfs_thread != NULL))
+  if (flag_thread_instrumentation && likely(pfs_thread != NULL) &&
+      likely(!socket_close))
   {
-    // PFS_thread *pfs_thread= pfs_socket->m_thread_owner;
+    //PFS_thread *pfs_thread= pfs_socket->m_thread_owner;
 
     //if (unlikely(pfs_thread == NULL))
     //  return NULL;
@@ -2857,9 +2864,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     */
     if (!pfs_thread->m_enabled)
     {
-      if (op == PSI_SOCKET_CLOSE)
-        flags= 0;
-      else
+      if (op != PSI_SOCKET_CLOSE)
         return NULL;
     }
     else
@@ -2902,38 +2907,39 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   }
   else
   {
-    if (pfs_socket->m_timed)
+    if (!socket_close)
     {
-      flags= STATE_FLAG_TIMED;
-    }
-    else
-    {
-      flags= 0;
-
-      /*
-        Even if timing is disabled, end_socket_wait() still needs a locker to
-        capture the number of bytes sent or received by the socket operation.
-        For operations that do not have a byte count, then just increment the
-        event counter and return a NULL locker.
-      */
-      switch (op)
+      if (pfs_socket->m_timed)
       {
-      case PSI_SOCKET_CONNECT:
-      case PSI_SOCKET_CREATE:
-      case PSI_SOCKET_BIND:
-      case PSI_SOCKET_SEEK:
-      case PSI_SOCKET_OPT:
-      case PSI_SOCKET_STAT:
-      case PSI_SOCKET_SHUTDOWN:
-      case PSI_SOCKET_CLOSE:
-      case PSI_SOCKET_SELECT:
+        flags= STATE_FLAG_TIMED;
+      }
+      else
+      {
+        /*
+          Even if timing is disabled, end_socket_wait() still needs a locker to
+          capture the number of bytes sent or received by the socket operation.
+          For operations that do not have a byte count, then just increment the
+          event counter and return a NULL locker.
+        */
+        switch (op)
         {
-        pfs_socket->m_socket_stat.m_io_stat.m_misc.aggregate_counted();
-        return NULL;
+        case PSI_SOCKET_CONNECT:
+        case PSI_SOCKET_CREATE:
+        case PSI_SOCKET_BIND:
+        case PSI_SOCKET_SEEK:
+        case PSI_SOCKET_OPT:
+        case PSI_SOCKET_STAT:
+        case PSI_SOCKET_SHUTDOWN:
+        case PSI_SOCKET_CLOSE:
+        case PSI_SOCKET_SELECT:
+          {
+          pfs_socket->m_socket_stat.m_io_stat.m_misc.aggregate_counted();
+          return NULL;
+          }
+          break;
+        default:
+          break;
         }
-        break;
-      default:
-        break;
       }
     }
   }
