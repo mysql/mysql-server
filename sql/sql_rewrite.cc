@@ -362,6 +362,8 @@ void mysql_rewrite_query(THD *thd)
 {
   String *rlb= &thd->rewritten_query;
 
+  rlb->free();
+
   switch(thd->lex->sql_command)
   {
   case SQLCOM_GRANT:         mysql_rewrite_grant(thd, rlb);         break;
