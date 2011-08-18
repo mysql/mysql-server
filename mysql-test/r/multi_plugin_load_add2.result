@@ -10,5 +10,5 @@ ORDER BY 1;
 PLUGIN_NAME	PLUGIN_STATUS
 qa_auth_server	ACTIVE
 test_plugin_server	ACTIVE
-SELECT * FROM MYSQL.PLUGIN ORDER BY name;
+SELECT * FROM mysql.plugin ORDER BY name;
 name	dl
