@@ -2836,93 +2836,75 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
 
   DBUG_ASSERT(pfs_socket->m_class != NULL);
 
-  my_bool socket_close= false;
+  if (!pfs_socket->m_enabled || pfs_socket->m_idle)
+    return NULL;
+
   register uint flags= 0;
 
-  if (!pfs_socket->m_enabled || pfs_socket->m_idle)
+  if (flag_thread_instrumentation)
   {
-    if (op == PSI_SOCKET_CLOSE)
-      socket_close= true;
-    else
+    PFS_thread *pfs_thread= pfs_socket->m_thread_owner;
+
+    if (unlikely(pfs_thread == NULL))
       return NULL;
-  }
 
-  PFS_thread *pfs_thread= pfs_socket->m_thread_owner;
+    DBUG_ASSERT(pfs_thread ==
+                my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
 
-  if (flag_thread_instrumentation && likely(pfs_thread != NULL) &&
-      likely(!socket_close))
-  {
-    //PFS_thread *pfs_thread= pfs_socket->m_thread_owner;
-
-    //if (unlikely(pfs_thread == NULL))
-    //  return NULL;
-
-    /*
-      If instrumentation for this thread has been disabled, then return a null
-      locker *unless* this is a socket close, in which case end_socket_wait()
-      will later call destroy_socket().
-    */
     if (!pfs_thread->m_enabled)
-    {
-      if (op != PSI_SOCKET_CLOSE)
-        return NULL;
-    }
-    else
-    {
-      state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
-      flags= STATE_FLAG_THREAD;
+      return NULL;
 
-      if (pfs_socket->m_timed & !pfs_socket->m_idle)
-        flags|= STATE_FLAG_TIMED;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
 
-      if (flag_events_waits_current)
+    if (pfs_socket->m_timed && !pfs_socket->m_idle)
+      flags|= STATE_FLAG_TIMED;
+
+    if (flag_events_waits_current)
+    {
+      if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
       {
-        if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
-        {
-          locker_lost++;
-          return NULL;
-        }
-        PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
-        state->m_wait= wait;
-        flags|= STATE_FLAG_EVENT;
-
-        PFS_events_waits *parent_event= wait - 1;
-        wait->m_event_type= EVENT_TYPE_WAIT;
-        wait->m_nesting_event_id=   parent_event->m_event_id;
-        wait->m_nesting_event_type= parent_event->m_event_type;
-        wait->m_thread=       pfs_thread;
-        wait->m_class=        pfs_socket->m_class;
-        wait->m_timer_start=  0;
-        wait->m_timer_end=    0;
-        wait->m_object_instance_addr= pfs_socket->m_identity;
-        wait->m_weak_socket=  pfs_socket;
-        wait->m_weak_version= pfs_socket->get_version();
-        wait->m_event_id=     pfs_thread->m_event_id++;
-        wait->m_operation=    socket_operation_map[static_cast<int>(op)];
-        wait->m_wait_class=   WAIT_CLASS_SOCKET;
-
-        pfs_thread->m_events_waits_count++;
+        locker_lost++;
+        return NULL;
       }
+      PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+      state->m_wait= wait;
+      flags|= STATE_FLAG_EVENT;
+
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id=   parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
+      wait->m_thread=       pfs_thread;
+      wait->m_class=        pfs_socket->m_class;
+      wait->m_timer_start=  0;
+      wait->m_timer_end=    0;
+      wait->m_object_instance_addr= pfs_socket->m_identity;
+      wait->m_weak_socket=  pfs_socket;
+      wait->m_weak_version= pfs_socket->get_version();
+      wait->m_event_id=     pfs_thread->m_event_id++;
+      wait->m_operation=    socket_operation_map[static_cast<int>(op)];
+      wait->m_wait_class=   WAIT_CLASS_SOCKET;
+
+      pfs_thread->m_events_waits_count++;
     }
   }
   else
   {
-    if (!socket_close)
+    if (pfs_socket->m_timed)
     {
-      if (pfs_socket->m_timed)
+      flags= STATE_FLAG_TIMED;
+    }
+    else
+    {
+      /*
+        Even if timing is disabled, end_socket_wait() still needs a locker to
+        capture the number of bytes sent or received by the socket operation.
+        For operations that do not have a byte count, then just increment the
+        event counter and return a NULL locker.
+      */
+      switch (op)
       {
-        flags= STATE_FLAG_TIMED;
-      }
-      else
-      {
-        /*
-          Even if timing is disabled, end_socket_wait() still needs a locker to
-          capture the number of bytes sent or received by the socket operation.
-          For operations that do not have a byte count, then just increment the
-          event counter and return a NULL locker.
-        */
-        switch (op)
-        {
         case PSI_SOCKET_CONNECT:
         case PSI_SOCKET_CREATE:
         case PSI_SOCKET_BIND:
@@ -2932,14 +2914,10 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
         case PSI_SOCKET_SHUTDOWN:
         case PSI_SOCKET_CLOSE:
         case PSI_SOCKET_SELECT:
-          {
           pfs_socket->m_socket_stat.m_io_stat.m_misc.aggregate_counted();
           return NULL;
-          }
-          break;
         default:
           break;
-        }
       }
     }
   }
@@ -4668,26 +4646,25 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
 
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
-  bool socket_closed= false;
   PFS_byte_stat *byte_stat;
   register uint flags= state->m_flags;
   size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
-  
+
   switch (state->m_operation)
   {
-    /** Group read operations */
+    /* Group read operations */
     case PSI_SOCKET_RECV:
     case PSI_SOCKET_RECVFROM:
     case PSI_SOCKET_RECVMSG:
       byte_stat= &socket->m_socket_stat.m_io_stat.m_read;
       break;
-    /** Group write operations */
+    /* Group write operations */
     case PSI_SOCKET_SEND:
     case PSI_SOCKET_SENDTO:
     case PSI_SOCKET_SENDMSG:
       byte_stat= &socket->m_socket_stat.m_io_stat.m_write;
       break;
-    /** Group remainging operations as miscellaneous */
+    /* Group remaining operations as miscellaneous */
     case PSI_SOCKET_CONNECT:
     case PSI_SOCKET_CREATE:
     case PSI_SOCKET_BIND:
@@ -4700,17 +4677,14 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
       break;
     case PSI_SOCKET_CLOSE:
       byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
-      /* This socket will no longer be used by the server */
-      socket_closed= true;
       break;
-
     default:
       DBUG_ASSERT(false);
       byte_stat= NULL;
       break;
   }
 
-  /** Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
+  /* Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED)
   {
     timer_end= state->m_timer();
@@ -4725,47 +4699,23 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     byte_stat->aggregate_counted(bytes);
   }
 
-  /** Global thread aggregation */
-  if (flags & STATE_FLAG_THREAD)
+  /* Aggregate to EVENTS_WAITS_HISTORY and EVENTS_WAITS_HISTORY_LONG */
+  if (flags & STATE_FLAG_EVENT)
   {
     PFS_thread *thread= reinterpret_cast<PFS_thread *>(state->m_thread);
     DBUG_ASSERT(thread != NULL);
+    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+    DBUG_ASSERT(wait != NULL);
 
-    PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_waits_stats;
-    uint index= socket->m_class->m_event_name_index;
+    wait->m_timer_end= timer_end;
+    wait->m_number_of_bytes= bytes;
 
-    /* Reduce overhead by aggregating after the socket has been closed. */
-    if (socket_closed)
-    {
-      /* Combine stats for all operations */
-      PFS_single_stat stat;
-      socket->m_socket_stat.m_io_stat.sum_waits(&stat);
-
-      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate(&stat);
-    }
-
-    /* Aggregate to EVENTS_WAITS_CURRENT and EVENTS_WAITS_HISTORY */
-    if (flags & STATE_FLAG_EVENT)
-    {
-      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
-      DBUG_ASSERT(wait != NULL);
-
-      wait->m_timer_end= timer_end;
-      wait->m_number_of_bytes= bytes;
-
-      if (flag_events_waits_history)
-        insert_events_waits_history(thread, wait);
-      if (flag_events_waits_history_long)
-        insert_events_waits_history_long(wait);
-      thread->m_events_waits_count--;
-    }
+    if (flag_events_waits_history)
+      insert_events_waits_history(thread, wait);
+    if (flag_events_waits_history_long)
+      insert_events_waits_history_long(wait);
+    thread->m_events_waits_count--;
   }
-
-  /* This socket will no longer be used */
-  if (socket_closed)
-    destroy_socket(socket);
 }
 
 static void set_socket_state_v1(PSI_socket *socket, PSI_socket_state state)
@@ -4774,11 +4724,13 @@ static void set_socket_state_v1(PSI_socket *socket, PSI_socket_state state)
   if (unlikely(socket == NULL))
     return;
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
+  DBUG_ASSERT(pfs->m_idle || (state == PSI_SOCKET_STATE_IDLE));
+  DBUG_ASSERT(!pfs->m_idle || (state == PSI_SOCKET_STATE_ACTIVE));
   pfs->m_idle= (state == PSI_SOCKET_STATE_IDLE);
 }
 
 /**
-  Set socket descriptor and addres info.
+  Set socket descriptor and address info.
 */
 static void set_socket_info_v1(PSI_socket *socket,
                                const my_socket *fd,

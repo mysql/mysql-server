@@ -1469,8 +1469,8 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
           pfs->m_fd= fd;
           pfs->m_identity= pfs;
           pfs->m_class= klass;
-		      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
-		      pfs->m_timed= klass->m_timed;
+          pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+          pfs->m_timed= klass->m_timed;
           pfs->m_idle= false;
           pfs->m_socket_stat.reset();
           pfs->m_lock.dirty_to_allocated();
@@ -1488,15 +1488,6 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
 }
 
 /**
-  Release instrumentation for a socket instance.
-  @param pfs                          the socket to release
-*/
-void release_socket(PFS_socket *pfs)
-{
-  DBUG_ASSERT(pfs != NULL);
-}
-
-/**
   Destroy instrumentation for a socket instance.
   @param pfs                          the socket to destroy
 */
@@ -1507,11 +1498,25 @@ void destroy_socket(PFS_socket *pfs)
 
   /* Aggregate to SOCKET_SUMMARY_BY_EVENT_NAME */
   klass->m_socket_stat.m_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
-  pfs->m_socket_stat.reset();
 
   if (klass->is_singleton())
     klass->m_singleton= NULL;
 
+  /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+  PFS_thread *thread= pfs->m_thread_owner;
+  if (thread != NULL)
+  {
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_waits_stats;
+    uint index= pfs->m_class->m_event_name_index;
+
+    /* Combine stats for all operations */
+    PFS_single_stat stat;
+    pfs->m_socket_stat.m_io_stat.sum_waits(&stat);
+    event_name_array[index].aggregate(&stat);
+  }
+
+  pfs->m_socket_stat.reset();
   pfs->m_thread_owner= NULL;
   pfs->m_fd= 0;
   pfs->m_addr_len= 0;
