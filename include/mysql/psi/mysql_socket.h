@@ -540,6 +540,8 @@ inline_mysql_socket_socket
 
   if (likely(mysql_socket.fd != INVALID_SOCKET && mysql_socket.m_psi != NULL))
     PSI_CALL(set_socket_info)(mysql_socket.m_psi, &mysql_socket.fd, NULL, 0);
+#else
+  mysql_socket.m_psi= NULL;
 #endif
   return mysql_socket;
 }
@@ -925,10 +927,16 @@ inline_mysql_socket_close
     PSI_CALL(start_socket_wait)(locker, (size_t)0, src_file, src_line);
     result= closesocket(mysql_socket.fd);
     PSI_CALL(end_socket_wait)(locker, (size_t)0);
+    /* Remove the instrumentation for this socket. */
+    PSI_CALL(destroy_socket)(mysql_socket.m_psi);
     return result;
   }
 #endif
   result= closesocket(mysql_socket.fd);
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+  /* Remove the instrumentation for this socket. */
+  PSI_CALL(destroy_socket)(mysql_socket.m_psi);
+#endif
   return result;
 }
 

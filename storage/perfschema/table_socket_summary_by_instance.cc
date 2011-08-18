@@ -252,15 +252,15 @@ void table_socket_summary_by_instance::make_row(PFS_socket *pfs)
   m_row.m_event_name.make_row(safe_class);
   m_row.m_identity= pfs->m_identity;
 
+  time_normalizer *normalizer= time_normalizer::get(wait_timer);
+
+  /* Collect timer and byte count stats */
+  m_row.m_io_stat.set(normalizer, &pfs->m_socket_stat.m_io_stat);
+
   if (!pfs->m_lock.end_optimistic_lock(&lock))
     return;
 
   m_row_exists= true;
-
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  
-  /* Collect timer and byte count stats */
-  m_row.m_io_stat.set(normalizer, &pfs->m_socket_stat.m_io_stat);
 }
 
 int table_socket_summary_by_instance::read_row_values(TABLE *table,

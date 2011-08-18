@@ -513,7 +513,6 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
 void destroy_table(PFS_table *pfs);
 
 PFS_socket* create_socket(PFS_socket_class *socket_class, const void *identity);
-void release_socket(PFS_socket *pfs);
 void destroy_socket(PFS_socket *pfs);
 
 /* For iterators and show status. */
