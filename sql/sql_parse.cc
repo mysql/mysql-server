@@ -1632,7 +1632,7 @@ void log_slow_statement(THD *thd)
          ((thd->server_status &
            (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
           opt_log_queries_not_using_indexes &&
-           !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
+          !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
         thd->get_examined_row_count() >= thd->variables.min_examined_row_limit)
     {
       THD_STAGE_INFO(thd, stage_logging_slow_query);
@@ -1823,6 +1823,7 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
       return TRUE;
   query[packet_length]= '\0';
   thd->set_query(query, packet_length);
+  thd->rewritten_query.free();                 // free here lest PS break
 
   /* Reclaim some memory */
   thd->packet.shrink(thd->variables.net_buffer_length);
