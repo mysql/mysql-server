@@ -2194,18 +2194,22 @@ sub read_plugin_defs($)
       if ($plug_names) {
 	my $lib_name= basename($plugin);
 	my $load_var= "--plugin_load=";
+	my $load_add_var= "--plugin_load_add=";
 	my $semi= '';
 	foreach my $plug_name (split (',', $plug_names)) {
 	  $load_var .= $semi . "$plug_name=$lib_name";
+	  $load_add_var .= $semi . "$plug_name=$lib_name";
 	  $semi= ';';
 	}
 	$ENV{$plug_var.'_LOAD'}= $load_var;
+	$ENV{$plug_var.'_LOAD_ADD'}= $load_add_var;
       }
     } else {
       $ENV{$plug_var}= "";
       $ENV{$plug_var.'_DIR'}= "";
       $ENV{$plug_var.'_OPT'}= "";
       $ENV{$plug_var.'_LOAD'}= "" if $plug_names;
+      $ENV{$plug_var.'_LOAD_ADD'}= "" if $plug_names;
     }
   }
   close PLUGDEF;

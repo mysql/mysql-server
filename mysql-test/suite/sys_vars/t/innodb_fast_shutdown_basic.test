@@ -3,9 +3,9 @@
 # Variable Name: innodb_fast_shutdown                                         #
 # Scope: GLOBAL                                                               #
 # Access Type: Dynamic                                                        #
-# Data Type: boolean                                                          #
+# Data Type: numeric                                                          #
 # Default Value: 1                                                            #
-# Valid Values: 0,1                                                           #
+# Valid Values: 0,1,2                                                           #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-20                                                   #
