@@ -377,12 +377,11 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
 
 bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
-  TABLE *table= derived->table;
   SELECT_LEX_UNIT *unit= derived->get_unit();
   bool res= FALSE;
   DBUG_ENTER("mysql_derived_materialize");
 
-  DBUG_ASSERT(unit && table && table->created);
+  DBUG_ASSERT(unit && derived->table && derived->table->created);
 
   if (derived->materialized)
     DBUG_RETURN(FALSE);
