@@ -267,6 +267,10 @@ public:
   void postFetchRelease();
 
 private:
+  /** No copying.*/
+  NdbRootFragment(const NdbRootFragment&);
+  NdbRootFragment& operator=(const NdbRootFragment&);
+
   STATIC_CONST( voidFragNo = 0xffffffff);
 
   /** Enclosing query.*/
