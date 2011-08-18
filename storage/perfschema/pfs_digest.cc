@@ -21,12 +21,15 @@
 #include "pfs_digest.h"
 #include "my_sys.h"
 #include "pfs_global.h"
+#include <string.h>
 
 unsigned int statements_digest_size= 0;
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_statements_digest_stat *statements_digest_stat_array= NULL;
 /** Consumer flag for table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
 bool flag_statements_digest= true;
+/** Current index in Stat array where new record is to be inserted. */
+int digest_index= 0;
 
 /**
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
@@ -59,3 +62,24 @@ void cleanup_digest(void)
   pfs_free(statements_digest_stat_array);
   statements_digest_stat_array= NULL;
 }
+
+void insert_statement_digest(char* digest, char* digest_text)
+{
+  /* Lookup LF_HASH for the computed DIGEST. */
+
+  /* If stmt digest already exists, update stat and return */
+  
+  /* if statement digest doesn't exist, add a new record in the stat array */
+  memcpy(statements_digest_stat_array[digest_index].digest, digest,
+         COL_DIGEST_SIZE);
+  memcpy(statements_digest_stat_array[digest_index].digest_text, digest_text,
+         COL_DIGEST_TEXT_SIZE);
+  /* Rounding Buffer. Overwrite first entry if last all slots are full. */
+  digest_index= (digest_index+1)%statements_digest_size;
+}
+ 
+void reset_esms_by_digest()
+{
+  /*TBD*/ 
+}
+
