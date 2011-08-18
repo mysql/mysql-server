@@ -475,12 +475,17 @@ End of 5.1 tests
 # -- Bug#11746602: 27480 - Extend CREATE TEMPORARY TABLES privilege to
 # -- allow temp table operations
 # --
+# -- Bug#12771903: User with create temporary tables priv only has full
+# -- access to a regular table
+# --
 
 ############################################################################
 # Setup environment.
 ###########################################################################
 DROP DATABASE IF EXISTS mysqltest_db1;
+DROP DATABASE IF EXISTS mysqltest_db2;
 CREATE DATABASE mysqltest_db1;
+CREATE DATABASE mysqltest_db2;
 # mysqltest_u1@localhost has CREATE_TMP_ACL, FILE_ACL and EXECUTE_ACL only
 # (EXECUTE_ACL is needed to call p0, and FILE_ACL is needed for SELECT
 # OUTFILE/LOAD DATA INFILE).
@@ -497,6 +502,12 @@ GRANT EXECUTE ON mysqltest_db1.* TO mysqltest_u3@localhost;
 # We need this user to check that once created temporary tables
 # are accessible by anyone.
 GRANT EXECUTE ON mysqltest_db1.* TO mysqltest_u4@localhost;
+# mysqltest_u5@localhost has CREATE_TMP_ACL and SELECT_ACL, UPDATE_ACL,
+# DELETE_ACL on mysqltest_db1; and only CREATE_TMP_ACL on mysqltest_db2.
+# By means of this user we check privileges required for merge tables.
+GRANT CREATE TEMPORARY TABLES ON mysqltest_db1.* TO mysqltest_u5@localhost;
+GRANT CREATE TEMPORARY TABLES ON mysqltest_db2.* TO mysqltest_u5@localhost;
+GRANT SELECT, UPDATE, DELETE ON mysqltest_db1.* TO mysqltest_u5@localhost;
 # Create stored routine to test how privilege checking is done for its
 # arguments.
 CREATE PROCEDURE mysqltest_db1.p0(i INT) SELECT i;
@@ -509,9 +520,11 @@ CREATE DEFINER = mysqltest_u3@localhost PROCEDURE mysqltest_db1.p3()
 SELECT * FROM t4 ORDER BY x;
 # We need separate key cache to test CACHE INDEX and LOAD INDEX.
 SET GLOBAL keycache1.key_buffer_size = 128 * 1024;
+CREATE TABLE mysqltest_db2.t2_1(a INT);
 ###########################################################################
-# Check that CREATE_TMP_ACL is enough to issue any supported SQL-statement
-# against temporary tables (loosely follow order in sql_command enum).
+# Check that CREATE_TMP_ACL is enough to issue almost any supported
+# SQL-statement against temporary tables (loosely follow order in
+# sql_command enum).
 ###########################################################################
 
 # -- connect con1, mysqltest_u1@localhost, mysqltest_db1
@@ -522,10 +535,14 @@ CREATE TEMPORARY TABLE t1(a INT);
 CREATE TEMPORARY TABLE t2 LIKE t1;
 CREATE TEMPORARY TABLE t3(a INT, b INT, PRIMARY KEY (a));
 CREATE TEMPORARY TABLE t4 SELECT * FROM t1;
-# Also check that we allow creation of MERGE table with underlying
+# Check that we do *not* allow creation of MERGE table with underlying
 # temporary table without additional privileges.
 CREATE TEMPORARY TABLE t5(a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE t6(a INT) ENGINE = MERGE UNION = (t5);
+ERROR 42000: SELECT, UPDATE, DELETE command denied to user 'mysqltest_u1'@'localhost' for table 't5'
+# Check that we allow creation of MERGE table with no underlying table
+# without additional privileges.
+CREATE TEMPORARY TABLE t6(a INT) ENGINE = MERGE UNION = ();
 #
 # SELECT.
 #
@@ -544,10 +561,13 @@ DROP INDEX idx1 ON t3;
 # ALTER TABLE.
 # 
 ALTER TABLE t4 ADD COLUMN b INT;
-# Check that we allow altering of MERGE table with underlying
-# temporary table without additional privileges.
+# Check that we allow altering of MERGE table with no underlying
+# without additional privileges.
 ALTER TABLE t6 UNION = ();
+# Check that we do *not* allow altering of MERGE table with underlying
+# temporary table without additional privileges.
 ALTER TABLE t6 UNION = (t5);
+ERROR 42000: SELECT, UPDATE, DELETE command denied to user 'mysqltest_u1'@'localhost' for table 't5'
 #
 # Simple INSERT and INSERT ... SELECT.
 #
@@ -783,6 +803,29 @@ x
 4
 DROP TEMPORARY TABLE t4;
 ###########################################################################
+# Check special case for MERGE-tables:
+#   - CREATE_TMP_ACL is required to create a temporary merge table;
+#   - SELECT_ACL, UPDATE_ACL and DELETE_ACL are required to include
+#     a temporary table into the underlying-table-list.
+###########################################################################
+
+# -- connect con4, mysqltest_u5@localhost, mysqltest_db1
+CREATE TEMPORARY TABLE t7(a INT);
+CREATE TEMPORARY TABLE t8(a INT);
+CREATE TEMPORARY TABLE t9(a INT);
+CREATE TEMPORARY TABLE t10(a INT) ENGINE = MERGE UNION = (t7, t8);
+ALTER TABLE t10 UNION = (t9);
+ALTER TABLE t10 UNION = (mysqltest_db2.t2_1);
+ERROR 42000: SELECT, UPDATE, DELETE command denied to user 'mysqltest_u5'@'localhost' for table 't2_1'
+CREATE TEMPORARY TABLE mysqltest_db2.t2_2(a INT) ENGINE = MERGE UNION = (t7, t8);
+ALTER TABLE mysqltest_db2.t2_2 UNION = (t9);
+ALTER TABLE mysqltest_db2.t2_2 UNION = ();
+DROP TEMPORARY TABLE mysqltest_db2.t2_2;
+DROP TEMPORARY TABLE t10;
+DROP TEMPORARY TABLE t7;
+DROP TEMPORARY TABLE t8;
+DROP TEMPORARY TABLE t9;
+###########################################################################
 # That's all. Cleanup.
 ###########################################################################
 
@@ -791,9 +834,12 @@ DROP TEMPORARY TABLE t4;
 # All remaining temporary tables are automatically dropped.
 # -- disconnect con2
 # -- disconnect con3
+# -- disconnect con4
 SET GLOBAL keycache1.key_buffer_size = 0;
 DROP DATABASE mysqltest_db1;
+DROP DATABASE mysqltest_db2;
 DROP USER mysqltest_u1@localhost;
 DROP USER mysqltest_u2@localhost;
 DROP USER mysqltest_u3@localhost;
 DROP USER mysqltest_u4@localhost;
+DROP USER mysqltest_u5@localhost;

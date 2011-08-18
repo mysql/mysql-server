@@ -488,6 +488,7 @@ select t1.*, t2.* from t1 natural join t2;
 select t1.*, t2.*, t3.*, t4.* from (t1 natural join t2) natural join (t3 natural join t4);
 
 # Queries over subselects in the FROM clause
+--sorted_result
 select * from (select * from t1 natural join t2) as t12
               natural join
               (select * from t3 natural join t4) as t34;
