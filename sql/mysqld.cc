@@ -1531,6 +1531,7 @@ void clean_up(bool print_message)
   my_free(const_cast<char*>(relay_log_basename));
   my_free(const_cast<char*>(relay_log_index));
 #endif
+  free_list(opt_plugin_load_list_ptr);
 
   /*
     The following lines may never be executed as the main thread may have
@@ -6445,11 +6446,19 @@ struct my_option my_long_options[]=
    &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"plugin-load", 0,
+  {"plugin-load", OPT_PLUGIN_LOAD,
    "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
    "is the plugin library in plugin_dir.",
-   &opt_plugin_load, &opt_plugin_load, 0,
+   0, 0, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"plugin-load-add", OPT_PLUGIN_LOAD_ADD,
+   "Optional semicolon-separated list of plugins to load, where each plugin is "
+   "identified as name=library, where name is the plugin name and library "
+   "is the plugin library in plugin_dir. This option adds to the list "
+   "speficied by --plugin-load in an incremental way. "
+   "Multiple --plugin-load-add are supported.",
+   0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"table_cache", 0, "Deprecated; use --table-open-cache instead.",
    &table_cache_size, &table_cache_size, 0, GET_ULONG,
@@ -7701,6 +7710,13 @@ mysqld_get_one_option(int optid,
     }
     break;
 
+
+  case OPT_PLUGIN_LOAD:
+    free_list(opt_plugin_load_list_ptr);
+    /* fall through */
+  case OPT_PLUGIN_LOAD_ADD:
+    opt_plugin_load_list_ptr->push_back(new i_string(argument));
+    break;
   }
   return 0;
 }

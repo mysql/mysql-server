@@ -40,6 +40,7 @@ enum enum_plugin_load_option { PLUGIN_OFF, PLUGIN_ON, PLUGIN_FORCE,
 extern const char *global_plugin_typelib_names[];
 
 #include <my_sys.h>
+#include "sql_list.h"
 
 #ifdef DBUG_OFF
 #define plugin_ref_to_int(A) A
@@ -131,7 +132,7 @@ typedef struct st_plugin_int **plugin_ref;
 
 typedef int (*plugin_type_init)(struct st_plugin_int *);
 
-extern char *opt_plugin_load;
+extern I_List<i_string> *opt_plugin_load_list_ptr;
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];
