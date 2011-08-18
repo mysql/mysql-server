@@ -43,7 +43,7 @@ BEGIN
     order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 
   -- Leave the same number of socket instances
-  SELECT COUNT(*) FROM performance_schema.socket_instances;
+  --SELECT COUNT(*) FROM performance_schema.socket_instances;
 
 END||
 
