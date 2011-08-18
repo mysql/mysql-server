@@ -35,6 +35,8 @@
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "sql_error.h"
+#include "my_md5.h"
+#include "pfs_digest.h"
 
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
@@ -996,6 +998,8 @@ static inline int mysql_mutex_lock(...)
 /** EVENT bit in the state flags bitfield. */
 #define STATE_FLAG_EVENT (1<<2)
 
+#define PFS_MAX_TOKEN_COUNT 1024
+
 pthread_key(PFS_thread*, THR_PFS);
 bool THR_PFS_initialized= false;
 
@@ -1087,6 +1091,21 @@ static enum_operation_type table_lock_operation_map[]=
   OPERATION_TYPE_TL_WRITE_EXTERNAL /* PFS_TL_WRITE_EXTERNAL */
 };
 
+/**
+  Structure to store token count/array for a statement.
+*/
+struct {
+         uint m_token_count;
+         uint m_token_array[PFS_MAX_TOKEN_COUNT];
+       } typedef PFS_digest_storage;
+PFS_digest_storage digest_storage;
+
+/**
+  Structure to store a MD5 hash value (digest) for a statement.
+*/
+struct {
+         unsigned char m_md5[16];
+       }typedef PFS_digest_hash;
 
 /**
   Build the prefix name of a class of instruments in a category.
@@ -4251,10 +4270,48 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
                                 char *yytext, 
                                 int yylen)
 {
-
   //printf("\n inside digest_add_token_v1 \n");
   //printf("\n Got Token [%s,%d]\n",yytext,yylen);
-  /* TBD. */
+  
+  /* 
+   Token 403 is END_OF_INPUT. Once it is recieved, it means all token in 
+   statement text are recieved.
+  */
+  if( token == 403 )
+  {
+    PFS_digest_hash digest; 
+    char digest_str[COL_DIGEST_SIZE]={'\0'};
+    /* 
+      Calculate MD5 Hash of the tokens recieved.
+    */
+    MY_MD5_HASH(digest.m_md5, (unsigned char *)&digest_storage, (uint) sizeof(digest_storage));
+    /* 
+      Write MD5 hash value in a string to be used as DIGEST for the statement.
+    */
+    sprintf(digest_str, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
+                        "%02x%02x%02x",
+            digest.m_md5[0], digest.m_md5[1], digest.m_md5[2],
+            digest.m_md5[3], digest.m_md5[4], digest.m_md5[5],
+            digest.m_md5[6], digest.m_md5[7], digest.m_md5[8],
+            digest.m_md5[9], digest.m_md5[10], digest.m_md5[11],
+            digest.m_md5[12], digest.m_md5[13], digest.m_md5[14],
+            digest.m_md5[15]);
+
+    printf(" Computed Digest= [%s]\n",digest_str);
+    /* 
+      Populate PFS_statements_digest_stat with this information. 
+      TODO: create DIGEST_TEXT from tokens and pass it.
+    */
+    insert_statement_digest(digest_str, (char*)"DIGEST_TEXT");
+    digest_storage.m_token_count= 0;
+  }
+  else 
+  {
+    /* Add this token to digest storage. */
+    DBUG_ASSERT(digest_storage.m_token_count < PFS_MAX_TOKEN_COUNT);
+    digest_storage.m_token_array[digest_storage.m_token_count]= token;
+    digest_storage.m_token_count++;
+  }
 }
 
 static void digest_end_v1(PSI_digest_locker *locker)

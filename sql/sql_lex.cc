@@ -28,6 +28,30 @@
 #include "sp.h"
 #include "sp_head.h"
 
+#define PASS_TOKEN_TO_PS(_token,_yychar,_yylen)                              \
+  /*                                                                           
+    Passing token to PS function to calculate statement digest                
+    for this statement.                                                        
+  */                                                                         \
+  if( _token != 0 )                                                          \
+  {                                                                          \
+    uint yylen=0;                                                            \
+    char *yychar;                                                            \
+    if( _token != END_OF_INPUT )                                             \
+    {                                                                        \
+      /*                                                                       
+        get the length of processed token and make sure it doesn't exceed    
+        TOCK_NAME_LENGTH. If it does, truncate it to TOCK_NAME_LENGTH.         
+      */                                                                     \
+      yylen= _yylen!=0 ? _yylen : lip->yyLength_PS();                        \
+      yylen= yylen<TOCK_NAME_LENGTH ? yylen : TOCK_NAME_LENGTH-1;            \
+      yychar= _yychar!=NULL ? (char*)_yychar :                               \
+                              (char*)lip->get_cpp_tok_start();               \
+    }                                                                        \
+    PSI_server->digest_add_token(lip->m_digest_psi,_token,yychar,yylen);     \
+  }                                                                          \
+
+
 static int lex_one_token(void *arg, void *yythd);
 
 /*
@@ -870,6 +894,7 @@ int MYSQLlex(void *arg, void *yythd)
     lip->lookahead_token= -1;
     *yylval= *(lip->lookahead_yylval);
     lip->lookahead_yylval= NULL;
+    PASS_TOKEN_TO_PS(token,NULL,0);
     return token;
   }
 
@@ -887,8 +912,10 @@ int MYSQLlex(void *arg, void *yythd)
     token= lex_one_token(arg, yythd);
     switch(token) {
     case CUBE_SYM:
+      PASS_TOKEN_TO_PS(WITH_CUBE_SYM,"WITH CUBE",9);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
+      PASS_TOKEN_TO_PS(WITH_ROLLUP_SYM,"WITH ROLLUP",11);
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -897,6 +924,7 @@ int MYSQLlex(void *arg, void *yythd)
       lip->lookahead_yylval= lip->yylval;
       lip->yylval= NULL;
       lip->lookahead_token= token;
+      PASS_TOKEN_TO_PS(WITH,"WITH",4);
       return WITH;
     }
     break;
@@ -904,24 +932,7 @@ int MYSQLlex(void *arg, void *yythd)
     break;
   }
 
-  /* 
-    Passing token to PS function to calculate statement digest
-    for this statement.
-  */
-  if(token != END_OF_INPUT && token != 0)
-  {
-    uint yylen=0,yylen_temp=0;
-    char yychar[TOCK_NAME_LENGTH]={'\0'};
-    /* 
-      get the length of processed token and make sure it doesn't exceed
-      TOCK_NAME_LENGTH. If it does, truncate it to TOCK_NAME_LENGTH.
-    */
-    yylen_temp = lip->yyLength_PS();
-    yylen = yylen_temp < TOCK_NAME_LENGTH ? yylen_temp : TOCK_NAME_LENGTH-1;
-
-    strncpy(yychar, lip->get_cpp_tok_start(), yylen);
-    PSI_server->digest_add_token(lip->m_digest_psi,token,yychar,yylen);
-  }
+  PASS_TOKEN_TO_PS(token,NULL,0);
   return token;
 }
 
