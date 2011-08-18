@@ -552,7 +552,8 @@ ignore_db_dirs_process_additions()
   if (len > 1)
     len--;
 
-  ptr= opt_ignore_db_dirs= (char *) my_malloc(len, MYF(0));
+  /* +1 the terminating zero */
+  ptr= opt_ignore_db_dirs= (char *) my_malloc(len + 1, MYF(0));
   if (!ptr)
     return true;
 
@@ -575,6 +576,10 @@ ignore_db_dirs_process_additions()
     dir= NULL;
     set_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
   }
+
+  /* make sure the string is terminated */
+  DBUG_ASSERT(ptr - opt_ignore_db_dirs <= (ptrdiff_t) len);
+  *ptr= 0;
 
   /* 
     It's OK to empty the array here as the allocated elements are

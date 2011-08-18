@@ -192,11 +192,11 @@ The following options may be given as the first argument:
  -?, --help          Display this help and exit.
  --ignore-builtin-innodb 
  Disable initialization of builtin InnoDB plugin
- --init-connect=name Command(s) that are executed for each new connection
  --ignore-db-dir=name 
  Specifies a directory to add to the ignore list when
  collecting database names from the datadir. Put a blank
  argument to reset the list accumulated so far.
+ --init-connect=name Command(s) that are executed for each new connection
  --init-file=name    Read SQL commands from this file at startup
  --init-slave=name   Command(s) that are executed by a slave server each time
  the SQL thread starts
@@ -513,6 +513,13 @@ The following options may be given as the first argument:
  where each plugin is identified as name=library, where
  name is the plugin name and library is the plugin library
  in plugin_dir.
+ --plugin-load-add=name 
+ Optional semicolon-separated list of plugins to load,
+ where each plugin is identified as name=library, where
+ name is the plugin name and library is the plugin library
+ in plugin_dir. This option adds to the list speficied by
+ --plugin-load in an incremental way. Multiple
+ --plugin-load-add are supported.
  -P, --port=#        Port number to use for connection or 0 to default to,
  my.cnf, $MYSQL_TCP_PORT, /etc/services, built-in default
  (3306), whatever comes first
@@ -969,7 +976,6 @@ performance-schema-max-thread-instances 1000
 performance-schema-setup-actors-size 100
 performance-schema-setup-objects-size 100
 performance-schema-users-size 100
-plugin-load (No default value)
 port 3306
 port-open-timeout 0
 preload-buffer-size 32768
