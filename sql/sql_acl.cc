@@ -5199,6 +5199,8 @@ static void add_user_option(String *grant, ulong value, const char *name)
   }
 }
 
+#endif /*NO_EMBEDDED_ACCESS_CHECKS */
+
 const char *command_array[]=
 {
   "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD",
@@ -5228,6 +5230,7 @@ void append_int(String *str, const char *txt, size_t len,
   }
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 static int show_routine_grants(THD *thd, LEX_USER *lex_user, HASH *hash,
                                const char *type, int typelen,
@@ -6440,6 +6443,8 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   DBUG_RETURN(result);
 }
 
+#endif /*NO_EMBEDDED_ACCESS_CHECKS */
+
 /**
   Auxiliary function for constructing a  user list string.
   @param str     A String to store the user list.
@@ -6489,6 +6494,7 @@ void append_user(String *str, LEX_USER *user, bool comma= TRUE,
   }
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 /*
   Create a list of users.

@@ -86,7 +86,6 @@ MASTER_SSL_CAPATH = '',
 MASTER_SSL_CERT = '', MASTER_SSL_KEY = '',
 MASTER_SSL_CIPHER = '', MASTER_SSL_VERIFY_SERVER_CERT = 0,
 IGNORE_SERVER_IDS = ( );
-SET GLOBAL RELAY_LOG_PURGE = 1;
 CREATE USER 'test_user4'@'localhost';
 SET PASSWORD FOR 'test_user4'@'localhost' = PASSWORD('azundris4');
 SET SESSION long_query_time=  @old_long_query_time;

@@ -22,7 +22,6 @@
 #include "sp_head.h"    // TYPE_ENUM_(FUNCTION|PROCEDURE)
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 static void mysql_rewrite_grant(THD *thd, String *rlb)
 {
@@ -352,7 +351,6 @@ static void mysql_rewrite_change_master(THD *thd, String *rlb)
     }
   }
 }
-#endif
 
 
 /**
@@ -364,16 +362,12 @@ void mysql_rewrite_query(THD *thd)
 {
   String *rlb= &thd->rewritten_query;
 
-  rlb->free();
-
   switch(thd->lex->sql_command)
   {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_GRANT:         mysql_rewrite_grant(thd, rlb);         break;
   case SQLCOM_SET_OPTION:    mysql_rewrite_set(thd, rlb);           break;
   case SQLCOM_CREATE_USER:   mysql_rewrite_create_user(thd, rlb);   break;
   case SQLCOM_CHANGE_MASTER: mysql_rewrite_change_master(thd, rlb); break;
-#endif
   default:                   /* unhandled query types are legal. */ break;
   }
 }
