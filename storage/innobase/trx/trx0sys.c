@@ -180,7 +180,18 @@ trx_doublewrite_init(
 	byte*	doublewrite)	/*!< in: pointer to the doublewrite buf
 				header on trx sys page */
 {
-	trx_doublewrite = mem_alloc(sizeof(trx_doublewrite_t));
+	ulint	buf_size;
+
+	trx_doublewrite = mem_zalloc(sizeof(trx_doublewrite_t));
+
+	/* There are two blocks of same size in the doublewrite
+	buffer. */
+	buf_size = 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
+
+	/* There must be atleast one buffer for single page writes
+	and one buffer for batch writes. */
+	ut_a(srv_doublewrite_batch_size > 0
+	     && srv_doublewrite_batch_size < buf_size);
 
 	/* Since we now start to use the doublewrite buffer, no need to call
 	fsync() after every write to a data file */
@@ -192,18 +203,22 @@ trx_doublewrite_init(
 		     &trx_doublewrite->mutex, SYNC_DOUBLEWRITE);
 
 	trx_doublewrite->first_free = 0;
+	trx_doublewrite->n_reserved = 0;
 
 	trx_doublewrite->block1 = mach_read_from_4(
 		doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK1);
 	trx_doublewrite->block2 = mach_read_from_4(
 		doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK2);
-	trx_doublewrite->write_buf_unaligned = ut_malloc(
-		(1 + 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) * UNIV_PAGE_SIZE);
 
+	trx_doublewrite->in_use = mem_zalloc(buf_size * sizeof(ibool));
+
+	trx_doublewrite->write_buf_unaligned = ut_malloc(
+		(1 + buf_size) * UNIV_PAGE_SIZE);
 	trx_doublewrite->write_buf = ut_align(
 		trx_doublewrite->write_buf_unaligned, UNIV_PAGE_SIZE);
-	trx_doublewrite->buf_block_arr = mem_alloc(
-		2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * sizeof(void*));
+
+	trx_doublewrite->buf_block_arr = mem_zalloc(
+		buf_size * sizeof(void*));
 }
 
 /****************************************************************//**
@@ -1673,11 +1688,16 @@ trx_sys_close(void)
 
 	/* Free the double write data structures. */
 	ut_a(trx_doublewrite != NULL);
+	ut_ad(trx_doublewrite->n_reserved == 0);
+
 	ut_free(trx_doublewrite->write_buf_unaligned);
 	trx_doublewrite->write_buf_unaligned = NULL;
 
 	mem_free(trx_doublewrite->buf_block_arr);
 	trx_doublewrite->buf_block_arr = NULL;
+
+	mem_free(trx_doublewrite->in_use);
+	trx_doublewrite->in_use = NULL;
 
 	mutex_free(&trx_doublewrite->mutex);
 	mem_free(trx_doublewrite);

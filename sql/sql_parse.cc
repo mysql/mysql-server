@@ -2557,6 +2557,13 @@ case SQLCOM_PREPARE:
       goto end_with_restore_list;
 #endif
     /*
+      If no engine type was given, work out the default now
+      rather than at parse-time.
+    */
+    if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
+      create_info.db_type= create_info.options & HA_LEX_CREATE_TMP_TABLE ?
+              ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
+    /*
       If we are using SET CHARSET without DEFAULT, add an implicit
       DEFAULT to not confuse old users. (This may change).
     */
@@ -6175,6 +6182,11 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   lex->add_to_query_tables(ptr);
   ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
                         MDL_TRANSACTION);
+  if (table->is_derived_table())
+  {
+    ptr->effective_algorithm= DERIVED_ALGORITHM_TMPTABLE;
+    ptr->derived_key_list.empty();
+  }
   DBUG_RETURN(ptr);
 }
 
@@ -7231,40 +7243,45 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   /* If it is a merge table, check privileges for merge children. */
   if (lex->create_info.merge_list.first)
   {
-    TABLE_LIST *tl;
     /*
-      Pre-open temporary tables from UNION clause to simplify privilege
-      checking for them.
+      The user must have (SELECT_ACL | UPDATE_ACL | DELETE_ACL) on the
+      underlying base tables, even if there are temporary tables with the same
+      names.
+
+      From user's point of view, it might look as if the user must have these
+      privileges on temporary tables to create a merge table over them. This is
+      one of two cases when a set of privileges is required for operations on
+      temporary tables (see also CREATE TABLE).
+
+      The reason for this behavior stems from the following facts:
+
+        - For merge tables, the underlying table privileges are checked only
+          at CREATE TABLE / ALTER TABLE time.
+
+          In other words, once a merge table is created, the privileges of
+          the underlying tables can be revoked, but the user will still have
+          access to the merge table (provided that the user has privileges on
+          the merge table itself). 
+
+        - Temporary tables shadow base tables.
+
+          I.e. there might be temporary and base tables with the same name, and
+          the temporary table takes the precedence in all operations.
+
+        - For temporary MERGE tables we do not track if their child tables are
+          base or temporary. As result we can't guarantee that privilege check
+          which was done in presence of temporary child will stay relevant later
+          as this temporary table might be removed.
+
+      If SELECT_ACL | UPDATE_ACL | DELETE_ACL privileges were not checked for
+      the underlying *base* tables, it would create a security breach as in
+      Bug#12771903.
     */
-    if (open_temporary_tables(thd, lex->create_info.merge_list.first))
-      goto err;
 
     if (check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
                            lex->create_info.merge_list.first,
                            FALSE, UINT_MAX, FALSE))
       goto err;
-
-    /*
-      Since the MERGE table in question might already exist with exactly
-      the same definition we need to close all tables opened for underlying
-      checking to allow normal open of table being created.
-      To do this we simply close all tables and then open only tables from
-      the main statement's table list.
-    */
-    close_thread_tables(thd);
-
-    /*
-      To make things safe for re-execution and upcoming open_temporary_tables()
-      we need to reset TABLE_LIST::table pointers in both main table list and
-      and UNION clause.
-    */
-    for (tl= lex->query_tables; tl; tl= tl->next_global)
-      tl->table= NULL;
-    for (tl= lex->create_info.merge_list.first; tl; tl= tl->next_global)
-      tl->table= NULL;
-
-    if (open_temporary_tables(thd, lex->query_tables))
-      DBUG_RETURN(TRUE);
   }
 
   if (want_priv != CREATE_TMP_ACL &&
