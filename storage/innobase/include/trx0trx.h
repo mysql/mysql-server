@@ -44,7 +44,7 @@ extern sess_t*	trx_dummy_sess;
 
 /********************************************************************//**
 Releases the search latch if trx has reserved it. */
-UNIV_INTERN
+UNIV_INLINE
 void
 trx_search_latch_release_if_reserved(
 /*=================================*/
@@ -883,6 +883,24 @@ struct commit_node_struct{
 #define trx_mutex_exit(t) do {			\
 	mutex_exit(&t->mutex);			\
 } while (0)
+
+/** @brief The latch protecting the adaptive search system
+
+This latch protects the
+(1) hash index;
+(2) columns of a record to which we have a pointer in the hash index;
+
+but does NOT protect:
+
+(3) next record offset field in a record;
+(4) next or previous records on the same page.
+
+Bear in mind (3) and (4) when using the hash index.
+*/
+extern rw_lock_t*	btr_search_latch_temp;
+
+/** The latch protecting the adaptive search system */
+#define btr_search_latch	(*btr_search_latch_temp)
 
 #ifndef UNIV_NONINL
 #include "trx0trx.ic"

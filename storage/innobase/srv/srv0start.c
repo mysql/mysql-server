@@ -2433,12 +2433,12 @@ innobase_shutdown_for_mysql(void)
 
 	logs_empty_and_mark_files_at_shutdown();
 
-	if (srv_conc_n_threads != 0) {
+	if (srv_conc_get_active_threads() != 0) {
 		fprintf(stderr,
 			"InnoDB: Warning: query counter shows %ld queries"
 			" still\n"
 			"InnoDB: inside InnoDB at shutdown\n",
-			srv_conc_n_threads);
+			srv_conc_get_active_threads());
 	}
 
 	/* 2. Make all threads created by InnoDB to exit */
