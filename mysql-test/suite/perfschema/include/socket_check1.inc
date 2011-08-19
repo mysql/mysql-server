@@ -1,3 +1,21 @@
+# Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; version 2 of
+# the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301  USA
+#
+
 # Example how to use this auxiliary script
 #-----------------------------------------
 #
@@ -8,9 +26,9 @@
 ### $check_num is used for the generation of titles and gets incremented after
 ### every call of the current script.
 # let $check_num= 1;
-### $column_list is used for the generation of error information and valid for
+### $diff_column_list is used for the generation of error information and valid for
 ### every sub test.
-# let $column_list=
+# let $diff_column_list=
 # t2.COUNT_READ - t1.COUNT_READ AS D_COUNT_READ,
 # t2.COUNT_READ                 AS S2_COUNT_READ,
 # t1.COUNT_READ                 AS S1_COUNT_READ,
@@ -40,6 +58,10 @@
 #
 # let stmt1= SELECT col2 FROM does_not_exist;
 # let stmt2= SELECT col2 FROM does_not_exist WHERE col1 = 0;
+### $msg is used to generate some explanation of what we compare.
+# let $msg=
+# # One statement is longer than the other.
+# # Both statements fail with the same error message (table does not exist);
 # let $my_rules=
 # t2.COUNT_READ                - t1.COUNT_READ                = 0  AND
 # t2.SUM_NUMBER_OF_BYTES_READ  - t1.SUM_NUMBER_OF_BYTES_READ  = LENGTH('$stmt2') - LENGTH('$stmt1') AND
@@ -59,24 +81,27 @@
 --echo # $title_prefix.$check_num Compare impact of statements
 --echo #       $stmt2
 --echo #       $stmt1
+--echo $msg
 
-# MLML: Disable this later
-if (`SELECT CONCAT("$stmt1","$stmt2","$my_rules") LIKE '%_not_set%'`)
+# Enable this when extending the checks for SQL statements.
+if(0)
 {
-   --echo # INTERNAL ERROR:
-   --echo # At least one of the variables has no value (is like '%_not_set')
-   --echo # stmt1 : $stmt1
-   --echo # stmt2 : $stmt2
-   --echo # my_rules : $my_rules
-   --echo # Sorry, have to abort
-   exit;
+   if (`SELECT CONCAT("$stmt1","$stmt2","$my_rules") LIKE '%_not_set%'`)
+   {
+      --echo # INTERNAL ERROR:
+      --echo # At least one of the variables has no value (is like '%_not_set')
+      --echo # stmt1 : $stmt1
+      --echo # stmt2 : $stmt2
+      --echo # my_rules : $my_rules
+      --echo # Sorry, have to abort
+      exit;
+   }
 }
 
-if(`SELECT ($my_rules) <> 1
+if(`SELECT NOT ( $my_rules )
     $part
     AND t2.statement = '$stmt2' AND t1.statement = '$stmt1'`)
 {
-   --disable_abort_on_error
    --enable_query_log
    --enable_result_log
    --echo # The compared statistics looks suspicious
@@ -91,16 +116,19 @@ if(`SELECT ($my_rules) <> 1
    --echo
    --vertical_results
    eval
-   SELECT $column_list
+   SELECT $diff_column_list
    $part
    AND t1.statement = '$stmt1' AND t2.statement = '$stmt2';
    --echo
    --horizontal_results
 
    eval
-   SELECT LPAD(COUNT_READ, 8, ' ') AS CNT_READ, LPAD(SUM_NUMBER_OF_BYTES_READ,  10,' ') AS BYTES_READ,
-          LPAD(COUNT_WRITE,9, ' ') AS CNT_WRITE,LPAD(SUM_NUMBER_OF_BYTES_WRITE, 11,' ') AS BYTES_WRITE,
-          LPAD(COUNT_MISC, 8, ' ') AS CNT_MISC, statement
+   SELECT
+      LPAD(COUNT_READ, 8, ' ') AS CNT_READ,
+      LPAD(SUM_NUMBER_OF_BYTES_READ,  10,' ') AS BYTES_READ,
+      LPAD(COUNT_WRITE,9, ' ') AS CNT_WRITE,
+      LPAD(SUM_NUMBER_OF_BYTES_WRITE, 11,' ') AS BYTES_WRITE,
+      LPAD(COUNT_MISC, 8, ' ') AS CNT_MISC, statement
    FROM mysqltest.socket_summary_by_instance_detail
    WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
      AND EVENT_NAME LIKE ('%client_connection')
@@ -112,6 +140,7 @@ if(`SELECT ($my_rules) <> 1
 let $stmt1=    stmt1_not_set;
 let $stmt2=    stmt2_not_set;
 let $my_rules= my_rules_not_set;
+let $msg=      msg_not_set;
 inc $check_num;
 
 

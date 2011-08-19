@@ -52,7 +52,7 @@ eval $insert_after;
 
 # 1. The content of socket_summary_by_instance must be consistent to the
 #    content of socket_instances
-#-----------------------------------------------------------------------
+#=======================================================================
 let $part1=
 FROM performance_schema.socket_summary_by_instance
 WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN)
@@ -66,8 +66,6 @@ if(`SELECT COUNT(*) $part1`)
    eval
    SELECT 'not in socket_instances' AS state, EVENT_NAME, OBJECT_INSTANCE_BEGIN
    $part1;
-   --echo # abort 1
-#  exit;
 }
 
 --vertical_results
@@ -76,7 +74,7 @@ if(`SELECT COUNT(*) $part1`)
 # 2. The computation of statistics must be roughly correct.
 #
 #    If we run this check sufficient frequent than AVG_TIMER_* can be removed from other checks.
-#-----------------------------------------------------------------------------------------------
+#===============================================================================================
 let $my_lo= 0.98;
 let $my_hi= 1.02;
 
@@ -87,10 +85,14 @@ COUNT_WRITE * AVG_TIMER_WRITE BETWEEN SUM_TIMER_WRITE * $my_lo AND SUM_TIMER_WRI
 COUNT_MISC  * AVG_TIMER_MISC  BETWEEN SUM_TIMER_MISC  * $my_lo AND SUM_TIMER_MISC  * $my_hi;
 
 let $part=
-SUM_TIMER_WAIT  * $my_lo, COUNT_STAR  * AVG_TIMER_WAIT,  SUM_TIMER_WAIT  * $my_hi, COUNT_STAR,  SUM_TIMER_WAIT,  AVG_TIMER_WAIT,
-SUM_TIMER_READ  * $my_lo, COUNT_READ  * AVG_TIMER_READ,  SUM_TIMER_READ  * $my_hi, COUNT_READ,  SUM_TIMER_READ,  AVG_TIMER_READ,
-SUM_TIMER_WRITE * $my_lo, COUNT_WRITE * AVG_TIMER_WRITE, SUM_TIMER_WRITE * $my_hi, COUNT_WRITE, SUM_TIMER_WRITE, AVG_TIMER_WRITE,
-SUM_TIMER_MISC  * $my_lo, COUNT_MISC  * AVG_TIMER_MISC,  SUM_TIMER_MISC  * $my_hi, COUNT_MISC,  SUM_TIMER_MISC,  AVG_TIMER_MISC;
+SUM_TIMER_WAIT  * $my_lo, COUNT_STAR  * AVG_TIMER_WAIT,  SUM_TIMER_WAIT  * $my_hi,
+   COUNT_STAR,  SUM_TIMER_WAIT,  AVG_TIMER_WAIT,
+SUM_TIMER_READ  * $my_lo, COUNT_READ  * AVG_TIMER_READ,  SUM_TIMER_READ  * $my_hi,
+   COUNT_READ,  SUM_TIMER_READ,  AVG_TIMER_READ,
+SUM_TIMER_WRITE * $my_lo, COUNT_WRITE * AVG_TIMER_WRITE, SUM_TIMER_WRITE * $my_hi,
+   COUNT_WRITE, SUM_TIMER_WRITE, AVG_TIMER_WRITE,
+SUM_TIMER_MISC  * $my_lo, COUNT_MISC  * AVG_TIMER_MISC,  SUM_TIMER_MISC  * $my_hi,
+   COUNT_MISC,  SUM_TIMER_MISC,  AVG_TIMER_MISC;
 
 if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instance
     WHERE pk = 'After'`)
@@ -111,10 +113,6 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
       $part
    FROM performance_schema.socket_summary_by_instance
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
-   --echo # abort 2
-   # MLML? SHOW STATUS LIKE 'Performance_schema_socket_%_lost';
-   SHOW STATUS LIKE 'Performance_schema_%_lost';
-#  exit;
 }
 
 
@@ -153,9 +151,6 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    FROM mysqltest.my_socket_summary_by_instance
    WHERE pk = 'After' AND NOT ($my_rules)
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
-   
-   --echo # abort 3
-#  exit;
 }
 
 
@@ -189,8 +184,6 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    FROM mysqltest.my_socket_summary_by_instance
    WHERE pk = 'After'
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
-   --echo # abort 4
-#  exit;
 }
 
 
@@ -220,8 +213,6 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    FROM mysqltest.my_socket_summary_by_instance
    WHERE pk = 'After'
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
-   --echo # abort 5
-#  exit;
 }
 
 
@@ -251,8 +242,6 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    FROM mysqltest.my_socket_summary_by_instance
    WHERE pk = 'After'
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
-   --echo # abort 6
-#  exit;
 }
 
 --horizontal_results
