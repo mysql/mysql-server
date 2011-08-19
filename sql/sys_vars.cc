@@ -553,6 +553,11 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
         }
         break;
         case SLAVE_THD_SQL:
+          /*
+            The worker repositories will be migrated when the SQL Thread is start up.
+            We may decide to change this behavior in the future if people think that
+            this is odd. /Alfranio
+          */
           if (Rpl_info_factory::change_rli_repository(active_mi->rli,
                                                       var->save_result.ulonglong_value,
                                                       &msg))
@@ -590,7 +595,11 @@ static bool master_info_repository_check(sys_var *self, THD *thd, set_var *var)
 
 static const char *repository_names[]=
 {
-  "FILE", "TABLE", 0
+  "FILE", "TABLE",
+#ifndef DBUG_OFF
+  "DUMMY",
+#endif
+  0
 };
 
 ulong opt_mi_repository_id;
@@ -605,7 +614,8 @@ static Sys_var_enum Sys_mi_repository(
 ulong opt_rli_repository_id;
 static Sys_var_enum Sys_rli_repository(
        "relay_log_info_repository",
-       "Defines the type of the repository for the relay log information."
+       "Defines the type of the repository for the relay log information "
+       "and associated workers."
        ,GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
        repository_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(relay_log_info_repository_check),
@@ -2162,7 +2172,8 @@ static Sys_var_mybool Sys_slave_compressed_protocol(
        DEFAULT(FALSE));
 
 #ifdef HAVE_REPLICATION
-static const char *slave_exec_mode_names[]= {"STRICT", "IDEMPOTENT", 0};
+static const char *slave_exec_mode_names[]=
+       {"STRICT", "IDEMPOTENT", 0};
 static Sys_var_enum Slave_exec_mode(
        "slave_exec_mode",
        "Modes for how replication events should be executed. Legal values "
@@ -3395,7 +3406,29 @@ static Sys_var_uint Sys_sync_relayloginfo_period(
        "synchronous flushing",
        GLOBAL_VAR(sync_relayloginfo_period), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
-#endif
+
+static Sys_var_uint Sys_checkpoint_mts_period(
+       "slave_checkpoint_period", "Gather workers' activities to "
+       "Update progress status of Multi-threaded slave and flush "
+       "the relay log info to disk after every #th milli-seconds.",
+       GLOBAL_VAR(mts_checkpoint_period), CMD_LINE(REQUIRED_ARG),
+#ifndef DBUG_OFF
+       VALID_RANGE(0, UINT_MAX), DEFAULT(300), BLOCK_SIZE(1));
+#else
+       VALID_RANGE(1, UINT_MAX), DEFAULT(300), BLOCK_SIZE(1));
+#endif /* DBUG_OFF */
+
+static Sys_var_uint Sys_checkpoint_mts_group(
+       "slave_checkpoint_group",
+       "Maximum number of processed transactions by Multi-threaded slave "
+       "before a checkpoint operation is called to update progress status.",
+       GLOBAL_VAR(mts_checkpoint_group), CMD_LINE(REQUIRED_ARG),
+#ifndef DBUG_OFF
+       VALID_RANGE(1, UINT_MAX), DEFAULT(512), BLOCK_SIZE(1));
+#else
+       VALID_RANGE(512, UINT_MAX), DEFAULT(512), BLOCK_SIZE(8));
+#endif /* DBUG_OFF */
+#endif /* HAVE_REPLICATION */
 
 static Sys_var_uint Sys_sync_binlog_period(
        "sync_binlog", "Synchronously flush binary log to disk after "
@@ -3416,6 +3449,21 @@ static Sys_var_ulong Sys_slave_trans_retries(
        "or elapsed lock wait timeout, before giving up and stopping",
        GLOBAL_VAR(slave_trans_retries), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(10), BLOCK_SIZE(1));
+
+static Sys_var_ulong Sys_slave_parallel_workers(
+       "slave_parallel_workers",
+       "Number of worker threads for executing events in parallel ",
+       GLOBAL_VAR(opt_mts_slave_parallel_workers), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(0), BLOCK_SIZE(1));
+
+static Sys_var_ulonglong Sys_mts_pending_jobs_size_max(
+       "slave_pending_jobs_size_max",
+       "Max size of Slave Worker queues holding yet not applied events."
+       "The least possible value must be not less than the master side "
+       "max_allowed_packet.",
+       GLOBAL_VAR(opt_mts_pending_jobs_size_max), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1024, (ulonglong)~(intptr)0), DEFAULT(16 * 1024*1024),
+       BLOCK_SIZE(1024), ON_CHECK(0));
 #endif
 
 static bool check_locale(sys_var *self, THD *thd, set_var *var)

@@ -6514,3 +6514,11 @@ ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
 
 ER_INDEX_CORRUPT
   eng "Index %s is corrupted"
+ER_MTS_FEATURE_IS_NOT_SUPPORTED
+  eng "%s is not supported in multi-threaded slave mode. %s"
+ER_MTS_UPDATED_DBS_GREATER_MAX
+  eng "The number of modified databases exceeds the maximum %d; the database names will not be included in the replication event metadata."
+ER_MTS_CANT_PARALLEL
+  eng "Cannot execute the current event group in the parallel mode. Encountered event %s, relay-log name %s, position %s which prevents execution of this event group in parallel mode. Reason: %s."
+ER_MTS_INCONSISTENT_DATA
+  eng "%s"
