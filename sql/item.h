@@ -1773,9 +1773,8 @@ public:
   */
   Item_field(THD *thd, Item_field *item);
   /*
-    Constructor used inside setup_wild(), ensures that field, table,
-    and database names will live as long as Item_field (this is important
-    in prepared statements).
+    Ensures that field, table, and database names will live as long as
+    Item_field (this is important in prepared statements).
   */
   Item_field(THD *thd, Name_resolution_context *context_arg, Field *field);
   /*
