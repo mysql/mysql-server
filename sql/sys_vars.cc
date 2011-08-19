@@ -2383,6 +2383,19 @@ static Sys_var_charptr Sys_ssl_key(
        READ_ONLY GLOBAL_VAR(opt_ssl_key), SSL_OPT(OPT_SSL_KEY),
        IN_FS_CHARSET, DEFAULT(0));
 
+static Sys_var_charptr Sys_ssl_crl(
+       "ssl_crl",
+       "CRL file in PEM format (check OpenSSL docs, implies --ssl)",
+       READ_ONLY GLOBAL_VAR(opt_ssl_crl), SSL_OPT(OPT_SSL_CRL),
+       IN_FS_CHARSET, DEFAULT(0));
+
+static Sys_var_charptr Sys_ssl_crlpath(
+       "ssl_crlpath",
+       "CRL directory (check OpenSSL docs, implies --ssl)",
+       READ_ONLY GLOBAL_VAR(opt_ssl_crlpath), SSL_OPT(OPT_SSL_CRLPATH),
+       IN_FS_CHARSET, DEFAULT(0));
+
+
 // why ENUM and not BOOL ?
 static const char *updatable_views_with_limit_names[]= {"NO", "YES", 0};
 static Sys_var_enum Sys_updatable_views_with_limit(

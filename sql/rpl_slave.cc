@@ -2196,6 +2196,10 @@ bool show_master_info(THD* thd, Master_info* mi)
                                              sizeof(mi->bind_addr)));
   field_list.push_back(new Item_empty_string("Last_IO_Error_Timestamp", 20));
   field_list.push_back(new Item_empty_string("Last_SQL_Error_Timestamp", 20));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crl",
+                                             sizeof(mi->ssl_crl)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crlpath",
+                                             sizeof(mi->ssl_crlpath)));
 
 
   if (protocol->send_result_set_metadata(&field_list,
@@ -2373,6 +2377,10 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(mi->last_error().timestamp, &my_charset_bin);
     // Last_SQL_Error_Timestamp
     protocol->store(mi->rli->last_error().timestamp, &my_charset_bin);
+    // Master_Ssl_Crl
+    protocol->store(mi->ssl_ca, &my_charset_bin);
+    // Master_Ssl_Crlpath
+    protocol->store(mi->ssl_capath, &my_charset_bin);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -5798,6 +5806,10 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   mi->ssl_ca[0]?mi->ssl_ca:0,
                   mi->ssl_capath[0]?mi->ssl_capath:0,
                   mi->ssl_cipher[0]?mi->ssl_cipher:0);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRL, 
+                  mi->ssl_crl[0] ? mi->ssl_crl : 0);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, 
+                  mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &mi->ssl_verify_server_cert);
   }
@@ -5929,6 +5941,10 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
                   mi->ssl_ca[0]?mi->ssl_ca:0,
                   mi->ssl_capath[0]?mi->ssl_capath:0,
                   mi->ssl_cipher[0]?mi->ssl_cipher:0);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRL, 
+                  mi->ssl_crl[0] ? mi->ssl_crl : 0);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, 
+                  mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &mi->ssl_verify_server_cert);
   }
@@ -7107,10 +7123,14 @@ bool change_master(THD* thd, Master_info* mi)
     strmake(mi->ssl_cipher, lex_mi->ssl_cipher, sizeof(mi->ssl_cipher)-1);
   if (lex_mi->ssl_key)
     strmake(mi->ssl_key, lex_mi->ssl_key, sizeof(mi->ssl_key)-1);
+  if (lex_mi->ssl_crl)
+    strmake(mi->ssl_crl, lex_mi->ssl_crl, sizeof(mi->ssl_crl)-1);
+  if (lex_mi->ssl_crlpath)
+    strmake(mi->ssl_crlpath, lex_mi->ssl_crlpath, sizeof(mi->ssl_crlpath)-1);
 #ifndef HAVE_OPENSSL
   if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
       lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key ||
-      lex_mi->ssl_verify_server_cert )
+      lex_mi->ssl_verify_server_cert || lex_mi->ssl_crl || lex_mi->ssl_crlpath)
     push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                  ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
 #endif
