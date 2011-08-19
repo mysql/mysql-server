@@ -123,9 +123,16 @@ extern char*	srv_arch_dir;
 dictionary tables are in the system tablespace 0 */
 #ifndef UNIV_HOTBACKUP
 extern my_bool	srv_file_per_table;
+/** Sleep delay for threads waiting to enter InnoDB. In micro-seconds. */
+extern	ulong	srv_thread_sleep_delay;
+#if defined(HAVE_ATOMIC_BUILTINS)
+/** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
+extern	ulong	srv_adaptive_max_sleep_delay;
+#endif /* HAVE_ATOMIC_BUILTINS */
 #else
 extern ibool	srv_file_per_table;
-#endif /* UNIV_HOTBACKUP */
+#endif /* HAVE_ATOMIC_BUILTINS */
+
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
 /** Whether to check file format during startup.  A value of
