@@ -439,8 +439,8 @@ bool Master_info::read_info(Rpl_info_handler *from)
 
   if (lines >= LINE_FOR_SSL_CRLPATH)
   {
-    if (from->get_info(ssl_crl, sizeof(ssl_crl), 0) ||
-        from->get_info(ssl_crlpath, sizeof(ssl_crlpath), 0))
+    if (from->get_info(ssl_crl, sizeof(ssl_crl), (char *) 0) ||
+        from->get_info(ssl_crlpath, sizeof(ssl_crlpath), (char *) 0))
       DBUG_RETURN(TRUE);
   }
 
