@@ -169,8 +169,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_rnd_next	4
-Handler_write	3
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT * FROM t2) t12                WHERE t11.a = 1;
@@ -182,8 +180,6 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`t12`.`b` AS `b` from `test`.`t1` `t11` join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `t12` where (`test`.`t11`.`a` = 1)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_rnd_next	4
-Handler_write	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_rnd_next	12
@@ -344,8 +340,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_rnd_next	4
-Handler_write	3
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT * FROM t2) t12;
@@ -357,8 +351,6 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`t12`.`b` AS `b` from `test`.`t1` `t11` join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `t12`
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_rnd_next	4
-Handler_write	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_rnd_next	12
@@ -448,8 +440,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_rnd_next	4
-Handler_write	3
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT * FROM t2) t12                WHERE t11.a > 1;
@@ -461,8 +451,6 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`t12`.`b` AS `b` from `test`.`t1` `t11` join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `t12` where (`test`.`t11`.`a` > 1)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_rnd_next	4
-Handler_write	3
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_rnd_next	12
@@ -2667,47 +2655,38 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	<derived3>	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	Using where
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_first	1
-Handler_read_rnd_next	5
-Handler_write	1
-Sort_rows	3
-Sort_scan	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1            WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	1	100.00	Materialize; Scan
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) where (`test`.`t1`.`a` = `x`.`b`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) where (`x`.`b` = `test`.`t1`.`a`)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_rnd_next	4
-Handler_write	1
-Sort_rows	3
-Sort_scan	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_rnd_next	12
-Handler_write	2
+Handler_read_key	3
+Handler_read_rnd_next	8
+Handler_write	1
 Sort_rows	3
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
-Handler_read_rnd_next	9
+Handler_read_rnd_next	13
 Handler_update	1
 Handler_write	1
 Sort_rows	3
@@ -2719,49 +2698,43 @@ Sort_scan	1
 #
 EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	1	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	test.t1.a	2	Using index; FirstMatch(t1)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_rnd_next	4
-Handler_write	1
-Sort_rows	3
-Sort_scan	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1, t2            WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join `test`.`t2` where (`test`.`t1`.`a` = `x`.`b`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join `test`.`t2` where (`x`.`b` = `test`.`t1`.`a`)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_rnd_next	4
-Handler_write	1
-Sort_rows	3
-Sort_scan	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_rnd_next	10
+Handler_read_key	3
+Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_rnd_next	10
+Handler_read_key	3
+Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
 Sort_scan	1
@@ -2772,53 +2745,47 @@ Sort_scan	1
 #
 EXPLAIN UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	1	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	test.t1.a	2	Using index; FirstMatch(t1)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_rnd_next	8
-Handler_write	4
-Sort_rows	3
-Sort_scan	1
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1, (SELECT * FROM t2) y            WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`y`.`b` AS `b` from `test`.`t1` semi join ((/* select#4 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `y` where (`test`.`t1`.`a` = `x`.`b`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`y`.`b` AS `b` from `test`.`t1` semi join ((/* select#4 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `y` where (`x`.`b` = `test`.`t1`.`a`)
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_rnd_next	8
-Handler_write	4
-Sort_rows	3
-Sort_scan	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_rnd_next	14
-Handler_write	4
+Handler_read_key	3
+Handler_read_rnd_next	8
+Handler_write	1
 Sort_rows	3
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_rnd_next	14
-Handler_write	4
+Handler_read_key	3
+Handler_read_rnd_next	8
+Handler_write	1
 Sort_rows	3
 Sort_scan	1
 
@@ -2837,7 +2804,7 @@ JOIN t1 AS a12 ON a12.c1 = a11.c1
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	0	100.00	
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	SUBQUERY	<derived3>	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 DROP TABLE t1, t2, t3;
 #71
