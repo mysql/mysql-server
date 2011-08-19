@@ -702,6 +702,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(views->source.str, views->source.length);
 
     int errcode= query_error_code(thd, TRUE);
+    thd->add_to_binlog_accessed_dbs(views->db);
     if (thd->binlog_query(THD::STMT_QUERY_TYPE,
                           buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode))
       res= TRUE;
@@ -1732,6 +1733,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       }
       continue;
     }
+    thd->add_to_binlog_accessed_dbs(view->db);
     if (mysql_file_delete(key_file_frm, path, MYF(MY_WME)))
       error= TRUE;
 

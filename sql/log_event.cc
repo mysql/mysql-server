@@ -41,6 +41,7 @@
 #include "rpl_record.h"
 #include "transaction.h"
 #include <my_dir.h>
+#include "rpl_rli_pdb.h"
 
 #endif /* MYSQL_CLIENT */
 
@@ -159,37 +160,6 @@ static const char *HA_ERR(int i)
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
   }
   return "No Error!";
-}
-
-/**
-  Delay to delete the Rows_query log event until all its rows event are applied
-
-  @param ev    log event should be deleted
-  @param rli   Relay_log_info structure for the slave IO thread.
-*/
-void handle_rows_query_log_event(Log_event *ev, Relay_log_info *rli)
-{
-  DBUG_ENTER("handle_rows_query_log_event");
-  Log_event_type ev_type= ev->get_type_code();
-
-  /* Delete the Rows_query log event after its last rows event are applied */
-  if ((ev_type == WRITE_ROWS_EVENT || ev_type == DELETE_ROWS_EVENT ||
-       ev_type == UPDATE_ROWS_EVENT) && rli->rows_query_ev != NULL &&
-      ((Rows_log_event*) ev)->get_flags(Rows_log_event::STMT_END_F))
-  {
-    delete rli->rows_query_ev;
-    rli->rows_query_ev= NULL;
-    rli->info_thd->set_query(NULL, 0);
-  }
-
-  /* Record the Rows_query log event until all its rows event are applied */
-  if (ev_type == ROWS_QUERY_LOG_EVENT)
-  {
-    DBUG_ASSERT(rli->rows_query_ev == NULL);
-    rli->rows_query_ev= (Rows_query_log_event*) ev;
-  }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -798,6 +768,10 @@ Log_event::Log_event(const char* buf,
 
 #ifndef MYSQL_CLIENT
 #ifdef HAVE_REPLICATION
+inline int Log_event::do_apply_event_worker(Slave_worker *w)
+{ 
+  return do_apply_event(w);
+}
 
 int Log_event::do_update_pos(Relay_log_info *rli)
 {
@@ -814,6 +788,9 @@ int Log_event::do_update_pos(Relay_log_info *rli)
 
     Matz: I don't think we will need this check with this refactoring.
   */
+
+  DBUG_ASSERT(!is_mts_worker(rli->info_thd));
+
   if (rli)
     rli->stmt_done(log_pos);
   return 0;                                   // Cannot fail currently
@@ -1398,7 +1375,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
       debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
       DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event(char*,...): byte on position %d", debug_cor_pos));
-      DBUG_SET("-d,corrupt_read_log_event_char");
+      DBUG_SET("");
     }
   );                                                 
   if (crc_check &&
@@ -2382,6 +2359,455 @@ Log_event::continue_group(Relay_log_info *rli)
     return Log_event::EVENT_SKIP_IGNORE;
   return Log_event::do_shall_skip(rli);
 }
+
+
+bool Log_event::contains_partition_info()
+{
+  return (get_type_code() == TABLE_MAP_EVENT) ||
+    (get_type_code() == QUERY_EVENT && !ends_group() && !starts_group()) ||
+    (get_type_code() == EXECUTE_LOAD_QUERY_EVENT);
+}
+
+/**
+   The method maps the event to a Worker and return a pointer to it.
+   As a part of the group, an event belongs to one of the following types:
+
+   B - beginning of a group of events (BEGIN query_log_event)
+   g - mini-group representative event containing the partition info
+      (any Table_map, a Query_log_event)
+   p - a mini-group internal event that *p*receeding its g-parent
+      (int_, rand_, user_ var:s) 
+   r - a mini-group internal "regular" event that follows its g-parent
+      (Delete, Update, Write -rows)
+   T - terminator of the group (XID, COMMIT, ROLLBACK, auto-commit query)
+
+   Only the first g-event computes the assigned Worker which once 
+   is determined remains to be for the rest of the group.
+   That is the g-event solely carries partitioning info.
+   For B-event the assigned Worker is NULL to indicate Coordinator 
+   has not yet decided. The same applies to p-event.
+   
+   Notice, these is a special group consisting of optionally multiple p-events
+   terminating with a g-event.
+   Such case is caused by old master binlog and a few corner-cases of
+   the current master version (todo: to fix). 
+
+   In case of the event accesses more than OVER_MAX_DBS the method
+   has to ensure sure previously assigned groups to all other workers are
+   done.
+
+
+   @note The function updates GAQ queue directly, updates APH hash 
+         plus relocates some temporary tables from Coordinator's list into
+         involved entries of APH through @c map_db_to_worker.
+         There's few memory allocations commented where to be freed.
+   
+   @return a pointer to the Worker struct or NULL.
+*/
+
+Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
+{
+  Slave_job_group group, *ptr_group;
+  bool is_b_event;
+  int  num_dbs= 0;
+  Slave_worker *ret_worker= NULL;
+  THD *thd= rli->info_thd;
+  char llbuff[22];
+  Slave_committed_queue *gaq= rli->gaq;
+
+  /* checking partioning properties and perform corresponding actions */
+
+  // Beginning of a group designated explicitly with BEGIN
+  if ((is_b_event= starts_group()) ||
+      // or DDL:s or autocommit queries possibly associated with own p-events
+      (!rli->curr_group_seen_begin &&
+       /*
+         the following is a special case of B-free still multi-event group like
+         { p_1,p_2,...,p_k, g }.
+         In that case either GAQ is empty (the very first group is being
+         assigned) or the last assigned group index points at one of
+         mapped-to-a-worker.
+       */
+       (gaq->empty() ||
+        gaq->get_job_group(rli->gaq->assigned_group_index)->
+        worker_id != MTS_WORKER_UNDEF)))
+  {
+    ulong gaq_idx;
+    rli->mts_groups_assigned++;
+
+    rli->curr_group_isolated= FALSE;
+    group.reset(log_pos, rli->mts_groups_assigned);
+    // the last occupied GAQ's array index
+    gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
+    
+    DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF && gaq_idx < gaq->size);
+    DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
+                group_relay_log_name == NULL);
+    DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
+    DBUG_ASSERT(rli->last_assigned_worker == NULL);
+
+    if (is_b_event)
+    {
+      Log_event *ptr_curr_ev= this;
+      // B-event is appended to the Deferred Array associated with GCAP
+      insert_dynamic(&rli->curr_group_da,
+                     (uchar*) &ptr_curr_ev);
+
+      DBUG_ASSERT(rli->curr_group_da.elements == 1);
+
+      // mark the current group as started with explicit B-event
+      rli->curr_group_seen_begin= TRUE;
+
+      return ret_worker;
+    } 
+  }
+
+  // mini-group representative
+
+  if (contains_partition_info())
+  {
+    int i= 0;
+    num_dbs= mts_number_dbs();
+    List_iterator<char> it(*get_mts_dbs(&rli->mts_coor_mem_root));
+    it++;
+
+    ret_worker= rli->last_assigned_worker;
+    if (num_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
+    {
+      // Worker with id 0 to handle serial execution
+      if (!ret_worker)
+        ret_worker= *(Slave_worker**) dynamic_array_ptr(&rli->workers, 0);
+      // No need to know a possible error out of synchronization call.
+      (void) wait_for_workers_to_finish(rli, ret_worker);
+      /*
+        this marking is transferred further into T-event of the current group.
+      */
+      rli->curr_group_isolated= TRUE;
+    }
+
+    do
+    {
+      char **ref_cur_db= it.ref();
+      
+      if (!(ret_worker=
+            map_db_to_worker(*ref_cur_db, rli,
+                             &mts_assigned_partitions[i],
+                             /*
+                               todo: optimize it. Although pure 
+                               rows- event load in insensetive to the flag value
+                             */
+                             TRUE,
+                             ret_worker)))
+      {
+        llstr(rli->get_event_relay_log_pos(), llbuff);
+        my_error(ER_MTS_CANT_PARALLEL, MYF(0),
+                 get_type_str(), rli->get_event_relay_log_name(), llbuff,
+                 "could not distribute the event to a Worker");
+        return ret_worker;
+      }
+      // all temporary tables are transferred from Coordinator in over-max case
+      DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
+      DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db, *ref_cur_db));
+      DBUG_ASSERT(ret_worker == mts_assigned_partitions[i]->worker);
+      DBUG_ASSERT(mts_assigned_partitions[i]->usage > 0);
+
+      i++;
+    } while (it++);
+
+    if ((ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index))->
+        worker_id == MTS_WORKER_UNDEF)
+    {
+      ptr_group->worker_id= ret_worker->id;
+      
+      DBUG_ASSERT(ptr_group->group_relay_log_name == NULL);
+    }
+
+    DBUG_ASSERT(i == num_dbs || num_dbs == OVER_MAX_DBS_IN_EVENT_MTS);
+  }
+  else 
+  {
+    // a mini-group internal "regular" event
+    if (rli->last_assigned_worker)
+    {
+      ret_worker= rli->last_assigned_worker;
+      
+      DBUG_ASSERT(rli->curr_group_assigned_parts.elements > 0 ||
+                  ret_worker->id == 0);
+    }
+    else // int_, rand_, user_ var:s, load-data events
+    {
+      Log_event *ptr_curr_ev= this;
+
+      if (!(get_type_code() == INTVAR_EVENT ||
+            get_type_code() == RAND_EVENT ||
+            get_type_code() == USER_VAR_EVENT ||
+            get_type_code() == ROWS_QUERY_LOG_EVENT ||
+            get_type_code() == BEGIN_LOAD_QUERY_EVENT ||
+            get_type_code() == APPEND_BLOCK_EVENT))
+      {
+        DBUG_ASSERT(!ret_worker);
+        
+        llstr(rli->get_event_relay_log_pos(), llbuff);
+        my_error(ER_MTS_CANT_PARALLEL, MYF(0),
+                 get_type_str(), rli->get_event_relay_log_name(), llbuff,
+                 "the event is a part of a group that is unsupported in "
+                 "the parallel execution mode");
+
+        return ret_worker;
+      }
+
+      insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
+      
+      if (!rli->curr_group_seen_begin)
+      {
+        /*
+          This is a case of B/T-less group like
+          `set @user_var, select f()' that are logged w/o B-event.
+          Notice, while the select-f() can be mended in the current
+          master version, the old server binlogs can't since it bring in
+          the same B/T-less {p, g} group.
+        */
+        DBUG_ASSERT(rli->curr_group_da.elements > 0);
+      }
+      else
+      {
+        DBUG_ASSERT(rli->curr_group_da.elements > 1);
+      }
+
+      DBUG_ASSERT(!ret_worker);
+
+      return ret_worker;
+    }
+  }
+
+  // T-event: Commit, Xid, a DDL query or dml query of B-less group.
+  if (ends_group() || !rli->curr_group_seen_begin)
+  {
+    // index of GAQ that this terminal event belongs to
+    mts_group_idx= gaq->assigned_group_index;
+    rli->mts_group_status= Relay_log_info::MTS_END_GROUP;
+    if (rli->curr_group_isolated)
+      set_mts_isolate_group();
+    ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+
+    DBUG_ASSERT(ret_worker != NULL);
+    
+    /*
+      The following two blocks are executed if the worker has not been
+      notified about new relay-log or a new checkpoints. 
+      Relay-log string is freed by Coordinator, Worker deallocates
+      strings in the checkpoint block.
+      However if the worker exits earlier reclaiming for both happens anyway at
+      GAQ delete.
+    */
+    if (!ret_worker->relay_log_change_notified)
+    {
+      /*
+        Prior this event, C rotated the relay log to drop each
+        Worker's notified flag. Now group terminating event initiates
+        the new relay-log (where the current event is from) name
+        delivery to Worker that will receive it in commit_positions().
+      */
+      DBUG_ASSERT(ptr_group->group_relay_log_name == NULL);
+
+      ptr_group->group_relay_log_name= (char *)
+        my_malloc(strlen(rli->
+                         get_group_relay_log_name()) + 1, MYF(MY_WME));
+      strcpy(ptr_group->group_relay_log_name,
+             rli->get_event_relay_log_name());
+
+      DBUG_ASSERT(ptr_group->group_relay_log_name != NULL);
+
+      ret_worker->relay_log_change_notified= TRUE;
+    }
+
+    if (!ret_worker->checkpoint_notified)
+    {
+      ptr_group->checkpoint_log_name= (char *)
+        my_malloc(strlen(rli->
+                         get_group_master_log_name()) + 1, MYF(MY_WME));
+      strcpy(ptr_group->checkpoint_log_name,
+             rli->get_group_master_log_name());
+      ptr_group->checkpoint_log_pos= rli->get_group_master_log_pos();
+      ptr_group->checkpoint_relay_log_name= (char *)
+        my_malloc(strlen(rli->
+                         get_group_relay_log_name()) + 1, MYF(MY_WME));
+      strcpy(ptr_group->checkpoint_relay_log_name,
+             rli->get_group_relay_log_name());
+      ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
+      ptr_group->shifted= ret_worker->bitmap_shifted;
+      ret_worker->bitmap_shifted= 0;
+      ret_worker->checkpoint_notified= TRUE;
+    }
+    ptr_group->checkpoint_seqno= rli->checkpoint_seqno;
+    ptr_group->ts= when + (time_t) exec_time;       // Seconds_behind_master related
+    rli->checkpoint_seqno++;
+
+    // reclaiming resources allocated during the group scheduling
+    free_root(&rli->mts_coor_mem_root, MYF(MY_KEEP_PREALLOC));
+
+#ifndef DBUG_OFF
+    w_rr++;
+#endif
+
+  }
+  
+  return ret_worker;
+}
+
+/**
+   Scheduling event to execute in parallel or execute it directly.
+   In MTS case the event gets associated with either Coordinator or a
+   Worker.  A special case of the association is NULL when the Worker
+   can't be decided yet.  In the single threaded sequential mode the
+   event maps to SQL thread rli.
+
+   @note in case of MTS failure Coordinator destroys all gathered
+         deferred events.
+
+   @return 0 as success, otherwise a failure.
+*/
+int Log_event::apply_event(Relay_log_info *rli)
+{
+  DBUG_ENTER("LOG_EVENT:apply_event");
+  bool parallel= FALSE;
+  enum enum_mts_event_exec_mode actual_exec_mode= EVENT_EXEC_PARALLEL;
+  THD *thd= rli->info_thd;
+
+  worker= rli;
+
+  if (rli->is_mts_recovery())
+  {
+    bool skip= 
+      bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index) &&
+      (get_mts_execution_mode(::server_id, 
+                          rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
+       == EVENT_EXEC_PARALLEL);
+    if (skip)
+    {
+      DBUG_RETURN(0);
+    }
+    else
+    { 
+      DBUG_RETURN(do_apply_event(rli));
+    }
+  }
+
+  if (!(parallel= rli->is_parallel_exec()) ||
+      ((actual_exec_mode= 
+        get_mts_execution_mode(::server_id, 
+                           rli->mts_group_status == Relay_log_info::MTS_IN_GROUP))
+       != EVENT_EXEC_PARALLEL))
+  {
+    if (parallel)
+    {
+      /* 
+         There are two classes of events that Coordinator executes
+         itself. One e.g the master Rotate requires all Workers to finish up 
+         their assignments. The other async class, e.g the slave Rotate,
+         can't have this such synchronization because Worker might be waiting
+         for terminal events to finish.
+      */
+
+      if (actual_exec_mode != EVENT_EXEC_ASYNC)
+      {     
+        /*
+          this  event does not split the current group but is indeed
+          a separator beetwen two master's binlog therefore requiring
+          Workers to sync.
+        */
+        if (rli->curr_group_da.elements > 0)
+        {
+          char llbuff[22];
+          /* 
+             Possible reason is a old version binlog sequential event
+             wrappped with BEGIN/COMMIT or preceeded by User|Int|Random- var.
+             MTS has to stop to suggest restart in the permanent sequential mode.
+          */
+          llstr(rli->get_event_relay_log_pos(), llbuff);
+          my_error(ER_MTS_CANT_PARALLEL, MYF(0),
+                   get_type_str(), rli->get_event_relay_log_name(), llbuff,
+                   "possible malformed group of events from an old master");
+
+          /* Coordinator cant continue, it marks MTS group status accordingly */
+          rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
+
+          goto err;
+        }
+        /*
+          Marking sure the event will be executed in sequential mode.
+        */
+        if (wait_for_workers_to_finish(rli) == -1)
+        {
+          // handle synchronization error
+          rli->report(WARNING_LEVEL, 0,
+                      "Slave worker thread has failed to apply an event. As a "
+                      "consequence, the coordinator thread is stopping "
+                      "execution.");
+          DBUG_RETURN(-1);
+        }
+        /*
+          Given not in-group mark the event handler can invoke checkpoint
+          update routine in the following course.
+        */
+        DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP);
+
+#ifndef DBUG_OFF
+        /* all Workers are idle as done through wait_for_workers_to_finish */
+        for (uint k= 0; k < rli->curr_group_da.elements; k++)
+        {
+          DBUG_ASSERT(!(*(Slave_worker **)
+                        dynamic_array_ptr(&rli->workers, k))->usage_partition);
+          DBUG_ASSERT(!(*(Slave_worker **)
+                        dynamic_array_ptr(&rli->workers, k))->jobs.len);
+        }
+#endif
+      }
+      else
+      {
+        DBUG_ASSERT(actual_exec_mode == EVENT_EXEC_ASYNC);
+      }
+    }
+    DBUG_RETURN(do_apply_event(rli));
+  }
+
+  DBUG_ASSERT(actual_exec_mode == EVENT_EXEC_PARALLEL);
+  DBUG_ASSERT(!(rli->curr_group_seen_begin && ends_group()) ||
+              rli->last_assigned_worker);
+
+  worker= NULL;
+  rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
+
+  worker= (Relay_log_info*)
+    (rli->last_assigned_worker= get_slave_worker(rli));
+
+#ifndef DBUG_OFF
+  if (rli->last_assigned_worker)
+    DBUG_PRINT("mts", ("Assigning job to worker %lu",
+               rli->last_assigned_worker->id));
+#endif
+
+err:
+  if (thd->is_error())
+  {
+    DBUG_ASSERT(!worker);
+
+    // destroy buffered events of the current group prior to exit
+    for (uint k= 0; k < rli->curr_group_da.elements; k++)
+    { 
+      delete *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, k);
+    }
+  }
+  else
+  {
+    DBUG_ASSERT(worker || rli->curr_group_assigned_parts.elements == 0);
+  }
+
+  DBUG_RETURN((!thd->is_error() ||
+               DBUG_EVALUATE_IF("fault_injection_get_slave_worker", 1, 0)) ?
+              0 : -1);
+}
+
 #endif
 
 /**************************************************************************
@@ -2644,6 +3070,37 @@ bool Query_log_event::write(IO_CACHE* file)
       start+= host.length;
     }
   }
+
+  if (thd && thd->get_binlog_accessed_db_names() != NULL)
+  {
+    uchar dbs;
+    *start++= Q_UPDATED_DB_NAMES;
+
+    compile_time_assert(MAX_DBS_IN_EVENT_MTS <= OVER_MAX_DBS_IN_EVENT_MTS);
+
+    /* 
+       in case of the number of db:s exceeds  MAX_DBS_IN_EVENT_MTS
+       no db:s is written and event will require the sequential applying on slave.
+    */
+    dbs= *start++=
+      (thd->get_binlog_accessed_db_names()->elements <= MAX_DBS_IN_EVENT_MTS) ?
+      thd->get_binlog_accessed_db_names()->elements : OVER_MAX_DBS_IN_EVENT_MTS;
+
+    DBUG_ASSERT(dbs != 0);
+
+    if (dbs <= MAX_DBS_IN_EVENT_MTS)
+    {
+      List_iterator_fast<char> it(*thd->get_binlog_accessed_db_names());
+      char *db_name;
+
+      while ((db_name= it++))
+      {
+        strcpy((char*) start, db_name);
+        start += strlen(db_name) + 1;
+      }
+    }
+  }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
@@ -2731,7 +3188,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    lc_time_names_number(thd_arg->variables.lc_time_names->number),
    charset_database_number(0),
    table_map_for_update((ulonglong)thd_arg->table_map_for_update),
-   master_data_written(0)
+   master_data_written(0), mts_accessed_dbs(0)
 {
   time_t end_time;
 
@@ -3016,6 +3473,7 @@ code_name(int code)
   case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
   case Q_TABLE_MAP_FOR_UPDATE_CODE: return "Q_TABLE_MAP_FOR_UPDATE_CODE";
   case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
+  case Q_UPDATED_DB_NAMES: return "Q_UPDATED_DB_NAMES";
   }
   sprintf(buf, "CODE#%d", code);
   return buf;
@@ -3053,7 +3511,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
    auto_increment_increment(1), auto_increment_offset(1),
    time_zone_len(0), lc_time_names_number(0), charset_database_number(0),
-   table_map_for_update(0), master_data_written(0)
+   table_map_for_update(0), master_data_written(0),
+   mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS)
 {
   ulong data_len;
   uint32 tmp;
@@ -3232,6 +3691,31 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       CHECK_SPACE(pos, end, host.length);
       host.str= (char *)pos;
       pos+= host.length;
+      break;
+    }
+    case Q_UPDATED_DB_NAMES:
+    {
+      CHECK_SPACE(pos, end, 1);
+      mts_accessed_dbs= *pos++;
+      /* 
+         Notice, the following check is positive also in case of
+         the master's MAX_DBS_IN_EVENT_MTS > the slave's one and the event 
+         contains e.g the master's MAX_DBS_IN_EVENT_MTS db:s.
+      */
+      if (mts_accessed_dbs > MAX_DBS_IN_EVENT_MTS)
+      {
+        mts_accessed_dbs= OVER_MAX_DBS_IN_EVENT_MTS;
+        break;
+      }
+
+      DBUG_ASSERT(mts_accessed_dbs != 0);
+
+      for (uchar i= 0; i < mts_accessed_dbs; i++)
+      {
+        strcpy(mts_accessed_db_names[i], (char*) pos);
+        pos+= 1 + strlen((const char*) pos);
+      }
+      break;
     }
     default:
       /* That's why you must write status vars in growing order of code */
@@ -3483,13 +3967,95 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 }
 #endif /* MYSQL_CLIENT */
 
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+
+/**
+   Associating slave Worker thread to a subset of temporary tables
+   belonging to db-partitions the event accesses.
+   The pointer if all entries is cleaned.
+
+   @param thd   THD instance pointer
+*/
+void Query_log_event::attach_temp_tables_worker(THD *thd)
+{
+  if (!is_mts_worker(thd) || !contains_partition_info())
+    return;
+  
+  // in over max-db:s case just one special parttion is locked
+  int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
+              1 : mts_accessed_dbs);
+
+  DBUG_ASSERT(!thd->temporary_tables);
+
+  for (int i= 0; i < parts; i++)
+  {
+    mts_move_temp_tables_to_thd(thd,
+                                mts_assigned_partitions[i]->temporary_tables);
+    mts_assigned_partitions[i]->temporary_tables= NULL;
+  }
+}
+
+/**
+   Dissociating slave Worker thread from its thd->temporary_tables
+   to possibly update the involved entries of db-to-worker hash
+   with new values of temporary_tables.
+
+   @param thd   THD instance pointer
+*/
+void Query_log_event::detach_temp_tables_worker(THD *thd)
+{
+  if (!is_mts_worker(thd))
+    return;
+
+  int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
+              1 : mts_accessed_dbs);
+  /*
+    todo: optimize for a case of 
+
+    a. one db
+       Only detaching temporary_tables from thd to entry would require
+       instead of the double-loop below.
+
+    b. unchanged thd->temporary_tables. 
+       In such case the involved entries would continue to hold the
+       unmodified lists provided that the attach_ method does not
+       destroy references to them.
+  */
+  for (int i= 0; i < parts; i++)
+  {
+    mts_assigned_partitions[i]->temporary_tables= NULL;
+  }
+
+  for (TABLE *table= thd->temporary_tables; table;)
+  {
+    int i;
+
+    // find which entry to go
+    for (i= 0; i < parts; i++)
+      if (strcmp(table->s->db.str, mts_accessed_db_names[i]) < 0)
+        continue;
+      else
+        break;
+
+    DBUG_ASSERT(i < mts_accessed_dbs);
+
+    // table pointer is shifted inside the function
+    table= mts_move_temp_table_to_entry(table, thd, mts_assigned_partitions[i]);
+  }
+
+  DBUG_ASSERT(!thd->temporary_tables);
+#ifndef DBUG_OFF
+  for (int i= 0; i < parts; i++)
+  {
+    DBUG_ASSERT(!mts_assigned_partitions[i]->temporary_tables ||
+                !mts_assigned_partitions[i]->temporary_tables->prev);
+  }
+#endif
+}
 
 /*
   Query_log_event::do_apply_event()
 */
-
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-
 int Query_log_event::do_apply_event(Relay_log_info const *rli)
 {
   return do_apply_event(rli, query, q_len);
@@ -3551,8 +4117,12 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   const_cast<Relay_log_info*>(rli)->set_future_group_master_log_pos(log_pos);
   DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
 
+  /*
+    todo: such cleanup should not be specific to Query event and therefore
+          is preferable at a common with other event pre-execution point
+  */
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
-  if (strcmp("COMMIT", query) == 0 && rli->tables_to_lock)
+  if (strcmp("COMMIT", query) == 0 && rli->tables_to_lock != NULL)
   {
     /*
       Cleaning-up the last statement context:
@@ -3596,10 +4166,11 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   */
   if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
-    thd->set_time((time_t)when);
+    thd->set_time((time_t) when);
     thd->set_query_and_id((char*)query_arg, q_len_arg,
                           thd->charset(), next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
+    attach_temp_tables_worker(thd);
     DBUG_PRINT("query",("%s", thd->query()));
 
     if (ignored_error_code((expected_error= error_code)) ||
@@ -3863,6 +4434,9 @@ Default database: '%s'. Query: '%s'",
       The sql thread receives the killed status and will proceed
       to shutdown trying to finish incomplete events group.
     */
+
+    // TODO: address the middle-group killing in MTS case
+
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     if (strcmp("COMMIT", query) != 0 &&
                         strcmp("BEGIN", query) != 0)
@@ -3873,6 +4447,9 @@ Default database: '%s'. Query: '%s'",
   }
 
 end:
+
+  if (thd->temporary_tables)
+    detach_temp_tables_worker(thd);
   /*
     Probably we have set thd->query, thd->db, thd->catalog to point to places
     in the data_buf of this event. Now the event is going to be deleted
@@ -3919,6 +4496,7 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
   DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
        if (!strcmp("COMMIT", query))
        {
+         sql_print_information("Crashing crash_after_commit_and_update_pos.");
          rli->flush_info(TRUE);
          DBUG_SUICIDE();
        }
@@ -5305,7 +5883,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   */
   if (rpl_filter->db_ok(thd->db))
   {
-    thd->set_time((time_t)when);
+    thd->set_time((time_t) when);
     thd->set_query_id(next_query_id());
     thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
 
@@ -5684,13 +6262,25 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
   */
   if ((server_id != ::server_id || rli->replicate_same_server_id) &&
       !is_relay_log_event() &&
-      !rli->is_in_group())
+      ((!rli->is_parallel_exec() && !rli->is_in_group()) ||
+       rli->mts_group_status != Relay_log_info::MTS_IN_GROUP))
   {
+    if (rli->is_parallel_exec())
+    {
+      /*
+        Rotate events are special events that are handled as a
+        synchronization point. For that reason, the checkpoint
+        routine is being called here.
+      */
+      (void) mts_checkpoint_routine(rli, 0, FALSE, TRUE); // TODO: ALFRANIO ERROR
+    }
+
     mysql_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",
                         rli->get_group_master_log_name(),
                         (ulong) rli->get_group_master_log_pos()));
+
     memcpy((void *)rli->get_group_master_log_name(),
            new_log_ident, ident_len + 1);
     rli->notify_group_master_log_name_update();
@@ -5701,8 +6291,9 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         rli->get_group_master_log_name(),
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
-    rli->flush_info(TRUE);
-    
+    if (rli->is_parallel_exec())
+      rli->reset_notified_checkpoint(0, when + (time_t) exec_time);
+
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
       a master's downgrade from 5.0 to 4.0.
@@ -6061,10 +6652,69 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+/**
+   Worker commits Xid transaction and in case of its transactional
+   info table marks the current group as done in the Coordnator's 
+   Group Assigned Queue.
+
+   @return zero as success or non-zero as an error 
+*/
+int Xid_log_event::do_apply_event_worker(Slave_worker *w)
+{
+  int error= 0;
+  bool is_trans_repo= w->is_transactional();
+  Slave_committed_queue *coordinator_gaq= w->c_rli->gaq;
+
+  /* For a slave Xid_log_event is COMMIT */
+  general_log_print(thd, COM_QUERY,
+                    "COMMIT /* implicit, from Xid_log_event */");
+
+  DBUG_PRINT("mts", ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
+                     w->get_group_master_log_name(),
+                     w->get_group_master_log_pos(),
+                     w->get_group_relay_log_name(),
+                     w->get_group_relay_log_pos(),
+                     w->get_event_relay_log_name(),
+                     w->get_event_relay_log_pos()));
+
+  DBUG_EXECUTE_IF("crash_before_update_pos",
+                  sql_print_information("Crashing crash_before_update_pos.");
+                  DBUG_SUICIDE(););
+
+  if (is_trans_repo)
+  {
+    ulong gaq_idx= mts_group_idx;
+    Slave_job_group *ptr_group= coordinator_gaq->get_job_group(gaq_idx);
+
+    if ((error= w->commit_positions(this, ptr_group, true)))
+      goto err;
+  }
+
+  DBUG_PRINT("mts", ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
+                     w->get_group_master_log_name(),
+                     w->get_group_master_log_pos(),
+                     w->get_group_relay_log_name(),
+                     w->get_group_relay_log_pos(),
+                     w->get_event_relay_log_name(),
+                     w->get_event_relay_log_pos()));
+
+  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply",
+                  sql_print_information("Crashing crash_after_update_pos_before_apply.");
+                  DBUG_SUICIDE(););
+
+  error= trans_commit(thd); /* Automatically rolls back on error. */
+  DBUG_EXECUTE_IF("crash_after_apply", 
+                  sql_print_information("Crashing crash_after_apply.");
+                  DBUG_SUICIDE(););
+  thd->mdl_context.release_transactional_locks();
+
+err:
+  return error;
+}
+
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
   int error= 0;
-
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
 
   /*
@@ -6084,15 +6734,17 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
     mysql_mutex_lock(&rli_ptr->data_lock);
   }
 
-  DBUG_PRINT("info", ("do_apply group master %s %lu  group relay %s %lu event %s %lu\n",
+  DBUG_PRINT("info", ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
     rli_ptr->get_group_master_log_name(),
-    (ulong) rli_ptr->get_group_master_log_pos(),
+    rli_ptr->get_group_master_log_pos(),
     rli_ptr->get_group_relay_log_name(),
-    (ulong) rli_ptr->get_group_relay_log_pos(),
+    rli_ptr->get_group_relay_log_pos(),
     rli_ptr->get_event_relay_log_name(),
-    (ulong) rli_ptr->get_event_relay_log_pos()));
+    rli_ptr->get_event_relay_log_pos()));
 
-  DBUG_EXECUTE_IF("crash_before_update_pos", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_before_update_pos",
+                  sql_print_information("Crashing crash_before_update_pos.");
+                  DBUG_SUICIDE(););
 
   /*
     We need to update the positions in here to make it transactional.  
@@ -6114,18 +6766,22 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
       goto err;
   }
 
-  DBUG_PRINT("info", ("do_apply group master %s %lu  group relay %s %lu event %s %lu\n",
+  DBUG_PRINT("info", ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
     rli_ptr->get_group_master_log_name(),
-    (ulong) rli_ptr->get_group_master_log_pos(),
+    rli_ptr->get_group_master_log_pos(),
     rli_ptr->get_group_relay_log_name(),
-    (ulong) rli_ptr->get_group_relay_log_pos(),
+    rli_ptr->get_group_relay_log_pos(),
     rli_ptr->get_event_relay_log_name(),
-    (ulong) rli_ptr->get_event_relay_log_pos()));
+    rli_ptr->get_event_relay_log_pos()));
 
-  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply",
+                  sql_print_information("Crashing crash_after_update_pos_before_apply.");
+                  DBUG_SUICIDE(););
 
   error= trans_commit(thd); /* Automatically rolls back on error. */
-  DBUG_EXECUTE_IF("crash_after_apply", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_after_apply", 
+                  sql_print_information("Crashing crash_after_apply.");
+                  DBUG_SUICIDE(););
   thd->mdl_context.release_transactional_locks();
 
 err:
@@ -8154,7 +8810,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    thd->set_time((time_t)when);
+    thd->set_time((time_t) when);
 
     /*
       Now we are in a statement and will stay in a statement until we
@@ -8456,6 +9112,9 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
 
   DBUG_PRINT("info", ("flags: %s",
                       get_flags(STMT_END_F) ? "STMT_END_F " : ""));
+
+  /* Worker does not execute binlog update position logics */
+  DBUG_ASSERT(!is_mts_worker(rli->info_thd));
 
   if (get_flags(STMT_END_F))
   {
@@ -10834,16 +11493,21 @@ Rows_query_log_event::write_data_body(IO_CACHE *file)
   DBUG_RETURN(write_str(file, m_rows_query, (uint) strlen(m_rows_query)));
 }
 
-#ifndef MYSQL_CLIENT
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Rows_query_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
   /* Set query for writing Rows_query log event into binlog later.*/
   thd->set_query(m_rows_query, (uint32) strlen(m_rows_query));
+
+  DBUG_ASSERT(rli->rows_query_ev == NULL);
+
+  const_cast<Relay_log_info*>(rli)->rows_query_ev= this;
+
   DBUG_RETURN(0);
 }
-#endif /* !MYSQL_CLIENT */
+#endif
 
 
 #ifdef MYSQL_CLIENT

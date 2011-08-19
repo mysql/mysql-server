@@ -1,0 +1,49 @@
+################################################################################
+# This test case checks if MTS allows to concurrently access the replication
+# tables, and as such, concurrently commit transactions that update different
+# databases.
+#
+# It does so by making the workers' threads to sleep after updating replication
+# tables but before releasing locks and committing the current transaction.
+################################################################################
+
+--source include/master-slave.inc
+--source include/have_debug.inc
+--source include/have_innodb.inc
+
+--connection master
+CREATE DATABASE db_1;
+CREATE DATABASE db_2;
+
+CREATE TABLE db_1.test_1 (id INTEGER) engine=Innodb;
+CREATE TABLE db_2.test_1 (id INTEGER) engine=Innodb;
+
+--connection master
+--sync_slave_with_master
+
+--connection slave
+--source include/stop_slave.inc
+--let $save_slave_parallel_workers= `SELECT @@global.slave_parallel_workers`
+--let $save_debug= `SELECT @@global.debug`
+SET @@global.slave_parallel_workers= 2;
+ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
+ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
+--source include/start_slave.inc
+
+--connection master
+--sync_slave_with_master
+SET GLOBAL debug="d,mts_debug_concurrent_access";
+
+--connection master
+INSERT INTO db_1.test_1 VALUES(1);
+INSERT INTO db_2.test_1 VALUES(1);
+DROP DATABASE db_1;
+DROP DATABASE db_2;
+--sync_slave_with_master
+
+--source include/stop_slave.inc
+--replace_result $save_slave_parallel_workers save_slave_parallel_workers
+--eval SET @@global.slave_parallel_workers= $save_slave_parallel_workers
+--eval SET @@global.debug= "$save_debug"
+--source include/start_slave.inc
+--source include/rpl_end.inc

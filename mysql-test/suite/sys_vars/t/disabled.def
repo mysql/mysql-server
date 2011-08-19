@@ -15,3 +15,4 @@ transaction_prealloc_size_basic_32  : Bug#11748572
 transaction_prealloc_size_basic_64  : Bug#11748572
 #thread_cache_size_func             : Bug#11750172: 2008-11-07 joro main.thread_cache_size_func fails in pushbuild when run with pool of threads
 
+all_vars			    : bug#12664445  Fri Jun 17 20:40:24 EEST 2011 andrei

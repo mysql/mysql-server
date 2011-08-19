@@ -1,0 +1,308 @@
+#
+# This is a load generator to call from rpl_parallel and rpl_sequential tests
+#
+
+#
+# load volume parameter
+#
+
+let $iter= 02;
+let $tables= 2;
+let $wk_i_queries= 2;
+let $wk_m_queries= 0;
+let $nk_i_queries= 0;
+let $nk_m_queries= 0;
+let $pre_inserted_rows= 50;
+
+connection slave;
+
+call mtr.add_suppression('Slave: Error dropping database'); ## todo: fix
+
+source include/stop_slave.inc;
+start slave;
+
+connection master;
+
+--disable_query_log
+--disable_result_log
+
+use test;
+delimiter |;
+create procedure one_session(k int)
+begin
+  while k > 0 do
+    insert into tm_nk values(k, 0);
+    insert into tm_wk values(null, 0);
+    insert into ti_nk values(k, 0);
+    insert into ti_wk values(null, 0);
+    set k = k - 1;
+  end while;
+end|
+delimiter ;|
+
+## let $i = $workers + 1;
+##eval 
+# delimiter |;
+# create procedure p1(i int)
+# begin
+#     while i > 0
+#       ##while ($i)
+#       ##{
+#       ## let $i1=$i;
+#       ## dec $i1;
+#       ## use test$i1;
+#       ## call on_session();
+#       ## dec $i;
+#       ##}
+#       use test0;
+#       call one_session();
+#       use test1;
+#       call one_session();
+#       use test2;
+#       call one_session();
+#       use test3;
+#       call one_session();
+#       i= i-1;
+#     end while;
+# end|
+# delimiter ;|
+
+
+let $i = $databases;
+while($i)
+{
+  eval create database test$i;
+
+  let $m= $tables;
+  while ($m)
+  {
+  eval create table test$i.tm_nk_$m (a int, b int, c text) engine=myisam;
+  eval create table test$i.tm_wk_$m (a int auto_increment primary key, b int, c text) engine=myisam;
+  eval create table test$i.ti_nk_$m (a int, b int, c text) engine=innodb;
+  eval create table test$i.ti_wk_$m (a int auto_increment primary key, b int, c text) engine=innodb;
+  let $k= $pre_inserted_rows;
+  while ($k)
+  {
+   eval insert into test$i.ti_wk_$m values(null,  $i, uuid());
+   eval insert into test$i.ti_nk_$m values(null,  $i, uuid());
+   eval insert into test$i.tm_wk_$m values(null,  $i, uuid());
+   eval insert into test$i.tm_nk_$m values(null,  $i, uuid());
+
+   dec $k;
+  }
+  dec $m;
+  }
+
+
+  # this table is special - just for timing. It's more special on test1 db
+  # where it contains master timing of the load as well.
+  eval create table test$i.benchmark (state text) engine=myisam; # timestamp keep on the slave side
+
+  dec $i;
+}
+
+--enable_result_log
+--enable_query_log
+
+
+sync_slave_with_master;
+#connection slave;
+
+--disable_query_log
+--disable_result_log
+
+let $i = $databases;
+while($i)
+{
+  eval alter table test$i.benchmark add ts timestamp not null default current_timestamp;
+
+  dec $i;
+}
+--enable_result_log
+--enable_query_log
+
+
+# not gather events into relay log w/o executing yet
+stop slave sql_thread;
+
+##call p1(1);
+
+connection master;
+
+--disable_query_log
+--disable_result_log
+
+#
+# Load producer
+#
+
+# initial timestamp to record
+
+# the extra ts col on slave is effective only with the STMT format (todo: bug-report)
+set @save.binlog_format= @@session.binlog_format;
+set @@session.binlog_format=STATEMENT;
+let $i = $databases;
+while($i)
+{
+  eval insert into test$i.benchmark set state='slave takes on load';
+
+  dec $i;
+}
+set @@session.binlog_format= @save.binlog_format;
+
+connection slave;
+
+insert into test1.benchmark set state='master started load';
+
+
+connection master;
+
+while ($iter)
+{
+    let $i = $databases;
+
+    while ($i)
+    {
+
+	begin;
+   	   ###eval insert into tm_nk values($iter, $i1, repeat('a', round(rand()*10)));
+
+    	   let $q= $wk_m_queries;
+	   while ($q)
+	   {
+	       let $m= `select 1 + floor(rand() * $tables)`;
+	       eval update      test$i.tm_wk_$m set c= uuid();
+	       eval insert into test$i.tm_wk_$m values(null,  $i, uuid());
+
+	       dec $q;
+	   }
+
+    	   let $q= $wk_i_queries;
+	   while ($q)
+	   {
+	       let $m= `select 1 + floor(rand() * $tables)`;
+	       eval update      test$i.ti_wk_$m set c= uuid();
+	       
+	       eval insert into test$i.ti_wk_$m values(null,  $i, uuid());
+
+	       dec $q;
+	   }
+            
+	   # NK
+
+    	   let $q= $nk_m_queries;
+	   while ($q)
+	   {
+	       let $m= `select 1 + floor(rand() * $tables)`;
+	       eval update test$i.tm_nk_$m set c= uuid();
+	       eval insert into test$i.tm_nk_$m values(null,  $i, uuid());
+
+	       dec $q;
+	   }
+
+    	   let $q= $nk_i_queries;
+	   while ($q)
+	   {
+	       let $m= `select 1 + floor(rand() * $tables)`;
+	       eval update test$i.ti_nk_$m set c= uuid();
+	       eval insert into test$i.ti_nk_$m values(null,  $i, uuid());
+
+	       dec $q;
+	   }
+	commit;
+
+	dec $i;
+    }
+
+    dec $iter;
+}
+
+connection slave;
+
+##use test1;
+insert into test1.benchmark set state='master ends load';
+
+connection master;
+
+# terminal timestamp to record
+
+let $i = $databases;
+set @save.binlog_format= @@session.binlog_format;
+set @@session.binlog_format=STATEMENT;
+while($i)
+{
+  eval insert into test$i.benchmark set state='slave ends load';
+
+  dec $i;
+}
+set @@session.binlog_format= @save.binlog_format;
+
+--enable_result_log
+--enable_query_log
+
+connection slave;
+
+## todo: record start and end time of appying to compare times of
+#  parallel and sequential execution.
+
+--disable_query_log
+--disable_result_log
+
+insert into test1.benchmark set state='slave is processing load';
+
+# To force filling timestamp cols with the slave local clock values
+# to implement benchmarking.
+
+# TODO: replace with another alg
+#set @save.mts_exp_slave_local_timestamp=@@global.mts_exp_slave_local_timestamp;
+#set @@global.mts_exp_slave_local_timestamp=1;
+
+--sleep 1
+
+start slave sql_thread;
+
+let $wait_timeout= 600;
+let $wait_condition= SELECT count(*)+sleep(1) = 5 FROM test1.benchmark;
+source include/wait_condition.inc;
+
+# cleanup for files that could not be removed in the end of previous invocation.
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_files_wildcard $MYSQLD_DATADIR *.out
+
+use test;
+let $benchmark_file= `select replace(concat("benchmark_",uuid(),".out"),"-","_")`;
+--replace_regex /benchmark_.*.out/benchmark.out/
+eval select * from test1.benchmark into outfile  '$benchmark_file';
+select ts from test1.benchmark where state like 'master started load' into @m_0;
+select ts from test1.benchmark where state like 'master ends load' into @m_1;
+select ts from test1.benchmark where state like 'slave takes on load' into @s_0;
+select ts from test1.benchmark where state like 'slave ends load' into @s_1;
+let $delta_file= `select replace(concat("delta_",uuid(),".out"),"-","_")`;
+--replace_regex /delta_.*.out/delta.out/
+eval select time_to_sec(@m_1) - time_to_sec(@m_0) as 'delta_m', 
+       time_to_sec(@s_1) - time_to_sec(@s_0) as 'delta_s' into outfile '$delta_file';
+
+--enable_result_log
+--enable_query_log
+
+
+connection master;
+
+--disable_query_log
+--disable_result_log
+
+let $i = $databases;
+while($i)
+{
+  eval drop database test$i;
+
+  dec $i;
+}
+
+use test;
+drop procedure one_session;
+
+--enable_result_log
+--enable_query_log
+
+sync_slave_with_master;

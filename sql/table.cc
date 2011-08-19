@@ -60,6 +60,9 @@ LEX_STRING RLI_INFO_NAME= {C_STRING_WITH_LEN("slave_relay_log_info")};
 /* MI_INFO name */
 LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("slave_master_info")};
 
+/* WORKER_INFO name */
+LEX_STRING WORKER_INFO_NAME= {C_STRING_WITH_LEN("slave_worker_info")};
+
 	/* Functions defined in this file */
 
 void open_table_error(TABLE_SHARE *share, int error, int db_errno,
@@ -292,6 +295,12 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
     if ((name->length == MI_INFO_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                       MI_INFO_NAME.str,
+                      name->str) == 0))
+      return TABLE_CATEGORY_RPL_INFO;
+
+    if ((name->length == WORKER_INFO_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      WORKER_INFO_NAME.str,
                       name->str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
   }
