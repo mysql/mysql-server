@@ -2722,26 +2722,6 @@ void Qmgr::checkStartInterface(Signal* signal, Uint64 now)
                                    nodePtr.p->m_failconf_blocks[2],
                                    nodePtr.p->m_failconf_blocks[3]);
               warningEvent("%s", buf);
-
-              for (Uint32 i = 0; i<NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks);
-                   i++)
-              {
-                jam();
-                if (nodePtr.p->m_failconf_blocks[i] != 0)
-                {
-                  jam();
-                  signal->theData[0] = 7019;
-                  signal->theData[1] = nodePtr.i;
-                  sendSignal(numberToRef(nodePtr.p->m_failconf_blocks[i],
-                                         getOwnNodeId()),
-                             GSN_DUMP_STATE_ORD, signal, 2, JBB);
-                }
-                else
-                {
-                  jam();
-                  break;
-                }
-              }
             }
           }
 	}

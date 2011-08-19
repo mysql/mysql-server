@@ -15949,7 +15949,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
-  if(arg == 7019 && signal->getLength() == 2)
+  if(arg == 7019 && signal->getLength() == 2 &&
+     signal->theData[1] < MAX_NDB_NODES)
   {
     char buf2[8+1];
     NodeRecordPtr nodePtr;
