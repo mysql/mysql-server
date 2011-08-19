@@ -4297,7 +4297,7 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
             digest.m_md5[12], digest.m_md5[13], digest.m_md5[14],
             digest.m_md5[15]);
 
-    printf(" Computed Digest= [%s]\n",digest_str);
+    //printf(" Computed Digest= [%s]\n",digest_str);
     /* 
       Populate PFS_statements_digest_stat with this information. 
       TODO: create DIGEST_TEXT from tokens and pass it.
