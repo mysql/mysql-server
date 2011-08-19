@@ -1810,7 +1810,7 @@ extern "C" char *yassl_mysql_strdup(const char *from, int)
 
 static int
 default_password_callback(char * buffer, int size_arg, int rwflag,
-                          void * callback_data __attribute__((unused)))
+                          void * /* unused: callback_data */)
 {
   char *passwd;
   size_t passwd_len, size= (size_t) size_arg;
