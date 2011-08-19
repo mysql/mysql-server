@@ -123,9 +123,16 @@ extern char*	srv_arch_dir;
 dictionary tables are in the system tablespace 0 */
 #ifndef UNIV_HOTBACKUP
 extern my_bool	srv_file_per_table;
+/** Sleep delay for threads waiting to enter InnoDB. In micro-seconds. */
+extern	ulong	srv_thread_sleep_delay;
+#if defined(HAVE_ATOMIC_BUILTINS)
+/** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
+extern	ulong	srv_adaptive_max_sleep_delay;
+#endif /* HAVE_ATOMIC_BUILTINS */
 #else
 extern ibool	srv_file_per_table;
-#endif /* UNIV_HOTBACKUP */
+#endif /* HAVE_ATOMIC_BUILTINS */
+
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
 /** Whether to check file format during startup.  A value of
@@ -165,6 +172,10 @@ extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern char	srv_adaptive_flushing;
 
+/* If this flag is TRUE, then we will load the indexes' (and tables') metadata
+even if they are marked as "corrupted". Mostly it is for DBA to process
+corrupted index and table */
+extern my_bool	srv_load_corrupted;
 
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */

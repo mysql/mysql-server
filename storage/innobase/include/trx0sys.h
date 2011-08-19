@@ -618,7 +618,7 @@ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 /** If this is not yet set to TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
 we must reset the doublewrite buffer, because starting from 4.1.x the
 space id of a data page is stored into
-FIL_PAGE_ARCH_LOG_NO_OR_SPACE_NO. */
+FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID. */
 #define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED (24 + FSEG_HEADER_SIZE)
 
 /*-------------------------------------------------------------*/
