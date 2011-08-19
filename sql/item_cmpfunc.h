@@ -750,6 +750,8 @@ public:
   void fix_length_and_dec();
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
+private:
+  void cache_type_info(Item *source);
 };
 
 
