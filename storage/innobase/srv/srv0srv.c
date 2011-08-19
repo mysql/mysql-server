@@ -361,8 +361,6 @@ UNIV_INTERN ulong	srv_replication_delay		= 0;
 
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
-UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-UNIV_INTERN ulong	srv_thread_sleep_delay = 10000;
 UNIV_INTERN ulong	srv_spin_wait_delay	= 6;
 UNIV_INTERN ibool	srv_priority_boost	= TRUE;
 
@@ -1218,7 +1216,7 @@ srv_printf_innodb_monitor(
 	      "ROW OPERATIONS\n"
 	      "--------------\n", file);
 	fprintf(file, "%ld queries inside InnoDB, %lu queries in queue\n",
-		(long) srv_conc_n_threads,
+		(long) srv_conc_get_active_threads(),
 		srv_conc_get_waiting_threads());
 
 	/* This is a dirty read, without holding trx_sys->mutex. */
