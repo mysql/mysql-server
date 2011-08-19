@@ -125,6 +125,10 @@ int vio_getnameinfo(const struct sockaddr *sa,
 #define DES_set_key_unchecked(k,ks) des_set_key_unchecked((k),*(ks))
 #define DES_ede3_cbc_encrypt(i,o,l,k1,k2,k3,iv,e) des_ede3_cbc_encrypt((i),(o),(l),*(k1),*(k2),*(k3),(iv),(e))
 #endif
+/* apple deprecated openssl in MacOSX Lion */
+#ifdef __APPLE__
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 #define HEADER_DES_LOCL_H dummy_something
 #define YASSL_MYSQL_COMPATIBLE
@@ -157,11 +161,13 @@ int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr);
 struct st_VioSSLFd
 *new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
 		       const char *ca_file,  const char *ca_path,
-		       const char *cipher, enum enum_ssl_init_error* error);
+		       const char *cipher, enum enum_ssl_init_error *error,
+                       const char *crl_file, const char *crl_path);
 struct st_VioSSLFd
 *new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
 		      const char *ca_file,const char *ca_path,
-		      const char *cipher, enum enum_ssl_init_error* error);
+		      const char *cipher, enum enum_ssl_init_error *error,
+                      const char *crl_file, const char *crl_path);
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 #endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */

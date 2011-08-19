@@ -354,9 +354,9 @@ public:
   uint          used_uneven_bit_fields;
   enum quick_type use_quick;
   enum join_type type;
-  bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
+  bool          not_used_in_distinct;
   /* TRUE <=> index-based access method must return records in order */
-  bool		sorted;
+  bool          sorted;
   /* 
     If it's not 0 the number stored this field indicates that the index
     scan has been chosen to access the table data and we expect to scan 
@@ -365,9 +365,8 @@ public:
   ha_rows       limit; 
   TABLE_REF	ref;
   /**
-    Join buffering strategy (same as return code of check_join_cache_level().
-    During optimization, this contains allowed join buffering strategies,
-    after optimization it contains chosen join buffering strategy (if any).
+    Join buffering strategy.
+    After optimization it contains chosen join buffering strategy (if any).
    */
   uint          use_join_cache;
   JOIN_CACHE	*cache;
@@ -557,8 +556,6 @@ st_join_table::st_join_table()
     used_uneven_bit_fields(0),
     use_quick(QS_NONE),
     type(JT_UNKNOWN),
-    cached_eq_ref_table(FALSE),
-    eq_ref_table(FALSE),
     not_used_in_distinct(FALSE),
     sorted(FALSE),
 
@@ -1012,9 +1009,8 @@ public:
     buff= 0;
   }   
 
-  /** Bits describing cache's type @sa check_join_cache_usage() */
-  enum {NON_INCREMENTAL_BUFFER= 1,
-        ALG_NONE= 0, ALG_BNL= 2, ALG_BKA= 4, ALG_BKA_UNIQUE= 8};
+  /** Bits describing cache's type @sa setup_join_buffering() */
+  enum {ALG_NONE= 0, ALG_BNL= 1, ALG_BKA= 2, ALG_BKA_UNIQUE= 4};
 
   friend class JOIN_CACHE_BNL;
   friend class JOIN_CACHE_BKA;

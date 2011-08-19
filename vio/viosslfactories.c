@@ -165,19 +165,22 @@ static struct st_VioSSLFd *
 new_VioSSLFd(const char *key_file, const char *cert_file,
              const char *ca_file, const char *ca_path,
              const char *cipher, SSL_METHOD *method, 
-             enum enum_ssl_init_error *error)
+             enum enum_ssl_init_error *error,
+             const char *crl_file, const char *crl_path)
 {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
   DBUG_ENTER("new_VioSSLFd");
   DBUG_PRINT("enter",
              ("key_file: '%s'  cert_file: '%s'  ca_file: '%s'  ca_path: '%s'  "
-              "cipher: '%s'",
+              "cipher: '%s' crl_file: '%s' crl_path: '%s' ",
               key_file ? key_file : "NULL",
               cert_file ? cert_file : "NULL",
               ca_file ? ca_file : "NULL",
               ca_path ? ca_path : "NULL",
-              cipher ? cipher : "NULL"));
+              cipher ? cipher : "NULL",
+              crl_file ? crl_file : "NULL",
+              crl_path ? crl_path : "NULL"));
 
   check_ssl_init();
 
@@ -225,6 +228,30 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     }
   }
 
+  if (crl_file || crl_path)
+  {
+#ifdef HAVE_YASSL
+    DBUG_PRINT("warning", ("yaSSL doesn't support CRL"));
+    DBUG_ASSERT(0);
+#else
+    X509_STORE *store= SSL_CTX_get_cert_store(ssl_fd->ssl_context);
+    /* Load crls from the trusted ca */
+    if (X509_STORE_load_locations(store, crl_file, crl_path) == 0 ||
+        X509_STORE_set_flags(store,
+                             X509_V_FLAG_CRL_CHECK | 
+                             X509_V_FLAG_CRL_CHECK_ALL) == 0)
+    {
+      DBUG_PRINT("warning", ("X509_STORE_load_locations for CRL failed"));
+      *error= SSL_INITERR_BAD_PATHS;
+      DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
+      report_errors();
+      SSL_CTX_free(ssl_fd->ssl_context);
+      my_free(ssl_fd);
+      DBUG_RETURN(0);
+    }
+#endif
+  }
+
   if (vio_set_cert_stuff(ssl_fd->ssl_context, cert_file, key_file, error))
   {
     DBUG_PRINT("error", ("vio_set_cert_stuff failed"));
@@ -249,7 +276,8 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 struct st_VioSSLFd *
 new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
                       const char *ca_file, const char *ca_path,
-                      const char *cipher, enum enum_ssl_init_error* error)
+                      const char *cipher, enum enum_ssl_init_error* error,
+                      const char *crl_file, const char *crl_path)
 {
   struct st_VioSSLFd *ssl_fd;
   int verify= SSL_VERIFY_PEER;
@@ -262,7 +290,8 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
     verify= SSL_VERIFY_NONE;
 
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
-                             ca_path, cipher, TLSv1_client_method(), error)))
+                             ca_path, cipher, TLSv1_client_method(), error,
+                             crl_file, crl_path)))
   {
     return 0;
   }
@@ -279,12 +308,14 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
 struct st_VioSSLFd *
 new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
 		     const char *ca_file, const char *ca_path,
-		     const char *cipher, enum enum_ssl_init_error* error)
+		     const char *cipher, enum enum_ssl_init_error* error,
+                     const char *crl_file, const char *crl_path)
 {
   struct st_VioSSLFd *ssl_fd;
   int verify= SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
-                             ca_path, cipher, TLSv1_server_method(), error)))
+                             ca_path, cipher, TLSv1_server_method(), error,
+                             crl_file, crl_path)))
   {
     return 0;
   }
