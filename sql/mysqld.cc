@@ -918,7 +918,8 @@ HANDLE smem_event_connect_request= 0;
 
 my_bool opt_use_ssl  = 0;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
-     *opt_ssl_cipher= NULL, *opt_ssl_key= NULL;
+     *opt_ssl_cipher= NULL, *opt_ssl_key= NULL, *opt_ssl_crl= NULL,
+     *opt_ssl_crlpath= NULL;
 
 #ifdef HAVE_OPENSSL
 #include <openssl/crypto.h>
@@ -3875,7 +3876,8 @@ static void init_ssl()
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
-					  opt_ssl_cipher, &error);
+					  opt_ssl_cipher, &error,
+                                          opt_ssl_crl, opt_ssl_crlpath);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
     {

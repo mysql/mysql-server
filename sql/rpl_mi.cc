@@ -43,8 +43,14 @@ enum {
   /* line for master_retry_count */
   LINE_FOR_MASTER_RETRY_COUNT= 20,
 
+  /* line for ssl_crl */
+  LINE_FOR_SSL_CRL= 21,
+
+  /* line for ssl_crl */
+  LINE_FOR_SSL_CRLPATH= 22,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_RETRY_COUNT
+  LINES_IN_MASTER_INFO= LINE_FOR_SSL_CRLPATH
 };
 
 /*
@@ -73,7 +79,9 @@ const char *info_mi_fields []=
   "bind", 
   "ignore_server_ids",
   "uuid",
-  "retry_count"
+  "retry_count",
+  "ssl_crl",
+  "ssl_crlpath",
 };
 
 Master_info::Master_info(
@@ -105,6 +113,7 @@ Master_info::Master_info(
   host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
+  ssl_crl[0]= 0; ssl_crlpath[0]= 0;
   master_uuid[0]= 0;
   ignore_server_ids= new Server_ids(sizeof(::server_id));
 }
@@ -428,6 +437,13 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(TRUE);
   }
 
+  if (lines >= LINE_FOR_SSL_CRLPATH)
+  {
+    if (from->get_info(ssl_crl, sizeof(ssl_crl), 0) ||
+        from->get_info(ssl_crlpath, sizeof(ssl_crlpath), 0))
+      DBUG_RETURN(TRUE);
+  }
+
   ssl= (my_bool) test(temp_ssl);
   ssl_verify_server_cert= (my_bool) test(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
@@ -473,7 +489,9 @@ bool Master_info::write_info(Rpl_info_handler *to)
       to->set_info(bind_addr) ||
       to->set_info(ignore_server_ids) ||
       to->set_info(master_uuid) ||
-      to->set_info(retry_count))
+      to->set_info(retry_count) ||
+      to->set_info(ssl_crl) ||
+      to->set_info(ssl_crlpath))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
