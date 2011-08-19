@@ -21,6 +21,7 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "pfs_global.h"
+#include "my_net.h"
 
 #include <stdlib.h>
 #include <string.h>
