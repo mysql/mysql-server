@@ -96,6 +96,7 @@
 #include "mysql/psi/mysql_statement.h"
 #include "sql_bootstrap.h"
 #include "opt_explain.h"
+#include "sql_rewrite.h"
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -1165,7 +1166,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       (char *) thd->security_ctx->host_or_ip);
     char *packet_end= thd->query() + thd->query_length();
 
-    general_log_write(thd, command, thd->query(), thd->query_length());
+    if (opt_log_raw)
+      general_log_write(thd, command, thd->query(), thd->query_length());
+
     DBUG_PRINT("query",("%-.4096s",thd->query()));
 
 #if defined(ENABLED_PROFILING)
@@ -1629,13 +1632,19 @@ void log_slow_statement(THD *thd)
          ((thd->server_status &
            (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
           opt_log_queries_not_using_indexes &&
-           !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
+          !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
         thd->get_examined_row_count() >= thd->variables.min_examined_row_limit)
     {
       THD_STAGE_INFO(thd, stage_logging_slow_query);
       thd->status_var.long_query_count++;
-      slow_log_print(thd, thd->query(), thd->query_length(), 
-                     end_utime_of_query);
+      if (thd->rewritten_query.length())
+        slow_log_print(thd,
+                       thd->rewritten_query.c_ptr_safe(),
+                       thd->rewritten_query.length(), 
+                       end_utime_of_query);
+      else
+        slow_log_print(thd, thd->query(), thd->query_length(), 
+                       end_utime_of_query);
     }
   }
   DBUG_VOID_RETURN;
@@ -1814,6 +1823,7 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
       return TRUE;
   query[packet_length]= '\0';
   thd->set_query(query, packet_length);
+  thd->rewritten_query.free();                 // free here lest PS break
 
   /* Reclaim some memory */
   thd->packet.shrink(thd->variables.net_buffer_length);
@@ -5699,6 +5709,33 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 
     bool err= parse_sql(thd, parser_state, NULL);
 
+    const char *found_semicolon= parser_state->m_lip.found_semicolon;
+    size_t      qlen= found_semicolon
+                      ? (found_semicolon - thd->query())
+                      : thd->query_length();
+
+
+    /*
+      See whether we can do any query rewriting. opt_log_raw only controls
+      writing to the general log, so rewriting still needs to happen because
+      the other logs (binlog, slow query log, ...) can not be set to raw mode
+      for security reasons.
+    */
+    mysql_rewrite_query(thd);
+
+    if (thd->rewritten_query.length())
+    {
+      lex->safe_to_cache_query= FALSE; // see comments below
+      if (!opt_log_raw)
+        general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(),
+                                          thd->rewritten_query.length());
+    }
+    else
+    {
+      if (!opt_log_raw)
+        general_log_write(thd, COM_QUERY, thd->query(), qlen);
+    }
+
     if (!err)
     {
       thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
@@ -5715,7 +5752,6 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
       {
 	if (! thd->is_error())
 	{
-          const char *found_semicolon= parser_state->m_lip.found_semicolon;
           /*
             Binlog logs a string starting from thd->query and having length
             thd->query_length; so we set thd->query_length correctly (to not
@@ -5769,9 +5805,20 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   }
   else
   {
-    /* Only SELECT are cached in the query cache. */
+    /*
+      Query cache hit. We need to write the general log here.
+      Right now, we only cache SELECT results; if the cache ever
+      becomes more generic, we should also cache the rewritten
+      query-string together with the original query-string (which
+      we'd still use for the matching) when we first execute the
+      query, and then use the obfuscated query-string for logging
+      here when the query is given again.
+    */
     thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
                                                  sql_statement_info[SQLCOM_SELECT].m_key);
+    if (!opt_log_raw)
+      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+    parser_state->m_lip.found_semicolon= NULL;
   }
 
   DBUG_VOID_RETURN;
@@ -6135,6 +6182,11 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   lex->add_to_query_tables(ptr);
   ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
                         MDL_TRANSACTION);
+  if (table->is_derived_table())
+  {
+    ptr->effective_algorithm= DERIVED_ALGORITHM_TMPTABLE;
+    ptr->derived_key_list.empty();
+  }
   DBUG_RETURN(ptr);
 }
 
@@ -7191,40 +7243,45 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   /* If it is a merge table, check privileges for merge children. */
   if (lex->create_info.merge_list.first)
   {
-    TABLE_LIST *tl;
     /*
-      Pre-open temporary tables from UNION clause to simplify privilege
-      checking for them.
+      The user must have (SELECT_ACL | UPDATE_ACL | DELETE_ACL) on the
+      underlying base tables, even if there are temporary tables with the same
+      names.
+
+      From user's point of view, it might look as if the user must have these
+      privileges on temporary tables to create a merge table over them. This is
+      one of two cases when a set of privileges is required for operations on
+      temporary tables (see also CREATE TABLE).
+
+      The reason for this behavior stems from the following facts:
+
+        - For merge tables, the underlying table privileges are checked only
+          at CREATE TABLE / ALTER TABLE time.
+
+          In other words, once a merge table is created, the privileges of
+          the underlying tables can be revoked, but the user will still have
+          access to the merge table (provided that the user has privileges on
+          the merge table itself). 
+
+        - Temporary tables shadow base tables.
+
+          I.e. there might be temporary and base tables with the same name, and
+          the temporary table takes the precedence in all operations.
+
+        - For temporary MERGE tables we do not track if their child tables are
+          base or temporary. As result we can't guarantee that privilege check
+          which was done in presence of temporary child will stay relevant later
+          as this temporary table might be removed.
+
+      If SELECT_ACL | UPDATE_ACL | DELETE_ACL privileges were not checked for
+      the underlying *base* tables, it would create a security breach as in
+      Bug#12771903.
     */
-    if (open_temporary_tables(thd, lex->create_info.merge_list.first))
-      goto err;
 
     if (check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
                            lex->create_info.merge_list.first,
                            FALSE, UINT_MAX, FALSE))
       goto err;
-
-    /*
-      Since the MERGE table in question might already exist with exactly
-      the same definition we need to close all tables opened for underlying
-      checking to allow normal open of table being created.
-      To do this we simply close all tables and then open only tables from
-      the main statement's table list.
-    */
-    close_thread_tables(thd);
-
-    /*
-      To make things safe for re-execution and upcoming open_temporary_tables()
-      we need to reset TABLE_LIST::table pointers in both main table list and
-      and UNION clause.
-    */
-    for (tl= lex->query_tables; tl; tl= tl->next_global)
-      tl->table= NULL;
-    for (tl= lex->create_info.merge_list.first; tl; tl= tl->next_global)
-      tl->table= NULL;
-
-    if (open_temporary_tables(thd, lex->query_tables))
-      DBUG_RETURN(TRUE);
   }
 
   if (want_priv != CREATE_TMP_ACL &&

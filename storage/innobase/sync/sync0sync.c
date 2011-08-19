@@ -1234,6 +1234,7 @@ sync_thread_add_level(
 	case SYNC_DICT_HEADER:
 	case SYNC_TRX_I_S_RWLOCK:
 	case SYNC_TRX_I_S_LAST_READ:
+	case SYNC_IBUF_MUTEX:
 		if (!sync_thread_levels_g(array, level, TRUE)) {
 			fprintf(stderr,
 				"InnoDB: sync_thread_levels_g(array, %lu)"
@@ -1333,21 +1334,27 @@ sync_thread_add_level(
 		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1, TRUE));
 		break;
 	case SYNC_TREE_NODE_NEW:
-		ut_a(sync_thread_levels_contain(array, SYNC_FSP_PAGE)
-		     || sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
+		ut_a(sync_thread_levels_contain(array, SYNC_FSP_PAGE));
 		break;
 	case SYNC_INDEX_TREE:
-		if (sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
-		    && sync_thread_levels_contain(array, SYNC_FSP)) {
-			ut_a(sync_thread_levels_g(array, SYNC_FSP_PAGE - 1,
-						  TRUE));
-		} else {
-			ut_a(sync_thread_levels_g(array, SYNC_TREE_NODE - 1,
-						  TRUE));
-		}
+		ut_a(sync_thread_levels_g(array, SYNC_TREE_NODE - 1, TRUE));
 		break;
-	case SYNC_IBUF_MUTEX:
-		ut_a(sync_thread_levels_g(array, SYNC_FSP_PAGE - 1, TRUE));
+	case SYNC_IBUF_TREE_NODE:
+		ut_a(sync_thread_levels_contain(array, SYNC_IBUF_INDEX_TREE)
+		     || sync_thread_levels_g(array, SYNC_IBUF_TREE_NODE - 1,
+					     TRUE));
+		break;
+	case SYNC_IBUF_TREE_NODE_NEW:
+		ut_a(sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
+		break;
+	case SYNC_IBUF_INDEX_TREE:
+		if (sync_thread_levels_contain(array, SYNC_FSP)) {
+			ut_a(sync_thread_levels_g(
+				     array, SYNC_FSP_PAGE - 1, TRUE));
+		} else {
+			ut_a(sync_thread_levels_g(
+				     array, SYNC_IBUF_TREE_NODE - 1, TRUE));
+		}
 		break;
 	case SYNC_IBUF_PESS_INSERT_MUTEX:
 		ut_a(sync_thread_levels_g(array, SYNC_FSP - 1, TRUE));
