@@ -94,7 +94,7 @@ extern CHARSET_INFO *character_set_filesystem;
 extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_update_log, opt_bin_log, opt_error_log;
-extern my_bool opt_log, opt_slow_log;
+extern my_bool opt_log, opt_slow_log, opt_log_raw;
 extern my_bool opt_backup_history_log;
 extern my_bool opt_backup_progress_log;
 extern ulonglong log_output_options;
@@ -507,6 +507,7 @@ enum options_mysqld
   OPT_DEBUG_SYNC_TIMEOUT,
   OPT_DELAY_KEY_WRITE_ALL,
   OPT_ISAM_LOG,
+  OPT_IGNORE_DB_DIRECTORY,
   OPT_KEY_BUFFER_SIZE,
   OPT_KEY_CACHE_AGE_THRESHOLD,
   OPT_KEY_CACHE_BLOCK_SIZE,
@@ -541,7 +542,9 @@ enum options_mysqld
   OPT_WANT_CORE,
   OPT_ENGINE_CONDITION_PUSHDOWN,
   OPT_LOG_ERROR,
-  OPT_MAX_LONG_DATA_SIZE
+  OPT_MAX_LONG_DATA_SIZE,
+  OPT_PLUGIN_LOAD,
+  OPT_PLUGIN_LOAD_ADD
 };
 
 
