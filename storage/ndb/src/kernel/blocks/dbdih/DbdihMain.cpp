@@ -3659,6 +3659,8 @@ done:
     ndbassert(gci == restorableGCI);
     replicaPtr.p->m_restorable_gci = gci;
     Uint32 startGci = replicaPtr.p->maxGciCompleted[maxLcpIndex] + 1;
+    if (startGci > gci)
+      startGci = gci;
     ndbout_c("Found LCP: %d(%d) maxGciStarted: %d maxGciCompleted: %d restorable: %d(%d) newestRestorableGCI: %d",
 	     maxLcpId,
 	     maxLcpIndex,
