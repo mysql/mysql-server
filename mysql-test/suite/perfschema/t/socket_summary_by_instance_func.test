@@ -547,6 +547,13 @@ let $connect_user= root;
 
 #========================================================================
 --connect (con1,localhost,root,,mysqltest,,)
+# Experiments showed some unexpected result in the counter difference
+# which got con1 for the next statement (see 3.1).
+# The measured diff was too high and was probably caused by some
+# too much delayed counter maintenance for the connect.
+# We run here just some SQL statement because counter maintenance
+# for SQL statements is more fast and reliable than far Connect.
+DO 1;
 --connection default
 --source ../include/wait_till_sleep.inc
 --disable_query_log
@@ -683,6 +690,20 @@ if(`SELECT NOT ( $my_rules ) $part `)
 --echo #       Attention: There are exceptions but they are not valid
 --echo #                  for this test.
 #==========================================================================
+# Enable the following lines for debugging the check.
+# Attention: socket_summary_by_instance_detail is after that rotten.
+if(0)
+{
+  --enable_info
+  UPDATE mysqltest.socket_summary_by_instance_detail
+  SET SUM_TIMER_MISC = 13, COUNT_MISC  = 0
+  WHERE statement LIKE '%WHERE col1 = 3'
+    AND EVENT_NAME LIKE '%client_connection'
+    AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+  LIMIT 1;
+  --disable_info
+}
+
 let $my_rules=
 ((COUNT_READ  = 0 AND SUM_TIMER_READ  = 0 AND SUM_NUMBER_OF_BYTES_READ  = 0)
   OR
@@ -714,7 +735,8 @@ if(`SELECT COUNT(*) FROM mysqltest.socket_summary_by_instance_detail
 
 --echo # 4.2 Results must be stable
 #==========================================================================
-# Enable the following lines for debugging the check
+# Enable the following lines for debugging the check.
+# Attention: socket_summary_by_instance_detail is after that rotten.
 if(0)
 {
   --enable_info
@@ -800,7 +822,9 @@ if(`SELECT COUNT(*) FROM performance_schema.socket_summary_by_instance
    --echo # We expect
    --echo #    $my_rules
    --echo #
-   # MLML: Try $column_list
+   # Attention: We use here performance_schema.socket_summary_by_instance
+   #            and not mysqltest.socket_summary_by_instance_detail.
+   #            Therefore the convenient $column_list cannot be used.
    eval
    SELECT
       COUNT_STAR, SUM_TIMER_WAIT,
@@ -818,16 +842,31 @@ if(`SELECT COUNT(*) FROM performance_schema.socket_summary_by_instance
 --echo #       NOT LIKE '%client_connection' because everything gets charged
 --echo #       into client_connection of the acting connection.
 #===========================================================================
+# Enable the following lines for debugging the check.
+# Attention: socket_summary_by_instance_detail is after that rotten.
+if(0)
+{
+  --enable_info
+  UPDATE mysqltest.socket_summary_by_instance_detail
+  SET COUNT_WRITE = 13
+  WHERE statement LIKE '%WHERE col1 = 3'
+    AND EVENT_NAME NOT LIKE '%client_connection'
+  LIMIT 1;
+  --disable_info
+}
+
 let $my_rules=
 COUNT_READ  = 0 AND SUM_TIMER_READ  = 0 AND SUM_NUMBER_OF_BYTES_READ  = 0
 AND
 COUNT_WRITE = 0 AND SUM_TIMER_WRITE = 0 AND SUM_NUMBER_OF_BYTES_WRITE = 0
 AND
 COUNT_MISC  = 0 AND SUM_TIMER_MISC  = 0;
-if(`SELECT COUNT(*) FROM mysqltest.socket_summary_by_instance_detail
+let $part=
+FROM mysqltest.socket_summary_by_instance_detail
     WHERE NOT ( $my_rules )
       AND EVENT_NAME NOT LIKE '%client_connection'
-      AND statement NOT LIKE 'Connect%'`)
+      AND statement NOT LIKE 'Connect%';
+if(`SELECT COUNT(*) $part`)
 {
    --enable_query_log
    --enable_result_log
@@ -838,15 +877,25 @@ if(`SELECT COUNT(*) FROM mysqltest.socket_summary_by_instance_detail
    eval
    SELECT
       $column_list
-   FROM mysqltest.socket_summary_by_instance_detail
-   WHERE NOT ( $my_rules )
-     AND EVENT_NAME NOT LIKE '%client_connection'
-     AND statement NOT LIKE 'Connect%'
+   $part
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN, statement, run;
 }
 
 --echo # 4.4.2 In case of SELECT and our scenarios even COUNT_READ and COUNT_MISC
 --echo #       are stable.
+#===========================================================================
+# Enable the following lines for debugging the check.
+# Attention: socket_summary_by_instance_detail is after that rotten.
+if(0)
+{
+  --enable_info
+  UPDATE mysqltest.socket_summary_by_instance_detail
+  SET COUNT_READ = 13
+  WHERE statement LIKE '%WHERE col1 = 3'
+  LIMIT 1;
+  --disable_info
+}
+
 let $my_rules=
 COUNT(DISTINCT COUNT_READ)  = 1 AND
 COUNT(DISTINCT COUNT_MISC)  = 1;
@@ -879,6 +928,20 @@ if(`SELECT COUNT(statement) $part`)
 --echo #       -> OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
 --echo #       COUNT_MISC = 0 AND SUM_TIMER_MISC = 0
 #===========================================================================
+# Enable the following lines for debugging the check.
+# Attention: socket_summary_by_instance_detail is after that rotten.
+if(0)
+{
+  --enable_info
+  UPDATE mysqltest.socket_summary_by_instance_detail
+  SET COUNT_MISC = 13
+  WHERE statement LIKE '%WHERE col1 = 3'
+    AND EVENT_NAME LIKE '%client_connection'
+    AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+  LIMIT 1;
+  --disable_info
+}
+
 let $my_rules=
 COUNT_MISC = 0 AND SUM_TIMER_MISC = 0;
 let $part=
@@ -1134,6 +1197,20 @@ if(`SELECT COUNT(*) $part `)
 --echo #         COUNT_MISC = 0 AND SUM_TIMER_MISC = 0 must be valid
 --echo #         because we run through server_unix_socket.
 #===========================================================================
+# Enable the following lines for debugging the check.
+# Attention: socket_summary_by_instance_detail is after that rotten.
+if(0)
+{
+  --enable_info
+  UPDATE mysqltest.socket_summary_by_instance_detail
+  SET COUNT_MISC  = 13
+  WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+    AND statement LIKE ('%Connect%localhost%')
+    AND EVENT_NAME LIKE ('%server_tcpip_socket%')
+  LIMIT 1;
+  --disable_info
+}
+
 let $my_rules=
 COUNT_MISC  = 0 AND SUM_TIMER_MISC  = 0;
 let $part=
@@ -1159,6 +1236,20 @@ if(`SELECT COUNT(*) $part `)
 --echo # 4.5.2.2 For the instance with EVENT_NAME LIKE '%server_unix_socket'
 --echo #         COUNT_MISC > 0 AND SUM_TIMER_MISC > 0 must be valid.
 #===========================================================================
+# Enable the following lines for debugging the check.
+# Attention: socket_summary_by_instance_detail is after that rotten.
+if(0)
+{
+  --enable_info
+  UPDATE mysqltest.socket_summary_by_instance_detail
+  SET COUNT_MISC  = 0
+  WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+    AND statement LIKE ('%Connect%localhost%')
+    AND EVENT_NAME LIKE ('%server_unix_socket%')
+  LIMIT 1;
+  --disable_info
+}
+
 let $my_rules=
 COUNT_MISC  > 0 AND SUM_TIMER_MISC  > 0;
 let $part=
@@ -1186,6 +1277,21 @@ if(`SELECT COUNT(*) $part `)
 --echo #         COUNT_MISC = 0 AND SUM_TIMER_MISC = 0 must be valid
 --echo #         because we run through server_tcpip_socket.
 #===========================================================================
+# Enable the following lines for debugging the check.
+# Attention: socket_summary_by_instance_detail is after that rotten.
+if(0)
+{
+  --enable_info
+  eval
+  UPDATE mysqltest.socket_summary_by_instance_detail
+  SET COUNT_MISC  = 13
+  WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+    AND EVENT_NAME LIKE ('%server_unix_socket%')
+    AND statement LIKE ('%Connect%$my_localhost%')
+  LIMIT 1;
+  --disable_info
+}
+
 let $my_rules=
 COUNT_MISC  = 0 AND SUM_TIMER_MISC  = 0;
 let $part=
@@ -1211,6 +1317,21 @@ if(`SELECT COUNT(*) $part `)
 --echo # 4.5.3.2 For the instance with EVENT_NAME LIKE '%server_tcpip_socket'
 --echo #         COUNT_MISC > 0 AND SUM_TIMER_MISC > 0 must be valid.
 #===========================================================================
+# Enable the following lines for debugging the check.
+# Attention: socket_summary_by_instance_detail is after that rotten.
+if(0)
+{
+  --enable_info
+  eval
+  UPDATE mysqltest.socket_summary_by_instance_detail
+  SET COUNT_MISC  = 0
+  WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+  AND statement LIKE ('%Connect%$my_localhost%')
+  AND EVENT_NAME LIKE ('%server_tcpip_socket%')
+  LIMIT 1;
+  --disable_info
+}
+
 let $my_rules=
 COUNT_MISC  > 0 AND SUM_TIMER_MISC  > 0;
 let $part=
@@ -1236,7 +1357,21 @@ if(`SELECT COUNT(*) $part `)
 --echo # 4.5.4 Failing Connects do not cause any row with EVENT_NAME
 --echo #       LIKE '%client_connection'
 #===========================================================================
-# Debug: Try with LIKE 'Connect%root%'
+# Enable the following lines for debugging the check.
+# Attention: socket_summary_by_instance_detail is after that rotten.
+if(0)
+{
+  --enable_info
+  eval
+  UPDATE mysqltest.socket_summary_by_instance_detail
+  SET statement = 'Connect boot '
+  WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+    AND statement LIKE ('Connect%root%')
+    AND EVENT_NAME LIKE ('%client_connection')
+  LIMIT 1;
+  --disable_info
+}
+
 let $part=
 FROM mysqltest.socket_summary_by_instance_detail
 WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
@@ -1259,7 +1394,20 @@ if(`SELECT COUNT(*) $part`)
 --echo # 4.5.5 Successful Connects cause a new instance with EVENT_NAME
 --echo #       LIKE '%client_connection'
 #===========================================================================
-# MLML: Is checked
+# Enable the following lines for debugging the check.
+# Attention: socket_summary_by_instance_detail is after that rotten.
+if(0)
+{
+  --enable_info
+  DELETE
+  FROM mysqltest.socket_summary_by_instance_detail
+  WHERE EVENT_NAME LIKE ('%client_connection')
+    AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
+    AND statement LIKE ('Connect%root%')
+  LIMIT 1;
+  --disable_info
+}
+
 # - connects which should be successful have statement LIKE ('Connect%root%').
 # - We try every type of Connect $loop_rounds times.
 #   Therefore we should find $loop_rounds rows with
@@ -1280,15 +1428,6 @@ WHERE EVENT_NAME LIKE ('%client_connection')
   AND statement LIKE ('Connect%root%')
 GROUP BY statement
 HAVING NOT ( $my_rules );
-
-# Reveal that the check that follows would catch anything:
-# DELETE
-# FROM mysqltest.socket_summary_by_instance_detail
-# WHERE EVENT_NAME LIKE ('%client_connection')
-#   AND OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
-#   AND statement LIKE ('Connect%root%')
-# LIMIT 1;
-#    Attention: socket_summary_by_instance_detail is after that rotten.
 
 if(`SELECT COUNT(*) $part`)
 {
@@ -1316,6 +1455,8 @@ if(`SELECT COUNT(*) $part`)
 --echo #     - the stability of results is already checked
 --echo #       So we con go with the results of the first run.
 
+# Typical content of mysqltest.socket_summary_by_instance_detail
+#
 # eval
 # SELECT $column_list
 # FROM mysqltest.socket_summary_by_instance_detail
@@ -1333,7 +1474,6 @@ if(`SELECT COUNT(*) $part`)
 
 --echo # 4.6.1 The SUM_OF_BYTES_WRITE value is the same for all Connects.
 #========================================================================
-# MLML: Is checked
 let $my_rules= COUNT(DISTINCT SUM_NUMBER_OF_BYTES_WRITE) = 1;
 let $part=
 FROM mysqltest.socket_summary_by_instance_detail
@@ -1358,7 +1498,6 @@ if(`SELECT NOT ( $my_rules) $part`)
 
 --echo # 4.6.2 The SUM_OF_BYTES_WRITE value hast to be > 100.
 #============================================================
-# MLML: Is checked
 let $my_rules= SUM_NUMBER_OF_BYTES_WRITE > 100;
 let $part=
 FROM mysqltest.socket_summary_by_instance_detail
@@ -1384,7 +1523,6 @@ if(`SELECT COUNT(*) $part`)
 
 --echo # 4.6.3 COUNT_READ, COUNT_WRITE and COUNT_MISC have to be to be > 0
 #=========================================================================
-# MLML: Is checked
 let $my_rules=
 COUNT_READ > 0 AND COUNT_WRITE > 0 AND COUNT_MISC > 0;
 let $part=
@@ -1429,7 +1567,7 @@ WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
 
 --echo # 4.6.4 The user name length affects the SUM_OF_BYTES_READ value
 #======================================================================
-# MLML: Is checked
+# CREAD    TREAD BREAD CWRITE   TWRITE BWRITE CMISC    TMISC STATEMENT
 #     4  6706392    85      3 15509472    117     2 34851168 Connect (con*,localhost,root012345,,mysqltest,,)
 #     4 10543632    89      3 10578744    117     2 39460872 Connect (con*,localhost,root0123456789,,mysqltest,,)
 let $stmt2= Connect (con*,localhost,root0123456789,,mysqltest,,);
@@ -1454,6 +1592,7 @@ if(`SELECT NOT ($my_rules)
 
 --echo # 4.6.5 The database name length affects the SUM_OF_BYTES_READ value
 #==========================================================================
+# CREAD    TREAD BREAD CWRITE   TWRITE BWRITE CMISC    TMISC STATEMENT
 #     4  7012368    84      3 10112256    117     2 43067376 Connect (con*,localhost,root,,mysqlsupertest,,)
 #     4  7172880    79      3 10247688    117     2 40128000 Connect (con*,localhost,root,,mysqltest,,)
 let $stmt2= Connect (con*,localhost,root,,mysqlsupertest,,);

@@ -22,30 +22,30 @@
 --source include/not_windows.inc
 
 # Set this to enable debugging output
-let $my_socket_debug=0;
+let $my_socket_debug= 0;
 
 #
 # Set IP address defaults with respect to IPV6 support
 #
 
 # Determine if IPV6 supported
-let $check_ipv6_just_check=1;
+let $check_ipv6_just_check= 1;
 --source include/check_ipv6.inc
 
 # Determine if IPV4 mapped to IPV6 supported
-let $check_ipv4_mapped_just_check=1;
+let $check_ipv4_mapped_just_check= 1;
 --source include/check_ipv4_mapped.inc
 
-let $my_localhost=127.0.0.1;
+let $my_localhost= 127.0.0.1;
 
 if($check_ipv6_supported)
 {
-  let $my_localhost=::1;
+  let $my_localhost= ::1;
 }
 
 if($check_ipv4_mapped_supported)
 {
-  let $my_localhost=::ffff:127.0.0.1;
+  let $my_localhost= ::ffff:127.0.0.1;
 }
 
 if($my_socket_debug)
@@ -66,7 +66,7 @@ SELECT THREAD_ID INTO @thread_id
 FROM performance_schema.threads
 WHERE PROCESSLIST_ID = CONNECTION_ID();
 
-let $con0_thread_id = `SELECT @thread_id`;
+let $con0_thread_id= `SELECT @thread_id`;
 
 #
 # ESTABLISH TCP/IP CONNECTION 1
@@ -95,7 +95,7 @@ FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
 
 let $con1_thread_id= `SELECT @thread_id`;
-let $con1_port = `SELECT @port`;
+let $con1_port= `SELECT @port`;
 
 --echo # Switch to connection default
 --connection default
@@ -127,7 +127,7 @@ FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
 
 let $con2_thread_id= `SELECT @thread_id`;
-let $con2_port = `SELECT @port`;
+let $con2_port= `SELECT @port`;
 
 --echo # Switch to connection default
 --connection default
@@ -156,7 +156,7 @@ eval SELECT PORT INTO @port
 FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
 
-let $con3_port = `SELECT @port`;
+let $con3_port= `SELECT @port`;
 let $con3_thread_id= `SELECT @thread_id`;
 
 --echo # Switch to connection default
@@ -198,7 +198,7 @@ FROM performance_schema.socket_instances;
 --echo #    There must be only one entry with our thread_id
 
 --disable_query_log
-eval set @thread_id= $con0_thread_id;
+eval SET @thread_id= $con0_thread_id;
 --enable_query_log
 
 eval SELECT COUNT(*) = 1 AS 'Expect 1'
@@ -211,7 +211,7 @@ WHERE THREAD_ID = @thread_id;
 
 --echo # TCP/IP connections should have a unique port number
 --disable_query_log
-eval set @port= $con1_port;
+eval SET @port= $con1_port;
 --enable_query_log
 
 --echo # Connection 1 (tcp/ip)
@@ -220,7 +220,7 @@ FROM performance_schema.socket_instances
 WHERE PORT = @port;
 
 --disable_query_log
-eval set @port= $con2_port;
+eval SET @port= $con2_port;
 --enable_query_log
 
 --echo # Connection 2 (tcp/ip)
@@ -237,7 +237,7 @@ WHERE PORT = @port;
 # wait/io/socket/sql/client_connection       139799531958280         16         37         0    ACTIVE
 
 --disable_query_log
-eval set @thread_id = $con0_thread_id;
+eval SET @thread_id = $con0_thread_id;
 --enable_query_log
 
 SELECT COUNT(*) = 1 as 'Expect 1'
@@ -269,7 +269,7 @@ let $server_tcpip_thread_id= `SELECT @thread_id`;
 
 --echo #    Check the content.
 --disable_query_log
-eval set @port = $MASTER_MYPORT;
+eval SET @port = $MASTER_MYPORT;
 --enable_query_log
 
 eval SELECT THREAD_ID = @thread_id
@@ -316,7 +316,7 @@ WHERE EVENT_NAME = 'wait/io/socket/sql/server_unix_socket';
 --echo # Server listening sockets (TCP and Unix) are handled on the same thread
 
 --disable_query_log
-eval set @thread_id = $server_tcpip_thread_id;
+eval SET @thread_id = $server_tcpip_thread_id;
 --enable_query_log
 
 eval SELECT COUNT(*) = 2 AS 'Expect 1'
@@ -324,7 +324,7 @@ FROM performance_schema.socket_instances
 WHERE THREAD_ID = @thread_id;
 
 --disable_query_log
-eval set @thread_id = $server_unix_thread_id;
+eval SET @thread_id = $server_unix_thread_id;
 --enable_query_log
 
 eval SELECT COUNT(*) = 2 AS 'Expect 1'
@@ -348,9 +348,9 @@ select @match_thread_id;
 --echo #    Check content for client connection 1 (tcpip)
 
 --disable_query_log
-eval set @port = $con1_port;
-eval set @thread_id = $con1_thread_id;
-eval set @addr = '$my_localhost';
+eval SET @port = $con1_port;
+eval SET @thread_id = $con1_thread_id;
+eval SET @addr = '$my_localhost';
 --enable_query_log
 
 eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
@@ -377,9 +377,9 @@ WHERE THREAD_ID = @thread_id;
 --echo #    Check content for client connection 2 (tcpip)
 
 --disable_query_log
-eval set @port = $con2_port;
-eval set @thread_id = $con2_thread_id;
-eval set @addr = '$my_localhost';
+eval SET @port = $con2_port;
+eval SET @thread_id = $con2_thread_id;
+eval SET @addr = '$my_localhost';
 --enable_query_log
 
 eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
@@ -406,7 +406,7 @@ WHERE THREAD_ID = @thread_id;
 --echo #    Check the content for client connection 3 (unix domain).
 
 --disable_query_log
-eval set @thread_id = $con3_thread_id;
+eval SET @thread_id = $con3_thread_id;
 --enable_query_log
 
 eval SELECT EVENT_NAME = 'wait/io/socket/sql/client_connection'
@@ -428,13 +428,16 @@ WHERE THREAD_ID = @thread_id;
 #
 
 --echo # Show differences to socket_instances before con1, con2 and con3 connecting
---replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
-SELECT EVENT_NAME, IP
+let $part=
 FROM performance_schema.socket_instances
 WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)
 NOT IN (SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE
         FROM my_socket_instances)
 ORDER BY THREAD_ID;
+--replace_result '::ffff:127.0.0.1' <LOCALHOST> '127.0.0.1' <LOCALHOST> '::1' <LOCALHOST> '::' <BINDADDR> '0.0.0.0' <BINDADDR>
+eval
+SELECT EVENT_NAME, IP
+$part;
 
 --connection default
 
@@ -458,13 +461,13 @@ ORDER BY THREAD_ID;
 # VERIFY CONNECTIONS DROPPED
 #
 
---echo # Show differences to socket_instances before con1,con1 connecting.
---echo # There should be none.
-
+--echo # After waiting a bit we should have no differences to socket_instances
+--echo # before con1, con2, con3 connecting.
+let $wait_timeout= 10;
+let $wait_condition= SELECT COUNT(*) = 0 $part;
+--source include/wait_condition.inc
+#
+eval
 SELECT *
-FROM performance_schema.socket_instances
-WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)
-NOT IN (SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE
-        FROM my_socket_instances)
-ORDER BY THREAD_ID;
+$part;
 
