@@ -354,9 +354,9 @@ public:
   uint          used_uneven_bit_fields;
   enum quick_type use_quick;
   enum join_type type;
-  bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
+  bool          not_used_in_distinct;
   /* TRUE <=> index-based access method must return records in order */
-  bool		sorted;
+  bool          sorted;
   /* 
     If it's not 0 the number stored this field indicates that the index
     scan has been chosen to access the table data and we expect to scan 
@@ -557,8 +557,6 @@ st_join_table::st_join_table()
     used_uneven_bit_fields(0),
     use_quick(QS_NONE),
     type(JT_UNKNOWN),
-    cached_eq_ref_table(FALSE),
-    eq_ref_table(FALSE),
     not_used_in_distinct(FALSE),
     sorted(FALSE),
 
