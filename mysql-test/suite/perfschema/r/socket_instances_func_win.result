@@ -132,9 +132,9 @@ ORDER BY THREAD_ID;
 EVENT_NAME	IP
 wait/io/socket/sql/client_connection	<LOCALHOST>
 wait/io/socket/sql/client_connection	<LOCALHOST>
-# Disconnect con1, con2 and con3
-# Show differences to socket_instances before con1,con1 connecting.
-# There should be none.
+# Disconnect con1 and con2
+# After waiting a bit we should have no differences to socket_instances
+# before con1, con2 connecting.
 SELECT *
 FROM performance_schema.socket_instances
 WHERE (EVENT_NAME,OBJECT_INSTANCE_BEGIN,THREAD_ID,SOCKET_ID,IP,PORT,STATE)

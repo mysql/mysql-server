@@ -45,7 +45,7 @@
 --source ../include/no_protocol.inc
 
 # Set this to enable debugging output
-let $my_socket_debug=0;
+let $my_socket_debug= 0;
 
 --echo #==============================================================================
 --echo # Establish the level of IPV6 support
@@ -123,7 +123,7 @@ SELECT EVENT_NAME,
 FROM performance_schema.socket_summary_by_instance t_inst
 JOIN performance_schema.socket_summary_by_event_name t_name
 USING (EVENT_NAME)
-WHERE t_inst.event_name like '%client%'
+WHERE t_inst.event_name LIKE '%client%'
   AND t_inst.object_instance_begin <> @default_object_instance_begin;
 
 let $compare_tables_and_verify=
@@ -147,7 +147,7 @@ SELECT (
 FROM performance_schema.socket_summary_by_instance t_inst
 JOIN performance_schema.socket_summary_by_event_name t_name
 USING (EVENT_NAME)
-WHERE t_inst.event_name like '%client%'
+WHERE t_inst.event_name LIKE '%client%'
   AND t_inst.object_instance_begin <> @default_object_instance_begin;
 
 --echo #==============================================================================
@@ -312,9 +312,9 @@ if (`SELECT @tables_match = 0`)
    eval $compare_tables_and_print;
   --enable_query_log
   --echo
-  SELECT * from performance_schema.socket_summary_by_instance ORDER BY EVENT_NAME;
+  SELECT * FROM performance_schema.socket_summary_by_instance ORDER BY EVENT_NAME;
   --echo
-  SELECT * from performance_schema.socket_summary_by_event_name ORDER BY EVENT_NAME;
+  SELECT * FROM performance_schema.socket_summary_by_event_name ORDER BY EVENT_NAME;
   --echo
   --echo # Abort
   exit;
