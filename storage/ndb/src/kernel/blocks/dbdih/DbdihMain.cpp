@@ -3880,6 +3880,8 @@ done:
     ndbassert(gci == restorableGCI);
     replicaPtr.p->m_restorable_gci = gci;
     Uint32 startGci = replicaPtr.p->maxGciCompleted[maxLcpIndex] + 1;
+    if (startGci > gci)
+      startGci = gci;
     ndbout_c("node: %d tab: %d frag: %d restore lcp: %u(idx: %u) maxGciStarted: %u maxGciCompleted: %u (restorable: %u(%u) newestRestorableGCI: %u)",
              takeOverPtr.p->toStartingNode,
              takeOverPtr.p->toCurrentTabref,
