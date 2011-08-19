@@ -62,6 +62,7 @@ if ($my_socket_debug)
 {
   SELECT @MY_HOSTNAME AS 'Hostname';
   SELECT @MY_MASTER_PORT AS 'Master Port';
+  --echo MASTER_MYPORT=$MASTER_MYPORT
 }
 #==============================================================================
 # Utility queries
@@ -219,14 +220,14 @@ CREATE TABLE mysqltest.t2 (n INT AUTO_INCREMENT, s1 VARCHAR(1024), PRIMARY KEY(n
 --echo # 2.1 Connection 1 (tcp/ip, 127.0.0.1 or ::1)
 --echo
 --disable_query_log
---connect (con1,$my_localhost,root,,test,,$MASTER_MYPORT)
+--connect (con1,$my_localhost,root,,,,$MASTER_MYPORT)
 --enable_query_log
 
 --echo
 --echo # 2.2 Connection 2 (localhost or unix domain socket)
 --echo
 --disable_query_log
---connect (con2,localhost,root,,test,,$MASTER_MYPORT)
+--connect (con2,localhost,root,,,,)
 --enable_query_log
 
 --echo #==============================================================================
