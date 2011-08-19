@@ -1,0 +1,30 @@
+# This test should work in embedded server after we fix mysqltest
+-- source include/not_embedded.inc
+-- source include/have_ssl_communication.inc
+-- source include/have_openssl.inc
+
+let $crllen=`select length(trim(coalesce(@@ssl_crl, ''))) + length(trim(coalesce(@@ssl_crlpath, '')))`;
+if (!$crllen)
+{
+  skip Needs OpenSSL;
+}
+
+--echo # Test clients with and without CRL lists
+
+let $ssl_base = --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-server-cert.pem;
+let $ssl_crl = $ssl_base --ssl-crl=$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl;
+let $ssl_crlpath = $ssl_base --ssl-crlpath=$MYSQL_TEST_DIR/std_data/crldir;
+
+
+--echo ############ Test mysql ##############
+
+--echo # Test mysql connecting to a server with an empty crl
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL $ssl_crl test -e "SHOW VARIABLES like '%ssl%';"  2>&1
+
+--echo ############ Test mysqladmin ##############
+let $admin_prefix = --no-defaults;
+let $admin_suffix = --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -u root --password= ping;
+
+--echo # Test mysqladmin connecting to a server with an empty crl
+--exec $MYSQLADMIN $admin_prefix $ssl_crl $admin_suffix 2>&1

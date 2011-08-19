@@ -1011,7 +1011,7 @@ static const char *default_options[]=
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
   "multi-results", "multi-statements", "multi-queries", "secure-auth",
   "report-data-truncation", "plugin-dir", "default-auth",
-  "bind-address",
+  "bind-address", "ssl-crl", "ssl-crlpath",
   NullS
 };
 enum option_id {
@@ -1023,7 +1023,7 @@ enum option_id {
   OPT_ssl_cipher, OPT_max_allowed_packet, OPT_protocol, OPT_shared_memory_base_name, 
   OPT_multi_results, OPT_multi_statements, OPT_multi_queries, OPT_secure_auth, 
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth,
-  OPT_bind_address,
+  OPT_bind_address, OPT_ssl_crl, OPT_ssl_crlpath,
   OPT_keep_this_one_last
 };
 
@@ -1058,12 +1058,38 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
 
 #define EXTENSION_SET_STRING(OPTS, X, STR)                       \
     if ((OPTS)->extension)                                       \
-      my_free((OPTS)->extension->X);     \
+      my_free((OPTS)->extension->X);                             \
     else                                                         \
       (OPTS)->extension= (struct st_mysql_options_extention *)   \
         my_malloc(sizeof(struct st_mysql_options_extention),     \
                   MYF(MY_WME | MY_ZEROFILL));                    \
-    (OPTS)->extension->X= my_strdup((STR), MYF(MY_WME));
+    (OPTS)->extension->X= ((STR) != NULL) ?  \
+      my_strdup((STR), MYF(MY_WME)) : NULL
+
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#define SET_SSL_OPTION(opt_var,arg) \
+    if (mysql->options.opt_var) \
+      my_free(mysql->options.opt_var); \
+    mysql->options.opt_var= arg ? my_strdup(arg, MYF(MY_WME)) : NULL; \
+    if (mysql->options.opt_var) \
+      mysql->options.use_ssl= 1
+#define EXTENSION_SET_SSL_STRING(OPTS, X, STR) \
+    EXTENSION_SET_STRING(OPTS, X, STR); \
+    if ((OPTS)->extension->X) \
+      (OPTS)->use_ssl= 1
+    
+    
+#else
+#define SET_SSL_OPTION(opt_var,arg) \
+    do { \
+      ; \
+    } while(0)
+#define EXTENSION_SET_SSL_STRING(OPTS, X, STR) \
+    do { \
+      ; \
+    } while(0)
+#endif
+
 
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group)
@@ -1184,12 +1210,20 @@ void mysql_read_default_options(struct st_mysql_options *options,
           my_free(options->ssl_cipher);
           options->ssl_cipher= my_strdup(opt_arg, MYF(MY_WME));
           break;
+	case OPT_ssl_crl:
+          EXTENSION_SET_SSL_STRING(options, ssl_crl, opt_arg);
+          break;
+	case OPT_ssl_crlpath:
+          EXTENSION_SET_SSL_STRING(options, ssl_crlpath, opt_arg);
+          break;
 #else
 	case OPT_ssl_key:
 	case OPT_ssl_cert:
 	case OPT_ssl_ca:
 	case OPT_ssl_capath:
         case OPT_ssl_cipher:
+        case OPT_ssl_crl:
+        case OPT_ssl_crlpath:
 	  break;
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 	case OPT_character_sets_dir:
@@ -1644,15 +1678,18 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 	      const char *capath __attribute__((unused)),
 	      const char *cipher __attribute__((unused)))
 {
+  my_bool result= 0;
   DBUG_ENTER("mysql_ssl_set");
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  mysql->options.ssl_key=    strdup_if_not_null(key);
-  mysql->options.ssl_cert=   strdup_if_not_null(cert);
-  mysql->options.ssl_ca=     strdup_if_not_null(ca);
-  mysql->options.ssl_capath= strdup_if_not_null(capath);
-  mysql->options.ssl_cipher= strdup_if_not_null(cipher);
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
-  DBUG_RETURN(0);
+  result=
+    mysql_options(mysql, MYSQL_OPT_SSL_KEY,    key)    +
+    mysql_options(mysql, MYSQL_OPT_SSL_CERT,   cert)   +
+    mysql_options(mysql, MYSQL_OPT_SSL_CA,     ca)     +
+    mysql_options(mysql, MYSQL_OPT_SSL_CAPATH, capath) +
+    mysql_options(mysql, MYSQL_OPT_SSL_CIPHER, cipher)
+    ? 1 : 0;
+#endif
+    DBUG_RETURN(result);
 }
 
 
@@ -1674,6 +1711,11 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   my_free(mysql->options.ssl_ca);
   my_free(mysql->options.ssl_capath);
   my_free(mysql->options.ssl_cipher);
+  if (mysql->options.extension)
+  {
+    my_free(mysql->options.extension->ssl_crl);
+    my_free(mysql->options.extension->ssl_crlpath);
+  }
   if (ssl_fd)
     SSL_CTX_free(ssl_fd->ssl_context);
   my_free(mysql->connector_fd);
@@ -1682,6 +1724,11 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   mysql->options.ssl_ca = 0;
   mysql->options.ssl_capath = 0;
   mysql->options.ssl_cipher= 0;
+  if (mysql->options.extension)
+  {
+    mysql->options.extension->ssl_crl = 0;
+    mysql->options.extension->ssl_crlpath = 0;
+  }
   mysql->options.use_ssl = FALSE;
   mysql->connector_fd = 0;
   DBUG_VOID_RETURN;
@@ -2350,7 +2397,9 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (mysql->options.ssl_key || mysql->options.ssl_cert ||
       mysql->options.ssl_ca || mysql->options.ssl_capath ||
-      mysql->options.ssl_cipher)
+      mysql->options.ssl_cipher ||
+      (mysql->options.extension && mysql->options.extension->ssl_crl) || 
+      (mysql->options.extension && mysql->options.extension->ssl_crlpath))
     mysql->options.use_ssl= 1;
   if (mysql->options.use_ssl)
     mysql->client_flag|= CLIENT_SSL;
@@ -2411,7 +2460,11 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
                                         options->ssl_ca,
                                         options->ssl_capath,
                                         options->ssl_cipher,
-                                        &ssl_init_error)))
+                                        &ssl_init_error,
+                                        options->extension ? 
+                                        options->extension->ssl_crl : NULL,
+                                        options->extension ? 
+                                        options->extension->ssl_crlpath : NULL)))
     {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
                                ER(CR_SSL_CONNECTION_ERROR), sslGetErrString(ssl_init_error));
@@ -3975,7 +4028,6 @@ mysql_fetch_lengths(MYSQL_RES *res)
   return res->lengths;
 }
 
-
 int STDCALL
 mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 {
@@ -4066,6 +4118,17 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_DEFAULT_AUTH:
     EXTENSION_SET_STRING(&mysql->options, default_auth, arg);
     break;
+  case MYSQL_OPT_SSL_KEY:      SET_SSL_OPTION(ssl_key, arg);     break;
+  case MYSQL_OPT_SSL_CERT:     SET_SSL_OPTION(ssl_cert, arg);    break;
+  case MYSQL_OPT_SSL_CA:       SET_SSL_OPTION(ssl_ca, arg);      break;
+  case MYSQL_OPT_SSL_CAPATH:   SET_SSL_OPTION(ssl_capath, arg);  break;
+  case MYSQL_OPT_SSL_CIPHER:   SET_SSL_OPTION(ssl_cipher, arg);  break;
+  case MYSQL_OPT_SSL_CRL:      EXTENSION_SET_SSL_STRING(&mysql->options,
+                                                        ssl_crl, arg);
+                               break;
+  case MYSQL_OPT_SSL_CRLPATH:  EXTENSION_SET_SSL_STRING(&mysql->options,
+                                                        ssl_crlpath, arg);
+                               break;
   default:
     DBUG_RETURN(1);
   }
