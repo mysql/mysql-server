@@ -297,7 +297,9 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&event_os_mutex_key, "event_os_mutex", 0},
 #  endif /* PFS_SKIP_EVENT_MUTEX */
 	{&os_mutex_key, "os_mutex", 0},
+#ifndef HAVE_ATOMIC_BUILTINS
 	{&srv_conc_mutex_key, "srv_conc_mutex", 0},
+#endif /* !HAVE_ATOMIC_BUILTINS */
 	{&ut_list_mutex_key, "ut_list_mutex", 0},
 	{&trx_sys_mutex_key, "trx_sys_mutex", 0},
 };
@@ -881,53 +883,67 @@ Save some CPU by testing the value of srv_thread_concurrency in inline
 functions. */
 static inline
 void
-innodb_srv_conc_enter_innodb(
-/*=========================*/
+innobase_srv_conc_enter_innodb(
+/*===========================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
-	if (UNIV_LIKELY(!srv_thread_concurrency)) {
+	if (srv_thread_concurrency) {
+		if (trx->n_tickets_to_enter_innodb > 0) {
 
-		return;
+			/* If trx has 'free tickets' to enter the engine left,
+			then use one such ticket */
+
+			--trx->n_tickets_to_enter_innodb;
+
+		} else if (trx->mysql_thd != NULL
+			   && thd_is_replication_slave_thread(trx->mysql_thd)) {
+
+			UT_WAIT_FOR(
+				srv_conc_get_active_threads()
+				< srv_thread_concurrency,
+				srv_replication_delay * 1000);
+
+		}  else {
+			srv_conc_enter_innodb(trx);
+		}
 	}
-
-	srv_conc_enter_innodb(trx);
 }
 
 /******************************************************************//**
-Save some CPU by testing the value of srv_thread_concurrency in inline
-functions. */
+Note that the thread wants to leave InnoDB only if it doesn't have
+any spare tickets. */
 static inline
 void
-innodb_srv_conc_exit_innodb(
-/*========================*/
+innobase_srv_conc_exit_innodb(
+/*==========================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
-	if (UNIV_LIKELY(!trx->declared_to_be_inside_innodb)) {
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 
-		return;
+	/* This is to avoid making an unnecessary function call. */
+	if (trx->declared_to_be_inside_innodb
+	    && trx->n_tickets_to_enter_innodb == 0) {
+
+		srv_conc_force_exit_innodb(trx);
 	}
-
-	srv_conc_exit_innodb(trx);
 }
 
 /******************************************************************//**
-Releases possible search latch and InnoDB thread FIFO ticket. These should
-be released at each SQL statement end, and also when mysqld passes the
-control to the client. It does no harm to release these also in the middle
-of an SQL statement. */
+Force a thread to leave InnoDB even if it has spare tickets. */
 static inline
 void
-innobase_release_stat_resources(
-/*============================*/
-	trx_t*	trx)	/*!< in: transaction object */
+innobase_srv_conc_force_exit_innodb(
+/*================================*/
+	trx_t*	trx)	/*!< in: transaction handle */
 {
-	if (trx->has_search_latch) {
-		trx_search_latch_release_if_reserved(trx);
-	}
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 
+	/* This is to avoid making an unnecessary function call. */
 	if (trx->declared_to_be_inside_innodb) {
-		/* Release our possible ticket in the FIFO */
-
 		srv_conc_force_exit_innodb(trx);
 	}
 }
@@ -1026,8 +1042,6 @@ innobase_release_temporary_latches(
 	handlerton*	hton,	/*!< in: handlerton */
 	THD*		thd)	/*!< in: MySQL thread */
 {
-	trx_t*	trx;
-
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	if (!innodb_inited) {
@@ -1035,11 +1049,12 @@ innobase_release_temporary_latches(
 		return(0);
 	}
 
-	trx = thd_to_trx(thd);
+	trx_t*	trx = thd_to_trx(thd);
 
-	if (trx) {
-		innobase_release_stat_resources(trx);
+	if (trx != NULL) {
+		trx_search_latch_release_if_reserved(trx);
 	}
+
 	return(0);
 }
 
@@ -1240,7 +1255,7 @@ innobase_get_cset_width(
 	ulint*	mbmaxlen)	/*!< out: maximum length of a char (in bytes) */
 {
 	CHARSET_INFO*	cs;
-	ut_ad(cset < 256);
+	ut_ad(cset <= MAX_CHAR_COLL_NUM);
 	ut_ad(mbminlen);
 	ut_ad(mbmaxlen);
 
@@ -2043,7 +2058,9 @@ innobase_query_caching_of_table_permitted(
 		trx_print(stderr, trx, 1024);
 	}
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+
+	innobase_srv_conc_force_exit_innodb(trx);
 
 	if (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
@@ -2367,7 +2384,9 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	/* Initialize the prebuilt struct much like it would be inited in
 	external_lock */
 
-	innobase_release_stat_resources(prebuilt->trx);
+	trx_search_latch_release_if_reserved(prebuilt->trx);
+
+	innobase_srv_conc_force_exit_innodb(prebuilt->trx);
 
 	/* If the transaction is not started yet, start it */
 
@@ -2950,7 +2969,9 @@ innobase_start_trx_and_assign_read_view(
 	we have to release the search system latch first to obey the latching
 	order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+
+	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* If the transaction is not started yet, start it */
 
@@ -3092,11 +3113,7 @@ retry:
 
 	trx->n_autoinc_rows = 0; /* Reset the number AUTO-INC rows required */
 
-	if (trx->declared_to_be_inside_innodb) {
-		/* Release our possible ticket in the FIFO */
-
-		srv_conc_force_exit_innodb(trx);
-	}
+	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* Tell the InnoDB server that there might be work for utility
 	threads: */
@@ -3133,7 +3150,9 @@ innobase_rollback(
 	reserve the trx_sys->mutex, we have to release the search system
 	latch first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+
+	innobase_srv_conc_force_exit_innodb(trx);
 
 	trx->n_autoinc_rows = 0; /* Reset the number AUTO-INC rows required */
 
@@ -3173,7 +3192,9 @@ innobase_rollback_trx(
 	reserve the trx_sys->mutex, we have to release the search system
 	latch first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+
+	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* If we had reserved the auto-inc lock for some table (if
 	we come here to roll back the latest SQL statement) we
@@ -3214,7 +3235,9 @@ innobase_rollback_to_savepoint(
 	reserve the trx_sys->mutex, we have to release the search system
 	latch first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+
+	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 
@@ -3285,7 +3308,9 @@ innobase_savepoint(
 	reserve the trx_sys->mutex, we have to release the search system
 	latch first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+
+	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* Cannot happen outside of transaction */
 	DBUG_ASSERT(trx_is_registered_for_2pc(trx));
@@ -5526,7 +5551,7 @@ no_commit:
 		build_template(true);
 	}
 
-	innodb_srv_conc_enter_innodb(prebuilt->trx);
+	innobase_srv_conc_enter_innodb(prebuilt->trx);
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
@@ -5615,7 +5640,7 @@ set_max_autoinc:
 		}
 	}
 
-	innodb_srv_conc_exit_innodb(prebuilt->trx);
+	innobase_srv_conc_exit_innodb(prebuilt->trx);
 
 report_error:
 	error_result = convert_error_code_to_mysql((int) error,
@@ -5822,7 +5847,7 @@ ha_innobase::update_row(
 
 	ut_a(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
 
-	innodb_srv_conc_enter_innodb(trx);
+	innobase_srv_conc_enter_innodb(trx);
 
 	error = row_update_for_mysql((byte*) old_row, prebuilt);
 
@@ -5866,7 +5891,7 @@ ha_innobase::update_row(
 		}
 	}
 
-	innodb_srv_conc_exit_innodb(trx);
+	innobase_srv_conc_exit_innodb(trx);
 
 	error = convert_error_code_to_mysql(error,
 					    prebuilt->table->flags, user_thd);
@@ -5915,11 +5940,11 @@ ha_innobase::delete_row(
 
 	prebuilt->upd_node->is_delete = TRUE;
 
-	innodb_srv_conc_enter_innodb(trx);
+	innobase_srv_conc_enter_innodb(trx);
 
 	error = row_update_for_mysql((byte*) record, prebuilt);
 
-	innodb_srv_conc_exit_innodb(trx);
+	innobase_srv_conc_exit_innodb(trx);
 
 	error = convert_error_code_to_mysql(
 		error, prebuilt->table->flags, user_thd);
@@ -6226,12 +6251,12 @@ ha_innobase::index_read(
 
 	if (mode != PAGE_CUR_UNSUPP) {
 
-		innodb_srv_conc_enter_innodb(prebuilt->trx);
+		innobase_srv_conc_enter_innodb(prebuilt->trx);
 
 		ret = row_search_for_mysql((byte*) buf, mode, prebuilt,
 					   match_mode, 0);
 
-		innodb_srv_conc_exit_innodb(prebuilt->trx);
+		innobase_srv_conc_exit_innodb(prebuilt->trx);
 	} else {
 
 		ret = DB_UNSUPPORTED;
@@ -6462,12 +6487,12 @@ ha_innobase::general_fetch(
 
 	ut_a(prebuilt->trx == thd_to_trx(user_thd));
 
-	innodb_srv_conc_enter_innodb(prebuilt->trx);
+	innobase_srv_conc_enter_innodb(prebuilt->trx);
 
 	ret = row_search_for_mysql(
 		(byte*)buf, 0, prebuilt, match_mode, direction);
 
-	innodb_srv_conc_exit_innodb(prebuilt->trx);
+	innobase_srv_conc_exit_innodb(prebuilt->trx);
 
 	switch (ret) {
 	case DB_SUCCESS:
@@ -6855,7 +6880,7 @@ create_table_def(
 
 			charset_no = (ulint)field->charset()->number;
 
-			if (UNIV_UNLIKELY(charset_no >= 256)) {
+			if (UNIV_UNLIKELY(charset_no > MAX_CHAR_COLL_NUM)) {
 				/* in data0type.h we assume that the
 				number fits in one byte in prtype */
 				push_warning_printf(
@@ -6870,8 +6895,9 @@ create_table_def(
 			}
 		}
 
-		ut_a(field->type() < 256); /* we assume in dtype_form_prtype()
-					   that this fits in one byte */
+		/* we assume in dtype_form_prtype() that this fits in
+		two bytes */
+		ut_a(field->type() <= MAX_CHAR_COLL_NUM);
 		col_len = field->pack_length();
 
 		/* The MySQL pack length contains 1 or 2 bytes length field
@@ -9450,7 +9476,9 @@ ha_innobase::start_stmt(
 	that may not be the case. We MUST release the search latch before an
 	INSERT, for example. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+
+	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* Reset the AUTOINC statement level counter for multi-row INSERTs. */
 	trx->n_autoinc_rows = 0;
@@ -9648,7 +9676,9 @@ ha_innobase::external_lock(
 	may reserve the trx_sys->mutex, we have to release the search
 	system latch first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+
+	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* If the MySQL lock count drops to zero we know that the current SQL
 	statement has ended */
@@ -9802,7 +9832,9 @@ innodb_show_status(
 
 	trx = check_trx_exists(thd);
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+
+	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* We let the InnoDB Monitor to output at most MAX_STATUS_SIZE
 	bytes of text. */
@@ -10848,7 +10880,9 @@ innobase_xa_prepare(
 	reserve the trx_sys->mutex, we have to release the search system
 	latch first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
+	trx_search_latch_release_if_reserved(trx);
+
+	innobase_srv_conc_force_exit_innodb(trx);
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
@@ -12677,10 +12711,25 @@ static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
   NULL, NULL, 0, 0, 1000, 0);
 
+#ifdef HAVE_ATOMIC_BUILTINS
+static MYSQL_SYSVAR_ULONG(
+  adaptive_max_sleep_delay, srv_adaptive_max_sleep_delay,
+  PLUGIN_VAR_RQCMDARG,
+  "The upper limit of the sleep delay in usec. Value of 0 disables it.",
+  NULL, NULL,
+  150000,			/* Default setting */
+  0,				/* Minimum value */
+  1000000, 0);			/* Maximum value */
+#endif /* HAVE_ATOMIC_BUILTINS */
+
 static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   PLUGIN_VAR_RQCMDARG,
-  "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0 disable a sleep",
-  NULL, NULL, 10000L, 0L, ~0L, 0);
+  "Time of innodb thread sleeping before joining InnoDB queue (usec). "
+  "Value 0 disable a sleep",
+  NULL, NULL,
+  10000L,
+  0L,
+  ~0L, 0);
 
 static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -12879,6 +12928,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(spin_wait_delay),
   MYSQL_SYSVAR(table_locks),
   MYSQL_SYSVAR(thread_concurrency),
+#ifdef HAVE_ATOMIC_BUILTINS
+  MYSQL_SYSVAR(adaptive_max_sleep_delay),
+#endif /* HAVE_ATOMIC_BUILTINS */
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(version),
