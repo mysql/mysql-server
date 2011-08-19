@@ -829,6 +829,23 @@ public:
   */
   CSET_STRING query_string;
 
+  /*
+    In some cases, we may want to modify the query (i.e. replace
+    passwords with their hashes before logging the statement etc.).
+
+    In case the query was rewritten, the original query will live in
+    query_string, while the rewritten query lives in rewritten_query.
+    If rewritten_query is empty, query_string should be logged.
+    If rewritten_query is non-empty, the rewritten query it contains
+    should be used in logs (general log, slow query log, binary log).
+
+    Currently, password obfuscation is the only rewriting we do; more
+    may follow at a later date, both pre- and post parsing of the query.
+    Rewriting of binloggable statements must preserve all pertinent
+    information.
+  */
+  String      rewritten_query;
+
   inline char *query() const { return query_string.str(); }
   inline uint32 query_length() const { return query_string.length(); }
   const CHARSET_INFO *query_charset() const { return query_string.charset(); }
