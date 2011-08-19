@@ -4,6 +4,10 @@ FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';
 PLUGIN_STATUS	ACTIVE
 PLUGIN_TYPE	AUTHENTICATION
 PLUGIN_DESCRIPTION	plugin API test plugin
+SET @old_log_output=          @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET GLOBAL log_output =       'TABLE';
+SET GLOBAL general_log=       'ON';
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
@@ -227,9 +231,23 @@ SELECT @@LOCAL.external_user;
 @@LOCAL.external_user
 'plug'@'%'
 # in connection default
+WL#5706 -- show the above got logged/rewritten correctly
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('% IDENTIFIED ','WITH%');
+argument
+CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT INSERT ON `TEST`.* TO 'grant_user'@'%' IDENTIFIED WITH 'test_plugin_server'
+CREATE USER 'Ÿ'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'new_grant_user'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'plug_dest'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER 'grant_plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'grant_plug_dest'
+CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
+SET GLOBAL log_output=  @old_log_output;
+SET GLOBAL general_log= @old_general_log;
 ## END @@external_user tests
 #
 #  Bug #56798 : Wrong credentials assigned when using a proxy user.

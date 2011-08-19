@@ -129,6 +129,7 @@ SET(SQL_SHARED_SOURCES
   sql_profile.cc
   sql_reload.cc
   sql_rename.cc 
+  sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
   sql_show.cc
