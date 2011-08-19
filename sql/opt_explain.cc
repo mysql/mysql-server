@@ -914,7 +914,7 @@ bool Explain_join::explain_rows_and_filtered()
       examined_rows= rows2double(tab->limit);
     else
     {
-      table->file->info(HA_STATUS_VARIABLE);
+      table->pos_in_table_list->fetch_number_of_rows();
       examined_rows= rows2double(table->file->stats.records);
     }
   }
@@ -1134,8 +1134,9 @@ bool Explain_table::explain_rows_and_filtered()
     examined_rows= rows2double(limit);
   else
   {
-    table->file->info(HA_STATUS_VARIABLE);
+    table->pos_in_table_list->fetch_number_of_rows();
     examined_rows= rows2double(table->file->stats.records);
+
   }
   col_rows= new Item_int((longlong) (ulonglong) examined_rows,
                          MY_INT64_NUM_DECIMAL_DIGITS);
@@ -1510,8 +1511,9 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
-    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
-      res= unit->exec();
+    res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE) ||
+         unit->optimize() ||
+         unit->exec();
   }
   else
   {

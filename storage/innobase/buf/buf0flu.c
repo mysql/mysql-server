@@ -1090,8 +1090,10 @@ buf_flush_write_to_dblwr_and_datafile(
 
 		/* Check that the page as written to the doublewrite
 		buffer has sane LSN values. */
-		buf_flush_doublewrite_check_page_lsn(
-			((buf_block_t*) bpage)->frame);
+		if (!bpage->zip.data) {
+			buf_flush_doublewrite_check_page_lsn(
+				((buf_block_t*) bpage)->frame);
+		}
 	}
 
 retry:

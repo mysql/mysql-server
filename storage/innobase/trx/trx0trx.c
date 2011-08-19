@@ -185,21 +185,6 @@ trx_allocate_for_mysql(void)
 }
 
 /********************************************************************//**
-Releases the search latch if trx has reserved it. */
-UNIV_INTERN
-void
-trx_search_latch_release_if_reserved(
-/*=================================*/
-	trx_t*	   trx) /*!< in: transaction */
-{
-	if (trx->has_search_latch) {
-		rw_lock_s_unlock(&btr_search_latch);
-
-		trx->has_search_latch = FALSE;
-	}
-}
-
-/********************************************************************//**
 Frees a transaction object. */
 static
 void
