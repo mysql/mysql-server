@@ -1176,6 +1176,8 @@ brtleaf_get_split_loc(
     int* le_index 
     )
 // Effect: Find the location within a leaf node where we want to perform a split
+// bn_index is which basement node (which OMT) should be split.
+// le_index is index into OMT of the last key that should be on the left side of the split.
 {
     assert(node->height == 0);
     u_int32_t size_so_far = 0;
