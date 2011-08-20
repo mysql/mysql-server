@@ -5681,7 +5681,7 @@ void handle_connections_sockets()
       {
         struct request_info req;
         signal(SIGCHLD, SIG_DFL);
-        request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, mysql_socket_getfd(new_sock), NULL); //TBD cwp
+        request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, mysql_socket_getfd(new_sock), NULL);
         my_fromhost(&req);
 
   if (!my_hosts_access(&req))

@@ -538,7 +538,7 @@ let $connect_user= root0123456789;
 --source ../include/socket_event.inc
 DROP USER 'root0123456789'@'localhost';
 
---echo # 2.7 Connect should pass, host = $my_localhost
+--echo # 2.7 Connect should pass, host = my_localhost
 --echo #     length of user name  = 4 character
 --echo #     length of default db = 9 character
 --echo #     connection runs through server_tcpip_socket !

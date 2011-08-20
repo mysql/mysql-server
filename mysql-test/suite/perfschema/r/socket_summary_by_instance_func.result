@@ -41,7 +41,7 @@ DROP USER 'root012345'@'localhost';
 #     length of default db = 9 character
 GRANT ALL PRIVILEGES ON *.* to 'root0123456789'@'localhost';
 DROP USER 'root0123456789'@'localhost';
-# 2.7 Connect should pass, host = ::ffff:127.0.0.1
+# 2.7 Connect should pass, host = my_localhost
 #     length of user name  = 4 character
 #     length of default db = 9 character
 #     connection runs through server_tcpip_socket !
