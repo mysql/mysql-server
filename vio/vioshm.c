@@ -209,7 +209,7 @@ int vio_close_shared_memory(Vio * vio)
     }
   }
   vio->type= VIO_CLOSED;
-  vio->sd=   -1;
+  vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(error_count);
 }
 

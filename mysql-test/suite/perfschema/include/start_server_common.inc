@@ -21,7 +21,8 @@ select count(*) from performance_schema.performance_timers;
 select count(*) from performance_schema.setup_consumers;
 # wait/io/table/sql/handler is a native instrument
 # wait/lock/table/sql/handler is a native instrument
-select count(*) > 2 from performance_schema.setup_instruments;
+# idle/io/socket is a native instrument
+select count(*) > 3 from performance_schema.setup_instruments;
 select count(*) from performance_schema.setup_timers;
 
 # Make sure we don't crash, no matter what the starting parameters are
@@ -57,6 +58,9 @@ select * from performance_schema.events_waits_summary_global_by_event_name;
 select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
+select * from performance_schema.socket_instances;
+select * from performance_schema.socket_summary_by_instance;
+select * from performance_schema.socket_summary_by_event_name;
 select * from performance_schema.hosts;
 select * from performance_schema.mutex_instances;
 select * from performance_schema.objects_summary_global_by_type;

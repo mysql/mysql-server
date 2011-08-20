@@ -485,6 +485,10 @@ The following options may be given as the first argument:
  Maximum number of rwlock instruments.
  --performance-schema-max-rwlock-instances=# 
  Maximum number of instrumented RWLOCK objects.
+ --performance-schema-max-socket-classes=# 
+ Maximum number of socket instruments.
+ --performance-schema-max-socket-instances=# 
+ Maximum number of opened instrumented sockets.
  --performance-schema-max-stage-classes=# 
  Maximum number of stage instruments.
  --performance-schema-max-statement-classes=# 
@@ -971,6 +975,8 @@ performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances 1000000
 performance-schema-max-rwlock-classes 30
 performance-schema-max-rwlock-instances 1000000
+performance-schema-max-socket-classes 10
+performance-schema-max-socket-instances 1000
 performance-schema-max-stage-classes 150
 performance-schema-max-statement-classes 165
 performance-schema-max-table-handles 10000
