@@ -203,7 +203,8 @@ ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
 		  rpl_info_handler.cc rpl_info_file.cc rpl_info_table.cc
 		  rpl_info_values.cc rpl_info.cc rpl_info_factory.cc
-		  rpl_info_table_access.cc server_ids.h)
+		  rpl_info_table_access.cc dynamic_ids.cc rpl_rli_pdb.cc
+		  rpl_info_dummy.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 ADD_LIBRARY(sqlgunitlib
