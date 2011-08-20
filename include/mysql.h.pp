@@ -27,7 +27,7 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused1;
+  my_bool mysql_socket_idle;
   my_bool unused2;
   my_bool compress;
   my_bool unused3;

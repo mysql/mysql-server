@@ -17,7 +17,6 @@
   @file storage/perfschema/pfs.cc
   The performance schema implementation of all instruments.
 */
-
 #include "my_global.h"
 #include "thr_lock.h"
 #include "mysql/psi/psi.h"
@@ -695,6 +694,8 @@ static inline int mysql_mutex_lock(...)
   - EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
   - FILE_SUMMARY_BY_EVENT_NAME
   - FILE_SUMMARY_BY_INSTANCE
+  - SOCKET_SUMMARY_BY_INSTANCE
+  - SOCKET_SUMMARY_BY_EVENT_NAME
   - OBJECTS_SUMMARY_GLOBAL_BY_TYPE
 
   The instrumented code that generates waits events consist of:
@@ -702,6 +703,7 @@ static inline int mysql_mutex_lock(...)
   - rwlocks (mysql_rwlock_t)
   - conditions (mysql_cond_t)
   - file io (MYSQL_FILE)
+  - socket io (MYSQL_SOCKET)
   - table io
   - table lock
 
@@ -870,6 +872,39 @@ static inline int mysql_mutex_lock(...)
         @c table_file_summary_by_event_name::make_row()
   - [E] FILE_SUMMARY_BY_INSTANCE,
         @c table_file_summary_by_instance::make_row()
+
+  @subsection IMPL_WAIT_SOCKET Socket waits
+
+@verbatim
+  socket_locker(T, F)
+   |
+   | [1]
+   |
+   |-> pfs_socket(F)                            =====>> [A], [B], [C], [D], [E]
+        |
+        | [2]
+        |
+        |-> pfs_socket_class(F.class)           =====>> [C], [D]
+        |   
+        |-> pfs_thread(T).event_name(F)         =====>> [A]
+        |
+        ...
+@endverbatim
+
+  Implemented as:
+  - [1] @c get_thread_socket_name_locker_v1(), @c start_socket_wait_v1(),
+        @c end_socket_wait_v1(), ...
+  - [2] @c close_socket_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_socket_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_socket_row()
+  - [D] SOCKET_SUMMARY_BY_EVENT_NAME,
+        @c table_socket_summary_by_event_name::make_row()
+  - [E] SOCKET_SUMMARY_BY_INSTANCE,
+        @c table_socket_summary_by_instance::make_row()
 
   @subsection IMPL_WAIT_TABLE Table waits
 
@@ -1110,6 +1145,28 @@ static enum_operation_type table_lock_operation_map[]=
   OPERATION_TYPE_TL_WRITE_EXTERNAL /* PFS_TL_WRITE_EXTERNAL */
 };
 
+/**
+  Conversion map from PSI_socket_operation to enum_operation_type.
+  Indexed by enum PSI_socket_operation.
+*/
+static enum_operation_type socket_operation_map[]=
+{
+  OPERATION_TYPE_SOCKETCREATE,
+  OPERATION_TYPE_SOCKETCONNECT,
+  OPERATION_TYPE_SOCKETBIND,
+  OPERATION_TYPE_SOCKETCLOSE,
+  OPERATION_TYPE_SOCKETSEND,
+  OPERATION_TYPE_SOCKETRECV,
+  OPERATION_TYPE_SOCKETSENDTO,
+  OPERATION_TYPE_SOCKETRECVFROM,
+  OPERATION_TYPE_SOCKETSENDMSG,
+  OPERATION_TYPE_SOCKETRECVMSG,
+  OPERATION_TYPE_SOCKETSEEK,
+  OPERATION_TYPE_SOCKETOPT,
+  OPERATION_TYPE_SOCKETSTAT,
+  OPERATION_TYPE_SOCKETSHUTDOWN,
+  OPERATION_TYPE_SOCKETSELECT
+};
 
 /**
   Build the prefix name of a class of instruments in a category.
@@ -1347,6 +1404,15 @@ static void register_statement_v1(const char *category,
   return;
 }
 
+static void register_socket_v1(const char *category,
+                             PSI_socket_info_v1 *info,
+                             int count)
+{
+  REGISTER_BODY_V1(PSI_socket_key,
+                   socket_instrument_prefix,
+                   register_socket_class)
+}
+
 #define INIT_BODY_V1(T, KEY, ID)                                            \
   PFS_##T##_class *klass;                                                   \
   PFS_##T *pfs;                                                             \
@@ -1536,6 +1602,22 @@ static void close_table_v1(PSI_table *table)
     return;
   pfs->aggregate();
   destroy_table(pfs);
+}
+
+static PSI_socket*
+init_socket_v1(PSI_socket_key key, const my_socket *fd)
+{
+  INIT_BODY_V1(socket, key, fd);
+}
+
+static void destroy_socket_v1(PSI_socket *socket)
+{
+  PFS_socket *pfs= reinterpret_cast<PFS_socket*> (socket);
+
+  if (unlikely(pfs == NULL))
+    return;
+
+  destroy_socket(pfs);
 }
 
 /**
@@ -2738,6 +2820,119 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
   return reinterpret_cast<PSI_file_locker*> (state);
 }
 
+/** Socket locker */
+
+static PSI_socket_locker*
+get_thread_socket_locker_v1(PSI_socket_locker_state *state,
+                            PSI_socket *socket, PSI_socket_operation op)
+{
+  DBUG_ASSERT(static_cast<int> (op) >= 0);
+  DBUG_ASSERT(static_cast<uint> (op) < array_elements(socket_operation_map));
+  DBUG_ASSERT(state != NULL);
+  PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*> (socket);
+
+  if (unlikely(pfs_socket == NULL))
+    return NULL;
+
+  DBUG_ASSERT(pfs_socket->m_class != NULL);
+
+  if (!pfs_socket->m_enabled || pfs_socket->m_idle)
+    return NULL;
+
+  register uint flags= 0;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= pfs_socket->m_thread_owner;
+
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+
+#ifdef LATER
+    /*
+      Needs refinement, because of KILL.
+    */
+    DBUG_ASSERT(pfs_thread ==
+                my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
+#endif
+
+    if (!pfs_thread->m_enabled)
+      return NULL;
+
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (pfs_socket->m_timed && !pfs_socket->m_idle)
+      flags|= STATE_FLAG_TIMED;
+
+    if (flag_events_waits_current)
+    {
+      if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
+      {
+        locker_lost++;
+        return NULL;
+      }
+      PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+      state->m_wait= wait;
+      flags|= STATE_FLAG_EVENT;
+
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id=   parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
+      wait->m_thread=       pfs_thread;
+      wait->m_class=        pfs_socket->m_class;
+      wait->m_timer_start=  0;
+      wait->m_timer_end=    0;
+      wait->m_object_instance_addr= pfs_socket->m_identity;
+      wait->m_weak_socket=  pfs_socket;
+      wait->m_weak_version= pfs_socket->get_version();
+      wait->m_event_id=     pfs_thread->m_event_id++;
+      wait->m_operation=    socket_operation_map[static_cast<int>(op)];
+      wait->m_wait_class=   WAIT_CLASS_SOCKET;
+
+      pfs_thread->m_events_waits_count++;
+    }
+  }
+  else
+  {
+    if (pfs_socket->m_timed)
+    {
+      flags= STATE_FLAG_TIMED;
+    }
+    else
+    {
+      /*
+        Even if timing is disabled, end_socket_wait() still needs a locker to
+        capture the number of bytes sent or received by the socket operation.
+        For operations that do not have a byte count, then just increment the
+        event counter and return a NULL locker.
+      */
+      switch (op)
+      {
+        case PSI_SOCKET_CONNECT:
+        case PSI_SOCKET_CREATE:
+        case PSI_SOCKET_BIND:
+        case PSI_SOCKET_SEEK:
+        case PSI_SOCKET_OPT:
+        case PSI_SOCKET_STAT:
+        case PSI_SOCKET_SHUTDOWN:
+        case PSI_SOCKET_CLOSE:
+        case PSI_SOCKET_SELECT:
+          pfs_socket->m_socket_stat.m_io_stat.m_misc.aggregate_counted();
+          return NULL;
+        default:
+          break;
+      }
+    }
+  }
+
+  state->m_flags= flags;
+  state->m_socket= socket;
+  state->m_operation= op;
+  return reinterpret_cast<PSI_socket_locker*> (state);
+}
+
 /**
   Implementation of the mutex instrumentation interface.
   @sa PSI_v1::unlock_mutex.
@@ -2899,6 +3094,136 @@ static void broadcast_cond_v1(PSI_cond* cond)
 }
 
 /**
+  Implementation of the idle instrumentation interface.
+  @sa PSI_v1::start_idle_wait.
+*/
+static PSI_idle_locker*
+start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_line)
+{
+  DBUG_ASSERT(state != NULL);
+
+  if (!flag_global_instrumentation)
+    return NULL;
+
+  if (!global_idle_class.m_enabled)
+    return NULL;
+
+  register uint flags= 0;
+  ulonglong timer_start= 0;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (!pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (global_idle_class.m_timed)
+    {
+      timer_start= get_timer_raw_value_and_function(idle_timer, &state->m_timer);
+      state->m_timer_start= timer_start;
+      flags|= STATE_FLAG_TIMED;
+    }
+
+    if (flag_events_waits_current)
+    {
+      if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
+      {
+        locker_lost++;
+        return NULL;
+      }
+      PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+      state->m_wait= wait;
+      flags|= STATE_FLAG_EVENT;
+
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
+
+      wait->m_thread= pfs_thread;
+      wait->m_class= &global_idle_class;
+      wait->m_timer_start= timer_start;
+      wait->m_timer_end= 0;
+      wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_operation= OPERATION_TYPE_IDLE;
+      wait->m_source_file= src_file;
+      wait->m_source_line= src_line;
+      wait->m_wait_class= WAIT_CLASS_IDLE;
+
+      pfs_thread->m_events_waits_count++;
+    }
+  }
+  else
+  {
+    if (global_idle_class.m_timed)
+    {
+      timer_start= get_timer_raw_value_and_function(idle_timer, &state->m_timer);
+      state->m_timer_start= timer_start;
+      flags= STATE_FLAG_TIMED;
+    }
+  }
+
+  state->m_flags= flags;
+  return reinterpret_cast<PSI_idle_locker*> (state);
+}
+
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::end_idle_wait.
+*/
+static void end_idle_wait_v1(PSI_idle_locker* locker)
+{
+  PSI_idle_locker_state *state= reinterpret_cast<PSI_idle_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
+
+  register uint flags= state->m_flags;
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+  }
+
+  if (flags & STATE_FLAG_THREAD)
+  {
+    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_waits_stats;
+    uint index= global_idle_class.m_event_name_index;
+
+    if (flags & STATE_FLAG_TIMED)
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[index].aggregate_value(wait_time);
+    }
+    else
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[index].aggregate_counted();
+    }
+
+    if (flags & STATE_FLAG_EVENT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_count--;
+    }
+  }
+}
+
+/**
   Implementation of the mutex instrumentation interface.
   @sa PSI_v1::start_mutex_wait.
 */
@@ -2950,7 +3275,7 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    mutex->m_wait_stat.aggregate_timed(wait_time);
+    mutex->m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
@@ -2973,7 +3298,7 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
     if (flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_timed(wait_time);
+      event_name_array[index].aggregate_value(wait_time);
     }
     else
     {
@@ -3042,7 +3367,7 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    rwlock->m_wait_stat.aggregate_timed(wait_time);
+    rwlock->m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
@@ -3077,7 +3402,7 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
     if (state->m_flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_timed(wait_time);
+      event_name_array[index].aggregate_value(wait_time);
     }
     else
     {
@@ -3147,7 +3472,7 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    rwlock->m_wait_stat.aggregate_timed(wait_time);
+    rwlock->m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
@@ -3174,7 +3499,7 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
     if (state->m_flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_timed(wait_time);
+      event_name_array[index].aggregate_value(wait_time);
     }
     else
     {
@@ -3244,7 +3569,7 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    cond->m_wait_stat.aggregate_timed(wait_time);
+    cond->m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
@@ -3264,7 +3589,7 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
     if (state->m_flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_timed(wait_time);
+      event_name_array[index].aggregate_value(wait_time);
     }
     else
     {
@@ -3362,7 +3687,7 @@ static void end_table_io_wait_v1(PSI_table_locker* locker)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
-    stat->aggregate_timed(wait_time);
+    stat->aggregate_value(wait_time);
   }
   else
   {
@@ -3439,7 +3764,7 @@ static void end_table_lock_wait_v1(PSI_table_locker* locker)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
-    stat->aggregate_timed(wait_time);
+    stat->aggregate_value(wait_time);
   }
   else
   {
@@ -3582,7 +3907,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    file->m_wait_stat.aggregate_timed(wait_time);
+    file->m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
@@ -3601,7 +3926,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
     if (flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_timed(wait_time);
+      event_name_array[index].aggregate_value(wait_time);
     }
     else
     {
@@ -3680,7 +4005,7 @@ static void start_stage_v1(PSI_stage_key key, const char *src_file, int src_line
 
       /* Aggregate to EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
       ulonglong stage_time= timer_value - pfs->m_timer_start;
-      event_name_array[index].aggregate_timed(stage_time);
+      event_name_array[index].aggregate_value(stage_time);
     }
     else
     {
@@ -3771,7 +4096,7 @@ static void end_stage_v1()
 
       /* Aggregate to EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
       ulonglong stage_time= timer_value - pfs->m_timer_start;
-      event_name_array[index].aggregate_timed(stage_time);
+      event_name_array[index].aggregate_value(stage_time);
     }
     else
     {
@@ -4228,7 +4553,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   if (flags & STATE_FLAG_TIMED)
   {
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_..._BY_EVENT_NAME (timed) */
-    stat->aggregate_timed(wait_time);
+    stat->aggregate_value(wait_time);
   }
   else
   {
@@ -4272,6 +4597,185 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   }
 }
 
+/** Socket operations */
+
+static void start_socket_wait_v1(PSI_socket_locker *locker,
+                                     size_t byte_count,
+                                     const char *src_file,
+                                     uint src_line);
+
+static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count);
+
+/**
+  Implementation of the socket instrumentation interface.
+  @sa PSI_v1::start_socket_wait.
+*/
+static void start_socket_wait_v1(PSI_socket_locker *locker,
+                                 size_t byte_count,
+                                 const char *src_file, uint src_line)
+{
+  PSI_socket_locker_state *state= reinterpret_cast<PSI_socket_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  register uint flags= state->m_flags;
+  ulonglong timer_start= 0;
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    timer_start= get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+    state->m_timer_start= timer_start;
+  }
+
+  if (flags & STATE_FLAG_EVENT)
+  {
+    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+    DBUG_ASSERT(wait != NULL);
+
+    wait->m_timer_start= timer_start;
+    wait->m_source_file= src_file;
+    wait->m_source_line= src_line;
+    wait->m_number_of_bytes= byte_count;
+  }
+}
+
+/**
+  Implementation of the socket instrumentation interface.
+  @sa PSI_v1::end_socket_wait.
+*/
+static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
+{
+  PSI_socket_locker_state *state= reinterpret_cast<PSI_socket_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  PFS_socket *socket= reinterpret_cast<PFS_socket *>(state->m_socket);
+  DBUG_ASSERT(socket != NULL);
+
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
+  PFS_byte_stat *byte_stat;
+  register uint flags= state->m_flags;
+  size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
+
+  switch (state->m_operation)
+  {
+    /* Group read operations */
+    case PSI_SOCKET_RECV:
+    case PSI_SOCKET_RECVFROM:
+    case PSI_SOCKET_RECVMSG:
+      byte_stat= &socket->m_socket_stat.m_io_stat.m_read;
+      break;
+    /* Group write operations */
+    case PSI_SOCKET_SEND:
+    case PSI_SOCKET_SENDTO:
+    case PSI_SOCKET_SENDMSG:
+      byte_stat= &socket->m_socket_stat.m_io_stat.m_write;
+      break;
+    /* Group remaining operations as miscellaneous */
+    case PSI_SOCKET_CONNECT:
+    case PSI_SOCKET_CREATE:
+    case PSI_SOCKET_BIND:
+    case PSI_SOCKET_SEEK:
+    case PSI_SOCKET_OPT:
+    case PSI_SOCKET_STAT:
+    case PSI_SOCKET_SHUTDOWN:
+    case PSI_SOCKET_SELECT:
+      byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
+      break;
+    case PSI_SOCKET_CLOSE:
+      byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
+      break;
+    default:
+      DBUG_ASSERT(false);
+      byte_stat= NULL;
+      break;
+  }
+
+  /* Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
+  if (flags & STATE_FLAG_TIMED)
+  {
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+
+    /* Aggregate to the socket instrument for now (timed) */
+    byte_stat->aggregate(wait_time, bytes);
+  }
+  else
+  {
+    /* Aggregate to the socket instrument (event count and byte count) */
+    byte_stat->aggregate_counted(bytes);
+  }
+
+  /* Aggregate to EVENTS_WAITS_HISTORY and EVENTS_WAITS_HISTORY_LONG */
+  if (flags & STATE_FLAG_EVENT)
+  {
+    PFS_thread *thread= reinterpret_cast<PFS_thread *>(state->m_thread);
+    DBUG_ASSERT(thread != NULL);
+    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+    DBUG_ASSERT(wait != NULL);
+
+    wait->m_timer_end= timer_end;
+    wait->m_number_of_bytes= bytes;
+
+    if (flag_events_waits_history)
+      insert_events_waits_history(thread, wait);
+    if (flag_events_waits_history_long)
+      insert_events_waits_history_long(wait);
+    thread->m_events_waits_count--;
+  }
+}
+
+static void set_socket_state_v1(PSI_socket *socket, PSI_socket_state state)
+{
+  DBUG_ASSERT((state == PSI_SOCKET_STATE_IDLE) || (state == PSI_SOCKET_STATE_ACTIVE));
+  if (unlikely(socket == NULL))
+    return;
+  PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
+  DBUG_ASSERT(pfs->m_idle || (state == PSI_SOCKET_STATE_IDLE));
+  DBUG_ASSERT(!pfs->m_idle || (state == PSI_SOCKET_STATE_ACTIVE));
+  pfs->m_idle= (state == PSI_SOCKET_STATE_IDLE);
+}
+
+/**
+  Set socket descriptor and address info.
+*/
+static void set_socket_info_v1(PSI_socket *socket,
+                               const my_socket *fd,
+                               const struct sockaddr *addr,
+                               socklen_t addr_len)
+{
+  if (unlikely(socket == NULL))
+    return;
+
+  PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
+
+  /** Set socket descriptor */
+  if (fd != NULL)
+    pfs->m_fd= *fd;
+
+  /** Set raw socket address and length */
+  if (likely(addr != NULL && addr_len > 0))
+  {
+    pfs->m_addr_len= addr_len;
+  
+    /** Restrict address length to size of struct */
+    if (unlikely(pfs->m_addr_len > sizeof(sockaddr_storage)))
+      pfs->m_addr_len= sizeof(struct sockaddr_storage);
+  
+    memcpy(&pfs->m_sock_addr, addr, pfs->m_addr_len);
+  }
+}
+
+/**
+  Implementation of the socket instrumentation interface.
+  @sa PSI_v1::set_socket_info.
+*/
+static void set_socket_thread_owner_v1(PSI_socket *socket)
+{
+  if (unlikely(socket == NULL))
+    return;
+  PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*>(socket);
+  pfs_socket->m_thread_owner= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+}
+
 /**
   Implementation of the instrumentation interface.
   @sa PSI_v1.
@@ -4285,12 +4789,15 @@ PSI_v1 PFS_v1=
   register_file_v1,
   register_stage_v1,
   register_statement_v1,
+  register_socket_v1,
   init_mutex_v1,
   destroy_mutex_v1,
   init_rwlock_v1,
   destroy_rwlock_v1,
   init_cond_v1,
   destroy_cond_v1,
+  init_socket_v1,
+  destroy_socket_v1,
   get_table_share_v1,
   release_table_share_v1,
   drop_table_share_v1,
@@ -4321,10 +4828,13 @@ PSI_v1 PFS_v1=
   get_thread_file_name_locker_v1,
   get_thread_file_stream_locker_v1,
   get_thread_file_descriptor_locker_v1,
+  get_thread_socket_locker_v1,
   unlock_mutex_v1,
   unlock_rwlock_v1,
   signal_cond_v1,
   broadcast_cond_v1,
+  start_idle_wait_v1,
+  end_idle_wait_v1,
   start_mutex_wait_v1,
   end_mutex_wait_v1,
   start_rwlock_rdwait_v1,
@@ -4364,7 +4874,12 @@ PSI_v1 PFS_v1=
   inc_statement_sort_scan_v1,
   set_statement_no_index_used_v1,
   set_statement_no_good_index_used_v1,
-  end_statement_v1
+  end_statement_v1, 
+  start_socket_wait_v1,
+  end_socket_wait_v1,
+  set_socket_state_v1,
+  set_socket_info_v1,
+  set_socket_thread_owner_v1
 };
 
 static void* get_interface(int version)

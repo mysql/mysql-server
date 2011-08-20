@@ -61,7 +61,8 @@ struct pos_all_instr : public PFS_double_index,
   - a view on all mutex instances,
   - a view on all rwlock instances,
   - a view on all cond instances,
-  - a view on all file instances
+  - a view on all file instances,
+  - a view on all socket instances
 */
 class table_all_instr : public PFS_engine_table
 {
@@ -98,6 +99,11 @@ protected:
     @param pfs                        the file instance
   */
   virtual void make_file_row(PFS_file *pfs)= 0;
+  /**
+    Build a row in the socket instance view.
+    @param pfs                        the socket instance
+  */
+  virtual void make_socket_row(PFS_socket *pfs)= 0;
 
   /** Current position. */
   pos_all_instr m_pos;

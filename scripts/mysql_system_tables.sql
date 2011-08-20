@@ -194,7 +194,7 @@ DROP PREPARE stmt;
 
 --
 -- From this point, only create the performance schema tables
--- if the server is build with performance schema
+-- if the server is built with performance schema
 --
 
 set @have_pfs= (select count(engine) from information_schema.engines where engine='PERFORMANCE_SCHEMA' and support != 'NO');
@@ -460,6 +460,96 @@ SET @cmd="CREATE TABLE performance_schema.file_summary_by_instance("
   "COUNT_WRITE BIGINT unsigned not null,"
   "SUM_NUMBER_OF_BYTES_READ BIGINT not null,"
   "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE SOCKET_INSTANCES
+--
+
+SET @cmd="CREATE TABLE performance_schema.socket_instances("
+  "EVENT_NAME VARCHAR(128) not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
+  "THREAD_ID INTEGER,"
+  "SOCKET_ID INTEGER not null,"
+  "IP VARCHAR(64) not null,"
+  "PORT INTEGER not null,"
+  "STATE ENUM('IDLE','ACTIVE') not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE SOCKET_SUMMARY_BY_INSTANCE
+--
+
+SET @cmd="CREATE TABLE performance_schema.socket_summary_by_instance("
+  "EVENT_NAME VARCHAR(128) not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ BIGINT unsigned not null,"
+  "SUM_TIMER_READ BIGINT unsigned not null,"
+  "MIN_TIMER_READ BIGINT unsigned not null,"
+  "AVG_TIMER_READ BIGINT unsigned not null,"
+  "MAX_TIMER_READ BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_READ BIGINT unsigned not null,"
+  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_WRITE BIGINT unsigned not null,"
+  "COUNT_MISC BIGINT unsigned not null,"
+  "SUM_TIMER_MISC BIGINT unsigned not null,"
+  "MIN_TIMER_MISC BIGINT unsigned not null,"
+  "AVG_TIMER_MISC BIGINT unsigned not null,"
+  "MAX_TIMER_MISC BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE SOCKET_SUMMARY_BY_INSTANCE
+--
+
+SET @cmd="CREATE TABLE performance_schema.socket_summary_by_event_name("
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ BIGINT unsigned not null,"
+  "SUM_TIMER_READ BIGINT unsigned not null,"
+  "MIN_TIMER_READ BIGINT unsigned not null,"
+  "AVG_TIMER_READ BIGINT unsigned not null,"
+  "MAX_TIMER_READ BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_READ BIGINT unsigned not null,"
+  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE BIGINT unsigned not null,"
+  "SUM_NUMBER_OF_BYTES_WRITE BIGINT unsigned not null,"
+  "COUNT_MISC BIGINT unsigned not null,"
+  "SUM_TIMER_MISC BIGINT unsigned not null,"
+  "MIN_TIMER_MISC BIGINT unsigned not null,"
+  "AVG_TIMER_MISC BIGINT unsigned not null,"
+  "MAX_TIMER_MISC BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

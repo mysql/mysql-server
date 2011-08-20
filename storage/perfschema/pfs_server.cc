@@ -76,6 +76,7 @@ initialize_performance_schema(const PFS_global_param *param)
       init_file_class(param->m_file_class_sizing) ||
       init_stage_class(param->m_stage_class_sizing) ||
       init_statement_class(param->m_statement_class_sizing) ||
+      init_socket_class(param->m_socket_class_sizing) ||
       init_instruments(param) ||
       init_events_waits_history_long(
         param->m_events_waits_history_long_sizing) ||
@@ -137,6 +138,7 @@ static void cleanup_performance_schema(void)
   cleanup_file_class();
   cleanup_stage_class();
   cleanup_statement_class();
+  cleanup_socket_class();
   cleanup_events_waits_history_long();
   cleanup_events_stages_history_long();
   cleanup_events_statements_history_long();
