@@ -659,7 +659,7 @@ not_silent:
       */
       qinfo.db     = db;
       qinfo.db_len = strlen(db);
-
+      thd->add_to_binlog_accessed_dbs(db);
       /*
         These DDL methods and logging are protected with the exclusive
         metadata lock on the schema
@@ -969,6 +969,7 @@ update_binlog:
 
     if (query_pos != query_data_start)
     {
+      thd->add_to_binlog_accessed_dbs(db);
       /*
         These DDL methods and logging are protected with the exclusive
         metadata lock on the schema.

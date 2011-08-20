@@ -184,6 +184,19 @@ static void init_tdc_psi_keys(void)
 }
 #endif /* HAVE_PSI_INTERFACE */
 
+static void modify_slave_open_temp_tables(THD *thd, int inc)
+{
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
+  {
+    my_atomic_rwlock_wrlock(&slave_open_temp_tables_lock);
+    my_atomic_add32(&slave_open_temp_tables, inc);
+    my_atomic_rwlock_wrunlock(&slave_open_temp_tables_lock);
+  }
+  else
+  {
+    slave_open_temp_tables += inc;
+  }
+}
 
 /**
    Total number of TABLE instances for tables in the table definition cache
@@ -2250,7 +2263,7 @@ void close_temporary_table(THD *thd, TABLE *table,
   {
     /* natural invariant of temporary_tables */
     DBUG_ASSERT(slave_open_temp_tables || !thd->temporary_tables);
-    slave_open_temp_tables--;
+    modify_slave_open_temp_tables(thd, -1);
   }
   close_temporary(table, free_share, delete_table);
   DBUG_VOID_RETURN;
@@ -6071,7 +6084,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
     thd->temporary_tables= tmp_table;
     thd->temporary_tables->prev= 0;
     if (thd->slave_thread)
-      slave_open_temp_tables++;
+      modify_slave_open_temp_tables(thd, 1);
   }
   tmp_table->pos_in_table_list= 0;
   DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,

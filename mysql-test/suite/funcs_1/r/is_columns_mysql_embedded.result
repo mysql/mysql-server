@@ -189,9 +189,23 @@ def	mysql	slave_relay_log_info	Master_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	
 def	mysql	slave_relay_log_info	Master_log_name	5	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The name of the master binary log file from which the events in the relay log file were read.
 def	mysql	slave_relay_log_info	Master_log_pos	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				The master log position of the last executed event.
 def	mysql	slave_relay_log_info	Number_of_lines	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned				Number of lines in the file or rows in the table. Used to version table definitions.
+def	mysql	slave_relay_log_info	Number_of_workers	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned				
 def	mysql	slave_relay_log_info	Relay_log_name	3	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The name of the current relay log file.
 def	mysql	slave_relay_log_info	Relay_log_pos	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				The relay log position of the last executed event.
 def	mysql	slave_relay_log_info	Sql_delay	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				The number of seconds that the slave must lag behind the master.
+def	mysql	slave_worker_info	Checkpoint_group_bitmap	13	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob				
+def	mysql	slave_worker_info	Checkpoint_group_size	12	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned				
+def	mysql	slave_worker_info	Checkpoint_master_log_name	9	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				
+def	mysql	slave_worker_info	Checkpoint_master_log_pos	10	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	slave_worker_info	Checkpoint_relay_log_name	7	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				
+def	mysql	slave_worker_info	Checkpoint_relay_log_pos	8	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	slave_worker_info	Checkpoint_seqno	11	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned				
+def	mysql	slave_worker_info	Master_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI			
+def	mysql	slave_worker_info	Master_log_name	5	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				
+def	mysql	slave_worker_info	Master_log_pos	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	slave_worker_info	Relay_log_name	3	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				
+def	mysql	slave_worker_info	Relay_log_pos	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	slave_worker_info	Worker_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI			
 def	mysql	slow_log	db	7	NULL	NO	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)				
 def	mysql	slow_log	insert_id	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
 def	mysql	slow_log	last_insert_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
@@ -529,6 +543,20 @@ NULL	mysql	slave_relay_log_info	Relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(
 1.0000	mysql	slave_relay_log_info	Master_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_relay_log_info	Master_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	slave_relay_log_info	Sql_delay	int	NULL	NULL	NULL	NULL	int(11)
+NULL	mysql	slave_relay_log_info	Number_of_workers	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	slave_worker_info	Master_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	slave_worker_info	Worker_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
+1.0000	mysql	slave_worker_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_worker_info	Relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+1.0000	mysql	slave_worker_info	Master_log_name	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_worker_info	Master_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+1.0000	mysql	slave_worker_info	Checkpoint_relay_log_name	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_worker_info	Checkpoint_relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+1.0000	mysql	slave_worker_info	Checkpoint_master_log_name	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_worker_info	Checkpoint_master_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	mysql	slave_worker_info	Checkpoint_seqno	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	slave_worker_info	Checkpoint_group_size	int	NULL	NULL	NULL	NULL	int(10) unsigned
+1.0000	mysql	slave_worker_info	Checkpoint_group_bitmap	blob	65535	65535	NULL	NULL	blob
 NULL	mysql	slow_log	start_time	timestamp	NULL	NULL	NULL	NULL	timestamp
 1.0000	mysql	slow_log	user_host	mediumtext	16777215	16777215	utf8	utf8_general_ci	mediumtext
 NULL	mysql	slow_log	query_time	time	NULL	NULL	NULL	NULL	time

@@ -57,8 +57,10 @@ public:
                         code, but can contain more information), in
                         printf() format.
   */
-  void report(loglevel level, int err_code, const char *msg, ...) const
+  virtual void report(loglevel level, int err_code, const char *msg, ...) const
     ATTRIBUTE_FORMAT(printf, 4, 5);
+  void va_report(loglevel level, int err_code,
+                 const char *msg, va_list v_args) const;
 
   /**
      Clear errors. They will not show up under <code>SHOW SLAVE
@@ -125,8 +127,18 @@ public:
   };
 
   Error const& last_error() const { return m_last_error; }
+  bool is_error() const { return last_error().number != 0; }
 
   virtual ~Slave_reporting_capability()= 0;
+
+protected:
+
+  virtual void do_report(loglevel level, int err_code,
+                 const char *msg, va_list v_args) const
+  {
+    va_report(level, err_code, msg, v_args);
+  }
+
 private:
   /**
      Last error produced by the I/O or SQL thread respectively.

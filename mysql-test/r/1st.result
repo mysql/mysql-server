@@ -27,6 +27,7 @@ proxies_priv
 servers
 slave_master_info
 slave_relay_log_info
+slave_worker_info
 slow_log
 tables_priv
 time_zone
