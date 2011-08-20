@@ -965,13 +965,16 @@ JOIN::optimize()
 
     sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
 
+    sel->where= conds;
+
     if (arena)
       thd->restore_active_arena(arena, &backup);
   }
   
   inject_jtbm_conds(this, join_list, &conds);
 
-  conds= optimize_cond(this, conds, join_list, &cond_value, &cond_equal);   
+  conds= optimize_cond(this, conds, join_list, &cond_value, &cond_equal);
+     
   if (thd->is_error())
   {
     error= 1;
@@ -988,10 +991,17 @@ JOIN::optimize()
       DBUG_RETURN(1);
     }
     if (select_lex->where)
+    {
       select_lex->cond_value= cond_value;
+      if (sel->where != conds && cond_value == Item::COND_OK)
+        thd->change_item_tree(&sel->where, conds);
+    }  
     if (select_lex->having)
+    {
       select_lex->having_value= having_value;
-
+      if (sel->having != having && having_value == Item::COND_OK)
+        thd->change_item_tree(&sel->having, having);    
+    }
     if (cond_value == Item::COND_FALSE || having_value == Item::COND_FALSE || 
         (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
     {						/* Impossible cond */
