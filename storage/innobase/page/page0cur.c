@@ -879,7 +879,8 @@ page_cur_parse_insert_rec(
 	if (mismatch_index + end_seg_len < sizeof buf1) {
 		buf = buf1;
 	} else {
-		buf = mem_alloc(mismatch_index + end_seg_len);
+		buf = static_cast<byte*>(
+			mem_alloc(mismatch_index + end_seg_len));
 	}
 
 	/* Build the inserted record to buf */

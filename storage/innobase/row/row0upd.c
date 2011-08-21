@@ -301,7 +301,9 @@ upd_node_create(
 {
 	upd_node_t*	node;
 
-	node = mem_heap_alloc(heap, sizeof(upd_node_t));
+	node = static_cast<upd_node_t*>(
+		mem_heap_alloc(heap, sizeof(upd_node_t)));
+
 	node->common.type = QUE_NODE_UPDATE;
 
 	node->state = UPD_NODE_UPDATE_CLUSTERED;
@@ -386,7 +388,7 @@ row_upd_index_entry_sys_field(
 	pos = dict_index_get_sys_col_pos(index, type);
 
 	dfield = dtuple_get_nth_field(entry, pos);
-	field = dfield_get_data(dfield);
+	field = static_cast<byte*>(dfield_get_data(dfield));
 
 	if (type == DATA_TRX_ID) {
 		trx_write_trx_id(field, val);
@@ -670,9 +672,11 @@ row_upd_index_write_log(
 			} else {
 				mlog_close(mtr, log_ptr);
 
-				mlog_catenate_string(mtr,
-						     dfield_get_data(new_val),
-						     len);
+				mlog_catenate_string(
+					mtr,
+					static_cast<byte*>(
+						dfield_get_data(new_val)),
+					len);
 
 				log_ptr = mlog_open(mtr, MLOG_BUF_MARGIN);
 				buf_end = log_ptr + MLOG_BUF_MARGIN;
@@ -930,11 +934,11 @@ row_upd_ext_fetch(
 					out: fetched length of the prefix */
 	mem_heap_t*	heap)		/*!< in: heap where to allocate */
 {
-	byte*	buf = mem_heap_alloc(heap, *len);
+	byte*	buf = static_cast<byte*>(mem_heap_alloc(heap, *len));
 
-	*len = btr_copy_externally_stored_field_prefix(buf, *len,
-						       zip_size,
-						       data, local_len);
+	*len = btr_copy_externally_stored_field_prefix(
+		buf, *len, zip_size, data, local_len);
+
 	/* We should never update records containing a half-deleted BLOB. */
 	ut_a(*len);
 
@@ -968,7 +972,7 @@ row_upd_index_replace_new_col_val(
 	}
 
 	len = dfield_get_len(dfield);
-	data = dfield_get_data(dfield);
+	data = static_cast<const byte*>(dfield_get_data(dfield));
 
 	if (field->prefix_len > 0) {
 		ibool		fetch_ext = dfield_is_ext(dfield)
@@ -1019,10 +1023,12 @@ row_upd_index_replace_new_col_val(
 		stored part of the column.  The data
 		will have to be copied. */
 		ut_a(uf->orig_len > BTR_EXTERN_FIELD_REF_SIZE);
-		buf = mem_heap_alloc(heap, uf->orig_len);
+		buf = static_cast<byte*>(mem_heap_alloc(heap, uf->orig_len));
+
 		/* Copy the locally stored prefix. */
 		memcpy(buf, data,
 		       uf->orig_len - BTR_EXTERN_FIELD_REF_SIZE);
+
 		/* Copy the BLOB pointer. */
 		memcpy(buf + uf->orig_len - BTR_EXTERN_FIELD_REF_SIZE,
 		       data + len - BTR_EXTERN_FIELD_REF_SIZE,
@@ -1169,7 +1175,9 @@ row_upd_replace(
 	table = index->table;
 	ut_ad(n_cols == dict_table_get_n_cols(table));
 
-	ext_cols = mem_heap_alloc(heap, n_cols * sizeof *ext_cols);
+	ext_cols = static_cast<ulint*>(
+		mem_heap_alloc(heap, n_cols * sizeof *ext_cols));
+
 	n_ext_cols = 0;
 
 	dtuple_set_info_bits(row, update->info_bits);
@@ -1321,7 +1329,8 @@ row_upd_changes_ord_field_binary_func(
 			dfield_len -= BTR_EXTERN_FIELD_REF_SIZE;
 			ut_a(dict_index_is_clust(index)
 			     || ind_field->prefix_len <= dfield_len);
-			buf = dfield_get_data(dfield);
+
+			buf = static_cast<byte*>(dfield_get_data(dfield));
 copy_dfield:
 			ut_a(dfield_len > 0);
 			dfield_copy(&dfield_ext, dfield);
@@ -1757,7 +1766,9 @@ row_upd_clust_rec_by_insert_inherit_func(
 		len = dfield_get_len(dfield);
 		ut_a(len != UNIV_SQL_NULL);
 		ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
-		data = dfield_get_data(dfield);
+
+		data = static_cast<byte*>(dfield_get_data(dfield));
+
 		data += len - BTR_EXTERN_FIELD_REF_SIZE;
 		/* The pointer must not be zero. */
 		ut_a(memcmp(data, field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
@@ -2373,7 +2384,7 @@ row_upd_step(
 
 	trx_start_if_not_started_xa(trx);
 
-	node = thr->run_node;
+	node = static_cast<upd_node_t*>(thr->run_node);
 
 	sel_node = node->select;
 
@@ -2443,7 +2454,7 @@ row_upd_step(
 	err = row_upd(node, thr);
 
 error_handling:
-	trx->error_state = err;
+	trx->error_state = static_cast<enum db_err>(err);
 
 	if (err != DB_SUCCESS) {
 		return(NULL);

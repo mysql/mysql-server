@@ -26,7 +26,6 @@ Smart ALTER TABLE
 #include <sql_lex.h>                            // SQLCOM_CREATE_INDEX
 #include <mysql/innodb_priv.h>
 
-extern "C" {
 #include "dict0stats.h"
 #include "log0log.h"
 #include "row0merge.h"
@@ -36,7 +35,6 @@ extern "C" {
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "srv0mon.h"
-}
 
 #include "ha_innodb.h"
 
@@ -130,7 +128,7 @@ innobase_col_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB record to table->record[0]. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_rec_to_mysql(
 /*==================*/
@@ -180,7 +178,7 @@ null_field:
 
 /*************************************************************//**
 Resets table->record[0]. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_rec_reset(
 /*===============*/

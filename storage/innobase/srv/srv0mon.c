@@ -42,7 +42,8 @@ Created 12/9/2009 Jimmy Yang
 #define	MONITOR_BUF_PAGE(name, description, code, op, op_code)	\
 	{"buffer_page_"op"_"name, "buffer_page_io",		\
 	 "Number of "description" Pages "op,			\
-	 MONITOR_GROUP_MODULE, 0, MONITOR_##code##_##op_code}
+	 MONITOR_GROUP_MODULE, MONITOR_DEFAULT_START,		\
+	 MONITOR_##code##_##op_code}
 
 #define MONITOR_BUF_PAGE_READ(name, description, code)		\
 	 MONITOR_BUF_PAGE(name, description, code, "read", PAGE_READ)
@@ -63,195 +64,241 @@ static monitor_info_t	innodb_counter_info[] =
 	to accomodate the default value (0) set for the
 	global variables with the control system. */
 	{"module_start", "module_start", "module_start",
-	MONITOR_MODULE, 0, MONITOR_DEFAULT_START},
+	MONITOR_MODULE,
+	MONITOR_DEFAULT_START, MONITOR_DEFAULT_START},
 
 	/* ========== Counters for Server Metadata ========== */
 	{"module_metadata", "metadata", "Server Metadata",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_METADATA},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_METADATA},
 
 	{"metadata_table_handles_opened", "metadata",
-	 "Number of table handles opened", 0, 0, MONITOR_TABLE_OPEN},
+	 "Number of table handles opened",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TABLE_OPEN},
 
 	{"metadata_table_handles_closed", "metadata",
-	 "Number of table handles closed", 0, 0, MONITOR_TABLE_CLOSE},
+	 "Number of table handles closed",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TABLE_CLOSE},
 
 	{"metadata_table_reference_count", "metadata",
-	 "Table reference counter", 0, 0, MONITOR_TABLE_REFERENCE},
+	 "Table reference counter",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TABLE_REFERENCE},
 
 	{"metadata_mem_pool_size", "metadata",
 	 "Size of a memory pool InnoDB uses to store data dictionary"
 	 " and internal data structures in bytes",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON | MONITOR_DISPLAY_CURRENT, 0,
-	 MONITOR_OVLD_META_MEM_POOL},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON | MONITOR_DISPLAY_CURRENT),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_META_MEM_POOL},
 
 	/* ========== Counters for Lock Module ========== */
 	{"module_lock", "lock", "Lock Module",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_LOCK},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_LOCK},
 
 	{"lock_deadlocks", "lock", "Number of deadlocks",
-	 MONITOR_DEFAULT_ON, 0, MONITOR_DEADLOCK},
+	 MONITOR_DEFAULT_ON,
+	 MONITOR_DEFAULT_START, MONITOR_DEADLOCK},
 
 	{"lock_timeouts", "lock", "Number of lock timeouts",
-	 MONITOR_DEFAULT_ON, 0, MONITOR_TIMEOUT},
+	 MONITOR_DEFAULT_ON,
+	 MONITOR_DEFAULT_START, MONITOR_TIMEOUT},
 
 	{"lock_rec_lock_waits", "lock",
 	 "Number of times enqueued into record lock wait queue",
-	 0, 0, MONITOR_LOCKREC_WAIT},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_LOCKREC_WAIT},
 
 	{"lock_table_lock_waits", "lock",
 	 "Number of times enqueued into table lock wait queue",
-	 0, 0, MONITOR_TABLELOCK_WAIT},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TABLELOCK_WAIT},
 
 	{"lock_rec_lock_requests", "lock",
 	 "Number of record locks requested",
-	 0, 0, MONITOR_NUM_RECLOCK_REQ},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_NUM_RECLOCK_REQ},
 
 	{"lock_rec_lock_created", "lock", "Number of record locks created",
-	 0, 0, MONITOR_RECLOCK_CREATED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_RECLOCK_CREATED},
 
 	{"lock_rec_lock_removed", "lock",
 	 "Number of record locks removed from the lock queue",
-	 0, 0, MONITOR_RECLOCK_REMOVED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_RECLOCK_REMOVED},
 
 	{"lock_rec_locks", "lock",
 	 "Current number of record locks on tables",
-	 0, 0, MONITOR_NUM_RECLOCK},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_NUM_RECLOCK},
 
 	{"lock_table_lock_created", "lock", "Number of table locks created",
-	 0, 0, MONITOR_TABLELOCK_CREATED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TABLELOCK_CREATED},
 
 	{"lock_table_lock_removed", "lock",
 	 "Number of table locks removed from the lock queue",
-	 0, 0, MONITOR_TABLELOCK_REMOVED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TABLELOCK_REMOVED},
 
 	{"lock_table_locks", "lock",
 	 "Current number of table locks on tables",
-	 0, 0, MONITOR_NUM_TABLELOCK},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_NUM_TABLELOCK},
 
 	{"lock_row_lock_current_waits", "lock",
 	 "Number of row locks currently being waited for"
 	 " (innodb_row_lock_current_waits)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_ROW_LOCK_CURRENT_WAIT},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_ROW_LOCK_CURRENT_WAIT},
 
 	{"lock_row_lock_time", "lock",
 	 "Time spent in acquiring row locks, in milliseconds"
 	 " (innodb_row_lock_time)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_LOCK_WAIT_TIME},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOCK_WAIT_TIME},
 
 	{"lock_row_lock_time_max", "lock",
 	 "The maximum time to acquire a row lock, in milliseconds"
 	 " (innodb_row_lock_time_max)",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_LOCK_MAX_WAIT_TIME},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOCK_MAX_WAIT_TIME},
 
 	{"lock_row_lock_waits", "lock",
 	 "Number of times a row lock had to be waited for"
 	 " (innodb_row_lock_waits)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_ROW_LOCK_WAIT},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_ROW_LOCK_WAIT},
 
 	{"lock_row_lock_time_avg", "lock",
 	 "The average time to acquire a row lock, in milliseconds"
 	 " (innodb_row_lock_time_avg)",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_LOCK_AVG_WAIT_TIME},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOCK_AVG_WAIT_TIME},
 
 	/* ========== Counters for Buffer Manager and I/O ========== */
 	{"module_buffer", "buffer", "Buffer Manager Module",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_BUFFER},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_BUFFER},
 
 	{"buffer_pool_size", "server",
 	 "Server buffer pool size (all buffer pools) in bytes",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON | MONITOR_DISPLAY_CURRENT, 0,
-	 MONITOR_OVLD_BUFFER_POOL_SIZE},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON | MONITOR_DISPLAY_CURRENT),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUFFER_POOL_SIZE},
 
 	{"buffer_pool_reads", "buffer",
 	 "Number of reads directly from disk (innodb_buffer_pool_reads)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BUF_POOL_READS},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_READS},
 
 	{"buffer_pool_read_requests", "buffer",
 	 "Number of logical read requests (innodb_buffer_pool_read_requests)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BUF_POOL_READ_REQUESTS},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_READ_REQUESTS},
 
 	{"buffer_pool_write_requests", "buffer",
 	 "Number of write requests (innodb_buffer_pool_write_requests)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BUF_POOL_WRITE_REQUEST},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_WRITE_REQUEST},
 
 	{"buffer_pool_pages_in_flush", "buffer",
 	 "Number of pages in flush list",
-	 0, 0, MONITOR_PAGE_INFLUSH},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_PAGE_INFLUSH},
 
 	{"buffer_pool_wait_free", "buffer",
 	 "Number of times waited for free buffer"
 	 " (innodb_buffer_pool_wait_free)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BUF_POOL_WAIT_FREE},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_WAIT_FREE},
 
 	{"buffer_pool_read_ahead", "buffer",
 	 "Number of pages read as read ahead (innodb_buffer_pool_read_ahead)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BUF_POOL_READ_AHEAD},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_READ_AHEAD},
 
 	{"buffer_pool_read_ahead_evicted", "buffer",
 	 "Read-ahead pages evicted without being accessed"
 	 " (innodb_buffer_pool_read_ahead_evicted)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BUF_POOL_READ_AHEAD_EVICTED},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_READ_AHEAD_EVICTED},
 
 	{"buffer_pool_pages_total", "buffer",
 	 "Total buffer pool size in pages (innodb_buffer_pool_pages_total)",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BUF_POOL_PAGE_TOTAL},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_PAGE_TOTAL},
 
 	{"buffer_pool_pages_misc", "buffer",
 	 "Buffer pages for misc use such as row locks or the adaptive"
 	 " hash index (innodb_buffer_pool_pages_misc)",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BUF_POOL_PAGE_MISC},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_PAGE_MISC},
 
 	{"buffer_pool_pages_data", "buffer",
 	 "Buffer pages containing data (innodb_buffer_pool_pages_data)",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BUF_POOL_PAGES_DATA},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_PAGES_DATA},
 
 	{"buffer_pool_pages_dirty", "buffer",
 	 "Buffer pages currently dirty (innodb_buffer_pool_pages_dirty)",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BUF_POOL_PAGES_DIRTY},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_PAGES_DIRTY},
 
 	{"buffer_pool_pages_free", "buffer",
 	 "Buffer pages currently free (innodb_buffer_pool_pages_free)",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BUF_POOL_PAGES_FREE},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_PAGES_FREE},
 
 	{"buffer_pages_created", "buffer",
 	 "Number of pages created (innodb_pages_created)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OVLD_PAGE_CREATED},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_PAGE_CREATED},
 
 	{"buffer_pages_written", "buffer",
 	 "Number of pages written (innodb_pages_written)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_PAGES_WRITTEN},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES_WRITTEN},
 
 	{"buffer_pages_read", "buffer",
 	 "Number of pages read (innodb_pages_read)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_PAGES_READ},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES_READ},
 
 	{"buffer_data_reads", "buffer",
 	 "Amount of data read in bytes (innodb_data_reads)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BYTE_READ},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BYTE_READ},
 
 	{"buffer_data_written", "buffer",
 	 "Amount of data written in bytes (innodb_data_written)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_BYTE_WRITTEN},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BYTE_WRITTEN},
 
 	/* Cumulative counter for scanning in flush batches */
 	{"buffer_flush_batch_scanned", "buffer",
@@ -433,11 +480,13 @@ static monitor_info_t	innodb_counter_info[] =
 
 	{"buffer_LRU_single_flush_failure_count", "Buffer",
 	 "Number of times attempt to flush a single page from LRU failed",
-	 0, 0, MONITOR_LRU_SINGLE_FLUSH_FAILURE_COUNT},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_LRU_SINGLE_FLUSH_FAILURE_COUNT},
 
 	{"buffer_LRU_get_free_search", "Buffer",
 	 "Number of searches performed for a clean page",
-	 0, 0, MONITOR_LRU_GET_FREE_SEARCH},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_LRU_GET_FREE_SEARCH},
 
 	/* Cumulative counter for LRU search scans */
 	{"buffer_LRU_search_scanned", "buffer",
@@ -475,7 +524,9 @@ static monitor_info_t	innodb_counter_info[] =
 
 	/* ========== Counters for Buffer Page I/O ========== */
 	{"module_buffer_page", "buffer_page_io", "Buffer Page I/O Module",
-	 MONITOR_MODULE | MONITOR_GROUP_MODULE, 0, MONITOR_MODULE_BUF_PAGE},
+	 static_cast<monitor_type_t>(
+	 MONITOR_MODULE | MONITOR_GROUP_MODULE),
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_BUF_PAGE},
 
 	MONITOR_BUF_PAGE_READ("index_leaf","Index Leaf", INDEX_LEAF),
 
@@ -559,429 +610,538 @@ static monitor_info_t	innodb_counter_info[] =
 
 	/* ========== Counters for OS level operations ========== */
 	{"module_os", "os", "OS Level Operation",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_OS},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_OS},
 
 	{"os_data_reads", "os",
 	 "Number of reads initiated (innodb_data_reads)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OVLD_OS_FILE_READ},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_OS_FILE_READ},
 
 	{"os_data_writes", "os",
 	 "Number of writes initiated (innodb_data_writes)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OVLD_OS_FILE_WRITE},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_OS_FILE_WRITE},
 
 	{"os_data_fsyncs", "os",
 	 "Number of fsync() calls (innodb_data_fsyncs)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OVLD_OS_FSYNC},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_OS_FSYNC},
 
 	{"os_pending_reads", "os", "Number of reads pending",
-	 0, 0, MONITOR_OS_PENDING_READS},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_OS_PENDING_READS},
 
 	{"os_pending_writes", "os", "Number of writes pending",
-	 0, 0, MONITOR_OS_PENDING_WRITES},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_OS_PENDING_WRITES},
 
 	{"os_log_bytes_written", "os",
 	 "Bytes of log written (innodb_os_log_written)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_OS_LOG_WRITTEN},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_OS_LOG_WRITTEN},
 
 	{"os_log_fsyncs", "os",
 	 "Number of fsync log writes (innodb_os_log_fsyncs)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_OS_LOG_FSYNC},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_OS_LOG_FSYNC},
 
 	{"os_log_pending_fsyncs", "os",
 	 "Number of pending fsync write (innodb_os_log_pending_fsyncs)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_OS_LOG_PENDING_FSYNC},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_OS_LOG_PENDING_FSYNC},
 
 	{"os_log_pending_writes", "os",
 	 "Number of pending log file writes (innodb_os_log_pending_writes)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_OS_LOG_PENDING_WRITES},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_OS_LOG_PENDING_WRITES},
 
 	/* ========== Counters for Transaction Module ========== */
 	{"module_trx", "transaction", "Transaction Manager",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_TRX},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_TRX},
 
 	{"trx_commits", "transaction", "Number of transactions committed",
-	 0, 0, MONITOR_TRX_COMMIT},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TRX_COMMIT},
 
 	{"trx_commits_insert_update", "transaction",
 	 "Number of transactions committed with inserts and updates",
-	 0, 0, MONITOR_TRX_COMMIT_UNDO},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TRX_COMMIT_UNDO},
 
 	{"trx_rollbacks", "transaction",
 	 "Number of transactions rolled back",
-	 0, 0, MONITOR_TRX_ROLLBACK},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TRX_ROLLBACK},
 
 	{"trx_rollbacks_savepoint", "transaction",
 	 "Number of transactions rolled back to savepoint",
-	 0, 0, MONITOR_TRX_ROLLBACK_SAVEPOINT},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TRX_ROLLBACK_SAVEPOINT},
 
 	{"trx_rollback_active", "transaction",
 	 "Number of resurrected active transactions rolled back",
-	 0, 0, MONITOR_TRX_ROLLBACK_ACTIVE},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TRX_ROLLBACK_ACTIVE},
 
 	{"trx_active_transactions", "transaction",
 	 "Number of active transactions",
-	 0, 0, MONITOR_TRX_ACTIVE},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_TRX_ACTIVE},
 
 	{"trx_rseg_history_len", "transaction",
 	 "Length of the TRX_RSEG_HISTORY list",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_RSEG_HISTORY_LEN},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_RSEG_HISTORY_LEN},
 
 	{"trx_undo_slots_used", "transaction", "Number of undo slots used",
-	 0, 0, MONITOR_NUM_UNDO_SLOT_USED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_NUM_UNDO_SLOT_USED},
 
 	{"trx_undo_slots_cached", "transaction",
 	 "Number of undo slots cached",
-	 0, 0, MONITOR_NUM_UNDO_SLOT_CACHED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_NUM_UNDO_SLOT_CACHED},
 
 	{"trx_rseg_curent_size", "transaction",
 	 "Current rollback segment size in pages",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, 0,
-	 MONITOR_RSEG_CUR_SIZE},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+	 MONITOR_DEFAULT_START, MONITOR_RSEG_CUR_SIZE},
 
 	/* ========== Counters for Purge Module ========== */
 	{"module_purge", "purge", "Purge Module",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_PURGE},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_PURGE},
 
 	{"purge_del_mark_records", "purge",
 	 "Number of delete-marked rows purged",
-	 0, 0, MONITOR_N_DEL_ROW_PURGE},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_N_DEL_ROW_PURGE},
 
 	{"purge_upd_exist_or_extern_records", "purge",
 	 "Number of purges on updates of existing records and "
 	 " updates on delete marked record with externally stored field",
-	 0, 0, MONITOR_N_UPD_EXIST_EXTERN},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_N_UPD_EXIST_EXTERN},
 
 	{"purge_invoked", "purge",
 	 "Number of purge was invoked",
-	 0, 0, MONITOR_PURGE_INVOKED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_PURGE_INVOKED},
 
 	{"purge_undo_log_pages", "purge",
 	 "Number of undo log pages handled by the purge",
-	 0, 0, MONITOR_PURGE_N_PAGE_HANDLED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_PURGE_N_PAGE_HANDLED},
 
 	{"purge_dml_delay_usec", "purge",
 	 "Microseconds DML to be delayed due to purge lagging",
-	 MONITOR_DISPLAY_CURRENT, 0, MONITOR_DML_PURGE_DELAY},
+	 MONITOR_DISPLAY_CURRENT,
+	 MONITOR_DEFAULT_START, MONITOR_DML_PURGE_DELAY},
 
 	/* ========== Counters for Recovery Module ========== */
 	{"module_log", "recovery", "Recovery Module",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_RECOVERY},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_RECOVERY},
 
 	{"log_checkpoints", "recovery", "Number of checkpoints",
-	 0, 0, MONITOR_NUM_CHECKPOINT},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_NUM_CHECKPOINT},
 
 	{"log_lsn_last_flush", "recovery", "LSN of Last flush",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, 0,
-	 MONITOR_OVLD_LSN_FLUSHDISK},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_FLUSHDISK},
 
 	{"log_lsn_last_checkpoint", "recovery", "LSN at last checkpoint",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, 0,
-	 MONITOR_OVLD_LSN_CHECKPOINT},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_CHECKPOINT},
 
 	{"log_lsn_current", "recovery", "Current LSN value",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, 0,
-	 MONITOR_OVLD_LSN_CURRENT},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_CURRENT},
 
 	{"log_lsn_checkpoint_age", "recovery",
 	 "Current LSN value minus LSN at last checkpoint",
-	 0, 0, MONITOR_LSN_CHECKPOINT_AGE},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_LSN_CHECKPOINT_AGE},
 
 	{"log_lsn_buf_pool_oldest", "recovery",
 	 "The oldest modified block LSN in the buffer pool",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT,
-	 0, MONITOR_OVLD_BUF_OLDEST_LSN},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_OLDEST_LSN},
 
 	{"log_max_modified_age_async", "recovery",
 	 "Maximum LSN difference; when exceeded, start asynchronous preflush",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, 0,
-	 MONITOR_OVLD_MAX_AGE_ASYNC},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_MAX_AGE_ASYNC},
 
 	{"log_max_modified_age_sync", "recovery",
 	 "Maximum LSN difference; when exceeded, start synchronous preflush",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT, 0,
-	 MONITOR_OVLD_MAX_AGE_SYNC},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_MAX_AGE_SYNC},
 
 	{"log_pending_log_writes", "recovery", "Pending log writes",
-	 0, 0, MONITOR_PENDING_LOG_WRITE},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_PENDING_LOG_WRITE},
 
 	{"log_pending_checkpoint_writes", "recovery", "Pending checkpoints",
-	 0, 0, MONITOR_PENDING_CHECKPOINT_WRITE},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_PENDING_CHECKPOINT_WRITE},
 
 	{"log_num_log_io", "recovery", "Number of log I/Os",
-	 0, 0, MONITOR_LOG_IO},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_LOG_IO},
 
 	{"log_waits", "recovery",
 	 "Number of log waits due to small log buffer (innodb_log_waits)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OVLD_LOG_WAITS},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WAITS},
 
 	{"log_write_requests", "recovery",
 	 "Number of log write requests (innodb_log_write_requests)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_LOG_WRITE_REQUEST},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITE_REQUEST},
 
 	{"log_writes", "recovery",
 	 "Number of log writes (innodb_log_writes)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OVLD_LOG_WRITES},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITES},
 
 	/* ========== Counters for Page Compression ========== */
 	{"module_compress", "compression", "Page Compression Info",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_PAGE},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_PAGE},
 
 	{"compress_pages_compressed", "compression",
-	 "Number of pages compressed", 0, 0, MONITOR_PAGE_COMPRESS},
+	 "Number of pages compressed", MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_PAGE_COMPRESS},
 
 	{"compress_pages_decompressed", "compression",
-	 "Number of pages decompressed", 0, 0, MONITOR_PAGE_DECOMPRESS},
+	 "Number of pages decompressed",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_PAGE_DECOMPRESS},
 
 	/* ========== Counters for Index ========== */
 	{"module_index", "index", "Index Manager",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_INDEX},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_INDEX},
 
 	{"index_splits", "index", "Number of index splits",
-	 0, 0, MONITOR_INDEX_SPLIT},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_SPLIT},
 
 	{"index_merges", "index", "Number of index merges",
-	 0, 0, MONITOR_INDEX_MERGE},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_MERGE},
 
 	/* ========== Counters for Adaptive Hash Index ========== */
 	{"module_adaptive_hash", "adaptive_hash_index", "Adpative Hash Index",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_ADAPTIVE_HASH},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_ADAPTIVE_HASH},
 
 	{"adaptive_hash_searches", "adaptive_hash_index",
 	 "Number of successful searches using Adaptive Hash Index",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_ADAPTIVE_HASH_SEARCH},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_ADAPTIVE_HASH_SEARCH},
 
 	{"adaptive_hash_searches_btree", "adaptive_hash_index",
 	 "Number of searches using B-tree on an index search",
-	 0, 0, MONITOR_OVLD_ADAPTIVE_HASH_SEARCH_BTREE},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_ADAPTIVE_HASH_SEARCH_BTREE},
 
 	{"adaptive_hash_pages_added", "adaptive_hash_index",
 	 "Number of index pages on which the Adaptive Hash Index is built",
-	 0, 0, MONITOR_ADAPTIVE_HASH_PAGE_ADDED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_PAGE_ADDED},
 
 	{"adaptive_hash_pages_removed", "adaptive_hash_index",
 	 "Number of index pages whose corresponding Adaptive Hash Index"
 	 " entries were removed",
-	 0, 0, MONITOR_ADAPTIVE_HASH_PAGE_REMOVED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_PAGE_REMOVED},
 
 	{"adaptive_hash_rows_added", "adaptive_hash_index",
 	 "Number of Adaptive Hash Index rows added",
-	 0, 0, MONITOR_ADAPTIVE_HASH_ROW_ADDED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_ROW_ADDED},
 
 	{"adaptive_hash_rows_removed", "adaptive_hash_index",
 	 "Number of Adaptive Hash Index rows removed",
-	 0, 0, MONITOR_ADAPTIVE_HASH_ROW_REMOVED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_ROW_REMOVED},
 
 	{"adaptive_hash_rows_deleted_no_hash_entry", "adaptive_hash_index",
 	 "Number of rows deleted that did not have corresponding Adaptive Hash"
 	 " Index entries",
-	 0, 0, MONITOR_ADAPTIVE_HASH_ROW_REMOVE_NOT_FOUND},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_ROW_REMOVE_NOT_FOUND},
 
 	{"adaptive_hash_rows_updated", "adaptive_hash_index",
 	 "Number of Adaptive Hash Index rows updated",
-	 0, 0, MONITOR_ADAPTIVE_HASH_ROW_UPDATED},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ADAPTIVE_HASH_ROW_UPDATED},
 
 	/* ========== Counters for tablespace ========== */
 	{"module_file", "file_system", "Tablespace and File System Manager",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_FIL_SYSTEM},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_FIL_SYSTEM},
 
 	{"file_num_open_files", "file_system",
 	 "Number of files currently open (innodb_num_open_files)",
-	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_N_FILE_OPENED},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_N_FILE_OPENED},
 
 	/* ========== Counters for Change Buffer ========== */
 	{"module_ibuf_system", "change_buffer", "InnoDB Change Buffer",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_IBUF_SYSTEM},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_IBUF_SYSTEM},
 
 	{"ibuf_merges_insert", "change_buffer",
 	 "Number of inserted records merged by change buffering",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_IBUF_MERGE_INSERT},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_MERGE_INSERT},
 
 	{"ibuf_merges_delete_mark", "change_buffer",
 	 "Number of deleted records merged by change buffering",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_IBUF_MERGE_DELETE},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_MERGE_DELETE},
 
 	{"ibuf_merges_delete", "change_buffer",
 	 "Number of purge records merged by change buffering",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_IBUF_MERGE_PURGE},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_MERGE_PURGE},
 
 	{"ibuf_merges_discard_insert", "change_buffer",
 	 "Number of insert merged operations discarded",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_IBUF_MERGE_DISCARD_INSERT},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_MERGE_DISCARD_INSERT},
 
 	{"ibuf_merges_discard_delete_mark", "change_buffer",
 	 "Number of deleted merged operations discarded",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_IBUF_MERGE_DISCARD_DELETE},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_MERGE_DISCARD_DELETE},
 
 	{"ibuf_merges_discard_delete", "change_buffer",
 	 "Number of purge merged  operations discarded",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_IBUF_MERGE_DISCARD_PURGE},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_MERGE_DISCARD_PURGE},
 
-	{"ibuf_merges", "change_buffer",
-	 "Number of change buffer merges",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OVLD_IBUF_MERGES},
+	{"ibuf_merges", "change_buffer", "Number of change buffer merges",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_MERGES},
 
-	{"ibuf_size", "change_buffer",
-	 "Change buffer size in pages",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OVLD_IBUF_SIZE},
+	{"ibuf_size", "change_buffer", "Change buffer size in pages",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_SIZE},
 
 	/* ========== Counters for server operations ========== */
 	{"module_innodb", "innodb",
 	 "Counter for general InnoDB server wide operations and properties",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_SERVER},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_SERVER},
 
 	{"innodb_master_thread_sleeps", "server",
 	 "Number of times (seconds) master thread sleeps",
-	 0, 0, MONITOR_MASTER_THREAD_SLEEP},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_MASTER_THREAD_SLEEP},
 
 	{"innodb_activity_count", "server", "Current server activity count",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_SERVER_ACTIVITY},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_SERVER_ACTIVITY},
 
 	{"innodb_master_active_loops", "server",
 	 "Number of times master thread performs its tasks when"
 	 " server is active",
-	 0, 0, MONITOR_MASTER_ACTIVE_LOOPS},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_MASTER_ACTIVE_LOOPS},
 
 	{"innodb_master_idle_loops", "server",
 	 "Number of times master thread performs its tasks when server is idle",
-	 0, 0, MONITOR_MASTER_IDLE_LOOPS},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_MASTER_IDLE_LOOPS},
 
 	{"innodb_background_drop_table_usec", "server",
 	 "Time (in microseconds) spent to process drop table list",
-	 0, 0, MONITOR_SRV_BACKGROUND_DROP_TABLE_MICROSECOND},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_SRV_BACKGROUND_DROP_TABLE_MICROSECOND},
 
 	{"innodb_ibuf_merge_usec", "server",
 	 "Time (in microseconds) spent to process change buffer merge",
-	 0, 0, MONITOR_SRV_IBUF_MERGE_MICROSECOND},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_SRV_IBUF_MERGE_MICROSECOND},
 
 	{"innodb_log_flush_usec", "server",
 	 "Time (in microseconds) spent to flush log records",
-	 0, 0, MONITOR_SRV_LOG_FLUSH_MICROSECOND},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_SRV_LOG_FLUSH_MICROSECOND},
 
 	{"innodb_mem_validate_usec", "server",
 	 "Time (in microseconds) spent to do memory validation",
-	 0, 0, MONITOR_SRV_MEM_VALIDATE_MICROSECOND},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_SRV_MEM_VALIDATE_MICROSECOND},
 
 	{"innodb_master_purge_usec", "server",
 	 "Time (in microseconds) spent by master thread to purge records",
-	 0, 0, MONITOR_SRV_PURGE_MICROSECOND},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_SRV_PURGE_MICROSECOND},
 
 	{"innodb_dict_lru_usec", "server",
 	 "Time (in microseconds) spent to process DICT LRU list",
-	 0, 0, MONITOR_SRV_DICT_LRU_MICROSECOND},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_SRV_DICT_LRU_MICROSECOND},
 
 	{"innodb_checkpoint_usec", "server",
 	 "Time (in microseconds) spent by master thread to do checkpoint",
-	 0, 0, MONITOR_SRV_CHECKPOINT_MICROSECOND},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_SRV_CHECKPOINT_MICROSECOND},
 
 	{"innodb_dblwr_writes", "server",
 	 "Number of doublewrite operations that have been performed"
 	 " (innodb_dblwr_writes)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_SRV_DBLWR_WRITES},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_SRV_DBLWR_WRITES},
 
 	{"innodb_dblwr_pages_written", "server",
 	 "Number of pages that have been written for doublewrite operations"
 	 " (innodb_dblwr_pages_written)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_SRV_DBLWR_PAGES_WRITTEN},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_SRV_DBLWR_PAGES_WRITTEN},
 
 	{"innodb_page_size", "server",
 	 "InnoDB page size in bytes (innodb_page_size)",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON | MONITOR_DISPLAY_CURRENT, 0,
-	 MONITOR_OVLD_SRV_PAGE_SIZE},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON | MONITOR_DISPLAY_CURRENT),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_SRV_PAGE_SIZE},
 
 	{"innodb_rwlock_s_spin_waits", "server",
 	 "Number of rwlock spin waits due to shared latch request",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_RWLOCK_S_SPIN_WAITS},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_S_SPIN_WAITS},
 
 	{"innodb_rwlock_x_spin_waits", "server",
 	 "Number of rwlock spin waits due to exclusive latch request",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_RWLOCK_X_SPIN_WAITS},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_WAITS},
 
 	{"innodb_rwlock_s_spin_rounds", "server",
 	 "Number of rwlock spin loop rounds due to shared latch request",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS},
 
 	{"innodb_rwlock_x_spin_rounds", "server",
 	 "Number of rwlock spin loop rounds due to exclusive latch request",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_RWLOCK_X_SPIN_ROUNDS},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_ROUNDS},
 
 	{"innodb_rwlock_s_os_waits", "server",
 	 "Number of OS waits due to shared latch request",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_RWLOCK_S_OS_WAITS},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_S_OS_WAITS},
 
 	{"innodb_rwlock_x_os_waits", "server",
 	 "Number of OS waits due to exclusive latch request",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0,
-	 MONITOR_OVLD_RWLOCK_X_OS_WAITS},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_OS_WAITS},
 
 	/* ========== Counters for DML operations ========== */
 	{"module_dml", "dml", "Statistics for DMLs",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_DML_STATS},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_DML_STATS},
 
 	{"dml_reads", "dml", "Number of rows read",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OLVD_ROW_READ},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OLVD_ROW_READ},
 
 	{"dml_inserts", "dml", "Number of rows inserted",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OLVD_ROW_INSERTED},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OLVD_ROW_INSERTED},
 
 	{"dml_deletes", "dml", "Number of rows deleted",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OLVD_ROW_DELETED},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OLVD_ROW_DELETED},
 
 	{"dml_updates", "dml", "Number of rows updated",
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON, 0, MONITOR_OLVD_ROW_UPDTATED},
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OLVD_ROW_UPDTATED},
 
 	/* ========== Counters for DDL operations ========== */
 	{"module_ddl", "ddl", "Statistics for DDLs",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_DDL_STATS},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_DDL_STATS},
 
 	{"ddl_background_drop_tables", "ddl",
 	 "Number of tables in background drop table list",
-	 0, 0, MONITOR_BACKGROUND_DROP_TABLE},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_BACKGROUND_DROP_TABLE},
 
 	/* ===== Counters for ICP (Index Condition Pushdown) Module ===== */
 	{"module_icp", "icp", "Index Condition Pushdown",
-	 MONITOR_MODULE, 0, MONITOR_MODULE_ICP},
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_ICP},
 
 	{"icp_attempts", "icp",
 	 "Number of attempts for index push-down condition checks",
-	 0, 0, MONITOR_ICP_ATTEMPTS},
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ICP_ATTEMPTS},
 
-	{"icp_no_match", "icp",
-	 "Index push-down condition does not match",
-	 0, 0, MONITOR_ICP_NO_MATCH},
+	{"icp_no_match", "icp", "Index push-down condition does not match",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ICP_NO_MATCH},
 
-	{"icp_out_of_range", "icp",
-	 "Index push-down condition out of range",
-	 0, 0, MONITOR_ICP_OUT_OF_RANGE},
+	{"icp_out_of_range", "icp", "Index push-down condition out of range",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ICP_OUT_OF_RANGE},
 
-	{"icp_match", "icp",
-	 "Index push-down condition matches",
-	 0, 0, MONITOR_ICP_MATCH},
+	{"icp_match", "icp", "Index push-down condition matches",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ICP_MATCH},
 
 	/* ========== To turn on/off reset all counters ========== */
 	{"all", "All Counters", "Turn on/off and reset all counters",
-	 MONITOR_MODULE, 0, MONITOR_ALL_COUNTER}
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_ALL_COUNTER}
 };
 
 /* The "innodb_counter_value" array stores actual counter values */
@@ -1104,7 +1264,8 @@ srv_mon_set_module_control(
 		we will get its counter value at the start/stop time
 		to calculate the actual value during the time. */
 		if (innodb_counter_info[ix].monitor_type & MONITOR_EXISTING) {
-			srv_mon_process_existing_counter(ix, set_option);
+			srv_mon_process_existing_counter(
+				static_cast<monitor_id_t>(ix), set_option);
 		}
 
 		/* Currently support 4 operations on the monitor counters:
@@ -1122,11 +1283,11 @@ srv_mon_set_module_control(
 			break;
 
 		case MONITOR_RESET_VALUE:
-			srv_mon_reset(ix);
+			srv_mon_reset(static_cast<monitor_id_t>(ix));
 			break;
 
 		case MONITOR_RESET_ALL_VALUE:
-			srv_mon_reset_all(ix);
+			srv_mon_reset_all(static_cast<monitor_id_t>(ix));
 			break;
 
 		default:

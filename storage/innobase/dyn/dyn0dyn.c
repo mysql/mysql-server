@@ -55,7 +55,8 @@ dyn_array_add_block(
 
 	heap = arr->heap;
 
-	block = mem_heap_alloc(heap, sizeof(dyn_block_t));
+	block = static_cast<dyn_block_t*>(
+		mem_heap_alloc(heap, sizeof(dyn_block_t)));
 
 	block->used = 0;
 

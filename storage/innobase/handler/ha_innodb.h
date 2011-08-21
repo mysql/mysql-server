@@ -301,9 +301,11 @@ the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
 #error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
 #endif
 
+LEX_STRING* thd_query_string(MYSQL_THD thd);
+
 extern "C" {
+
 struct charset_info_st *thd_charset(MYSQL_THD thd);
-LEX_STRING *thd_query_string(MYSQL_THD thd);
 
 /** Get the file name of the MySQL binlog.
  * @return the name of the binlog file
@@ -359,16 +361,17 @@ bool thd_binlog_filter_ok(const MYSQL_THD thd);
   @return 1 the query may generate row changes, 0 otherwise.
 */
 bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
-}
+
+} /* extern "C" */
 
 typedef struct trx_struct trx_t;
+
 /********************************************************************//**
 @file handler/ha_innodb.h
 Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
 timeout or a deadlock.
 @return	MySQL error code */
-extern "C"
 int
 convert_error_code_to_mysql(
 /*========================*/
@@ -379,7 +382,6 @@ convert_error_code_to_mysql(
 /*********************************************************************//**
 Allocates an InnoDB transaction for a MySQL handler object.
 @return	InnoDB transaction handle */
-extern "C"
 trx_t*
 innobase_trx_allocate(
 /*==================*/
@@ -392,7 +394,6 @@ system default primary index name 'GEN_CLUST_INDEX'. If a name
 matches, this function pushes an warning message to the client,
 and returns true.
 @return true if the index name matches the reserved name */
-extern "C"
 bool
 innobase_index_name_is_reserved(
 /*============================*/

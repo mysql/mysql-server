@@ -43,7 +43,7 @@ if_step(
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = static_cast<if_node_t*>(thr->run_node);
 	ut_ad(que_node_get_type(node) == QUE_NODE_IF);
 
 	if (thr->prev_node == que_node_get_parent(node)) {
@@ -80,7 +80,8 @@ if_step(
 					break;
 				}
 
-				elsif_node = que_node_get_next(elsif_node);
+				elsif_node = static_cast<elsif_node_t*>(
+					que_node_get_next(elsif_node));
 
 				if (elsif_node == NULL) {
 					thr->run_node = NULL;
@@ -118,7 +119,7 @@ while_step(
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = static_cast<while_node_t*>(thr->run_node);
 	ut_ad(que_node_get_type(node) == QUE_NODE_WHILE);
 
 	ut_ad((thr->prev_node == que_node_get_parent(node))
@@ -154,7 +155,7 @@ assign_step(
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = static_cast<assign_node_t*>(thr->run_node);
 	ut_ad(que_node_get_type(node) == QUE_NODE_ASSIGNMENT);
 
 	/* Evaluate the value to assign */
@@ -183,7 +184,7 @@ for_step(
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = static_cast<for_node_t*>(thr->run_node);
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_FOR);
 
@@ -244,7 +245,7 @@ exit_step(
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = static_cast<exit_node_t*>(thr->run_node);
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_EXIT);
 
@@ -276,7 +277,7 @@ return_step(
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = static_cast<return_node_t*>(thr->run_node);
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_RETURN);
 

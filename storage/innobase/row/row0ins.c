@@ -71,7 +71,8 @@ ins_node_create(
 {
 	ins_node_t*	node;
 
-	node = mem_heap_alloc(heap, sizeof(ins_node_t));
+	node = static_cast<ins_node_t*>(
+		mem_heap_alloc(heap, sizeof(ins_node_t)));
 
 	node->common.type = QUE_NODE_INSERT;
 
@@ -108,17 +109,18 @@ ins_node_create_entry_list(
 
 	UT_LIST_INIT(node->entry_list);
 
-	index = dict_table_get_first_index(node->table);
+	/* We will include all indexes (include those corrupted
+	secondary indexes) in the entry list. Filteration of
+	these corrupted index will be done in row_ins() */
 
-	while (index != NULL) {
-		entry = row_build_index_entry(node->row, NULL, index,
-					      node->entry_sys_heap);
+	for (index = dict_table_get_first_index(node->table);
+	     index != 0;
+	     index = dict_table_get_next_index(index)) {
+
+		entry = row_build_index_entry(
+			node->row, NULL, index, node->entry_sys_heap);
+
 		UT_LIST_ADD_LAST(tuple_list, node->entry_list, entry);
-
-		/* We will include all indexes (include those corrupted
-		secondary indexes) in the entry list. Filteration of
-		these corrupted index will be done in row_ins() */
-		index = dict_table_get_next_index(index);
 	}
 }
 
@@ -150,7 +152,7 @@ row_ins_alloc_sys_fields(
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
 
-	ptr = mem_heap_zalloc(heap, DATA_ROW_ID_LEN);
+	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_ROW_ID_LEN));
 
 	dfield_set_data(dfield, ptr, DATA_ROW_ID_LEN);
 
@@ -161,7 +163,7 @@ row_ins_alloc_sys_fields(
 	col = dict_table_get_sys_col(table, DATA_TRX_ID);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-	ptr = mem_heap_zalloc(heap, DATA_TRX_ID_LEN);
+	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_TRX_ID_LEN));
 
 	dfield_set_data(dfield, ptr, DATA_TRX_ID_LEN);
 
@@ -172,7 +174,7 @@ row_ins_alloc_sys_fields(
 	col = dict_table_get_sys_col(table, DATA_ROLL_PTR);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-	ptr = mem_heap_zalloc(heap, DATA_ROLL_PTR_LEN);
+	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_ROLL_PTR_LEN));
 
 	dfield_set_data(dfield, ptr, DATA_ROLL_PTR_LEN);
 }
@@ -365,22 +367,19 @@ row_ins_cascade_ancestor_updates_table(
 	dict_table_t*	table)	/*!< in: table */
 {
 	que_node_t*	parent;
-	upd_node_t*	upd_node;
 
-	parent = que_node_get_parent(node);
+	for (parent = que_node_get_parent(node);
+	     que_node_get_type(parent) == QUE_NODE_UPDATE;
+	     parent = que_node_get_parent(parent)) {
 
-	while (que_node_get_type(parent) == QUE_NODE_UPDATE) {
+		upd_node_t*	upd_node;
 
-		upd_node = parent;
+		upd_node = static_cast<upd_node_t*>(parent);
 
 		if (upd_node->table == table && upd_node->is_delete == FALSE) {
 
 			return(TRUE);
 		}
-
-		parent = que_node_get_parent(parent);
-
-		ut_a(parent);
 	}
 
 	return(FALSE);
@@ -399,14 +398,11 @@ row_ins_cascade_n_ancestors(
 	que_node_t*	parent;
 	ulint		n_ancestors = 0;
 
-	parent = que_node_get_parent(node);
+	for (parent = que_node_get_parent(node);
+	     que_node_get_type(parent) == QUE_NODE_UPDATE;
+	     parent = que_node_get_parent(parent)) {
 
-	while (que_node_get_type(parent) == QUE_NODE_UPDATE) {
 		n_ancestors++;
-
-		parent = que_node_get_parent(parent);
-
-		ut_a(parent);
 	}
 
 	return(n_ancestors);
@@ -518,7 +514,9 @@ row_ins_cascade_calc_update_vec(
 					col->prtype, col->mbminmaxlen,
 					col->len,
 					ufield_len,
-					dfield_get_data(&ufield->new_val))
+					static_cast<char*>(
+						dfield_get_data(
+							&ufield->new_val)))
 				    < ufield_len) {
 
 					return(ULINT_UNDEFINED);
@@ -543,8 +541,9 @@ row_ins_cascade_calc_update_vec(
 					byte*	padded_data;
 					ulint	mbminlen;
 
-					padded_data = mem_heap_alloc(
-						heap, min_size);
+					padded_data = static_cast<byte*>(
+						mem_heap_alloc(
+							heap, min_size));
 
 					pad = padded_data + ufield_len;
 					pad_len = min_size - ufield_len;
@@ -828,7 +827,7 @@ row_ins_foreign_check_on_constraint(
 
 	row_ins_invalidate_query_cache(thr, table->name);
 
-	node = thr->run_node;
+	node = static_cast<upd_node_t*>(thr->run_node);
 
 	if (node->is_delete && 0 == (foreign->type
 				     & (DICT_FOREIGN_ON_DELETE_CASCADE
@@ -1224,13 +1223,13 @@ row_ins_check_foreign_constraint(
 	dtuple_t*	entry,	/*!< in: index entry for index */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
+	ulint		err;
 	upd_node_t*	upd_node;
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
 	btr_pcur_t	pcur;
 	int		cmp;
-	ulint		err;
 	ulint		i;
 	mtr_t		mtr;
 	trx_t*		trx		= thr_get_trx(thr);
@@ -1265,7 +1264,7 @@ run_again:
 	}
 
 	if (que_node_get_type(thr->run_node) == QUE_NODE_UPDATE) {
-		upd_node = thr->run_node;
+		upd_node = static_cast<upd_node_t*>(thr->run_node);
 
 		if (!(upd_node->is_delete) && upd_node->foreign == foreign) {
 			/* If a cascaded update is done as defined by a
@@ -1500,7 +1499,7 @@ end_scan:
 
 do_possible_lock_wait:
 	if (err == DB_LOCK_WAIT) {
-		trx->error_state = err;
+		trx->error_state = static_cast<enum db_err>(err);
 
 		que_thr_stop_for_mysql(thr);
 
@@ -2263,7 +2262,9 @@ row_ins_index_entry_set_vals(
 			len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminmaxlen,
 				ind_field->prefix_len,
-				len, dfield_get_data(row_field));
+				len,
+				static_cast<const char*>(
+					dfield_get_data(row_field)));
 
 			ut_ad(!dfield_is_ext(row_field));
 		}
@@ -2474,7 +2475,7 @@ row_ins_step(
 
 	trx_start_if_not_started_xa(trx);
 
-	node = thr->run_node;
+	node = static_cast<ins_node_t*>(thr->run_node);
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_INSERT);
 
@@ -2547,7 +2548,7 @@ same_trx:
 	err = row_ins(node, thr);
 
 error_handling:
-	trx->error_state = err;
+	trx->error_state = static_cast<enum db_err>(err);
 
 	if (err != DB_SUCCESS) {
 		/* err == DB_LOCK_WAIT or SQL error detected */

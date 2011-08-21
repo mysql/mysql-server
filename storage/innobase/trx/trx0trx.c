@@ -95,7 +95,7 @@ trx_create(void)
 	trx_t*		trx;
 	mem_heap_t*	heap;
 
-	trx = mem_zalloc(sizeof(*trx));
+	trx = static_cast<trx_t*>(mem_zalloc(sizeof(*trx)));
 
 	mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
 
@@ -1096,7 +1096,7 @@ trx_commit_node_create(
 {
 	commit_node_t*	node;
 
-	node = mem_heap_alloc(heap, sizeof(*node));
+	node = static_cast<commit_node_t*>(mem_heap_alloc(heap, sizeof(*node)));
 	node->common.type  = QUE_NODE_COMMIT;
 	node->state = COMMIT_NODE_SEND;
 
@@ -1114,7 +1114,7 @@ trx_commit_step(
 {
 	commit_node_t*	node;
 
-	node = thr->run_node;
+	node = static_cast<commit_node_t*>(thr->run_node);
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_COMMIT);
 

@@ -182,7 +182,8 @@ trx_doublewrite_init(
 {
 	ulint	buf_size;
 
-	trx_doublewrite = mem_zalloc(sizeof(trx_doublewrite_t));
+	trx_doublewrite = static_cast<trx_doublewrite_t*>(
+		mem_zalloc(sizeof(trx_doublewrite_t)));
 
 	/* There are two blocks of same size in the doublewrite
 	buffer. */
@@ -210,15 +211,17 @@ trx_doublewrite_init(
 	trx_doublewrite->block2 = mach_read_from_4(
 		doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK2);
 
-	trx_doublewrite->in_use = mem_zalloc(buf_size * sizeof(ibool));
+	trx_doublewrite->in_use = static_cast<ibool*>(
+		mem_zalloc(buf_size * sizeof(ibool)));
 
-	trx_doublewrite->write_buf_unaligned = ut_malloc(
-		(1 + buf_size) * UNIV_PAGE_SIZE);
-	trx_doublewrite->write_buf = ut_align(
-		trx_doublewrite->write_buf_unaligned, UNIV_PAGE_SIZE);
+	trx_doublewrite->write_buf_unaligned = static_cast<byte*>(
+		ut_malloc((1 + buf_size) * UNIV_PAGE_SIZE));
 
-	trx_doublewrite->buf_block_arr = mem_zalloc(
-		buf_size * sizeof(void*));
+	trx_doublewrite->write_buf = static_cast<byte*>(
+		ut_align(trx_doublewrite->write_buf_unaligned, UNIV_PAGE_SIZE));
+
+	trx_doublewrite->buf_block_arr = static_cast<buf_page_t**>(
+		mem_zalloc(buf_size * sizeof(void*)));
 }
 
 /****************************************************************//**
@@ -460,8 +463,10 @@ trx_sys_doublewrite_init_or_restore_pages(
 
 	/* We do the file i/o past the buffer pool */
 
-	unaligned_read_buf = ut_malloc(2 * UNIV_PAGE_SIZE);
-	read_buf = ut_align(unaligned_read_buf, UNIV_PAGE_SIZE);
+	unaligned_read_buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+
+	read_buf = static_cast<byte*>(
+		ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));
 
 	/* Read the trx sys header to check if we are using the doublewrite
 	buffer */
@@ -1087,7 +1092,7 @@ trx_sys_create(void)
 {
 	ut_ad(trx_sys == NULL);
 
-	trx_sys = mem_zalloc(sizeof(*trx_sys));
+	trx_sys = static_cast<trx_sys_t*>(mem_zalloc(sizeof(*trx_sys)));
 
 	mutex_create(trx_sys_mutex_key, &trx_sys->mutex, SYNC_TRX_SYS);
 }

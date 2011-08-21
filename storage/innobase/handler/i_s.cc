@@ -35,7 +35,6 @@ Created July 18, 2007 Vasil Dimov
 #include <sql_plugin.h>
 #include <mysql/innodb_priv.h>
 
-extern "C" {
 #include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
 #include "buf0buddy.h"	/* for i_s_cmpmem */
@@ -50,7 +49,6 @@ extern "C" {
 #include "srv0mon.h"
 #include "btr0btr.h"
 #include "page0zip.h"
-}
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */

@@ -2582,8 +2582,8 @@ func_start:
 insert_empty:
 		ut_ad(!split_rec);
 		ut_ad(!insert_left);
-		buf = mem_alloc(rec_get_converted_size(cursor->index,
-						       tuple, n_ext));
+		buf = (byte*) mem_alloc(rec_get_converted_size(cursor->index,
+							       tuple, n_ext));
 
 		first_rec = rec_convert_dtuple_to_rec(buf, cursor->index,
 						      tuple, n_ext);

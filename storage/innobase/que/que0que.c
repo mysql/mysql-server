@@ -139,7 +139,7 @@ que_fork_create(
 
 	ut_ad(heap);
 
-	fork = mem_heap_zalloc(heap, sizeof(*fork));
+	fork = static_cast<que_fork_t*>(mem_heap_zalloc(heap, sizeof(*fork)));
 
 	fork->heap = heap;
 
@@ -170,7 +170,7 @@ que_thr_create(
 
 	ut_ad(parent && heap);
 
-	thr = mem_heap_zalloc(heap, sizeof(*thr));
+	thr = static_cast<que_thr_t*>(mem_heap_zalloc(heap, sizeof(*thr)));
 
 	thr->graph = parent->graph;
 
@@ -448,7 +448,7 @@ que_graph_free_recursive(
 	switch (que_node_get_type(node)) {
 
 	case QUE_NODE_FORK:
-		fork = node;
+		fork = static_cast<que_fork_t*>(node);
 
 		thr = UT_LIST_GET_FIRST(fork->thrs);
 
@@ -461,7 +461,7 @@ que_graph_free_recursive(
 		break;
 	case QUE_NODE_THR:
 
-		thr = node;
+		thr = static_cast<que_thr_t*>(node);
 
 		if (thr->magic_n != QUE_THR_MAGIC_N) {
 			fprintf(stderr,
@@ -479,21 +479,21 @@ que_graph_free_recursive(
 		break;
 	case QUE_NODE_UNDO:
 
-		undo = node;
+		undo = static_cast<undo_node_t*>(node);
 
 		mem_heap_free(undo->heap);
 
 		break;
 	case QUE_NODE_SELECT:
 
-		sel = node;
+		sel = static_cast<sel_node_t*>(node);
 
 		sel_node_free_private(sel);
 
 		break;
 	case QUE_NODE_INSERT:
 
-		ins = node;
+		ins = static_cast<ins_node_t*>(node);
 
 		que_graph_free_recursive(ins->select);
 
@@ -501,7 +501,7 @@ que_graph_free_recursive(
 
 		break;
 	case QUE_NODE_PURGE:
-		purge = node;
+		purge = static_cast<purge_node_t*>(node);
 
 		mem_heap_free(purge->heap);
 
@@ -509,7 +509,7 @@ que_graph_free_recursive(
 
 	case QUE_NODE_UPDATE:
 
-		upd = node;
+		upd = static_cast<upd_node_t*>(node);
 
 		if (upd->in_mysql_interface) {
 
@@ -528,7 +528,7 @@ que_graph_free_recursive(
 
 		break;
 	case QUE_NODE_CREATE_TABLE:
-		cre_tab = node;
+		cre_tab = static_cast<tab_node_t*>(node);
 
 		que_graph_free_recursive(cre_tab->tab_def);
 		que_graph_free_recursive(cre_tab->col_def);
@@ -538,7 +538,7 @@ que_graph_free_recursive(
 
 		break;
 	case QUE_NODE_CREATE_INDEX:
-		cre_ind = node;
+		cre_ind = static_cast<ind_node_t*>(node);
 
 		que_graph_free_recursive(cre_ind->ind_def);
 		que_graph_free_recursive(cre_ind->field_def);
@@ -793,7 +793,7 @@ que_thr_dec_refer_count(
 		}
 	}
 
-	fork = thr->common.parent;
+	fork = static_cast<que_fork_t*>(thr->common.parent);
 
 	--trx->lock.n_active_thrs;
 
@@ -1248,7 +1248,7 @@ loop:
 Evaluate the given SQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+enum db_err
 que_eval_sql(
 /*=========*/
 	pars_info_t*	info,	/*!< in: info struct, or NULL */

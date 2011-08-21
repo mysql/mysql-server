@@ -42,7 +42,8 @@ row_ext_cache_fill(
 	ulint		zip_size,/*!< compressed page size in bytes, or 0 */
 	const dfield_t*	dfield)	/*!< in: data field */
 {
-	const byte*	field	= dfield_get_data(dfield);
+	const byte*	field	= static_cast<const byte*>(
+					dfield_get_data(dfield));
 	ulint		f_len	= dfield_get_len(dfield);
 	byte*		buf	= ext->buf + i * ext->max_len;
 
@@ -92,8 +93,11 @@ row_ext_create(
 	ulint		i;
 	ulint		zip_size = dict_table_flags_to_zip_size(flags);
 
-	row_ext_t*	ret = mem_heap_alloc(heap, (sizeof *ret)
-					     + (n_ext - 1) * sizeof ret->len);
+	row_ext_t*	ret;
+
+	ret = static_cast<row_ext_t*>(
+		mem_heap_alloc(heap,
+			       (sizeof *ret) + (n_ext - 1) * sizeof ret->len));
 
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
@@ -102,7 +106,9 @@ row_ext_create(
 	ret->ext = ext;
 	ret->max_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags);
 
-	ret->buf = mem_heap_alloc(heap, n_ext * ret->max_len);
+	ret->buf = static_cast<byte*>(
+		mem_heap_alloc(heap, n_ext * ret->max_len));
+
 #ifdef UNIV_DEBUG
 	memset(ret->buf, 0xaa, n_ext * ret->max_len);
 	UNIV_MEM_ALLOC(ret->buf, n_ext * ret->max_len);

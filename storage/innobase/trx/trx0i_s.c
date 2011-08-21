@@ -505,7 +505,9 @@ fill_trx_row(
 		goto thd_done;
 	}
 
-	row->trx_mysql_thread_id = thd_get_thread_id(trx->mysql_thd);
+	row->trx_mysql_thread_id = thd_get_thread_id(
+		static_cast<const THD*>(trx->mysql_thd));
+
 	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
 
 	if (stmt != NULL) {
@@ -518,9 +520,10 @@ fill_trx_row(
 		memcpy(query, stmt, stmt_len);
 		query[stmt_len] = '\0';
 
-		row->trx_query = ha_storage_put_memlim(
-			cache->storage, query, stmt_len + 1,
-			MAX_ALLOWED_FOR_STORAGE(cache));
+		row->trx_query = static_cast<const char*>(
+			ha_storage_put_memlim(
+				cache->storage, query, stmt_len + 1,
+				MAX_ALLOWED_FOR_STORAGE(cache)));
 
 		row->trx_query_cs = innobase_get_charset(trx->mysql_thd);
 

@@ -129,7 +129,12 @@ can be released by page reorganize, then it is reorganized */
 /** A BLOB field reference full of zero, for use in assertions and tests.
 Initially, BLOB field references are set to zero, in
 dtuple_convert_big_rec(). */
-UNIV_INTERN const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
+const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE] = {
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0,
+};
 
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
@@ -3652,7 +3657,8 @@ btr_estimate_number_of_different_key_vals(
 			       * (sizeof *offsets_rec
 				  + sizeof *offsets_next_rec));
 
-	n_diff = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
+	n_diff = (ib_int64_t*) mem_heap_zalloc(heap, (n_cols + 1)
+					       * sizeof(ib_int64_t));
 
 	n_not_null = NULL;
 
@@ -3661,7 +3667,7 @@ btr_estimate_number_of_different_key_vals(
 	considered equal (by setting stats_null_not_equal value) */
 	switch (srv_innodb_stats_method) {
 	case SRV_STATS_NULLS_IGNORED:
-		n_not_null = mem_heap_zalloc(heap, (n_cols + 1)
+		n_not_null = (ib_int64_t*) mem_heap_zalloc(heap, (n_cols + 1)
 					     * sizeof *n_not_null);
 		/* fall through */
 
@@ -4083,10 +4089,11 @@ btr_push_update_extern_fields(
 				will have to be copied. */
 				ut_a(uf->orig_len > BTR_EXTERN_FIELD_REF_SIZE);
 
-				data = dfield_get_data(field);
+				data = (byte*) dfield_get_data(field);
 				len = dfield_get_len(field);
 
-				buf = mem_heap_alloc(heap, uf->orig_len);
+				buf = (byte*) mem_heap_alloc(heap,
+							     uf->orig_len);
 				/* Copy the locally stored prefix. */
 				memcpy(buf, data,
 				       uf->orig_len
@@ -4292,7 +4299,7 @@ btr_store_big_rec_extern_fields_func(
 			int	err = deflateReset(&c_stream);
 			ut_a(err == Z_OK);
 
-			c_stream.next_in = (void*) big_rec_vec->fields[i].data;
+			c_stream.next_in = (Bytef*) big_rec_vec->fields[i].data;
 			c_stream.avail_in = extern_len;
 		}
 
@@ -5261,7 +5268,7 @@ btr_copy_externally_stored_field(
 
 	extern_len = mach_read_from_4(data + local_len + BTR_EXTERN_LEN + 4);
 
-	buf = mem_heap_alloc(heap, local_len + extern_len);
+	buf = (byte*) mem_heap_alloc(heap, local_len + extern_len);
 
 	memcpy(buf, data, local_len);
 	*len = local_len

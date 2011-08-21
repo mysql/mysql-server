@@ -226,13 +226,13 @@ mem_pool_create(
 	ulint		i;
 	ulint		used;
 
-	pool = ut_malloc(sizeof(mem_pool_t));
+	pool = static_cast<mem_pool_t*>(ut_malloc(sizeof(mem_pool_t)));
 
 	/* We do not set the memory to zero (FALSE) in the pool,
 	but only when allocated at a higher level in mem0mem.c.
 	This is to avoid masking useful Purify warnings. */
 
-	pool->buf = ut_malloc_low(size, FALSE, TRUE);
+	pool->buf = static_cast<byte*>(ut_malloc_low(size, FALSE, TRUE));
 	pool->size = size;
 
 	mutex_create(mem_pool_mutex_key, &pool->mutex, SYNC_MEM_POOL);

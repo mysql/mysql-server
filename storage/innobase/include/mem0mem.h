@@ -219,7 +219,7 @@ mem_heap_get_size(
 Use this macro instead of the corresponding function!
 Macro for memory buffer allocation */
 
-#define mem_zalloc(N)	memset(mem_alloc(N), 0, (N));
+#define mem_zalloc(N)	memset(mem_alloc(N), 0, (N))
 
 #define mem_alloc(N)	mem_alloc_func((N), NULL, __FILE__, __LINE__)
 #define mem_alloc2(N,S)	mem_alloc_func((N), (S), __FILE__, __LINE__)

@@ -153,7 +153,9 @@ pars_func_low(
 {
 	func_node_t*	node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(func_node_t));
+	node = static_cast<func_node_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap, sizeof(func_node_t)));
 
 	node->common.type = QUE_NODE_FUNC;
 	dfield_set_data(&(node->common.val), NULL, 0);
@@ -161,7 +163,7 @@ pars_func_low(
 
 	node->func = func;
 
-	node->class = pars_func_get_class(func);
+	node->fclass = pars_func_get_class(func);
 
 	node->args = arg;
 
@@ -216,7 +218,9 @@ pars_order_by(
 {
 	order_node_t*	node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(order_node_t));
+	node = static_cast<order_node_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap, sizeof(order_node_t)));
 
 	node->common.type = QUE_NODE_ORDER;
 
@@ -365,14 +369,13 @@ pars_resolve_exp_variables_and_types(
 	ut_a(exp_node);
 
 	if (que_node_get_type(exp_node) == QUE_NODE_FUNC) {
-		func_node = exp_node;
+		func_node = static_cast<func_node_t*>(exp_node);
 
-		arg = func_node->args;
+		for (arg = func_node->args;
+		     arg != 0;
+		     arg = que_node_get_next(arg)) {
 
-		while (arg) {
 			pars_resolve_exp_variables_and_types(select_node, arg);
-
-			arg = que_node_get_next(arg);
 		}
 
 		pars_resolve_func_data_type(func_node);
@@ -382,7 +385,7 @@ pars_resolve_exp_variables_and_types(
 
 	ut_a(que_node_get_type(exp_node) == QUE_NODE_SYMBOL);
 
-	sym_node = exp_node;
+	sym_node = static_cast<sym_node_t*>(exp_node);
 
 	if (sym_node->resolved) {
 
@@ -392,9 +395,10 @@ pars_resolve_exp_variables_and_types(
 	/* Not resolved yet: look in the symbol table for a variable
 	or a cursor or a function with the same name */
 
-	node = UT_LIST_GET_FIRST(pars_sym_tab_global->sym_list);
+	for (node = UT_LIST_GET_FIRST(pars_sym_tab_global->sym_list);
+	     node != 0;
+	     node = UT_LIST_GET_NEXT(sym_list, node)) {
 
-	while (node) {
 		if (node->resolved
 		    && ((node->token_type == SYM_VAR)
 			|| (node->token_type == SYM_CURSOR)
@@ -409,8 +413,6 @@ pars_resolve_exp_variables_and_types(
 
 			break;
 		}
-
-		node = UT_LIST_GET_NEXT(sym_list, node);
 	}
 
 	if (!node) {
@@ -473,14 +475,13 @@ pars_resolve_exp_columns(
 	ut_a(exp_node);
 
 	if (que_node_get_type(exp_node) == QUE_NODE_FUNC) {
-		func_node = exp_node;
+		func_node = static_cast<func_node_t*>(exp_node);
 
-		arg = func_node->args;
+		for (arg = func_node->args;
+		     arg != 0;
+		     arg = que_node_get_next(arg)) {
 
-		while (arg) {
 			pars_resolve_exp_columns(table_node, arg);
-
-			arg = que_node_get_next(arg);
 		}
 
 		return;
@@ -488,7 +489,7 @@ pars_resolve_exp_columns(
 
 	ut_a(que_node_get_type(exp_node) == QUE_NODE_SYMBOL);
 
-	sym_node = exp_node;
+	sym_node = static_cast<sym_node_t*>(exp_node);
 
 	if (sym_node->resolved) {
 
@@ -498,9 +499,10 @@ pars_resolve_exp_columns(
 	/* Not resolved yet: look in the table list for a column with the
 	same name */
 
-	t_node = table_node;
+	for (t_node = table_node;
+	     t_node != 0;
+	     t_node = static_cast<sym_node_t*>(que_node_get_next(t_node)) ){
 
-	while (t_node) {
 		table = t_node->table;
 
 		n_cols = dict_table_get_n_cols(table);
@@ -529,8 +531,6 @@ pars_resolve_exp_columns(
 				return;
 			}
 		}
-
-		t_node = que_node_get_next(t_node);
 	}
 }
 
@@ -585,19 +585,15 @@ pars_retrieve_table_list_defs(
 /*==========================*/
 	sym_node_t*	sym_node)	/*!< in: first table node in list */
 {
-	ulint		count		= 0;
+	ulint		count;
 
-	if (sym_node == NULL) {
+	for (count = 0;
+	     sym_node != 0;
+	     sym_node = static_cast<sym_node_t*>(que_node_get_next(sym_node))) {
 
-		return(count);
-	}
-
-	while (sym_node) {
 		pars_retrieve_table_def(sym_node);
 
 		count++;
-
-		sym_node = que_node_get_next(sym_node);
 	}
 
 	return(count);
@@ -614,29 +610,30 @@ pars_select_all_columns(
 {
 	sym_node_t*	col_node;
 	sym_node_t*	table_node;
-	dict_table_t*	table;
-	ulint		i;
 
 	select_node->select_list = NULL;
 
-	table_node = select_node->table_list;
+	for (table_node = select_node->table_list;
+	     table_node != 0;
+	     table_node = static_cast<sym_node_t*>(
+		     		que_node_get_next(table_node)) ){
 
-	while (table_node) {
+		ulint		i;
+		dict_table_t*	table;
+
 		table = table_node->table;
 
 		for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
 			const char*	col_name = dict_table_get_col_name(
 				table, i);
 
-			col_node = sym_tab_add_id(pars_sym_tab_global,
-						  (byte*)col_name,
-						  ut_strlen(col_name));
+			col_node = sym_tab_add_id(
+				pars_sym_tab_global,
+				(byte*) col_name, ut_strlen(col_name));
 
 			select_node->select_list = que_node_list_add_last(
 				select_node->select_list, col_node);
 		}
-
-		table_node = que_node_get_next(table_node);
 	}
 }
 
@@ -674,27 +671,25 @@ pars_check_aggregate(
 					the select list */
 {
 	que_node_t*	exp_node;
-	func_node_t*	func_node;
 	ulint		n_nodes			= 0;
 	ulint		n_aggregate_nodes	= 0;
 
-	exp_node = select_node->select_list;
-
-	while (exp_node) {
+	for (exp_node = select_node->select_list;
+	     exp_node != 0;
+	     exp_node = que_node_get_next(exp_node)) {
 
 		n_nodes++;
 
 		if (que_node_get_type(exp_node) == QUE_NODE_FUNC) {
+			func_node_t*	func_node;
 
-			func_node = exp_node;
+			func_node = static_cast<func_node_t*>(exp_node);
 
-			if (func_node->class == PARS_FUNC_AGGREGATE) {
+			if (func_node->fclass == PARS_FUNC_AGGREGATE) {
 
 				n_aggregate_nodes++;
 			}
 		}
-
-		exp_node = que_node_get_next(exp_node);
 	}
 
 	if (n_aggregate_nodes > 0) {
@@ -866,8 +861,11 @@ pars_column_assignment(
 {
 	col_assign_node_t*	node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap,
-			      sizeof(col_assign_node_t));
+	node = static_cast<col_assign_node_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap,
+			sizeof(col_assign_node_t)));
+
 	node->common.type = QUE_NODE_COL_ASSIGNMENT;
 
 	node->col = column;
@@ -884,25 +882,27 @@ pars_process_assign_list(
 /*=====================*/
 	upd_node_t*	node)	/*!< in: update node */
 {
+	ulint			i;
 	col_assign_node_t*	col_assign_list;
 	sym_node_t*		table_sym;
 	col_assign_node_t*	assign_node;
-	upd_field_t*		upd_field;
 	dict_index_t*		clust_index;
-	sym_node_t*		col_sym;
 	ulint			changes_ord_field;
 	ulint			changes_field_size;
 	ulint			n_assigns;
-	ulint			i;
 
 	table_sym = node->table_sym;
-	col_assign_list = node->col_assign_list;
+
+	col_assign_list = static_cast<col_assign_node_t*>(
+		node->col_assign_list);
+
 	clust_index = dict_table_get_first_index(node->table);
 
-	assign_node = col_assign_list;
-	n_assigns = 0;
+	for (n_assigns = 0, assign_node = col_assign_list;
+	     assign_node != 0;
+	     assign_node = static_cast<col_assign_node_t*>(
+		     		que_node_get_next(assign_node))) {
 
-	while (assign_node) {
 		pars_resolve_exp_columns(table_sym, assign_node->col);
 		pars_resolve_exp_columns(table_sym, assign_node->val);
 		pars_resolve_exp_variables_and_types(NULL, assign_node->val);
@@ -921,17 +921,20 @@ pars_process_assign_list(
 		opt_find_all_cols(TRUE, clust_index, &(node->columns), NULL,
 				  assign_node->val);
 		n_assigns++;
-
-		assign_node = que_node_get_next(assign_node);
 	}
 
 	node->update = upd_create(n_assigns, pars_sym_tab_global->heap);
 
-	assign_node = col_assign_list;
-
 	changes_field_size = UPD_NODE_NO_SIZE_CHANGE;
 
-	for (i = 0; i < n_assigns; i++) {
+	for (i = 0, assign_node = col_assign_list;
+	     i < n_assigns;
+	     ++i, assign_node = static_cast<col_assign_node_t*>(
+		     		que_node_get_next(assign_node))) {
+
+		sym_node_t*	col_sym;
+		upd_field_t*	upd_field;
+
 		upd_field = upd_get_nth_field(node->update, i);
 
 		col_sym = assign_node->col;
@@ -947,8 +950,6 @@ pars_process_assign_list(
 			    dict_table_is_comp(node->table))) {
 			changes_field_size = 0;
 		}
-
-		assign_node = que_node_get_next(assign_node);
 	}
 
 	/* Find out if the update can modify an ordering field in any index */
@@ -1211,12 +1212,11 @@ pars_set_parent_in_list(
 {
 	que_common_t*	common;
 
-	common = node_list;
+	for (common = static_cast<que_common_t*>(node_list);
+	     common != 0;
+	     common = static_cast<que_common_t*>(que_node_get_next(common))) {
 
-	while (common) {
 		common->parent = parent;
-
-		common = que_node_get_next(common);
 	}
 }
 
@@ -1232,7 +1232,9 @@ pars_elsif_element(
 {
 	elsif_node_t*	node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(elsif_node_t));
+	node = static_cast<elsif_node_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap, sizeof(elsif_node_t)));
 
 	node->common.type = QUE_NODE_ELSIF;
 
@@ -1260,7 +1262,9 @@ pars_if_statement(
 	if_node_t*	node;
 	elsif_node_t*	elsif_node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(if_node_t));
+	node = static_cast<if_node_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap, sizeof(if_node_t)));
 
 	node->common.type = QUE_NODE_IF;
 
@@ -1275,14 +1279,14 @@ pars_if_statement(
 		/* There is a list of elsif conditions */
 
 		node->else_part = NULL;
-		node->elsif_list = else_part;
+		node->elsif_list = static_cast<elsif_node_t*>(else_part);
 
-		elsif_node = else_part;
+		for (elsif_node = static_cast<elsif_node_t*>(else_part);
+		     elsif_node != 0;
+		     elsif_node = static_cast<elsif_node_t*>(
+			     	que_node_get_next(elsif_node))) {
 
-		while (elsif_node) {
 			pars_set_parent_in_list(elsif_node->stat_list, node);
-
-			elsif_node = que_node_get_next(elsif_node);
 		}
 	} else {
 		node->else_part = else_part;
@@ -1308,7 +1312,10 @@ pars_while_statement(
 {
 	while_node_t*	node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(while_node_t));
+	node = static_cast<while_node_t*>(
+			mem_heap_alloc(
+				pars_sym_tab_global->heap,
+				sizeof(while_node_t)));
 
 	node->common.type = QUE_NODE_WHILE;
 
@@ -1337,7 +1344,8 @@ pars_for_statement(
 {
 	for_node_t*	node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(for_node_t));
+	node = static_cast<for_node_t*>(
+		mem_heap_alloc(pars_sym_tab_global->heap, sizeof(for_node_t)));
 
 	node->common.type = QUE_NODE_FOR;
 
@@ -1369,7 +1377,10 @@ pars_exit_statement(void)
 {
 	exit_node_t*	node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(exit_node_t));
+	node = static_cast<exit_node_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap, sizeof(exit_node_t)));
+
 	node->common.type = QUE_NODE_EXIT;
 
 	return(node);
@@ -1385,8 +1396,10 @@ pars_return_statement(void)
 {
 	return_node_t*	node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap,
-			      sizeof(return_node_t));
+	node = static_cast<return_node_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap, sizeof(return_node_t)));
+
 	node->common.type = QUE_NODE_RETURN;
 
 	return(node);
@@ -1404,8 +1417,10 @@ pars_assignment_statement(
 {
 	assign_node_t*	node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap,
-			      sizeof(assign_node_t));
+	node = static_cast<assign_node_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap, sizeof(assign_node_t)));
+
 	node->common.type = QUE_NODE_ASSIGNMENT;
 
 	node->var = var;
@@ -1457,7 +1472,9 @@ pars_fetch_statement(
 	/* Logical XOR. */
 	ut_a(!into_list != !user_func);
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(fetch_node_t));
+	node = static_cast<fetch_node_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap, sizeof(fetch_node_t)));
 
 	node->common.type = QUE_NODE_FETCH;
 
@@ -1505,7 +1522,9 @@ pars_open_statement(
 	sym_node_t*	cursor_decl;
 	open_node_t*	node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(open_node_t));
+	node = static_cast<open_node_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap, sizeof(open_node_t)));
 
 	node->common.type = QUE_NODE_OPEN;
 
@@ -1515,7 +1534,7 @@ pars_open_statement(
 
 	ut_a(cursor_decl->token_type == SYM_CURSOR);
 
-	node->op_type = type;
+	node->op_type = static_cast<open_node_op>(type);
 	node->cursor_def = cursor_decl->cursor_def;
 
 	return(node);
@@ -1532,8 +1551,10 @@ pars_row_printf_statement(
 {
 	row_printf_node_t*	node;
 
-	node = mem_heap_alloc(pars_sym_tab_global->heap,
-			      sizeof(row_printf_node_t));
+	node = static_cast<row_printf_node_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap, sizeof(row_printf_node_t)));
+
 	node->common.type = QUE_NODE_ROW_PRINTF;
 
 	node->sel_node = sel_node;
@@ -1621,7 +1642,6 @@ pars_create_table(
 	dict_table_t*	table;
 	sym_node_t*	column;
 	tab_node_t*	node;
-	const dtype_t*	dtype;
 	ulint		n_cols;
 
 	n_cols = que_node_list_get_len(column_defs);
@@ -1636,9 +1656,13 @@ pars_create_table(
 		table->does_not_fit_in_memory = TRUE;
 	}
 #endif /* UNIV_DEBUG */
-	column = column_defs;
 
-	while (column) {
+	for (column = column_defs;
+	     column != 0;
+	     column = static_cast<sym_node_t*>(que_node_get_next(column)) ){
+
+		const dtype_t*	dtype;
+
 		dtype = dfield_get_type(que_node_get_val(column));
 
 		dict_mem_table_add_col(table, table->heap,
@@ -1646,8 +1670,6 @@ pars_create_table(
 				       dtype->prtype, dtype->len);
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;
-
-		column = que_node_get_next(column);
 	}
 
 	node = tab_create_graph_create(table, pars_sym_tab_global->heap);
@@ -1693,15 +1715,15 @@ pars_create_index(
 
 	index = dict_mem_index_create(table_sym->name, index_sym->name, 0,
 				      ind_type, n_fields);
-	column = column_list;
 
-	while (column) {
+	for (column = column_list;
+	     column != 0;
+	     column = static_cast<sym_node_t*>(que_node_get_next(column)) ){
+
 		dict_mem_index_add_field(index, column->name, 0);
 
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;
-
-		column = que_node_get_next(column);
 	}
 
 	node = ind_create_graph_create(index, pars_sym_tab_global->heap);
@@ -1739,7 +1761,8 @@ pars_procedure_definition(
 
 	thr = que_thr_create(fork, heap);
 
-	node = mem_heap_alloc(heap, sizeof(proc_node_t));
+	node = static_cast<proc_node_t*>(
+		mem_heap_alloc(heap, sizeof(proc_node_t)));
 
 	node->common.type = QUE_NODE_PROC;
 	node->common.parent = thr;
@@ -1867,8 +1890,10 @@ pars_sql(
 	pars_sym_tab_global = sym_tab_create(heap);
 
 	pars_sym_tab_global->string_len = strlen(str);
-	pars_sym_tab_global->sql_string = mem_heap_dup(
-		heap, str, pars_sym_tab_global->string_len + 1);
+
+	pars_sym_tab_global->sql_string = static_cast<char*>(
+		mem_heap_dup(heap, str, pars_sym_tab_global->string_len + 1));
+
 	pars_sym_tab_global->next_char_pos = 0;
 	pars_sym_tab_global->info = info;
 
@@ -1936,7 +1961,7 @@ pars_info_create(void)
 
 	heap = mem_heap_create(512);
 
-	info = mem_heap_alloc(heap, sizeof(*info));
+	info = static_cast<pars_info_t*>(mem_heap_alloc(heap, sizeof(*info)));
 
 	info->heap = heap;
 	info->funcs = NULL;
@@ -1976,7 +2001,8 @@ pars_info_add_literal(
 
 	ut_ad(!pars_info_get_bound_lit(info, name));
 
-	pbl = mem_heap_alloc(info->heap, sizeof(*pbl));
+	pbl = static_cast<pars_bound_lit_t*>(
+		mem_heap_alloc(info->heap, sizeof(*pbl)));
 
 	pbl->name = name;
 	pbl->address = address;
@@ -2023,7 +2049,7 @@ pars_info_add_int4_literal(
 	const char*	name,		/*!< in: name */
 	lint		val)		/*!< in: value */
 {
-	byte*	buf = mem_heap_alloc(info->heap, 4);
+	byte*	buf = static_cast<byte*>(mem_heap_alloc(info->heap, 4));
 
 	mach_write_to_4(buf, val);
 	pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
@@ -2046,7 +2072,7 @@ pars_info_add_ull_literal(
 	const char*	name,		/*!< in: name */
 	ib_uint64_t	val)		/*!< in: value */
 {
-	byte*	buf = mem_heap_alloc(info->heap, 8);
+	byte*	buf = static_cast<byte*>(mem_heap_alloc(info->heap, 8));
 
 	mach_write_to_8(buf, val);
 
@@ -2068,7 +2094,8 @@ pars_info_add_function(
 
 	ut_ad(!pars_info_get_user_func(info, name));
 
-	puf = mem_heap_alloc(info->heap, sizeof(*puf));
+	puf = static_cast<pars_user_func_t*>(
+		mem_heap_alloc(info->heap, sizeof(*puf)));
 
 	puf->name = name;
 	puf->func = func;
@@ -2095,7 +2122,8 @@ pars_info_add_id(
 
 	ut_ad(!pars_info_get_bound_id(info, name));
 
-	bid = mem_heap_alloc(info->heap, sizeof(*bid));
+	bid = static_cast<pars_bound_id_t*>(
+		mem_heap_alloc(info->heap, sizeof(*bid)));
 
 	bid->name = name;
 	bid->id = id;
@@ -2127,7 +2155,9 @@ pars_info_get_user_func(
 	vec = info->funcs;
 
 	for (i = 0; i < ib_vector_size(vec); i++) {
-		pars_user_func_t*	puf = ib_vector_get(vec, i);
+		pars_user_func_t*	puf;
+
+		puf = static_cast<pars_user_func_t*>(ib_vector_get(vec, i));
 
 		if (strcmp(puf->name, name) == 0) {
 			return(puf);
@@ -2157,7 +2187,9 @@ pars_info_get_bound_lit(
 	vec = info->bound_lits;
 
 	for (i = 0; i < ib_vector_size(vec); i++) {
-		pars_bound_lit_t*	pbl = ib_vector_get(vec, i);
+		pars_bound_lit_t*	pbl;
+
+		pbl = static_cast<pars_bound_lit_t*>(ib_vector_get(vec, i));
 
 		if (strcmp(pbl->name, name) == 0) {
 			return(pbl);
@@ -2187,7 +2219,9 @@ pars_info_get_bound_id(
 	vec = info->bound_ids;
 
 	for (i = 0; i < ib_vector_size(vec); i++) {
-		pars_bound_id_t*	bid = ib_vector_get(vec, i);
+		pars_bound_id_t*	bid;
+
+		bid = static_cast<pars_bound_id_t*>(ib_vector_get(vec, i));
 
 		if (strcmp(bid->name, name) == 0) {
 			return(bid);

@@ -1202,8 +1202,12 @@ buf_flush_init_for_writing(
 	ut_ad(page);
 
 	if (page_zip_) {
-		page_zip_des_t*	page_zip = page_zip_;
-		ulint		zip_size = page_zip_get_size(page_zip);
+		page_zip_des_t*	page_zip;
+		ulint		zip_size;
+
+		page_zip = static_cast<page_zip_des_t*>(page_zip_);
+		zip_size = page_zip_get_size(page_zip);
+
 		ut_ad(zip_size);
 		ut_ad(ut_is_2pow(zip_size));
 		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);

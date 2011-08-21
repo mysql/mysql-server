@@ -166,7 +166,7 @@ row_build_index_entry(
 			len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminmaxlen,
 				ind_field->prefix_len, len,
-				dfield_get_data(dfield));
+				static_cast<char*>(dfield_get_data(dfield)));
 			dfield_set_len(dfield, len);
 		}
 	}
@@ -260,7 +260,9 @@ row_build(
 
 	if (type != ROW_COPY_POINTERS) {
 		/* Take a copy of rec to heap */
-		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
+		buf = static_cast<byte*>(
+			mem_heap_alloc(heap, rec_offs_size(offsets)));
+
 		rec = rec_copy(buf, rec, offsets);
 		/* Avoid a debug assertion in rec_offs_validate(). */
 		rec_offs_make_valid(rec, index, (ulint*) offsets);
@@ -279,7 +281,8 @@ row_build(
 	n_fields = rec_offs_n_fields(offsets);
 	n_ext_cols = rec_offs_n_extern(offsets);
 	if (n_ext_cols) {
-		ext_cols = mem_heap_alloc(heap, n_ext_cols * sizeof *ext_cols);
+		ext_cols = static_cast<ulint*>(
+			mem_heap_alloc(heap, n_ext_cols * sizeof *ext_cols));
 	}
 
 	for (i = j = 0; i < n_fields; i++) {
@@ -437,7 +440,9 @@ row_rec_to_index_entry(
 
 	if (type == ROW_COPY_DATA) {
 		/* Take a copy of rec to heap */
-		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
+		buf = static_cast<byte*>(
+			mem_heap_alloc(heap, rec_offs_size(offsets)));
+
 		rec = rec_copy(buf, rec, offsets);
 		/* Avoid a debug assertion in rec_offs_validate(). */
 		rec_offs_make_valid(rec, index, offsets);
@@ -505,7 +510,8 @@ row_build_row_ref(
 	if (type == ROW_COPY_DATA) {
 		/* Take a copy of rec to heap */
 
-		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
+		buf = static_cast<byte*>(
+			mem_heap_alloc(heap, rec_offs_size(offsets)));
 
 		rec = rec_copy(buf, rec, offsets);
 		/* Avoid a debug assertion in rec_offs_validate(). */
@@ -816,8 +822,6 @@ row_search_index_entry(
 
 	return(ROW_FOUND);
 }
-
-#include <my_sys.h>
 
 /*******************************************************************//**
 Formats the raw data in "data" (in InnoDB on-disk format) that is of

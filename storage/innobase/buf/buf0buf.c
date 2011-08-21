@@ -950,14 +950,14 @@ buf_chunk_init(
 
 	/* Allocate the block descriptors from
 	the start of the memory block. */
-	chunk->blocks = chunk->mem;
+	chunk->blocks = (buf_block_t*) chunk->mem;
 
 	/* Align a pointer to the first frame.  Note that when
 	os_large_page_size is smaller than UNIV_PAGE_SIZE,
 	we may allocate one fewer block than requested.  When
 	it is bigger, we may allocate more blocks than requested. */
 
-	frame = ut_align(chunk->mem, UNIV_PAGE_SIZE);
+	frame = (byte*) ut_align(chunk->mem, UNIV_PAGE_SIZE);
 	chunk->size = chunk->mem_size / UNIV_PAGE_SIZE
 		- (frame != chunk->mem);
 
@@ -1158,7 +1158,9 @@ buf_pool_init_instance(
 
 	if (buf_pool_size > 0) {
 		buf_pool->n_chunks = 1;
-		buf_pool->chunks = chunk = mem_zalloc(sizeof *chunk);
+
+		buf_pool->chunks = chunk = 
+			(buf_chunk_t*) mem_zalloc(sizeof *chunk);
 
 		UT_LIST_INIT(buf_pool->free);
 
@@ -1202,7 +1204,7 @@ buf_pool_init_instance(
 		buf_pool->no_flush[i] = os_event_create(NULL);
 	}
 
-	buf_pool->watch = mem_zalloc(
+	buf_pool->watch = (buf_page_t*) mem_zalloc(
 		sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
 
 	/* All fields are initialized by mem_zalloc(). */
@@ -1259,7 +1261,8 @@ buf_pool_init(
 	ut_ad(n_instances <= MAX_BUFFER_POOLS);
 	ut_ad(n_instances == srv_buf_pool_instances);
 
-	buf_pool_ptr = mem_zalloc(n_instances * sizeof *buf_pool_ptr);
+	buf_pool_ptr = (buf_pool_t*) mem_zalloc(
+		n_instances * sizeof *buf_pool_ptr);
 
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_t*	ptr	= &buf_pool_ptr[i];
@@ -3436,7 +3439,7 @@ err_exit:
 			mutex_exit(&block->mutex);
 			data = buf_buddy_alloc(buf_pool, zip_size, &lru);
 			mutex_enter(&block->mutex);
-			block->page.zip.data = data;
+			block->page.zip.data = (page_zip_t*) data;
 
 			/* To maintain the invariant
 			block->in_unzip_LRU_list
@@ -3488,7 +3491,7 @@ err_exit:
 
 		page_zip_des_init(&bpage->zip);
 		page_zip_set_size(&bpage->zip, zip_size);
-		bpage->zip.data = data;
+		bpage->zip.data = (page_zip_t*) data;
 
 		mutex_enter(&buf_pool->zip_mutex);
 		UNIV_MEM_DESC(bpage->zip.data,
@@ -3658,7 +3661,7 @@ buf_page_create(
 		has been added to buf_pool->LRU and buf_pool->page_hash. */
 		data = buf_buddy_alloc(buf_pool, zip_size, &lru);
 		mutex_enter(&block->mutex);
-		block->page.zip.data = data;
+		block->page.zip.data = (page_zip_t*) data;
 
 		/* To maintain the invariant
 		block->in_unzip_LRU_list
@@ -4130,7 +4133,7 @@ buf_pool_invalidate_instance(
 /*=========================*/
 	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
 {
-	enum buf_flush	i;
+	ulint		i;
 
 	buf_pool_mutex_enter(buf_pool);
 
@@ -4148,8 +4151,10 @@ buf_pool_invalidate_instance(
 		pool invalidation to proceed we must ensure there is NO
 		write activity happening. */
 		if (buf_pool->n_flush[i] > 0) {
+			enum buf_flush	type = static_cast<enum buf_flush>(i);
+
 			buf_pool_mutex_exit(buf_pool);
-			buf_flush_wait_batch_end(buf_pool, i);
+			buf_flush_wait_batch_end(buf_pool, type);
 			buf_pool_mutex_enter(buf_pool);
 		}
 	}
@@ -4475,8 +4480,10 @@ buf_print_instance(
 
 	size = buf_pool->curr_size;
 
-	index_ids = mem_alloc(size * sizeof *index_ids);
-	counts = mem_alloc(sizeof(ulint) * size);
+	index_ids = static_cast<index_id_t*>(
+		mem_alloc(size * sizeof *index_ids));
+
+	counts = static_cast<ulint*>(mem_alloc(sizeof(ulint) * size));
 
 	buf_pool_mutex_enter(buf_pool);
 	buf_flush_list_mutex_enter(buf_pool);
@@ -5041,8 +5048,10 @@ buf_print_io(
 		pool_info_total = &pool_info[srv_buf_pool_instances];
 	} else {
 		ut_a(srv_buf_pool_instances == 1);
-		pool_info_total = pool_info = (buf_pool_info_t*) mem_zalloc(
-			sizeof *pool_info)
+
+		pool_info_total = pool_info = 
+			static_cast<buf_pool_info_t*>(
+				mem_zalloc(sizeof *pool_info));
 	}
 
 	for (i = 0; i < srv_buf_pool_instances; i++) {

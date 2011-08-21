@@ -70,7 +70,7 @@ eval_node_ensure_val_buf(
 	dfield = que_node_get_val(node);
 	dfield_set_len(dfield, size);
 
-	data = dfield_get_data(dfield);
+	data = static_cast<byte*>(dfield_get_data(dfield));
 
 	if (!data || que_node_get_val_buf_size(node) < size) {
 
@@ -115,7 +115,7 @@ eval_exp(
 		return;
 	}
 
-	eval_func(exp_node);
+	eval_func(static_cast<func_node_t*>(exp_node));
 }
 
 /*****************************************************************//**
@@ -132,7 +132,7 @@ eval_node_set_int_val(
 
 	dfield = que_node_get_val(node);
 
-	data = dfield_get_data(dfield);
+	data = static_cast<byte*>(dfield_get_data(dfield));
 
 	if (data == NULL) {
 		data = eval_node_alloc_val_buf(node, 4);
@@ -152,13 +152,15 @@ eval_node_get_int_val(
 /*==================*/
 	que_node_t*	node)	/*!< in: expression node */
 {
+	const byte*	ptr;
 	dfield_t*	dfield;
 
 	dfield = que_node_get_val(node);
+	ptr = static_cast<byte*>(dfield_get_data(dfield));
 
 	ut_ad(dfield_get_len(dfield) == 4);
 
-	return((int)mach_read_from_4(dfield_get_data(dfield)));
+	return((int) mach_read_from_4(ptr));
 }
 
 /*****************************************************************//**
@@ -175,7 +177,7 @@ eval_node_get_ibool_val(
 
 	dfield = que_node_get_val(node);
 
-	data = dfield_get_data(dfield);
+	data = static_cast<byte*>(dfield_get_data(dfield));
 
 	ut_ad(data != NULL);
 
@@ -196,7 +198,7 @@ eval_node_set_ibool_val(
 
 	dfield = que_node_get_val(func_node);
 
-	data = dfield_get_data(dfield);
+	data = static_cast<byte*>(dfield_get_data(dfield));
 
 	if (data == NULL) {
 		/* Allocate 1 byte to hold the value */
@@ -246,6 +248,8 @@ eval_node_copy_val(
 
 	dfield2 = que_node_get_val(node2);
 
-	eval_node_copy_and_alloc_val(node1, dfield_get_data(dfield2),
-				     dfield_get_len(dfield2));
+	eval_node_copy_and_alloc_val(
+		node1,
+		static_cast<byte*>(dfield_get_data(dfield2)),
+		dfield_get_len(dfield2));
 }

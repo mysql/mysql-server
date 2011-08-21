@@ -176,14 +176,15 @@ btr_search_sys_create(
 	/* We allocate the search latch from dynamic memory:
 	see above at the global variable definition */
 
-	btr_search_latch_temp = mem_alloc(sizeof(rw_lock_t));
+	btr_search_latch_temp = (rw_lock_t*) mem_alloc(sizeof(rw_lock_t));
 
 	rw_lock_create(btr_search_latch_key, &btr_search_latch,
 		       SYNC_SEARCH_SYS);
 	mutex_create(btr_search_enabled_mutex_key,
 		     &btr_search_enabled_mutex, SYNC_SEARCH_SYS_CONF);
 
-	btr_search_sys = mem_alloc(sizeof(btr_search_sys_t));
+	btr_search_sys = (btr_search_sys_t*)
+		mem_alloc(sizeof(btr_search_sys_t));
 
 	btr_search_sys->hash_index = ha_create(hash_size, 0,
 					MEM_HEAP_FOR_BTR_SEARCH, 0);
@@ -267,7 +268,7 @@ btr_search_info_create(
 {
 	btr_search_t*	info;
 
-	info = mem_heap_alloc(heap, sizeof(btr_search_t));
+	info = (btr_search_t*) mem_heap_alloc(heap, sizeof(btr_search_t));
 
 #ifdef UNIV_DEBUG
 	info->magic_n = BTR_SEARCH_MAGIC_N;
@@ -651,7 +652,7 @@ btr_search_info_update_slow(
 		inside the called function. It might be that the compiler
 		would optimize the call just to pass pointers to block. */
 
-		params = mem_alloc(3 * sizeof(ulint));
+		params = (ulint*) mem_alloc(3 * sizeof(ulint));
 		params[0] = block->n_fields;
 		params[1] = block->n_bytes;
 		params[2] = block->left_side;
@@ -894,7 +895,7 @@ btr_search_guess_on_hash(
 	ut_ad(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_EX);
 	ut_ad(rw_lock_get_reader_count(&btr_search_latch) > 0);
 
-	rec = ha_search_and_get_data(btr_search_sys->hash_index, fold);
+	rec = (rec_t*) ha_search_and_get_data(btr_search_sys->hash_index, fold);
 
 	if (UNIV_UNLIKELY(!rec)) {
 		goto failure_unlock;
@@ -1109,7 +1110,7 @@ retry:
 	/* Calculate and cache fold values into an array for fast deletion
 	from the hash index */
 
-	folds = mem_alloc(n_recs * sizeof(ulint));
+	folds = (ulint*) mem_alloc(n_recs * sizeof(ulint));
 
 	n_cached = 0;
 
@@ -1337,8 +1338,8 @@ btr_search_build_page_hash_index(
 	/* Calculate and cache fold values and corresponding records into
 	an array for fast insertion to the hash index */
 
-	folds = mem_alloc(n_recs * sizeof(ulint));
-	recs = mem_alloc(n_recs * sizeof(rec_t*));
+	folds = (ulint*) mem_alloc(n_recs * sizeof(ulint));
+	recs = (rec_t**) mem_alloc(n_recs * sizeof(rec_t*));
 
 	n_cached = 0;
 
@@ -1819,11 +1820,12 @@ btr_search_validate(void)
 			buf_pool_mutex_enter_all();
 		}
 
-		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
+		node = (ha_node_t*)
+			hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
 
 		for (; node != NULL; node = node->next) {
 			const buf_block_t*	block
-				= buf_block_align(node->data);
+				= buf_block_align((byte*) node->data);
 			const buf_block_t*	hash_block;
 			buf_pool_t*		buf_pool;
 			index_id_t		page_index_id;

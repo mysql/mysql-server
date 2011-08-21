@@ -599,7 +599,9 @@ ut_strreplace(
 		count = ut_strcount(str, s1);
 	}
 
-	new_str = mem_alloc(str_len + count * len_delta + 1);
+	new_str = static_cast<char*>(
+		mem_alloc(str_len + count * len_delta + 1));
+
 	ptr = new_str;
 
 	while (str) {

@@ -578,7 +578,9 @@ rec_get_offsets_func(
 						     MEM_HEAP_DYNAMIC,
 						     file, line);
 		}
-		offsets = mem_heap_alloc(*heap, size * sizeof(ulint));
+		offsets = static_cast<ulint*>(
+			mem_heap_alloc(*heap, size * sizeof(ulint)));
+
 		rec_offs_set_n_alloc(offsets, size);
 	}
 
@@ -1362,7 +1364,7 @@ rec_copy_prefix_to_buf_old(
 			mem_free(*buf);
 		}
 
-		*buf = mem_alloc2(prefix_len, buf_size);
+		*buf = static_cast<byte*>(mem_alloc2(prefix_len, buf_size));
 	}
 
 	ut_memcpy(*buf, rec - area_start, prefix_len);
@@ -1488,7 +1490,7 @@ rec_copy_prefix_to_buf(
 			mem_free(*buf);
 		}
 
-		*buf = mem_alloc2(prefix_len, buf_size);
+		*buf = static_cast<byte*>(mem_alloc2(prefix_len, buf_size));
 	}
 
 	memcpy(*buf, lens + 1, prefix_len);

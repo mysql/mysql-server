@@ -96,14 +96,16 @@ trx_rollback_to_savepoint_low(
 
 	thr = pars_complete_graph_for_exec(roll_node, trx, heap);
 
-	ut_a(thr == que_fork_start_command(que_node_get_parent(thr)));
+	ut_a(thr == que_fork_start_command(
+			static_cast<que_fork_t*>(que_node_get_parent(thr))));
+
 	que_run_threads(thr);
 
 	ut_a(roll_node->undo_thr != NULL);
 	que_run_threads(roll_node->undo_thr);
 
 	/* Free the memory reserved by the undo graph. */
-	que_graph_free(roll_node->undo_thr->common.parent);
+	que_graph_free(static_cast<que_t*>(roll_node->undo_thr->common.parent));
 
 	if (savept == NULL) {
 		trx_rollback_finish(trx);
@@ -448,7 +450,7 @@ trx_savepoint_for_mysql(
 
 	/* Create a new savepoint and add it as the last in the list */
 
-	savep = mem_alloc(sizeof(*savep));
+	savep = static_cast<trx_named_savept_t*>(mem_alloc(sizeof(*savep)));
 
 	savep->name = mem_strdup(savepoint_name);
 
@@ -587,7 +589,7 @@ trx_rollback_active(
 	trx_rollback_finish(thr_get_trx(roll_node->undo_thr));
 
 	/* Free the memory reserved by the undo graph */
-	que_graph_free(roll_node->undo_thr->common.parent);
+	que_graph_free(static_cast<que_t*>(roll_node->undo_thr->common.parent));
 
 	ut_a(trx->lock.que_state == TRX_QUE_RUNNING);
 
@@ -806,7 +808,7 @@ trx_undo_arr_create(
 
 	heap = mem_heap_create(sz);
 
-	arr = mem_heap_zalloc(heap, sz);
+	arr = static_cast<trx_undo_arr_t*>(mem_heap_zalloc(heap, sz));
 
 	arr->n_cells = n_cells;
 
@@ -1305,7 +1307,7 @@ roll_node_create(
 {
 	roll_node_t*	node;
 
-	node = mem_heap_zalloc(heap, sizeof(*node));
+	node = static_cast<roll_node_t*>(mem_heap_zalloc(heap, sizeof(*node)));
 
 	node->state = ROLL_NODE_SEND;
 
@@ -1325,7 +1327,7 @@ trx_rollback_step(
 {
 	roll_node_t*	node;
 
-	node = thr->run_node;
+	node = static_cast<roll_node_t*>(thr->run_node);
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_ROLLBACK);
 

@@ -300,9 +300,10 @@ hash_create(
 
 	prime = ut_find_prime(n);
 
-	table = mem_alloc(sizeof(hash_table_t));
+	table = static_cast<hash_table_t*>(mem_alloc(sizeof(hash_table_t)));
 
-	array = ut_malloc(sizeof(hash_cell_t) * prime);
+	array = static_cast<hash_cell_t*>(
+		ut_malloc(sizeof(hash_cell_t) * prime));
 
 	/* The default type of hash_table is HASH_TABLE_SYNC_NONE i.e.:
 	the caller is responsible for access control to the table. */
@@ -372,8 +373,8 @@ hash_create_sync_obj_func(
 
 	switch (type) {
 	case HASH_TABLE_SYNC_MUTEX:
-		table->sync_obj.mutexes = mem_alloc(n_sync_obj
-						    * sizeof(mutex_t));
+		table->sync_obj.mutexes = static_cast<mutex_t*>(
+			mem_alloc(n_sync_obj * sizeof(mutex_t)));
 
 		for (i = 0; i < n_sync_obj; i++) {
 			mutex_create(hash_table_mutex_key,
@@ -383,8 +384,8 @@ hash_create_sync_obj_func(
 		break;
 
 	case HASH_TABLE_SYNC_RW_LOCK:
-		table->sync_obj.rw_locks = mem_alloc(n_sync_obj
-						     * sizeof(rw_lock_t));
+		table->sync_obj.rw_locks = static_cast<rw_lock_t*>(
+			mem_alloc(n_sync_obj * sizeof(rw_lock_t)));
 
 		for (i = 0; i < n_sync_obj; i++) {
 			rw_lock_create(hash_table_rw_lock_key,

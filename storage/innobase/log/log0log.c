@@ -298,8 +298,10 @@ part_loop:
 	str_len -= len;
 	str = str + len;
 
-	log_block = ut_align_down(log->buf + log->buf_free,
-				  OS_FILE_LOG_BLOCK_SIZE);
+	log_block = static_cast<byte*>(
+		ut_align_down(
+			log->buf + log->buf_free, OS_FILE_LOG_BLOCK_SIZE));
+
 	log_block_set_data_len(log_block, data_len);
 
 	if (data_len == OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE) {
@@ -348,8 +350,10 @@ log_close(void)
 
 	lsn = log->lsn;
 
-	log_block = ut_align_down(log->buf + log->buf_free,
-				  OS_FILE_LOG_BLOCK_SIZE);
+	log_block = static_cast<byte*>(
+		ut_align_down(
+			log->buf + log->buf_free, OS_FILE_LOG_BLOCK_SIZE));
+
 	first_rec_group = log_block_get_first_rec_group(log_block);
 
 	if (first_rec_group == 0) {
@@ -728,7 +732,7 @@ void
 log_init(void)
 /*==========*/
 {
-	log_sys = mem_alloc(sizeof(log_t));
+	log_sys = static_cast<log_t*>(mem_alloc(sizeof(log_t)));
 
 	mutex_create(log_sys_mutex_key, &log_sys->mutex, SYNC_LOG);
 
@@ -749,12 +753,13 @@ log_init(void)
 	ut_a(LOG_BUFFER_SIZE >= 16 * OS_FILE_LOG_BLOCK_SIZE);
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
-	log_sys->buf_ptr = mem_alloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE);
-	log_sys->buf = ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE);
+	log_sys->buf_ptr = static_cast<byte*>(
+		mem_zalloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+
+	log_sys->buf = static_cast<byte*>(
+		ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
 	log_sys->buf_size = LOG_BUFFER_SIZE;
-
-	memset(log_sys->buf, '\0', LOG_BUFFER_SIZE);
 
 	log_sys->max_buf_free = log_sys->buf_size / LOG_BUF_FLUSH_RATIO
 		- LOG_BUF_FLUSH_MARGIN;
@@ -797,10 +802,12 @@ log_init(void)
 	rw_lock_create(checkpoint_lock_key, &log_sys->checkpoint_lock,
 		       SYNC_NO_ORDER_CHECK);
 
-	log_sys->checkpoint_buf_ptr = mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE);
-	log_sys->checkpoint_buf = ut_align(log_sys->checkpoint_buf_ptr,
-					   OS_FILE_LOG_BLOCK_SIZE);
-	memset(log_sys->checkpoint_buf, '\0', OS_FILE_LOG_BLOCK_SIZE);
+	log_sys->checkpoint_buf_ptr = static_cast<byte*>(
+		mem_zalloc(2 * OS_FILE_LOG_BLOCK_SIZE));
+
+	log_sys->checkpoint_buf = static_cast<byte*>(
+		ut_align(log_sys->checkpoint_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+
 	/*----------------------------*/
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -875,7 +882,7 @@ log_group_init(
 
 	log_group_t*	group;
 
-	group = mem_alloc(sizeof(log_group_t));
+	group = static_cast<log_group_t*>(mem_alloc(sizeof(log_group_t)));
 
 	group->id = id;
 	group->n_files = n_files;
@@ -886,35 +893,35 @@ log_group_init(
 	group->lsn_offset = LOG_FILE_HDR_SIZE;
 	group->n_pending_writes = 0;
 
-	group->file_header_bufs_ptr = mem_alloc(sizeof(byte*) * n_files);
-	group->file_header_bufs = mem_alloc(sizeof(byte*) * n_files);
+	group->file_header_bufs_ptr = static_cast<byte**>(
+		mem_zalloc(sizeof(byte*) * n_files));
+
+	group->file_header_bufs = static_cast<byte**>(
+		mem_zalloc(sizeof(byte**) * n_files));
+
 #ifdef UNIV_LOG_ARCHIVE
-	group->archive_file_header_bufs_ptr = mem_alloc(
-		sizeof(byte*) * n_files);
-	group->archive_file_header_bufs = mem_alloc(sizeof(byte*) * n_files);
+	group->archive_file_header_bufs_ptr = static_cast<byte*>(
+		mem_zalloc( sizeof(byte*) * n_files));
+
+	group->archive_file_header_bufs = static_cast<byte*>(
+		mem_zalloc(sizeof(byte*) * n_files));
 #endif /* UNIV_LOG_ARCHIVE */
 
 	for (i = 0; i < n_files; i++) {
-		group->file_header_bufs_ptr[i] = mem_alloc(
-			LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+		group->file_header_bufs_ptr[i] = static_cast<byte*>(
+			mem_zalloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE));
 
-		group->file_header_bufs[i] = ut_align(
-			group->file_header_bufs_ptr[i],
-			OS_FILE_LOG_BLOCK_SIZE);
-
-		memset(*(group->file_header_bufs + i), '\0',
-		       LOG_FILE_HDR_SIZE);
+		group->file_header_bufs[i] = static_cast<byte*>(
+			ut_align(group->file_header_bufs_ptr[i],
+				 OS_FILE_LOG_BLOCK_SIZE));
 
 #ifdef UNIV_LOG_ARCHIVE
-		group->archive_file_header_bufs_ptr[i] = mem_alloc(
-			LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+		group->archive_file_header_bufs_ptr[i] = static_cast<byte*>(
+			mem_zalloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE));
 
-		group->archive_file_header_bufs[i] = ut_align(
-			group->archive_file_header_bufs_ptr[i],
-			OS_FILE_LOG_BLOCK_SIZE);
-
-		memset(*(group->archive_file_header_bufs + i), '\0',
-		       LOG_FILE_HDR_SIZE);
+		group->archive_file_header_bufs[i] = static_cast<byte*>(
+			ut_align(group->archive_file_header_bufs_ptr[i],
+				 OS_FILE_LOG_BLOCK_SIZE));
 #endif /* UNIV_LOG_ARCHIVE */
 	}
 
@@ -925,11 +932,11 @@ log_group_init(
 	group->archived_offset = 0;
 #endif /* UNIV_LOG_ARCHIVE */
 
-	group->checkpoint_buf_ptr = mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE);
-	group->checkpoint_buf = ut_align(group->checkpoint_buf_ptr,
-					 OS_FILE_LOG_BLOCK_SIZE);
+	group->checkpoint_buf_ptr = static_cast<byte*>(
+		mem_zalloc(2 * OS_FILE_LOG_BLOCK_SIZE));
 
-	memset(group->checkpoint_buf, '\0', OS_FILE_LOG_BLOCK_SIZE);
+	group->checkpoint_buf = static_cast<byte*>(
+		ut_align(group->checkpoint_buf_ptr,OS_FILE_LOG_BLOCK_SIZE));
 
 	UT_LIST_ADD_LAST(log_groups, log_sys->log_groups, group);
 

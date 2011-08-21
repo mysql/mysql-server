@@ -191,9 +191,11 @@ dict_print(void)
 	while (rec) {
 		const char* err_msg;
 
-		err_msg = dict_process_sys_tables_rec(
-			heap, rec, &table, DICT_TABLE_LOAD_FROM_CACHE
-			| DICT_TABLE_UPDATE_STATS);
+		err_msg = static_cast<const char*>(
+			dict_process_sys_tables_rec(
+			heap, rec, &table,
+			DICT_TABLE_LOAD_FROM_CACHE
+			| DICT_TABLE_UPDATE_STATS));
 
 		mtr_commit(&mtr);
 
@@ -315,7 +317,7 @@ dict_process_sys_tables_rec(
 	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
 	const rec_t*	rec,		/*!< in: SYS_TABLES record */
 	dict_table_t**	table,		/*!< out: dict_table_t to fill */
-	dict_table_info_t status)	/*!< in: status bit controls
+	ulint		status)		/*!< in: status bit controls
 					options such as whether we shall
 					look for dict_table_t from cache
 					first */
@@ -377,7 +379,7 @@ dict_process_sys_indexes_rec(
 	const char*	err_msg;
 	byte*		buf;
 
-	buf = mem_heap_alloc(heap, 8);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
 
 	/* Parse the record, and get "dict_index_t" struct filled */
 	err_msg = dict_load_index_low(buf, NULL,
@@ -429,9 +431,9 @@ dict_process_sys_fields_rec(
 	byte*		last_index_id;
 	const char*	err_msg;
 
-	buf = mem_heap_alloc(heap, 8);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
 
-	last_index_id = mem_heap_alloc(heap, 8);
+	last_index_id = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(last_index_id, last_id);
 
 	err_msg = dict_load_field_low(buf, NULL, sys_field,
@@ -963,7 +965,7 @@ dict_load_columns(
 	tuple = dtuple_create(heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
 
-	buf = mem_heap_alloc(heap, 8);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(buf, table->id);
 
 	dfield_set_data(dfield, buf, 8);
@@ -1147,7 +1149,7 @@ dict_load_fields(
 	tuple = dtuple_create(heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
 
-	buf = mem_heap_alloc(heap, 8);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(buf, index->id);
 
 	dfield_set_data(dfield, buf, 8);
@@ -1356,7 +1358,7 @@ dict_load_indexes(
 	tuple = dtuple_create(heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
 
-	buf = mem_heap_alloc(heap, 8);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(buf, table->id);
 
 	dfield_set_data(dfield, buf, 8);
@@ -2018,11 +2020,14 @@ dict_load_foreign_cols(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	foreign->foreign_col_names = mem_heap_alloc(
-		foreign->heap, foreign->n_fields * sizeof(void*));
+	foreign->foreign_col_names = static_cast<const char**>(
+		mem_heap_alloc(foreign->heap,
+			       foreign->n_fields * sizeof(void*)));
 
-	foreign->referenced_col_names = mem_heap_alloc(
-		foreign->heap, foreign->n_fields * sizeof(void*));
+	foreign->referenced_col_names = static_cast<const char**>(
+		mem_heap_alloc(foreign->heap,
+			       foreign->n_fields * sizeof(void*)));
+
 	mtr_start(&mtr);
 
 	sys_foreign_cols = dict_table_get_low("SYS_FOREIGN_COLS");
@@ -2330,7 +2335,9 @@ loop:
 
 	if (0 != cmp_data_data(dfield_get_type(dfield)->mtype,
 			       dfield_get_type(dfield)->prtype,
-			       dfield_get_data(dfield), dfield_get_len(dfield),
+			       static_cast<const byte*>(
+				       dfield_get_data(dfield)),
+			       dfield_get_len(dfield),
 			       field, len)) {
 
 		goto load_next_index;

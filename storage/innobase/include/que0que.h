@@ -302,7 +302,7 @@ que_node_print_info(
 Evaluate the given SQL
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+enum db_err
 que_eval_sql(
 /*=========*/
 	pars_info_t*	info,	/*!< in: info struct, or NULL */

@@ -91,7 +91,8 @@ ha_create_func(
 				     n_sync_obj, sync_level);
 	}
 
-	table->heaps = mem_alloc(n_sync_obj * sizeof(void*));
+	table->heaps = static_cast<mem_heap_t**>(
+		mem_alloc(n_sync_obj * sizeof(void*)));
 
 	for (i = 0; i < n_sync_obj; i++) {
 		table->heaps[i] = mem_heap_create_typed(4096, type);
@@ -198,7 +199,7 @@ ha_insert_for_fold_func(
 
 	cell = hash_get_nth_cell(table, hash);
 
-	prev_node = cell->node;
+	prev_node = static_cast<ha_node_t*>(cell->node);
 
 	while (prev_node != NULL) {
 		if (prev_node->fold == fold) {
@@ -236,7 +237,8 @@ ha_insert_for_fold_func(
 
 	/* We have to allocate a new chain node */
 
-	node = mem_heap_alloc(hash_get_heap(table, fold), sizeof(ha_node_t));
+	node = static_cast<ha_node_t*>(
+		mem_heap_alloc(hash_get_heap(table, fold), sizeof(ha_node_t)));
 
 	if (node == NULL) {
 		/* It was a btr search type memory heap and at the moment
@@ -261,7 +263,7 @@ ha_insert_for_fold_func(
 
 	node->next = NULL;
 
-	prev_node = cell->node;
+	prev_node = static_cast<ha_node_t*>(cell->node);
 
 	if (prev_node == NULL) {
 
@@ -412,8 +414,6 @@ ha_validate(
 	ulint		start_index,	/*!< in: start index */
 	ulint		end_index)	/*!< in: end index */
 {
-	hash_cell_t*	cell;
-	ha_node_t*	node;
 	ibool		ok	= TRUE;
 	ulint		i;
 
@@ -424,12 +424,15 @@ ha_validate(
 	ut_a(end_index < hash_get_n_cells(table));
 
 	for (i = start_index; i <= end_index; i++) {
+		ha_node_t*	node;
+		hash_cell_t*	cell;
 
 		cell = hash_get_nth_cell(table, i);
 
-		node = cell->node;
+		for (node = static_cast<ha_node_t*>(cell->node);
+		     node != 0;
+		     node = node->next) {
 
-		while (node) {
 			if (hash_calc_hash(node->fold, table) != i) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -440,8 +443,6 @@ ha_validate(
 
 				ok = FALSE;
 			}
-
-			node = node->next;
 		}
 	}
 

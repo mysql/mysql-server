@@ -75,6 +75,7 @@ typedef struct monitor_value_struct	monitor_value_t;
 /** Follwoing defines are possible values for "monitor_type" field in
 "struct monitor_info" */
 enum monitor_type_value {
+	MONITOR_NONE = 0,	/*!< No monitoring */
 	MONITOR_MODULE = 1,	/*!< This is a monitor module type,
 				not a counter */
 	MONITOR_EXISTING = 2,	/*!< The monitor carries information from

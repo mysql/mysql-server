@@ -500,9 +500,7 @@ ibuf_init_at_db_start(void)
 	page_t*		header_page;
 	ulint		error;
 
-	ibuf = mem_alloc(sizeof(ibuf_t));
-
-	memset(ibuf, 0, sizeof(*ibuf));
+	ibuf = static_cast<ibuf_t*>(mem_zalloc(sizeof(ibuf_t)));
 
 	/* At startup we intialize ibuf to have a maximum of
 	CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the
@@ -1933,7 +1931,7 @@ ibuf_entry_build(
 
 	field = dtuple_get_nth_field(tuple, 0);
 
-	buf = mem_heap_alloc(heap, 4);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
 
 	mach_write_to_4(buf, space);
 
@@ -1943,7 +1941,7 @@ ibuf_entry_build(
 
 	field = dtuple_get_nth_field(tuple, 1);
 
-	buf = mem_heap_alloc(heap, 1);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 1));
 
 	/* We set the marker byte zero */
 
@@ -1955,7 +1953,7 @@ ibuf_entry_build(
 
 	field = dtuple_get_nth_field(tuple, 2);
 
-	buf = mem_heap_alloc(heap, 4);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
 
 	mach_write_to_4(buf, page_no);
 
@@ -1970,8 +1968,10 @@ ibuf_entry_build(
 		i = IBUF_REC_INFO_SIZE;
 	}
 
-	ti = type_info = mem_heap_alloc(heap, i + n_fields
-					* DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+	ti = type_info = static_cast<byte*>(
+		mem_heap_alloc(
+			heap,
+			i + n_fields * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE));
 
 	switch (i) {
 	default:
@@ -2074,7 +2074,7 @@ ibuf_search_tuple_build(
 
 	field = dtuple_get_nth_field(tuple, 0);
 
-	buf = mem_heap_alloc(heap, 4);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
 
 	mach_write_to_4(buf, page_no);
 
@@ -2109,7 +2109,7 @@ ibuf_new_search_tuple_build(
 
 	field = dtuple_get_nth_field(tuple, 0);
 
-	buf = mem_heap_alloc(heap, 4);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
 
 	mach_write_to_4(buf, space);
 
@@ -2119,7 +2119,7 @@ ibuf_new_search_tuple_build(
 
 	field = dtuple_get_nth_field(tuple, 1);
 
-	buf = mem_heap_alloc(heap, 1);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 1));
 
 	mach_write_to_1(buf, 0);
 
@@ -2129,7 +2129,7 @@ ibuf_new_search_tuple_build(
 
 	field = dtuple_get_nth_field(tuple, 2);
 
-	buf = mem_heap_alloc(heap, 4);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
 
 	mach_write_to_4(buf, page_no);
 
@@ -3426,7 +3426,7 @@ ibuf_set_entry_counter(
 
 	/* Patch counter value in already built entry. */
 	field = dtuple_get_nth_field(entry, 3);
-	data = dfield_get_data(field);
+	data = static_cast<byte*>(dfield_get_data(field));
 
 	mach_write_to_2(data + IBUF_REC_OFFSET_COUNTER, counter);
 

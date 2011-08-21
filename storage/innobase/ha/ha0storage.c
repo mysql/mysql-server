@@ -51,7 +51,7 @@ ha_storage_get(
 
 	/* avoid repetitive calls to ut_fold_binary() in the HASH_SEARCH
 	macro */
-	fold = ut_fold_binary(data, data_len);
+	fold = ut_fold_binary(static_cast<const byte*>(data), data_len);
 
 #define IS_FOUND	\
 	node->data_len == data_len && memcmp(node->data, data, data_len) == 0
@@ -128,7 +128,7 @@ ha_storage_put_memlim(
 
 	/* avoid repetitive calls to ut_fold_binary() in the HASH_INSERT
 	macro */
-	fold = ut_fold_binary(data, data_len);
+	fold = ut_fold_binary(static_cast<const byte*>(data), data_len);
 
 	HASH_INSERT(
 		ha_storage_node_t,	/* type used in the hash chain */

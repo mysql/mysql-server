@@ -1386,7 +1386,7 @@ dict_stats_save_index_stat(
 					owns dict_sys->mutex */
 {
 	pars_info_t*	pinfo;
-	ulint		ret;
+	enum db_err	ret;
 
 	pinfo = pars_info_create();
 
@@ -1488,7 +1488,7 @@ dict_stats_save(
 	pars_info_t*	pinfo;
 	dict_index_t*	index;
 	lint		now;
-	ulint		ret;
+	enum db_err	ret;
 
 	/* MySQL's timestamp is 4 byte, so we use
 	pars_info_add_int4_literal() which takes a lint arg, so "now" is
@@ -1693,14 +1693,17 @@ dict_stats_fetch_table_stats_step(
 
 	/* this should loop exactly 3 times - for
 	n_rows,clustered_index_size,sum_of_other_index_sizes */
-	for (cnode = node->select_list, i = 0;
+	for (cnode = static_cast<que_common_t*>(node->select_list), i = 0;
 	     cnode != NULL;
-	     cnode = que_node_get_next(cnode), i++) {
+	     cnode = static_cast<que_common_t*>(que_node_get_next(cnode)),
+	     i++) {
 
+		const byte*	data;
 		dfield_t*	dfield = que_node_get_val(cnode);
 		dtype_t*	type = dfield_get_type(dfield);
 		ulint		len = dfield_get_len(dfield);
-		void*		data = dfield_get_data(dfield);
+
+		data = static_cast<const byte*>(dfield_get_data(dfield));
 
 		switch (i) {
 		case 0: /* mysql.innodb_table_stats.n_rows */
@@ -1800,14 +1803,17 @@ dict_stats_fetch_index_stats_step(
 
 	/* this should loop exactly 4 times - for the columns that
 	were selected: index_name,stat_name,stat_value,sample_size */
-	for (cnode = node->select_list, i = 0;
+	for (cnode = static_cast<que_common_t*>(node->select_list), i = 0;
 	     cnode != NULL;
-	     cnode = que_node_get_next(cnode), i++) {
+	     cnode = static_cast<que_common_t*>(que_node_get_next(cnode)),
+	     i++) {
 
+		const byte*	data;
 		dfield_t*	dfield = que_node_get_val(cnode);
 		dtype_t*	type = dfield_get_type(dfield);
 		ulint		len = dfield_get_len(dfield);
-		void*		data = dfield_get_data(dfield);
+
+		data = static_cast<const byte*>(dfield_get_data(dfield));
 
 		switch (i) {
 		case 0: /* mysql.innodb_index_stats.index_name */
@@ -1821,7 +1827,10 @@ dict_stats_fetch_index_stats_step(
 			     index != NULL;
 			     index = dict_table_get_next_index(index)) {
 
-				if (strncasecmp(index->name, data, len) == 0) {
+				// FIXME: Can we use a better cast operator
+				if (strncasecmp(index->name,
+						(const char*) data,
+						len) == 0) {
 					/* the corresponding index was found */
 					break;
 				}
@@ -2014,7 +2023,7 @@ dict_stats_fetch_from_ps(
 	index_fetch_t	index_fetch_arg;
 	trx_t*		trx;
 	pars_info_t*	pinfo;
-	ulint		ret;
+	enum db_err	ret;
 
 	ut_ad(mutex_own(&dict_sys->mutex) == caller_has_dict_sys_mutex);
 
@@ -2350,7 +2359,8 @@ dict_stats_open(void)
 {
 	dict_stats_t*	dict_stats;
 
-	dict_stats = mem_zalloc(sizeof(*dict_stats));
+	dict_stats = static_cast<dict_stats_t*>(
+		mem_zalloc(sizeof(*dict_stats)));
 
 	dict_stats->table_stats = dict_table_open_on_name_no_stats(
 		TABLE_STATS_NAME, FALSE, DICT_ERR_IGNORE_NONE);
@@ -2404,7 +2414,7 @@ dict_stats_delete_index_stats(
 	char		database_name[MAX_DATABASE_NAME_LEN + 1];
 	const char*	table_name;
 	pars_info_t*	pinfo;
-	ulint		ret;
+	enum db_err	ret;
 	dict_stats_t*	dict_stats;
 	void*		mysql_thd = trx->mysql_thd;
 

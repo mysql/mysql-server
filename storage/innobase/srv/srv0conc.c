@@ -141,7 +141,8 @@ srv_conc_init(void)
 
 	UT_LIST_INIT(srv_conc_queue);
 
-	srv_conc_slots = mem_zalloc(OS_THREAD_MAX_N * sizeof(*srv_conc_slots));
+	srv_conc_slots = static_cast<srv_conc_slot_t*>(
+		mem_zalloc(OS_THREAD_MAX_N * sizeof(*srv_conc_slots)));
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 		srv_conc_slot_t*	conc_slot = &srv_conc_slots[i];
@@ -222,7 +223,9 @@ srv_conc_enter_innodb_with_atomics(
 					(void) os_atomic_decrement_lint(
 						&srv_conc.n_waiting, 1);
 
-					thd_wait_end(trx->mysql_thd);
+					thd_wait_end(
+						static_cast<THD*>(
+							trx->mysql_thd));
 				}
 
 				if (srv_adaptive_max_sleep_delay > 0) {
@@ -258,7 +261,9 @@ srv_conc_enter_innodb_with_atomics(
 				trx_search_latch_release_if_reserved(trx);
 			}
 
-			thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
+			thd_wait_begin(
+				static_cast<THD*>(trx->mysql_thd),
+				THD_WAIT_USER_LOCK);
 
 			notified_mysql = TRUE;
 		}
@@ -471,9 +476,10 @@ retry:
 #endif /* UNIV_SYNC_DEBUG */
 	trx->op_info = "waiting in InnoDB queue";
 
-	thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
+	thd_wait_begin(static_cast<THD*>(trx->mysql_thd), THD_WAIT_USER_LOCK);
+
 	os_event_wait(slot->event);
-	thd_wait_end(trx->mysql_thd);
+	thd_wait_end(static_cast<THD*>(trx->mysql_thd));
 
 	trx->op_info = "";
 

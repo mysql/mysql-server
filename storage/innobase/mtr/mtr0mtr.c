@@ -125,7 +125,9 @@ mtr_memo_pop_all(
 
 	while (offset > 0) {
 		offset -= sizeof(mtr_memo_slot_t);
-		slot = dyn_array_get_element(memo, offset);
+
+		slot = static_cast<mtr_memo_slot_t*>(
+			dyn_array_get_element(memo, offset));
 
 		mtr_memo_slot_release(mtr, slot);
 	}
@@ -180,7 +182,9 @@ mtr_memo_note_modifications(
 		mtr_memo_slot_t* slot;
 
 		offset -= sizeof(mtr_memo_slot_t);
-		slot = dyn_array_get_element(memo, offset);
+
+		slot = static_cast<mtr_memo_slot_t*>(
+			dyn_array_get_element(memo, offset));
 
 		mtr_memo_slot_note_modification(mtr, slot);
 	}
@@ -340,7 +344,8 @@ mtr_rollback_to_savepoint(
 	while (offset > savepoint) {
 		offset -= sizeof(mtr_memo_slot_t);
 
-		slot = dyn_array_get_element(memo, offset);
+		slot = static_cast<mtr_memo_slot_t*>(
+			dyn_array_get_element(memo, offset));
 
 		ut_ad(slot->type != MTR_MEMO_MODIFY);
 
@@ -376,7 +381,8 @@ mtr_memo_release(
 	while (offset > 0) {
 		offset -= sizeof(mtr_memo_slot_t);
 
-		slot = dyn_array_get_element(memo, offset);
+		slot = static_cast<mtr_memo_slot_t*>(
+			dyn_array_get_element(memo, offset));
 
 		if (object == slot->object && type == slot->type) {
 
