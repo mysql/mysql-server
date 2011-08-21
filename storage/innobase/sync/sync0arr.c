@@ -220,11 +220,11 @@ sync_array_create(
 	ut_a(n_cells > 0);
 
 	/* Allocate memory for the data structures */
-	arr = ut_malloc(sizeof(sync_array_t));
+	arr = static_cast<sync_array_t*>(ut_malloc(sizeof(*arr)));
 	memset(arr, 0x0, sizeof(*arr));
 
 	sz = sizeof(sync_cell_t) * n_cells;
-	arr->array = ut_malloc(sz);
+	arr->array = static_cast<sync_cell_t*>(ut_malloc(sz));
 	memset(arr->array, 0x0, sz);
 
 	arr->n_cells = n_cells;
@@ -336,9 +336,11 @@ sync_array_reserve_cell(
 			cell->wait_object = object;
 
 			if (type == SYNC_MUTEX) {
-				cell->old_wait_mutex = object;
+				cell->old_wait_mutex =
+					static_cast<ib_mutex_t*>(object);
 			} else {
-				cell->old_wait_rw_lock = object;
+				cell->old_wait_rw_lock =
+					static_cast<rw_lock_t*>(object);
 			}
 
 			cell->request_type = type;
@@ -358,7 +360,7 @@ sync_array_reserve_cell(
                         event = sync_cell_get_event(cell);
 			cell->signal_count = os_event_reset(event);
 
-			cell->reservation_time = time(NULL);
+			cell->reservation_time = ut_time();
 
 			cell->thread = os_thread_get_curr_id();
 
@@ -554,7 +556,7 @@ sync_array_deadlock_step(
 	ulint		pass,	/*!< in: pass value */
 	ulint		depth)	/*!< in: recursion depth */
 {
-	sync_cell_t*	new;
+	sync_cell_t*	new_cell;
 
 	if (pass != 0) {
 		/* If pass != 0, then we do not know which threads are
@@ -564,9 +566,9 @@ sync_array_deadlock_step(
 		return(FALSE);
 	}
 
-	new = sync_array_find_thread(arr, thread);
+	new_cell = sync_array_find_thread(arr, thread);
 
-	if (UNIV_UNLIKELY(new == start)) {
+	if (new_cell == start) {
 		/* Stop running of other threads */
 
 		ut_dbg_stop_threads = TRUE;
@@ -577,8 +579,9 @@ sync_array_deadlock_step(
 
 		return(TRUE);
 
-	} else if (new) {
-		return(sync_array_detect_deadlock(arr, start, new, depth + 1));
+	} else if (new_cell) {
+		return(sync_array_detect_deadlock(
+			arr, start, new_cell, depth + 1));
 	}
 	return(FALSE);
 }
@@ -619,7 +622,7 @@ sync_array_detect_deadlock(
 
 	if (cell->request_type == SYNC_MUTEX) {
 
-		mutex = cell->wait_object;
+		mutex = static_cast<mutex_t*>(cell->wait_object);
 
 		if (mutex_get_lock_word(mutex) != 0) {
 
@@ -651,11 +654,11 @@ sync_array_detect_deadlock(
 	} else if (cell->request_type == RW_LOCK_EX
 		   || cell->request_type == RW_LOCK_WAIT_EX) {
 
-		lock = cell->wait_object;
+		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
-		debug = UT_LIST_GET_FIRST(lock->debug_list);
-
-		while (debug != NULL) {
+		for (debug = UT_LIST_GET_FIRST(lock->debug_list);
+		     debug != 0;
+		     debug = UT_LIST_GET_NEXT(list, debug)) {
 
 			thread = debug->thread_id;
 
@@ -683,18 +686,17 @@ print:
 					return(TRUE);
 				}
 			}
-
-			debug = UT_LIST_GET_NEXT(list, debug);
 		}
 
 		return(FALSE);
 
 	} else if (cell->request_type == RW_LOCK_SHARED) {
 
-		lock = cell->wait_object;
-		debug = UT_LIST_GET_FIRST(lock->debug_list);
+		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
-		while (debug != NULL) {
+		for (debug = UT_LIST_GET_FIRST(lock->debug_list);
+		     debug != 0;
+		     debug = UT_LIST_GET_NEXT(list, debug)) {
 
 			thread = debug->thread_id;
 
@@ -713,8 +715,6 @@ print:
 					goto print;
 				}
 			}
-
-			debug = UT_LIST_GET_NEXT(list, debug);
 		}
 
 		return(FALSE);
@@ -741,7 +741,7 @@ sync_arr_cell_can_wake_up(
 
 	if (cell->request_type == SYNC_MUTEX) {
 
-		mutex = cell->wait_object;
+		mutex = static_cast<ib_mutex_t*>(cell->wait_object);
 
 		if (mutex_get_lock_word(mutex) == 0) {
 
@@ -750,7 +750,7 @@ sync_arr_cell_can_wake_up(
 
 	} else if (cell->request_type == RW_LOCK_EX) {
 
-		lock = cell->wait_object;
+		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
 		if (lock->lock_word > 0) {
 		/* Either unlocked or only read locked. */
@@ -760,7 +760,7 @@ sync_arr_cell_can_wake_up(
 
         } else if (cell->request_type == RW_LOCK_WAIT_EX) {
 
-		lock = cell->wait_object;
+		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
                 /* lock_word == 0 means all readers have left */
 		if (lock->lock_word == 0) {
@@ -768,7 +768,7 @@ sync_arr_cell_can_wake_up(
 			return(TRUE);
 		}
 	} else if (cell->request_type == RW_LOCK_SHARED) {
-		lock = cell->wait_object;
+		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
                 /* lock_word > 0 means no writer or reserved writer */
 		if (lock->lock_word > 0) {
@@ -1079,7 +1079,8 @@ sync_array_init(
 	hasn't been initialised yet. It is required by mem_alloc() and
 	the heap functions. */
 
-	sync_wait_array = ut_malloc(sizeof(*sync_wait_array) * sync_array_size);
+	sync_wait_array = static_cast<sync_array_t**>(
+		ut_malloc(sizeof(*sync_wait_array) * sync_array_size));
 
 	n_slots = 1 + (n_threads - 1) / sync_array_size;
 

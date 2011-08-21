@@ -261,7 +261,9 @@ sel_node_create(
 {
 	sel_node_t*	node;
 
-	node = mem_heap_alloc(heap, sizeof(sel_node_t));
+	node = static_cast<sel_node_t*>(
+		mem_heap_alloc(heap, sizeof(sel_node_t)));
+
 	node->common.type = QUE_NODE_SELECT;
 	node->state = SEL_NODE_OPEN;
 
@@ -323,7 +325,8 @@ UNIV_INLINE
 void
 sel_assign_into_var_values(
 /*=======================*/
-	sym_node_t*	var,	/*!< in: first variable in a list of variables */
+	sym_node_t*	var,	/*!< in: first variable in a list of
+				variables */
 	sel_node_t*	node)	/*!< in: select node */
 {
 	que_node_t*	exp;
@@ -333,15 +336,15 @@ sel_assign_into_var_values(
 		return;
 	}
 
-	exp = node->select_list;
+	for (exp = node->select_list;
+	     var != 0;
+	     var = static_cast<sym_node_t*>(que_node_get_next(var))) {
 
-	while (var) {
 		ut_ad(exp);
 
 		eval_node_copy_val(var->alias, exp);
 
 		exp = que_node_get_next(exp);
-		var = que_node_get_next(var);
 	}
 }
 
@@ -358,12 +361,12 @@ sel_reset_aggregate_vals(
 
 	ut_ad(node->is_aggregate);
 
-	func_node = node->select_list;
+	for (func_node = static_cast<func_node_t*>(node->select_list);
+	     func_node != 0;
+	     func_node = static_cast<func_node_t*>(
+		     	que_node_get_next(func_node))) {
 
-	while (func_node) {
 		eval_node_set_int_val(func_node, 0);
-
-		func_node = que_node_get_next(func_node);
 	}
 
 	node->aggregate_already_fetched = FALSE;
@@ -489,8 +492,9 @@ sel_col_prefetch_buf_alloc(
 
 	ut_ad(que_node_get_type(column) == QUE_NODE_SYMBOL);
 
-	column->prefetch_buf = mem_alloc(SEL_MAX_N_PREFETCH
-					 * sizeof(sel_buf_t));
+	column->prefetch_buf = static_cast<sel_buf_t*>(
+		mem_alloc(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
+
 	for (i = 0; i < SEL_MAX_N_PREFETCH; i++) {
 		sel_buf = column->prefetch_buf + i;
 
@@ -569,7 +573,7 @@ sel_dequeue_prefetched_row(
 		column values to be able to free it later: therefore
 		we swap the values for sel_buf and val */
 
-		sel_buf->data = dfield_get_data(val);
+		sel_buf->data = static_cast<byte*>(dfield_get_data(val));
 		sel_buf->len = dfield_get_len(val);
 		sel_buf->val_buf_size = que_node_get_val_buf_size(column);
 
@@ -617,14 +621,14 @@ sel_enqueue_prefetched_row(
 
 	ut_ad(pos < SEL_MAX_N_PREFETCH);
 
-	column = UT_LIST_GET_FIRST(plan->columns);
+	for (column = UT_LIST_GET_FIRST(plan->columns);
+	     column != 0;
+	     column = UT_LIST_GET_NEXT(col_var_list, column)) {
 
-	while (column) {
 		if (!column->copy_val) {
 			/* There is no sense to push pointers to database
 			page fields when we do not keep latch on the page! */
-
-			goto next_col;
+			continue;
 		}
 
 		if (!column->prefetch_buf) {
@@ -637,7 +641,7 @@ sel_enqueue_prefetched_row(
 
 		val = que_node_get_val(column);
 
-		data = dfield_get_data(val);
+		data = static_cast<byte*>(dfield_get_data(val));
 		len = dfield_get_len(val);
 		val_buf_size = que_node_get_val_buf_size(column);
 
@@ -651,8 +655,6 @@ sel_enqueue_prefetched_row(
 		sel_buf->data = data;
 		sel_buf->len = len;
 		sel_buf->val_buf_size = val_buf_size;
-next_col:
-		column = UT_LIST_GET_NEXT(col_var_list, column);
 	}
 }
 
@@ -743,13 +745,14 @@ row_sel_test_end_conds(
 	/* All conditions in end_conds are comparisons of a column to an
 	expression */
 
-	cond = UT_LIST_GET_FIRST(plan->end_conds);
+	for (cond = UT_LIST_GET_FIRST(plan->end_conds);
+	     cond != 0;
+	     cond = UT_LIST_GET_NEXT(cond_list, cond)) {
 
-	while (cond) {
 		/* Evaluate the left side of the comparison, i.e., get the
 		column value if there is an indirection */
 
-		eval_sym(cond->args);
+		eval_sym(static_cast<sym_node_t*>(cond->args));
 
 		/* Do the comparison */
 
@@ -757,8 +760,6 @@ row_sel_test_end_conds(
 
 			return(FALSE);
 		}
-
-		cond = UT_LIST_GET_NEXT(cond_list, cond);
 	}
 
 	return(TRUE);
@@ -885,7 +886,9 @@ row_sel_get_clust_rec(
 		err = lock_clust_rec_read_check_and_lock(
 			0, btr_pcur_get_block(&plan->clust_pcur),
 			clust_rec, index, offsets,
-			node->row_lock_mode, lock_type, thr);
+			static_cast<enum lock_mode>(node->row_lock_mode),
+			lock_type,
+			thr);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -993,10 +996,12 @@ sel_set_rec_lock(
 
 	if (dict_index_is_clust(index)) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, block, rec, index, offsets, mode, type, thr);
+			0, block, rec, index, offsets,
+			static_cast<enum lock_mode>(mode), type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, block, rec, index, offsets, mode, type, thr);
+			0, block, rec, index, offsets,
+			static_cast<enum lock_mode>(mode), type, thr);
 	}
 
 	return(err);
@@ -2023,14 +2028,11 @@ row_sel_step(
 /*=========*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ulint		i_lock_mode;
-	sym_node_t*	table_node;
 	sel_node_t*	node;
-	ulint		err;
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = static_cast<sel_node_t*>(thr->run_node);
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_SELECT);
 
@@ -2057,24 +2059,34 @@ row_sel_step(
 			node->read_view = trx_assign_read_view(
 				thr_get_trx(thr));
 		} else {
+			sym_node_t*	table_node;
+			enum lock_mode	i_lock_mode;
+
 			if (node->set_x_locks) {
 				i_lock_mode = LOCK_IX;
 			} else {
 				i_lock_mode = LOCK_IS;
 			}
 
-			table_node = node->table_list;
+			for (table_node = node->table_list;
+			     table_node != 0;
+			     table_node = static_cast<sym_node_t*>(
+				     	que_node_get_next(table_node))) {
 
-			while (table_node) {
-				err = lock_table(0, table_node->table,
-						 i_lock_mode, thr);
+				enum db_err	err;
+
+				err = static_cast<enum db_err>(lock_table(
+					0, table_node->table, i_lock_mode,
+					thr));
+
 				if (err != DB_SUCCESS) {
-					thr_get_trx(thr)->error_state = err;
+					trx_t*	trx;
+
+					trx = thr_get_trx(thr);
+					trx->error_state = err;
 
 					return(NULL);
 				}
-
-				table_node = que_node_get_next(table_node);
 			}
 		}
 
@@ -2098,7 +2110,7 @@ row_sel_step(
 		}
 	}
 
-	err = row_sel(node, thr);
+	enum db_err err = static_cast<enum db_err>(row_sel(node, thr));
 
 	/* NOTE! if queries are parallelized, the following assignment may
 	have problems; the assignment should be made only if thr is the
@@ -2129,7 +2141,7 @@ fetch_step(
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = static_cast<fetch_node_t*>(thr->run_node);
 	sel_node = node->cursor_def;
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_FETCH);
@@ -2188,17 +2200,18 @@ row_fetch_print(
 	void*	row,		/*!< in:  sel_node_t* */
 	void*	user_arg)	/*!< in:  not used */
 {
-	sel_node_t*	node = row;
 	que_node_t*	exp;
 	ulint		i = 0;
+	sel_node_t*	node = static_cast<sel_node_t*>(row);
 
 	UT_NOT_USED(user_arg);
 
 	fprintf(stderr, "row_fetch_print: row %p\n", row);
 
-	exp = node->select_list;
+	for (exp = node->select_list;
+	     exp != 0;
+	     exp = que_node_get_next(exp), i++) {
 
-	while (exp) {
 		dfield_t*	dfield = que_node_get_val(exp);
 		const dtype_t*	type = dfield_get_type(dfield);
 
@@ -2214,9 +2227,6 @@ row_fetch_print(
 		} else {
 			fputs(" <NULL>;\n", stderr);
 		}
-
-		exp = que_node_get_next(exp);
-		i++;
 	}
 
 	return((void*)42);
@@ -2237,7 +2247,7 @@ row_printf_step(
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = static_cast<row_printf_node_t*>(thr->run_node);
 
 	sel_node = node->sel_node;
 
@@ -2852,7 +2862,8 @@ row_sel_store_mysql_field_func(
 					UNIV_PAGE_SIZE);
 			}
 
-			data = mem_heap_dup(prebuilt->blob_heap, data, len);
+			data = static_cast<byte*>(
+				mem_heap_dup(prebuilt->blob_heap, data, len));
 		}
 
 		row_sel_field_store_in_mysql_format(
@@ -3079,7 +3090,10 @@ row_sel_get_clust_rec_for_mysql(
 		err = lock_clust_rec_read_check_and_lock(
 			0, btr_pcur_get_block(prebuilt->clust_pcur),
 			clust_rec, clust_index, *offsets,
-			prebuilt->select_lock_type, LOCK_REC_NOT_GAP, thr);
+			static_cast<enum lock_mode>(prebuilt->select_lock_type),
+			LOCK_REC_NOT_GAP,
+			thr);
+
 		switch (err) {
 		case DB_SUCCESS:
 		case DB_SUCCESS_LOCKED_REC:
@@ -3101,12 +3115,16 @@ row_sel_get_clust_rec_for_mysql(
 			    clust_rec, clust_index, *offsets,
 			    trx->read_view)) {
 
+			ulint	db_err;
+
 			/* The following call returns 'offsets' associated with
 			'old_vers' */
-			err = row_sel_build_prev_vers_for_mysql(
+			db_err = row_sel_build_prev_vers_for_mysql(
 				trx->read_view, clust_index, prebuilt,
 				clust_rec, offsets, offset_heap, &old_vers,
 				mtr);
+
+			err = static_cast<enum db_err>(db_err);
 
 			if (err != DB_SUCCESS || old_vers == NULL) {
 
@@ -3340,7 +3358,7 @@ row_sel_prefetch_cache_init(
 
 	/* Reserve space for the magic number. */
 	sz = UT_ARR_SIZE(prebuilt->fetch_cache) * (prebuilt->mysql_row_len + 8);
-	ptr = mem_alloc(sz);
+	ptr = static_cast<byte*>(mem_alloc(sz));
 
 	for (i = 0; i < UT_ARR_SIZE(prebuilt->fetch_cache); i++) {
 
@@ -4936,7 +4954,7 @@ lock_table_wait:
 	mtr_commit(&mtr);
 	mtr_has_extra_clust_latch = FALSE;
 
-	trx->error_state = err;
+	trx->error_state = static_cast<enum db_err>(err);
 
 	/* The following is a patch for MySQL */
 

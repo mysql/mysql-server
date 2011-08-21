@@ -27,6 +27,8 @@ Created 5/11/2006 Osku Salerma
 #ifndef HA_INNODB_PROTOTYPES_H
 #define HA_INNODB_PROTOTYPES_H
 
+#include "my_compare.h"
+
 #include "trx0types.h"
 #include "m_ctype.h" /* CHARSET_INFO */
 

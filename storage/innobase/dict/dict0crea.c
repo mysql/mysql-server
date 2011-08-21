@@ -79,7 +79,7 @@ dict_create_sys_tables_tuple(
 	/* 3: ID -------------------------------*/
 	dfield = dtuple_get_nth_field(entry, 1/*ID*/);
 
-	ptr = mem_heap_alloc(heap, 8);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
@@ -91,7 +91,7 @@ dict_create_sys_tables_tuple(
 #error
 #endif
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, table->n_def
 			| ((table->flags & DICT_TF_COMPACT) << 31));
 	dfield_set_data(dfield, ptr, 4);
@@ -99,7 +99,7 @@ dict_create_sys_tables_tuple(
 	/* 5: TYPE (table flags) -----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 3/*TYPE*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	if (table->flags & ~DICT_TF_COMPACT) {
 		ut_a(table->flags & DICT_TF_COMPACT);
 		ut_a(dict_table_get_format(table) >= UNIV_FORMAT_B);
@@ -116,14 +116,14 @@ dict_create_sys_tables_tuple(
 	/* 6: MIX_ID (obsolete) ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 4/*MIX_ID*/);
 
-	ptr = mem_heap_zalloc(heap, 8);
+	ptr = static_cast<byte*>(mem_heap_zalloc(heap, 8));
 
 	dfield_set_data(dfield, ptr, 8);
 
 	/* 7: MIX_LEN (additional flags) --------------------------*/
 	dfield = dtuple_get_nth_field(entry, 5/*MIX_LEN*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	/* Be sure all non-used bits are zero. */
 	ut_a(!(table->flags2 & ~DICT_TF2_BIT_MASK));
 	mach_write_to_4(ptr, table->flags2);
@@ -137,7 +137,7 @@ dict_create_sys_tables_tuple(
 	/* 9: SPACE ----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 7/*SPACE*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, table->space);
 
 	dfield_set_data(dfield, ptr, 4);
@@ -181,14 +181,14 @@ dict_create_sys_columns_tuple(
 	/* 0: TABLE_ID -----------------------*/
 	dfield = dtuple_get_nth_field(entry, 0/*TABLE_ID*/);
 
-	ptr = mem_heap_alloc(heap, 8);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 1: POS ----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 1/*POS*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, i);
 
 	dfield_set_data(dfield, ptr, 4);
@@ -200,28 +200,28 @@ dict_create_sys_columns_tuple(
 	/* 5: MTYPE --------------------------*/
 	dfield = dtuple_get_nth_field(entry, 3/*MTYPE*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, column->mtype);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 6: PRTYPE -------------------------*/
 	dfield = dtuple_get_nth_field(entry, 4/*PRTYPE*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, column->prtype);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 7: LEN ----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 5/*LEN*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, column->len);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: PREC ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 6/*PREC*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, 0/* unused */);
 
 	dfield_set_data(dfield, ptr, 4);
@@ -382,7 +382,7 @@ dict_create_sys_indexes_tuple(
 	/* 0: TABLE_ID -----------------------*/
 	dfield = dtuple_get_nth_field(entry, 0/*TABLE_ID*/);
 
-	ptr = mem_heap_alloc(heap, 8);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
@@ -390,7 +390,7 @@ dict_create_sys_indexes_tuple(
 	/* 1: ID ----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 1/*ID*/);
 
-	ptr = mem_heap_alloc(heap, 8);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(ptr, index->id);
 
 	dfield_set_data(dfield, ptr, 8);
@@ -403,7 +403,7 @@ dict_create_sys_indexes_tuple(
 	/* 5: N_FIELDS ----------------------*/
 	dfield = dtuple_get_nth_field(entry, 3/*N_FIELDS*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, index->n_fields);
 
 	dfield_set_data(dfield, ptr, 4);
@@ -411,7 +411,7 @@ dict_create_sys_indexes_tuple(
 	/* 6: TYPE --------------------------*/
 	dfield = dtuple_get_nth_field(entry, 4/*TYPE*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, index->type);
 
 	dfield_set_data(dfield, ptr, 4);
@@ -424,7 +424,7 @@ dict_create_sys_indexes_tuple(
 
 	dfield = dtuple_get_nth_field(entry, 5/*SPACE*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, index->space);
 
 	dfield_set_data(dfield, ptr, 4);
@@ -437,7 +437,7 @@ dict_create_sys_indexes_tuple(
 
 	dfield = dtuple_get_nth_field(entry, 6/*PAGE_NO*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, FIL_NULL);
 
 	dfield_set_data(dfield, ptr, 4);
@@ -490,7 +490,7 @@ dict_create_sys_fields_tuple(
 	/* 0: INDEX_ID -----------------------*/
 	dfield = dtuple_get_nth_field(entry, 0/*INDEX_ID*/);
 
-	ptr = mem_heap_alloc(heap, 8);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(ptr, index->id);
 
 	dfield_set_data(dfield, ptr, 8);
@@ -498,7 +498,7 @@ dict_create_sys_fields_tuple(
 
 	dfield = dtuple_get_nth_field(entry, 1/*POS*/);
 
-	ptr = mem_heap_alloc(heap, 4);
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 
 	if (index_contains_column_prefix_field) {
 		/* If there are column prefix fields in the index, then
@@ -900,7 +900,8 @@ tab_create_graph_create(
 {
 	tab_node_t*	node;
 
-	node = mem_heap_alloc(heap, sizeof(tab_node_t));
+	node = static_cast<tab_node_t*>(
+		mem_heap_alloc(heap, sizeof(tab_node_t)));
 
 	node->common.type = QUE_NODE_CREATE_TABLE;
 
@@ -936,7 +937,8 @@ ind_create_graph_create(
 {
 	ind_node_t*	node;
 
-	node = mem_heap_alloc(heap, sizeof(ind_node_t));
+	node = static_cast<ind_node_t*>(
+		mem_heap_alloc(heap, sizeof(ind_node_t)));
 
 	node->common.type = QUE_NODE_CREATE_INDEX;
 
@@ -978,7 +980,7 @@ dict_create_table_step(
 
 	trx = thr_get_trx(thr);
 
-	node = thr->run_node;
+	node = static_cast<tab_node_t*>(thr->run_node);
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_CREATE_TABLE);
 
@@ -1047,7 +1049,7 @@ dict_create_table_step(
 	}
 
 function_exit:
-	trx->error_state = err;
+	trx->error_state = (enum db_err) err;
 
 	if (err == DB_SUCCESS) {
 		/* Ok: do nothing */
@@ -1085,7 +1087,7 @@ dict_create_index_step(
 
 	trx = thr_get_trx(thr);
 
-	node = thr->run_node;
+	node = static_cast<ind_node_t*>(thr->run_node);
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_CREATE_INDEX);
 
@@ -1181,7 +1183,7 @@ dict_create_index_step(
 	}
 
 function_exit:
-	trx->error_state = err;
+	trx->error_state = static_cast<enum db_err>(err);
 
 	if (err == DB_SUCCESS) {
 		/* Ok: do nothing */
@@ -1493,8 +1495,12 @@ dict_create_add_foreign_to_dictionary(
 
 	if (foreign->id == NULL) {
 		/* Generate a new constraint id */
+		char*	id;
 		ulint	namelen	= strlen(table->name);
-		char*	id	= mem_heap_alloc(foreign->heap, namelen + 20);
+
+		id = static_cast<char*>(mem_heap_alloc(
+				foreign->heap, namelen + 20));
+
 		/* no overflow if number < 1e13 */
 		sprintf(id, "%s_ibfk_%lu", table->name, (ulong) (*id_nr)++);
 		foreign->id = id;

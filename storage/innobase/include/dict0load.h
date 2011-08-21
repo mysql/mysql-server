@@ -248,7 +248,7 @@ dict_process_sys_tables_rec(
 	mem_heap_t*	heap,		/*!< in: temporary memory heap */
 	const rec_t*	rec,		/*!< in: SYS_TABLES record */
 	dict_table_t**	table,		/*!< out: dict_table_t to fill */
-	dict_table_info_t status);	/*!< in: status bit controls
+	ulint		status);	/*!< in: status bit controls
 					options such as whether we shall
 					look for dict_table_t from cache
 					first */

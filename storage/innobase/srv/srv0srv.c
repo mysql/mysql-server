@@ -87,7 +87,7 @@ UNIV_INTERN ibool	srv_buf_dump_thread_active = FALSE;
 UNIV_INTERN const char*	srv_main_thread_op_info = "";
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
-UNIV_INTERN const char	srv_mysql50_table_name_prefix[9] = "#mysql50#";
+UNIV_INTERN const char*	srv_mysql50_table_name_prefix = "#mysql50#";
 
 /* Server parameters which are read from the initfile */
 
@@ -908,7 +908,7 @@ srv_init(void)
 
 	srv_sys_sz = sizeof(*srv_sys) + (OS_THREAD_MAX_N * sizeof(srv_slot_t));
 
-	srv_sys = mem_zalloc(srv_sys_sz);
+	srv_sys = static_cast<srv_sys_t*>(mem_zalloc(srv_sys_sz));
 
 	mutex_create(srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
 
@@ -1682,7 +1682,7 @@ srv_get_active_thread_type(void)
 
 	for (i = SRV_WORKER; i <= SRV_MASTER; ++i) {
 		if (srv_sys->n_threads_active[i] != 0) {
-			ret = i;
+			ret = static_cast<enum srv_thread_type>(i);
 			break;
 		}
 	}

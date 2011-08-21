@@ -467,8 +467,7 @@ os_file_create_simple_func(
 /*=======================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: create mode */
+	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
 	ibool*		success);/*!< out: TRUE if succeed, FALSE if error */
@@ -484,8 +483,7 @@ os_file_create_simple_no_error_handling_func(
 /*=========================================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: create mode */
+	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY,
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
@@ -515,8 +513,7 @@ os_file_create_func(
 /*================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: create mode */
+	ulint		create_mode,/*!< in: create mode */
 	ulint		purpose,/*!< in: OS_FILE_AIO, if asynchronous,
 				non-buffered i/o is desired,
 				OS_FILE_NORMAL, if any normal file;
@@ -586,8 +583,7 @@ pfs_os_file_create_simple_func(
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: create mode */
+	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
 	ibool*		success,/*!< out: TRUE if succeed, FALSE if error */
@@ -610,8 +606,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode, /*!< in: file create mode */
+	ulint		create_mode, /*!< in: file create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY,
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
@@ -635,8 +630,7 @@ pfs_os_file_create_func(
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: file create mode */
+	ulint		create_mode,/*!< in: file create mode */
 	ulint		purpose,/*!< in: OS_FILE_AIO, if asynchronous,
 				non-buffered i/o is desired,
 				OS_FILE_NORMAL, if any normal file;

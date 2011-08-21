@@ -123,7 +123,7 @@ trx_purge_sys_create(
 	ib_bh_t*	ib_bh)			/*!< in, own: UNDO log min
 						binary heap */
 {
-	purge_sys = mem_zalloc(sizeof(*purge_sys));
+	purge_sys = static_cast<trx_purge_t*>(mem_zalloc(sizeof(*purge_sys)));
 
 	/* Take ownership of ib_bh, we are responsible for freeing it. */
 	purge_sys->ib_bh = ib_bh;
@@ -1023,7 +1023,8 @@ trx_purge_attach_undo_recs(
 		node = (purge_node_t*) thr->child;
 		ut_a(que_node_get_type(node) == QUE_NODE_PURGE);
 
-		purge_rec = mem_heap_zalloc(node->heap, sizeof(*purge_rec));
+		purge_rec = static_cast<trx_purge_rec_t*>(
+			mem_heap_zalloc(node->heap, sizeof(*purge_rec)));
 
 		/* Track the max {trx_id, undo_no} for truncating the
 		UNDO logs once we have purged the records. */

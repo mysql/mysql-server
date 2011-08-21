@@ -249,8 +249,8 @@ buf_LRU_drop_page_hash_for_tablespace(
 		return;
 	}
 
-	page_arr = ut_malloc(
-		sizeof(ulint) * BUF_LRU_DROP_SEARCH_HASH_SIZE);
+	page_arr = static_cast<ulint*>(ut_malloc(
+		sizeof(ulint) * BUF_LRU_DROP_SEARCH_HASH_SIZE));
 
 	buf_pool_mutex_enter(buf_pool);
 	num_entries = 0;

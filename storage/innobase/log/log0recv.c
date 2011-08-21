@@ -180,8 +180,7 @@ recv_sys_create(void)
 		return;
 	}
 
-	recv_sys = mem_alloc(sizeof(*recv_sys));
-	memset(recv_sys, 0x0, sizeof(*recv_sys));
+	recv_sys = static_cast<recv_sys_t*>(mem_zalloc(sizeof(*recv_sys)));
 
 	mutex_create(recv_sys_mutex_key, &recv_sys->mutex, SYNC_RECV);
 
@@ -328,7 +327,7 @@ recv_sys_init(
 		recv_n_pool_free_frames = 512;
 	}
 
-	recv_sys->buf = ut_malloc(RECV_PARSING_BUF_SIZE);
+	recv_sys->buf = static_cast<byte*>(ut_malloc(RECV_PARSING_BUF_SIZE));
 	recv_sys->len = 0;
 	recv_sys->recovered_offset = 0;
 
@@ -338,10 +337,12 @@ recv_sys_init(
 	recv_sys->apply_log_recs = FALSE;
 	recv_sys->apply_batch_on = FALSE;
 
-	recv_sys->last_block_buf_start = mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE);
+	recv_sys->last_block_buf_start = static_cast<byte*>(
+		mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE));
 
-	recv_sys->last_block = ut_align(recv_sys->last_block_buf_start,
-					OS_FILE_LOG_BLOCK_SIZE);
+	recv_sys->last_block = static_cast<byte*>(ut_align(
+		recv_sys->last_block_buf_start, OS_FILE_LOG_BLOCK_SIZE));
+
 	recv_sys->found_corrupt_log = FALSE;
 
 	recv_max_page_lsn = 0;
@@ -1309,19 +1310,21 @@ recv_get_fil_addr_struct(
 {
 	recv_addr_t*	recv_addr;
 
-	recv_addr = HASH_GET_FIRST(recv_sys->addr_hash,
-				   recv_hash(space, page_no));
-	while (recv_addr) {
-		if ((recv_addr->space == space)
-		    && (recv_addr->page_no == page_no)) {
+	for (recv_addr = static_cast<recv_addr_t*>(
+			HASH_GET_FIRST(recv_sys->addr_hash,
+				       recv_hash(space, page_no)));
+	     recv_addr != 0;
+	     recv_addr = static_cast<recv_addr_t*>(
+		     HASH_GET_NEXT(addr_hash, recv_addr))) {
 
-			break;
+		if (recv_addr->space == space
+		    && recv_addr->page_no == page_no) {
+
+			return(recv_addr);
 		}
-
-		recv_addr = HASH_GET_NEXT(addr_hash, recv_addr);
 	}
 
-	return(recv_addr);
+	return(NULL);
 }
 
 /*******************************************************************//**
@@ -1353,7 +1356,9 @@ recv_add_to_hash_table(
 
 	len = rec_end - body;
 
-	recv = mem_heap_alloc(recv_sys->heap, sizeof(recv_t));
+	recv = static_cast<recv_t*>(
+		mem_heap_alloc(recv_sys->heap, sizeof(recv_t)));
+
 	recv->type = type;
 	recv->len = rec_end - body;
 	recv->start_lsn = start_lsn;
@@ -1362,8 +1367,9 @@ recv_add_to_hash_table(
 	recv_addr = recv_get_fil_addr_struct(space, page_no);
 
 	if (recv_addr == NULL) {
-		recv_addr = mem_heap_alloc(recv_sys->heap,
-					   sizeof(recv_addr_t));
+		recv_addr = static_cast<recv_addr_t*>(
+			mem_heap_alloc(recv_sys->heap, sizeof(recv_addr_t)));
+
 		recv_addr->space = space;
 		recv_addr->page_no = page_no;
 		recv_addr->state = RECV_NOT_PROCESSED;
@@ -1395,8 +1401,10 @@ recv_add_to_hash_table(
 			len = RECV_DATA_BLOCK_SIZE;
 		}
 
-		recv_data = mem_heap_alloc(recv_sys->heap,
-					   sizeof(recv_data_t) + len);
+		recv_data = static_cast<recv_data_t*>(
+			mem_heap_alloc(recv_sys->heap,
+				       sizeof(recv_data_t) + len));
+
 		*prev_field = recv_data;
 
 		memcpy(recv_data + 1, body, len);
@@ -1558,7 +1566,7 @@ recv_recover_page_func(
 			/* We have to copy the record body to a separate
 			buffer */
 
-			buf = mem_alloc(recv->len);
+			buf = static_cast<byte*>(mem_alloc(recv->len));
 
 			recv_data_copy_to_buf(buf, recv);
 		} else {
@@ -1757,9 +1765,12 @@ loop:
 
 	for (i = 0; i < hash_get_n_cells(recv_sys->addr_hash); i++) {
 
-		recv_addr = HASH_GET_FIRST(recv_sys->addr_hash, i);
+		for (recv_addr = static_cast<recv_addr_t*>(
+				HASH_GET_FIRST(recv_sys->addr_hash, i));
+		     recv_addr != 0;
+		     recv_addr = static_cast<recv_addr_t*>(
+				HASH_GET_NEXT(addr_hash, recv_addr))) {
 
-		while (recv_addr) {
 			ulint	space = recv_addr->space;
 			ulint	zip_size = fil_space_get_zip_size(space);
 			ulint	page_no = recv_addr->page_no;
@@ -1797,8 +1808,6 @@ loop:
 
 				mutex_enter(&(recv_sys->mutex));
 			}
-
-			recv_addr = HASH_GET_NEXT(addr_hash, recv_addr);
 		}
 
 		if (has_printed

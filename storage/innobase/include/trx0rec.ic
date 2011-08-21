@@ -107,6 +107,6 @@ trx_undo_rec_copy(
 
 	len = mach_read_from_2(undo_rec)
 		- ut_align_offset(undo_rec, UNIV_PAGE_SIZE);
-	return(mem_heap_dup(heap, undo_rec, len));
+	return((trx_undo_rec_t*) mem_heap_dup(heap, undo_rec, len));
 }
 #endif /* !UNIV_HOTBACKUP */

@@ -632,7 +632,7 @@ fil_node_create(
 
 	mutex_enter(&fil_system->mutex);
 
-	node = mem_zalloc(sizeof(fil_node_t));
+	node = static_cast<fil_node_t*>(mem_zalloc(sizeof(fil_node_t)));
 
 	node->name = mem_strdup(name);
 
@@ -751,10 +751,10 @@ fil_node_open_file(
 
 		/* Read the first page of the tablespace */
 
-		buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+		buf2 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 		/* Align the memory for file i/o if we might have O_DIRECT
 		set */
-		page = ut_align(buf2, UNIV_PAGE_SIZE);
+		page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
 		success = os_file_read(node->handle, page, 0, UNIV_PAGE_SIZE);
 		space_id = fsp_header_get_space_id(page);
@@ -1263,7 +1263,7 @@ try_again:
 		return(FALSE);
 	}
 
-	space = mem_zalloc(sizeof(*space));
+	space = static_cast<fil_space_t*>(mem_zalloc(sizeof(*space)));
 
 	space->name = mem_strdup(name);
 	space->id = id;
@@ -1383,7 +1383,7 @@ fil_space_free(
 					in X mode */
 {
 	fil_space_t*	space;
-	fil_space_t*	namespace;
+	fil_space_t*	fnamespace;
 	fil_node_t*	fil_node;
 
 	ut_ad(mutex_own(&fil_system->mutex));
@@ -1402,9 +1402,9 @@ fil_space_free(
 
 	HASH_DELETE(fil_space_t, hash, fil_system->spaces, id, space);
 
-	namespace = fil_space_get_by_name(space->name);
-	ut_a(namespace);
-	ut_a(space == namespace);
+	fnamespace = fil_space_get_by_name(space->name);
+	ut_a(fnamespace);
+	ut_a(space == fnamespace);
 
 	HASH_DELETE(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(space->name), space);
@@ -1598,7 +1598,8 @@ fil_init(
 	ut_a(hash_size > 0);
 	ut_a(max_n_open > 0);
 
-	fil_system = mem_zalloc(sizeof(fil_system_t));
+	fil_system = static_cast<fil_system_t*>(
+		mem_zalloc(sizeof(fil_system_t)));
 
 	mutex_create(fil_system_mutex_key,
 		     &fil_system->mutex, SYNC_ANY_LATCH);
@@ -1752,8 +1753,8 @@ fil_write_lsn_and_arch_no_to_file(
 	byte*	buf1;
 	byte*	buf;
 
-	buf1 = mem_alloc(2 * UNIV_PAGE_SIZE);
-	buf = ut_align(buf1, UNIV_PAGE_SIZE);
+	buf1 = static_cast<byte*>(mem_alloc(2 * UNIV_PAGE_SIZE));
+	buf = static_cast<byte*>(ut_align(buf1, UNIV_PAGE_SIZE));
 
 	fil_read(TRUE, space, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
@@ -1847,9 +1848,9 @@ fil_read_flushed_lsn_and_arch_log_no(
 	byte*	buf2;
 	lsn_t	flushed_lsn;
 
-	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buf2 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 	/* Align the memory for a possible read from a raw device */
-	buf = ut_align(buf2, UNIV_PAGE_SIZE);
+	buf = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
 	os_file_read(data_file, buf, 0, UNIV_PAGE_SIZE);
 
@@ -1967,7 +1968,7 @@ fil_create_directory_for_tablename(
 	len = strlen(fil_path_to_mysql_datadir);
 	namend = strchr(name, '/');
 	ut_a(namend);
-	path = mem_alloc(len + (namend - name) + 2);
+	path = static_cast<char*>(mem_alloc(len + (namend - name) + 2));
 
 	memcpy(path, fil_path_to_mysql_datadir, len);
 	path[len] = '/';
@@ -2514,9 +2515,12 @@ fil_make_ibd_name(
 					TEMPORARY table */
 	ibool		is_temp)	/*!< in: TRUE if it is a dir path */
 {
+	char*	filename;
 	ulint	namelen		= strlen(name);
 	ulint	dirlen		= strlen(fil_path_to_mysql_datadir);
-	char*	filename	= mem_alloc(namelen + dirlen + sizeof "/.ibd");
+
+	filename = static_cast<char*>(
+		mem_alloc(namelen + dirlen + sizeof "/.ibd"));
 
 	if (is_temp) {
 		memcpy(filename, name, namelen);
@@ -2709,14 +2713,14 @@ fil_create_new_single_table_tablespace(
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
 {
-	os_file_t		file;
-	ibool			ret;
-	ulint			err;
-	byte*			buf2;
-	byte*			page;
-	char*			path;
-	ibool			success;
-	os_file_create_t	create_mode;
+	os_file_t	file;
+	ibool		ret;
+	ulint		err;
+	byte*		buf2;
+	byte*		page;
+	char*		path;
+	ibool		success;
+	ulint		create_mode;
 
 	ut_a(space_id > 0);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
@@ -2816,9 +2820,9 @@ error_exit2:
 	with zeros from the call of os_file_set_size(), until a buffer pool
 	flush would write to it. */
 
-	buf2 = ut_malloc(3 * UNIV_PAGE_SIZE);
+	buf2 = static_cast<byte*>(ut_malloc(3 * UNIV_PAGE_SIZE));
 	/* Align the memory for file i/o if we might have O_DIRECT set */
-	page = ut_align(buf2, UNIV_PAGE_SIZE);
+	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
 	memset(page, '\0', UNIV_PAGE_SIZE);
 
@@ -2956,9 +2960,9 @@ fil_reset_too_high_lsns(
 
 	/* Read the first page of the tablespace */
 
-	buf2 = ut_malloc(3 * UNIV_PAGE_SIZE);
+	buf2 = static_cast<byte*>(ut_malloc(3 * UNIV_PAGE_SIZE));
 	/* Align the memory for file i/o if we might have O_DIRECT set */
-	page = ut_align(buf2, UNIV_PAGE_SIZE);
+	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
 	success = os_file_read(file, page, 0, UNIV_PAGE_SIZE);
 	if (!success) {
@@ -3152,9 +3156,9 @@ fil_open_single_table_tablespace(
 
 	/* Read the first page of the tablespace */
 
-	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buf2 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 	/* Align the memory for file i/o if we might have O_DIRECT set */
-	page = ut_align(buf2, UNIV_PAGE_SIZE);
+	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
 	success = os_file_read(file, page, 0, UNIV_PAGE_SIZE);
 
@@ -3219,8 +3223,10 @@ fil_make_ibbackup_old_name(
 	const char*	name)		/*!< in: original file name */
 {
 	static const char suffix[] = "_ibbackup_old_vers_";
+	char*	path;
 	ulint	len	= strlen(name);
-	char*	path	= mem_alloc(len + (15 + sizeof suffix));
+
+	path = static_cast<char*>(mem_alloc(len + (15 + sizeof suffix)));
 
 	memcpy(path, name, len);
 	memcpy(path + len, suffix, (sizeof suffix) - 1);
@@ -3251,8 +3257,11 @@ fil_load_single_table_tablespace(
 #ifdef UNIV_HOTBACKUP
 	fil_space_t*	space;
 #endif
-	filepath = mem_alloc(strlen(dbname) + strlen(filename)
-			     + strlen(fil_path_to_mysql_datadir) + 3);
+	filepath = static_cast<char*>(
+		mem_alloc(
+			strlen(dbname)
+			+ strlen(filename)
+			+ strlen(fil_path_to_mysql_datadir) + 3));
 
 	sprintf(filepath, "%s/%s/%s", fil_path_to_mysql_datadir, dbname,
 		filename);
@@ -3384,9 +3393,9 @@ fil_load_single_table_tablespace(
 #endif
 	/* Read the first page of the tablespace if the size is big enough */
 
-	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buf2 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 	/* Align the memory for file i/o if we might have O_DIRECT set */
-	page = ut_align(buf2, UNIV_PAGE_SIZE);
+	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
 	if (size >= FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 		success = os_file_read(file, page, 0, UNIV_PAGE_SIZE);
@@ -3573,7 +3582,7 @@ fil_load_single_table_tablespaces(void)
 		return(DB_ERROR);
 	}
 
-	dbpath = mem_alloc(dbpath_len);
+	dbpath = static_cast<char*>(mem_alloc(dbpath_len));
 
 	/* Scan all directories under the datadir. They are the database
 	directories of MySQL. */
@@ -3602,10 +3611,10 @@ fil_load_single_table_tablespaces(void)
 				mem_free(dbpath);
 			}
 
-			dbpath = mem_alloc(dbpath_len);
+			dbpath = static_cast<char*>(mem_alloc(dbpath_len));
 		}
-		sprintf(dbpath, "%s/%s", fil_path_to_mysql_datadir,
-			dbinfo.name);
+		ut_snprintf(dbpath, dbpath_len,
+			    "%s/%s", fil_path_to_mysql_datadir, dbinfo.name);
 		srv_normalize_path_for_win(dbpath);
 
 		dbdir = os_file_opendir(dbpath, FALSE);
@@ -3759,7 +3768,7 @@ fil_space_for_table_exists_in_mem(
 					matching tablespace is not found from
 					memory */
 {
-	fil_space_t*	namespace;
+	fil_space_t*	fnamespace;
 	fil_space_t*	space;
 	char*		path;
 
@@ -3776,8 +3785,8 @@ fil_space_for_table_exists_in_mem(
 	/* Look if there is a space with the same name; the name is the
 	directory path from the datadir to the file */
 
-	namespace = fil_space_get_by_name(path);
-	if (space && space == namespace) {
+	fnamespace = fil_space_get_by_name(path);
+	if (space && space == fnamespace) {
 		/* Found */
 
 		if (mark_space) {
@@ -3799,7 +3808,7 @@ fil_space_for_table_exists_in_mem(
 	}
 
 	if (space == NULL) {
-		if (namespace == NULL) {
+		if (fnamespace == NULL) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: table ", stderr);
 			ut_print_filename(stderr, name);
@@ -3828,8 +3837,8 @@ fil_space_for_table_exists_in_mem(
 				"InnoDB: a tablespace of name %s and id %lu,"
 				" though. Have\n"
 				"InnoDB: you deleted or moved .ibd files?\n",
-				(ulong) id, namespace->name,
-				(ulong) namespace->id);
+				(ulong) id, fnamespace->name,
+				(ulong) fnamespace->id);
 		}
 error_exit:
 		fputs("InnoDB: Please refer to\n"
@@ -3854,13 +3863,13 @@ error_exit:
 			"InnoDB: Have you deleted or moved .ibd files?\n",
 			(ulong) id, space->name);
 
-		if (namespace != NULL) {
+		if (fnamespace != NULL) {
 			fputs("InnoDB: There is a tablespace"
 			      " with the right name\n"
 			      "InnoDB: ", stderr);
-			ut_print_filename(stderr, namespace->name);
+			ut_print_filename(stderr, fnamespace->name);
 			fprintf(stderr, ", but its id is %lu.\n",
-				(ulong) namespace->id);
+				(ulong) fnamespace->id);
 		}
 
 		goto error_exit;
@@ -3883,7 +3892,7 @@ fil_get_space_id_for_table(
 	const char*	name)	/*!< in: table name in the standard
 				'databasename/tablename' format */
 {
-	fil_space_t*	namespace;
+	fil_space_t*	fnamespace;
 	ulint		id		= ULINT_UNDEFINED;
 	char*		path;
 
@@ -3896,10 +3905,10 @@ fil_get_space_id_for_table(
 	/* Look if there is a space with the same name; the name is the
 	directory path to the file */
 
-	namespace = fil_space_get_by_name(path);
+	fnamespace = fil_space_get_by_name(path);
 
-	if (namespace) {
-		id = namespace->id;
+	if (fnamespace) {
+		id = fnamespace->id;
 	}
 
 	mem_free(path);
@@ -3990,8 +3999,8 @@ retry:
 
 	/* Extend at most 64 pages at a time */
 	buf_size = ut_min(64, size_after_extend - start_page_no) * page_size;
-	buf2 = mem_alloc(buf_size + page_size);
-	buf = ut_align(buf2, page_size);
+	buf2 = static_cast<byte*>(mem_alloc(buf_size + page_size));
+	buf = static_cast<byte*>(ut_align(buf2, page_size));
 
 	memset(buf, 0, buf_size);
 
@@ -4624,10 +4633,10 @@ fil_aio_wait(
 
 	if (fil_node->space->purpose == FIL_TABLESPACE) {
 		srv_set_io_thread_op_info(segment, "complete io for buf page");
-		buf_page_io_complete(message);
+		buf_page_io_complete(static_cast<buf_page_t*>(message));
 	} else {
 		srv_set_io_thread_op_info(segment, "complete io for log");
-		log_io_complete(message);
+		log_io_complete(static_cast<log_group_t*>(message));
 	}
 }
 #endif /* UNIV_HOTBACKUP */
@@ -4774,7 +4783,8 @@ fil_flush_file_spaces(
 	traversed fil_system->unflushed_spaces and called UT_LIST_GET_NEXT()
 	on a space that was just removed from the list by fil_flush().
 	Thus, the space could be dropped and the memory overwritten. */
-	space_ids = mem_alloc(n_space_ids * sizeof *space_ids);
+	space_ids = static_cast<ulint*>(
+		mem_alloc(n_space_ids * sizeof *space_ids));
 
 	n_space_ids = 0;
 
@@ -4819,7 +4829,8 @@ fil_validate(void)
 
 	for (i = 0; i < hash_get_n_cells(fil_system->spaces); i++) {
 
-		space = HASH_GET_FIRST(fil_system->spaces, i);
+		space = static_cast<fil_space_t*>(
+			HASH_GET_FIRST(fil_system->spaces, i));
 
 		while (space != NULL) {
 			UT_LIST_VALIDATE(chain, fil_node_t, space->chain,
@@ -4838,7 +4849,8 @@ fil_validate(void)
 				}
 				fil_node = UT_LIST_GET_NEXT(chain, fil_node);
 			}
-			space = HASH_GET_NEXT(hash, space);
+			space = static_cast<fil_space_t*>(
+				HASH_GET_NEXT(hash, space));
 		}
 	}
 

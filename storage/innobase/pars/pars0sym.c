@@ -49,7 +49,8 @@ sym_tab_create(
 {
 	sym_tab_t*	sym_tab;
 
-	sym_tab = mem_heap_alloc(heap, sizeof(sym_tab_t));
+	sym_tab = static_cast<sym_tab_t*>(
+		mem_heap_alloc(heap, sizeof(sym_tab_t)));
 
 	UT_LIST_INIT(sym_tab->sym_list);
 	UT_LIST_INIT(sym_tab->func_node_list);
@@ -122,7 +123,8 @@ sym_tab_add_int_lit(
 	sym_node_t*	node;
 	byte*		data;
 
-	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
+	node = static_cast<sym_node_t*>(
+		mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t)));
 
 	node->common.type = QUE_NODE_SYMBOL;
 
@@ -134,7 +136,7 @@ sym_tab_add_int_lit(
 
 	dtype_set(dfield_get_type(&node->common.val), DATA_INT, 0, 4);
 
-	data = mem_heap_alloc(sym_tab->heap, 4);
+	data = static_cast<byte*>(mem_heap_alloc(sym_tab->heap, 4));
 	mach_write_to_4(data, val);
 
 	dfield_set_data(&(node->common.val), data, 4);
@@ -165,7 +167,8 @@ sym_tab_add_str_lit(
 	sym_node_t*	node;
 	byte*		data;
 
-	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
+	node = static_cast<sym_node_t*>(
+		mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t)));
 
 	node->common.type = QUE_NODE_SYMBOL;
 
@@ -178,12 +181,8 @@ sym_tab_add_str_lit(
 	dtype_set(dfield_get_type(&node->common.val),
 		  DATA_VARCHAR, DATA_ENGLISH, 0);
 
-	if (len) {
-		data = mem_heap_alloc(sym_tab->heap, len);
-		ut_memcpy(data, str, len);
-	} else {
-		data = NULL;
-	}
+	data = (len) ? static_cast<byte*>(mem_heap_dup(sym_tab->heap, str, len))
+	      	     : NULL;
 
 	dfield_set_data(&(node->common.val), data, len);
 
@@ -216,7 +215,8 @@ sym_tab_add_bound_lit(
 	blit = pars_info_get_bound_lit(sym_tab->info, name);
 	ut_a(blit);
 
-	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
+	node = static_cast<sym_node_t*>(
+		mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t)));
 
 	node->common.type = QUE_NODE_SYMBOL;
 
@@ -286,7 +286,8 @@ sym_tab_add_null_lit(
 {
 	sym_node_t*	node;
 
-	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
+	node = static_cast<sym_node_t*>(
+		mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t)));
 
 	node->common.type = QUE_NODE_SYMBOL;
 
@@ -324,7 +325,8 @@ sym_tab_add_id(
 {
 	sym_node_t*	node;
 
-	node = mem_heap_zalloc(sym_tab->heap, sizeof(*node));
+	node = static_cast<sym_node_t*>(
+		mem_heap_zalloc(sym_tab->heap, sizeof(*node)));
 
 	node->common.type = QUE_NODE_SYMBOL;
 
@@ -356,7 +358,8 @@ sym_tab_add_bound_id(
 	bid = pars_info_get_bound_id(sym_tab->info, name);
 	ut_a(bid);
 
-	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
+	node = static_cast<sym_node_t*>(
+		mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t)));
 
 	node->common.type = QUE_NODE_SYMBOL;
 

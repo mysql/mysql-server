@@ -867,7 +867,7 @@ sync_print_warning(
 {
 	mutex_t*	mutex;
 
-	mutex = slot->latch;
+	mutex = static_cast<mutex_t*>(slot->latch);
 
 	if (mutex->magic_n == MUTEX_MAGIC_N) {
 		fprintf(stderr,
@@ -892,7 +892,9 @@ sync_print_warning(
 			fputs("Not locked\n", stderr);
 		}
 	} else {
-		rw_lock_t*	lock = slot->latch;
+		rw_lock_t*	lock;
+
+		lock = static_cast<rw_lock_t*>(slot->latch);
 
 		rw_lock_print(lock);
 	}
@@ -1171,7 +1173,7 @@ sync_thread_add_level(
 		   + (sizeof(*array->elems) * SYNC_THREAD_N_LEVELS);
 
 		/* We have to allocate the level array for a new thread */
-		array = calloc(sz, sizeof(char));
+		array = static_cast<sync_arr_t*>(calloc(sz, sizeof(char)));
 		ut_a(array != NULL);
 
 		array->next_free = ULINT_UNDEFINED;
@@ -1515,8 +1517,9 @@ sync_init(void)
 	/* Create the thread latch level array where the latch levels
 	are stored for each OS thread */
 
-	sync_thread_level_arrays = calloc(
-		sizeof(sync_thread_t), OS_THREAD_MAX_N);
+	sync_thread_level_arrays = static_cast<sync_thread_t*>(
+		calloc(sizeof(sync_thread_t), OS_THREAD_MAX_N));
+
 	ut_a(sync_thread_level_arrays != NULL);
 
 #endif /* UNIV_SYNC_DEBUG */

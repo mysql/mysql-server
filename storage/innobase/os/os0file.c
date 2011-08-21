@@ -1002,7 +1002,8 @@ next_file:
 
 	strcpy(info->name, ent->d_name);
 
-	full_path = ut_malloc(strlen(dirname) + strlen(ent->d_name) + 10);
+	full_path = static_cast<char*>(
+		ut_malloc(strlen(dirname) + strlen(ent->d_name) + 10));
 
 	sprintf(full_path, "%s/%s", dirname, ent->d_name);
 
@@ -1108,8 +1109,7 @@ os_file_create_simple_func(
 /*=======================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: create mode */
+	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
 	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
@@ -1251,8 +1251,7 @@ os_file_create_simple_no_error_handling_func(
 /*=========================================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: create mode */
+	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY,
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
@@ -1414,8 +1413,7 @@ os_file_create_func(
 /*================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_create_t
-			create_mode,/*!< in: create mode */
+	ulint		create_mode,/*!< in: create mode */
 	ulint		purpose,/*!< in: OS_FILE_AIO, if asynchronous,
 				non-buffered i/o is desired,
 				OS_FILE_NORMAL, if any normal file;
@@ -1956,10 +1954,10 @@ os_file_set_size(
 	/* Write up to 1 megabyte at a time. */
 	buf_size = ut_min(64, (ulint) (size / UNIV_PAGE_SIZE))
 		* UNIV_PAGE_SIZE;
-	buf2 = ut_malloc(buf_size + UNIV_PAGE_SIZE);
+	buf2 = static_cast<byte*>(ut_malloc(buf_size + UNIV_PAGE_SIZE));
 
 	/* Align the buffer for possible raw i/o */
-	buf = ut_align(buf2, UNIV_PAGE_SIZE);
+	buf = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
 	/* Write buffer full of zeros */
 	memset(buf, 0, buf_size);
@@ -3226,7 +3224,7 @@ os_aio_array_create(
 	ut_a(n > 0);
 	ut_a(n_segments > 0);
 
-	array = ut_malloc(sizeof(os_aio_array_t));
+	array = static_cast<os_aio_array_t*>(ut_malloc(sizeof(os_aio_array_t)));
 
 	array->mutex		= os_mutex_create();
 	array->not_full		= os_event_create(NULL);
@@ -3238,9 +3236,11 @@ os_aio_array_create(
 	array->n_segments	= n_segments;
 	array->n_reserved	= 0;
 	array->cur_seg		= 0;
-	array->slots		= ut_malloc(n * sizeof(os_aio_slot_t));
+
+	array->slots = static_cast<os_aio_slot_t*>(
+		ut_malloc(n * sizeof(os_aio_slot_t)));
 #ifdef __WIN__
-	array->handles		= ut_malloc(n * sizeof(HANDLE));
+	array->handles = static_cast<HANDLE*>(ut_malloc(n * sizeof(HANDLE)));
 #endif
 
 #if defined(LINUX_NATIVE_AIO)
@@ -3256,8 +3256,9 @@ os_aio_array_create(
 	/* Initialize the io_context array. One io_context
 	per segment in the array. */
 
-	array->aio_ctx = ut_malloc(n_segments *
-				   sizeof(*array->aio_ctx));
+	array->aio_ctx = static_cast<io_context**>(
+		ut_malloc(n_segments * sizeof(*array->aio_ctx)));
+
 	for (i = 0; i < n_segments; ++i) {
 		if (!os_aio_linux_create_io_ctx(n/n_segments,
 					   &array->aio_ctx[i])) {
@@ -3272,7 +3273,9 @@ os_aio_array_create(
 	}
 
 	/* Initialize the event array. One event per slot. */
-	io_event = ut_malloc(n * sizeof(*io_event));
+	io_event = static_cast<struct io_event*>(
+		ut_malloc(n * sizeof(*io_event)));
+
 	memset(io_event, 0x0, sizeof(*io_event) * n);
 	array->aio_events = io_event;
 
@@ -3416,7 +3419,8 @@ os_aio_init(
 
 	os_aio_validate();
 
-	os_aio_segment_wait_events = ut_malloc(n_segments * sizeof(void*));
+	os_aio_segment_wait_events = static_cast<os_event_struct_t**>(
+		ut_malloc(n_segments * sizeof(void*)));
 
 	for (i = 0; i < n_segments; i++) {
 		os_aio_segment_wait_events[i] = os_event_create(NULL);
@@ -3705,7 +3709,7 @@ found:
 	slot->name     = name;
 	slot->len      = len;
 	slot->type     = type;
-	slot->buf      = buf;
+	slot->buf      = static_cast<byte*>(buf);
 	slot->offset   = offset;
 	slot->io_already_done = FALSE;
 
@@ -4817,11 +4821,13 @@ consecutive_loop:
 		combined_buf = slot->buf;
 		combined_buf2 = NULL;
 	} else {
-		combined_buf2 = ut_malloc(total_len + UNIV_PAGE_SIZE);
+		combined_buf2 = static_cast<byte*>(
+			ut_malloc(total_len + UNIV_PAGE_SIZE));
 
 		ut_a(combined_buf2);
 
-		combined_buf = ut_align(combined_buf2, UNIV_PAGE_SIZE);
+		combined_buf = static_cast<byte*>(
+			ut_align(combined_buf2, UNIV_PAGE_SIZE));
 	}
 
 	/* We release the array mutex for the time of the i/o: NOTE that

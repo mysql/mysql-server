@@ -19,6 +19,8 @@ INCLUDE(CheckFunctionExists)
 INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCSourceRuns)
 
+SET(CMAKE_C_COMPILER ${CMAKE_CXX_COMPILER})
+
 # OS tests
 IF(UNIX)
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -39,14 +41,12 @@ IF(UNIX)
 ENDIF()
 
 # Enable InnoDB's UNIV_DEBUG for debug builds
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DUNIV_DEBUG")
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG")
 
 # Add -Wconversion if compiling with GCC
 ## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
 ## please fix them and enable the following code:
-#IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
-#  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wconversion")
+#IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 #  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
 #ENDIF()
 
@@ -204,8 +204,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler)
 
 # Sun Studio bug with -xO2
-IF(CMAKE_C_COMPILER_ID MATCHES "SunPro" 
-	AND CMAKE_C_FLAGS_RELEASE MATCHES "O2" 
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro" 
+	AND CMAKE_CXX_FLAGS_RELEASE MATCHES "O2" 
 	AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
 	# Sun Studio 12 crashes with -xO2 flag, but not with higher optimization
 	# -xO3

@@ -131,7 +131,7 @@ buf_buddy_alloc_zip(
 		buf_buddy_remove_from_free(buf_pool, bpage, i);
 	} else if (i + 1 < BUF_BUDDY_SIZES) {
 		/* Attempt to split. */
-		bpage = buf_buddy_alloc_zip(buf_pool, i + 1);
+		bpage = (buf_page_t*) buf_buddy_alloc_zip(buf_pool, i + 1);
 
 		if (bpage) {
 			buf_page_t*	buddy = (buf_page_t*)
@@ -283,7 +283,7 @@ buf_buddy_alloc_low(
 
 	if (i < BUF_BUDDY_SIZES) {
 		/* Try to allocate from the buddy system. */
-		block = buf_buddy_alloc_zip(buf_pool, i);
+		block = (buf_block_t*) buf_buddy_alloc_zip(buf_pool, i);
 
 		if (block) {
 			goto func_exit;
@@ -307,7 +307,7 @@ buf_buddy_alloc_low(
 alloc_big:
 	buf_buddy_block_register(block);
 
-	block = buf_buddy_alloc_from(
+	block = (buf_block_t*) buf_buddy_alloc_from(
 		buf_pool, block->frame, i, BUF_BUDDY_SIZES);
 
 func_exit:
@@ -399,7 +399,7 @@ buf_buddy_relocate(
 		/* Relocate the compressed page. */
 		ut_a(bpage->zip.data == src);
 		memcpy(dst, src, size);
-		bpage->zip.data = dst;
+		bpage->zip.data = (page_zip_t*) dst;
 		mutex_exit(mutex);
 		UNIV_MEM_INVALID(src, size);
 		{
@@ -521,7 +521,7 @@ buddy_nonfree:
 
 func_exit:
 	/* Free the block to the buddy list. */
-	bpage = buf;
+	bpage = (buf_page_t*) buf;
 
 	/* Fill large blocks with a constant pattern. */
 	ut_d(memset(bpage, i, BUF_BUDDY_LOW << i));

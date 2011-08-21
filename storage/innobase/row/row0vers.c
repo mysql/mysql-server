@@ -559,8 +559,9 @@ row_vers_build_for_consistent_read(
 					     version, *offsets));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
-				buf = mem_heap_alloc(in_heap,
-						     rec_offs_size(*offsets));
+				buf = static_cast<byte*>(mem_heap_alloc(
+					in_heap, rec_offs_size(*offsets)));
+
 				*old_vers = rec_copy(buf, version, *offsets);
 				rec_offs_make_valid(*old_vers, index,
 						    *offsets);
@@ -603,7 +604,10 @@ row_vers_build_for_consistent_read(
 			/* The view already sees this version: we can copy
 			it to in_heap and return */
 
-			buf = mem_heap_alloc(in_heap, rec_offs_size(*offsets));
+			buf = static_cast<byte*>(
+				mem_heap_alloc(
+					in_heap, rec_offs_size(*offsets)));
+
 			*old_vers = rec_copy(buf, prev_version, *offsets);
 			rec_offs_make_valid(*old_vers, index, *offsets);
 			err = DB_SUCCESS;
@@ -718,7 +722,10 @@ row_vers_build_for_semi_consistent_read(
 							   offset_heap);
 			}
 
-			buf = mem_heap_alloc(in_heap, rec_offs_size(*offsets));
+			buf = static_cast<byte*>(
+				mem_heap_alloc(
+					in_heap, rec_offs_size(*offsets)));
+
 			*old_vers = rec_copy(buf, version, *offsets);
 			rec_offs_make_valid(*old_vers, index, *offsets);
 			err = DB_SUCCESS;

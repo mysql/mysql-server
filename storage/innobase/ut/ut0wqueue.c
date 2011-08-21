@@ -33,7 +33,7 @@ ib_wqueue_t*
 ib_wqueue_create(void)
 /*===================*/
 {
-	ib_wqueue_t*	wq = mem_alloc(sizeof(ib_wqueue_t));
+	ib_wqueue_t*	wq = static_cast<ib_wqueue_t*>(mem_alloc(sizeof(*wq)));
 
 	/* Function ib_wqueue_create() has not been used anywhere,
 	not necessary to instrument this mutex */

@@ -762,7 +762,7 @@ dict_init(void)
 {
 	int	i;
 
-	dict_sys = mem_zalloc(sizeof(dict_sys_t));
+	dict_sys = static_cast<dict_sys_t*>(mem_zalloc(sizeof(*dict_sys)));
 
 	mutex_create(dict_sys_mutex_key, &dict_sys->mutex, SYNC_DICT);
 
@@ -1371,7 +1371,9 @@ dict_table_rename_in_cache(
 		memory fragmentation, we assume a repeated calls of
 		ut_realloc() with the same size do not cause fragmentation */
 		ut_a(strlen(new_name) <= MAX_FULL_NAME_LEN);
-		table->name = ut_realloc(table->name, MAX_FULL_NAME_LEN + 1);
+
+		table->name = static_cast<char*>(
+			ut_realloc(table->name, MAX_FULL_NAME_LEN + 1));
 	}
 	memcpy(table->name, new_name, strlen(new_name) + 1);
 
@@ -1463,10 +1465,11 @@ dict_table_rename_in_cache(
 				/* This is a generated >= 4.0.18 format id */
 
 				if (strlen(table->name) > strlen(old_name)) {
-					foreign->id = mem_heap_alloc(
+					foreign->id = static_cast<char*>(
+						mem_heap_alloc(
 						foreign->heap,
 						strlen(table->name)
-						+ strlen(old_id) + 1);
+						+ strlen(old_id) + 1));
 				}
 
 				/* Replace the prefix 'databasename/tablename'
@@ -1482,9 +1485,10 @@ dict_table_rename_in_cache(
 				if (dict_get_db_name_len(table->name)
 				    > dict_get_db_name_len(foreign->id)) {
 
-					foreign->id = mem_heap_alloc(
+					foreign->id = static_cast<char*>(
+						mem_heap_alloc(
 						foreign->heap,
-						db_len + strlen(old_id) + 1);
+						db_len + strlen(old_id) + 1));
 				}
 
 				/* Replace the database prefix in id with the
@@ -2103,20 +2107,23 @@ undo_size_ok:
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
-		new_index->stat_n_diff_key_vals = mem_heap_alloc(
+		new_index->stat_n_diff_key_vals =
+			static_cast<ib_uint64_t*>(mem_heap_alloc(
 			new_index->heap,
 			(1 + dict_index_get_n_unique(new_index))
-			* sizeof(*new_index->stat_n_diff_key_vals));
+			* sizeof(*new_index->stat_n_diff_key_vals)));
 
-		new_index->stat_n_sample_sizes = mem_heap_alloc(
+		new_index->stat_n_sample_sizes =
+			static_cast<ib_uint64_t*>(mem_heap_alloc(
 			new_index->heap,
 			(1 + dict_index_get_n_unique(new_index))
-			* sizeof(*new_index->stat_n_sample_sizes));
+			* sizeof(*new_index->stat_n_sample_sizes)));
 
-		new_index->stat_n_non_null_key_vals = mem_heap_zalloc(
+		new_index->stat_n_non_null_key_vals =
+			static_cast<ib_uint64_t*>(mem_heap_zalloc(
 			new_index->heap,
 			(1 + dict_index_get_n_unique(new_index))
-			* sizeof(*new_index->stat_n_non_null_key_vals));
+			* sizeof(*new_index->stat_n_non_null_key_vals)));
 
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
@@ -2514,7 +2521,8 @@ dict_index_build_internal_clust(
 	}
 
 	/* Remember the table columns already contained in new_index */
-	indexed = mem_zalloc(table->n_cols * sizeof *indexed);
+	indexed = static_cast<ibool*>(
+		mem_zalloc(table->n_cols * sizeof *indexed));
 
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -2598,7 +2606,8 @@ dict_index_build_internal_non_clust(
 	dict_index_copy(new_index, index, table, 0, index->n_fields);
 
 	/* Remember the table columns already contained in new_index */
-	indexed = mem_zalloc(table->n_cols * sizeof *indexed);
+	indexed = static_cast<ibool*>(
+		mem_zalloc(table->n_cols * sizeof *indexed));
 
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -3302,7 +3311,10 @@ dict_scan_id(
 
 	if (quote) {
 		char*	d;
-		str = d = mem_heap_alloc(heap, len + 1);
+
+		str = d = static_cast<char*>(
+			mem_heap_alloc(heap, len + 1));
+
 		while (len--) {
 			if ((*d++ = *s++) == quote) {
 				s++;
@@ -3321,7 +3333,7 @@ convert_id:
 		/* Convert the identifier from connection character set
 		to UTF-8. */
 		len = 3 * len + 1;
-		*id = dst = mem_heap_alloc(heap, len);
+		*id = dst = static_cast<char*>(mem_heap_alloc(heap, len));
 
 		innobase_convert_from_id(cs, dst, str, len);
 	} else if (!strncmp(str, srv_mysql50_table_name_prefix,
@@ -3335,7 +3347,7 @@ convert_id:
 	} else {
 		/* Encode using filename-safe characters. */
 		len = 5 * len + 1;
-		*id = dst = mem_heap_alloc(heap, len);
+		*id = dst = static_cast<char*>(mem_heap_alloc(heap, len));
 
 		innobase_convert_from_table_id(cs, dst, str, len);
 	}
@@ -3473,7 +3485,9 @@ dict_scan_table_name(
 	table_name_len = strlen(table_name);
 
 	/* Copy database_name, '/', table_name, '\0' */
-	ref = mem_heap_alloc(heap, database_name_len + table_name_len + 2);
+	ref = static_cast<char*>(
+		mem_heap_alloc(heap, database_name_len + table_name_len + 2));
+
 	memcpy(ref, database_name, database_name_len);
 	ref[database_name_len] = '/';
 	memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
@@ -3546,7 +3560,7 @@ dict_strip_comments(
 	/* unclosed quote character (0 if none) */
 	char		quote	= 0;
 
-	str = mem_alloc(sql_length + 1);
+	str = static_cast<char*>(mem_alloc(sql_length + 1));
 
 	sptr = sql_string;
 	ptr = str;
@@ -3975,8 +3989,8 @@ col_loop1:
 
 		db_len = dict_get_db_name_len(table->name);
 
-		foreign->id = mem_heap_alloc(
-			foreign->heap, db_len + strlen(constraint_name) + 2);
+		foreign->id = static_cast<char*>(mem_heap_alloc(
+			foreign->heap, db_len + strlen(constraint_name) + 2));
 
 		ut_memcpy(foreign->id, table->name, db_len);
 		foreign->id[db_len] = '/';
@@ -3990,8 +4004,10 @@ col_loop1:
 
 	foreign->foreign_index = index;
 	foreign->n_fields = (unsigned int) i;
-	foreign->foreign_col_names = mem_heap_alloc(foreign->heap,
-						    i * sizeof(void*));
+
+	foreign->foreign_col_names = static_cast<const char**>(
+		mem_heap_alloc(foreign->heap, i * sizeof(void*)));
+
 	for (i = 0; i < foreign->n_fields; i++) {
 		foreign->foreign_col_names[i] = mem_heap_strdup(
 			foreign->heap,
@@ -4248,8 +4264,9 @@ try_find_index:
 		foreign->heap, referenced_table_name);
 	dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
 
-	foreign->referenced_col_names = mem_heap_alloc(foreign->heap,
-						       i * sizeof(void*));
+	foreign->referenced_col_names = static_cast<const char**>(
+		mem_heap_alloc(foreign->heap, i * sizeof(void*)));
+
 	for (i = 0; i < foreign->n_fields; i++) {
 		foreign->referenced_col_names[i]
 			= mem_heap_strdup(foreign->heap, column_names[i]);
@@ -4349,7 +4366,8 @@ dict_foreign_parse_drop_constraints(
 
 	*n = 0;
 
-	*constraints_to_drop = mem_heap_alloc(heap, 1000 * sizeof(char*));
+	*constraints_to_drop = static_cast<const char**>(
+		mem_heap_alloc(heap, 1000 * sizeof(char*)));
 
 	ptr = innobase_get_stmt(trx->mysql_thd, &len);
 
@@ -4566,7 +4584,7 @@ dict_index_build_node_ptr(
 
 	dict_index_copy_types(tuple, index, n_unique);
 
-	buf = mem_heap_alloc(heap, 4);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
 
 	mach_write_to_4(buf, page_no);
 
@@ -5219,12 +5237,12 @@ dict_set_corrupted(
 	tuple = dtuple_create(heap, 2);
 
 	dfield = dtuple_get_nth_field(tuple, 0);
-	buf = mem_heap_alloc(heap, 8);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(buf, index->table->id);
 	dfield_set_data(dfield, buf, 8);
 
 	dfield = dtuple_get_nth_field(tuple, 1);
-	buf = mem_heap_alloc(heap, 8);
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
 	mach_write_to_8(buf, index->id);
 	dfield_set_data(dfield, buf, 8);
 
@@ -5643,12 +5661,14 @@ dict_close(void)
 	for (i = 0; i < hash_get_n_cells(dict_sys->table_hash); i++) {
 		dict_table_t*	table;
 
-		table = HASH_GET_FIRST(dict_sys->table_hash, i);
+		table = static_cast<dict_table_t*>(
+			HASH_GET_FIRST(dict_sys->table_hash, i));
 
 		while (table) {
 			dict_table_t*	prev_table = table;
 
-			table = HASH_GET_NEXT(name_hash, prev_table);
+			table = static_cast<dict_table_t*>(
+				HASH_GET_NEXT(name_hash, prev_table));
 #ifdef UNIV_DEBUG
 			ut_a(prev_table->magic_n == DICT_TABLE_MAGIC_N);
 #endif

@@ -282,10 +282,14 @@ srv_parse_data_file_paths_and_sizes(
 		return(FALSE);
 	}
 
-	srv_data_file_names = malloc(i * sizeof *srv_data_file_names);
-	srv_data_file_sizes = malloc(i * sizeof *srv_data_file_sizes);
-	srv_data_file_is_raw_partition = malloc(
-		i * sizeof *srv_data_file_is_raw_partition);
+	srv_data_file_names = static_cast<char**>(
+		malloc(i * sizeof *srv_data_file_names));
+
+	srv_data_file_sizes = static_cast<ulint*>(
+		malloc(i * sizeof *srv_data_file_sizes));
+
+	srv_data_file_is_raw_partition = static_cast<ulint*>(
+		malloc(i * sizeof *srv_data_file_is_raw_partition));
 
 	srv_n_data_files = i;
 
@@ -415,7 +419,8 @@ srv_parse_log_group_home_dirs(
 		return(FALSE);
 	}
 
-	srv_log_group_home_dirs = malloc(i * sizeof *srv_log_group_home_dirs);
+	srv_log_group_home_dirs = static_cast<char**>(
+		malloc(i * sizeof *srv_log_group_home_dirs));
 
 	/* Then store the actual values to our array */
 
@@ -1558,9 +1563,12 @@ innobase_start_or_create_for_mysql(void)
 		     &srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
 
 	if (srv_innodb_status) {
-		srv_monitor_file_name = mem_alloc(
-			strlen(fil_path_to_mysql_datadir)
-			+ 20 + sizeof "/innodb_status.");
+
+		srv_monitor_file_name = static_cast<char*>(
+			mem_alloc(
+				strlen(fil_path_to_mysql_datadir)
+				+ 20 + sizeof "/innodb_status."));
+
 		sprintf(srv_monitor_file_name, "%s/innodb_status.%lu",
 			fil_path_to_mysql_datadir, os_proc_get_number());
 		srv_monitor_file = fopen(srv_monitor_file_name, "w+");

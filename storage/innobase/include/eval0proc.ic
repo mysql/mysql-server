@@ -40,7 +40,7 @@ proc_step(
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = static_cast<proc_node_t*>(thr->run_node);
 	ut_ad(que_node_get_type(node) == QUE_NODE_PROC);
 
 	if (thr->prev_node == que_node_get_parent(node)) {
@@ -75,7 +75,7 @@ proc_eval_step(
 
 	ut_ad(thr);
 
-	node = thr->run_node;
+	node = static_cast<func_node_t*>(thr->run_node);
 	ut_ad(que_node_get_type(node) == QUE_NODE_FUNC);
 
 	/* Evaluate the procedure */

@@ -230,7 +230,9 @@ buf_dump(
 			continue;
 		}
 
-		dump = ut_malloc(n_pages * sizeof(*dump));
+		dump = static_cast<buf_dump_t*>(
+			ut_malloc(n_pages * sizeof(*dump))) ;
+
 		if (dump == NULL) {
 			buf_pool_mutex_exit(buf_pool);
 			fclose(f);
@@ -433,7 +435,8 @@ buf_load()
 		dump_n = total_buffer_pools_pages;
 	}
 
-	dump = ut_malloc(dump_n * sizeof(*dump));
+	dump = static_cast<buf_dump_t*>(ut_malloc(dump_n * sizeof(*dump)));
+
 	if (dump == NULL) {
 		fclose(f);
 		buf_load_status(STATUS_ERR,
@@ -443,7 +446,9 @@ buf_load()
 		return;
 	}
 
-	dump_tmp = ut_malloc(dump_n * sizeof(*dump_tmp));
+	dump_tmp = static_cast<buf_dump_t*>(
+		ut_malloc(dump_n * sizeof(*dump_tmp)));
+
 	if (dump_tmp == NULL) {
 		ut_free(dump);
 		fclose(f);

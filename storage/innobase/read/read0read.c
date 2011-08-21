@@ -232,7 +232,9 @@ read_view_create_low(
 {
 	read_view_t*	view;
 
-	view = mem_heap_alloc(heap, sizeof(*view) + n * sizeof(*view->trx_ids));
+	view = static_cast<read_view_t*>(
+		mem_heap_alloc(
+			heap, sizeof(*view) + n * sizeof(*view->trx_ids)));
 
 	view->n_trx_ids = n;
 	view->trx_ids = (trx_id_t*) &view[1];
@@ -266,7 +268,8 @@ read_view_clone(
 
 	/* Add an extra trx_id_t slot for the new view. */
 
-	clone = mem_heap_alloc(heap, (sz * 2) + sizeof(trx_id_t));
+	clone = static_cast<read_view_t*>(
+		mem_heap_alloc(heap, (sz * 2) + sizeof(trx_id_t)));
 
 	/* Only the contents of the old view are important, the new view
 	will be created from this and so we don't copy that across. */

@@ -962,7 +962,9 @@ trx_undo_update_rec_get_update(
 	/* Store first trx id and roll ptr to update vector */
 
 	upd_field = upd_get_nth_field(update, n_fields);
-	buf = mem_heap_alloc(heap, DATA_TRX_ID_LEN);
+
+	buf = static_cast<byte*>(mem_heap_alloc(heap, DATA_TRX_ID_LEN));
+
 	trx_write_trx_id(buf, trx_id);
 
 	upd_field_set_field_no(upd_field,
@@ -971,7 +973,9 @@ trx_undo_update_rec_get_update(
 	dfield_set_data(&(upd_field->new_val), buf, DATA_TRX_ID_LEN);
 
 	upd_field = upd_get_nth_field(update, n_fields + 1);
-	buf = mem_heap_alloc(heap, DATA_ROLL_PTR_LEN);
+
+	buf = static_cast<byte*>(mem_heap_alloc(heap, DATA_ROLL_PTR_LEN));
+
 	trx_write_roll_ptr(buf, roll_ptr);
 
 	upd_field_set_field_no(
@@ -1565,13 +1569,17 @@ trx_undo_prev_version_build(
 		following call is safe. */
 		row_upd_index_replace_new_col_vals(entry, index, update, heap);
 
-		buf = mem_heap_alloc(heap, rec_get_converted_size(index, entry,
-								  n_ext));
+		buf = static_cast<byte*>(
+			mem_heap_alloc(
+				heap,
+				rec_get_converted_size(index, entry, n_ext)));
 
 		*old_vers = rec_convert_dtuple_to_rec(buf, index,
 						      entry, n_ext);
 	} else {
-		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
+		buf = static_cast<byte*>(
+			mem_heap_alloc(heap, rec_offs_size(offsets)));
+
 		*old_vers = rec_copy(buf, rec, offsets);
 		rec_offs_make_valid(*old_vers, index, offsets);
 		row_upd_rec_in_place(*old_vers, index, offsets, update, NULL);

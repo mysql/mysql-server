@@ -186,7 +186,7 @@ trx_rseg_mem_create(
 	trx_ulogf_t*	undo_log_hdr;
 	ulint		sum_of_undo_sizes;
 
-	rseg = mem_zalloc(sizeof(trx_rseg_t));
+	rseg = static_cast<trx_rseg_t*>(mem_zalloc(sizeof(trx_rseg_t)));
 
 	rseg->id = id;
 	rseg->space = space;

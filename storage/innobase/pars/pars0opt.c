@@ -96,7 +96,7 @@ opt_check_exp_determined_before(
 	ut_ad(exp && sel_node);
 
 	if (que_node_get_type(exp) == QUE_NODE_FUNC) {
-		func_node = exp;
+		func_node = static_cast<func_node_t*>(exp);
 
 		arg = func_node->args;
 
@@ -114,7 +114,7 @@ opt_check_exp_determined_before(
 
 	ut_a(que_node_get_type(exp) == QUE_NODE_SYMBOL);
 
-	sym_node = exp;
+	sym_node = static_cast<sym_node_t*>(exp);
 
 	if (sym_node->token_type != SYM_COLUMN) {
 
@@ -185,7 +185,7 @@ opt_look_for_col_in_comparison_before(
 	arg = search_cond->args;
 
 	if (que_node_get_type(arg) == QUE_NODE_SYMBOL) {
-		sym_node = arg;
+		sym_node = static_cast<sym_node_t*>(arg);
 
 		if ((sym_node->token_type == SYM_COLUMN)
 		    && (sym_node->table == table)
@@ -211,7 +211,7 @@ opt_look_for_col_in_comparison_before(
 	arg = que_node_get_next(arg);
 
 	if (que_node_get_type(arg) == QUE_NODE_SYMBOL) {
-		sym_node = arg;
+		sym_node = static_cast<sym_node_t*>(arg);
 
 		if ((sym_node->token_type == SYM_COLUMN)
 		    && (sym_node->table == table)
@@ -262,7 +262,7 @@ opt_look_for_col_in_cond_before(
 	ut_a(search_cond->func != PARS_NOT_TOKEN);
 
 	if (search_cond->func == PARS_AND_TOKEN) {
-		new_cond = search_cond->args;
+		new_cond = static_cast<func_node_t*>(search_cond->args);
 
 		exp = opt_look_for_col_in_cond_before(cmp_type, col_no,
 						      new_cond, sel_node,
@@ -272,7 +272,8 @@ opt_look_for_col_in_cond_before(
 			return(exp);
 		}
 
-		new_cond = que_node_get_next(new_cond);
+		new_cond = static_cast<func_node_t*>(
+			que_node_get_next(new_cond));
 
 		exp = opt_look_for_col_in_cond_before(cmp_type, col_no,
 						      new_cond, sel_node,
@@ -346,7 +347,8 @@ opt_calc_index_goodness(
 		col_no = dict_index_get_nth_col_no(index, j);
 
 		exp = opt_look_for_col_in_cond_before(
-			OPT_EQUAL, col_no, sel_node->search_cond,
+			OPT_EQUAL, col_no,
+			static_cast<func_node_t*>(sel_node->search_cond),
 			sel_node, nth_table, &op);
 		if (exp) {
 			/* The value for this column is exactly known already
@@ -359,7 +361,9 @@ opt_calc_index_goodness(
 			/* Look for non-equality comparisons */
 
 			exp = opt_look_for_col_in_cond_before(
-				OPT_COMPARISON, col_no, sel_node->search_cond,
+				OPT_COMPARISON, col_no,
+				static_cast<func_node_t*>(
+					sel_node->search_cond),
 				sel_node, nth_table, &op);
 			if (exp) {
 				index_plan[j] = exp;
@@ -583,8 +587,10 @@ opt_search_plan_for_table(
 					    n_fields);
 		dict_index_copy_types(plan->tuple, plan->index, n_fields);
 
-		plan->tuple_exps = mem_heap_alloc(pars_sym_tab_global->heap,
-						  n_fields * sizeof(void*));
+		plan->tuple_exps = static_cast<que_node_t**>(
+			mem_heap_alloc(
+				pars_sym_tab_global->heap,
+				n_fields * sizeof(void*)));
 
 		ut_memcpy(plan->tuple_exps, best_index_plan,
 			  n_fields * sizeof(void*));
@@ -717,7 +723,7 @@ opt_find_test_conds(
 					conditions or NULL */
 {
 	func_node_t*	new_cond;
-	ulint		class;
+	ulint		fclass;
 	plan_t*		plan;
 
 	if (cond == NULL) {
@@ -726,11 +732,12 @@ opt_find_test_conds(
 	}
 
 	if (cond->func == PARS_AND_TOKEN) {
-		new_cond = cond->args;
+		new_cond = static_cast<func_node_t*>(cond->args);
 
 		opt_find_test_conds(sel_node, i, new_cond);
 
-		new_cond = que_node_get_next(new_cond);
+		new_cond = static_cast<func_node_t*>(
+			que_node_get_next(new_cond));
 
 		opt_find_test_conds(sel_node, i, new_cond);
 
@@ -739,12 +746,12 @@ opt_find_test_conds(
 
 	plan = sel_node_get_nth_plan(sel_node, i);
 
-	class = opt_classify_comparison(sel_node, i, cond);
+	fclass = opt_classify_comparison(sel_node, i, cond);
 
-	if (class == OPT_END_COND) {
+	if (fclass == OPT_END_COND) {
 		UT_LIST_ADD_LAST(cond_list, plan->end_conds, cond);
 
-	} else if (class == OPT_TEST_COND) {
+	} else if (fclass == OPT_TEST_COND) {
 		UT_LIST_ADD_LAST(cond_list, plan->other_conds, cond);
 
 	}
@@ -772,7 +779,7 @@ opt_normalize_cmp_conds(
 
 		if (que_node_get_type(arg2) == QUE_NODE_SYMBOL) {
 
-			sym_node = arg2;
+			sym_node = static_cast<sym_node_t*>(arg2);
 
 			if ((sym_node->token_type == SYM_COLUMN)
 			    && (sym_node->table == table)) {
@@ -812,7 +819,10 @@ opt_determine_and_normalize_test_conds(
 
 	/* Recursively go through the conjuncts and classify them */
 
-	opt_find_test_conds(sel_node, i, sel_node->search_cond);
+	opt_find_test_conds(
+		sel_node,
+		i,
+		static_cast<func_node_t*>(sel_node->search_cond));
 
 	opt_normalize_cmp_conds(UT_LIST_GET_FIRST(plan->end_conds),
 				plan->table);
@@ -852,14 +862,14 @@ opt_find_all_cols(
 	}
 
 	if (que_node_get_type(exp) == QUE_NODE_FUNC) {
-		func_node = exp;
+		func_node = static_cast<func_node_t*>(exp);
 
-		arg = func_node->args;
+		for (arg = func_node->args;
+		     arg != 0;
+		     arg = que_node_get_next(arg)) {
 
-		while (arg) {
-			opt_find_all_cols(copy_val, index, col_list, plan,
-					  arg);
-			arg = que_node_get_next(arg);
+			opt_find_all_cols(
+				copy_val, index, col_list, plan, arg);
 		}
 
 		return;
@@ -867,7 +877,7 @@ opt_find_all_cols(
 
 	ut_a(que_node_get_type(exp) == QUE_NODE_SYMBOL);
 
-	sym_node = exp;
+	sym_node = static_cast<sym_node_t*>(exp);
 
 	if (sym_node->token_type != SYM_COLUMN) {
 
@@ -953,11 +963,12 @@ opt_find_copy_cols(
 	ut_ad(que_node_get_type(search_cond) == QUE_NODE_FUNC);
 
 	if (search_cond->func == PARS_AND_TOKEN) {
-		new_cond = search_cond->args;
+		new_cond = static_cast<func_node_t*>(search_cond->args);
 
 		opt_find_copy_cols(sel_node, i, new_cond);
 
-		new_cond = que_node_get_next(new_cond);
+		new_cond = static_cast<func_node_t*>(
+			que_node_get_next(new_cond));
 
 		opt_find_copy_cols(sel_node, i, new_cond);
 
@@ -1004,21 +1015,23 @@ opt_classify_cols(
 	/* All select list columns should be copied: therefore TRUE as the
 	first argument */
 
-	exp = sel_node->select_list;
+	for (exp = sel_node->select_list;
+	     exp != 0;
+	     exp = que_node_get_next(exp)) {
 
-	while (exp) {
-		opt_find_all_cols(TRUE, plan->index, &(plan->columns), plan,
-				  exp);
-		exp = que_node_get_next(exp);
+		opt_find_all_cols(
+			TRUE, plan->index, &(plan->columns), plan, exp);
 	}
 
-	opt_find_copy_cols(sel_node, i, sel_node->search_cond);
+	opt_find_copy_cols(
+		sel_node, i, static_cast<func_node_t*>(sel_node->search_cond));
 
 	/* All remaining columns in the search condition are temporary
 	columns: therefore FALSE */
 
-	opt_find_all_cols(FALSE, plan->index, &(plan->columns), plan,
-			  sel_node->search_cond);
+	opt_find_all_cols(
+		FALSE, plan->index, &plan->columns, plan,
+		static_cast<func_node_t*>(sel_node->search_cond));
 }
 
 /*******************************************************************//**
@@ -1068,7 +1081,8 @@ opt_clust_access(
 
 	dict_index_copy_types(plan->clust_ref, clust_index, n_fields);
 
-	plan->clust_map = mem_heap_alloc(heap, n_fields * sizeof(ulint));
+	plan->clust_map = static_cast<ulint*>(
+		mem_heap_alloc(heap, n_fields * sizeof(ulint)));
 
 	for (i = 0; i < n_fields; i++) {
 		pos = dict_index_get_nth_field_pos(index, clust_index, i);
@@ -1108,8 +1122,10 @@ opt_search_plan(
 	order_node_t*	order_by;
 	ulint		i;
 
-	sel_node->plans = mem_heap_alloc(pars_sym_tab_global->heap,
-					 sel_node->n_tables * sizeof(plan_t));
+	sel_node->plans = static_cast<plan_t*>(
+		mem_heap_alloc(
+			pars_sym_tab_global->heap,
+			sel_node->n_tables * sizeof(plan_t)));
 
 	/* Analyze the search condition to find out what we know at each
 	join stage about the conditions that the columns of a table should
@@ -1138,7 +1154,8 @@ opt_search_plan(
 
 		opt_determine_and_normalize_test_conds(sel_node, i);
 
-		table_node = que_node_get_next(table_node);
+		table_node = static_cast<sym_node_t*>(
+			que_node_get_next(table_node));
 	}
 
 	table_node = sel_node->table_list;
@@ -1155,7 +1172,8 @@ opt_search_plan(
 
 		opt_clust_access(sel_node, i);
 
-		table_node = que_node_get_next(table_node);
+		table_node = static_cast<sym_node_t*>(
+			que_node_get_next(table_node));
 	}
 
 	/* Check that the plan obeys a possible order-by clause: if not,
