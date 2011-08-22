@@ -3098,7 +3098,8 @@ row_drop_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = dict_table_get_low_ignore_err(name, DICT_ERR_IGNORE_INDEX_ROOT);
+	table = dict_table_get_low_ignore_err(
+		name, DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
