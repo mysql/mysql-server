@@ -5050,8 +5050,9 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
      * deviation to have a low risk of setting parallelism to high (as erring
      * in the other direction is more costly).
      */
-    Int32 parallelism = data.m_parallelismStat.getMean()
-      - 2 * data.m_parallelismStat.getStdDev();
+    Int32 parallelism = 
+      static_cast<Int32>(data.m_parallelismStat.getMean()
+                         - 2 * data.m_parallelismStat.getStdDev());
 
     if (parallelism < 1)
     {
@@ -5123,7 +5124,8 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
   }
   else
   {
-    ndbrequire((data.m_frags_outstanding + data.m_frags_complete) <=
+    ndbrequire(static_cast<Uint32>(data.m_frags_outstanding + 
+                                   data.m_frags_complete) <=
                data.m_fragCount);
   }
 
