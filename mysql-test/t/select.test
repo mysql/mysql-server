@@ -4229,3 +4229,16 @@ SELECT * FROM t1 WHERE a = b;
 
 DROP TABLE t1;
 
+--echo #
+--echo # lp:822760 Wrong result with view + invalid dates
+--echo #
+CREATE TABLE t1 (f1 date);
+INSERT IGNORE INTO t1 VALUES ('0000-00-00');
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM t1 HAVING f1 = 'zz';
+SELECT * FROM t1 HAVING f1 <= 'aa' ;
+SELECT * FROM t1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+SELECT * FROM t1 WHERE f1 = 'zz' AND f1 <= 'aa' ;
+SELECT * FROM v1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+DROP TABLE t1;
+DROP VIEW v1;

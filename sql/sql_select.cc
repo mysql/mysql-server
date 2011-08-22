@@ -11627,7 +11627,7 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
       bool left_const= args[0]->const_item() && !args[0]->is_expensive();
       bool right_const= args[1]->const_item() && !args[1]->is_expensive();
       if (!(left_const && right_const) &&
-          args[0]->result_type() == args[1]->result_type())
+          args[0]->cmp_type() == args[1]->cmp_type())
       {
 	if (right_const)
 	{

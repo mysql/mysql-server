@@ -5040,6 +5040,43 @@ SELECT * FROM t1 WHERE a = b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
 DROP TABLE t1;
+#
+# lp:822760 Wrong result with view + invalid dates
+#
+CREATE TABLE t1 (f1 date);
+INSERT IGNORE INTO t1 VALUES ('0000-00-00');
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM t1 HAVING f1 = 'zz';
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+SELECT * FROM t1 HAVING f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'aa'
+SELECT * FROM t1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+Warning	1292	Incorrect datetime value: 'aa'
+SELECT * FROM t1 WHERE f1 = 'zz' AND f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+Warning	1292	Incorrect datetime value: 'aa'
+Warning	1292	Incorrect datetime value: 'zz'
+SELECT * FROM v1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+Warning	1292	Incorrect datetime value: 'aa'
+DROP TABLE t1;
+DROP VIEW v1;
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value
