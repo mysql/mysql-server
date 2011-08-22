@@ -236,12 +236,6 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						dict0stats.c */
 #endif
 
-#define UNIV_DEBUG
-#define UNIV_SYNC_DEBUG
-
-#define UNIV_BTR_DEBUG				/* check B-tree links */
-#define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
-
 #ifdef HAVE_purify
 /* The following sets all new allocated memory to zero before use:
 this can be used to eliminate unnecessary Purify warnings, but note that
