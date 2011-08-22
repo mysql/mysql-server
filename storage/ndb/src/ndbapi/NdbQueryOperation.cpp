@@ -431,8 +431,8 @@ public:
   const NdbReceiver& getReceiver() const
   { return m_receiver; }
 
-  const char* getCurrentRow() const
-  { return m_receiver.peek_row(); }
+  const char* getCurrentRow()
+  { return m_receiver.get_row(); }
 
   /**
    * Process an incomming tuple for this stream. Extract parent and own tuple 
@@ -3480,8 +3480,6 @@ NdbQueryImpl::OrderedFragSet::getCurrent() const
 { 
   if (m_ordering!=NdbQueryOptions::ScanOrdering_unordered)
   {
-    // Results should be ordered.
-    assert(verifySortOrder());
     /** 
      * Must have tuples for each (non-completed) fragment when doing ordered
      * scan.
