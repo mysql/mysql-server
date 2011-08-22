@@ -4732,9 +4732,9 @@ const char *get_errname_from_code (uint error_code)
        DBUG_RETURN(e->name);
      }
    }
-   die("Unknown SQL error code '%d'", error_code);
-}
-       
+   /* Apparently, errors without known names may occur */
+   DBUG_RETURN("<Unknown>");
+} 
 
 void do_get_errcodes(struct st_command *command)
 {
