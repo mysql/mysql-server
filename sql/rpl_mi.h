@@ -63,7 +63,7 @@ class Rpl_info_factory;
 
 class Master_info : public Rpl_info
 {
-  friend class Rpl_info_factory;
+friend class Rpl_info_factory;
 
 public:
   /* the variables below are needed because we can change masters on the fly */
@@ -73,6 +73,7 @@ public:
   my_bool ssl; // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
   char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN];
+  char ssl_crl[FN_REFLEN], ssl_crlpath[FN_REFLEN];
   my_bool ssl_verify_server_cert;
 
   MYSQL* mysql;
@@ -92,8 +93,11 @@ public:
   long clock_diff_with_master;
   float heartbeat_period;         // interface with CHANGE MASTER or master.info
   ulonglong received_heartbeats;  // counter of received heartbeat events
+
   time_t last_heartbeat;
-  Server_ids *ignore_server_ids;
+
+  Dynamic_ids *ignore_server_ids;
+
   ulong master_id;
   /*
     to hold checksum alg in use until IO thread has received FD.
@@ -141,7 +145,7 @@ private:
   void init_master_log_pos();
 
   bool read_info(Rpl_info_handler *from);
-  bool write_info(Rpl_info_handler *to, bool force);
+  bool write_info(Rpl_info_handler *to);
 
   Master_info(
 #ifdef HAVE_PSI_INTERFACE
@@ -154,8 +158,8 @@ private:
               PSI_mutex_key *param_key_info_sleep_cond
 #endif
              );
-  Master_info(const Master_info& info);
 
+  Master_info(const Master_info& info);
   Master_info& operator=(const Master_info& info);
 };
 int change_master_server_id_cmp(ulong *id1, ulong *id2);

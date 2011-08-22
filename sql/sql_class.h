@@ -82,7 +82,7 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_IDEMPOTENT,
-                            SLAVE_EXEC_MODE_LAST_BIT};
+                            SLAVE_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
 enum enum_mark_columns
@@ -455,7 +455,6 @@ typedef struct system_variables
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
-  ulong optimizer_join_cache_level;
   ulong lock_wait_timeout;
   ulong max_allowed_packet;
   ulong max_error_count;
@@ -828,6 +827,23 @@ public:
     ENGINE INNODB STATUS.
   */
   CSET_STRING query_string;
+
+  /*
+    In some cases, we may want to modify the query (i.e. replace
+    passwords with their hashes before logging the statement etc.).
+
+    In case the query was rewritten, the original query will live in
+    query_string, while the rewritten query lives in rewritten_query.
+    If rewritten_query is empty, query_string should be logged.
+    If rewritten_query is non-empty, the rewritten query it contains
+    should be used in logs (general log, slow query log, binary log).
+
+    Currently, password obfuscation is the only rewriting we do; more
+    may follow at a later date, both pre- and post parsing of the query.
+    Rewriting of binloggable statements must preserve all pertinent
+    information.
+  */
+  String      rewritten_query;
 
   inline char *query() const { return query_string.str(); }
   inline uint32 query_length() const { return query_string.length(); }
@@ -1425,7 +1441,8 @@ enum enum_thread_type
   SYSTEM_THREAD_NDBCLUSTER_BINLOG= 8,
   SYSTEM_THREAD_EVENT_SCHEDULER= 16,
   SYSTEM_THREAD_EVENT_WORKER= 32,
-  SYSTEM_THREAD_INFO_REPOSITORY= 64
+  SYSTEM_THREAD_INFO_REPOSITORY= 64,
+  SYSTEM_THREAD_SLAVE_WORKER= 128
 };
 
 inline char const *
@@ -1442,6 +1459,7 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_SCHEDULER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_INFO_REPOSITORY);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_WORKER);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -1942,7 +1960,7 @@ public:
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
   /** Tells whether the given optimizer_switch flag is on */
-  inline bool optimizer_switch_flag(ulonglong flag)
+  inline bool optimizer_switch_flag(ulonglong flag) const
   {
     return (variables.optimizer_switch & flag);
   }
@@ -1973,6 +1991,11 @@ private:
     transaction cache.
   */
   uint binlog_table_maps;
+  /*
+    MTS: db names listing to be updated by the query databases
+  */
+  List<char> *binlog_accessed_db_names;
+
 public:
   void issue_unsafe_warnings();
 
@@ -1982,6 +2005,24 @@ public:
   void clear_binlog_table_maps() {
     binlog_table_maps= 0;
   }
+
+  /*
+    MTS: accessor to binlog_accessed_db_names list
+  */
+  List<char> * get_binlog_accessed_db_names()
+  {
+    return binlog_accessed_db_names;
+  }
+
+  /*
+     MTS: resetter of binlog_accessed_db_names list normally
+     at the end of the query execution
+  */
+  void clear_binlog_accessed_db_names() { binlog_accessed_db_names= NULL; }
+
+  /* MTS: method inserts a new unique name into binlog_updated_dbs */
+  void add_to_binlog_accessed_dbs(const char *db);
+
 #endif /* MYSQL_CLIENT */
 
 public:

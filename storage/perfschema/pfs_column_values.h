@@ -41,6 +41,7 @@ extern LEX_STRING file_instrument_prefix;
 extern LEX_STRING stage_instrument_prefix;
 /** String prefix for all statement instruments. */
 extern LEX_STRING statement_instrument_prefix;
+extern LEX_STRING socket_instrument_prefix;
 
 #endif
 

@@ -11,8 +11,9 @@ main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlsla
 main.signal_demo3 @solaris               # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.subquery_sj_none @solaris           # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_none_jcl6 @solaris      # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-main.subquery_sj_none_jcl7 @solaris      # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
+main.subquery_sj_none_bka @solaris       # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrunbzr rename 
+main.subquery_sj_none_bkaunique @solaris # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
+main.subquery_sj_none_bka_nobnl @solaris # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.wait_timeout @solaris               # Bug#11758972 2010-04-26 alik wait_timeout fails on OpenSolaris
 main.kill @freebsd                       # Bug#12619719 2011-08-04 Occasional failure in PB2
 main.innodb_mrr_icp                      # Bug#12682554 2011-08-17 Occasional failure in PB2
@@ -40,3 +41,7 @@ sys_vars.ndb_log_update_as_write_basic
 sys_vars.have_ndbcluster_basic
 sys_vars.ndb_log_updated_only_basic
 sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
+
+rpl.rpl_mixed_mts_rec_crash_safe @solaris          # andrei : 2011-08-19 mts recovery tests are slow (todo: find a way to optimize time)
+rpl.rpl_mixed_mts_rec_crash_safe_checksum @solaris # same as rpl_mixed_mts_rec_crash_safe
+rpl.rpl_mixed_mts_crash_safe @solaris              # same as rpl_mixed_mts_rec_crash_safe
