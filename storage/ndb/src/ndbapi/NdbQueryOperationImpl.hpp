@@ -661,13 +661,29 @@ public:
   NdbQueryOptions::ScanOrdering getOrdering() const
   { return m_ordering; }
 
-   /** 
-   * Set the number of fragments to be scanned in parallel for the root 
-   * operation of this query. This only applies to table scans and non-sorted
-   * scans of ordered indexes.
+  /**
+   * Set the number of fragments to be scanned in parallel. This only applies
+   * to table scans and non-sorted scans of ordered indexes. This method is
+   * only implemented for then root scan operation.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
   int setParallelism(Uint32 parallelism);
+
+  /**
+   * Set the number of fragments to be scanned in parallel to the maximum
+   * possible value. This is the default for the root scan operation.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
+  int setMaxParallelism();
+
+  /**
+   * Let the system dynamically choose the number of fragments to scan in
+   * parallel. The system will try to choose a value that gives optimal
+   * performance. This is the default for all scans but the root scan. This
+   * method only implemented for non-root scan operations.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
+  int setAdaptiveParallelism();
 
   /** Set the batch size (max rows per batch) for this operation. This
    * only applies to scan operations, as lookup operations always will
