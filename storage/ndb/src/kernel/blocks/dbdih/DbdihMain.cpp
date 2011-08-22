@@ -3880,6 +3880,8 @@ done:
     ndbassert(gci == restorableGCI);
     replicaPtr.p->m_restorable_gci = gci;
     Uint32 startGci = replicaPtr.p->maxGciCompleted[maxLcpIndex] + 1;
+    if (startGci > gci)
+      startGci = gci;
     ndbout_c("node: %d tab: %d frag: %d restore lcp: %u(idx: %u) maxGciStarted: %u maxGciCompleted: %u (restorable: %u(%u) newestRestorableGCI: %u)",
              takeOverPtr.p->toStartingNode,
              takeOverPtr.p->toCurrentTabref,
@@ -17543,7 +17545,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
-  if(arg == 7019 && signal->getLength() == 2)
+  if(arg == 7019 && signal->getLength() == 2 &&
+     signal->theData[1] < MAX_NDB_NODES)
   {
     char buf2[8+1];
     NodeRecordPtr nodePtr;
