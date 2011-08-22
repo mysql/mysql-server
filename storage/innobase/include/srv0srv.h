@@ -50,6 +50,25 @@ Created 10/10/1995 Heikki Tuuri
 #include "trx0types.h"
 #include "srv0conc.h"
 
+/** Alternatives for srv_checksum_algorithm, which can be changed by
+setting innodb_checksum_algorithm */
+enum srv_checksum_algorithm_enum {
+	SRV_CHECKSUM_ALGORITHM_CRC32,		/*!< Write crc32, allow crc32,
+						innodb or none when reading */
+	SRV_CHECKSUM_ALGORITHM_STRICT_CRC32,	/*!< Write crc32, allow crc32
+						when reading */
+	SRV_CHECKSUM_ALGORITHM_INNODB,		/*!< Write innodb, allow crc32,
+						innodb or none when reading */
+	SRV_CHECKSUM_ALGORITHM_STRICT_INNODB,	/*!< Write innodb, allow
+						innodb when reading */
+	SRV_CHECKSUM_ALGORITHM_NONE,		/*!< Write none, allow crc32,
+						innodb or none when reading */
+	SRV_CHECKSUM_ALGORITHM_STRICT_NONE,	/*!< Write none, allow none
+						when reading */
+};
+
+typedef enum srv_checksum_algorithm_enum	srv_checksum_algorithm_t;
+
 extern const char*	srv_main_thread_op_info;
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
@@ -246,7 +265,7 @@ extern unsigned long long	srv_stats_persistent_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
-extern ibool	srv_use_checksums;
+extern ulong	srv_checksum_algorithm;
 
 extern ulong	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
@@ -810,7 +829,6 @@ struct srv_slot_struct{
 
 #else /* !UNIV_HOTBACKUP */
 # define srv_use_adaptive_hash_indexes		FALSE
-# define srv_use_checksums			TRUE
 # define srv_use_native_aio			FALSE
 # define srv_force_recovery			0UL
 # define srv_set_io_thread_op_info(t,info)	((void) 0)
