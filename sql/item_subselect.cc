@@ -3898,6 +3898,8 @@ subselect_hash_sj_engine::get_strategy_using_data()
     }
     if (result_sink->get_null_count_of_col(i) == tmp_table->file->stats.records)
       ++count_null_only_columns;
+    if (result_sink->get_null_count_of_col(i))
+      ++count_columns_with_nulls;
   }
 
   /* If no column contains NULLs use regular hash index lookups. */
@@ -4659,6 +4661,7 @@ int subselect_hash_sj_engine::exec()
                                          count_pm_keys,
                                          has_covering_null_row,
                                          has_covering_null_columns,
+                                         count_columns_with_nulls,
                                          item, result,
                                          semi_join_conds->argument_list());
       if (!pm_engine ||
@@ -4684,7 +4687,8 @@ int subselect_hash_sj_engine::exec()
                                             item, result,
                                             semi_join_conds->argument_list(),
                                             has_covering_null_row,
-                                            has_covering_null_columns)))
+                                            has_covering_null_columns,
+                                            count_columns_with_nulls)))
       {
         /* This is an irrecoverable error. */
         res= 1;
@@ -5121,43 +5125,48 @@ subselect_partial_match_engine::subselect_partial_match_engine(
   select_result_interceptor *result_arg,
   List<Item> *equi_join_conds_arg,
   bool has_covering_null_row_arg,
-  bool has_covering_null_columns_arg)
+  bool has_covering_null_columns_arg,
+  uint count_columns_with_nulls_arg)
   :subselect_engine(thd_arg, item_arg, result_arg),
    tmp_table(tmp_table_arg), lookup_engine(engine_arg),
    equi_join_conds(equi_join_conds_arg),
    has_covering_null_row(has_covering_null_row_arg),
-   has_covering_null_columns(has_covering_null_columns_arg)
+   has_covering_null_columns(has_covering_null_columns_arg),
+   count_columns_with_nulls(count_columns_with_nulls_arg)
 {}
 
 
 int subselect_partial_match_engine::exec()
 {
   Item_in_subselect *item_in= (Item_in_subselect *) item;
-  int res;
+  int copy_res, lookup_res;
 
   /* Try to find a matching row by index lookup. */
-  res= lookup_engine->copy_ref_key_simple();
-  if (res == -1)
+  copy_res= lookup_engine->copy_ref_key_simple();
+  if (copy_res == -1)
   {
     /* The result is FALSE based on the outer reference. */
     item_in->value= 0;
     item_in->null_value= 0;
     return 0;
   }
-  else if (res == 0)
+  else if (copy_res == 0)
   {
     /* Search for a complete match. */
-    if ((res= lookup_engine->index_lookup()))
+    if ((lookup_res= lookup_engine->index_lookup()))
     {
       /* An error occured during lookup(). */
       item_in->value= 0;
       item_in->null_value= 0;
-      return res;
+      return lookup_res;
     }
-    else if (item_in->value)
+    else if (item_in->value || !count_columns_with_nulls)
     {
       /*
         A complete match was found, the result of IN is TRUE.
+        If no match was found, and there are no NULLs in the materialized
+        subquery, then the result is guaranteed to be false because this
+        branch is executed when the outer reference has no NULLs as well.
         Notice: (this->item == lookup_engine->item)
       */
       return 0;
@@ -5608,6 +5617,7 @@ bool subselect_rowid_merge_engine::partial_match()
       {
         min_key= cur_key;
         min_row_num= cur_row_num;
+        bitmap_clear_all(&matching_keys);
         bitmap_set_bit(&matching_keys, min_key->get_keyid());
         bitmap_union(&matching_keys, &matching_outer_cols);
       }
@@ -5641,11 +5651,13 @@ subselect_table_scan_engine::subselect_table_scan_engine(
   select_result_interceptor *result_arg,
   List<Item> *equi_join_conds_arg,
   bool has_covering_null_row_arg,
-  bool has_covering_null_columns_arg)
+  bool has_covering_null_columns_arg,
+  uint count_columns_with_nulls_arg)
   :subselect_partial_match_engine(thd_arg, engine_arg, tmp_table_arg, item_arg,
                                   result_arg, equi_join_conds_arg,
                                   has_covering_null_row_arg,
-                                  has_covering_null_columns_arg)
+                                  has_covering_null_columns_arg,
+                                  count_columns_with_nulls_arg)
 {}
 
 
