@@ -663,13 +663,6 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                   } /* join_optimization */
                 },
                 {
-                  "join_execution": {
-                    "select#": 2,
-                    "steps": [
-                    ] /* steps */
-                  } /* join_execution */
-                },
-                {
                   "join_optimization": {
                     "select#": 3,
                     "steps": [
@@ -747,6 +740,13 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                       "cause": "no matching row in const table"
                     } /* empty_result */
                   } /* join_optimization */
+                },
+                {
+                  "join_execution": {
+                    "select#": 2,
+                    "steps": [
+                    ] /* steps */
+                  } /* join_execution */
                 },
                 {
                   "join_execution": {
@@ -1011,13 +1011,6 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                   } /* join_optimization */
                 },
                 {
-                  "join_execution": {
-                    "select#": 2,
-                    "steps": [
-                    ] /* steps */
-                  } /* join_execution */
-                },
-                {
                   "join_optimization": {
                     "select#": 3,
                     "steps": [
@@ -1046,6 +1039,13 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                       "cause": "Impossible WHERE"
                     } /* empty_result */
                   } /* join_optimization */
+                },
+                {
+                  "join_execution": {
+                    "select#": 2,
+                    "steps": [
+                    ] /* steps */
+                  } /* join_execution */
                 },
                 {
                   "join_execution": {
@@ -3702,13 +3702,6 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
-        "select#": 1,
-        "steps": [
-        ] /* steps */
-      } /* join_execution */
-    },
-    {
       "join_optimization": {
         "select#": 2,
         "steps": [
@@ -3794,6 +3787,13 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
           }
         ] /* steps */
       } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
     },
     {
       "join_execution": {
@@ -9463,7 +9463,7 @@ drop view v1;
 create view v1 as select * from t1 where id < "c" limit 2;
 explain select * from v1 where id="b";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	16	const	0	Using where
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -9489,100 +9489,6 @@ explain select * from v1 where id="b"	{
       } /* join_preparation */
     },
     {
-      "join_optimization": {
-        "select#": 2,
-        "steps": [
-          {
-            "condition_processing": {
-              "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`id` < 'c')",
-              "steps": [
-                {
-                  "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`id` < 'c')"
-                },
-                {
-                  "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`id` < 'c')"
-                },
-                {
-                  "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`id` < 'c')"
-                }
-              ] /* steps */
-            } /* condition_processing */
-          },
-          {
-            "ref_optimizer_key_uses": [
-            ] /* ref_optimizer_key_uses */
-          },
-          {
-            "records_estimation": [
-              {
-                "database": "test",
-                "table": "t1",
-                "table_scan": {
-                  "records": 3,
-                  "cost": 2
-                } /* table_scan */
-              }
-            ] /* records_estimation */
-          },
-          {
-            "considered_execution_plans": [
-              {
-                "database": "test",
-                "table": "t1",
-                "best_access_path": {
-                  "considered_access_paths": [
-                    {
-                      "access_type": "scan",
-                      "records": 3,
-                      "cost": 2.0154,
-                      "chosen": true
-                    }
-                  ] /* considered_access_paths */
-                } /* best_access_path */,
-                "cost_for_plan": 2.6154,
-                "records_for_plan": 3,
-                "chosen": true
-              }
-            ] /* considered_execution_plans */
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`id` < 'c')",
-              "attached_conditions_computation": [
-              ] /* attached_conditions_computation */,
-              "attached_conditions_summary": [
-                {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`id` < 'c')"
-                }
-              ] /* attached_conditions_summary */
-            } /* attaching_conditions_to_tables */
-          },
-          {
-            "refine_plan": [
-              {
-                "database": "test",
-                "table": "t1",
-                "scan_type": "table"
-              }
-            ] /* refine_plan */
-          }
-        ] /* steps */
-      } /* join_optimization */
-    },
-    {
-      "join_execution": {
-        "select#": 2,
-        "steps": [
-        ] /* steps */
-      } /* join_execution */
-    },
-    {
       "join_preparation": {
         "select#": 1,
         "steps": [
@@ -9596,6 +9502,93 @@ explain select * from v1 where id="b"	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "join_optimization": {
+              "select#": 2,
+              "steps": [
+                {
+                  "condition_processing": {
+                    "condition": "WHERE",
+                    "original_condition": "(`test`.`t1`.`id` < 'c')",
+                    "steps": [
+                      {
+                        "transformation": "equality_propagation",
+                        "resulting_condition": "(`test`.`t1`.`id` < 'c')"
+                      },
+                      {
+                        "transformation": "constant_propagation",
+                        "resulting_condition": "(`test`.`t1`.`id` < 'c')"
+                      },
+                      {
+                        "transformation": "trivial_condition_removal",
+                        "resulting_condition": "(`test`.`t1`.`id` < 'c')"
+                      }
+                    ] /* steps */
+                  } /* condition_processing */
+                },
+                {
+                  "ref_optimizer_key_uses": [
+                  ] /* ref_optimizer_key_uses */
+                },
+                {
+                  "records_estimation": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "table_scan": {
+                        "records": 3,
+                        "cost": 2
+                      } /* table_scan */
+                    }
+                  ] /* records_estimation */
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "scan",
+                            "records": 3,
+                            "cost": 2.0154,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */,
+                      "cost_for_plan": 2.6154,
+                      "records_for_plan": 3,
+                      "chosen": true
+                    }
+                  ] /* considered_execution_plans */
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": "(`test`.`t1`.`id` < 'c')",
+                    "attached_conditions_computation": [
+                    ] /* attached_conditions_computation */,
+                    "attached_conditions_summary": [
+                      {
+                        "database": "test",
+                        "table": "t1",
+                        "attached": "(`test`.`t1`.`id` < 'c')"
+                      }
+                    ] /* attached_conditions_summary */
+                  } /* attaching_conditions_to_tables */
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "scan_type": "table"
+                    }
+                  ] /* refine_plan */
+                }
+              ] /* steps */
+            } /* join_optimization */
+          },
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -9618,17 +9611,20 @@ explain select * from v1 where id="b"	{
           },
           {
             "ref_optimizer_key_uses": [
+              {
+                "database": "",
+                "table": "v1",
+                "field": "id",
+                "equals": "'b'",
+                "null_rejecting": false
+              }
             ] /* ref_optimizer_key_uses */
           },
           {
             "records_estimation": [
               {
                 "database": "",
-                "table": "v1",
-                "table_scan": {
-                  "records": 2,
-                  "cost": 10
-                } /* table_scan */
+                "table": "v1"
               }
             ] /* records_estimation */
           },
@@ -9640,15 +9636,23 @@ explain select * from v1 where id="b"	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "access_type": "scan",
-                      "records": 2,
-                      "cost": 10.1,
+                      "access_type": "ref",
+                      "index": "auto_key0",
+                      "records": 0.2,
+                      "cost": 0.24,
                       "chosen": true
+                    },
+                    {
+                      "access_type": "scan",
+                      "cost": 10,
+                      "records": 2,
+                      "cause": "cost",
+                      "chosen": false
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 10.5,
-                "records_for_plan": 2,
+                "cost_for_plan": 0.24,
+                "records_for_plan": 0.2,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -9671,8 +9675,7 @@ explain select * from v1 where id="b"	{
             "refine_plan": [
               {
                 "database": "",
-                "table": "v1",
-                "scan_type": "table"
+                "table": "v1"
               }
             ] /* refine_plan */
           }
@@ -9847,15 +9850,15 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
       }
     },
     {
-      "join_execution": {
-        "select#": 1,
+      "join_optimization": {
+        "select#": 2,
         "steps": [
         ]
       }
     },
     {
-      "join_optimization": {
-        "select#": 2,
+      "join_execution": {
+        "select#": 1,
         "steps": [
         ]
       }
