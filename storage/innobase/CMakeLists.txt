@@ -19,6 +19,8 @@ INCLUDE(CheckFunctionExists)
 INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCSourceRuns)
 
+# Test#2 please ignore
+
 # OS tests
 IF(UNIX)
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
