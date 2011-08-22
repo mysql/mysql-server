@@ -3474,6 +3474,53 @@ buf_page_create(
 }
 
 /********************************************************************//**
+Mark a table with the specified space pointed by bpage->space corrupted.
+Also remove the bpage from LRU list.
+@return TRUE if successful */
+static
+ibool
+buf_mark_space_corrupt(
+/*===================*/
+	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
+{
+	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+	const ibool	uncompressed = (buf_page_get_state(bpage)
+					== BUF_BLOCK_FILE_PAGE);
+	ulint		space = bpage->space;
+	ibool		ret = TRUE;
+
+	/* First unfix and release lock on the bpage */
+	buf_pool_mutex_enter(buf_pool);
+	mutex_enter(buf_page_get_mutex(bpage));
+	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_READ);
+	ut_ad(bpage->buf_fix_count == 0);
+
+	/* Set BUF_IO_NONE before we remove the block from LRU list */
+	buf_page_set_io_fix(bpage, BUF_IO_NONE);
+
+	if (uncompressed) {
+		rw_lock_x_unlock_gen(
+			&((buf_block_t*) bpage)->lock,
+			BUF_IO_READ);
+	}
+
+	/* Find the table with specified space id, and mark it corrupted */
+	if (dict_set_corrupted_by_space(space)) {
+		buf_LRU_free_one_page(bpage);
+	} else {
+		ret = FALSE;
+	}
+
+	ut_ad(buf_pool->n_pend_reads > 0);
+	buf_pool->n_pend_reads--;
+
+	mutex_exit(buf_page_get_mutex(bpage));
+	buf_pool_mutex_exit(buf_pool);
+
+	return(ret);
+}
+
+/********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from
 the buffer pool. */
 UNIV_INTERN
@@ -3598,10 +3645,19 @@ corrupt:
 			      "InnoDB: about forcing recovery.\n", stderr);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
-				fputs("InnoDB: Ending processing because of"
-				      " a corrupt database page.\n",
-				      stderr);
-				exit(1);
+				/* If page space id is larger than TRX_SYS_SPACE
+				(0), we will attempt to mark the corresponding
+				table as corrupted instead of crashing server */
+				if (bpage->space > TRX_SYS_SPACE
+				    && buf_mark_space_corrupt(bpage)) {
+					return;
+				} else {
+					fputs("InnoDB: Ending processing"
+					      " because of"
+					      " a corrupt database page.\n",
+					      stderr);
+					ut_error;
+				}
 			}
 		}
 

@@ -469,6 +469,13 @@ row_purge_del_mark(
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
+		/* skip corrupted secondary index */
+		dict_table_skip_corrupt_index(node->index);
+
+		if (!node->index) {
+			break;
+		}
+
 		index = node->index;
 
 		/* Build the index entry */
@@ -516,6 +523,12 @@ row_purge_upd_exist_or_extern_func(
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
+		dict_table_skip_corrupt_index(node->index);
+
+		if (!node->index) {
+			break;
+		}
+
 		index = node->index;
 
 		if (row_upd_changes_ord_field_binary(node->index, node->update,
