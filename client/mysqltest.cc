@@ -494,6 +494,7 @@ void str_to_file(const char *fname, char *str, int size);
 void str_to_file2(const char *fname, char *str, int size, my_bool append);
 
 void fix_win_paths(const char *val, int len);
+const char *get_errname_from_code (uint error_code);
 
 #ifdef __WIN__
 void free_tmp_sh_file();
@@ -2263,6 +2264,7 @@ void var_set_int(const char* name, int value)
 void var_set_errno(int sql_errno)
 {
   var_set_int("$mysql_errno", sql_errno);
+  var_set_string("$mysql_errname", get_errname_from_code(sql_errno));
 }
 
 
@@ -4670,8 +4672,7 @@ void do_shutdown_server(struct st_command *command)
 }
 
 
-#if MYSQL_VERSION_ID >= 50000
-/* List of error names to error codes, available from 5.0 */
+/* List of error names to error codes */
 typedef struct
 {
   const char *name;
@@ -4681,6 +4682,7 @@ typedef struct
 
 static st_error global_error_names[] =
 {
+  { "<No error>", -1, "" },
 #include <mysqld_ername.h>
   { 0, 0, 0 }
 };
@@ -4711,16 +4713,28 @@ uint get_errcode_from_name(char *error_name, char *error_end)
     die("Unknown SQL error name '%s'", error_name);
   DBUG_RETURN(0);
 }
-#else
-uint get_errcode_from_name(char *error_name __attribute__((unused)),
-                           char *error_end __attribute__((unused)))
+
+const char *get_errname_from_code (uint error_code)
 {
-  abort_not_in_this_version();
-  return 0; /* Never reached */
+   st_error *e= global_error_names;
+
+   DBUG_ENTER("get_errname_from_code");
+   DBUG_PRINT("enter", ("error_code: %d", error_code));
+
+   if (! error_code)
+   {
+     DBUG_RETURN("");
+   }
+   for (; e->name; e++)
+   {
+     if (e->code == error_code)
+     {
+       DBUG_RETURN(e->name);
+     }
+   }
+   die("Unknown SQL error code '%d'", error_code);
 }
-#endif
-
-
+       
 
 void do_get_errcodes(struct st_command *command)
 {
