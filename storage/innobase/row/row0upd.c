@@ -2320,6 +2320,13 @@ row_upd(
 
 	while (node->index != NULL) {
 
+		/* Skip corrupted index */
+		dict_table_skip_corrupt_index(node->index);
+
+		if (!node->index) {
+			break;
+		}
+
 		log_free_check();
 		err = row_upd_sec_step(node, thr);
 
