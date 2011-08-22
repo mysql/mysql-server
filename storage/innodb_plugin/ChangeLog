@@ -1,9 +1,29 @@
+2011-08-15	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0pcur.c, btr/btr0sea.c,
+	dict/dict0crea.c, dict/dict0dict.c, ibuf/ibuf0ibuf.c,
+	include/btr0btr.h, include/btr0btr.ic, include/sync0sync.h,
+	sync/sync0sync.c:
+	Fix Bug#11766591 59733: Possible deadlock when buffered changes
+	are to be discarded in buf_page_create()
+
+2011-08-08	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#12835650 VARCHAR maximum length performance impact
+
+2011-08-08	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#12770537 I_S.TABLES.DATA_LENGTH DOES NOT SHOW ON-DISK SIZE
+	FOR COMPRESSED INNODB
+
 2011-07-19	The InnoDB Team
 
 	* buf/buf0buf.c, buf/buf0rea.c, handler/ha_innodb.cc,
 	include/buf0buf.h, include/buf0buf.ic, include/srv0srv.h,
 	srv/srv0srv.c:
-	Fix bug#Bug 12356373 by reintroducing random readahead
+	Fix Bug#12356373 by reintroducing random readahead
 
 2011-06-30	The InnoDB Team
 
