@@ -1,0 +1,67 @@
+#
+# WL#5706/Bug#58712/Bug#11746378
+# Encrypt or remove passwords from slow, query, and binary logs
+# (see sql/sql_rewrite.cc for bulk of implementation)
+#
+
+-- source include/have_log_bin.inc
+
+RESET MASTER;
+
+#--------------- bin log -------------------------------------------
+
+# misc rewrites.
+
+# Show that when we completely re-synthesize commands,
+# we get all the particles right!
+
+CREATE USER user1@localhost IDENTIFIED BY 'secret';
+CREATE USER user2@localhost IDENTIFIED BY 'secret';
+SET PASSWORD FOR user1@localhost = PASSWORD('secret');
+
+--echo # Test the password is encrypted in binary log
+--echo # when granting privileges on tables.
+GRANT UPDATE ON *.* TO user1@localhost IDENTIFIED BY 'secret' WITH GRANT OPTION;
+GRANT UPDATE ON *.* /*before to*/TO/*after to*/ user1@localhost IDENTIFIED BY 'secret', user2@localhost IDENTIFIED BY 'secret2' /*before with*/WITH/*after with*/MAX_QUERIES_PER_HOUR 90;
+GRANT UPDATE ON *.* /*before to*/TO/*after to*/ user1@localhost IDENTIFIED BY 'secret', user2@localhost IDENTIFIED BY 'secret2' /*before require*/REQUIRE SSL/*after require*/ /*before with*/WITH/*after with*/MAX_QUERIES_PER_HOUR 90;
+GRANT UPDATE ON *.* TO user1@localhost IDENTIFIED BY 'secret', user2@localhost IDENTIFIED BY 'secret2';
+REVOKE UPDATE ON *.* FROM user1@localhost, user2@localhost;
+
+--echo # Test the password is encrypted in binary log
+--echo # when granting privileges on procedure.
+CREATE PROCEDURE p1() SQL SECURITY INVOKER SELECT 1;
+GRANT EXECUTE ON PROCEDURE p1 TO user1@localhost IDENTIFIED BY 'secret', user2@localhost IDENTIFIED BY 'secret2' /*before with*/ WITH MAX_QUERIES_PER_HOUR 90;
+GRANT EXECUTE ON PROCEDURE p1 /*before to*/TO/*after to*/ user1@localhost IDENTIFIED BY 'secret', user2@localhost IDENTIFIED BY 'secret2' /*before require*/REQUIRE SSL/*after require*/ /*before with*/WITH/*after with*/MAX_QUERIES_PER_HOUR 90;
+GRANT EXECUTE ON PROCEDURE p1 TO user1@localhost IDENTIFIED BY 'secret', user2@localhost IDENTIFIED BY 'secret2';
+REVOKE EXECUTE ON PROCEDURE p1 FROM user1@localhost, user2@localhost;
+
+--echo # Test the password is encrypted in binary log
+--echo # when granting privileges on function.
+CREATE FUNCTION f1() RETURNS INT RETURN 123;
+GRANT EXECUTE ON FUNCTION f1 /*before to*/TO/*after to*/ user1@localhost IDENTIFIED BY 'secret' /*!10000 , user2@localhost IDENTIFIED BY 'secret2' */ /*!99999 THIS_WOULD_BREAK */ /*before require*/REQUIRE SSL/*after require*/ /*before with*/WITH/*after with*/MAX_QUERIES_PER_HOUR 90;
+REVOKE EXECUTE ON FUNCTION f1 FROM user1@localhost, user2@localhost;
+
+DROP USER user1@localhost, user2@localhost;
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
+
+# 1.1.1.1
+GRANT ALL on *.* TO test_user1 IDENTIFIED BY 'azundris1';
+
+# 1.1.1.2
+CREATE USER test_user2 IDENTIFIED BY 'azundris2';
+
+# 1.1.1.3
+CHANGE MASTER TO MASTER_PASSWORD='azundris3';
+
+# 1.1.1.4
+CREATE USER 'test_user4'@'localhost';
+SET PASSWORD FOR 'test_user4'@'localhost' = PASSWORD('azundris4');
+
+--source include/show_binlog_events.inc
+
+DROP USER 'test_user4'@'localhost';
+DROP USER test_user2;
+DROP USER test_user1;
+
+--echo End of 5.6 tests!

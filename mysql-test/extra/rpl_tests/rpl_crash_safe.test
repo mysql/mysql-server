@@ -81,7 +81,6 @@
 --echo ###################################################################################
 connection master;
 SET @verbose= 'Y';
-let $engine_type=Innodb;
 SET @commands= 'configure';
 --source extra/rpl_tests/rpl_crash_safe.inc
 

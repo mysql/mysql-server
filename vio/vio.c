@@ -65,8 +65,9 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
   flags&= ~VIO_BUFFERED_READ;
 #endif
   memset(vio, 0, sizeof(*vio));
-  vio->type	= type;
-  vio->sd	= sd;
+  vio->type= type;
+  vio->mysql_socket= MYSQL_INVALID_SOCKET;
+  mysql_socket_setfd(&vio->mysql_socket, sd);
   vio->localhost= flags & VIO_LOCALHOST;
   vio->read_timeout= vio->write_timeout= -1;
   if ((flags & VIO_BUFFERED_READ) &&
@@ -183,6 +184,9 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
 
   vio_init(vio, type, sd, flags);
 
+  /* Preserve perfschema info for this connection */
+  vio->mysql_socket.m_psi= old_vio.mysql_socket.m_psi;
+
 #ifdef HAVE_OPENSSL
   vio->ssl_arg= ssl;
 #endif
@@ -203,21 +207,37 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
 
 
 /* Create a new VIO for socket or TCP/IP connection. */
-Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
+
+Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags)
 {
   Vio *vio;
-  DBUG_ENTER("vio_new");
+  my_socket sd= mysql_socket_getfd(mysql_socket);
+  DBUG_ENTER("mysql_socket_vio_new");
   DBUG_PRINT("enter", ("sd: %d", sd));
   if ((vio = (Vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
   {
     vio_init(vio, type, sd, flags);
     sprintf(vio->desc,
-	    (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
-	    vio->sd);
+	    (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"), sd);
+    vio->mysql_socket= mysql_socket;
   }
   DBUG_RETURN(vio);
 }
 
+/* Open the socket or TCP/IP connection and read the fnctl() status */
+
+Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
+{
+  Vio *vio;
+  MYSQL_SOCKET mysql_socket= MYSQL_INVALID_SOCKET;
+  DBUG_ENTER("vio_new");
+  DBUG_PRINT("enter", ("sd: %d", sd));
+
+  mysql_socket_setfd(&mysql_socket, sd);
+  vio = mysql_socket_vio_new(mysql_socket, type, flags);
+
+  DBUG_RETURN(vio);
+}
 
 #ifdef _WIN32
 

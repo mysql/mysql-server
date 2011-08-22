@@ -2660,7 +2660,7 @@ set @@session.optimizer_prune_level=0;
 explain select * from t1,t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * from t1,t2	{
@@ -2827,7 +2827,7 @@ set @@optimizer_trace_features="greedy_search=off";
 explain select * from t1,t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * from t1,t2	{
@@ -5154,6 +5154,19 @@ trace
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t1`.`a`",
+              "items": [
+                {
+                  "item": "`test`.`t1`.`a`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t1`.`a`"
+            } /* clause_processing */
           },
           {
             "refine_plan": [
