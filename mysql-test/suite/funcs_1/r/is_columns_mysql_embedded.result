@@ -180,6 +180,8 @@ def	mysql	slave_master_info	Ssl_ca	11	NULL	YES	text	65535	65535	NULL	NULL	utf8	u
 def	mysql	slave_master_info	Ssl_capath	12	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The path to the Certificate Authority (CA) certificates.
 def	mysql	slave_master_info	Ssl_cert	13	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The name of the SSL certificate file.
 def	mysql	slave_master_info	Ssl_cipher	14	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The name of the cipher in use for the SSL connection.
+def	mysql	slave_master_info	Ssl_crl	22	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The file used for the Certificate Revocation List (CRL)
+def	mysql	slave_master_info	Ssl_crlpath	23	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The path used for Certificate Revocation List (CRL) files
 def	mysql	slave_master_info	Ssl_key	15	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The name of the SSL key file.
 def	mysql	slave_master_info	Ssl_verify_server_cert	16	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)				Whether to verify the server certificate.
 def	mysql	slave_master_info	User_name	6	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The user name used to connect to the master.
@@ -536,6 +538,8 @@ NULL	mysql	slave_master_info	Heartbeat	float	NULL	NULL	NULL	NULL	float
 1.0000	mysql	slave_master_info	Ignored_server_ids	text	65535	65535	utf8	utf8_bin	text
 1.0000	mysql	slave_master_info	Uuid	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Retry_count	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+1.0000	mysql	slave_master_info	Ssl_crl	text	65535	65535	utf8	utf8_bin	text
+1.0000	mysql	slave_master_info	Ssl_crlpath	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_relay_log_info	Master_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	slave_relay_log_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_relay_log_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
