@@ -30,7 +30,7 @@ Created 6/9/1994 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "srv0srv.h"
-#include "mem0dbg.c"
+#include "mem0dbg.cc"
 #include <stdarg.h>
 
 /*
