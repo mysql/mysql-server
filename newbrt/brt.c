@@ -1217,6 +1217,7 @@ move_leafentries(
     )
 //Effect: move leafentries in the range [lbi, upe) from src_omt to newly created dest_omt
 {
+    assert(lbi < ube);
     OMTVALUE *MALLOC_N(ube-lbi, new_le);
     u_int32_t i = 0;
     *num_bytes_moved = 0;
@@ -1245,7 +1246,7 @@ move_leafentries(
     }
 }
 
-static void
+void
 brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, BOOL create_new_node)
 // Effect: Split a leaf node.
 {
@@ -1261,122 +1262,133 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
     //printf("%s:%d B is at %lld nodesize=%d\n", __FILE__, __LINE__, B->thisnodename, B->nodesize);
 
 
-    // variables that say where we will do the split. We do it in the basement node indexed at 
+    // variables that say where we will do the split. We do it in the basement node indexed at
     // at split_node, and at the index split_at_in_node within that basement node.
     int split_node = 0;
     int split_at_in_node = 0;
     {
-	{
-	    // TODO: (Zardosht) see if we can/should make this faster, we iterate over the rows twice
-	    u_int64_t sumlesizes=0;
-	    sumlesizes = brtleaf_disk_size(node);
-	    // TODO: (Zardosht) #3537, figure out serial insertion optimization again later
-	    // split in half
-	    brtleaf_get_split_loc(
-		node,
-		sumlesizes,
-		&split_node,
-		&split_at_in_node
-		);
-	}
-	// Now we know where we are going to break it
-	// the two nodes will have a total of n_children+1 basement nodes
-	// and n_children-1 pivots
-	// the left node, node, will have split_node+1 basement nodes
-	// the right node, B, will have n_children-split_node basement nodes
-	// the pivots of node will be the first split_node pivots that originally exist
-	// the pivots of B will be the last (n_children - 1 - split_node) pivots that originally exist
+        {
+            // TODO: (Zardosht) see if we can/should make this faster, we iterate over the rows twice
+            u_int64_t sumlesizes=0;
+            sumlesizes = brtleaf_disk_size(node);
+            // TODO: (Zardosht) #3537, figure out serial insertion optimization again later
+            // split in half
+            brtleaf_get_split_loc(
+                node,
+                sumlesizes,
+                &split_node,
+                &split_at_in_node
+                );
+        }
+        // did we split right on the boundary between basement nodes?
+        BOOL split_on_boundary = (split_at_in_node == ((int) toku_omt_size(BLB_BUFFER(node, split_node)) - 1));
+        // Now we know where we are going to break it
+        // the two nodes will have a total of n_children+1 basement nodes
+        // and n_children-1 pivots
+        // the left node, node, will have split_node+1 basement nodes
+        // the right node, B, will have n_children-split_node basement nodes
+        // the pivots of node will be the first split_node pivots that originally exist
+        // the pivots of B will be the last (n_children - 1 - split_node) pivots that originally exist
 
-	//set up the basement nodes in the new node
-	int num_children_in_node = split_node + 1;
-	int num_children_in_b = node->n_children - split_node;
-	if (create_new_node) {
-	    toku_create_new_brtnode(
-		t,
-		&B,
-		0,
-		num_children_in_b
-		);
-	    assert(B->nodesize>0);
-	}
-	else {
-	    B = *nodeb;
-	    REALLOC_N(num_children_in_b-1, B->childkeys);
-	    REALLOC_N(num_children_in_b,   B->bp);
-	    B->n_children = num_children_in_b;
+        //set up the basement nodes in the new node
+        int num_children_in_node = split_node + 1;
+        int num_children_in_b = node->n_children - split_node - (split_on_boundary ? 1 : 0);
+        if (create_new_node) {
+            toku_create_new_brtnode(
+                t,
+                &B,
+                0,
+                num_children_in_b
+                );
+            assert(B->nodesize>0);
+        }
+        else {
+            B = *nodeb;
+            REALLOC_N(num_children_in_b-1, B->childkeys);
+            REALLOC_N(num_children_in_b,   B->bp);
+            B->n_children = num_children_in_b;
             for (int i = 0; i < num_children_in_b; i++) {
                 BP_STATE(B,i) = PT_AVAIL;
                 BP_OFFSET(B,i) = 0;
                 BP_BLOCKNUM(B,i).b = 0;
                 BP_SUBTREE_EST(B,i)= zero_estimates;
-		BP_WORKDONE(B,i) = 0;
-		set_BLB(B, i, toku_create_empty_bn());
+                BP_WORKDONE(B,i) = 0;
+                set_BLB(B, i, toku_create_empty_bn());
             }
-	}
-	//
-	// first move all the data
-	//
+        }
+        //
+        // first move all the data
+        //
 
-	// handle the move of a subset of data in split_node from node to B
+        int curr_src_bn_index = split_node;
+        int curr_dest_bn_index = 0;
 
-        BP_STATE(B,0) = PT_AVAIL;
-	struct subtree_estimates se_diff = zero_estimates;
-	u_int32_t diff_size = 0;
-	destroy_basement_node (BLB(B, 0)); // Destroy B's empty OMT, so I can rebuild it from an array
-	set_BNULL(B, 0);
-	set_BLB(B, 0, toku_create_empty_bn_no_buffer());
-	move_leafentries(
-	    &BLB_BUFFER(B, 0),
-	    BLB_BUFFER(node, split_node),
-	    split_at_in_node+1,
-	    toku_omt_size(BLB_BUFFER(node, split_node)),
-	    &se_diff,
-	    &diff_size
-	    );
-	BLB_NBYTESINBUF(node, split_node) -= diff_size;
-	BLB_NBYTESINBUF(B, 0) += diff_size;
-	subtract_estimates(&BP_SUBTREE_EST(node,split_node), &se_diff);
-	add_estimates(&BP_SUBTREE_EST(B,0), &se_diff);
+        // handle the move of a subset of data in split_node from node to B
+        if (!split_on_boundary) {
+            BP_STATE(B,curr_dest_bn_index) = PT_AVAIL;
+            struct subtree_estimates se_diff = zero_estimates;
+            u_int32_t diff_size = 0;
+            destroy_basement_node (BLB(B, curr_dest_bn_index)); // Destroy B's empty OMT, so I can rebuild it from an array
+            set_BNULL(B, curr_dest_bn_index);
+            set_BLB(B, curr_dest_bn_index, toku_create_empty_bn_no_buffer());
+            move_leafentries(
+                &BLB_BUFFER(B, curr_dest_bn_index),
+                BLB_BUFFER(node, curr_src_bn_index),
+                split_at_in_node+1,
+                toku_omt_size(BLB_BUFFER(node, curr_src_bn_index)),
+                &se_diff,
+                &diff_size
+                );
+            BLB_NBYTESINBUF(node, curr_src_bn_index) -= diff_size;
+            BLB_NBYTESINBUF(B, curr_dest_bn_index) += diff_size;
+            subtract_estimates(&BP_SUBTREE_EST(node,curr_src_bn_index), &se_diff);
+            add_estimates(&BP_SUBTREE_EST(B,curr_dest_bn_index), &se_diff);
+            curr_dest_bn_index++;
+        } else {
+            curr_src_bn_index++;
+        }
 
-	// move the rest of the basement nodes
-	int curr_dest_bn_index = 1;
-	for (int i = num_children_in_node; i < node->n_children; i++, curr_dest_bn_index++) {
-	    destroy_basement_node(BLB(B, curr_dest_bn_index));
-	    set_BNULL(B, curr_dest_bn_index);
-	    B->bp[curr_dest_bn_index] = node->bp[i];
-	}
-	node->n_children = num_children_in_node;
+        // move the rest of the basement nodes
+        for ( ; curr_src_bn_index < node->n_children; curr_src_bn_index++, curr_dest_bn_index++) {
+            destroy_basement_node(BLB(B, curr_dest_bn_index));
+            set_BNULL(B, curr_dest_bn_index);
+            B->bp[curr_dest_bn_index] = node->bp[curr_src_bn_index];
+        }
+        node->n_children = num_children_in_node;
 
-	//
-	// now handle the pivots
-	//
+        //
+        // now handle the pivots
+        //
 
-	// make pivots in B
-	for (int i=0; i < num_children_in_b-1; i++) {
-	    B->childkeys[i] = node->childkeys[i+split_node];
-	    B->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[i+split_node]);
-	    node->totalchildkeylens -= toku_brt_pivot_key_len(node->childkeys[i+split_node]);
-	    node->childkeys[i+split_node] = NULL;
-	}
-	REALLOC_N(num_children_in_node,	  node->bp);
-	REALLOC_N(num_children_in_node-1, node->childkeys);
+        // the child index in the original node that corresponds to the
+        // first node in the right node of the split
+        int base_index = (split_on_boundary ? split_node + 1 : split_node);
+        // make pivots in B
+        for (int i=0; i < num_children_in_b-1; i++) {
+            B->childkeys[i] = node->childkeys[i+base_index];
+            B->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[i+base_index]);
+            node->totalchildkeylens -= toku_brt_pivot_key_len(node->childkeys[i+base_index]);
+            node->childkeys[i+base_index] = NULL;
+        }
+        REALLOC_N(num_children_in_node, node->bp);
+        REALLOC_N(num_children_in_node-1, node->childkeys);
 
-	toku_brt_leaf_reset_calc_leaf_stats(node);
-	toku_brt_leaf_reset_calc_leaf_stats(B);
+        toku_brt_leaf_reset_calc_leaf_stats(node);
+        toku_brt_leaf_reset_calc_leaf_stats(B);
     }
     if (splitk) {
-	memset(splitk, 0, sizeof *splitk);
-	OMTVALUE lev = 0;
-	int r=toku_omt_fetch(BLB_BUFFER(node, split_node), toku_omt_size(BLB_BUFFER(node, split_node))-1, &lev);
-	assert_zero(r); // that fetch should have worked.
-	LEAFENTRY le=lev;
-	splitk->size = le_keylen(le);
-	splitk->data = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
-	splitk->flags=0;
+        memset(splitk, 0, sizeof *splitk);
+        OMTVALUE lev = 0;
+        int r=toku_omt_fetch(BLB_BUFFER(node, split_node), toku_omt_size(BLB_BUFFER(node, split_node))-1, &lev);
+        assert_zero(r); // that fetch should have worked.
+        LEAFENTRY le=lev;
+        splitk->size = le_keylen(le);
+        splitk->data = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
+        splitk->flags=0;
     }
 
-    node->max_msn_applied_to_node_on_disk= max_msn_applied_to_node;
-    B	->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
+    node->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
+    B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
 
     node->dirty = 1;
     B->dirty = 1;
