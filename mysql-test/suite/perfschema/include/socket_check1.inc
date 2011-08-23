@@ -134,6 +134,7 @@ if(`SELECT NOT ( $my_rules )
      AND EVENT_NAME LIKE ('%client_connection')
      AND run = 1
      AND statement IN('$stmt2','$stmt1');
+   let $print_details= 1;
 }
 # Initialize all variables which depend on the statements to be checked.
 # This prevents that we run with wrong data.

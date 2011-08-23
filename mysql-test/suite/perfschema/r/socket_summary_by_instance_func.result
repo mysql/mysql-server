@@ -16,6 +16,7 @@ SET INSTRUMENTED='NO' WHERE PROCESSLIST_ID = CONNECTION_ID();
 #     It must reset all counters.
 TRUNCATE TABLE performance_schema.socket_summary_by_instance;
 # 1.3 Check the base line
+TRUNCATE TABLE mysqltest.my_socket_summary_by_instance;
 # 2. Variations on Connect
 # 2.1 Connect fails because the user is unknown
 #     length of user name = 4 character
