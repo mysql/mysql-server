@@ -116,11 +116,11 @@ struct srv_conc_struct {
 	This is no longer true. We'll, however, keep the lint datatype to add
 	assertions to catch any corner cases that we may have missed. */
 
-	lint		n_active;
+	volatile lint	n_active;
 
 	/** Number of OS threads waiting in the FIFO for permission to
 	enter InnoDB */
-	ulint		n_waiting;
+	volatile lint	n_waiting;
 };
 
 /* Control variables for tracking concurrency. */
