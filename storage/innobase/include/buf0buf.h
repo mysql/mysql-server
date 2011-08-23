@@ -1651,7 +1651,7 @@ struct buf_block_struct{
 	- we know that buf_block_struct::buf_fix_count == 0.
 
 	An exception to this is when we init or create a page
-	in the buffer pool in buf0buf.c. */
+	in the buffer pool in buf0buf.cc. */
 
 	/* @{ */
 
@@ -1878,7 +1878,7 @@ struct buf_pool_struct{
 	ulint		LRU_old_len;	/*!< length of the LRU list from
 					the block to which LRU_old points
 					onward, including that block;
-					see buf0lru.c for the restrictions
+					see buf0lru.cc for the restrictions
 					on this value; 0 if LRU_old == NULL;
 					NOTE: LRU_old_len must be adjusted
 					whenever LRU_old shrinks or grows! */

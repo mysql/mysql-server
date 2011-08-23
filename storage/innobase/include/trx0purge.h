@@ -130,7 +130,7 @@ struct trx_purge_struct{
 					necessarily purged from the indexes.
 					Note that this can never be less than
 					the limit below, we check for this
-					invariant in trx0purge.c */
+					invariant in trx0purge.cc */
 	purge_iter_t	limit;		/* The 'purge pointer' which advances
 					during a purge, and which is used in
 					history list truncation */

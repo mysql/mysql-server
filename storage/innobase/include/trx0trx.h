@@ -639,7 +639,7 @@ struct trx_struct{
 					/*!< If we notice that someone is
 					waiting for our S-lock on the search
 					latch to be released, we wait in
-					row0sel.c for BTR_SEA_TIMEOUT new
+					row0sel.cc for BTR_SEA_TIMEOUT new
 					searches until we try to keep
 					the search latch again over
 					calls from MySQL; this is intended

@@ -84,7 +84,7 @@ fsp_header_get_zip_size(
 	const page_t*	page);	/*!< in: first page of a tablespace */
 /**********************************************************************//**
 Writes the space id and compressed page size to a tablespace header.
-This function is used past the buffer pool when we in fil0fil.c create
+This function is used past the buffer pool when we in fil0fil.cc create
 a new single-table tablespace. */
 UNIV_INTERN
 void

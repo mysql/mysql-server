@@ -17,7 +17,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /**************************************************//**
-@file os/os0sync.c
+@file os/os0sync.cc
 The interface to the operating system
 synchronization primitives.
 
@@ -39,7 +39,7 @@ Created 9/6/1995 Heikki Tuuri
 
 /* Type definition for an operating system mutex struct */
 struct os_mutex_struct{
-	os_event_t	event;	/*!< Used by sync0arr.c for queing threads */
+	os_event_t	event;	/*!< Used by sync0arr.cc for queing threads */
 	void*		handle;	/*!< OS handle to mutex */
 	ulint		count;	/*!< we use this counter to check
 				that the same thread does not

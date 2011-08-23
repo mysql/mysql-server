@@ -103,7 +103,7 @@ and the shift needed to obtain each bit-field of the record. */
 
 #define REC_OLD_HEAP_NO		5
 #define REC_HEAP_NO_MASK	0xFFF8UL
-#if 0 /* defined in rem0rec.h for use of page0zip.c */
+#if 0 /* defined in rem0rec.h for use of page0zip.cc */
 #define REC_NEW_HEAP_NO		4
 #define	REC_HEAP_NO_SHIFT	3
 #endif

@@ -54,7 +54,7 @@ in addition to the data and the offsets */
 #define REC_STATUS_INFIMUM	2
 #define REC_STATUS_SUPREMUM	3
 
-/* The following four constants are needed in page0zip.c in order to
+/* The following four constants are needed in page0zip.cc in order to
 efficiently compress and decompress pages. */
 
 /* The offset of heap_no in a compact record */

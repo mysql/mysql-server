@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file row/row0mysql.c
+@file row/row0mysql.cc
 Interface between Innobase row operations and MySQL.
 Contains also create table and other data dictionary operations.
 
@@ -321,7 +321,7 @@ row_mysql_pad_col(
 /**************************************************************//**
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
-row0sel.c.
+row0sel.cc.
 @return	up to which byte we used buf in the conversion */
 UNIV_INTERN
 byte*
@@ -472,7 +472,7 @@ row_mysql_store_col_in_innobase_format(
 		be stored as "$%&a " (5 bytes).	 The string ".abc "
 		will be stored as "$%&abc" (6 bytes).
 
-		The space padding will be restored in row0sel.c, function
+		The space padding will be restored in row0sel.cc, function
 		row_sel_field_store_in_mysql_format(). */
 
 		ulint		n_chars;
@@ -498,7 +498,7 @@ row_mysql_store_col_in_innobase_format(
 /**************************************************************//**
 Convert a row in the MySQL format to a row in the Innobase format. Note that
 the function to convert a MySQL format key value to an InnoDB dtuple is
-row_sel_convert_mysql_key_to_innobase() in row0sel.c. */
+row_sel_convert_mysql_key_to_innobase() in row0sel.cc. */
 static
 void
 row_mysql_convert_row_to_innobase(
@@ -2072,7 +2072,7 @@ row_create_index_for_mysql(
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	/* Note that the space id where we store the index is inherited from
-	the table in dict_build_index_def_step() in dict0crea.c. */
+	the table in dict_build_index_def_step() in dict0crea.cc. */
 
 	node = ind_create_graph_create(index, heap);
 
@@ -2182,7 +2182,7 @@ in ALTER TABLE to the fact that the table handler does not remove the
 table before all handles to it has been removed. Furhermore, the MySQL's
 call to drop table must be non-blocking. Therefore we do the drop table
 as a background operation, which is taken care of by the master thread
-in srv0srv.c.
+in srv0srv.cc.
 @return	error code or DB_SUCCESS */
 static
 int
@@ -2223,7 +2223,7 @@ row_drop_table_for_mysql_in_background(
 }
 
 /*********************************************************************//**
-The master thread in srv0srv.c calls this regularly to drop tables which
+The master thread in srv0srv.cc calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy
 dropping of tables is needed in ALTER TABLE on Unix.
 @return	how many tables dropped + remaining tables in list */
@@ -2406,7 +2406,7 @@ row_discard_tablespace_for_mysql(
 	3) Insert buffer: we remove all entries for the tablespace in
 	the insert buffer tree; as long as the tablespace mem object
 	does not exist, ongoing insert buffer page merges are
-	discarded in buf0rea.c. If we recreate the tablespace mem
+	discarded in buf0rea.cc. If we recreate the tablespace mem
 	object with IMPORT TABLESPACE later, then the tablespace will
 	have the same id, but the tablespace_version field in the mem
 	object is different, and ongoing old insert buffer page merges
@@ -2836,7 +2836,7 @@ row_truncate_table_for_mysql(
 
 	/* TODO: could we replace the counter n_foreign_key_checks_running
 	with lock checks on the table? Acquire here an exclusive lock on the
-	table, and rewrite lock0lock.c and the lock wait in srv0srv.c so that
+	table, and rewrite lock0lock.cc and the lock wait in srv0srv.cc so that
 	they can cope with the table having been truncated here? Foreign key
 	checks take an IS or IX lock on the table. */
 
@@ -3225,7 +3225,7 @@ check_next_foreign:
 
 	/* TODO: could we replace the counter n_foreign_key_checks_running
 	with lock checks on the table? Acquire here an exclusive lock on the
-	table, and rewrite lock0lock.c and the lock wait in srv0srv.c so that
+	table, and rewrite lock0lock.cc and the lock wait in srv0srv.cc so that
 	they can cope with the table having been dropped here? Foreign key
 	checks take an IS or IX lock on the table. */
 

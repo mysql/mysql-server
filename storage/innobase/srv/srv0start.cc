@@ -32,7 +32,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /********************************************************************//**
-@file srv/srv0start.c
+@file srv/srv0start.cc
 Starts the InnoDB database server
 
 Created 2/16/1996 Heikki Tuuri
@@ -2114,7 +2114,7 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Note: When creating the extra rollback segments during an upgrade
 	we violate the latching order, even if the change buffer is empty.
-	We make an exception in sync0sync.c and check srv_is_being_started
+	We make an exception in sync0sync.cc and check srv_is_being_started
 	for that violation. It cannot create a deadlock because we are still
 	running in single threaded mode essentially. Only the IO threads
 	should be running at this stage. */

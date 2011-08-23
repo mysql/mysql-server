@@ -1373,11 +1373,11 @@ i_s_cmp_fill_low(
 		table->field[0]->store(UNIV_ZIP_SIZE_MIN << i);
 
 		/* The cumulated counts are not protected by any
-		mutex.  Thus, some operation in page0zip.c could
+		mutex.  Thus, some operation in page0zip.cc could
 		increment a counter between the time we read it and
 		clear it.  We could introduce mutex protection, but it
 		could cause a measureable performance hit in
-		page0zip.c. */
+		page0zip.cc. */
 		table->field[1]->store(zip_stat->compressed);
 		table->field[2]->store(zip_stat->compressed_ok);
 		table->field[3]->store(

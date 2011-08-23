@@ -647,7 +647,7 @@ fil_io(
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
-into segments (see os0file.c for more info). The thread specifies which
+into segments (see os0file.cc for more info). The thread specifies which
 segment it wants to wait for. */
 UNIV_INTERN
 void
