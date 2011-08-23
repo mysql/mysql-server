@@ -1369,6 +1369,11 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
             node->totalchildkeylens -= toku_brt_pivot_key_len(node->childkeys[i+base_index]);
             node->childkeys[i+base_index] = NULL;
         }
+        if (split_on_boundary) {
+            // destroy the extra childkey between the nodes, we'll
+            // recreate it in splitk below
+            toku_free(node->childkeys[split_node]);
+        }
         REALLOC_N(num_children_in_node, node->bp);
         REALLOC_N(num_children_in_node-1, node->childkeys);
 
