@@ -3094,7 +3094,7 @@ page_zip_hexdump_func(
 	const void*	buf,	/*!< in: data */
 	ulint		size)	/*!< in: length of the data, in bytes */
 {
-	const byte*	s	= buf;
+	const byte*	s	= static_cast<const byte*>(buf);
 	ulint		addr;
 	const ulint	width	= 32; /* bytes per line */
 
@@ -3160,8 +3160,8 @@ page_zip_validate_low(
 
 	/* page_zip_decompress() expects the uncompressed page to be
 	UNIV_PAGE_SIZE aligned. */
-	temp_page_buf = ut_malloc(2 * UNIV_PAGE_SIZE);
-	temp_page = ut_align(temp_page_buf, UNIV_PAGE_SIZE);
+	temp_page_buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+	temp_page = static_cast<byte*>(ut_align(temp_page_buf, UNIV_PAGE_SIZE));
 
 #ifdef UNIV_DEBUG_VALGRIND
 	/* Get detailed information on the valid bits in case the
