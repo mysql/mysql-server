@@ -1,7 +1,7 @@
 #include "univ.i"
-#line 2 "lexyy.c"
+#line 2 "lexyy.cc"
 
-#line 4 "lexyy.c"
+#line 4 "lexyy.cc"
 
 #define  YY_INT_ALIGNED short int
 
@@ -782,7 +782,7 @@ string_append(
 
 
 
-#line 785 "lexyy.c"
+#line 785 "lexyy.cc"
 
 #define INITIAL 0
 #define comment 1
@@ -968,7 +968,7 @@ YY_DECL
 #line 111 "pars0lex.l"
 
 
-#line 971 "lexyy.c"
+#line 971 "lexyy.cc"
 
 	if ( !(yy_init) )
 		{
@@ -1970,7 +1970,7 @@ YY_RULE_SETUP
 #line 667 "pars0lex.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 1973 "lexyy.c"
+#line 1973 "lexyy.cc"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(comment):
 case YY_STATE_EOF(quoted):
