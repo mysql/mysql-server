@@ -114,7 +114,7 @@ naming rules here:
 2) If the monitor uses exisitng counters from "status variable", its ID
 name shall start with MONITOR_OVLD
 
-Please refer to "innodb_counter_info" in srv/srv0mon.c for detail
+Please refer to "innodb_counter_info" in srv/srv0mon.cc for detail
 information for each monitor counter */
 
 enum monitor_id_value {

@@ -17,7 +17,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /**************************************************//**
-@file log/log0recv.c
+@file log/log0recv.cc
 Recovery
 
 Created 9/20/1997 Heikki Tuuri
@@ -1950,7 +1950,7 @@ recv_apply_log_recs_for_backup(void)
 			}
 
 			/* Read the page from the tablespace file using the
-			fil0fil.c routines */
+			fil0fil.cc routines */
 
 			if (zip_size) {
 				error = fil_io(OS_FILE_READ, TRUE,
@@ -1984,7 +1984,7 @@ recv_apply_log_recs_for_backup(void)
 			recv_recover_page(FALSE, block);
 
 			/* Write the page back to the tablespace file using the
-			fil0fil.c routines */
+			fil0fil.cc routines */
 
 			buf_flush_init_for_writing(
 				block->frame, buf_block_get_page_zip(block),
@@ -3314,7 +3314,7 @@ recv_recovery_rollback_active(void)
 	themselves before we switch the latching order checks on */
 	os_thread_sleep(1000000);
 
-	/* Switch latching order checks on in sync0sync.c */
+	/* Switch latching order checks on in sync0sync.cc */
 	sync_order_checks_on = TRUE;
 #endif
 	/* Drop partially created indexes. */

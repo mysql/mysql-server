@@ -4370,7 +4370,7 @@ set_field_in_record_to_null(
 /*************************************************************//**
 InnoDB uses this function to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. NOTE that the prototype
-of this function is in rem0cmp.c in InnoDB source code! If you change this
+of this function is in rem0cmp.cc in InnoDB source code! If you change this
 function, remember to update the prototype there!
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
 UNIV_INTERN
@@ -7530,7 +7530,7 @@ ha_innobase::create(
 
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during a table create operation.
-	Drop table etc. do this latching in row0mysql.c. */
+	Drop table etc. do this latching in row0mysql.cc. */
 
 	row_mysql_lock_data_dictionary(trx);
 
@@ -8188,7 +8188,7 @@ ha_innobase::estimate_rows_upper_bound()
 
 	/* Calculate a minimum length for a clustered index record and from
 	that an upper bound for the number of rows. Since we only calculate
-	new statistics in row0mysql.c when a table has grown by a threshold
+	new statistics in row0mysql.cc when a table has grown by a threshold
 	factor, we must add a safety factor 2 in front of the formula below. */
 
 	estimate = 2 * local_data_file_length /
@@ -12439,7 +12439,7 @@ static MYSQL_SYSVAR_BOOL(file_format_check, innobase_file_format_check,
 
 /* If a new file format is introduced, the file format
 name needs to be updated accordingly. Please refer to
-file_format_name_map[] defined in trx0sys.c for the next
+file_format_name_map[] defined in trx0sys.cc for the next
 file format name. */
 static MYSQL_SYSVAR_STR(file_format_max, innobase_file_format_max,
   PLUGIN_VAR_OPCMDARG,

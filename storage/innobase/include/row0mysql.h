@@ -116,7 +116,7 @@ row_mysql_pad_col(
 /**************************************************************//**
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
-row0sel.c.
+row0sel.cc.
 @return	up to which byte we used buf in the conversion */
 UNIV_INTERN
 byte*
@@ -404,7 +404,7 @@ row_table_add_foreign_constraints(
 					any foreign keys are found. */
 
 /*********************************************************************//**
-The master thread in srv0srv.c calls this regularly to drop tables which
+The master thread in srv0srv.cc calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy
 dropping of tables is needed in ALTER TABLE on Unix.
 @return	how many tables dropped + remaining tables in list */

@@ -17,7 +17,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /**************************************************//**
-@file row/row0upd.c
+@file row/row0upd.cc
 Update of a row
 
 Created 12/27/1996 Heikki Tuuri
@@ -815,7 +815,7 @@ row_upd_build_sec_rec_difference_binary(
 		and also in the case where we have a column prefix index
 		and the last characters in the index field are spaces; the
 		latter case probably caused the assertion failures reported at
-		row0upd.c line 713 in versions 4.0.14 - 4.0.16. */
+		row0upd.cc line 713 in versions 4.0.14 - 4.0.16. */
 
 		/* NOTE: we compare the fields as binary strings!
 		(No collation) */

@@ -591,7 +591,7 @@ struct rw_lock_struct {
 				/*!< Thread id of writer thread. Is only
 				guaranteed to have sane and non-stale
 				value iff recursive flag is set. */
-	os_event_t	event;	/*!< Used by sync0arr.c for thread queueing */
+	os_event_t	event;	/*!< Used by sync0arr.cc for thread queueing */
 	os_event_t	wait_ex_event;
 				/*!< Event for next-writer to wait on. A thread
 				must decrement lock_word before waiting. */

@@ -24,7 +24,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /**************************************************//**
-@file sync/sync0sync.c
+@file sync/sync0sync.cc
 Mutex, the basic synchronization primitive
 
 Created 9/5/1995 Heikki Tuuri
@@ -1608,7 +1608,7 @@ sync_close(void)
 #ifdef UNIV_SYNC_DEBUG
 	mutex_free(&sync_thread_mutex);
 
-	/* Switch latching order checks on in sync0sync.c */
+	/* Switch latching order checks on in sync0sync.cc */
 	sync_order_checks_on = FALSE;
 
 	sync_thread_level_arrays_free();

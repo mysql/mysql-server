@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /******************************************************************//**
-@file fsp/fsp0fsp.c
+@file fsp/fsp0fsp.cc
 File space management
 
 Created 11/29/1995 Heikki Tuuri
@@ -924,7 +924,7 @@ fsp_init(void)
 
 /**********************************************************************//**
 Writes the space id and compressed page size to a tablespace header.
-This function is used past the buffer pool when we in fil0fil.c create
+This function is used past the buffer pool when we in fil0fil.cc create
 a new single-table tablespace. */
 UNIV_INTERN
 void
@@ -3055,7 +3055,7 @@ fsp_get_available_space_in_free_extents(
 	However, there is one further complication, we release the fil_mutex
 	when we need to invalidate the the pages in the buffer pool and we
 	reacquire the fil_mutex when deleting and freeing the tablespace
-	instance in fil0fil.c. Here we need to account for that situation
+	instance in fil0fil.cc. Here we need to account for that situation
 	too. */
 
 	mutex_enter(&dict_sys->mutex);

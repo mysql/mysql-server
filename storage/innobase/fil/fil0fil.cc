@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file fil/fil0fil.c
+@file fil/fil0fil.cc
 The tablespace memory cache
 
 Created 10/25/1995 Heikki Tuuri
@@ -2147,7 +2147,7 @@ fil_op_log_parse_or_replay(
 
 	/* Let us try to perform the file operation, if sensible. Note that
 	ibbackup has at this stage already read in all space id info to the
-	fil0fil.c data structures.
+	fil0fil.cc data structures.
 
 	NOTE that our algorithm is not guaranteed to work correctly if there
 	were renames of tables during the backup. See ibbackup code for more
@@ -3237,7 +3237,7 @@ fil_make_ibbackup_old_name(
 
 /********************************************************************//**
 Opens an .ibd file and adds the associated single-table tablespace to the
-InnoDB fil0fil.c data structures. */
+InnoDB fil0fil.cc data structures. */
 static
 void
 fil_load_single_table_tablespace(
@@ -4574,7 +4574,7 @@ fil_io(
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
-into segments (see os0file.c for more info). The thread specifies which
+into segments (see os0file.cc for more info). The thread specifies which
 segment it wants to wait for. */
 UNIV_INTERN
 void

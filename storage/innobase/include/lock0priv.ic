@@ -24,8 +24,8 @@ Created July 16, 2007 Vasil Dimov
 *******************************************************/
 
 /* This file contains only methods which are used in
-lock/lock0* files, other than lock/lock0lock.c.
-I.e. lock/lock0lock.c contains more internal inline
+lock/lock0* files, other than lock/lock0lock.cc.
+I.e. lock/lock0lock.cc contains more internal inline
 methods but they are used only in that file. */
 
 #ifndef LOCK_MODULE_IMPLEMENTATION

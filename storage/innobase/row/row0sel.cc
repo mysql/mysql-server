@@ -24,7 +24,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /***************************************************//**
-@file row/row0sel.c
+@file row/row0sel.cc
 Select
 
 Created 12/19/1997 Heikki Tuuri
@@ -850,7 +850,7 @@ row_sel_get_clust_rec(
 		ut_a(node->read_view);
 
 		/* In a rare case it is possible that no clust rec is found
-		for a delete-marked secondary index record: if in row0umod.c
+		for a delete-marked secondary index record: if in row0umod.cc
 		in row_undo_mod_remove_clust_low() we have already removed
 		the clust rec, while purge is still cleaning and removing
 		secondary index records associated with earlier versions of
@@ -2549,7 +2549,7 @@ row_sel_store_row_id_to_prebuilt(
 
 /**************************************************************//**
 Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
-function is row_mysql_store_col_in_innobase_format() in row0mysql.c. */
+function is row_mysql_store_col_in_innobase_format() in row0mysql.cc. */
 static __attribute__((nonnull))
 void
 row_sel_field_store_in_mysql_format_func(
@@ -2700,7 +2700,7 @@ row_sel_field_store_in_mysql_format_func(
 
 		if (templ->mbminlen == 1 && templ->mbmaxlen != 1) {
 			/* Pad with spaces. This undoes the stripping
-			done in row0mysql.c, function
+			done in row0mysql.cc, function
 			row_mysql_store_col_in_innobase_format(). */
 
 			memset(dest + len, 0x20, templ->mysql_col_len - len);
@@ -3044,7 +3044,7 @@ row_sel_get_clust_rec_for_mysql(
 	    < dict_index_get_n_unique(clust_index)) {
 
 		/* In a rare case it is possible that no clust rec is found
-		for a delete-marked secondary index record: if in row0umod.c
+		for a delete-marked secondary index record: if in row0umod.cc
 		in row_undo_mod_remove_clust_low() we have already removed
 		the clust rec, while purge is still cleaning and removing
 		secondary index records associated with earlier versions of
@@ -4988,7 +4988,7 @@ lock_table_wait:
 			on the same user record, we cannot use
 			row_unlock_for_mysql() to unlock any records, and
 			we must thus reset the new rec lock info. Since
-			in lock0lock.c we have blocked the inheriting of gap
+			in lock0lock.cc we have blocked the inheriting of gap
 			X-locks, we actually do not have any new record locks
 			set in this case.
 
