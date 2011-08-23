@@ -375,7 +375,7 @@ os_event_create(
 #ifdef __WIN__
 	if(!srv_use_native_conditions) {
 
-		event = ut_malloc(sizeof(struct os_event_struct));
+		event = static_cast<os_event_t>(ut_malloc(sizeof(*event)));
 
 		event->handle = CreateEvent(NULL,
 					    TRUE,
