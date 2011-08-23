@@ -1804,7 +1804,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
                  Item_subselect::ANY_SUBS));
 
     Item_in_subselect *in_arg= (Item_in_subselect*)args[1];
-    in_arg->left_expr= args[0];
+    current_thd->change_item_tree(&in_arg->left_expr, args[0]);
   }
   return (this->*transformer)(argument);
 }
