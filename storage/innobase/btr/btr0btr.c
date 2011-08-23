@@ -111,8 +111,8 @@ btr_blob_dbg_cmp(
 	const void*	a,	/*!< in: first btr_blob_dbg_t to compare */
 	const void*	b)	/*!< in: second btr_blob_dbg_t to compare */
 {
-	const btr_blob_dbg_t*	aa	= a;
-	const btr_blob_dbg_t*	bb	= b;
+	const btr_blob_dbg_t*	aa = static_cast<const btr_blob_dbg_t*>(a);
+	const btr_blob_dbg_t*	bb = static_cast<const btr_blob_dbg_t*>(b);
 
 	ut_ad(aa != NULL);
 	ut_ad(bb != NULL);
