@@ -2440,7 +2440,7 @@ try_again:
 #endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(
-		file, low, reinterpret_cast<PLONG*>(&high), FILE_BEGIN);
+		file, low, reinterpret_cast<PLONG>(&high), FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
@@ -2568,7 +2568,7 @@ try_again:
 #endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(
-		file, low, reinterpret_cast<PLONG*>(&high), FILE_BEGIN);
+		file, low, reinterpret_cast<PLONG>(&high), FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
@@ -2701,7 +2701,7 @@ retry:
 #endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(
-		file, low, reinterpret_cast<PLONG*>(&high), FILE_BEGIN);
+		file, low, reinterpret_cast<PLONG>(&high), FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
