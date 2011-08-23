@@ -2439,7 +2439,8 @@ try_again:
 	os_mutex_enter(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
+	ret2 = SetFilePointer(
+		file, low, reinterpret_cast<PLONG*>(&high), FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
@@ -2566,7 +2567,8 @@ try_again:
 	os_mutex_enter(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
+	ret2 = SetFilePointer(
+		file, low, reinterpret_cast<PLONG*>(&high), FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
@@ -2698,7 +2700,8 @@ retry:
 	os_mutex_enter(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
+	ret2 = SetFilePointer(
+		file, low, reinterpret_cast<PLONG*>(&high), FILE_BEGIN);
 
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
