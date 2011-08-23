@@ -391,8 +391,10 @@ database name and table name. In addition, 14 bytes is added for:
 
 #if SIZEOF_INT == 4
 typedef unsigned int		ib_uint32_t;
+#define UINT32PF		"%u"
 #elif SIZEOF_LONG == 4
 typedef unsigned long		ib_uint32_t;
+#define UINT32PF		"%lu"
 #else
 #error "Neither int or long is 4 bytes"
 #endif
