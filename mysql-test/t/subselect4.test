@@ -1726,5 +1726,41 @@ EXECUTE st2;
 
 drop table t1, t2;
 
+--echo #
+--echo # LP BUG#825018: Crash in check_and_do_in_subquery_rewrites() with corrlated subquery in select list
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (10,1),(11,7);
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (2),(3);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (1,1);
+
+CREATE PROCEDURE sp1 () LANGUAGE SQL
+SELECT (SELECT t1.a
+        FROM t1
+        WHERE t1.b = t3.b
+        AND t1.b IN ( SELECT a FROM t2 )) sq
+FROM t3
+GROUP BY 1;
+CALL sp1();
+CALL sp1();
+drop procedure sp1;
+
+prepare st1 from "
+SELECT (SELECT t1.a
+        FROM t1
+        WHERE t1.b = t3.b
+        AND t1.b IN ( SELECT a FROM t2 )) sq
+FROM t3
+GROUP BY 1";
+execute st1;
+execute st1;
+deallocate prepare st1;
+
+drop table t1, t2, t3;
 
 set optimizer_switch=@subselect4_tmp;

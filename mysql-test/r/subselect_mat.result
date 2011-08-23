@@ -1812,3 +1812,35 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select max(`test`.`t1`.`b`) AS `max_res` from `test`.`t1` where <in_optimizer>(9,<exists>(select `test`.`t2`.`a` from `test`.`t2` where (9 = `test`.`t2`.`a`)))
 DROP TABLE t1,t2;
+#
+# LPBUG#825095: Wrong result with materialization and NOT IN with 2 expressions
+#
+CREATE TABLE t1 (a int,b int);
+INSERT INTO t1 VALUES (4,4),(4,2);
+CREATE TABLE t2 (b int, a int);
+INSERT INTO t2 VALUES (4,3),(8,4);
+set @@optimizer_switch='semijoin=off,in_to_exists=off,materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN SELECT *
+FROM t1
+WHERE (a, b) NOT IN (SELECT a, b FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT *
+FROM t1
+WHERE (a, b) NOT IN (SELECT a, b FROM t2);
+a	b
+4	4
+4	2
+EXPLAIN
+SELECT a, b, (a, b) NOT IN (SELECT a, b FROM t2) as sq
+FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT a, b, (a, b) NOT IN (SELECT a, b FROM t2) as sq
+FROM t1;
+a	b	sq
+4	4	1
+4	2	1
+drop table t1, t2;

@@ -870,7 +870,7 @@ public:
       tmp_table(NULL), is_materialized(FALSE), materialize_engine(old_engine),
       materialize_join(NULL),  semi_join_conds(NULL), lookup_engine(NULL),
       count_partial_match_columns(0), count_null_only_columns(0),
-      strategy(UNDEFINED)
+      count_columns_with_nulls(0), strategy(UNDEFINED)
   {}
   ~subselect_hash_sj_engine();
 
@@ -908,6 +908,7 @@ protected:
   MY_BITMAP partial_match_key_parts;
   uint count_partial_match_columns;
   uint count_null_only_columns;
+  uint count_columns_with_nulls;
   /* Possible execution strategies that can be used to compute hash semi-join.*/
   enum exec_strategy {
     UNDEFINED,
@@ -1145,6 +1146,7 @@ protected:
     guaranteed partial match.
   */
   bool has_covering_null_columns;
+  uint count_columns_with_nulls;
 
 protected:
   virtual bool partial_match()= 0;
@@ -1155,7 +1157,8 @@ public:
                                  select_result_interceptor *result_arg,
                                  List<Item> *equi_join_conds_arg,
                                  bool has_covering_null_row_arg,
-                                 bool has_covering_null_columns_arg);
+                                 bool has_covering_null_columns_arg,
+                                 uint count_columns_with_nulls_arg);
   int prepare() { return 0; }
   int exec();
   void fix_length_and_dec(Item_cache**) {}
@@ -1245,13 +1248,15 @@ public:
                                TABLE *tmp_table_arg, uint merge_keys_count_arg,
                                bool has_covering_null_row_arg,
                                bool has_covering_null_columns_arg,
+                               uint count_columns_with_nulls_arg,
                                Item_subselect *item_arg,
                                select_result_interceptor *result_arg,
                                List<Item> *equi_join_conds_arg)
     :subselect_partial_match_engine(thd_arg, engine_arg, tmp_table_arg,
                                     item_arg, result_arg, equi_join_conds_arg,
                                     has_covering_null_row_arg,
-                                    has_covering_null_columns_arg),
+                                    has_covering_null_columns_arg,
+                                    count_columns_with_nulls_arg),
     merge_keys_count(merge_keys_count_arg), non_null_key(NULL)
   {}
   ~subselect_rowid_merge_engine();
@@ -1272,7 +1277,8 @@ public:
                               select_result_interceptor *result_arg,
                               List<Item> *equi_join_conds_arg,
                               bool has_covering_null_row_arg,
-                              bool has_covering_null_columns_arg);
+                              bool has_covering_null_columns_arg,
+                              uint count_columns_with_nulls_arg);
   void cleanup();
   virtual enum_engine_type engine_type() { return TABLE_SCAN_ENGINE; }
 };
