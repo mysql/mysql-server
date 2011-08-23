@@ -1530,3 +1530,34 @@ Handler_write	1021
 set @@max_heap_table_size= @save_heap_size;
 drop table t1;
 #
+#
+# Bug#12896124: Crash on rqg_mdl_stability test
+#
+CREATE TABLE t1(f1 INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE FUNCTION func1 (param1 INTEGER) RETURNS INT NOT DETERMINISTIC
+return param1;
+CREATE FUNCTION func2 (param1 INTEGER) RETURNS INT 
+return param1;
+SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func1(f1);
+f1
+1
+2
+3
+EXPLAIN SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func1(f1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
+SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func2(f1);
+f1
+1
+2
+3
+EXPLAIN SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func2(f1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
+DROP FUNCTION func1;
+DROP FUNCTION func2;
+DROP TABLE t1;
+#

@@ -905,3 +905,21 @@ drop table t1;
 
 --echo #
 
+--echo #
+--echo # Bug#12896124: Crash on rqg_mdl_stability test
+--echo #
+CREATE TABLE t1(f1 INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE FUNCTION func1 (param1 INTEGER) RETURNS INT NOT DETERMINISTIC
+return param1;
+CREATE FUNCTION func2 (param1 INTEGER) RETURNS INT 
+return param1;
+SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func1(f1);
+EXPLAIN SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func1(f1);
+SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func2(f1);
+EXPLAIN SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func2(f1);
+DROP FUNCTION func1;
+DROP FUNCTION func2;
+DROP TABLE t1;
+--echo #
+
