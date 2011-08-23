@@ -279,13 +279,7 @@ rarely invoked function for size instead for speed. */
 #ifndef UNIV_MUST_NOT_INLINE
 /* Definition for inline version */
 
-#ifdef __WIN__
-# define UNIV_INLINE	__inline
-#elif defined(__SUNPRO_CC) || defined(__SUNPRO_C)
-# define UNIV_INLINE static inline
-#else
-# define UNIV_INLINE static __inline__
-#endif
+#define UNIV_INLINE static inline
 
 #else /* !UNIV_MUST_NOT_INLINE */
 /* If we want to compile a noninlined version we use the following macro
