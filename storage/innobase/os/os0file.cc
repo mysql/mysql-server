@@ -816,7 +816,8 @@ os_file_opendir(
 	the first entry in the directory. Since it is '.', that is no problem,
 	as we will skip over the '.' and '..' entries anyway. */
 
-	lpFindFileData = ut_malloc(sizeof(WIN32_FIND_DATA));
+	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
+		ut_malloc(sizeof(WIN32_FIND_DATA)));
 
 	dir = FindFirstFile((LPCTSTR) path, lpFindFileData);
 
@@ -893,7 +894,8 @@ os_file_readdir_next_file(
 	LPWIN32_FIND_DATA	lpFindFileData;
 	BOOL			ret;
 
-	lpFindFileData = ut_malloc(sizeof(WIN32_FIND_DATA));
+	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
+		ut_malloc(sizeof(WIN32_FIND_DATA)));
 next_file:
 	ret = FindNextFile(dir, lpFindFileData);
 
