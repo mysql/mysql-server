@@ -110,6 +110,8 @@ if($my_socket_debug)
 #    cause that the test needs maintenance.
 # Advantage:
 #    More thorough checks.
+# If any of the checks detects some suspicious/unexpected state than
+# $print_details will be automatically switched to 1.
 #
 let $print_details= 0;
 
@@ -214,43 +216,73 @@ SET INSTRUMENTED='NO' WHERE PROCESSLIST_ID = CONNECTION_ID();
 # - to have initial values from before some action
 # - to minimize the impact of statements used for the checks on results.
 # CREATE TEMPORARY TABLE my_socket_summary_by_instance AS
-# would be nice but the optimizer does not support important statements.
+# would be nice but some statements are not supported for temporary tables.
 #
-CREATE TABLE mysqltest.my_socket_summary_by_instance AS
-SELECT *, 'Pseudo_Before' AS pk FROM performance_schema.socket_summary_by_instance
-WHERE 1 = 0;
+# DECIMAL(60,0) is used instead of BIGINT UNSIGNED. The goal is to prevent
+# errors during calculations
+#   Example:
+#   -    A and B UNSIGNED BIGINT
+#   -    A < B
+#   -    A - B ---> Error
+# though the columns in all queries are orderd to avoid this too.
+#
+CREATE TABLE mysqltest.my_socket_summary_by_instance (
+  EVENT_NAME varchar(128) NOT NULL,
+  OBJECT_INSTANCE_BEGIN bigint(20) unsigned NOT NULL,
+  COUNT_STAR                DECIMAL(60,0) NOT NULL,
+  SUM_TIMER_WAIT            DECIMAL(60,0) NOT NULL,
+  MIN_TIMER_WAIT            DECIMAL(60,0) NOT NULL,
+  AVG_TIMER_WAIT            DECIMAL(60,0) NOT NULL,
+  MAX_TIMER_WAIT            DECIMAL(60,0) NOT NULL,
+  COUNT_READ                DECIMAL(60,0) NOT NULL,
+  SUM_TIMER_READ            DECIMAL(60,0) NOT NULL,
+  MIN_TIMER_READ            DECIMAL(60,0) NOT NULL,
+  AVG_TIMER_READ            DECIMAL(60,0) NOT NULL,
+  MAX_TIMER_READ            DECIMAL(60,0) NOT NULL,
+  SUM_NUMBER_OF_BYTES_READ  DECIMAL(60,0) NOT NULL,
+  COUNT_WRITE               DECIMAL(60,0) NOT NULL,
+  SUM_TIMER_WRITE           DECIMAL(60,0) NOT NULL,
+  MIN_TIMER_WRITE           DECIMAL(60,0) NOT NULL,
+  AVG_TIMER_WRITE           DECIMAL(60,0) NOT NULL,
+  MAX_TIMER_WRITE           DECIMAL(60,0) NOT NULL,
+  SUM_NUMBER_OF_BYTES_WRITE DECIMAL(60,0) NOT NULL,
+  COUNT_MISC                DECIMAL(60,0) NOT NULL,
+  SUM_TIMER_MISC            DECIMAL(60,0) NOT NULL,
+  MIN_TIMER_MISC            DECIMAL(60,0) NOT NULL,
+  AVG_TIMER_MISC            DECIMAL(60,0) NOT NULL,
+  MAX_TIMER_MISC            DECIMAL(60,0) NOT NULL,
+  pk VARCHAR(20),
+  PRIMARY KEY(pk, EVENT_NAME, OBJECT_INSTANCE_BEGIN)
+) DEFAULT CHARSET=utf8;
 
-# The CAST(... AS DECIMAL) prevents errors which might show up in case
+
+# The CAST(... AS DECIMAL(60,0)) prevents errors which might show up in case
 # we run with the original data type UNSIGNED BIGINT.
-# Example:
-# -    A and B UNSIGNED BIGINT
-# -    A < B
-# -    A - B ---> Error
-CREATE TABLE mysqltest.socket_summary_by_instance_detail AS
-SELECT EVENT_NAME,OBJECT_INSTANCE_BEGIN,
-       CAST(COUNT_READ AS DECIMAL) AS COUNT_READ,
-       CAST(SUM_TIMER_READ AS DECIMAL) AS SUM_TIMER_READ,
-       CAST(SUM_NUMBER_OF_BYTES_READ AS DECIMAL) SUM_NUMBER_OF_BYTES_READ,
-       CAST(COUNT_WRITE AS DECIMAL) AS COUNT_WRITE,
-       CAST(SUM_TIMER_WRITE AS DECIMAL) AS SUM_TIMER_WRITE,
-       CAST(SUM_NUMBER_OF_BYTES_WRITE AS DECIMAL) AS SUM_NUMBER_OF_BYTES_WRITE,
-       CAST(COUNT_MISC AS DECIMAL) AS COUNT_MISC,
-       CAST(SUM_TIMER_MISC AS DECIMAL) AS SUM_TIMER_MISC
-FROM performance_schema.socket_summary_by_instance
-WHERE 1 = 2;
-ALTER TABLE mysqltest.socket_summary_by_instance_detail
-ADD statement VARCHAR(500), ADD run INTEGER;
+CREATE TABLE mysqltest.socket_summary_by_instance_detail (
+  EVENT_NAME varchar(128) NOT NULL,
+  OBJECT_INSTANCE_BEGIN bigint(20) unsigned NOT NULL,
+  COUNT_READ                DECIMAL(60,0) NOT NULL,
+  SUM_TIMER_READ            DECIMAL(60,0) NOT NULL,
+  SUM_NUMBER_OF_BYTES_READ  DECIMAL(60,0) NOT NULL,
+  COUNT_WRITE               DECIMAL(60,0) NOT NULL,
+  SUM_TIMER_WRITE           DECIMAL(60,0) NOT NULL,
+  SUM_NUMBER_OF_BYTES_WRITE DECIMAL(60,0) NOT NULL,
+  COUNT_MISC                DECIMAL(60,0) NOT NULL,
+  SUM_TIMER_MISC            DECIMAL(60,0) NOT NULL,
+  statement VARCHAR(500),
+  run INTEGER
+) DEFAULT CHARSET=utf8;
 
 #
 # Auxiliary SQL functions used to shorten some commands.
 #
 CREATE FUNCTION mysqltest.min_of_triple
-   (f1 BIGINT UNSIGNED, f2 BIGINT UNSIGNED, f3 BIGINT UNSIGNED)
-   RETURNS BIGINT UNSIGNED
+   (f1 DECIMAL(60,0), f2 DECIMAL(60,0), f3 DECIMAL(60,0))
+   RETURNS DECIMAL(60,0)
    RETURN IF(IF(f1 < f2,f1,f2) < f3,IF(f1 < f2,f1,f2), f3);
 CREATE FUNCTION mysqltest.max_of_triple
-   (f1 BIGINT UNSIGNED, f2 BIGINT UNSIGNED, f3 BIGINT UNSIGNED)
-   RETURNS BIGINT UNSIGNED
+   (f1 DECIMAL(60,0), f2 DECIMAL(60,0), f3 DECIMAL(60,0))
+   RETURNS DECIMAL(60,0)
    RETURN IF(IF(f1 > f2,f1,f2) > f3,IF(f1 > f2,f1,f2), f3);
 
 #
@@ -470,6 +502,7 @@ if(`SELECT COUNT(*) FROM performance_schema.socket_summary_by_instance
 
 --echo # 1.3 Check the base line
 #===============================
+eval $truncate;
 --source ../include/socket_summary_check.inc
 
 # --disable_query_log
@@ -731,6 +764,7 @@ if(`SELECT COUNT(*) FROM mysqltest.socket_summary_by_instance_detail
    FROM mysqltest.socket_summary_by_instance_detail
    WHERE NOT ( $my_rules )
    ORDER BY EVENT_NAME, OBJECT_INSTANCE, STATEMENT, RUN;
+   let $print_details= 1;
 }
 
 --echo # 4.2 Results must be stable
@@ -798,6 +832,7 @@ if(`SELECT COUNT(statement) $part`)
          IN (SELECT EVENT_NAME, statement
              $part)
    ORDER BY EVENT_NAME, statement, run, OBJECT_INSTANCE_BEGIN;
+   let $print_details= 1;
 }
 
 --echo # 4.3 Counters must be 0 in client_connection for the default session
@@ -833,6 +868,7 @@ if(`SELECT COUNT(*) FROM performance_schema.socket_summary_by_instance
       COUNT_MISC,SUM_TIMER_MISC
    FROM performance_schema.socket_summary_by_instance
    WHERE OBJECT_INSTANCE_BEGIN = @default_object_instance_begin;
+   let $print_details= 1;
 }
 
 #---------------------------------------------------------------------------
@@ -879,6 +915,7 @@ if(`SELECT COUNT(*) $part`)
       $column_list
    $part
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN, statement, run;
+   let $print_details= 1;
 }
 
 --echo # 4.4.2 In case of SELECT and our scenarios even COUNT_READ and COUNT_MISC
@@ -921,6 +958,7 @@ if(`SELECT COUNT(statement) $part`)
          IN (SELECT EVENT_NAME, statement
              $part)
    ORDER BY EVENT_NAME, statement, run, OBJECT_INSTANCE_BEGIN;
+   let $print_details= 1;
 }
 
 --echo # 4.4.3 In our testing scenarios we get for the client_connection entry
@@ -963,6 +1001,7 @@ if(`SELECT COUNT(*) $part`)
       $column_list
    $part
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN, statement, run;
+   let $print_details= 1;
 }
 
 # Initialize variables
@@ -1190,6 +1229,7 @@ if(`SELECT COUNT(*) $part `)
    SELECT
    $column_list
    $part;
+   let $print_details= 1;
 }
 
 --echo # 4.5.2 Connects using for host the value 'localhost'
@@ -1231,6 +1271,7 @@ if(`SELECT COUNT(*) $part `)
    SELECT
    $column_list
    $part;
+   let $print_details= 1;
 }
 
 --echo # 4.5.2.2 For the instance with EVENT_NAME LIKE '%server_unix_socket'
@@ -1270,6 +1311,7 @@ if(`SELECT COUNT(*) $part `)
    SELECT
    $column_list
    $part;
+   let $print_details= 1;
 }
 
 --echo # 4.5.3 Connects using for host a value <> 'localhost'
@@ -1312,6 +1354,7 @@ if(`SELECT COUNT(*) $part `)
    SELECT
    $column_list
    $part;
+   let $print_details= 1;
 }
 
 --echo # 4.5.3.2 For the instance with EVENT_NAME LIKE '%server_tcpip_socket'
@@ -1352,6 +1395,7 @@ if(`SELECT COUNT(*) $part `)
    SELECT
    $column_list
    $part;
+   let $print_details= 1;
 }
 
 --echo # 4.5.4 Failing Connects do not cause any row with EVENT_NAME
@@ -1389,6 +1433,7 @@ if(`SELECT COUNT(*) $part`)
    SELECT
    $column_list
    $part;
+   let $print_details= 1;
 }
 
 --echo # 4.5.5 Successful Connects cause a new instance with EVENT_NAME
@@ -1447,6 +1492,7 @@ if(`SELECT COUNT(*) $part`)
      AND statement IN
          (SELECT statement
           $part);
+   let $print_details= 1;
 }
 
 --echo # 4.6 Check the differences caused by Connects
@@ -1494,6 +1540,7 @@ if(`SELECT NOT ( $my_rules) $part`)
    SELECT
    statement, SUM_NUMBER_OF_BYTES_WRITE
    $part;
+   let $print_details= 1;
 }
 
 --echo # 4.6.2 The SUM_OF_BYTES_WRITE value hast to be > 100.
@@ -1519,6 +1566,7 @@ if(`SELECT COUNT(*) $part`)
    SELECT
    statement, SUM_NUMBER_OF_BYTES_WRITE
    $part;
+   let $print_details= 1;
 }
 
 --echo # 4.6.3 COUNT_READ, COUNT_WRITE and COUNT_MISC have to be to be > 0
@@ -1545,6 +1593,7 @@ if(`SELECT COUNT(*) $part`)
    SELECT
    statement, COUNT_READ, COUNT_WRITE, COUNT_MISC
    $part;
+   let $print_details= 1;
 }
 
 --echo # 4.6.4 Checks based on comparison of results for connects
@@ -1588,6 +1637,7 @@ if(`SELECT NOT ($my_rules)
    eval
    $part1
    AND statement IN('$stmt2','$stmt1');
+   let $print_details= 1;
 }
 
 --echo # 4.6.5 The database name length affects the SUM_OF_BYTES_READ value
@@ -1613,6 +1663,7 @@ if(`SELECT NOT ($my_rules)
    eval
    $part1
    AND statement IN('$stmt2','$stmt1');
+   let $print_details= 1;
 }
 
 if($print_details)
