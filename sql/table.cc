@@ -5846,8 +5846,8 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
 
   for (uint i= 0; i < num_values; i++)
   {
-    table_map tables= values[i]->used_tables();
-    if (!tables)
+    table_map tables= values[i]->used_tables() & ~PSEUDO_TABLE_BITS;
+    if (!tables || values[i]->real_item()->type() != Item::FIELD_ITEM)
       continue;
     for (table_map tbl= 1; tables >= tbl; tbl<<= 1)
     {
