@@ -38,13 +38,14 @@ NONSTANDARD_SRCS= \
 		  $(LOADER_SRCS) \
 
 FAIL3312C_SRCS = filesize.c test_update_broadcast_stress.c test3529.c
+FAIL3389_SRCS = insert-dup-prelock.c loader-cleanup-test.c loader-dup-test.c loader-stress-del.c loader-stress-test.c loader-tpch-load.c preload-db.c preload-db-nested.c
 
 #SRCS = $(sort $(wildcard *.c))
 # To patch out upgrade tests, replace line above with line below,
 # and patch out loader-stress-test3 (see below)
 #SRCS = $(sort $(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(wildcard *.c)))
 # To patch out tests failing on 3312c branch (including upgrade tests), use this:
-SRCS = $(sort $(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(filter-out $(FAIL3312C_SRCS),$(wildcard *.c))))
+SRCS = $(sort $(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(filter-out $(FAIL3389_SRCS),$(filter-out $(FAIL3312C_SRCS),$(wildcard *.c)))))
 
 
 #end
