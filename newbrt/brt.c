@@ -1344,9 +1344,8 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
             subtract_estimates(&BP_SUBTREE_EST(node,curr_src_bn_index), &se_diff);
             add_estimates(&BP_SUBTREE_EST(B,curr_dest_bn_index), &se_diff);
             curr_dest_bn_index++;
-        } else {
-            curr_src_bn_index++;
         }
+        curr_src_bn_index++;
 
         // move the rest of the basement nodes
         for ( ; curr_src_bn_index < node->n_children; curr_src_bn_index++, curr_dest_bn_index++) {
