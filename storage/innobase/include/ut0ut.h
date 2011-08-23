@@ -96,9 +96,8 @@ do {								\
 } while (0)
 #endif /* !UNIV_HOTBACKUP */
 
-/* beware of possible side effects like UT_MIN(x, y++); */
-#define UT_MIN(a, b)	((a) < (b) ? (a) : (b))
-#define UT_MAX(a, b)	((a) > (b) ? (a) : (b))
+template <class T> T ut_min(T a, T b) { return(a < b ? a : b); }
+template <class T> T ut_max(T a, T b) { return(a > b ? a : b); }
 
 /******************************************************//**
 Calculates the minimum of two ulints.

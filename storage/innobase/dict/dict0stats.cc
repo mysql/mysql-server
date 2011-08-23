@@ -976,7 +976,7 @@ dict_stats_analyze_index_for_n_prefix(
 
 	n_diff_sum_of_all_analyzed_pages = 0;
 
-	n_recs_to_dive_below = UT_MIN(srv_stats_persistent_sample_pages,
+	n_recs_to_dive_below = ut_min(srv_stats_persistent_sample_pages,
 				      n_diff_for_this_prefix);
 
 	for (i = 0; i < n_recs_to_dive_below; i++) {
