@@ -562,12 +562,9 @@ void Warning_info::append_warning_info(THD *thd, const Warning_info *source)
   Diagnostics_area::Sql_condition_iterator it(source->m_warn_list);
   const Sql_condition *src_error_condition = source->get_error_condition();
 
-  /*
-    Don't use ::push_warning() to avoid invocation of condition
-    handlers or escalation of warnings to errors.
-  */
   while ((err= it++))
   {
+    // Do not use ::push_warning() to avoid invocation of THD-internal-handlers.
     Sql_condition *new_error= Warning_info::push_warning(thd, err);
 
     if (src_error_condition && src_error_condition == err)

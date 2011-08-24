@@ -511,10 +511,7 @@ bool Sql_cmd_resignal::execute(THD *thd)
     /* Make room for 2 conditions. */
     da->reserve_space(thd, 2);
 
-    Sql_condition *cond= da->push_warning(thd, signaled);
-
-    if (cond)
-      cond->copy_opt_attributes(signaled);
+    da->push_warning(thd, signaled);
   }
 
   DBUG_RETURN(raise_condition(thd, signaled));
