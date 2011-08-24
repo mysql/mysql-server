@@ -103,8 +103,7 @@ class sp_rcontext : public Sql_alloc
   sp_head *sp;
 #endif
 
-  sp_rcontext(sp_pcontext *root_parsing_ctx, Field *return_value_fld,
-              sp_rcontext *prev_runtime_ctx);
+  sp_rcontext(sp_pcontext *root_parsing_ctx, Field *return_value_fld);
   bool init(THD *thd);
 
   ~sp_rcontext();
@@ -135,13 +134,6 @@ class sp_rcontext : public Sql_alloc
 
   void pop_handlers(uint count);
 
-  bool
-  find_handler(THD *thd,
-               uint sql_errno,
-               const char *sqlstate,
-               Sql_condition::enum_warning_level level,
-               const char *msg);
-
   Sql_condition *
   raised_condition() const;
 
@@ -152,12 +144,11 @@ class sp_rcontext : public Sql_alloc
   pop_hstack();
 
   bool
-  activate_handler(THD *thd,
-                   uint *ip,
-                   sp_instr *instr,
-                   Query_arena *execute_arena,
-                   Query_arena *backup_arena);
-
+  handle_sql_condition(THD *thd,
+                       uint *ip,
+                       const sp_instr *cur_spi,
+                       Query_arena *execute_arena,
+                       Query_arena *backup_arena);
 
   void
   exit_handler();
@@ -192,6 +183,25 @@ class sp_rcontext : public Sql_alloc
 
   Item **
   get_case_expr_addr(int case_expr_id);
+
+private:
+  int
+  find_handler(THD *thd);
+
+  int
+  find_handler(THD *thd,
+               uint sql_errno,
+               const char *sqlstate,
+               Sql_condition::enum_warning_level level,
+               const char *msg);
+
+  void
+  activate_handler(THD *thd,
+                   int handler_idx,
+                   uint *ip,
+                   const sp_instr *cur_spi,
+                   Query_arena *execute_arena,
+                   Query_arena *backup_arena);
 
 private:
   sp_pcontext *m_root_parsing_ctx;
@@ -236,15 +246,11 @@ private:
   /** Active handler stack. */
   sp_active_handler *m_in_handler;
   uint m_ihsp;                  // Stack pointer for m_in_handler
-  int m_hfound;                 // Set by find_handler; -1 if not found
 
   sp_cursor **m_cstack;
   uint m_ccount;
 
   Item_cache **m_case_expr_holders;
-
-  /* Previous runtime context (NULL if none) */
-  sp_rcontext *m_prev_runtime_ctx;
 
 private:
   bool init_var_table(THD *thd);
