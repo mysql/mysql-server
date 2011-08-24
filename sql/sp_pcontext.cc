@@ -50,11 +50,10 @@ sp_cond_check(LEX_STRING *sqlstate)
   return TRUE;
 }
 
-sp_pcontext::sp_pcontext()
-  : Sql_alloc(),
-  m_max_var_index(0), m_max_cursor_index(0), m_max_handler_index(0),
-  m_context_handlers(0), m_parent(NULL), m_pboundary(0),
-  m_scope(REGULAR_SCOPE)
+void
+sp_pcontext::init(uint var_offset,
+                  uint cursor_offset,
+                  int num_case_expressions)
 {
   (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
@@ -74,8 +73,18 @@ sp_pcontext::sp_pcontext()
   m_label.empty();
   m_children.empty();
 
-  m_var_offset= m_cursor_offset= 0;
-  m_num_case_exprs= 0;
+  m_var_offset= var_offset;
+  m_cursor_offset= cursor_offset;
+  m_num_case_exprs= num_case_expressions;
+}
+
+sp_pcontext::sp_pcontext()
+  : Sql_alloc(),
+  m_max_var_index(0), m_max_cursor_index(0), m_max_handler_index(0),
+  m_context_handlers(0), m_parent(NULL), m_pboundary(0),
+  m_scope(REGULAR_SCOPE)
+{
+  init(0, 0, 0);
 }
 
 sp_pcontext::sp_pcontext(sp_pcontext *prev, sp_pcontext::enum_scope scope)
@@ -84,27 +93,9 @@ sp_pcontext::sp_pcontext(sp_pcontext *prev, sp_pcontext::enum_scope scope)
   m_context_handlers(0), m_parent(prev), m_pboundary(0),
   m_scope(scope)
 {
-  (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_conds, sizeof(sp_condition *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_condition_value *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  m_label.empty();
-  m_children.empty();
-
-  m_var_offset= prev->m_var_offset + prev->m_max_var_index;
-  m_cursor_offset= prev->current_cursor_count();
-  m_num_case_exprs= prev->get_num_case_exprs();
+  init(prev->m_var_offset + prev->m_max_var_index,
+       prev->current_cursor_count(),
+       prev->get_num_case_exprs());
 }
 
 void

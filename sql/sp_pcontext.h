@@ -408,6 +408,12 @@ protected:
   uint m_context_handlers;      // No. of handlers in this context
 
 private:
+  void
+  init(uint var_offset,
+       uint cursor_offset,
+       int num_case_expressions);
+
+private:
 
   sp_pcontext *m_parent;	// Parent context
 
