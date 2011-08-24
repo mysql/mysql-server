@@ -215,8 +215,11 @@ os_mem_free_large(
 	}
 #elif !defined OS_MAP_ANON
 	ut_free(ptr);
-#else
+# if defined(UNIV_SOLARIS)
+	if (munmap(static_cast<caddr_t>(ptr), size)) {
+# else
 	if (munmap(ptr, size)) {
+# endif /* UNIV_SOLARIS */
 		fprintf(stderr, "InnoDB: munmap(%p, %lu) failed;"
 			" errno %lu\n",
 			ptr, (ulong) size, (ulong) errno);
