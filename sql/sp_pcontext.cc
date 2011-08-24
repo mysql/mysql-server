@@ -325,11 +325,11 @@ sp_pcontext::find_handler(sp_condition_value *cond)
     {
       switch (p->type)
       {
-      case sp_condition_value::number:
+      case sp_condition_value::ERROR_CODE:
 	if (cond->mysqlerr == p->mysqlerr)
 	  return TRUE;
 	break;
-      case sp_condition_value::state:
+      case sp_condition_value::SQLSTATE:
 	if (strcmp(cond->sqlstate, p->sqlstate) == 0)
 	  return TRUE;
 	break;

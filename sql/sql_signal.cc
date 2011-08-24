@@ -114,7 +114,7 @@ void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond)
     /*
       SIGNAL is restricted in sql_yacc.yy to only signal SQLSTATE conditions.
     */
-    DBUG_ASSERT(m_cond->type == sp_condition_value::state);
+    DBUG_ASSERT(m_cond->type == sp_condition_value::SQLSTATE);
     sqlstate= m_cond->sqlstate;
     cond->set_sqlstate(sqlstate);
   }

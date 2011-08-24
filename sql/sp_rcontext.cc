@@ -236,27 +236,29 @@ sp_rcontext::find_handler(THD *thd,
 
     switch (cond->type)
     {
-    case sp_condition_value::number:
+    case sp_condition_value::ERROR_CODE:
       if (sql_errno == cond->mysqlerr &&
-          (m_hfound < 0 || m_handlers[m_hfound].cond->type > sp_condition_value::number))
+          (m_hfound < 0 ||
+           m_handlers[m_hfound].cond->type > sp_condition_value::ERROR_CODE))
 	m_hfound= i;		// Always the most specific
       break;
-    case sp_condition_value::state:
+    case sp_condition_value::SQLSTATE:
       if (strcmp(sqlstate, cond->sqlstate) == 0 &&
-	  (m_hfound < 0 || m_handlers[m_hfound].cond->type > sp_condition_value::state))
+	  (m_hfound < 0 ||
+           m_handlers[m_hfound].cond->type > sp_condition_value::SQLSTATE))
 	m_hfound= i;
       break;
-    case sp_condition_value::warning:
+    case sp_condition_value::WARNING:
       if ((IS_WARNING_CONDITION(sqlstate) ||
            level == Sql_condition::WARN_LEVEL_WARN) &&
           m_hfound < 0)
 	m_hfound= i;
       break;
-    case sp_condition_value::notfound:
+    case sp_condition_value::NOT_FOUND:
       if (IS_NOT_FOUND_CONDITION(sqlstate) && m_hfound < 0)
 	m_hfound= i;
       break;
-    case sp_condition_value::exception:
+    case sp_condition_value::EXCEPTION:
       if (IS_EXCEPTION_CONDITION(sqlstate) &&
 	  level == Sql_condition::WARN_LEVEL_ERROR &&
 	  m_hfound < 0)

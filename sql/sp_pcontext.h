@@ -78,7 +78,16 @@ struct sp_label
 
 struct sp_condition_value
 {
-  enum { number, state, warning, notfound, exception } type;
+  enum enum_type
+  {
+    ERROR_CODE,
+    SQLSTATE,
+    WARNING,
+    NOT_FOUND,
+    EXCEPTION
+  };
+
+  enum_type type;
   char sqlstate[SQLSTATE_LENGTH+1];
   uint mysqlerr;
 };
