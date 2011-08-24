@@ -1501,7 +1501,9 @@ btr_free_root(
 	ut_a(btr_root_fseg_validate(header, space));
 #endif /* UNIV_BTR_DEBUG */
 
-	while (!fseg_free_step(header, mtr));
+	while (!fseg_free_step(header, mtr)) {
+		/* Free the entire segment in small steps. */
+	}
 }
 #endif /* !UNIV_HOTBACKUP */
 

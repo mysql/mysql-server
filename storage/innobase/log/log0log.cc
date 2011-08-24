@@ -2069,9 +2069,13 @@ log_make_checkpoint_at(
 {
 	/* Preflush pages synchronously */
 
-	while (!log_preflush_pool_modified_pages(lsn));
+	while (!log_preflush_pool_modified_pages(lsn)) {
+		/* Flush as much as we can */
+	}
 
-	while (!log_checkpoint(TRUE, write_always));
+	while (!log_checkpoint(TRUE, write_always)) {
+		/* Force a checkpoint */
+	}
 }
 
 /****************************************************************//**
