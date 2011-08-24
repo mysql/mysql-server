@@ -2827,7 +2827,6 @@ sp_decl:
 
             $$.vars= $$.conds= $$.curs= 0;
             $$.hndlrs= 1;
-            lex->spcont->add_handlers(1);
           }
         | DECLARE_SYM ident CURSOR_SYM FOR_SYM sp_cursor_stmt
           {
