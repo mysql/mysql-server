@@ -8696,6 +8696,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   if (mpvio->charset_adapter->init_client_charset(charset_code))
     return packet_error;
 
+skip_to_ssl:
 #if defined(HAVE_OPENSSL)
   DBUG_PRINT("info", ("client capabilities: %lu", mpvio->client_capabilities));
   
@@ -8704,7 +8705,6 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     and wait for the client to send a new handshake packet.
     The client isn't expected to send any more bytes until SSL is initialized.
   */
-skip_to_ssl:
   if (mpvio->client_capabilities & CLIENT_SSL)
   {
     unsigned long errptr;
