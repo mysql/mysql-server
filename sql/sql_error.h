@@ -781,4 +781,8 @@ uint32 convert_error_message(char *to, uint32 to_length,
 
 extern const LEX_STRING warning_level_names[];
 
+bool is_sqlstate_valid(const LEX_STRING *sqlstate);
+
+bool is_sqlstate_completion(const LEX_STRING *sqlstate);
+
 #endif // SQL_ERROR_H

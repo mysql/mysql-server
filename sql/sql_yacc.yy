@@ -2929,7 +2929,15 @@ sp_cond:
 sqlstate:
           SQLSTATE_SYM opt_value TEXT_STRING_literal
           { /* SQLSTATE */
-            if (!sp_cond_check(&$3))
+
+            /*
+              An error is triggered:
+                - if the specified string is not a valid SQLSTATE,
+                - or if it represents the completion condition -- it is not
+                  allowed to SIGNAL, or declare a handler for the completion
+                  condition.
+            */
+            if (!is_sqlstate_valid(&$3) || is_sqlstate_completion(&$3))
             {
               my_error(ER_SP_BAD_SQLSTATE, MYF(0), $3.str);
               MYSQL_YYABORT;

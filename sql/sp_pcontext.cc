@@ -23,33 +23,6 @@
 /* Increment size for the dynamic arrays in sp_pcontext */
 #define PCONTEXT_ARRAY_INCREMENT_ALLOC 8
 
-/*
-  Sanity check for SQLSTATEs. Will not check if it's really an existing
-  state (there are just too many), but will check length and bad characters.
-  Returns TRUE if it's ok, FALSE if it's bad.
-*/
-bool
-sp_cond_check(LEX_STRING *sqlstate)
-{
-  int i;
-  const char *p;
-
-  if (sqlstate->length != 5)
-    return FALSE;
-  for (p= sqlstate->str, i= 0 ; i < 5 ; i++)
-  {
-    char c = p[i];
-
-    if ((c < '0' || '9' < c) &&
-	(c < 'A' || 'Z' < c))
-      return FALSE;
-  }
-  /* SQLSTATE class '00' : completion condition */
-  if (strncmp(sqlstate->str, "00", 2) == 0)
-    return FALSE;
-  return TRUE;
-}
-
 void
 sp_pcontext::init(uint var_offset,
                   uint cursor_offset,
