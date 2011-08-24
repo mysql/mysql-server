@@ -2133,8 +2133,10 @@ sub find_plugin($$)
   my $lib_plugin=
     mtr_file_exists(vs_config_dirs($location,$plugin_filename),
                     "$basedir/lib/plugin/".$plugin_filename,
+                    "$basedir/lib64/plugin/".$plugin_filename,
                     "$basedir/$location/.libs/".$plugin_filename,
                     "$basedir/lib/mysql/plugin/".$plugin_filename,
+                    "$basedir/lib64/mysql/plugin/".$plugin_filename,
                     );
   return $lib_plugin;
 }
