@@ -215,6 +215,7 @@ os_mem_free_large(
 	}
 #elif !defined OS_MAP_ANON
 	ut_free(ptr);
+#else
 # if defined(UNIV_SOLARIS)
 	if (munmap(static_cast<caddr_t>(ptr), size)) {
 # else
