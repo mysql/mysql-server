@@ -184,8 +184,8 @@ cmp_whole_field(
 
 	case DATA_DECIMAL:
 		/* Remove preceding spaces */
-		for (; a_length && *a == ' '; a++, a_length--);
-		for (; b_length && *b == ' '; b++, b_length--);
+		for (; a_length && *a == ' '; a++, a_length--) { }
+		for (; b_length && *b == ' '; b++, b_length--) { }
 
 		if (*a == '-') {
 			if (*b != '-') {
