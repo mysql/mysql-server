@@ -317,7 +317,7 @@ public:
   inline sp_label *
   last_label()
   {
-    sp_label *lab= m_label.head();
+    sp_label *lab= m_labels.head();
 
     if (!lab && m_parent)
       lab= m_parent->last_label();
@@ -327,7 +327,7 @@ public:
   inline sp_label *
   pop_label()
   {
-    return m_label.pop();
+    return m_labels.pop();
   }
 
   //
@@ -455,7 +455,7 @@ private:
   DYNAMIC_ARRAY m_cursors;	// Cursors
   DYNAMIC_ARRAY m_handlers;	// Handlers, for checking for duplicates
 
-  List<sp_label> m_label;	// The label list
+  List<sp_label> m_labels;      // The label list
 
   List<sp_pcontext> m_children;	// Children contexts, used for destruction
 
