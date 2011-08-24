@@ -160,10 +160,6 @@ sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 }
 
 
-#define IS_WARNING_CONDITION(S)   ((S)[0] == '0' && (S)[1] == '1')
-#define IS_NOT_FOUND_CONDITION(S) ((S)[0] == '0' && (S)[1] == '2')
-#define IS_EXCEPTION_CONDITION(S) ((S)[0] != '0' || (S)[1] > '2')
-
 /**
   Find an SQL handler for the given SQL condition.
 
@@ -232,17 +228,17 @@ sp_rcontext::find_handler(THD *thd,
 	hfound= i;
       break;
     case sp_condition_value::WARNING:
-      if ((IS_WARNING_CONDITION(sqlstate) ||
+      if ((is_sqlstate_warning(sqlstate) ||
            level == Sql_condition::WARN_LEVEL_WARN) &&
           hfound < 0)
 	hfound= i;
       break;
     case sp_condition_value::NOT_FOUND:
-      if (IS_NOT_FOUND_CONDITION(sqlstate) && hfound < 0)
+      if (is_sqlstate_not_found(sqlstate) && hfound < 0)
 	hfound= i;
       break;
     case sp_condition_value::EXCEPTION:
-      if (IS_EXCEPTION_CONDITION(sqlstate) &&
+      if (is_sqlstate_exception(sqlstate) &&
 	  level == Sql_condition::WARN_LEVEL_ERROR &&
 	  hfound < 0)
 	hfound= i;

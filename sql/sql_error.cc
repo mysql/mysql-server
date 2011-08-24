@@ -987,20 +987,3 @@ is_sqlstate_valid(const LEX_STRING *sqlstate)
 
   return true;
 }
-
-/**
-  Checks if the specified SQL-state-string defines the completion condition.
-  This function assumes that the given string contains a valid SQL-state.
-
-  @param sqlstate the condition SQLSTATE.
-
-  @retval true if the given string defines the completion condition.
-  @retval false otherwise.
-*/
-
-bool
-is_sqlstate_completion(const LEX_STRING *sqlstate)
-{
-  // SQLSTATE class '00': completion condition.
-  return strncmp(sqlstate->str, "00", 2) == 0;
-}

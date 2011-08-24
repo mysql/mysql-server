@@ -2935,7 +2935,7 @@ sqlstate:
                   allowed to SIGNAL, or declare a handler for the completion
                   condition.
             */
-            if (!is_sqlstate_valid(&$3) || is_sqlstate_completion(&$3))
+            if (!is_sqlstate_valid(&$3) || is_sqlstate_completion($3.str))
             {
               my_error(ER_SP_BAD_SQLSTATE, MYF(0), $3.str);
               MYSQL_YYABORT;
