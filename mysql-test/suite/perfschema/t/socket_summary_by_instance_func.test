@@ -49,6 +49,7 @@
 --source include/not_embedded.inc
 --source include/not_windows.inc
 
+
 # The values in the performance_schema tables depend on how much communication
 # happens per SQL statement within our MTR tests. And there is a significant
 # difference between standard statement execution and execution via
@@ -190,6 +191,29 @@ if(!$success)
 }
 
 --disable_query_log
+
+#
+# Lower the resolution of the wait timer from the default 'CYCLE'
+# to 'NANOSECOND'.
+# Hint: The timer columns contains values in picoseconds independent
+#       of the timer resolution.
+#       The timer resolution has an impact on the precision of the value.
+# This should prevent the failures seen on some suspicious PB boxes where
+# - calculations exceeded the BIGINT UNSIGNED (data type of the counter columns)
+#   value range.
+# - we have reached from whatever reason 20 digit values 
+# The consequence for the current test is the following:
+#    The common sense rule
+#       In case COUNT_<A> increases than SUM_TIMER_<A> must also increase
+#    is no more valid because some action might need less time than the
+#    timer resolution.
+#
+let $wait_timer= `SELECT TIMER_NAME FROM performance_schema.setup_timers
+                  WHERE NAME = 'wait'`;
+UPDATE performance_schema.setup_timers
+SET TIMER_NAME = 'NANOSECOND'
+WHERE NAME = 'wait';
+
 #
 # Additional SCHEMA used for
 # - detection of our "worker" session within the PROCESSLIST.
@@ -715,13 +739,13 @@ if(`SELECT NOT ( $my_rules ) $part `)
 --echo #     - no change in COUNT_* leads to no change in
 --echo #       SUM_TIMER_* and no change in SUM_NUMBER_OF_BYTES_*
 --echo #     - increased COUNT_READ leads to increased
---echo #       SUM_TIMER_READ and SUM_NUMBER_OF_BYTES_READ
+--echo #       SUM_NUMBER_OF_BYTES_READ
 --echo #     - increased COUNT_WRITE leads to increased
---echo #       SUM_TIMER_READ and SUM_NUMBER_OF_BYTES_READ
---echo #     - increased COUNT_MISC leads to increased
---echo #       SUM_TIMER_MISC
---echo #       Attention: There are exceptions but they are not valid
---echo #                  for this test.
+--echo #       SUM_NUMBER_OF_BYTES_WRITE
+--echo #     Attention:
+--echo #     The time required for some action might be below timer resolution.
+--echo #     Therefore some increased COUNT_* does not need to lead to an
+--echo #     increased SUM_TIMER_*.
 #==========================================================================
 # Enable the following lines for debugging the check.
 # Attention: socket_summary_by_instance_detail is after that rotten.
@@ -740,15 +764,15 @@ if(0)
 let $my_rules=
 ((COUNT_READ  = 0 AND SUM_TIMER_READ  = 0 AND SUM_NUMBER_OF_BYTES_READ  = 0)
   OR
- (COUNT_READ  > 0 AND SUM_TIMER_READ  > 0 AND SUM_NUMBER_OF_BYTES_READ  > 0))
+ (COUNT_READ  > 0                         AND SUM_NUMBER_OF_BYTES_READ  > 0))
 AND
 ((COUNT_WRITE = 0 AND SUM_TIMER_WRITE = 0 AND SUM_NUMBER_OF_BYTES_WRITE = 0)
   OR
- (COUNT_WRITE > 0 AND SUM_TIMER_WRITE > 0 AND SUM_NUMBER_OF_BYTES_WRITE > 0))
+ (COUNT_WRITE > 0                         AND SUM_NUMBER_OF_BYTES_WRITE > 0))
 AND
 ((COUNT_MISC  = 0 AND SUM_TIMER_MISC  = 0)
   OR
-(COUNT_MISC > 0 AND SUM_TIMER_MISC > 0));
+(COUNT_MISC > 0));
 if(`SELECT COUNT(*) FROM mysqltest.socket_summary_by_instance_detail
     WHERE NOT ( $my_rules ) `)
 {
@@ -1275,7 +1299,7 @@ if(`SELECT COUNT(*) $part `)
 }
 
 --echo # 4.5.2.2 For the instance with EVENT_NAME LIKE '%server_unix_socket'
---echo #         COUNT_MISC > 0 AND SUM_TIMER_MISC > 0 must be valid.
+--echo #         COUNT_MISC > 0 must be valid.
 #===========================================================================
 # Enable the following lines for debugging the check.
 # Attention: socket_summary_by_instance_detail is after that rotten.
@@ -1292,7 +1316,7 @@ if(0)
 }
 
 let $my_rules=
-COUNT_MISC  > 0 AND SUM_TIMER_MISC  > 0;
+COUNT_MISC  > 0;
 let $part=
 FROM mysqltest.socket_summary_by_instance_detail
 WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
@@ -1358,7 +1382,7 @@ if(`SELECT COUNT(*) $part `)
 }
 
 --echo # 4.5.3.2 For the instance with EVENT_NAME LIKE '%server_tcpip_socket'
---echo #         COUNT_MISC > 0 AND SUM_TIMER_MISC > 0 must be valid.
+--echo #         COUNT_MISC > 0 must be valid.
 #===========================================================================
 # Enable the following lines for debugging the check.
 # Attention: socket_summary_by_instance_detail is after that rotten.
@@ -1376,7 +1400,7 @@ if(0)
 }
 
 let $my_rules=
-COUNT_MISC  > 0 AND SUM_TIMER_MISC  > 0;
+COUNT_MISC  > 0;
 let $part=
 FROM mysqltest.socket_summary_by_instance_detail
 WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
@@ -1708,12 +1732,20 @@ if($print_details)
    FROM mysqltest.socket_summary_by_instance_detail
    WHERE EVENT_NAME LIKE '%server_tcpip_socket%'
    ORDER BY statement,run;
+   --echo # 5. mysqltest.my_socket_summary_by_instance
+   --vertical_results
+   SELECT * FROM mysqltest.my_socket_summary_by_instance;
+   --horizontal_results
 }
 
 --echo # 5. Cleanup
 #==================
 # Cleanup
 --disable_query_log
+eval
+UPDATE performance_schema.setup_timers
+SET TIMER_NAME = '$wait_timer'
+WHERE NAME = 'wait';
 DROP SCHEMA mysqltest;
 DROP SCHEMA mysqlsupertest;
 --connection con1
