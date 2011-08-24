@@ -222,7 +222,8 @@ private:
   */
   bool in_sub_stmt;
 
-  sp_handler *m_handler;      // Visible handlers
+  sp_handler *m_handlers;       // Visible handlers
+  uint m_hcount;                // Stack pointer for m_handlers
 
   /**
     SQL conditions caught by each handler.
@@ -230,7 +231,6 @@ private:
   */
   Sql_condition *m_raised_conditions;
 
-  uint m_hcount;                // Stack pointer for m_handler
   uint *m_hstack;               // Return stack for continue handlers
   uint m_hsp;                   // Stack pointer for m_hstack
   /** Active handler stack. */

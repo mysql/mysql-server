@@ -77,7 +77,7 @@ bool sp_rcontext::init(THD *thd)
     m_raised_conditions[i].init(thd->mem_root);
 
   return
-    !(m_handler=
+    !(m_handlers=
       (sp_handler*)thd->alloc(handler_count * sizeof(sp_handler))) ||
     !(m_hstack=
       (uint*)thd->alloc(handler_count * sizeof(uint))) ||
@@ -170,7 +170,7 @@ sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 /**
   Find an SQL handler for the given error.
 
-  SQL handlers are pushed on the stack m_handler, with the latest/innermost
+  SQL handlers are pushed on the stack m_handlers, with the latest/innermost
   one on the top; we then search for matching handlers from the top and
   down.
 
@@ -224,12 +224,12 @@ sp_rcontext::find_handler(THD *thd,
   /* Search handlers from the latest (innermost) to the oldest (outermost) */
   while (i--)
   {
-    sp_condition_value *cond= m_handler[i].cond;
+    sp_condition_value *cond= m_handlers[i].cond;
     int j= m_ihsp;
 
     /* Check active handlers, to avoid invoking one recursively */
     while (j--)
-      if (m_in_handler[j].ip == m_handler[i].handler)
+      if (m_in_handler[j].ip == m_handlers[i].handler)
 	break;
     if (j >= 0)
       continue;                 // Already executing this handler
@@ -238,12 +238,12 @@ sp_rcontext::find_handler(THD *thd,
     {
     case sp_condition_value::number:
       if (sql_errno == cond->mysqlerr &&
-          (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_condition_value::number))
+          (m_hfound < 0 || m_handlers[m_hfound].cond->type > sp_condition_value::number))
 	m_hfound= i;		// Always the most specific
       break;
     case sp_condition_value::state:
       if (strcmp(sqlstate, cond->sqlstate) == 0 &&
-	  (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_condition_value::state))
+	  (m_hfound < 0 || m_handlers[m_hfound].cond->type > sp_condition_value::state))
 	m_hfound= i;
       break;
     case sp_condition_value::warning:
@@ -319,9 +319,9 @@ sp_rcontext::push_handler(sp_condition_value *cond, uint h, int type)
   DBUG_ENTER("sp_rcontext::push_handler");
   DBUG_ASSERT(m_hcount < m_root_parsing_ctx->max_handler_index());
 
-  m_handler[m_hcount].cond= cond;
-  m_handler[m_hcount].handler= h;
-  m_handler[m_hcount].type= type;
+  m_handlers[m_hcount].cond= cond;
+  m_handlers[m_hcount].handler= h;
+  m_handlers[m_hcount].type= type;
   m_hcount+= 1;
 
   DBUG_PRINT("info", ("m_hcount: %d", m_hcount));
@@ -383,7 +383,7 @@ sp_rcontext::activate_handler(THD *thd,
   if (m_hfound < 0)
     return FALSE;
 
-  switch (m_handler[m_hfound].type) {
+  switch (m_handlers[m_hfound].type) {
   case SP_HANDLER_NONE:
     break;
 
@@ -405,7 +405,7 @@ sp_rcontext::activate_handler(THD *thd,
     DBUG_ASSERT(m_ihsp < m_root_parsing_ctx->max_handler_index());
     DBUG_ASSERT(m_hfound >= 0);
 
-    m_in_handler[m_ihsp].ip= m_handler[m_hfound].handler;
+    m_in_handler[m_ihsp].ip= m_handlers[m_hfound].handler;
     m_in_handler[m_ihsp].index= m_hfound;
     m_ihsp++;
 
@@ -419,7 +419,7 @@ sp_rcontext::activate_handler(THD *thd,
                                   // (e.g. "bad data").
 
     /* Return IP of the activated SQL handler. */
-    *ip= m_handler[m_hfound].handler;
+    *ip= m_handlers[m_hfound].handler;
 
     /* Reset found handler. */
     m_hfound= -1;
