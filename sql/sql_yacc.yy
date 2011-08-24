@@ -2779,13 +2779,19 @@ sp_decl:
             lex->spcont= lex->spcont->push_context(sp_pcontext::HANDLER_SCOPE);
 
             sp_pcontext *ctx= lex->spcont;
+
+            sp_handler *h= new sp_handler((sp_handler::enum_type) $2);
+
+            ctx->parent_context()->push_handler(h);
+
             sp_instr_hpush_jump *i=
-              new sp_instr_hpush_jump(sp->instructions(), ctx, $2);
+              new sp_instr_hpush_jump(sp->instructions(), ctx, h);
+
             if (i == NULL || sp->add_instr(i))
               MYSQL_YYABORT;
 
             /* For continue handlers, mark end of handler scope. */
-            if ($2 == SP_HANDLER_CONTINUE &&
+            if ($2 == sp_handler::CONTINUE &&
                 sp->push_backpatch(i, ctx->last_label()))
               MYSQL_YYABORT;
 
@@ -2800,7 +2806,7 @@ sp_decl:
             sp_label *hlab= lex->spcont->pop_label(); /* After this hdlr */
             sp_instr_hreturn *i;
 
-            if ($2 == SP_HANDLER_CONTINUE)
+            if ($2 == sp_handler::CONTINUE)
             {
               i= new sp_instr_hreturn(sp->instructions(), ctx);
               if (i == NULL ||
@@ -2820,8 +2826,8 @@ sp_decl:
             lex->spcont= ctx->pop_context();
 
             $$.vars= $$.conds= $$.curs= 0;
-            $$.hndlrs= $6;
-            lex->spcont->add_handlers($6);
+            $$.hndlrs= 1;
+            lex->spcont->add_handlers(1);
           }
         | DECLARE_SYM ident CURSOR_SYM FOR_SYM sp_cursor_stmt
           {
@@ -2872,8 +2878,8 @@ sp_cursor_stmt:
         ;
 
 sp_handler_type:
-          EXIT_SYM      { $$= SP_HANDLER_EXIT; }
-        | CONTINUE_SYM  { $$= SP_HANDLER_CONTINUE; }
+          EXIT_SYM      { $$= sp_handler::EXIT; }
+        | CONTINUE_SYM  { $$= sp_handler::CONTINUE; }
         /*| UNDO_SYM      { QQ No yet } */
         ;
 
@@ -2891,7 +2897,7 @@ sp_hcond_element:
             sp_head *sp= lex->sphead;
             sp_pcontext *ctx= lex->spcont->parent_context();
 
-            if (ctx->find_handler($1))
+            if (ctx->check_duplicate_handler($1))
             {
               my_message(ER_SP_DUP_HANDLER, ER(ER_SP_DUP_HANDLER), MYF(0));
               MYSQL_YYABORT;
@@ -2902,7 +2908,6 @@ sp_hcond_element:
                 (sp_instr_hpush_jump *)sp->last_instruction();
 
               i->add_condition($1);
-              ctx->push_handler($1);
             }
           }
         ;

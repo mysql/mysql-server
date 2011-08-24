@@ -1460,11 +1460,11 @@ create procedure h_es()
 deterministic
 begin
 declare continue handler for 1062 -- ER_DUP_ENTRY
-select 'Outer (good)' as 'h_es';
+select 'Outer (bad)' as 'h_es';
 begin
 -- integrity constraint violation
 declare continue handler for sqlstate '23000'
-      select 'Inner (bad)' as 'h_es';
+      select 'Inner (good)' as 'h_es';
 insert into t3 values (1);
 end;
 end|
@@ -1472,11 +1472,11 @@ create procedure h_en()
 deterministic
 begin
 declare continue handler for 1329 -- ER_SP_FETCH_NO_DATA
-select 'Outer (good)' as 'h_en';
+select 'Outer (bad)' as 'h_en';
 begin
 declare x int;
 declare continue handler for sqlstate '02000' -- no data
-select 'Inner (bad)' as 'h_en';
+select 'Inner (good)' as 'h_en';
 select a into x from t3 where a = 42;
 end;
 end|
@@ -1484,10 +1484,10 @@ create procedure h_ew()
 deterministic
 begin
 declare continue handler for 1264 -- ER_WARN_DATA_OUT_OF_RANGE
-select 'Outer (good)' as 'h_ew';
+select 'Outer (bad)' as 'h_ew';
 begin
 declare continue handler for sqlwarning
-select 'Inner (bad)' as 'h_ew';
+select 'Inner (good)' as 'h_ew';
 insert into t3 values (123456789012);
 end;
 delete from t3;
@@ -1497,10 +1497,10 @@ create procedure h_ex()
 deterministic
 begin
 declare continue handler for 1062 -- ER_DUP_ENTRY
-select 'Outer (good)' as 'h_ex';
+select 'Outer (bad)' as 'h_ex';
 begin
 declare continue handler for sqlexception
-select 'Inner (bad)' as 'h_ex';
+select 'Inner (good)' as 'h_ex';
 insert into t3 values (1);
 end;
 end|
@@ -1535,11 +1535,11 @@ begin
 -- Note: '02000' is more specific than NOT FOUND ;
 --       there might be other not found states 
 declare continue handler for sqlstate '02000' -- no data
-select 'Outer (good)' as 'h_sn';
+select 'Outer (bad)' as 'h_sn';
 begin
 declare x int;
 declare continue handler for not found
-select 'Inner (bad)' as 'h_sn';
+select 'Inner (good)' as 'h_sn';
 select a into x from t3 where a = 42;
 end;
 end|
@@ -1548,10 +1548,10 @@ deterministic
 begin
 -- data exception - numeric value out of range
 declare continue handler for sqlstate '22003'
-    select 'Outer (good)' as 'h_sw';
+    select 'Outer (bad)' as 'h_sw';
 begin
 declare continue handler for sqlwarning
-select 'Inner (bad)' as 'h_sw';
+select 'Inner (good)' as 'h_sw';
 insert into t3 values (123456789012);
 end;
 delete from t3;
@@ -1562,10 +1562,10 @@ deterministic
 begin
 -- integrity constraint violation
 declare continue handler for sqlstate '23000' 
-select 'Outer (good)' as 'h_sx';
+select 'Outer (bad)' as 'h_sx';
 begin
 declare continue handler for sqlexception
-select 'Inner (bad)' as 'h_sx';
+select 'Inner (good)' as 'h_sx';
 insert into t3 values (1);
 end;
 end|
@@ -1684,16 +1684,16 @@ h_ee
 Inner (good)
 call h_es()|
 h_es
-Outer (good)
+Inner (good)
 call h_en()|
 h_en
-Outer (good)
+Inner (good)
 call h_ew()|
 h_ew
-Outer (good)
+Inner (good)
 call h_ex()|
 h_ex
-Outer (good)
+Inner (good)
 call h_se()|
 h_se
 Inner (good)
@@ -1702,13 +1702,13 @@ h_ss
 Inner (good)
 call h_sn()|
 h_sn
-Outer (good)
+Inner (good)
 call h_sw()|
 h_sw
-Outer (good)
+Inner (good)
 call h_sx()|
 h_sx
-Outer (good)
+Inner (good)
 call h_ne()|
 h_ne
 Inner (good)
@@ -2917,8 +2917,8 @@ call bug6900_9074(0)|
 sqlexception
 sqlexception
 call bug6900_9074(1)|
-23000
-23000
+sqlexception
+sqlexception
 drop procedure bug6900|
 drop procedure bug9074|
 drop procedure bug6900_9074|

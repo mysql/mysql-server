@@ -75,12 +75,11 @@ bool sp_rcontext::init(THD *thd)
 
   return
     !(m_handlers=
-      (sp_handler*)thd->alloc(handler_count * sizeof(sp_handler))) ||
+      (sp_handler_entry*)thd->alloc(handler_count * sizeof(sp_handler_entry))) ||
     !(m_hstack=
       (uint*)thd->alloc(handler_count * sizeof(uint))) ||
     !(m_in_handler=
-      (sp_active_handler*)thd->alloc(handler_count *
-                                     sizeof(sp_active_handler))) ||
+      (uint*)thd->alloc(handler_count * sizeof(uint))) ||
     !(m_cstack=
       (sp_cursor**)thd->alloc(m_root_parsing_ctx->max_cursor_index() *
                               sizeof(sp_cursor*))) ||
@@ -173,6 +172,7 @@ sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
   the standard.
 
   @param thd        Thread handle
+  @param cur_pctx   Parsing context of the latest SP instruction
   @param sql_errno  SQL-condition error number
   @param sqlstate   SQL-condition SQLSTATE
   @param level      SQL-condition level
@@ -183,14 +183,12 @@ sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 
 int
 sp_rcontext::find_handler(THD *thd,
+                          sp_pcontext *cur_pctx,
                           uint sql_errno,
                           const char *sqlstate,
                           Sql_condition::enum_warning_level level,
                           const char *msg)
 {
-  int hfound= -1;
-  int i= m_hcount;
-
   /*
     If this is a fatal sub-statement error, and this runtime
     context corresponds to a sub-statement, no CONTINUE/EXIT
@@ -198,63 +196,26 @@ sp_rcontext::find_handler(THD *thd,
     in the outer scope.
   */
   if (thd->is_fatal_sub_stmt_error && in_sub_stmt)
-    i= 0;
+    return -1;
 
-  /* Search handlers from the latest (innermost) to the oldest (outermost) */
-  while (i--)
+  sp_handler *found_handler=
+    cur_pctx->find_handler(sqlstate, sql_errno, level);
+
+  if (!found_handler)
+    return -1;
+
+  for (uint i= 0; i < m_hcount; ++i)
   {
-    sp_condition_value *cond= m_handlers[i].cond;
-    int j= m_ihsp;
-
-    /* Check active handlers, to avoid invoking one recursively */
-    while (j--)
-      if (m_in_handler[j].ip == m_handlers[i].handler)
-	break;
-    if (j >= 0)
-      continue;                 // Already executing this handler
-
-    switch (cond->type)
+    if (found_handler == m_handlers[i].handler)
     {
-    case sp_condition_value::ERROR_CODE:
-      if (sql_errno == cond->mysqlerr &&
-          (hfound < 0 ||
-           m_handlers[hfound].cond->type > sp_condition_value::ERROR_CODE))
-	hfound= i;		// Always the most specific
-      break;
-    case sp_condition_value::SQLSTATE:
-      if (strcmp(sqlstate, cond->sqlstate) == 0 &&
-	  (hfound < 0 ||
-           m_handlers[hfound].cond->type > sp_condition_value::SQLSTATE))
-	hfound= i;
-      break;
-    case sp_condition_value::WARNING:
-      if ((is_sqlstate_warning(sqlstate) ||
-           level == Sql_condition::WARN_LEVEL_WARN) &&
-          hfound < 0)
-	hfound= i;
-      break;
-    case sp_condition_value::NOT_FOUND:
-      if (is_sqlstate_not_found(sqlstate) && hfound < 0)
-	hfound= i;
-      break;
-    case sp_condition_value::EXCEPTION:
-      if (is_sqlstate_exception(sqlstate) &&
-	  level == Sql_condition::WARN_LEVEL_ERROR &&
-	  hfound < 0)
-	hfound= i;
-      break;
+      m_raised_conditions[i].clear();
+      m_raised_conditions[i].set(sql_errno, sqlstate, level, msg);
+      return i;
     }
   }
 
-  if (hfound >= 0)
-  {
-    DBUG_ASSERT((uint) hfound < m_root_parsing_ctx->max_handler_index());
-
-    m_raised_conditions[hfound].clear();
-    m_raised_conditions[hfound].set(sql_errno, sqlstate, level, msg);
-  }
-
-  return hfound;
+  DBUG_ASSERT(0); // should never get here.
+  return -1;
 }
 
 void
@@ -281,15 +242,15 @@ sp_rcontext::pop_cursors(uint count)
 }
 
 void
-sp_rcontext::push_handler(sp_condition_value *cond, uint h, int type)
+sp_rcontext::push_handler(sp_handler *handler,
+                          uint first_ip)
 {
   DBUG_ENTER("sp_rcontext::push_handler");
   DBUG_ASSERT(m_hcount < m_root_parsing_ctx->max_handler_index());
 
-  m_handlers[m_hcount].cond= cond;
-  m_handlers[m_hcount].handler= h;
-  m_handlers[m_hcount].type= type;
-  m_hcount+= 1;
+  m_handlers[m_hcount].handler= handler;
+  m_handlers[m_hcount].first_ip= first_ip;
+  ++m_hcount;
 
   DBUG_PRINT("info", ("m_hcount: %d", m_hcount));
   DBUG_VOID_RETURN;
@@ -307,29 +268,37 @@ sp_rcontext::pop_handlers(uint count)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Remember continue instruction pointer (the execution should start from
+  continue_ip after handler completion).
+*/
+
 void
-sp_rcontext::push_hstack(uint h)
+sp_rcontext::push_hstack(uint continue_ip)
 {
   DBUG_ENTER("sp_rcontext::push_hstack");
   DBUG_ASSERT(m_hsp < m_root_parsing_ctx->max_handler_index());
 
-  m_hstack[m_hsp++]= h;
+  m_hstack[m_hsp++]= continue_ip;
 
   DBUG_PRINT("info", ("m_hsp: %d", m_hsp));
   DBUG_VOID_RETURN;
 }
 
+/**
+  Return continue instruction pointer.
+*/
+
 uint
 sp_rcontext::pop_hstack()
 {
-  uint handler;
   DBUG_ENTER("sp_rcontext::pop_hstack");
   DBUG_ASSERT(m_hsp);
 
-  handler= m_hstack[--m_hsp];
+  uint continue_ip= m_hstack[--m_hsp];
 
   DBUG_PRINT("info", ("m_hsp: %d", m_hsp));
-  DBUG_RETURN(handler);
+  DBUG_RETURN(continue_ip);
 }
 
 /**
@@ -360,7 +329,7 @@ sp_rcontext::handle_sql_condition(THD *thd,
                                   Query_arena *execute_arena,
                                   Query_arena *backup_arena)
 {
-  int handler_idx= find_handler(thd);
+  int handler_idx= find_handler(thd, cur_spi->m_ctx);
 
   if (handler_idx < 0)
     return false;
@@ -435,7 +404,7 @@ sp_rcontext::handle_sql_condition(THD *thd,
 */
 
 int
-sp_rcontext::find_handler(THD *thd)
+sp_rcontext::find_handler(THD *thd, sp_pcontext *cur_pctx)
 {
   Diagnostics_area *da= thd->get_stmt_da();
 
@@ -443,6 +412,7 @@ sp_rcontext::find_handler(THD *thd)
   {
 
     int handler_idx= find_handler(thd,
+                                  cur_pctx,
                                   da->sql_errno(),
                                   da->get_sqlstate(),
                                   Sql_condition::WARN_LEVEL_ERROR,
@@ -465,6 +435,7 @@ sp_rcontext::find_handler(THD *thd)
         continue;
 
       int handler_idx= find_handler(thd,
+                                    cur_pctx,
                                     c->get_sql_errno(),
                                     c->get_sqlstate(),
                                     c->get_level(),
@@ -500,10 +471,10 @@ sp_rcontext::activate_handler(THD *thd,
                               Query_arena *backup_arena)
 {
   DBUG_ASSERT(handler_idx >= 0);
-  DBUG_ASSERT(m_handlers[handler_idx].type != SP_HANDLER_NONE);
+  DBUG_ASSERT(m_handlers[handler_idx].handler->type != sp_handler::NONE);
  
-  switch (m_handlers[handler_idx].type) {
-  case SP_HANDLER_CONTINUE:
+  switch (m_handlers[handler_idx].handler->type) {
+  case sp_handler::CONTINUE:
     thd->restore_active_arena(execute_arena, backup_arena);
     thd->set_n_backup_active_arena(execute_arena, backup_arena);
     push_hstack(cur_spi->get_cont_dest());
@@ -520,8 +491,7 @@ sp_rcontext::activate_handler(THD *thd,
 
     DBUG_ASSERT(m_ihsp < m_root_parsing_ctx->max_handler_index());
 
-    m_in_handler[m_ihsp].ip= m_handlers[handler_idx].handler;
-    m_in_handler[m_ihsp].index= handler_idx;
+    m_in_handler[m_ihsp]= handler_idx;
     m_ihsp++;
 
     DBUG_PRINT("info", ("Entering handler..."));
@@ -534,7 +504,7 @@ sp_rcontext::activate_handler(THD *thd,
                                   // (e.g. "bad data").
 
     /* Return IP of the activated SQL handler. */
-    *ip= m_handlers[handler_idx].handler;
+    *ip= m_handlers[handler_idx].first_ip;
   }
 }
 
@@ -544,7 +514,7 @@ sp_rcontext::exit_handler()
   DBUG_ENTER("sp_rcontext::exit_handler");
   DBUG_ASSERT(m_ihsp);
 
-  uint hindex= m_in_handler[m_ihsp-1].index;
+  uint hindex= m_in_handler[m_ihsp-1];
   m_raised_conditions[hindex].clear();
   m_ihsp-= 1;
 
@@ -557,7 +527,7 @@ sp_rcontext::raised_condition() const
 {
   if (m_ihsp > 0)
   {
-    uint hindex= m_in_handler[m_ihsp - 1].index;
+    uint hindex= m_in_handler[m_ihsp - 1];
     Sql_condition *raised= & m_raised_conditions[hindex];
     return raised;
   }
