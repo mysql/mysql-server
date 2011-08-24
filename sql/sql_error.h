@@ -783,6 +783,57 @@ extern const LEX_STRING warning_level_names[];
 
 bool is_sqlstate_valid(const LEX_STRING *sqlstate);
 
-bool is_sqlstate_completion(const LEX_STRING *sqlstate);
+
+/**
+  Checks if the specified SQL-state-string defines COMPLETION condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines COMPLETION condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_completion(const char *s)
+{ return s[0] == '0' && s[1] == '0'; }
+
+
+/**
+  Checks if the specified SQL-state-string defines WARNING condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines WARNING condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_warning(const char *s)
+{ return s[0] == '0' && s[1] == '1'; }
+
+
+/**
+  Checks if the specified SQL-state-string defines NOT FOUND condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines NOT FOUND condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_not_found(const char *s)
+{ return s[0] == '0' && s[1] == '2'; }
+
+
+/**
+  Checks if the specified SQL-state-string defines EXCEPTION condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines EXCEPTION condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_exception(const char *s)
+{ return s[0] != '0' || s[1] > '2'; }
+
 
 #endif // SQL_ERROR_H
