@@ -2918,7 +2918,7 @@ sp_cond:
             $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_condition_value::number;
+            $$->type= sp_condition_value::ERROR_CODE;
             $$->mysqlerr= $1;
           }
         | sqlstate
@@ -2943,7 +2943,7 @@ sqlstate:
             $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_condition_value::state;
+            $$->type= sp_condition_value::SQLSTATE;
             memcpy($$->sqlstate, $3.str, SQLSTATE_LENGTH);
             $$->sqlstate[SQLSTATE_LENGTH]= '\0';
           }
@@ -2973,21 +2973,21 @@ sp_hcond:
             $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_condition_value::warning;
+            $$->type= sp_condition_value::WARNING;
           }
         | not FOUND_SYM /* SQLSTATEs 02??? */
           {
             $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_condition_value::notfound;
+            $$->type= sp_condition_value::NOT_FOUND;
           }
         | SQLEXCEPTION_SYM /* All other SQLSTATEs */
           {
             $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_condition_value::exception;
+            $$->type= sp_condition_value::EXCEPTION;
           }
         ;
 
@@ -3023,7 +3023,7 @@ signal_value:
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            if (cond->type != sp_condition_value::state)
+            if (cond->type != sp_condition_value::SQLSTATE)
             {
               my_error(ER_SIGNAL_BAD_CONDITION_TYPE, MYF(0));
               MYSQL_YYABORT;
