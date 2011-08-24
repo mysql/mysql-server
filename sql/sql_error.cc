@@ -957,3 +957,50 @@ uint32 convert_error_message(char *to, uint32 to_length,
   *errors= error_count;
   return (uint32) (to - to_start);
 }
+
+
+/**
+  Sanity check for SQLSTATEs. The function does not check if it's really an
+  existing SQL-state (there are just too many), it just checks string length and
+  looks for bad characters.
+
+  @param sqlstate the condition SQLSTATE.
+
+  @retval true if it's ok.
+  @retval false if it's bad.
+*/
+
+bool
+is_sqlstate_valid(const LEX_STRING *sqlstate)
+{
+  if (sqlstate->length != 5)
+    return false;
+
+  for (int i= 0 ; i < 5 ; ++i)
+  {
+    char c = sqlstate->str[i];
+
+    if ((c < '0' || '9' < c) &&
+	(c < 'A' || 'Z' < c))
+      return false;
+  }
+
+  return true;
+}
+
+/**
+  Checks if the specified SQL-state-string defines the completion condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param sqlstate the condition SQLSTATE.
+
+  @retval true if the given string defines the completion condition.
+  @retval false otherwise.
+*/
+
+bool
+is_sqlstate_completion(const LEX_STRING *sqlstate)
+{
+  // SQLSTATE class '00': completion condition.
+  return strncmp(sqlstate->str, "00", 2) == 0;
+}
