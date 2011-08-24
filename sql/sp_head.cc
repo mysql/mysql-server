@@ -3669,11 +3669,16 @@ sp_instr_hreturn::print(String *str)
   if (str->reserve(SP_INSTR_UINT_MAXLEN*2 + 9))
     return;
   str->qs_append(STRING_WITH_LEN("hreturn "));
-  str->qs_append(m_frame);
   if (m_dest)
   {
-    str->qs_append(' ');
+    // NOTE: this is legacy: hreturn instruction for EXIT or UNDO handler
+    // should print out 0 as frame index.
+    str->qs_append(STRING_WITH_LEN("0 "));
     str->qs_append(m_dest);
+  }
+  else
+  {
+    str->qs_append(m_frame);
   }
 }
 
