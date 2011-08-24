@@ -18,6 +18,40 @@
 #include "sp_pcontext.h"
 #include "sp_head.h"
 
+
+/**
+  Check if two instances of sp_condition_value are equal or not.
+
+  @param cv another instance of sp_condition_value to check.
+
+  @return true if the instances are equal, false otherwise.
+*/
+
+bool
+sp_condition_value::equals(const sp_condition_value *cv) const
+{
+  DBUG_ASSERT(cv);
+
+  if (this == cv)
+    return true;
+
+  if (type != cv->type)
+    return false;
+
+  switch (type)
+  {
+  case sp_condition_value::ERROR_CODE:
+    return (mysqlerr == cv->mysqlerr);
+
+  case sp_condition_value::SQLSTATE:
+    return (strcmp(sqlstate, cv->sqlstate) == 0);
+
+  default:
+    return true;
+  }
+}
+
+
 /* Initial size for the dynamic arrays in sp_pcontext */
 #define PCONTEXT_ARRAY_INIT_ALLOC 16
 /* Increment size for the dynamic arrays in sp_pcontext */
@@ -40,7 +74,7 @@ sp_pcontext::init(uint var_offset,
   (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_condition_value *),
+  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_handler *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
   m_labels.empty();
@@ -306,40 +340,166 @@ sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
   return NULL;
 }
 
-/*
-  This only searches the current context, for error checking of
-  duplicates.
-  Returns TRUE if found.
+/**
+  This is an auxilary parsing-time function to check if an SQL-handler exists in
+  the current parsing context (current scope) for the given SQL-condition. This
+  function is used to check for duplicates during the parsing phase.
+
+  This function can not be used during the execution phase to check SQL-handler
+  existence because it searches for the SQL-handler in the current scope only
+  (during the execution current and parent scopes should be checked according to
+  the SQL-handler resolution rules).
+
+  @param condition_value the handler condition value (not SQL-condition!).
+
+  @retval true if such SQL-handler exists.
+  @retval false otherwise.
 */
 bool
-sp_pcontext::find_handler(sp_condition_value *cond)
+sp_pcontext::check_duplicate_handler(sp_condition_value *condition_value)
 {
-  uint i= m_handlers.elements;
-
-  while (i--)
+  for (uint i= 0; i < m_handlers.elements; ++i)
   {
-    sp_condition_value *p;
+    sp_handler *h;
+    get_dynamic(&m_handlers, (uchar*)&h, i);
 
-    get_dynamic(&m_handlers, (uchar*)&p, i);
-    if (cond->type == p->type)
+    DBUG_ASSERT(h);
+
+    List_iterator_fast<sp_condition_value> li(h->condition_values);
+    sp_condition_value *cv;
+
+    while ((cv= li++))
     {
-      switch (p->type)
+      if (condition_value->equals(cv))
+        return true;
+    }
+  }
+
+  return false;
+}
+
+
+/**
+  Find an SQL handler for the given SQL condition according to the SQL-handler
+  resolution rules. This function is used at runtime.
+
+  @param sqlstate         The error SQL state
+  @param sql_errno        The error code
+  @param level            The error level
+
+  @return a pointer to the found SQL-handler or NULL.
+*/
+
+sp_handler *
+sp_pcontext::find_handler(const char *sqlstate,
+                          uint sql_errno,
+                          Sql_condition::enum_warning_level level)
+{
+  sp_handler *found_handler= NULL;
+  sp_condition_value *found_cv= NULL;
+
+  for (uint i= 0; i < m_handlers.elements; ++i)
+  {
+    sp_handler *h;
+    get_dynamic(&m_handlers, (uchar*)&h, i);
+
+    List_iterator_fast<sp_condition_value> li(h->condition_values);
+    sp_condition_value *cv;
+
+    while ((cv= li++))
+    {
+      switch (cv->type)
       {
       case sp_condition_value::ERROR_CODE:
-	if (cond->mysqlerr == p->mysqlerr)
-	  return TRUE;
-	break;
+        if (sql_errno == cv->mysqlerr &&
+            (!found_cv ||
+             found_cv->type > sp_condition_value::ERROR_CODE))
+        {
+          found_cv= cv;
+          found_handler= h;
+        }
+        break;
+
       case sp_condition_value::SQLSTATE:
-	if (strcmp(cond->sqlstate, p->sqlstate) == 0)
-	  return TRUE;
-	break;
-      default:
-	return TRUE;
+        if (strcmp(sqlstate, cv->sqlstate) == 0 &&
+            (!found_cv ||
+             found_cv->type > sp_condition_value::SQLSTATE))
+        {
+          found_cv= cv;
+          found_handler= h;
+        }
+        break;
+
+      case sp_condition_value::WARNING:
+        if ((is_sqlstate_warning(sqlstate) ||
+             level == Sql_condition::WARN_LEVEL_WARN) && !found_cv)
+        {
+          found_cv= cv;
+          found_handler= h;
+        }
+        break;
+
+      case sp_condition_value::NOT_FOUND:
+        if (is_sqlstate_not_found(sqlstate) && !found_cv)
+        {
+          found_cv= cv;
+          found_handler= h;
+        }
+        break;
+
+      case sp_condition_value::EXCEPTION:
+        if (is_sqlstate_exception(sqlstate) &&
+            level == Sql_condition::WARN_LEVEL_ERROR && !found_cv)
+        {
+          found_cv= cv;
+          found_handler= h;
+        }
+        break;
       }
     }
   }
-  return FALSE;
+
+  if (found_handler)
+    return found_handler;
+
+
+  // There is no appropriate handler in this parsing context. We need to look up
+  // in parent contexts. There might be two cases here:
+  //
+  // 1. The current context has REGULAR_SCOPE. That means, it's a simple
+  // BEGIN..END block:
+  //     ...
+  //     BEGIN
+  //       ... # We're here.
+  //     END
+  //     ...
+  // In this case we simply call find_handler() on parent's context recursively.
+  //
+  // 2. The current context has HANDLER_SCOPE. That means, we're inside an
+  // SQL-handler block:
+  //   ...
+  //   DECLARE ... HANDLER FOR ...
+  //   BEGIN
+  //     ... # We're here.
+  //   END
+  //   ...
+  // In this case we can not just call parent's find_handler(), because
+  // parent's handler don't catch conditions from this scope. Instead, we should
+  // try to find first parent context (we might have nested handler
+  // declarations), which has REGULAR_SCOPE (i.e. which is regular BEGIN..END
+  // block).
+
+  sp_pcontext *p= this;
+
+  while (p && p->m_scope == HANDLER_SCOPE)
+    p= p->m_parent;
+
+  if (!p || !p->m_parent)
+    return NULL;
+
+  return p->m_parent->find_handler(sqlstate, sql_errno, level);
 }
+
 
 int
 sp_pcontext::push_cursor(LEX_STRING *name)

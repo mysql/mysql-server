@@ -18,41 +18,16 @@
 #define _SP_RCONTEXT_H_
 
 #include "sql_class.h"                    // select_result_interceptor
+#include "sp_pcontext.h"                  // sp_condition_value
 
-struct sp_condition_value;
 class sp_cursor;
-struct sp_variable;
 class sp_lex_keeper;
 class sp_instr_cpush;
 class Query_arena;
 class sp_head;
-class sp_pcontext;
 class Item_cache;
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 class Server_side_cursor;
-
-#define SP_HANDLER_NONE      0
-#define SP_HANDLER_EXIT      1
-#define SP_HANDLER_CONTINUE  2
-#define SP_HANDLER_UNDO      3
-
-struct sp_handler
-{
-  /** Condition caught by this HANDLER. */
-  sp_condition_value *cond;
-  /** Location (instruction pointer) of the handler code. */
-  uint handler;
-  /** Handler type (EXIT, CONTINUE). */
-  int type;
-};
-
-struct sp_active_handler
-{
-  /** Instruction pointer of the active handler. */
-  uint ip;
-  /** Handler index of the active handler. */
-  uint index;
-};
 
 /*
   This class is a runtime context of a Stored Routine. It is used in an
@@ -78,7 +53,17 @@ class sp_rcontext : public Sql_alloc
   sp_rcontext(const sp_rcontext &); /* Prevent use of these */
   void operator=(sp_rcontext &);
 
- public:
+private:
+  struct sp_handler_entry
+  {
+    /// Handler definition (from parsing context).
+    sp_handler *handler;
+
+    /// Instruction pointer to the first instruction.
+    uint first_ip;
+  };
+
+public:
 
   /*
     Arena used to (re) allocate items on . E.g. reallocate INOUT/OUT
@@ -130,7 +115,7 @@ class sp_rcontext : public Sql_alloc
     SQL handlers support.
   */
 
-  void push_handler(sp_condition_value *cond, uint h, int type);
+  void push_handler(sp_handler *handler_def, uint first_ip);
 
   void pop_handlers(uint count);
 
@@ -138,7 +123,7 @@ class sp_rcontext : public Sql_alloc
   raised_condition() const;
 
   void
-  push_hstack(uint h);
+  push_hstack(uint continue_ip);
 
   uint
   pop_hstack();
@@ -186,10 +171,11 @@ class sp_rcontext : public Sql_alloc
 
 private:
   int
-  find_handler(THD *thd);
+  find_handler(THD *thd, sp_pcontext *cur_pctx);
 
   int
   find_handler(THD *thd,
+               sp_pcontext *cur_pctx,
                uint sql_errno,
                const char *sqlstate,
                Sql_condition::enum_warning_level level,
@@ -232,7 +218,7 @@ private:
   */
   bool in_sub_stmt;
 
-  sp_handler *m_handlers;       // Visible handlers
+  sp_handler_entry *m_handlers; // Visible handlers
   uint m_hcount;                // Stack pointer for m_handlers
 
   /**
@@ -243,8 +229,8 @@ private:
 
   uint *m_hstack;               // Return stack for continue handlers
   uint m_hsp;                   // Stack pointer for m_hstack
-  /** Active handler stack. */
-  sp_active_handler *m_in_handler;
+
+  uint *m_in_handler;           // Active handler stack
   uint m_ihsp;                  // Stack pointer for m_in_handler
 
   sp_cursor **m_cstack;

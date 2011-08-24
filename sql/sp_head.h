@@ -217,15 +217,11 @@ private:
   uint32 unsafe_flags;
 
 public:
-  inline Stored_program_creation_ctx *get_creation_ctx()
-  {
-    return m_creation_ctx;
-  }
+  Stored_program_creation_ctx *get_creation_ctx()
+  { return m_creation_ctx; }
 
-  inline void set_creation_ctx(Stored_program_creation_ctx *creation_ctx)
-  {
-    m_creation_ctx= creation_ctx->clone(mem_root);
-  }
+  void set_creation_ctx(Stored_program_creation_ctx *creation_ctx)
+  { m_creation_ctx= creation_ctx->clone(mem_root); }
 
   longlong m_created;
   longlong m_modified;
@@ -321,13 +317,11 @@ public:
   int
   add_instr(sp_instr *instr);
 
-  inline uint
+  uint
   instructions()
-  {
-    return m_instr.elements;
-  }
+  { return m_instr.elements; }
 
-  inline sp_instr *
+  sp_instr *
   last_instruction()
   {
     sp_instr *i;
@@ -416,7 +410,7 @@ public:
 
   void recursion_level_error(THD *thd);
 
-  inline sp_instr *
+  sp_instr *
   get_instr(uint i)
   {
     sp_instr *ip;
@@ -686,17 +680,13 @@ public:
   int reset_lex_and_exec_core(THD *thd, uint *nextp, bool open_tables,
                               sp_instr* instr);
 
-  inline uint sql_command() const
-  {
-    return (uint)m_lex->sql_command;
-  }
+  uint sql_command() const
+  { return (uint)m_lex->sql_command; }
 
   void disable_query_cache()
-  {
-    m_lex->safe_to_cache_query= 0;
-  }
-private:
+  { m_lex->safe_to_cache_query= 0; }
 
+private:
   LEX *m_lex;
   /**
     Indicates whenever this sp_lex_keeper instance responsible
@@ -1008,18 +998,21 @@ class sp_instr_hpush_jump : public sp_instr_jump
 
 public:
 
-  sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, int handler_type)
+  sp_instr_hpush_jump(uint ip,
+                      sp_pcontext *ctx,
+                      sp_handler *handler)
    :sp_instr_jump(ip, ctx),
-    m_handler_type(handler_type),
-    m_frame(ctx->current_var_count()),
-    m_opt_hpop(0)
+    m_handler(handler),
+    m_opt_hpop(0),
+    m_frame(ctx->current_var_count())
   {
-    m_cond.empty();
+    DBUG_ASSERT(m_handler->condition_values.elements == 0);
   }
 
   virtual ~sp_instr_hpush_jump()
   {
-    m_cond.empty();
+    m_handler->condition_values.empty();
+    m_handler= NULL;
   }
 
   virtual int execute(THD *thd, uint *nextp);
@@ -1043,21 +1036,22 @@ public:
       m_opt_hpop= dest;
   }
 
-  inline void add_condition(sp_condition_value *cond)
-  {
-    m_cond.push_front(cond);
-  }
+  void add_condition(sp_condition_value *condition_value)
+  { m_handler->condition_values.push_back(condition_value); }
+
+  sp_handler *get_handler()
+  { return m_handler; }
 
 private:
-  int m_handler_type;           ///< Handler type
+  /// Handler.
+  sp_handler *m_handler;
+
+  /// hpop marking end of handler scope.
+  uint m_opt_hpop;
 
   // This attribute is needed for SHOW PROCEDURE CODE only (i.e. it's needed in
   // debug version only). It's used in print().
   uint m_frame;
-
-  uint m_opt_hpop;              // hpop marking end of handler scope.
-  List<sp_condition_value> m_cond;
-
 }; // class sp_instr_hpush_jump : public sp_instr_jump
 
 

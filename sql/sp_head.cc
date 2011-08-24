@@ -3432,13 +3432,11 @@ int
 sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hpush_jump::execute");
-  List_iterator_fast<sp_condition_value> li(m_cond);
-  sp_condition_value *p;
 
-  while ((p= li++))
-    thd->spcont->push_handler(p, m_ip + 1, m_handler_type);
+  thd->spcont->push_handler(m_handler, m_ip + 1);
 
   *nextp= m_dest;
+
   DBUG_RETURN(0);
 }
 
@@ -3449,24 +3447,22 @@ sp_instr_hpush_jump::print(String *str)
   /* hpush_jump dest fsize type */
   if (str->reserve(SP_INSTR_UINT_MAXLEN*2 + 21))
     return;
+
   str->qs_append(STRING_WITH_LEN("hpush_jump "));
   str->qs_append(m_dest);
   str->qs_append(' ');
   str->qs_append(m_frame);
-  switch (m_handler_type) {
-  case SP_HANDLER_EXIT:
+
+  switch (m_handler->type) {
+  case sp_handler::EXIT:
     str->qs_append(STRING_WITH_LEN(" EXIT"));
     break;
-  case SP_HANDLER_CONTINUE:
+  case sp_handler::CONTINUE:
     str->qs_append(STRING_WITH_LEN(" CONTINUE"));
     break;
-  case SP_HANDLER_UNDO:
-    str->qs_append(STRING_WITH_LEN(" UNDO"));
-    break;
   default:
-    // This would be a bug.
-    str->qs_append(STRING_WITH_LEN(" UNKNOWN:"));
-    str->qs_append(m_handler_type);
+    // The handler type must be either CONTINUE or EXIT.
+    DBUG_ASSERT(0);
   }
 }
 
@@ -3494,7 +3490,7 @@ sp_instr_hpush_jump::opt_mark(sp_head *sp, List<sp_instr> *leads)
     above, so we start on m_dest+1 here.
     m_opt_hpop is the hpop marking the end of the handler scope.
   */
-  if (m_handler_type == SP_HANDLER_CONTINUE)
+  if (m_handler->type == sp_handler::CONTINUE)
   {
     for (uint scope_ip= m_dest+1; scope_ip <= m_opt_hpop; scope_ip++)
       sp->add_mark_lead(scope_ip, leads);

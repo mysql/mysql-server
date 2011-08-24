@@ -76,8 +76,9 @@ struct sp_label
   class sp_pcontext *ctx; // The label's context
 };
 
-struct sp_condition_value
+class sp_condition_value
 {
+public:
   enum enum_type
   {
     ERROR_CODE,
@@ -90,6 +91,9 @@ struct sp_condition_value
   enum_type type;
   char sqlstate[SQLSTATE_LENGTH+1];
   uint mysqlerr;
+
+public:
+  bool equals(const sp_condition_value *cv) const;
 };
 
 /*
@@ -103,6 +107,29 @@ struct sp_condition
 {
   LEX_STRING name;
   sp_condition_value *val;
+};
+
+class sp_handler
+{
+public:
+  enum enum_type
+  {
+    NONE,
+    EXIT,
+    CONTINUE,
+    UNDO
+  };
+
+  /// Handler type.
+  enum_type type;
+
+  /// Conditions caught by this handler.
+  List<sp_condition_value> condition_values;
+
+public:
+  sp_handler(enum_type _type)
+   :type(_type)
+  { }
 };
 
 /**
@@ -345,13 +372,18 @@ public:
   //
 
   inline void
-  push_handler(sp_condition_value *cond)
+  push_handler(sp_handler *handler)
   {
-    insert_dynamic(&m_handlers, &cond);
+    insert_dynamic(&m_handlers, &handler);
   }
 
   bool
-  find_handler(sp_condition_value *cond);
+  check_duplicate_handler(sp_condition_value *condition_value);
+
+  sp_handler *
+  find_handler(const char *sqlstate,
+               uint sql_errno,
+               Sql_condition::enum_warning_level level);
 
   inline uint
   max_handler_index()
