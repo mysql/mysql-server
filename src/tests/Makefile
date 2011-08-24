@@ -391,7 +391,7 @@ EXTRA_TDB_TESTS = \
 endif
 
 RECOVER_TESTS = $(patsubst %.c,%.abortrecover,$(RECOVER_SRCS))
-LOADER_TESTS= $(patsubst %.c,%.loader,$(LOADER_SRCS))
+LOADER_TESTS = $(patsubst %.c,%.loader,$(filter-out $(FAIL3389_SRCS),$(LOADER_SRCS)))
 ifeq ($(OS_CHOICE),windows)
 RECOVER_TESTS = $(patsubst %.c,%.abortrecover,$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(RECOVER_SRCS)))
 LOADER_TESTS = $(patsubst %.c,%.loader,$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(LOADER_SRCS)))
