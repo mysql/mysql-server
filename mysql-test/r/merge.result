@@ -2341,4 +2341,33 @@ REPAIR TABLE m1;
 Table	Op	Msg_type	Msg_text
 test.m1	repair	note	The storage engine for the table doesn't support repair
 DROP TABLE m1, t1;
+#
+# BUG#11763712 - 56458: KILLING A FLUSH TABLE FOR A MERGE/CHILD
+#                       CRASHES SERVER
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+CREATE TABLE t3(a INT, b INT);
+CREATE TABLE m1(a INT) ENGINE=MERGE UNION=(t1, t2);
+# Test reopen merge parent failure
+LOCK TABLES m1 READ;
+# Remove 'm1' table using file operations.
+FLUSH TABLES;
+ERROR 42S02: Table 'test.m1' doesn't exist
+UNLOCK TABLES;
+CREATE TABLE m1(a INT) ENGINE=MERGE UNION=(t1, t2);
+# Test reopen merge child failure
+LOCK TABLES m1 READ;
+# Remove 't1' table using file operations.
+FLUSH TABLES;
+ERROR 42S02: Table 'test.t1' doesn't exist
+UNLOCK TABLES;
+CREATE TABLE t1(a INT);
+# Test reattach merge failure
+LOCK TABLES m1 READ;
+# Replace 't1' with 't3' table using file operations.
+FLUSH TABLES;
+ERROR HY000: Can't reopen table: 'm1'
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, m1;
 End of 5.1 tests
