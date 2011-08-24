@@ -1007,8 +1007,11 @@ class sp_instr_hpush_jump : public sp_instr_jump
 
 public:
 
-  sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, int htype, uint fp)
-    : sp_instr_jump(ip, ctx), m_type(htype), m_frame(fp), m_opt_hpop(0)
+  sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, int handler_type, uint fp)
+   :sp_instr_jump(ip, ctx),
+    m_handler_type(handler_type),
+    m_frame(fp),
+    m_opt_hpop(0)
   {
     m_cond.empty();
   }
@@ -1045,8 +1048,7 @@ public:
   }
 
 private:
-
-  int m_type;			///< Handler type
+  int m_handler_type;           ///< Handler type
   uint m_frame;
   uint m_opt_hpop;              // hpop marking end of handler scope.
   List<sp_condition_value> m_cond;

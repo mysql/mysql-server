@@ -3548,7 +3548,7 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
   sp_condition_value *p;
 
   while ((p= li++))
-    thd->spcont->push_handler(p, m_ip+1, m_type);
+    thd->spcont->push_handler(p, m_ip + 1, m_handler_type);
 
   *nextp= m_dest;
   DBUG_RETURN(0);
@@ -3565,7 +3565,7 @@ sp_instr_hpush_jump::print(String *str)
   str->qs_append(m_dest);
   str->qs_append(' ');
   str->qs_append(m_frame);
-  switch (m_type) {
+  switch (m_handler_type) {
   case SP_HANDLER_NONE:
     str->qs_append(STRING_WITH_LEN(" NONE")); // This would be a bug
     break;
@@ -3581,7 +3581,7 @@ sp_instr_hpush_jump::print(String *str)
   default:
     // This would be a bug as well
     str->qs_append(STRING_WITH_LEN(" UNKNOWN:"));
-    str->qs_append(m_type);
+    str->qs_append(m_handler_type);
   }
 }
 
@@ -3609,7 +3609,7 @@ sp_instr_hpush_jump::opt_mark(sp_head *sp, List<sp_instr> *leads)
     above, so we start on m_dest+1 here.
     m_opt_hpop is the hpop marking the end of the handler scope.
   */
-  if (m_type == SP_HANDLER_CONTINUE)
+  if (m_handler_type == SP_HANDLER_CONTINUE)
   {
     for (uint scope_ip= m_dest+1; scope_ip <= m_opt_hpop; scope_ip++)
       sp->add_mark_lead(scope_ip, leads);
