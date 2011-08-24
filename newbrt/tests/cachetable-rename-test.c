@@ -80,6 +80,18 @@ static int r_fetch (CACHEFILE f        __attribute__((__unused__)),
     return -42;
 }
 
+static void 
+pe_est_callback(
+    void* UU(brtnode_pv), 
+    long* bytes_freed_estimate, 
+    enum partial_eviction_cost *cost, 
+    void* UU(write_extraargs)
+    )
+{
+    *bytes_freed_estimate = 0;
+    *cost = PE_CHEAP;
+}
+
 static int 
 pe_callback (
     void *brtnode_pv __attribute__((__unused__)), 
@@ -122,7 +134,7 @@ static void test_rename (void) {
 	    u_int32_t hnkey = toku_cachetable_hash(f, nkey);
 	    r = toku_cachetable_put(f, nkey, hnkey,
 				    (void*)nval, 1,
-				    r_flush, pe_callback, 0);
+				    r_flush, pe_est_callback, pe_callback, 0);
 	    assert(r==0);
             test_mutex_lock();
             while (n_keys >= KEYLIMIT) {
@@ -147,7 +159,7 @@ static void test_rename (void) {
 	    void *current_value;
 	    long current_size;
 	    if (verbose) printf("Rename %" PRIx64 " to %" PRIx64 "\n", okey.b, nkey.b);
-	    r = toku_cachetable_get_and_pin(f, okey, toku_cachetable_hash(f, okey), &current_value, &current_size, r_flush, r_fetch, pe_callback, pf_req_callback, pf_callback, 0, 0);
+	    r = toku_cachetable_get_and_pin(f, okey, toku_cachetable_hash(f, okey), &current_value, &current_size, r_flush, r_fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0);
 	    if (r == -42) continue;
             assert(r==0);
 	    r = toku_cachetable_rename(f, okey, nkey);

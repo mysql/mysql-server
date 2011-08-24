@@ -111,15 +111,43 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
         }
         // if read_none, get rid of the compressed bp's
         if (bft == read_none) {
-            long bytes_freed = 0;
-            toku_brtnode_pe_callback(*dn, 0xffffffff, &bytes_freed, NULL);
-            // assert all bp's are on disk
-            for (int i = 0; i < (*dn)->n_children; i++) {
-                if ((*dn)->height == 0) {
-                    assert(BP_STATE(*dn,i) == PT_ON_DISK);
-		    assert(is_BNULL(*dn, i));
+            if ((*dn)->height == 0) {
+                long bytes_freed = 0;
+                toku_brtnode_pe_callback(*dn, 0xffffffff, &bytes_freed, NULL);
+                // assert all bp's are on disk
+                for (int i = 0; i < (*dn)->n_children; i++) {
+                    if ((*dn)->height == 0) {
+                        assert(BP_STATE(*dn,i) == PT_ON_DISK);
+                        assert(is_BNULL(*dn, i));
+                    }
+                    else {
+                        assert(BP_STATE(*dn,i) == PT_COMPRESSED);
+                    }
                 }
-                else {
+            }
+            else {
+                // first decompress everything, and make sure
+                // that it is available
+                // then run partial eviction to get it compressed
+                fill_bfe_for_full_read(&bfe, brt_h, NULL, string_key_cmp);
+                assert(toku_brtnode_pf_req_callback(*dn, &bfe));
+                long size;
+                r = toku_brtnode_pf_callback(*dn, &bfe, fd, &size);
+                assert(r==0);
+                // assert all bp's are available
+                for (int i = 0; i < (*dn)->n_children; i++) {
+                    assert(BP_STATE(*dn,i) == PT_AVAIL);
+                }
+                long bytes_freed = 0;
+                toku_brtnode_pe_callback(*dn, 0xffffffff, &bytes_freed, NULL);
+                for (int i = 0; i < (*dn)->n_children; i++) {
+                    // assert all bp's are still available, because we touched the clock
+                    assert(BP_STATE(*dn,i) == PT_AVAIL);
+                    // now assert all should be evicted
+                    assert(BP_SHOULD_EVICT(*dn, i));
+                }
+                toku_brtnode_pe_callback(*dn, 0xffffffff, &bytes_freed, NULL);
+                for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_COMPRESSED);
                 }
             }
@@ -1126,6 +1154,85 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     assert(dn->totalchildkeylens==6);
     assert(BP_BLOCKNUM(dn,0).b==30);
     assert(BP_BLOCKNUM(dn,1).b==35);
+
+    FIFO src_fifo_1 = BNC_BUFFER(&sn, 0);
+    FIFO src_fifo_2 = BNC_BUFFER(&sn, 1);
+    FIFO dest_fifo_1 = BNC_BUFFER(dn, 0);
+    FIFO dest_fifo_2 = BNC_BUFFER(dn, 1);
+    bytevec src_key,src_val, dest_key, dest_val;
+    ITEMLEN src_keylen, src_vallen;
+    u_int32_t src_type;
+    MSN src_msn;
+    XIDS src_xids;
+    ITEMLEN dest_keylen, dest_vallen;
+    u_int32_t dest_type;
+    MSN dest_msn;
+    XIDS dest_xids;
+    r = toku_fifo_peek(src_fifo_1, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids);
+    assert(r==0);
+    r = toku_fifo_peek(dest_fifo_1, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids);
+    assert(r==0);
+    assert(src_keylen == dest_keylen);
+    assert(src_keylen == 2);
+    assert(src_vallen == dest_vallen);
+    assert(src_vallen == 5);
+    assert(src_type == dest_type);
+    assert(src_msn.msn == dest_msn.msn);
+    assert(strcmp(src_key, "a") == 0);
+    assert(strcmp(dest_key, "a") == 0);
+    assert(strcmp(src_val, "aval") == 0);
+    assert(strcmp(dest_val, "aval") == 0);
+    r = toku_fifo_deq(src_fifo_1);
+    assert(r==0);
+    r = toku_fifo_deq(dest_fifo_1);
+    assert(r==0);
+    r = toku_fifo_peek(src_fifo_1, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids);
+    assert(r==0);
+    r = toku_fifo_peek(dest_fifo_1, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids);
+    assert(r==0);
+    assert(src_keylen == dest_keylen);
+    assert(src_keylen == 2);
+    assert(src_vallen == dest_vallen);
+    assert(src_vallen == 5);
+    assert(src_type == dest_type);
+    assert(src_msn.msn == dest_msn.msn);
+    assert(strcmp(src_key, "b") == 0);
+    assert(strcmp(dest_key, "b") == 0);
+    assert(strcmp(src_val, "bval") == 0);
+    assert(strcmp(dest_val, "bval") == 0);
+    r = toku_fifo_deq(src_fifo_1);
+    assert(r==0);
+    r = toku_fifo_deq(dest_fifo_1);
+    assert(r==0);
+    r = toku_fifo_peek(src_fifo_1, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids);
+    assert(r!=0);
+    r = toku_fifo_peek(dest_fifo_1, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids);
+    assert(r!=0);
+
+    r = toku_fifo_peek(src_fifo_2, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids);
+    assert(r==0);
+    r = toku_fifo_peek(dest_fifo_2, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids);
+    assert(r==0);
+    assert(src_keylen == dest_keylen);
+    assert(src_keylen == 2);
+    assert(src_vallen == dest_vallen);
+    assert(src_vallen == 5);
+    assert(src_type == dest_type);
+    assert(src_msn.msn == dest_msn.msn);
+    assert(strcmp(src_key, "x") == 0);
+    assert(strcmp(dest_key, "x") == 0);
+    assert(strcmp(src_val, "xval") == 0);
+    assert(strcmp(dest_val, "xval") == 0);
+    r = toku_fifo_deq(src_fifo_2);
+    assert(r==0);
+    r = toku_fifo_deq(dest_fifo_2);
+    assert(r==0);
+    r = toku_fifo_peek(src_fifo_2, &src_key, &src_keylen, &src_val, &src_vallen, &src_type, &src_msn, &src_xids);
+    assert(r!=0);
+    r = toku_fifo_peek(dest_fifo_2, &dest_key, &dest_keylen, &dest_val, &dest_vallen, &dest_type, &dest_msn, &dest_xids);
+    assert(r!=0);
+
+    
     toku_brtnode_free(&dn);
 
     kv_pair_free(sn.childkeys[0]);

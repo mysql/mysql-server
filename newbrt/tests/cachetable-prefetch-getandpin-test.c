@@ -40,6 +40,18 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     return 0;
 }
 
+static void 
+pe_est_callback(
+    void* UU(brtnode_pv), 
+    long* bytes_freed_estimate, 
+    enum partial_eviction_cost *cost, 
+    void* UU(write_extraargs)
+    )
+{
+    *bytes_freed_estimate = 0;
+    *cost = PE_CHEAP;
+}
+
 static int 
 pe_callback (
     void *brtnode_pv __attribute__((__unused__)), 
@@ -82,13 +94,13 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     // prefetch block 0. this will take 10 seconds.
     CACHEKEY key = make_blocknum(0);
     u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
-    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
+    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
     toku_cachetable_verify(ct);
 
     // verify that get_and_pin waits while the prefetch is in progress
     void *v = 0;
     long size = 0;
-    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, flush, fetch, pe_callback, pf_req_callback, pf_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, NULL, NULL);
     assert(r == 0 && v == 0 && size == 1);
 
     struct timeval tend; 

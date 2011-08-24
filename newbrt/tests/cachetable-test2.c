@@ -119,6 +119,18 @@ static int fetch_forchain (CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t full
     return 0;
 }
 
+static void 
+pe_est_callback(
+    void* UU(brtnode_pv), 
+    long* bytes_freed_estimate, 
+    enum partial_eviction_cost *cost, 
+    void* UU(write_extraargs)
+    )
+{
+    *bytes_freed_estimate = 0;
+    *cost = PE_CHEAP;
+}
+
 static int 
 pe_callback (
     void *brtnode_pv __attribute__((__unused__)), 
@@ -183,7 +195,7 @@ static void test_chaining (void) {
 	int fnum = i%N_FILES;
 	//printf("%s:%d Add %d\n", __FILE__, __LINE__, i);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
-	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, pe_callback, (void*)i);
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, pe_est_callback, pe_callback, (void*)i);
 	assert(r==0);
 	item_becomes_present(ct, f[fnum], make_blocknum(i));
 	r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, test_object_size);
@@ -211,6 +223,7 @@ static void test_chaining (void) {
 					    NULL,
 					    flush_forchain,
 					    fetch_forchain,
+					    pe_est_callback,
 					    pe_callback,
 					    pf_req_callback,
 					    pf_callback,
@@ -231,7 +244,7 @@ static void test_chaining (void) {
         // if i is a duplicate, cachetable_put will return -1
 	// printf("%s:%d Add {%ld,%p}\n", __FILE__, __LINE__, i, f[fnum]);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
-	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, pe_callback, (void*)i);
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, pe_est_callback, pe_callback, (void*)i);
         assert(r==0 || r==-1);
         if (r==0) {
             item_becomes_present(ct, f[fnum], make_blocknum(i));

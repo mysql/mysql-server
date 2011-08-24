@@ -55,6 +55,18 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     return 0;
 }
 
+static void 
+pe_est_callback(
+    void* UU(brtnode_pv), 
+    long* bytes_freed_estimate, 
+    enum partial_eviction_cost *cost, 
+    void* UU(write_extraargs)
+    )
+{
+    *bytes_freed_estimate = 0;
+    *cost = PE_CHEAP;
+}
+
 static int 
 pe_callback (
     void *brtnode_pv __attribute__((__unused__)), 
@@ -92,7 +104,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     for (i=0; i<cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
         toku_cachetable_verify(ct);
     }
 
@@ -103,7 +115,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     for (i=i; i<2*cachetable_size_limit; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t fullhash = toku_cachetable_hash(f1, key);
-        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
+        r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
         toku_cachetable_verify(ct);
 	// sleep(1);
     }

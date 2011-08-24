@@ -21,6 +21,18 @@ static void flush(CACHEFILE cf, int UU(fd), CACHEKEY key, void *value, void *ext
     if (keep_me) n_keep_me++;
 }
 
+static void 
+pe_est_callback(
+    void* UU(brtnode_pv), 
+    long* bytes_freed_estimate, 
+    enum partial_eviction_cost *cost, 
+    void* UU(write_extraargs)
+    )
+{
+    *bytes_freed_estimate = 0;
+    *cost = PE_CHEAP;
+}
+
 static int 
 pe_callback (
     void *brtnode_pv __attribute__((__unused__)), 
@@ -74,7 +86,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t hi = toku_cachetable_hash(f1, key);
-        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, 1, flush, pe_callback, 0);
+        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, 1, flush, pe_est_callback, pe_callback, 0);
         assert(r == 0);
 
         r = toku_cachetable_unpin(f1, key, hi, dirty, item_size);

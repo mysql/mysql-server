@@ -507,6 +507,12 @@ struct brt {
 };
 
 /* serialization code */
+void
+toku_create_compressed_partition_from_available(
+    BRTNODE node, 
+    int childnum, 
+    SUB_BLOCK sb
+    );
 int toku_serialize_brtnode_to_memory (BRTNODE node,
                                       unsigned int basementnodesize,
                               /*out*/ size_t *n_bytes_to_write,
@@ -559,6 +565,7 @@ struct brtenv {
 
 extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, int*dirty, void*extraargs);
+extern void toku_brtnode_pe_est_callback(void* brtnode_pv, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
 extern int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_freed, void *extraargs);
 extern BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs);
 int toku_brtnode_pf_callback(void* brtnode_pv, void* read_extraargs, int fd, long* sizep);

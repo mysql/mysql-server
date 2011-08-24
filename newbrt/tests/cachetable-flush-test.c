@@ -16,6 +16,18 @@ flush (CACHEFILE f __attribute__((__unused__)),
     /* Do nothing */
 }
 
+static void 
+pe_est_callback(
+    void* UU(brtnode_pv), 
+    long* bytes_freed_estimate, 
+    enum partial_eviction_cost *cost, 
+    void* UU(write_extraargs)
+    )
+{
+    *bytes_freed_estimate = 0;
+    *cost = PE_CHEAP;
+}
+
 static int 
 pe_callback (
     void *brtnode_pv __attribute__((__unused__)), 
@@ -49,12 +61,12 @@ test_cachetable_flush (int n) {
     for (i=0; i<n; i++) {
         u_int32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
-        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, 1, flush, pe_callback, 0);
+        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, 1, flush, pe_est_callback, pe_callback, 0);
         assert(r == 0);
         r = toku_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, 1);
         assert(r == 0);
         hi = toku_cachetable_hash(f2, make_blocknum(i));
-        r = toku_cachetable_put(f2, make_blocknum(i), hi, (void *)(long)i, 1, flush, pe_callback, 0);
+        r = toku_cachetable_put(f2, make_blocknum(i), hi, (void *)(long)i, 1, flush, pe_est_callback, pe_callback, 0);
         assert(r == 0);
         r = toku_cachetable_unpin(f2, make_blocknum(i), hi, CACHETABLE_CLEAN, 1);
         assert(r == 0);

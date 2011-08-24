@@ -510,15 +510,26 @@ static int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM l
     return r;
 }
 
+static void toku_rollback_pe_est_callback(
+    void* rollback_v, 
+    long* bytes_freed_estimate, 
+    enum partial_eviction_cost *cost, 
+    void* UU(write_extraargs)
+    )
+{
+    assert(rollback_v != NULL);
+    *bytes_freed_estimate = 0;
+    *cost = PE_CHEAP;
+}
+
 // callback for partially evicting a cachetable entry
 static int toku_rollback_pe_callback (
     void *rollback_v, 
-    long bytes_to_free, 
+    long UU(bytes_to_free), 
     long* bytes_freed, 
     void* UU(extraargs)
     ) 
 {
-    assert(bytes_to_free > 0);
     assert(rollback_v != NULL);
     *bytes_freed = 0;
     return 0;
@@ -562,6 +573,7 @@ static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t o
     r=toku_cachetable_put(cf, log->thislogname, log->thishash,
                           log, rollback_memory_size(log),
                           toku_rollback_flush_callback, 
+                          toku_rollback_pe_est_callback,
                           toku_rollback_pe_callback,
                           h);
     assert(r==0);
@@ -779,6 +791,7 @@ toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
         r = toku_cachefile_prefetch(cf, name, hash,
                                     toku_rollback_flush_callback,
                                     toku_rollback_fetch_callback,
+                                    toku_rollback_pe_est_callback,
                                     toku_rollback_pe_callback,
                                     toku_brtnode_pf_req_callback,
                                     toku_brtnode_pf_callback,
@@ -809,6 +822,7 @@ int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLO
                                         &log_v, NULL,
                                         toku_rollback_flush_callback, 
                                         toku_rollback_fetch_callback,
+                                        toku_rollback_pe_est_callback,
                                         toku_rollback_pe_callback,
                                         toku_rollback_pf_req_callback,
                                         toku_rollback_pf_callback,

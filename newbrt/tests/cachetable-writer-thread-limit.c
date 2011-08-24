@@ -1,10 +1,12 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
-
-// verify that closing the cachetable with an in progress prefetch works
-#ident "$Id$"
+#ident "$Id: cachetable-clock-eviction.c 32940 2011-07-11 18:24:15Z leifwalsh $"
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
+
+
+static int total_size;
+static int test_limit;
+
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
@@ -17,31 +19,11 @@ flush (CACHEFILE f __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
        BOOL c      __attribute__((__unused__))
        ) {
-    assert(w == FALSE && v != NULL);
-    toku_free(v);
-}
-
-static int fetch_calls = 0;
-
-static int
-fetch (CACHEFILE f        __attribute__((__unused__)),
-       int UU(fd),
-       CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
-       void **value       __attribute__((__unused__)),
-       long *sizep        __attribute__((__unused__)),
-       int  *dirtyp       __attribute__((__unused__)),
-       void *extraargs    __attribute__((__unused__))
-       ) {
-
-    fetch_calls++;
-    sleep(10);
-
-    *value = toku_malloc(1);
-    *sizep = 1;
-    *dirtyp = 0;
-
-    return 0;
+    if (w) {
+        int curr_size = __sync_fetch_and_add(&total_size, -1);
+        assert(curr_size <= 200);
+        usleep(500*1000);
+    }
 }
 
 static void 
@@ -68,16 +50,38 @@ pe_callback (
     return 0;
 }
 
+#if 0
+static int
+fetch (CACHEFILE f        __attribute__((__unused__)),
+       int UU(fd),
+       CACHEKEY k         __attribute__((__unused__)),
+       u_int32_t fullhash __attribute__((__unused__)),
+       void **value       __attribute__((__unused__)),
+       long *sizep        __attribute__((__unused__)),
+       int  *dirtyp,
+       void *extraargs    __attribute__((__unused__))
+       ) {
+    *dirtyp = 1;
+    *value = NULL;
+    *sizep = 1;
+    return 0;
+}
+
+
 static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
-    return FALSE;
+  return FALSE;
 }
 
 static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
-    assert(FALSE);
+  assert(FALSE);
 }
+#endif
 
-static void cachetable_prefetch_close_leak_test (void) {
-    const int test_limit = 1;
+static void
+cachetable_test (void) {
+    total_size = 0;
+    int num_entries = 100;
+    test_limit = 6;
     int r;
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
@@ -86,14 +90,13 @@ static void cachetable_prefetch_close_leak_test (void) {
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
-    // prefetch block 0. this will take 10 seconds.
-    CACHEKEY key = make_blocknum(0);
-    u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
-    r = toku_cachefile_prefetch(f1, key, fullhash, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0, NULL);
-    toku_cachetable_verify(ct);
-
-    // close with the prefetch in progress. the close should block until
-    // all of the reads and writes are complete.
+    for (int64_t i = 0; i < num_entries; i++) {
+        r = toku_cachetable_put(f1, make_blocknum(i), i, NULL, 1, flush, pe_est_callback, pe_callback, NULL);
+        int curr_size = __sync_fetch_and_add(&total_size, 1);
+        assert(curr_size <= test_limit + test_limit/2+1);
+        r = toku_cachetable_unpin(f1, make_blocknum(i), i, CACHETABLE_DIRTY, 4);
+    }
+    
     r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
@@ -101,6 +104,6 @@ static void cachetable_prefetch_close_leak_test (void) {
 int
 test_main(int argc, const char *argv[]) {
     default_parse_args(argc, argv);
-    cachetable_prefetch_close_leak_test();
+    cachetable_test();
     return 0;
 }
