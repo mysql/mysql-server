@@ -25,6 +25,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_class.h"                          // THD, set_var.h: THD
 #include "set_var.h"                            // Item
+#include "sp_pcontext.h"                        // sp_pcontext
 
 #include <stddef.h>
 
@@ -1007,10 +1008,10 @@ class sp_instr_hpush_jump : public sp_instr_jump
 
 public:
 
-  sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, int handler_type, uint fp)
+  sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, int handler_type)
    :sp_instr_jump(ip, ctx),
     m_handler_type(handler_type),
-    m_frame(fp),
+    m_frame(ctx->current_var_count()),
     m_opt_hpop(0)
   {
     m_cond.empty();
@@ -1049,7 +1050,11 @@ public:
 
 private:
   int m_handler_type;           ///< Handler type
+
+  // This attribute is needed for SHOW PROCEDURE CODE only (i.e. it's needed in
+  // debug version only). It's used in print().
   uint m_frame;
+
   uint m_opt_hpop;              // hpop marking end of handler scope.
   List<sp_condition_value> m_cond;
 
@@ -1087,9 +1092,9 @@ class sp_instr_hreturn : public sp_instr_jump
   void operator=(sp_instr_hreturn &);
 
 public:
-
-  sp_instr_hreturn(uint ip, sp_pcontext *ctx, uint fp)
-    : sp_instr_jump(ip, ctx), m_frame(fp)
+  sp_instr_hreturn(uint ip, sp_pcontext *ctx)
+   :sp_instr_jump(ip, ctx),
+    m_frame(ctx->current_var_count())
   {}
 
   virtual ~sp_instr_hreturn()
@@ -1108,9 +1113,9 @@ public:
   virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
 private:
-
+  // This attribute is needed for SHOW PROCEDURE CODE only (i.e. it's needed in
+  // debug version only). It's used in print().
   uint m_frame;
-
 }; // class sp_instr_hreturn : public sp_instr_jump
 
 
