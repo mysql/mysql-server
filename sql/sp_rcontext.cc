@@ -23,8 +23,7 @@
 #include "sql_select.h"                     // create_virtual_tmp_table
 
 sp_rcontext::sp_rcontext(sp_pcontext *root_parsing_ctx,
-                         Field *return_value_fld,
-                         sp_rcontext *prev_runtime_ctx)
+                         Field *return_value_fld)
   :end_partial_result_set(FALSE),
    m_root_parsing_ctx(root_parsing_ctx),
    m_var_table(0),
@@ -35,10 +34,8 @@ sp_rcontext::sp_rcontext(sp_pcontext *root_parsing_ctx,
    m_hcount(0),
    m_hsp(0),
    m_ihsp(0),
-   m_hfound(-1),
    m_ccount(0),
-   m_case_expr_holders(0),
-   m_prev_runtime_ctx(prev_runtime_ctx)
+   m_case_expr_holders(0)
 {
 }
 
@@ -168,7 +165,7 @@ sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 #define IS_EXCEPTION_CONDITION(S) ((S)[0] != '0' || (S)[1] > '2')
 
 /**
-  Find an SQL handler for the given error.
+  Find an SQL handler for the given SQL condition.
 
   SQL handlers are pushed on the stack m_handlers, with the latest/innermost
   one on the top; we then search for matching handlers from the top and
@@ -179,38 +176,24 @@ sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
   Note that mysql error code handlers is a MySQL extension, not part of
   the standard.
 
-  SQL handlers for warnings are searched in the current scope only.
-
-  SQL handlers for errors are searched in the current and in outer scopes.
-  That's why finding and activation of handler must be separated: an errror
-  handler might be located in the outer scope, which is not active at the
-  moment. Before such handler can be activated, execution flow should
-  unwind to that scope.
-
-  Found SQL handler is remembered in m_hfound for future activation.
-  If no handler is found, m_hfound is -1.
-
   @param thd        Thread handle
-  @param sql_errno  The error code
-  @param sqlstate   The error SQL state
-  @param level      The error level
-  @param msg        The error message
+  @param sql_errno  SQL-condition error number
+  @param sqlstate   SQL-condition SQLSTATE
+  @param level      SQL-condition level
+  @param msg        SQL-condition message
 
-  @retval TRUE  if an SQL handler was found
-  @retval FALSE otherwise
+  @return SQL handler index, or -1 if there is no handler.
 */
 
-bool
+int
 sp_rcontext::find_handler(THD *thd,
                           uint sql_errno,
                           const char *sqlstate,
                           Sql_condition::enum_warning_level level,
                           const char *msg)
 {
+  int hfound= -1;
   int i= m_hcount;
-
-  /* Reset previously found handler. */
-  m_hfound= -1;
 
   /*
     If this is a fatal sub-statement error, and this runtime
@@ -238,58 +221,44 @@ sp_rcontext::find_handler(THD *thd,
     {
     case sp_condition_value::ERROR_CODE:
       if (sql_errno == cond->mysqlerr &&
-          (m_hfound < 0 ||
-           m_handlers[m_hfound].cond->type > sp_condition_value::ERROR_CODE))
-	m_hfound= i;		// Always the most specific
+          (hfound < 0 ||
+           m_handlers[hfound].cond->type > sp_condition_value::ERROR_CODE))
+	hfound= i;		// Always the most specific
       break;
     case sp_condition_value::SQLSTATE:
       if (strcmp(sqlstate, cond->sqlstate) == 0 &&
-	  (m_hfound < 0 ||
-           m_handlers[m_hfound].cond->type > sp_condition_value::SQLSTATE))
-	m_hfound= i;
+	  (hfound < 0 ||
+           m_handlers[hfound].cond->type > sp_condition_value::SQLSTATE))
+	hfound= i;
       break;
     case sp_condition_value::WARNING:
       if ((IS_WARNING_CONDITION(sqlstate) ||
            level == Sql_condition::WARN_LEVEL_WARN) &&
-          m_hfound < 0)
-	m_hfound= i;
+          hfound < 0)
+	hfound= i;
       break;
     case sp_condition_value::NOT_FOUND:
-      if (IS_NOT_FOUND_CONDITION(sqlstate) && m_hfound < 0)
-	m_hfound= i;
+      if (IS_NOT_FOUND_CONDITION(sqlstate) && hfound < 0)
+	hfound= i;
       break;
     case sp_condition_value::EXCEPTION:
       if (IS_EXCEPTION_CONDITION(sqlstate) &&
 	  level == Sql_condition::WARN_LEVEL_ERROR &&
-	  m_hfound < 0)
-	m_hfound= i;
+	  hfound < 0)
+	hfound= i;
       break;
     }
   }
 
-  if (m_hfound >= 0)
+  if (hfound >= 0)
   {
-    DBUG_ASSERT((uint) m_hfound < m_root_parsing_ctx->max_handler_index());
+    DBUG_ASSERT((uint) hfound < m_root_parsing_ctx->max_handler_index());
 
-    m_raised_conditions[m_hfound].clear();
-    m_raised_conditions[m_hfound].set(sql_errno, sqlstate, level, msg);
-
-    return TRUE;
+    m_raised_conditions[hfound].clear();
+    m_raised_conditions[hfound].set(sql_errno, sqlstate, level, msg);
   }
 
-  /*
-    Only "exception conditions" are propagated to handlers in calling
-    contexts. If no handler is found locally for a "completion condition"
-    (warning or "not found") we will simply resume execution.
-  */
-  if (m_prev_runtime_ctx && IS_EXCEPTION_CONDITION(sqlstate) &&
-      level == Sql_condition::WARN_LEVEL_ERROR)
-  {
-    return m_prev_runtime_ctx->find_handler(thd, sql_errno, sqlstate,
-                                            level, msg);
-  }
-
-  return FALSE;
+  return hfound;
 }
 
 void
@@ -368,31 +337,180 @@ sp_rcontext::pop_hstack()
 }
 
 /**
-  Prepare found handler to be executed.
+  Handle current SQL condition (if any).
 
-  @retval TRUE if an SQL handler is activated (was found) and IP of the
-          first handler instruction.
-  @retval FALSE if there is no active handler
+  This is the public-interface function to handle SQL conditions in stored
+  routines.
+
+  @param thd            Thread handle.
+  @param ip[out]        Instruction pointer to the first handler instruction.
+  @param cur_spi        Current SP instruction.
+  @param execute_arena  Current execution arena for SP.
+  @param backup_arena   Backup arena for SP.
+
+  @retval true if an SQL-handler has been activated. That means, all of the
+  following conditions are satisfied:
+    - the SP-instruction raised SQL-condition(s),
+    - and there is an SQL-handler to process at least one of those SQL-conditions,
+    - and that SQL-handler has been activated.
+  Note, that the return value has nothing to do with "error flag" semantics.
+  @retval false otherwise.
 */
 
 bool
+sp_rcontext::handle_sql_condition(THD *thd,
+                                  uint *ip,
+                                  const sp_instr *cur_spi,
+                                  Query_arena *execute_arena,
+                                  Query_arena *backup_arena)
+{
+  int handler_idx= find_handler(thd);
+
+  if (handler_idx < 0)
+    return false;
+
+  activate_handler(thd, handler_idx, ip, cur_spi, execute_arena, backup_arena);
+
+  return true;
+}
+
+
+/**
+  Find an SQL handler for any condition (warning or error) after execution
+  of a stored routine instruction. Basically, this function looks for an
+  appropriate SQL handler in RT-contexts. If an SQL handler is found, it is
+  remembered in the RT-context for future activation (the context can be
+  inactive at the moment).
+
+  If there is no pending condition, the function just returns.
+
+  If there was an error during the execution, an SQL handler for it will be
+  searched within the current and outer scopes.
+
+  There might be several errors in the Warning Info (that's possible by using
+  SIGNAL/RESIGNAL in nested scopes) -- the function is looking for an SQL
+  handler for the latest (current) error only.
+
+  If there was a warning during the execution, an SQL handler for it will be
+  searched within the current scope only.
+
+  If several warnings were thrown during the execution and there are different
+  SQL handlers for them, it is not determined which SQL handler will be chosen.
+  Only one SQL handler will be executed.
+
+  If warnings and errors were thrown during the execution, the error takes
+  precedence. I.e. error handler will be executed. If there is no handler
+  for that error, condition will remain unhandled.
+
+  According to The Standard (quoting PeterG):
+
+    An SQL procedure statement works like this ...
+    SQL/Foundation 13.5 <SQL procedure statement>
+    (General Rules) (greatly summarized) says:
+    (1) Empty diagnostics area, thus clearing the condition.
+    (2) Execute statement.
+        During execution, if Exception Condition occurs,
+        set Condition Area = Exception Condition and stop
+        statement.
+        During execution, if No Data occurs,
+        set Condition Area = No Data Condition and continue
+        statement.
+        During execution, if Warning occurs,
+        and Condition Area is not already full due to
+        an earlier No Data condition, set Condition Area
+        = Warning and continue statement.
+    (3) Finish statement.
+        At end of execution, if Condition Area is not
+        already full due to an earlier No Data or Warning,
+        set Condition Area = Successful Completion.
+        In effect, this system means there is a precedence:
+        Exception trumps No Data, No Data trumps Warning,
+        Warning trumps Successful Completion.
+
+    NB: "Procedure statements" include any DDL or DML or
+    control statements. So CREATE and DELETE and WHILE
+    and CALL and RETURN are procedure statements. But
+    DECLARE and END are not procedure statements.
+
+  @param thd thread handle
+
+  @return SQL-handler index to activate, or -1 if there is no pending
+  SQL-condition, or no SQL-handler has been found.
+*/
+
+int
+sp_rcontext::find_handler(THD *thd)
+{
+  Diagnostics_area *da= thd->get_stmt_da();
+
+  if (thd->is_error())
+  {
+
+    int handler_idx= find_handler(thd,
+                                  da->sql_errno(),
+                                  da->get_sqlstate(),
+                                  Sql_condition::WARN_LEVEL_ERROR,
+                                  da->message());
+    if (handler_idx >= 0)
+      da->remove_sql_condition(da->get_error_condition());
+
+    return handler_idx;
+  }
+  else if (thd->get_stmt_da()->current_statement_warn_count())
+  {
+    Diagnostics_area::Sql_condition_iterator it=
+      thd->get_stmt_da()->sql_conditions();
+    const Sql_condition *c;
+
+    while ((c= it++))
+    {
+      if (c->get_level() != Sql_condition::WARN_LEVEL_WARN &&
+          c->get_level() != Sql_condition::WARN_LEVEL_NOTE)
+        continue;
+
+      int handler_idx= find_handler(thd,
+                                    c->get_sql_errno(),
+                                    c->get_sqlstate(),
+                                    c->get_level(),
+                                    c->get_message_text());
+      if (handler_idx >= 0)
+      {
+        da->remove_sql_condition(c);
+        return handler_idx;
+      }
+    }
+  }
+
+  return -1;
+}
+
+/**
+  Prepare an SQL handler to be executed.
+
+  @param thd            Thread handle.
+  @param handler_idx    Handler index (must be >= 0).
+  @param ip[out]        Instruction pointer to the first handler instruction.
+  @param cur_spi        Current SP instruction.
+  @param execute_arena  Current execution arena for SP.
+  @param backup_arena   Backup arena for SP.
+*/
+
+void
 sp_rcontext::activate_handler(THD *thd,
+                              int handler_idx,
                               uint *ip,
-                              sp_instr *instr,
+                              const sp_instr *cur_spi,
                               Query_arena *execute_arena,
                               Query_arena *backup_arena)
 {
-  if (m_hfound < 0)
-    return FALSE;
-
-  switch (m_handlers[m_hfound].type) {
-  case SP_HANDLER_NONE:
-    break;
-
+  DBUG_ASSERT(handler_idx >= 0);
+  DBUG_ASSERT(m_handlers[handler_idx].type != SP_HANDLER_NONE);
+ 
+  switch (m_handlers[handler_idx].type) {
   case SP_HANDLER_CONTINUE:
     thd->restore_active_arena(execute_arena, backup_arena);
     thd->set_n_backup_active_arena(execute_arena, backup_arena);
-    push_hstack(instr->get_cont_dest());
+    push_hstack(cur_spi->get_cont_dest());
 
     /* Fall through */
 
@@ -405,10 +523,9 @@ sp_rcontext::activate_handler(THD *thd,
     /* Enter handler. */
 
     DBUG_ASSERT(m_ihsp < m_root_parsing_ctx->max_handler_index());
-    DBUG_ASSERT(m_hfound >= 0);
 
-    m_in_handler[m_ihsp].ip= m_handlers[m_hfound].handler;
-    m_in_handler[m_ihsp].index= m_hfound;
+    m_in_handler[m_ihsp].ip= m_handlers[handler_idx].handler;
+    m_in_handler[m_ihsp].index= handler_idx;
     m_ihsp++;
 
     DBUG_PRINT("info", ("Entering handler..."));
@@ -421,13 +538,8 @@ sp_rcontext::activate_handler(THD *thd,
                                   // (e.g. "bad data").
 
     /* Return IP of the activated SQL handler. */
-    *ip= m_handlers[m_hfound].handler;
-
-    /* Reset found handler. */
-    m_hfound= -1;
+    *ip= m_handlers[handler_idx].handler;
   }
-
-  return TRUE;
 }
 
 void
@@ -453,9 +565,6 @@ sp_rcontext::raised_condition() const
     Sql_condition *raised= & m_raised_conditions[hindex];
     return raised;
   }
-
-  if (m_prev_runtime_ctx)
-    return m_prev_runtime_ctx->raised_condition();
 
   return NULL;
 }

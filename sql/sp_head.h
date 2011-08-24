@@ -585,7 +585,7 @@ public:
     Get the continuation destination of this instruction.
     @return the continuation destination
   */
-  virtual uint get_cont_dest();
+  virtual uint get_cont_dest() const;
 
   /*
     Execute core function of instruction after all preparations (e.g.
@@ -857,7 +857,7 @@ public:
   virtual void set_destination(uint old_dest, uint new_dest)
     = 0;
 
-  virtual uint get_cont_dest();
+  virtual uint get_cont_dest() const;
 
 protected:
 

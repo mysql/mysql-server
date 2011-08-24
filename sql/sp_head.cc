@@ -1074,109 +1074,6 @@ void sp_head::recursion_level_error(THD *thd)
 
 
 /**
-  Find an SQL handler for any condition (warning or error) after execution
-  of a stored routine instruction. Basically, this function looks for an
-  appropriate SQL handler in RT-contexts. If an SQL handler is found, it is
-  remembered in the RT-context for future activation (the context can be
-  inactive at the moment).
-
-  If there is no pending condition, the function just returns.
-
-  If there was an error during the execution, an SQL handler for it will be
-  searched within the current and outer scopes.
-
-  There might be several errors in the Warning Info (that's possible by using
-  SIGNAL/RESIGNAL in nested scopes) -- the function is looking for an SQL
-  handler for the latest (current) error only.
-
-  If there was a warning during the execution, an SQL handler for it will be
-  searched within the current scope only.
-
-  If several warnings were thrown during the execution and there are different
-  SQL handlers for them, it is not determined which SQL handler will be chosen.
-  Only one SQL handler will be executed.
-
-  If warnings and errors were thrown during the execution, the error takes
-  precedence. I.e. error handler will be executed. If there is no handler
-  for that error, condition will remain unhandled.
-
-  According to The Standard (quoting PeterG):
-
-    An SQL procedure statement works like this ...
-    SQL/Foundation 13.5 <SQL procedure statement>
-    (General Rules) (greatly summarized) says:
-    (1) Empty diagnostics area, thus clearing the condition.
-    (2) Execute statement.
-        During execution, if Exception Condition occurs,
-        set Condition Area = Exception Condition and stop
-        statement.
-        During execution, if No Data occurs,
-        set Condition Area = No Data Condition and continue
-        statement.
-        During execution, if Warning occurs,
-        and Condition Area is not already full due to
-        an earlier No Data condition, set Condition Area
-        = Warning and continue statement.
-    (3) Finish statement.
-        At end of execution, if Condition Area is not
-        already full due to an earlier No Data or Warning,
-        set Condition Area = Successful Completion.
-        In effect, this system means there is a precedence:
-        Exception trumps No Data, No Data trumps Warning,
-        Warning trumps Successful Completion.
-
-    NB: "Procedure statements" include any DDL or DML or
-    control statements. So CREATE and DELETE and WHILE
-    and CALL and RETURN are procedure statements. But
-    DECLARE and END are not procedure statements.
-
-  @param thd thread handle
-  @param ctx runtime context of the stored routine
-*/
-
-static void
-find_handler_after_execution(THD *thd, sp_rcontext *ctx)
-{
-  Diagnostics_area *da= thd->get_stmt_da();
-
-  if (thd->is_error())
-  {
-    if (ctx->find_handler(thd,
-                          da->sql_errno(),
-                          da->get_sqlstate(),
-                          Sql_condition::WARN_LEVEL_ERROR,
-                          da->message()))
-    {
-      da->remove_sql_condition(da->get_error_condition());
-    }
-  }
-  else if (thd->get_stmt_da()->current_statement_warn_count())
-  {
-    Diagnostics_area::Sql_condition_iterator it=
-      thd->get_stmt_da()->sql_conditions();
-    const Sql_condition *err;
-
-    while ((err= it++))
-    {
-      if (err->get_level() != Sql_condition::WARN_LEVEL_WARN &&
-          err->get_level() != Sql_condition::WARN_LEVEL_NOTE)
-        continue;
-
-      if (ctx->find_handler(thd,
-                            err->get_sql_errno(),
-                            err->get_sqlstate(),
-                            err->get_level(),
-                            err->get_message_text()))
-      {
-        da->remove_sql_condition(err);
-        break;
-      }
-    }
-  }
-}
-
-
-/**
   Execute the routine. The main instruction jump loop is there.
   Assume the parameters already set.
 
@@ -1446,19 +1343,10 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       errors are not catchable by SQL handlers) or the connection has been
       killed during execution.
     */
-    if (!thd->is_fatal_error && !thd->killed_errno())
+    if (!thd->is_fatal_error && !thd->killed_errno() &&
+        ctx->handle_sql_condition(thd, &ip, i, &execute_arena, &backup_arena))
     {
-      /*
-        Find SQL handler in the appropriate RT-contexts:
-          - warnings can be handled by SQL handlers within
-            the current scope only;
-          - errors can be handled by any SQL handler from outer scope.
-      */
-      find_handler_after_execution(thd, ctx);
-
-      /* If found, activate handler for the current scope. */
-      if (ctx->activate_handler(thd, &ip, i, &execute_arena, &backup_arena))
-        err_status= FALSE;
+      err_status= FALSE;
     }
 
     /* Reset sp_rcontext::end_partial_result_set flag. */
@@ -1750,7 +1638,7 @@ sp_head::execute_trigger(THD *thd,
   init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  if (!(nctx= new sp_rcontext(m_pcont, 0, octx)) ||
+  if (!(nctx= new sp_rcontext(m_pcont, NULL)) ||
       nctx->init(thd))
   {
     err_status= TRUE;
@@ -1867,7 +1755,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  if (!(nctx= new sp_rcontext(m_pcont, return_value_fld, octx)) ||
+  if (!(nctx= new sp_rcontext(m_pcont, return_value_fld)) ||
       nctx->init(thd))
   {
     thd->restore_active_arena(&call_arena, &backup_arena);
@@ -2087,7 +1975,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   if (! octx)
   {
     /* Create a temporary old context. */
-    if (!(octx= new sp_rcontext(m_pcont, NULL, octx)) || octx->init(thd))
+    if (!(octx= new sp_rcontext(m_pcont, NULL)) || octx->init(thd))
     {
       delete octx; /* Delete octx if it was init() that failed. */
       DBUG_RETURN(TRUE);
@@ -2102,7 +1990,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->spcont->callers_arena= thd;
   }
 
-  if (!(nctx= new sp_rcontext(m_pcont, NULL, octx)) ||
+  if (!(nctx= new sp_rcontext(m_pcont, NULL)) ||
       nctx->init(thd))
   {
     delete nctx; /* Delete nctx if it was init() that failed. */
@@ -3118,7 +3006,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   sp_instr class functions
 */
 
-uint sp_instr::get_cont_dest()
+uint sp_instr::get_cont_dest() const
 {
   return (m_ip+1);
 }
@@ -3326,7 +3214,7 @@ sp_instr_set_trigger_field::print(String *str)
   sp_instr_opt_meta
 */
 
-uint sp_instr_opt_meta::get_cont_dest()
+uint sp_instr_opt_meta::get_cont_dest() const
 {
   return m_cont_dest;
 }
@@ -3566,9 +3454,6 @@ sp_instr_hpush_jump::print(String *str)
   str->qs_append(' ');
   str->qs_append(m_frame);
   switch (m_handler_type) {
-  case SP_HANDLER_NONE:
-    str->qs_append(STRING_WITH_LEN(" NONE")); // This would be a bug
-    break;
   case SP_HANDLER_EXIT:
     str->qs_append(STRING_WITH_LEN(" EXIT"));
     break;
@@ -3579,7 +3464,7 @@ sp_instr_hpush_jump::print(String *str)
     str->qs_append(STRING_WITH_LEN(" UNDO"));
     break;
   default:
-    // This would be a bug as well
+    // This would be a bug.
     str->qs_append(STRING_WITH_LEN(" UNKNOWN:"));
     str->qs_append(m_handler_type);
   }
