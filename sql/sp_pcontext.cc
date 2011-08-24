@@ -43,7 +43,7 @@ sp_pcontext::init(uint var_offset,
   (void) my_init_dynamic_array(&m_handlers, sizeof(sp_condition_value *),
                              PCONTEXT_ARRAY_INIT_ALLOC,
                              PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  m_label.empty();
+  m_labels.empty();
   m_children.empty();
 
   m_var_offset= var_offset;
@@ -81,7 +81,7 @@ sp_pcontext::destroy()
     child->destroy();
 
   m_children.empty();
-  m_label.empty();
+  m_labels.empty();
   delete_dynamic(&m_vars);
   delete_dynamic(&m_case_expr_id_lst);
   delete_dynamic(&m_conds);
@@ -240,7 +240,7 @@ sp_pcontext::push_label(char *name, uint ip)
     lab->ip= ip;
     lab->type= sp_label::IMPLICIT;
     lab->ctx= this;
-    m_label.push_front(lab);
+    m_labels.push_front(lab);
   }
   return lab;
 }
@@ -248,7 +248,7 @@ sp_pcontext::push_label(char *name, uint ip)
 sp_label *
 sp_pcontext::find_label(char *name)
 {
-  List_iterator_fast<sp_label> li(m_label);
+  List_iterator_fast<sp_label> li(m_labels);
   sp_label *lab;
 
   while ((lab= li++))
