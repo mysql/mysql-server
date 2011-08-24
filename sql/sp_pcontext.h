@@ -358,11 +358,7 @@ public:
 
   inline uint
   max_handler_index()
-  { return m_max_handler_index + m_context_handlers; }
-
-  inline void
-  add_handlers(uint n)
-  { m_context_handlers+= n; }
+  { return m_max_handler_index + get_num_handlers(); }
 
   //
   // Cursors
@@ -409,7 +405,6 @@ protected:
   // The maximum sub context's framesizes
   uint m_max_cursor_index;
   uint m_max_handler_index;
-  uint m_context_handlers;      // No. of handlers in this context
 
 private:
   void
@@ -417,8 +412,11 @@ private:
        uint cursor_offset,
        int num_case_expressions);
 
-private:
+  int
+  get_num_handlers() const
+  { return m_handlers.elements(); }
 
+private:
   sp_pcontext *m_parent;	// Parent context
 
   /*

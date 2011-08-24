@@ -72,7 +72,7 @@ sp_pcontext::init(uint var_offset,
 sp_pcontext::sp_pcontext()
   : Sql_alloc(),
   m_max_var_index(0), m_max_cursor_index(0), m_max_handler_index(0),
-  m_context_handlers(0), m_parent(NULL), m_pboundary(0),
+  m_parent(NULL), m_pboundary(0),
   m_scope(REGULAR_SCOPE)
 {
   init(0, 0, 0);
@@ -81,7 +81,7 @@ sp_pcontext::sp_pcontext()
 sp_pcontext::sp_pcontext(sp_pcontext *prev, sp_pcontext::enum_scope scope)
   : Sql_alloc(),
   m_max_var_index(0), m_max_cursor_index(0), m_max_handler_index(0),
-  m_context_handlers(0), m_parent(prev), m_pboundary(0),
+  m_parent(prev), m_pboundary(0),
   m_scope(scope)
 {
   init(prev->m_var_offset + prev->m_max_var_index,
@@ -142,12 +142,12 @@ sp_pcontext::diff_handlers(sp_pcontext *ctx, bool exclusive)
 
   while (pctx && pctx != ctx)
   {
-    n+= pctx->m_context_handlers;
+    n+= pctx->get_num_handlers();
     last_ctx= pctx;
     pctx= pctx->parent_context();
   }
   if (pctx)
-    return (exclusive && last_ctx ? n - last_ctx->m_context_handlers : n);
+    return (exclusive && last_ctx ? n - last_ctx->get_num_handlers() : n);
   return 0;			// Didn't find ctx
 }
 
