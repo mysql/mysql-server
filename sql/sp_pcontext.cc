@@ -62,27 +62,11 @@ sp_pcontext::init(uint var_offset,
                   uint cursor_offset,
                   int num_case_expressions)
 {
-  (void) my_init_dynamic_array(&m_vars, sizeof(sp_variable *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_conds, sizeof(sp_condition *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_cursors, sizeof(LEX_STRING),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  (void) my_init_dynamic_array(&m_handlers, sizeof(sp_handler *),
-                             PCONTEXT_ARRAY_INIT_ALLOC,
-                             PCONTEXT_ARRAY_INCREMENT_ALLOC);
-  m_labels.empty();
-  m_children.empty();
-
   m_var_offset= var_offset;
   m_cursor_offset= cursor_offset;
   m_num_case_exprs= num_case_expressions;
+
+  m_labels.empty();
 }
 
 sp_pcontext::sp_pcontext()
@@ -108,19 +92,16 @@ sp_pcontext::sp_pcontext(sp_pcontext *prev, sp_pcontext::enum_scope scope)
 void
 sp_pcontext::destroy()
 {
-  List_iterator_fast<sp_pcontext> li(m_children);
-  sp_pcontext *child;
+  for (int i= 0; i < m_children.elements(); ++i)
+    m_children.at(i)->destroy();
 
-  while ((child= li++))
-    child->destroy();
-
-  m_children.empty();
+  m_vars.clear();
+  m_case_expr_ids.clear();
+  m_conditions.clear();
+  m_cursors.clear();
+  m_handlers.clear();
+  m_children.clear();
   m_labels.empty();
-  delete_dynamic(&m_vars);
-  delete_dynamic(&m_case_expr_id_lst);
-  delete_dynamic(&m_conds);
-  delete_dynamic(&m_cursors);
-  delete_dynamic(&m_handlers);
 }
 
 sp_pcontext *
@@ -129,7 +110,7 @@ sp_pcontext::push_context(sp_pcontext::enum_scope scope)
   sp_pcontext *child= new sp_pcontext(this, scope);
 
   if (child)
-    m_children.push_back(child);
+    m_children.append(child);
   return child;
 }
 
@@ -179,12 +160,12 @@ sp_pcontext::diff_cursors(sp_pcontext *ctx, bool exclusive)
 
   while (pctx && pctx != ctx)
   {
-    n+= pctx->m_cursors.elements;
+    n+= pctx->m_cursors.elements();
     last_ctx= pctx;
     pctx= pctx->parent_context();
   }
   if (pctx)
-    return  (exclusive && last_ctx ? n - last_ctx->m_cursors.elements : n);
+    return  (exclusive && last_ctx ? n - last_ctx->m_cursors.elements() : n);
   return 0;			// Didn't find ctx
 }
 
@@ -197,15 +178,14 @@ sp_pcontext::diff_cursors(sp_pcontext *ctx, bool exclusive)
   ...and, this is only called during parsing.
 */
 sp_variable *
-sp_pcontext::find_variable(LEX_STRING *name, my_bool scoped)
+sp_pcontext::find_variable(LEX_STRING *name, bool scoped)
 {
-  uint i= m_vars.elements - m_pboundary;
+  uint i= m_vars.elements() - m_pboundary;
 
   while (i--)
   {
-    sp_variable *p;
+    sp_variable *p= m_vars.at(i);
 
-    get_dynamic(&m_vars, (uchar*)&p, i);
     if (my_strnncoll(system_charset_info,
 		     (const uchar *)name->str, name->length,
 		     (const uchar *)p->name.str, p->name.length) == 0)
@@ -228,16 +208,12 @@ sp_pcontext::find_variable(LEX_STRING *name, my_bool scoped)
 sp_variable *
 sp_pcontext::find_variable(uint offset)
 {
-  if (m_var_offset <= offset && offset < m_var_offset + m_vars.elements)
-  {                           // This frame
-    sp_variable *p;
+  if (m_var_offset <= offset && offset < m_var_offset + m_vars.elements())
+    return m_vars.at(offset - m_var_offset);  // This frame
 
-    get_dynamic(&m_vars, (uchar*)&p, offset - m_var_offset);
-    return p;
-  }
-  if (m_parent)
-    return m_parent->find_variable(offset); // Some previous frame
-  return NULL;                  // index out of bounds
+  return m_parent ?
+         m_parent->find_variable(offset) :    // Some previous frame
+         NULL;                                // Index out of bounds
 }
 
 sp_variable *
@@ -257,26 +233,25 @@ sp_pcontext::push_variable(LEX_STRING *name, enum enum_field_types type,
   p->mode= mode;
   p->offset= current_var_count();
   p->dflt= NULL;
-  if (insert_dynamic(&m_vars, &p))
-    return NULL;
-  return p;
+  return m_vars.append(p) ? NULL : p;
 }
 
 
 sp_label *
 sp_pcontext::push_label(char *name, uint ip)
 {
-  sp_label *lab = (sp_label *)sql_alloc(sizeof(sp_label));
+  sp_label *label= (sp_label *)sql_alloc(sizeof(sp_label));
 
-  if (lab)
-  {
-    lab->name= name;
-    lab->ip= ip;
-    lab->type= sp_label::IMPLICIT;
-    lab->ctx= this;
-    m_labels.push_front(lab);
-  }
-  return lab;
+  if (!label)
+    return NULL;
+
+  label->name= name;
+  label->ip= ip;
+  label->type= sp_label::IMPLICIT;
+  label->ctx= this;
+  m_labels.push_front(label);
+
+  return label;
 }
 
 sp_label *
@@ -302,41 +277,42 @@ sp_pcontext::find_label(char *name)
   return NULL;
 }
 
-int
-sp_pcontext::push_cond(LEX_STRING *name, sp_condition_value *val)
+bool
+sp_pcontext::push_condition(LEX_STRING *name, sp_condition_value *value)
 {
   sp_condition *p= (sp_condition *)sql_alloc(sizeof(sp_condition));
 
   if (p == NULL)
-    return 1;
+    return true;
+
   p->name.str= name->str;
   p->name.length= name->length;
-  p->val= val;
-  return insert_dynamic(&m_conds, &p);
+  p->value= value;
+
+  return m_conditions.append(p);
 }
 
 /*
   See comment for find_variable() above
 */
 sp_condition_value *
-sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
+sp_pcontext::find_condition(LEX_STRING *name, bool scoped)
 {
-  uint i= m_conds.elements;
+  uint i= m_conditions.elements();
 
   while (i--)
   {
-    sp_condition *p;
+    sp_condition *p= m_conditions.at(i);
 
-    get_dynamic(&m_conds, (uchar*)&p, i);
     if (my_strnncoll(system_charset_info,
 		     (const uchar *)name->str, name->length,
 		     (const uchar *)p->name.str, p->name.length) == 0)
     {
-      return p->val;
+      return p->value;
     }
   }
   if (!scoped && m_parent)
-    return m_parent->find_cond(name, scoped);
+    return m_parent->find_condition(name, scoped);
   return NULL;
 }
 
@@ -358,12 +334,9 @@ sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
 bool
 sp_pcontext::check_duplicate_handler(sp_condition_value *condition_value)
 {
-  for (uint i= 0; i < m_handlers.elements; ++i)
+  for (int i= 0; i < m_handlers.elements(); ++i)
   {
-    sp_handler *h;
-    get_dynamic(&m_handlers, (uchar*)&h, i);
-
-    DBUG_ASSERT(h);
+    sp_handler *h= m_handlers.at(i);
 
     List_iterator_fast<sp_condition_value> li(h->condition_values);
     sp_condition_value *cv;
@@ -398,10 +371,9 @@ sp_pcontext::find_handler(const char *sqlstate,
   sp_handler *found_handler= NULL;
   sp_condition_value *found_cv= NULL;
 
-  for (uint i= 0; i < m_handlers.elements; ++i)
+  for (int i= 0; i < m_handlers.elements(); ++i)
   {
-    sp_handler *h;
-    get_dynamic(&m_handlers, (uchar*)&h, i);
+    sp_handler *h= m_handlers.at(i);
 
     List_iterator_fast<sp_condition_value> li(h->condition_values);
     sp_condition_value *cv;
@@ -501,31 +473,31 @@ sp_pcontext::find_handler(const char *sqlstate,
 }
 
 
-int
+bool
 sp_pcontext::push_cursor(LEX_STRING *name)
 {
   LEX_STRING n;
 
-  if (m_cursors.elements == m_max_cursor_index)
-    m_max_cursor_index+= 1;
+  if (m_cursors.elements() == (int) m_max_cursor_index)
+    ++m_max_cursor_index;
   n.str= name->str;
   n.length= name->length;
-  return insert_dynamic(&m_cursors, &n);
+
+  return m_cursors.append(n);
 }
 
 /*
   See comment for find_variable() above
 */
-my_bool
-sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
+bool
+sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, bool scoped)
 {
-  uint i= m_cursors.elements;
+  uint i= m_cursors.elements();
 
   while (i--)
   {
-    LEX_STRING n;
+    LEX_STRING n= m_cursors.at(i);
 
-    get_dynamic(&m_cursors, (uchar*)&n, i);
     if (my_strnncoll(system_charset_info,
 		     (const uchar *)name->str, name->length,
 		     (const uchar *)n.str, n.length) == 0)
@@ -545,37 +517,34 @@ sp_pcontext::retrieve_field_definitions(List<Create_field> *field_def_lst)
 {
   /* Put local/context fields in the result list. */
 
-  for (uint i = 0; i < m_vars.elements; ++i)
+  for (int i= 0; i < m_vars.elements(); ++i)
   {
-    sp_variable *var_def;
-    get_dynamic(&m_vars, (uchar*) &var_def, i);
+    sp_variable *var_def= m_vars.at(i);
 
     field_def_lst->push_back(&var_def->field_def);
   }
 
   /* Put the fields of the enclosed contexts in the result list. */
 
-  List_iterator_fast<sp_pcontext> li(m_children);
-  sp_pcontext *ctx;
-
-  while ((ctx = li++))
-    ctx->retrieve_field_definitions(field_def_lst);
+  for (int i= 0; i < m_children.elements(); ++i)
+    m_children.at(i)->retrieve_field_definitions(field_def_lst);
 }
 
 /*
   Find a cursor by offset from the top.
   This is only used for debugging.
 */
-my_bool
+bool
 sp_pcontext::find_cursor(uint offset, LEX_STRING *n)
 {
   if (m_cursor_offset <= offset &&
-      offset < m_cursor_offset + m_cursors.elements)
-  {                           // This frame
-    get_dynamic(&m_cursors, (uchar*)n, offset - m_cursor_offset);
-    return TRUE;
+      offset < m_cursor_offset + m_cursors.elements())
+  {
+    *n= m_cursors.at(offset - m_cursor_offset);   // This frame
+    return true;
   }
-  if (m_parent)
-    return m_parent->find_cursor(offset, n); // Some previous frame
-  return FALSE;                 // index out of bounds
+
+  return m_parent ?
+         m_parent->find_cursor(offset, n) :       // Some previous frame
+         false;                                   // Index out of bounds
 }

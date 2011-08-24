@@ -20,6 +20,7 @@
 #include "sql_string.h"                         // LEX_STRING
 #include "mysql_com.h"                          // enum_field_types
 #include "field.h"                              // Create_field
+#include "sql_array.h"                          // Dynamic_array
 
 struct sp_variable
 {
@@ -106,18 +107,18 @@ sp_cond_check(LEX_STRING *sqlstate);
 struct sp_condition
 {
   LEX_STRING name;
-  sp_condition_value *val;
+  sp_condition_value *value;
 };
 
 class sp_handler
 {
 public:
+  /// Enumeration of possible handler types.
+  /// Note: UNDO handlers are not (and have never been) supported.
   enum enum_type
   {
-    NONE,
     EXIT,
-    CONTINUE,
-    UNDO
+    CONTINUE
   };
 
   /// Handler type.
@@ -189,9 +190,7 @@ public:
 
   sp_pcontext *
   parent_context()
-  {
-    return m_parent;
-  }
+  { return m_parent; }
 
   /*
     Number of handlers/cursors to pop between this context and 'ctx'.
@@ -215,9 +214,7 @@ public:
   */
   inline uint
   max_var_index()
-  {
-    return m_max_var_index;
-  }
+  { return m_max_var_index; }
 
   /*
     The current number of variables used in the parents (from the root),
@@ -225,23 +222,17 @@ public:
   */
   inline uint
   current_var_count()
-  {
-    return m_var_offset + m_vars.elements;
-  }
+  { return m_var_offset + m_vars.elements(); }
 
   /* The number of variables in this context alone */
   inline uint
   context_var_count()
-  {
-    return m_vars.elements;
-  }
+  { return m_vars.elements(); }
 
   /* Map index in this pcontext to runtime offset */
   inline uint
   var_context2runtime(uint i)
-  {
-    return m_var_offset + i;
-  }
+  { return m_var_offset + i; }
 
   /* Set type of variable. 'i' is the offset from the top */
   inline void
@@ -276,7 +267,7 @@ public:
 
   // Find by name
   sp_variable *
-  find_variable(LEX_STRING *name, my_bool scoped=0);
+  find_variable(LEX_STRING *name, bool scoped= false);
 
   // Find by offset (from the top)
   sp_variable *
@@ -288,9 +279,7 @@ public:
   */
   inline void
   declare_var_boundary(uint n)
-  {
-    m_pboundary= n;
-  }
+  { m_pboundary= n; }
 
   /*
     CASE expressions support.
@@ -298,38 +287,23 @@ public:
 
   inline int
   register_case_expr()
-  {
-    return m_num_case_exprs++;
-  }
+  { return m_num_case_exprs++; }
 
   inline int
   get_num_case_exprs() const
-  {
-    return m_num_case_exprs;
-  }
+  { return m_num_case_exprs; }
 
   inline bool
   push_case_expr_id(int case_expr_id)
-  {
-    return insert_dynamic(&m_case_expr_id_lst, &case_expr_id);
-  }
+  { return m_case_expr_ids.append(case_expr_id); }
 
   inline void
   pop_case_expr_id()
-  {
-    pop_dynamic(&m_case_expr_id_lst);
-  }
+  { m_case_expr_ids.pop(); }
 
   inline int
   get_current_case_expr_id() const
-  {
-    int case_expr_id;
-
-    get_dynamic((DYNAMIC_ARRAY*)&m_case_expr_id_lst, (uchar*) &case_expr_id,
-                m_case_expr_id_lst.elements - 1);
-
-    return case_expr_id;
-  }
+  { return *m_case_expr_ids.back(); }
 
   //
   // Labels
@@ -344,28 +318,27 @@ public:
   inline sp_label *
   last_label()
   {
-    sp_label *lab= m_labels.head();
+    sp_label *label= m_labels.head();
 
-    if (!lab && m_parent)
-      lab= m_parent->last_label();
-    return lab;
+    if (!label && m_parent)
+      label= m_parent->last_label();
+
+    return label;
   }
 
   inline sp_label *
   pop_label()
-  {
-    return m_labels.pop();
-  }
+  { return m_labels.pop(); }
 
   //
   // Conditions
   //
 
-  int
-  push_cond(LEX_STRING *name, sp_condition_value *val);
+  bool
+  push_condition(LEX_STRING *name, sp_condition_value *value);
 
   sp_condition_value *
-  find_cond(LEX_STRING *name, my_bool scoped=0);
+  find_condition(LEX_STRING *name, bool scoped= false);
 
   //
   // Handlers
@@ -373,9 +346,7 @@ public:
 
   inline void
   push_handler(sp_handler *handler)
-  {
-    insert_dynamic(&m_handlers, &handler);
-  }
+  { m_handlers.append(handler); }
 
   bool
   check_duplicate_handler(sp_condition_value *condition_value);
@@ -387,41 +358,33 @@ public:
 
   inline uint
   max_handler_index()
-  {
-    return m_max_handler_index + m_context_handlers;
-  }
+  { return m_max_handler_index + m_context_handlers; }
 
   inline void
   add_handlers(uint n)
-  {
-    m_context_handlers+= n;
-  }
+  { m_context_handlers+= n; }
 
   //
   // Cursors
   //
 
-  int
+  bool
   push_cursor(LEX_STRING *name);
 
-  my_bool
-  find_cursor(LEX_STRING *name, uint *poff, my_bool scoped=0);
+  bool
+  find_cursor(LEX_STRING *name, uint *poff, bool scoped= false);
 
   /* Find by offset (for debugging only) */
-  my_bool
+  bool
   find_cursor(uint offset, LEX_STRING *n);
 
   inline uint
   max_cursor_index()
-  {
-    return m_max_cursor_index + m_cursors.elements;
-  }
+  { return m_max_cursor_index + m_cursors.elements(); }
 
   inline uint
   current_cursor_count()
-  {
-    return m_cursor_offset + m_cursors.elements;
-  }
+  { return m_cursor_offset + m_cursors.elements(); }
 
 protected:
 
@@ -436,7 +399,7 @@ protected:
     m_max_var_index -- number of variables (including all types of arguments)
     in this context including all children contexts.
     
-    m_max_var_index >= m_vars.elements.
+    m_max_var_index >= m_vars.elements().
 
     m_max_var_index of the root parsing context contains number of all
     variables (including arguments) in all enclosed contexts.
@@ -481,19 +444,28 @@ private:
 
   int m_num_case_exprs;
 
-  DYNAMIC_ARRAY m_vars;		// Parameters/variables
-  DYNAMIC_ARRAY m_case_expr_id_lst; /* Stack of CASE expression ids. */
-  DYNAMIC_ARRAY m_conds;        // Conditions
-  DYNAMIC_ARRAY m_cursors;	// Cursors
-  DYNAMIC_ARRAY m_handlers;	// Handlers, for checking for duplicates
+  /// SP parameters/variables.
+  Dynamic_array<sp_variable *> m_vars;
 
-  List<sp_label> m_labels;      // The label list
+  /// Stack of CASE expression ids.
+  Dynamic_array<int> m_case_expr_ids;
 
-  List<sp_pcontext> m_children;	// Children contexts, used for destruction
+  /// Stack of SQL-conditions.
+  Dynamic_array<sp_condition *> m_conditions;
 
-  /**
-    Scope of this parsing context.
-  */
+  /// Stack of cursors.
+  Dynamic_array<LEX_STRING> m_cursors;
+
+  /// Stack of SQL-handlers.
+  Dynamic_array<sp_handler *> m_handlers;
+
+  /// List of labels.
+  List<sp_label> m_labels;
+
+  /// Children contexts, used for destruction.
+  Dynamic_array<sp_pcontext *> m_children;
+
+  /// Scope of this parsing context.
   enum_scope m_scope;
 
 private:

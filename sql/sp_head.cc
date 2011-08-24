@@ -3552,7 +3552,7 @@ sp_instr_hreturn::print(String *str)
   str->qs_append(STRING_WITH_LEN("hreturn "));
   if (m_dest)
   {
-    // NOTE: this is legacy: hreturn instruction for EXIT or UNDO handler
+    // NOTE: this is legacy: hreturn instruction for EXIT handler
     // should print out 0 as frame index.
     str->qs_append(STRING_WITH_LEN("0 "));
     str->qs_append(m_dest);
