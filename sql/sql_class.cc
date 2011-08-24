@@ -641,7 +641,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 {
   String str(buffer, length, &my_charset_latin1);
   const Security_context *sctx= &thd->main_security_ctx;
-  char header[64];
+  char header[256];
   int len;
   /*
     The pointers thd->query and thd->proc_info might change since they are
