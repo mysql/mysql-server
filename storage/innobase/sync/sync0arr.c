@@ -936,6 +936,15 @@ sync_array_print_long_waits_low(
 			      stderr);
 			sync_array_cell_print(stderr, cell);
 			*noticed = TRUE;
+
+			/* Temporarily crash the server if we get here
+			in order to track down
+			Bug #11765460 58432: INNODB.INNODB_BUG56143
+			FAILS IN PB2 */
+			if (getenv("PB2WORKDIR") != NULL
+			    || getenv("MTR_BUILD_THREAD") != NULL) {
+				ut_error;
+			}
 		}
 
 		if (diff > fatal_timeout) {
