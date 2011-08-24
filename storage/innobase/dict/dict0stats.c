@@ -598,6 +598,7 @@ dict_stats_analyze_index_level(
 	/* now in n_diff_boundaries[i] there are exactly n_diff[i] integers,
 	for i=1..n_uniq */
 
+#ifdef UNIV_STATS_DEBUG
 	for (i = 1; i <= n_uniq; i++) {
 
 		DEBUG_PRINTF("    %s(): total recs: %llu, total pages: %llu, "
@@ -605,7 +606,6 @@ dict_stats_analyze_index_level(
 			     __func__, *total_recs, *total_pages,
 			     i, n_diff[i]);
 
-#if 0
 		if (n_diff_boundaries != NULL) {
 			ib_int64_t	j;
 
@@ -621,8 +621,8 @@ dict_stats_analyze_index_level(
 			}
 			printf("\n");
 		}
-#endif
 	}
+#endif /* UNIV_STATS_DEBUG */
 
 	btr_pcur_close(&pcur);
 

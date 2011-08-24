@@ -2713,7 +2713,8 @@ innobase_change_buffering_inited_ok:
 			" InnoDB: Warning: Using " 
 			"innodb_additional_mem_pool_size is DEPRECATED. "
 			"This option may be removed in future releases, "
-			"together with the InnoDB's internal memory "
+			"together with the option innodb_use_sys_malloc "
+			"and with the InnoDB's internal memory "
 			"allocator.\n");
 	}
 
@@ -2723,8 +2724,7 @@ innobase_change_buffering_inited_ok:
 			" InnoDB: Warning: Setting " 
 			"innodb_use_sys_malloc to FALSE is DEPRECATED. "
 			"This option may be removed in future releases, "
-			"together with the option innodb_use_sys_malloc "
-			"and with the InnoDB's internal memory "
+			"together with the InnoDB's internal memory "
 			"allocator.\n");
 	}
 
