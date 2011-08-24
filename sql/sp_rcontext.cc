@@ -471,7 +471,6 @@ sp_rcontext::activate_handler(THD *thd,
                               Query_arena *backup_arena)
 {
   DBUG_ASSERT(handler_idx >= 0);
-  DBUG_ASSERT(m_handlers[handler_idx].handler->type != sp_handler::NONE);
  
   switch (m_handlers[handler_idx].handler->type) {
   case sp_handler::CONTINUE:
