@@ -48,6 +48,7 @@ Owned_groups::~Owned_groups()
   }
   delete_dynamic(&sidno_to_hash);
   sid_lock->unlock();
+  sid_lock->assert_no_lock();
 }
 
 

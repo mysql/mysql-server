@@ -38,7 +38,7 @@ public:
 
   void SetUp()
   {
-    seed= (int)time(NULL);
+    seed= (int)3;//time(NULL);
     srand(seed);
     for (int i= 0; i < 16; i++)
       sids[i].parse(uuids[i]);
@@ -302,6 +302,7 @@ TEST_F(GroupTest, Sid_map)
     EXPECT_EQ(sidno, sm.sid_to_sidno(sid)) << errtext;
   }
   lock.unlock();
+  lock.assert_no_lock();
 }
 
 
@@ -452,6 +453,8 @@ TEST_F(GroupTest, Group_containers)
   // Do not generate warnings (because that causes segfault when done
   // from a unittest).
   global_system_variables.log_warnings= 0;
+
+  mysql_bin_log.server_uuid_sidno= 1;
 
   // Create Sid_maps.
   Checkable_rwlock &lock= mysql_bin_log.sid_lock;
@@ -644,6 +647,7 @@ TEST_F(GroupTest, Group_containers)
           ugid_next->group.gno= 0;
           ugid_end= false;
           lock.unlock();
+          lock.assert_no_lock();
           ugid_before_statement(thd, &lock, &group_log_state,
                                 &stmt_cache, &trx_cache);
           lock.rdlock();
@@ -657,16 +661,16 @@ TEST_F(GroupTest, Group_containers)
           if (anon_j1)
           {
             ugid_next->type= Ugid_specification::ANONYMOUS;
+            ugid_next->group.sidno= 0;
+            ugid_next->group.gno= 0;
             ugid_end= false;
             lock.unlock();
+            lock.assert_no_lock();
             ugid_before_statement(thd, &lock, &group_log_state,
                                   &stmt_cache, &trx_cache);
             lock.rdlock();
             cache.add_logged_subgroup(thd, 20 + rand() % 100/*binlog_len*/);
-            if (type_j == TYPE_TRX)
-              trx_contains_logged_subgroup= true;
-            else
-              stmt_contains_logged_subgroup= true;
+            trx_contains_logged_subgroup= true;
           }
 
           ugid_next->type= Ugid_specification::UGID;
@@ -674,6 +678,7 @@ TEST_F(GroupTest, Group_containers)
           ugid_next->group.gno= substage.gno;
           ugid_end= (end_j == END_ON) ? true : false;
           lock.unlock();
+          lock.assert_no_lock();
           ugid_before_statement(thd, &lock, &group_log_state,
                                 &stmt_cache, &trx_cache);
           lock.rdlock();
@@ -702,16 +707,16 @@ TEST_F(GroupTest, Group_containers)
           if (anon_j2)
           {
             ugid_next->type= Ugid_specification::ANONYMOUS;
+            ugid_next->group.sidno= 0;
+            ugid_next->group.gno= 0;
             ugid_end= false;
             lock.unlock();
+            lock.assert_no_lock();
             ugid_before_statement(thd, &lock, &group_log_state,
                                   &stmt_cache, &trx_cache);
             lock.rdlock();
             cache.add_logged_subgroup(thd, 20 + rand() % 100/*binlog_len*/);
-            if (type_j == TYPE_TRX)
-              trx_contains_logged_subgroup= true;
-            else
-              stmt_contains_logged_subgroup= true;
+            trx_contains_logged_subgroup= true;
           }
         }
 
@@ -783,7 +788,6 @@ TEST_F(GroupTest, Group_containers)
       for (int i= 0; i < N_COMBINATIONS_SETS; i++)
       {
         Group_set &group_set_2= containers[i]->group_set;
-        ASSERT_EQ(true, group_set.equals(&group_set_2)) << errtext << " i=" << i;
         if (combination_i < i)
         {
           char *buf2= new char[group_set_2.get_string_length() + 1];
@@ -791,6 +795,7 @@ TEST_F(GroupTest, Group_containers)
           ASSERT_STREQ(buf1, buf2) << errtext << " i=" << i;
           delete buf2;
         }
+        ASSERT_EQ(true, group_set.equals(&group_set_2)) << errtext << " i=" << i;
       }
       delete buf1;
     } END_LOOP_A;
@@ -808,6 +813,7 @@ TEST_F(GroupTest, Group_containers)
   done_groups.to_string(buf);
   EXPECT_STRCASEEQ(all_groups_str, buf) << errtext;
   lock.unlock();
+  lock.assert_no_lock();
 
   // Clean up.
   free(done_str);
@@ -817,4 +823,6 @@ TEST_F(GroupTest, Group_containers)
   delete sid_maps[1];
   delete sid_maps;
   free(thd);
+
+  mysql_bin_log.sid_lock.assert_no_lock();
 }

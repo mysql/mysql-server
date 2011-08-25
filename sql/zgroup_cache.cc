@@ -15,6 +15,7 @@
 
 #include "zgroups.h"
 #include "sql_class.h"
+#include "binlog.h"
 
 
 #ifdef HAVE_UGID
@@ -59,7 +60,6 @@ enum_group_status Group_cache::add_subgroup(const Cached_subgroup *group)
          prev->sidno == group->sidno &&
          prev->gno == group->gno)
     {
-      DBUG_ASSERT(!prev->group_end);
       prev->binlog_length += group->binlog_length;
       prev->group_end= group->group_end;
       if (prev->type == DUMMY_SUBGROUP && group->type == NORMAL_SUBGROUP)
@@ -103,11 +103,13 @@ enum_group_status Group_cache::add_logged_subgroup(const THD *thd,
     {
       type == Ugid_specification::ANONYMOUS ? ANONYMOUS_SUBGROUP :
       NORMAL_SUBGROUP,
-      type == Ugid_specification::ANONYMOUS ? 0 : spec->group.sidno,
-      type == Ugid_specification::UGID ? spec->group.gno : 0,
+      spec->group.sidno,
+      spec->group.gno,
       length,
       thd->variables.ugid_end
     };
+  if (type == Ugid_specification::AUTOMATIC && spec->group.sidno == 0)
+    cs.sidno= mysql_bin_log.server_uuid_sidno;
   DBUG_RETURN(add_subgroup(&cs));
 }
 
@@ -118,7 +120,8 @@ bool Group_cache::contains_group(rpl_sidno sidno, rpl_gno gno) const
   for (int i= 0; i < n_subgroups; i++)
   {
     const Cached_subgroup *cs= get_unsafe_pointer(i);
-    if (cs->gno == gno && cs->sidno == sidno)
+    if ((cs->type == NORMAL_SUBGROUP || cs->type == DUMMY_SUBGROUP) &&
+        cs->gno == gno && cs->sidno == sidno)
       return true;
   }
   return false;
@@ -198,20 +201,21 @@ Group_cache::update_group_log_state(const THD *thd, Group_log_state *gls) const
   DBUG_ENTER("Group_cache::update_group_log_state");
 
   const Group_set *lock_set= thd->variables.ugid_next_list.get_group_set();
+  int n_subgroups= get_n_subgroups();
   rpl_sidno lock_sidno= 0;
 
   if (lock_set != NULL)
     gls->lock_sidnos(lock_set);
   else
   {
-    lock_sidno= thd->variables.ugid_next.group.sidno;
-    if (lock_sidno != 0)
+    DBUG_ASSERT(n_subgroups <= 1);
+    lock_sidno= n_subgroups > 0 ? get_unsafe_pointer(0)->sidno : 0;
+    if (lock_sidno)
       gls->lock_sidno(lock_sidno);
   }
 
   enum_group_status ret= GS_SUCCESS;
   bool updated= false;
-  int n_subgroups= get_n_subgroups();
 
 /*
   printf("Group_cache(%p)->update_group_log_state n_subgroups=%d\n",
@@ -265,6 +269,8 @@ void Group_cache::generate_automatic_gno(const THD *thd, Group_log_state *gls)
   DBUG_ASSERT(thd->variables.ugid_next_list.get_group_set() == NULL);
   int n_subgroups= get_n_subgroups();
   rpl_gno automatic_gno= 0;
+  rpl_sidno sidno= 0;
+  Cached_subgroup *last_automatic_subgroup= NULL;
   for (int i= 0; i < n_subgroups; i++)
   {
     Cached_subgroup *cs= get_unsafe_pointer(i);
@@ -272,15 +278,19 @@ void Group_cache::generate_automatic_gno(const THD *thd, Group_log_state *gls)
     {
       if (automatic_gno == 0)
       {
-        rpl_sidno sidno= cs->sidno;
+        sidno= cs->sidno;
         gls->lock_sidno(sidno);
         automatic_gno= gls->get_automatic_gno(sidno);
         gls->acquire_ownership(sidno, automatic_gno, thd);
         gls->unlock_sidno(sidno);
       }
       cs->gno= automatic_gno;
+      cs->sidno= sidno;
+      last_automatic_subgroup= cs;
     }
   }
+  if (last_automatic_subgroup != NULL)
+    last_automatic_subgroup->group_end= true;
   DBUG_VOID_RETURN;
 }
 
@@ -319,9 +329,8 @@ Group_cache::write_to_log(Group_cache *trx_group_cache,
 
 #ifndef NO_DBUG
   /*
-    Assert that UGID is valid for all groups. In particular, this
-    ensures that group numbers have been generated for automatic
-    subgroups.
+    Assert that UGID is valid for all groups. This ensures that group
+    numbers have been generated for automatic subgroups.
   */
   {
     int n_subgroups= get_n_subgroups();

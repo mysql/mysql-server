@@ -677,6 +677,13 @@ public:
   */
   enum_group_status add(const Group_set *other);
   /**
+    Removes all groups in the given Group_set from this Group_set.
+
+    @param other The group set to remove.
+    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
+  */
+  enum_group_status remove(const Group_set *other);
+  /**
     Adds the set of groups represented by the given string to this Group_set.
 
     The string must have the format of a comma-separated list of zero
@@ -1052,6 +1059,15 @@ private:
   */
   enum_group_status add(rpl_sidno sidno, Const_interval_iterator ivit);
   /**
+    Removes a list of intervals to the given SIDNO.
+
+    @param sidno The SIDNO from which intervals will be removed.
+    @param ivit Iterator over the intervals to remove. This is typically
+    an iterator over some other Group_set.
+    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+  */
+  enum_group_status remove(rpl_sidno sidno, Const_interval_iterator ivit);
+  /**
     Adds the given interval to this Group_set.
 
     @param sidno SIDNO at which the interval should be added.
@@ -1063,7 +1079,7 @@ private:
   /**
     Adds the interval (start, end) to the given
     Interval_iterator. This is the lowest-level function that adds
-    groups; this is where intervals are added, grown, or merged.
+    groups; this is where Interval objects are added, grown, or merged.
 
     @param ivitp Pointer to iterator.  After this function returns,
     the current_element of the iterator will be the interval that
@@ -1073,6 +1089,20 @@ private:
     @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
   */
   enum_group_status add(Interval_iterator *ivitp, rpl_gno start, rpl_gno end);
+  /**
+    Removes the interval (start, end) from the given
+    Interval_iterator. This is the lowest-level function that removes
+    groups; this is where Interval objects are removed, truncated, or
+    split.
+
+    @param ivitp Pointer to iterator.  After this function returns,
+    the current_element of the iterator will be the next interval
+    after end.
+    @param start The first GNO in the interval.
+    @param end The first GNO after the interval.
+    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
+  */
+  enum_group_status remove(Interval_iterator *ivitp, rpl_gno start, rpl_gno end);
   /**
     Allocates a new chunk of Intervals and adds them to the list of
     unused intervals.
@@ -1547,8 +1577,7 @@ struct Ugid_specification
   /**
     The UGID:
     { SIDNO, GNO } if type == UGID;
-    { 0, GNO } if type == AUTOMATIC;
-    { 0, 0 } if type == ANONYMOUS.
+    { 0, 0 } if type == AUTOMATIC or ANONYMOUS.
   */
   Group group;
   /**
@@ -1736,6 +1765,42 @@ public:
     @return GS_SUCCESS or GS_OUT_OF_MEMORY
   */
   enum_group_status get_ended_groups(Group_set *gs) const;
+
+#ifndef NO_DBUG
+  void get_string(Sid_map *sm, char *buf)
+  {
+    int n_subgroups= get_n_subgroups();
+
+    buf += sprintf(buf, "%d sub-groups = {\n", n_subgroups);
+    for (int i= 0; i < n_subgroups; i++)
+    {
+      Cached_subgroup *cs= get_unsafe_pointer(i);
+      char uuid[Uuid::TEXT_LENGTH + 1]= "[]";
+      if (cs->sidno)
+        sm->sidno_to_sid(cs->sidno)->to_string(uuid);
+      buf +=
+        sprintf(buf, "  %s:%lld%s [%lld bytes] - %s\n",
+                uuid, cs->gno, cs->group_end ? "-END":"", cs->binlog_length,
+                cs->type == NORMAL_SUBGROUP ? "NORMAL" :
+                cs->type == ANONYMOUS_SUBGROUP ? "ANON" :
+                cs->type == DUMMY_SUBGROUP ? "DUMMY" :
+                "INVALID-SUBGROUP-TYPE");
+    }
+    sprintf(buf, "}\n");
+  }
+  size_t get_string_length()
+  {
+    return (2 + Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
+            40 + 10 + 21 + 1 + 100/*margin*/) * get_n_subgroups() + 100/*margin*/;
+  }
+  char *get_string(Sid_map *sm)
+  {
+    char *buf= (char *)malloc(get_string_length());
+    get_string(sm, buf);
+    return buf;
+  }
+#endif
+
 private:
   /**
     Represents a sub-group in the group cache.
