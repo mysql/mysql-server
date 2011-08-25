@@ -50,12 +50,9 @@ sp_map_item_type(enum enum_field_types type);
 uint
 sp_get_flags_for_command(LEX *lex);
 
-struct sp_label;
 class sp_instr;
 class sp_instr_opt_meta;
 class sp_instr_jump_if_not;
-struct sp_condition_value;
-struct sp_variable;
 
 /*************************************************************************/
 
