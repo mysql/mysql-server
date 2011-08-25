@@ -50,21 +50,136 @@ class Server_side_cursor;
 
 class sp_rcontext : public Sql_alloc
 {
-  sp_rcontext(const sp_rcontext &); /* Prevent use of these */
+public:
+  /// Construct and properly initialize a new sp_rcontext instance. The static
+  /// create-function is needed because we need a way to return an error from
+  /// the constructor.
+  ///
+  /// @param thd              Thread handle.
+  /// @param root_parsing_ctx Top-level parsing context for this stored program.
+  /// @param return_value_fld Field object to store the return value
+  ///                         (for stored functions only).
+  ///
+  /// @return valid sp_rcontext object or NULL in case of OOM-error.
+
+  static sp_rcontext *
+  create(THD *thd, sp_pcontext *root_parsing_ctx, Field *return_value_fld);
+
+  ~sp_rcontext();
+
+private:
+  sp_rcontext(sp_pcontext *root_parsing_ctx,
+              Field *return_value_fld,
+              bool in_sub_stmt);
+
+  // Prevent use of copying constructor and operator.
+  sp_rcontext(const sp_rcontext &);
   void operator=(sp_rcontext &);
 
 private:
-  struct sp_handler_entry
+  /// This is an auxillary class to store entering instruction pointer for an
+  /// SQL-handler.
+  class sp_handler_entry
   {
+  public:
     /// Handler definition (from parsing context).
     sp_handler *handler;
 
     /// Instruction pointer to the first instruction.
     uint first_ip;
+
+    /// The constructor.
+    ///
+    /// @param _handler   sp_handler object.
+    /// @param _first_ip  first instruction pointer.
+    sp_handler_entry(sp_handler *_handler, uint _first_ip)
+     :handler(_handler), first_ip(_first_ip)
+    { }
   };
 
 public:
+  /// This class stores basic information about SQL-condition, such as:
+  ///   - SQL error code;
+  ///   - error level;
+  ///   - SQLSTATE;
+  ///   - text message.
+  ///
+  /// It's used to organize runtime SQL-handler call stack.
+  ///
+  /// Standard Sql_condition class can not be used, because we don't always have
+  /// an Sql_condition object for an SQL-condition in Diagnostics_area.
+  ///
+  /// Eventually, this class should be moved to sql_error.h, and be a part of
+  /// standard SQL-condition processing (Diagnostics_area should contain an
+  /// object for active SQL-condition, not just information stored in DA's
+  /// fields).
+  class Sql_condition_info
+  {
+  public:
+    /// SQL error code.
+    uint sql_errno;
 
+    /// Error level.
+    Sql_condition::enum_warning_level level;
+
+    /// SQLSTATE.
+    char sql_state[SQLSTATE_LENGTH + 1];
+    
+    /// Text message.
+    char *message;
+    
+    /// The constructor.
+    ///
+    /// @param _sql_errno SQL error code.
+    /// @param _level     Error level.
+    /// @param _sql_state SQLSTATE.
+    /// @param _message   Text message.
+    Sql_condition_info(uint _sql_errno,
+                       Sql_condition::enum_warning_level _level,
+                       const char *_sql_state,
+                       const char *_message)
+     :sql_errno(_sql_errno),
+      level(_level)
+    {
+      memcpy(sql_state, _sql_state, SQLSTATE_LENGTH);
+      sql_state[SQLSTATE_LENGTH]= 0;
+    
+      message= my_strdup(_message, MYF(0));
+    }
+    
+    ~Sql_condition_info()
+    { my_free(message); }
+  };
+
+private:
+  /// This class represents a call frame of SQL-handler (one invocation of a
+  /// handler). Basically, it's needed to store continue instruction pointer for
+  /// CONTINUE SQL-handlers.
+  class Handler_call_frame
+  {
+  public:
+    /// SQL-condition, triggered handler activation.
+    Sql_condition_info *sql_condition;
+
+    /// Continue-instruction-pointer for CONTINUE-handlers.
+    /// The attribute contains 0 for EXIT-handlers.
+    uint continue_ip;
+
+    /// The constructor.
+    ///
+    /// @param _sql_condition SQL-condition, triggered handler activation.
+    /// @param _continue_ip   Continue instruction pointer.
+    Handler_call_frame(Sql_condition_info *_sql_condition,
+                       uint _continue_ip)
+     :sql_condition(_sql_condition),
+      continue_ip(_continue_ip)
+    { }
+
+    ~Handler_call_frame()
+    { delete sql_condition; }
+  };
+
+public:
   /*
     Arena used to (re) allocate items on . E.g. reallocate INOUT/OUT
     SP parameters when they don't fit into prealloced items. This
@@ -87,11 +202,6 @@ public:
   */
   sp_head *sp;
 #endif
-
-  sp_rcontext(sp_pcontext *root_parsing_ctx, Field *return_value_fld);
-  bool init(THD *thd);
-
-  ~sp_rcontext();
 
   int
   set_variable(THD *thd, uint var_idx, Item **value);
@@ -117,16 +227,10 @@ public:
 
   void push_handler(sp_handler *handler_def, uint first_ip);
 
-  void pop_handlers(uint count);
+  void pop_handlers(int count);
 
-  Sql_condition *
+  const Sql_condition_info *
   raised_condition() const;
-
-  void
-  push_hstack(uint continue_ip);
-
-  uint
-  pop_hstack();
 
   bool
   handle_sql_condition(THD *thd,
@@ -135,7 +239,7 @@ public:
                        Query_arena *execute_arena,
                        Query_arena *backup_arena);
 
-  void
+  uint
   exit_handler();
 
   void
@@ -170,21 +274,10 @@ public:
   get_case_expr_addr(int case_expr_id);
 
 private:
-  int
-  find_handler(THD *thd, sp_pcontext *cur_pctx);
-
-  int
-  find_handler(THD *thd,
-               sp_pcontext *cur_pctx,
-               uint sql_errno,
-               const char *sqlstate,
-               Sql_condition::enum_warning_level level,
-               const char *msg);
-
   void
   activate_handler(THD *thd,
-                   int handler_idx,
-                   uint *ip,
+                   sp_handler_entry *handler,
+                   Sql_condition_info *sql_condition,
                    const sp_instr *cur_spi,
                    Query_arena *execute_arena,
                    Query_arena *backup_arena);
@@ -199,7 +292,7 @@ private:
     Collection of Item_field proxies, each of them points to the corresponding
     field in m_var_table.
   */
-  Item **m_var_items;
+  Bounds_checked_array<Item *> m_var_items;
 
   /*
     This is a pointer to a field, which should contain return value for stored
@@ -216,29 +309,25 @@ private:
   /**
     TRUE if the context is created for a sub-statement.
   */
-  bool in_sub_stmt;
+  bool m_in_sub_stmt;
 
-  sp_handler_entry *m_handlers; // Visible handlers
-  uint m_hcount;                // Stack pointer for m_handlers
+  /// Stack of visible handlers.
+  Dynamic_array<sp_handler_entry *> m_handlers;
 
-  /**
-    SQL conditions caught by each handler.
-    This is an array indexed by handler index.
-  */
-  Sql_condition *m_raised_conditions;
+  /// Stack of caught SQL conditions.
+  Dynamic_array<Handler_call_frame *> m_handler_call_stack;
 
-  uint *m_hstack;               // Return stack for continue handlers
-  uint m_hsp;                   // Stack pointer for m_hstack
+  /// Stack of cursors.
+  Bounds_checked_array<sp_cursor *> m_cstack;
 
-  uint *m_in_handler;           // Active handler stack
-  uint m_ihsp;                  // Stack pointer for m_in_handler
-
-  sp_cursor **m_cstack;
+  /// Current number of cursors in m_cstack.
   uint m_ccount;
 
-  Item_cache **m_case_expr_holders;
+  /// Array of CASE expression holders.
+  Bounds_checked_array<Item_cache *> m_case_expr_holders;
 
 private:
+  bool alloc_arrays(THD *thd);
   bool init_var_table(THD *thd);
   bool init_var_items();
 

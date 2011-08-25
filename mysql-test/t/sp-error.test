@@ -3350,56 +3350,6 @@ CALL p11()|
 
 CREATE PROCEDURE p12()
 BEGIN
-
-  # TODO: remove the continue handler below when Bug#12731619 is fixed.
-  # This continue handler is needed just to make sure
-  # sp_pcontext::max_handler_index() is large enough.
-
-  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-  BEGIN
-    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-    BEGIN
-      DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-      BEGIN
-        DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-        BEGIN
-          DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-          BEGIN
-            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-            BEGIN
-              DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-              BEGIN
-                DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-                BEGIN
-                  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-                  BEGIN
-                    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-                    BEGIN
-                      DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-                      BEGIN
-                        DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-                        BEGIN
-                          DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-                          BEGIN
-                            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
-                            BEGIN
-                            END;
-                          END;
-                        END;
-                      END;
-                    END;
-                  END;
-                END;
-              END;
-            END;
-          END;
-        END;
-      END;
-    END;
-  END;
-
-  #########################################################
-
   DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
   BEGIN
     DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
@@ -3466,10 +3416,45 @@ BEGIN
     SELECT 'Throw 01000' AS Msg;
     SIGNAL SQLSTATE '01000';
   END;
+
 END|
 
 --echo
 CALL p12()|
+
+--echo
+--echo # -- Check that handler-call-frames are removed properly for EXIT
+--echo # -- handlers.
+--echo
+
+CREATE PROCEDURE p13()
+BEGIN
+  
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+      DECLARE EXIT HANDLER FOR SQLWARNING
+      BEGIN
+        SELECT 'EXIT handler 3' AS Msg;
+      END;
+
+      SELECT 'CONTINUE handler 2: 1' AS Msg;
+      SIGNAL SQLSTATE '01000';
+      SELECT 'CONTINUE handler 2: 2' AS Msg;
+    END;
+
+    SELECT 'CONTINUE handler 1: 1' AS Msg;
+    SIGNAL SQLSTATE '01000';
+    SELECT 'CONTINUE handler 1: 2' AS Msg;
+  END;
+
+  SELECT 'Throw 01000' AS Msg;
+  SIGNAL SQLSTATE '01000';
+END|
+
+--echo
+CALL p13()|
 
 delimiter ;|
 
@@ -3489,3 +3474,58 @@ DROP PROCEDURE p9;
 DROP PROCEDURE p10;
 DROP PROCEDURE p11;
 DROP PROCEDURE p12;
+DROP PROCEDURE p13;
+
+--echo
+--echo # Bug#12731619: NESTED SP HANDLERS CAN TRIGGER ASSERTION
+--echo
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(msg VARCHAR(255));
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION               # handler 1
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION             # handler 2
+    BEGIN
+      INSERT INTO t1 VALUE('WRONG: Inside H2');
+      RETURN 2;
+    END;
+
+    INSERT INTO t1 VALUE('CORRECT: Inside H1');
+    RETURN 1;
+  END;
+
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLWARNING               # handler 3
+    BEGIN
+      INSERT INTO t1 VALUE('WRONG: Inside H3');
+      RETURN 3;
+    END;
+
+    INSERT INTO t1 VALUE('CORRECT: Calling f1()');
+    RETURN f1(); # -- exception here
+  END;
+
+  INSERT INTO t1 VALUE('WRONG: Returning 10');
+  RETURN 10;
+
+END|
+
+delimiter ;|
+
+--echo
+SELECT f1();
+--echo
+SELECT * FROM t1;
+--echo
+
+DROP FUNCTION f1;
+DROP TABLE t1;

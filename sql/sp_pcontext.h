@@ -162,16 +162,8 @@ public:
   };
 
 public:
-
-  /**
-    Constructor.
-    Builds a parsing context root node.
-  */
   sp_pcontext();
-
-  // Free memory
-  void
-  destroy();
+  ~sp_pcontext();
 
   /**
     Create and push a new context in the tree.
@@ -356,10 +348,6 @@ public:
                uint sql_errno,
                Sql_condition::enum_warning_level level);
 
-  inline uint
-  max_handler_index()
-  { return m_max_handler_index + get_num_handlers(); }
-
   //
   // Cursors
   //
@@ -404,7 +392,6 @@ protected:
 
   // The maximum sub context's framesizes
   uint m_max_cursor_index;
-  uint m_max_handler_index;
 
 private:
   void
