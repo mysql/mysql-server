@@ -162,10 +162,6 @@ static PFS_events_statements *thread_statements_stack_array= NULL;
 static LF_HASH filename_hash;
 /** True if filename_hash is initialized. */
 static bool filename_hash_inited= false;
-C_MODE_START
-/** Get hash table key for instrumented files. */
-static uchar *filename_hash_get_key(const uchar *, size_t *, my_bool);
-C_MODE_END
 
 /**
   Initialize all the instruments instance buffers.
@@ -471,8 +467,8 @@ void cleanup_instruments(void)
   global_instr_class_statements_array= NULL;
 }
 
-extern "C"
-{
+C_MODE_START
+/** Get hash table key for instrumented files. */
 static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
                                     my_bool)
 {
@@ -487,7 +483,7 @@ static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
   result= file->m_filename;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
 }
-}
+C_MODE_END
 
 /**
   Initialize the file name hash.
@@ -1681,16 +1677,12 @@ void aggregate_all_stages(PFS_stage_stat *from_array,
   PFS_stage_stat *from;
   PFS_stage_stat *from_last;
   PFS_stage_stat *to_1;
-  PFS_stage_stat *to_1_last;
   PFS_stage_stat *to_2;
-  PFS_stage_stat *to_2_last;
 
   from= from_array;
   from_last= from_array + stage_class_max;
   to_1= to_array_1;
-  to_1_last= to_array_1 + stage_class_max;
   to_2= to_array_2;
-  to_2_last= to_array_2 + stage_class_max;
 
   for ( ; from < from_last ; from++, to_1++, to_2++)
   {
@@ -1731,16 +1723,12 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
   PFS_statement_stat *from;
   PFS_statement_stat *from_last;
   PFS_statement_stat *to_1;
-  PFS_statement_stat *to_1_last;
   PFS_statement_stat *to_2;
-  PFS_statement_stat *to_2_last;
 
   from= from_array;
   from_last= from_array + statement_class_max;
   to_1= to_array_1;
-  to_1_last= to_array_1 + statement_class_max;
   to_2= to_array_2;
-  to_2_last= to_array_2 + statement_class_max;
 
   for ( ; from < from_last ; from++, to_1++, to_2++)
   {
