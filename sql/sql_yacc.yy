@@ -764,7 +764,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   timestamp_type date_time_type;
   st_select_lex *select_lex;
   chooser_compare_func_creator boolfunc2creator;
-  struct sp_condition_value *spcondvalue;
+  class sp_condition_value *spcondvalue;
   struct { int vars, conds, hndlrs, curs; } spblock;
   sp_name *spname;
   LEX *lex;
