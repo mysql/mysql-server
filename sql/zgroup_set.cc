@@ -239,9 +239,9 @@ enum_group_status Group_set::add(Interval_iterator *ivitp,
 
   while ((iv= ivit.get()) != NULL)
   {
-    if (start <= iv->end)
+    if (iv->end >= start)
     {
-      if (end < iv->start)
+      if (iv->start > end)
         // (start, end) is strictly before the current interval
         break;
       // (start, end) and (iv->start, iv->end) touch or intersect.
@@ -257,7 +257,7 @@ enum_group_status Group_set::add(Interval_iterator *ivitp,
       }
       // Store the interval in the current interval.
       iv->start= start;
-      if (end > iv->end)
+      if (iv->end < end)
         iv->end= end;
       *ivitp= ivit;
       DBUG_RETURN(GS_SUCCESS);
@@ -275,6 +275,75 @@ enum_group_status Group_set::add(Interval_iterator *ivitp,
   new_iv->start= start;
   new_iv->end= end;
   ivit.insert(new_iv);
+  *ivitp= ivit;
+  DBUG_RETURN(GS_SUCCESS);
+}
+
+
+enum_group_status Group_set::remove(Interval_iterator *ivitp, rpl_gno start, rpl_gno end)
+{
+  DBUG_ENTER("Group_set::remove(Interval_iterator *ivitp, rpl_gno start, rpl_gno end)");
+  DBUG_ASSERT(start < end);
+  Interval_iterator ivit= *ivitp;
+  Interval *iv;
+  cached_string_length= -1;
+
+  // Skip intervals of 'this' that are completely before the removed interval.
+  while (1)
+  {
+    iv= ivit.get();
+    if (iv == NULL)
+      goto ok;
+    if (iv->end > start)
+      break;
+    ivit.next();
+  }
+
+  // Now iv ends after the beginning of the removed interval.
+  DBUG_ASSERT(iv != NULL && iv->end > start);
+  if (iv->start < start)
+  {
+    // iv cuts the beginning of the removed interval: truncate iv.
+    iv->end= start;
+    if (iv->end > end)
+    {
+      // iv cuts also the end of the removed interval: split iv in two
+      Interval *new_iv;
+      GROUP_STATUS_THROW(get_free_interval(&new_iv));
+      new_iv->start= end;
+      new_iv->end= iv->end;
+      ivit.next();
+      ivit.insert(new_iv);
+      goto ok;
+    }
+    // iv has been truncated: iterate one step to next interval
+    ivit.next();
+    iv= ivit.get();
+    if (iv == NULL)
+      goto ok;
+  }
+
+  // Now iv starts after the beginning of the removed interval.
+  DBUG_ASSERT(iv != NULL && iv->start >= start);
+  while (iv->end <= end)
+  {
+    // iv ends before the end of the removed interval, so it is
+    // completely covered: remove iv.
+    ivit.remove(this);
+    iv= ivit.get();
+    if (iv == NULL)
+      goto ok;
+  }
+
+  // Now iv ends after the removed interval.
+  DBUG_ASSERT(iv != NULL && iv->end > end);
+  if (iv->start < end)
+  {
+    // iv begins before the end of the removed interval: truncate iv
+    iv->start= end;
+  }
+
+ok:
   *ivitp= ivit;
   DBUG_RETURN(GS_SUCCESS);
 }
@@ -313,10 +382,13 @@ enum_group_status Group_set::add(const char *text)
   DBUG_ENTER("Group_set::add(const char*)");
   const char *s= text;
 
+  DBUG_PRINT("info", ("adding '%s'", text));
+
   SKIP_WHITESPACE();
   if (*s == 0)
     DBUG_RETURN(GS_SUCCESS);
 
+  DBUG_PRINT("info", ("'%s' not empty", s));
   // Allocate space for all intervals at once, if nothing is allocated.
   if (chunks == NULL)
   {
@@ -332,7 +404,7 @@ enum_group_status Group_set::add(const char *text)
     s= text;
   }
 
-  do
+  while (1)
   {
     // Skip commas (we allow empty SID:GNO specifications).
     while (*s == ',')
@@ -340,6 +412,10 @@ enum_group_status Group_set::add(const char *text)
       s++;
       SKIP_WHITESPACE();
     }
+
+    // We allow empty group sets containing only commas.
+    if (*s == 0)
+      DBUG_RETURN(GS_SUCCESS);
 
     // Parse SID.
     rpl_sid sid;
@@ -364,7 +440,7 @@ enum_group_status Group_set::add(const char *text)
         DBUG_RETURN(GS_ERROR_PARSE);
       SKIP_WHITESPACE();
 
-      // Read end of interval
+      // Read end of interval.
       rpl_gno end;
       if (*s == '-')
       {
@@ -387,10 +463,14 @@ enum_group_status Group_set::add(const char *text)
       else
         GROUP_STATUS_THROW(add(sidno, start, end));
     }
-  } while (*s == ',');
-  if (*s != 0)
-    DBUG_RETURN(GS_ERROR_PARSE);
-  DBUG_RETURN(GS_SUCCESS);
+
+    // Must be end of string or comma. (Commas are consumed and
+    // end-of-loop is detected at the beginning of the loop.)
+    if (*s != ',' && *s != 0)
+      DBUG_RETURN(GS_ERROR_PARSE);
+  }
+  DBUG_ASSERT(0);
+  DBUG_RETURN(GS_ERROR_PARSE);
 }
 
 
@@ -459,6 +539,21 @@ enum_group_status Group_set::add(rpl_sidno sidno, Const_interval_iterator other_
 }
 
 
+enum_group_status Group_set::remove(rpl_sidno sidno, Const_interval_iterator other_ivit)
+{
+  DBUG_ENTER("Group_set::remove(rpl_sidno, Interval_iterator)");
+  DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
+  Interval *iv;
+  Interval_iterator ivit(this, sidno);
+  while ((iv= other_ivit.get()) != NULL)
+  {
+    GROUP_STATUS_THROW(remove(&ivit, iv->start, iv->end));
+    other_ivit.next();
+  }
+  DBUG_RETURN(GS_SUCCESS);
+}
+
+
 enum_group_status Group_set::add(const Group_set *other)
 {
   DBUG_ENTER("Group_set::add(Group_set *)");
@@ -484,6 +579,36 @@ enum_group_status Group_set::add(const Group_set *other)
           DBUG_RETURN(GS_ERROR_OUT_OF_MEMORY);
         ensure_sidno(this_sidno);
         GROUP_STATUS_THROW(add(this_sidno, other_ivit));
+      }
+    }
+  }
+  DBUG_RETURN(GS_SUCCESS);
+}
+
+
+enum_group_status Group_set::remove(const Group_set *other)
+{
+  DBUG_ENTER("Group_set::add(Group_set *)");
+  rpl_sidno max_other_sidno= other->get_max_sidno();
+  if (other->sid_map == sid_map)
+  {
+    rpl_sidno max_sidno= min(max_other_sidno, get_max_sidno());
+    for (rpl_sidno sidno= 1; max_sidno; sidno++)
+      GROUP_STATUS_THROW(remove(sidno, Const_interval_iterator(other, sidno)));
+  }
+  else
+  {
+    Sid_map *other_sid_map= other->sid_map;
+    for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
+         other_sidno++)
+    {
+      Const_interval_iterator other_ivit(other, other_sidno);
+      if (other_ivit.get() != NULL)
+      {
+        const rpl_sid *sid= other_sid_map->sidno_to_sid(other_sidno);
+        rpl_sidno this_sidno= sid_map->sid_to_sidno(sid);
+        if (this_sidno != 0)
+          GROUP_STATUS_THROW(remove(this_sidno, other_ivit));
       }
     }
   }
@@ -698,7 +823,14 @@ bool Group_set::is_subset(const Group_set *super) const
 {
   DBUG_ENTER("Group_set::is_subset");
   Sid_map *super_sid_map= super->sid_map;
-  rpl_sidno map_max_sidno= sid_map->get_max_sidno();
+  rpl_sidno max_sidno= get_max_sidno();
+  rpl_sidno super_max_sidno= super->get_max_sidno();
+
+  char *buf= (char *)malloc(max(get_string_length(), super->get_string_length()) + 1);
+  to_string(buf);
+  DBUG_PRINT("info", ("%s", buf));
+  super->to_string(buf);
+  DBUG_PRINT("info", ("%s", buf));
 
   int sidno= 0, super_sidno= 0;
   Const_interval_iterator ivit(this), super_ivit(super);
@@ -709,14 +841,21 @@ bool Group_set::is_subset(const Group_set *super) const
     do
     {
       sidno++;
-      if (sidno > map_max_sidno)
+      DBUG_PRINT("info", ("sidno=%d max_sidno=%d", sidno, max_sidno));
+      if (sidno > max_sidno)
         DBUG_RETURN(true);
       ivit.init(this, sidno);
       iv= ivit.get();
+      DBUG_PRINT("info", ("iv=%p", iv));
     } while (iv == NULL);
+    DBUG_PRINT("info", ("iv=%p=[%lld,%lld]", iv, iv->start, iv->end));
     // get corresponding super_sidno
     if (super_sid_map == sid_map)
+    {
       super_sidno= sidno;
+      if (super_sidno > super_max_sidno)
+        DBUG_RETURN(false);
+    }
     else
     {
       super_sidno= super_sid_map->sid_to_sidno(sid_map->sidno_to_sid(sidno));
@@ -732,8 +871,12 @@ bool Group_set::is_subset(const Group_set *super) const
         DBUG_RETURN(false);
       while (iv->start > super_iv->end)
       {
+        DBUG_PRINT("info", ("sidno=%d iv->start=%lld super_iv->end=%lld",
+                            sidno, iv->start, super_iv->end));
         super_ivit.next();
         super_iv= super_ivit.get();
+        if (super_iv == NULL)
+          DBUG_RETURN(false);
       }
       if (iv->start < super_iv->start || iv->end > super_iv->end)
         DBUG_RETURN(false);

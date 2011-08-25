@@ -1,0 +1,295 @@
+#--let $rpl_debug= 1
+--let $rpl_topology= 1
+--source include/rpl_init.inc
+--connection default
+
+--echo ######## Initialize ########
+
+# Auxiliary table listing all variables that we are going to test.
+CREATE TABLE variables (var_id INT PRIMARY KEY, name TEXT(100));
+INSERT INTO variables VALUES
+ (1, 'session_partial'), (2, 'global_partial'),
+ (3, 'session_ended'), (4, 'global_ended');
+
+# This table contains specifications of all tests we are going to perform.
+# Columns:
+#  id
+#    autoinc PK
+#  stmt_type
+#    Code specifying what type of statement to execute. Can be one of
+#    "CRE" (CREATE TABLE), "INS" (INSERT), "BEG" (BEGIN), "COM"
+#    (COMMIT), "ROL" (ROLLBACK).
+#  next
+#    Value of UGID_NEXT before executing the statement.
+#    For convenience, you can use two-digit integers instead of UUIDs:
+#    e.g., 37 is an abbreviation for
+#    37373737-3737-3737-3737-373737373737.
+#    The value 0 means that the previous value is retained and no SET
+#    statement is generate for UGID_NEXT.
+#  next_list
+#    Value of UGID_NEXT_LIST before executing the statement. UUIDs
+#    can be abbreviated as for 'next'.
+#    The value 0 means that the previous value is retained and no SET
+#    statement is generate for UGID_NEXT_LIST.
+#  flags
+#    String containing zero, one, or both of the letters 'C' and 'E'.
+#    If C is in the string, UGID_COMMIT is set to 1. If E is in the
+#    string, UGID_END is set to 1.
+# [global|session]_[ended|partial]
+#    Specifies how @@[SESSION|GLOBAL].UGID_[ENDED|PARTIAL]_GROUPS is
+#    expected to change after the statement.  This has the form of a
+#    group_set containing the groups that were added by the statement.
+#    If the group_set begins with '-', the groups are expected to be
+#    removed instead.
+# error
+#    Expected errno for the statement, or 0 if the statement is
+#    expected to succeed.
+CREATE TABLE stmts (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  stmt_type TEXT(10),
+  next TEXT(100),
+  next_list TEXT(10000),
+  flags TEXT(3) NOT NULL,
+  global_ended TEXT(10000) NOT NULL,
+  global_partial TEXT(10000) NOT NULL,
+  session_ended TEXT(10000) NOT NULL,
+  session_partial TEXT(10000) NOT NULL,
+  error INT NOT NULL);
+
+eval INSERT INTO
+  stmts(stmt_type, next, next_list, flags,
+        global_ended, global_partial, session_ended, session_partial,
+        error)
+  VALUES
+  # STMT  NEXT   NEXT_LIST FLAGS G_END     G_PART     S_END     S_PART   ERR
+  # simple groups
+  ('CRE', '1:1', NULL,     'CE', '1:1',    '',        '',       '',       0),
+  ('INS', '1:3', NULL,     'CE', '1:3',    '',        '',       '',       0),
+  ('CRE', '1:2', NULL,     'CE', '1:2',    '',        '',       '',       0),
+  # split master-group over several, interleaved, one-stmt transactions
+  ('INS', '2:9', NULL,     'C',  '',       '2:9',     '',       '',       0),
+  ('INS', '2:8', NULL,     'C',  '',       '2:8',     '',       '',       0),
+  ('INS', '2:8', NULL,     'CE', '2:8',    '-2:8',    '',       '',       0),
+  ('INS', '2:9', NULL,     'CE', '2:9',    '-2:9',    '',       '',       0),
+  # split master-group over several, multi-stmt-transactions
+  ('BEG', '2:7', NULL,     '',   '',       '',        '',       '',       0),
+  ('INS', 0,     0,        '',   '',       '',        '',       '2:7',    0),
+  ('INS', 0,     0,        '',   '',       '',        '',       '',       0),
+  ('INS', 0,     0,        'EC', '2:7',    '',        '',       '-2:7',   0),
+  ('COM', 0,     0,        'C',  '2:7',    '',        '-2:7',   '',       0),
+  ('INS', 0,     0,        'CE', '',       '',        '',       '',       0);
+
+--delimiter |
+
+# Return nonzero if the two group_sets are equal.
+CREATE FUNCTION GROUPS_EQUAL(g1 TEXT(10000), g2 TEXT(10000))
+RETURNS INT
+BEGIN
+  RETURN GROUP_SUBSET(g1, g2) AND GROUP_SUBSET(g2, g1);
+END|
+
+# Return true if group_set 'new' is obtained by adding 'diff' to 'old'.
+CREATE FUNCTION CHECK_GROUP_SET(old TEXT(10000), diff TEXT(10000), new TEXT(10000))
+RETURNS INT
+BEGIN
+  IF SUBSTR(diff, 1, 1) = '-' THEN
+    RETURN GROUPS_EQUAL(old, CONCAT(new, ',', SUBSTR(diff, 2)));
+  ELSE
+    RETURN GROUPS_EQUAL(CONCAT(old, ',', diff), new);
+  END IF;
+END|
+
+# convert strings like '1:4-5,97:1' to
+# '01010101-0101-0101-0101-010101010101:4-5,97979797-9797-9797-9797-979797979797:1'
+CREATE FUNCTION NUMBER_TO_UUID(str TEXT(10000))
+RETURNS TEXT(10000)
+BEGIN
+  DECLARE comma INT DEFAULT 1;     # position of first ',' in str
+  DECLARE colon INT;               # position of first ':' after comma in str
+  DECLARE n TEXT(3);               # number between comma and colon
+  DECLARE nn TEXT(5);              # n, left-padded with zero to two digits
+  DECLARE _uuid TEXT(37);          # UUID generated from nn
+  DECLARE sign TEXT(2) DEFAULT ''; # '-' if str begins with '-', otherwise ''
+  IF str = '' THEN
+    RETURN '';
+  END IF;
+  IF SUBSTR(str, 1, 1) = '-' THEN
+    SET sign = '-';
+    SET str = SUBSTR(str, 2);
+  END IF;
+  # add leading comma so that all numbers have the form ",number:"
+  SET str = CONCAT(',', str);
+  WHILE comma > 0 DO
+    # find end of substring of the form ",number:"
+    SET colon = LOCATE(':', str, comma);
+    # get the number
+    SET n = SUBSTR(str, comma + 1, colon - comma - 1);
+    # convert number to uuid
+    SET nn = REPEAT(LPAD(n, 2, '0'), 2);
+    SET _uuid = CONCAT(nn, nn, '-', nn, '-', nn, '-', nn, '-', nn, nn, nn);
+    # replace number by uuid
+    SET str = REPLACE(str, CONCAT(',', n, ':'), CONCAT('#', _uuid, ':'));
+    # find next substring to replace
+    SET comma = LOCATE(',', str);
+  END WHILE;
+  # replace '#' by ','; remove the ',' that we added; put back the sign
+  RETURN CONCAT(sign, SUBSTR(REPLACE(str, '#', ','), 2));
+END|
+
+# convert strings like '01010101-0101-0101-0101-010101010101:4-5,
+# 97979797-9797-9797-9797-979797979797:1'
+# to '1:4-5,97:1'
+CREATE FUNCTION UUID_TO_NUMBER(str TEXT(10000))
+RETURNS TEXT(10000)
+BEGIN
+  DECLARE comma INT DEFAULT 1;     # position of first ',' in str
+  DECLARE colon INT;               # position of first ':' after comma in str
+  DECLARE _uuid TEXT(37);          # UUID between ',' and ':'
+  DECLARE n TEXT(5);               # the two digits that are repeated in UUID
+  DECLARE sign TEXT(2) DEFAULT ''; # '-' if str begins with '-', otherwise ''
+  IF str = '' THEN
+    RETURN '';
+  END IF;
+  IF SUBSTR(str, 1, 1) = '-' THEN
+    SET sign = '-';
+    SET str = SUBSTR(str, 2);
+  END IF;
+  # add leading comma so that all UUIDs have the form ",uuid:"; trim newlines
+  SET str = REPLACE(CONCAT(',', str), '\n', '');
+  WHILE comma > 0 DO
+    # find end of substring of the form ",uuid:"
+    SET colon = LOCATE(':', str, comma);
+    # get the uuid
+    SET _uuid = SUBSTR(str, comma + 1, colon - comma - 1);
+    IF _uuid = @@GLOBAL.SERVER_UUID THEN
+      SET n = 'X';
+    ELSE
+      # get the number that repeats in UUID and remove leading zero
+      SET n = SUBSTR(str, comma + 1, 2);
+      IF SUBSTR(n, 1, 1) = '0' THEN
+        SET n = SUBSTR(n, 2, 1);
+      END IF;
+    END IF;
+    # replace UUID by number
+    SET str = REPLACE(str, CONCAT(',', _uuid, ':'), CONCAT('#', n, ':'));
+    # find next substring
+    SET comma = LOCATE(',', str);
+  END WHILE;
+  # replace '#' by ','; remove the ',' that we added; put back the sign
+  RETURN CONCAT(sign, SUBSTR(REPLACE(str, '#', ','), 2));
+END|
+
+--delimiter ;
+
+--echo ######## Test ########
+
+--let $id= 1
+while (`SELECT COUNT(*) FROM stmts WHERE id = $id`)
+{
+  --echo ======== row-id = $id ========
+  --let $stmt_type= `SELECT stmt_type FROM stmts WHERE id = $id`
+  let $set_stmt= `
+    SELECT CONCAT('SET ',
+                  IF(next = 0, '',
+                     CONCAT('UGID_NEXT=', QUOTE(NUMBER_TO_UUID(next)), ', ')),
+                  IF(next_list = 0, '',
+                     CONCAT('UGID_NEXT_LIST=', QUOTE(NUMBER_TO_UUID(next_list)),
+                            ', ')),
+                  'UGID_END=', IF(LOCATE('E', flags) != 0, 1, 0),
+                  ', UGID_COMMIT=', IF(LOCATE('C', flags) != 0, 1, 0))
+           FROM stmts WHERE id = $id`;
+
+  if ($stmt_type == 'INS')
+  {
+    --let $stmt= INSERT INTO t_1 VALUES ($id)
+  }
+  if ($stmt_type == 'CRE')
+  {
+    --let $stmt= CREATE TABLE t_$id (a INT) ENGINE = InnoDB
+    --let $drop_stmt= $drop_stmt DROP TABLE t_$id;
+  }
+  if ($stmt_type == 'BEG')
+  {
+    --let $stmt= BEGIN
+  }
+  if ($stmt_type == 'COM')
+  {
+    --let $stmt= COMMIT
+  }
+  if ($stmt_type == 'ROL')
+  {
+    --let $stmt= ROLLBACK
+  }
+
+  --let $error= `SELECT error FROM stmts WHERE id = $id`
+
+  --connection server_1_1
+
+  let $before_all=
+    `SELECT CONCAT_WS('|', @@SESSION.UGID_PARTIAL_GROUPS,
+                           @@GLOBAL.UGID_PARTIAL_GROUPS,
+                           @@SESSION.UGID_ENDED_GROUPS,
+                           @@GLOBAL.UGID_ENDED_GROUPS)`;
+
+  eval $set_stmt;
+  #if ($error != 0)
+  #{
+  #  --error $error
+  #  eval $stmt;
+  #}
+  #if ($error == 0)
+  #{
+    eval $stmt;
+  #}
+
+  --connection default
+
+  #--echo before_all=$before_all;
+  --let $var_id= 1
+  while ($var_id <= 4)
+  {
+    # $column = [session|global]_[partial|ended]
+    --let $column= `SELECT name FROM variables WHERE var_id = $var_id` 
+    # $variable = @@[SESSION|GLOBAL].UGID_[PARTIAL|ENDED]_GROUPS
+    --let $variable= `SELECT UCASE(CONCAT('@@', REPLACE('$column', '_', '.UGID_'), '_GROUPS'))`
+    # $before = the Nth '|'-separated substring of $before_all
+    --let $before= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX('$before_all', '|', $var_id), '|', -1)`
+    # $after = the value of the $variable now
+    --connection server_1_1
+    --let $after= `SELECT $variable`
+    --connection default
+    # $diff = expected difference according to the test specification in stmts
+    --let $diff= `SELECT NUMBER_TO_UUID($column) FROM stmts WHERE id = $id`
+
+    #--echo var_id=$var_id;
+    #--echo column=$column;
+    #--echo variable=$variable;
+    #--echo before=$before;
+    #--echo after=$after;
+    #--echo diff=$diff;
+    #--echo CURRENT_CONNECTION=$CURRENT_CONNECTION;
+    #SELECT @@SESSION.UGID_NEXT, @@SESSION.UGID_NEXT_LIST, @@SESSION.UGID_END, @@SESSION.UGID_COMMIT;
+    #SELECT CHECK_GROUP_SET('', '', '');
+
+    # Assert that before + diff = after
+    let $assert_text= `
+      SELECT CONCAT("$variable = '",
+                    UUID_TO_NUMBER('$before'), "' + '",
+                    UUID_TO_NUMBER('$diff'), "' = '",
+                    UUID_TO_NUMBER('$after'), "'")`;
+    --let $assert_cond= CHECK_GROUP_SET("$before", "$diff", "$after")
+    --source include/assert.inc
+    --inc $var_id
+  }
+
+  --inc $id
+}
+
+--eval $drop_stmt
+DROP TABLE stmts;
+DROP FUNCTION GROUPS_EQUAL;
+DROP FUNCTION CHECK_GROUP_SET;
+DROP FUNCTION NUMBER_TO_UUID;
+DROP FUNCTION UUID_TO_NUMBER;
+
+--source include/rpl_end.inc

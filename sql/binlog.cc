@@ -1689,6 +1689,7 @@ int MYSQL_BIN_LOG::init_sid_map()
     ret= 1;
   }
   sid_lock.unlock();
+  server_uuid_sidno= sidno;
   DBUG_RETURN(ret);
 }
 #endif
@@ -3490,7 +3491,7 @@ end:
 }
 
 
-bool MYSQL_BIN_LOG::append(Log_event* ev)
+bool MYSQL_BIN_LOG::append_event(Log_event* ev)
 {
   bool error = 0;
   mysql_mutex_lock(&LOCK_log);
@@ -3648,12 +3649,10 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 
   if (Rows_log_event* pending= cache_data->pending())
   {
-    IO_CACHE *file= &cache_data->cache_log;
-
     /*
       Write pending event to the cache.
     */
-    if (pending->write(file))
+    if (write_event_to_cache(thd, pending, cache_data))
     {
       set_write_error(thd, is_transactional);
       if (check_write_error(thd) && cache_data &&
@@ -3732,7 +3731,6 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
 
     bool is_trans_cache= event_info->is_using_trans_cache();
     binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
-    IO_CACHE *file= cache_mngr->get_binlog_cache_log(is_trans_cache);
     binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
     
     DBUG_PRINT("info",("event type: %d",event_info->get_type_code()));
@@ -3754,7 +3752,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
           Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
                              thd->first_successful_insert_id_in_prev_stmt_for_binlog,
                              event_info->event_cache_type, event_info->event_logging_type);
-          if (e.write(file))
+          if (write_event_to_cache(thd, &e, cache_data))
             goto err;
         }
         if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
@@ -3766,7 +3764,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
                              minimum(), event_info->event_cache_type,
                              event_info->event_logging_type);
-          if (e.write(file))
+          if (write_event_to_cache(thd, &e, cache_data))
             goto err;
         }
         if (thd->rand_used)
@@ -3774,7 +3772,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
           Rand_log_event e(thd,thd->rand_saved_seed1,thd->rand_saved_seed2,
                            event_info->event_cache_type,
                            event_info->event_logging_type);
-          if (e.write(file))
+          if (write_event_to_cache(thd, &e, cache_data))
             goto err;
         }
         if (thd->user_var_events.elements)
@@ -3797,7 +3795,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
                                  user_var_event->charset_number, flags,
                                  event_info->event_cache_type,
                                  event_info->event_logging_type);
-            if (e.write(file))
+            if (write_event_to_cache(thd, &e, cache_data))
               goto err;
           }
         }
@@ -3807,7 +3805,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
     /*
       Write the event.
     */
-    if (event_info->write(file) ||
+    if (write_event_to_cache(thd, event_info, cache_data) ||
         DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
       goto err;
 
@@ -4953,11 +4951,11 @@ inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
   */
   if (cache->is_binlog_empty())
   {
-    IO_CACHE *file=
-      cache_mngr->get_binlog_cache_log(is_transactional);
+    binlog_cache_data *cache_data=
+      cache_mngr->get_binlog_cache_data(is_transactional);
     Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"),
                           is_transactional, FALSE, TRUE, 0, TRUE);
-    if (qinfo.write(file))
+    if (write_event_to_cache(thd, &qinfo, cache_data))
       DBUG_RETURN(1);
   }
 
@@ -5003,19 +5001,19 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
 
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(this);
 
-  IO_CACHE *file=
-    cache_mngr->get_binlog_cache_log(is_transactional);
+  binlog_cache_data *cache_data=
+    cache_mngr->get_binlog_cache_data(is_transactional);
 
   if (binlog_rows_query && this->query())
   {
     /* Write the Rows_query_log_event into binlog before the table map */
     Rows_query_log_event
       rows_query_ev(this, this->query(), this->query_length());
-    if ((error= rows_query_ev.write(file)))
+    if ((error= write_event_to_cache(this, &rows_query_ev, cache_data)))
       DBUG_RETURN(error);
   }
 
-  if ((error= the_event.write(file)))
+  if ((error= write_event_to_cache(this, &the_event, cache_data)))
     DBUG_RETURN(error);
 
   binlog_table_maps++;

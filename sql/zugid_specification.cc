@@ -28,15 +28,22 @@ enum_group_status Ugid_specification::parse(const char *text)
 {
   DBUG_ENTER("Ugid_specification::parse");
   if (text == NULL || strcmp(text, "AUTOMATIC") == 0)
+  {
     type= AUTOMATIC;
+    group.sidno= 0;
+    group.gno= 0;
+  }
   else if (strcmp(text, "ANONYMOUS") == 0)
+  {
     type= ANONYMOUS;
+    group.sidno= 0;
+    group.gno= 0;
+  }
   else
   {
     GROUP_STATUS_THROW(group.parse(&mysql_bin_log.sid_map, text));
     type= UGID;
   }
-  DBUG_PRINT("error", ("'%s' => type=%d\n", text, type));
   DBUG_RETURN(GS_SUCCESS);
 };
 
@@ -44,7 +51,6 @@ enum_group_status Ugid_specification::parse(const char *text)
 int Ugid_specification::to_string(char *buf) const
 {
   DBUG_ENTER("Ugid_specification::to_string(char*)");
-  DBUG_PRINT("info", ("type=%d\n", type));
   switch (type)
   {
   case AUTOMATIC:

@@ -1976,6 +1976,7 @@ err:
 
 void implicit_commit_after(THD *thd)
 {
+  DBUG_ENTER("implicit_commit_after");
   /* No transaction control allowed in sub-statements. */
   DBUG_ASSERT(! thd->in_sub_stmt);
   /* If commit fails, we should be able to reset the OK status. */
@@ -1987,6 +1988,7 @@ void implicit_commit_after(THD *thd)
 
   if (thd->variables.ugid_commit)
     thd->variables.ugid_has_ongoing_super_group= 0;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2220,6 +2222,7 @@ mysql_execute_command(THD *thd)
       // causes it to commit the master-super-group.
       if (thd->variables.ugid_commit)
         implicit_commit_after(thd);
+      my_ok(thd);
       DBUG_RETURN(0);
     }
   }
@@ -2242,6 +2245,7 @@ mysql_execute_command(THD *thd)
     */
     DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
+    DBUG_PRINT("sven", ("before trans_commit_stmt 1"));
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
     /* Commit the normal transaction if one is active. */
     if (trans_commit_implicit(thd))
@@ -4618,6 +4622,7 @@ finish:
     {
       /* If commit fails, we should be able to reset the OK status. */
       thd->get_stmt_da()->can_overwrite_status= TRUE;
+      DBUG_PRINT("sven", ("before trans_commit_stmt 2"));
       trans_commit_stmt(thd);
       thd->get_stmt_da()->can_overwrite_status= FALSE;
     }
