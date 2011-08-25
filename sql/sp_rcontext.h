@@ -62,13 +62,13 @@ public:
   ///
   /// @return valid sp_rcontext object or NULL in case of OOM-error.
 
-  static sp_rcontext *
-  create(THD *thd, sp_pcontext *root_parsing_ctx, Field *return_value_fld);
+  static sp_rcontext * create(THD *thd, const sp_pcontext *root_parsing_ctx,
+                              Field *return_value_fld);
 
   ~sp_rcontext();
 
 private:
-  sp_rcontext(sp_pcontext *root_parsing_ctx,
+  sp_rcontext(const sp_pcontext *root_parsing_ctx,
               Field *return_value_fld,
               bool in_sub_stmt);
 
@@ -83,7 +83,7 @@ private:
   {
   public:
     /// Handler definition (from parsing context).
-    sp_handler *handler;
+    const sp_handler *handler;
 
     /// Instruction pointer to the first instruction.
     uint first_ip;
@@ -92,7 +92,7 @@ private:
     ///
     /// @param _handler   sp_handler object.
     /// @param _first_ip  first instruction pointer.
-    sp_handler_entry(sp_handler *_handler, uint _first_ip)
+    sp_handler_entry(const sp_handler *_handler, uint _first_ip)
      :handler(_handler), first_ip(_first_ip)
     { }
   };
@@ -124,10 +124,10 @@ public:
 
     /// SQLSTATE.
     char sql_state[SQLSTATE_LENGTH + 1];
-    
+
     /// Text message.
     char *message;
-    
+
     /// The constructor.
     ///
     /// @param _sql_errno SQL error code.
@@ -143,10 +143,10 @@ public:
     {
       memcpy(sql_state, _sql_state, SQLSTATE_LENGTH);
       sql_state[SQLSTATE_LENGTH]= 0;
-    
+
       message= my_strdup(_message, MYF(0));
     }
-    
+
     ~Sql_condition_info()
     { my_free(message); }
   };
@@ -159,7 +159,7 @@ private:
   {
   public:
     /// SQL-condition, triggered handler activation.
-    Sql_condition_info *sql_condition;
+    const Sql_condition_info *sql_condition;
 
     /// Continue-instruction-pointer for CONTINUE-handlers.
     /// The attribute contains 0 for EXIT-handlers.
@@ -169,7 +169,7 @@ private:
     ///
     /// @param _sql_condition SQL-condition, triggered handler activation.
     /// @param _continue_ip   Continue instruction pointer.
-    Handler_call_frame(Sql_condition_info *_sql_condition,
+    Handler_call_frame(const Sql_condition_info *_sql_condition,
                        uint _continue_ip)
      :sql_condition(_sql_condition),
       continue_ip(_continue_ip)
@@ -203,23 +203,19 @@ public:
   sp_head *sp;
 #endif
 
-  int
-  set_variable(THD *thd, uint var_idx, Item **value);
+  int set_variable(THD *thd, uint var_idx, Item **value)
+  { return set_variable(thd, m_var_table->field[var_idx], value); }
 
-  Item *
-  get_item(uint var_idx);
+  Item * get_item(uint var_idx) const
+  { return m_var_items[var_idx]; }
 
-  Item **
-  get_item_addr(uint var_idx);
+  Item ** get_item_addr(uint var_idx) const
+  { return m_var_items.array() + var_idx; }
 
-  bool
-  set_return_value(THD *thd, Item **return_value_item);
+  bool set_return_value(THD *thd, Item **return_value_item);
 
-  inline bool
-  is_return_value_set() const
-  {
-    return m_return_value_set;
-  }
+  bool is_return_value_set() const
+  { return m_return_value_set; }
 
   /*
     SQL handlers support.
@@ -229,61 +225,52 @@ public:
 
   void pop_handlers(int count);
 
-  const Sql_condition_info *
-  raised_condition() const;
-
-  bool
-  handle_sql_condition(THD *thd,
-                       uint *ip,
-                       const sp_instr *cur_spi,
-                       Query_arena *execute_arena,
-                       Query_arena *backup_arena);
-
-  uint
-  exit_handler();
-
-  void
-  push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
-
-  void
-  pop_cursors(uint count);
-
-  inline void
-  pop_all_cursors()
+  const Sql_condition_info * raised_condition() const
   {
-    pop_cursors(m_ccount);
+    return m_handler_call_stack.elements() ?
+      (*m_handler_call_stack.back())->sql_condition : NULL;
   }
 
-  inline sp_cursor *
-  get_cursor(uint i)
-  {
-    return m_cstack[i];
-  }
+  bool handle_sql_condition(THD *thd,
+                            uint *ip,
+                            const sp_instr *cur_spi,
+                            Query_arena *execute_arena,
+                            Query_arena *backup_arena);
+
+  uint exit_handler();
+
+  void push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
+
+  void pop_cursors(uint count);
+
+  void pop_all_cursors()
+  { pop_cursors(m_ccount); }
+
+  sp_cursor * get_cursor(uint i) const
+  { return m_cstack[i]; }
 
   /*
     CASE expressions support.
   */
 
-  int
-  set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr);
+  int set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr);
 
-  Item *
-  get_case_expr(int case_expr_id);
+  Item * get_case_expr(int case_expr_id) const
+  { return m_case_expr_holders[case_expr_id]; }
 
-  Item **
-  get_case_expr_addr(int case_expr_id);
-
-private:
-  void
-  activate_handler(THD *thd,
-                   sp_handler_entry *handler,
-                   Sql_condition_info *sql_condition,
-                   const sp_instr *cur_spi,
-                   Query_arena *execute_arena,
-                   Query_arena *backup_arena);
+  Item ** get_case_expr_addr(int case_expr_id) const
+  { return (Item**) m_case_expr_holders.array() + case_expr_id; }
 
 private:
-  sp_pcontext *m_root_parsing_ctx;
+  void activate_handler(THD *thd,
+                        const sp_handler_entry *handler,
+                        Sql_condition_info *sql_condition,
+                        const sp_instr *cur_spi,
+                        Query_arena *execute_arena,
+                        Query_arena *backup_arena);
+
+private:
+  const sp_pcontext *m_root_parsing_ctx;
 
   /* Virtual table for storing variables. */
   TABLE *m_var_table;
@@ -331,77 +318,59 @@ private:
   bool init_var_table(THD *thd);
   bool init_var_items();
 
-  Item_cache *create_case_expr_holder(THD *thd, const Item *item);
+  Item_cache *create_case_expr_holder(THD *thd, const Item *item) const;
 
   int set_variable(THD *thd, Field *field, Item **value);
 }; // class sp_rcontext : public Sql_alloc
-
-
-/*
-  An interceptor of cursor result set used to implement
-  FETCH <cname> INTO <varlist>.
-*/
-
-class Select_fetch_into_spvars: public select_result_interceptor
-{
-  List<sp_variable> *spvar_list;
-  uint field_count;
-public:
-  Select_fetch_into_spvars() {}               /* Remove gcc warning */
-  uint get_field_count() { return field_count; }
-  void set_spvar_list(List<sp_variable> *vars) { spvar_list= vars; }
-
-  virtual bool send_eof() { return FALSE; }
-  virtual bool send_data(List<Item> &items);
-  virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-};
 
 
 /* A mediator between stored procedures and server side cursors */
 
 class sp_cursor : public Sql_alloc
 {
-public:
+private:
+  /// An interceptor of cursor result set used to implement
+  /// FETCH <cname> INTO <varlist>.
+  class Select_fetch_into_spvars: public select_result_interceptor
+  {
+    List<sp_variable> *spvar_list;
+    uint field_count;
+  public:
+    Select_fetch_into_spvars() {}               /* Remove gcc warning */
+    uint get_field_count() { return field_count; }
+    void set_spvar_list(List<sp_variable> *vars) { spvar_list= vars; }
 
+    virtual bool send_eof() { return FALSE; }
+    virtual bool send_data(List<Item> &items);
+    virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+};
+
+public:
   sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
 
   virtual ~sp_cursor()
-  {
-    destroy();
-  }
+  { destroy(); }
 
-  sp_lex_keeper *
-  get_lex_keeper() { return m_lex_keeper; }
+  sp_lex_keeper * get_lex_keeper() { return m_lex_keeper; }
 
-  int
-  open(THD *thd);
+  int open(THD *thd);
 
-  int
-  close(THD *thd);
+  int close(THD *thd);
 
-  inline my_bool
-  is_open()
-  {
-    return test(server_side_cursor);
-  }
+  my_bool is_open()
+  { return test(server_side_cursor); }
 
-  int
-  fetch(THD *, List<sp_variable> *vars);
+  int fetch(THD *, List<sp_variable> *vars);
 
-  inline sp_instr_cpush *
-  get_instr()
-  {
-    return m_i;
-  }
+  sp_instr_cpush * get_instr()
+  { return m_i; }
 
 private:
-
   Select_fetch_into_spvars result;
   sp_lex_keeper *m_lex_keeper;
   Server_side_cursor *server_side_cursor;
   sp_instr_cpush *m_i;		// My push instruction
-  void
-  destroy();
+  void destroy();
 
 }; // class sp_cursor : public Sql_alloc
 
