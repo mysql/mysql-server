@@ -57,6 +57,7 @@ static const int Err_FunctionNotImplemented = 4003;
 static const int Err_UnknownColumn = 4004;
 static const int Err_ReceiveTimedOut = 4008;
 static const int Err_NodeFailCausedAbort = 4028;
+static const int Err_ParameterError = 4118;
 static const int Err_SimpleDirtyReadFailed = 4119;
 static const int Err_WrongFieldLength = 4209;
 static const int Err_ReadTooMuch = 4257;
@@ -71,6 +72,21 @@ static const Uint16 tupleNotFound = 0xffff;
 
 /** Set to true to trace incomming signals.*/
 const bool traceSignals = false;
+
+enum
+{
+  /**
+   * Set NdbQueryOperationImpl::m_parallelism to this value to indicate that
+   * scan parallelism should be adaptive.
+   */
+  Parallelism_adaptive = 0xffff0000,
+
+  /**
+   * Set NdbQueryOperationImpl::m_parallelism to this value to indicate that
+   * all fragments should be scanned in parallel.
+   */
+  Parallelism_max = 0xffff0001
+};
 
 /**
  * A class for accessing the correlation data at the end of a tuple (for 
@@ -358,9 +374,6 @@ public:
   Uint32 getRowCount() const
   { return m_rowCount; }
 
-  char* getRow(Uint32 tupleNo) const
-  { return (m_buffer + (tupleNo*m_rowSize)); }
-
 private:
   /** No copying.*/
   NdbResultSet(const NdbResultSet&);
@@ -371,6 +384,9 @@ private:
 
   /** Used for checking if buffer overrun occurred. */
   Uint32* m_batchOverflowCheck;
+
+  /** Array of TupleCorrelations for all rows in m_buffer */
+  TupleCorrelation* m_correlations;
 
   Uint32 m_rowSize;
 
@@ -415,8 +431,8 @@ public:
   const NdbReceiver& getReceiver() const
   { return m_receiver; }
 
-  const char* getCurrentRow() const
-  { return m_receiver.peek_row(); }
+  const char* getCurrentRow()
+  { return m_receiver.get_row(); }
 
   /**
    * Process an incomming tuple for this stream. Extract parent and own tuple 
@@ -653,6 +669,7 @@ void* NdbBulkAllocator::allocObjMem(Uint32 noOfObjs)
 NdbResultSet::NdbResultSet() :
   m_buffer(NULL),
   m_batchOverflowCheck(NULL),
+  m_correlations(NULL),
   m_rowSize(0),
   m_rowCount(0)
 {}
@@ -672,6 +689,12 @@ NdbResultSet::init(NdbQueryImpl& query,
     m_batchOverflowCheck = 
       reinterpret_cast<Uint32*>(bufferAlloc.allocObjMem(sizeof(Uint32)));
     *m_batchOverflowCheck = 0xacbd1234;
+
+    if (query.getQueryDef().isScanQuery())
+    {
+      m_correlations = reinterpret_cast<TupleCorrelation*>
+                         (bufferAlloc.allocObjMem(maxRows*sizeof(TupleCorrelation)));
+    }
   }
 }
 
@@ -856,19 +879,17 @@ void
 NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len,
                                 TupleCorrelation correlation)
 {
-  m_receiver.execTRANSID_AI(ptr, len);
-  m_resultSets[m_recv].m_rowCount++;
-
+  NdbResultSet& receiveSet = m_resultSets[m_recv];
   if (isScanQuery())
   {
     /**
-     * Store TupleCorrelation as hidden value imm. after received row
-     * (NdbQueryOperationImpl::getRowSize() has reserved space for it)
+     * Store TupleCorrelation.
      */
-    Uint32* row_recv = reinterpret_cast<Uint32*>
-                         (m_receiver.m_record.m_row_recv);
-    row_recv[-1] = correlation.toUint32();
+    receiveSet.m_correlations[receiveSet.m_rowCount] = correlation;
   }
+
+  m_receiver.execTRANSID_AI(ptr, len);
+  receiveSet.m_rowCount++;
 } // NdbResultStream::execTRANSID_AI()
 
 /**
@@ -994,8 +1015,8 @@ NdbResultStream::prepareResultSet(Uint32 remainingScans)
 
 /**
  * Fill m_tupleSet[] with correlation data between parent 
- * and child tuples. The 'TupleCorrelation' is stored as
- * and extra Uint32 after each row in the NdbResultSet
+ * and child tuples. The 'TupleCorrelation' is stored
+ * in an array of TupleCorrelations in each ResultSet
  * by execTRANSID_AI().
  *
  * NOTE: In order to reduce work done when holding the 
@@ -1024,12 +1045,9 @@ NdbResultStream::buildResultCorrelations()
     /* Rebuild correlation & hashmap from 'readResult' */
     for (Uint32 tupleNo=0; tupleNo<readResult.m_rowCount; tupleNo++)
     {
-      const Uint32* row = (Uint32*)readResult.getRow(tupleNo+1);
-      const TupleCorrelation correlation(row[-1]);
-
-      const Uint16 tupleId  = correlation.getTupleId();
+      const Uint16 tupleId  = readResult.m_correlations[tupleNo].getTupleId();
       const Uint16 parentId = (m_parent!=NULL) 
-                                ? correlation.getParentTupleId()
+                                ? readResult.m_correlations[tupleNo].getParentTupleId()
                                 : tupleNotFound;
 
       m_tupleSet[tupleNo].m_skip     = false;
@@ -1488,6 +1506,14 @@ NdbQueryOperation::getOrdering() const
 
 int NdbQueryOperation::setParallelism(Uint32 parallelism){
   return m_impl.setParallelism(parallelism);
+}
+
+int NdbQueryOperation::setMaxParallelism(){
+  return m_impl.setMaxParallelism();
+}
+
+int NdbQueryOperation::setAdaptiveParallelism(){
+  return m_impl.setAdaptiveParallelism();
 }
 
 int NdbQueryOperation::setBatchSize(Uint32 batchSize){
@@ -2623,16 +2649,17 @@ NdbQueryImpl::prepareSend()
   {
     /* For the first batch, we read from all fragments for both ordered 
      * and unordered scans.*/
-    if (getQueryOperation(0U).m_parallelism > 0)
-    {
-      m_rootFragCount
-        = MIN(getRoot().getQueryOperationDef().getTable().getFragmentCount(),
-              getQueryOperation(0U).m_parallelism);
-    }
-    else
+    if (getQueryOperation(0U).m_parallelism == Parallelism_max)
     {
       m_rootFragCount
         = getRoot().getQueryOperationDef().getTable().getFragmentCount();
+    }
+    else
+    {
+      assert(getQueryOperation(0U).m_parallelism != Parallelism_adaptive);
+      m_rootFragCount
+        = MIN(getRoot().getQueryOperationDef().getTable().getFragmentCount(),
+              getQueryOperation(0U).m_parallelism);
     }
     Ndb* const ndb = m_transaction.getNdb();
 
@@ -2682,14 +2709,13 @@ NdbQueryImpl::prepareSend()
   for (Uint32 opNo = 0; opNo < getNoOfOperations(); opNo++)
   {
     const NdbQueryOperationImpl& op = getQueryOperation(opNo);
+    // Add space for m_correlations, m_buffer & m_batchOverflowCheck
+    totalBuffSize += (sizeof(TupleCorrelation) * op.getMaxBatchRows());
     totalBuffSize += (op.getRowSize() * op.getMaxBatchRows());
+    totalBuffSize += sizeof(Uint32); // Overflow check
   }
-  /**
-   * Add one word per ResultStream for buffer overrun check. We add a word
-   * rather than a byte to avoid possible alignment problems.
-   */
-  m_rowBufferAlloc.init(m_rootFragCount * 
-                       (totalBuffSize + (sizeof(Uint32) * getNoOfOperations())) );
+
+  m_rowBufferAlloc.init(m_rootFragCount * totalBuffSize);
   if (getQueryDef().isScanQuery())
   {
     Uint32 totalRows = 0;
@@ -3455,8 +3481,6 @@ NdbQueryImpl::OrderedFragSet::getCurrent() const
 { 
   if (m_ordering!=NdbQueryOptions::ScanOrdering_unordered)
   {
-    // Results should be ordered.
-    assert(verifySortOrder());
     /** 
      * Must have tuples for each (non-completed) fragment when doing ordered
      * scan.
@@ -3667,7 +3691,8 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_ordering(NdbQueryOptions::ScanOrdering_unordered),
   m_interpretedCode(NULL),
   m_diskInUserProjection(false),
-  m_parallelism(0),
+  m_parallelism(def.getQueryOperationIx() == 0
+                ? Parallelism_max : Parallelism_adaptive),
   m_rowSize(0xffffffff)
 { 
   if (errno == ENOMEM)
@@ -4266,9 +4291,10 @@ NdbQueryOperationImpl
                                       m_ndbRecord,
                                       m_firstRecAttr,
                                       0, // Key size.
-                                      getRoot().m_parallelism > 0 ?
-                                      getRoot().m_parallelism :
-                                      m_queryImpl.getRootFragCount(),
+                                      getRoot().m_parallelism
+                                      == Parallelism_max ?
+                                      m_queryImpl.getRootFragCount() :
+                                      getRoot().m_parallelism,
                                       maxBatchRows,
                                       batchByteSize,
                                       firstBatchRows);
@@ -4454,7 +4480,12 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
                                       firstBatchRows);
     assert(batchRows==getMaxBatchRows());
     assert(batchRows==firstBatchRows);
-    requestInfo |= QN_ScanIndexParameters::SIP_PARALLEL; // FIXME: SPJ always assume. SIP_PARALLEL
+    assert(m_parallelism == Parallelism_max ||
+           m_parallelism == Parallelism_adaptive);
+    if (m_parallelism == Parallelism_max)
+    {
+      requestInfo |= QN_ScanIndexParameters::SIP_PARALLEL;
+    }
     param->requestInfo = requestInfo; 
     param->batchSize = ((Uint16)batchByteSize << 16) | (Uint16)firstBatchRows;
     param->resultData = getIdOfReceiver();
@@ -4786,7 +4817,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
   if (getQueryDef().isScanQuery())
   {
     const CorrelationData correlData(ptr, len);
-    const Uint32 receiverId = CorrelationData(ptr, len).getRootReceiverId();
+    const Uint32 receiverId = correlData.getRootReceiverId();
     
     /** receiverId holds the Id of the receiver of the corresponding stream
      * of the root operation. We can thus find the correct root fragment 
@@ -4958,7 +4989,7 @@ NdbQueryOperationImpl::setOrdering(NdbQueryOptions::ScanOrdering ordering)
     return -1;
   }
 
-  if (m_parallelism != 0)
+  if (m_parallelism != Parallelism_max)
   {
     getQuery().setErrorCode(QRY_SEQUENTIAL_SCAN_SORTED);
     return -1;
@@ -5053,7 +5084,37 @@ int NdbQueryOperationImpl::setParallelism(Uint32 parallelism){
     getQuery().setErrorCode(Err_FunctionNotImplemented);
     return -1;
   }
+  else if (parallelism < 1 || parallelism > MAX_NDB_PARTITIONS)
+  {
+    getQuery().setErrorCode(Err_ParameterError);
+    return -1;
+  }
   m_parallelism = parallelism;
+  return 0;
+}
+
+int NdbQueryOperationImpl::setMaxParallelism(){
+  if (!getQueryOperationDef().isScanOperation())
+  {
+    getQuery().setErrorCode(QRY_WRONG_OPERATION_TYPE);
+    return -1;
+  }
+  m_parallelism = Parallelism_max;
+  return 0;
+}
+
+int NdbQueryOperationImpl::setAdaptiveParallelism(){
+  if (!getQueryOperationDef().isScanOperation())
+  {
+    getQuery().setErrorCode(QRY_WRONG_OPERATION_TYPE);
+    return -1;
+  }
+  else if (getQueryOperationDef().getQueryOperationIx() == 0)
+  {
+    getQuery().setErrorCode(Err_FunctionNotImplemented);
+    return -1;
+  }
+  m_parallelism = Parallelism_adaptive;
   return 0;
 }
 
@@ -5124,12 +5185,6 @@ Uint32 NdbQueryOperationImpl::getRowSize() const
   {
     m_rowSize = 
       NdbReceiver::ndbrecord_rowsize(m_ndbRecord, m_firstRecAttr, 0, false);
-
-    const bool withCorrelation = getRoot().getQueryDef().isScanQuery();
-    if (withCorrelation)
-    {
-      m_rowSize += TupleCorrelation::wordCount*sizeof(Uint32);
-    }
   }
   return m_rowSize;
 }
