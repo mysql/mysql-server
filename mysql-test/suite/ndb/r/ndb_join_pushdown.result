@@ -5211,7 +5211,7 @@ drop table spj_save_counts;
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-2511
+2520
 pruned_scan_count
 8
 sorted_scan_count
