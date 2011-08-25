@@ -22,6 +22,10 @@
 #include "field.h"                              // Create_field
 #include "sql_array.h"                          // Dynamic_array
 
+
+/// This structure represents a stored program variable or a parameter
+/// (also referenced as 'SP-variable').
+
 struct sp_variable
 {
   enum enum_mode
@@ -31,31 +35,37 @@ struct sp_variable
     MODE_INOUT
   };
 
+  /// Name of the SP-variable.
   LEX_STRING name;
+
+  /// Field-type of the SP-variable.
   enum enum_field_types type;
+
+  /// Mode of the SP-variable.
   enum_mode mode;
 
-  /*
-    offset -- this the index to the variable's value in the runtime frame.
-    This is calculated during parsing and used when creating sp_instr_set
-    instructions and Item_splocal items.
-    I.e. values are set/referred by array indexing in runtime.
-  */
+  /// The index to the variable's value in the runtime frame.
+  ///
+  /// It is calculated during parsing and used when creating sp_instr_set
+  /// instructions and Item_splocal items. I.e. values are set/referred by
+  /// array indexing in runtime.
   uint offset;
 
+  /// Default value of the SP-variable (if any).
   Item *dflt;
+
+  /// Full type information (field meta-data) of the SP-variable.
   Create_field field_def;
 };
 
+///////////////////////////////////////////////////////////////////////////
 
-/*
-  An SQL/PSM label. Can refer to the identifier used with the
-  "label_name:" construct which may precede some SQL/PSM statements, or
-  to an implicit implementation-dependent identifier which the parser
-  inserts before a high-level flow control statement such as
-  IF/WHILE/REPEAT/LOOP, when such statement is rewritten into
-  a combination of low-level jump/jump_if instructions and labels.
-*/
+/// This structure represents an SQL/PSM label. Can refer to the identifier
+/// used with the "label_name:" construct which may precede some SQL/PSM
+/// statements, or to an implicit implementation-dependent identifier which
+/// the parser inserts before a high-level flow control statement such as
+/// IF/WHILE/REPEAT/LOOP, when such statement is rewritten into a
+/// combination of low-level jump/jump_if instructions and labels.
 
 struct sp_label
 {
@@ -71,11 +81,27 @@ struct sp_label
     ITERATION
   };
 
+  /// Name of the label.
   char *name;
-  uint ip;                // Instruction index
-  enum_type type;         // begin/iter or ref/free
-  class sp_pcontext *ctx; // The label's context
+
+  /// Instruction pointer of the label.
+  uint ip;
+
+  /// Type of the label.
+  enum_type type;
+
+  /// Scope of the label.
+  class sp_pcontext *ctx;
 };
+
+///////////////////////////////////////////////////////////////////////////
+
+/// This class represents condition-value term in DECLARE CONDITION or
+/// DECLARE HANDLER statements. sp_condition_value has little to do with
+/// SQL-conditions.
+///
+/// In some sense, this class is a union -- a set of filled attributes
+/// depends on the sp_condition_value::type value.
 
 class sp_condition_value
 {
@@ -89,19 +115,41 @@ public:
     EXCEPTION
   };
 
+  /// Type of the condition value.
   enum_type type;
+
+  /// SQLSTATE of the condition value.
   char sqlstate[SQLSTATE_LENGTH+1];
+
+  /// MySQL error code of the condition value.
   uint mysqlerr;
 
 public:
+  /// Check if two instances of sp_condition_value are equal or not.
+  ///
+  /// @param cv another instance of sp_condition_value to check.
+  ///
+  /// @return true if the instances are equal, false otherwise.
   bool equals(const sp_condition_value *cv) const;
 };
 
+///////////////////////////////////////////////////////////////////////////
+
+/// This structure represents 'DECLARE CONDITION' statement.
+/// sp_condition has little to do with SQL-conditions.
+
 struct sp_condition
 {
+  /// Name of the condition.
   LEX_STRING name;
+
+  /// Value of the condition.
   sp_condition_value *value;
 };
+
+///////////////////////////////////////////////////////////////////////////
+
+/// This class represents 'DECLARE HANDLER' statement.
 
 class sp_handler
 {
@@ -121,26 +169,38 @@ public:
   List<sp_condition_value> condition_values;
 
 public:
+  /// The constructor.
+  ///
+  /// @param _type SQL-handler type.
   sp_handler(enum_type _type)
    :type(_type)
   { }
 };
 
-/**
-  The parse-time context, used to keep track of declared variables/parameters,
-  conditions, handlers, cursors and labels, during parsing.
-  sp_contexts are organized as a tree, with one object for each begin-end
-  block, one object for each exception handler,
-  plus a root-context for the parameters.
-  This is used during parsing for looking up defined names (e.g. declared
-  variables and visible labels), for error checking, and to calculate offsets
-  to be used at runtime. (During execution variable values, active handlers
-  and cursors, etc, are referred to by an index in a stack.)
-  Parsing contexts for exception handlers limit the visibility of labels.
-  The pcontext tree is also kept during execution and is used for error
-  checking (e.g. correct number of parameters), and in the future, used by
-  the debugger.
-*/
+///////////////////////////////////////////////////////////////////////////
+
+/// The class represents parse-time context, which keeps track of declared
+/// variables/parameters, conditions, handlers, cursors and labels.
+///
+/// sp_context objects are organized in a tree according to the following
+/// rules:
+///   - one sp_pcontext object corresponds for for each BEGIN..END block;
+///   - one sp_pcontext object corresponds for each exception handler;
+///   - one additional sp_pcontext object is created to contain
+///     Stored Program parameters.
+///
+/// sp_pcontext objects are used both at parse-time and at runtime.
+///
+/// During the parsing stage sp_pcontext objects are used:
+///   - to look up defined names (e.g. declared variables and visible
+///     labels);
+///   - to check for duplicates;
+///   - for error checking;
+///   - to calculate offsets to be used at runtime.
+///
+/// During the execution, a tree of sp_pcontext objects is used:
+///   - for error checking (e.g. to check correct number of parameters);
+///   - to resolve SQL-handlers.
 
 class sp_pcontext : public Sql_alloc
 {
@@ -174,67 +234,103 @@ public:
   sp_pcontext * parent_context() const
   { return m_parent; }
 
-  /*
-    Number of handlers/cursors to pop between this context and 'ctx'.
-    If 'exclusive' is true, don't count the last block we are leaving;
-    this is used for LEAVE where we will jump to the cpop/hpop instructions.
-  */
+  /// Calculate and return the number of handlers to pop between the given
+  /// context and this one.
+  ///
+  /// @param ctx       the other parsing context.
+  /// @param exclusive specifies if the last scope should be excluded.
+  ///
+  /// @return the number of handlers to pop between the given context and
+  /// this one.  If 'exclusive' is true, don't count the last scope we are
+  /// leaving; this is used for LEAVE where we will jump to the hpop
+  /// instructions.
   uint diff_handlers(const sp_pcontext *ctx, bool exclusive) const;
+
+  /// Calculate and return the number of cursors to pop between the given
+  /// context and this one.
+  ///
+  /// @param ctx       the other parsing context.
+  /// @param exclusive specifies if the last scope should be excluded.
+  ///
+  /// @return the number of cursors to pop between the given context and
+  /// this one.  If 'exclusive' is true, don't count the last scope we are
+  /// leaving; this is used for LEAVE where we will jump to the cpop
+  /// instructions.
   uint diff_cursors(const sp_pcontext *ctx, bool exclusive) const;
 
+  /////////////////////////////////////////////////////////////////////////
+  // SP-variables (parameters and variables).
+  /////////////////////////////////////////////////////////////////////////
 
-  //
-  // Parameters and variables
-  //
-
-  /*
-    The maximum number of variables used in this and all child contexts
-    In the root, this gives us the number of slots needed for variables
-    during execution.
-  */
+  /// @return the maximum number of variables used in this and all child
+  /// contexts. For the root parsing context, this gives us the number of
+  /// slots needed for variables during execution.
   uint max_var_index() const
   { return m_max_var_index; }
 
-  /*
-    The current number of variables used in the parents (from the root),
-    including this context.
-  */
+  /// @return the current number of variables used in the parent contexts
+  /// (from the root), including this context.
   uint current_var_count() const
   { return m_var_offset + m_vars.elements(); }
 
-  /* The number of variables in this context alone */
+  /// @return the number of variables in this context alone.
   uint context_var_count() const
   { return m_vars.elements(); }
 
-  /* Map index in this pcontext to runtime offset */
+  /// @return map index in this parsing context to runtime offset.
   uint var_context2runtime(uint i) const
   { return m_var_offset + i; }
 
+  /// Add SP-variable to the parsing context.
+  ///
+  /// @param name Name of the SP-variable.
+  /// @param type Type of the SP-variable.
+  /// @param mode Mode of the SP-variable.
+  ///
+  /// @return instance of newly added SP-variable.
   sp_variable * push_variable(LEX_STRING *name, enum enum_field_types type,
                               sp_variable::enum_mode mode);
 
-  /*
-    Retrieve definitions of fields from the current context and its
-    children.
-  */
+  /// Retrieve full type information about SP-variables in this parsing
+  /// context and its children.
+  ///
+  /// @param field_def_lst[out] Container to store type information.
   void retrieve_field_definitions(List<Create_field> *field_def_lst) const;
 
-  // Find by name
-  sp_variable * find_variable(LEX_STRING *name, bool scoped= false) const;
+  /// Find SP-variable by name.
+  ///
+  /// The function does a linear search (from newer to older variables,
+  /// in case we have shadowed names).
+  ///
+  /// The function is called only at parsing time.
+  ///
+  /// @param name               Variable name.
+  /// @param current_scope_only A flag if we search only in current scope.
+  ///
+  /// @return instance of found SP-variable, or NULL if not found.
+  sp_variable * find_variable(LEX_STRING *name, bool current_scope_only) const;
 
-  // Find by offset (from the top)
+  /// Find SP-variable by the offset in the root parsing context.
+  ///
+  /// The function is used for two things:
+  /// - When evaluating parameters at the beginning, and setting out parameters
+  ///   at the end, of invocation. (Top frame only, so no recursion then.)
+  /// - For printing of sp_instr_set. (Debug mode only.)
+  ///
+  /// @param offset Variable offset in the root parsing context.
+  ///
+  /// @return instance of found SP-variable, or NULL if not found.
   sp_variable * find_variable(uint offset) const;
 
-  /*
-    Set the current scope boundary (for default values).
-    The argument is the number of variables to skip.
-  */
+  /// Set the current scope boundary (for default values).
+  ///
+  /// @param n The number of variables to skip.
   void declare_var_boundary(uint n)
   { m_pboundary= n; }
 
-  /*
-    CASE expressions support.
-  */
+  /////////////////////////////////////////////////////////////////////////
+  // CASE expressions.
+  /////////////////////////////////////////////////////////////////////////
 
   int register_case_expr()
   { return m_num_case_exprs++; }
@@ -251,9 +347,9 @@ public:
   int get_current_case_expr_id() const
   { return *m_case_expr_ids.back(); }
 
-  //
-  // Labels
-  //
+  /////////////////////////////////////////////////////////////////////////
+  // Labels.
+  /////////////////////////////////////////////////////////////////////////
 
   sp_label * push_label(char *name, uint ip);
 
@@ -272,37 +368,60 @@ public:
   sp_label * pop_label()
   { return m_labels.pop(); }
 
-  //
-  // Conditions
-  //
+  /////////////////////////////////////////////////////////////////////////
+  // Conditions.
+  /////////////////////////////////////////////////////////////////////////
 
   bool push_condition(LEX_STRING *name, sp_condition_value *value);
 
   sp_condition_value * find_condition(const LEX_STRING *name,
-                                      bool scoped= false) const;
+                                      bool current_scope_only) const;
 
-  //
-  // Handlers
-  //
+  /////////////////////////////////////////////////////////////////////////
+  // Handlers.
+  /////////////////////////////////////////////////////////////////////////
 
   void push_handler(sp_handler *handler)
   { m_handlers.append(handler); }
 
+  /// This is an auxilary parsing-time function to check if an SQL-handler
+  /// exists in the current parsing context (current scope) for the given
+  /// SQL-condition. This function is used to check for duplicates during
+  /// the parsing phase.
+  ///
+  /// This function can not be used during the execution phase to check
+  /// SQL-handler existence because it searches for the SQL-handler in the
+  /// current scope only (during the execution current and parent scopes
+  /// should be checked according to the SQL-handler resolution rules).
+  ///
+  /// @param condition_value the handler condition value
+  ///                        (not SQL-condition!).
+  ///
+  /// @retval true if such SQL-handler exists.
+  /// @retval false otherwise.
   bool check_duplicate_handler(const sp_condition_value *cond_value) const;
 
+  /// Find an SQL handler for the given SQL condition according to the
+  /// SQL-handler resolution rules. This function is used at runtime.
+  ///
+  /// @param sqlstate         The error SQL state
+  /// @param sql_errno        The error code
+  /// @param level            The error level
+  ///
+  /// @return a pointer to the found SQL-handler or NULL.
   sp_handler * find_handler(const char *sqlstate,
                             uint sql_errno,
                             Sql_condition::enum_warning_level level);
 
-  //
-  // Cursors
-  //
+  /////////////////////////////////////////////////////////////////////////
+  // Cursors.
+  /////////////////////////////////////////////////////////////////////////
 
   bool push_cursor(LEX_STRING *name);
 
-  bool find_cursor(LEX_STRING *name, uint *poff, bool scoped= false) const;
+  bool find_cursor(LEX_STRING *name, uint *poff, bool current_scope_only) const;
 
-  /* Find by offset (for debugging only) */
+  /// Find cursor by offset (for debugging only).
   bool find_cursor(uint offset, LEX_STRING *n) const;
 
   uint max_cursor_index() const
@@ -312,7 +431,6 @@ public:
   { return m_cursor_offset + m_cursors.elements(); }
 
 private:
-
   /**
     Constructor for a tree node.
     @param prev the parent parsing context
@@ -339,30 +457,27 @@ private:
   */
   uint m_max_var_index;
 
-  // The maximum sub context's framesizes
+  /// The maximum sub context's framesizes.
   uint m_max_cursor_index;
 
-  sp_pcontext *m_parent;	// Parent context
+  /// Parent context.
+  sp_pcontext *m_parent;
 
-  /*
-    m_var_offset -- this is an index of the first variable in this
-                    parsing context.
-
-    m_var_offset is 0 for root context.
-
-    Since now each variable is stored in separate place, no reuse is done,
-    so m_var_offset is different for all enclosed contexts.
-  */
+  /// An index of the first SP-variable in this parsing context. The index
+  /// belongs to a runtime table of SP-variables.
+  ///
+  /// Note:
+  ///   - m_var_offset is 0 for root parsing context;
+  ///   - m_var_offset is different for all nested parsing contexts.
   uint m_var_offset;
 
-  uint m_cursor_offset;		// Cursor offset for this context
+  /// Cursor offset for this context.
+  uint m_cursor_offset;
 
-  /*
-    Boundary for finding variables in this context. This is the number
-    of variables currently "invisible" to default clauses.
-    This is normally 0, but will be larger during parsing of
-    DECLARE ... DEFAULT, to get the scope right for DEFAULT values.
-  */
+  /// Boundary for finding variables in this context. This is the number of
+  /// variables currently "invisible" to default clauses. This is normally 0,
+  /// but will be larger during parsing of DECLARE ... DEFAULT, to get the
+  /// scope right for DEFAULT values.
   uint m_pboundary;
 
   int m_num_case_exprs;
@@ -392,7 +507,8 @@ private:
   enum_scope m_scope;
 
 private:
-  sp_pcontext(const sp_pcontext &); /* Prevent use of these */
+  /* Prevent use of these */
+  sp_pcontext(const sp_pcontext &);
   void operator=(sp_pcontext &);
 }; // class sp_pcontext : public Sql_alloc
 
