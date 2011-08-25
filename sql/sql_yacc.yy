@@ -2965,7 +2965,7 @@ sp_hcond:
           }
         | ident /* CONDITION name */
           {
-            $$= Lex->spcont->find_condition(&$1);
+            $$= Lex->spcont->find_condition(&$1, false);
             if ($$ == NULL)
             {
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
@@ -3021,7 +3021,7 @@ signal_value:
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            cond= lex->spcont->find_condition(&$1);
+            cond= lex->spcont->find_condition(&$1, false);
             if (cond == NULL)
             {
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
@@ -3414,7 +3414,7 @@ sp_proc_stmt_open:
             uint offset;
             sp_instr_copen *i;
 
-            if (! lex->spcont->find_cursor(&$2, &offset))
+            if (! lex->spcont->find_cursor(&$2, &offset, false))
             {
               my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $2.str);
               MYSQL_YYABORT;
@@ -3434,7 +3434,7 @@ sp_proc_stmt_fetch:
             uint offset;
             sp_instr_cfetch *i;
 
-            if (! lex->spcont->find_cursor(&$3, &offset))
+            if (! lex->spcont->find_cursor(&$3, &offset, false))
             {
               my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $3.str);
               MYSQL_YYABORT;
@@ -3456,7 +3456,7 @@ sp_proc_stmt_close:
             uint offset;
             sp_instr_cclose *i;
 
-            if (! lex->spcont->find_cursor(&$2, &offset))
+            if (! lex->spcont->find_cursor(&$2, &offset, false))
             {
               my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $2.str);
               MYSQL_YYABORT;
@@ -3482,7 +3482,7 @@ sp_fetch_list:
             sp_pcontext *spc= lex->spcont;
             sp_variable *spv;
 
-            if (!spc || !(spv = spc->find_variable(&$1)))
+            if (!spc || !(spv = spc->find_variable(&$1, false)))
             {
               my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -3502,7 +3502,7 @@ sp_fetch_list:
             sp_pcontext *spc= lex->spcont;
             sp_variable *spv;
 
-            if (!spc || !(spv = spc->find_variable(&$3)))
+            if (!spc || !(spv = spc->find_variable(&$3, false)))
             {
               my_error(ER_SP_UNDECLARED_VAR, MYF(0), $3.str);
               MYSQL_YYABORT;
@@ -10111,7 +10111,7 @@ limit_option:
           Lex_input_stream *lip= & thd->m_parser_state->m_lip;
           sp_variable *spv;
           sp_pcontext *spc = lex->spcont;
-          if (spc && (spv = spc->find_variable(&$1)))
+          if (spc && (spv = spc->find_variable(&$1, false)))
           {
             splocal= new (thd->mem_root)
               Item_splocal($1, spv->offset, spv->type,
@@ -10311,7 +10311,7 @@ select_var_ident:
             LEX *lex=Lex;
             sp_variable *t;
 
-            if (!lex->spcont || !(t=lex->spcont->find_variable(&$1)))
+            if (!lex->spcont || !(t=lex->spcont->find_variable(&$1, false)))
             {
               my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -12151,7 +12151,7 @@ simple_ident:
             Lex_input_stream *lip= YYLIP;
             sp_variable *spv;
             sp_pcontext *spc = lex->spcont;
-            if (spc && (spv = spc->find_variable(&$1)))
+            if (spc && (spv = spc->find_variable(&$1, false)))
             {
               /* We're compiling a stored procedure and found a variable */
               if (! lex->parsing_options.allows_variable)
@@ -13107,7 +13107,7 @@ sys_option_value:
             else
             {
               sp_pcontext *spc= lex->spcont;
-              sp_variable *spv= spc->find_variable(name);
+              sp_variable *spv= spc->find_variable(name, false);
 
               if ($1)
               {
@@ -13187,7 +13187,7 @@ option_value:
 
             names.str= (char *)"names";
             names.length= 5;
-            if (spc && spc->find_variable(&names))
+            if (spc && spc->find_variable(&names, false))
               my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
             else
               my_parse_error(ER(ER_SYNTAX_ERROR));
@@ -13226,7 +13226,7 @@ option_value:
 
             pw.str= (char *)"password";
             pw.length= 8;
-            if (spc && spc->find_variable(&pw))
+            if (spc && spc->find_variable(&pw, false))
             {
               my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
               MYSQL_YYABORT;
@@ -13264,7 +13264,7 @@ internal_variable_name:
             sp_variable *spv;
 
             /* Best effort lookup for system variable. */
-            if (!spc || !(spv = spc->find_variable(&$1)))
+            if (!spc || !(spv = spc->find_variable(&$1, false)))
             {
               struct sys_var_with_base tmp= {NULL, $1};
 

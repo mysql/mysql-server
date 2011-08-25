@@ -19,14 +19,6 @@
 #include "sp_head.h"
 
 
-/**
-  Check if two instances of sp_condition_value are equal or not.
-
-  @param cv another instance of sp_condition_value to check.
-
-  @return true if the instances are equal, false otherwise.
-*/
-
 bool sp_condition_value::equals(const sp_condition_value *cv) const
 {
   DBUG_ASSERT(cv);
@@ -153,16 +145,8 @@ uint sp_pcontext::diff_cursors(const sp_pcontext *ctx, bool exclusive) const
 }
 
 
-/*
-  This does a linear search (from newer to older variables, in case
-  we have shadowed names).
-  It's possible to have a more efficient allocation and search method,
-  but it might not be worth it. The typical number of parameters and
-  variables will in most cases be low (a handfull).
-  ...and, this is only called during parsing.
-*/
-
-sp_variable * sp_pcontext::find_variable(LEX_STRING *name, bool scoped) const
+sp_variable * sp_pcontext::find_variable(LEX_STRING *name,
+                                         bool current_scope_only) const
 {
   uint i= m_vars.elements() - m_pboundary;
 
@@ -177,19 +161,12 @@ sp_variable * sp_pcontext::find_variable(LEX_STRING *name, bool scoped) const
       return p;
     }
   }
-  if (!scoped && m_parent)
-    return m_parent->find_variable(name, scoped);
-  return NULL;
+
+  return (!current_scope_only && m_parent) ?
+    m_parent->find_variable(name, false) :
+    NULL;
 }
 
-
-/*
-  Find a variable by offset from the top.
-  This used for two things:
-  - When evaluating parameters at the beginning, and setting out parameters
-    at the end, of invokation. (Top frame only, so no recursion then.)
-  - For printing of sp_instr_set. (Debug mode only.)
-*/
 
 sp_variable * sp_pcontext::find_variable(uint offset) const
 {
@@ -283,7 +260,7 @@ bool sp_pcontext::push_condition(LEX_STRING *name, sp_condition_value *value)
 */
 
 sp_condition_value * sp_pcontext::find_condition(const LEX_STRING *name,
-                                                 bool scoped) const
+                                                 bool current_scope_only) const
 {
   uint i= m_conditions.elements();
 
@@ -298,27 +275,12 @@ sp_condition_value * sp_pcontext::find_condition(const LEX_STRING *name,
       return p->value;
     }
   }
-  if (!scoped && m_parent)
-    return m_parent->find_condition(name, scoped);
-  return NULL;
+
+  return (!current_scope_only && m_parent) ?
+    m_parent->find_condition(name, false) :
+    NULL;
 }
 
-
-/**
-  This is an auxilary parsing-time function to check if an SQL-handler exists in
-  the current parsing context (current scope) for the given SQL-condition. This
-  function is used to check for duplicates during the parsing phase.
-
-  This function can not be used during the execution phase to check SQL-handler
-  existence because it searches for the SQL-handler in the current scope only
-  (during the execution current and parent scopes should be checked according to
-  the SQL-handler resolution rules).
-
-  @param condition_value the handler condition value (not SQL-condition!).
-
-  @retval true if such SQL-handler exists.
-  @retval false otherwise.
-*/
 
 bool
 sp_pcontext::check_duplicate_handler(const sp_condition_value *cond_value) const
@@ -340,17 +302,6 @@ sp_pcontext::check_duplicate_handler(const sp_condition_value *cond_value) const
   return false;
 }
 
-
-/**
-  Find an SQL handler for the given SQL condition according to the SQL-handler
-  resolution rules. This function is used at runtime.
-
-  @param sqlstate         The error SQL state
-  @param sql_errno        The error code
-  @param level            The error level
-
-  @return a pointer to the found SQL-handler or NULL.
-*/
 
 sp_handler * sp_pcontext::find_handler(const char *sqlstate,
                                        uint sql_errno,
@@ -478,7 +429,8 @@ bool sp_pcontext::push_cursor(LEX_STRING *name)
   See comment for find_variable() above
 */
 
-bool sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, bool scoped) const
+bool sp_pcontext::find_cursor(LEX_STRING *name, uint *poff,
+                              bool current_scope_only) const
 {
   uint i= m_cursors.elements();
 
@@ -491,12 +443,13 @@ bool sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, bool scoped) const
 		     (const uchar *)n.str, n.length) == 0)
     {
       *poff= m_cursor_offset + i;
-      return TRUE;
+      return true;
     }
   }
-  if (!scoped && m_parent)
-    return m_parent->find_cursor(name, poff, scoped);
-  return FALSE;
+
+  return (!current_scope_only && m_parent) ?
+    m_parent->find_cursor(name, poff, false) :
+    false;
 }
 
 
