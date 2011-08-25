@@ -22,7 +22,7 @@
 #include "sp_pcontext.h"
 #include "sql_select.h"                     // create_virtual_tmp_table
 
-sp_rcontext::sp_rcontext(sp_pcontext *root_parsing_ctx,
+sp_rcontext::sp_rcontext(const sp_pcontext *root_parsing_ctx,
                          Field *return_value_fld,
                          bool in_sub_stmt)
   :end_partial_result_set(FALSE),
@@ -52,10 +52,9 @@ sp_rcontext::~sp_rcontext()
 }
 
 
-sp_rcontext *
-sp_rcontext::create(THD *thd,
-                    sp_pcontext *root_parsing_ctx,
-                    Field *return_value_fld)
+sp_rcontext * sp_rcontext::create(THD *thd,
+                                  const sp_pcontext *root_parsing_ctx,
+                                  Field *return_value_fld)
 {
   sp_rcontext *ctx= new sp_rcontext(root_parsing_ctx,
                                     return_value_fld,
@@ -84,8 +83,7 @@ sp_rcontext::create(THD *thd,
   @return error flag: false on success, true in case of failure.
 */
 
-bool
-sp_rcontext::alloc_arrays(THD *thd)
+bool sp_rcontext::alloc_arrays(THD *thd)
 {
   {
     size_t n= m_root_parsing_ctx->max_cursor_index();
@@ -117,8 +115,7 @@ sp_rcontext::alloc_arrays(THD *thd)
     TRUE    on error
 */
 
-bool
-sp_rcontext::init_var_table(THD *thd)
+bool sp_rcontext::init_var_table(THD *thd)
 {
   List<Create_field> field_def_lst;
 
@@ -128,7 +125,7 @@ sp_rcontext::init_var_table(THD *thd)
   m_root_parsing_ctx->retrieve_field_definitions(&field_def_lst);
 
   DBUG_ASSERT(field_def_lst.elements == m_root_parsing_ctx->max_var_index());
-  
+
   if (!(m_var_table= create_virtual_tmp_table(thd, field_def_lst)))
     return TRUE;
 
@@ -147,8 +144,7 @@ sp_rcontext::init_var_table(THD *thd)
     TRUE    on error
 */
 
-bool
-sp_rcontext::init_var_items()
+bool sp_rcontext::init_var_items()
 {
   uint num_vars= m_root_parsing_ctx->max_var_index();
 
@@ -170,8 +166,7 @@ sp_rcontext::init_var_items()
 }
 
 
-bool
-sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
+bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 {
   DBUG_ASSERT(m_return_value_fld);
 
@@ -188,8 +183,7 @@ sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
   @param i          Cursor-push instruction.
 */
 
-void
-sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
+void sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
 {
   DBUG_ENTER("sp_rcontext::push_cursor");
 
@@ -206,11 +200,10 @@ sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
   @param count Number of cursors to pop & delete.
 */
 
-void
-sp_rcontext::pop_cursors(uint count)
+void sp_rcontext::pop_cursors(uint count)
 {
   DBUG_ENTER("sp_rcontext::pop_cursors");
-  
+
   while (count--)
     delete m_cstack[--m_ccount];
 
@@ -226,9 +219,7 @@ sp_rcontext::pop_cursors(uint count)
   @param first_ip First instruction pointer of the handler.
 */
 
-void
-sp_rcontext::push_handler(sp_handler *handler,
-                          uint first_ip)
+void sp_rcontext::push_handler(sp_handler *handler, uint first_ip)
 {
   DBUG_ENTER("sp_rcontext::push_handler");
 
@@ -245,8 +236,7 @@ sp_rcontext::push_handler(sp_handler *handler,
   @param count Number of handler entries to pop & delete.
 */
 
-void
-sp_rcontext::pop_handlers(int count)
+void sp_rcontext::pop_handlers(int count)
 {
   DBUG_ENTER("sp_rcontext::pop_handlers");
   DBUG_ASSERT(m_handlers.elements() >= count);
@@ -256,6 +246,7 @@ sp_rcontext::pop_handlers(int count)
 
   DBUG_VOID_RETURN;
 }
+
 
 /**
   Handle current SQL condition (if any).
@@ -278,12 +269,11 @@ sp_rcontext::pop_handlers(int count)
   @retval false otherwise.
 */
 
-bool
-sp_rcontext::handle_sql_condition(THD *thd,
-                                  uint *ip,
-                                  const sp_instr *cur_spi,
-                                  Query_arena *execute_arena,
-                                  Query_arena *backup_arena)
+bool sp_rcontext::handle_sql_condition(THD *thd,
+                                       uint *ip,
+                                       const sp_instr *cur_spi,
+                                       Query_arena *execute_arena,
+                                       Query_arena *backup_arena)
 {
   /*
     If this is a fatal sub-statement error, and this runtime
@@ -395,13 +385,12 @@ sp_rcontext::handle_sql_condition(THD *thd,
   @param backup_arena   Backup arena for SP.
 */
 
-void
-sp_rcontext::activate_handler(THD *thd,
-                              sp_handler_entry *handler_entry,
-                              Sql_condition_info *sql_condition,
-                              const sp_instr *cur_spi,
-                              Query_arena *execute_arena,
-                              Query_arena *backup_arena)
+void sp_rcontext::activate_handler(THD *thd,
+                                   const sp_handler_entry *handler_entry,
+                                   Sql_condition_info *sql_condition,
+                                   const sp_instr *cur_spi,
+                                   Query_arena *execute_arena,
+                                   Query_arena *backup_arena)
 {
   uint continue_ip= 0;
 
@@ -436,8 +425,7 @@ sp_rcontext::activate_handler(THD *thd,
   @return continue instruction pointer of the removed handler.
 */
 
-uint
-sp_rcontext::exit_handler()
+uint sp_rcontext::exit_handler()
 {
   DBUG_ENTER("sp_rcontext::exit_handler");
   DBUG_ASSERT(m_handler_call_stack.elements() > 0);
@@ -451,24 +439,8 @@ sp_rcontext::exit_handler()
   DBUG_RETURN(continue_ip);
 }
 
-const sp_rcontext::Sql_condition_info *
-sp_rcontext::raised_condition() const
-{
-  return m_handler_call_stack.elements() ?
-         (*m_handler_call_stack.back())->sql_condition :
-         NULL;
-}
 
-
-int
-sp_rcontext::set_variable(THD *thd, uint var_idx, Item **value)
-{
-  return set_variable(thd, m_var_table->field[var_idx], value);
-}
-
-
-int
-sp_rcontext::set_variable(THD *thd, Field *field, Item **value)
+int sp_rcontext::set_variable(THD *thd, Field *field, Item **value)
 {
   if (!value)
   {
@@ -477,20 +449,6 @@ sp_rcontext::set_variable(THD *thd, Field *field, Item **value)
   }
 
   return sp_eval_expr(thd, field, value);
-}
-
-
-Item *
-sp_rcontext::get_item(uint var_idx)
-{
-  return m_var_items[var_idx];
-}
-
-
-Item **
-sp_rcontext::get_item_addr(uint var_idx)
-{
-  return m_var_items.array() + var_idx;
 }
 
 
@@ -525,8 +483,7 @@ sp_cursor::sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
    0 in case of success, -1 otherwise
 */
 
-int
-sp_cursor::open(THD *thd)
+int sp_cursor::open(THD *thd)
 {
   if (server_side_cursor)
   {
@@ -540,8 +497,7 @@ sp_cursor::open(THD *thd)
 }
 
 
-int
-sp_cursor::close(THD *thd)
+int sp_cursor::close(THD *thd)
 {
   if (! server_side_cursor)
   {
@@ -553,16 +509,14 @@ sp_cursor::close(THD *thd)
 }
 
 
-void
-sp_cursor::destroy()
+void sp_cursor::destroy()
 {
   delete server_side_cursor;
   server_side_cursor= 0;
 }
 
 
-int
-sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
+int sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 {
   if (! server_side_cursor)
   {
@@ -618,8 +572,8 @@ sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
     between in several instructions.
 */
 
-Item_cache *
-sp_rcontext::create_case_expr_holder(THD *thd, const Item *item)
+Item_cache * sp_rcontext::create_case_expr_holder(THD *thd,
+                                                  const Item *item) const
 {
   Item_cache *holder;
   Query_arena current_arena;
@@ -657,14 +611,14 @@ sp_rcontext::create_case_expr_holder(THD *thd, const Item *item)
     iteration. For instance, this can happen if the expression contains a
     session variable (something like @@VAR) and its type is changed from one
     iteration to another.
-    
+
     In order to cope with this problem, we check type each time, when we use
     already created object. If the type does not match, we re-create Item.
     This also can (should?) be optimized.
 */
 
-int
-sp_rcontext::set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr)
+int sp_rcontext::set_case_expr(THD *thd, int case_expr_id,
+                               Item **case_expr_item_ptr)
 {
   Item *case_expr_item= sp_prepare_func_item(thd, case_expr_item_ptr);
   if (!case_expr_item)
@@ -684,25 +638,12 @@ sp_rcontext::set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr
 }
 
 
-Item *
-sp_rcontext::get_case_expr(int case_expr_id)
-{
-  return m_case_expr_holders[case_expr_id];
-}
-
-
-Item **
-sp_rcontext::get_case_expr_addr(int case_expr_id)
-{
-  return (Item**) m_case_expr_holders.array() + case_expr_id;
-}
-
-
 /***************************************************************************
  Select_fetch_into_spvars
 ****************************************************************************/
 
-int Select_fetch_into_spvars::prepare(List<Item> &fields, SELECT_LEX_UNIT *u)
+int sp_cursor::Select_fetch_into_spvars::prepare(List<Item> &fields,
+                                                 SELECT_LEX_UNIT *u)
 {
   /*
     Cache the number of columns in the result set in order to easily
@@ -713,7 +654,7 @@ int Select_fetch_into_spvars::prepare(List<Item> &fields, SELECT_LEX_UNIT *u)
 }
 
 
-bool Select_fetch_into_spvars::send_data(List<Item> &items)
+bool sp_cursor::Select_fetch_into_spvars::send_data(List<Item> &items)
 {
   List_iterator_fast<sp_variable> spvar_iter(*spvar_list);
   List_iterator_fast<Item> item_iter(items);

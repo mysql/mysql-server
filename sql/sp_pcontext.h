@@ -34,7 +34,7 @@ struct sp_variable
   LEX_STRING name;
   enum enum_field_types type;
   enum_mode mode;
-  
+
   /*
     offset -- this the index to the variable's value in the runtime frame.
     This is calculated during parsing and used when creating sp_instr_set
@@ -73,7 +73,7 @@ struct sp_label
 
   char *name;
   uint ip;                // Instruction index
-  enum_type type;         // begin/iter or ref/free 
+  enum_type type;         // begin/iter or ref/free
   class sp_pcontext *ctx; // The label's context
 };
 
@@ -96,13 +96,6 @@ public:
 public:
   bool equals(const sp_condition_value *cv) const;
 };
-
-/*
-  Sanity check for SQLSTATEs. Will not check if it's really an existing
-  state (there are just too many), but will check length bad characters.
-*/
-extern bool
-sp_cond_check(LEX_STRING *sqlstate);
 
 struct sp_condition
 {
@@ -170,18 +163,15 @@ public:
     @param scope scope of the new parsing context
     @return the node created
   */
-  sp_pcontext *
-  push_context(enum_scope scope);
+  sp_pcontext * push_context(enum_scope scope);
 
   /**
     Pop a node from the parsing context tree.
     @return the parent node
   */
-  sp_pcontext *
-  pop_context();
+  sp_pcontext * pop_context();
 
-  sp_pcontext *
-  parent_context()
+  sp_pcontext * parent_context() const
   { return m_parent; }
 
   /*
@@ -189,10 +179,8 @@ public:
     If 'exclusive' is true, don't count the last block we are leaving;
     this is used for LEAVE where we will jump to the cpop/hpop instructions.
   */
-  uint
-  diff_handlers(sp_pcontext *ctx, bool exclusive);
-  uint
-  diff_cursors(sp_pcontext *ctx, bool exclusive);
+  uint diff_handlers(const sp_pcontext *ctx, bool exclusive) const;
+  uint diff_cursors(const sp_pcontext *ctx, bool exclusive) const;
 
 
   //
@@ -204,111 +192,74 @@ public:
     In the root, this gives us the number of slots needed for variables
     during execution.
   */
-  inline uint
-  max_var_index()
+  uint max_var_index() const
   { return m_max_var_index; }
 
   /*
     The current number of variables used in the parents (from the root),
     including this context.
   */
-  inline uint
-  current_var_count()
+  uint current_var_count() const
   { return m_var_offset + m_vars.elements(); }
 
   /* The number of variables in this context alone */
-  inline uint
-  context_var_count()
+  uint context_var_count() const
   { return m_vars.elements(); }
 
   /* Map index in this pcontext to runtime offset */
-  inline uint
-  var_context2runtime(uint i)
+  uint var_context2runtime(uint i) const
   { return m_var_offset + i; }
 
-  /* Set type of variable. 'i' is the offset from the top */
-  inline void
-  set_type(uint i, enum enum_field_types type)
-  {
-    sp_variable *p= find_variable(i);
-
-    if (p)
-      p->type= type;
-  }
-
-  /* Set default value of variable. 'i' is the offset from the top */
-  inline void
-  set_default(uint i, Item *it)
-  {
-    sp_variable *p= find_variable(i);
-
-    if (p)
-      p->dflt= it;
-  }
-
-  sp_variable *
-  push_variable(LEX_STRING *name, enum enum_field_types type,
-                sp_variable::enum_mode mode);
+  sp_variable * push_variable(LEX_STRING *name, enum enum_field_types type,
+                              sp_variable::enum_mode mode);
 
   /*
     Retrieve definitions of fields from the current context and its
     children.
   */
-  void
-  retrieve_field_definitions(List<Create_field> *field_def_lst);
+  void retrieve_field_definitions(List<Create_field> *field_def_lst) const;
 
   // Find by name
-  sp_variable *
-  find_variable(LEX_STRING *name, bool scoped= false);
+  sp_variable * find_variable(LEX_STRING *name, bool scoped= false) const;
 
   // Find by offset (from the top)
-  sp_variable *
-  find_variable(uint offset);
+  sp_variable * find_variable(uint offset) const;
 
   /*
     Set the current scope boundary (for default values).
-    The argument is the number of variables to skip.   
+    The argument is the number of variables to skip.
   */
-  inline void
-  declare_var_boundary(uint n)
+  void declare_var_boundary(uint n)
   { m_pboundary= n; }
 
   /*
     CASE expressions support.
   */
 
-  inline int
-  register_case_expr()
+  int register_case_expr()
   { return m_num_case_exprs++; }
 
-  inline int
-  get_num_case_exprs() const
+  int get_num_case_exprs() const
   { return m_num_case_exprs; }
 
-  inline bool
-  push_case_expr_id(int case_expr_id)
+  bool push_case_expr_id(int case_expr_id)
   { return m_case_expr_ids.append(case_expr_id); }
 
-  inline void
-  pop_case_expr_id()
+  void pop_case_expr_id()
   { m_case_expr_ids.pop(); }
 
-  inline int
-  get_current_case_expr_id() const
+  int get_current_case_expr_id() const
   { return *m_case_expr_ids.back(); }
 
   //
   // Labels
   //
 
-  sp_label *
-  push_label(char *name, uint ip);
+  sp_label * push_label(char *name, uint ip);
 
-  sp_label *
-  find_label(char *name);
+  sp_label * find_label(const char *name);
 
-  inline sp_label *
-  last_label()
+  sp_label * last_label()
   {
     sp_label *label= m_labels.head();
 
@@ -318,59 +269,49 @@ public:
     return label;
   }
 
-  inline sp_label *
-  pop_label()
+  sp_label * pop_label()
   { return m_labels.pop(); }
 
   //
   // Conditions
   //
 
-  bool
-  push_condition(LEX_STRING *name, sp_condition_value *value);
+  bool push_condition(LEX_STRING *name, sp_condition_value *value);
 
-  sp_condition_value *
-  find_condition(LEX_STRING *name, bool scoped= false);
+  sp_condition_value * find_condition(const LEX_STRING *name,
+                                      bool scoped= false) const;
 
   //
   // Handlers
   //
 
-  inline void
-  push_handler(sp_handler *handler)
+  void push_handler(sp_handler *handler)
   { m_handlers.append(handler); }
 
-  bool
-  check_duplicate_handler(sp_condition_value *condition_value);
+  bool check_duplicate_handler(const sp_condition_value *cond_value) const;
 
-  sp_handler *
-  find_handler(const char *sqlstate,
-               uint sql_errno,
-               Sql_condition::enum_warning_level level);
+  sp_handler * find_handler(const char *sqlstate,
+                            uint sql_errno,
+                            Sql_condition::enum_warning_level level);
 
   //
   // Cursors
   //
 
-  bool
-  push_cursor(LEX_STRING *name);
+  bool push_cursor(LEX_STRING *name);
 
-  bool
-  find_cursor(LEX_STRING *name, uint *poff, bool scoped= false);
+  bool find_cursor(LEX_STRING *name, uint *poff, bool scoped= false) const;
 
   /* Find by offset (for debugging only) */
-  bool
-  find_cursor(uint offset, LEX_STRING *n);
+  bool find_cursor(uint offset, LEX_STRING *n) const;
 
-  inline uint
-  max_cursor_index()
+  uint max_cursor_index() const
   { return m_max_cursor_index + m_cursors.elements(); }
 
-  inline uint
-  current_cursor_count()
+  uint current_cursor_count() const
   { return m_cursor_offset + m_cursors.elements(); }
 
-protected:
+private:
 
   /**
     Constructor for a tree node.
@@ -379,37 +320,34 @@ protected:
   */
   sp_pcontext(sp_pcontext *prev, enum_scope scope);
 
+  void init(uint var_offset,
+            uint cursor_offset,
+            int num_case_expressions);
+
+  int get_num_handlers() const
+  { return m_handlers.elements(); }
+
+private:
   /*
     m_max_var_index -- number of variables (including all types of arguments)
     in this context including all children contexts.
-    
+
     m_max_var_index >= m_vars.elements().
 
     m_max_var_index of the root parsing context contains number of all
     variables (including arguments) in all enclosed contexts.
   */
-  uint m_max_var_index;		
+  uint m_max_var_index;
 
   // The maximum sub context's framesizes
   uint m_max_cursor_index;
 
-private:
-  void
-  init(uint var_offset,
-       uint cursor_offset,
-       int num_case_expressions);
-
-  int
-  get_num_handlers() const
-  { return m_handlers.elements(); }
-
-private:
   sp_pcontext *m_parent;	// Parent context
 
   /*
     m_var_offset -- this is an index of the first variable in this
                     parsing context.
-    
+
     m_var_offset is 0 for root context.
 
     Since now each variable is stored in separate place, no reuse is done,
