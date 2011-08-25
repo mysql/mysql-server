@@ -3460,29 +3460,30 @@ JOIN::exec()
     }
     {
       if (group)
-	curr_join->m_select_limit= HA_POS_ERROR;
+        curr_join->m_select_limit= HA_POS_ERROR;
       else
       {
-	/*
-	  We can abort sorting after thd->select_limit rows if we there is no
-	  WHERE clause for any tables after the sorted one.
-	*/
-	JOIN_TAB *curr_table= &curr_join->join_tab[curr_join->const_tables+1];
-	JOIN_TAB *end_table= &curr_join->join_tab[curr_join->tables];
-	for (; curr_table < end_table ; curr_table++)
-	{
-	  /*
-	    table->keyuse is set in the case there was an original WHERE clause
-	    on the table that was optimized away.
-	  */
-	  if (curr_table->condition() ||
-	      (curr_table->keyuse && !curr_table->first_inner))
-	  {
-	    /* We have to sort all rows */
-	    curr_join->m_select_limit= HA_POS_ERROR;
-	    break;
-	  }
-	}
+        /*
+          We can abort sorting after thd->select_limit rows if there are no
+          filter conditions for any tables after the sorted one.
+          Filter conditions come in several forms:
+           - as a condition item attached to the join_tab,
+           - as a keyuse attached to the join_tab (ref access),
+           - as a semi-join equality attached to materialization semi-join nest.
+        */
+        JOIN_TAB *curr_table= &curr_join->join_tab[curr_join->const_tables+1];
+        JOIN_TAB *end_table= &curr_join->join_tab[curr_join->tables];
+        for (; curr_table < end_table ; curr_table++)
+        {
+          if (curr_table->condition() ||
+              (curr_table->keyuse && !curr_table->first_inner) ||
+              curr_table->get_sj_strategy() == SJ_OPT_MATERIALIZE_LOOKUP)
+          {
+            /* We have to sort all rows */
+            curr_join->m_select_limit= HA_POS_ERROR;
+            break;
+          }
+        }
       }
       if (curr_join->join_tab == join_tab && save_join_tab())
       {
