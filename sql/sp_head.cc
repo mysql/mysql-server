@@ -782,7 +782,7 @@ sp_head::~sp_head()
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
     delete i;
   delete_dynamic(&m_instr);
-  m_pcont->destroy();
+  delete m_pcont;
   free_items();
 
   /*
@@ -1638,8 +1638,7 @@ sp_head::execute_trigger(THD *thd,
   init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  if (!(nctx= new sp_rcontext(m_pcont, NULL)) ||
-      nctx->init(thd))
+  if (!(nctx= sp_rcontext::create(thd, m_pcont, NULL)))
   {
     err_status= TRUE;
     goto err_with_cleanup;
@@ -1755,8 +1754,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  if (!(nctx= new sp_rcontext(m_pcont, return_value_fld)) ||
-      nctx->init(thd))
+  if (!(nctx= sp_rcontext::create(thd, m_pcont, return_value_fld)))
   {
     thd->restore_active_arena(&call_arena, &backup_arena);
     err_status= TRUE;
@@ -1975,7 +1973,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   if (! octx)
   {
     /* Create a temporary old context. */
-    if (!(octx= new sp_rcontext(m_pcont, NULL)) || octx->init(thd))
+    if (!(octx= sp_rcontext::create(thd, m_pcont, NULL)))
     {
       delete octx; /* Delete octx if it was init() that failed. */
       DBUG_RETURN(TRUE);
@@ -1990,8 +1988,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->spcont->callers_arena= thd;
   }
 
-  if (!(nctx= new sp_rcontext(m_pcont, NULL)) ||
-      nctx->init(thd))
+  if (!(nctx= sp_rcontext::create(thd, m_pcont, NULL)))
   {
     delete nctx; /* Delete nctx if it was init() that failed. */
     thd->spcont= save_spcont;
@@ -3532,13 +3529,11 @@ int
 sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hreturn::execute");
-  if (m_dest)
-    *nextp= m_dest;
-  else
-  {
-    *nextp= thd->spcont->pop_hstack();
-  }
-  thd->spcont->exit_handler();
+
+  uint continue_ip= thd->spcont->exit_handler();
+
+  *nextp= m_dest ? m_dest : continue_ip;
+
   DBUG_RETURN(0);
 }
 

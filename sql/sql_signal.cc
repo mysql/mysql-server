@@ -490,7 +490,7 @@ bool Sql_cmd_signal::execute(THD *thd)
 bool Sql_cmd_resignal::execute(THD *thd)
 {
   Diagnostics_area *da= thd->get_stmt_da();
-  Sql_condition *signaled;
+  const sp_rcontext::Sql_condition_info *signaled;
 
   DBUG_ENTER("Sql_cmd_resignal::execute");
 
@@ -504,6 +504,13 @@ bool Sql_cmd_resignal::execute(THD *thd)
     DBUG_RETURN(true);
   }
 
+  Sql_condition signaled_err(thd->mem_root);
+  signaled_err.set(signaled->sql_errno,
+                   signaled->sql_state,
+                   signaled->level,
+                   signaled->message);
+
+
   if (m_cond) // RESIGNAL with signal_value.
   {
     query_cache_abort(&thd->query_cache_tls);
@@ -511,8 +518,8 @@ bool Sql_cmd_resignal::execute(THD *thd)
     /* Make room for 2 conditions. */
     da->reserve_space(thd, 2);
 
-    da->push_warning(thd, signaled);
+    da->push_warning(thd, &signaled_err);
   }
 
-  DBUG_RETURN(raise_condition(thd, signaled));
+  DBUG_RETURN(raise_condition(thd, &signaled_err));
 }

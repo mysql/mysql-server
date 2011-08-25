@@ -40,6 +40,12 @@ public:
   {}
 
   void reset() { m_array= NULL; m_size= 0; }
+ 
+  void reset(Element_type *array, size_t size)
+  {
+    m_array= array;
+    m_size= size;
+  }
 
   Element_type &operator[](size_t n)
   {
