@@ -121,4 +121,10 @@ testSafeMutex_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/strings/libmystringslt.la \
   @readline_link@ @TERMCAP_LIB@
 
+mt_thr_config_t_SOURCES = mt_thr_config.cpp
+mt_thr_config_t_CXXFLAGS = -DTEST_MT_THR_CONFIG
+mt_thr_config_t_LDADD = \
+	$(top_builddir)/storage/ndb/src/common/util/libgeneral.la \
+	$(top_builddir)/mysys/libmysyslt.la
 
+noinst_PROGRAMS = mt_thr_config-t
