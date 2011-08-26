@@ -472,8 +472,8 @@ set_local_variable(THD *thd, sp_variable *spv, Item *val)
 
   if (val)
     it= val;
-  else if (spv->dflt)
-    it= spv->dflt;
+  else if (spv->default_value)
+    it= spv->default_value;
   else
   {
     it= new (thd->mem_root) Item_null();
@@ -2725,7 +2725,7 @@ sp_decl:
                 MYSQL_YYABORT;
             
               spvar->type= var_type;
-              spvar->dflt= dflt_value_item;
+              spvar->default_value= dflt_value_item;
             
               if (lex->sphead->fill_field_definition(YYTHD, lex, var_type,
                                                      &spvar->field_def))

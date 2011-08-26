@@ -52,7 +52,7 @@ struct sp_variable
   uint offset;
 
   /// Default value of the SP-variable (if any).
-  Item *dflt;
+  Item *default_value;
 
   /// Full type information (field meta-data) of the SP-variable.
   Create_field field_def;
@@ -198,7 +198,7 @@ public:
 ///   - for error checking;
 ///   - to calculate offsets to be used at runtime.
 ///
-/// During the execution, a tree of sp_pcontext objects is used:
+/// During the runtime phase, a tree of sp_pcontext objects is used:
 ///   - for error checking (e.g. to check correct number of parameters);
 ///   - to resolve SQL-handlers.
 
@@ -223,15 +223,15 @@ public:
     @param scope scope of the new parsing context
     @return the node created
   */
-  sp_pcontext * push_context(enum_scope scope);
+  sp_pcontext *push_context(enum_scope scope);
 
   /**
     Pop a node from the parsing context tree.
     @return the parent node
   */
-  sp_pcontext * pop_context();
+  sp_pcontext *pop_context();
 
-  sp_pcontext * parent_context() const
+  sp_pcontext *parent_context() const
   { return m_parent; }
 
   /// Calculate and return the number of handlers to pop between the given
@@ -264,7 +264,7 @@ public:
 
   /// @return the maximum number of variables used in this and all child
   /// contexts. For the root parsing context, this gives us the number of
-  /// slots needed for variables during execution.
+  /// slots needed for variables during the runtime phase.
   uint max_var_index() const
   { return m_max_var_index; }
 
@@ -288,8 +288,9 @@ public:
   /// @param mode Mode of the SP-variable.
   ///
   /// @return instance of newly added SP-variable.
-  sp_variable * push_variable(LEX_STRING *name, enum enum_field_types type,
-                              sp_variable::enum_mode mode);
+  sp_variable *push_variable(LEX_STRING *name,
+                             enum enum_field_types type,
+                             sp_variable::enum_mode mode);
 
   /// Retrieve full type information about SP-variables in this parsing
   /// context and its children.
@@ -308,7 +309,7 @@ public:
   /// @param current_scope_only A flag if we search only in current scope.
   ///
   /// @return instance of found SP-variable, or NULL if not found.
-  sp_variable * find_variable(LEX_STRING *name, bool current_scope_only) const;
+  sp_variable *find_variable(LEX_STRING *name, bool current_scope_only) const;
 
   /// Find SP-variable by the offset in the root parsing context.
   ///
@@ -320,7 +321,7 @@ public:
   /// @param offset Variable offset in the root parsing context.
   ///
   /// @return instance of found SP-variable, or NULL if not found.
-  sp_variable * find_variable(uint offset) const;
+  sp_variable *find_variable(uint offset) const;
 
   /// Set the current scope boundary (for default values).
   ///
@@ -351,11 +352,11 @@ public:
   // Labels.
   /////////////////////////////////////////////////////////////////////////
 
-  sp_label * push_label(char *name, uint ip);
+  sp_label *push_label(char *name, uint ip);
 
-  sp_label * find_label(const char *name);
+  sp_label *find_label(const char *name);
 
-  sp_label * last_label()
+  sp_label *last_label()
   {
     sp_label *label= m_labels.head();
 
@@ -365,7 +366,7 @@ public:
     return label;
   }
 
-  sp_label * pop_label()
+  sp_label *pop_label()
   { return m_labels.pop(); }
 
   /////////////////////////////////////////////////////////////////////////
@@ -374,7 +375,8 @@ public:
 
   bool push_condition(LEX_STRING *name, sp_condition_value *value);
 
-  sp_condition_value * find_condition(const LEX_STRING *name,
+  /// See comment for find_variable() above.
+  sp_condition_value *find_condition(const LEX_STRING *name,
                                       bool current_scope_only) const;
 
   /////////////////////////////////////////////////////////////////////////
@@ -389,9 +391,9 @@ public:
   /// SQL-condition. This function is used to check for duplicates during
   /// the parsing phase.
   ///
-  /// This function can not be used during the execution phase to check
+  /// This function can not be used during the runtime phase to check
   /// SQL-handler existence because it searches for the SQL-handler in the
-  /// current scope only (during the execution current and parent scopes
+  /// current scope only (during runtime, current and parent scopes
   /// should be checked according to the SQL-handler resolution rules).
   ///
   /// @param condition_value the handler condition value
@@ -404,14 +406,14 @@ public:
   /// Find an SQL handler for the given SQL condition according to the
   /// SQL-handler resolution rules. This function is used at runtime.
   ///
-  /// @param sqlstate         The error SQL state
+  /// @param sqlstate         The SQL condition state
   /// @param sql_errno        The error code
-  /// @param level            The error level
+  /// @param level            The SQL condition level
   ///
   /// @return a pointer to the found SQL-handler or NULL.
-  sp_handler * find_handler(const char *sqlstate,
-                            uint sql_errno,
-                            Sql_condition::enum_warning_level level);
+  sp_handler *find_handler(const char *sqlstate,
+                           uint sql_errno,
+                           Sql_condition::enum_warning_level level);
 
   /////////////////////////////////////////////////////////////////////////
   // Cursors.
@@ -419,6 +421,7 @@ public:
 
   bool push_cursor(LEX_STRING *name);
 
+  /// See comment for find_variable() above.
   bool find_cursor(LEX_STRING *name, uint *poff, bool current_scope_only) const;
 
   /// Find cursor by offset (for debugging only).
@@ -438,12 +441,11 @@ private:
   */
   sp_pcontext(sp_pcontext *prev, enum_scope scope);
 
-  void init(uint var_offset,
-            uint cursor_offset,
-            int num_case_expressions);
+  void init(uint var_offset, uint cursor_offset, int num_case_expressions);
 
-  int get_num_handlers() const
-  { return m_handlers.elements(); }
+  /* Prevent use of these */
+  sp_pcontext(const sp_pcontext &);
+  void operator=(sp_pcontext &);
 
 private:
   /*
@@ -505,11 +507,6 @@ private:
 
   /// Scope of this parsing context.
   enum_scope m_scope;
-
-private:
-  /* Prevent use of these */
-  sp_pcontext(const sp_pcontext &);
-  void operator=(sp_pcontext &);
 }; // class sp_pcontext : public Sql_alloc
 
 
