@@ -41,6 +41,11 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("END_EVENT_ID") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("EVENT_NAME") },
     { C_STRING_WITH_LEN("varchar(128)") },
     { NULL, 0}
@@ -79,7 +84,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_events_stages_current::m_field_def=
-{9 , field_types };
+{10 , field_types };
 
 PFS_engine_table_share
 table_events_stages_current::m_share=
@@ -157,6 +162,7 @@ void table_events_stages_common::make_row(PFS_events_stages *stage)
 
   m_row.m_thread_internal_id= stage->m_thread_internal_id;
   m_row.m_event_id= stage->m_event_id;
+  m_row.m_end_event_id= stage->m_end_event_id;
   m_row.m_nesting_event_id= stage->m_nesting_event_id;
   m_row.m_nesting_event_type= stage->m_nesting_event_type;
 
@@ -207,37 +213,43 @@ int table_events_stages_common::read_row_values(TABLE *table,
       case 1: /* EVENT_ID */
         set_field_ulonglong(f, m_row.m_event_id);
         break;
-      case 2: /* EVENT_NAME */
+      case 2: /* END_EVENT_ID */
+        if (m_row.m_end_event_id > 0)
+          set_field_ulonglong(f, m_row.m_end_event_id - 1);
+        else
+          f->set_null();
+        break;
+      case 3: /* EVENT_NAME */
         set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
         break;
-      case 3: /* SOURCE */
+      case 4: /* SOURCE */
         set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
         break;
-      case 4: /* TIMER_START */
+      case 5: /* TIMER_START */
         if (m_row.m_timer_start != 0)
           set_field_ulonglong(f, m_row.m_timer_start);
         else
           f->set_null();
         break;
-      case 5: /* TIMER_END */
+      case 6: /* TIMER_END */
         if (m_row.m_timer_end != 0)
           set_field_ulonglong(f, m_row.m_timer_end);
         else
           f->set_null();
         break;
-      case 6: /* TIMER_WAIT */
+      case 7: /* TIMER_WAIT */
         if (m_row.m_timer_wait != 0)
           set_field_ulonglong(f, m_row.m_timer_wait);
         else
           f->set_null();
         break;
-      case 7: /* NESTING_EVENT_ID */
+      case 8: /* NESTING_EVENT_ID */
         if (m_row.m_nesting_event_id != 0)
           set_field_ulonglong(f, m_row.m_nesting_event_id);
         else
           f->set_null();
         break;
-      case 8: /* NESTING_EVENT_TYPE */
+      case 9: /* NESTING_EVENT_TYPE */
         if (m_row.m_nesting_event_id != 0)
           set_field_enum(f, m_row.m_nesting_event_type);
         else

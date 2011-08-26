@@ -2092,6 +2092,7 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_mutex->m_identity;
       wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_end_event_id= 0;
       wait->m_operation= mutex_operation_map[(int) op];
       wait->m_wait_class= WAIT_CLASS_MUTEX;
 
@@ -2179,6 +2180,7 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_rwlock->m_identity;
       wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_end_event_id= 0;
       wait->m_operation= rwlock_operation_map[static_cast<int> (op)];
       wait->m_wait_class= WAIT_CLASS_RWLOCK;
 
@@ -2283,6 +2285,7 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_cond->m_identity;
       wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_end_event_id= 0;
       wait->m_operation= cond_operation_map[static_cast<int> (op)];
       wait->m_wait_class= WAIT_CLASS_COND;
 
@@ -2412,6 +2415,7 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_table->m_identity;
       wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_end_event_id= 0;
       wait->m_operation= table_io_operation_map[static_cast<int> (op)];
       wait->m_flags= 0;
       wait->m_object_type= share->get_object_type();
@@ -2525,6 +2529,7 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_table->m_identity;
       wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_end_event_id= 0;
       wait->m_operation= table_lock_operation_map[lock_type];
       wait->m_flags= 0;
       wait->m_object_type= share->get_object_type();
@@ -2623,6 +2628,7 @@ get_thread_file_name_locker_v1(PSI_file_locker_state *state,
     wait->m_weak_file= pfs_file;
     wait->m_weak_version= pfs_file->get_version();
     wait->m_event_id= pfs_thread->m_event_id++;
+    wait->m_end_event_id= 0;
     wait->m_operation= file_operation_map[static_cast<int> (op)];
     wait->m_wait_class= WAIT_CLASS_FILE;
 
@@ -2694,6 +2700,7 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
       wait->m_weak_file= pfs_file;
       wait->m_weak_version= pfs_file->get_version();
       wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_end_event_id= 0;
       wait->m_operation= file_operation_map[static_cast<int> (op)];
       wait->m_wait_class= WAIT_CLASS_FILE;
 
@@ -2794,6 +2801,7 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
       wait->m_weak_file= pfs_file;
       wait->m_weak_version= pfs_file->get_version();
       wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_end_event_id= 0;
       wait->m_operation= file_operation_map[static_cast<int> (op)];
       wait->m_wait_class= WAIT_CLASS_FILE;
 
@@ -2888,6 +2896,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       wait->m_weak_socket=  pfs_socket;
       wait->m_weak_version= pfs_socket->get_version();
       wait->m_event_id=     pfs_thread->m_event_id++;
+      wait->m_end_event_id= 0;
       wait->m_operation=    socket_operation_map[static_cast<int>(op)];
       wait->m_wait_class=   WAIT_CLASS_SOCKET;
 
@@ -3149,6 +3158,7 @@ start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_
       wait->m_timer_start= timer_start;
       wait->m_timer_end= 0;
       wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_end_event_id= 0;
       wait->m_operation= OPERATION_TYPE_IDLE;
       wait->m_source_file= src_file;
       wait->m_source_line= src_line;
@@ -3214,6 +3224,7 @@ static void end_idle_wait_v1(PSI_idle_locker* locker)
       DBUG_ASSERT(wait != NULL);
 
       wait->m_timer_end= timer_end;
+      wait->m_event_id= thread->m_event_id;
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)
@@ -3312,6 +3323,7 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
       DBUG_ASSERT(wait != NULL);
 
       wait->m_timer_end= timer_end;
+      wait->m_end_event_id= thread->m_event_id;
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)
@@ -3416,6 +3428,7 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
       DBUG_ASSERT(wait != NULL);
 
       wait->m_timer_end= timer_end;
+      wait->m_end_event_id= thread->m_event_id;
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)
@@ -3513,6 +3526,7 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
       DBUG_ASSERT(wait != NULL);
 
       wait->m_timer_end= timer_end;
+      wait->m_end_event_id= thread->m_event_id;
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)
@@ -3603,6 +3617,7 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
       DBUG_ASSERT(wait != NULL);
 
       wait->m_timer_end= timer_end;
+      wait->m_end_event_id= thread->m_event_id;
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)
@@ -3704,6 +3719,7 @@ static void end_table_io_wait_v1(PSI_table_locker* locker)
     DBUG_ASSERT(wait != NULL);
 
     wait->m_timer_end= timer_end;
+    wait->m_end_event_id= thread->m_event_id;
     if (flag_events_waits_history)
       insert_events_waits_history(thread, wait);
     if (flag_events_waits_history_long)
@@ -3781,6 +3797,7 @@ static void end_table_lock_wait_v1(PSI_table_locker* locker)
     DBUG_ASSERT(wait != NULL);
 
     wait->m_timer_end= timer_end;
+    wait->m_end_event_id= thread->m_event_id;
     if (flag_events_waits_history)
       insert_events_waits_history(thread, wait);
     if (flag_events_waits_history_long)
@@ -3940,6 +3957,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
       DBUG_ASSERT(wait != NULL);
 
       wait->m_timer_end= timer_end;
+      wait->m_end_event_id= thread->m_event_id;
       wait->m_number_of_bytes= count;
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
@@ -4015,6 +4033,7 @@ static void start_stage_v1(PSI_stage_key key, const char *src_file, int src_line
 
     if (flag_events_stages_current)
     {
+      pfs->m_end_event_id= pfs_thread->m_event_id;
       if (flag_events_stages_history)
         insert_events_stages_history(pfs_thread, pfs);
       if (flag_events_stages_history_long)
@@ -4056,6 +4075,7 @@ static void start_stage_v1(PSI_stage_key key, const char *src_file, int src_line
     /* m_thread_internal_id is immutable and already set */
     DBUG_ASSERT(pfs->m_thread_internal_id == pfs_thread->m_thread_internal_id);
     pfs->m_event_id= pfs_thread->m_event_id++;
+    pfs->m_end_event_id= 0;
     pfs->m_source_file= src_file;
     pfs->m_source_line= src_line;
 
@@ -4106,6 +4126,7 @@ static void end_stage_v1()
 
     if (flag_events_stages_current)
     {
+      pfs->m_end_event_id= pfs_thread->m_event_id;
       if (flag_events_stages_history)
         insert_events_stages_history(pfs_thread, pfs);
       if (flag_events_stages_history_long)
@@ -4164,6 +4185,7 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       /* m_thread_internal_id is immutable and already set */
       DBUG_ASSERT(pfs->m_thread_internal_id == pfs_thread->m_thread_internal_id);
       pfs->m_event_id= event_id;
+      pfs->m_end_event_id= 0;
       pfs->m_class= klass;
       pfs->m_timer_start= 0;
       pfs->m_timer_end= 0;
@@ -4534,6 +4556,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       }
 
       pfs->m_timer_end= timer_end;
+      pfs->m_end_event_id= thread->m_event_id;
       if (flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
       if (flag_events_statements_history_long)
@@ -4713,6 +4736,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     DBUG_ASSERT(wait != NULL);
 
     wait->m_timer_end= timer_end;
+    wait->m_end_event_id= thread->m_event_id;
     wait->m_number_of_bytes= bytes;
 
     if (flag_events_waits_history)
