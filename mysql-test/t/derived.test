@@ -942,3 +942,14 @@ SELECT alias2.fk AS field1 FROM t1 AS alias1 JOIN
 DROP TABLE t1, t2;
 --echo #
 
+--echo #
+--echo # Bug#12910039: Incorrect merge caused segmentation fault.
+--echo #
+CREATE TABLE t1 (f1 int) ENGINE=myisam;
+CREATE TABLE t2 (f1 text) ENGINE=innodb;
+SELECT 1 FROM (
+  ( SELECT * FROM ( SELECT * FROM t2 ) AS alias1 ) AS alias1,
+  ( SELECT * FROM t1 ) AS alias2 );
+DROP TABLE t1,t2;
+--echo #
+
