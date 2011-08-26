@@ -1,0 +1,12 @@
+include/master-slave.inc
+[connection master]
+CREATE TABLE char128_utf8 (i1 INT NOT NULL, c CHAR(128) CHARACTER SET utf8 NOT NULL, i2 INT NOT NULL);
+INSERT INTO char128_utf8 VALUES ( 1, "123", 1 );
+SELECT * FROM char128_utf8;
+i1	c	i2
+1	123	1
+SELECT * FROM char128_utf8;
+i1	c	i2
+1	123	1
+DROP TABLE char128_utf8;
+include/rpl_end.inc

@@ -71,9 +71,6 @@ at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
 	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
-/* This is set to the MySQL server value for this variable. */
-extern uint	srv_lower_case_table_names;
-
 /* Mutex for locking srv_monitor_file */
 extern mutex_t	srv_monitor_file_mutex;
 /* Temporary file for innodb monitor output */

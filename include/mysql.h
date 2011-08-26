@@ -601,6 +601,8 @@ typedef struct st_mysql_bind
 } MYSQL_BIND;
 
 
+struct st_mysql_stmt_extension;
+
 /* statement handler */
 typedef struct st_mysql_stmt
 {
@@ -646,7 +648,7 @@ typedef struct st_mysql_stmt
     metadata fields when doing mysql_stmt_store_result.
   */
   my_bool       update_max_length;     
-  void *extension;
+  struct st_mysql_stmt_extension *extension;
 } MYSQL_STMT;
 
 enum enum_stmt_attr_type

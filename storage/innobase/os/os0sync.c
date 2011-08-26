@@ -558,10 +558,7 @@ os_event_free(
 }
 
 /**********************************************************//**
-Waits for an event object until it is in the signaled state. If
-srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS this also exits the
-waiting thread when the event becomes signaled (or immediately if the
-event is already in the signaled state).
+Waits for an event object until it is in the signaled state.
 
 Typically, if the event has been signalled after the os_event_reset()
 we'll return immediately because event->is_set == TRUE.
@@ -586,8 +583,6 @@ os_event_wait_low(
 					returned by previous call of
 					os_event_reset(). */
 {
-	ib_int64_t	old_signal_count;
-
 #ifdef __WIN__
 	if(!srv_use_native_conditions) {
 		DWORD	err;
@@ -600,43 +595,25 @@ os_event_wait_low(
 		err = WaitForSingleObject(event->handle, INFINITE);
 
 		ut_a(err == WAIT_OBJECT_0);
-
-		if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-			os_thread_exit(NULL);
-		}
 		return;
 	}
 #endif
 
-	os_fast_mutex_lock(&(event->os_mutex));
+	os_fast_mutex_lock(&event->os_mutex);
 
-	if (reset_sig_count) {
-		old_signal_count = reset_sig_count;
-	} else {
-		old_signal_count = event->signal_count;
+	if (!reset_sig_count) {
+		reset_sig_count = event->signal_count;
 	}
 
-	for (;;) {
-		if (event->is_set == TRUE
-		    || event->signal_count != old_signal_count) {
-
-			os_fast_mutex_unlock(&(event->os_mutex));
-
-			if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-
-				os_thread_exit(NULL);
-			}
-			/* Ok, we may return */
-
-			return;
-		}
-
+	while (!event->is_set && event->signal_count == reset_sig_count) {
 		os_cond_wait(&(event->cond_var), &(event->os_mutex));
 
 		/* Solaris manual said that spurious wakeups may occur: we
 		have to check if the event really has been signaled after
 		we came here to wait */
 	}
+
+	os_fast_mutex_unlock(&event->os_mutex);
 }
 
 /**********************************************************//**
@@ -657,7 +634,6 @@ os_event_wait_time_low(
 
 {
 	ibool		timed_out = FALSE;
-	ib_int64_t	old_signal_count;
 
 #ifdef __WIN__
 	DWORD		time_in_ms;
@@ -727,15 +703,12 @@ os_event_wait_time_low(
 
 	os_fast_mutex_lock(&event->os_mutex);
 
-	if (reset_sig_count) {
-		old_signal_count = reset_sig_count;
-	} else {
-		old_signal_count = event->signal_count;
+	if (!reset_sig_count) {
+		reset_sig_count = event->signal_count;
 	}
 
 	do {
-		if (event->is_set == TRUE
-		    || event->signal_count != old_signal_count) {
+		if (event->is_set || event->signal_count != reset_sig_count) {
 
 			break;
 		}
@@ -752,11 +725,6 @@ os_event_wait_time_low(
 	} while (!timed_out);
 
 	os_fast_mutex_unlock(&event->os_mutex);
-
-	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-
-		os_thread_exit(NULL);
-	}
 
 	return(timed_out ? OS_SYNC_TIME_EXCEEDED : 0);
 }

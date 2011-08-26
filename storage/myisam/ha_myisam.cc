@@ -643,9 +643,10 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
    can_enable_indexes(1)
 {}
 
-handler *ha_myisam::clone(MEM_ROOT *mem_root)
+handler *ha_myisam::clone(const char *name, MEM_ROOT *mem_root)
 {
-  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(mem_root));
+  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(name,
+                                                                   mem_root));
   if (new_handler)
     new_handler->file->state= file->state;
   return new_handler;

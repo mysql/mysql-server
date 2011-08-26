@@ -52,7 +52,6 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "que0que.h"
 #include "rem0cmp.h"
 #include "row0merge.h"
-#include "srv0srv.h" /* srv_lower_case_table_names */
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str()*/
 
@@ -3029,14 +3028,14 @@ dict_scan_table_name(
 	/* Values;  0 = Store and compare as given; case sensitive
 	            1 = Store and compare in lower; case insensitive
 	            2 = Store as given, compare in lower; case semi-sensitive */
-	if (srv_lower_case_table_names == 2) {
+	if (innobase_get_lower_case_table_names() == 2) {
 		innobase_casedn_str(ref);
 		*table = dict_table_get_low(ref);
 		memcpy(ref, database_name, database_name_len);
 		ref[database_name_len] = '/';
 		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
 	} else {
-		if (srv_lower_case_table_names == 1) {
+		if (innobase_get_lower_case_table_names() == 1) {
 			innobase_casedn_str(ref);
 		}
 		*table = dict_table_get_low(ref);

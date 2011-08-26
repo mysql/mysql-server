@@ -79,6 +79,33 @@ static bool xa_trans_rolled_back(XID_STATE *xid_state)
 
 
 /**
+  Rollback the active XA transaction.
+
+  @note Resets rm_error before calling ha_rollback(), so
+        the thd->transaction.xid structure gets reset
+        by ha_rollback() / THD::transaction::cleanup().
+
+  @return TRUE if the rollback failed, FALSE otherwise.
+*/
+
+static bool xa_trans_force_rollback(THD *thd)
+{
+  /*
+    We must reset rm_error before calling ha_rollback(),
+    so thd->transaction.xid structure gets reset
+    by ha_rollback()/THD::transaction::cleanup().
+  */
+  thd->transaction.xid_state.rm_error= 0;
+  if (ha_rollback_trans(thd, true))
+  {
+    my_error(ER_XAER_RMERR, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+
+/**
   Begin a new transaction.
 
   @note Beginning a transaction implicitly commits any current
@@ -362,6 +389,13 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
 
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (xa_state != XA_NOTR)
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
+    DBUG_RETURN(TRUE);
+  }
+
   sv= find_savepoint(thd, name);
 
   if (*sv) /* old savepoint of the same name exists */
@@ -432,6 +466,13 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   if (sv == NULL)
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", name.str);
+    DBUG_RETURN(TRUE);
+  }
+
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (xa_state != XA_NOTR)
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
     DBUG_RETURN(TRUE);
   }
 
@@ -635,8 +676,7 @@ bool trans_xa_commit(THD *thd)
 
   if (xa_trans_rolled_back(&thd->transaction.xid_state))
   {
-    if (ha_rollback_trans(thd, TRUE))
-      my_error(ER_XAER_RMERR, MYF(0));
+    xa_trans_force_rollback(thd);
     res= thd->is_error();
   }
   else if (xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
@@ -725,15 +765,7 @@ bool trans_xa_rollback(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  /*
-    Resource Manager error is meaningless at this point, as we perform
-    explicit rollback request by user. We must reset rm_error before
-    calling ha_rollback(), so thd->transaction.xid structure gets reset
-    by ha_rollback()/THD::transaction::cleanup().
-  */
-  thd->transaction.xid_state.rm_error= 0;
-  if ((res= test(ha_rollback_trans(thd, TRUE))))
-    my_error(ER_XAER_RMERR, MYF(0));
+  res= xa_trans_force_rollback(thd);
 
   thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;

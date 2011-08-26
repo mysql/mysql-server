@@ -2262,7 +2262,7 @@ loop:
 	may not be the same case, but the previous comparison showed that they
 	match with no-case.  */
 
-	if ((srv_lower_case_table_names != 2)
+	if ((innobase_get_lower_case_table_names() != 2)
 	    && (0 != ut_memcmp(field, table_name, len))) {
 		goto next_rec;
 	}

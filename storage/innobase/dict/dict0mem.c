@@ -33,7 +33,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
-#include "srv0srv.h" /* srv_lower_case_table_names */
 #include "ha_prototypes.h" /* innobase_casedn_str()*/
 #ifndef UNIV_HOTBACKUP
 # include "lock0lock.h"
@@ -294,9 +293,9 @@ dict_mem_foreign_create(void)
 
 /**********************************************************************//**
 Sets the foreign_table_name_lookup pointer based on the value of
-srv_lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
-will point to foreign_table_name.  If 2, then another string is allocated
-of the heap and set to lower case. */
+lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
+will point to foreign_table_name.  If 2, then another string is
+allocated from foreign->heap and set to lower case. */
 UNIV_INTERN
 void
 dict_mem_foreign_table_name_lookup_set(
@@ -304,7 +303,7 @@ dict_mem_foreign_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc)	/*!< in: is an alloc needed */
 {
-	if (srv_lower_case_table_names == 2) {
+	if (innobase_get_lower_case_table_names() == 2) {
 		if (do_alloc) {
 			foreign->foreign_table_name_lookup = mem_heap_alloc(
 				foreign->heap,
@@ -321,9 +320,9 @@ dict_mem_foreign_table_name_lookup_set(
 
 /**********************************************************************//**
 Sets the referenced_table_name_lookup pointer based on the value of
-srv_lower_case_table_names.  If that is 0 or 1,
-referenced_table_name_lookup will point to referenced_table_name.  If 2,
-then another string is allocated of the heap and set to lower case. */
+lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
+will point to referenced_table_name.  If 2, then another string is
+allocated from foreign->heap and set to lower case. */
 UNIV_INTERN
 void
 dict_mem_referenced_table_name_lookup_set(
@@ -331,7 +330,7 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc)	/*!< in: is an alloc needed */
 {
-	if (srv_lower_case_table_names == 2) {
+	if (innobase_get_lower_case_table_names() == 2) {
 		if (do_alloc) {
 			foreign->referenced_table_name_lookup = mem_heap_alloc(
 				foreign->heap,

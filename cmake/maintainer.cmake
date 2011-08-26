@@ -35,7 +35,7 @@ ENDMACRO()
 # Setup G++ (GNU C++ compiler) warning options.
 MACRO(SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS)
   SET(MY_MAINTAINER_CXX_WARNINGS
-      "${MY_MAINTAINER_WARNINGS} -Wno-unused-parameter"
+      "${MY_MAINTAINER_WARNINGS} -Wno-unused-parameter -Woverloaded-virtual"
       CACHE STRING "C++ warning options used in maintainer builds.")
 ENDMACRO()
 

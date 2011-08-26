@@ -1391,3 +1391,16 @@ CREATE DATABASE db1 CHARACTER SET utf8;
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
 ALTER TABLE db1.t1 ADD baz INT;
 DROP DATABASE db1;
+#
+# Bug#11938039 RE-EXECUTION OF FRM-ONLY ALTER TABLE WITH RENAME
+#              CLAUSE FAILS OR ABORTS SERVER.
+#
+drop table if exists t1;
+create table t1 (a int);
+prepare stmt1 from 'alter table t1 alter column a set default 1, rename to t2';
+execute stmt1;
+rename table t2 to t1;
+# The below statement should succeed and not emit error or abort server.
+execute stmt1;
+deallocate prepare stmt1;
+drop table t2;

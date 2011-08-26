@@ -71,3 +71,32 @@ select count(*) from t2;
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
 drop table t1;
 drop table t2;
+
+#
+# BUG#12354268
+#
+# This test verifies that using --start-position with DECODE-ROWS
+# does not make mysqlbinlog to output an error stating that it
+# does not contain any FD event.
+#
+
+RESET MASTER;
+USE test;
+SET @old_binlog_format= @@binlog_format;
+SET SESSION binlog_format=ROW;
+CREATE TABLE t1(c1 INT);
+--let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+
+INSERT INTO t1 VALUES (1);
+
+FLUSH LOGS;
+
+--disable_result_log 
+--exec $MYSQL_BINLOG --base64-output=DECODE-ROWS --start-position=$master_pos -v $MYSQLD_DATADIR/$master_binlog
+--enable_result_log 
+
+DROP TABLE t1;
+SET SESSION binlog_format= @old_binlog_format;
+RESET MASTER;

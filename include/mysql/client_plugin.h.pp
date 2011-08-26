@@ -35,6 +35,5 @@ mysql_client_find_plugin(struct st_mysql *mysql, const char *name, int type);
 struct st_mysql_client_plugin *
 mysql_client_register_plugin(struct st_mysql *mysql,
                              struct st_mysql_client_plugin *plugin);
-int STDCALL mysql_plugin_options(struct st_mysql_client_plugin *plugin,
-                                 const char *option,
-                                 const void *value);
+int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
+                         const char *option, const void *value);

@@ -2208,4 +2208,22 @@ trigger_name
 # Clean-up.
 drop temporary table t1;
 drop table t1;
-End of 6.0 tests.
+
+#
+# Bug #12362125: SP INOUT HANDLING IS BROKEN FOR TEXT TYPE.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c TEXT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+DECLARE v TEXT;
+SET v = 'aaa';
+SET NEW.c = v;
+END|
+INSERT INTO t1 VALUES('qazwsxedc');
+SELECT c FROM t1;
+c
+aaa
+DROP TABLE t1;
+
+End of 5.5 tests.

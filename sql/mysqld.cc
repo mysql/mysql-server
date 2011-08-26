@@ -245,11 +245,7 @@ inline void setup_fpu()
 
 #define MYSQL_KILL_SIGNAL SIGTERM
 
-#ifdef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
-#include <sys/types.h>
-#else
 #include <my_pthread.h>			// For thr_setconcurency()
-#endif
 
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);

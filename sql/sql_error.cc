@@ -1,5 +1,4 @@
-/* Copyright (C) 1995-2002 MySQL AB,
-   Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -458,10 +457,11 @@ Diagnostics_area::disable_status()
   m_status= DA_DISABLED;
 }
 
-Warning_info::Warning_info(ulonglong warn_id_arg)
+Warning_info::Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings)
   :m_statement_warn_count(0),
   m_current_row_for_warning(1),
   m_warn_id(warn_id_arg),
+  m_allow_unlimited_warnings(allow_unlimited_warnings),
   m_read_only(FALSE)
 {
   /* Initialize sub structures */
@@ -543,7 +543,8 @@ MYSQL_ERROR *Warning_info::push_warning(THD *thd,
 
   if (! m_read_only)
   {
-    if (m_warn_list.elements < thd->variables.max_error_count)
+    if (m_allow_unlimited_warnings ||
+        m_warn_list.elements < thd->variables.max_error_count)
     {
       cond= new (& m_warn_root) MYSQL_ERROR(& m_warn_root);
       if (cond)
@@ -557,6 +558,20 @@ MYSQL_ERROR *Warning_info::push_warning(THD *thd,
 
   m_statement_warn_count++;
   return cond;
+}
+
+MYSQL_ERROR *Warning_info::push_warning(THD *thd, const MYSQL_ERROR *sql_condition)
+{
+  MYSQL_ERROR *new_condition= push_warning(thd,
+                                           sql_condition->get_sql_errno(),
+                                           sql_condition->get_sqlstate(),
+                                           sql_condition->get_level(),
+                                           sql_condition->get_message_text());
+
+  if (new_condition)
+    new_condition->copy_opt_attributes(sql_condition);
+
+  return new_condition;
 }
 
 /*

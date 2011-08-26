@@ -413,13 +413,6 @@ sync_thread_reset_level(
 /*====================*/
 	void*	latch);	/*!< in: pointer to a mutex or an rw-lock */
 /******************************************************************//**
-Checks that the level array for the current thread is empty.
-@return	TRUE if empty */
-UNIV_INTERN
-ibool
-sync_thread_levels_empty(void);
-/*==========================*/
-/******************************************************************//**
 Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
 @return	a matching latch, or NULL if not found */
@@ -430,17 +423,33 @@ sync_thread_levels_contains(
 	ulint	level);			/*!< in: latching order level
 					(SYNC_DICT, ...)*/
 /******************************************************************//**
-Checks if the level array for the current thread is empty.
+Checks that the level array for the current thread is empty.
 @return	a latch, or NULL if empty except the exceptions specified below */
 UNIV_INTERN
 void*
 sync_thread_levels_nonempty_gen(
 /*============================*/
-	ibool	dict_mutex_allowed);	/*!< in: TRUE if dictionary mutex is
-					allowed to be owned by the thread,
-					also purge_is_running mutex is
-					allowed */
-#define sync_thread_levels_empty_gen(d) (!sync_thread_levels_nonempty_gen(d))
+	ibool	dict_mutex_allowed)	/*!< in: TRUE if dictionary mutex is
+					allowed to be owned by the thread */
+	__attribute__((warn_unused_result));
+/******************************************************************//**
+Checks if the level array for the current thread is empty,
+except for data dictionary latches. */
+#define sync_thread_levels_empty_except_dict()		\
+	(!sync_thread_levels_nonempty_gen(TRUE))
+/******************************************************************//**
+Checks if the level array for the current thread is empty,
+except for the btr_search_latch.
+@return	a latch, or NULL if empty except the exceptions specified below */
+UNIV_INTERN
+void*
+sync_thread_levels_nonempty_trx(
+/*============================*/
+	ibool	has_search_latch)
+				/*!< in: TRUE if and only if the thread
+				is supposed to hold btr_search_latch */
+	__attribute__((warn_unused_result));
+
 /******************************************************************//**
 Gets the debug information for a reserved mutex. */
 UNIV_INTERN

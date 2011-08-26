@@ -296,6 +296,15 @@ void
 trx_undo_insert_cleanup(
 /*====================*/
 	trx_t*	trx);	/*!< in: transaction handle */
+
+/********************************************************************//**
+At shutdown, frees the undo logs of a PREPARED transaction. */
+UNIV_INTERN
+void
+trx_undo_free_prepared(
+/*===================*/
+	trx_t*	trx)	/*!< in/out: PREPARED transaction */
+	UNIV_COLD __attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses the redo log entry of an undo log page initialization.
