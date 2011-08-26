@@ -81,6 +81,8 @@ sp_pcontext::~sp_pcontext()
 {
   for (int i= 0; i < m_children.elements(); ++i)
     delete m_children.at(i);
+  for (int i= 0; i < m_handlers.elements(); ++i)
+    delete m_handlers.at(i);
 }
 
 
