@@ -901,9 +901,10 @@ inline_mysql_socket_accept
     PSI_CALL(set_socket_info)(socket_accept.m_psi, &socket_accept.fd, addr,
                               addr_length);
   return socket_accept;
-#endif
+#else
   socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
   return socket_accept;
+#endif
 }
 
 /** mysql_socket_close */
