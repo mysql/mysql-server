@@ -699,20 +699,8 @@ buf_calc_page_old_checksum(
 
 #endif /* INNOCHECKSUM_SOLARIS */
 
-/* needed to have access to 64 bit file functions */
-#ifndef _LARGEFILE_SOURCE
-#define _LARGEFILE_SOURCE
-#endif /* _LARGEFILE_SOURCE */
 
-#ifndef _LARGEFILE64_SOURCE
-#define _LARGEFILE64_SOURCE
-#endif /* _LARGEFILE64_SOURCE */
-
-#ifdef _XOPEN_SOURCE
-#undef _XOPEN_SOURCE
-#endif /* _XOPEN_SOURCE */
-#define _XOPEN_SOURCE 500 /* needed to include getopt.h on some platforms. */
-
+#include <my_global.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

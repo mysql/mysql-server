@@ -106,13 +106,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    FROM mysqltest.my_socket_summary_by_instance
    WHERE pk = 'After' AND NOT ($my_rules)
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
-
-   --echo # Debug 2a: Dump socket_summary_by_instance
-   eval
-   SELECT EVENT_NAME, OBJECT_INSTANCE_BEGIN,
-      $part
-   FROM performance_schema.socket_summary_by_instance
-   ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
+   let $print_details= 1;
 }
 
 
@@ -151,6 +145,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    FROM mysqltest.my_socket_summary_by_instance
    WHERE pk = 'After' AND NOT ($my_rules)
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
+   let $print_details= 1;
 }
 
 
@@ -184,6 +179,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    FROM mysqltest.my_socket_summary_by_instance
    WHERE pk = 'After'
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
+   let $print_details= 1;
 }
 
 
@@ -213,6 +209,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    FROM mysqltest.my_socket_summary_by_instance
    WHERE pk = 'After'
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
+   let $print_details= 1;
 }
 
 
@@ -242,6 +239,7 @@ if(`SELECT SUM($my_rules) <> COUNT(*) FROM mysqltest.my_socket_summary_by_instan
    FROM mysqltest.my_socket_summary_by_instance
    WHERE pk = 'After'
    ORDER BY EVENT_NAME, OBJECT_INSTANCE_BEGIN;
+   let $print_details= 1;
 }
 
 --horizontal_results

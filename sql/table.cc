@@ -5283,7 +5283,8 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   for (reg_field=field ; *reg_field; i++, reg_field++)
   {
     // Ensure that we're not creating a key over a blob field.
-    DBUG_ASSERT(!(key_parts & (1 << i) && (*reg_field)->flags & BLOB_FLAG));
+    DBUG_ASSERT(!((key_parts & (1ULL << i)) &&
+                (*reg_field)->flags & BLOB_FLAG));
     field_count++;
   }
   uint key_part_count= my_count_bits(key_parts);
@@ -5312,7 +5313,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   keys_in_use_for_order_by.set_bit(s->keys);
   for (i= 0, reg_field=field ; *reg_field; i++, reg_field++)
   {
-    if (!(key_parts & (1 << i)))
+    if (!(key_parts & (1ULL << i)))
       continue;
 
     if (key_start)
@@ -5846,8 +5847,8 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
 
   for (uint i= 0; i < num_values; i++)
   {
-    table_map tables= values[i]->used_tables();
-    if (!tables)
+    table_map tables= values[i]->used_tables() & ~PSEUDO_TABLE_BITS;
+    if (!tables || values[i]->real_item()->type() != Item::FIELD_ITEM)
       continue;
     for (table_map tbl= 1; tables >= tbl; tbl<<= 1)
     {

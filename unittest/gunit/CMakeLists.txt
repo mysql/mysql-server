@@ -207,6 +207,7 @@ SET(TESTS
   bounded_queue
   bounds_checked_array
   dbug
+  decimal
   dynarray
   mdl
   mdl_mytap
