@@ -1370,7 +1370,7 @@ srv_export_innodb_status(void)
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
 @return	a dummy parameter */
-UNIV_INTERN
+extern "C" UNIV_INTERN
 os_thread_ret_t
 srv_monitor_thread(
 /*===============*/
@@ -1540,7 +1540,7 @@ exit_func:
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs.
 @return	a dummy parameter */
-UNIV_INTERN
+extern "C" UNIV_INTERN
 os_thread_ret_t
 srv_error_monitor_thread(
 /*=====================*/
@@ -2258,7 +2258,7 @@ srv_master_sleep(void)
 /*********************************************************************//**
 The master thread controlling the server.
 @return	a dummy parameter */
-UNIV_INTERN
+extern "C" UNIV_INTERN
 os_thread_ret_t
 srv_master_thread(
 /*==============*/
@@ -2335,6 +2335,8 @@ suspend_thread:
 	}
 
 	goto loop;
+
+	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
 }
 
 /*********************************************************************//**
@@ -2376,7 +2378,7 @@ srv_task_execute(void)
 /*********************************************************************//**
 Worker thread that reads tasks from the work queue and executes them.
 @return	a dummy parameter */
-UNIV_INTERN
+extern "C" UNIV_INTERN
 os_thread_ret_t
 srv_worker_thread(
 /*==============*/
@@ -2507,7 +2509,7 @@ srv_do_purge(
 /*********************************************************************//**
 Purge coordinator thread that schedules the purge tasks.
 @return	a dummy parameter */
-UNIV_INTERN
+extern "C" UNIV_INTERN
 os_thread_ret_t
 srv_purge_coordinator_thread(
 /*=========================*/

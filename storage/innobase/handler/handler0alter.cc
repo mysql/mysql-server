@@ -704,7 +704,7 @@ UNIV_INTERN
 int
 ha_innobase::add_index(
 /*===================*/
-	TABLE*			table,		/*!< in: Table where indexes
+	TABLE*			in_table,	/*!< in: Table where indexes
 						are created */
 	KEY*			key_info,	/*!< in: Indexes
 						to be created */
@@ -1144,7 +1144,7 @@ UNIV_INTERN
 int
 ha_innobase::prepare_drop_index(
 /*============================*/
-	TABLE*	table,		/*!< in: Table where indexes are dropped */
+	TABLE*	in_table,	/*!< in: Table where indexes are dropped */
 	uint*	key_num,	/*!< in: Key nums to be dropped */
 	uint	num_of_keys)	/*!< in: Number of keys to be dropped */
 {
@@ -1348,7 +1348,8 @@ UNIV_INTERN
 int
 ha_innobase::final_drop_index(
 /*==========================*/
-	TABLE*	table)		/*!< in: Table where indexes are dropped */
+	TABLE*	        iin_table)	/*!< in: Table where indexes
+					are dropped */
 {
 	dict_index_t*	index;		/*!< Index to be dropped */
 	trx_t*		trx;		/*!< Transaction */

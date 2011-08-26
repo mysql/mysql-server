@@ -35,7 +35,6 @@ can wait inside InnoDB */
 
 #define	OS_THREAD_MAX_N		srv_max_n_threads
 
-
 /* Possible fixed priorities for threads */
 #define OS_THREAD_PRIORITY_NONE		100
 #define OS_THREAD_PRIORITY_BACKGROUND	1
@@ -46,11 +45,13 @@ can wait inside InnoDB */
 typedef void*			os_thread_t;
 typedef DWORD			os_thread_id_t;	/*!< In Windows the thread id
 						is an unsigned long int */
+extern "C"  { typedef DWORD	(*os_thread_func_t)(LPVOID); }
 #else
 typedef pthread_t		os_thread_t;
 typedef os_thread_t		os_thread_id_t;	/*!< In Unix we use the thread
 						handle itself as the id of
 						the thread */
+extern "C"  { typedef void*	(*os_thread_func_t)(void*); }
 #endif
 
 /* Define a function pointer type to use in a typecast */
@@ -90,12 +91,8 @@ UNIV_INTERN
 os_thread_t
 os_thread_create(
 /*=============*/
-#ifndef __WIN__
-	os_posix_f_t		start_f,
-#else
-	ulint (*start_f)(void*),		/*!< in: pointer to function
+	os_thread_func_t	func,		/*!< in: pointer to function
 						from which to start */
-#endif
 	void*			arg,		/*!< in: argument to start
 						function */
 	os_thread_id_t*		thread_id);	/*!< out: id of the created

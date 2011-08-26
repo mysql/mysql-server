@@ -692,6 +692,8 @@ page_zip_dir_encode(
 	ut_a(i + PAGE_HEAP_NO_USER_LOW == n_heap);
 }
 
+extern "C" {
+
 /**********************************************************************//**
 Allocate memory for zlib. */
 static
@@ -715,6 +717,8 @@ page_zip_free(
 	void*	address __attribute__((unused)))/*!< in: object to free */
 {
 }
+
+} /* extern "C" */
 
 /**********************************************************************//**
 Configure the zlib allocator to use the given memory heap. */
