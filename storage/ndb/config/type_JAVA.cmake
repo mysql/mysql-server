@@ -184,7 +184,8 @@ MACRO(CREATE_JAR)
     OUTPUT ${JAR}
     COMMAND echo \"${JAVA_ARCHIVE} ${_ARG} ${JAR}.tmp ${ARG_MANIFEST} -C ${CLASS_DIR} .\"
     COMMAND ${JAVA_ARCHIVE} ${_ARG} ${JAR}.tmp ${ARG_MANIFEST} -C ${CLASS_DIR} .
-    COMMAND ${CMAKE_COMMAND} -E rename ${JAR}.tmp ${JAR}
+    COMMAND ${CMAKE_COMMAND} -E copy ${JAR}.tmp ${JAR}
+    COMMAND ${CMAKE_COMMAND} -E remove ${JAR}.tmp
     COMMENT "Creating ${TARGET}.jar"
     DEPENDS ${MARKER}
   )
