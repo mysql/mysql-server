@@ -44,7 +44,7 @@ Created April 08, 2011 Vasil Dimov
 enum status_severity {
 	STATUS_INFO,
 	STATUS_NOTICE,
-	STATUS_ERR,
+	STATUS_ERR
 };
 
 #define SHUTTING_DOWN()	(UNIV_UNLIKELY(srv_shutdown_state \
@@ -571,7 +571,7 @@ This is the main thread for buffer pool dump/load. It waits for an
 event and when waked up either performs a dump or load and sleeps
 again.
 @return this function does not return, it calls os_thread_exit() */
-UNIV_INTERN
+extern "C" UNIV_INTERN
 os_thread_ret_t
 buf_dump_thread(
 /*============*/

@@ -771,7 +771,7 @@ committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back.
 Note: this is done in a background thread.
 @return	a dummy parameter */
-UNIV_INTERN
+extern "C" UNIV_INTERN
 os_thread_ret_t
 trx_rollback_or_clean_all_recovered(
 /*================================*/

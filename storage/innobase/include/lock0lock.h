@@ -736,7 +736,7 @@ lock_table_has_locks(
 /*********************************************************************//**
 A thread which wakes up threads whose lock wait may have lasted too long.
 @return	a dummy parameter */
-UNIV_INTERN
+extern "C" UNIV_INTERN
 os_thread_ret_t
 lock_wait_timeout_thread(
 /*====================*/

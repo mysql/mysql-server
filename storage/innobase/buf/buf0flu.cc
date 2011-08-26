@@ -2635,7 +2635,7 @@ page_cleaner_sleep_if_needed(
 page_cleaner thread tasked with flushing dirty pages from the buffer
 pools. As of now we'll have only one instance of this thread.
 @return a dummy parameter */
-UNIV_INTERN
+extern "C" UNIV_INTERN
 os_thread_ret_t
 buf_flush_page_cleaner_thread(
 /*==========================*/

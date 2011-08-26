@@ -107,12 +107,8 @@ UNIV_INTERN
 os_thread_t
 os_thread_create(
 /*=============*/
-#ifndef __WIN__
-	os_posix_f_t		start_f,
-#else
-	ulint (*start_f)(void*),		/*!< in: pointer to function
+	os_thread_func_t	func,		/*!< in: pointer to function
 						from which to start */
-#endif
 	void*			arg,		/*!< in: argument to start
 						function */
 	os_thread_id_t*		thread_id)	/*!< out: id of the created
@@ -128,7 +124,7 @@ os_thread_create(
 
 	thread = CreateThread(NULL,	/* no security attributes */
 			      0,	/* default size stack */
-			      (LPTHREAD_START_ROUTINE)start_f,
+			      (LPTHREAD_START_ROUTINE) func,
 			      arg,
 			      0,	/* thread runs immediately */
 			      &win_thread_id);
@@ -168,9 +164,9 @@ os_thread_create(
 	os_mutex_exit(os_sync_mutex);
 
 #ifdef UNIV_HPUX10
-	ret = pthread_create(&pthread, pthread_attr_default, start_f, arg);
+	ret = pthread_create(&pthread, pthread_attr_default, func, arg);
 #else
-	ret = pthread_create(&pthread, &attr, start_f, arg);
+	ret = pthread_create(&pthread, &attr, func, arg);
 #endif
 	if (ret) {
 		fprintf(stderr,

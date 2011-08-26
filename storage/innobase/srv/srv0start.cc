@@ -469,7 +469,7 @@ srv_free_paths_and_sizes(void)
 /********************************************************************//**
 I/o-handler thread function.
 @return	OS_THREAD_DUMMY_RETURN */
-static
+extern "C" UNIV_INTERN
 os_thread_ret_t
 io_handler_thread(
 /*==============*/
@@ -2131,16 +2131,19 @@ innobase_start_or_create_for_mysql(void)
 		srv_undo_tablespaces, srv_undo_logs);
 
 	/* Create the thread which watches the timeouts for lock waits */
-	os_thread_create(&lock_wait_timeout_thread, NULL,
-			 thread_ids + 2 + SRV_MAX_N_IO_THREADS);
+	os_thread_create(
+		lock_wait_timeout_thread,
+		NULL, thread_ids + 2 + SRV_MAX_N_IO_THREADS);
 
 	/* Create the thread which warns of long semaphore waits */
-	os_thread_create(&srv_error_monitor_thread, NULL,
-			 thread_ids + 3 + SRV_MAX_N_IO_THREADS);
+	os_thread_create(
+		srv_error_monitor_thread,
+		NULL, thread_ids + 3 + SRV_MAX_N_IO_THREADS);
 
 	/* Create the thread which prints InnoDB monitor info */
-	os_thread_create(&srv_monitor_thread, NULL,
-			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+	os_thread_create(
+		srv_monitor_thread,
+		NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
 
 	srv_is_being_started = FALSE;
 
@@ -2155,8 +2158,9 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the master thread which does purge and other utility
 	operations */
 
-	os_thread_create(&srv_master_thread, NULL, thread_ids
-			 + (1 + SRV_MAX_N_IO_THREADS));
+	os_thread_create(
+		srv_master_thread,
+		NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
 
 	/* If the user has requested a separate purge thread then
 	start the purge thread. */
@@ -2164,21 +2168,22 @@ innobase_start_or_create_for_mysql(void)
 	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
 
 		os_thread_create(
-			&srv_purge_coordinator_thread, NULL,
-			thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+			srv_purge_coordinator_thread,
+			NULL, thread_ids + 5 + SRV_MAX_N_IO_THREADS);
 
 		ut_a(UT_ARR_SIZE(thread_ids)
 		     > 5 + srv_n_purge_threads + SRV_MAX_N_IO_THREADS);
 
 		for (i = 1; i < srv_n_purge_threads; ++i) {
 			os_thread_create(
-				&srv_worker_thread, NULL,
+				srv_worker_thread, NULL,
 				thread_ids + 5 + i + SRV_MAX_N_IO_THREADS);
 		}
 	}
 
-	/* Create the page_cleaner thread */
-	os_thread_create(&buf_flush_page_cleaner_thread, NULL, NULL);
+
+	os_thread_create(
+		buf_flush_page_cleaner_thread, NULL, NULL);
 
 	/* Wait for the purge coordinator and master thread to startup. */
 

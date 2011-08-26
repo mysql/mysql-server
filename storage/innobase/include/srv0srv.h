@@ -542,15 +542,6 @@ srv_set_io_thread_op_info(
 	ulint		i,	/*!< in: the 'segment' of the i/o thread */
 	const char*	str);	/*!< in: constant char string describing the
 				state */
-/*********************************************************************//**
-The master thread controlling the server.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_master_thread(
-/*==============*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
 /*******************************************************************//**
 Tells the purge thread that there has been activity in the database
 and wakes up the purge thread if it is suspended (not sleeping).  Note
@@ -583,25 +574,6 @@ UNIV_INTERN
 void
 srv_wake_master_thread(void);
 /*========================*/
-/*********************************************************************//**
-A thread which prints the info output by various InnoDB monitors.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_monitor_thread(
-/*===============*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
-/*************************************************************************
-A thread which prints warnings about semaphore waits which have lasted
-too long. These can be used to track bugs which cause hangs.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_error_monitor_thread(
-/*=====================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
 /******************************************************************//**
 Outputs to a file the output of the InnoDB Monitor.
 @return FALSE if not all information printed
@@ -666,6 +638,39 @@ enum srv_thread_type
 srv_get_active_thread_type(void);
 /*============================*/
 
+extern "C" {
+
+/*********************************************************************//**
+A thread which prints the info output by various InnoDB monitors.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_monitor_thread(
+/*===============*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
+/*********************************************************************//**
+The master thread controlling the server.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_master_thread(
+/*==============*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
+/*************************************************************************
+A thread which prints warnings about semaphore waits which have lasted
+too long. These can be used to track bugs which cause hangs.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_error_monitor_thread(
+/*=====================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
 /*********************************************************************//**
 Purge coordinator thread that schedules the purge tasks.
 @return	a dummy parameter */
@@ -685,6 +690,7 @@ srv_worker_thread(
 /*==============*/
 	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
 						required by os_thread_create */
+} /* extern "C" */
 
 /*******************************************************************//**
 Wakes up the worker threads. */

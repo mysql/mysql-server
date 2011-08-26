@@ -3326,8 +3326,7 @@ recv_recovery_rollback_active(void)
 		/* Rollback the uncommitted transactions which have no user
 		session */
 
-		os_thread_create(trx_rollback_or_clean_all_recovered,
-				 (void *)&i, NULL);
+		os_thread_create(trx_rollback_or_clean_all_recovered, &i, NULL);
 	}
 }
 
