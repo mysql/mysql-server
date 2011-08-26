@@ -2993,6 +2993,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
   uint i,table_count,const_count,key;
   table_map found_const_table_map, all_table_map, found_ref, refs;
   key_map const_ref, eq_part;
+  bool has_expensive_keyparts;
   TABLE **table_vector;
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
   KEYUSE *keyuse,*start_keyuse;
@@ -3314,12 +3315,17 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
 	  refs=0;
           const_ref.clear_all();
 	  eq_part.clear_all();
+          has_expensive_keyparts= false;
 	  do
 	  {
 	    if (keyuse->val->type() != Item::NULL_ITEM && !keyuse->optimize)
 	    {
 	      if (!((~found_const_table_map) & keyuse->used_tables))
+              {
 		const_ref.set_bit(keyuse->keypart);
+                if (keyuse->val->is_expensive())
+                  has_expensive_keyparts= true;
+              }
 	      else
 		refs|=keyuse->used_tables;
 	      eq_part.set_bit(keyuse->keypart);
@@ -3341,6 +3347,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
             if (table->key_info[key].flags & HA_NOSAME)
             {
 	      if (const_ref == eq_part &&
+                  !has_expensive_keyparts &&
                   !((outer_join & table->map) &&
                     (*s->on_expr_ref)->is_expensive()))
 	      {					// Found everything for ref.

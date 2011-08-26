@@ -241,5 +241,27 @@ call p1();
 drop procedure p1;
 drop tables t1,t2,t3;
 
-set optimizer_switch=@subselect_innodb_tmp;
+--echo #
+--echo # LP BUG#827416: Crash in select_describe() on EXPLAIN with DISTINCT in nested subqueries
+--echo #
 
+CREATE TABLE t3 ( b int) ENGINE=InnoDB;
+CREATE TABLE t2 ( c int) ENGINE=InnoDB;
+CREATE TABLE t1 ( a int NOT NULL , PRIMARY KEY (a)) ENGINE=InnoDB;
+
+EXPLAIN SELECT *
+FROM t1
+WHERE t1.a = (
+        SELECT SUM( c )
+        FROM t2
+        WHERE (SELECT DISTINCT b FROM t3) > 0);
+SELECT *
+FROM t1
+WHERE t1.a = (
+        SELECT SUM( c )
+        FROM t2
+        WHERE (SELECT DISTINCT b FROM t3) > 0);
+
+DROP TABLE t1, t2, t3;
+
+set optimizer_switch=@subselect_innodb_tmp;

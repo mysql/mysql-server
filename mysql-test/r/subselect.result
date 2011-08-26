@@ -367,12 +367,12 @@ INSERT INTO t8 (pseudo,email) VALUES ('joce1','test1');
 INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
 EXPLAIN EXTENDED SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
+1	PRIMARY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using where; Using index
 4	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
-2	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	
+2	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index condition
 3	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
 Warnings:
-Note	1003	select 'joce' AS `pseudo`,(select 'test' from `test`.`t8` where ('joce' = (select 'joce' from `test`.`t8` where 1))) AS `(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce'))` from `test`.`t8` where ('joce' = (select 'joce' from `test`.`t8` where 1))
+Note	1003	select `test`.`t8`.`pseudo` AS `pseudo`,(select `test`.`t8`.`email` from `test`.`t8` where (`test`.`t8`.`pseudo` = (select 'joce' from `test`.`t8` where 1))) AS `(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce'))` from `test`.`t8` where (`test`.`t8`.`pseudo` = (select 'joce' from `test`.`t8` where 1))
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
 t8 WHERE pseudo='joce');
 ERROR 21000: Operand should contain 1 column(s)
@@ -543,6 +543,12 @@ SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=1) FROM (SELECT 
 numreponse	(SELECT numeropost FROM t1 HAVING numreponse=1)
 INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	100.00	Using where; Using index
+2	SUBQUERY	t1	ref	PRIMARY	PRIMARY	3	const	2	100.00	Using index
+Warnings:
+Note	1003	select `test`.`t1`.`numreponse` AS `numreponse` from `test`.`t1` where ((`test`.`t1`.`numeropost` = 1) and (`test`.`t1`.`numreponse` = (select 1 from `test`.`t1` where (`test`.`t1`.`numeropost` = 1))))
+SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN EXTENDED SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -551,10 +557,10 @@ Warnings:
 Note	1003	select max(`test`.`t1`.`numreponse`) AS `MAX(numreponse)` from `test`.`t1` where multiple equal(1, `test`.`t1`.`numeropost`)
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	100.00	Using index
+1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	100.00	Using where; Using index
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	select 3 AS `numreponse` from `test`.`t1` where ((3 = (select max(`test`.`t1`.`numreponse`) from `test`.`t1` where multiple equal(1, `test`.`t1`.`numeropost`))))
+Note	1003	select `test`.`t1`.`numreponse` AS `numreponse` from `test`.`t1` where ((`test`.`t1`.`numeropost` = 1) and (`test`.`t1`.`numreponse` = (select max(`test`.`t1`.`numreponse`) from `test`.`t1` where multiple equal(1, `test`.`t1`.`numeropost`))))
 drop table t1;
 CREATE TABLE t1 (a int(1));
 INSERT INTO t1 VALUES (1);
