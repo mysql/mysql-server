@@ -81,6 +81,24 @@ TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckPopFront)
                             ".*Assertion .*m_size > 0.*");
 }
 
+TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckResize)
+{
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  int_array= Int_array(c_array, 1);
+  EXPECT_DEATH_IF_SUPPORTED(int_array.resize(2),
+                            ".*Assertion .*new_size <= m_size.*");
+}
+
+TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckResizeAssign)
+{
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  int_array= Int_array(c_array, 2);
+  int_array[1]= some_integer;
+  int_array.resize(1);
+  EXPECT_DEATH_IF_SUPPORTED(int_array[1]= some_integer,
+                            ".*Assertion .*n < m_size.*");
+}
+
 #endif  // !defined(DBUG_OFF)
 
 TEST_F(BoundsCheckedArray, Indexing)
@@ -101,6 +119,23 @@ TEST_F(BoundsCheckedArray, Reset)
   int *pi= NULL;
   EXPECT_EQ(pi, int_array.array());
   EXPECT_TRUE(int_array.is_null());
+}
+
+TEST_F(BoundsCheckedArray, Resize)
+{
+  int_array= Int_array(c_array, c_array_size);
+  int_array.resize(c_array_size - 1);
+  EXPECT_EQ(c_array_size - 1, static_cast<int>(int_array.size()));
+  
+  int count= 0;
+  while (int_array.size() > 0)
+  {
+    EXPECT_EQ(count, int_array[0]);
+    count++;
+    int_array.pop_front();
+  }
+
+  EXPECT_EQ(count, c_array_size - 1);
 }
 
 
