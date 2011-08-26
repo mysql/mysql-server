@@ -520,13 +520,6 @@ spin_loop:
 	if (i == SYNC_SPIN_ROUNDS) {
 #ifdef UNIV_DEBUG
 		mutex->count_os_yield++;
-#ifndef UNIV_HOTBACKUP
-		if (timed_mutexes && timer_started == 0) {
-			ut_usectime(&sec, &ms);
-			lstart_time= (ib_int64_t)sec * 1000000 + ms;
-			timer_started = 1;
-		}
-#endif /* UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */
 		os_thread_yield();
 	}
@@ -551,8 +544,7 @@ spin_loop:
 #ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
 #endif
-
-		goto finish_timing;
+		return;
 	}
 
 	/* We may end up with a situation where lock_word is 0 but the OS
@@ -600,7 +592,7 @@ spin_loop:
 				(void*) mutex);
 #endif
 
-			goto finish_timing;
+			return;
 
 			/* Note that in this case we leave the waiters field
 			set to 1. We cannot reset it to zero, as we do not
@@ -623,35 +615,9 @@ spin_loop:
 	mutex_os_wait_count++;
 
 	mutex->count_os_wait++;
-#ifdef UNIV_DEBUG
-	/* !!!!! Sometimes os_wait can be called without os_thread_yield */
-#ifndef UNIV_HOTBACKUP
-	if (timed_mutexes == 1 && timer_started == 0) {
-		ut_usectime(&sec, &ms);
-		lstart_time= (ib_int64_t)sec * 1000000 + ms;
-		timer_started = 1;
-	}
-#endif /* UNIV_HOTBACKUP */
-#endif /* UNIV_DEBUG */
 
 	sync_array_wait_event(sync_arr, index);
 	goto mutex_loop;
-
-finish_timing:
-#ifdef UNIV_DEBUG
-	if (timed_mutexes == 1 && timer_started==1) {
-		ut_usectime(&sec, &ms);
-		lfinish_time= (ib_int64_t)sec * 1000000 + ms;
-
-		ltime_diff= (ulint) (lfinish_time - lstart_time);
-		mutex->lspent_time += ltime_diff;
-
-		if (mutex->lmax_spent_time < ltime_diff) {
-			mutex->lmax_spent_time= ltime_diff;
-		}
-	}
-#endif /* UNIV_DEBUG */
-	return;
 }
 
 /******************************************************************//**
