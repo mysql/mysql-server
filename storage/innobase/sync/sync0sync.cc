@@ -487,13 +487,7 @@ mutex_spin_wait(
 	ulint		i;		/* spin round count */
 	ulint		index;		/* index of the reserved wait cell */
 	sync_array_t*	sync_arr;
-#ifdef UNIV_DEBUG
-	ib_int64_t lstart_time = 0, lfinish_time; /* for timing os_wait */
-	ulint ltime_diff;
-	ulint sec;
-	ulint ms;
-	uint timer_started = 0;
-#endif /* UNIV_DEBUG */
+
 	ut_ad(mutex);
 
 	/* This update is not thread safe, but we don't mind if the count
