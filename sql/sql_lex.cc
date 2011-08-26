@@ -2175,6 +2175,15 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
                       order_group_num));
   if (!ref_pointer_array.is_null())
   {
+    /*
+      The Query may have been permanently transformed by removal of
+      ORDER BY or GROUP BY. Memory has already been allocated, but by
+      reducing the size of ref_pointer_array a tight bound is
+      maintained by Bounds_checked_array
+    */
+    if (ref_pointer_array.size() > n_elems)
+      ref_pointer_array.resize(n_elems);
+
     DBUG_ASSERT(ref_pointer_array.size() == n_elems);
     return false;
   }

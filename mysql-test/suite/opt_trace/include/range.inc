@@ -216,21 +216,6 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 DROP TABLE t1,t2;
 
-CREATE TABLE `t1` (
-      `mot` varchar(4) NOT NULL,
-      `topic` int NOT NULL,
-       PRIMARY KEY  (`mot`,`topic`)
-    );
-INSERT INTO t1 VALUES ('joce','40143'), ('joce','43506');
-
-# rechecking_index_usage/no_indices_to_analyze
-SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY topic);
---echo
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
---echo
-
-drop table t1;
-
 # Range analysis in test_if_skip_sort_order 
 # (records_estimation_for_index_ordering)
 CREATE TABLE t1 (

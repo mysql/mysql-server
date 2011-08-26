@@ -556,6 +556,69 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
 }
 
 #define MAGIC_IN_WHERE_TOP_LEVEL 10
+
+/**
+   Since LIMIT is not supported for table subquery predicates
+   (IN/ALL/EXISTS/etc), the following clauses are redundant for
+   subqueries:
+
+   ORDER BY
+   DISTINCT
+   GROUP BY   if there are no aggregate functions and no HAVING
+              clause
+
+   Because redundant clauses are removed both from JOIN and
+   select_lex, the removal is permanent. Thus, it only makes sense to
+   call this function for normal queries and on first execution of
+   SP/PS
+
+   @param subq_select_lex   select_lex that is part of a subquery 
+                            predicate. This object and the associated 
+                            join is modified.
+*/
+static
+void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
+{
+  Item_subselect *subq_predicate= subq_select_lex->master_unit()->item;
+  /*
+    The removal should happen for IN, ALL, ANY and EXISTS subqueries,
+    which means all but single row subqueries. Example single row
+    subqueries: 
+       a) SELECT * FROM t1 WHERE t1.a = (<single row subquery>) 
+       b) SELECT a, (<single row subquery) FROM t1
+   */
+  if (subq_predicate->substype() == Item_subselect::SINGLEROW_SUBS)
+    return;
+
+  // A subquery that is not single row should be one of IN/ALL/ANY/EXISTS.
+  DBUG_ASSERT (subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
+               subq_predicate->substype() == Item_subselect::IN_SUBS     ||
+               subq_predicate->substype() == Item_subselect::ALL_SUBS    ||
+               subq_predicate->substype() == Item_subselect::ANY_SUBS);
+  if (subq_select_lex->order_list.elements)
+  {
+    subq_select_lex->join->order= NULL;
+    subq_select_lex->order_list.empty();
+  }
+
+  if (subq_select_lex->options & SELECT_DISTINCT)
+  {
+    subq_select_lex->join->select_distinct= false;
+    subq_select_lex->options&= ~SELECT_DISTINCT;
+  }
+
+  /*
+    Remove GROUP BY if there are no aggregate functions and no HAVING
+    clause
+  */
+  if (subq_select_lex->group_list.elements &&
+      !subq_select_lex->with_sum_func && !subq_select_lex->join->having)
+  {
+    subq_select_lex->join->group_list= NULL;
+    subq_select_lex->group_list.empty();
+  }
+}
+
 /**
   Function to setup clauses without sum functions.
 */
@@ -649,6 +712,22 @@ JOIN::prepare(TABLE_LIST *tables_init,
   Opt_trace_object trace_prepare(trace, "join_preparation");
   trace_prepare.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
+
+  /*
+    Permanently remove redundant parts from the query if
+      1) This is a subquery
+      2) This is the first time this query is optimized (since the
+         transformation is permanent
+      3) Not normalizing a view. Removal should take place when a
+         query involving a view is optimized, not when the view
+         is created
+  */
+  if (select_lex->master_unit()->item &&                               // 1)
+      select_lex->first_cond_optimization &&                           // 2)
+      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
+  {
+    remove_redundant_subquery_clauses(select_lex);
+  }
 
   /* Check that all tables, fields, conds and order are ok */
 
@@ -991,7 +1070,7 @@ bool resolve_subquery(THD *thd, JOIN *join)
     semi-join (which is done in flatten_subqueries()). The requirements are:
       1. Subquery predicate is an IN/=ANY subquery predicate
       2. Subquery is a single SELECT (not a UNION)
-      3. Subquery does not have GROUP BY or ORDER BY
+      3. Subquery does not have GROUP BY
       4. Subquery does not use aggregate functions or HAVING
       5. Subquery predicate is at the AND-top-level of ON/WHERE clause
       6. We are not in a subquery of a single table UPDATE/DELETE that 
@@ -1008,9 +1087,9 @@ bool resolve_subquery(THD *thd, JOIN *join)
       statement.
   */
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
-      subq_predicate_substype == Item_subselect::IN_SUBS &&          // 1
+      subq_predicate_substype == Item_subselect::IN_SUBS &&             // 1
       !select_lex->is_part_of_union() &&                                // 2
-      !select_lex->group_list.elements && !join->order &&               // 3
+      !select_lex->group_list.elements &&                               // 3
       !join->having && !select_lex->with_sum_func &&                    // 4
       thd->thd_marker.emb_on_expr_nest &&                               // 5
       select_lex->outer_select()->join &&                               // 6
