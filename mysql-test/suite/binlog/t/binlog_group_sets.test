@@ -35,13 +35,13 @@ INSERT INTO variables VALUES
 #    String containing zero, one, or both of the letters 'C' and 'E'.
 #    If C is in the string, UGID_COMMIT is set to 1. If E is in the
 #    string, UGID_END is set to 1.
-# [global|session]_[ended|partial]
+#  [global|session]_[ended|partial]
 #    Specifies how @@[SESSION|GLOBAL].UGID_[ENDED|PARTIAL]_GROUPS is
 #    expected to change after the statement.  This has the form of a
 #    group_set containing the groups that were added by the statement.
 #    If the group_set begins with '-', the groups are expected to be
 #    removed instead.
-# error
+#  error
 #    Expected errno for the statement, or 0 if the statement is
 #    expected to succeed.
 CREATE TABLE stmts (

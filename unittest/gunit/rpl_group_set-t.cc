@@ -38,7 +38,7 @@ public:
 
   void SetUp()
   {
-    seed= (int)3;//time(NULL);
+    seed= (int)time(NULL);
     srand(seed);
     for (int i= 0; i < 16; i++)
       sids[i].parse(uuids[i]);
@@ -230,6 +230,27 @@ public:
   {
     errtext[errtext_stack[errtext_stack_pos--] - 3]= 0;
   }
+
+
+  void group_subset(Group_set *sub, Group_set *super, bool outcome,
+                    int line, const char *desc)
+  {
+    append_errtext(line, "%s", desc);
+    // check using is_subset
+    //printf("sub=%p\n", sub);
+    //sub->print();
+    //printf("super=%p\n", super);
+    //super->print();
+    EXPECT_EQ(outcome, sub->is_subset(super)) << errtext;
+    // check using set subtraction
+    enum_group_status status;
+    Group_set sub_minus_super(sub, &status);
+    ASSERT_EQ(GS_SUCCESS, status) << errtext;
+    ASSERT_EQ(GS_SUCCESS, sub_minus_super.remove(super)) << errtext;
+    //sub_minus_super.print();
+    ASSERT_EQ(outcome, sub_minus_super.is_empty()) << errtext;
+  }
+
 };
 
 
@@ -746,33 +767,52 @@ TEST_F(GroupTest, Group_containers)
       group_set.add(&group_log_state.ended_groups);
     } END_LOOP_B;
 
-    // add stage.set to done_groups, and check the
-    // Group_set::is_subset function.
-
-    // check if stage.set is a subset of done_groups and vice versa
-    bool stage_subset_of_done= true;
-    bool done_subset_of_stage= true;
-    Group_set::Group_iterator git(&all_groups);
-    Group g= git.get();
-    while (g.sidno != 0 && (stage_subset_of_done || done_subset_of_stage))
-    {
-      bool stage_contains= stage.set.contains_group(g.sidno, g.gno);
-      bool done_contains= done_groups.contains_group(g.sidno, g.gno);
-      if (stage_contains && !done_contains)
-        stage_subset_of_done= false;
-      if (!stage_contains && done_contains)
-        done_subset_of_stage= false;
-      git.next();
-      g= git.get();
-    }
-    // check the Group_set::is_subset function
-    ASSERT_EQ(stage_subset_of_done, stage.set.is_subset(&done_groups));
-    ASSERT_EQ(done_subset_of_stage, done_groups.is_subset(&stage.set));
+    // add stage.set to done_groups
     Group_set old_done_groups(&done_groups, &status);
     ASSERT_EQ(GS_SUCCESS, status);
     done_groups.add(&stage.set);
-    ASSERT_EQ(true, old_done_groups.is_subset(&done_groups));
-    ASSERT_EQ(true, stage.set.is_subset(&done_groups));
+
+    // check the Group_set::remove and Group_set::is_subset functions
+    Group_set diff(&done_groups, &status);
+    ASSERT_EQ(GS_SUCCESS, status);
+    ASSERT_EQ(GS_SUCCESS, diff.remove(&old_done_groups));
+    Group_set not_new(&stage.set, &status);
+    ASSERT_EQ(GS_SUCCESS, status);
+    ASSERT_EQ(GS_SUCCESS, not_new.remove(&diff));
+
+#define GROUP_SUBSET(gs1, gs2, outcome)                                 \
+    group_subset(&gs1, &gs2, outcome, __LINE__, #gs1 " <= " #gs2);
+    push_errtext();
+    GROUP_SUBSET(not_new, not_new, true);
+    GROUP_SUBSET(not_new, diff, not_new.is_empty());
+    GROUP_SUBSET(not_new, stage.set, true);
+    GROUP_SUBSET(not_new, done_groups, true);
+    GROUP_SUBSET(not_new, old_done_groups, true);
+
+    GROUP_SUBSET(diff, not_new, diff.is_empty());
+    GROUP_SUBSET(diff, diff, true);
+    GROUP_SUBSET(diff, stage.set, true);
+    GROUP_SUBSET(diff, done_groups, true);
+    GROUP_SUBSET(diff, old_done_groups, diff.is_empty());
+
+    GROUP_SUBSET(stage.set, not_new, diff.is_empty());
+    GROUP_SUBSET(stage.set, diff, not_new.is_empty());
+    GROUP_SUBSET(stage.set, stage.set, true);
+    GROUP_SUBSET(stage.set, done_groups, true);
+    GROUP_SUBSET(stage.set, old_done_groups, diff.is_empty());
+
+    //GROUP_SUBSET(done_groups, not_new, ???);
+    GROUP_SUBSET(done_groups, diff, old_done_groups.is_empty());
+    GROUP_SUBSET(done_groups, stage.set, done_groups.equals(&stage.set));
+    GROUP_SUBSET(done_groups, done_groups, true);
+    GROUP_SUBSET(done_groups, old_done_groups, diff.is_empty());
+
+    GROUP_SUBSET(old_done_groups, not_new, old_done_groups.equals(&not_new));
+    GROUP_SUBSET(old_done_groups, diff, old_done_groups.is_empty());
+    //GROUP_SUBSET(old_done_groups, stage.set, ???);
+    GROUP_SUBSET(old_done_groups, done_groups, true);
+    GROUP_SUBSET(old_done_groups, old_done_groups, true);
+    pop_errtext();
 
     /*
       Verify that all group sets are equal.  We test both a.equals(b)
@@ -792,17 +832,16 @@ TEST_F(GroupTest, Group_containers)
         {
           char *buf2= new char[group_set_2.get_string_length() + 1];
           group_set_2.to_string(buf2);
-          ASSERT_STREQ(buf1, buf2) << errtext << " i=" << i;
+          EXPECT_STREQ(buf1, buf2) << errtext << " i=" << i;
           delete buf2;
         }
-        ASSERT_EQ(true, group_set.equals(&group_set_2)) << errtext << " i=" << i;
+        EXPECT_EQ(true, group_set.equals(&group_set_2)) << errtext << " i=" << i;
       }
       delete buf1;
     } END_LOOP_A;
     BEGIN_LOOP_B
     {
-      //containers[combination_i]->group_set.print();
-      ASSERT_EQ(true, containers[combination_i]->group_set.equals(&done_groups)) << errtext;
+      EXPECT_EQ(true, containers[combination_i]->group_set.equals(&done_groups)) << errtext;
     } END_LOOP_B;
   }
   pop_errtext();
