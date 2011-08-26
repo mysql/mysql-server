@@ -303,8 +303,6 @@ enum_group_status Group_set::remove(Interval_iterator *ivitp, rpl_gno start, rpl
   DBUG_ASSERT(iv != NULL && iv->end > start);
   if (iv->start < start)
   {
-    // iv cuts the beginning of the removed interval: truncate iv.
-    iv->end= start;
     if (iv->end > end)
     {
       // iv cuts also the end of the removed interval: split iv in two
@@ -312,11 +310,14 @@ enum_group_status Group_set::remove(Interval_iterator *ivitp, rpl_gno start, rpl
       GROUP_STATUS_THROW(get_free_interval(&new_iv));
       new_iv->start= end;
       new_iv->end= iv->end;
+      iv->end= start;
       ivit.next();
       ivit.insert(new_iv);
       goto ok;
     }
-    // iv has been truncated: iterate one step to next interval
+    // iv cuts the beginning but not the end of the removed interval:
+    // truncate iv, and iterate one step to next interval
+    iv->end= start;
     ivit.next();
     iv= ivit.get();
     if (iv == NULL)
@@ -593,7 +594,7 @@ enum_group_status Group_set::remove(const Group_set *other)
   if (other->sid_map == sid_map)
   {
     rpl_sidno max_sidno= min(max_other_sidno, get_max_sidno());
-    for (rpl_sidno sidno= 1; max_sidno; sidno++)
+    for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
       GROUP_STATUS_THROW(remove(sidno, Const_interval_iterator(other, sidno)));
   }
   else
