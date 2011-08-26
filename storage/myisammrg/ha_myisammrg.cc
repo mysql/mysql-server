@@ -681,7 +681,7 @@ CPP_UNNAMED_NS_END
 
    @return A cloned handler instance.
  */
-handler *ha_myisammrg::clone(MEM_ROOT *mem_root)
+handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
 {
   MYRG_TABLE    *u_table,*newu_table;
   ha_myisammrg *new_handler= 
@@ -702,8 +702,8 @@ handler *ha_myisammrg::clone(MEM_ROOT *mem_root)
     return NULL;
   }
 
-  if (new_handler->ha_open(table, table->s->normalized_path.str, table->db_stat,
-                            HA_OPEN_IGNORE_IF_LOCKED))
+  if (new_handler->ha_open(table, name, table->db_stat,
+                           HA_OPEN_IGNORE_IF_LOCKED))
   {
     delete new_handler;
     return NULL;

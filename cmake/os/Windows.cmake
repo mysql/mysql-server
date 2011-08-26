@@ -1,4 +1,4 @@
-# Copyright (C) 2010 Sun Microsystems, Inc
+# Copyright (C) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -192,3 +192,4 @@ IF(NOT HAVE_SIZE_OF_SSIZE_T)
 ENDIF()
 
 SET(FN_NO_CASE_SENSE 1)
+SET(USE_SYMDIR 1)

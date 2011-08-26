@@ -772,7 +772,7 @@ long calc_daynr(uint year,uint month,uint day)
   int y= year;                                  /* may be < 0 temporarily */
   DBUG_ENTER("calc_daynr");
 
-  if (y == 0 && month == 0 && day == 0)
+  if (y == 0 && month == 0)
     DBUG_RETURN(0);				/* Skip errors */
   /* Cast to int to be able to handle month == 0 */
   delsum= (long) (365 * y + 31 *((int) month - 1) + (int) day);
@@ -783,6 +783,7 @@ long calc_daynr(uint year,uint month,uint day)
   temp=(int) ((y/100+1)*3)/4;
   DBUG_PRINT("exit",("year: %d  month: %d  day: %d -> daynr: %ld",
 		     y+(month <= 2),month,day,delsum+y/4-temp));
+  DBUG_ASSERT(delsum+(int) y/4-temp > 0);
   DBUG_RETURN(delsum+(int) y/4-temp);
 } /* calc_daynr */
 

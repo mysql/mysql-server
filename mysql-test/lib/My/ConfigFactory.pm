@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -150,7 +150,11 @@ sub fix_tmpdir {
 sub fix_log_error {
   my ($self, $config, $group_name, $group)= @_;
   my $dir= $self->{ARGS}->{vardir};
-  return "$dir/log/$group_name.err";
+  if ( $::opt_valgrind and $::opt_debug ) {
+    return "$dir/log/$group_name.trace";
+  } else {
+    return "$dir/log/$group_name.err";
+  }
 }
 
 sub fix_log {

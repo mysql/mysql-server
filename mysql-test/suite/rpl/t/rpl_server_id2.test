@@ -50,7 +50,7 @@ eval start slave until master_log_file='master-bin.000001', master_log_pos=$unti
 --source include/wait_for_slave_io_to_start.inc
 --source include/wait_for_slave_sql_to_stop.inc
 
---echo *** checking until postion execution: must be only t1 in the list ***
+--echo *** checking until position execution: must be only t1 in the list ***
 show tables;
 
 # cleanup

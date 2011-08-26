@@ -3,6 +3,8 @@
 #
 -- source include/have_innodb.inc
 
+--source include/not_embedded.inc
+
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -285,6 +287,98 @@ XA END 'b';
 XA ROLLBACK 'b';
 DROP TABLE t1;
 disconnect con1;
+
+
+--echo #
+--echo # Bug#11766752 59936: multiple xa assertions - transactional
+--echo #              statement fuzzer
+--echo #
+
+CREATE TABLE t1 (a INT) engine=InnoDB;
+XA START 'a';
+INSERT INTO t1 VALUES (1);
+
+--error ER_XAER_RMFAIL
+SAVEPOINT savep;
+
+XA END 'a';
+--error ER_XAER_RMFAIL
+SELECT * FROM t1;
+--error ER_XAER_RMFAIL
+INSERT INTO t1 VALUES (2);
+--error ER_XAER_RMFAIL
+SAVEPOINT savep;
+--error ER_XAER_RMFAIL
+SET @a=(SELECT * FROM t1);
+
+XA PREPARE 'a';
+--error ER_XAER_RMFAIL
+SELECT * FROM t1;          # used to cause InnoDB assert
+--error ER_XAER_RMFAIL
+INSERT INTO t1 VALUES (2); # used to cause InnoDB assert
+--error ER_XAER_RMFAIL
+SAVEPOINT savep;
+--error ER_XAER_RMFAIL
+SET @a=(SELECT * FROM t1); # used to cause InnoDB assert
+--error ER_XAER_RMFAIL
+UPDATE t1 SET a=1 WHERE a=2;
+
+XA COMMIT 'a';
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#12352846 - TRANS_XA_START(THD*):
+--echo #                ASSERTION THD->TRANSACTION.XID_STATE.XID.IS_NULL()
+--echo #                FAILED 
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+
+--echo # Connection con2
+--connect (con2,localhost,root)
+XA START 'xid1';
+--echo # Sending:
+--send INSERT INTO t2 SELECT a FROM t1
+
+--echo # Connection default
+--connection default
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Sending data"
+  AND info = "INSERT INTO t2 SELECT a FROM t1";
+--echo # Waiting until INSERT ... is blocked
+--source include/wait_condition.inc
+DELETE FROM t1;
+COMMIT;
+
+--echo # Connection con2
+--connection con2
+--echo # Reaping: INSERT INTO t2 SELECT a FROM t1
+--error ER_LOCK_DEADLOCK
+--reap
+--error ER_XA_RBDEADLOCK
+XA COMMIT 'xid1';
+# This caused the assert to be triggered
+XA START 'xid1';
+
+XA END 'xid1';
+XA PREPARE 'xid1';
+XA ROLLBACK 'xid1';
+
+--echo # Connection default
+connection default;
+DROP TABLE t1, t2;
+disconnect con2;
 
 
 # Wait till all disconnects are completed

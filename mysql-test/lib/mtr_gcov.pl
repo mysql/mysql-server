@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (C) 2004, 2006 MySQL AB, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ sub gcov_prepare ($) {
 #
 # Collect gcov statistics.
 # Arguments:
-#   $dir       basedir, normally source directory
+#   $dir       basedir, normally build directory
 #   $gcov      gcov utility program [path] name
 #   $gcov_msg  message file name
 #   $gcov_err  error file name
@@ -43,29 +43,25 @@ sub gcov_collect ($$$) {
   my $start_dir= cwd();
 
   print "Collecting source coverage info using '$gcov'...\n";
-  -f "$start_dir/$gcov_msg" and unlink("$start_dir/$gcov_msg");
-  -f "$start_dir/$gcov_err" and unlink("$start_dir/$gcov_err");
+  -f "$dir/$gcov_msg" and unlink("$dir/$gcov_msg");
+  -f "$dir/$gcov_err" and unlink("$dir/$gcov_err");
 
   my @dirs= `find "$dir" -type d -print | sort`;
   #print "List of directories:\n@dirs\n";
 
   foreach my $d ( @dirs ) {
-    my $dir_reported= 0;
     chomp($d);
     chdir($d) or next;
 
-    foreach my $f ( (glob("*.h"), glob("*.cc"), glob("*.c")) ) {
-      $f =~ /(.*)\.[ch]c?/;
-      -f "$1.gcno" or next;
-      if (!$dir_reported) {
-	print "Collecting in '$d'...\n";
-	$dir_reported= 1;
-      }
-      system("$gcov $f 2>>$start_dir/$gcov_err >>$start_dir/$gcov_msg");
+    my @flist= glob("*.*.gcno");
+    print ("Collecting in '$d'...\n") if @flist;
+
+    foreach my $f (@flist) {
+      system("$gcov $f 2>>$dir/$gcov_err >>$dir/$gcov_msg");
     }
     chdir($start_dir);
   }
-  print "gcov info in $gcov_msg, errors in $gcov_err\n";
+  print "gcov info in $dir/$gcov_msg, errors in $dir/$gcov_err\n";
 }
 
 

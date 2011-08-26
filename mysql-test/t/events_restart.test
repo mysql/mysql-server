@@ -1,6 +1,8 @@
 # Can't test with embedded server that doesn't support grants
 -- source include/not_embedded.inc
 
+call mtr.add_suppression("Column count of mysql.event is wrong. Expected .*, found .*\. The table is probably corrupted");
+
 #
 # Test that when the server is restarted, it checks mysql.event table,
 # and disables the scheduler if it's not up to date.
