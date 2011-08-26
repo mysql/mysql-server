@@ -4012,3 +4012,54 @@ String *Item_func_uuid::val_str(String *str)
   strmov(s+18, clock_seq_and_node_str);
   return str;
 }
+
+
+void Item_func_group_subtract::fix_length_and_dec()
+{
+  maybe_null= args[0]->maybe_null || args[1]->maybe_null;
+  collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
+  /*
+    In the worst case, the string grows after subtraction. This
+    happens when a group in args[0] is split by a group in args[1],
+    e.g., UUID:1-6 minus UUID:3-4 becomes UUID:1-2,5-6.  The worst
+    case is UUID:1-100 minus UUID:9, where the two characters ":9" in
+    args[1] yield the five characters "-8,10" in the result.
+  */
+  fix_char_length_ulonglong(args[0]->max_length +
+                            (ulonglong)(args[1]->max_length - 
+                                        Uuid::TEXT_LENGTH) * 5 / 2);
+}
+
+
+String *Item_func_group_subtract::val_str_ascii(String *str)
+{
+  String *str1, *str2;
+  const char *charp1, *charp2;
+  enum_group_status status;
+  // get first set
+  if (!args[0]->null_value && !args[1]->null_value &&
+      (str1= args[0]->val_str_ascii(str)) != NULL &&
+      (charp1= str1->ptr()) != NULL)
+  {
+    Group_set set1(&mysql_bin_log.sid_map, charp1, &status);
+    // get second set
+    if (status == GS_SUCCESS &&
+        (str2= args[1]->val_str_ascii(str)) != NULL &&
+        (charp2= str2->ptr()) != NULL)
+    {
+      Group_set set2(&mysql_bin_log.sid_map, charp2, &status);
+      // subtract, save result, return result
+      if (status == GS_SUCCESS &&
+          set1.remove(&set2) == GS_SUCCESS &&
+          str->realloc(set1.get_string_length() + 1) == 0)
+      {
+        set1.to_string((char *)str->ptr());
+        return str;
+      }
+    }
+  }
+  null_value= true;
+  return NULL;
+}
+
+
