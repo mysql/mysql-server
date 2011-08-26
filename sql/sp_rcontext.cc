@@ -22,6 +22,7 @@
 #include "sp_pcontext.h"
 #include "sql_select.h"                     // create_virtual_tmp_table
 
+
 sp_rcontext::sp_rcontext(const sp_pcontext *root_parsing_ctx,
                          Field *return_value_fld,
                          bool in_sub_stmt)
@@ -52,9 +53,9 @@ sp_rcontext::~sp_rcontext()
 }
 
 
-sp_rcontext * sp_rcontext::create(THD *thd,
-                                  const sp_pcontext *root_parsing_ctx,
-                                  Field *return_value_fld)
+sp_rcontext *sp_rcontext::create(THD *thd,
+                                 const sp_pcontext *root_parsing_ctx,
+                                 Field *return_value_fld)
 {
   sp_rcontext *ctx= new sp_rcontext(root_parsing_ctx,
                                     return_value_fld,
@@ -88,7 +89,7 @@ bool sp_rcontext::alloc_arrays(THD *thd)
   {
     size_t n= m_root_parsing_ctx->max_cursor_index();
     m_cstack.reset(
-      reinterpret_cast<sp_cursor **> (
+      static_cast<sp_cursor **> (
         thd->alloc(n * sizeof (sp_cursor*))),
       n);
   }
@@ -96,7 +97,7 @@ bool sp_rcontext::alloc_arrays(THD *thd)
   {
     size_t n= m_root_parsing_ctx->get_num_case_exprs();
     m_case_expr_holders.reset(
-      reinterpret_cast<Item_cache **> (
+      static_cast<Item_cache **> (
         thd->calloc(n * sizeof (Item_cache*))),
       n);
   }
@@ -149,7 +150,7 @@ bool sp_rcontext::init_var_items()
   uint num_vars= m_root_parsing_ctx->max_var_index();
 
   m_var_items.reset(
-    reinterpret_cast<Item **> (
+    static_cast<Item **> (
       sql_alloc(num_vars * sizeof (Item *))),
     num_vars);
 
@@ -285,8 +286,8 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
     return false;
 
   Diagnostics_area *da= thd->get_stmt_da();
-  sp_handler *found_handler= NULL;
-  Sql_condition_info *sql_condition= NULL;
+  const sp_handler *found_handler= NULL;
+  const Sql_condition *found_condition= NULL;
 
   if (thd->is_error())
   {
@@ -295,60 +296,39 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
                                    da->sql_errno(),
                                    Sql_condition::WARN_LEVEL_ERROR);
 
-    if (!found_handler)
-      return false;
-
-    da->remove_sql_condition(da->get_error_condition());
-
-    sql_condition= new Sql_condition_info(da->sql_errno(),
-                                          Sql_condition::WARN_LEVEL_ERROR,
-                                          da->get_sqlstate(),
-                                          da->message());
+    if (found_handler)
+      found_condition= da->get_error_condition();
   }
   else if (da->current_statement_warn_count())
   {
     Diagnostics_area::Sql_condition_iterator it= da->sql_conditions();
     const Sql_condition *c;
 
-    while ((c= it++))
+    while (!found_handler && (c= it++))
     {
-      if (c->get_level() != Sql_condition::WARN_LEVEL_WARN &&
-          c->get_level() != Sql_condition::WARN_LEVEL_NOTE)
-        continue;
-
-      found_handler= cur_spi->m_ctx->find_handler(c->get_sqlstate(),
-                                                  c->get_sql_errno(),
-                                                  c->get_level());
-      if (found_handler)
+      if (c->get_level() == Sql_condition::WARN_LEVEL_WARN ||
+          c->get_level() == Sql_condition::WARN_LEVEL_NOTE)
       {
-        da->remove_sql_condition(c);
-
-        sql_condition= new Sql_condition_info(c->get_sql_errno(),
-                                              c->get_level(),
-                                              c->get_sqlstate(),
-                                              c->get_message_text());
-        break;
+        found_handler= cur_spi->m_ctx->find_handler(c->get_sqlstate(),
+                                                    c->get_sql_errno(),
+                                                    c->get_level());
       }
     }
+    if (found_handler)
+      found_condition= c;
+  }
 
-    if (!found_handler)
-      return false;
-  }
-  else
-  {
-    // No pending SQL-condition.
+  if (!found_handler)
     return false;
-  }
 
   // At this point, we know that:
   //  - there is a pending SQL-condition (error or warning);
   //  - there is an SQL-handler for it.
 
-  DBUG_ASSERT(found_handler);
-  DBUG_ASSERT(sql_condition);
+  DBUG_ASSERT(found_condition);
+  da->remove_sql_condition(found_condition);
 
   sp_handler_entry *handler_entry= NULL;
-
   for (int i= 0; i < m_handlers.elements(); ++i)
   {
     sp_handler_entry *h= m_handlers.at(i);
@@ -362,38 +342,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 
   DBUG_ASSERT(handler_entry);
 
-  activate_handler(thd,
-                   handler_entry,
-                   sql_condition,
-                   cur_spi,
-                   execute_arena,
-                   backup_arena);
-
-  *ip= handler_entry->first_ip;
-
-  return true;
-}
-
-
-/**
-  Prepare an SQL handler to be executed.
-
-  @param thd            Thread handle.
-  @param handler_entry  Handler entry.
-  @param cur_spi        Current SP instruction.
-  @param execute_arena  Current execution arena for SP.
-  @param backup_arena   Backup arena for SP.
-*/
-
-void sp_rcontext::activate_handler(THD *thd,
-                                   const sp_handler_entry *handler_entry,
-                                   Sql_condition_info *sql_condition,
-                                   const sp_instr *cur_spi,
-                                   Query_arena *execute_arena,
-                                   Query_arena *backup_arena)
-{
   uint continue_ip= 0;
-
   if (handler_entry->handler->type == sp_handler::CONTINUE)
   {
     thd->restore_active_arena(execute_arena, backup_arena);
@@ -403,20 +352,22 @@ void sp_rcontext::activate_handler(THD *thd,
   }
 
   /* End aborted result set. */
-
   if (end_partial_result_set)
     thd->protocol->end_partial_result_set(thd);
 
   /* Reset error state. */
-
   thd->clear_error();
   thd->killed= THD::NOT_KILLED; // Some errors set thd->killed
                                 // (e.g. "bad data").
 
   /* Add a frame to handler-call-stack. */
-
+  Sql_condition_info *sql_condition= new Sql_condition_info(found_condition);
   m_handler_call_stack.append(
     new Handler_call_frame(sql_condition, continue_ip));
+
+  *ip= handler_entry->first_ip;
+
+  return true;
 }
 
 
@@ -572,8 +523,8 @@ int sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
     between in several instructions.
 */
 
-Item_cache * sp_rcontext::create_case_expr_holder(THD *thd,
-                                                  const Item *item) const
+Item_cache *sp_rcontext::create_case_expr_holder(THD *thd,
+                                                 const Item *item) const
 {
   Item_cache *holder;
   Query_arena current_arena;

@@ -61,9 +61,9 @@ public:
   ///                         (for stored functions only).
   ///
   /// @return valid sp_rcontext object or NULL in case of OOM-error.
-
-  static sp_rcontext * create(THD *thd, const sp_pcontext *root_parsing_ctx,
-                              Field *return_value_fld);
+  static sp_rcontext *create(THD *thd,
+                             const sp_pcontext *root_parsing_ctx,
+                             Field *return_value_fld);
 
   ~sp_rcontext();
 
@@ -130,21 +130,15 @@ public:
 
     /// The constructor.
     ///
-    /// @param _sql_errno SQL error code.
-    /// @param _level     Error level.
-    /// @param _sql_state SQLSTATE.
-    /// @param _message   Text message.
-    Sql_condition_info(uint _sql_errno,
-                       Sql_condition::enum_warning_level _level,
-                       const char *_sql_state,
-                       const char *_message)
-     :sql_errno(_sql_errno),
-      level(_level)
+    /// @param _sql_condition  The SQL condition.
+    Sql_condition_info(const Sql_condition *_sql_condition)
+      :sql_errno(_sql_condition->get_sql_errno()),
+       level(_sql_condition->get_level())
     {
-      memcpy(sql_state, _sql_state, SQLSTATE_LENGTH);
+      memcpy(sql_state, _sql_condition->get_sqlstate(), SQLSTATE_LENGTH);
       sql_state[SQLSTATE_LENGTH]= 0;
 
-      message= my_strdup(_message, MYF(0));
+      message= my_strdup(_sql_condition->get_message_text(), MYF(0));
     }
 
     ~Sql_condition_info()
@@ -206,10 +200,10 @@ public:
   int set_variable(THD *thd, uint var_idx, Item **value)
   { return set_variable(thd, m_var_table->field[var_idx], value); }
 
-  Item * get_item(uint var_idx) const
+  Item *get_item(uint var_idx) const
   { return m_var_items[var_idx]; }
 
-  Item ** get_item_addr(uint var_idx) const
+  Item **get_item_addr(uint var_idx) const
   { return m_var_items.array() + var_idx; }
 
   bool set_return_value(THD *thd, Item **return_value_item);
@@ -225,7 +219,7 @@ public:
 
   void pop_handlers(int count);
 
-  const Sql_condition_info * raised_condition() const
+  const Sql_condition_info *raised_condition() const
   {
     return m_handler_call_stack.elements() ?
       (*m_handler_call_stack.back())->sql_condition : NULL;
@@ -246,7 +240,7 @@ public:
   void pop_all_cursors()
   { pop_cursors(m_ccount); }
 
-  sp_cursor * get_cursor(uint i) const
+  sp_cursor *get_cursor(uint i) const
   { return m_cstack[i]; }
 
   /*
@@ -255,19 +249,22 @@ public:
 
   int set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr);
 
-  Item * get_case_expr(int case_expr_id) const
+  Item *get_case_expr(int case_expr_id) const
   { return m_case_expr_holders[case_expr_id]; }
 
   Item ** get_case_expr_addr(int case_expr_id) const
   { return (Item**) m_case_expr_holders.array() + case_expr_id; }
 
 private:
-  void activate_handler(THD *thd,
-                        const sp_handler_entry *handler,
-                        Sql_condition_info *sql_condition,
-                        const sp_instr *cur_spi,
-                        Query_arena *execute_arena,
-                        Query_arena *backup_arena);
+  bool alloc_arrays(THD *thd);
+
+  bool init_var_table(THD *thd);
+
+  bool init_var_items();
+
+  Item_cache *create_case_expr_holder(THD *thd, const Item *item) const;
+
+  int set_variable(THD *thd, Field *field, Item **value);
 
 private:
   const sp_pcontext *m_root_parsing_ctx;
@@ -312,15 +309,6 @@ private:
 
   /// Array of CASE expression holders.
   Bounds_checked_array<Item_cache *> m_case_expr_holders;
-
-private:
-  bool alloc_arrays(THD *thd);
-  bool init_var_table(THD *thd);
-  bool init_var_items();
-
-  Item_cache *create_case_expr_holder(THD *thd, const Item *item) const;
-
-  int set_variable(THD *thd, Field *field, Item **value);
 }; // class sp_rcontext : public Sql_alloc
 
 
@@ -351,7 +339,7 @@ public:
   virtual ~sp_cursor()
   { destroy(); }
 
-  sp_lex_keeper * get_lex_keeper() { return m_lex_keeper; }
+  sp_lex_keeper *get_lex_keeper() { return m_lex_keeper; }
 
   int open(THD *thd);
 
@@ -362,7 +350,7 @@ public:
 
   int fetch(THD *, List<sp_variable> *vars);
 
-  sp_instr_cpush * get_instr()
+  sp_instr_cpush *get_instr()
   { return m_i; }
 
 private:

@@ -86,7 +86,7 @@ sp_pcontext::~sp_pcontext()
 }
 
 
-sp_pcontext * sp_pcontext::push_context(sp_pcontext::enum_scope scope)
+sp_pcontext *sp_pcontext::push_context(sp_pcontext::enum_scope scope)
 {
   sp_pcontext *child= new sp_pcontext(this, scope);
 
@@ -96,7 +96,7 @@ sp_pcontext * sp_pcontext::push_context(sp_pcontext::enum_scope scope)
 }
 
 
-sp_pcontext * sp_pcontext::pop_context()
+sp_pcontext *sp_pcontext::pop_context()
 {
   m_parent->m_max_var_index+= m_max_var_index;
 
@@ -119,12 +119,12 @@ uint sp_pcontext::diff_handlers(const sp_pcontext *ctx, bool exclusive) const
 
   while (pctx && pctx != ctx)
   {
-    n+= pctx->get_num_handlers();
+    n+= pctx->m_handlers.elements();
     last_ctx= pctx;
     pctx= pctx->parent_context();
   }
   if (pctx)
-    return (exclusive && last_ctx ? n - last_ctx->get_num_handlers() : n);
+    return (exclusive && last_ctx ? n - last_ctx->m_handlers.elements() : n);
   return 0;			// Didn't find ctx
 }
 
@@ -147,8 +147,8 @@ uint sp_pcontext::diff_cursors(const sp_pcontext *ctx, bool exclusive) const
 }
 
 
-sp_variable * sp_pcontext::find_variable(LEX_STRING *name,
-                                         bool current_scope_only) const
+sp_variable *sp_pcontext::find_variable(LEX_STRING *name,
+                                        bool current_scope_only) const
 {
   uint i= m_vars.elements() - m_pboundary;
 
@@ -170,7 +170,7 @@ sp_variable * sp_pcontext::find_variable(LEX_STRING *name,
 }
 
 
-sp_variable * sp_pcontext::find_variable(uint offset) const
+sp_variable *sp_pcontext::find_variable(uint offset) const
 {
   if (m_var_offset <= offset && offset < m_var_offset + m_vars.elements())
     return m_vars.at(offset - m_var_offset);  // This frame
@@ -181,9 +181,9 @@ sp_variable * sp_pcontext::find_variable(uint offset) const
 }
 
 
-sp_variable * sp_pcontext::push_variable(LEX_STRING *name,
-                                         enum enum_field_types type,
-                                         sp_variable::enum_mode mode)
+sp_variable *sp_pcontext::push_variable(LEX_STRING *name,
+                                        enum enum_field_types type,
+                                        sp_variable::enum_mode mode)
 {
   sp_variable *p= (sp_variable *)sql_alloc(sizeof(sp_variable));
 
@@ -197,12 +197,12 @@ sp_variable * sp_pcontext::push_variable(LEX_STRING *name,
   p->type= type;
   p->mode= mode;
   p->offset= current_var_count();
-  p->dflt= NULL;
+  p->default_value= NULL;
   return m_vars.append(p) ? NULL : p;
 }
 
 
-sp_label * sp_pcontext::push_label(char *name, uint ip)
+sp_label *sp_pcontext::push_label(char *name, uint ip)
 {
   sp_label *label= (sp_label *)sql_alloc(sizeof(sp_label));
 
@@ -219,7 +219,7 @@ sp_label * sp_pcontext::push_label(char *name, uint ip)
 }
 
 
-sp_label * sp_pcontext::find_label(const char *name)
+sp_label *sp_pcontext::find_label(const char *name)
 {
   List_iterator_fast<sp_label> li(m_labels);
   sp_label *lab;
@@ -257,12 +257,8 @@ bool sp_pcontext::push_condition(LEX_STRING *name, sp_condition_value *value)
 }
 
 
-/*
-  See comment for find_variable() above
-*/
-
-sp_condition_value * sp_pcontext::find_condition(const LEX_STRING *name,
-                                                 bool current_scope_only) const
+sp_condition_value *sp_pcontext::find_condition(const LEX_STRING *name,
+                                                bool current_scope_only) const
 {
   uint i= m_conditions.elements();
 
@@ -305,9 +301,9 @@ sp_pcontext::check_duplicate_handler(const sp_condition_value *cond_value) const
 }
 
 
-sp_handler * sp_pcontext::find_handler(const char *sqlstate,
-                                       uint sql_errno,
-                                       Sql_condition::enum_warning_level level)
+sp_handler *sp_pcontext::find_handler(const char *sqlstate,
+                                      uint sql_errno,
+                                      Sql_condition::enum_warning_level level)
 {
   sp_handler *found_handler= NULL;
   sp_condition_value *found_cv= NULL;
@@ -427,10 +423,6 @@ bool sp_pcontext::push_cursor(LEX_STRING *name)
 }
 
 
-/*
-  See comment for find_variable() above
-*/
-
 bool sp_pcontext::find_cursor(LEX_STRING *name, uint *poff,
                               bool current_scope_only) const
 {
@@ -473,11 +465,6 @@ sp_pcontext::retrieve_field_definitions(List<Create_field> *field_def_lst) const
     m_children.at(i)->retrieve_field_definitions(field_def_lst);
 }
 
-
-/*
-  Find a cursor by offset from the top.
-  This is only used for debugging.
-*/
 
 bool sp_pcontext::find_cursor(uint offset, LEX_STRING *n) const
 {
