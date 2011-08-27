@@ -168,6 +168,7 @@ public:
       return theInstanceList[instanceNumber];
     return 0;
   }
+  void addInstance(SimulatedBlock* b, Uint32 theInstanceNo);
   virtual void loadWorkers() {}
 
   struct ThreadContext
