@@ -61,3 +61,8 @@ IF(NDB_BUILD_NDBMTD)
     dummy_mt.cpp)
 ENDIF()
 
+ADD_EXECUTABLE(mt_thr_config-t mt_thr_config.cpp)
+SET_TARGET_PROPERTIES(mt_thr_config-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_MT_THR_CONFIG")
+TARGET_LINK_LIBRARIES(mt_thr_config-t ndbgeneral)
+

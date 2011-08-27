@@ -102,16 +102,7 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     globalData.setBlock(blockNumber, mainBlock);
   } else {
     ndbrequire(mainBlock != 0);
-    if (mainBlock->theInstanceList == 0) {
-      mainBlock->theInstanceList = new SimulatedBlock* [MaxInstances];
-      ndbrequire(mainBlock->theInstanceList != 0);
-      Uint32 i;
-      for (i = 0; i < MaxInstances; i++)
-        mainBlock->theInstanceList[i] = 0;
-    }
-    ndbrequire(theInstance < MaxInstances);
-    ndbrequire(mainBlock->theInstanceList[theInstance] == 0);
-    mainBlock->theInstanceList[theInstance] = this;
+    mainBlock->addInstance(this, theInstance);
   }
   theMainInstance = mainBlock;
 
@@ -136,6 +127,23 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   m_global_variables[0] = 0;
   m_global_variables_save = 0;
 #endif
+}
+
+void
+SimulatedBlock::addInstance(SimulatedBlock* b, Uint32 theInstance)
+{
+  ndbrequire(theMainInstance == this);
+  ndbrequire(number() == b->number());
+  if (theInstanceList == 0)
+  {
+    theInstanceList = new SimulatedBlock* [MaxInstances];
+    ndbrequire(theInstanceList != 0);
+    for (Uint32 i = 0; i < MaxInstances; i++)
+      theInstanceList[i] = 0;
+  }
+  ndbrequire(theInstance < MaxInstances);
+  ndbrequire(theInstanceList[theInstance] == 0);
+  theInstanceList[theInstance] = b;
 }
 
 void

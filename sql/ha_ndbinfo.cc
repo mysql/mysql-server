@@ -368,6 +368,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
   int err = g_ndbinfo->openTable(name, &m_impl.m_table);
   if (err)
   {
+    assert(m_impl.m_table == 0);
     if (err == NdbInfo::ERR_NoSuchTable)
       DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
     DBUG_RETURN(err2mysql(err));
@@ -391,6 +392,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
       warn_incompatible(ndb_tab, true,
                         "column '%s' is NOT NULL",
                         field->field_name);
+      delete m_impl.m_table; m_impl.m_table= 0;
       DBUG_RETURN(ERR_INCOMPAT_TABLE_DEF);
     }
 
@@ -428,6 +430,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
       warn_incompatible(ndb_tab, true,
                         "column '%s' is not compatible",
                         field->field_name);
+      delete m_impl.m_table; m_impl.m_table= 0;
       DBUG_RETURN(ERR_INCOMPAT_TABLE_DEF);
     }
   }

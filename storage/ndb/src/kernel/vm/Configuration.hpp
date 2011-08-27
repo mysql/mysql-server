@@ -86,10 +86,7 @@ public:
 
   void setAllRealtimeScheduler();
   void setAllLockCPU(bool exec_thread);
-  int setLockCPU(NdbThread*,
-                 enum ThreadTypes type,
-                 bool exec_thread,
-                 bool init);
+  int setLockCPU(NdbThread*, enum ThreadTypes type);
   int setRealtimeScheduler(NdbThread*,
                            enum ThreadTypes type,
                            bool real_time,
