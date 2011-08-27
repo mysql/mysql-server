@@ -160,6 +160,7 @@ SimBlockList::load(EmulatorData& data){
       for (int i = 0; i < noOfBlocks; i++)
         theList[i]->loadWorkers();
     }
+    finalize_thr_map();
   }
 
   // Check that all blocks could be created
