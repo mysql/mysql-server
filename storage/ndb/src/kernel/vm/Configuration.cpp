@@ -930,13 +930,16 @@ Configuration::setAllLockCPU(bool exec_thread)
   Uint32 i;
   for (i = 0; i < threadInfo.size(); i++)
   {
-    if (threadInfo[i].type != NotInUse)
+    if (threadInfo[i].type == NotInUse)
+      continue;
+
+    bool run = 
+      (exec_thread && threadInfo[i].type == MainThread) ||
+      (!exec_thread && threadInfo[i].type != MainThread);
+
+    if (run)
     {
-      if (setLockCPU(threadInfo[i].pThread,
-                     threadInfo[i].type,
-                     exec_thread,
-                     FALSE))
-        return;
+      setLockCPU(threadInfo[i].pThread, threadInfo[i].type);
     }
   }
 }
@@ -966,11 +969,8 @@ Configuration::setRealtimeScheduler(NdbThread* pThread,
 
 int
 Configuration::setLockCPU(NdbThread * pThread,
-                          enum ThreadTypes type,
-                          bool exec_thread,
-                          bool init)
+                          enum ThreadTypes type)
 {
-  (void)init;
   Uint32 cpu_id;
   int tid = NdbThread_GetTid(pThread);
   if (tid == -1)
@@ -981,9 +981,6 @@ Configuration::setLockCPU(NdbThread * pThread,
     We only set new lock CPU characteristics for the threads for which
     it has changed
   */
-  if ((exec_thread && type != MainThread) ||
-      (!exec_thread && type == MainThread))
-    return 0;
   if (type == MainThread)
     cpu_id = executeLockCPU();
   else
@@ -1029,7 +1026,7 @@ Configuration::addThread(struct NdbThread* pThread, enum ThreadTypes type)
      * main threads are set in ThreadConfig::ipControlLoop
      * as it's handled differently with mt
      */
-    setLockCPU(pThread, type, (type == MainThread), TRUE);
+    setLockCPU(pThread, type);
   }
   return i;
 }
