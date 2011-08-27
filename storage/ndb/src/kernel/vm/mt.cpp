@@ -2381,49 +2381,6 @@ check_queues_empty(thr_data *selfptr)
 }
 
 /*
- * Map instance number to real instance on this node.  Used in
- * sendlocal/sendprioa to find right thread and in execute_signals
- * to find right block instance.  SignalHeader is not modified.
- */
-
-static Uint8 g_map_instance[MAX_BLOCK_INSTANCES];
-
-static void
-map_instance_init()
-{
-  g_map_instance[0] = 0;
-  Uint32 ino;
-  for (ino = 1; ino < MAX_BLOCK_INSTANCES; ino++)
-  {
-    if (!globalData.isNdbMtLqh)
-    {
-      g_map_instance[ino] = 0;
-    }
-    else
-    {
-      require(num_lqh_workers != 0);
-      if (ino <= MAX_NDBMT_LQH_WORKERS)
-      {
-        g_map_instance[ino] = 1 + (ino - 1) % num_lqh_workers;
-      }
-      else
-      {
-        /* Extra workers are not mapped. */
-        g_map_instance[ino] = ino;
-      }
-    }
-  }
-}
-
-static inline Uint32
-map_instance(const SignalHeader *s)
-{
-  Uint32 ino = blockToInstance(s->theReceiversBlockNumber);
-  assert(ino < MAX_BLOCK_INSTANCES);
-  return g_map_instance[ino];
-}
-
-/*
  * Execute at most MAX_SIGNALS signals from one job queue, updating local read
  * state as appropriate.
  *
@@ -2489,7 +2446,7 @@ execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
       NDB_PREFETCH_READ (read_buffer->m_data + read_pos + 32);
     }
     Uint32 bno = blockToMain(s->theReceiversBlockNumber);
-    Uint32 ino = map_instance(s);
+    Uint32 ino = blockToInstance(s->theReceiversBlockNumber);
     SimulatedBlock* block = globalData.mt_getBlock(bno, ino);
     assert(block != 0);
 
@@ -2572,8 +2529,8 @@ run_job_buffers(thr_data *selfptr, Signal *sig, Uint32 *signalIdCounter)
 }
 
 struct thr_map_entry {
-  enum { NULL_THR_NO = 0xFFFF };
-  Uint32 thr_no;
+  enum { NULL_THR_NO = 0xFF };
+  Uint8 thr_no;
   thr_map_entry() : thr_no(NULL_THR_NO) {}
 };
 
@@ -2679,6 +2636,50 @@ add_extra_worker_thr_map(Uint32 block, Uint32 instance)
   require(instance != 0);
   Uint32 thr_no = block2ThreadId(block, 0);
   add_thr_map(block, instance, thr_no);
+}
+
+/**
+ * create the duplicate entries needed so that
+ *   sender doesnt need to know how many instances there
+ *   actually are in this node...
+ *
+ * if only 1 instance...then duplicate that for all slots
+ * else assume instance 0 is proxy...and duplicate workers (modulo)
+ *
+ * NOTE: extra pgman worker is instance 5
+ */
+void
+finalize_thr_map()
+{
+  for (Uint32 b = 0; b < NO_OF_BLOCKS; b++)
+  {
+    Uint32 bno = b + MIN_BLOCK_NO;
+    Uint32 cnt = 0;
+    while (cnt < MAX_BLOCK_INSTANCES &&
+           thr_map[b][cnt].thr_no != thr_map_entry::NULL_THR_NO)
+      cnt++;
+
+    if (cnt != MAX_BLOCK_INSTANCES)
+    {
+      SimulatedBlock * main = globalData.getBlock(bno, 0);
+      for (Uint32 i = cnt; i < MAX_BLOCK_INSTANCES; i++)
+      {
+        Uint32 dup = (cnt == 1) ? 0 : 1 + ((i - 1) % (cnt - 1));
+        if (thr_map[b][i].thr_no == thr_map_entry::NULL_THR_NO)
+        {
+          thr_map[b][i] = thr_map[b][dup];
+          main->addInstance(globalData.getBlock(bno, dup), i);
+        }
+        else
+        {
+          /**
+           * extra pgman instance
+           */
+          require(bno == PGMAN);
+        }
+      }
+    }
+  }
 }
 
 static void reportSignalStats(Uint32 self, Uint32 a_count, Uint32 a_size,
@@ -3120,7 +3121,7 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
           const Uint32 secPtr[3])
 {
   Uint32 block = blockToMain(s->theReceiversBlockNumber);
-  Uint32 instance = map_instance(s);
+  Uint32 instance = blockToInstance(s->theReceiversBlockNumber);
 
   /*
    * Max number of signals to put into job buffer before flushing the buffer
@@ -3156,7 +3157,7 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
           const Uint32 secPtr[3])
 {
   Uint32 block = blockToMain(s->theReceiversBlockNumber);
-  Uint32 instance = map_instance(s);
+  Uint32 instance = blockToInstance(s->theReceiversBlockNumber);
 
   Uint32 dst = block2ThreadId(block, instance);
   struct thr_repository* rep = &g_thr_repository;
@@ -3507,7 +3508,6 @@ ThreadConfig::init()
 
   ndbout << "NDBMT: num_threads=" << num_threads << endl;
 
-  ::map_instance_init();
   ::rep_init(&g_thr_repository, num_threads,
              globalEmulatorData.m_mem_manager);
 }
