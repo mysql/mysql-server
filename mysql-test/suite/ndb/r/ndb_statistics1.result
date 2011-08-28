@@ -77,7 +77,7 @@ SELECT * FROM t10000 AS X JOIN t10000 AS Y
 ON Y.I=X.I AND Y.J = X.I;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	X	ALL	I	NULL	NULL	NULL	10000	
-1	SIMPLE	Y	ref	J,I	J	5	test.X.I	2	Using where
+1	SIMPLE	Y	ref	J,I	J	5	test.X.I	1	Using where
 EXPLAIN
 SELECT * FROM t100 WHERE k < 42;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
