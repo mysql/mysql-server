@@ -3551,7 +3551,6 @@ toku_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     if (toku_c_uninitialized(c)) r = toku_c_getf_first(c, flag, f, extra);
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
-        num_sequential_queries++;   // accountability
         c_query_context_init(&context, c, flag, f, extra); 
         //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
         r = toku_brt_cursor_next(dbc_struct_i(c)->c, c_getf_next_callback, &context);
@@ -3567,6 +3566,7 @@ c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
     QUERY_CONTEXT_BASE context       = &super_context->base;
 
     int r;
+    num_sequential_queries++;   // accountability
 
     DBT found_key;
     DBT found_val;
@@ -3606,7 +3606,6 @@ toku_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     if (toku_c_uninitialized(c)) r = toku_c_getf_last(c, flag, f, extra);
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
-        num_sequential_queries++;   // accountability
         c_query_context_init(&context, c, flag, f, extra); 
         //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
         r = toku_brt_cursor_prev(dbc_struct_i(c)->c, c_getf_prev_callback, &context);
@@ -3623,6 +3622,7 @@ c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
 
     int r;
 
+    num_sequential_queries++;   // accountability
     DBT found_key;
     DBT found_val;
     toku_fill_dbt(&found_key, key, keylen);
