@@ -1404,6 +1404,14 @@ static int maybe_flush_some (CACHETABLE ct, long size) {
                     if (bytes_freed_estimate > 0) {
                         curr_in_clock->size_evicting_estimate = bytes_freed_estimate;
                         ct->size_evicting += bytes_freed_estimate;
+                        // set the state before we post on writer thread (and give up cachetable lock)
+                        // if we do not set the state here, any thread that tries
+                        // to access this node in between when this function exits and the
+                        // workitem gets placed on a writer thread will block (because it will think
+                        // that the PAIR's lock will be released soon), and keep blocking
+                        // until the workitem is done. This would be bad, as that thread may
+                        // be holding the ydb lock.
+                        curr_in_clock->state = CTPAIR_WRITING;
                         WORKITEM wi = &curr_in_clock->asyncwork;
                         workitem_init(wi, cachetable_partial_eviction, curr_in_clock);
                         workqueue_enq(&ct->wq, wi, 0);
@@ -2169,6 +2177,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
 
         if (partial_fetch_required) {
             rwlock_write_lock(&p->rwlock, ct->mutex);
+            p->state = CTPAIR_READING;
             struct cachefile_partial_prefetch_args *MALLOC(cpargs);
             cpargs->p = p;
             cpargs->pf_callback = pf_callback;
