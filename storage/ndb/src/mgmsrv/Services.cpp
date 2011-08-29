@@ -570,10 +570,6 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
         error_string = "";
         continue;
       }
-      const char *alias;
-      const char *str;
-      alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)
-						nodetype, &str);
       m_output->println("result: %s", error_string.c_str());
       /* only use error_code protocol if client knows about it */
       if (log_event_version)
