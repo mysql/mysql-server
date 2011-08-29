@@ -249,7 +249,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     2003-03-03 20:00:20 AM
     20:00:20.000000 AM 03-03-2000
   */
-  i= max((uint) format_position[0], (uint) format_position[1]);
+  i= MY_MAX((uint) format_position[0], (uint) format_position[1]);
   set_if_bigger(i, (uint) format_position[2]);
   allow_space= ((1 << i) | (1 << format_position[6]));
   allow_space&= (1 | 2 | 4 | 8);

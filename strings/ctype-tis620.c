@@ -581,7 +581,7 @@ int my_strnncollsp_tis620(const CHARSET_INFO * cs __attribute__((unused)),
   a_length= thai2sortable(a, a_length);
   b_length= thai2sortable(b, b_length);
   
-  end= a + (length= min(a_length, b_length));
+  end= a + (length= MY_MIN(a_length, b_length));
   while (a < end)
   {
     if (*a++ != *b++)
@@ -638,7 +638,7 @@ my_strnxfrm_tis620(const CHARSET_INFO *cs,
                    const uchar *src, size_t srclen, uint flags)
 {
   size_t len, dstlen0= dstlen;
-  len= (uint) (strmake((char*) dst, (char*) src, min(dstlen, srclen)) -
+  len= (uint) (strmake((char*) dst, (char*) src, MY_MIN(dstlen, srclen)) -
 	               (char*) dst);
   len= thai2sortable(dst, len);
   set_if_smaller(dstlen, nweights);

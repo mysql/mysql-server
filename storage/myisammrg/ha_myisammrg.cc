@@ -101,6 +101,11 @@
 #include "sql_class.h"                          // THD
 #include "debug_sync.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
