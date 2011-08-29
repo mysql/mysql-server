@@ -47,6 +47,11 @@
 #include "mysql/psi/mysql_idle.h"
 #include "mysql/psi/mysql_socket.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
 #undef MYSQL_CLIENT

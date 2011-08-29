@@ -36,11 +36,16 @@
 #include "sql_show.h"                     // schema_table_store_record
 #include "sql_class.h"                    // THD
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #define TIME_FLOAT_DIGITS 9
 /** two vals encoded: (dec*100)+len */
 #define TIME_I_S_DECIMAL_SIZE (TIME_FLOAT_DIGITS*100)+(TIME_FLOAT_DIGITS-3)
 
-#define MAX_QUERY_LENGTH 300
+#define MAX_QUERY_LENGTH 300U
 
 /**
   Connects Information_Schema and Profiling.

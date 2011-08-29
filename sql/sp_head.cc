@@ -39,6 +39,11 @@
 #include "transaction.h"       // trans_commit_stmt
 #include "opt_trace.h"         // opt_trace_disable_etc
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 /*
   Sufficient max length of printed destinations and frame offsets (all uints).
 */
@@ -2703,8 +2708,7 @@ sp_head::show_create_routine(THD *thd, int type)
     */
 
     Item_empty_string *stmt_fld=
-      new Item_empty_string(col3_caption,
-                            max(m_defstr.length, 1024));
+      new Item_empty_string(col3_caption, max<size_t>(m_defstr.length, 1024U));
 
     stmt_fld->maybe_null= TRUE;
 
@@ -2904,7 +2908,7 @@ sp_head::show_routine_code(THD *thd)
   field_list.push_back(new Item_uint("Pos", 9));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Instruction",
-                                             max(buffer.length(), 1024)));
+                                             max(buffer.length(), 1024U)));
   if (protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS |
                                          Protocol::SEND_EOF))
     DBUG_RETURN(1);

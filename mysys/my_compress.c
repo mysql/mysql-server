@@ -244,7 +244,7 @@ int unpackfrm(uchar **unpack_data, size_t *unpack_len,
 
    if (ver != 1)
      DBUG_RETURN(1);
-   if (!(data= my_malloc(max(orglen, complen), MYF(MY_WME))))
+   if (!(data= my_malloc(MY_MAX(orglen, complen), MYF(MY_WME))))
      DBUG_RETURN(2);
    memcpy(data, pack_data + BLOB_HEADER, complen);
 
