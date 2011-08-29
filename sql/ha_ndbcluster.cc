@@ -168,6 +168,11 @@ static MYSQL_THDVAR_ULONG(
   0                                  /* block */
 );
 
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
+#define DEFAULT_NDB_INDEX_STAT_ENABLE FALSE
+#else
+#define DEFAULT_NDB_INDEX_STAT_ENABLE TRUE
+#endif
 
 static MYSQL_THDVAR_BOOL(
   index_stat_enable,                 /* name */
@@ -175,7 +180,7 @@ static MYSQL_THDVAR_BOOL(
   "Use ndb index statistics in query optimization.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  FALSE                              /* default */
+  DEFAULT_NDB_INDEX_STAT_ENABLE      /* default */
 );
 
 
@@ -1396,19 +1401,22 @@ void ha_ndbcluster::set_rec_per_key()
   */
   for (uint i=0 ; i < table_share->keys ; i++)
   {
+    bool is_unique_index= false;
     KEY* key_info= table->key_info + i;
     switch (get_index_type(i))
     {
-    case UNIQUE_ORDERED_INDEX:
-    case PRIMARY_KEY_ORDERED_INDEX:
     case UNIQUE_INDEX:
     case PRIMARY_KEY_INDEX:
     {
       // Index is unique when all 'key_parts' are specified,
       // else distribution is unknown and not specified here.
-      key_info->rec_per_key[key_info->key_parts-1]= 1;
+      is_unique_index= true;
       break;
     }
+    case UNIQUE_ORDERED_INDEX:
+    case PRIMARY_KEY_ORDERED_INDEX:
+      is_unique_index= true;
+      // intentional fall thru to logic for ordered index
     case ORDERED_INDEX:
       // 'Records pr. key' are unknown for non-unique indexes.
       // (May change when we get better index statistics.)
@@ -1437,6 +1445,11 @@ void ha_ndbcluster::set_rec_per_key()
     }
     default:
       DBUG_ASSERT(false);
+    }
+    // set rows per key to 1 for complete key given for unique/primary index
+    if (is_unique_index)
+    {
+      key_info->rec_per_key[key_info->key_parts-1]= 1;
     }
   }
   DBUG_VOID_RETURN;

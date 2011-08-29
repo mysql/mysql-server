@@ -6299,8 +6299,8 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   MY_BITMAP b;
   /* Potential buffer for the bitmap */
   uint32 bitbuf[128 / (sizeof(uint32) * 8)];
-  bitmap_init(&b, n_fields <= sizeof(bitbuf) * 8 ? bitbuf : NULL, 
-              n_fields, FALSE);
+  const bool own_buffer = n_fields <= sizeof(bitbuf) * 8;
+  bitmap_init(&b, own_buffer ? bitbuf : NULL, n_fields, FALSE); 
   bitmap_set_all(&b);
 
   /*
@@ -6461,6 +6461,11 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   {
     my_free(blobs_buffer[0], MYF(MY_ALLOW_ZERO_PTR));
     my_free(blobs_buffer[1], MYF(MY_ALLOW_ZERO_PTR));
+  }
+
+  if (!own_buffer)
+  {
+    bitmap_free(&b);
   }
 
   return 0;
