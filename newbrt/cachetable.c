@@ -1353,7 +1353,9 @@ static int maybe_flush_some (CACHETABLE ct, long size) {
     // We must detect this case otherwise we will end up in an infinite loop below.
     //
     CACHEKEY curr_cachekey;
+    curr_cachekey.b = INT64_MAX; // create initial value so compiler does not complain
     FILENUM curr_filenum;
+    curr_filenum.fileid = UINT32_MAX; // create initial value so compiler does not complain
     BOOL set_val = FALSE;
     
     while ((ct->head) && (size + ct->size_current > ct->size_limit + ct->size_evicting)) {
