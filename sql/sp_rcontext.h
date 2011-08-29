@@ -20,14 +20,16 @@
 #include "sql_class.h"                    // select_result_interceptor
 #include "sp_pcontext.h"                  // sp_condition_value
 
+///////////////////////////////////////////////////////////////////////////
+// sp_rcontext declaration.
+///////////////////////////////////////////////////////////////////////////
+
 class sp_cursor;
 class sp_lex_keeper;
 class sp_instr_cpush;
 class Query_arena;
 class sp_head;
 class Item_cache;
-typedef class st_select_lex_unit SELECT_LEX_UNIT;
-class Server_side_cursor;
 
 /*
   This class is a runtime context of a Stored Routine. It is used in an
@@ -174,28 +176,25 @@ private:
   };
 
 public:
-  /*
-    Arena used to (re) allocate items on . E.g. reallocate INOUT/OUT
-    SP parameters when they don't fit into prealloced items. This
-    is common situation with String items. It is used mainly in
-    sp_eval_func_item().
-  */
+  /// Arena used to (re) allocate items on. E.g. reallocate INOUT/OUT
+  /// SP-variables when they don't fit into prealloced items. This is common
+  /// situation with String items. It is used mainly in sp_eval_func_item().
   Query_arena *callers_arena;
 
-  /*
-    End a open result set before start executing a continue/exit
-    handler if one is found as otherwise the client will hang
-    due to a violation of the client/server protocol.
-  */
+  /// Flag to end an open result set before start executing an SQL-handler
+  /// (if one is found). Otherwise the client will hang due to a violation
+  /// of the client/server protocol.
   bool end_partial_result_set;
 
 #ifndef DBUG_OFF
-  /*
-    The routine for which this runtime context is created. Used for checking
-    if correct runtime context is used for variable handling.
-  */
+  /// The stored program for which this runtime context is created. Used for
+  /// checking if correct runtime context is used for variable handling.
   sp_head *sp;
 #endif
+
+  /////////////////////////////////////////////////////////////////////////
+  // SP-variables.
+  /////////////////////////////////////////////////////////////////////////
 
   int set_variable(THD *thd, uint var_idx, Item **value)
   { return set_variable(thd, m_var_table->field[var_idx], value); }
@@ -211,12 +210,21 @@ public:
   bool is_return_value_set() const
   { return m_return_value_set; }
 
-  /*
-    SQL handlers support.
-  */
+  /////////////////////////////////////////////////////////////////////////
+  // SQL-handlers.
+  /////////////////////////////////////////////////////////////////////////
 
+  /// Create a new sp_handler_entry instance and push it to the handler call
+  /// stack.
+  ///
+  /// @param handler  SQL-handler object.
+  /// @param first_ip First instruction pointer of the handler.
   void push_handler(sp_handler *handler_def, uint first_ip);
 
+  /// Pop and delete given number of sp_handler_entry instances from the handler
+  /// call stack.
+  ///
+  /// @param count Number of handler entries to pop & delete.
   void pop_handlers(int count);
 
   const Sql_condition_info *raised_condition() const
@@ -225,16 +233,51 @@ public:
       (*m_handler_call_stack.back())->sql_condition : NULL;
   }
 
+  /// Handle current SQL condition (if any).
+  ///
+  /// This is the public-interface function to handle SQL conditions in
+  /// stored routines.
+  ///
+  /// @param thd            Thread handle.
+  /// @param ip[out]        Instruction pointer to the first handler
+  ///                       instruction.
+  /// @param cur_spi        Current SP instruction.
+  /// @param execute_arena  Current execution arena for SP.
+  /// @param backup_arena   Backup arena for SP.
+  ///
+  /// @retval true if an SQL-handler has been activated. That means, all of
+  /// the following conditions are satisfied:
+  ///   - the SP-instruction raised SQL-condition(s),
+  ///   - and there is an SQL-handler to process at least one of those
+  ///     SQL-conditions,
+  ///   - and that SQL-handler has been activated.
+  /// Note, that the return value has nothing to do with "error flag"
+  /// semantics.
+  ///
+  /// @retval false otherwise.
   bool handle_sql_condition(THD *thd,
                             uint *ip,
                             const sp_instr *cur_spi,
                             Query_arena *execute_arena,
                             Query_arena *backup_arena);
 
+  /// Remove latest call frame from the handler call stack.
+  /// @return continue instruction pointer of the removed handler.
   uint exit_handler();
 
+  /////////////////////////////////////////////////////////////////////////
+  // Cursors.
+  /////////////////////////////////////////////////////////////////////////
+
+  ///  Create a new sp_cursor instance and push it to the cursor stack.
+  ///
+  ///  @param lex_keeper SP-instruction execution helper.
+  ///  @param i          Cursor-push instruction.
   void push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
 
+  /// Pop and delete given number of sp_cursor instance from the cursor stack.
+  ///
+  /// @param count Number of cursors to pop & delete.
   void pop_cursors(uint count);
 
   void pop_all_cursors()
@@ -243,11 +286,36 @@ public:
   sp_cursor *get_cursor(uint i) const
   { return m_cstack[i]; }
 
-  /*
-    CASE expressions support.
-  */
+  /////////////////////////////////////////////////////////////////////////
+  // CASE expressions.
+  /////////////////////////////////////////////////////////////////////////
 
-  int set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr);
+  /// Set CASE expression to the specified value.
+  ///
+  /// @param thd             Thread handler.
+  /// @param case_expr_id    The CASE expression identifier.
+  /// @param case_expr_item  The CASE expression value
+  ///
+  /// @return error flag.
+  /// @retval false on success.
+  /// @retval true on error.
+  ///
+  /// @note The idea is to reuse Item_cache for the expression of the one
+  /// CASE statement. This optimization takes place when there is CASE
+  /// statement inside of a loop. So, in other words, we will use the same
+  /// object on each iteration instead of creating a new one for each
+  /// iteration.
+  ///
+  /// TODO
+  ///   Hypothetically, a type of CASE expression can be different for each
+  ///   iteration. For instance, this can happen if the expression contains
+  ///   a session variable (something like @@VAR) and its type is changed
+  ///   from one iteration to another.
+  ///
+  ///   In order to cope with this problem, we check type each time, when we
+  ///   use already created object. If the type does not match, we re-create
+  ///   Item.  This also can (should?) be optimized.
+  bool set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr);
 
   Item *get_case_expr(int case_expr_id) const
   { return m_case_expr_holders[case_expr_id]; }
@@ -256,43 +324,65 @@ public:
   { return (Item**) m_case_expr_holders.array() + case_expr_id; }
 
 private:
+  /// Internal function to allocate memory for arrays.
+  ///
+  /// @param thd Thread handle.
+  ///
+  /// @return error flag: false on success, true in case of failure.
   bool alloc_arrays(THD *thd);
 
+  /// Create and initialize a table to store SP-variables.
+  ///
+  /// param thd Thread handle.
+  ///
+  /// @return error flag.
+  /// @retval false on success.
+  /// @retval false on error.
   bool init_var_table(THD *thd);
 
+  /// Create and initialize an Item-adapter (Item_field) for each SP-var field.
+  ///
+  /// param thd Thread handle.
+  ///
+  /// @return error flag.
+  /// @retval false on success.
+  /// @retval false on error.
   bool init_var_items(THD *thd);
 
+  /// Create an instance of appropriate Item_cache class depending on the
+  /// specified type in the callers arena.
+  ///
+  /// @note We should create cache items in the callers arena, as they are
+  /// used between in several instructions.
+  ///
+  /// @param thd   Thread handler.
+  /// @param item  Item to get the expression type.
+  ///
+  /// @return Pointer to valid object on success, or NULL in case of error.
   Item_cache *create_case_expr_holder(THD *thd, const Item *item) const;
 
   int set_variable(THD *thd, Field *field, Item **value);
 
 private:
+  /// Top-level (root) parsing context for this runtime context.
   const sp_pcontext *m_root_parsing_ctx;
 
-  /* Virtual table for storing variables. */
+  /// Virtual table for storing SP-variables.
   TABLE *m_var_table;
 
-  /*
-    Collection of Item_field proxies, each of them points to the corresponding
-    field in m_var_table.
-  */
+  /// Collection of Item_field proxies, each of them points to the
+  /// corresponding field in m_var_table.
   Bounds_checked_array<Item *> m_var_items;
 
-  /*
-    This is a pointer to a field, which should contain return value for stored
-    functions (only). For stored procedures, this pointer is NULL.
-  */
+  /// This is a pointer to a field, which should contain return value for
+  /// stored functions (only). For stored procedures, this pointer is NULL.
   Field *m_return_value_fld;
 
-  /*
-    Indicates whether the return value (in m_return_value_fld) has been set
-    during execution.
-  */
+  /// Indicates whether the return value (in m_return_value_fld) has been
+  /// set during execution.
   bool m_return_value_set;
 
-  /**
-    TRUE if the context is created for a sub-statement.
-  */
+  /// Flag to tell if the runtime context is created for a sub-statement.
   bool m_in_sub_stmt;
 
   /// Stack of visible handlers.
@@ -311,6 +401,12 @@ private:
   Bounds_checked_array<Item_cache *> m_case_expr_holders;
 }; // class sp_rcontext : public Sql_alloc
 
+///////////////////////////////////////////////////////////////////////////
+// sp_cursor declaration.
+///////////////////////////////////////////////////////////////////////////
+
+class Server_side_cursor;
+typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 /* A mediator between stored procedures and server side cursors */
 

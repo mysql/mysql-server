@@ -23,6 +23,11 @@
 #include "sql_select.h"                     // create_virtual_tmp_table
 
 
+///////////////////////////////////////////////////////////////////////////
+// sp_rcontext implementation.
+///////////////////////////////////////////////////////////////////////////
+
+
 sp_rcontext::sp_rcontext(const sp_pcontext *root_parsing_ctx,
                          Field *return_value_fld,
                          bool in_sub_stmt)
@@ -76,14 +81,6 @@ sp_rcontext *sp_rcontext::create(THD *thd,
 }
 
 
-/**
-  Internal function to allocate memory for arrays.
-
-  @param thd Thread handle.
-
-  @return error flag: false on success, true in case of failure.
-*/
-
 bool sp_rcontext::alloc_arrays(THD *thd)
 {
   {
@@ -106,16 +103,6 @@ bool sp_rcontext::alloc_arrays(THD *thd)
 }
 
 
-/*
-  Create and initialize a table to store SP-vars.
-
-  SYNOPSIS
-    thd   Thread handler.
-  RETURN
-    FALSE   on success
-    TRUE    on error
-*/
-
 bool sp_rcontext::init_var_table(THD *thd)
 {
   List<Create_field> field_def_lst;
@@ -136,14 +123,6 @@ bool sp_rcontext::init_var_table(THD *thd)
   return FALSE;
 }
 
-
-/*
-  Create and initialize an Item-adapter (Item_field) for each SP-var field.
-
-  RETURN
-    FALSE   on success
-    TRUE    on error
-*/
 
 bool sp_rcontext::init_var_items(THD *thd)
 {
@@ -177,13 +156,6 @@ bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 }
 
 
-/**
-  Create a new sp_cursor instance and push it to the cursor stack.
-
-  @param lex_keeper SP-instruction execution helper.
-  @param i          Cursor-push instruction.
-*/
-
 void sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
 {
   DBUG_ENTER("sp_rcontext::push_cursor");
@@ -194,12 +166,6 @@ void sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
   DBUG_VOID_RETURN;
 }
 
-
-/**
-  Pop and delete given number of sp_cursor instance from the cursor stack.
-
-  @param count Number of cursors to pop & delete.
-*/
 
 void sp_rcontext::pop_cursors(uint count)
 {
@@ -213,13 +179,6 @@ void sp_rcontext::pop_cursors(uint count)
 }
 
 
-/**
-  Create a new sp_handler_entry instance and push it to the handler call stack.
-
-  @param handler  SQL-handler object.
-  @param first_ip First instruction pointer of the handler.
-*/
-
 void sp_rcontext::push_handler(sp_handler *handler, uint first_ip)
 {
   DBUG_ENTER("sp_rcontext::push_handler");
@@ -229,13 +188,6 @@ void sp_rcontext::push_handler(sp_handler *handler, uint first_ip)
   DBUG_VOID_RETURN;
 }
 
-
-/**
-  Pop and delete given number of sp_handler_entry instances from the handler
-  call stack.
-
-  @param count Number of handler entries to pop & delete.
-*/
 
 void sp_rcontext::pop_handlers(int count)
 {
@@ -248,27 +200,6 @@ void sp_rcontext::pop_handlers(int count)
   DBUG_VOID_RETURN;
 }
 
-
-/**
-  Handle current SQL condition (if any).
-
-  This is the public-interface function to handle SQL conditions in stored
-  routines.
-
-  @param thd            Thread handle.
-  @param ip[out]        Instruction pointer to the first handler instruction.
-  @param cur_spi        Current SP instruction.
-  @param execute_arena  Current execution arena for SP.
-  @param backup_arena   Backup arena for SP.
-
-  @retval true if an SQL-handler has been activated. That means, all of the
-  following conditions are satisfied:
-    - the SP-instruction raised SQL-condition(s),
-    - and there is an SQL-handler to process at least one of those SQL-conditions,
-    - and that SQL-handler has been activated.
-  Note, that the return value has nothing to do with "error flag" semantics.
-  @retval false otherwise.
-*/
 
 bool sp_rcontext::handle_sql_condition(THD *thd,
                                        uint *ip,
@@ -372,11 +303,6 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 }
 
 
-/**
-  Remove latest call frame from the handler call stack.
-  @return continue instruction pointer of the removed handler.
-*/
-
 uint sp_rcontext::exit_handler()
 {
   DBUG_ENTER("sp_rcontext::exit_handler");
@@ -404,11 +330,47 @@ int sp_rcontext::set_variable(THD *thd, Field *field, Item **value)
 }
 
 
-/*
- *
- *  sp_cursor
- *
- */
+Item_cache *sp_rcontext::create_case_expr_holder(THD *thd,
+                                                 const Item *item) const
+{
+  Item_cache *holder;
+  Query_arena current_arena;
+
+  thd->set_n_backup_active_arena(thd->spcont->callers_arena, &current_arena);
+
+  holder= Item_cache::get_cache(item);
+
+  thd->restore_active_arena(thd->spcont->callers_arena, &current_arena);
+
+  return holder;
+}
+
+
+bool sp_rcontext::set_case_expr(THD *thd, int case_expr_id,
+                                Item **case_expr_item_ptr)
+{
+  Item *case_expr_item= sp_prepare_func_item(thd, case_expr_item_ptr);
+  if (!case_expr_item)
+    return true;
+
+  if (!m_case_expr_holders[case_expr_id] ||
+      m_case_expr_holders[case_expr_id]->result_type() !=
+        case_expr_item->result_type())
+  {
+    m_case_expr_holders[case_expr_id]=
+      create_case_expr_holder(thd, case_expr_item);
+  }
+
+  m_case_expr_holders[case_expr_id]->store(case_expr_item);
+  m_case_expr_holders[case_expr_id]->cache_value();
+  return false;
+}
+
+
+///////////////////////////////////////////////////////////////////////////
+// sp_cursor implementation.
+///////////////////////////////////////////////////////////////////////////
+
 
 sp_cursor::sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
   :m_lex_keeper(lex_keeper),
@@ -507,92 +469,10 @@ int sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 }
 
 
-/*
-  Create an instance of appropriate Item_cache class depending on the
-  specified type in the callers arena.
+///////////////////////////////////////////////////////////////////////////
+// sp_cursor::Select_fetch_into_spvars implementation.
+///////////////////////////////////////////////////////////////////////////
 
-  SYNOPSIS
-    thd           thread handler
-    result_type   type of the expression
-
-  RETURN
-    Pointer to valid object     on success
-    NULL                        on error
-
-  NOTE
-    We should create cache items in the callers arena, as they are used
-    between in several instructions.
-*/
-
-Item_cache *sp_rcontext::create_case_expr_holder(THD *thd,
-                                                 const Item *item) const
-{
-  Item_cache *holder;
-  Query_arena current_arena;
-
-  thd->set_n_backup_active_arena(thd->spcont->callers_arena, &current_arena);
-
-  holder= Item_cache::get_cache(item);
-
-  thd->restore_active_arena(thd->spcont->callers_arena, &current_arena);
-
-  return holder;
-}
-
-
-/*
-  Set CASE expression to the specified value.
-
-  SYNOPSIS
-    thd             thread handler
-    case_expr_id    identifier of the CASE expression
-    case_expr_item  a value of the CASE expression
-
-  RETURN
-    FALSE   on success
-    TRUE    on error
-
-  NOTE
-    The idea is to reuse Item_cache for the expression of the one CASE
-    statement. This optimization takes place when there is CASE statement
-    inside of a loop. So, in other words, we will use the same object on each
-    iteration instead of creating a new one for each iteration.
-
-  TODO
-    Hypothetically, a type of CASE expression can be different for each
-    iteration. For instance, this can happen if the expression contains a
-    session variable (something like @@VAR) and its type is changed from one
-    iteration to another.
-
-    In order to cope with this problem, we check type each time, when we use
-    already created object. If the type does not match, we re-create Item.
-    This also can (should?) be optimized.
-*/
-
-int sp_rcontext::set_case_expr(THD *thd, int case_expr_id,
-                               Item **case_expr_item_ptr)
-{
-  Item *case_expr_item= sp_prepare_func_item(thd, case_expr_item_ptr);
-  if (!case_expr_item)
-    return TRUE;
-
-  if (!m_case_expr_holders[case_expr_id] ||
-      m_case_expr_holders[case_expr_id]->result_type() !=
-        case_expr_item->result_type())
-  {
-    m_case_expr_holders[case_expr_id]=
-      create_case_expr_holder(thd, case_expr_item);
-  }
-
-  m_case_expr_holders[case_expr_id]->store(case_expr_item);
-  m_case_expr_holders[case_expr_id]->cache_value();
-  return FALSE;
-}
-
-
-/***************************************************************************
- Select_fetch_into_spvars
-****************************************************************************/
 
 int sp_cursor::Select_fetch_into_spvars::prepare(List<Item> &fields,
                                                  SELECT_LEX_UNIT *u)
