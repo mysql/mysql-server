@@ -1455,7 +1455,8 @@ dict_load_indexes(
 				dictionary cache for such metadata corruption,
 				since we would always be able to set it
 				when loading the dictionary cache */
-				dict_set_corrupted_index_cache_only(index);
+				dict_set_corrupted_index_cache_only(
+					index, table);
 
 				fprintf(stderr,
 					"InnoDB: Index is corrupt but forcing"
