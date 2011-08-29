@@ -1040,21 +1040,10 @@ static void make_sortkey(register Sort_param *param,
       if (addonf->null_bit && field->is_null())
       {
         nulls[addonf->null_offset]|= addonf->null_bit;
-#ifdef HAVE_purify
-	memset(to, 0, addonf->length);
-#endif
       }
       else
       {
-#ifdef HAVE_purify
-        uchar *end= field->pack(to, field->ptr);
-	uint length= (uint) ((to + addonf->length) - end);
-	DBUG_ASSERT((int) length >= 0);
-	if (length)
-	  memset(end, 0, length);
-#else
         (void) field->pack(to, field->ptr);
-#endif
       }
       to+= addonf->length;
     }
