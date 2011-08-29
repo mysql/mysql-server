@@ -1423,11 +1423,18 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
     buf++;
   }
   my_afree(d_copy);
+
+  /*
+    No digits? We have read the number zero, of unspecified precision.
+    Make it a proper zero, with non-zero precision.
+  */
+  if (to->intg == 0 && to->frac == 0)
+    decimal_make_zero(to);
   return error;
 
 err:
   my_afree(d_copy);
-  decimal_make_zero(((decimal_t*) to));
+  decimal_make_zero(to);
   return(E_DEC_BAD_NUM);
 }
 
