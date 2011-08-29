@@ -44,8 +44,9 @@ row_ext_cache_fill(
 {
 	const byte*	field	= dfield_get_data(dfield);
 	ulint		f_len	= dfield_get_len(dfield);
-	byte*		buf	= ext->buf + i * REC_MAX_INDEX_COL_LEN;
+	byte*		buf	= ext->buf + i * ext->max_len;
 
+	ut_ad(ext->max_len > 0);
 	ut_ad(i < ext->n_ext);
 	ut_ad(dfield_is_ext(dfield));
 	ut_a(f_len >= BTR_EXTERN_FIELD_REF_SIZE);
@@ -56,14 +57,14 @@ row_ext_cache_fill(
 		/* The BLOB pointer is not set: we cannot fetch it */
 		ext->len[i] = 0;
 	} else {
-		/* Fetch at most REC_MAX_INDEX_COL_LEN of the column.
+		/* Fetch at most ext->max_len of the column.
 		The column should be non-empty.  However,
 		trx_rollback_or_clean_all_recovered() may try to
 		access a half-deleted BLOB if the server previously
 		crashed during the execution of
 		btr_free_externally_stored_field(). */
 		ext->len[i] = btr_copy_externally_stored_field_prefix(
-			buf, REC_MAX_INDEX_COL_LEN, zip_size, field, f_len);
+			buf, ext->max_len, zip_size, field, f_len);
 	}
 }
 
@@ -79,16 +80,18 @@ row_ext_create(
 				in the InnoDB table object, as reported by
 				dict_col_get_no(); NOT relative to the records
 				in the clustered index */
+	ulint		flags,	/*!< in: table->flags */
 	const dtuple_t*	tuple,	/*!< in: data tuple containing the field
 				references of the externally stored
 				columns; must be indexed by col_no;
 				the clustered index record must be
 				covered by a lock or a page latch
 				to prevent deletion (rollback or purge). */
-	ulint		zip_size,/*!< compressed page size in bytes, or 0 */
 	mem_heap_t*	heap)	/*!< in: heap where created */
 {
 	ulint		i;
+	ulint		zip_size = dict_table_flags_to_zip_size(flags);
+
 	row_ext_t*	ret = mem_heap_alloc(heap, (sizeof *ret)
 					     + (n_ext - 1) * sizeof ret->len);
 
@@ -97,10 +100,12 @@ row_ext_create(
 
 	ret->n_ext = n_ext;
 	ret->ext = ext;
-	ret->buf = mem_heap_alloc(heap, n_ext * REC_MAX_INDEX_COL_LEN);
+	ret->max_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags);
+
+	ret->buf = mem_heap_alloc(heap, n_ext * ret->max_len);
 #ifdef UNIV_DEBUG
-	memset(ret->buf, 0xaa, n_ext * REC_MAX_INDEX_COL_LEN);
-	UNIV_MEM_ALLOC(ret->buf, n_ext * REC_MAX_INDEX_COL_LEN);
+	memset(ret->buf, 0xaa, n_ext * ret->max_len);
+	UNIV_MEM_ALLOC(ret->buf, n_ext * ret->max_len);
 #endif
 
 	/* Fetch the BLOB prefixes */

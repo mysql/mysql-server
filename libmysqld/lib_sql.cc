@@ -50,6 +50,23 @@ extern "C" void unireg_clear(int exit_code)
   DBUG_VOID_RETURN;
 }
 
+/*
+  Wrapper error handler for embedded server to call client/server error 
+  handler based on whether thread is in client/server context
+*/
+
+static void embedded_error_handler(uint error, const char *str, myf MyFlags)
+{
+  DBUG_ENTER("embedded_error_handler");
+
+  /* 
+    If current_thd is NULL, it means restore_global has been called and 
+    thread is in client context, then call client error handler else call 
+    server error handler.
+  */
+  DBUG_RETURN(current_thd ? my_message_sql(error, str, MyFlags):
+              my_message_stderr(error, str, MyFlags));
+}
 
 /*
   Reads error information from the MYSQL_DATA and puts
@@ -106,7 +123,8 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (mysql->status != MYSQL_STATUS_READY)
   {
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
-    return 1;
+    result= 1;
+    goto end;
   }
 
   /* Clear result variables */
@@ -147,6 +165,9 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 #if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
 #endif
+
+end:
+  thd->restore_globals();
   return result;
 }
 
@@ -545,7 +566,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
     return 1;
   }
 
-  error_handler_hook = my_message_sql;
+  /* 
+    set error_handler_hook to embedded_error_handler wrapper.
+  */
+  error_handler_hook= embedded_error_handler;
 
   acl_error= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

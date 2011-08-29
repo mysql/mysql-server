@@ -73,7 +73,8 @@ public:
   Event_db_repository(){}
 
   bool
-  create_event(THD *thd, Event_parse_data *parse_data, my_bool create_if_not);
+  create_event(THD *thd, Event_parse_data *parse_data, bool create_if_not,
+               bool *event_already_exists);
 
   bool
   update_event(THD *thd, Event_parse_data *parse_data, LEX_STRING *new_dbname,

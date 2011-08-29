@@ -512,4 +512,19 @@ SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
   ORDER BY COLUMN_NAME;
 
 
+--echo #
+--echo # Bug #12610784: SET PASSWORD INCORRECTLY KEEP AN OLD EMPTY PASSWORD
+--echo #
+
+CREATE USER bug12610784@localhost; 
+SET PASSWORD FOR bug12610784@localhost = PASSWORD('secret');
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(b12610784,localhost,bug12610784,,test);
+--enable_query_log
+connect(b12610784,localhost,bug12610784,secret,test);
+connection default;
+disconnect b12610784;
+DROP USER bug12610784@localhost;
+
 --echo End of 5.5 tests

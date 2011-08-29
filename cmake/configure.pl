@@ -204,6 +204,10 @@ foreach my $option (@ARGV)
   {
     $cmakeargs = $cmakeargs." \"-DWITH_NDB_CCFLAGS=".substr($option,17)."\"";
     next;
+  if ($option =~ /with-gcov/)
+  {
+      $cmakeargs = $cmakeargs." -DENABLE_GCOV=ON"; 
+      next;
   }
 
   $option = uc($option);

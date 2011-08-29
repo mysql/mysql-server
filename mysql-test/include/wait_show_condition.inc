@@ -31,6 +31,21 @@
 # Created: 2009-02-18 mleich
 #
 
+if (!$condition)
+{
+  --die ERROR IN TEST: the "condition" variable must be set
+}
+
+if (!$field)
+{
+  --die ERROR IN TEST: the "field" variable must be set
+}
+
+if (!$show_statement)
+{
+  --die ERROR IN TEST: the "show_statement" variable must be set
+}
+
 let $max_run_time= 30;
 if ($wait_timeout)
 {

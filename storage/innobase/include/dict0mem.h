@@ -302,32 +302,58 @@ struct dict_col_struct{
 	unsigned	ord_part:1;	/*!< nonzero if this column
 					appears in the ordering fields
 					of an index */
+	unsigned	max_prefix:12;	/*!< maximum index prefix length on
+					this column. Our current max limit is
+					3072 for Barracuda table */
 };
 
-/** @brief DICT_MAX_INDEX_COL_LEN is measured in bytes and is the maximum
-indexed column length (or indexed prefix length).
+/** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
+is the maximum indexed column length (or indexed prefix length) in
+ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT. Also, in any format,
+any fixed-length field that is longer than this will be encoded as
+a variable-length field.
 
 It is set to 3*256, so that one can create a column prefix index on
 256 characters of a TEXT or VARCHAR column also in the UTF-8
 charset. In that charset, a character may take at most 3 bytes.  This
 constant MUST NOT BE CHANGED, or the compatibility of InnoDB data
 files would be at risk! */
-#define DICT_MAX_INDEX_COL_LEN		REC_MAX_INDEX_COL_LEN
+#define DICT_ANTELOPE_MAX_INDEX_COL_LEN	REC_ANTELOPE_MAX_INDEX_COL_LEN
+
+/** Find out maximum indexed column length by its table format.
+For ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT, the maximum
+field length is REC_ANTELOPE_MAX_INDEX_COL_LEN - 1 (767). For new
+barracuda format, the length could be REC_VERSION_56_MAX_INDEX_COL_LEN
+(3072) bytes */
+#define DICT_MAX_FIELD_LEN_BY_FORMAT(table)				\
+		((dict_table_get_format(table) < DICT_TF_FORMAT_ZIP)	\
+			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
+			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+
+#define DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags)			\
+		((((flags & DICT_TF_FORMAT_MASK) >> DICT_TF_FORMAT_SHIFT)\
+		    < DICT_TF_FORMAT_ZIP)				\
+			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
+			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+
+/** Defines the maximum fixed length column size */
+#define DICT_MAX_FIXED_COL_LEN		DICT_ANTELOPE_MAX_INDEX_COL_LEN
 
 /** Data structure for a field in an index */
 struct dict_field_struct{
 	dict_col_t*	col;		/*!< pointer to the table column */
 	const char*	name;		/*!< name of the column */
-	unsigned	prefix_len:10;	/*!< 0 or the length of the column
+	unsigned	prefix_len:12;	/*!< 0 or the length of the column
 					prefix in bytes in a MySQL index of
 					type, e.g., INDEX (textcol(25));
 					must be smaller than
-					DICT_MAX_INDEX_COL_LEN; NOTE that
-					in the UTF-8 charset, MySQL sets this
-					to 3 * the prefix len in UTF-8 chars */
+					DICT_MAX_FIELD_LEN_BY_FORMAT;
+					NOTE that in the UTF-8 charset, MySQL
+					sets this to (mbmaxlen * the prefix len)
+					in UTF-8 chars */
 	unsigned	fixed_len:10;	/*!< 0 or the fixed length of the
 					column if smaller than
-					DICT_MAX_INDEX_COL_LEN */
+					DICT_ANTELOPE_MAX_INDEX_COL_LEN */
 };
 
 /** Data structure for an index.  Most fields will be

@@ -4051,16 +4051,23 @@ os_aio_func(
 		Windows async i/o, Windows does not allow us to use
 		ordinary synchronous os_file_read etc. on the same file,
 		therefore we have built a special mechanism for synchronous
-		wait in the Windows case. */
+		wait in the Windows case.
+		Also note that the Performance Schema instrumentation has
+		been performed by current os_aio_func()'s wrapper function
+		pfs_os_aio_func(). So we would no longer need to call
+		Performance Schema instrumented os_file_read() and
+		os_file_write(). Instead, we should use os_file_read_func()
+		and os_file_write_func() */
 
 		if (type == OS_FILE_READ) {
-			return(os_file_read(file, buf, offset,
+			return(os_file_read_func(file, buf, offset,
 					    offset_high, n));
 		}
 
 		ut_a(type == OS_FILE_WRITE);
 
-		return(os_file_write(name, file, buf, offset, offset_high, n));
+		return(os_file_write_func(name, file, buf, offset,
+					  offset_high, n));
 	}
 
 try_again:

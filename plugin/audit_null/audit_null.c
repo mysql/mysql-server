@@ -1,12 +1,13 @@
-/* Copyright (C) 2006-2007 MySQL AB
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
@@ -81,11 +82,12 @@ static int audit_null_plugin_deinit(void *arg __attribute__((unused)))
 */
 
 static void audit_null_notify(MYSQL_THD thd __attribute__((unused)),
-                              const struct mysql_event *event)
+                              unsigned int event_class,
+                              const void *event)
 {
   /* prone to races, oh well */
   number_of_calls++;
-  if (event->event_class == MYSQL_AUDIT_GENERAL_CLASS)
+  if (event_class == MYSQL_AUDIT_GENERAL_CLASS)
   {
     const struct mysql_event_general *event_general=
       (const struct mysql_event_general *) event;

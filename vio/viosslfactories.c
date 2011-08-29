@@ -165,7 +165,7 @@ static struct st_VioSSLFd *
 new_VioSSLFd(const char *key_file, const char *cert_file,
              const char *ca_file, const char *ca_path,
              const char *cipher, SSL_METHOD *method, 
-             enum enum_ssl_init_error* error)
+             enum enum_ssl_init_error *error)
 {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
@@ -249,11 +249,10 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 struct st_VioSSLFd *
 new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
                       const char *ca_file, const char *ca_path,
-                      const char *cipher)
+                      const char *cipher, enum enum_ssl_init_error* error)
 {
   struct st_VioSSLFd *ssl_fd;
   int verify= SSL_VERIFY_PEER;
-  enum enum_ssl_init_error dummy;
 
   /*
     Turn off verification of servers certificate if both
@@ -263,7 +262,7 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
     verify= SSL_VERIFY_NONE;
 
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
-                             ca_path, cipher, TLSv1_client_method(), &dummy)))
+                             ca_path, cipher, TLSv1_client_method(), error)))
   {
     return 0;
   }

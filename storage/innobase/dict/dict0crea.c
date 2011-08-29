@@ -659,9 +659,9 @@ dict_create_index_tree_step(
 	/* printf("Created a new index tree in space %lu root page %lu\n",
 	index->space, index->page_no); */
 
-	page_rec_write_index_page_no(btr_pcur_get_rec(&pcur),
-				     DICT_SYS_INDEXES_PAGE_NO_FIELD,
-				     node->page_no, &mtr);
+	page_rec_write_field(btr_pcur_get_rec(&pcur),
+			     DICT_SYS_INDEXES_PAGE_NO_FIELD,
+			     node->page_no, &mtr);
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
@@ -731,9 +731,8 @@ dict_drop_index_tree(
 	root_page_no); */
 	btr_free_root(space, zip_size, root_page_no, mtr);
 
-	page_rec_write_index_page_no(rec,
-				     DICT_SYS_INDEXES_PAGE_NO_FIELD,
-				     FIL_NULL, mtr);
+	page_rec_write_field(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
+			     FIL_NULL, mtr);
 }
 
 /*******************************************************************//**
@@ -836,8 +835,8 @@ create:
 	in SYS_INDEXES, so that the database will not get into an
 	inconsistent state in case it crashes between the mtr_commit()
 	below and the following mtr_commit() call. */
-	page_rec_write_index_page_no(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
-				     FIL_NULL, mtr);
+	page_rec_write_field(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
+			     FIL_NULL, mtr);
 
 	/* We will need to commit the mini-transaction in order to avoid
 	deadlocks in the btr_create() call, because otherwise we would

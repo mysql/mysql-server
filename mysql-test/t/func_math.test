@@ -370,6 +370,12 @@ DROP TABLE t1;
 
 SELECT ROUND(LEAST(15, -4939092, 0.2704), STDDEV('a'));
 
+--echo #
+--echo # Bug#12392636  ASSERTION FAILED: SCALE >= 0 && PRECISION > 0 && SCALE <= PRECISION
+--echo #
+
+SELECT SUM(DISTINCT (TRUNCATE((.1), NULL)));
+
 --echo End of 5.1 tests
 
 --echo #

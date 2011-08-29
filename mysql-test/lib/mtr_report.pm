@@ -34,6 +34,7 @@ use My::Platform;
 use POSIX qw[ _exit ];
 use IO::Handle qw[ flush ];
 require "mtr_io.pl";
+use mtr_results;
 
 my $tot_real_time= 0;
 
@@ -96,6 +97,7 @@ sub mtr_report_test_passed ($) {
   {
     $timer_str= mtr_fromfile("$::opt_vardir/log/timer");
     $tinfo->{timer}= $timer_str;
+    resfile_test_info('duration', $timer_str) if $::opt_resfile;
   }
 
   # Big warning if status already set
@@ -301,6 +303,7 @@ sub mtr_report_stats ($$;$) {
 	       time - $BASETIME, "seconds executing testcases");
   }
 
+  resfile_global("duration", time - $BASETIME) if $::opt_resfile;
 
   my $warnlog= "$::opt_vardir/log/warnings";
   if ( -f $warnlog )
