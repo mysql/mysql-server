@@ -477,12 +477,14 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   const char * endian= NULL;
   const char * name= NULL;
   Uint32 log_event= 1;
-  union { long l; char c[sizeof(long)]; } endian_check;
 
   args.get("version", &version);
   args.get("nodetype", &nodetype);
   // transporter
   args.get("nodeid", &nodeid);
+  // user
+  // password
+  // public key
   args.get("endian", &endian);
   args.get("name", &name);
   args.get("timeout", &timeout);
@@ -491,12 +493,18 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 
   m_output->println("get nodeid reply");
 
-  endian_check.l = 1;
-  if(endian 
-     && strcmp(endian,(endian_check.c[sizeof(long)-1])?"big":"little")!=0) {
-    m_output->println("result: Node does not have the same endianness as the management server.");
-    m_output->println("%s", "");
-    return;
+  // Check that client says it's using same endian
+  {
+    union { long l; char c[sizeof(long)]; } endian_check;
+    endian_check.l = 1;
+    if (endian &&
+        strcmp(endian,(endian_check.c[sizeof(long)-1])?"big":"little")!=0)
+    {
+      m_output->println("result: Node does not have the same "
+                        "endianness as the management server.");
+      m_output->println("%s", "");
+      return;
+    }
   }
 
   bool compatible;
