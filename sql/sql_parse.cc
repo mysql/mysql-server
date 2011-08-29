@@ -5052,7 +5052,6 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  thd->thd_marker.emb_on_expr_nest= NULL;
   if (!(res= open_and_lock_tables(thd, all_tables)))
   {
     if (lex->describe)
@@ -5826,7 +5825,6 @@ void mysql_reset_thd_for_next_command(THD *thd, my_bool calculate_userstat)
 
   thd->query_plan_flags= QPLAN_INIT;
   thd->query_plan_fsort_passes= 0;
-  thd->thd_marker.emb_on_expr_nest= NULL;
 
   /*
     Because we come here only for start of top-statements, binlog format is

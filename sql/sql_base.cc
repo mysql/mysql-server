@@ -8276,7 +8276,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
   SELECT_LEX *select_lex= thd->lex->current_select;
   Query_arena *arena= thd->stmt_arena, backup;
   TABLE_LIST *table= NULL;	// For HP compilers
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   List_iterator<TABLE_LIST> ti(leaves);
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
@@ -8317,7 +8316,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
       goto err_no_arena;
   }
 
-  thd->thd_marker.emb_on_expr_nest= NO_JOIN_NEST;
   if (*conds)
   {
     thd->where="where clause";
@@ -8331,11 +8329,11 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
     */
     if ((*conds)->type() == Item::FIELD_ITEM && !derived)
       wrap_ident(thd, conds);
+    (*conds)->mark_as_condition_AND_part(NO_JOIN_NEST);
     if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
   }
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   /*
     Apply fix_fields() to all ON clauses at all levels of nesting,
@@ -8351,8 +8349,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
       if (embedded->on_expr)
       {
         /* Make a join an a expression */
-        thd->thd_marker.emb_on_expr_nest= embedded;
         thd->where="on clause";
+        embedded->on_expr->mark_as_condition_AND_part(embedded);
         if ((!embedded->on_expr->fixed &&
              embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
 	    embedded->on_expr->check_cols(1))
@@ -8376,7 +8374,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
       }
     }
   }
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   if (!thd->stmt_arena->is_conventional())
   {

@@ -229,7 +229,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
     return TRUE;
   
-
+  
   if (!(res= engine->prepare()))
   {
     // all transformation is done (used by prepared statements)
@@ -1165,8 +1165,9 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
-  Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
-  optimizer(0), pushed_cond_guards(NULL), in_strategy(0),
+  Item_exists_subselect(), 
+  left_expr_cache(0), first_execution(TRUE),
+  optimizer(0), pushed_cond_guards(NULL), emb_on_expr_nest(NULL), in_strategy(0),
   is_jtbm_merged(FALSE), is_flattenable_semijoin(FALSE),
   is_registered_semijoin(FALSE), 
   upper_item(0)
@@ -2395,6 +2396,7 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
   uint outer_cols_num;
   List<Item> *inner_cols;
 
+
   if (in_strategy & SUBS_SEMI_JOIN)
     return !( (*ref)= new Item_int(1));
 
@@ -2449,7 +2451,6 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
     return TRUE;
   if (Item_subselect::fix_fields(thd_arg, ref))
     return TRUE;
-
   fixed= TRUE;
   return FALSE;
 }
