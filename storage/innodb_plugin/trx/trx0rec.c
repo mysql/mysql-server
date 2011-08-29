@@ -1097,22 +1097,29 @@ trx_undo_rec_get_partial_row(
 #endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************//**
-Erases the unused undo log page end. */
-static
-void
+Erases the unused undo log page end.
+@return TRUE if the page contained something, FALSE if it was empty */
+static __attribute__((nonnull, warn_unused_result))
+ibool
 trx_undo_erase_page_end(
 /*====================*/
-	page_t*	undo_page,	/*!< in: undo page whose end to erase */
-	mtr_t*	mtr)		/*!< in: mtr */
+	page_t*	undo_page,	/*!< in/out: undo page whose end to erase */
+	mtr_t*	mtr)		/*!< in/out: mini-transaction */
 {
 	ulint	first_free;
 
 	first_free = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 				      + TRX_UNDO_PAGE_FREE);
+	if (first_free == TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE) {
+		/* This was an empty page to begin with.
+		Do nothing here; the caller should free the page. */
+		return(FALSE);
+	}
 	memset(undo_page + first_free, 0xff,
 	       (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END) - first_free);
 
 	mlog_write_initial_log_record(undo_page, MLOG_UNDO_ERASE_END, mtr);
+	return(TRUE);
 }
 
 /***********************************************************//**
@@ -1134,7 +1141,11 @@ trx_undo_parse_erase_page_end(
 		return(ptr);
 	}
 
-	trx_undo_erase_page_end(page, mtr);
+	if (!trx_undo_erase_page_end(page, mtr)) {
+		/* The function trx_undo_erase_page_end() should not
+		have done anything to an empty page. */
+		ut_ad(0);
+	}
 
 	return(ptr);
 }
@@ -1180,6 +1191,9 @@ trx_undo_report_row_operation(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+#ifdef UNIV_DEBUG
+	int		loop_count	= 0;
+#endif /* UNIV_DEBUG */
 	rec_offs_init(offsets_);
 
 	ut_a(dict_index_is_clust(index));
@@ -1242,7 +1256,7 @@ trx_undo_report_row_operation(
 
 	mtr_start(&mtr);
 
-	for (;;) {
+	do {
 		buf_block_t*	undo_block;
 		page_t*		undo_page;
 		ulint		offset;
@@ -1271,7 +1285,19 @@ trx_undo_report_row_operation(
 			version the replicate page constructed using the log
 			records stays identical to the original page */
 
-			trx_undo_erase_page_end(undo_page, &mtr);
+			if (!trx_undo_erase_page_end(undo_page, &mtr)) {
+				/* The record did not fit on an empty
+				undo page. Discard the freshly allocated
+				page and return an error. */
+
+				mutex_enter(&rseg->mutex);
+				trx_undo_free_last_page(trx, undo, &mtr);
+				mutex_exit(&rseg->mutex);
+
+				err = DB_TOO_BIG_RECORD;
+				goto err_exit;
+			}
+
 			mtr_commit(&mtr);
 		} else {
 			/* Success */
@@ -1291,16 +1317,15 @@ trx_undo_report_row_operation(
 			*roll_ptr = trx_undo_build_roll_ptr(
 				op_type == TRX_UNDO_INSERT_OP,
 				rseg->id, page_no, offset);
-			if (UNIV_LIKELY_NULL(heap)) {
-				mem_heap_free(heap);
-			}
-			return(DB_SUCCESS);
+			err = DB_SUCCESS;
+			goto func_exit;
 		}
 
 		ut_ad(page_no == undo->last_page_no);
 
 		/* We have to extend the undo log by one page */
 
+		ut_ad(++loop_count < 2);
 		mtr_start(&mtr);
 
 		/* When we add a page to an undo log, this is analogous to
@@ -1312,18 +1337,19 @@ trx_undo_report_row_operation(
 		page_no = trx_undo_add_page(trx, undo, &mtr);
 
 		mutex_exit(&(rseg->mutex));
+	} while (UNIV_LIKELY(page_no != FIL_NULL));
 
-		if (UNIV_UNLIKELY(page_no == FIL_NULL)) {
-			/* Did not succeed: out of space */
+	/* Did not succeed: out of space */
+	err = DB_OUT_OF_FILE_SPACE;
 
-			mutex_exit(&(trx->undo_mutex));
-			mtr_commit(&mtr);
-			if (UNIV_LIKELY_NULL(heap)) {
-				mem_heap_free(heap);
-			}
-			return(DB_OUT_OF_FILE_SPACE);
-		}
+err_exit:
+	mutex_exit(&trx->undo_mutex);
+	mtr_commit(&mtr);
+func_exit:
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
 	}
+	return(err);
 }
 
 /*============== BUILDING PREVIOUS VERSION OF A RECORD ===============*/
