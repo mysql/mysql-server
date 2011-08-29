@@ -581,23 +581,13 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
       m_output->println("%s", "");
       return;
     }
-  }    
-  
-#if 0
-  if (!compatible){
-    m_output->println(cmd);
-    m_output->println("result: incompatible version mgmt 0x%x and node 0x%x",
-		      NDB_VERSION, version);
-    m_output->println("%s", "");
-    return;
   }
-#endif
-  
+
   m_output->println("nodeid: %u", tmp);
   m_output->println("result: Ok");
   m_output->println("%s", "");
   m_allocated_resources->reserve_node(tmp, timeout*1000);
-  
+
   if (name)
     g_eventLogger->info("Node %d: %s", tmp, name);
 
