@@ -1,7 +1,4 @@
 SET @start_global_value = @@global.slave_transaction_retries;
-SELECT @start_global_value;
-@start_global_value
-10
 '#--------------------FN_DYNVARS_149_01-------------------------#'
 SET @@global.slave_transaction_retries = 50;
 SET @@global.slave_transaction_retries = DEFAULT;
@@ -115,6 +112,3 @@ SELECT @@slave_transaction_retries;
 3600
 SET global slave_transaction_retries = 99;
 SET @@global.slave_transaction_retries = @start_global_value;
-SELECT @@global.slave_transaction_retries;
-@@global.slave_transaction_retries
-10

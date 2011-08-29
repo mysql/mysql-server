@@ -905,7 +905,7 @@ explain extended SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) F
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	ref_or_null	a	a	5	func	2	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`))) having <is_not_null_test>(`test`.`t2`.`a`))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
 drop table t1,t2,t3;
@@ -4454,7 +4454,7 @@ from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	2	100.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	100	100.00	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	100	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(/* select#2 */ select `test`.`t1`.`a`,`test`.`t1`.`b` from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`b`), true)))) AS `Z` from `test`.`t2`
@@ -5184,6 +5184,30 @@ SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
 1
 SET SESSION sql_mode=@old_sql_mode;
 DROP TABLE t1, t2;
+#
+# Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
+#
+create table t2(i int);
+insert into t2 values(0);
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+CREATE VIEW v1 AS  
+SELECT 'f' FROM t2 UNION SELECT 'x' FROM t2
+;
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+SELECT t1.pk
+FROM t1
+WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 )
+;
+pk
+SET SESSION sql_mode=@old_sql_mode;
+drop table t2, t1;
+drop view v1;
 End of 5.0 tests.
 create table t_out (subcase char(3),
 a1 char(2), b1 char(2), c1 char(2));
@@ -6628,7 +6652,7 @@ FROM t2
 WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	table1	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	table2	index	NULL	f1_key	4	NULL	10	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	table2	index	NULL	f1_key	4	NULL	10	Using where; Using index; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t2	range	f1_key	f1_key	4	NULL	6	Using where; Using index for group-by; Using temporary
 DROP TABLE t1,t2;
 #
@@ -6678,9 +6702,9 @@ FROM
 t1 AS t1f STRAIGHT_JOIN t3 AS t3f;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1f	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	t3f	index	NULL	col_varchar_key	9	NULL	3	Using index; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t3f	index	NULL	col_varchar_key	9	NULL	3	Using index; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t1s	ref	col_int_key	col_int_key	5	const	1	Using index condition; Using where
-2	DEPENDENT SUBQUERY	t3s	index	NULL	col_int_key	5	NULL	3	Using index; Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	t3s	index	NULL	col_int_key	5	NULL	3	Using index; Using join buffer (Block Nested Loop)
 DROP TABLE t1,t3;
 #
 # Bug#12795555: Missing rows with ALL/ANY subquery

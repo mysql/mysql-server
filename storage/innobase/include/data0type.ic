@@ -38,7 +38,7 @@ dtype_get_charset_coll(
 /*===================*/
 	ulint	prtype)	/*!< in: precise data type */
 {
-	return((prtype >> 16) & 0xFFUL);
+	return((prtype >> 16) & CHAR_COLL_MASK);
 }
 
 /*********************************************************************//**
@@ -328,7 +328,7 @@ dtype_new_store_for_order_and_null_size(
 
 	mach_write_to_2(buf + 2, len & 0xFFFFUL);
 
-	ut_ad(dtype_get_charset_coll(type->prtype) < 256);
+	ut_ad(dtype_get_charset_coll(type->prtype) <= MAX_CHAR_COLL_NUM);
 	mach_write_to_2(buf + 4, dtype_get_charset_coll(type->prtype));
 
 	if (type->prtype & DATA_NOT_NULL) {
@@ -395,10 +395,10 @@ dtype_new_read_for_order_and_null_size(
 
 	type->len = mach_read_from_2(buf + 2);
 
-	charset_coll = mach_read_from_2(buf + 4) & 0x7fff;
+	charset_coll = mach_read_from_2(buf + 4) & CHAR_COLL_MASK;
 
 	if (dtype_is_string_type(type->mtype)) {
-		ut_a(charset_coll < 256);
+		ut_a(charset_coll <= MAX_CHAR_COLL_NUM);
 
 		if (charset_coll == 0) {
 			/* This insert buffer record was inserted with MySQL

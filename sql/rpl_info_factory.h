@@ -20,27 +20,29 @@
 #include "rpl_info.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"
+#include "rpl_rli_pdb.h"
 #include "rpl_info_file.h"
 #include "rpl_info_table.h"
+#include "rpl_info_dummy.h"
 #include "rpl_info_handler.h"
 
 extern ulong opt_mi_repository_id;
 extern ulong opt_rli_repository_id;
 
-#define MI_FIELD_ID 0
-#define RLI_FIELD_ID 0
-
 class Rpl_info_factory
 {
-public:
-  static bool create(uint mi_option, Master_info **mi,
-                     uint rli_option, Relay_log_info **rli);
+  public:
+
+  static bool create_coordinators(uint mi_option, Master_info **mi,
+                                  uint rli_option, Relay_log_info **rli);
   static Master_info *create_mi(uint rli_option);
   static bool change_mi_repository(Master_info *mi, const uint mi_option,
                                    const char **msg);
   static Relay_log_info *create_rli(uint rli_option, bool is_slave_recovery);
   static bool change_rli_repository(Relay_log_info *mi, const uint mi_option,
                                     const char **msg);
+  static Slave_worker *create_worker(uint rli_option, uint worker_id,
+                                     Relay_log_info *rli);
 private:
   static bool decide_repository(Rpl_info *info,
                                 uint option,
@@ -62,5 +64,11 @@ private:
                                     Rpl_info_handler **handler_src,
                                     Rpl_info_handler **handler_dest,
                                     const char **msg);
+  static bool init_worker_repositories(Slave_worker *worker,
+                                       uint worker_option,
+                                       const char* info_fname,
+                                       Rpl_info_handler **handler_src,
+                                       Rpl_info_handler **handler_dest,
+                                       const char **msg);
 };
 #endif

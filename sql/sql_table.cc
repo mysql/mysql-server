@@ -2243,6 +2243,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                   find_temporary_table(thd, table) &&
                   table->mdl_request.ticket != NULL));
 
+    thd->add_to_binlog_accessed_dbs(table->db);
+
     /*
       drop_temporary_table may return one of the following error codes:
       .  0 - a temporary table was successfully dropped.
@@ -4567,7 +4569,10 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     if (!thd->is_current_stmt_binlog_format_row() ||
         (thd->is_current_stmt_binlog_format_row() &&
          !(create_info->options & HA_LEX_CREATE_TMP_TABLE)))
+    {
+      thd->add_to_binlog_accessed_dbs(create_table->db);
       result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
+    }
   }
 end:
   DBUG_RETURN(result);
@@ -6016,6 +6021,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   db=table_list->db;
   if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
     new_db= db;
+
+  thd->add_to_binlog_accessed_dbs(db);
+  if (new_db != db)
+    thd->add_to_binlog_accessed_dbs(new_db);
+
   build_table_filename(reg_path, sizeof(reg_path) - 1, db, table_name, reg_ext, 0);
   build_table_filename(path, sizeof(path) - 1, db, table_name, "", 0);
 
@@ -7062,8 +7072,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     */
     char path[FN_REFLEN];
     TABLE *t_table;
-    build_table_filename(path + 1, sizeof(path) - 1, new_db, table_name, "", 0);
-    t_table= open_table_uncached(thd, path, new_db, tmp_name, FALSE);
+    build_table_filename(path, sizeof(path) - 1, new_db, new_name, "", 0);
+    t_table= open_table_uncached(thd, path, new_db, new_name, FALSE);
     if (t_table)
     {
       intern_close_table(t_table);

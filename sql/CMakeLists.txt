@@ -130,6 +130,7 @@ SET(SQL_SHARED_SOURCES
   sql_profile.cc
   sql_reload.cc
   sql_rename.cc 
+  sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
   sql_show.cc
@@ -203,7 +204,8 @@ ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
 		  rpl_info_handler.cc rpl_info_file.cc rpl_info_table.cc
 		  rpl_info_values.cc rpl_info.cc rpl_info_factory.cc
-		  rpl_info_table_access.cc server_ids.h)
+		  rpl_info_table_access.cc dynamic_ids.cc rpl_rli_pdb.cc
+		  rpl_info_dummy.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 ADD_LIBRARY(sqlgunitlib
@@ -219,6 +221,14 @@ ELSE()
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
+
+IF(APPLE) 
+  # Add CoreServices framework since some dloadable plugins may need it 
+  FIND_LIBRARY(CORESERVICES NAMES CoreServices) 
+  IF(CORESERVICES) 
+    TARGET_LINK_LIBRARIES(mysqld ${CORESERVICES}) 
+  ENDIF() 
+ENDIF() 
 
 IF(NOT WITHOUT_DYNAMIC_PLUGINS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)

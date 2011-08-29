@@ -67,6 +67,10 @@ ulong file_handle_lost;
 ulong table_max;
 /** Number of table instances lost. @sa table_array */
 ulong table_lost;
+/** Size of the socket instances array. @sa socket_array */
+ulong socket_max;
+/** Number of socket instances lost. @sa socket_array */
+ulong socket_lost;
 /** Number of EVENTS_WAITS_HISTORY records per thread. */
 ulong events_waits_history_per_thread;
 /** Number of EVENTS_STAGES_HISTORY records per thread. */
@@ -129,6 +133,13 @@ PFS_file **file_handle_array= NULL;
 */
 PFS_table *table_array= NULL;
 
+/**
+  Socket instrumentation instances array.
+  @sa socket_max
+  @sa socket_lost
+*/
+PFS_socket *socket_array= NULL;
+
 PFS_single_stat *global_instr_class_waits_array= NULL;
 PFS_stage_stat *global_instr_class_stages_array= NULL;
 PFS_statement_stat *global_instr_class_statements_array= NULL;
@@ -151,10 +162,6 @@ static PFS_events_statements *thread_statements_stack_array= NULL;
 static LF_HASH filename_hash;
 /** True if filename_hash is initialized. */
 static bool filename_hash_inited= false;
-C_MODE_START
-/** Get hash table key for instrumented files. */
-static uchar *filename_hash_get_key(const uchar *, size_t *, my_bool);
-C_MODE_END
 
 /**
   Initialize all the instruments instance buffers.
@@ -186,6 +193,8 @@ int init_instruments(const PFS_global_param *param)
   table_lost= 0;
   thread_max= param->m_thread_sizing;
   thread_lost= 0;
+  socket_max= param->m_socket_sizing;
+  socket_lost= 0;
 
   events_waits_history_per_thread= param->m_events_waits_history_sizing;
   thread_waits_history_sizing= param->m_thread_sizing
@@ -217,6 +226,7 @@ int init_instruments(const PFS_global_param *param)
   file_array= NULL;
   file_handle_array= NULL;
   table_array= NULL;
+  socket_array= NULL;
   thread_array= NULL;
   thread_waits_history_array= NULL;
   thread_stages_history_array= NULL;
@@ -266,6 +276,13 @@ int init_instruments(const PFS_global_param *param)
   {
     table_array= PFS_MALLOC_ARRAY(table_max, PFS_table, MYF(MY_ZEROFILL));
     if (unlikely(table_array == NULL))
+      return 1;
+  }
+
+  if (socket_max > 0)
+  {
+    socket_array= PFS_MALLOC_ARRAY(socket_max, PFS_socket, MYF(MY_ZEROFILL));
+    if (unlikely(socket_array == NULL))
       return 1;
   }
 
@@ -426,6 +443,9 @@ void cleanup_instruments(void)
   pfs_free(table_array);
   table_array= NULL;
   table_max= 0;
+  pfs_free(socket_array);
+  socket_array= NULL;
+  socket_max= 0;
   pfs_free(thread_array);
   thread_array= NULL;
   thread_max= 0;
@@ -447,8 +467,8 @@ void cleanup_instruments(void)
   global_instr_class_statements_array= NULL;
 }
 
-extern "C"
-{
+C_MODE_START
+/** Get hash table key for instrumented files. */
 static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
                                     my_bool)
 {
@@ -463,7 +483,7 @@ static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
   result= file->m_filename;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
 }
-}
+C_MODE_END
 
 /**
   Initialize the file name hash.
@@ -939,6 +959,11 @@ PFS_file *sanitize_file(PFS_file *unsafe)
   SANITIZE_ARRAY_BODY(PFS_file, file_array, file_max, unsafe);
 }
 
+PFS_socket *sanitize_socket(PFS_socket *unsafe)
+{
+  SANITIZE_ARRAY_BODY(PFS_socket, socket_array, socket_max, unsafe);
+}
+
 /**
   Destroy instrumentation for a thread instance.
   @param pfs                          the thread to destroy
@@ -1405,6 +1430,95 @@ void destroy_table(PFS_table *pfs)
   pfs->m_lock.allocated_to_free();
 }
 
+/**
+  Create instrumentation for a socket instance.
+  @param klass                        the socket class
+  @param identity                     the socket descriptor
+  @return a socket instance, or NULL
+*/
+PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
+{
+  PFS_scan scan;
+
+  /**
+    Unlike other instrumented objects, there is no socket 'object' to use as a
+    unique identifier. Instead, a pointer to the PFS_socket object will be used
+    to identify this socket instance. The socket descriptor will be used to
+    seed the the random index assignment.
+    */
+  my_socket fd= likely(identity != NULL) ?
+                *(reinterpret_cast<const my_socket*>(identity)) : 0;
+  uint random= randomized_index((const void *)fd, socket_max);
+
+  for (scan.init(random, socket_max);
+       scan.has_pass();
+       scan.next_pass())
+  {
+    PFS_socket *pfs= socket_array + scan.first();
+    PFS_socket *pfs_last= socket_array + scan.last();
+    for ( ; pfs < pfs_last; pfs++)
+    {
+      if (pfs->m_lock.is_free())
+      {
+        if (pfs->m_lock.free_to_dirty())
+        {
+          pfs->m_fd= fd;
+          pfs->m_identity= pfs;
+          pfs->m_class= klass;
+          pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+          pfs->m_timed= klass->m_timed;
+          pfs->m_idle= false;
+          pfs->m_socket_stat.reset();
+          pfs->m_lock.dirty_to_allocated();
+          pfs->m_thread_owner= NULL;
+          if (klass->is_singleton())
+            klass->m_singleton= pfs;
+          return pfs;
+        }
+      }
+    }
+  }
+
+  socket_lost++;
+  return NULL;
+}
+
+/**
+  Destroy instrumentation for a socket instance.
+  @param pfs                          the socket to destroy
+*/
+void destroy_socket(PFS_socket *pfs)
+{
+  DBUG_ASSERT(pfs != NULL);
+  PFS_socket_class *klass= pfs->m_class;
+
+  /* Aggregate to SOCKET_SUMMARY_BY_EVENT_NAME */
+  klass->m_socket_stat.m_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
+
+  if (klass->is_singleton())
+    klass->m_singleton= NULL;
+
+  /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+  PFS_thread *thread= pfs->m_thread_owner;
+  if (thread != NULL)
+  {
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_waits_stats;
+    uint index= pfs->m_class->m_event_name_index;
+
+    /* Combine stats for all operations */
+    PFS_single_stat stat;
+    pfs->m_socket_stat.m_io_stat.sum_waits(&stat);
+    event_name_array[index].aggregate(&stat);
+  }
+
+  pfs->m_socket_stat.reset();
+  pfs->m_thread_owner= NULL;
+  pfs->m_fd= 0;
+  pfs->m_addr_len= 0;
+  pfs->m_lock.allocated_to_free();
+}
+
 static void reset_mutex_waits_by_instance(void)
 {
   PFS_mutex *pfs= mutex_array;
@@ -1441,6 +1555,15 @@ static void reset_file_waits_by_instance(void)
     pfs->m_wait_stat.reset();
 }
 
+static void reset_socket_waits_by_instance(void)
+{
+  PFS_socket *pfs= socket_array;
+  PFS_socket *pfs_last= socket_array + socket_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+    pfs->m_socket_stat.reset();
+}
+
 /** Reset the wait statistics per object instance. */
 void reset_events_waits_by_instance(void)
 {
@@ -1448,6 +1571,7 @@ void reset_events_waits_by_instance(void)
   reset_rwlock_waits_by_instance();
   reset_cond_waits_by_instance();
   reset_file_waits_by_instance();
+  reset_socket_waits_by_instance();
 }
 
 /** Reset the io statistics per file instance. */
@@ -1458,6 +1582,25 @@ void reset_file_instance_io(void)
 
   for ( ; pfs < pfs_last; pfs++)
     pfs->m_file_stat.m_io_stat.reset();
+}
+
+/** Reset the io statistics per socket instance. */
+void reset_socket_instance_io(void)
+{
+  PFS_socket *pfs= socket_array;
+  PFS_socket *pfs_last= socket_array + socket_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+    pfs->m_socket_stat.m_io_stat.reset();
+}
+
+void reset_global_wait_stat()
+{
+  PFS_single_stat *stat= global_instr_class_waits_array;
+  PFS_single_stat *stat_last= global_instr_class_waits_array + wait_class_max;
+
+  for ( ; stat < stat_last; stat++)
+    stat->reset();
 }
 
 void aggregate_all_event_names(PFS_single_stat *from_array,
@@ -1534,16 +1677,12 @@ void aggregate_all_stages(PFS_stage_stat *from_array,
   PFS_stage_stat *from;
   PFS_stage_stat *from_last;
   PFS_stage_stat *to_1;
-  PFS_stage_stat *to_1_last;
   PFS_stage_stat *to_2;
-  PFS_stage_stat *to_2_last;
 
   from= from_array;
   from_last= from_array + stage_class_max;
   to_1= to_array_1;
-  to_1_last= to_array_1 + stage_class_max;
   to_2= to_array_2;
-  to_2_last= to_array_2 + stage_class_max;
 
   for ( ; from < from_last ; from++, to_1++, to_2++)
   {
@@ -1584,16 +1723,12 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
   PFS_statement_stat *from;
   PFS_statement_stat *from_last;
   PFS_statement_stat *to_1;
-  PFS_statement_stat *to_1_last;
   PFS_statement_stat *to_2;
-  PFS_statement_stat *to_2_last;
 
   from= from_array;
   from_last= from_array + statement_class_max;
   to_1= to_array_1;
-  to_1_last= to_array_1 + statement_class_max;
   to_2= to_array_2;
-  to_2_last= to_array_2 + statement_class_max;
 
   for ( ; from < from_last ; from++, to_1++, to_2++)
   {
@@ -2001,6 +2136,28 @@ void update_table_derived_flags()
   }
 }
 
+void update_socket_derived_flags()
+{
+  PFS_socket *pfs= socket_array;
+  PFS_socket *pfs_last= socket_array + socket_max;
+  PFS_socket_class *klass;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    klass= sanitize_socket_class(pfs->m_class);
+    if (likely(klass != NULL))
+    {
+      pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+      pfs->m_timed= klass->m_timed;
+    }
+    else
+    {
+      pfs->m_enabled= false;
+      pfs->m_timed= false;
+    }
+  }
+}
+
 void update_instruments_derived_flags()
 {
   update_mutex_derived_flags();
@@ -2008,6 +2165,7 @@ void update_instruments_derived_flags()
   update_cond_derived_flags();
   update_file_derived_flags();
   update_table_derived_flags();
+  update_socket_derived_flags();
   /* nothing for stages and statements (no instances) */
 }
 

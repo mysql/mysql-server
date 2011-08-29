@@ -31,6 +31,7 @@ connection slave;
 CALL mtr.add_suppression("Failed to open the existing info file");
 CALL mtr.add_suppression("Error while reading from master info file");
 CALL mtr.add_suppression("Failed to create a new info file");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --enable_result_log
 
 # START SLAVE will fail because it can't read the file (mode 000)
@@ -151,10 +152,10 @@ connection master;
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables part 2");
 
-# the nummber of produced logs is sensitive to whether checksum is NONE or CRC32
-# the value of 90 makes it even
+# Generate some number of logs and prove rotation by comparing the first and the last
 let $1=90;
 
+let $first=query_get_value("SHOW MASTER STATUS", "File", 1);
 create table t3 (n int);
 disable_query_log;
 while ($1)
@@ -166,12 +167,14 @@ while ($1)
 enable_query_log;
 select count(*) from t3 where n >= 4;
 create table t4 select * from temp_table;
-source include/show_binary_logs.inc;
-source include/show_master_status.inc;
+let $last=query_get_value("SHOW MASTER STATUS", "File", 1);
+if (`select '$first' like '$last'`)
+{
+  --die No expected logs rotation
+} 
 sync_slave_with_master;
 select * from t4;
 
-source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
 # because of concurrent insert, the table may not be up to date
 # if we do not lock

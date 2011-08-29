@@ -221,27 +221,27 @@ update t1 set y=x;
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer (Block Nested Loop)
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x >= 7 and t2.x <= t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer (Block Nested Loop)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using where; Using join buffer (Block Nested Loop)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using where; Using join buffer (Block Nested Loop)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer (Block Nested Loop)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer (Block Nested Loop)
 explain select count(*) from t1 where x in (1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	x	x	5	const	1	Using index
@@ -256,12 +256,12 @@ INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
-1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer (Block Nested Loop)
 explain select * from t1 force index(i1), t2 force index(j1) where 
 (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
-1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer (Block Nested Loop)
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 a int(11) default NULL,
@@ -1908,4 +1908,294 @@ ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 col_int	pk	col_int_key	col_varchar	pk
 1	6	1	GOOD	1
 DROP TABLE t1,t2;
+#
+# Bug#12694872 - 
+# VALGRIND: 18,816 BYTES IN 196 BLOCKS ARE DEFINITELY LOST IN UNIQUE::GET
+#
+CREATE TABLE t1 (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER NOT NULL,
+col_int_key INTEGER NOT NULL,
+col_date_key DATE NOT NULL,
+col_varchar_key VARCHAR(1) NOT NULL,
+col_varchar_nokey VARCHAR(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY (col_int_key),
+KEY (col_date_key),
+KEY (col_varchar_key, col_int_key)
+);
+INSERT INTO t1 (
+col_int_key,
+col_int_nokey,
+col_date_key,
+col_varchar_key,
+col_varchar_nokey
+) VALUES 
+(0, 4, '2011-08-25', 'j', 'j'),
+(8, 6, '2004-09-18', 'v', 'v'),
+(1, 3, '2009-12-01', 'c', 'c'),
+(8, 5, '2004-12-17', 'm', 'm'),
+(9, 3, '2000-03-14', 'd', 'd'),
+(6, 2, '2006-05-25', 'y', 'y'),
+(1, 9, '2008-01-23', 't', 't'),
+(6, 3, '2007-06-18', 'd', 'd'),
+(2, 8, '2002-10-13', 's', 's'),
+(4, 1, '1900-01-01', 'r', 'r'),
+(8, 8, '1959-04-25', 'm', 'm'),
+(4, 8, '2006-03-09', 'b', 'b'),
+(4, 5, '2001-06-05', 'x', 'x'),
+(7, 7, '2006-05-28', 'g', 'g'),
+(4, 5, '2001-04-19', 'p', 'p'),
+(1, 1, '1900-01-01', 'q', 'q'),
+(9, 6, '2004-08-20', 'w', 'w'),
+(4, 2, '2004-10-10', 'd', 'd'),
+(8, 9, '2000-04-02', 'e', 'e')
+;
+ALTER TABLE t1 DISABLE KEYS;
+SELECT table2.col_date_key AS field1,
+CONCAT ( table2.col_varchar_nokey, table1.col_varchar_nokey ) AS field2
+FROM ( t1 AS table1 INNER JOIN t1 AS table2
+ON (( table2.pk <> table1.pk ) AND
+( table2.pk >= table1.col_int_nokey ) ) )
+WHERE ( table1.pk > 226 AND
+table1.pk < ( 226 + 102 ) OR
+( table1.col_int_key > 226 AND
+table1.col_int_key < ( 226 + 36 ) OR
+( table1.col_varchar_key <= 'h' OR
+table1.col_int_key > 226 AND
+table1.col_int_key < ( 226 + 227 ) )
+) 
+)
+;
+field1	field2
+1900-01-01	qb
+1900-01-01	qc
+1900-01-01	qd
+1900-01-01	qd
+1900-01-01	qd
+1900-01-01	qe
+1900-01-01	qg
+1900-01-01	rb
+1900-01-01	rc
+1900-01-01	rd
+1900-01-01	rd
+1900-01-01	rd
+1900-01-01	re
+1900-01-01	rg
+1959-04-25	mb
+1959-04-25	mc
+1959-04-25	md
+1959-04-25	md
+1959-04-25	md
+1959-04-25	me
+1959-04-25	mg
+2000-03-14	dc
+2000-03-14	dd
+2000-03-14	dd
+2000-04-02	eb
+2000-04-02	ec
+2000-04-02	ed
+2000-04-02	ed
+2000-04-02	ed
+2000-04-02	eg
+2001-04-19	pb
+2001-04-19	pc
+2001-04-19	pd
+2001-04-19	pd
+2001-04-19	pd
+2001-04-19	pe
+2001-04-19	pg
+2001-06-05	xb
+2001-06-05	xc
+2001-06-05	xd
+2001-06-05	xd
+2001-06-05	xd
+2001-06-05	xe
+2001-06-05	xg
+2002-10-13	sb
+2002-10-13	sc
+2002-10-13	sd
+2002-10-13	sd
+2002-10-13	sd
+2002-10-13	se
+2002-10-13	sg
+2004-08-20	wb
+2004-08-20	wc
+2004-08-20	wd
+2004-08-20	wd
+2004-08-20	wd
+2004-08-20	we
+2004-08-20	wg
+2004-09-18	vd
+2004-10-10	db
+2004-10-10	dc
+2004-10-10	dd
+2004-10-10	dd
+2004-10-10	de
+2004-10-10	dg
+2004-12-17	mc
+2004-12-17	md
+2004-12-17	md
+2004-12-17	md
+2006-03-09	bc
+2006-03-09	bd
+2006-03-09	bd
+2006-03-09	bd
+2006-03-09	be
+2006-03-09	bg
+2006-05-25	yc
+2006-05-25	yd
+2006-05-25	yd
+2006-05-25	yd
+2006-05-28	gb
+2006-05-28	gc
+2006-05-28	gd
+2006-05-28	gd
+2006-05-28	gd
+2006-05-28	ge
+2007-06-18	db
+2007-06-18	dc
+2007-06-18	dd
+2007-06-18	dd
+2007-06-18	dg
+2008-01-23	tc
+2008-01-23	td
+2008-01-23	td
+2008-01-23	td
+2008-01-23	tg
+2009-12-01	cd
+2009-12-01	cd
+2009-12-01	cd
+ALTER TABLE t1 ENABLE KEYS;
+CREATE TABLE t2 SELECT table2.col_date_key AS field1,
+CONCAT ( table2.col_varchar_nokey, table1.col_varchar_nokey ) AS field2
+FROM ( t1 AS table1 INNER JOIN t1 AS table2
+ON (( table2.pk <> table1.pk ) AND
+( table2.pk >= table1.col_int_nokey ) ) )
+WHERE ( table1.pk > 226 AND
+table1.pk < ( 226 + 102 ) OR
+( table1.col_int_key > 226 AND
+table1.col_int_key < ( 226 + 36 ) OR
+( table1.col_varchar_key <= 'h' OR
+table1.col_int_key > 226 AND
+table1.col_int_key < ( 226 + 227 ) )
+) 
+)
+;
+SELECT * FROM t2
+WHERE (field1, field2) IN (SELECT table2.col_date_key AS field1,
+CONCAT ( table2.col_varchar_nokey, table1.col_varchar_nokey ) AS field2
+FROM ( t1 AS table1 INNER JOIN t1 AS table2
+ON (( table2.pk <> table1.pk ) AND
+( table2.pk >= table1.col_int_nokey ) ) )
+WHERE ( table1.pk > 226 AND
+table1.pk < ( 226 + 102 ) OR
+( table1.col_int_key > 226 AND
+table1.col_int_key < ( 226 + 36 ) OR
+( table1.col_varchar_key <= 'h' OR
+table1.col_int_key > 226 AND
+table1.col_int_key < ( 226 + 227 ) )
+) 
+)
+);
+field1	field2
+1900-01-01	qb
+1900-01-01	qc
+1900-01-01	qd
+1900-01-01	qd
+1900-01-01	qd
+1900-01-01	qe
+1900-01-01	qg
+1900-01-01	rb
+1900-01-01	rc
+1900-01-01	rd
+1900-01-01	rd
+1900-01-01	rd
+1900-01-01	re
+1900-01-01	rg
+1959-04-25	mb
+1959-04-25	mc
+1959-04-25	md
+1959-04-25	md
+1959-04-25	md
+1959-04-25	me
+1959-04-25	mg
+2000-03-14	dc
+2000-03-14	dd
+2000-03-14	dd
+2000-04-02	eb
+2000-04-02	ec
+2000-04-02	ed
+2000-04-02	ed
+2000-04-02	ed
+2000-04-02	eg
+2001-04-19	pb
+2001-04-19	pc
+2001-04-19	pd
+2001-04-19	pd
+2001-04-19	pd
+2001-04-19	pe
+2001-04-19	pg
+2001-06-05	xb
+2001-06-05	xc
+2001-06-05	xd
+2001-06-05	xd
+2001-06-05	xd
+2001-06-05	xe
+2001-06-05	xg
+2002-10-13	sb
+2002-10-13	sc
+2002-10-13	sd
+2002-10-13	sd
+2002-10-13	sd
+2002-10-13	se
+2002-10-13	sg
+2004-08-20	wb
+2004-08-20	wc
+2004-08-20	wd
+2004-08-20	wd
+2004-08-20	wd
+2004-08-20	we
+2004-08-20	wg
+2004-09-18	vd
+2004-10-10	db
+2004-10-10	dc
+2004-10-10	dd
+2004-10-10	dd
+2004-10-10	de
+2004-10-10	dg
+2004-12-17	mc
+2004-12-17	md
+2004-12-17	md
+2004-12-17	md
+2006-03-09	bc
+2006-03-09	bd
+2006-03-09	bd
+2006-03-09	bd
+2006-03-09	be
+2006-03-09	bg
+2006-05-25	yc
+2006-05-25	yd
+2006-05-25	yd
+2006-05-25	yd
+2006-05-28	gb
+2006-05-28	gc
+2006-05-28	gd
+2006-05-28	gd
+2006-05-28	gd
+2006-05-28	ge
+2007-06-18	db
+2007-06-18	dc
+2007-06-18	dd
+2007-06-18	dd
+2007-06-18	dg
+2008-01-23	tc
+2008-01-23	td
+2008-01-23	td
+2008-01-23	td
+2008-01-23	tg
+2009-12-01	cd
+2009-12-01	cd
+2009-12-01	cd
+DROP TABLE t1, t2;
 set optimizer_switch=default;

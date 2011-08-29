@@ -1070,17 +1070,13 @@ bool Explain_join::explain_extra()
     {
       str_extra.append(STRING_WITH_LEN("; Using join buffer ("));
       if ((tab->use_join_cache & JOIN_CACHE::ALG_BNL))
-        str_extra.append(STRING_WITH_LEN("BNL"));
+        str_extra.append(STRING_WITH_LEN("Block Nested Loop)"));
       else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA))
-        str_extra.append(STRING_WITH_LEN("BKA"));
+        str_extra.append(STRING_WITH_LEN("Batch Key Access)"));
       else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA_UNIQUE))
-        str_extra.append(STRING_WITH_LEN("BKA_UNIQUE"));
+        str_extra.append(STRING_WITH_LEN("Batch Key Access (unique))"));
       else
         DBUG_ASSERT(0); /* purecov: inspected */
-      if (tab->use_join_cache & JOIN_CACHE::NON_INCREMENTAL_BUFFER)
-        str_extra.append(STRING_WITH_LEN(", regular buffers)"));
-      else
-        str_extra.append(STRING_WITH_LEN(", incremental buffers)"));
     }
 
     /* Skip initial "; "*/
