@@ -35,7 +35,7 @@ bool sp_condition_value::equals(const sp_condition_value *cv) const
     return (mysqlerr == cv->mysqlerr);
 
   case sp_condition_value::SQLSTATE:
-    return (strcmp(sqlstate, cv->sqlstate) == 0);
+    return (strcmp(sql_state, cv->sql_state) == 0);
 
   default:
     return true;
@@ -81,8 +81,6 @@ sp_pcontext::~sp_pcontext()
 {
   for (int i= 0; i < m_children.elements(); ++i)
     delete m_children.at(i);
-  for (int i= 0; i < m_handlers.elements(); ++i)
-    delete m_handlers.at(i);
 }
 
 
@@ -185,33 +183,24 @@ sp_variable *sp_pcontext::push_variable(LEX_STRING name,
                                         enum enum_field_types type,
                                         sp_variable::enum_mode mode)
 {
-  sp_variable *p= (sp_variable *)sql_alloc(sizeof(sp_variable));
+  sp_variable *p= new sp_variable(name, type, mode, current_var_count());
 
   if (!p)
     return NULL;
 
   ++m_max_var_index;
 
-  p->name= name;
-  p->type= type;
-  p->mode= mode;
-  p->offset= current_var_count();
-  p->default_value= NULL;
   return m_vars.append(p) ? NULL : p;
 }
 
 
 sp_label *sp_pcontext::push_label(LEX_STRING name, uint ip)
 {
-  sp_label *label= (sp_label *)sql_alloc(sizeof(sp_label));
+  sp_label *label= new sp_label(name, ip, sp_label::IMPLICIT, this);
 
   if (!label)
     return NULL;
 
-  label->name= name;
-  label->ip= ip;
-  label->type= sp_label::IMPLICIT;
-  label->ctx= this;
   m_labels.push_front(label);
 
   return label;
@@ -245,13 +234,10 @@ sp_label *sp_pcontext::find_label(LEX_STRING name)
 
 bool sp_pcontext::push_condition(LEX_STRING name, sp_condition_value *value)
 {
-  sp_condition *p= (sp_condition *)sql_alloc(sizeof(sp_condition));
+  sp_condition *p= new sp_condition(name, value);
 
   if (p == NULL)
     return true;
-
-  p->name= name;
-  p->value= value;
 
   return m_conditions.append(p);
 }
@@ -301,7 +287,7 @@ bool sp_pcontext::check_duplicate_handler(
 }
 
 
-sp_handler *sp_pcontext::find_handler(const char *sqlstate,
+sp_handler *sp_pcontext::find_handler(const char *sql_state,
                                       uint sql_errno,
                                       Sql_condition::enum_warning_level level)
 {
@@ -330,7 +316,7 @@ sp_handler *sp_pcontext::find_handler(const char *sqlstate,
         break;
 
       case sp_condition_value::SQLSTATE:
-        if (strcmp(sqlstate, cv->sqlstate) == 0 &&
+        if (strcmp(sql_state, cv->sql_state) == 0 &&
             (!found_cv ||
              found_cv->type > sp_condition_value::SQLSTATE))
         {
@@ -340,7 +326,7 @@ sp_handler *sp_pcontext::find_handler(const char *sqlstate,
         break;
 
       case sp_condition_value::WARNING:
-        if ((is_sqlstate_warning(sqlstate) ||
+        if ((is_sqlstate_warning(sql_state) ||
              level == Sql_condition::WARN_LEVEL_WARN) && !found_cv)
         {
           found_cv= cv;
@@ -349,7 +335,7 @@ sp_handler *sp_pcontext::find_handler(const char *sqlstate,
         break;
 
       case sp_condition_value::NOT_FOUND:
-        if (is_sqlstate_not_found(sqlstate) && !found_cv)
+        if (is_sqlstate_not_found(sql_state) && !found_cv)
         {
           found_cv= cv;
           found_handler= h;
@@ -357,7 +343,7 @@ sp_handler *sp_pcontext::find_handler(const char *sqlstate,
         break;
 
       case sp_condition_value::EXCEPTION:
-        if (is_sqlstate_exception(sqlstate) &&
+        if (is_sqlstate_exception(sql_state) &&
             level == Sql_condition::WARN_LEVEL_ERROR && !found_cv)
         {
           found_cv= cv;
@@ -406,7 +392,7 @@ sp_handler *sp_pcontext::find_handler(const char *sqlstate,
   if (!p || !p->m_parent)
     return NULL;
 
-  return p->m_parent->find_handler(sqlstate, sql_errno, level);
+  return p->m_parent->find_handler(sql_state, sql_errno, level);
 }
 
 

@@ -2919,11 +2919,9 @@ sp_cond:
               my_error(ER_WRONG_VALUE, MYF(0), "CONDITION", "0");
               MYSQL_YYABORT;
             }
-            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
+            $$= new sp_condition_value($1);
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_condition_value::ERROR_CODE;
-            $$->mysqlerr= $1;
           }
         | sqlstate
         ;
@@ -2944,12 +2942,9 @@ sqlstate:
               my_error(ER_SP_BAD_SQLSTATE, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
+            $$= new sp_condition_value($3.str);
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_condition_value::SQLSTATE;
-            memcpy($$->sqlstate, $3.str, SQLSTATE_LENGTH);
-            $$->sqlstate[SQLSTATE_LENGTH]= '\0';
           }
         ;
 
@@ -2974,24 +2969,21 @@ sp_hcond:
           }
         | SQLWARNING_SYM /* SQLSTATEs 01??? */
           {
-            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
+            $$= new sp_condition_value(sp_condition_value::WARNING);
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_condition_value::WARNING;
           }
         | not FOUND_SYM /* SQLSTATEs 02??? */
           {
-            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
+            $$= new sp_condition_value(sp_condition_value::NOT_FOUND);
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_condition_value::NOT_FOUND;
           }
         | SQLEXCEPTION_SYM /* All other SQLSTATEs */
           {
-            $$= (sp_condition_value *)YYTHD->alloc(sizeof(sp_condition_value));
+            $$= new sp_condition_value(sp_condition_value::EXCEPTION);
             if ($$ == NULL)
               MYSQL_YYABORT;
-            $$->type= sp_condition_value::EXCEPTION;
           }
         ;
 
