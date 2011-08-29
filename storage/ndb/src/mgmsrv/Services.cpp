@@ -328,7 +328,8 @@ extern int g_errorInsert;
 #define SLEEP_ERROR_INSERTED(x) if(ERROR_INSERTED(x)){NdbSleep_SecSleep(10);}
 
 MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id)
-  : SocketServer::Session(sock), m_mgmsrv(mgm), m_name("unknown:0")
+  : SocketServer::Session(sock), m_mgmsrv(mgm),
+    m_session_id(session_id), m_name("unknown:0")
 {
   DBUG_ENTER("MgmApiSession::MgmApiSession");
   m_input = new SocketInputStream(sock, SOCKET_TIMEOUT);
@@ -337,7 +338,6 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
   m_stopSelf= 0;
   m_ctx= NULL;
-  m_session_id= session_id;
   m_mutex= NdbMutex_Create();
   m_errorInsert= 0;
 
