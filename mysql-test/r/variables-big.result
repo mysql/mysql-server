@@ -1,3 +1,4 @@
+SET @def_var= @@session.transaction_prealloc_size;
 SET SESSION transaction_prealloc_size=1024*1024*1024*1;
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
@@ -18,3 +19,4 @@ SET SESSION transaction_prealloc_size=1024*1024*1024*5;
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 <Id>	root	<Host>	test	Query	<Time>	NULL	SHOW PROCESSLIST
+SET @@session.transaction_prealloc_size= @def_var;

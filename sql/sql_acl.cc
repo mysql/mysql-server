@@ -825,8 +825,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
     char *password= get_field(&mem, table->field[2]);
     uint password_len= password ? strlen(password) : 0;
-    user.auth_string.str= password ? password : const_cast<char*>("");
-    user.auth_string.length= password_len;
     set_user_salt(&user, password, password_len);
 
     if (set_user_plugin(&user, password_len))
@@ -915,7 +913,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           char *tmpstr= get_field(&mem, table->field[next_field++]);
           if (tmpstr)
           {
-            if (user.auth_string.length)
+            if (password_len)
             {
               sql_print_warning("'user' entry '%s@%s' has both a password "
                                 "and an authentication plugin specified. The "
@@ -1483,8 +1481,8 @@ static void acl_insert_user(const char *user, const char *host,
   {
     acl_user.plugin= password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 ?
       old_password_plugin_name : native_password_plugin_name;
-    acl_user.auth_string.str= strmake_root(&mem, password, password_len);
-    acl_user.auth_string.length= password_len;
+    acl_user.auth_string.str= const_cast<char*>("");
+    acl_user.auth_string.length= 0;
   }
 
   acl_user.access=privileges;
@@ -2275,13 +2273,12 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     */
     else if (!password_len && !combo.plugin.length && no_auto_create)
     {
-      my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo.user.str, combo.host.str);
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
       goto end;
     }
     else if (!can_create_user)
     {
-      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0),
-               thd->security_ctx->user, thd->security_ctx->host_or_ip);
+      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
       goto end;
     }
     else if (combo.plugin.str[0])
@@ -2309,8 +2306,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     /* what == 'N' means revoke */
     if (combo.plugin.length && what != 'N')
     {
-        my_error(ER_GRANT_PLUGIN_USER_EXISTS, MYF(0), combo.user.length, 
-                 combo.user.str);
+        my_error(ER_GRANT_PLUGIN_USER_EXISTS, MYF(0),
+                 static_cast<int>(combo.user.length), combo.user.str);
         goto end;
     }
     if (combo.password.str)                             // If password given
@@ -3644,6 +3641,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   {						// Should never happen
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    thd->lex->restore_backup_query_tables_list(&backup);
     if (save_binlog_row_based)
       thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(TRUE);				/* purecov: deadcode */
@@ -8380,7 +8378,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
         old_password_plugin, otherwise MySQL will think that server 
         and client plugins don't match.
       */
-      if (mpvio->acl_user->auth_string.length == 0)
+      if (mpvio->acl_user->salt_len == 0)
         mpvio->acl_user_plugin= old_password_plugin_name;
     }
   }
@@ -8400,13 +8398,20 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
 }
 
 #ifndef EMBEDDED_LIBRARY
-/**
-  Get a null character terminated string from a user-supplied buffer.
 
-  @param buffer[in, out]    Pointer to the buffer to be scanned.
+/** Get a string according to the protocol of the underlying buffer. */
+typedef char * (*get_proto_string_func_t) (char **, size_t *, size_t *);
+
+/**
+  Get a string formatted according to the 4.1 version of the MySQL protocol.
+
+  @param buffer[in, out]    Pointer to the user-supplied buffer to be scanned.
   @param max_bytes_available[in, out]  Limit the bytes to scan.
   @param string_length[out] The number of characters scanned not including
                             the null character.
+
+  @remark Strings are always null character terminated in this version of the
+          protocol.
 
   @remark The string_length does not include the terminating null character.
           However, after the call, the buffer is increased by string_length+1
@@ -8418,9 +8423,9 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
 */
 
 static
-char *get_null_terminated_string(char **buffer,
-                                 size_t *max_bytes_available,
-                                 size_t *string_length)
+char *get_41_protocol_string(char **buffer,
+                             size_t *max_bytes_available,
+                             size_t *string_length)
 {
   char *str= (char *)memchr(*buffer, '\0', *max_bytes_available);
 
@@ -8430,7 +8435,60 @@ char *get_null_terminated_string(char **buffer,
   *string_length= (size_t)(str - *buffer);
   *max_bytes_available-= *string_length + 1;
   str= *buffer;
-  *buffer += *string_length + 1;  
+  *buffer += *string_length + 1;
+
+  return str;
+}
+
+
+/**
+  Get a string formatted according to the 4.0 version of the MySQL protocol.
+
+  @param buffer[in, out]    Pointer to the user-supplied buffer to be scanned.
+  @param max_bytes_available[in, out]  Limit the bytes to scan.
+  @param string_length[out] The number of characters scanned not including
+                            the null character.
+
+  @remark If there are not enough bytes left after the current position of
+          the buffer to satisfy the current string, the string is considered
+          to be empty and a pointer to empty_c_string is returned.
+
+  @remark A string at the end of the packet is not null terminated.
+
+  @return Pointer to beginning of the string scanned, or a pointer to a empty
+          string.
+*/
+static
+char *get_40_protocol_string(char **buffer,
+                             size_t *max_bytes_available,
+                             size_t *string_length)
+{
+  char *str;
+  size_t len;
+
+  /* No bytes to scan left, treat string as empty. */
+  if ((*max_bytes_available) == 0)
+  {
+    *string_length= 0;
+    return empty_c_string;
+  }
+
+  str= (char *) memchr(*buffer, '\0', *max_bytes_available);
+
+  /*
+    If the string was not null terminated by the client,
+    the remainder of the packet is the string. Otherwise,
+    advance the buffer past the end of the null terminated
+    string.
+  */
+  if (str == NULL)
+    len= *string_length= *max_bytes_available;
+  else
+    len= (*string_length= (size_t)(str - *buffer)) + 1;
+
+  str= *buffer;
+  *buffer+= len;
+  *max_bytes_available-= len;
 
   return str;
 }
@@ -8441,7 +8499,7 @@ char *get_null_terminated_string(char **buffer,
   @param buffer[in, out] The buffer to scan; updates position after scan.
   @param max_bytes_available[in, out] Limit the number of bytes to scan
   @param string_length[out] Number of characters scanned
-  
+
   @remark In case the length is zero, then the total size of the string is
     considered to be 1 byte; the size byte.
 
@@ -8527,14 +8585,14 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   DBUG_PRINT("info", ("client capabilities: %lu", mpvio->client_capabilities));
   if (mpvio->client_capabilities & CLIENT_SSL)
   {
-    char error_string[1024] __attribute__((unused));
+    unsigned long errptr;
 
     /* Do the SSL layering. */
     if (!ssl_acceptor_fd)
       return packet_error;
 
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout))
+    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout, &errptr))
     {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       return packet_error;
@@ -8557,7 +8615,20 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   if ((mpvio->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
     net->return_status= mpvio->server_status;
- 
+
+  /*
+    The 4.0 and 4.1 versions of the protocol differ on how strings
+    are terminated. In the 4.0 version, if a string is at the end
+    of the packet, the string is not null terminated. Do not assume
+    that the returned string is always null terminated.
+  */
+  get_proto_string_func_t get_string;
+
+  if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
+    get_string= get_41_protocol_string;
+  else
+    get_string= get_40_protocol_string;
+
   /*
     In order to safely scan a head for '\0' string terminators
     we must keep track of how many bytes remain in the allocated
@@ -8566,8 +8637,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   size_t bytes_remaining_in_packet= pkt_len - (end - (char *)net->read_pos);
 
   size_t user_len;
-  char *user= get_null_terminated_string(&end, &bytes_remaining_in_packet,
-                                         &user_len);
+  char *user= get_string(&end, &bytes_remaining_in_packet, &user_len);
   if (user == NULL)
     return packet_error;
 
@@ -8592,8 +8662,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     /*
       Old passwords are zero terminated strings.
     */
-    passwd= get_null_terminated_string(&end, &bytes_remaining_in_packet,
-                                       &passwd_len);
+    passwd= get_string(&end, &bytes_remaining_in_packet, &passwd_len);
   }
 
   if (passwd == NULL)
@@ -8604,40 +8673,43 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
 
   if (mpvio->client_capabilities & CLIENT_CONNECT_WITH_DB)
   {
-    db= get_null_terminated_string(&end, &bytes_remaining_in_packet,
-                                   &db_len);
+    db= get_string(&end, &bytes_remaining_in_packet, &db_len);
     if (db == NULL)
       return packet_error;
   }
 
   size_t client_plugin_len= 0;
-  char *client_plugin= get_null_terminated_string(&end,
-                                                  &bytes_remaining_in_packet,
-                                                  &client_plugin_len);
+  char *client_plugin= get_string(&end, &bytes_remaining_in_packet,
+                                  &client_plugin_len);
   if (client_plugin == NULL)
     client_plugin= &empty_c_string[0];
- 
+
   char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
   uint dummy_errors;
-  
 
-  /* Since 4.1 all database names are stored in utf8 */
+
+  /*
+    Copy and convert the user and database names to the character set used
+    by the server. Since 4.1 all database names are stored in UTF-8. Also,
+    ensure that the names are properly null-terminated as this is relied
+    upon later.
+  */
   if (db)
   {
     db_len= copy_and_convert(db_buff, sizeof(db_buff) - 1, system_charset_info,
                              db, db_len, mpvio->charset_adapter->charset(),
                              &dummy_errors);
+    db_buff[db_len]= '\0';
     db= db_buff;
-    db_buff[db_len]= 0;
   }
 
   user_len= copy_and_convert(user_buff, sizeof(user_buff) - 1,
-                                system_charset_info, user, user_len,
-                                mpvio->charset_adapter->charset(),
-                                &dummy_errors);
+                             system_charset_info, user, user_len,
+                             mpvio->charset_adapter->charset(),
+                             &dummy_errors);
+  user_buff[user_len]= '\0';
   user= user_buff;
-  user_buff[user_len]= 0;
 
   /* If username starts and ends in "'", chop them off */
   if (user_len > 1 && user[0] == '\'' && user[user_len - 1] == '\'')
@@ -8685,7 +8757,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
         old_password_plugin, otherwise MySQL will think that server 
         and client plugins don't match.
       */
-      if (mpvio->acl_user->auth_string.length == 0)
+      if (mpvio->acl_user->salt_len == 0)
         mpvio->acl_user_plugin= old_password_plugin_name;
     }
   }
@@ -8900,7 +8972,7 @@ err:
   if (mpvio->status == MPVIO_EXT::FAILURE)
   {
     inc_host_errors(mpvio->ip);
-    my_error(ER_HANDSHAKE_ERROR, MYF(0), mpvio->auth_info.host_or_ip);
+    my_error(ER_HANDSHAKE_ERROR, MYF(0));
   }
   DBUG_RETURN(-1);
 }
@@ -9473,7 +9545,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 #endif
 
   if (pkt_len == 0) /* no password */
-    DBUG_RETURN(info->auth_string[0] ? CR_ERROR : CR_OK);
+    DBUG_RETURN(mpvio->acl_user->salt_len != 0 ? CR_ERROR : CR_OK);
 
   info->password_used= PASSWORD_USED_YES;
   if (pkt_len == SCRAMBLE_LENGTH)
@@ -9486,7 +9558,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   }
 
   inc_host_errors(mpvio->ip);
-  my_error(ER_HANDSHAKE_ERROR, MYF(0), mpvio->auth_info.host_or_ip);
+  my_error(ER_HANDSHAKE_ERROR, MYF(0));
   DBUG_RETURN(CR_ERROR);
 }
 
@@ -9522,7 +9594,7 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     pkt_len= strnlen((char*)pkt, pkt_len);
 
   if (pkt_len == 0) /* no password */
-    return info->auth_string[0] ? CR_ERROR : CR_OK;
+    return mpvio->acl_user->salt_len != 0 ? CR_ERROR : CR_OK;
 
   if (secure_auth(mpvio))
     return CR_ERROR;
@@ -9540,7 +9612,7 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   }
 
   inc_host_errors(mpvio->ip);
-  my_error(ER_HANDSHAKE_ERROR, MYF(0), mpvio->auth_info.host_or_ip);
+  my_error(ER_HANDSHAKE_ERROR, MYF(0));
   return CR_ERROR;
 }
 

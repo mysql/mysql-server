@@ -10,19 +10,13 @@
 #    $target_value     Value on the slave (expected value in the table
 #                      on the slave)
 #    $can_convert      True if conversion shall work, false if it
-#                      shall generate an errora
-#
-# MCP_BUG12384993 modifies this script to:
-# - add support for choosing the engine of test
-#   table(t1) with $engine_type
-# - add primary key to the test table(t1) to support
-#   replication of BLOB/TEXT
-#
+#                      shall generate an error 
 #    $engine_type      The storage engine to be used for storing table
 #                      on both master and slave
 
 if (!$engine_type)
 {
+  # Use the default storage engine
   let $engine_type=`SELECT @@storage_engine`;
 }
 

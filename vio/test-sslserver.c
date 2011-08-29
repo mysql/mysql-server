@@ -52,6 +52,7 @@ do_ssl_stuff(	TH_ARGS*	args)
 	const char*	s = "Huhuhuhuuu";
 	Vio*		server_vio;
 	int		err;
+        unsigned long   ssl_error;
 	DBUG_ENTER("do_ssl_stuff");
 
 	server_vio = vio_new(args->sd, VIO_TYPE_TCPIP, TRUE);
@@ -60,7 +61,7 @@ do_ssl_stuff(	TH_ARGS*	args)
 	/* TCP connection is ready. Do server side SSL. */
 
 	err = write(server_vio->sd,(uchar*)s, strlen(s));
-	sslaccept(args->ssl_acceptor,server_vio,60L);
+	sslaccept(args->ssl_acceptor,server_vio,60L,&ssl_error);
 	err = server_vio->write(server_vio,(uchar*)s, strlen(s));
 	DBUG_VOID_RETURN;
 }

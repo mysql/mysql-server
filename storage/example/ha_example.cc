@@ -984,7 +984,7 @@ static int show_func_example(MYSQL_THD thd, struct st_mysql_show_var *var,
   var->type= SHOW_CHAR;
   var->value= buf; // it's of SHOW_VAR_FUNC_BUFF_SIZE bytes
   my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
-              "enum_var is %u, ulong_var is %lu, %.6b", // %b is MySQL extension
+              "enum_var is %lu, ulong_var is %lu, %.6b", // %b is MySQL extension
               srv_enum_var, srv_ulong_var, "really");
   return 0;
 }

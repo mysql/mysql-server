@@ -99,6 +99,13 @@ IF(UNIX)
 ENDIF()
 
 #
+# plugin_tests's value should not be used by imported plugins,
+# just use if(INSTALL_PLUGINTESTDIR).
+# The plugin must set its own install path for tests
+#
+FILE(GLOB plugin_tests ${CMAKE_SOURCE_DIR}/plugin/*/tests)
+
+#
 # STANDALONE layout
 #
 SET(INSTALL_BINDIR_STANDALONE           "bin")
@@ -122,6 +129,7 @@ SET(INSTALL_SQLBENCHDIR_STANDALONE      ".")
 SET(INSTALL_SUPPORTFILESDIR_STANDALONE  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_STANDALONE     "data")
+SET(INSTALL_PLUGINTESTDIR_STANDALONE    ${plugin_tests})
 
 #
 # RPM layout
@@ -152,6 +160,7 @@ SET(INSTALL_SQLBENCHDIR_RPM             "")
 SET(INSTALL_SUPPORTFILESDIR_RPM         "share/mysql")
 #
 SET(INSTALL_MYSQLDATADIR_RPM            "/var/lib/mysql")
+SET(INSTALL_PLUGINTESTDIR_RPM           ${plugin_tests})
 
 #
 # DEB layout
@@ -177,6 +186,7 @@ SET(INSTALL_SQLBENCHDIR_DEB             ".")
 SET(INSTALL_SUPPORTFILESDIR_DEB         "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_DEB            "data")
+SET(INSTALL_PLUGINTESTDIR_DEB           ${plugin_tests})
 
 #
 # SVR4 layout
@@ -202,6 +212,7 @@ SET(INSTALL_SQLBENCHDIR_SVR4            ".")
 SET(INSTALL_SUPPORTFILESDIR_SVR4        "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_SVR4           "/var/lib/mysql")
+SET(INSTALL_PLUGINTESTDIR_SVR4          ${plugin_tests})
 
 
 # Clear cached variables if install layout was changed
@@ -216,7 +227,7 @@ SET(OLD_INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE INTERNAL "")
 # will be defined  as ${INSTALL_BINDIR_STANDALONE} by default if STANDALONE
 # layout is chosen)
 FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE SCRIPT DOC MAN
-  INFO MYSQLTEST SQLBENCH DOCREADME SUPPORTFILES MYSQLDATA)
+  INFO MYSQLTEST SQLBENCH DOCREADME SUPPORTFILES MYSQLDATA PLUGINTEST)
   SET(INSTALL_${var}DIR  ${INSTALL_${var}DIR_${INSTALL_LAYOUT}}
   CACHE STRING "${var} installation directory" ${FORCE})
   MARK_AS_ADVANCED(INSTALL_${var}DIR)

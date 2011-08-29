@@ -2747,6 +2747,7 @@ buf_page_get_gen(
 	case BUF_GET_IF_IN_POOL:
 	case BUF_PEEK_IF_IN_POOL:
 	case BUF_GET_IF_IN_POOL_OR_WATCH:
+	case BUF_GET_POSSIBLY_FREED:
 		break;
 	default:
 		ut_error;
@@ -3062,7 +3063,10 @@ wait_until_unfixed:
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 	buf_block_buf_fix_inc(block, file, line);
-
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
+	ut_a(mode == BUF_GET_POSSIBLY_FREED
+	     || !block->page.file_page_was_freed);
+#endif
 	mutex_exit(&block->mutex);
 
 	/* Check if this is the first access to the page */
@@ -3074,10 +3078,6 @@ wait_until_unfixed:
 	if (UNIV_LIKELY(mode != BUF_PEEK_IF_IN_POOL)) {
 		buf_page_set_accessed_make_young(&block->page, access_time);
 	}
-
-#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	ut_a(!block->page.file_page_was_freed);
-#endif
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(++buf_dbg_counter % 5771 || buf_validate());

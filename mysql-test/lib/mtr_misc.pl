@@ -31,6 +31,7 @@ sub mtr_script_exists(@);
 sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
 sub mtr_exe_maybe_exists(@);
+sub mtr_compress_file($);
 sub mtr_milli_sleep($);
 sub start_timer($);
 sub has_expired($);
@@ -197,6 +198,40 @@ sub mtr_exe_exists (@) {
   {
     mtr_error("Could not find any of " . join(" ", @path));
   }
+}
+
+#
+# Try to compress file using tools that might be available.
+# If zip/gzip is not available, just silently ignore.
+#
+
+sub mtr_compress_file ($) {
+  my ($filename)= @_;
+
+  mtr_error ("File to compress not found: $filename") unless -f $filename;
+
+  my $did_compress= 0;
+
+  if (IS_WINDOWS)
+  {
+    # Capture stderr
+    my $ziperr= `zip $filename.zip $filename 2>&1`;
+    if ($?) {
+      print "$ziperr\n" if $ziperr !~ /recognized as an internal or external/;
+    } else {
+      unlink($filename);
+      $did_compress=1;
+    }
+  }
+  else
+  {
+    my $gzres= system("gzip $filename");
+    $did_compress= ! $gzres;
+    if ($gzres && $gzres != -1) {
+      mtr_error ("Error: have gzip but it fails to compress core file");
+    }
+  }
+  mtr_print("Compressed file $filename") if $did_compress;
 }
 
 

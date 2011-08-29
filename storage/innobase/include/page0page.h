@@ -619,17 +619,16 @@ page_rec_find_owner_rec(
 /*====================*/
 	rec_t*	rec);	/*!< in: the physical record */
 /***********************************************************************//**
-This is a low-level operation which is used in a database index creation
-to update the page number of a created B-tree to a data dictionary
-record. */
-UNIV_INTERN
+Write a 32-bit field in a data dictionary record. */
+UNIV_INLINE
 void
-page_rec_write_index_page_no(
-/*=========================*/
-	rec_t*	rec,	/*!< in: record to update */
+page_rec_write_field(
+/*=================*/
+	rec_t*	rec,	/*!< in/out: record to update */
 	ulint	i,	/*!< in: index of the field to update */
 	ulint	page_no,/*!< in: value to write */
-	mtr_t*	mtr);	/*!< in: mtr */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /************************************************************//**
 Returns the maximum combined size of records which can be inserted on top
 of record heap.

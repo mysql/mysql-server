@@ -1117,5 +1117,14 @@ CASE s1 WHEN 'a' THEN 'b' ELSE 'c' END
 b
 DROP TABLE t1;
 #
+# Bug#12340997
+# DATE_ADD/DATE_SUB WITH INTERVAL CRASHES IN GET_INTERVAL_VALUE()
+#
+SELECT space(date_add(101, INTERVAL CHAR('1' USING utf16) hour_second));
+space(date_add(101, INTERVAL CHAR('1' USING utf16) hour_second))
+NULL
+Warnings:
+Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+#
 # End of 5.5 tests
 #
