@@ -5206,7 +5206,8 @@ UNIV_INTERN
 void
 dict_set_corrupted_index_cache_only(
 /*================================*/
-	dict_index_t*	index)		/*!< in/out: index */
+	dict_index_t*	index,		/*!< in/out: index */
+	dict_table_t*	table)		/*!< in/out: table */
 {
 	ut_ad(index);
 	ut_ad(mutex_own(&dict_sys->mutex));
@@ -5216,7 +5217,14 @@ dict_set_corrupted_index_cache_only(
 	/* Mark the table as corrupted only if the clustered index
 	is corrupted */
 	if (dict_index_is_clust(index)) {
-		index->table->corrupted = TRUE;
+		dict_table_t*	corrupt_table;
+
+		corrupt_table = table ? table : index->table;
+		ut_ad(!index->table || !table || index->table  == table);
+
+		if (corrupt_table) {
+			corrupt_table->corrupted = TRUE;
+		}
 	}
 
 	index->type |= DICT_CORRUPT;
