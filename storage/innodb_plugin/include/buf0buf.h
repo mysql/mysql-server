@@ -372,15 +372,6 @@ buf_page_peek(
 /*==========*/
 	ulint	space,	/*!< in: space id */
 	ulint	offset);/*!< in: page number */
-/********************************************************************//**
-Resets the check_index_page_at_flush field of a page if found in the buffer
-pool. */
-UNIV_INTERN
-void
-buf_reset_check_index_page_at_flush(
-/*================================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset);/*!< in: page number */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 /********************************************************************//**
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
