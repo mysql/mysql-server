@@ -382,7 +382,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --enable-local-infile \
 	    --with-fast-mutexes \
 	    --with-mysqld-user=%{mysqld_user} \
-	    --with-unix-socket-path=/var/lib/mysql/mysql.sock \
+	    --with-unix-socket-path=%{mysqldatadir}/mysql.sock \
 	    --with-pic \
 	    --prefix=/ \
 %if %{CLUSTER_BUILD}
@@ -858,6 +858,13 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # ----------------------------------------------------------------------
 chmod -R og-rw $mysql_datadir/mysql
 
+# ----------------------------------------------------------------------
+# Deal with SELinux, if it is installed / used
+# ----------------------------------------------------------------------
+if [ -x /sbin/restorecon ] ; then
+	/sbin/restorecon -R %{mysqldatadir}
+fi
+
 # Was the server running before the upgrade? If so, restart the new one.
 if [ "$SERVER_TO_START" = "true" ] ; then
 	# Restart in the same way that mysqld will be started normally.
@@ -1165,6 +1172,15 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Fri Aug 19 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Fix bug#37165 "((Generic rpm)) fail to install on Fedora 9 x86_64"
+  On Fedora, certain accesses to "/var/lib/mysql/HOSTNAME.err" were blocked
+  by SELinux policy, this made the server start fail with the message
+      Manager of pid-file quit without updating file
+  Calling "/sbin/restorecon -R /var/lib/mysql" fixes this.
+- Replace occurrences of that path name by the spec file variable %{mysqldatadir}.
+
 * Thu Jul 07 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Fix bug#45415: "rpm upgrade recreates test database"
