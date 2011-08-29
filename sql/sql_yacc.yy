@@ -2591,9 +2591,9 @@ sp_fdparam:
               my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            sp_variable *spvar= spc->push_variable($1,
-                                                   (enum enum_field_types)$3,
-                                                   sp_variable::MODE_IN);
+            sp_variable *spvar= spc->add_variable($1,
+                                                  (enum enum_field_types)$3,
+                                                  sp_variable::MODE_IN);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
                                                    (enum enum_field_types) $3,
@@ -2628,9 +2628,9 @@ sp_pdparam:
               my_error(ER_SP_DUP_PARAM, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            sp_variable *spvar= spc->push_variable($3,
-                                                   (enum enum_field_types)$4,
-                                                   (sp_variable::enum_mode)$1);
+            sp_variable *spvar= spc->add_variable($3,
+                                                  (enum enum_field_types)$4,
+                                                  (sp_variable::enum_mode)$1);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
                                                    (enum enum_field_types) $4,
@@ -2766,7 +2766,7 @@ sp_decl:
               my_error(ER_SP_DUP_COND, MYF(0), $2.str);
               MYSQL_YYABORT;
             }
-            if(YYTHD->lex->spcont->push_condition($2, $5))
+            if(YYTHD->lex->spcont->add_condition($2, $5))
               MYSQL_YYABORT;
             $$.vars= $$.hndlrs= $$.curs= 0;
             $$.conds= 1;
@@ -2782,7 +2782,7 @@ sp_decl:
 
             sp_handler *h= new sp_handler((sp_handler::enum_type) $2);
 
-            ctx->parent_context()->push_handler(h);
+            ctx->parent_context()->add_handler(h);
 
             sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, h);
@@ -2846,7 +2846,7 @@ sp_decl:
                                   ctx->current_cursor_count());
             if (i == NULL ||
                 sp->add_instr(i) ||
-                ctx->push_cursor($2))
+                ctx->add_cursor($2))
               MYSQL_YYABORT;
             $$.vars= $$.conds= $$.hndlrs= 0;
             $$.curs= 1;
@@ -3155,7 +3155,7 @@ sp_decl_idents:
               my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            spc->push_variable($1, (enum_field_types)0, sp_variable::MODE_IN);
+            spc->add_variable($1, (enum_field_types)0, sp_variable::MODE_IN);
             $$= 1;
           }
         | sp_decl_idents ',' ident
@@ -3170,7 +3170,7 @@ sp_decl_idents:
               my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            spc->push_variable($3, (enum_field_types)0, sp_variable::MODE_IN);
+            spc->add_variable($3, (enum_field_types)0, sp_variable::MODE_IN);
             $$= $1 + 1;
           }
         ;

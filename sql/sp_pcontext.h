@@ -340,9 +340,9 @@ public:
   /// @param mode Mode of the SP-variable.
   ///
   /// @return instance of newly added SP-variable.
-  sp_variable *push_variable(LEX_STRING name,
-                             enum enum_field_types type,
-                             sp_variable::enum_mode mode);
+  sp_variable *add_variable(LEX_STRING name,
+                            enum enum_field_types type,
+                            sp_variable::enum_mode mode);
 
   /// Retrieve full type information about SP-variables in this parsing
   /// context and its children.
@@ -425,7 +425,7 @@ public:
   // Conditions.
   /////////////////////////////////////////////////////////////////////////
 
-  bool push_condition(LEX_STRING name, sp_condition_value *value);
+  bool add_condition(LEX_STRING name, sp_condition_value *value);
 
   /// See comment for find_variable() above.
   sp_condition_value *find_condition(LEX_STRING name,
@@ -435,7 +435,7 @@ public:
   // Handlers.
   /////////////////////////////////////////////////////////////////////////
 
-  void push_handler(sp_handler *handler)
+  void add_handler(sp_handler *handler)
   { m_handlers.append(handler); }
 
   /// This is an auxilary parsing-time function to check if an SQL-handler
@@ -471,7 +471,7 @@ public:
   // Cursors.
   /////////////////////////////////////////////////////////////////////////
 
-  bool push_cursor(LEX_STRING name);
+  bool add_cursor(LEX_STRING name);
 
   /// See comment for find_variable() above.
   bool find_cursor(LEX_STRING name, uint *poff, bool current_scope_only) const;
