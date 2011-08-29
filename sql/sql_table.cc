@@ -7072,8 +7072,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     */
     char path[FN_REFLEN];
     TABLE *t_table;
-    build_table_filename(path + 1, sizeof(path) - 1, new_db, table_name, "", 0);
-    t_table= open_table_uncached(thd, path, new_db, tmp_name, FALSE);
+    build_table_filename(path, sizeof(path) - 1, new_db, new_name, "", 0);
+    t_table= open_table_uncached(thd, path, new_db, new_name, FALSE);
     if (t_table)
     {
       intern_close_table(t_table);

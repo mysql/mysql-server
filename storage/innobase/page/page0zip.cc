@@ -47,6 +47,7 @@ Created June 2005 by Marko Makela
 # include "srv0srv.h"
 # include "ut0crc32.h"
 #else /* !UNIV_HOTBACKUP */
+# include "buf0checksum.h"
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
 #endif /* !UNIV_HOTBACKUP */
