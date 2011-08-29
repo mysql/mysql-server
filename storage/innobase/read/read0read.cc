@@ -196,6 +196,22 @@ read_view_validate(
 	return(TRUE);
 }
 
+/** Functor to validate the view list. */
+struct	Check {
+
+	Check() : m_prev_view(0) { }
+
+	void	operator()(const read_view_t* view)
+	{
+		ut_a(m_prev_view == NULL
+		     || m_prev_view->low_limit_no >= view->low_limit_no);
+
+		m_prev_view = view;
+	}
+
+	const read_view_t*	m_prev_view;
+};
+
 /*********************************************************************//**
 Validates a read view list. */
 static
@@ -203,18 +219,9 @@ ibool
 read_view_list_validate(void)
 /*=========================*/
 {
-	const read_view_t*	view;
-	const read_view_t*	prev_view = NULL;
-
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	for (view = UT_LIST_GET_FIRST(trx_sys->view_list);
-	     view != NULL;
-	     prev_view = view, view = UT_LIST_GET_NEXT(view_list, prev_view)) {
-
-		ut_a(prev_view == NULL
-		     || prev_view->low_limit_no >= view->low_limit_no);
-	}
+	UT_LIST_MAP(view_list, read_view_t, trx_sys->view_list, Check());
 
 	return(TRUE);
 }
@@ -319,6 +326,52 @@ read_view_add(
 	ut_ad(read_view_list_validate());
 }
 
+/** Functor to create thew view trx_ids array. */
+struct	CreateView {
+
+	CreateView(read_view_t*	view)
+		: m_view(view)
+	{
+		  m_n_trx = m_view->n_trx_ids;
+		  m_view->n_trx_ids = 0;
+	}
+
+	void	operator()(const trx_t* trx)
+	{
+		ut_ad(trx->in_trx_list);
+
+		/* trx->state cannot change from or to NOT_STARTED
+		while we are holding the trx_sys->mutex. It may change
+		from ACTIVE to PREPARED or COMMITTED. */
+
+		if (trx->id != m_view->creator_trx_id
+		    && !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
+
+			ut_ad(m_n_trx > m_view->n_trx_ids);
+
+			m_view->trx_ids[m_view->n_trx_ids++] = trx->id;
+
+			/* NOTE that a transaction whose trx number is <
+			trx_sys->max_trx_id can still be active, if it is
+			in the middle of its commit! Note that when a
+			transaction starts, we initialize trx->no to
+			IB_ULONGLONG_MAX. */
+
+			/* trx->no is protected by trx_sys->mutex, which
+			we are holding. It is assigned by trx_commit()
+			before lock_trx_release_locks() assigns
+			trx->state = TRX_STATE_COMMITTED_IN_MEMORY. */
+
+			if (m_view->low_limit_no > trx->no) {
+				m_view->low_limit_no = trx->no;
+			}
+		}
+	}
+
+	read_view_t*	m_view;
+	ulint		m_n_trx;
+};
+
 /*********************************************************************//**
 Opens a read view where exactly the transactions serialized before this
 point in time are seen in the view.
@@ -332,15 +385,12 @@ read_view_open_now_low(
 	mem_heap_t*	heap)		/*!< in: memory heap from which
 					allocated */
 {
-	const trx_t*	trx;
 	read_view_t*	view;
 	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
 	view = read_view_create_low(n_trx, heap);
-
-	n_trx = 0;
 
 	view->undo_no = 0;
 	view->type = VIEW_NORMAL;
@@ -353,45 +403,12 @@ read_view_open_now_low(
 
 	/* No active transaction should be visible, except cr_trx */
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
-	     trx != NULL;
-	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
-
-		ut_ad(trx->in_trx_list);
-
-		/* trx->state cannot change from or to NOT_STARTED
-		while we are holding the trx_sys->mutex. It may change
-		from ACTIVE to PREPARED or COMMITTED. */
-
-		if (trx->id != cr_trx_id
-		    && !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
-			ut_ad(n_trx < view->n_trx_ids);
-
-			view->trx_ids[n_trx++] = trx->id;
-
-			/* NOTE that a transaction whose trx number is <
-			trx_sys->max_trx_id can still be active, if it is
-			in the middle of its commit! Note that when a
-			transaction starts, we initialize trx->no to
-			IB_ULONGLONG_MAX. */
-
-			/* trx->no is protected by trx_sys->mutex, which
-			we are holding. It is assigned by trx_commit()
-			before lock_trx_release_locks() assigns
-			trx->state = TRX_STATE_COMMITTED_IN_MEMORY. */
-
-			if (view->low_limit_no > trx->no) {
-
-				view->low_limit_no = trx->no;
-			}
-		}
-	}
-
-	view->n_trx_ids = n_trx;
+	ut_list_map(
+		trx_sys->trx_list,
+		offsetof(trx_t, trx_list), CreateView(view));
 
 	if (view->n_trx_ids > 0) {
 		/* The last active transaction has the smallest id: */
-
 		view->up_limit_id = view->trx_ids[view->n_trx_ids - 1];
 	} else {
 		view->up_limit_id = view->low_limit_id;
@@ -601,7 +618,6 @@ read_cursor_view_create_for_mysql(
 /*==============================*/
 	trx_t*		cr_trx)	/*!< in: trx where cursor view is created */
 {
-	const trx_t*	trx;
 	read_view_t*	view;
 	mem_heap_t*	heap;
 	ulint		n_trx;
@@ -629,12 +645,10 @@ read_cursor_view_create_for_mysql(
 
 	curview->read_view = read_view_create_low(n_trx, curview->heap);
 
-	n_trx = 0;
-
 	view = curview->read_view;
 	view->undo_no = cr_trx->undo_no;
-	view->creator_trx_id = cr_trx->id;
 	view->type = VIEW_HIGH_GRANULARITY;
+	view->creator_trx_id = UINT64_UNDEFINED;
 
 	/* No future transactions should be visible in the view */
 
@@ -643,37 +657,11 @@ read_cursor_view_create_for_mysql(
 
 	/* No active transaction should be visible */
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
-	     trx != NULL;
-	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+	ut_list_map(
+		trx_sys->trx_list,
+		offsetof(trx_t, trx_list), CreateView(view));
 
-		/* trx->state cannot change from or to NOT_STARTED
-		while we are holding the trx_sys->mutex. It may change
-		from ACTIVE to PREPARED or COMMITTED. */
-		if (!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
-			ut_a(n_trx < view->n_trx_ids);
-
-			view->trx_ids[n_trx++] = trx->id;
-
-			/* NOTE that a transaction whose trx number is <
-			trx_sys->max_trx_id can still be active, if it is
-			in the middle of its commit! Note that when a
-			transaction starts, we initialize trx->no to
-			IB_ULONGLONG_MAX. */
-
-			/* trx->no is protected by trx_sys->mutex, which
-			we are holding. It is assigned by trx_commit()
-			before lock_trx_release_locks() assigns
-			trx->state = TRX_STATE_COMMITTED_IN_MEMORY. */
-
-			if (view->low_limit_no > trx->no) {
-
-				view->low_limit_no = trx->no;
-			}
-		}
-	}
-
-	view->n_trx_ids = n_trx;
+	view->creator_trx_id = cr_trx->id;
 
 	if (view->n_trx_ids > 0) {
 		/* The last active transaction has the smallest id: */
