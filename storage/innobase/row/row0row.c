@@ -1024,6 +1024,8 @@ test_row_raw_format_int()
 	ulint	ret;
 	char	buf[128];
 	ibool	format_in_hex;
+	speedo_t speedo;
+	ulint	i;
 
 #define CALL_AND_TEST(data, data_len, prtype, buf, buf_size,\
 		      ret_expected, buf_expected, format_in_hex_expected)\
@@ -1205,9 +1207,6 @@ test_row_raw_format_int()
 #endif
 
 	/* speed test */
-
-	speedo_t	speedo;
-	ulint		i;
 
 	speedo_reset(&speedo);
 
