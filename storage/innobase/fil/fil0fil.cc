@@ -4811,6 +4811,14 @@ fil_flush_file_spaces(
 	mem_free(space_ids);
 }
 
+/** Functor to validate the space list. */
+struct	Check {
+	void	operator()(const fil_node_t* elem)
+	{
+		ut_a(elem->open || !elem->n_pending);
+	}
+};
+
 /******************************************************************//**
 Checks the consistency of the tablespace cache.
 @return	TRUE if ok */
@@ -4830,17 +4838,19 @@ fil_validate(void)
 
 	for (i = 0; i < hash_get_n_cells(fil_system->spaces); i++) {
 
-		space = static_cast<fil_space_t*>(
-			HASH_GET_FIRST(fil_system->spaces, i));
+		for (space = static_cast<fil_space_t*>(
+				HASH_GET_FIRST(fil_system->spaces, i));
+		     space != 0;
+		     space = static_cast<fil_space_t*>(
+			     	HASH_GET_NEXT(hash, space))) {
 
-		while (space != NULL) {
-			UT_LIST_VALIDATE(chain, fil_node_t, space->chain,
-					 ut_a(ut_list_node_313->open
-					      || !ut_list_node_313->n_pending));
+			UT_LIST_VALIDATE(
+				chain, fil_node_t, space->chain, Check());
 
-			fil_node = UT_LIST_GET_FIRST(space->chain);
+			for (fil_node = UT_LIST_GET_FIRST(space->chain);
+			     fil_node != 0;
+			     fil_node = UT_LIST_GET_NEXT(chain, fil_node)) {
 
-			while (fil_node != NULL) {
 				if (fil_node->n_pending > 0) {
 					ut_a(fil_node->open);
 				}
@@ -4848,26 +4858,22 @@ fil_validate(void)
 				if (fil_node->open) {
 					n_open++;
 				}
-				fil_node = UT_LIST_GET_NEXT(chain, fil_node);
 			}
-			space = static_cast<fil_space_t*>(
-				HASH_GET_NEXT(hash, space));
 		}
 	}
 
 	ut_a(fil_system->n_open == n_open);
 
-	UT_LIST_VALIDATE(LRU, fil_node_t, fil_system->LRU, (void) 0);
+	UT_LIST_CHECK(LRU, fil_node_t, fil_system->LRU);
 
-	fil_node = UT_LIST_GET_FIRST(fil_system->LRU);
+	for (fil_node = UT_LIST_GET_FIRST(fil_system->LRU);
+	     fil_node != 0;
+	     fil_node = UT_LIST_GET_NEXT(LRU, fil_node)) {
 
-	while (fil_node != NULL) {
 		ut_a(fil_node->n_pending == 0);
 		ut_a(!fil_node->being_extended);
 		ut_a(fil_node->open);
 		ut_a(fil_space_belongs_in_lru(fil_node->space));
-
-		fil_node = UT_LIST_GET_NEXT(LRU, fil_node);
 	}
 
 	mutex_exit(&fil_system->mutex);

@@ -2212,19 +2212,31 @@ os_file_pread(
 	os_n_file_reads++;
 
 #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
+	(void) os_atomic_increment_ulint(&os_file_n_pending_preads, 1);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads++;
 	os_n_pending_reads++;
-	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
-	n_bytes = pread(file, buf, (ssize_t)n, offs);
+	MONITOR_INC(MONITOR_OS_PENDING_READS);
 
+	n_bytes = pread(file, buf, n, offs);
+
+#ifdef HAVE_ATOMIC_BUILTINS
+	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
+	(void) os_atomic_decrement_ulint(&os_file_n_pending_preads, 1);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads--;
 	os_n_pending_reads--;
-	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
+
+	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 
 	return(n_bytes);
 #else
@@ -2235,11 +2247,14 @@ os_file_pread(
 		ulint	i;
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef HAVE_ATOMIC_BUILTINS
+		(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
+#else
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads++;
-		MONITOR_INC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
-
+#endif /* HAVE_ATOMIC_BUILTINS */
+		//MONITOR_INC(MONITOR_OS_PENDING_READS);
 #ifndef UNIV_HOTBACKUP
 		/* Protect the seek / read operation with a mutex */
 		i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
@@ -2259,10 +2274,14 @@ os_file_pread(
 		os_mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef HAVE_ATOMIC_BUILTINS
+		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
+#else
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
-		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
+		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 
 		return(ret);
 	}
