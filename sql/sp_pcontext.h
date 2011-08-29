@@ -82,7 +82,7 @@ struct sp_label
   };
 
   /// Name of the label.
-  char *name;
+  LEX_STRING name;
 
   /// Instruction pointer of the label.
   uint ip;
@@ -288,7 +288,7 @@ public:
   /// @param mode Mode of the SP-variable.
   ///
   /// @return instance of newly added SP-variable.
-  sp_variable *push_variable(LEX_STRING *name,
+  sp_variable *push_variable(LEX_STRING name,
                              enum enum_field_types type,
                              sp_variable::enum_mode mode);
 
@@ -309,7 +309,7 @@ public:
   /// @param current_scope_only A flag if we search only in current scope.
   ///
   /// @return instance of found SP-variable, or NULL if not found.
-  sp_variable *find_variable(LEX_STRING *name, bool current_scope_only) const;
+  sp_variable *find_variable(LEX_STRING name, bool current_scope_only) const;
 
   /// Find SP-variable by the offset in the root parsing context.
   ///
@@ -352,9 +352,9 @@ public:
   // Labels.
   /////////////////////////////////////////////////////////////////////////
 
-  sp_label *push_label(char *name, uint ip);
+  sp_label *push_label(LEX_STRING name, uint ip);
 
-  sp_label *find_label(const char *name);
+  sp_label *find_label(LEX_STRING name);
 
   sp_label *last_label()
   {
@@ -373,11 +373,11 @@ public:
   // Conditions.
   /////////////////////////////////////////////////////////////////////////
 
-  bool push_condition(LEX_STRING *name, sp_condition_value *value);
+  bool push_condition(LEX_STRING name, sp_condition_value *value);
 
   /// See comment for find_variable() above.
-  sp_condition_value *find_condition(const LEX_STRING *name,
-                                      bool current_scope_only) const;
+  sp_condition_value *find_condition(LEX_STRING name,
+                                     bool current_scope_only) const;
 
   /////////////////////////////////////////////////////////////////////////
   // Handlers.
@@ -419,13 +419,13 @@ public:
   // Cursors.
   /////////////////////////////////////////////////////////////////////////
 
-  bool push_cursor(LEX_STRING *name);
+  bool push_cursor(LEX_STRING name);
 
   /// See comment for find_variable() above.
-  bool find_cursor(LEX_STRING *name, uint *poff, bool current_scope_only) const;
+  bool find_cursor(LEX_STRING name, uint *poff, bool current_scope_only) const;
 
   /// Find cursor by offset (for debugging only).
-  bool find_cursor(uint offset, LEX_STRING *n) const;
+  const LEX_STRING *find_cursor(uint offset) const;
 
   uint max_cursor_index() const
   { return m_max_cursor_index + m_cursors.elements(); }

@@ -147,7 +147,7 @@ uint sp_pcontext::diff_cursors(const sp_pcontext *ctx, bool exclusive) const
 }
 
 
-sp_variable *sp_pcontext::find_variable(LEX_STRING *name,
+sp_variable *sp_pcontext::find_variable(LEX_STRING name,
                                         bool current_scope_only) const
 {
   uint i= m_vars.elements() - m_pboundary;
@@ -157,7 +157,7 @@ sp_variable *sp_pcontext::find_variable(LEX_STRING *name,
     sp_variable *p= m_vars.at(i);
 
     if (my_strnncoll(system_charset_info,
-		     (const uchar *)name->str, name->length,
+		     (const uchar *)name.str, name.length,
 		     (const uchar *)p->name.str, p->name.length) == 0)
     {
       return p;
@@ -181,7 +181,7 @@ sp_variable *sp_pcontext::find_variable(uint offset) const
 }
 
 
-sp_variable *sp_pcontext::push_variable(LEX_STRING *name,
+sp_variable *sp_pcontext::push_variable(LEX_STRING name,
                                         enum enum_field_types type,
                                         sp_variable::enum_mode mode)
 {
@@ -192,8 +192,7 @@ sp_variable *sp_pcontext::push_variable(LEX_STRING *name,
 
   ++m_max_var_index;
 
-  p->name.str= name->str;
-  p->name.length= name->length;
+  p->name= name;
   p->type= type;
   p->mode= mode;
   p->offset= current_var_count();
@@ -202,7 +201,7 @@ sp_variable *sp_pcontext::push_variable(LEX_STRING *name,
 }
 
 
-sp_label *sp_pcontext::push_label(char *name, uint ip)
+sp_label *sp_pcontext::push_label(LEX_STRING name, uint ip)
 {
   sp_label *label= (sp_label *)sql_alloc(sizeof(sp_label));
 
@@ -219,14 +218,16 @@ sp_label *sp_pcontext::push_label(char *name, uint ip)
 }
 
 
-sp_label *sp_pcontext::find_label(const char *name)
+sp_label *sp_pcontext::find_label(LEX_STRING name)
 {
   List_iterator_fast<sp_label> li(m_labels);
   sp_label *lab;
 
   while ((lab= li++))
-    if (my_strcasecmp(system_charset_info, name, lab->name) == 0)
+  {
+    if (my_strcasecmp(system_charset_info, name.str, lab->name.str) == 0)
       return lab;
+  }
 
   /*
     Note about exception handlers.
@@ -236,28 +237,27 @@ sp_label *sp_pcontext::find_label(const char *name)
     In short, a DECLARE HANDLER block can not refer
     to labels from the parent context, as they are out of scope.
   */
-  if (m_parent && (m_scope == REGULAR_SCOPE))
-    return m_parent->find_label(name);
-  return NULL;
+  return (m_parent && (m_scope == REGULAR_SCOPE)) ?
+         m_parent->find_label(name) :
+         NULL;
 }
 
 
-bool sp_pcontext::push_condition(LEX_STRING *name, sp_condition_value *value)
+bool sp_pcontext::push_condition(LEX_STRING name, sp_condition_value *value)
 {
   sp_condition *p= (sp_condition *)sql_alloc(sizeof(sp_condition));
 
   if (p == NULL)
     return true;
 
-  p->name.str= name->str;
-  p->name.length= name->length;
+  p->name= name;
   p->value= value;
 
   return m_conditions.append(p);
 }
 
 
-sp_condition_value *sp_pcontext::find_condition(const LEX_STRING *name,
+sp_condition_value *sp_pcontext::find_condition(LEX_STRING name,
                                                 bool current_scope_only) const
 {
   uint i= m_conditions.elements();
@@ -267,8 +267,8 @@ sp_condition_value *sp_pcontext::find_condition(const LEX_STRING *name,
     sp_condition *p= m_conditions.at(i);
 
     if (my_strnncoll(system_charset_info,
-		     (const uchar *)name->str, name->length,
-		     (const uchar *)p->name.str, p->name.length) == 0)
+		     (const uchar *) name.str, name.length,
+		     (const uchar *) p->name.str, p->name.length) == 0)
     {
       return p->value;
     }
@@ -280,8 +280,8 @@ sp_condition_value *sp_pcontext::find_condition(const LEX_STRING *name,
 }
 
 
-bool
-sp_pcontext::check_duplicate_handler(const sp_condition_value *cond_value) const
+bool sp_pcontext::check_duplicate_handler(
+  const sp_condition_value *cond_value) const
 {
   for (int i= 0; i < m_handlers.elements(); ++i)
   {
@@ -410,20 +410,17 @@ sp_handler *sp_pcontext::find_handler(const char *sqlstate,
 }
 
 
-bool sp_pcontext::push_cursor(LEX_STRING *name)
+bool sp_pcontext::push_cursor(LEX_STRING name)
 {
-  LEX_STRING n;
-
   if (m_cursors.elements() == (int) m_max_cursor_index)
     ++m_max_cursor_index;
-  n.str= name->str;
-  n.length= name->length;
 
-  return m_cursors.append(n);
+  return m_cursors.append(name);
 }
 
 
-bool sp_pcontext::find_cursor(LEX_STRING *name, uint *poff,
+bool sp_pcontext::find_cursor(LEX_STRING name,
+                              uint *poff,
                               bool current_scope_only) const
 {
   uint i= m_cursors.elements();
@@ -433,8 +430,8 @@ bool sp_pcontext::find_cursor(LEX_STRING *name, uint *poff,
     LEX_STRING n= m_cursors.at(i);
 
     if (my_strnncoll(system_charset_info,
-		     (const uchar *)name->str, name->length,
-		     (const uchar *)n.str, n.length) == 0)
+		     (const uchar *) name.str, name.length,
+		     (const uchar *) n.str, n.length) == 0)
     {
       *poff= m_cursor_offset + i;
       return true;
@@ -447,8 +444,8 @@ bool sp_pcontext::find_cursor(LEX_STRING *name, uint *poff,
 }
 
 
-void
-sp_pcontext::retrieve_field_definitions(List<Create_field> *field_def_lst) const
+void sp_pcontext::retrieve_field_definitions(
+  List<Create_field> *field_def_lst) const
 {
   /* Put local/context fields in the result list. */
 
@@ -466,16 +463,15 @@ sp_pcontext::retrieve_field_definitions(List<Create_field> *field_def_lst) const
 }
 
 
-bool sp_pcontext::find_cursor(uint offset, LEX_STRING *n) const
+const LEX_STRING *sp_pcontext::find_cursor(uint offset) const
 {
   if (m_cursor_offset <= offset &&
       offset < m_cursor_offset + m_cursors.elements())
   {
-    *n= m_cursors.at(offset - m_cursor_offset);   // This frame
-    return true;
+    return &m_cursors.at(offset - m_cursor_offset);   // This frame
   }
 
   return m_parent ?
-         m_parent->find_cursor(offset, n) :       // Some previous frame
-         false;                                   // Index out of bounds
+         m_parent->find_cursor(offset) :  // Some previous frame
+         NULL;                            // Index out of bounds
 }

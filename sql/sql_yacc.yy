@@ -279,7 +279,7 @@ void case_stmt_action_case(LEX *lex)
     (Instruction 12 in the example)
   */
 
-  lex->spcont->push_label((char *)"", lex->sphead->instructions());
+  lex->spcont->push_label(EMPTY_STR, lex->sphead->instructions());
 }
 
 /**
@@ -348,7 +348,7 @@ int case_stmt_action_when(LEX *lex, Item *when, bool simple)
   */
 
   return !test(i) ||
-         sp->push_backpatch(i, ctx->push_label((char *)"", 0)) ||
+         sp->push_backpatch(i, ctx->push_label(EMPTY_STR, 0)) ||
          sp->add_cont_backpatch(i) ||
          sp->add_instr(i);
 }
@@ -2586,12 +2586,12 @@ sp_fdparam:
             LEX *lex= Lex;
             sp_pcontext *spc= lex->spcont;
 
-            if (spc->find_variable(&$1, TRUE))
+            if (spc->find_variable($1, TRUE))
             {
               my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            sp_variable *spvar= spc->push_variable(&$1,
+            sp_variable *spvar= spc->push_variable($1,
                                                    (enum enum_field_types)$3,
                                                    sp_variable::MODE_IN);
 
@@ -2623,12 +2623,12 @@ sp_pdparam:
             LEX *lex= Lex;
             sp_pcontext *spc= lex->spcont;
 
-            if (spc->find_variable(&$3, TRUE))
+            if (spc->find_variable($3, TRUE))
             {
               my_error(ER_SP_DUP_PARAM, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            sp_variable *spvar= spc->push_variable(&$3,
+            sp_variable *spvar= spc->push_variable($3,
                                                    (enum enum_field_types)$4,
                                                    (sp_variable::enum_mode)$1);
 
@@ -2761,12 +2761,12 @@ sp_decl:
             LEX *lex= Lex;
             sp_pcontext *spc= lex->spcont;
 
-            if (spc->find_condition(&$2, TRUE))
+            if (spc->find_condition($2, TRUE))
             {
               my_error(ER_SP_DUP_COND, MYF(0), $2.str);
               MYSQL_YYABORT;
             }
-            if(YYTHD->lex->spcont->push_condition(&$2, $5))
+            if(YYTHD->lex->spcont->push_condition($2, $5))
               MYSQL_YYABORT;
             $$.vars= $$.hndlrs= $$.curs= 0;
             $$.conds= 1;
@@ -2795,7 +2795,7 @@ sp_decl:
                 sp->push_backpatch(i, ctx->last_label()))
               MYSQL_YYABORT;
 
-            if (sp->push_backpatch(i, ctx->push_label(empty_c_string, 0)))
+            if (sp->push_backpatch(i, ctx->push_label(EMPTY_STR, 0)))
               MYSQL_YYABORT;
           }
           sp_hcond_list sp_proc_stmt
@@ -2836,7 +2836,7 @@ sp_decl:
             uint offp;
             sp_instr_cpush *i;
 
-            if (ctx->find_cursor(&$2, &offp, TRUE))
+            if (ctx->find_cursor($2, &offp, TRUE))
             {
               my_error(ER_SP_DUP_CURS, MYF(0), $2.str);
               delete $5;
@@ -2846,7 +2846,7 @@ sp_decl:
                                   ctx->current_cursor_count());
             if (i == NULL ||
                 sp->add_instr(i) ||
-                ctx->push_cursor(&$2))
+                ctx->push_cursor($2))
               MYSQL_YYABORT;
             $$.vars= $$.conds= $$.hndlrs= 0;
             $$.curs= 1;
@@ -2965,7 +2965,7 @@ sp_hcond:
           }
         | ident /* CONDITION name */
           {
-            $$= Lex->spcont->find_condition(&$1, false);
+            $$= Lex->spcont->find_condition($1, false);
             if ($$ == NULL)
             {
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
@@ -3021,7 +3021,7 @@ signal_value:
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            cond= lex->spcont->find_condition(&$1, false);
+            cond= lex->spcont->find_condition($1, false);
             if (cond == NULL)
             {
               my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
@@ -3158,12 +3158,12 @@ sp_decl_idents:
             LEX *lex= Lex;
             sp_pcontext *spc= lex->spcont;
 
-            if (spc->find_variable(&$1, TRUE))
+            if (spc->find_variable($1, TRUE))
             {
               my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            spc->push_variable(&$1, (enum_field_types)0, sp_variable::MODE_IN);
+            spc->push_variable($1, (enum_field_types)0, sp_variable::MODE_IN);
             $$= 1;
           }
         | sp_decl_idents ',' ident
@@ -3173,12 +3173,12 @@ sp_decl_idents:
             LEX *lex= Lex;
             sp_pcontext *spc= lex->spcont;
 
-            if (spc->find_variable(&$3, TRUE))
+            if (spc->find_variable($3, TRUE))
             {
               my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            spc->push_variable(&$3, (enum_field_types)0, sp_variable::MODE_IN);
+            spc->push_variable($3, (enum_field_types)0, sp_variable::MODE_IN);
             $$= $1 + 1;
           }
         ;
@@ -3300,7 +3300,7 @@ sp_proc_stmt_unlabeled:
           { /* Unlabeled controls get a secret label. */
             LEX *lex= Lex;
 
-            lex->spcont->push_label((char *)"", lex->sphead->instructions());
+            lex->spcont->push_label(EMPTY_STR, lex->sphead->instructions());
           }
           sp_unlabeled_control
           {
@@ -3316,7 +3316,7 @@ sp_proc_stmt_leave:
             LEX *lex= Lex;
             sp_head *sp = lex->sphead;
             sp_pcontext *ctx= lex->spcont;
-            sp_label *lab= ctx->find_label($2.str);
+            sp_label *lab= ctx->find_label($2);
 
             if (! lab)
             {
@@ -3369,7 +3369,7 @@ sp_proc_stmt_iterate:
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
             sp_pcontext *ctx= lex->spcont;
-            sp_label *lab= ctx->find_label($2.str);
+            sp_label *lab= ctx->find_label($2);
 
             if (! lab || lab->type != sp_label::ITERATION)
             {
@@ -3414,7 +3414,7 @@ sp_proc_stmt_open:
             uint offset;
             sp_instr_copen *i;
 
-            if (! lex->spcont->find_cursor(&$2, &offset, false))
+            if (! lex->spcont->find_cursor($2, &offset, false))
             {
               my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $2.str);
               MYSQL_YYABORT;
@@ -3434,7 +3434,7 @@ sp_proc_stmt_fetch:
             uint offset;
             sp_instr_cfetch *i;
 
-            if (! lex->spcont->find_cursor(&$3, &offset, false))
+            if (! lex->spcont->find_cursor($3, &offset, false))
             {
               my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $3.str);
               MYSQL_YYABORT;
@@ -3456,7 +3456,7 @@ sp_proc_stmt_close:
             uint offset;
             sp_instr_cclose *i;
 
-            if (! lex->spcont->find_cursor(&$2, &offset, false))
+            if (! lex->spcont->find_cursor($2, &offset, false))
             {
               my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $2.str);
               MYSQL_YYABORT;
@@ -3482,7 +3482,7 @@ sp_fetch_list:
             sp_pcontext *spc= lex->spcont;
             sp_variable *spv;
 
-            if (!spc || !(spv = spc->find_variable(&$1, false)))
+            if (!spc || !(spv = spc->find_variable($1, false)))
             {
               my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -3502,7 +3502,7 @@ sp_fetch_list:
             sp_pcontext *spc= lex->spcont;
             sp_variable *spv;
 
-            if (!spc || !(spv = spc->find_variable(&$3, false)))
+            if (!spc || !(spv = spc->find_variable($3, false)))
             {
               my_error(ER_SP_UNDECLARED_VAR, MYF(0), $3.str);
               MYSQL_YYABORT;
@@ -3528,7 +3528,7 @@ sp_if:
             sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, ctx,
                                                                $2, lex);
             if (i == NULL ||
-                sp->push_backpatch(i, ctx->push_label((char *)"", 0)) ||
+                sp->push_backpatch(i, ctx->push_label(EMPTY_STR, 0)) ||
                 sp->add_cont_backpatch(i) ||
                 sp->add_instr(i))
               MYSQL_YYABORT;
@@ -3545,7 +3545,7 @@ sp_if:
                 sp->add_instr(i))
               MYSQL_YYABORT;
             sp->backpatch(ctx->pop_label());
-            sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+            sp->push_backpatch(i, ctx->push_label(EMPTY_STR, 0));
           }
           sp_elseifs
           {
@@ -3687,7 +3687,7 @@ sp_labeled_control:
           {
             LEX *lex= Lex;
             sp_pcontext *ctx= lex->spcont;
-            sp_label *lab= ctx->find_label($1.str);
+            sp_label *lab= ctx->find_label($1);
 
             if (lab)
             {
@@ -3696,8 +3696,7 @@ sp_labeled_control:
             }
             else
             {
-              lab= lex->spcont->push_label($1.str,
-                                           lex->sphead->instructions());
+              lab= lex->spcont->push_label($1, lex->sphead->instructions());
               lab->type= sp_label::ITERATION;
             }
           }
@@ -3708,7 +3707,7 @@ sp_labeled_control:
 
             if ($5.str)
             {
-              if (my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
+              if (my_strcasecmp(system_charset_info, $5.str, lab->name.str) != 0)
               {
                 my_error(ER_SP_LABEL_MISMATCH, MYF(0), $5.str);
                 MYSQL_YYABORT;
@@ -3728,7 +3727,7 @@ sp_labeled_block:
           {
             LEX *lex= Lex;
             sp_pcontext *ctx= lex->spcont;
-            sp_label *lab= ctx->find_label($1.str);
+            sp_label *lab= ctx->find_label($1);
 
             if (lab)
             {
@@ -3736,8 +3735,7 @@ sp_labeled_block:
               MYSQL_YYABORT;
             }
 
-            lab= lex->spcont->push_label($1.str,
-                                         lex->sphead->instructions());
+            lab= lex->spcont->push_label($1, lex->sphead->instructions());
             lab->type= sp_label::BEGIN;
           }
           sp_block_content sp_opt_label
@@ -3747,7 +3745,7 @@ sp_labeled_block:
 
             if ($5.str)
             {
-              if (my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
+              if (my_strcasecmp(system_charset_info, $5.str, lab->name.str) != 0)
               {
                 my_error(ER_SP_LABEL_MISMATCH, MYF(0), $5.str);
                 MYSQL_YYABORT;
@@ -3760,7 +3758,7 @@ sp_unlabeled_block:
           { /* Unlabeled blocks get a secret label. */
             LEX *lex= Lex;
             uint ip= lex->sphead->instructions();
-            sp_label *lab= lex->spcont->push_label((char *)"", ip);
+            sp_label *lab= lex->spcont->push_label(EMPTY_STR, ip);
             lab->type= sp_label::BEGIN;
           }
           sp_block_content
@@ -10111,7 +10109,7 @@ limit_option:
           Lex_input_stream *lip= & thd->m_parser_state->m_lip;
           sp_variable *spv;
           sp_pcontext *spc = lex->spcont;
-          if (spc && (spv = spc->find_variable(&$1, false)))
+          if (spc && (spv = spc->find_variable($1, false)))
           {
             splocal= new (thd->mem_root)
               Item_splocal($1, spv->offset, spv->type,
@@ -10311,7 +10309,7 @@ select_var_ident:
             LEX *lex=Lex;
             sp_variable *t;
 
-            if (!lex->spcont || !(t=lex->spcont->find_variable(&$1, false)))
+            if (!lex->spcont || !(t=lex->spcont->find_variable($1, false)))
             {
               my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -12151,7 +12149,7 @@ simple_ident:
             Lex_input_stream *lip= YYLIP;
             sp_variable *spv;
             sp_pcontext *spc = lex->spcont;
-            if (spc && (spv = spc->find_variable(&$1, false)))
+            if (spc && (spv = spc->find_variable($1, false)))
             {
               /* We're compiling a stored procedure and found a variable */
               if (! lex->parsing_options.allows_variable)
@@ -13107,7 +13105,7 @@ sys_option_value:
             else
             {
               sp_pcontext *spc= lex->spcont;
-              sp_variable *spv= spc->find_variable(name, false);
+              sp_variable *spv= spc->find_variable(*name, false);
 
               if ($1)
               {
@@ -13187,7 +13185,7 @@ option_value:
 
             names.str= (char *)"names";
             names.length= 5;
-            if (spc && spc->find_variable(&names, false))
+            if (spc && spc->find_variable(names, false))
               my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
             else
               my_parse_error(ER(ER_SYNTAX_ERROR));
@@ -13226,7 +13224,7 @@ option_value:
 
             pw.str= (char *)"password";
             pw.length= 8;
-            if (spc && spc->find_variable(&pw, false))
+            if (spc && spc->find_variable(pw, false))
             {
               my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
               MYSQL_YYABORT;
@@ -13264,7 +13262,7 @@ internal_variable_name:
             sp_variable *spv;
 
             /* Best effort lookup for system variable. */
-            if (!spc || !(spv = spc->find_variable(&$1, false)))
+            if (!spc || !(spv = spc->find_variable($1, false)))
             {
               struct sys_var_with_base tmp= {NULL, $1};
 

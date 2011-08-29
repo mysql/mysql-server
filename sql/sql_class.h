@@ -125,6 +125,7 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
+extern LEX_STRING EMPTY_STR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 extern bool volatile shutdown_in_progress;
