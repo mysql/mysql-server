@@ -151,6 +151,12 @@ int table_ews_by_account_by_event_name::rnd_next(void)
         case pos_ews_by_account_by_event_name::VIEW_TABLE:
           instr_class= find_table_class(m_pos.m_index_3);
           break;
+        case pos_ews_by_account_by_event_name::VIEW_SOCKET:
+          instr_class= find_socket_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_account_by_event_name::VIEW_IDLE:
+          instr_class= find_idle_class(m_pos.m_index_3);
+          break;
         default:
           instr_class= NULL;
           DBUG_ASSERT(false);
@@ -199,6 +205,12 @@ table_ews_by_account_by_event_name::rnd_pos(const void *pos)
     break;
   case pos_ews_by_account_by_event_name::VIEW_TABLE:
     instr_class= find_table_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_account_by_event_name::VIEW_SOCKET:
+    instr_class= find_socket_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_account_by_event_name::VIEW_IDLE:
+    instr_class= find_idle_class(m_pos.m_index_3);
     break;
   default:
     instr_class= NULL;

@@ -27,7 +27,13 @@ struct PFS_cond_class;
 struct PFS_file_class;
 struct PFS_table_share;
 struct PFS_thread_class;
+struct PFS_socket_class;
 
+#ifdef __WIN__
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
 #include "pfs_lock.h"
 #include "pfs_stat.h"
 #include "pfs_instr_class.h"
@@ -68,6 +74,8 @@ struct PFS_mutex : public PFS_instr
   const void *m_identity;
   /** Mutex class. */
   PFS_mutex_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /**
     Mutex lock usage statistics.
     This statistic is not exposed in user visible tables yet.
@@ -89,6 +97,8 @@ struct PFS_rwlock : public PFS_instr
   const void *m_identity;
   /** RWLock class. */
   PFS_rwlock_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /**
     RWLock read lock usage statistics.
     This statistic is not exposed in user visible tables yet.
@@ -122,6 +132,8 @@ struct PFS_cond : public PFS_instr
   const void *m_identity;
   /** Condition class. */
   PFS_cond_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /** Condition instance usage statistics. */
   PFS_cond_stat m_cond_stat;
 };
@@ -138,6 +150,8 @@ struct PFS_file : public PFS_instr
   uint m_filename_length;
   /** File class. */
   PFS_file_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /** File usage statistics. */
   PFS_file_stat m_file_stat;
 };
@@ -220,6 +234,30 @@ private:
   static void safe_aggregate_lock(PFS_table_stat *stat,
                                   PFS_table_share *safe_share,
                                   PFS_thread *safe_thread);
+};
+
+/** Instrumented socket implementation. @see PSI_socket. */
+struct PFS_socket : public PFS_instr
+{
+  uint32 get_version()
+  { return m_lock.get_version(); }
+
+  /** Socket identity, typically int */
+  const void *m_identity;
+  /** Owning thread, if applicable */
+  PFS_thread *m_thread_owner;
+  /** Socket file descriptor */
+  uint m_fd;
+  /** Raw socket address */
+  struct sockaddr_storage  m_sock_addr;
+  /** Length of address */
+  socklen_t m_addr_len;
+  /** Idle flag. */
+  bool m_idle;
+  /** Socket class. */
+  PFS_socket_class *m_class;
+  /** Socket usage statistics. */
+  PFS_socket_stat m_socket_stat;
 };
 
 /**
@@ -447,6 +485,7 @@ PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);
 PFS_cond *sanitize_cond(PFS_cond *unsafe);
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
 PFS_file *sanitize_file(PFS_file *unsafe);
+PFS_socket *sanitize_socket(PFS_socket *unsafe);
 
 int init_instruments(const PFS_global_param *param);
 void cleanup_instruments();
@@ -473,6 +512,9 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
                         const void *identity);
 void destroy_table(PFS_table *pfs);
 
+PFS_socket* create_socket(PFS_socket_class *socket_class, const void *identity);
+void destroy_socket(PFS_socket *pfs);
+
 /* For iterators and show status. */
 
 extern ulong mutex_max;
@@ -489,6 +531,8 @@ extern long file_handle_max;
 extern ulong file_handle_lost;
 extern ulong table_max;
 extern ulong table_lost;
+extern ulong socket_max;
+extern ulong socket_lost;
 extern ulong events_waits_history_per_thread;
 extern ulong events_stages_history_per_thread;
 extern ulong events_statements_history_per_thread;
@@ -504,9 +548,11 @@ extern PFS_thread *thread_array;
 extern PFS_file *file_array;
 extern PFS_file **file_handle_array;
 extern PFS_table *table_array;
+extern PFS_socket *socket_array;
 
 void reset_events_waits_by_instance();
 void reset_file_instance_io();
+void reset_socket_instance_io();
 
 void aggregate_all_event_names(PFS_single_stat *from_array,
                                PFS_single_stat *to_array);
@@ -543,6 +589,8 @@ void update_cond_derived_flags();
 void update_file_derived_flags();
 /** Update derived flags for all table handles. */
 void update_table_derived_flags();
+/** Update derived flags for all socket instances. */
+void update_socket_derived_flags();
 /** Update derived flags for all instruments. */
 void update_instruments_derived_flags();
 

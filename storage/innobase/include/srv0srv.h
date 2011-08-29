@@ -49,6 +49,7 @@ Created 10/10/1995 Heikki Tuuri
 #include "que0types.h"
 #include "trx0types.h"
 #include "srv0conc.h"
+#include "buf0checksum.h"
 
 extern const char*	srv_main_thread_op_info;
 
@@ -106,26 +107,20 @@ extern FILE*	srv_misc_tmpfile;
 
 extern char*	srv_data_home;
 
-/** Server undo tablespaces directory, can be absolute path. */
-extern char*	srv_undo_dir;
-
-/** Number of undo tablespaces to use. */
-extern ulong	srv_undo_tablespaces;
-
-/* The number of undo segments to use */
-extern ulong	srv_undo_logs;
-
 #ifdef UNIV_LOG_ARCHIVE
 extern char*	srv_arch_dir;
 #endif /* UNIV_LOG_ARCHIVE */
 
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
-#ifndef UNIV_HOTBACKUP
 extern my_bool	srv_file_per_table;
-#else
-extern ibool	srv_file_per_table;
-#endif /* UNIV_HOTBACKUP */
+/** Sleep delay for threads waiting to enter InnoDB. In micro-seconds. */
+extern	ulong	srv_thread_sleep_delay;
+#if defined(HAVE_ATOMIC_BUILTINS)
+/** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
+extern	ulong	srv_adaptive_max_sleep_delay;
+#endif /* HAVE_ATOMIC_BUILTINS */
+
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
 /** Whether to check file format during startup.  A value of
@@ -143,8 +138,18 @@ Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
 #ifdef __WIN__
 extern ibool	srv_use_native_conditions;
-#endif
+#endif /* __WIN__ */
 #endif /* !UNIV_HOTBACKUP */
+
+/** Server undo tablespaces directory, can be absolute path. */
+extern char*	srv_undo_dir;
+
+/** Number of undo tablespaces to use. */
+extern ulong	srv_undo_tablespaces;
+
+/* The number of undo segments to use */
+extern ulong	srv_undo_logs;
+
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
@@ -239,7 +244,7 @@ extern unsigned long long	srv_stats_persistent_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
-extern ibool	srv_use_checksums;
+extern ulong	srv_checksum_algorithm;
 
 extern ulong	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
@@ -803,7 +808,6 @@ struct srv_slot_struct{
 
 #else /* !UNIV_HOTBACKUP */
 # define srv_use_adaptive_hash_indexes		FALSE
-# define srv_use_checksums			TRUE
 # define srv_use_native_aio			FALSE
 # define srv_force_recovery			0UL
 # define srv_set_io_thread_op_info(t,info)	((void) 0)

@@ -60,6 +60,9 @@ LEX_STRING RLI_INFO_NAME= {C_STRING_WITH_LEN("slave_relay_log_info")};
 /* MI_INFO name */
 LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("slave_master_info")};
 
+/* WORKER_INFO name */
+LEX_STRING WORKER_INFO_NAME= {C_STRING_WITH_LEN("slave_worker_info")};
+
 	/* Functions defined in this file */
 
 void open_table_error(TABLE_SHARE *share, int error, int db_errno,
@@ -292,6 +295,12 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
     if ((name->length == MI_INFO_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                       MI_INFO_NAME.str,
+                      name->str) == 0))
+      return TABLE_CATEGORY_RPL_INFO;
+
+    if ((name->length == WORKER_INFO_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      WORKER_INFO_NAME.str,
                       name->str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
   }
@@ -4502,6 +4511,7 @@ Item *Field_iterator_table::create_item(THD *thd)
   {
     select->non_agg_fields.push_back(item);
     item->marker= select->cur_pos_in_select_list;
+    select->set_non_agg_field_used(true);
   }
   return item;
 }
@@ -5274,7 +5284,8 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   for (reg_field=field ; *reg_field; i++, reg_field++)
   {
     // Ensure that we're not creating a key over a blob field.
-    DBUG_ASSERT(!(key_parts & (1 << i) && (*reg_field)->flags & BLOB_FLAG));
+    DBUG_ASSERT(!((key_parts & (1ULL << i)) &&
+                (*reg_field)->flags & BLOB_FLAG));
     field_count++;
   }
   uint key_part_count= my_count_bits(key_parts);
@@ -5303,7 +5314,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   keys_in_use_for_order_by.set_bit(s->keys);
   for (i= 0, reg_field=field ; *reg_field; i++, reg_field++)
   {
-    if (!(key_parts & (1 << i)))
+    if (!(key_parts & (1ULL << i)))
       continue;
 
     if (key_start)
@@ -5837,8 +5848,8 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
 
   for (uint i= 0; i < num_values; i++)
   {
-    table_map tables= values[i]->used_tables();
-    if (!tables)
+    table_map tables= values[i]->used_tables() & ~PSEUDO_TABLE_BITS;
+    if (!tables || values[i]->real_item()->type() != Item::FIELD_ITEM)
       continue;
     for (table_map tbl= 1; tables >= tbl; tbl<<= 1)
     {

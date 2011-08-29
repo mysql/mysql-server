@@ -675,6 +675,7 @@ row_undo_mod_upd_exist_sec(
 
 		if (!row_upd_changes_ord_field_binary(index, node->update, thr,
 						      node->row, node->ext)) {
+			dict_table_next_uncorrupted_index(node->index);
 			continue;
 		}
 
