@@ -309,5 +309,30 @@ while ($i)
 }
 drop table t1;
 
+#
+# Check estimates of records per key for partial keys using unique/primary ordered index
+#
+
+create table t1 (a1 int, b1 int, primary key(b1), key(a1)) engine=ndbcluster partition by key() partitions 1;
+create table t2 (b2 int, c2 int, primary key(b2,c2)) engine=ndbcluster partition by key() partitions 1;
+
+--disable_query_log
+let $i = 100;
+while ($i)
+{
+  eval insert into t1 (a1,b1) values ($i,$i);
+  eval insert into t2 (b2,c2) values ($i mod 2, $i div 2);
+  dec $i;
+}
+--enable_query_log
+
+--echo # table t1 is only for forcing record by key count for table t2 that should be near 50 (not 1)
+analyze table t1, t2;
+# Hide Extra column
+--replace_column 10 #
+explain select * from t1, t2 where b2 = b1 and a1 = 1;
+
+drop table t1, t2;
+
 set @is_enable = @is_enable_default;
 source ndb_index_stat_enable.inc;
