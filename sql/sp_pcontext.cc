@@ -179,9 +179,9 @@ sp_variable *sp_pcontext::find_variable(uint offset) const
 }
 
 
-sp_variable *sp_pcontext::push_variable(LEX_STRING name,
-                                        enum enum_field_types type,
-                                        sp_variable::enum_mode mode)
+sp_variable *sp_pcontext::add_variable(LEX_STRING name,
+                                       enum enum_field_types type,
+                                       sp_variable::enum_mode mode)
 {
   sp_variable *p= new sp_variable(name, type, mode, current_var_count());
 
@@ -232,7 +232,7 @@ sp_label *sp_pcontext::find_label(LEX_STRING name)
 }
 
 
-bool sp_pcontext::push_condition(LEX_STRING name, sp_condition_value *value)
+bool sp_pcontext::add_condition(LEX_STRING name, sp_condition_value *value)
 {
   sp_condition *p= new sp_condition(name, value);
 
@@ -396,7 +396,7 @@ sp_handler *sp_pcontext::find_handler(const char *sql_state,
 }
 
 
-bool sp_pcontext::push_cursor(LEX_STRING name)
+bool sp_pcontext::add_cursor(LEX_STRING name)
 {
   if (m_cursors.elements() == (int) m_max_cursor_index)
     ++m_max_cursor_index;
