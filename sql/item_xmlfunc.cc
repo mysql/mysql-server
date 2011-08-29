@@ -2493,7 +2493,7 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
     LEX *lex;
     if ((lex= current_thd->lex) &&
         (spc= lex->spcont) &&
-        (spv= spc->find_variable(&name, false)))
+        (spv= spc->find_variable(name, false)))
     {
       Item_splocal *splocal= new Item_splocal(name, spv->offset, spv->type, 0);
 #ifndef DBUG_OFF

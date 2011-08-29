@@ -2321,7 +2321,7 @@ sp_head::backpatch(sp_label *lab)
     if (bp->lab == lab)
     {
       DBUG_PRINT("info", ("backpatch: (m_ip %d, label 0x%lx <%s>) to dest %d",
-                          bp->instr->m_ip, (ulong) lab, lab->name, dest));
+                          bp->instr->m_ip, (ulong) lab, lab->name.str, dest));
       bp->instr->backpatch(dest, lab->ctx);
     }
   }
@@ -3609,19 +3609,19 @@ sp_instr_cpush::execute(THD *thd, uint *nextp)
 void
 sp_instr_cpush::print(String *str)
 {
-  LEX_STRING n;
-  my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  const LEX_STRING *cursor_name= m_ctx->find_cursor(m_cursor);
+
   /* cpush name@offset */
   uint rsrv= SP_INSTR_UINT_MAXLEN+7;
 
-  if (found)
-    rsrv+= n.length;
+  if (cursor_name)
+    rsrv+= cursor_name->length;
   if (str->reserve(rsrv))
     return;
   str->qs_append(STRING_WITH_LEN("cpush "));
-  if (found)
+  if (cursor_name)
   {
-    str->qs_append(n.str, n.length);
+    str->qs_append(cursor_name->str, cursor_name->length);
     str->qs_append('@');
   }
   str->qs_append(m_cursor);
@@ -3709,19 +3709,19 @@ sp_instr_copen::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_copen::print(String *str)
 {
-  LEX_STRING n;
-  my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  const LEX_STRING *cursor_name= m_ctx->find_cursor(m_cursor);
+
   /* copen name@offset */
   uint rsrv= SP_INSTR_UINT_MAXLEN+7;
 
-  if (found)
-    rsrv+= n.length;
+  if (cursor_name)
+    rsrv+= cursor_name->length;
   if (str->reserve(rsrv))
     return;
   str->qs_append(STRING_WITH_LEN("copen "));
-  if (found)
+  if (cursor_name)
   {
-    str->qs_append(n.str, n.length);
+    str->qs_append(cursor_name->str, cursor_name->length);
     str->qs_append('@');
   }
   str->qs_append(m_cursor);
@@ -3751,19 +3751,19 @@ sp_instr_cclose::execute(THD *thd, uint *nextp)
 void
 sp_instr_cclose::print(String *str)
 {
-  LEX_STRING n;
-  my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  const LEX_STRING *cursor_name= m_ctx->find_cursor(m_cursor);
+
   /* cclose name@offset */
   uint rsrv= SP_INSTR_UINT_MAXLEN+8;
 
-  if (found)
-    rsrv+= n.length;
+  if (cursor_name)
+    rsrv+= cursor_name->length;
   if (str->reserve(rsrv))
     return;
   str->qs_append(STRING_WITH_LEN("cclose "));
-  if (found)
+  if (cursor_name)
   {
-    str->qs_append(n.str, n.length);
+    str->qs_append(cursor_name->str, cursor_name->length);
     str->qs_append('@');
   }
   str->qs_append(m_cursor);
@@ -3794,19 +3794,19 @@ sp_instr_cfetch::print(String *str)
 {
   List_iterator_fast<sp_variable> li(m_varlist);
   sp_variable *pv;
-  LEX_STRING n;
-  my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  const LEX_STRING *cursor_name= m_ctx->find_cursor(m_cursor);
+
   /* cfetch name@offset vars... */
   uint rsrv= SP_INSTR_UINT_MAXLEN+8;
 
-  if (found)
-    rsrv+= n.length;
+  if (cursor_name)
+    rsrv+= cursor_name->length;
   if (str->reserve(rsrv))
     return;
   str->qs_append(STRING_WITH_LEN("cfetch "));
-  if (found)
+  if (cursor_name)
   {
-    str->qs_append(n.str, n.length);
+    str->qs_append(cursor_name->str, cursor_name->length);
     str->qs_append('@');
   }
   str->qs_append(m_cursor);

@@ -361,9 +361,10 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
                                 // (e.g. "bad data").
 
   /* Add a frame to handler-call-stack. */
-  Sql_condition_info *sql_condition= new Sql_condition_info(found_condition);
   m_handler_call_stack.append(
-    new Handler_call_frame(sql_condition, continue_ip));
+    new Handler_call_frame(
+      new Sql_condition_info(found_condition),
+      continue_ip));
 
   *ip= handler_entry->first_ip;
 
