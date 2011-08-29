@@ -41,7 +41,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "fil0fil.h"
 #ifndef UNIV_HOTBACKUP
 #include "buf0buddy.h"
-#include "buf0checksum.h"
 #include "lock0lock.h"
 #include "btr0sea.h"
 #include "ibuf0ibuf.h"
@@ -53,6 +52,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "page0zip.h"
 #include "srv0mon.h"
+#include "buf0checksum.h"
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
