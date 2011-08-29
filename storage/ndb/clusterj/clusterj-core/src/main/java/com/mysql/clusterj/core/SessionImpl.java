@@ -512,6 +512,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     public int deletePersistentAll(DomainTypeHandler<?> domainTypeHandler) {
         startAutoTransaction();
         Table storeTable = domainTypeHandler.getStoreTable();
+        String tableName = storeTable.getName();
         ScanOperation op = null;
         int count = 0;
         try {
@@ -521,7 +522,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             failAutoTransaction();
             // TODO add table name to the error message
             throw new ClusterJException(
-                    local.message("ERR_Select_Scan"), ex);
+                    local.message("ERR_Delete_All", tableName), ex);
         }
         endAutoTransaction();
         return count;
@@ -1218,7 +1219,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             return result;
         } catch (ClusterJException ex) {
             throw new ClusterJException(
-                    local.message("ERR_Unique_Scan", storeTable.getName(), storeIndex.getName()), ex);
+                    local.message("ERR_Unique_Index", storeTable.getName(), storeIndex.getName()), ex);
         }
     }
 
@@ -1234,7 +1235,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             return result;
         } catch (ClusterJException ex) {
             throw new ClusterJException(
-                    local.message("ERR_Select_Scan", storeTable), ex);
+                    local.message("ERR_Select", storeTable), ex);
         }
     }
 
@@ -1267,7 +1268,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
            return result;
        } catch (ClusterJException ex) {
            throw new ClusterJException(
-                   local.message("ERR_Index_Delete", storeTable.getName(), storeIndex.getName()), ex);
+                   local.message("ERR_Unique_Index_Delete", storeTable.getName(), storeIndex.getName()), ex);
        }
    }
 
