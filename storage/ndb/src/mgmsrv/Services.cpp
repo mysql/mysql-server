@@ -473,29 +473,21 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 			  const class Properties &args)
 {
   Uint32 version, nodeid= 0, nodetype= 0xff;
-  Uint32 timeout= 20;  // default seconds timeout
-  const char * transporter;
-  const char * user;
-  const char * password;
-  const char * public_key;
+  Uint32 timeout= 20;  // timeout in seconds
   const char * endian= NULL;
   const char * name= NULL;
   Uint32 log_event= 1;
-  bool log_event_version;
   union { long l; char c[sizeof(long)]; } endian_check;
 
   args.get("version", &version);
   args.get("nodetype", &nodetype);
-  args.get("transporter", &transporter);
+  // transporter
   args.get("nodeid", &nodeid);
-  args.get("user", &user);
-  args.get("password", &password);
-  args.get("public key", &public_key);
   args.get("endian", &endian);
   args.get("name", &name);
   args.get("timeout", &timeout);
   /* for backwards compatability keep track if client uses new protocol */
-  log_event_version= args.get("log_event", &log_event);
+  const bool log_event_version= args.get("log_event", &log_event);
 
   m_output->println("get nodeid reply");
 
