@@ -26,6 +26,20 @@ select 1 # The rest of the row will be ignored
 1
 1
 /* line with only comment */;
+select 1 /*M! +1 */;
+1  +1
+2
+select 1 /*M!50000 +1 */;
+1  +1
+2
+select 1 /*M!50300 +1 */;
+1  +1
+2
+select 2 /*M!99999 +1 */;
+2
+2
+select 2 /*M!0000 +1 */;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '0000 +1 */' at line 1
 select 1/*!2*/;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2*/' at line 1
 select 1/*!000002*/;

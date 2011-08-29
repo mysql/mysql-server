@@ -49,7 +49,7 @@ and you are welcome to modify and redistribute it under the GPL v2 license\n"
 #include <locale.h>
 #endif
 
-const char *VER= "15.0";
+const char *VER= "15.1";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -2302,7 +2302,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
       break;
     }
     else if (!*in_string && inchar == '/' && *(pos+1) == '*' &&
-	     *(pos+2) != '!')
+             !(*(pos+2) == '!' || (*(pos+2) == 'M' && *(pos+3) == '!')))
     {
       if (preserve_comments)
       {

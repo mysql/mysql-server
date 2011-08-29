@@ -491,11 +491,12 @@ static void make_base_query(String *new_query,
       continue;                                 // Continue with next symbol
     case '/':                                   // Start of comment ?
       /*
-        Comment of format /#!number #/, must be skipped.
+        Comment of format /#!number #/ or /#M!number #/, must be skipped.
         These may include '"' and other comments, but it should
         be safe to parse the content as a normal string.
       */
-      if (query[0] != '*' || query[1] == '!')
+      if (query[0] != '*' || query[1] == '!' ||
+          (query[1] == 'M' && query[2] == '!'))
         break;
 
       query++;                               // skip "/"

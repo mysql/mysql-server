@@ -1272,39 +1272,39 @@ int MYSQLlex(void *arg, void *yythd)
 
       lip->save_in_comment_state();
 
+      if (lip->yyPeekn(2) == 'M' && lip->yyPeekn(3) == '!')
+      {
+        /* Skip MariaDB unique marker */
+        lip->set_echo(FALSE);
+        lip->yySkip();
+        /* The following if will be true */
+      }
       if (lip->yyPeekn(2) == '!')
       {
         lip->in_comment= DISCARD_COMMENT;
         /* Accept '/' '*' '!', but do not keep this marker. */
         lip->set_echo(FALSE);
-        lip->yySkip();
-        lip->yySkip();
-        lip->yySkip();
+        lip->yySkipn(3);
 
         /*
           The special comment format is very strict:
-          '/' '*' '!', followed by exactly
+          '/' '*' '!', followed by an optional 'M' and exactly
           1 digit (major), 2 digits (minor), then 2 digits (dot).
           32302 -> 3.23.02
           50032 -> 5.0.32
           50114 -> 5.1.14
         */
-        char version_str[6];
-        version_str[0]= lip->yyPeekn(0);
-        version_str[1]= lip->yyPeekn(1);
-        version_str[2]= lip->yyPeekn(2);
-        version_str[3]= lip->yyPeekn(3);
-        version_str[4]= lip->yyPeekn(4);
-        version_str[5]= 0;
-        if (  my_isdigit(cs, version_str[0])
-           && my_isdigit(cs, version_str[1])
-           && my_isdigit(cs, version_str[2])
-           && my_isdigit(cs, version_str[3])
-           && my_isdigit(cs, version_str[4])
+        if (  my_isdigit(cs, lip->yyPeekn(0))
+           && my_isdigit(cs, lip->yyPeekn(1))
+           && my_isdigit(cs, lip->yyPeekn(2))
+           && my_isdigit(cs, lip->yyPeekn(3))
+           && my_isdigit(cs, lip->yyPeekn(4))
            )
         {
           ulong version;
-          version=strtol(version_str, NULL, 10);
+          char *end_ptr= (char*) lip->get_ptr()+5;
+          int error;
+          version= (ulong) my_strtoll10(lip->get_ptr(), &end_ptr, &error);
 
           if (version <= MYSQL_VERSION_ID)
           {
