@@ -91,14 +91,16 @@ static void mi_check_print_msg(HA_CHECK *param,	const char* msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error("%s", msgbuf);
+    sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
     return;
   }
 
   if (param->testflag & (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR |
 			 T_AUTO_REPAIR))
   {
-    my_message(ER_NOT_KEYFILE,msgbuf,MYF(MY_WME));
+    my_message(ER_NOT_KEYFILE, msgbuf, MYF(MY_WME));
+    if (thd->variables.log_warnings > 2)
+      sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
     return;
   }
   length=(uint) (strxmov(name, param->db_name,".",param->table_name,NullS) -
@@ -124,7 +126,7 @@ static void mi_check_print_msg(HA_CHECK *param,	const char* msg_type,
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
 		    msgbuf);
   else if (thd->variables.log_warnings > 2)
-    sql_print_error("%s", msgbuf);
+    sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
 
 #ifdef THREAD
   if (param->need_print_msg_lock)
@@ -1668,7 +1670,10 @@ bool ha_myisam::check_and_repair(THD *thd)
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
+    bool save_log_all_errors;
     sql_print_warning("Recovering table: '%s'",table->s->path.str);
+    save_log_all_errors= thd->log_all_errors;
+    thd->log_all_errors= (thd->variables.log_warnings > 2);
     if (myisam_recover_options & HA_RECOVER_FULL_BACKUP)
     {
       char buff[MY_BACKUP_NAME_EXTRA_LENGTH+1];
@@ -1686,6 +1691,7 @@ bool ha_myisam::check_and_repair(THD *thd)
        T_AUTO_REPAIR);
     if (repair(thd, &check_opt))
       error=1;
+    thd->log_all_errors= save_log_all_errors;
   }
   thd->set_query(old_query, old_query_length);
   DBUG_RETURN(error);

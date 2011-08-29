@@ -1467,6 +1467,8 @@ public:
   bool sql_log_bin_toplevel;
   /* True when opt_userstat_running is set at start of query */
   bool userstat_running;
+  /* True if we want to log all errors */
+  bool log_all_errors;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];

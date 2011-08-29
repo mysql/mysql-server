@@ -3155,7 +3155,7 @@ to_error_log:
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(0););
 
-  if (!thd || (MyFlags & ME_NOREFRESH))
+  if (!thd || thd->log_all_errors || (MyFlags & ME_NOREFRESH))
     (*func)("%s: %s", my_progname_short, str); /* purecov: inspected */
   DBUG_RETURN(0);
 }

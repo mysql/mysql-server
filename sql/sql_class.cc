@@ -662,7 +662,7 @@ THD::THD()
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
-   sql_log_bin_toplevel(false),
+   sql_log_bin_toplevel(false), log_all_errors(0),
    binlog_table_maps(0), binlog_flags(0UL),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
