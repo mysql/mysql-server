@@ -410,27 +410,27 @@ typedef void (*set_statement_rows_sent_t)
 typedef void (*set_statement_rows_examined_t)
   (struct PSI_statement_locker *locker, ulonglong count);
 typedef void (*inc_statement_created_tmp_disk_tables_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+  (struct PSI_statement_locker *locker, ulong count);
 typedef void (*inc_statement_created_tmp_tables_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+  (struct PSI_statement_locker *locker, ulong count);
 typedef void (*inc_statement_select_full_join_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+  (struct PSI_statement_locker *locker, ulong count);
 typedef void (*inc_statement_select_full_range_join_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+  (struct PSI_statement_locker *locker, ulong count);
 typedef void (*inc_statement_select_range_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+  (struct PSI_statement_locker *locker, ulong count);
 typedef void (*inc_statement_select_range_check_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+  (struct PSI_statement_locker *locker, ulong count);
 typedef void (*inc_statement_select_scan_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+  (struct PSI_statement_locker *locker, ulong count);
 typedef void (*inc_statement_sort_merge_passes_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+  (struct PSI_statement_locker *locker, ulong count);
 typedef void (*inc_statement_sort_range_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+  (struct PSI_statement_locker *locker, ulong count);
 typedef void (*inc_statement_sort_rows_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+  (struct PSI_statement_locker *locker, ulong count);
 typedef void (*inc_statement_sort_scan_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+  (struct PSI_statement_locker *locker, ulong count);
 typedef void (*set_statement_no_index_used_t)
   (struct PSI_statement_locker *locker);
 typedef void (*set_statement_no_good_index_used_t)

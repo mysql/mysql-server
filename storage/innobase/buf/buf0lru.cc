@@ -1623,6 +1623,7 @@ func_exit:
 			 UNIV_PAGE_SIZE);
 
 	if (b) {
+		ib_uint32_t	checksum;
 		/* Compute and stamp the compressed page
 		checksum while not holding any mutex.  The
 		block is already half-freed
@@ -1630,13 +1631,14 @@ func_exit:
 		buf_pool->page_hash, thus inaccessible by any
 		other thread. */
 
-		mach_write_to_4(
-			b->zip.data + FIL_PAGE_SPACE_OR_CHKSUM,
-			UNIV_LIKELY(srv_use_checksums)
-			? page_zip_calc_checksum(
-				b->zip.data,
-				page_zip_get_size(&b->zip))
-			: BUF_NO_CHECKSUM_MAGIC);
+		checksum = page_zip_calc_checksum(
+			b->zip.data,
+			page_zip_get_size(&b->zip),
+			static_cast<srv_checksum_algorithm_t>(
+				srv_checksum_algorithm));
+
+		mach_write_to_4(b->zip.data + FIL_PAGE_SPACE_OR_CHKSUM,
+				checksum);
 	}
 
 	buf_pool_mutex_enter(buf_pool);

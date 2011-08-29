@@ -30,6 +30,7 @@ Created 11/11/1995 Heikki Tuuri
 #endif
 
 #include "buf0buf.h"
+#include "buf0checksum.h"
 #include "srv0start.h"
 #include "srv0srv.h"
 #include "page0zip.h"
@@ -735,10 +736,16 @@ buf_flush_doublewrite_check_page_lsn(
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: ERROR: The page to be written"
+			" InnoDB: ERROR: The page to be written"
 			" seems corrupt!\n"
-			"InnoDB: The LSN fields do not match!"
-			" Noticed in the buffer pool\n");
+			"InnoDB: The low 4 bytes of LSN fields do not match "
+			"(" ULINTPF " != " ULINTPF ")!"
+			" Noticed in the buffer pool.\n",
+			mach_read_from_4(
+				page + FIL_PAGE_LSN + 4),
+			mach_read_from_4(
+				page + UNIV_PAGE_SIZE
+				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4));
 	}
 }
 
@@ -1199,6 +1206,8 @@ buf_flush_init_for_writing(
 	lsn_t	newest_lsn)	/*!< in: newest modification lsn
 				to the page */
 {
+	ib_uint32_t	checksum = 0 /* silence bogus gcc warning */;
+
 	ut_ad(page);
 
 	if (page_zip_) {
@@ -1224,15 +1233,17 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
 		case FIL_PAGE_INDEX:
+			checksum = page_zip_calc_checksum(
+				page_zip->data, zip_size,
+				static_cast<srv_checksum_algorithm_t>(
+					srv_checksum_algorithm));
+
 			mach_write_to_8(page_zip->data
 					+ FIL_PAGE_LSN, newest_lsn);
 			memset(page_zip->data + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_SPACE_OR_CHKSUM,
-					srv_use_checksums
-					? page_zip_calc_checksum(
-						page_zip->data, zip_size)
-					: BUF_NO_CHECKSUM_MAGIC);
+					checksum);
 			return;
 		}
 
@@ -1254,20 +1265,46 @@ buf_flush_init_for_writing(
 
 	/* Store the new formula checksum */
 
-	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
-			srv_use_checksums
-			? buf_calc_page_new_checksum(page)
-			: BUF_NO_CHECKSUM_MAGIC);
+	switch ((srv_checksum_algorithm_t) srv_checksum_algorithm) {
+	case SRV_CHECKSUM_ALGORITHM_CRC32:
+	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
+		checksum = buf_calc_page_crc32(page);
+		break;
+	case SRV_CHECKSUM_ALGORITHM_INNODB:
+	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+		checksum = (ib_uint32_t) buf_calc_page_new_checksum(page);
+		break;
+	case SRV_CHECKSUM_ALGORITHM_NONE:
+	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+		checksum = BUF_NO_CHECKSUM_MAGIC;
+		break;
+	/* no default so the compiler will emit a warning if new enum
+	is added and not handled here */
+	}
+
+	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 
 	/* We overwrite the first 4 bytes of the end lsn field to store
 	the old formula checksum. Since it depends also on the field
 	FIL_PAGE_SPACE_OR_CHKSUM, it has to be calculated after storing the
 	new formula checksum. */
 
+	if (srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
+	    || srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_INNODB) {
+
+		checksum = (ib_uint32_t) buf_calc_page_old_checksum(page);
+
+		/* In other cases we use the value assigned from above.
+		If CRC32 is used then it is faster to use that checksum
+		(calculated above) instead of calculating another one.
+		We can afford to store something other than
+		buf_calc_page_old_checksum() or BUF_NO_CHECKSUM_MAGIC in
+		this field because the file will not be readable by old
+		versions of MySQL/InnoDB anyway (older than MySQL 5.6.3) */
+	}
+
 	mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
-			srv_use_checksums
-			? buf_calc_page_old_checksum(page)
-			: BUF_NO_CHECKSUM_MAGIC);
+			checksum);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1335,10 +1372,9 @@ buf_flush_write_block_low(
 		break;
 	case BUF_BLOCK_ZIP_DIRTY:
 		frame = bpage->zip.data;
-		if (UNIV_LIKELY(srv_use_checksums)) {
-			ut_a(mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM)
-			     == page_zip_calc_checksum(frame, zip_size));
-		}
+
+		ut_a(page_zip_verify_checksum(frame, zip_size));
+
 		mach_write_to_8(frame + FIL_PAGE_LSN,
 				bpage->newest_modification);
 		memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);

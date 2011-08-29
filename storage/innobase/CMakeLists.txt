@@ -225,6 +225,7 @@ SET(INNOBASE_SOURCES
 	btr/btr0sea.cc
 	buf/buf0buddy.cc
 	buf/buf0buf.cc
+	buf/buf0checksum.cc
 	buf/buf0dump.cc
 	buf/buf0flu.cc
 	buf/buf0lru.cc
@@ -307,6 +308,7 @@ SET(INNOBASE_SOURCES
 	usr/usr0sess.cc
 	ut/ut0bh.cc
 	ut/ut0byte.cc
+	ut/ut0crc32.cc
 	ut/ut0dbg.cc
 	ut/ut0list.cc
 	ut/ut0mem.cc

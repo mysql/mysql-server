@@ -12,10 +12,9 @@ SET INSTRUMENTED='NO' WHERE PROCESSLIST_ID = CONNECTION_ID();
 # 1. Basic checks
 # 1.1 Check that the entry of the disconnected old default session really
 #     disappeared from performance_schema.socket_summary_by_instance.
-# 1.2 Check the impact of TRUNCATE on socket_summary_by_instance.
-#     It must reset all counters.
 TRUNCATE TABLE performance_schema.socket_summary_by_instance;
-# 1.3 Check the base line
+# 1.2 Check the base line
+TRUNCATE TABLE mysqltest.my_socket_summary_by_instance;
 # 2. Variations on Connect
 # 2.1 Connect fails because the user is unknown
 #     length of user name = 4 character
@@ -97,13 +96,13 @@ col2
 #     - no change in COUNT_* leads to no change in
 #       SUM_TIMER_* and no change in SUM_NUMBER_OF_BYTES_*
 #     - increased COUNT_READ leads to increased
-#       SUM_TIMER_READ and SUM_NUMBER_OF_BYTES_READ
+#       SUM_NUMBER_OF_BYTES_READ
 #     - increased COUNT_WRITE leads to increased
-#       SUM_TIMER_READ and SUM_NUMBER_OF_BYTES_READ
-#     - increased COUNT_MISC leads to increased
-#       SUM_TIMER_MISC
-#       Attention: There are exceptions but they are not valid
-#                  for this test.
+#       SUM_NUMBER_OF_BYTES_WRITE
+#     Attention:
+#     The time required for some action might be below timer resolution.
+#     Therefore some increased COUNT_* does not need to lead to an
+#     increased SUM_TIMER_*.
 # 4.2 Results must be stable
 # 4.3 Counters must be 0 in client_connection for the default session
 #     Instrumenting is disabled since a long time and the counter were
@@ -178,13 +177,13 @@ col2
 #         COUNT_MISC = 0 AND SUM_TIMER_MISC = 0 must be valid
 #         because we run through server_unix_socket.
 # 4.5.2.2 For the instance with EVENT_NAME LIKE '%server_unix_socket'
-#         COUNT_MISC > 0 AND SUM_TIMER_MISC > 0 must be valid.
+#         COUNT_MISC > 0 must be valid.
 # 4.5.3 Connects using for host a value <> 'localhost'
 # 4.5.3.1 For the instance with EVENT_NAME LIKE '%server_unix_socket'
 #         COUNT_MISC = 0 AND SUM_TIMER_MISC = 0 must be valid
 #         because we run through server_tcpip_socket.
 # 4.5.3.2 For the instance with EVENT_NAME LIKE '%server_tcpip_socket'
-#         COUNT_MISC > 0 AND SUM_TIMER_MISC > 0 must be valid.
+#         COUNT_MISC > 0 must be valid.
 # 4.5.4 Failing Connects do not cause any row with EVENT_NAME
 #       LIKE '%client_connection'
 # 4.5.5 Successful Connects cause a new instance with EVENT_NAME
@@ -200,4 +199,7 @@ col2
 # 4.6.4 Checks based on comparison of results for connects
 # 4.6.4 The user name length affects the SUM_OF_BYTES_READ value
 # 4.6.5 The database name length affects the SUM_OF_BYTES_READ value
-# 5. Cleanup
+# 5. Check the impact of TRUNCATE on socket_summary_by_instance.
+#    It must reset all counters.
+TRUNCATE TABLE performance_schema.socket_summary_by_instance;
+# 6. Cleanup

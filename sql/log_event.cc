@@ -2411,8 +2411,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   bool is_b_event;
   int  num_dbs= 0;
   Slave_worker *ret_worker= NULL;
-  THD *thd= rli->info_thd;
   char llbuff[22];
+#ifndef DBUG_OFF
+  THD *thd= rli->info_thd;
+#endif
   Slave_committed_queue *gaq= rli->gaq;
 
   /* checking partioning properties and perform corresponding actions */
