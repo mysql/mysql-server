@@ -260,7 +260,7 @@ private:
 
   bool init_var_table(THD *thd);
 
-  bool init_var_items();
+  bool init_var_items(THD *thd);
 
   Item_cache *create_case_expr_holder(THD *thd, const Item *item) const;
 

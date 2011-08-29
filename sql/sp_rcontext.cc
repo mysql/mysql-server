@@ -66,7 +66,7 @@ sp_rcontext *sp_rcontext::create(THD *thd,
 
   if (ctx->alloc_arrays(thd) ||
       ctx->init_var_table(thd) ||
-      ctx->init_var_items())
+      ctx->init_var_items(thd))
   {
     delete ctx;
     return NULL;
@@ -145,13 +145,13 @@ bool sp_rcontext::init_var_table(THD *thd)
     TRUE    on error
 */
 
-bool sp_rcontext::init_var_items()
+bool sp_rcontext::init_var_items(THD *thd)
 {
   uint num_vars= m_root_parsing_ctx->max_var_index();
 
   m_var_items.reset(
     static_cast<Item **> (
-      sql_alloc(num_vars * sizeof (Item *))),
+      thd->alloc(num_vars * sizeof (Item *))),
     num_vars);
 
   if (!m_var_items.array())
