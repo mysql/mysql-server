@@ -13,7 +13,7 @@ check_logmax (int max) {
     DIR *dir = opendir(ENVDIR);
     struct dirent *ent;
     while ((ent=readdir(dir))) {
-	if (ent->d_type==DT_REG && strncmp(ent->d_name, "log", 3)==0) {
+	if ((ent->d_type==DT_REG || ent->d_type==DT_UNKNOWN) && strncmp(ent->d_name, "log", 3)==0) {
 	    // It is a "log*" file
 #define FULL_LEN (sizeof(ENVDIR)+NAME_MAX+1)
 	    char full_fname[FULL_LEN];
