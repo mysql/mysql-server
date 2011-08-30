@@ -654,10 +654,11 @@ ndbd_run(bool foreground, int report_fd,
     // Ignore error
   }
 
+  theConfig->setupConfiguration();
+
   if (get_multithreaded_config(globalEmulatorData))
     ndbd_exit(-1);
 
-  theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel);
 
   NdbThread* pWatchdog = globalEmulatorData.theWatchDog->doStart();
