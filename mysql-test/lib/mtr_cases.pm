@@ -317,10 +317,30 @@ sub collect_one_suite($)
   my %disabled;
   if ( open(DISABLED, "$testdir/disabled.def" ) )
   {
+    # $^O on Windows considered not generic enough
+    my $plat= (IS_WINDOWS) ? 'windows' : $^O;
+
     while ( <DISABLED> )
       {
         chomp;
-        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+        #diasble the test case if platform matches
+        if ( /\@/ )
+          {
+             if ( /\@$plat/ )
+               {
+        	  /^\s*(\S+)\s*\@$plat.*:\s*(.*?)\s*$/ ;
+                  $disabled{$1}= $2;
+               }
+             elsif ( /\@!(\S*)/ )
+               {
+                  if ( $1 ne $plat)
+                    {
+        	       /^\s*(\S+)\s*\@!.*:\s*(.*?)\s*$/ ;
+                       $disabled{$1}= $2;
+                    }
+               }
+          }
+       elsif ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
           {
             $disabled{$1}= $2;
           }
