@@ -2986,7 +2986,7 @@ i_s_fts_index_cache_fill_one_index(
 					OK(field_store_string(
 						fields[I_S_FTS_WORD],
 						reinterpret_cast<const char*>
-						(word->text.utf8)));
+						(word->text.f_str)));
 
 					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
 						(longlong) node->first_doc_id,
@@ -3259,7 +3259,7 @@ i_s_fts_index_table_fill_one_index(
 
 		word = (fts_word_t*) ib_vector_get(words, i);
 
-		word->text.utf8[word->text.len] = 0;
+		word->text.f_str[word->text.f_len] = 0;
 
 		/* Decrypt the ilist, and display Dod ID and word position */
 		for (ulint i = 0; i < ib_vector_size(word->nodes); i++) {
@@ -3285,7 +3285,7 @@ i_s_fts_index_table_fill_one_index(
 					OK(field_store_string(
 						fields[I_S_FTS_WORD],
 						reinterpret_cast<const char*>
-						(word->text.utf8)));
+						(word->text.f_str)));
 
 					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
 						(longlong) node->first_doc_id,
@@ -3513,9 +3513,9 @@ i_s_fts_config_fill(
 		char*		key_name;
 		ulint		allocated = FALSE;
 
-		value.len = FTS_MAX_CONFIG_VALUE_LEN;
+		value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
 
-		value.utf8 = str;
+		value.f_str = str;
 
 		if (strcmp(fts_config_key[i], FTS_TOTAL_WORD_COUNT) == 0
 		    && index) {
@@ -3536,7 +3536,7 @@ i_s_fts_config_fill(
                         fields[FTS_CONFIG_KEY], fts_config_key[i]));
 
 		OK(field_store_string(
-                        fields[FTS_CONFIG_VALUE], (const char*) value.utf8));
+                        fields[FTS_CONFIG_VALUE], (const char*) value.f_str));
 
 		OK(schema_table_store_record(thd, table));
 

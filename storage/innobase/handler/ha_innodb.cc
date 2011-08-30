@@ -4579,8 +4579,8 @@ innobase_fts_text_cmp(
         const fts_string_t*	s1 = (const fts_string_t*) p1;
         const fts_string_t*	s2 = (const fts_string_t*) p2;
 
-        return(ha_compare_text(charset, s1->utf8, s1->len,
-			       s2->utf8, s2->len, 0, 0));
+        return(ha_compare_text(charset, s1->f_str, s1->f_len,
+			       s2->f_str, s2->f_len, 0, 0));
 }
 /******************************************************************//**
 compare two character string case insensitively according to their charset. */
@@ -4597,12 +4597,12 @@ innobase_fts_text_case_cmp(
 	const fts_string_t*	s2 = (const fts_string_t*) p2;
 	ulint			newlen;
 
-	my_casedn_str(charset, (char*) s2->utf8);
+	my_casedn_str(charset, (char*) s2->f_str);
 
-	newlen = strlen((const char*) s2->utf8);
+	newlen = strlen((const char*) s2->f_str);
 
-	return(ha_compare_text(charset, s1->utf8, s1->len,
-			       s2->utf8, newlen, 0, 0));
+	return(ha_compare_text(charset, s1->f_str, s1->f_len,
+			       s2->f_str, newlen, 0, 0));
 }
 /******************************************************************//**
 Get the first character's code position for FTS index partition. */
@@ -4648,8 +4648,8 @@ innobase_fts_text_cmp_prefix(
 	const fts_string_t*	s2 = (const fts_string_t*) p2;
 	int			result;
 
-	result = ha_compare_text(charset, s2->utf8, s2->len,
-				 s1->utf8, s1->len, 1, 0);
+	result = ha_compare_text(charset, s2->f_str, s2->f_len,
+				 s1->f_str, s1->f_len, 1, 0);
 
 	/* We switched s1, s2 position in ha_compare_text. So we need
 	to negate the result */
@@ -4724,7 +4724,7 @@ innobase_mysql_fts_get_token(
 	int			mbl;
 	int			ctype;
 
-	token->len = 0;
+	token->f_len = 0;
 
 	ut_a(cs);
 
@@ -4744,7 +4744,7 @@ innobase_mysql_fts_get_token(
 
 		mwc= length= 0;
 
-		token->utf8 = doc;
+		token->f_str = doc;
 
 		for (; doc < end; length++,
 		     doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
@@ -4761,12 +4761,13 @@ innobase_mysql_fts_get_token(
 			}
 		}
 
-		token->len = (uint)(doc - token->utf8) - mwc;
+		token->f_len = (uint)(doc - token->f_str) - mwc;
+		token->f_n_char = length;
 
 		return(doc - start);
 	} while (doc < end);
 
-	token->utf8[token->len] = 0;
+	token->f_str[token->f_len] = 0;
 
 	return(doc - start);
 }
@@ -13601,12 +13602,12 @@ static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
 
 static MYSQL_SYSVAR_ULONG(ft_min_token_size, fts_min_token_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "InnoDB Fulltext search minimum token size in bytes",
+  "InnoDB Fulltext search minimum token size in characters",
   NULL, NULL, 3, 0, 16, 0);
 
 static MYSQL_SYSVAR_ULONG(ft_max_token_size, fts_max_token_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "InnoDB Fulltext search maximum token size in bytes",
+  "InnoDB Fulltext search maximum token size in characters",
   NULL, NULL, HA_FT_MAXCHARLEN, 10, FTS_MAX_WORD_LEN , 0);
 
 

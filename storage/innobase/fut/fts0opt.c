@@ -283,8 +283,8 @@ fts_zip_initialize(
 
 	zip->last_big_block = 0;
 
-	zip->word.len = 0;
-	memset(zip->word.utf8, 0, FTS_MAX_WORD_LEN);
+	zip->word.f_len = 0;
+	memset(zip->word.f_str, 0, FTS_MAX_WORD_LEN);
 
 	ib_vector_reset(zip->blocks);
 
@@ -308,8 +308,8 @@ fts_zip_create(
 
 	memset(zip, 0, sizeof(*zip));
 
-	zip->word.utf8 = mem_heap_alloc(heap, FTS_MAX_WORD_LEN + 1);
-	memset(zip->word.utf8, 0, FTS_MAX_WORD_LEN);
+	zip->word.f_str = mem_heap_alloc(heap, FTS_MAX_WORD_LEN + 1);
+	memset(zip->word.f_str, 0, FTS_MAX_WORD_LEN);
 
 	zip->block_sz = block_sz;
 
@@ -336,8 +336,8 @@ fts_zip_init(
 {
 	memset(zip->zp, 0, sizeof(*zip->zp));
 
-	zip->word.len = 0;
-	*zip->word.utf8 = '\0';
+	zip->word.f_len = 0;
+	*zip->word.f_str = '\0';
 }
 
 /**********************************************************************//**
@@ -355,11 +355,11 @@ fts_word_init(
 
 	memset(word, 0, sizeof(*word));
 
-	word->text.len = len;
-	word->text.utf8 = mem_heap_alloc(heap, len + 1);
+	word->text.f_len = len;
+	word->text.f_str = mem_heap_alloc(heap, len + 1);
 
 	/* Need to copy the NUL character too. */
-	memcpy(word->text.utf8, utf8, word->text.len + 1);
+	memcpy(word->text.f_str, utf8, word->text.f_len + 1);
 
 	word->heap_alloc = ib_heap_allocator_create(heap);
 
@@ -451,8 +451,8 @@ fts_optimize_index_fetch_node(
 
 	word = ib_vector_last(words);
 
-	if (dfield_len != word->text.len
-	    || memcmp(word->text.utf8, data, dfield_len)) {
+	if (dfield_len != word->text.f_len
+	    || memcmp(word->text.f_str, data, dfield_len)) {
 
 		word = ib_vector_push(words, NULL);
 		fts_word_init(word, (byte*)data, dfield_len);
@@ -489,7 +489,7 @@ fts_index_fetch_nodes(
 	}
 
 	pars_info_bind_function(info, "my_func", fetch->read_record, fetch);
-	pars_info_bind_varchar_literal(info, "word", word->utf8, word->len);
+	pars_info_bind_varchar_literal(info, "word", word->f_str, word->f_len);
 
 	if (!*graph) {
 		ulint	selected;
@@ -497,7 +497,7 @@ fts_index_fetch_nodes(
 		ut_a(fts_table->type == FTS_INDEX_TABLE);
 
 		selected = fts_select_index(fts_table->charset,
-					    word->utf8, word->len);
+					    word->f_str, word->f_len);
 
 		fts_table->suffix = fts_get_suffix(selected);
 
@@ -567,7 +567,7 @@ fts_zip_read_word(
 #endif
 	byte		len = 0;
 	void*		null = NULL;
-	byte*		ptr = word->utf8;
+	byte*		ptr = word->f_str;
 	int		flush = Z_NO_FLUSH;
 
 	/* Either there was an error or we are at the Z_STREAM_END. */
@@ -622,7 +622,7 @@ fts_zip_read_word(
 				zip->zp->next_out = ptr;
 				zip->zp->avail_out = len;
 
-				word->len = len;
+				word->f_len = len;
 				len = 0;
 			}
 			break;
@@ -648,7 +648,7 @@ fts_zip_read_word(
 	}
 
 	if (ptr != NULL) {
-		ut_ad(word->len == strlen((char*) ptr));
+		ut_ad(word->f_len == strlen((char*) ptr));
 	}
 #endif /* UNIV_DEBUG */
 
@@ -674,15 +674,15 @@ fts_fetch_index_words(
 	void*		data = dfield_get_data(dfield);
 
 	/* Skip the duplicate words. */
-	if (zip->word.len == len && !memcmp(zip->word.utf8, data, len)) {
+	if (zip->word.f_len == len && !memcmp(zip->word.f_str, data, len)) {
 
 		return(TRUE);
 	}
 
 	ut_a(len <= FTS_MAX_WORD_LEN);
 
-	memcpy(zip->word.utf8, data, len);
-	zip->word.len = len;
+	memcpy(zip->word.f_str, data, len);
+	zip->word.f_len = len;
 
 	ut_a(zip->zp->avail_in == 0);
 	ut_a(zip->zp->next_in == NULL);
@@ -804,7 +804,7 @@ fts_index_fetch_words(
 	}
 
 	for (selected = fts_select_index(
-		optim->fts_index_table.charset, word->utf8, word->len);
+		optim->fts_index_table.charset, word->f_str, word->f_len);
 	     fts_index_selector[selected].value;
 	     selected++) {
 
@@ -821,7 +821,7 @@ fts_index_fetch_words(
 			info, "my_func", fts_fetch_index_words, optim->zip);
 
 		pars_info_bind_varchar_literal(
-			info, "word", word->utf8, word->len);
+			info, "word", word->f_str, word->f_len);
 
 		graph = fts_parse_sql(
 			&optim->fts_index_table,
@@ -1349,9 +1349,9 @@ fts_optimize_word(
 	enc.src_ilist_ptr = NULL;
 
 	if (fts_enable_diag_print) {
-		word->text.utf8[word->text.len] = 0;
+		word->text.f_str[word->text.f_len] = 0;
 		fprintf(stderr, "FTS_OPTIMIZE: optimize \"%s\"\n",
-			word->text.utf8);
+			word->text.f_str);
 	}
 
 	while (i < size) {
@@ -1431,13 +1431,14 @@ fts_optimize_write_word(
 
 	if (fts_enable_diag_print) {
 		fprintf(stderr, "FTS_OPTIMIZE: processed \"%s\"\n",
-			word->utf8);
+			word->f_str);
 	}
 
 	pars_info_bind_varchar_literal(
-		info, "word", word->utf8, word->len);
+		info, "word", word->f_str, word->f_len);
 
-	selected = fts_select_index(fts_table->charset, word->utf8, word->len);
+	selected = fts_select_index(fts_table->charset,
+				    word->f_str, word->f_len);
 
 	fts_table->suffix = fts_get_suffix(selected);
 
@@ -1781,7 +1782,7 @@ fts_optimize_words(
 	fetch.read_arg = optim->words;
 	fetch.read_record = fts_optimize_index_fetch_node;
 
-	printf("%.*s\n", (int) word->len, word->utf8);
+	printf("%.*s\n", (int) word->f_len, word->f_str);
 
 	while(!optim->done) {
 		ulint	error;
@@ -1790,7 +1791,7 @@ fts_optimize_words(
 
 		ut_a(ib_vector_size(optim->words) == 0);
 
-		selected = fts_select_index(charset, word->utf8, word->len);
+		selected = fts_select_index(charset, word->f_str, word->f_len);
 
 		/* Read the index records to optimize. */
 		error = fts_index_fetch_nodes(
@@ -1820,7 +1821,8 @@ fts_optimize_words(
 					optim->done = TRUE;
 				} else if (selected
 					   != fts_select_index(
-						charset, word->utf8, word->len)
+						charset, word->f_str,
+						word->f_len)
 					  && graph) {
 					fts_que_graph_free(graph);
 					graph = NULL;
@@ -1859,20 +1861,20 @@ fts_optimize_set_next_word(
 	ulint		selected;
 	ibool		last = FALSE;
 
-	selected = fts_select_next_index(charset, word->utf8, word->len);
+	selected = fts_select_next_index(charset, word->f_str, word->f_len);
 
 	/* If this was the last index then reset to start. */
 	if (fts_index_selector[selected].value == 0) {
 		/* Reset the last optimized word to '' if no
 		more words could be read from the FTS index. */
-		word->len = 0;
-		*word->utf8 = 0;
+		word->f_len = 0;
+		*word->f_str = 0;
 
 		last = TRUE;
 	} else {
 		/* Set to the first character of the next slot. */
-		word->len = 1;
-		*word->utf8 = fts_index_selector[selected].value;
+		word->f_len = 1;
+		*word->f_str = fts_index_selector[selected].value;
 	}
 
 	return(last);
@@ -1901,9 +1903,9 @@ fts_optimize_index_completed(
 	/* If we've reached the end of the index then set the start
 	word to the empty string. */
 
-	word.len = 0;
-	word.utf8 = buf;
-	*word.utf8 = '\0';
+	word.f_len = 0;
+	word.f_str = buf;
+	*word.f_str = '\0';
 
 	error = fts_config_set_index_value(
 		optim->trx, index, FTS_LAST_OPTIMIZED_WORD, &word);
@@ -1933,7 +1935,7 @@ fts_optimize_index_read_words(
 	ulint		error = DB_SUCCESS;
 
 	if (optim->del_list_regenerated) {
-		word->len = 0;
+		word->f_len = 0;
 	} else {
 
 		/* Get the last word that was optimized from
@@ -1944,7 +1946,7 @@ fts_optimize_index_read_words(
 
 	/* If record not found then we start from the top. */
 	if (error == DB_RECORD_NOT_FOUND) {
-		word->len = 0;
+		word->f_len = 0;
 		error = DB_SUCCESS;
 	}
 
@@ -1965,7 +1967,7 @@ fts_optimize_index_read_words(
 					optim->fts_index_table.charset,
 					word);
 
-				if (word->len == 0) {
+				if (word->f_len == 0) {
 					break;
 				}
 			}
@@ -1998,13 +2000,13 @@ fts_optimize_index(
 
 	/* We need to read the last word optimized so that we start from
 	the next word. */
-	word.utf8 = str;
+	word.f_str = str;
 
 	/* We set the length of word to the size of str since we
 	need to pass the max len info to the fts_get_config_value() function. */
-	word.len = sizeof(str) - 1;
+	word.f_len = sizeof(str) - 1;
 
-	memset(word.utf8, 0x0, word.len);
+	memset(word.f_str, 0x0, word.f_len);
 
 	/* Read the words that will be optimized in this pass. */
 	error = fts_optimize_index_read_words(optim, index, &word);
@@ -2019,8 +2021,8 @@ fts_optimize_index(
 		zip_error = inflateInit(optim->zip->zp);
 		ut_a(zip_error == Z_OK);
 
-		word.len = 0;
-		word.utf8 = str;
+		word.f_len = 0;
+		word.f_str = str;
 
 		/* Read the first word to optimize from the Zip buffer. */
 		if (!fts_zip_read_word(optim->zip, &word)) {

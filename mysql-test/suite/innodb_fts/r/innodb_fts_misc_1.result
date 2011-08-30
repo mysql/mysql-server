@@ -335,7 +335,6 @@ id	a	b
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("оно" WITH QUERY EXPANSION);
 id	a	b
 1	Я могу есть стекло	оно мне не вредит
-2	Мога да ям стъкло	то не ми вреди
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE);
 id	a	b
 1	Я могу есть стекло	оно мне не вредит

@@ -359,19 +359,19 @@ row_merge_fts_doc_tokenize(
 		data_len = dfield_get_len(dfield);
 
 		if (dfield_is_ext(dfield)) {
-			doc->text.utf8 = btr_copy_externally_stored_field(
-				&doc->text.len, data, zip_size,
+			doc->text.f_str = btr_copy_externally_stored_field(
+				&doc->text.f_len, data, zip_size,
 				data_len, blob_heap);
 		} else {
-			doc->text.utf8 = data;
-			doc->text.len = data_len;
+			doc->text.f_str = data;
+			doc->text.f_len = data_len;
 		}
 
 		doc->tokens = 0;
 		*processed_len = 0;
 	} else {
-		ut_ad(doc->text.utf8);
-		ut_ad(*processed_len < doc->text.len);
+		ut_ad(doc->text.f_str);
+		ut_ad(*processed_len < doc->text.f_len);
 	}
 
 	if (!FTS_PLL_ENABLED) {
@@ -387,7 +387,7 @@ row_merge_fts_doc_tokenize(
 
 	/* Tokenize the data and add each word string, its corresponding
 	doc id and position to sort buffer */
-	for (i = *processed_len; i < doc->text.len; i += inc) {
+	for (i = *processed_len; i < doc->text.f_len; i += inc) {
 		doc_id_t	write_doc_id;
 		ib_uint32_t	position;
 		ulint           offset = 0;
@@ -398,25 +398,26 @@ row_merge_fts_doc_tokenize(
 		ib_uint32_t	t_doc_id;
 
 		inc = innobase_mysql_fts_get_token(doc->charset,
-			doc->text.utf8 + i,
-			doc->text.utf8 + doc->text.len, &str, &offset);
+			doc->text.f_str + i,
+			doc->text.f_str + doc->text.f_len, &str, &offset);
 
 		ut_a(inc > 0);
 
-		if (str.len < fts_min_token_size 
-		    || str.len > fts_max_token_size) {
+		/* Ignore string len smaller than "fts_min_token_size" or
+		larger than "fts_max_token_size" */
+		if (str.f_n_char < fts_min_token_size 
+		    || str.f_n_char > fts_max_token_size) {
 			*processed_len += inc;
 			continue;
 		}
 
-		t_str.len = innobase_fts_casedn_str(
-			doc->charset, (char*) str.utf8, str.len,
+		t_str.f_len = innobase_fts_casedn_str(
+			doc->charset, (char*) str.f_str, str.f_len,
 			(char*) &str_buf, FTS_MAX_WORD_LEN);
 
-		t_str.utf8 = (byte*) &str_buf;
+		t_str.f_str = (byte*) &str_buf;
 
-		/* Ignore string len smaller than "fts_min_token_size", or
-		if "cached_stopword" is defined, ingore words in the
+		/* if "cached_stopword" is defined, ingore words in the
 		stopword list */
 		if (cached_stopword
 		    && rbt_search(cached_stopword, &parent, &t_str) == 0) {
@@ -428,7 +429,7 @@ row_merge_fts_doc_tokenize(
 		out which sort buffer to put this word record in */
 		if (FTS_PLL_ENABLED) {
 			*buf_used = fts_select_index(
-				doc->charset, t_str.utf8, t_str.len);
+				doc->charset, t_str.f_str, t_str.f_len);
 
 			buf = sort_buf[*buf_used];
 
@@ -443,7 +444,7 @@ row_merge_fts_doc_tokenize(
 		ut_a(field);
 
 		/* The first field is the tokenized word */
-		dfield_set_data(field, t_str.utf8, t_str.len);
+		dfield_set_data(field, t_str.f_str, t_str.f_len);
 		len = dfield_get_len(field);
 
 		field->type.mtype = word_dtype->mtype;
@@ -478,7 +479,7 @@ row_merge_fts_doc_tokenize(
 
 		/* The second field is the position */
 		mach_write_to_4((byte*) &position,
-				(i + offset + inc - str.len +(*init_pos)));
+				(i + offset + inc - str.f_len +(*init_pos)));
 		dfield_set_data(field, &position, 4);
 		len = dfield_get_len(field);
 		ut_ad(len == 4);
@@ -525,7 +526,7 @@ row_merge_fts_doc_tokenize(
 
 	if (!buf_full) {
 		/* we pad one byte between text accross two fields */
-		*init_pos += doc->text.len + 1;
+		*init_pos += doc->text.f_len + 1;
 	}
 
 	return(!buf_full);
@@ -621,7 +622,7 @@ loop:
 
 		/* Current sort buffer full, need to recycle */
 		if (!processed) {
-			ut_ad(processed_len < doc.text.len);
+			ut_ad(processed_len < doc.text.f_len);
 			break;
 		}
 
@@ -833,7 +834,8 @@ row_merge_write_fts_word(
 	ulint	selected;
 	ulint	ret = DB_SUCCESS;	
 
-	selected = fts_select_index(charset, word->text.utf8, word->text.len);
+	selected = fts_select_index(
+		charset, word->text.f_str, word->text.f_len);
 	fts_table->suffix = fts_get_suffix(selected);
 
 	/* Pop out each fts_node in word->nodes write them to auxiliary table */
@@ -848,7 +850,8 @@ row_merge_write_fts_word(
 		if (error != DB_SUCCESS) {
 			fprintf(stderr, "InnoDB: failed to write"
 				" word %s to FTS auxiliary index"
-				" table, error (%lu) \n", word->text.utf8, error);
+				" table, error (%lu) \n",
+				word->text.f_str, error);
 			ret = error;
 		}
 
@@ -916,10 +919,10 @@ row_fts_insert_tuple(
 
 	/* Get the first field for the tokenized word */
 	dfield = dtuple_get_nth_field(dtuple, 0);
-	token_word.utf8 = dfield_get_data(dfield);
-	token_word.len = dfield->len;
+	token_word.f_str = dfield_get_data(dfield);
+	token_word.f_len = dfield->len;
 
-	if (!word->text.utf8) {
+	if (!word->text.f_str) {
 		fts_utf8_string_dup(&word->text, &token_word, heap);
 	}
 

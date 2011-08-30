@@ -726,11 +726,10 @@ typedef unsigned short ib_uc_t;
 
 /* An UTF-16 ro UTF-8 string. */
 struct fts_string_struct {
-	byte*		utf8;		/* UTF-8 string, not terminated in
+	byte*		f_str;		/* string, not necessary terminated in
 					any way */
-
-	ulint		len;		/* Length of the string in bytes
-					for UTF-8 strings */
+	ulint		f_len;		/* Length of the string in bytes */
+	ulint		f_n_char;	/* Number of characters */
 };
 
 /* Query ranked doc ids. */

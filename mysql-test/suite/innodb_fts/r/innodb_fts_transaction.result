@@ -316,7 +316,7 @@ INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
 ('where will Optimizing MySQL','what In this tutorial we will show ...'),
-('Я могу есть стекло', 'оно мне не вредит'),
+('Я могу есть стекло', 'оно мне Mне вредит'),
 ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
 ('Sævör grét', 'áðan því úlpan var ónýt');
 "In connection 2"
@@ -331,7 +331,7 @@ id	a	b
 3	where will Optimizing MySQL	what In this tutorial we will show ...
 INSERT INTO t1 (a,b) VALUES
 ('adding record using session 1','for verifying multiple concurrent transactions'),
-('Мога да ям стъкло', 'то не ми вреди');
+('Мога да ям стъкло', 'то Mне ми вреди');
 SELECT * FROM t1
 WHERE MATCH (a,b)
 AGAINST ('+γυαλιὰ +χωρὶ*' IN BOOLEAN MODE);
@@ -526,7 +526,7 @@ INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
 ('where will Optimizing MySQL','what In this tutorial we will show ...'),
-('Я могу есть стекло', 'оно мне не вредит'),
+('Я могу есть стекло', 'оно мне Mне вредит'),
 ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
 ('Sævör grét', 'áðan því úlpan var ónýt');
 "In connection 2"
@@ -537,38 +537,38 @@ REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
 ('adding record using session 1','for verifying multiple concurrent transactions'),
-('Мога да ям стъкло', 'то не ми вреди');
+('Мога да ям стъкло', 'то Mне ми вреди');
 "In connection 1"
 SELECT * FROM t1;
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 6	Sævör grét	áðan því úlpan var ónýt
 7	adding record using session 1	for verifying multiple concurrent transactions
-8	Мога да ям стъкло	то не ми вреди
+8	Мога да ям стъкло	то Mне ми вреди
 START TRANSACTION;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
 id	a	b
-8	Мога да ям стъкло	то не ми вреди
-DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +не' IN BOOLEAN MODE);
+8	Мога да ям стъкло	то Mне ми вреди
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
 DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 SELECT * FROM t1;
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 7	adding record using session 1	for verifying multiple concurrent transactions
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 id	a	b
 SELECT * FROM t1;
@@ -576,17 +576,17 @@ id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 7	adding record using session 1	for verifying multiple concurrent transactions
 "In connection 2"
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
-8	Мога да ям стъкло	то не ми вреди
+4	Я могу есть стекло	оно мне Mне вредит
+8	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 id	a	b
 6	Sævör grét	áðan því úlpan var ónýt
@@ -595,28 +595,28 @@ id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 6	Sævör grét	áðan því úlpan var ónýt
 7	adding record using session 1	for verifying multiple concurrent transactions
-8	Мога да ям стъкло	то не ми вреди
+8	Мога да ям стъкло	то Mне ми вреди
 "In connection 1"
 COMMIT;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 id	a	b
 "In connection 2"
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 id	a	b
 SELECT * FROM t1;
@@ -624,7 +624,7 @@ id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 7	adding record using session 1	for verifying multiple concurrent transactions
 DROP TABLE t1;
@@ -640,7 +640,7 @@ INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
 ('where will Optimizing MySQL','what In this tutorial we will show ...'),
-('Я могу есть стекло', 'оно мне не вредит');
+('Я могу есть стекло', 'оно мне Mне вредит');
 "In connection 2"
 SET NAMES UTF8;
 select @@session.tx_isolation;
@@ -649,21 +649,21 @@ REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
 ('adding record using session 1','for verifying multiple concurrent transactions'),
-('Мога да ям стъкло', 'то не ми вреди');
+('Мога да ям стъкло', 'то Mне ми вреди');
 "In connection 1"
 SELECT * FROM t1;
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 START TRANSACTION;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
-UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +не' IN BOOLEAN MODE);
+6	Мога да ям стъкло	то Mне ми вреди
+UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
 INSERT INTO t1(a,b) VALUES ('Sævör grét', 'áðan því úlpan var ónýt');
 SELECT * FROM t1;
 id	a	b
@@ -672,11 +672,11 @@ id	a	b
 3	where will Optimizing MySQL	what In this tutorial we will show ...
 4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 7	Sævör grét	áðan því úlpan var ónýt
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
@@ -689,23 +689,23 @@ id	a	b
 3	where will Optimizing MySQL	what In this tutorial we will show ...
 4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 7	Sævör grét	áðan því úlpan var ónýt
 "In connection 2"
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
-6	Мога да ям стъкло	то не ми вреди
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
@@ -718,16 +718,16 @@ id	a	b
 3	where will Optimizing MySQL	what In this tutorial we will show ...
 4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 7	Sævör grét	áðan því úlpan var ónýt
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
-6	Мога да ям стъкло	то не ми вреди
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
@@ -736,23 +736,23 @@ id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 "In connection 1"
 COMMIT;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 id	a	b
 7	Sævör grét	áðan því úlpan var ónýt
 "In connection 2"
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 id	a	b
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
@@ -765,7 +765,7 @@ id	a	b
 3	where will Optimizing MySQL	what In this tutorial we will show ...
 4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 7	Sævör grét	áðan því úlpan var ónýt
 DROP TABLE t1;
 SET NAMES UTF8;
@@ -780,7 +780,7 @@ INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
 ('where will Optimizing MySQL','what In this tutorial we will show ...'),
-('Я могу есть стекло', 'оно мне не вредит'),
+('Я могу есть стекло', 'оно мне Mне вредит'),
 ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
 ('Sævör grét', 'áðan því úlpan var ónýt');
 "In connection 2"
@@ -791,35 +791,35 @@ REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
 ('adding record using session 1','for verifying multiple concurrent transactions'),
-('Мога да ям стъкло', 'то не ми вреди');
+('Мога да ям стъкло', 'то Mне ми вреди');
 "In connection 1"
 SELECT * FROM t1;
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 6	Sævör grét	áðan því úlpan var ónýt
 7	adding record using session 1	for verifying multiple concurrent transactions
-8	Мога да ям стъкло	то не ми вреди
+8	Мога да ям стъкло	то Mне ми вреди
 START TRANSACTION;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
 id	a	b
-8	Мога да ям стъкло	то не ми вреди
-DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +не' IN BOOLEAN MODE);
+8	Мога да ям стъкло	то Mне ми вреди
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
 DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 SELECT * FROM t1;
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 7	adding record using session 1	for verifying multiple concurrent transactions
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 id	a	b
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
@@ -829,17 +829,17 @@ id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 7	adding record using session 1	for verifying multiple concurrent transactions
 "In connection 2"
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
-8	Мога да ям стъкло	то не ми вреди
+4	Я могу есть стекло	оно мне Mне вредит
+8	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 id	a	b
-8	Мога да ям стъкло	то не ми вреди
+8	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 id	a	b
 6	Sævör grét	áðan því úlpan var ónýt
@@ -848,31 +848,31 @@ id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 6	Sævör grét	áðan því úlpan var ónýt
 7	adding record using session 1	for verifying multiple concurrent transactions
-8	Мога да ям стъкло	то не ми вреди
+8	Мога да ям стъкло	то Mне ми вреди
 "In connection 1"
 ROLLBACK;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
-8	Мога да ям стъкло	то не ми вреди
+4	Я могу есть стекло	оно мне Mне вредит
+8	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 id	a	b
-8	Мога да ям стъкло	то не ми вреди
+8	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 id	a	b
 6	Sævör grét	áðan því úlpan var ónýt
 "In connection 2"
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
-8	Мога да ям стъкло	то не ми вреди
+4	Я могу есть стекло	оно мне Mне вредит
+8	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 id	a	b
-8	Мога да ям стъкло	то не ми вреди
+8	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 id	a	b
 6	Sævör grét	áðan því úlpan var ónýt
@@ -881,11 +881,11 @@ id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 6	Sævör grét	áðan því úlpan var ónýt
 7	adding record using session 1	for verifying multiple concurrent transactions
-8	Мога да ям стъкло	то не ми вреди
+8	Мога да ям стъкло	то Mне ми вреди
 DROP TABLE t1;
 SET NAMES UTF8;
 CREATE TABLE t1 (
@@ -899,7 +899,7 @@ INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
 ('where will Optimizing MySQL','what In this tutorial we will show ...'),
-('Я могу есть стекло', 'оно мне не вредит');
+('Я могу есть стекло', 'оно мне Mне вредит');
 "In connection 2"
 SET NAMES UTF8;
 select @@session.tx_isolation;
@@ -908,21 +908,21 @@ REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
 ('adding record using session 1','for verifying multiple concurrent transactions'),
-('Мога да ям стъкло', 'то не ми вреди');
+('Мога да ям стъкло', 'то Mне ми вреди');
 "In connection 1"
 SELECT * FROM t1;
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 START TRANSACTION;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+могу +не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
-UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +не' IN BOOLEAN MODE);
+4	Я могу есть стекло	оно мне Mне вредит
+UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
 INSERT INTO t1(a,b) VALUES ('Sævör grét', 'áðan því úlpan var ónýt');
 SELECT * FROM t1;
 id	a	b
@@ -931,14 +931,14 @@ id	a	b
 3	where will Optimizing MySQL	what In this tutorial we will show ...
 4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 7	Sævör grét	áðan því úlpan var ónýt
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
@@ -949,26 +949,26 @@ id	a	b
 3	where will Optimizing MySQL	what In this tutorial we will show ...
 4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 7	Sævör grét	áðan því úlpan var ónýt
 "In connection 2"
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
-6	Мога да ям стъкло	то не ми вреди
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
@@ -979,16 +979,16 @@ id	a	b
 3	where will Optimizing MySQL	what In this tutorial we will show ...
 4	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 7	Sævör grét	áðan því úlpan var ónýt
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
-6	Мога да ям стъкло	то не ми вреди
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
@@ -997,28 +997,28 @@ id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 "In connection 1"
 ROLLBACK;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
-6	Мога да ям стъкло	то не ми вреди
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 id	a	b
 "In connection 2"
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 id	a	b
-4	Я могу есть стекло	оно мне не вредит
-6	Мога да ям стъкло	то не ми вреди
+4	Я могу есть стекло	оно мне Mне вредит
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 id	a	b
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 id	a	b
 SELECT * FROM t1;
@@ -1026,7 +1026,7 @@ id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 2	when To Use MySQL Well	After that you went through a ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
-4	Я могу есть стекло	оно мне не вредит
+4	Я могу есть стекло	оно мне Mне вредит
 5	adding record using session 1	for verifying multiple concurrent transactions
-6	Мога да ям стъкло	то не ми вреди
+6	Мога да ям стъкло	то Mне ми вреди
 DROP TABLE t1;
