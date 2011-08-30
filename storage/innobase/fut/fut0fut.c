@@ -343,8 +343,8 @@ fts_load_default_stopword(
 		new_word.nodes = ib_vector_create(allocator,
 						  sizeof(fts_node_t), 4);
 
-		str.utf8 = (byte*) fts_default_stopword[ix];
-		str.len = ut_strlen((char*) fts_default_stopword[ix]);
+		str.f_str = (byte*) fts_default_stopword[ix];
+		str.f_len = ut_strlen((char*) fts_default_stopword[ix]);
 
 		fts_utf8_string_dup(&new_word.text, &str, heap);
 
@@ -385,11 +385,11 @@ fts_read_stopword(
 
 	/* We only need to read the first column */
 	dfield = que_node_get_val(exp);
-	str.utf8 = dfield_get_data(dfield);
-	str.len = dfield_get_len(dfield);
+	str.f_str = dfield_get_data(dfield);
+	str.f_len = dfield_get_len(dfield);
 
 	/* Only create new node if it is a value not already existed */
-	if (str.len != UNIV_SQL_NULL
+	if (str.f_len != UNIV_SQL_NULL
 	    && rbt_search(stop_words, &parent, &str) != 0) {
 		new_word.nodes = ib_vector_create(allocator,
 						  sizeof(fts_node_t), 4);
@@ -934,7 +934,7 @@ fts_tokenizer_word_get(
 		/* Take into account the RB tree memory use and the vector. */
 		cache->total_size += sizeof(new_word)
 			+ sizeof(ib_rbt_node_t)
-			+ text->len
+			+ text->f_len
 			+ (sizeof(fts_node_t) * 4)
 			+ sizeof(*new_word.nodes);
 
@@ -2023,16 +2023,16 @@ fts_get_max_cache_size(
 
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value. */
-	value.len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.utf8 = ut_malloc(value.len + 1);
+	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
+	value.f_str = ut_malloc(value.f_len + 1);
 
 	error = fts_config_get_value(
 		trx, fts_table, FTS_MAX_CACHE_SIZE_IN_MB, &value);
 
 	if (error == DB_SUCCESS) {
 
-		value.utf8[value.len] = 0;
-		cache_size_in_mb = strtoul((char*) value.utf8, NULL, 10);
+		value.f_str[value.f_len] = 0;
+		cache_size_in_mb = strtoul((char*) value.f_str, NULL, 10);
 
 		if (cache_size_in_mb > FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB) {
 
@@ -2067,7 +2067,7 @@ fts_get_max_cache_size(
 			"config value from config table\n", error);
 	}
 
-	ut_free(value.utf8);
+	ut_free(value.f_str);
 
 	return(cache_size_in_mb * 1024 * 1024);
 }
@@ -2107,23 +2107,23 @@ fts_get_total_word_count(
 
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value. */
-	value.len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.utf8 = ut_malloc(value.len + 1);
+	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
+	value.f_str = ut_malloc(value.f_len + 1);
 
 	error = fts_config_get_index_value(
 		trx, index, FTS_TOTAL_WORD_COUNT, &value);
 
 	if (error == DB_SUCCESS) {
 
-		value.utf8[value.len] = 0;
-		*total = strtoul((char*) value.utf8, NULL, 10);
+		value.f_str[value.f_len] = 0;
+		*total = strtoul((char*) value.f_str, NULL, 10);
 	} else {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB: Error: (%lu) reading total words "
 			"value from config table\n", error);
 	}
 
-	ut_free(value.utf8);
+	ut_free(value.f_str);
 
 	return(error);
 }
@@ -2925,7 +2925,7 @@ fts_query_expansion_fetch_doc(
 
 	doc_charset  = result_doc->charset;
 
-	/* Copy each indexed column content into doc->text.utf8 */
+	/* Copy each indexed column content into doc->text.f_str */
 	while (exp) {
 		dfield = que_node_get_val(exp);
 		len = dfield_get_len(dfield);
@@ -2951,8 +2951,8 @@ fts_query_expansion_fetch_doc(
 			exp = que_node_get_next(exp);
 			continue;
 		} else {
-			doc.text.utf8 = dfield_get_data(dfield);
-			doc.text.len = len;
+			doc.text.f_str = dfield_get_data(dfield);
+			doc.text.f_len = len;
 		}
 
 		if (field_no == 0) {
@@ -3093,24 +3093,24 @@ fts_add_doc_by_id(
 			}
 
 			if (rec_offs_nth_extern(offsets, clust_pos)) {
-				doc->text.utf8 =
+				doc->text.f_str =
 					btr_rec_copy_externally_stored_field(
 						clust_rec, offsets, 
 						dict_table_zip_size(table),
-						clust_pos, &doc->text.len,
+						clust_pos, &doc->text.f_len,
 						doc->self_heap->arg);
 
 			} else {
-				doc->text.utf8 = (byte*) rec_get_nth_field(
+				doc->text.f_str = (byte*) rec_get_nth_field(
 					clust_rec, offsets, clust_pos,
-					&doc->text.len);
+					&doc->text.f_len);
 			}
 
 			doc->found = TRUE;
 			doc->charset = get_doc->index_cache->charset;
 
 			/* Null Field */
-			if (doc->text.len == UNIV_SQL_NULL) {
+			if (doc->text.f_len == UNIV_SQL_NULL) {
 				continue;
 			}
 
@@ -3121,7 +3121,7 @@ fts_add_doc_by_id(
 			}
 
 			processed_doc++;
-			doc_len += doc->text.len + 1;
+			doc_len += doc->text.f_len + 1;
 		}
 	}
 func_exit:
@@ -3274,9 +3274,9 @@ fts_write_node(
 		info = pars_info_create();
 	}
 
-	ut_a(word->len <= fts_max_token_size);
+	ut_a(word->f_n_char <= fts_max_token_size);
 
-	pars_info_bind_varchar_literal(info, "token", word->utf8, word->len);
+	pars_info_bind_varchar_literal(info, "token", word->f_str, word->f_len);
 
 	/* Convert to "storage" byte order. */
 	fts_write_doc_id((byte*) &first_doc_id, node->first_doc_id);
@@ -3454,8 +3454,8 @@ fts_sync_write_words(
 		word = rbt_value(fts_tokenizer_word_t, rbt_node);
 
 		selected = fts_select_index(index_cache->charset,
-					    word->text.utf8,
-					    word->text.len);
+					    word->text.f_str,
+					    word->text.f_len);
 
 		fts_table.suffix = fts_get_suffix(selected);
 
@@ -3693,7 +3693,7 @@ fts_is_word_in_index(
 	}
 
 	pars_info_bind_function(info, "my_func", fts_lookup_word, found);
-	pars_info_bind_varchar_literal(info, "word", word->utf8, word->len);
+	pars_info_bind_varchar_literal(info, "word", word->f_str, word->f_len);
 
 	if (*graph == NULL) {
 		*graph = fts_parse_sql(
@@ -3972,39 +3972,41 @@ fts_process_token(
 	byte		buf[FTS_MAX_WORD_LEN + 1];
 	fts_doc_t*	result_doc;
 
-	str.utf8 = buf;
+	str.f_str = buf;
 
 	/* Determine where to save the result. */
 	result_doc = (result) ? result : doc;
 
 	ret = innobase_mysql_fts_get_token(doc->charset,
-					   doc->text.utf8 + start_pos,
-					   doc->text.utf8 + doc->text.len,
+					   doc->text.f_str + start_pos,
+					   doc->text.f_str + doc->text.f_len,
 					   &str, &offset);
 
-	if (str.len >= fts_min_token_size && str.len <= fts_max_token_size) {
+	if (str.f_n_char >= fts_min_token_size
+	    && str.f_n_char <= fts_max_token_size) {
 		fts_token_t*	token;
 		ib_rbt_bound_t	parent;
 		mem_heap_t*	heap = result_doc->self_heap->arg;
 		fts_string_t	t_str;
 		ulint		newlen;
 
-		t_str.len = str.len * doc->charset->casedn_multiply + 1;
-		t_str.utf8 = (unsigned char *) mem_heap_alloc(heap, t_str.len);
+		t_str.f_len = str.f_len * doc->charset->casedn_multiply + 1;
+		t_str.f_str = (unsigned char *) mem_heap_alloc(
+			heap, t_str.f_len);
 
 		newlen = innobase_fts_casedn_str(
-			doc->charset, (char*) str.utf8, str.len,
-			(char*) t_str.utf8, t_str.len);
+			doc->charset, (char*) str.f_str, str.f_len,
+			(char*) t_str.f_str, t_str.f_len);
 
-		t_str.len = newlen;
+		t_str.f_len = newlen;
 
 		/* Add the word to the document statistics. If the word
 		hasn't been seen before we create a new entry for it. */
 		if (rbt_search(result_doc->tokens, &parent, &t_str) != 0) {
 			fts_token_t	new_token;
 
-			new_token.text.utf8 = t_str.utf8;
-			new_token.text.len = newlen;
+			new_token.text.f_str = t_str.f_str;
+			new_token.text.f_len = newlen;
 
 			new_token.positions = ib_vector_create(
 				result_doc->self_heap, sizeof(ulint), 32);
@@ -4019,7 +4021,7 @@ fts_process_token(
 		offset += start_pos + add_pos;
 #endif /* FTS_CHARSET_DEBUG */
 
-		offset += start_pos + ret - str.len + add_pos;
+		offset += start_pos + ret - str.f_len + add_pos;
 
 		token = rbt_value(fts_token_t, parent.last);
 		ib_vector_push(token->positions, &offset);
@@ -4049,7 +4051,7 @@ fts_tokenize_document(
 	doc->tokens = rbt_create_arg_cmp(
 		sizeof(fts_token_t), innobase_fts_text_cmp, doc->charset);
 
-	for (i = 0; i < doc->text.len; i += inc) {
+	for (i = 0; i < doc->text.f_len; i += inc) {
 
 		inc = fts_process_token(doc, result, i, 0);
 
@@ -4075,7 +4077,7 @@ fts_tokenize_document_next(
 
 	ut_a(doc->tokens);
 
-	for (i = 0; i < doc->text.len; i += inc) {
+	for (i = 0; i < doc->text.f_len; i += inc) {
 
 		inc = fts_process_token(doc, result, i, add_pos);
 
@@ -6235,8 +6237,8 @@ fts_load_stopword(
 	if (reload) {
 		/* Fetch the stopword table name from FTS config
 		table */
-		str.utf8 = str_buffer;
-		str.len = sizeof(str_buffer) - 1;
+		str.f_str = str_buffer;
+		str.f_len = sizeof(str_buffer) - 1;
 
 		error = fts_config_get_value(trx, &fts_table,
 					     FTS_STOPWORD_TABLE_NAME,
@@ -6245,7 +6247,7 @@ fts_load_stopword(
 			goto cleanup;
 		}
 
-		stopword_to_use = (const char*) str.utf8;
+		stopword_to_use = (const char*) str.f_str;
 
 	} else {
 		stopword_to_use = (session_stopword_table)
@@ -6260,8 +6262,8 @@ fts_load_stopword(
 		/* Save the stopword table name to the configure
 		table */
 		if (!reload) {
-			str.utf8 = (byte*) stopword_to_use;
-			str.len = ut_strlen(stopword_to_use);
+			str.f_str = (byte*) stopword_to_use;
+			str.f_len = ut_strlen(stopword_to_use);
 			error = fts_config_set_value(trx, &fts_table,
 						     FTS_STOPWORD_TABLE_NAME,
 						     &str);
@@ -6325,7 +6327,7 @@ fts_init_recover_doc(
 	exp = node->select_list;
 	doc_len = 0;
 
-	/* Copy each indexed column content into doc->text.utf8 */
+	/* Copy each indexed column content into doc->text.f_str */
 	while (exp) {
 		dfield = que_node_get_val(exp);
 		len = dfield_get_len(dfield);
@@ -6371,12 +6373,12 @@ fts_init_recover_doc(
 			dict_table_t*	table = cache->sync->table;
 			ulint		zip_size = dict_table_zip_size(table);
 
-			doc.text.utf8 = btr_copy_externally_stored_field(
-				&doc.text.len, dfield_get_data(dfield),
+			doc.text.f_str = btr_copy_externally_stored_field(
+				&doc.text.f_len, dfield_get_data(dfield),
 				zip_size, len, doc.self_heap->arg);
 		} else {
-			doc.text.utf8 = dfield_get_data(dfield);
-			doc.text.len = len;
+			doc.text.f_str = dfield_get_data(dfield);
+			doc.text.f_len = len;
 		}
 
 		if (field_no == 1) {

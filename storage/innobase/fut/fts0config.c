@@ -57,11 +57,11 @@ fts_config_fetch_value(
 	ut_a(dtype_get_mtype(type) == DATA_VARCHAR);
 
 	if (len != UNIV_SQL_NULL) {
-		ulint	max_len = ut_min(value->len - 1, len);
+		ulint	max_len = ut_min(value->f_len - 1, len);
 
-		memcpy(value->utf8, data, max_len);
-		value->len = max_len;
-		value->utf8[value->len] = '\0';
+		memcpy(value->f_str, data, max_len);
+		value->f_len = max_len;
+		value->f_str[value->f_len] = '\0';
 	}
 
 	return(TRUE);
@@ -90,8 +90,8 @@ fts_config_get_value(
 
 	info = pars_info_create();
 
-	*value->utf8 = '\0';
-	ut_a(value->len > 0);
+	*value->f_str = '\0';
+	ut_a(value->f_len > 0);
 
 	pars_info_bind_function(info, "my_func", fts_config_fetch_value,
 				value);
@@ -216,7 +216,8 @@ fts_config_set_value(
 	info = pars_info_create();
 
 	pars_info_bind_varchar_literal(info, "name", (byte*) name, name_len);
-	pars_info_bind_varchar_literal(info, "value", value->utf8, value->len);
+	pars_info_bind_varchar_literal(info, "value",
+				       value->f_str, value->f_len);
 
 	fts_table->suffix = "CONFIG";
 
@@ -242,7 +243,7 @@ fts_config_set_value(
 			info, "name", (byte*) name, name_len);
 
 		pars_info_bind_varchar_literal(
-			info, "value", value->utf8, value->len);
+			info, "value", value->f_str, value->f_len);
 
 		graph = fts_parse_sql(
 			fts_table, info,
@@ -309,8 +310,8 @@ fts_config_get_index_ulint(
 
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
-	value.len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.utf8 = ut_malloc(value.len + 1);
+	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
+	value.f_str = ut_malloc(value.f_len + 1);
 
 	error = fts_config_get_index_value(trx, index, name, &value);
 
@@ -320,10 +321,10 @@ fts_config_get_index_ulint(
 		fprintf(stderr, "  InnoDB: Error: (%lu) reading `%s'\n",
 			error, name);
 	} else {
-		*int_value = strtoul((char*) value.utf8, NULL, 10);
+		*int_value = strtoul((char*) value.f_str, NULL, 10);
 	}
 
-	ut_free(value.utf8);
+	ut_free(value.f_str);
 
 	return(error);
 }
@@ -346,14 +347,14 @@ fts_config_set_index_ulint(
 
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
-	value.len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.utf8 = ut_malloc(value.len + 1);
+	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
+	value.f_str = ut_malloc(value.f_len + 1);
 
 	// FIXME: Get rid of snprintf
 	ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
 
-	value.len = snprintf(
-		(char*) value.utf8, FTS_MAX_INT_LEN, "%lu", int_value);
+	value.f_len = snprintf(
+		(char*) value.f_str, FTS_MAX_INT_LEN, "%lu", int_value);
 
 	error = fts_config_set_index_value(trx, index, name, &value);
 
@@ -364,7 +365,7 @@ fts_config_set_index_ulint(
 			error, name);
 	}
 
-	ut_free(value.utf8);
+	ut_free(value.f_str);
 
 	return(error);
 }
@@ -387,8 +388,8 @@ fts_config_get_ulint(
 
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
-	value.len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.utf8 = ut_malloc(value.len + 1);
+	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
+	value.f_str = ut_malloc(value.f_len + 1);
 
 	error = fts_config_get_value(trx, fts_table, name, &value);
 
@@ -398,10 +399,10 @@ fts_config_get_ulint(
 		fprintf(stderr, "  InnoDB: Error: (%lu) reading `%s'\n",
 			error, name);
 	} else {
-		*int_value = strtoul((char*) value.utf8, NULL, 10);
+		*int_value = strtoul((char*) value.f_str, NULL, 10);
 	}
 
-	ut_free(value.utf8);
+	ut_free(value.f_str);
 
 	return(error);
 }
@@ -424,14 +425,14 @@ fts_config_set_ulint(
 
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
-	value.len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.utf8 = ut_malloc(value.len + 1);
+	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
+	value.f_str = ut_malloc(value.f_len + 1);
 
 	// FIXME: Get rid of snprintf
 	ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
 
-	value.len = snprintf(
-		(char*) value.utf8, FTS_MAX_INT_LEN, "%lu", int_value);
+	value.f_len = snprintf(
+		(char*) value.f_str, FTS_MAX_INT_LEN, "%lu", int_value);
 
 	error = fts_config_set_value(trx, fts_table, name, &value);
 
@@ -442,7 +443,7 @@ fts_config_set_ulint(
 			error, name);
 	}
 
-	ut_free(value.utf8);
+	ut_free(value.f_str);
 
 	return(error);
 }
@@ -469,10 +470,10 @@ fts_config_increment_value(
 
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
-	value.len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.utf8 = ut_malloc(value.len + 1);
+	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
+	value.f_str = ut_malloc(value.f_len + 1);
 
-	*value.utf8 = '\0';
+	*value.f_str = '\0';
 
 	pars_info_bind_varchar_literal(info, "name", (byte*) name, name_len);
 
@@ -506,15 +507,15 @@ fts_config_increment_value(
 	if (UNIV_UNLIKELY(error == DB_SUCCESS)) {
 		ulint		int_value;
 
-		int_value = strtoul((char*) value.utf8, NULL, 10);
+		int_value = strtoul((char*) value.f_str, NULL, 10);
 
 		int_value += delta;
 
 		ut_a(FTS_MAX_CONFIG_VALUE_LEN > FTS_MAX_INT_LEN);
 
 		// FIXME: Get rid of snprintf
-		value.len = snprintf(
-			(char*) value.utf8, FTS_MAX_INT_LEN, "%lu", int_value);
+		value.f_len = snprintf(
+			(char*) value.f_str, FTS_MAX_INT_LEN, "%lu", int_value);
 
 		fts_config_set_value(trx, fts_table, name, &value);
 	}
@@ -527,7 +528,7 @@ fts_config_increment_value(
 			"while incrementing %s.\n", error, name);
 	}
 
-	ut_free(value.utf8);
+	ut_free(value.f_str);
 
 	return(error);
 }

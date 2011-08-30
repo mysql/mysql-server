@@ -353,7 +353,7 @@ INSERT INTO t1 (a,b) VALUES
         ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
         ('when To Use MySQL Well','After that you went through a ...'),
         ('where will Optimizing MySQL','what In this tutorial we will show ...'),
-        ('Я могу есть стекло', 'оно мне не вредит'),
+        ('Я могу есть стекло', 'оно мне Mне вредит'),
         ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
         ('Sævör grét', 'áðan því úlpan var ónýt');
 
@@ -376,7 +376,7 @@ SELECT * FROM t1
 
 INSERT INTO t1 (a,b) VALUES
         ('adding record using session 1','for verifying multiple concurrent transactions'),
-        ('Мога да ям стъкло', 'то не ми вреди');
+        ('Мога да ям стъкло', 'то Mне ми вреди');
 
 # one records expected
 SELECT * FROM t1
@@ -608,7 +608,7 @@ INSERT INTO t1 (a,b) VALUES
         ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
         ('when To Use MySQL Well','After that you went through a ...'),
         ('where will Optimizing MySQL','what In this tutorial we will show ...'),
-        ('Я могу есть стекло', 'оно мне не вредит'),
+        ('Я могу есть стекло', 'оно мне Mне вредит'),
         ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
         ('Sævör grét', 'áðan því úlpan var ónýt');
 
@@ -622,7 +622,7 @@ select @@session.tx_isolation;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
         ('adding record using session 1','for verifying multiple concurrent transactions'),
-        ('Мога да ям стъкло', 'то не ми вреди');
+        ('Мога да ям стъкло', 'то Mне ми вреди');
 
 
 --echo "In connection 1"
@@ -632,15 +632,15 @@ INSERT INTO t1 (a,b) VALUES
 SELECT * FROM t1;
 
 START TRANSACTION;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
 # Delete rows
-DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +не' IN BOOLEAN MODE);
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
 DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 
 SELECT * FROM t1;
 
 # 1 record expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 record expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 # No record expected
@@ -651,7 +651,7 @@ SELECT * FROM t1;
 --echo "In connection 2"
 --connection con2
 # records expected due to repeatable read 
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 
@@ -662,7 +662,7 @@ SELECT * FROM t1;
 --connection con1
 COMMIT;
 # 1 record expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 record expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 # No record expected
@@ -671,7 +671,7 @@ SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE
 --echo "In connection 2"
 --connection con2
 # 1 record expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 record expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 # No record expected
@@ -711,7 +711,7 @@ INSERT INTO t1 (a,b) VALUES
         ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
         ('when To Use MySQL Well','After that you went through a ...'),
         ('where will Optimizing MySQL','what In this tutorial we will show ...'),
-        ('Я могу есть стекло', 'оно мне не вредит');
+        ('Я могу есть стекло', 'оно мне Mне вредит');
 
 
 --echo "In connection 2"
@@ -723,7 +723,7 @@ select @@session.tx_isolation;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
         ('adding record using session 1','for verifying multiple concurrent transactions'),
-        ('Мога да ям стъкло', 'то не ми вреди');
+        ('Мога да ям стъкло', 'то Mне ми вреди');
 
 
 --echo "In connection 1"
@@ -733,16 +733,16 @@ INSERT INTO t1 (a,b) VALUES
 SELECT * FROM t1;
 
 START TRANSACTION;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
 # Update row
-UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +не' IN BOOLEAN MODE);
+UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
 # Insert row
 INSERT INTO t1(a,b) VALUES ('Sævör grét', 'áðan því úlpan var ónýt');
 
 SELECT * FROM t1;
 
 # 1 record expected - records not seen
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 record expected - records not seen
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 # 1 record expected
@@ -753,7 +753,7 @@ SELECT * FROM t1;
 --echo "In connection 2"
 --connection con2
 # 2 records expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 records expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 # 1 records expected
@@ -762,7 +762,7 @@ SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 # 1 records expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # no records expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 # 1 records expected
@@ -773,7 +773,7 @@ SELECT * FROM t1;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
 # 2 records expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 records expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 # 1 records expected
@@ -785,7 +785,7 @@ SELECT * FROM t1;
 --connection con1
 COMMIT;
 # 1 record expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # no record expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 # 1 record expected
@@ -794,7 +794,7 @@ SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE
 --echo "In connection 2"
 --connection con2
 # 1 record expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # Innodb:error no record expected 
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стекло');
 # 1 record expected
@@ -833,7 +833,7 @@ INSERT INTO t1 (a,b) VALUES
         ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
         ('when To Use MySQL Well','After that you went through a ...'),
         ('where will Optimizing MySQL','what In this tutorial we will show ...'),
-        ('Я могу есть стекло', 'оно мне не вредит'),
+        ('Я могу есть стекло', 'оно мне Mне вредит'),
         ('Μπορῶ νὰ φάω σπασμένα' ,'γυαλιὰ χωρὶς νὰ πάθω τίποτα'),
         ('Sævör grét', 'áðan því úlpan var ónýt');
 
@@ -847,7 +847,7 @@ select @@session.tx_isolation;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
         ('adding record using session 1','for verifying multiple concurrent transactions'),
-        ('Мога да ям стъкло', 'то не ми вреди');
+        ('Мога да ям стъкло', 'то Mне ми вреди');
 
 
 --echo "In connection 1"
@@ -857,15 +857,15 @@ INSERT INTO t1 (a,b) VALUES
 SELECT * FROM t1;
 
 START TRANSACTION;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
 # Delete rows
-DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +не' IN BOOLEAN MODE);
+DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('+Мога +Mне' IN BOOLEAN MODE);
 DELETE FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 
 SELECT * FROM t1;
 
 # 1 record expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # No record expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 # No record expected
@@ -876,7 +876,7 @@ SELECT * FROM t1;
 --echo "In connection 2"
 --connection con2
 # records expected due to repeatable read 
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
 
@@ -887,7 +887,7 @@ SELECT * FROM t1;
 --connection con1
 ROLLBACK;
 # 2 record expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 record expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 # 1 record expected
@@ -896,7 +896,7 @@ SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE
 --echo "In connection 2"
 --connection con2
 # 2 record expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 record expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 # 1 record expected
@@ -936,7 +936,7 @@ INSERT INTO t1 (a,b) VALUES
         ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
         ('when To Use MySQL Well','After that you went through a ...'),
         ('where will Optimizing MySQL','what In this tutorial we will show ...'),
-        ('Я могу есть стекло', 'оно мне не вредит');
+        ('Я могу есть стекло', 'оно мне Mне вредит');
 
 
 --echo "In connection 2"
@@ -948,7 +948,7 @@ select @@session.tx_isolation;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
         ('adding record using session 1','for verifying multiple concurrent transactions'),
-        ('Мога да ям стъкло', 'то не ми вреди');
+        ('Мога да ям стъкло', 'то Mне ми вреди');
 
 
 --echo "In connection 1"
@@ -958,16 +958,16 @@ INSERT INTO t1 (a,b) VALUES
 SELECT * FROM t1;
 
 START TRANSACTION;
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+могу +не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
 # Update row
-UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +не' IN BOOLEAN MODE);
+UPDATE t1 SET a =  'Μπορῶ νὰ φάω σπασμένα' , b = 'γυαλιὰ χωρὶς νὰ πάθω τίποτα' WHERE MATCH (a,b) AGAINST ('+могу +Mне' IN BOOLEAN MODE);
 # Insert row
 INSERT INTO t1(a,b) VALUES ('Sævör grét', 'áðan því úlpan var ónýt');
 
 SELECT * FROM t1;
 
 # 1 record expected - records not seen
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 record expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 # 1 record expected
@@ -978,7 +978,7 @@ SELECT * FROM t1;
 --echo "In connection 2"
 --connection con2
 # 2 records expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 records expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 # 1 records expected
@@ -987,7 +987,7 @@ SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 # 1 records expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 # 1 records expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"dbms stands"@05' IN BOOLEAN MODE);
@@ -997,7 +997,7 @@ SELECT * FROM t1;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
 # 2 records expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 records expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 # 1 records expected
@@ -1009,7 +1009,7 @@ SELECT * FROM t1;
 --connection con1
 ROLLBACK;
 # 2 record expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 record expected
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 # no record expected
@@ -1018,7 +1018,7 @@ SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE
 --echo "In connection 2"
 --connection con2
 # 2 record expected
-SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+не' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('+Mне' IN BOOLEAN MODE);
 # 1 record expected 
 SELECT * FROM t1 WHERE MATCH (a,b) AGAINST ('стъкло');
 # no record expected

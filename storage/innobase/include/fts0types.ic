@@ -72,10 +72,10 @@ fts_utf8_string_dup(
 	const fts_string_t*	src,		/* in: src string */
 	mem_heap_t*		heap)		/* in: heap to use */
 {
-	dst->utf8 = (unsigned char*) mem_heap_dup(heap, src->utf8,
-						  src->len + 1);
-	dst->utf8[src->len] = 0;
-	dst->len = src->len;
+	dst->f_str = (unsigned char*) mem_heap_dup(heap, src->f_str,
+						   src->f_len + 1);
+	dst->f_str[src->f_len] = 0;
+	dst->f_len = src->f_len;
 }
 
 /********************************************************************
@@ -177,7 +177,7 @@ fts_utf8_tolower(
 /*=============*/
 	fts_string_t*	str)			/* in: string */
 {
-	innobase_casedn_str((char*) str->utf8);
+	innobase_casedn_str((char*) str->f_str);
 }
 
 /********************************************************************
@@ -197,7 +197,7 @@ fts_utf8_string_cmp(
 	const fts_string_t* s2 = (const fts_string_t*) p2;
 
 	return(cmp_data_data_slow_varchar(
-		s1->utf8, s1->len, s2->utf8, s2->len));
+		s1->f_str, s1->f_len, s2->f_str, s2->f_len));
 }
 
 /********************************************************************
@@ -220,15 +220,15 @@ fts_utf8_string_cmp_prefix(
 	const fts_string_t* s1 = (const fts_string_t*) p1;
 	const fts_string_t* s2 = (const fts_string_t*) p2;
 
-	len = ut_min(s1->len, s2->len);
+	len = ut_min(s1->f_len, s2->f_len);
 	
-	result = cmp_data_data_slow_varchar(s1->utf8, len, s2->utf8, len);
+	result = cmp_data_data_slow_varchar(s1->f_str, len, s2->f_str, len);
 
 	if (result) {
 		return(result);
 	}
 
-	if (s1->len > s2->len) {
+	if (s1->f_len > s2->f_len) {
 		return(1);
 	}
 

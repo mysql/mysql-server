@@ -487,13 +487,13 @@ fts_tolower(
 	fts_string_t	str;
 	byte*		lc_str = ut_malloc(len + 1);
 
-	str.len = len;
-	str.utf8 = lc_str;
+	str.f_len = len;
+	str.f_str = lc_str;
 
-	memcpy(str.utf8, src, len);
+	memcpy(str.f_str, src, len);
 
 	/* Make sure the last byte is NUL terminated */
-	str.utf8[len] = '\0';
+	str.f_str[len] = '\0';
 
 	fts_utf8_tolower(&str);
 
@@ -515,21 +515,21 @@ fts_utf8_strcmp(
 					of this string during compare as it
 					should be the min of the two strings */
 {
-	byte		b = str2->utf8[str2->len];
+	byte		b = str2->f_str[str2->f_len];
 
-	ut_a(str2->len <= str1->len);
+	ut_a(str2->f_len <= str1->f_len);
 
 	/* We need to write a NUL byte at the end of the string because the
 	string is converted to lowercase by a MySQL function which doesn't
 	care about the length. */
-	str2->utf8[str2->len] = 0;
+	str2->f_str[str2->f_len] = 0;
 
 	fts_utf8_tolower(str2);
 
 	/* Restore the value we replaced above. */
-	str2->utf8[str2->len] = b;
+	str2->f_str[str2->f_len] = b;
 
-	return(memcmp(str1->utf8, str2->utf8, str2->len));
+	return(memcmp(str1->f_str, str2->f_str, str2->f_len));
 }
 #endif
 
@@ -841,13 +841,13 @@ fts_query_check_node(
 		fts_word_freq_t*word_freqs;
 
 		/* The word must exist. */
-		ret = rbt_search(query->word_freqs, &parent, token->utf8);
+		ret = rbt_search(query->word_freqs, &parent, token->f_str);
 		ut_a(ret == 0);
 
 		word_freqs = rbt_value(fts_word_freq_t, parent.last);
 
 		fts_query_filter_doc_ids(
-			query, token->utf8, word_freqs, node,
+			query, token->f_str, word_freqs, node,
 			node->ilist, ilist_size, TRUE);
 	}
 }
@@ -869,13 +869,13 @@ fts_cache_find_wildcard(
 	byte			term[FTS_MAX_WORD_LEN];
 	ulint			num_word = 0;
 
-	srch_text.len = (token->utf8[token->len - 1] == '%')
-			? token->len - 1
-			: token->len;
+	srch_text.f_len = (token->f_str[token->f_len - 1] == '%')
+			? token->f_len - 1
+			: token->f_len;
 
-	strncpy((char*) term, (char*) token->utf8, srch_text.len);
-	term[srch_text.len] = '\0';
-	srch_text.utf8 = term;
+	strncpy((char*) term, (char*) token->f_str, srch_text.f_len);
+	term[srch_text.f_len] = '\0';
+	srch_text.f_str = term;
 
 	/* Lookup the word in the rb tree */
 	if (rbt_search_cmp(index_cache->words, &parent, &srch_text, NULL,
@@ -903,7 +903,7 @@ fts_cache_find_wildcard(
 
 				ret = rbt_search(query->word_freqs,
 						 &freq_parent,
-						 srch_text.utf8);
+						 srch_text.f_str);
 
 				ut_a(ret == 0);
 
@@ -912,7 +912,7 @@ fts_cache_find_wildcard(
 					freq_parent.last);
 
 				fts_query_filter_doc_ids(
-					query, srch_text.utf8,
+					query, srch_text.f_str,
 					word_freqs, node,
 					node->ilist, node->ilist_size, TRUE);
 			}
@@ -962,7 +962,7 @@ fts_query_difference(
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
 	fprintf(stderr, "DIFFERENCE: Searching: '%.*s'\n",
-		(int) token->len, token->utf8);
+		(int) token->f_len, token->f_str);
 #endif
 
 	if (query->doc_ids) {
@@ -1033,7 +1033,7 @@ fts_query_intersect(
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
 	fprintf(stderr, "INTERSECT: Searching: '%.*s'\n",
-		(int)token->len, token->utf8);
+		(int)token->f_len, token->f_str);
 #endif
 
 	if (!query->inited) {
@@ -1215,7 +1215,7 @@ fts_query_union(
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
 	fprintf(stderr, "UNION: Searching: '%.*s'\n",
-		(int) token->len, token->utf8);
+		(int) token->f_len, token->f_str);
 #endif
 
 	query->error = DB_SUCCESS;
@@ -1224,7 +1224,7 @@ fts_query_union(
 		n_doc_ids = rbt_size(query->doc_ids);
 	}
 
-	if (token->len == 0) {
+	if (token->f_len == 0) {
 		return(query->error);
 	}
 
@@ -1418,7 +1418,7 @@ fts_query_match_phrase_terms(
 			phrase->charset, ptr, (byte *) end,
 			&match, &offset);
 
-		if (match.len > 0) {
+		if (match.f_len > 0) {
 			/* Get next token to match. */
 			token = ib_vector_get_const(tokens, i);
 
@@ -1519,7 +1519,7 @@ fts_query_match_phrase(
 		searched field to adjust the doc position when search
 		phrases. */
 		pos -= prev_len;
-		ptr = match.utf8 = start + pos;
+		ptr = match.f_str = start + pos;
 
 		/* Within limits ? */
 		if (ptr >= end) {
@@ -1530,7 +1530,7 @@ fts_query_match_phrase(
 			phrase->charset, start + pos, (byte*) end,
 			&match, &offset);
 
-		if (match.len == 0) {
+		if (match.f_len == 0) {
 			break;
 		}
 
@@ -1700,10 +1700,10 @@ fts_query_find_term(
 	select.found = FALSE;
 	select.doc_id = doc_id;
 	select.min_pos = *min_pos;
-	select.word_freq = fts_query_add_word_freq(query, word->utf8);
+	select.word_freq = fts_query_add_word_freq(query, word->f_str);
 
 	pars_info_bind_function(info, "my_func", fts_query_select, &select);
-	pars_info_bind_varchar_literal(info, "word", word->utf8, word->len);
+	pars_info_bind_varchar_literal(info, "word", word->f_str, word->f_len);
 
 	/* Convert to "storage" byte order. */
 	fts_write_doc_id((byte*) &match_doc_id, doc_id);
@@ -1715,7 +1715,7 @@ fts_query_find_term(
 	if (!*graph) {
 		ulint		selected;
 
-		selected = fts_select_index(*word->utf8);
+		selected = fts_select_index(*word->f_str);
 
 		query->fts_index_table.suffix = fts_get_suffix(selected);
 
@@ -1833,9 +1833,9 @@ fts_query_total_docs_containing_term(
 	info = pars_info_create();
 
 	pars_info_bind_function(info, "my_func", fts_query_sum, total);
-	pars_info_bind_varchar_literal(info, "word", word->utf8, word->len);
+	pars_info_bind_varchar_literal(info, "word", word->f_str, word->f_len);
 
-	selected = fts_select_index(*word->utf8);
+	selected = fts_select_index(*word->f_str);
 
 	query->fts_index_table.suffix = fts_get_suffix(selected);
 
@@ -2084,7 +2084,7 @@ fts_query_search_phrase(
 					token = ib_vector_get(tokens, z);
 					fts_query_add_word_to_document(
 						query, match->doc_id,
-						token->utf8);
+						token->f_str);
 				}
 			}
 		}
@@ -2118,7 +2118,7 @@ fts_query_phrase_search(
 	ib_vector_t*		tokens;
 	ulint			n_doc_ids = 0;
 	mem_heap_t*		heap = mem_heap_create(sizeof(fts_string_t));
-	char*			utf8 = strdup((char*) phrase->utf8);
+	char*			utf8 = strdup((char*) phrase->f_str);
 	ib_alloc_t*		heap_alloc;
 	ulint			num_token;
 
@@ -2140,15 +2140,15 @@ fts_query_phrase_search(
 	for (src = utf8; /* No op */; src = NULL) {
 		fts_string_t*	token = ib_vector_push(tokens, NULL);
 
-		token->utf8 = (byte*) strtok_r(
+		token->f_str = (byte*) strtok_r(
 			src, FTS_PHRASE_DELIMITER, &state);
 
-		if (token->utf8) {
+		if (token->f_str) {
 			/* Add the word to the RB tree so that we can
 			calculate it's frequencey within a document. */
-			fts_query_add_word_freq(query, token->utf8);
+			fts_query_add_word_freq(query, token->f_str);
 
-			token->len = ut_strlen((char*) token->utf8);
+			token->f_len = ut_strlen((char*) token->f_str);
 		} else {
 			ib_vector_pop(tokens);
 			break;
@@ -2260,7 +2260,7 @@ fts_query_phrase_search(
 					query, match->doc_id, 0);
 
 				fts_query_add_word_to_document(
-					query, match->doc_id, token->utf8);
+					query, match->doc_id, token->f_str);
 			}
 			query->oper = oper;
 			goto func_exit;
@@ -2356,21 +2356,21 @@ fts_query_get_token(
 
 	ut_a(node->type == FTS_AST_TERM);
 
-	token->len = str_len;
-	token->utf8 = node->term.ptr;
+	token->f_len = str_len;
+	token->f_str = node->term.ptr;
 
 	if (node->term.wildcard) {
 
-		token->utf8 = ut_malloc(str_len + 2);
-		token->len = str_len + 1;
+		token->f_str = ut_malloc(str_len + 2);
+		token->f_len = str_len + 1;
 
 		/* Need to copy the NUL character too. */
-		memcpy(token->utf8, node->term.ptr, str_len + 1);
+		memcpy(token->f_str, node->term.ptr, str_len + 1);
 
-		token->utf8[str_len] = '%';
-		token->utf8[token->len] = 0;
+		token->f_str[str_len] = '%';
+		token->f_str[token->f_len] = 0;
 
-		new_ptr = token->utf8;
+		new_ptr = token->f_str;
 	}
 
 	return(new_ptr);
@@ -2398,8 +2398,8 @@ fts_query_visitor(
 
 	switch(node->type) {
 	case FTS_AST_TEXT:
-		token.utf8 = node->text.ptr;
-		token.len = ut_strlen((char*) token.utf8);
+		token.f_str = node->text.ptr;
+		token.f_len = ut_strlen((char*) token.f_str);
 
 		/* "first second third" is treated as first & second
 		& third. Create the rb tree that will hold the doc ids
@@ -2731,8 +2731,8 @@ fts_query_read_node(
 		ut_strcpy((char*) term, (char*) query->cur_node->term.ptr);
 	} else {
 		/* Need to copy the NUL character too. */
-		memcpy(term, word->utf8, word->len + 1);
-		term[word->len] = 0;
+		memcpy(term, word->f_str, word->f_len + 1);
+		term[word->f_len] = 0;
 	}
 
 	/* Lookup the word in our rb tree, it must exist. */
@@ -2822,8 +2822,8 @@ fts_query_index_fetch_nodes(
 	void*		data = dfield_get_data(dfield);
 	ulint		dfield_len = dfield_get_len(dfield);
 
-	key.utf8 = data;
-	key.len = dfield_len;
+	key.f_str = data;
+	key.f_len = dfield_len;
 
 	ut_a(dfield_len < FTS_MAX_WORD_LEN);
 
@@ -3468,15 +3468,15 @@ fts_expand_query(
 			fts_string_t	str;
 			ibool		ret;
 
-			str.utf8 = (byte*)*rbt_value(const byte*, node_word);
-			str.len	= ut_strlen((const char*)str.utf8);
+			str.f_str = (byte*)*rbt_value(const byte*, node_word);
+			str.f_len = ut_strlen((const char*)str.f_str);
 			ret = rbt_delete(result_doc.tokens, &str);
 
 			/* The word must exist in the doc we found */
 			if (!ret) {
 				fprintf(stderr, " InnoDB: Error: Did not "
 					"find word %s in doc %ld for query "
-					"expansion search.\n", str.utf8,
+					"expansion search.\n", str.f_str,
 					(ulint)ranking->doc_id);
 			}
 		}
@@ -3489,7 +3489,7 @@ fts_expand_query(
 		fts_token_t*	mytoken;
 		mytoken = rbt_value(fts_token_t, token_node);
 
-		fts_query_add_word_freq(query, mytoken->text.utf8);
+		fts_query_add_word_freq(query, mytoken->text.f_str);
 		error = fts_query_union(query, &mytoken->text);
 
 		if (error != DB_SUCCESS) {
@@ -3606,7 +3606,7 @@ fts_check_phrase_proximity(
 				token = ib_vector_get(tokens, z);
 				fts_query_add_word_to_document(
 					query, match[0]->doc_id,
-					token->utf8);
+					token->f_str);
 			}
 		}
 
