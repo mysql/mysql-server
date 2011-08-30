@@ -27,7 +27,7 @@ static const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in
 static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK|DB_RECOVER;
 // static int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 static char *dbfilename = "bench.db";
-static u_int64_t cachesize = 127*1024*1024;
+static u_int64_t cachesize = 0xffffffff;
 static int verbose UU() = 0;
 static const char *log_dir = NULL;
 
@@ -105,6 +105,11 @@ static void test_begin_commit(int nqueries) {
     }
 }
 
+static int do_nothing (DBT const* UU(key), DBT const* UU(data), void* UU(extrav)) {
+  return TOKUDB_CURSOR_CONTINUE;
+}
+
+
 // read in the entire DB, warming up the cache
 //  - record maxkey 
 static void warmup(void) {
@@ -121,7 +126,7 @@ static void warmup(void) {
     r = c->c_get(c, &key, &val, DB_FIRST); assert_zero(r);
     assert(key.size == 8);
     while ( r != DB_NOTFOUND ) {
-        r = c->c_get(c, &key, &val, DB_NEXT);
+        r = c->c_getf_next(c, DB_PRELOCKED, do_nothing, NULL);
         if ( r != 0 && r != DB_NOTFOUND) assert_zero(r);
     }
     memset(&key, 0, sizeof key);
