@@ -598,6 +598,7 @@ dict_stats_analyze_index_level(
 	/* now in n_diff_boundaries[i] there are exactly n_diff[i] integers,
 	for i=1..n_uniq */
 
+#ifdef UNIV_STATS_DEBUG
 	for (i = 1; i <= n_uniq; i++) {
 
 		DEBUG_PRINTF("    %s(): total recs: %llu, total pages: %llu, "
@@ -605,7 +606,6 @@ dict_stats_analyze_index_level(
 			     __func__, *total_recs, *total_pages,
 			     i, n_diff[i]);
 
-#if 0
 		if (n_diff_boundaries != NULL) {
 			ib_int64_t	j;
 
@@ -621,8 +621,8 @@ dict_stats_analyze_index_level(
 			}
 			printf("\n");
 		}
-#endif
 	}
+#endif /* UNIV_STATS_DEBUG */
 
 	btr_pcur_close(&pcur);
 
@@ -2797,7 +2797,7 @@ test_dict_stats_save()
 	enum db_err	ret;
 
 	/* craft a dummy dict_table_t */
-	table.name = TEST_DATABASE_NAME "/" TEST_TABLE_NAME;
+	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
 	table.stat_n_rows = TEST_N_ROWS;
 	table.stat_clustered_index_size = TEST_CLUSTERED_INDEX_SIZE;
 	table.stat_sum_of_other_index_sizes = TEST_SUM_OF_OTHER_INDEX_SIZES;
@@ -2961,7 +2961,7 @@ test_dict_stats_fetch_from_ps()
 	enum db_err	ret;
 
 	/* craft a dummy dict_table_t */
-	table.name = TEST_DATABASE_NAME "/" TEST_TABLE_NAME;
+	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
 	UT_LIST_INIT(table.indexes);
 	UT_LIST_ADD_LAST(indexes, table.indexes, &index1);
 	UT_LIST_ADD_LAST(indexes, table.indexes, &index2);

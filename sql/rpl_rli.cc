@@ -27,6 +27,7 @@
 #include "transaction.h"
 #include "sql_parse.h"                          // end_trans, ROLLBACK
 #include "rpl_slave.h"
+#include "rpl_rli_pdb.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 
@@ -42,7 +43,8 @@ const char* info_rli_fields[]=
   "group_relay_log_pos",
   "group_master_log_name",
   "group_master_log_pos",
-  "sql_delay"
+  "sql_delay",
+  "number_of_workers"
 };
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery
@@ -75,8 +77,12 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0),
-   sql_delay(0), sql_delay_end(0),
-   m_flags(0)
+   slave_parallel_workers(0),
+   recovery_parallel_workers(0), checkpoint_seqno(0),
+   checkpoint_group(mts_checkpoint_group), mts_recovery_group_cnt(0),
+   mts_recovery_index(0), mts_recovery_group_seen_begin(0),
+   mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
+   sql_delay(0), sql_delay_end(0), m_flags(0)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -90,24 +96,142 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
   until_log_name[0]= ign_master_log_name_end[0]= 0;
+  set_timespec_nsec(last_clock, 0);
+  bitmap_init(&recovery_groups, NULL, checkpoint_group, FALSE);
   memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
+
   mysql_mutex_init(key_relay_log_info_log_space_lock,
                    &log_space_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond, NULL);
+  mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
+                   MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond, NULL);
+  my_atomic_rwlock_init(&slave_open_temp_tables_lock);
+
   relay_log.init_pthread_objects();
+
   DBUG_VOID_RETURN;
+}
+
+/**
+   The method to invoke at slave threads start
+*/
+void Relay_log_info::init_workers(ulong n_workers)
+{
+  /*
+    Parallel slave parameters initialization is done regardless
+    whether the feature is or going to be active or not.
+  */
+  mts_groups_assigned= mts_events_assigned= pending_jobs= wq_size_waits_cnt= 0;
+  mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
+
+  my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
+}
+
+/**
+   The method to invoke at slave threads stop
+*/
+void Relay_log_info::deinit_workers()
+{
+  delete_dynamic(&workers);
 }
 
 Relay_log_info::~Relay_log_info()
 {
   DBUG_ENTER("Relay_log_info::~Relay_log_info");
 
+  bitmap_free(&recovery_groups);
   mysql_mutex_destroy(&log_space_lock);
   mysql_cond_destroy(&log_space_cond);
+  mysql_mutex_destroy(&pending_jobs_lock);
+  mysql_cond_destroy(&pending_jobs_cond);
+  my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);
   relay_log.cleanup();
 
   DBUG_VOID_RETURN;
+}
+
+/**
+   Method is called when MTS coordinator senses the relay-log name
+   has been changed.
+   It marks each Worker member with this fact to make an action
+   at time it will distribute a terminal event of a group to the Worker.
+
+   Worker receives the new name at the group commiting phase
+   @c Slave_worker::slave_worker_ends_group().
+*/
+void Relay_log_info::reset_notified_relay_log_change()
+{
+  if (!is_parallel_exec())
+    return;
+  for (uint i= 0; i < workers.elements; i++)
+  {
+    Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+    w->relay_log_change_notified= FALSE;
+  }
+}
+
+/**
+   This method is called in mts_checkpoint_routine() to mark that each
+   worker is required to adapt to a new checkpoint data whose coordinates
+   are passed to it through GAQ index.
+
+   Worker notices the new checkpoint value at the group commit to reset
+   the current bitmap and starts using the clean bitmap indexed from zero
+   of being reset checkpoint_seqno. 
+
+    New seconds_behind_master timestamp is installed.
+
+   @param shift  number of bits to shift by Worker due to the current
+                 checkpoint change.
+   @param new_ts new seconds_behind_master timestamp value unless zero.
+                 Zero could be due to FD event.
+*/
+void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts= 0)
+{
+  /*
+    If this is not a parallel execution we return immediately.
+  */
+  if (!is_parallel_exec())
+    return;
+
+  for (uint i= 0; i < workers.elements; i++)
+  {
+    Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+    /*
+      Reseting the notification information in order to force workers to
+      assign jobs with the new updated information.
+      Notice that the bitmap_shifted is accumulated to indicate how many
+      consecutive jobs were successfully processed. 
+
+      The worker when assigning a new job will set the value back to
+      zero.
+    */
+    w->checkpoint_notified= FALSE;
+    w->bitmap_shifted= w->bitmap_shifted + shift;
+
+    DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
+               "worker->bitmap_shifted --> %lu, worker --> %u.",
+               shift, w->bitmap_shifted, i));  
+  }
+  /*
+    There should not be a call where (shift == 0 && checkpoint_seqno != 0).
+
+    Then the new checkpoint sequence is updated by subtracting the number
+    of consecutive jobs that were successfully processed.
+  */
+  DBUG_ASSERT(!(shift == 0 && checkpoint_seqno != 0));
+  checkpoint_seqno= checkpoint_seqno - shift;
+  DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
+             "checkpoint_seqno --> %u.", shift, checkpoint_seqno));  
+
+  if (new_ts)
+  {
+    mysql_mutex_lock(&data_lock);
+    last_master_timestamp= new_ts;
+    mysql_mutex_unlock(&data_lock);
+  }
 }
 
 static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
@@ -636,6 +760,18 @@ void Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
   {
     group_master_log_pos= log_pos;
   }
+
+  /*
+    In MTS mode FD or Rotate event commit their solitary group to
+    Coordinator's info table. Callers make sure that Workers have been
+    executed all assignements.
+    Broadcast to master_pos_wait() waiters should be done after
+    the table is updated.
+  */
+  DBUG_ASSERT(!is_parallel_exec() ||
+              mts_group_status != Relay_log_info::MTS_IN_GROUP);
+  flush_info(is_transactional() ? TRUE : FALSE);  // todo: error branch
+
   mysql_cond_broadcast(&data_cond);
   if (!skip_lock)
     mysql_mutex_unlock(&data_lock);
@@ -899,7 +1035,10 @@ bool Relay_log_info::cached_charset_compare(char *charset) const
 void Relay_log_info::stmt_done(my_off_t event_master_log_pos)
 {
   clear_flag(IN_STMT);
+
   DBUG_ASSERT(!belongs_to_client());
+  /* Worker does not execute binlog update position logics */
+  DBUG_ASSERT(!is_mts_worker(info_thd));
 
   /*
     If in a transaction, and if the slave supports transactions, just
@@ -924,12 +1063,27 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos)
     middle of the "transaction". START SLAVE will resume at BEGIN
     while the MyISAM table has already been updated.
   */
-  if ((info_thd->variables.option_bits & OPTION_BEGIN) && opt_using_transactions)
+  if ((!is_parallel_exec() && is_in_group()) ||
+      mts_group_status != MTS_NOT_IN_GROUP)
+  {
     inc_event_relay_log_pos();
+  }
   else
   {
+    if (is_parallel_exec())
+    {
+
+      DBUG_ASSERT(!is_mts_worker(info_thd));
+
+      /*
+        Format Description events only can drive MTS execution to this
+        point. It is a special event group that is handled with
+        synchronization. For that reason, the checkpoint routine is
+        called here.
+      */
+      (void) mts_checkpoint_routine(this, 0, FALSE, FALSE); // TODO: ALFRANIO ERROR
+    }
     inc_group_relay_log_pos(event_master_log_pos);
-    flush_info(is_transactional() ? TRUE : FALSE);
   }
 }
 
@@ -955,11 +1109,12 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   {
     trans_rollback_stmt(thd); // if a "statement transaction"
     trans_rollback(thd);      // if a "real transaction"
-    if (rows_query_ev)
-    {
-      delete rows_query_ev;
-      rows_query_ev= NULL;
-    }
+  }
+  if (rows_query_ev)
+  {
+    delete rows_query_ev;
+    rows_query_ev= NULL;
+    info_thd->set_query(NULL, 0);
   }
   m_table_map.clear_tables();
   slave_close_thread_tables(thd);
@@ -1101,7 +1256,8 @@ int Relay_log_info::init_info()
     if (hot_log)
       mysql_mutex_unlock(log_lock);
 
-    DBUG_RETURN(0);
+    DBUG_RETURN(recovery_parallel_workers && !is_mts_recovery() ?
+                mts_recovery_groups(this, &recovery_groups) : 0);
   }
 
   cur_log_fd = -1;
@@ -1205,7 +1361,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     the handler->init_info().
   */
   int necessary_to_configure= check_info();
-  if ((error= handler->init_info()))
+  if ((error= handler->init_info(uidx, nidx)))
   {
     msg= "Error reading relay log configuration";
     error= 1;
@@ -1295,7 +1451,7 @@ void Relay_log_info::end_info()
   if (!inited)
     DBUG_VOID_RETURN;
 
-  handler->end_info();
+  handler->end_info(uidx, nidx);
 
   if (cur_log_fd >= 0)
   {
@@ -1388,7 +1544,7 @@ void Relay_log_info::set_master_info(Master_info* info)
 
   @return 0 on success, 1 on error.
 */
-int Relay_log_info::flush_info(bool force)
+int Relay_log_info::flush_info(const bool force)
 {
   DBUG_ENTER("Relay_log_info::flush_info");
 
@@ -1400,7 +1556,10 @@ int Relay_log_info::flush_info(bool force)
   */
   handler->set_sync_period(sync_relayloginfo_period);
 
-  if (write_info(handler, force))
+  if (write_info(handler))
+    goto err;
+
+  if (handler->flush_info(uidx, nidx, force))
     goto err;
 
   DBUG_RETURN(0);
@@ -1463,8 +1622,9 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
     it is line count and not binlog name (new format) it will be
     overwritten by the second row later.
   */
-  if (from->prepare_info_for_read() ||
-      from->get_info(group_relay_log_name, sizeof(group_relay_log_name), ""))
+  if (from->prepare_info_for_read(nidx) ||
+      from->get_info(group_relay_log_name, (size_t) sizeof(group_relay_log_name),
+                     (char *) ""))
     DBUG_RETURN(TRUE);
 
   lines= strtoul(group_relay_log_name, &first_non_digit, 10);
@@ -1473,23 +1633,31 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
       *first_non_digit=='\0' && lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY)
   {
     /* Seems to be new format => read group relay log name */
-    if (from->get_info(group_relay_log_name,  sizeof(group_relay_log_name), ""))
+    if (from->get_info(group_relay_log_name, (size_t) sizeof(group_relay_log_name),
+                       (char *) ""))
       DBUG_RETURN(TRUE);
   }
   else
      DBUG_PRINT("info", ("relay_log_info file is in old format."));
 
   if (from->get_info((ulong *) &temp_group_relay_log_pos,
-                        (ulong) BIN_LOG_HEADER_SIZE) ||
+                     (ulong) BIN_LOG_HEADER_SIZE) ||
       from->get_info(group_master_log_name,
-                        sizeof(group_relay_log_name), "") ||
+                     (size_t) sizeof(group_relay_log_name),
+                     (char *) "") ||
       from->get_info((ulong *) &temp_group_master_log_pos,
-                        (ulong) 0))
+                     (ulong) 0))
     DBUG_RETURN(TRUE);
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY)
   {
     if (from->get_info((int *) &temp_sql_delay,(int) 0))
+      DBUG_RETURN(TRUE);
+  }
+
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_WORKERS)
+  {
+    if (from->get_info(&recovery_parallel_workers,(ulong) 0))
       DBUG_RETURN(TRUE);
   }
 
@@ -1500,7 +1668,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   DBUG_RETURN(FALSE);
 }
 
-bool Relay_log_info::write_info(Rpl_info_handler *to, bool force)
+bool Relay_log_info::write_info(Rpl_info_handler *to)
 {
   DBUG_ENTER("Relay_log_info::write_info");
 
@@ -1510,17 +1678,23 @@ bool Relay_log_info::write_info(Rpl_info_handler *to, bool force)
   */
   //DBUG_ASSERT(!belongs_to_client());
 
-  if (to->prepare_info_for_write() ||
-      to->set_info((int) LINES_IN_RELAY_LOG_INFO_WITH_DELAY) ||
+  if (to->prepare_info_for_write(nidx) ||
+      to->set_info((int) LINES_IN_RELAY_LOG_INFO_WITH_WORKERS) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong) group_relay_log_pos) ||
       to->set_info(group_master_log_name) ||
       to->set_info((ulong) group_master_log_pos) ||
-      to->set_info((int) sql_delay))
-    DBUG_RETURN(TRUE);
-
-  if (to->flush_info(force))
+      to->set_info((int) sql_delay) ||
+      to->set_info(recovery_parallel_workers))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
 }
+
+
+THD* mts_get_coordinator_thd()
+{
+  return (!active_mi || !active_mi->rli || !active_mi->rli->is_parallel_exec()) ?
+    NULL : active_mi->rli->info_thd;
+}
+

@@ -91,6 +91,10 @@ ulong statement_class_lost= 0;
 ulong table_share_max= 0;
 /** Number of table share lost. @sa table_share_array */
 ulong table_share_lost= 0;
+/** Size of the socket class array. @sa socket_class_array */
+ulong socket_class_max= 0;
+/** Number of socket class lost. @sa socket_class_array */
+ulong socket_class_lost= 0;
 
 PFS_mutex_class *mutex_class_array= NULL;
 PFS_rwlock_class *rwlock_class_array= NULL;
@@ -117,6 +121,7 @@ PFS_table_share *table_share_array= NULL;
 
 PFS_instr_class global_table_io_class;
 PFS_instr_class global_table_lock_class;
+PFS_instr_class global_idle_class;
 
 /**
   Hash index for instrumented table shares.
@@ -131,10 +136,6 @@ PFS_instr_class global_table_lock_class;
 static LF_HASH table_share_hash;
 /** True if table_share_hash is initialized. */
 static bool table_share_hash_inited= false;
-C_MODE_START
-/** Get hash table key for instrumented tables. */
-static uchar *table_share_hash_get_key(const uchar *, size_t *, my_bool);
-C_MODE_END
 
 static volatile uint32 file_class_dirty_count= 0;
 static volatile uint32 file_class_allocated_count= 0;
@@ -151,12 +152,18 @@ static volatile uint32 statement_class_allocated_count= 0;
 
 static PFS_statement_class *statement_class_array= NULL;
 
+static volatile uint32 socket_class_dirty_count= 0;
+static volatile uint32 socket_class_allocated_count= 0;
+
+static PFS_socket_class *socket_class_array= NULL;
+
 uint mutex_class_start= 0;
 uint rwlock_class_start= 0;
 uint cond_class_start= 0;
 uint file_class_start= 0;
 uint table_class_start= 0;
 uint wait_class_max= 0;
+uint socket_class_start= 0;
 
 void init_event_name_sizing(const PFS_global_param *param)
 {
@@ -164,8 +171,9 @@ void init_event_name_sizing(const PFS_global_param *param)
   rwlock_class_start= mutex_class_start + param->m_mutex_class_sizing;
   cond_class_start= rwlock_class_start + param->m_rwlock_class_sizing;
   file_class_start= cond_class_start + param->m_cond_class_sizing;
-  table_class_start= file_class_start + param->m_file_class_sizing;
-  wait_class_max= table_class_start + 2; /* global table io, lock */
+  socket_class_start= file_class_start + param->m_file_class_sizing;
+  table_class_start= socket_class_start + param->m_socket_class_sizing;
+  wait_class_max= table_class_start + 3; /* global table io, lock, idle */
 
   memcpy(global_table_io_class.m_name, "wait/io/table/sql/handler", 25);
   global_table_io_class.m_name_length= 25;
@@ -180,6 +188,13 @@ void init_event_name_sizing(const PFS_global_param *param)
   global_table_lock_class.m_enabled= true;
   global_table_lock_class.m_timed= true;
   global_table_lock_class.m_event_name_index= table_class_start + 1;
+
+  memcpy(global_idle_class.m_name, "idle", 4);
+  global_idle_class.m_name_length= 4;
+  global_idle_class.m_flags= 0;
+  global_idle_class.m_enabled= true;
+  global_idle_class.m_timed= true;
+  global_idle_class.m_event_name_index= table_class_start + 2;
 }
 
 /**
@@ -312,9 +327,8 @@ void cleanup_table_share(void)
   table_share_max= 0;
 }
 
-/**
-  get_key function for @c table_share_hash.
-*/
+C_MODE_START
+/** get_key function for @c table_share_hash. */
 static uchar *table_share_hash_get_key(const uchar *entry, size_t *length,
                                        my_bool)
 {
@@ -329,6 +343,7 @@ static uchar *table_share_hash_get_key(const uchar *entry, size_t *length,
   result= &share->m_key.m_hash_key[0];
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
 }
+C_MODE_END
 
 /** Initialize the table share hash table. */
 int init_table_share_hash(void)
@@ -520,10 +535,45 @@ void cleanup_statement_class(void)
   statement_class_max= 0;
 }
 
+/**
+  Initialize the socket class buffer.
+  @param socket_class_sizing            max number of socket class
+  @return 0 on success
+*/
+int init_socket_class(uint socket_class_sizing)
+{
+  int result= 0;
+  socket_class_dirty_count= socket_class_allocated_count= 0;
+  socket_class_max= socket_class_sizing;
+  socket_class_lost= 0;
+
+  if (socket_class_max > 0)
+  {
+    socket_class_array= PFS_MALLOC_ARRAY(socket_class_max, PFS_socket_class,
+                                         MYF(MY_ZEROFILL));
+    if (unlikely(socket_class_array == NULL))
+      return 1;
+  }
+  else
+    socket_class_array= NULL;
+
+  return result;
+}
+
+/** Cleanup the socket class buffers. */
+void cleanup_socket_class(void)
+{
+  pfs_free(socket_class_array);
+  socket_class_array= NULL;
+  socket_class_dirty_count= socket_class_allocated_count= 0;
+  socket_class_max= 0;
+}
+
 static void init_instr_class(PFS_instr_class *klass,
                              const char *name,
                              uint name_length,
-                             int flags)
+                             int flags,
+                             PFS_class_type class_type)
 {
   DBUG_ASSERT(name_length <= PFS_MAX_INFO_NAME_LENGTH);
   memset(klass, 0, sizeof(PFS_instr_class));
@@ -532,6 +582,7 @@ static void init_instr_class(PFS_instr_class *klass,
   klass->m_flags= flags;
   klass->m_enabled= true;
   klass->m_timed= true;
+  klass->m_type= class_type;
 }
 
 #define REGISTER_CLASS_BODY_PART(INDEX, ARRAY, MAX, NAME, NAME_LENGTH) \
@@ -595,7 +646,7 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
         in INSTALL PLUGIN.
     */
     entry= &mutex_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_MUTEX);
     entry->m_lock_stat.reset();
     entry->m_event_name_index= mutex_class_start + index;
     entry->m_singleton= NULL;
@@ -655,7 +706,7 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
   if (index < rwlock_class_max)
   {
     entry= &rwlock_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_RWLOCK);
     entry->m_read_lock_stat.reset();
     entry->m_write_lock_stat.reset();
     entry->m_event_name_index= rwlock_class_start + index;
@@ -690,7 +741,7 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
   if (index < cond_class_max)
   {
     entry= &cond_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_COND);
     entry->m_event_name_index= cond_class_start + index;
     entry->m_singleton= NULL;
     PFS_atomic::add_u32(&cond_class_allocated_count, 1);
@@ -828,7 +879,7 @@ PFS_file_key register_file_class(const char *name, uint name_length,
   if (index < file_class_max)
   {
     entry= &file_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_FILE);
     entry->m_event_name_index= file_class_start + index;
     entry->m_singleton= NULL;
     PFS_atomic::add_u32(&file_class_allocated_count, 1);
@@ -861,7 +912,7 @@ PFS_stage_key register_stage_class(const char *name, uint name_length,
   if (index < stage_class_max)
   {
     entry= &stage_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_STAGE);
     entry->m_event_name_index= index;
     PFS_atomic::add_u32(&stage_class_allocated_count, 1);
 
@@ -894,7 +945,7 @@ PFS_statement_key register_statement_class(const char *name, uint name_length,
   if (index < statement_class_max)
   {
     entry= &statement_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_STATEMENT);
     entry->m_event_name_index= index;
     PFS_atomic::add_u32(&statement_class_allocated_count, 1);
 
@@ -950,6 +1001,55 @@ PFS_statement_class *sanitize_statement_class(PFS_statement_class *unsafe)
   SANITIZE_ARRAY_BODY(PFS_statement_class, statement_class_array, statement_class_max, unsafe);
 }
 
+/**
+  Register a socket instrumentation metadata.
+  @param name                         the instrumented name
+  @param name_length                  length in bytes of name
+  @param flags                        the instrumentation flags
+  @return a socket instrumentation key
+*/
+PFS_socket_key register_socket_class(const char *name, uint name_length,
+                                     int flags)
+{
+  /* See comments in register_mutex_class */
+  uint32 index;
+  PFS_socket_class *entry;
+
+  REGISTER_CLASS_BODY_PART(index, socket_class_array, socket_class_max,
+                           name, name_length)
+
+  index= PFS_atomic::add_u32(&socket_class_dirty_count, 1);
+
+  if (index < socket_class_max)
+  {
+    entry= &socket_class_array[index];
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_SOCKET);
+    entry->m_index= index;
+    entry->m_event_name_index= socket_class_start + index;
+    entry->m_singleton= NULL;
+    PFS_atomic::add_u32(&socket_class_allocated_count, 1);
+    return (index + 1);
+  }
+
+  socket_class_lost++;
+  return 0;
+}
+
+/**
+  Find a socket instrumentation class by key.
+  @param key                          the instrument key
+  @return the instrument class, or NULL
+*/
+PFS_socket_class *find_socket_class(PFS_socket_key key)
+{
+  FIND_CLASS_BODY(key, socket_class_allocated_count, socket_class_array);
+}
+
+PFS_socket_class *sanitize_socket_class(PFS_socket_class *unsafe)
+{
+  SANITIZE_ARRAY_BODY(PFS_socket_class, socket_class_array, socket_class_max, unsafe);
+}
+
 PFS_instr_class *find_table_class(uint index)
 {
   if (index == 1)
@@ -963,6 +1063,20 @@ PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe)
 {
   if (likely((& global_table_io_class == unsafe) ||
              (& global_table_lock_class == unsafe)))
+    return unsafe;
+  return NULL;
+}
+
+PFS_instr_class *find_idle_class(uint index)
+{
+  if (index == 1)
+    return & global_idle_class;
+  return NULL;
+}
+
+PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe)
+{
+  if (likely(& global_idle_class == unsafe))
     return unsafe;
   return NULL;
 }
@@ -1215,6 +1329,16 @@ void reset_file_class_io(void)
 
   for ( ; pfs < pfs_last; pfs++)
     pfs->m_file_stat.m_io_stat.reset();
+}
+
+/** Reset the io statistics per socket class. */
+void reset_socket_class_io(void)
+{
+  PFS_socket_class *pfs= socket_class_array;
+  PFS_socket_class *pfs_last= socket_class_array + socket_class_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+    pfs->m_socket_stat.m_io_stat.reset();
 }
 
 void update_table_share_derived_flags(PFS_thread *thread)

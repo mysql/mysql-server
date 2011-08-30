@@ -128,6 +128,8 @@ struct timespec {
   ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
    ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
 
+#define diff_timespec(TS1, TS2) \
+  ((TS1.tv.i64 - TS2.tv.i64) * 100)
 
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
@@ -455,6 +457,20 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
    ((TS1.tv_sec < TS2.tv_sec || \
      (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec < TS2.tv_nsec)) ? -1 : 0))
 #endif /* !cmp_timespec */
+#endif /* HAVE_TIMESPEC_TS_SEC */
+
+#ifdef HAVE_TIMESPEC_TS_SEC
+#ifndef diff_timespec
+#define diff_timespec(TS1, TS2) \
+  (((TS1.ts_sec * 1000000000) + TS1.ts_nsec) - \
+   ((TS2.ts_sec * 1000000000) + TS2.ts_nsec))
+#endif /* !diff_timespec */
+#else
+#ifndef diff_timespec
+#define diff_timespec(TS1, TS2) \
+  (((TS1.tv_sec * 1000000000) + TS1.tv_nsec) - \
+   ((TS2.tv_sec * 1000000000) + TS2.tv_nsec))
+#endif /* !diff_timespec */
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
 	/* safe_mutex adds checking to mutex for easier debugging */

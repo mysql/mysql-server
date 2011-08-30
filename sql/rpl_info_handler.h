@@ -17,7 +17,7 @@
 #define RPL_INFO_HANDLER_H
 
 #include <my_global.h>
-#include <server_ids.h>
+#include <dynamic_ids.h>
 #include "rpl_info_values.h"
 
 class Rpl_info_handler
@@ -27,26 +27,32 @@ public:
     After creating an object and assembling components, this method is
     used to initialize internal structures. Everything that does not
     depend on other components (e.g. mutexes) should be placed in the
-    object's constructor though. 
+    object's constructor though.
+
+    @param[in] uidx Array of fields that identifies an object
+    @param[in] nidx Number of fields in the array
 
     @retval FALSE success,
     @retval TRUE  otherwise error.
   */
-  int init_info()
+  int init_info(const ulong *uidx, const uint nidx)
   {
-    return do_init_info();
+    return do_init_info(uidx, nidx);
   }
 
   /**
     Checks if any necessary dependency is satisfied such as a
     file exists.
 
+    @param[in] uidx Array of fields that identifies an object
+    @param[in] nidx Number of fields in the array
+
     @retval FALSE success,
     @retval TRUE  otherwise error.
   */
-  int check_info()
+  int check_info(const ulong *uidx, const uint nidx)
   {
-    return do_check_info();
+    return do_check_info(uidx, nidx);
   }
 
   /**
@@ -62,36 +68,44 @@ public:
     system, it may happen that the changes will only end up in the
     operating system's cache and a crash may lead to inconsistencies.
 
+    @param[in] uidx  Array of fields that identifies an object
+    @param[in] nidx  Number of fields in the array
     @param[in] force Always sync the information.
 
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  int flush_info(const bool force)
+  int flush_info(const ulong *uidx, const uint nidx, const bool force)
   {
-    return do_flush_info(force);
+    return do_flush_info(uidx, nidx, force);
   }
 
   /**
     Deletes any information in the repository.
 
+    @param[in] uidx Array of fields that identifies an object
+    @param[in] nidx Number of fields in the array
+
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  int remove_info()
+  int remove_info(const ulong *uidx, const uint nidx)
   {
-    return do_remove_info();
+    return do_remove_info(uidx, nidx);
   }
 
   /**
     Closes access to the repository.
 
+    @param[in] uidx Array of fields that identifies an object
+    @param[in] nidx Number of fields in the array
+
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  void end_info()
+  void end_info(const ulong *uidx, const uint nidx)
   {
-    do_end_info();
+    do_end_info(uidx, nidx);
   }
 
   /**
@@ -101,9 +115,9 @@ public:
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  int prepare_info_for_read()
+  int prepare_info_for_read(const uint nidx)
   {
-    return (do_prepare_info_for_read());
+    return (do_prepare_info_for_read(nidx));
   }
 
   /**
@@ -113,9 +127,9 @@ public:
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  int prepare_info_for_write()
+  int prepare_info_for_write(const uint nidx)
   {
-    return (do_prepare_info_for_write());
+    return (do_prepare_info_for_write(nidx));
   }
 
   /**
@@ -136,6 +150,18 @@ public:
       return TRUE;
 
     if (!(prv_error= do_set_info(cursor, value)))
+      cursor++;
+
+    return(prv_error);
+  }
+
+  template <class TypeHandler>
+  bool set_info(TypeHandler const value, const size_t size)
+  {
+    if (cursor >= ninfo || prv_error)
+      return TRUE;
+
+    if (!(prv_error= do_set_info(cursor, value, size)))
       cursor++;
 
     return(prv_error);
@@ -182,8 +208,9 @@ public:
     @retval FALSE No error
     @retval TRUE Failure
   */
-  bool get_info(char *value, const size_t size,
-                const char *default_value)
+  template <class TypeHandler>
+  bool get_info(TypeHandler value, const size_t size,
+                TypeHandler const default_value)
   {
     if (cursor >= ninfo || prv_error)
       return TRUE;
@@ -207,8 +234,8 @@ public:
     @retval FALSE No error
     @retval TRUE Failure
   */
-  bool get_info(Server_ids *value,
-                const Server_ids *default_value)
+  bool get_info(Dynamic_ids *value,
+                const Dynamic_ids *default_value)
   {
     if (cursor >= ninfo || prv_error)
       return TRUE;
@@ -306,29 +333,36 @@ protected:
   Rpl_info_handler(const int nparam);
 
 private:
-  virtual int do_init_info()= 0;
-  virtual int do_check_info()= 0;
-  virtual int do_flush_info(const bool force)= 0;
-  virtual int do_remove_info()= 0;
-  virtual void do_end_info()= 0;
-  virtual int do_prepare_info_for_read()= 0;
-  virtual int do_prepare_info_for_write()= 0;
+  virtual int do_init_info(const ulong *uidx, const uint nidx)= 0;
+  virtual int do_check_info(const ulong *uidx, const uint nidx)= 0;
+  virtual int do_flush_info(const ulong *uidx, const uint nidx,
+                            const bool force)= 0;
+  virtual int do_remove_info(const ulong *uidx, const uint nidx)= 0;
+  virtual void do_end_info(const ulong *uidx, const uint nidx)= 0;
+  virtual int do_prepare_info_for_read(const uint nidx)= 0;
+  virtual int do_prepare_info_for_write(const uint nidx)= 0;
 
   virtual bool do_set_info(const int pos, const char *value)= 0;
+  virtual bool do_set_info(const int pos, const uchar *value,
+                           const size_t size)= 0;
   virtual bool do_set_info(const int pos, const ulong value)= 0;
   virtual bool do_set_info(const int pos, const int value)= 0;
   virtual bool do_set_info(const int pos, const float value)= 0;
-  virtual bool do_set_info(const int pos, const Server_ids *value)= 0;
-  virtual bool do_get_info(const int pos, char *value, const size_t size,
+  virtual bool do_set_info(const int pos, const Dynamic_ids *value)= 0;
+  virtual bool do_get_info(const int pos, char *value,
+                           const size_t size,
                            const char *default_value)= 0;
+  virtual bool do_get_info(const int pos, uchar *value,
+                           const size_t size,
+                           const uchar *default_value)= 0;
   virtual bool do_get_info(const int pos, ulong *value,
                            const ulong default_value)= 0;
   virtual bool do_get_info(const int pos, int *value,
                            const int default_value)= 0;
   virtual bool do_get_info(const int pos, float *value,
                            const float default_value)= 0;
-  virtual bool do_get_info(const int pos, Server_ids *value,
-                           const Server_ids *default_value)= 0;
+  virtual bool do_get_info(const int pos, Dynamic_ids *value,
+                           const Dynamic_ids *default_value)= 0;
   virtual char* do_get_description_info()= 0;
   virtual bool do_is_transactional()= 0;
   virtual bool do_update_is_transactional()= 0;
@@ -337,4 +371,8 @@ private:
 
   Rpl_info_handler& operator=(const Rpl_info_handler& handler);
 };
+#ifndef DBUG_OFF
+ extern ulong w_rr;
+ extern uint mts_debug_concurrent_access;
+#endif
 #endif /* RPL_INFO_HANDLER_H */

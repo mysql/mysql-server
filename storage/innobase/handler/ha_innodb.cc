@@ -197,6 +197,26 @@ static TYPELIB innodb_stats_method_typelib = {
 	NULL
 };
 
+/** Possible values for system variable "innodb_checksum_algorithm". */
+static const char* innodb_checksum_algorithm_names[] = {
+	"crc32",
+	"strict_crc32",
+	"innodb",
+	"strict_innodb",
+	"none",
+	"strict_none",
+	NullS
+};
+
+/** Used to define an enumerate type of the system variable
+innodb_checksum_algorithm. */
+static TYPELIB innodb_checksum_algorithm_typelib = {
+	array_elements(innodb_checksum_algorithm_names) - 1,
+	"innodb_checksum_algorithm_typelib",
+	innodb_checksum_algorithm_names,
+	NULL
+};
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -2693,7 +2713,8 @@ innobase_change_buffering_inited_ok:
 			" InnoDB: Warning: Using " 
 			"innodb_additional_mem_pool_size is DEPRECATED. "
 			"This option may be removed in future releases, "
-			"together with the InnoDB's internal memory "
+			"together with the option innodb_use_sys_malloc "
+			"and with the InnoDB's internal memory "
 			"allocator.\n");
 	}
 
@@ -2703,8 +2724,7 @@ innobase_change_buffering_inited_ok:
 			" InnoDB: Warning: Setting " 
 			"innodb_use_sys_malloc to FALSE is DEPRECATED. "
 			"This option may be removed in future releases, "
-			"together with the option innodb_use_sys_malloc "
-			"and with the InnoDB's internal memory "
+			"together with the InnoDB's internal memory "
 			"allocator.\n");
 	}
 
@@ -2715,7 +2735,16 @@ innobase_change_buffering_inited_ok:
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-	srv_use_checksums = (ibool) innobase_use_checksums;
+	if (!innobase_use_checksums) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Warning: Setting " 
+			"innodb_checksums to OFF is DEPRECATED. "
+			"This option may be removed in future releases. "
+			"You should set innodb_checksum_algorithm=NONE "
+			"instead.\n");
+		srv_checksum_algorithm = SRV_CHECKSUM_ALGORITHM_NONE;
+	}
 
 #ifdef HAVE_LARGE_PAGES
 	if ((os_use_large_pages = (ibool) my_use_large_pages)) {
@@ -12366,8 +12395,35 @@ static struct st_mysql_storage_engine innobase_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 /* plugin options */
+
+static MYSQL_SYSVAR_ENUM(checksum_algorithm, srv_checksum_algorithm,
+  PLUGIN_VAR_RQCMDARG,
+  "The algorithm InnoDB uses for page checksumming. Possible values are "
+  "CRC32 (hardware accelerated if the CPU supports it) "
+    "write crc32, allow any of the other checksums to match when reading; "
+  "STRICT_CRC32 "
+    "write crc32, do not allow other algorithms to match when reading; "
+  "INNODB "
+    "write a software calculated checksum, allow any other checksums "
+    "to match when reading; "
+  "STRICT_INNODB "
+    "write a software calculated checksum, do not allow other algorithms "
+    "to match when reading; "
+  "NONE "
+    "write a constant magic number, do not do any checksum verification "
+    "when reading (same as innodb_checksums=OFF); "
+  "STRICT_NONE "
+    "write a constant magic number, do not allow values other than that "
+    "magic number when reading; "
+  "Files updated when this option is set to crc32 or strict_crc32 will "
+  "not be readable by MySQL versions older than 5.6.3",
+  NULL, NULL, SRV_CHECKSUM_ALGORITHM_INNODB,
+  &innodb_checksum_algorithm_typelib);
+
 static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "DEPRECATED. Use innodb_checksum_algorithm=NONE instead of setting "
+  "this to OFF. "
   "Enable InnoDB checksums validation (enabled by default). "
   "Disable with --skip-innodb-checksums.",
   NULL, NULL, TRUE);
@@ -12876,6 +12932,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(buffer_pool_load_at_startup),
   MYSQL_SYSVAR(lru_scan_depth),
   MYSQL_SYSVAR(flush_neighbors),
+  MYSQL_SYSVAR(checksum_algorithm),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
