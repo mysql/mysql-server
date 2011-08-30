@@ -500,6 +500,34 @@ THRConfig::getConfigString()
   return m_cfg_string.c_str();
 }
 
+Uint32
+THRConfig::getThreadCount() const
+{
+  // Note! not counting T_MAINT
+  Uint32 cnt = 0;
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
+  {
+    if (i != T_MAINT)
+    {
+      cnt += m_threads[i].size();
+    }
+  }
+  return cnt;
+}
+
+Uint32
+THRConfig::getThreadCount(T_Type type) const
+{
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
+  {
+    if (i == (Uint32)type)
+    {
+      return m_threads[i].size();
+    }
+  }
+  return 0;
+}
+
 const char *
 THRConfig::getErrorMessage() const
 {
