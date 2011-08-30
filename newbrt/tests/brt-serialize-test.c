@@ -253,6 +253,16 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft) {
 
     setup_dn(bft, fd, brt_h, &dn);
 
+    //
+    // test that subtree estimates get set
+    // rebalancing should make it 1 basement
+    //
+    assert(BP_SUBTREE_EST(&sn,0).nkeys == 3);
+    assert(BP_SUBTREE_EST(dn,0).nkeys == 3);
+    assert(BP_SUBTREE_EST(&sn,0).ndata == 3);
+    assert(BP_SUBTREE_EST(dn,0).ndata == 3);
+
+
     assert(dn->thisnodename.b==20);
 
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
