@@ -63,6 +63,10 @@
 #include "table_accounts.h"
 #include "table_hosts.h"
 
+#include "table_socket_instances.h"
+#include "table_socket_summary_by_instance.h"
+#include "table_socket_summary_by_event_name.h"
+
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr.h"
@@ -128,6 +132,10 @@ static PFS_engine_table_share *all_shares[]=
   &table_users::m_share,
   &table_accounts::m_share,
   &table_hosts::m_share,
+
+  &table_socket_instances::m_share,
+  &table_socket_summary_by_instance::m_share,
+  &table_socket_summary_by_event_name::m_share,
   NULL
 };
 
@@ -1254,11 +1262,37 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= thread_max * statement_stack_max * sizeof(PFS_events_statements);
       total_memory+= size;
       break;
+    case 128:
+      name= "(pfs_socket_class).row_size";
+      size= sizeof(PFS_socket_class);
+      break;
+    case 129:
+      name= "(pfs_socket_class).row_count";
+      size= socket_class_max;
+      break;
+    case 130:
+      name= "(pfs_socket_class).memory";
+      size= socket_class_max * sizeof(PFS_socket_class);
+      total_memory+= size;
+      break;
+    case 131:
+      name= "socket_instances.row_size";
+      size= sizeof(PFS_socket);
+      break;
+    case 132:
+      name= "socket_instances.row_count";
+      size= socket_max;
+      break;
+    case 133:
+      name= "socket_instances.memory";
+      size= socket_max * sizeof(PFS_socket);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 128:
+    case 134:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

@@ -1089,6 +1089,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MASTER_SSL_CA_SYM
 %token  MASTER_SSL_CERT_SYM
 %token  MASTER_SSL_CIPHER_SYM
+%token  MASTER_SSL_CRL_SYM
+%token  MASTER_SSL_CRLPATH_SYM
 %token  MASTER_SSL_KEY_SYM
 %token  MASTER_SSL_SYM
 %token  MASTER_SSL_VERIFY_SERVER_CERT_SYM
@@ -1964,6 +1966,14 @@ master_def:
           {
             Lex->mi.ssl_verify_server_cert= $3 ?
               LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
+          }
+        | MASTER_SSL_CRL_SYM EQ TEXT_STRING_sys
+          {
+            Lex->mi.ssl_crl= $3.str;
+          }
+        | MASTER_SSL_CRLPATH_SYM EQ TEXT_STRING_sys
+          {
+            Lex->mi.ssl_crlpath= $3.str;
           }
 
         | MASTER_HEARTBEAT_PERIOD_SYM EQ NUM_literal
@@ -12764,6 +12774,8 @@ keyword_sp:
         | MASTER_SSL_CAPATH_SYM    {}
         | MASTER_SSL_CERT_SYM      {}
         | MASTER_SSL_CIPHER_SYM    {}
+        | MASTER_SSL_CRL_SYM       {}
+        | MASTER_SSL_CRLPATH_SYM   {}
         | MASTER_SSL_KEY_SYM       {}
         | MAX_CONNECTIONS_PER_HOUR {}
         | MAX_QUERIES_PER_HOUR     {}

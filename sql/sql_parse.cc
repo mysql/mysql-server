@@ -805,6 +805,7 @@ bool do_command(THD *thd)
   ulong packet_length;
   NET *net= &thd->net;
   enum enum_server_command command;
+
   DBUG_ENTER("do_command");
 
   /*
@@ -846,7 +847,17 @@ bool do_command(THD *thd)
   */
   DEBUG_SYNC(thd, "before_do_command_net_read");
 
-  if ((packet_length= my_net_read(net)) == packet_error)
+  #ifdef HAVE_PSI_INTERFACE
+  net->mysql_socket_idle= TRUE;
+  #endif
+
+  packet_length= my_net_read(net);
+
+  #ifdef HAVE_PSI_INTERFACE
+  net->mysql_socket_idle= FALSE;
+  #endif
+
+  if (packet_length == packet_error)
   {
     DBUG_PRINT("info",("Got error %d reading command from socket %s",
 		       net->error,

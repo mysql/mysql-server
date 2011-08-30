@@ -1,6 +1,7 @@
 include/master-slave.inc
 [connection master]
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 create table t1 (word char(20) not null);
 load data infile '../../std_data/words.dat' into table t1;
 load data local infile 'MYSQL_TEST_DIR/std_data/words.dat' into table t1;
@@ -50,7 +51,9 @@ select (@id := id) - id from t2;
 kill @id;
 drop table t2;
 Got one of the listed errors
-include/wait_for_slave_sql_error_and_skip.inc [errno=1053]
+include/wait_for_slave_sql_error.inc [errno=1053]
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+include/start_slave.inc
 select count(*) from t1;
 count(*)
 100

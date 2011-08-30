@@ -1,0 +1,15 @@
+include/master-slave.inc
+[connection master]
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+call mtr.add_suppression('Slave: Error dropping database');
+include/stop_slave.inc
+start slave;
+stop slave sql_thread;
+use test;
+select * from test1.benchmark into outfile  'benchmark.out';
+select ts from test1.benchmark where state like 'master started load' into @m_0;
+select ts from test1.benchmark where state like 'master ends load' into @m_1;
+select ts from test1.benchmark where state like 'slave takes on load' into @s_0;
+select ts from test1.benchmark where state like 'slave ends load' into @s_1;
+select time_to_sec(@m_1) - time_to_sec(@m_0) as 'delta.out';
+include/rpl_end.inc

@@ -29,6 +29,8 @@ INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
 SELECT * FROM t1;
 connection slave;
 
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
 # show the error message 
 #1105 = ER_UNKNOWN_ERROR
 --let $slave_sql_errno= 1105
