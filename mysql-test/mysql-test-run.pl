@@ -2132,8 +2132,10 @@ sub find_plugin($$)
   my $lib_plugin=
     mtr_file_exists(vs_config_dirs($location,$plugin_filename),
                     "$basedir/lib/plugin/".$plugin_filename,
+                    "$basedir/lib64/plugin/".$plugin_filename,
                     "$basedir/$location/.libs/".$plugin_filename,
                     "$basedir/lib/mysql/plugin/".$plugin_filename,
+                    "$basedir/lib64/mysql/plugin/".$plugin_filename,
                     );
   return $lib_plugin;
 }
@@ -2295,12 +2297,6 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
-  # Used for guessing default plugin dir, we can't really know for sure
-  $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
-  # Override if this does not exist, but lib64 does (best effort)
-  if (! -d "$basedir/lib" && -d "$basedir/lib64") {
-    $ENV{'MYSQL_LIBDIR'}=     "$basedir/lib64";
-  }
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
