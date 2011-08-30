@@ -27,7 +27,7 @@ static const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in
 static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK|DB_RECOVER;
 // static int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 static char *dbfilename = "bench.db";
-static u_int64_t cachesize = 0xffffffff;
+static u_int64_t cachesize = 127*1024*1024;
 static int verbose UU() = 0;
 static const char *log_dir = NULL;
 
