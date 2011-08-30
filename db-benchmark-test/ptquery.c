@@ -80,13 +80,17 @@ static void array_to_long_long (unsigned long long *l, unsigned char *a, int arr
     }
 }
 
+static int do_nothing (DBT const* UU(key), DBT const* UU(data), void* UU(extrav)) {
+  return TOKUDB_CURSOR_CONTINUE;
+}
+
 static void test_begin_commit(int nqueries) {
     int r;
     unsigned long long k;
     unsigned char kv[keylen];
     for (int i = 0; i < nqueries; i++) {
         DB_TXN *txn = NULL;
-        r = env->txn_begin(env, NULL, &txn, 0); assert_zero(r);
+        r = env->txn_begin(env, NULL, &txn, DB_TXN_SNAPSHOT); assert_zero(r);
         DBC *c = NULL;
         r = db->cursor(db, txn, &c, 0); assert_zero(r);
 
@@ -97,16 +101,12 @@ static void test_begin_commit(int nqueries) {
         DBT key, val;
         memset(&key, 0, sizeof key); key.data=kv; key.size=8;
         memset(&val, 0, sizeof val);
-        r = c->c_get(c, &key, &val, DB_SET); 
+        r = c->c_getf_set(c, 0, &key, do_nothing, NULL);
         assert_zero(r);
         (void) __sync_fetch_and_add(&set_count, 1);
         r = c->c_close(c); assert_zero(r);
         r = txn->commit(txn, 0); assert_zero(r);
     }
-}
-
-static int do_nothing (DBT const* UU(key), DBT const* UU(data), void* UU(extrav)) {
-  return TOKUDB_CURSOR_CONTINUE;
 }
 
 
