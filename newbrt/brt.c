@@ -1479,6 +1479,8 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
         REALLOC_N(num_children_in_node, node->bp);
         REALLOC_N(num_children_in_node-1, node->childkeys);
 
+        // this may be unnecessary. Not sure
+        // but it is safe to do. Splits are infrequent
         toku_brt_leaf_reset_calc_leaf_stats(node);
         toku_brt_leaf_reset_calc_leaf_stats(B);
     }
@@ -5407,16 +5409,13 @@ maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors
     // Must update the leaf estimates.	Might as well use the estimates from the soft copy (even if they make it out to disk), since they are
     // the best estimates we have.
     if (update_stats) {
-        toku_brt_leaf_reset_calc_leaf_stats(node);
-        {
-            ANCESTORS curr_ancestors = ancestors;
-            BRTNODE prev_node = node;
-            while (curr_ancestors) {
-                BRTNODE next_node = curr_ancestors->node;
-                fixup_child_estimates(next_node, curr_ancestors->childnum, prev_node, FALSE);
-                prev_node = next_node;
-                curr_ancestors = curr_ancestors->next;
-            }
+        ANCESTORS curr_ancestors = ancestors;
+        BRTNODE prev_node = node;
+        while (curr_ancestors) {
+            BRTNODE next_node = curr_ancestors->node;
+            fixup_child_estimates(next_node, curr_ancestors->childnum, prev_node, FALSE);
+            prev_node = next_node;
+            curr_ancestors = curr_ancestors->next;
         }
     }
 exit:
