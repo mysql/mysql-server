@@ -316,6 +316,10 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
       my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
       break;
   }
+
+  thd->add_to_binlog_accessed_dbs(ren_table->db);
+  thd->add_to_binlog_accessed_dbs(new_db);
+
   if (rc && !skip_error)
     DBUG_RETURN(1);
 

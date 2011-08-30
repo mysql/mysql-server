@@ -79,6 +79,11 @@ struct time_normalizer
 };
 
 /**
+  Idle timer.
+  The timer used to measure all idle events.
+*/
+extern enum_timer_name idle_timer;
+/**
   Wait timer.
   The timer used to measure all wait events.
 */

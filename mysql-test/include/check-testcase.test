@@ -69,6 +69,8 @@ if ($tmp)
   --echo Master_Bind	
   --echo Last_IO_Error_Timestamp	
   --echo Last_SQL_Error_Timestamp	
+  --echo Master_SSL_Crl	
+  --echo Master_SSL_Crlpath	
 }
 if (!$tmp) {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.

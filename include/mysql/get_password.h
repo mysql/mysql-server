@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,23 +13,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SERVER_ID_H
+/*
+** Ask for a password from tty
+** This is an own file to avoid conflicts with curses
+*/
 
-#define SERVER_ID_H
+#ifndef MYSQL_GET_PASSWORD_H_INCLUDED
+#define MYSQL_GET_PASSWORD_H_INCLUDED
 
-#include <my_sys.h>
-#include <sql_string.h>
-
-class Server_ids
-{
-  public:
-    DYNAMIC_ARRAY server_ids;
-
-    Server_ids();
-    ~Server_ids();
-
-    bool pack_server_ids(String *buffer);
-    bool unpack_server_ids(char *param_server_ids);
-};
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+typedef char *(* strdup_handler_t)(const char *, int);
+char *get_tty_password_ext(const char *opt_message,
+                           strdup_handler_t strdup_function);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* ! MYSQL_GET_PASSWORD_H_INCLUDED */

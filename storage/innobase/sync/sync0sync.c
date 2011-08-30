@@ -1345,7 +1345,13 @@ sync_thread_add_level(
 					     TRUE));
 		break;
 	case SYNC_IBUF_TREE_NODE_NEW:
-		ut_a(sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
+		/* ibuf_add_free_page() allocates new pages for the
+		change buffer while only holding the tablespace
+		x-latch. These pre-allocated new pages may only be
+		taken in use while holding ibuf_mutex, in
+		btr_page_alloc_for_ibuf(). */
+		ut_a(sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
+		     || sync_thread_levels_contain(array, SYNC_FSP));
 		break;
 	case SYNC_IBUF_INDEX_TREE:
 		if (sync_thread_levels_contain(array, SYNC_FSP)) {

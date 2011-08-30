@@ -18,7 +18,8 @@ connection master;
 --disable_warnings
 eval create table t1 (a int) engine=$engine_type;
 --enable_warnings
-let $1=8000;
+let $loop_max= 2000;
+let $1=$loop_max;
 disable_query_log;
 begin;
 while ($1)
@@ -50,12 +51,13 @@ stop slave;
 # and the table is now empty.
 # Now restart
 start slave;
-# And see if the table contains '8000'
+# And see if the table contains $loop_max
 # which proves that the transaction restarted at
 # the right place.
 # We must wait for the transaction to commit before
 # reading, with a sync_with_master.
 sync_with_master;
+--replace_result $loop_max loop_max
 select max(a) from t1;
 connection master;
 

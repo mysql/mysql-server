@@ -141,11 +141,11 @@ DROP TABLE IF EXISTS t1,t2;
 
 * storage_engine *
 SET @restore_master_storage_engine=@@global.storage_engine;
-SET @@global.storage_engine=InnoDB;
-SET @@session.storage_engine=InnoDB;
+SET @@global.default_storage_engine=InnoDB;
+SET @@session.default_storage_engine=InnoDB;
 SET @restore_slave_storage_engine=@@global.storage_engine;
-SET @@global.storage_engine=Memory;
-SET @@session.storage_engine=Memory;
+SET @@global.default_storage_engine=Memory;
+SET @@session.default_storage_engine=Memory;
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10));
 CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=InnoDB;
 CREATE TABLE t3 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10));
@@ -184,8 +184,8 @@ t3	CREATE TABLE `t3` (
   `b` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
-SET @@global.storage_engine=InnoDB;
-SET @@session.storage_engine=InnoDB;
+SET @@global.default_storage_engine=InnoDB;
+SET @@session.default_storage_engine=InnoDB;
 DROP TABLE IF EXISTS t1,t2,t3;
 
 * sql_mode *
@@ -212,11 +212,11 @@ DROP TABLE t1;
 *** clean up ***
 SET @@global.character_set_database=@restore_master_character_set_database;
 SET @@global.collation_server=@restore_master_collation_server;
-SET @@global.storage_engine=@restore_master_storage_engine;
+SET @@global.default_storage_engine=@restore_master_storage_engine;
 SET @@global.character_set_database=@restore_slave_character_set_database;
 SET @@global.collation_server=@restore_slave_collation_server;
 SET @@global.max_heap_table_size=@restore_slave_max_heap_table_size;
-SET @@global.storage_engine=@restore_slave_storage_engine;
+SET @@global.default_storage_engine=@restore_slave_storage_engine;
 
 call mtr.add_suppression("The table 't[12]' is full");
 include/rpl_end.inc

@@ -71,7 +71,12 @@ struct PFS_single_stat
     m_count++;
   }
 
-  inline void aggregate_timed(ulonglong value)
+  inline void aggregate_counted(ulonglong count)
+  {
+    m_count+= count;
+  }
+
+  inline void aggregate_value(ulonglong value)
   {
     m_count++;
     m_sum+= value;
@@ -79,6 +84,57 @@ struct PFS_single_stat
       m_min= value;
     if (unlikely(m_max < value))
       m_max= value;
+  }
+};
+
+/** Combined statistic. */
+struct PFS_byte_stat : public PFS_single_stat
+{
+  /** Byte count statistics */
+  ulonglong m_bytes;
+
+  /* Aggregate wait stats, event count and byte count */
+  inline void aggregate(const PFS_byte_stat *stat)
+  {
+    PFS_single_stat::aggregate(stat);
+    m_bytes+= stat->m_bytes;
+  }
+
+  /* Aggregate individual wait time, event count and byte count */
+  inline void aggregate(ulonglong wait, ulonglong bytes)
+  {
+    aggregate_value(wait);
+    m_bytes+= bytes;
+  }
+
+  /* Aggregate wait stats and event count */
+  inline void aggregate_waits(const PFS_byte_stat *stat)
+  {
+    PFS_single_stat::aggregate(stat);
+  }
+
+  /* Aggregate event count and byte count */
+  inline void aggregate_counted()
+  {
+    PFS_single_stat::aggregate_counted();
+  }
+
+  /* Aggregate event count and byte count */
+  inline void aggregate_counted(ulonglong bytes)
+  {
+    PFS_single_stat::aggregate_counted();
+    m_bytes+= bytes;
+  }
+    
+  PFS_byte_stat()
+  {
+    reset();
+  }
+
+  inline void reset(void)
+  {
+    PFS_single_stat::reset();
+    m_bytes= 0;
   }
 };
 
@@ -153,8 +209,8 @@ struct PFS_stage_stat
   inline void aggregate_counted()
   { m_timer1_stat.aggregate_counted(); }
 
-  inline void aggregate_timed(ulonglong value)
-  { m_timer1_stat.aggregate_timed(value); }
+  inline void aggregate_value(ulonglong value)
+  { m_timer1_stat.aggregate_value(value); }
 
   inline void aggregate(PFS_stage_stat *stat)
   { m_timer1_stat.aggregate(& stat->m_timer1_stat); }
@@ -234,8 +290,8 @@ struct PFS_statement_stat
   inline void aggregate_counted()
   { m_timer1_stat.aggregate_counted(); }
 
-  inline void aggregate_timed(ulonglong value)
-  { m_timer1_stat.aggregate_timed(value); }
+  inline void aggregate_value(ulonglong value)
+  { m_timer1_stat.aggregate_value(value); }
 
   inline void aggregate(PFS_statement_stat *stat)
   {
@@ -425,6 +481,60 @@ struct PFS_table_stat
   {
     sum_io(result);
     sum_lock(result);
+  }
+};
+
+/** Statistics for SOCKET IO. Used for both waits and byte counts. */
+struct PFS_socket_io_stat
+{
+  /** READ statistics */
+  PFS_byte_stat m_read;
+  /** WRITE statistics */
+  PFS_byte_stat m_write;
+  /** Miscelleanous statistics */
+  PFS_byte_stat m_misc;
+
+  inline void reset(void)
+  {
+    m_read.reset();
+    m_write.reset();
+    m_misc.reset();
+  }
+
+  inline void aggregate(const PFS_socket_io_stat *stat)
+  {
+    m_read.aggregate(&stat->m_read);
+    m_write.aggregate(&stat->m_write);
+    m_misc.aggregate(&stat->m_misc);
+  }
+
+  /* Sum waits and byte counts */
+  inline void sum(PFS_byte_stat *stat)
+  {
+    stat->aggregate(&m_read);
+    stat->aggregate(&m_write);
+    stat->aggregate(&m_misc);
+  }
+
+  /* Sum waits only */
+  inline void sum_waits(PFS_single_stat *stat)
+  {
+    stat->aggregate(&m_read);
+    stat->aggregate(&m_write);
+    stat->aggregate(&m_misc);
+  }
+};
+
+/** Statistics for SOCKET usage. */
+struct PFS_socket_stat
+{
+  /** Socket timing and byte count statistics per operation */
+  PFS_socket_io_stat m_io_stat;
+
+  /** Reset socket statistics. */
+  inline void reset(void)
+  {
+    m_io_stat.reset();
   }
 };
 

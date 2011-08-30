@@ -45,7 +45,9 @@ struct PFS_instrument_view_constants
   static const uint VIEW_COND= 3;
   static const uint VIEW_FILE= 4;
   static const uint VIEW_TABLE= 5;
-  static const uint LAST_VIEW= 5;
+  static const uint VIEW_SOCKET= 6;
+  static const uint VIEW_IDLE= 7;
+  static const uint LAST_VIEW= 7;
 };
 
 /** Namespace, internal views used within object summaries. */
@@ -178,7 +180,7 @@ struct PFS_stat_row
   /** Column MAX_TIMER_WAIT. */
   ulonglong m_max;
 
-  /** Build a row from a memory buffer. */
+  /** Build a row with timer fields from a memory buffer. */
   inline void set(time_normalizer *normalizer, const PFS_single_stat *stat)
   {
     m_count= stat->m_count;
@@ -222,6 +224,20 @@ struct PFS_stat_row
       default:
         DBUG_ASSERT(false);
     }
+  }
+};
+
+/** Row fragment for timer and byte count stats. Corresponds to PFS_byte_stat */
+struct PFS_byte_stat_row
+{
+  PFS_stat_row m_waits;
+  ulonglong    m_bytes;
+
+  /** Build a row with timer and byte count fields from a memory buffer. */
+  inline void set(time_normalizer *normalizer, const PFS_byte_stat *stat)
+  {
+    m_waits.set(normalizer, stat);
+    m_bytes= stat->m_bytes;
   }
 };
 
@@ -412,6 +428,40 @@ struct PFS_connection_stat_row
 };
 
 void set_field_object_type(Field *f, enum_object_type object_type);
+
+/** Row fragment for socket io statistics columns. */
+struct PFS_socket_io_stat_row
+{
+  PFS_byte_stat_row m_read;
+  PFS_byte_stat_row m_write;
+  PFS_byte_stat_row m_misc;
+  PFS_byte_stat_row m_all;
+  
+  inline void set(time_normalizer *normalizer, const PFS_socket_io_stat *stat)
+  {
+    PFS_byte_stat all;
+    PFS_byte_stat read= stat->m_read;
+    PFS_byte_stat write= stat->m_write;
+    PFS_byte_stat misc= stat->m_misc;
+
+    m_read.set(normalizer, &read);
+    m_write.set(normalizer, &write);
+    m_misc.set(normalizer, &misc);
+  //m_read.set(normalizer, &stat->m_read);
+  //m_write.set(normalizer, &stat->m_write);
+  //m_misc.set(normalizer, &stat->m_misc);
+    
+    /* Combine stats for all operations */
+    all.aggregate(&read);
+    all.aggregate(&write);
+    all.aggregate(&misc);
+  //all.aggregate(&stat->m_read);
+  //all.aggregate(&stat->m_write);
+  //all.aggregate(&stat->m_misc);
+
+    m_all.set(normalizer, &all);
+  }
+};
 
 /** @} */
 
