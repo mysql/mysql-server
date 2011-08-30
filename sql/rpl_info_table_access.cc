@@ -160,8 +160,8 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
 
   In case search succeeded, the table cursor points to the found row.
 
-  @param[in]      server_id    Server id
-  @param[in]      idx          Index field
+  @param[in]      uidx         Array of fields in pk
+  @param[in]      nidx         Number of fields in pk
   @param[in,out]  field_values The sequence of values
   @param[in,out]  table        Table
 
@@ -170,34 +170,53 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
     @retval NOT_FOUND The row was not found.
     @retval ERROR     There was a failure.
 */
-enum enum_return_id Rpl_info_table_access::find_info_for_server_id(ulong server_id,
-                                                                   uint idx,
-                                                                   Rpl_info_values *field_values,
-                                                                   TABLE *table)
+enum enum_return_id Rpl_info_table_access::find_info(const ulong *uidx,
+                                                     const uint nidx,
+                                                     Rpl_info_values *field_values,
+                                                     TABLE *table)
 {
   uchar key[MAX_KEY_LENGTH];
-  DBUG_ENTER("Rpl_info_table_access::find_info_for_server_id");
+  DBUG_ENTER("Rpl_info_table_access::find_info");
 
-  field_values->value[idx].set_int(server_id, TRUE, &my_charset_bin);
-
-  if (field_values->value[idx].length() > table->field[idx]->field_length)
+  /* 
+     There is a primary key which is the first key among the
+     set of keys and it is enabled.
+  */
+  if (!(table->s->primary_key == 0 &&
+      table->s->keys_in_use.is_set(table->s->primary_key) &&
+      table->key_info->key_parts == nidx))
     DBUG_RETURN(ERROR_ID);
 
-  table->field[idx]->store(field_values->value[idx].c_ptr_safe(),
-                           field_values->value[idx].length(),
-                           &my_charset_bin);
+  uint offset_idx= table->s->primary_key;
 
-  if (!(table->field[idx]->flags & PRI_KEY_FLAG) &&
-      table->s->keys_in_use.is_set(0))
-    DBUG_RETURN(ERROR_ID);
+  for (uint idx= 0; idx < nidx; idx++)
+  {
+    /*
+      Fields that are part of a primary key are contiguous in
+      table's definition. If we want to release this we need
+      to iterate through the keyinfo.
+    */
+    if (!(table->field[idx + offset_idx]->flags & PRI_KEY_FLAG))
+      DBUG_RETURN(ERROR_ID);
 
+    /*
+      The size of the field must be great to store data.
+    */
+    if (field_values->value[idx + offset_idx].length() >
+        table->field[idx + offset_idx]->field_length)
+      DBUG_RETURN(ERROR_ID);
+
+    field_values->value[idx + offset_idx].set_int(uidx[idx], TRUE, &my_charset_bin);
+
+    table->field[idx + offset_idx]->store(field_values->value[idx + offset_idx].c_ptr_safe(),
+                             field_values->value[idx + offset_idx].length(),
+                             &my_charset_bin);
+  }
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
   if (table->file->ha_index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
                                          HA_READ_KEY_EXACT))
-  {
     DBUG_RETURN(NOT_FOUND_ID);
-  }
 
   DBUG_RETURN(FOUND_ID);
 }
@@ -227,7 +246,7 @@ bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
   {
     fields[field_idx]->val_str(&str);
     field_values->value[field_idx].copy(str.c_ptr_safe(), str.length(),
-                                             &my_charset_bin);
+                                        &my_charset_bin);
     field_idx++;
   }
 
@@ -256,6 +275,7 @@ bool Rpl_info_table_access::store_info_values(uint max_num_field, Field **fields
   while (field_idx < max_num_field)
   {
     fields[field_idx]->set_notnull();
+
     if (fields[field_idx]->store(field_values->value[field_idx].c_ptr_safe(),
                                  field_values->value[field_idx].length(),
                                  &my_charset_bin))

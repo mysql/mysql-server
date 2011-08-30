@@ -54,6 +54,12 @@
 #ifndef PFS_MAX_FILE_HANDLE
   #define PFS_MAX_FILE_HANDLE 32768
 #endif
+#ifndef PFS_MAX_SOCKETS
+  #define PFS_MAX_SOCKETS 1000
+#endif
+#ifndef PFS_MAX_SOCKET_CLASS
+  #define PFS_MAX_SOCKET_CLASS 10
+#endif
 #ifndef PFS_MAX_TABLE_SHARE
   #define PFS_MAX_TABLE_SHARE 1000
 #endif
@@ -170,6 +176,16 @@ struct PFS_global_param
     @sa file_handle_lost.
   */
   ulong m_file_handle_sizing;
+  /**
+    Maxium number of instrumented socket instances
+    @sa socket_lost  
+  */
+  ulong m_socket_sizing;
+  /**
+    Maximum number of instrumented socket classes.
+    @sa socket_class_lost.
+  */
+  ulong m_socket_class_sizing;
   /** Maximum number of rows per thread in table EVENTS_WAITS_HISTORY. */
   ulong m_events_waits_history_sizing;
   /** Maximum number of rows in table EVENTS_WAITS_HISTORY_LONG. */

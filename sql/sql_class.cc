@@ -345,7 +345,7 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   threads.append(thd);
   thd_unlock_thread_count(thd);
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
-          (ulong)thd, thd->net.vio->sd));
+          (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
   thd_set_thread_stack(thd, stack_start);
 }
 
@@ -423,7 +423,7 @@ void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
 */
 my_socket thd_get_fd(THD *thd)
 {
-  return thd->net.vio->sd;
+  return mysql_socket_getfd(thd->net.vio->mysql_socket);
 }
 
 /**
@@ -666,7 +666,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 {
   String str(buffer, length, &my_charset_latin1);
   const Security_context *sctx= &thd->main_security_ctx;
-  char header[64];
+  char header[256];
   int len;
   /*
     The pointers thd->query and thd->proc_info might change since they are
@@ -773,6 +773,7 @@ THD::THD(bool enable_plugins)
    user_time(0), in_sub_stmt(0),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
+   binlog_accessed_db_names(NULL),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -1733,6 +1734,7 @@ void THD::cleanup_after_query()
     stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     rand_used= 0;
+    binlog_accessed_db_names= NULL;
   }
   if (first_successful_insert_id_in_cur_stmt > 0)
   {

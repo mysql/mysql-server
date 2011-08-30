@@ -486,6 +486,10 @@ The following options may be given as the first argument:
  Maximum number of rwlock instruments.
  --performance-schema-max-rwlock-instances=# 
  Maximum number of instrumented RWLOCK objects.
+ --performance-schema-max-socket-classes=# 
+ Maximum number of socket instruments.
+ --performance-schema-max-socket-instances=# 
+ Maximum number of opened instrumented sockets.
  --performance-schema-max-stage-classes=# 
  Maximum number of stage instruments.
  --performance-schema-max-statement-classes=# 
@@ -566,7 +570,7 @@ The following options may be given as the first argument:
  the SQL replication thread is in the relay logs
  --relay-log-info-repository=name 
  Defines the type of the repository for the relay log
- information.
+ information and associated workers.
  --relay-log-purge   if disabled - do not purge relay logs. if enabled - purge
  them as soon as they are no more needed
  (Defaults to on; use --skip-relay-log-purge to disable.)
@@ -680,6 +684,14 @@ The following options may be given as the first argument:
  Don't allow 'SHOW DATABASE' commands
  --skip-slave-start  If set, slave is not autostarted.
  --skip-stack-trace  Don't print a stack trace on failure.
+ --slave-checkpoint-group=# 
+ Maximum number of processed transactions by
+ Multi-threaded slave before a checkpoint operation is
+ called to update progress status.
+ --slave-checkpoint-period=# 
+ Gather workers' activities to Update progress status of
+ Multi-threaded slave and flush the relay log info to disk
+ after every #th milli-seconds.
  --slave-compressed-protocol 
  Use compression on master/slave protocol
  --slave-exec-mode=name 
@@ -695,6 +707,12 @@ The following options may be given as the first argument:
  --slave-net-timeout=# 
  Number of seconds to wait for more data from a
  master/slave connection before aborting the read
+ --slave-parallel-workers=# 
+ Number of worker threads for executing events in parallel
+ --slave-pending-jobs-size-max=# 
+ Max size of Slave Worker queues holding yet not applied
+ events.The least possible value must be not less than the
+ master side max_allowed_packet.
  --slave-skip-errors=name 
  Tells the slave thread to continue replication when a
  query event returns an error from the provided list
@@ -962,6 +980,8 @@ performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances 1000000
 performance-schema-max-rwlock-classes 30
 performance-schema-max-rwlock-instances 1000000
+performance-schema-max-socket-classes 10
+performance-schema-max-socket-instances 1000
 performance-schema-max-stage-classes 150
 performance-schema-max-statement-classes 165
 performance-schema-max-table-handles 10000
@@ -1010,9 +1030,13 @@ skip-name-resolve FALSE
 skip-networking FALSE
 skip-show-database FALSE
 skip-slave-start FALSE
+slave-checkpoint-group 512
+slave-checkpoint-period 300
 slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-net-timeout 3600
+slave-parallel-workers 0
+slave-pending-jobs-size-max 16777216
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE
 slave-transaction-retries 10

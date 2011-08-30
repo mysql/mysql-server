@@ -21,9 +21,16 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "pfs_global.h"
+#include "my_net.h"
 
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef __WIN__
+  #include <winsock2.h>
+#else
+  #include <arpa/inet.h>
+#endif
 
 bool pfs_initialized= false;
 ulonglong pfs_allocated_memory= 0;
@@ -65,5 +72,64 @@ void pfs_print_error(const char *format, ...)
   vfprintf(stderr, format, args);
   va_end(args);
   fflush(stderr);
+}
+
+/** Convert raw ip address into readable format. Do not do a reverse DNS lookup. */
+
+uint pfs_get_socket_address(char *host,
+                            uint host_len,
+                            uint *port,
+                            const struct sockaddr_storage *src_addr,
+                            socklen_t src_len)
+{
+  DBUG_ASSERT(host);
+  DBUG_ASSERT(src_addr);
+  DBUG_ASSERT(port);
+
+  memset(host, 0, host_len);
+  *port= 0;
+
+  switch (src_addr->ss_family)
+  {
+    case AF_INET:
+    {
+      if (host_len < INET_ADDRSTRLEN+1)
+        return 0;
+      struct sockaddr_in *sa4= (struct sockaddr_in *)(src_addr);
+    #ifdef __WIN__
+      /* Older versions of Windows do not support inet_ntop() */
+      getnameinfo((struct sockaddr *)sa4, sizeof(struct sockaddr_in),
+                  host, host_len, NULL, 0, NI_NUMERICHOST);
+    #else
+      inet_ntop(AF_INET, &(sa4->sin_addr), host, INET_ADDRSTRLEN);
+    #endif
+      *port= ntohs(sa4->sin_port);
+    }
+    break;
+
+#ifdef HAVE_IPV6
+    case AF_INET6:
+    {
+      if (host_len < INET6_ADDRSTRLEN+1)
+        return 0;
+      struct sockaddr_in6 *sa6= (struct sockaddr_in6 *)(src_addr);
+    #ifdef __WIN__
+      /* Older versions of Windows do not support inet_ntop() */
+      getnameinfo((struct sockaddr *)sa6, sizeof(struct sockaddr_in6),
+                  host, host_len, NULL, 0, NI_NUMERICHOST);
+    #else
+      inet_ntop(AF_INET6, &(sa6->sin6_addr), host, INET6_ADDRSTRLEN);
+    #endif
+      *port= ntohs(sa6->sin6_port);
+    }
+    break;
+#endif
+
+    default:
+      break;
+  }
+
+  /* Return actual IP address string length */
+  return (strlen((const char*)host));
 }
 

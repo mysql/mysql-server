@@ -221,13 +221,13 @@ DROP TABLE IF EXISTS t1,t2;
 
 --connection master
 SET @restore_master_storage_engine=@@global.storage_engine;
-SET @@global.storage_engine=InnoDB;
-SET @@session.storage_engine=InnoDB;
+SET @@global.default_storage_engine=InnoDB;
+SET @@session.default_storage_engine=InnoDB;
 
 --connection slave
 SET @restore_slave_storage_engine=@@global.storage_engine;
-SET @@global.storage_engine=Memory;
-SET @@session.storage_engine=Memory;
+SET @@global.default_storage_engine=Memory;
+SET @@session.default_storage_engine=Memory;
 
 --connection master
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10));
@@ -245,8 +245,8 @@ SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 SHOW CREATE TABLE t3;
 
-SET @@global.storage_engine=InnoDB;
-SET @@session.storage_engine=InnoDB;
+SET @@global.default_storage_engine=InnoDB;
+SET @@session.default_storage_engine=InnoDB;
 
 --connection master
 --disable_warnings
@@ -291,12 +291,12 @@ DROP TABLE t1;
 --connection master
 SET @@global.character_set_database=@restore_master_character_set_database;
 SET @@global.collation_server=@restore_master_collation_server;
-SET @@global.storage_engine=@restore_master_storage_engine;
+SET @@global.default_storage_engine=@restore_master_storage_engine;
 --sync_slave_with_master
 SET @@global.character_set_database=@restore_slave_character_set_database;
 SET @@global.collation_server=@restore_slave_collation_server;
 SET @@global.max_heap_table_size=@restore_slave_max_heap_table_size;
-SET @@global.storage_engine=@restore_slave_storage_engine;
+SET @@global.default_storage_engine=@restore_slave_storage_engine;
 
 # Put at the end since the test otherwise emptied the table.
 

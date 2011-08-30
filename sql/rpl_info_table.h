@@ -42,11 +42,6 @@ private:
   LEX_STRING str_table;
 
   /*
-    This property indentifies the id/position of the field that is
-    used as primary key.
-  */
-  uint field_idx;
-  /*
     This property represents a description of the repository.
     Speciffically, "schema"."table".
   */
@@ -62,36 +57,42 @@ private:
     Identifies if a table is transactional or non-transactional.
     This is used to provide a crash-safe behaviour.
   */
-  bool is_transactional;
+  bool is_transactional;       
 
-  int do_init_info();
-  int do_check_info();
-  void do_end_info();
-  int do_flush_info(const bool force);
-  int do_remove_info();
+  int do_init_info(const ulong *uidx, const uint nidx);
+  int do_check_info(const ulong *uidx, const uint nidx);
+  void do_end_info(const ulong *uidx, const uint nidx);
+  int do_flush_info(const ulong *uidx, const uint nidx,
+                    const bool force);
+  int do_remove_info(const ulong *uidx, const uint nidx);
 
-  int do_prepare_info_for_read();
-  int do_prepare_info_for_write();
+  int do_prepare_info_for_read(const uint nidx);
+  int do_prepare_info_for_write(const uint nidx);
+
   bool do_set_info(const int pos, const char *value);
+  bool do_set_info(const int pos, const uchar *value,
+                   const size_t size);
   bool do_set_info(const int pos, const int value);
   bool do_set_info(const int pos, const ulong value);
   bool do_set_info(const int pos, const float value);
-  bool do_set_info(const int pos, const Server_ids *value);
+  bool do_set_info(const int pos, const Dynamic_ids *value);
   bool do_get_info(const int pos, char *value, const size_t size,
                    const char *default_value);
+  bool do_get_info(const int pos, uchar *value, const size_t size,
+                   const uchar *default_value);
   bool do_get_info(const int pos, int *value,
                    const int default_value);
   bool do_get_info(const int pos, ulong *value,
                    const ulong default_value);
   bool do_get_info(const int pos, float *value,
                    const float default_value);
-  bool do_get_info(const int pos, Server_ids *value,
-                   const Server_ids *default_value);
+  bool do_get_info(const int pos, Dynamic_ids *value,
+                   const Dynamic_ids *default_value);
   char* do_get_description_info();
   bool do_is_transactional();
   bool do_update_is_transactional();
 
-  Rpl_info_table(uint nparam, uint param_field_id, const char* param_schema,
+  Rpl_info_table(uint nparam, const char* param_schema,
                  const char *param_table);
   Rpl_info_table(const Rpl_info_table& info);
 

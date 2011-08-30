@@ -3687,6 +3687,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     should_write_to_binlog= TRUE;
 
     db_name= table_list->get_db_name();
+    thd->add_to_binlog_accessed_dbs(db_name); // collecting db:s for MTS
     table_name= table_list->get_table_name();
 
     /* Find/create cached table grant */
@@ -3911,8 +3912,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
 
     db_name= table_list->db;
+    if (write_to_binlog)
+      thd->add_to_binlog_accessed_dbs(db_name);
     table_name= table_list->table_name;
-
     grant_name= routine_hash_search(Str->host.str, NullS, db_name,
                                     Str->user.str, table_name, is_proc, 1);
     if (!grant_name)
@@ -4112,6 +4114,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 	my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
 	result= -1;
       }
+      thd->add_to_binlog_accessed_dbs(db);
     }
     else if (is_proxy)
     {

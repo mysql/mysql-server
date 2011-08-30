@@ -1354,7 +1354,8 @@ UNIV_INTERN
 void
 dict_set_corrupted_index_cache_only(
 /*================================*/
-	dict_index_t*	index);		/*!< in/out: index */
+	dict_index_t*	index,		/*!< in/out: index */
+	dict_table_t*	table);		/*!< in/out: table */
 
 /**********************************************************************//**
 Flags a table with specified space_id corrupted in the table dictionary
