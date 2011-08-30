@@ -358,12 +358,6 @@ batch flushing i.e.: LRU flushing and flush_list flushing. The rest
 of the pages are used for single page flushing. */
 UNIV_INTERN ulong	srv_doublewrite_batch_size	= 120;
 
-/** the macro MYSQL_SYSVAR_ENUM() requires "long unsigned int" and if we
-use srv_checksum_algorithm_t here then we get a compiler error:
-ha_innodb.cc:12251: error: cannot convert 'srv_checksum_algorithm_t*' to
-  'long unsigned int*' in initialization */
-UNIV_INTERN ulong	srv_checksum_algorithm = SRV_CHECKSUM_ALGORITHM_INNODB;
-
 UNIV_INTERN ulong	srv_replication_delay		= 0;
 
 /*-------------------------------------------*/

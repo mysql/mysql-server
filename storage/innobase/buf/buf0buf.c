@@ -41,7 +41,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "fil0fil.h"
 #ifndef UNIV_HOTBACKUP
 #include "buf0buddy.h"
-#include "buf0checksum.h"
 #include "lock0lock.h"
 #include "btr0sea.h"
 #include "ibuf0ibuf.h"
@@ -53,6 +52,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "page0zip.h"
 #include "srv0mon.h"
+#include "buf0checksum.h"
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -1792,34 +1792,6 @@ buf_page_set_accessed_make_young(
 		buf_pool_mutex_enter(buf_pool);
 		buf_page_set_accessed(bpage, time_ms);
 		buf_pool_mutex_exit(buf_pool);
-	}
-}
-
-/********************************************************************//**
-Resets the check_index_page_at_flush field of a page if found in the buffer
-pool. */
-UNIV_INTERN
-void
-buf_reset_check_index_page_at_flush(
-/*================================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset)	/*!< in: page number */
-{
-	buf_block_t*	block;
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
-	rw_lock_t*	hash_lock;
-
-	block = buf_block_hash_get_s_locked(buf_pool, space, offset,
-					    &hash_lock);
-
-	if (block) {
-		if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE) {
-			ut_ad(!buf_pool_watch_is_sentinel(buf_pool,
-							  &block->page));
-			block->check_index_page_at_flush = FALSE;
-		}
-
-		rw_lock_s_unlock(hash_lock);
 	}
 }
 
