@@ -189,8 +189,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
                           table,
                           thd->variables.max_length_for_sort_data,
                           max_rows, sort_positions);
-  /* filesort cannot handle zero-length records. */
-  DBUG_ASSERT(param.sort_length);
 
   table_sort.addon_buf= 0;
   table_sort.addon_length= param.addon_length;
@@ -284,6 +282,9 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   else
   {
+    /* filesort cannot handle zero-length records during merge. */
+    DBUG_ASSERT(param.sort_length != 0);
+
     if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
     {
       my_free(table_sort.buffpek);
@@ -1040,21 +1041,10 @@ static void make_sortkey(register Sort_param *param,
       if (addonf->null_bit && field->is_null())
       {
         nulls[addonf->null_offset]|= addonf->null_bit;
-#ifdef HAVE_purify
-	memset(to, 0, addonf->length);
-#endif
       }
       else
       {
-#ifdef HAVE_purify
-        uchar *end= field->pack(to, field->ptr);
-	uint length= (uint) ((to + addonf->length) - end);
-	DBUG_ASSERT((int) length >= 0);
-	if (length)
-	  memset(end, 0, length);
-#else
         (void) field->pack(to, field->ptr);
-#endif
       }
       to+= addonf->length;
     }
