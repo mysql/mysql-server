@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4649,6 +4650,11 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   local_create_info.options|= create_info->options & HA_LEX_CREATE_TMP_TABLE;
   /* Reset auto-increment counter for the new table. */
   local_create_info.auto_increment_value= 0;
+  /*
+    Do not inherit values of DATA and INDEX DIRECTORY options from
+    the original table. This is documented behavior.
+  */
+  local_create_info.data_file_name= local_create_info.index_file_name= NULL;
 
   if ((res= mysql_create_table_no_lock(thd, table->db, table->table_name,
                                        &local_create_info, &local_alter_info,
@@ -6331,6 +6337,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (drop)
     {
       drop_it.remove();
+      /*
+        ALTER TABLE DROP COLUMN always changes table data even in cases
+        when new version of the table has the same structure as the old
+        one.
+      */
+      alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
       continue;
     }
     /* Check if field is changed */
@@ -6408,7 +6420,14 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (!def->after)
       new_create_list.push_back(def);
     else if (def->after == first_keyword)
+    {
       new_create_list.push_front(def);
+      /*
+        Re-ordering columns in table can't be done using in-place algorithm
+        as it always changes table data.
+      */
+      alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
+    }
     else
     {
       Create_field *find;
@@ -6424,6 +6443,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         goto err;
       }
       find_it.after(def);			// Put element after this
+      /*
+        Re-ordering columns in table can't be done using in-place algorithm
+        as it always changes table data.
+      */
       alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
     }
   }

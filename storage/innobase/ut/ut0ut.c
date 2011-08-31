@@ -674,8 +674,6 @@ ut_strerr(
 		return("Cannot add constraint");
 	case DB_CORRUPTION:
 		return("Data structure corruption");
-	case DB_COL_APPEARS_TWICE_IN_INDEX:
-		return("Column appears twice in index");
 	case DB_CANNOT_DROP_CONSTRAINT:
 		return("Cannot drop constraint");
 	case DB_NO_SAVEPOINT:

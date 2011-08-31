@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -408,7 +408,7 @@ rec_init_offsets(
 		do {
 			ulint	len;
 			if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
-				len = offs += 4;
+				len = offs += REC_NODE_PTR_SIZE;
 				goto resolved;
 			}
 
@@ -640,7 +640,7 @@ rec_get_offsets_reverse(
 	do {
 		ulint	len;
 		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
-			len = offs += 4;
+			len = offs += REC_NODE_PTR_SIZE;
 			goto resolved;
 		}
 
@@ -1131,9 +1131,9 @@ rec_convert_dtuple_to_rec_comp(
 
 		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
 			ut_ad(dtype_get_prtype(type) & DATA_NOT_NULL);
-			ut_ad(len == 4);
+			ut_ad(len == REC_NODE_PTR_SIZE);
 			memcpy(end, dfield_get_data(field), len);
-			end += 4;
+			end += REC_NODE_PTR_SIZE;
 			break;
 		}
 

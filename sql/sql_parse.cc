@@ -1308,7 +1308,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     length= my_snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
                         "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
-                        "Open tables: %u  Queries per second avg: %u.%u",
+                        "Open tables: %u  Queries per second avg: %u.%03u",
                         uptime,
                         (int) thread_count, (ulong) thd->query_id,
                         current_global_status_var.long_query_count,
@@ -2027,6 +2027,11 @@ mysql_execute_command(THD *thd)
   */
   if (stmt_causes_implicit_commit(thd, CF_IMPLICT_COMMIT_BEGIN))
   {
+    /*
+      Note that this should never happen inside of stored functions
+      or triggers as all such statements prohibited there.
+    */
+    DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
     /* Commit the normal transaction if one is active. */

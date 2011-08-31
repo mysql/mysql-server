@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -139,7 +139,7 @@ btr_cur_compress_recommendation(
 	btr_cur_t*	cursor,	/*!< in: btr cursor */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	page_t*		page;
+	const page_t*		page;
 
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));

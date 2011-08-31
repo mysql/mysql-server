@@ -1,4 +1,4 @@
-Tests of syncronization of stored procedure execution.
+Tests of synchronization of stored procedure execution.
 SET DEBUG_SYNC= 'RESET';
 #
 # Bug #30977 Concurrent statement using stored function and
@@ -92,4 +92,16 @@ COUNT(f1(a))
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
 DROP TABLES t0, t1;
-SET DEBUG_SYNC= 'RESET';
+#
+# test for bug#11756013
+#
+DROP SCHEMA IF EXISTS s1;
+CREATE SCHEMA s1;
+CREATE PROCEDURE s1.p1() BEGIN END;
+SET DEBUG_SYNC='before_db_dir_check SIGNAL check_db WAIT_FOR dropped_schema';
+CALL s1.p1;
+SET DEBUG_SYNC='now WAIT_FOR check_db';
+DROP SCHEMA s1;
+SET DEBUG_SYNC='now SIGNAL dropped_schema';
+ERROR 42000: Unknown database 's1'
+SET DEBUG_SYNC = 'RESET';

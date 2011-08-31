@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2543,7 +2544,22 @@ void
 sp_head::restore_thd_mem_root(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_thd_mem_root");
-  Item *flist= free_list;       // The old list
+
+  /*
+   In some cases our parser detects a syntax error and calls
+   LEX::cleanup_lex_after_parse_error() method only after
+   finishing parsing the whole routine. In such a situation
+   sp_head::restore_thd_mem_root() will be called twice - the
+   first time as part of normal parsing process and the second
+   time by cleanup_lex_after_parse_error().
+   To avoid ruining active arena/mem_root state in this case we
+   skip restoration of old arena/mem_root if this method has been
+   already called for this routine.
+  */
+  if (!m_thd)
+    DBUG_VOID_RETURN;
+
+  Item *flist= free_list;	// The old list
   set_query_arena(thd);         // Get new free_list and mem_root
   state= STMT_INITIALIZED_FOR_SP;
 

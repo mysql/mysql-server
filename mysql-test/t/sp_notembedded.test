@@ -371,16 +371,6 @@ DELETE FROM mysql.user WHERE User='mysqltest_1';
 FLUSH PRIVILEGES;
 
 
-#
-# Restore global concurrent_insert value. Keep in the end of the test file.
-#
-
-set @@global.concurrent_insert= @old_concurrent_insert;
-
-# Wait till all disconnects are completed
---source include/wait_until_count_sessions.inc
-
-
 --echo #
 --echo # Bug#44521 Prepared Statement: CALL p() - crashes: `! thd->main_da.is_sent' failed et.al.
 --echo #
@@ -449,7 +439,47 @@ DROP FUNCTION f1;
 --disconnect con1
 --disconnect con2
 
-
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
+
+--echo #
+--echo # Test for bug#11763757 "56510: ERROR 42000: FUNCTION DOES NOT EXIST
+--echo # IF NOT-PRIV USER RECONNECTS ".
+--echo #
+--echo # The real problem was that server was unable handle properly stored
+--echo # functions in databases which names contained dot.
+--echo #
+
+connection default;
+
+--disable_warnings
+DROP DATABASE IF EXISTS `my.db`;
+--enable_warnings
+
+create database `my.db`;
+use `my.db`;
+
+CREATE FUNCTION f1(a int) RETURNS INT RETURN a;
+
+--echo # Create new connection.
+connect (addcon, localhost, root,,);
+connection addcon;
+USE `my.db`;
+SELECT f1(1);
+SELECT `my.db`.f1(2);
+
+--echo # Switching to default connection.
+connection default;
+disconnect addcon;
+DROP DATABASE `my.db`;
+
+#
+# Restore global concurrent_insert value. Keep in the end of the test file.
+#
+
+set @@global.concurrent_insert= @old_concurrent_insert;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
