@@ -57,12 +57,15 @@ buf_buddy_get(
 }
 
 /** Validate a given zip_free list. */
-#define BUF_BUDDY_LIST_VALIDATE(b, i)				\
-	UT_LIST_VALIDATE(list, buf_page_t,			\
-			 b->zip_free[i],			\
-			 ut_ad(buf_page_get_state(		\
-				       ut_list_node_313)	\
-			       == BUF_BLOCK_ZIP_FREE))
+struct	Check {
+	void	operator()(const buf_page_t* elem) const
+	{
+		ut_a(buf_page_get_state(elem) == BUF_BLOCK_ZIP_FREE);
+	}
+};
+
+#define BUF_BUDDY_LIST_VALIDATE(bp, i)				\
+	UT_LIST_VALIDATE(list, buf_page_t, bp->zip_free[i], Check())
 
 /**********************************************************************//**
 Add a block to the head of the appropriate buddy free list. */

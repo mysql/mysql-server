@@ -1244,7 +1244,8 @@ btr_freed_leaves_validate(
 
 		offset -= sizeof *slot;
 
-		slot = dyn_array_get_element(&mtr->memo, offset);
+		slot = static_cast<const mtr_memo_slot_t*>(
+                        dyn_array_get_element(&mtr->memo, offset));
 
 		if (slot->type != MTR_MEMO_FREE_CLUST_LEAF) {
 			continue;
@@ -1255,7 +1256,8 @@ btr_freed_leaves_validate(
 		mtr_memo_release on MTR_MEMO_FREE_CLUST_LEAF, all
 		blocks tagged with MTR_MEMO_FREE_CLUST_LEAF in the
 		memo must still be clustered index leaf tree pages. */
-		block = slot->object;
+		block = static_cast<const buf_block_t*>(slot->object);
+
 		ut_a(fil_page_get_type(buf_block_get_frame(block))
 		     == FIL_PAGE_INDEX);
 		ut_a(page_is_leaf(buf_block_get_frame(block)));
