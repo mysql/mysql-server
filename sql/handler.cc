@@ -3668,6 +3668,10 @@ handler::alter_table_phase1(THD *thd,
       table->key_info= save_key_info;
       DBUG_RETURN(error);
     }
+    /*
+      Save add_index_handle
+     */
+    alter_info->data= (void *) add;
   }
 
   if ((*alter_flags & dropping).is_set())
@@ -3676,6 +3680,17 @@ handler::alter_table_phase1(THD *thd,
     uint          *keyno_p;
     uint          *idx_p;
     uint          *idx_end_p;
+    
+    /* Currently we must finalize add index if we also drop indexes */
+    if ((*alter_flags & adding).is_set())
+    {
+      if ((error= final_add_index((handler_add_index *)alter_info->data, true)))
+      {
+        print_error(error, MYF(0));
+        DBUG_RETURN(error);
+      }
+    }
+
     DBUG_PRINT("info", ("Renumbering indexes"));
     /* The prepare_drop_index() method takes an array of key numbers. */
     key_numbers= (uint*) thd->alloc(sizeof(uint) * alter_info->index_drop_count);
@@ -3706,14 +3721,25 @@ handler::alter_table_phase2(THD *thd,
 {
   DBUG_ENTER("alter_table_phase2");
   int error= 0;
+  HA_ALTER_FLAGS adding;
   HA_ALTER_FLAGS dropping;
 
+  adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX | HA_ADD_PK_INDEX |
+    HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
   dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX |
     HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
 
   if ((*alter_flags & dropping).is_set())
   {
     if ((error= final_drop_index(table)))
+    {
+      print_error(error, MYF(0));
+      DBUG_RETURN(error);
+    }
+  }
+  else if ((*alter_flags & adding).is_set())
+  {
+    if ((error= final_add_index((handler_add_index *)alter_info->data, true)))
     {
       print_error(error, MYF(0));
       DBUG_RETURN(error);
