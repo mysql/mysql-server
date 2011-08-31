@@ -531,8 +531,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
     return 1;
   defaults_argc= *argcp;
   defaults_argv= *argvp;
-  remaining_argc= argc;
-  remaining_argv= argv;
+  remaining_argc= *argcp;
+  remaining_argv= *argvp;
 
   /* Must be initialized early for comparison of options name */
   system_charset_info= &my_charset_utf8_general_ci;
@@ -1163,8 +1163,7 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
                            const char *sqlstate)
 {
   uint error;
-  uchar converted_err[MYSQL_ERRMSG_SIZE];
-  uint32 converted_err_len;
+  char converted_err[MYSQL_ERRMSG_SIZE];
   MYSQL_DATA *data= thd->cur_data;
   struct embedded_query_result *ei;
 
@@ -1179,12 +1178,12 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
 
   ei= data->embedded_info;
   ei->last_errno= sql_errno;
-  converted_err_len= convert_error_message((char*)converted_err,
-                                           sizeof(converted_err),
-                                           thd->variables.character_set_results,
-                                           err, strlen(err),
-                                           system_charset_info, &error);
-  strmake(ei->info, (const char*) converted_err, sizeof(ei->info)-1);
+  convert_error_message(converted_err, sizeof(converted_err),
+                        thd->variables.character_set_results,
+                        err, strlen(err),
+                        system_charset_info, &error);
+  /* Converted error message is always null-terminated. */
+  strmake(ei->info, converted_err, sizeof(ei->info)-1);
   strmov(ei->sqlstate, sqlstate);
   ei->server_status= thd->server_status;
   thd->cur_data= 0;

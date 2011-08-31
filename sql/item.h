@@ -1672,6 +1672,8 @@ public:
   String *val_str(String *str) { return field->val_str(str); }
   my_decimal *val_decimal(my_decimal *dec) { return field->val_decimal(dec); }
   void make_field(Send_field *tmp_field);
+  CHARSET_INFO *charset_for_protocol(void) const
+  { return field->charset_for_protocol(); }
 };
 
 

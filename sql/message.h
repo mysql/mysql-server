@@ -1,6 +1,7 @@
 #ifndef MESSAGE_INCLUDED
 #define MESSAGE_INCLUDED
-/* Copyright 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2008, 2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

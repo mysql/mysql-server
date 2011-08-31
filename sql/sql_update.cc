@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /*
@@ -1169,17 +1169,27 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
             return true;
           }
 
-          if (primkey_clustered &&
-              (bitmap_is_set(table1->write_set, table1->s->primary_key) ||
-               bitmap_is_set(table2->write_set, table2->s->primary_key)))
+          if (primkey_clustered)
           {
-            // Clustered primary key is updated
-            my_error(ER_MULTI_UPDATE_KEY_CONFLICT, MYF(0),
-                     tl->belong_to_view ? tl->belong_to_view->alias
-                                        : tl->alias,
-                     tl2->belong_to_view ? tl2->belong_to_view->alias
-                                         : tl2->alias);
-            return true;
+            // The primary key can cover multiple columns
+            KEY key_info= table1->key_info[table1->s->primary_key];
+            KEY_PART_INFO *key_part= key_info.key_part;
+            KEY_PART_INFO *key_part_end= key_part + key_info.key_parts;
+
+            for (;key_part != key_part_end; ++key_part)
+            {
+              if (bitmap_is_set(table1->write_set, key_part->fieldnr-1) ||
+                  bitmap_is_set(table2->write_set, key_part->fieldnr-1))
+              {
+                // Clustered primary key is updated
+                my_error(ER_MULTI_UPDATE_KEY_CONFLICT, MYF(0),
+                         tl->belong_to_view ? tl->belong_to_view->alias
+                         : tl->alias,
+                         tl2->belong_to_view ? tl2->belong_to_view->alias
+                         : tl2->alias);
+                return true;
+              }
+            }
           }
         }
       }

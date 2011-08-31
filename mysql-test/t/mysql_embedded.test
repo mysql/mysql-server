@@ -1,0 +1,12 @@
+--echo #
+--echo # Bug#12561297 : LIBMYSQLD/EXAMPLE/MYSQL_EMBEDDED IS ABORTING.
+--echo #
+
+--source include/is_embedded.inc
+
+# Test case require mysql_embedded to be present
+if(!$MYSQL_EMBEDDED)
+{
+  --skip Test requires mysql_embedded executable
+}
+--exec $MYSQL_EMBEDDED -e 'select 1'
