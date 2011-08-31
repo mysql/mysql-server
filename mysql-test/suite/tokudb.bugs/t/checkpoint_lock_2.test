@@ -8,6 +8,7 @@ connect (conn1,localhost,root,,);
 connect (conn2,localhost,root,,);
 
 connection default;
+--sleep 2
 --echo # should see nothing
 select DB, command, state, info from information_schema.processlist;
 
