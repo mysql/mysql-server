@@ -290,9 +290,9 @@ TEST_F(TraceContentTest, BuggyObject)
       ota.add(200.4);
       {
         Opt_trace_object oto1(&trace);
-        DBUG_SET("+d,opt_trace_no_assert_on_syntax_error");
         oto1.add_alnum("one value"); // no key, which is wrong
-        DBUG_SET("-d,opt_trace_no_assert_on_syntax_error");
+        oto1.add(326); // same
+        Opt_trace_object oto2(&trace); // same
       }
       ota.add_alnum("one string element");
       ota.add(true);
@@ -312,8 +312,11 @@ TEST_F(TraceContentTest, BuggyObject)
     "{\n"
     "  \"one array\": [\n"
     "    200.4,\n"
-    "    {** invalid JSON (missing key) ** \n"
-    "      \"?\": \"one value\"\n"
+    "    {\n"
+    "      \"unknown_key_1\": \"one value\",\n"
+    "      \"unknown_key_2\": 326,\n"
+    "      \"unknown_key_3\": {\n"
+    "      }\n"
     "    },\n"
     "    \"one string element\",\n"
     "    true\n"
@@ -328,6 +331,7 @@ TEST_F(TraceContentTest, BuggyObject)
     "}";
   EXPECT_STREQ(expected, info.trace_ptr);
   EXPECT_EQ(sizeof(expected) - 1, info.trace_length);
+  check_json_compliance(info.trace_ptr, info.trace_length);
   EXPECT_EQ(0U, info.missing_bytes);
   EXPECT_FALSE(info.missing_priv);
   EXPECT_FALSE(oom);
@@ -345,9 +349,9 @@ TEST_F(TraceContentTest, BuggyArray)
     Opt_trace_object oto(&trace);
     {
       Opt_trace_array ota(&trace, "one array");
-      DBUG_SET("+d,opt_trace_no_assert_on_syntax_error");
       ota.add("superfluous key", 200.4); // key, which is wrong
-      DBUG_SET("-d,opt_trace_no_assert_on_syntax_error");
+      ota.add("not necessary", 326); // same
+      Opt_trace_object oto2(&trace, "not needed"); // same
     }
     oto.add("yet another key", -1000LL);
     {
@@ -362,8 +366,11 @@ TEST_F(TraceContentTest, BuggyArray)
   it.get_value(&info);
   const char expected[]=
     "{\n"
-    "  \"one array\": [** invalid JSON (unexpected key \"superfluous key\") ** \n"
-    "    200.4\n"
+    "  \"one array\": [\n"
+    "    200.4,\n"
+    "    326,\n"
+    "    {\n"
+    "    } /* not needed */\n"
     "  ] /* one array */,\n"
     "  \"yet another key\": -1000,\n"
     "  \"another array\": [\n"
@@ -375,6 +382,7 @@ TEST_F(TraceContentTest, BuggyArray)
     "}";
   EXPECT_STREQ(expected, info.trace_ptr);
   EXPECT_EQ(sizeof(expected) - 1, info.trace_length);
+  check_json_compliance(info.trace_ptr, info.trace_length);
   EXPECT_EQ(0U, info.missing_bytes);
   EXPECT_FALSE(info.missing_priv);
   EXPECT_FALSE(oom);
