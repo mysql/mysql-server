@@ -40,7 +40,8 @@ extern long g_ndb_status_index_stat_cache_clean;
 void 
 compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
                      const KEY *key_info,
-                     const key_range *start_key, const key_range *end_key);
+                     const key_range *start_key, const key_range *end_key,
+                     int from);
 
 /* error codes local to ha_ndb */
 

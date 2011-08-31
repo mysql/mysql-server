@@ -2030,20 +2030,21 @@ int
 ha_ndbcluster::ndb_index_stat_query(uint inx,
                                     const key_range *min_key,
                                     const key_range *max_key,
-                                    NdbIndexStat::Stat& stat)
+                                    NdbIndexStat::Stat& stat,
+                                    int from)
 {
   DBUG_ENTER("ha_ndbcluster::ndb_index_stat_query");
 
   const KEY *key_info= table->key_info + inx;
   const NDB_INDEX_DATA &data= m_index[inx];
   const NDBINDEX *index= data.index;
-  DBUG_PRINT("index_stat", ("index: %s", index->getName()));
+  DBUG_PRINT("index_stat", ("index: %u name: %s", inx, index->getName()));
 
   int err= 0;
 
   /* Create an IndexBound struct for the keys */
   NdbIndexScanOperation::IndexBound ib;
-  compute_index_bounds(ib, key_info, min_key, max_key);
+  compute_index_bounds(ib, key_info, min_key, max_key, from);
   ib.range_no= 0;
 
   Ndb_index_stat *st=
@@ -2096,12 +2097,11 @@ ha_ndbcluster::ndb_index_stat_get_rir(uint inx,
   DBUG_ENTER("ha_ndbcluster::ndb_index_stat_get_rir");
   uint8 stat_buffer[NdbIndexStat::StatBufferBytes];
   NdbIndexStat::Stat stat(stat_buffer);
-  int err= ndb_index_stat_query(inx, min_key, max_key, stat);
+  int err= ndb_index_stat_query(inx, min_key, max_key, stat, 1);
   if (err == 0)
   {
     double rir= -1.0;
     NdbIndexStat::get_rir(stat, &rir);
-    DBUG_PRINT("index_stat", ("stat rir: %.2f", rir));
     ha_rows rows= ndb_index_stat_round(rir);
     /* Estimate only so cannot return exact zero */
     if (rows == 0)
@@ -2125,7 +2125,7 @@ ha_ndbcluster::ndb_index_stat_set_rpk(uint inx)
   NdbIndexStat::Stat stat(stat_buffer);
   const key_range *min_key= 0;
   const key_range *max_key= 0;
-  err= ndb_index_stat_query(inx, min_key, max_key, stat);
+  err= ndb_index_stat_query(inx, min_key, max_key, stat, 2);
   if (err == 0)
   {
     uint k;
