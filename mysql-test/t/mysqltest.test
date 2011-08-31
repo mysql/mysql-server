@@ -1,3 +1,14 @@
+# ----------------------------------------------------------------------------
+# $mysql_errno contains the return code of the last command
+# sent to the server.
+# ----------------------------------------------------------------------------
+# get $mysql_errno before the first statement
+#     $mysql_errno should be -1
+# get $mysql_errname as well
+
+echo $mysql_errno before test;
+echo $mysql_errname before test;
+
 -- source include/have_log_bin.inc
 
 # This test should work in embedded server after mysqltest is fixed
@@ -32,15 +43,6 @@
 #     as a comment and will be ended by new line character
 #
 # ============================================================================
-
-# ----------------------------------------------------------------------------
-# $mysql_errno contains the return code of the last command
-# sent to the server.
-# ----------------------------------------------------------------------------
-# get $mysql_errno before the first statement
-#     $mysql_errno should be -1
-eval select $mysql_errno as "before_use_test" ;
-
 
 # ----------------------------------------------------------------------------
 # Positive case(statement)
@@ -134,6 +136,7 @@ select friedrich from (select 1 as otto) as t1;
 # check mysql_errno = 0 after successful statement
 # ----------------------------------------------------------------------------
 select otto from (select 1 as otto) as t1;
+echo $mysql_errname;
 eval select $mysql_errno as "after_successful_stmt_errno" ;
 
 #----------------------------------------------------------------------------
@@ -142,6 +145,7 @@ eval select $mysql_errno as "after_successful_stmt_errno" ;
 --error ER_PARSE_ERROR
 
 garbage ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_wrong_syntax_errno" ;
 
 # ----------------------------------------------------------------------------
@@ -151,6 +155,7 @@ eval select $mysql_errno as "after_wrong_syntax_errno" ;
 
 garbage ;
 let $my_var= 'abc' ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_let_var_equal_value" ;
 
 # ----------------------------------------------------------------------------
@@ -160,6 +165,7 @@ eval select $mysql_errno as "after_let_var_equal_value" ;
 
 garbage ;
 set @my_var= 'abc' ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_set_var_equal_value" ;
 
 # ----------------------------------------------------------------------------
@@ -170,6 +176,7 @@ eval select $mysql_errno as "after_set_var_equal_value" ;
 
 garbage ;
 --disable_warnings
+echo $mysql_errname;
 eval select $mysql_errno as "after_disable_warnings_command" ;
 
 # ----------------------------------------------------------------------------
@@ -182,6 +189,7 @@ drop table if exists t1 ;
 
 garbage ;
 drop table if exists t1 ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_disable_warnings" ;
 --enable_warnings
 
@@ -194,6 +202,7 @@ garbage ;
 --error ER_NO_SUCH_TABLE
 
 select 3 from t1 ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_minus_masked" ;
 --error ER_PARSE_ERROR
 
@@ -201,6 +210,7 @@ garbage ;
 --error ER_NO_SUCH_TABLE
 
 select 3 from t1 ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_!_masked" ;
 
 # ----------------------------------------------------------------------------
@@ -222,6 +232,7 @@ garbage ;
 --error ER_NO_SUCH_TABLE
 
 prepare stmt from "select 3 from t1" ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_failing_prepare" ;
 create table t1 ( f1 char(10));
 
@@ -230,6 +241,7 @@ create table t1 ( f1 char(10));
 
 garbage ;
 prepare stmt from "select 3 from t1" ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_successful_prepare" ;
 
 # successful execute
@@ -237,6 +249,7 @@ eval select $mysql_errno as "after_successful_prepare" ;
 
 garbage ;
 execute stmt;
+echo $mysql_errname;
 eval select $mysql_errno as "after_successful_execute" ;
 
 # failing execute (table has been dropped)
@@ -247,6 +260,7 @@ garbage ;
 --error ER_NO_SUCH_TABLE
 
 execute stmt;
+echo $mysql_errname;
 eval select $mysql_errno as "after_failing_execute" ;
 
 # failing execute (unknown statement)
@@ -256,6 +270,7 @@ garbage ;
 --error ER_UNKNOWN_STMT_HANDLER
 
 execute __stmt_;
+echo $mysql_errname;
 eval select $mysql_errno as "after_failing_execute" ;
 
 # successful deallocate
@@ -263,6 +278,7 @@ eval select $mysql_errno as "after_failing_execute" ;
 
 garbage ;
 deallocate prepare stmt;
+echo $mysql_errname;
 eval select $mysql_errno as "after_successful_deallocate" ;
 
 # failing deallocate ( statement handle does not exist )
@@ -272,6 +288,7 @@ garbage ;
 --error ER_UNKNOWN_STMT_HANDLER
 
 deallocate prepare __stmt_;
+echo $mysql_errname;
 eval select $mysql_errno as "after_failing_deallocate" ;
 
 
@@ -299,6 +316,7 @@ eval select $mysql_errno as "after_failing_deallocate" ;
 
 garbage ;
 --disable_abort_on_error
+echo $mysql_errname;
 eval select $mysql_errno as "after_--disable_abort_on_error" ;
 
 # ----------------------------------------------------------------------------
@@ -316,6 +334,7 @@ select 3 from t1 ;
 --error ER_NO_SUCH_TABLE
 
 select 3 from t1 ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_!errno_masked_error" ;
 # expected error <> response
 # --error 1000
@@ -341,6 +360,7 @@ EOF
 
 garbage ;
 --enable_abort_on_error
+echo $mysql_errname;
 eval select $mysql_errno as "after_--enable_abort_on_error" ;
 
 # ----------------------------------------------------------------------------
