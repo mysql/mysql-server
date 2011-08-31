@@ -2802,6 +2802,15 @@ thread_exit:
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+
+/** Functor to validate the flush list. */
+struct	Check {
+	void	operator()(const buf_page_t* elem)
+	{
+		ut_a(elem->in_flush_list);
+	}
+};
+
 /******************************************************************//**
 Validates the flush list.
 @return	TRUE if ok */
@@ -2816,8 +2825,7 @@ buf_flush_validate_low(
 
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
 
-	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list,
-			 ut_ad(ut_list_node_313->in_flush_list));
+	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->flush_list, Check());
 
 	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 

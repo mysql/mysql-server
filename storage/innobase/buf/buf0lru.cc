@@ -2132,6 +2132,30 @@ func_exit:
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+/** Functor to validate the LRU list. */
+struct	CheckInLRUList {
+	void	operator()(const buf_page_t* elem) const
+	{
+		ut_a(elem->in_LRU_list);
+	}
+};
+
+/** Functor to validate the LRU list. */
+struct	CheckInFreeList {
+	void	operator()(const buf_page_t* elem) const
+	{
+		ut_a(elem->in_free_list);
+	}
+};
+
+struct	CheckUnzipLRUAndLRUList {
+	void	operator()(const buf_block_t* elem) const
+	{
+                ut_a(elem->page.in_LRU_list);
+                ut_a(elem->in_unzip_LRU_list);
+	}
+};
+
 /**********************************************************************//**
 Validates the LRU list for one buffer pool instance. */
 static
@@ -2162,14 +2186,13 @@ buf_LRU_validate_instance(
 		ut_a(old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
 	}
 
-	UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU,
-			 ut_ad(ut_list_node_313->in_LRU_list));
-
-	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
+	UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU, CheckInLRUList());
 
 	old_len = 0;
 
-	while (bpage != NULL) {
+	for (bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
+	     bpage != NULL;
+             bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
 
 		switch (buf_page_get_state(bpage)) {
 		case BUF_BLOCK_ZIP_FREE:
@@ -2201,14 +2224,11 @@ buf_LRU_validate_instance(
 
 			ut_a(!next || buf_page_is_old(next));
 		}
-
-		bpage = UT_LIST_GET_NEXT(LRU, bpage);
 	}
 
 	ut_a(buf_pool->LRU_old_len == old_len);
 
-	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->free,
-			 ut_ad(ut_list_node_313->in_free_list));
+	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->free, CheckInFreeList());
 
 	for (bpage = UT_LIST_GET_FIRST(buf_pool->free);
 	     bpage != NULL;
@@ -2217,9 +2237,9 @@ buf_LRU_validate_instance(
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_NOT_USED);
 	}
 
-	UT_LIST_VALIDATE(unzip_LRU, buf_block_t, buf_pool->unzip_LRU,
-			 ut_ad(ut_list_node_313->in_unzip_LRU_list
-			       && ut_list_node_313->page.in_LRU_list));
+	UT_LIST_VALIDATE(
+                unzip_LRU, buf_block_t, buf_pool->unzip_LRU,
+                CheckUnzipLRUAndLRUList());
 
 	for (block = UT_LIST_GET_FIRST(buf_pool->unzip_LRU);
 	     block;
