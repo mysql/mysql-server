@@ -975,16 +975,17 @@
    fun:_Z8filesortP3THDP5TABLEP13st_sort_fieldjP10SQL_SELECTybPyS7_
 }
 
-## {
-##    Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / two
-##    Memcheck:Param
-##    write(buf)
-##    obj:*/libpthread*.so
-##    fun:my_write
-##    fun:my_b_flush_io_cache
-##    fun:_Z15merge_many_buffP13st_sort_paramPhP10st_buffpekPjP11st_io_cache
-##    fun:_Z8filesortP3THDP8st_tableP13st_sort_fieldjP10SQL_SELECTybPy
-## }
+{
+   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / two
+   Memcheck:Param
+   write(buf)
+   obj:*/libpthread*.so
+   fun:my_write
+   fun:inline_mysql_file_write
+   fun:my_b_flush_io_cache
+   fun:_Z15merge_many_buffP13st_sort_paramPhP10st_buffpekPjP11st_io_cache
+   fun:_Z8filesortP3THDP5TABLEP13st_sort_fieldjP10SQL_SELECTybPyS7_
+}
 
 ## {
 ##    Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / three
