@@ -723,14 +723,14 @@ TRACE
               "steps": [
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `test`.`t1`.`f2`,min(`test`.`t1`.`f2`) from `test`.`t1` having (((<cache>('v') = `test`.`t1`.`f2`) or isnull(`test`.`t1`.`f2`)) and ((<cache>('i') = min(`test`.`t1`.`f2`)) or isnull(min(`test`.`t1`.`f2`))) and <is_not_null_test>(`test`.`t1`.`f2`) and <is_not_null_test>(min(`test`.`t1`.`f2`)))))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `test`.`t1`.`f2`,min(`test`.`t1`.`f2`) from `test`.`t1` having (((<cache>('v') = `test`.`t1`.`f2`) or isnull(`test`.`t1`.`f2`)) and ((<cache>('i') = min(`test`.`t1`.`f2`)) or isnull(min(`test`.`t1`.`f2`))) and <is_not_null_test>(`test`.`t1`.`f2`) and <is_not_null_test>(min(`test`.`t1`.`f2`)))))))"
                 }
               ] /* steps */
@@ -2410,20 +2410,20 @@ from t0 where a in
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`)))) where (<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`))))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`)))) where (<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`)))) where (<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`))))"
                 }
               ] /* steps */

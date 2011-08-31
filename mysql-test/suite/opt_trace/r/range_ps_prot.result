@@ -4121,20 +4121,20 @@ SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY topic)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<not>(<in_optimizer>(`test`.`t1`.`topic`,<exists>(/* select#2 */ select `test`.`t1`.`topic` from `test`.`t1` group by `test`.`t1`.`topic` having (<cache>(`test`.`t1`.`topic`) <> <ref_null_helper>(`test`.`t1`.`topic`)))))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<not>(<in_optimizer>(`test`.`t1`.`topic`,<exists>(/* select#2 */ select `test`.`t1`.`topic` from `test`.`t1` group by `test`.`t1`.`topic` having (<cache>(`test`.`t1`.`topic`) <> <ref_null_helper>(`test`.`t1`.`topic`)))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<not>(<in_optimizer>(`test`.`t1`.`topic`,<exists>(/* select#2 */ select `test`.`t1`.`topic` from `test`.`t1` group by `test`.`t1`.`topic` having (<cache>(`test`.`t1`.`topic`) <> <ref_null_helper>(`test`.`t1`.`topic`)))))"
                 }
               ] /* steps */

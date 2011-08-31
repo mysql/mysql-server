@@ -13031,7 +13031,10 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
     {
       if (order->item[0]->has_subquery() && 
           !(join->select_lex->options & SELECT_DESCRIBE))
+      {
+        Opt_trace_array trace_subselect(trace, "subselect_evaluation");
         order->item[0]->val_str(&order->item[0]->str_value);
+      }
       trace_one_item.add("uses_only_constant_tables", true);
       continue;					// skip const item
     }
@@ -15808,7 +15811,7 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
         Opt_trace_disable_I_S
           disable_trace_wrapper(trace, !conds->has_subquery());
         Opt_trace_array
-          trace_subselect(trace, "subselect_equality_propagation");
+          trace_subselect(trace, "subselect_evaluation");
         conds= build_equal_items(join->thd, conds, NULL, join_list,
                                  &join->cond_equal);
       }
@@ -15823,7 +15826,7 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
         Opt_trace_disable_I_S
           disable_trace_wrapper(trace, !conds->has_subquery());
         Opt_trace_array
-          trace_subselect(trace, "subselect_constant_propagation");
+          trace_subselect(trace, "subselect_evaluation");
         propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
       }
       step_wrapper.add("resulting_condition", conds);
@@ -15840,7 +15843,7 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
       {
         Opt_trace_disable_I_S
           disable_trace_wrapper(trace, !conds->has_subquery());
-        Opt_trace_array trace_subselect(trace, "subselect_cond_removal");
+        Opt_trace_array trace_subselect(trace, "subselect_evaluation");
         conds= remove_eq_conds(thd, conds, cond_value) ;
       }
       step_wrapper.add("resulting_condition", conds);
