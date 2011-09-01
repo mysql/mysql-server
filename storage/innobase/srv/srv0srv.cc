@@ -1375,8 +1375,8 @@ A thread which prints the info output by various InnoDB monitors.
 @return	a dummy parameter */
 extern "C" UNIV_INTERN
 os_thread_ret_t
-srv_monitor_thread(
-/*===============*/
+DECLARE_THREAD(srv_monitor_thread)(
+/*===============================*/
 	void*	arg __attribute__((unused)))
 			/*!< in: a dummy parameter required by
 			os_thread_create */
@@ -1545,8 +1545,8 @@ too long. These can be used to track bugs which cause hangs.
 @return	a dummy parameter */
 extern "C" UNIV_INTERN
 os_thread_ret_t
-srv_error_monitor_thread(
-/*=====================*/
+DECLARE_THREAD(srv_error_monitor_thread)(
+/*=====================================*/
 	void*	arg __attribute__((unused)))
 			/*!< in: a dummy parameter required by
 			os_thread_create */
@@ -2263,8 +2263,8 @@ The master thread controlling the server.
 @return	a dummy parameter */
 extern "C" UNIV_INTERN
 os_thread_ret_t
-srv_master_thread(
-/*==============*/
+DECLARE_THREAD(srv_master_thread)(
+/*==============================*/
 	void*	arg __attribute__((unused)))
 			/*!< in: a dummy parameter required by
 			os_thread_create */
@@ -2383,8 +2383,8 @@ Worker thread that reads tasks from the work queue and executes them.
 @return	a dummy parameter */
 extern "C" UNIV_INTERN
 os_thread_ret_t
-srv_worker_thread(
-/*==============*/
+DECLARE_THREAD(srv_worker_thread)(
+/*==============================*/
 	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {
@@ -2514,8 +2514,8 @@ Purge coordinator thread that schedules the purge tasks.
 @return	a dummy parameter */
 extern "C" UNIV_INTERN
 os_thread_ret_t
-srv_purge_coordinator_thread(
-/*=========================*/
+DECLARE_THREAD(srv_purge_coordinator_thread)(
+/*=========================================*/
 	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {

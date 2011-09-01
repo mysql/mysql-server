@@ -452,8 +452,8 @@ A thread which wakes up threads whose lock wait may have lasted too long.
 @return	a dummy parameter */
 extern "C" UNIV_INTERN
 os_thread_ret_t
-lock_wait_timeout_thread(
-/*=====================*/
+DECLARE_THREAD(lock_wait_timeout_thread)(
+/*=====================================*/
 	void*	arg __attribute__((unused)))
 			/* in: a dummy parameter required by
 			os_thread_create */

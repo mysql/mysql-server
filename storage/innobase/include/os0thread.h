@@ -45,13 +45,22 @@ can wait inside InnoDB */
 typedef void*			os_thread_t;
 typedef DWORD			os_thread_id_t;	/*!< In Windows the thread id
 						is an unsigned long int */
-extern "C"  { typedef DWORD	(*os_thread_func_t)(LPVOID); }
+extern "C"  {
+typedef LPTHREAD_START_ROUTINE	os_thread_func_t;
+}
+
+/** Macro for specifying a Windows thread start function. */
+#define DECLARE_THREAD(func)	WINAPI func
+
 #else
 typedef pthread_t		os_thread_t;
 typedef os_thread_t		os_thread_id_t;	/*!< In Unix we use the thread
 						handle itself as the id of
 						the thread */
 extern "C"  { typedef void*	(*os_thread_func_t)(void*); }
+
+/** Macro for specifying a POSIX thread start function. */
+#define DECLARE_THREAD(func)	func
 #endif
 
 /* Define a function pointer type to use in a typecast */
