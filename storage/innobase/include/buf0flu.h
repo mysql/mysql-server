@@ -202,9 +202,8 @@ extern "C" UNIV_INTERN
 os_thread_ret_t
 DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 /*==========================================*/
-	void*	arg __attribute__((unused)));
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+	void*	arg);		/*!< in: a dummy parameter required by
+				os_thread_create */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**

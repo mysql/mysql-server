@@ -471,8 +471,8 @@ I/o-handler thread function.
 @return	OS_THREAD_DUMMY_RETURN */
 extern "C" UNIV_INTERN
 os_thread_ret_t
-io_handler_thread(
-/*==============*/
+DECLARE_THREAD(io_handler_thread)(
+/*==============================*/
 	void*	arg)	/*!< in: pointer to the number of the segment in
 			the aio array */
 {

@@ -2673,8 +2673,8 @@ pools. As of now we'll have only one instance of this thread.
 @return a dummy parameter */
 extern "C" UNIV_INTERN
 os_thread_ret_t
-buf_flush_page_cleaner_thread(
-/*==========================*/
+DECLARE_THREAD(buf_flush_page_cleaner_thread)(
+/*==========================================*/
 	void*	arg __attribute__((unused)))
 			/*!< in: a dummy parameter required by
 			os_thread_create */
