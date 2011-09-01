@@ -124,6 +124,7 @@ static const char *opt_include_tables= NULL;
 static const char *opt_exclude_databases= NULL;
 static const char *opt_include_databases= NULL;
 static const char *opt_rewrite_database= NULL;
+static bool opt_restore_privilege_tables = false;
 
 static struct my_option my_long_options[] =
 {
@@ -266,6 +267,11 @@ static struct my_option my_long_options[] =
     "Example: db1.t1,db3.t1",
     (uchar**) &opt_exclude_tables, (uchar**) &opt_exclude_tables, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "restore-privilege-tables", NDB_OPT_NOSHORT,
+    "Restore privilege tables (after they have been moved to ndb)",
+    (uchar**) &opt_restore_privilege_tables,
+    (uchar**) &opt_restore_privilege_tables, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "exclude-missing-columns", NDB_OPT_NOSHORT,
     "Ignore columns present in backup but not in database",
     (uchar**) &ga_exclude_missing_columns,
@@ -495,18 +501,19 @@ processTableList(const char* str, Vector<BaseString> &lst)
 {
   // Process tables list like db1.t1,db2.t1 and exits when
   // it finds problems.
+  Vector<BaseString> tmp;
   unsigned int i;
   /* Split passed string on comma into 2 BaseStrings in the vector */
-  BaseString(str).split(lst,",");
-  for (i=0; i < lst.size(); i++)
+  BaseString(str).split(tmp,",");
+  for (i=0; i < tmp.size(); i++)
   {
     BaseString internalName;
-    if (makeInternalTableName(lst[i], internalName))
+    if (makeInternalTableName(tmp[i], internalName))
     {
-      info << "`" << lst[i] << "` is not a valid tablename!" << endl;
+      info << "`" << tmp[i] << "` is not a valid tablename!" << endl;
       exit(NDBT_ProgramExit(NDBT_WRONGARGS));
     }
-    lst[i].assign(internalName);
+    lst.push_back(internalName);
   }
 }
 
@@ -523,6 +530,24 @@ makeExternalTableName(const BaseString &internalName)
                                           internalName.length()));
   return externalName;
 }
+
+#include "../../../../sql/ndb_dist_priv_util.h"
+
+// Exclude privilege tables unless explicitely included
+void
+exclude_privilege_tables()
+{
+  const char* table_name;
+  Ndb_dist_priv_util dist_priv;
+  while((table_name= dist_priv.iter_next_table()))
+  {
+    BaseString priv_tab;
+    priv_tab.assfmt("%s.%s", dist_priv.database(), table_name);
+    g_exclude_tables.push_back(priv_tab);
+    save_include_exclude(OPT_EXCLUDE_TABLES, (char *)priv_tab.c_str());
+  }
+}
+
 
 bool
 readArguments(int *pargc, char*** pargv) 
@@ -698,7 +723,35 @@ o verify nodegroup mapping
     if (g_tables.size() > 0)
       info << endl;
   }
-  
+
+  if (ga_restore)
+  {
+    // Exclude privilege tables unless explicitely included
+    if (!opt_restore_privilege_tables)
+      exclude_privilege_tables();
+
+    // Move over old style arguments to include/exclude lists
+    if (g_databases.size() > 0)
+    {
+      BaseString tab_prefix, tab;
+      tab_prefix.append(g_databases[0].c_str());
+      tab_prefix.append(".");
+      if (g_tables.size() == 0)
+      {
+        g_include_databases.push_back(g_databases[0]);
+        save_include_exclude(OPT_INCLUDE_DATABASES,
+                             (char *)g_databases[0].c_str());
+      }
+      for (unsigned i= 0; i < g_tables.size(); i++)
+      {
+        tab.assign(tab_prefix);
+        tab.append(g_tables[i]);
+        g_include_tables.push_back(tab);
+        save_include_exclude(OPT_INCLUDE_TABLES, (char *)tab.c_str());
+      }
+    }
+  }
+
   if (opt_include_databases)
   {
     tmp = BaseString(opt_include_databases);
@@ -758,7 +811,7 @@ o verify nodegroup mapping
     }
     info << endl;
   }
-  
+
   /*
     the below formatting follows the formatting from mysqldump
     do not change unless to adopt to changes in mysqldump
@@ -978,7 +1031,7 @@ static bool check_include_exclude(BaseString database, BaseString table)
       }
     }
   }
-  
+
   return do_include;
 }
 
@@ -1012,7 +1065,7 @@ checkDbAndTableName(const TableS* table)
     return false;
 
   // If new options are given, ignore the old format
-  if (opt_include_tables || opt_exclude_tables ||
+  if (opt_include_tables || g_exclude_tables.size() > 0 ||
       opt_include_databases || opt_exclude_databases ) {
     return (checkDoRestore(table));
   }

@@ -1,0 +1,143 @@
+call mysql.mysql_cluster_move_privileges();
+select mysql.mysql_cluster_privileges_are_distributed();
+mysql.mysql_cluster_privileges_are_distributed()
+1
+CREATE TABLE t1 (pk INT PRIMARY KEY, a INT) engine = ndb;
+INSERT INTO t1 VALUES(0,0),(1,1),(2,2);
+CREATE USER 'user'@'localhost' IDENTIFIED by 'mypass';
+GRANT UPDATE ON t1 TO 'user'@'localhost';
+SET PASSWORD FOR 'user'@'localhost'= PASSWORD('newpass');
+RENAME USER 'user'@'localhost' TO 'newuser'@'localhost';
+GRANT SELECT ON test.* TO 'newuser'@'localhost' IDENTIFIED by 'mypass2';
+CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass';
+GRANT SELECT ON test.t1 TO 'user2'@'localhost';
+select distinct User,Password from mysql.user order by User;
+User	Password
+newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
+root	
+user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
+select User,Table_priv from mysql.tables_priv ORDER BY User;
+User	Table_priv
+newuser	Update
+user2	Select
+grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION;
+select User,Table_priv from mysql.tables_priv ORDER BY User;
+User	Table_priv
+newuser	Update
+user2	Select
+GRANT SELECT ON test.t1 TO 'user'@'localhost';
+select User,Table_priv from mysql.tables_priv ORDER BY User;
+User	Table_priv
+newuser	Update
+user	Select
+user2	Select
+FLUSH PRIVILEGES;
+select User,Table_priv from mysql.tables_priv ORDER BY User;
+User	Table_priv
+newuser	Update
+user	Select
+user2	Select
+REVOKE SELECT ON test.t1 FROM 'user'@'localhost';
+select User,Table_priv from mysql.tables_priv ORDER BY User;
+User	Table_priv
+newuser	Update
+user2	Select
+CREATE USER 'user3'@'localhost' IDENTIFIED by 'mypass';
+select distinct User,Password from mysql.user order by User;
+User	Password
+newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
+root	
+user	
+user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
+user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
+select User,Table_priv from mysql.tables_priv ORDER BY User;
+User	Table_priv
+newuser	Update
+user2	Select
+REVOKE UPDATE ON t1 FROM 'newuser'@'localhost';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user'@'localhost';
+select User,Table_priv from mysql.tables_priv ORDER BY User;
+User	Table_priv
+user2	Select
+GRANT SELECT (a) ON test.t1 TO 'user'@'localhost';
+select User, Table_name, Column_name from mysql.columns_priv ORDER BY User;
+User	Table_name	Column_name
+user	t1	a
+FLUSH PRIVILEGES;
+select distinct User,Password from mysql.user order by User;
+User	Password
+newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
+root	
+user	
+user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
+user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
+select User,Table_priv from mysql.tables_priv ORDER BY User;
+User	Table_priv
+user	
+user2	Select
+select User, Table_name, Column_name from mysql.columns_priv ORDER BY User;
+User	Table_name	Column_name
+user	t1	a
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user2'@'localhost';
+select User,Table_priv from mysql.tables_priv ORDER BY User;
+User	Table_priv
+user	
+select distinct User,Password from mysql.user order by User;
+User	Password
+newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
+root	
+user	
+user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
+user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
+select User,Table_priv from mysql.tables_priv ORDER BY User;
+User	Table_priv
+user	
+connect(127.0.0.1,magnus,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'magnus'@'localhost' (using password: NO)
+connect(127.0.0.1,magnus,,test,MASTER_PORT1,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'magnus'@'localhost' (using password: NO)
+CREATE USER 'billy1'@'127.0.0.1' IDENTIFIED by 'mypass';
+SELECT USER();
+USER()
+billy1@localhost
+SELECT * FROM t1 order by pk;
+pk	a
+0	0
+1	1
+2	2
+connect(127.0.0.1,billy1,,test,MASTER_PORT1,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'billy1'@'localhost' (using password: NO)
+connect(127.0.0.1,billy1,wrongpass,test,MASTER_PORT1,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'billy1'@'localhost' (using password: YES)
+BEGIN;
+UPDATE mysql.user SET Password = ''
+WHERE User = 'billy1';
+SET PASSWORD FOR 'billy1'@'127.0.0.1' = PASSWORD('newpass');
+ERROR 42000: Can't find any matching row in the user table
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1297	Got temporary error 266 'Time-out in NDB, probably caused by deadlock' from NDB
+Error	1133	Can't find any matching row in the user table
+ROLLBACK;
+DROP USER 'billy1'@'127.0.0.1';
+GRANT ALL ON *.* TO 'billy2'@'127.0.0.1';
+SELECT USER();
+USER()
+billy2@localhost
+SELECT * FROM t1 order by pk;
+pk	a
+0	0
+1	1
+2	2
+DROP USER 'billy2'@'127.0.0.1';
+=== making backup of new users ===
+call mysql.mysql_cluster_backup_privileges();
+==== clean up ====
+DROP USER 'newuser'@'localhost';
+DROP USER 'user2'@'localhost';
+DROP USER 'user3'@'localhost';
+DROP TABLE t1;
+call mysql.mysql_cluster_backup_privileges();
+call mysql.mysql_cluster_backup_privileges();
+call mysql.mysql_cluster_restore_local_privileges();
+call mysql.mysql_cluster_restore_local_privileges();
