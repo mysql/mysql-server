@@ -184,6 +184,7 @@ printusage()
     << "  -bug 27370  Potential inconsistent blob reads for ReadCommitted reads" << endl
     << "  -bug 36756  Handling execute(.., abortOption) and Blobs " << endl
     << "  -bug 45768  execute(Commit) after failing blob batch " << endl
+    << "  -bug 62321  Blob obscures ignored error codes in batch" << endl
     ;
 }
 
@@ -3860,6 +3861,124 @@ static int bugtest_48040()
 }
 
 
+static int bugtest_62321()
+{
+  /* Having a Blob operation in a batch with other operations
+   * causes the other operation's ignored error not to be
+   * set as the transaction error code after execution.
+   * This is used (e.g in MySQLD) to check for conflicts
+   */
+  DBG("bugtest_62321 : Error code from other ops in batch obscured");
+
+  /*
+     1) Setup table : 1 row exists, another doesnt
+     2) Start transaction
+     3) Define failing before op
+     4) Define Blob op with/without post-exec part
+     5) Define failing after op
+     6) Execute
+     7) Check results
+  */
+  calcTups(true);
+
+  /* Setup table */
+  Tup& tupExists = g_tups[0];
+  Tup& notExists = g_tups[1];
+  {
+    CHK((g_con= g_ndb->startTransaction()) != 0);
+    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+    CHK(g_opr->insertTuple() == 0);
+    CHK(g_opr->equal("PK1", tupExists.m_pk1) == 0);
+    if (g_opt.m_pk2chr.m_len != 0)
+    {
+      CHK(g_opr->equal("PK2", tupExists.m_pk2) == 0);
+      CHK(g_opr->equal("PK3", tupExists.m_pk3) == 0);
+    }
+    setUDpartId(tupExists, g_opr);
+    CHK(getBlobHandles(g_opr) == 0);
+
+    CHK(setBlobValue(tupExists) == 0);
+
+    CHK(g_con->execute(Commit) == 0);
+    g_con->close();
+  }
+
+  for (int scenario = 0; scenario < 4; scenario++)
+  {
+    DBG(" Scenario : " << scenario);
+    CHK((g_con= g_ndb->startTransaction()) != 0);
+    NdbOperation* failOp = NULL;
+    if ((scenario & 0x1) == 0)
+    {
+      DBG("  Fail op before");
+      /* Define failing op in batch before Blob op */
+      failOp= g_con->getNdbOperation(g_opt.m_tname);
+      CHK(failOp != 0);
+      CHK(failOp->readTuple() == 0);
+      CHK(failOp->equal("PK1", notExists.m_pk1) == 0);
+      if (g_opt.m_pk2chr.m_len != 0)
+      {
+        CHK(failOp->equal("PK2", notExists.m_pk2) == 0);
+        CHK(failOp->equal("PK3", notExists.m_pk3) == 0);
+      }
+      setUDpartId(notExists, failOp);
+      CHK(failOp->getValue("PK1") != 0);
+      CHK(failOp->setAbortOption(NdbOperation::AO_IgnoreError) == 0);
+    }
+
+    /* Now define successful Blob op */
+    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+    CHK(g_opr->readTuple() == 0);
+    CHK(g_opr->equal("PK1", tupExists.m_pk1) == 0);
+    if (g_opt.m_pk2chr.m_len != 0)
+    {
+      CHK(g_opr->equal("PK2", tupExists.m_pk2) == 0);
+      CHK(g_opr->equal("PK3", tupExists.m_pk3) == 0);
+    }
+    setUDpartId(tupExists, g_opr);
+    CHK(getBlobHandles(g_opr) == 0);
+
+    CHK(getBlobValue(tupExists) == 0);
+
+
+    /* Define failing batch op after Blob op if not defined before */
+    if (failOp == 0)
+    {
+      DBG("  Fail op after");
+      failOp= g_con->getNdbOperation(g_opt.m_tname);
+      CHK(failOp != 0);
+      CHK(failOp->readTuple() == 0);
+      CHK(failOp->equal("PK1", notExists.m_pk1) == 0);
+      if (g_opt.m_pk2chr.m_len != 0)
+      {
+        CHK(failOp->equal("PK2", notExists.m_pk2) == 0);
+        CHK(failOp->equal("PK3", notExists.m_pk3) == 0);
+      }
+      setUDpartId(notExists, failOp);
+      CHK(failOp->getValue("PK1") != 0);
+      CHK(failOp->setAbortOption(NdbOperation::AO_IgnoreError) == 0);
+    }
+
+    /* Now execute and check rc etc */
+    NdbTransaction::ExecType et = (scenario & 0x2) ?
+      NdbTransaction::NoCommit:
+      NdbTransaction::Commit;
+
+    DBG("  Executing with execType = " << ((et == NdbTransaction::NoCommit)?
+                                           "NoCommit":"Commit"));
+    int rc = g_con->execute(NdbTransaction::NoCommit);
+
+    CHK(rc == 0);
+    CHK(g_con->getNdbError().code == 626);
+    CHK(failOp->getNdbError().code == 626);
+    CHK(g_opr->getNdbError().code == 0);
+    DBG("  Error code on transaction as expected");
+
+    g_con->close();
+  }
+
+  return 0;
+}
 
 // main
 
@@ -4824,7 +4943,8 @@ static struct {
   { 36756, bugtest_36756 },
   { 45768, bugtest_45768 },
   { 48040, bugtest_48040 },
-  { 28116, bugtest_28116 }
+  { 28116, bugtest_28116 },
+  { 62321, bugtest_62321 }
 };
 
 NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
