@@ -87,6 +87,23 @@ error:
 }
 
 
+void Owned_groups::clear()
+{
+  sid_lock->assert_some_rdlock();
+  rpl_sidno max_sidno= get_max_sidno();
+  for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
+  {
+    HASH *hash= get_hash(sidno);
+    for (uint i= 0; i < hash->records; i++)
+    {
+      Node *node= (Node *)my_hash_element(hash, i);
+      DBUG_ASSERT(node != NULL);
+      node->is_partial= false;
+    }
+  }
+}
+
+
 enum_group_status Owned_groups::add(rpl_sidno sidno, rpl_gno gno,
                                     Rpl_owner_id owner)
 {
@@ -117,16 +134,19 @@ void Owned_groups::remove(rpl_sidno sidno, rpl_gno gno)
 {
   DBUG_ENTER("Owned_groups::remove");
   //printf("Owned_groups::remove(sidno=%d gno=%lld)\n", sidno, gno);
-  DBUG_ASSERT(contains_group(sidno, gno));
+  //DBUG_ASSERT(contains_group(sidno, gno)); // allow group not owned
   HASH *hash= get_hash(sidno);
+  DBUG_ASSERT(hash != NULL);
   Node *node= get_node(hash, gno);
-  DBUG_ASSERT(node != NULL);
+  if (node != NULL)
+  {
 #ifdef NO_DBUG
-  my_hash_delete(hash, (uchar *)node);
+    my_hash_delete(hash, (uchar *)node);
 #else
-  // my_hash_delete returns nonzero if the element does not exist
-  DBUG_ASSERT(my_hash_delete(hash, (uchar *)node) == 0);
+    // my_hash_delete returns nonzero if the element does not exist
+    DBUG_ASSERT(my_hash_delete(hash, (uchar *)node) == 0);
 #endif
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -183,6 +203,7 @@ enum_group_status Owned_groups::get_partial_groups(Group_set *gs) const
 {
   DBUG_ENTER("Owned_groups::get_partial_groups");
   rpl_sidno max_sidno= get_max_sidno();
+  GROUP_STATUS_THROW(gs->ensure_sidno(max_sidno));
   for (int sidno= 1; sidno <= max_sidno; sidno++)
   {
     HASH *hash= get_hash(sidno);
@@ -191,7 +212,7 @@ enum_group_status Owned_groups::get_partial_groups(Group_set *gs) const
     {
       Node *node= (Node *)my_hash_element(hash, i);
       if (node->is_partial)
-        GROUP_STATUS_THROW(gs->add(sidno, node->gno));
+        GROUP_STATUS_THROW(gs->_add(sidno, node->gno));
     }
   }
   DBUG_RETURN(GS_SUCCESS);

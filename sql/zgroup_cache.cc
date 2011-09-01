@@ -37,11 +37,11 @@ Group_cache::~Group_cache()
 }
 
 
-enum_group_status Group_cache::clear()
+void Group_cache::clear()
 {
   DBUG_ENTER("Group_cache::clear");
   subgroups.elements= 0;
-  DBUG_RETURN(GS_SUCCESS);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -96,7 +96,7 @@ enum_group_status Group_cache::add_subgroup(const Cached_subgroup *group)
 enum_group_status Group_cache::add_logged_subgroup(const THD *thd,
                                                    my_off_t length)
 {
-  DBUG_ENTER("Group_cache::add_logged_subgroup(my_off_t, my_off_t, bool)");
+  DBUG_ENTER("Group_cache::add_logged_subgroup(THD *, my_off_t)");
   const Ugid_specification *spec= &thd->variables.ugid_next;
   Ugid_specification::enum_type type= spec->type;
   Cached_subgroup cs=
@@ -110,7 +110,8 @@ enum_group_status Group_cache::add_logged_subgroup(const THD *thd,
     };
   if (type == Ugid_specification::AUTOMATIC && spec->group.sidno == 0)
     cs.sidno= mysql_bin_log.server_uuid_sidno;
-  DBUG_RETURN(add_subgroup(&cs));
+  enum_group_status ret= add_subgroup(&cs);
+  DBUG_RETURN(ret);
 }
 
 
@@ -378,11 +379,12 @@ enum_group_status Group_cache::get_ended_groups(Group_set *gs) const
 {
   DBUG_ENTER("Group_cache::get_groups");
   int n_subgroups= get_n_subgroups();
+  GROUP_STATUS_THROW(gs->ensure_sidno(gs->get_sid_map()->get_max_sidno()));
   for (int i= 0; i < n_subgroups; i++)
   {
     Cached_subgroup *cs= get_unsafe_pointer(i);
     if (cs->group_end)
-      GROUP_STATUS_THROW(gs->add(cs->sidno, cs->gno));
+      GROUP_STATUS_THROW(gs->_add(cs->sidno, cs->gno));
   }
   DBUG_RETURN(GS_SUCCESS);
 }
@@ -391,14 +393,16 @@ enum_group_status Group_cache::get_ended_groups(Group_set *gs) const
 enum_group_status Group_cache::get_partial_groups(Group_set *gs) const
 {
   DBUG_ENTER("Group_cache::get_groups");
-  Group_set ended_groups(gs->get_sid_map());
+  Sid_map *sid_map= gs->get_sid_map();
+  GROUP_STATUS_THROW(gs->ensure_sidno(sid_map->get_max_sidno()));
+  Group_set ended_groups(sid_map);
   GROUP_STATUS_THROW(get_ended_groups(&ended_groups));
   int n_subgroups= get_n_subgroups();
   for (int i= 0; i < n_subgroups; i++)
   {
     Cached_subgroup *cs= get_unsafe_pointer(i);
     if (!ended_groups.contains_group(cs->sidno, cs->gno))
-      GROUP_STATUS_THROW(gs->add(cs->sidno, cs->gno));
+      GROUP_STATUS_THROW(gs->_add(cs->sidno, cs->gno));
   }
   DBUG_RETURN(GS_SUCCESS);
 }

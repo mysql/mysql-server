@@ -38,13 +38,14 @@ Mutex_cond_array::~Mutex_cond_array()
   // need to hold lock before calling get_max_sidno
   global_lock->rdlock();
   int max_index= get_max_index();
-  for (int i= 0; i < max_index; i++)
+  for (int i= 0; i <= max_index; i++)
   {
     Mutex_cond *mutex_cond= get_mutex_cond(i);
     if (mutex_cond)
     {
       mysql_mutex_destroy(&mutex_cond->mutex);
       mysql_cond_destroy(&mutex_cond->cond);
+      free(mutex_cond);
     }
   }
   delete_dynamic(&array);

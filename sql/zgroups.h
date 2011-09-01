@@ -71,7 +71,6 @@ enum enum_group_status
 
 /**
   Given a value of type enum_group_status: if the value is GS_SUCCESS, do nothing; otherwise return the value. This is used to propagate errors to the caller.
-
 */
 #define GROUP_STATUS_THROW(VAL)                                         \
   do                                                                    \
@@ -316,7 +315,8 @@ private:
   lock.  Access methods assert that the caller already holds the read
   (or write) lock.  If a method of this class grows the number of
   SIDNOs, then the method temporarily upgrades this lock to a write
-  lock and then degrades it to a read lock again.
+  lock and then degrades it to a read lock again; there will be a
+  short period when the lock is not held at all.
 */
 class Sid_map
 {
@@ -470,7 +470,8 @@ private:
   lock.  Access methods assert that the caller already holds the read
   (or write) lock.  If a method of this class grows the number of
   elements, then the method temporarily upgrades this lock to a write
-  lock and then degrades it to a read lock again.
+  lock and then degrades it to a read lock again; there will be a
+  short period when the lock is not held at all.
 */
 class Mutex_cond_array
 {
@@ -539,10 +540,11 @@ public:
     return array.elements - 1;
   }
   /**
-    If this array is smaller than the given size, grows it.
+    Grows the array so that the given index fits.
 
     If the array is grown, the global_lock is temporarily upgraded to
-    a write lock and then degraded again.
+    a write lock and then degraded again; there will be a
+    short period when the lock is not held at all.
 
     @param n The index.
     @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
@@ -613,7 +615,8 @@ struct Group
   assert that the caller already holds the read (or write) lock.  If
   the lock is not NULL and a method of this class grows the number of
   SIDNOs, then the method temporarily upgrades this lock to a write
-  lock and then degrades it to a read lock again.
+  lock and then degrades it to a read lock again; there will be a
+  short period when the lock is not held at all.
 */
 class Group_set
 {
@@ -637,6 +640,11 @@ public:
     @param sid_lock Read/write lock to protect changes in the number
     of SIDs with. This may be NULL if such changes do not need to be
     protected.
+
+    If sid_lock != NULL, then the read lock on sid_lock must be held
+    before calling this function. If the array is grown, sid_lock is
+    temporarily upgraded to a write lock and then degraded again;
+    there will be a short period when the lock is not held at all.
   */
   Group_set(Sid_map *sid_map, const char *text, enum_group_status *status,
             Checkable_rwlock *sid_lock= NULL);
@@ -663,14 +671,25 @@ public:
   /**
     Adds the given group to this Group_set.
 
+    The SIDNO must exist in the Group_set before this function is called.
+
     @param sidno SIDNO of the group to add.
     @param gno GNO of the group to add.
     @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
   */
-  enum_group_status add(rpl_sidno sidno, rpl_gno gno)
-  { return add(sidno, gno, gno + 1); }
+  enum_group_status _add(rpl_sidno sidno, rpl_gno gno)
+  {
+    Interval_iterator ivit(this, sidno);
+    return add(&ivit, gno, gno + 1);
+  }
   /**
     Adds all groups from the given Group_set to this Group_set.
+
+    If sid_lock != NULL, then the read lock must be held before
+    calling this function. If a new sidno is added so that the array
+    of lists of intervals is grown, sid_lock is temporarily upgraded
+    to a write lock and then degraded again; there will be a short
+    period when the lock is not held at all.
 
     @param other The group set to add.
     @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
@@ -693,6 +712,12 @@ public:
 
        Each X is a hexadecimal digit (upper- or lowercase).
        NUMBER is a decimal, 0xhex, or 0oct number.
+
+    If sid_lock != NULL, then the read lock on sid_lock must be held
+    before calling this function. If a new sidno is added so that the
+    array of lists of intervals is grown, sid_lock is temporarily
+    upgraded to a write lock and then degraded again; there will be a
+    short period when the lock is not held at all.
 
     @param text The string to parse.
     @return GS_SUCCESS or GS_ERROR_PARSE or GS_ERROR_OUT_OF_MEMORY
@@ -718,6 +743,11 @@ public:
   /**
     Allocates space for all sidnos up to the given sidno in the array of intervals.
     The sidno must exist in the Sid_map associated with this Group_set.
+
+    If sid_lock != NULL, then the read lock on sid_lock must be held
+    before calling this function. If the array is grown, sid_lock is
+    temporarily upgraded to a write lock and then degraded again;
+    there will be a short period when the lock is not held at all.
 
     @param sidno The SIDNO.
     @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
@@ -1052,6 +1082,8 @@ private:
   /**
     Adds a list of intervals to the given SIDNO.
 
+    The SIDNO must exist in the Group_set before this function is called.
+
     @param sidno The SIDNO to which intervals will be added.
     @param ivit Iterator over the intervals to add. This is typically
     an iterator over some other Group_set.
@@ -1061,6 +1093,8 @@ private:
   /**
     Removes a list of intervals to the given SIDNO.
 
+    It is not required that the intervals exist in this Group_set.
+
     @param sidno The SIDNO from which intervals will be removed.
     @param ivit Iterator over the intervals to remove. This is typically
     an iterator over some other Group_set.
@@ -1068,18 +1102,10 @@ private:
   */
   enum_group_status remove(rpl_sidno sidno, Const_interval_iterator ivit);
   /**
-    Adds the given interval to this Group_set.
+    Adds the interval (start, end) to the given Interval_iterator.
 
-    @param sidno SIDNO at which the interval should be added.
-    @param start The first GNO in the interval.
-    @param end The first GNO after the interval.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
-  */
-  enum_group_status add(rpl_sidno sidno, rpl_gno start, rpl_gno end);
-  /**
-    Adds the interval (start, end) to the given
-    Interval_iterator. This is the lowest-level function that adds
-    groups; this is where Interval objects are added, grown, or merged.
+    This is the lowest-level function that adds groups; this is where
+    Interval objects are added, grown, or merged.
 
     @param ivitp Pointer to iterator.  After this function returns,
     the current_element of the iterator will be the interval that
@@ -1094,6 +1120,9 @@ private:
     Interval_iterator. This is the lowest-level function that removes
     groups; this is where Interval objects are removed, truncated, or
     split.
+
+    It is not required that the groups in the interval exist in this
+    Group_set.
 
     @param ivitp Pointer to iterator.  After this function returns,
     the current_element of the iterator will be the next interval
@@ -1226,7 +1255,8 @@ struct Group_set_or_null
   lock.  Access methods assert that the caller already holds the read
   (or write) lock.  If a method of this class grows the number of
   SIDNOs, then the method temporarily upgrades this lock to a write
-  lock and then degrades it to a read lock again.
+  lock and then degrades it to a read lock again; there will be a
+  short period when the lock is not held at all.
 
   The internal representation is a DYNAMIC_ARRAY that maps SIDNO to
   HASH, where each HASH maps GNO to (Rpl_owner_id, bool).
@@ -1243,6 +1273,8 @@ public:
   Owned_groups(Checkable_rwlock *sid_lock);
   /// Destroys this Owned_groups.
   ~Owned_groups();
+  /// Mark all owned groups for all SIDs as non-partial.
+  void clear();
   /**
     Add a group to this Owned_groups.
 
@@ -1282,8 +1314,8 @@ public:
   /**
     Removes the given group.
 
-    Throws an assertion if the group does not exist in this
-    Owned_groups object.
+    If the group does not exist in this Owned_groups object, does
+    nothing.
 
     @param sidno The group's SIDNO.
     @param gno The group's GNO.
@@ -1315,7 +1347,8 @@ public:
 
     If this Owned_groups object needs to be resized, then the lock
     will be temporarily upgraded to a write lock and then degraded to
-    a read lock again.
+    a read lock again; there will be a short period when the lock is
+    not held at all.
 
     @param sidno The SIDNO.
 
@@ -1394,7 +1427,8 @@ private:
   lock.  Access methods assert that the caller already holds the read
   (or write) lock.  If a method of this class grows the number of
   SIDNOs, then the method temporarily upgrades this lock to a write
-  lock and then degrades it to a read lock again.
+  lock and then degrades it to a read lock again; there will be a
+  short period when the lock is not held at all.
 */
 class Group_log_state
 {
@@ -1411,11 +1445,17 @@ public:
     sid_map(_sid_map),
     ended_groups(_sid_map), owned_groups(_sid_lock) {}
   /**
+    Reset the state after RESET MASTER: remove all ended groups and
+    mark all owned groups as non-partial.
+  */
+  void clear();
+  /**
     Returns true if the given group is ended.
 
     @param sidno The SIDNO to check.
     @param gno The GNO to check.
     @retval true The group is ended in the group log.
+
     @retval false The group is partial or unlogged in the group log.
   */
   bool is_ended(rpl_sidno sidno, rpl_gno gno) const
@@ -1454,13 +1494,15 @@ public:
   /**
     Marks the group as not owned any more.
 
-    If the group is not owned, an assertion is raised.
+    If the group is not owned, does nothing.
 
     @param sidno The SIDNO of the group
     @param gno The GNO of the group.
   */
+  /*UNUSED
   void mark_not_owned(rpl_sidno sidno, rpl_gno gno)
   { owned_groups.remove(sidno, gno); }
+  */
   /**
     Acquires ownership of the given group, on behalf of the given thread.
 
@@ -1518,6 +1560,11 @@ public:
   /**
     Ensure that owned_groups, ended_groups, and sid_locks have room
     for at least as many SIDNOs as sid_map.
+
+    Requires that the read lock on sid_locks is held.  If any object
+    needs to be resized, then the lock will be temporarily upgraded to
+    a write lock and then degraded to a read lock again; there will be
+    a short period when the lock is not held at all.
 
     @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
   */
@@ -1646,7 +1693,7 @@ public:
   /// Deletes a Group_cache.
   ~Group_cache();
   /// Removes all sub-groups from this cache.
-  enum_group_status clear();
+  void clear();
   /// Return the number of sub-groups in this group cache.
   inline int get_n_subgroups() const { return subgroups.elements; }
   /// Return true iff the group cache contains zero sub-groups.
@@ -1753,6 +1800,13 @@ public:
   bool group_is_ended(rpl_sidno sidno, rpl_gno gno) const;
   /**
     Add all groups that exist but are unended in this Group_cache to the given Group_set.
+
+    If this Owned_groups contains SIDNOs that do not exist in the
+    Group_set, then the Group_set's array of lists of intervals will
+    be grown.  If the Group_set has a sid_lock, then the method
+    temporarily upgrades the lock to a write lock and then degrades it
+    to a read lock again; there will be a short period when the lock
+    is not held at all.
 
     @param gs The Group_set to which groups are added.
     @return GS_SUCCESS or GS_OUT_OF_MEMORY

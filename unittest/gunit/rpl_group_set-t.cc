@@ -119,11 +119,15 @@ public:
       : group_test(gt), sid_map(sm),
         set(sm), str_len(0), str(NULL),
         automatic_groups(sm), non_automatic_groups(sm)
+    { init(sm); }
+    
+
+    void init(Sid_map *sm)
     {
       rpl_sidno max_sidno= sm->get_max_sidno();
-      set.ensure_sidno(max_sidno);
-      automatic_groups.ensure_sidno(max_sidno);
-      non_automatic_groups.ensure_sidno(max_sidno);
+      ASSERT_EQ(GS_SUCCESS, set.ensure_sidno(max_sidno));
+      ASSERT_EQ(GS_SUCCESS, automatic_groups.ensure_sidno(max_sidno));
+      ASSERT_EQ(GS_SUCCESS, non_automatic_groups.ensure_sidno(max_sidno));
     }
 
     ~Stage() { free(str); }
@@ -172,7 +176,7 @@ public:
         if (set.contains_group(substage.sidno, substage.gno))
           substage.is_first= true;
         else
-          set.add(substage.ugid_str);
+          ASSERT_EQ(GS_SUCCESS, set.add(substage.ugid_str));
       } END_SUBSTAGE_LOOP(group_test);
 
       // Iterate backwards so that we can detect when a subgroup is
@@ -183,7 +187,7 @@ public:
         substages[substage_i].is_last=
           !set.contains_group(substages[substage_i].sidno,
                               substages[substage_i].gno);
-        set.add(substages[substage_i].ugid_str);
+        ASSERT_EQ(GS_SUCCESS, set.add(substages[substage_i].ugid_str));
       }
 
       str_len= set.get_string_length();
@@ -501,9 +505,8 @@ TEST_F(GroupTest, Group_containers)
     Group_log_state group_log_state;
     Containers(Checkable_rwlock *lock, Sid_map *sm)
       : group_set(sm), group_log_state(lock, sm)
-    {
-      group_log_state.ensure_sidno();
-    };
+    { init(); }
+    void init() { ASSERT_EQ(GS_SUCCESS, group_log_state.ensure_sidno()); };
   };
   Containers **containers= new Containers*[N_COMBINATIONS];
   BEGIN_LOOP_A
@@ -532,7 +535,7 @@ TEST_F(GroupTest, Group_containers)
 
   // The set of groups that were added in some previous stage.
   Group_set done_groups(sid_maps[0]);
-  done_groups.ensure_sidno(sid_maps[0]->get_max_sidno());
+  ASSERT_EQ(GS_SUCCESS, done_groups.ensure_sidno(sid_maps[0]->get_max_sidno()));
 
   /*
     Iterate through stages. In each stage, create the "stage group
@@ -588,25 +591,25 @@ TEST_F(GroupTest, Group_containers)
         {
           rpl_sidno sidno_1= sid_map->sid_to_sidno(substage.sid);
           EXPECT_NE(0, sidno_1) << errtext;
-          group_set.add(sidno_1, substage.gno);
+          ASSERT_EQ(GS_SUCCESS, group_set.ensure_sidno(sidno_1));
+          ASSERT_EQ(GS_SUCCESS, group_set._add(sidno_1, substage.gno));
         } END_SUBSTAGE_LOOP(this);
         break;
       case METHOD_GROUP_TEXT:
         BEGIN_SUBSTAGE_LOOP(this, &stage, true)
         {
-          group_set.add(substage.ugid_str);
+          ASSERT_EQ(GS_SUCCESS, group_set.add(substage.ugid_str));
         } END_SUBSTAGE_LOOP(this);
         break;
       case METHOD_GROUP_SET:
-        EXPECT_EQ(GS_SUCCESS, group_set.add(&stage.set)) << errtext;
+        ASSERT_EQ(GS_SUCCESS, group_set.add(&stage.set)) << errtext;
         break;
       case METHOD_GROUP_SET_TEXT:
-        EXPECT_EQ(GS_SUCCESS, group_set.add(stage.str)) << errtext;
+        ASSERT_EQ(GS_SUCCESS, group_set.add(stage.str)) << errtext;
         break;
       case METHOD_ALL_TEXTS_CONCATENATED:
         group_set.clear();
-        status= group_set.add(done_str);
-        EXPECT_EQ(GS_SUCCESS, status) << errtext;
+        ASSERT_EQ(GS_SUCCESS, group_set.add(done_str)) << errtext;
       case MAX_METHOD:
         break;
       }
@@ -631,7 +634,10 @@ TEST_F(GroupTest, Group_containers)
         if (substage.is_first &&
             ((end_i == END_RANDOMIZE && (rand() % 2)) ||
              end_i == END_ON))
-          ended_groups.add(substage.sidno, substage.gno);
+        {
+          ASSERT_EQ(GS_SUCCESS, ended_groups.ensure_sidno(substage.sidno));
+          ASSERT_EQ(GS_SUCCESS, ended_groups._add(substage.sidno, substage.gno));
+        }
         end_j= substage.is_last &&
           ended_groups.contains_group(substage.sidno, substage.gno);
         /*
@@ -763,14 +769,14 @@ TEST_F(GroupTest, Group_containers)
       } END_SUBSTAGE_LOOP(this);
 
       group_set.clear();
-      group_log_state.owned_groups.get_partial_groups(&group_set);
-      group_set.add(&group_log_state.ended_groups);
+      ASSERT_EQ(GS_SUCCESS, group_log_state.owned_groups.get_partial_groups(&group_set));
+      ASSERT_EQ(GS_SUCCESS, group_set.add(&group_log_state.ended_groups));
     } END_LOOP_B;
 
     // add stage.set to done_groups
     Group_set old_done_groups(&done_groups, &status);
     ASSERT_EQ(GS_SUCCESS, status);
-    done_groups.add(&stage.set);
+    ASSERT_EQ(GS_SUCCESS, done_groups.add(&stage.set));
 
     // check the Group_set::remove and Group_set::is_subset functions
     Group_set diff(&done_groups, &status);

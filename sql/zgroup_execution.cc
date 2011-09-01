@@ -282,7 +282,6 @@ ugid_before_statement_begin_master_super_group(
       if (ugid_next->type == Ugid_specification::UGID)
       {
         // acquire group ownership for single group.
-        DBUG_PRINT("info", ("acquire group ownership of single group %d %lld", ugid_next->group.sidno, ugid_next->group.gno));
         enum_ugid_statement_status ret=
           ugid_acquire_group_ownership(thd, lock, gls,
                                        ugid_next->group.sidno,
