@@ -67,8 +67,12 @@ row_merge_create_fts_sort_index(
 	dict_index_t*		index,	/*!< in: Original FTS index
 					based on which this sort index
 					is created */
-	const dict_table_t*	table)	/*!< in: table that FTS index
+	const dict_table_t*	table,	/*!< in: table that FTS index
 					is being created on */
+	ibool*			opt_doc_id_size)
+					/*!< out: whether to use 4 bytes
+					instead of 8 bytes integer to
+					store Doc ID during sort */
 {
 	dict_index_t*   new_index;
 	dict_field_t*   field;
@@ -110,11 +114,29 @@ row_merge_create_fts_sort_index(
 	field->prefix_len = 0;
 	field->col = mem_heap_alloc(new_index->heap, sizeof(dict_col_t));
 	field->col->mtype = DATA_INT;
+	*opt_doc_id_size = FALSE;
 
-	/* If the table has less than 1000 million rows, we could
-	use a uint4 to represent the Doc ID (an assumption is Max Doc ID
-	- Min Doc ID does not exceed uint4 can represent */
-	if (table->stat_n_rows < MAX_DOC_ID_OPT_VAL) {
+	/* Check whether we can use 4 bytes instead of 8 bytes int field to
+	hold the Doc ID, so to reduce the overall sort size */
+	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
+		/* If Doc ID column is being added by this create
+		index, then just check the number of rows in the table */
+		if (table->stat_n_rows < MAX_DOC_ID_OPT_VAL) {
+			*opt_doc_id_size = TRUE;
+		}
+	} else {
+		doc_id_t	max_doc_id;
+
+		/* If the Doc ID column is supplied by user, then
+		check the maximum Doc ID in the table */
+		max_doc_id = fts_get_max_doc_id((dict_table_t*) table);
+
+		if (max_doc_id && max_doc_id < MAX_DOC_ID_OPT_VAL) {
+			*opt_doc_id_size = TRUE;
+		}
+	}
+
+	if (*opt_doc_id_size) {
 		field->col->len = sizeof(ib_uint32_t);
 		field->fixed_len = sizeof(ib_uint32_t);
 	} else {
@@ -151,6 +173,10 @@ row_fts_psort_info_init(
 	const dict_table_t*	new_table,/*!< in: table where indexes are
 					created */
 	dict_index_t*		index,	/*!< in: FTS index to be created */
+	ibool			opt_doc_id_size,
+					/*!< in: whether to use 4 bytes
+					instead of 8 bytes integer to
+					store Doc ID during sort */
 	fts_psort_info_t**	psort,	/*!< out: parallel sort info to be
 					instantiated */
 	fts_psort_info_t**	merge)	/*!< out: parallel merge info
@@ -185,12 +211,7 @@ row_fts_psort_info_init(
 	common_info->sort_index = index;
 	common_info->all_info = psort_info;
 	common_info->sort_event = sort_event;
-
-	if (new_table->stat_n_rows >=  MAX_DOC_ID_OPT_VAL) {
-		common_info->doc_id = ULINT_UNDEFINED;
-	} else {
-		common_info->doc_id = 0;
-	}
+	common_info->opt_doc_id_size = opt_doc_id_size;
 
 	if (!common_info) {
 		mem_free(psort_info);
@@ -324,17 +345,20 @@ row_merge_fts_doc_tokenize(
 					parsed */
 	doc_id_t	doc_id,		/*!< in: Doc ID for this document */
 	fts_doc_t*	doc,		/*!< in: Doc to be tokenized */
-	ulint*		processed_len,	/*!< in: Length processed */
+	ulint*		processed_len,	/*!< in/out: Length processed in
+					previous and this pass */
 	ulint		zip_size,	/*!< in: Table zip size */
-	mem_heap_t*	blob_heap,	/*!< in: Heap used when fetch external
-					stored record */
+	mem_heap_t*	blob_heap,	/*!< in: Heap to use when fetch
+					externally stored record */
 	ib_rbt_t*	cached_stopword,/*!< in: Cached stopword */
 	dtype_t*	word_dtype,	/*!< in: data structure for word col */
 	ulint*		init_pos,	/*!< in/out: doc start position */
 	ulint*		buf_used,	/*!< in/out: sort buffer used */
 	ulint*		rows_added,	/*!< in/out: num rows added */
 	merge_file_t**	merge_file,	/*!< in/out: merge file to fill */
-	doc_id_t	doc_id_diff)	/*!< in: Doc ID difference */
+	ibool		opt_doc_id_size)/*!< in: whether to use 4 bytes
+					instead of 8 bytes integer to
+					store Doc ID during sort*/
 {
 	ulint		i;
 	ulint		inc;
@@ -403,8 +427,8 @@ row_merge_fts_doc_tokenize(
 
 		ut_a(inc > 0);
 
-		/* Ignore string len smaller than "fts_min_token_size" or
-		larger than "fts_max_token_size" */
+		/* Ignore string whose character number is less than
+		"fts_min_token_size" or more than "fts_max_token_size" */
 		if (str.f_n_char < fts_min_token_size 
 		    || str.f_n_char > fts_max_token_size) {
 			*processed_len += inc;
@@ -457,16 +481,15 @@ row_merge_fts_doc_tokenize(
 
 		/* The second field is the Doc ID */
 
-		if (doc_id_diff == ULINT_UNDEFINED) {
+		if (!opt_doc_id_size) {
 			fts_write_doc_id((byte*) &write_doc_id, doc_id);
 			dfield_set_data(field, &write_doc_id,
 					sizeof(write_doc_id));
 			len = FTS_DOC_ID_LEN;
 		} else {
-			mach_write_to_4((byte*)&t_doc_id,
-					(ib_uint32_t)(doc_id - doc_id_diff));
+			mach_write_to_4((byte*)&t_doc_id, (ib_uint32_t) doc_id);
 			dfield_set_data(field, &t_doc_id, sizeof(t_doc_id));
-			len = 4;
+			len = sizeof(ib_uint32_t);
 		}
 
 		field->type.mtype = DATA_INT;
@@ -618,7 +641,7 @@ loop:
 			zip_size, blob_heap,
 			table->fts->cache->stopword_info.cached_stopword,
 			&word_dtype, &init_pos, &buf_used, rows_added,
-			merge_file, psort_info->psort_common->doc_id);
+			merge_file, psort_info->psort_common->opt_doc_id_size);
 
 		/* Current sort buffer full, need to recycle */
 		if (!processed) {
@@ -878,7 +901,7 @@ row_fts_insert_tuple(
 	dtuple_t*	dtuple,		/*!< in: index entry */
 	CHARSET_INFO*	charset,	/*!< in: charset */
 	mem_heap_t*	heap,		/*!< in: heap */
-	doc_id_t	doc_id_diff)	/*!< in: Doc ID value needs to add
+	ibool		opt_doc_id_size)/*!< in: Doc ID value needs to add
 					back */
 {
 	fts_node_t*	fts_node = NULL;
@@ -960,14 +983,10 @@ row_fts_insert_tuple(
 	/* Get the word's Doc ID */
 	dfield = dtuple_get_nth_field(dtuple, 1);
 
-	if (doc_id_diff == ULINT_UNDEFINED) {
+	if (!opt_doc_id_size) {
 		doc_id = fts_read_doc_id(dfield_get_data(dfield));
 	} else {
-		ib_uint32_t	id;
-
-		id = (ib_uint32_t) mach_read_from_4(dfield_get_data(dfield));
-
-		doc_id = id + doc_id_diff;
+		doc_id = (doc_id_t) mach_read_from_4(dfield_get_data(dfield));
 	}
 
 	/* Get the word's position info */
@@ -1215,7 +1234,7 @@ row_fts_merge_insert(
 	ulint			counta = 0;
 	trx_t*			insert_trx;
 	CHARSET_INFO*		charset;
-	doc_id_t		doc_id_diff = 0;
+	ibool			opt_doc_id_size;
 
 	ut_ad(trx);
 	ut_ad(index);
@@ -1228,7 +1247,7 @@ row_fts_merge_insert(
 
 	insert_trx->op_info = "inserting index entries";
 
-	doc_id_diff = psort_info[0].psort_common->doc_id;
+	opt_doc_id_size = psort_info[0].psort_common->opt_doc_id_size;
 
 	heap = mem_heap_create(500 + sizeof(mrec_buf_t));
 
@@ -1331,7 +1350,7 @@ row_fts_merge_insert(
 						&fts_table, &new_word,
 						positions, &last_doc_id,
 						NULL, charset, heap,
-						doc_id_diff);
+						opt_doc_id_size);
 
 					goto exit;
 				}
@@ -1357,7 +1376,7 @@ row_fts_merge_insert(
 					insert_trx, ins_graph,
 					&fts_table, &new_word,
 					positions, &last_doc_id,
-					NULL, charset, heap, doc_id_diff);
+					NULL, charset, heap, opt_doc_id_size);
 
 				goto exit;
 			}
@@ -1370,7 +1389,7 @@ row_fts_merge_insert(
 		row_fts_insert_tuple(
 			insert_trx, ins_graph, &fts_table, &new_word,
 			positions, &last_doc_id, dtuple, charset, heap,
-			doc_id_diff);
+			opt_doc_id_size);
 
 
 		ROW_MERGE_READ_GET_NEXT(min_rec);

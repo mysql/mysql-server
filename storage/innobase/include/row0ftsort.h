@@ -67,10 +67,11 @@ struct fts_psort_common_struct {
 	dict_index_t*		sort_index;	/*!< FTS index */
 	fts_psort_info_t*	all_info;	/*!< all parallel sort info */
 	os_event_t		sort_event;	/*!< sort event */
-	doc_id_t		doc_id;		/*!< a marked Doc ID, other
-						Doc ID will subtract it so
-						to reduce Doc ID to 32 bit
-						variable if possible */
+	ibool			opt_doc_id_size;/*!< whether to use 4 bytes
+						instead of 8 bytes integer to
+						store Doc ID during sort, if
+						Doc ID will not be big enough
+						to use 8 bytes value */
 };
 
 typedef struct fts_psort_common_struct	fts_psort_common_t;
@@ -125,8 +126,13 @@ row_merge_create_fts_sort_index(
 	dict_index_t*		index,	/*!< in: Original FTS index
 					based on which this sort index
 					is created */
-	const dict_table_t*	table);	/*!< in: table that FTS index
+	const dict_table_t*	table,	/*!< in: table that FTS index
 					is being created on */
+	ibool*			opt_doc_id_size);
+					/*!< out: whether to use 4 bytes
+					instead of 8 bytes integer to
+					store Doc ID during sort */
+
 /********************************************************************//**
 Initialize FTS parallel sort structures.
 @return TRUE if all successful */
@@ -139,6 +145,10 @@ row_fts_psort_info_init(
 	const dict_table_t*	new_table,/*!< in: table where indexes are
 					created */
 	dict_index_t*		index,	/*!< in: FTS index to be created */
+	ibool			opt_doc_id_size,
+					/*!< in: whether to use 4 bytes
+					instead of 8 bytes integer to
+					store Doc ID during sort */
 	fts_psort_info_t**	psort,	/*!< out: parallel sort info to be
 					instantiated */
 	fts_psort_info_t**	merge);	/*!< out: parallel merge info
@@ -182,7 +192,9 @@ row_merge_fts_doc_tokenize(
 	ulint*		buf_used,	/*!< in/out: sort buffer used */
 	ulint*		rows_added,	/*!< in/out: num rows added */
 	merge_file_t**	merge_file,	/*!< in/out: merge file to fill */
-	doc_id_t	doc_id_diff);	/*!< in: Doc ID difference */
+	ibool		opt_doc_id_size);/*!< in: whether to use 4 bytes
+					instead of 8 bytes integer to
+					store Doc ID during sort*/
 
 /********************************************************************//**
 Read sorted file containing index data tuples and insert these data
@@ -263,7 +275,7 @@ row_fts_insert_tuple(
 	dtuple_t*	dtuple,		/*!< in: index entry */
 	CHARSET_INFO*	charset,	/*!< in: charset */
 	mem_heap_t*	heap,		/*!< in: heap */
-	doc_id_t	doc_id_diff);	/*!< in: Doc ID value needs to add
+	ibool		opt_doc_id_size);/*!< in: Doc ID value needs to add
 					back */
 /********************************************************************//**
 Propagate a newly added record up one level in the selection tree
