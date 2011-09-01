@@ -2493,17 +2493,20 @@ innobase_init(
 #ifndef DBUG_OFF
 	static const char	test_filename[] = "-@";
 	char			test_tablename[sizeof test_filename
-				+ sizeof srv_mysql50_table_name_prefix];
-	if ((sizeof test_tablename) - 1
-			!= filename_to_tablename(test_filename, test_tablename,
-			sizeof test_tablename, true)
+				+ sizeof(srv_mysql50_table_name_prefix) - 1];
+	if ((sizeof(test_tablename)) - 1
+			!= filename_to_tablename(test_filename,
+						 test_tablename,
+						 sizeof(test_tablename), true)
 			|| strncmp(test_tablename,
-			srv_mysql50_table_name_prefix,
-			sizeof srv_mysql50_table_name_prefix)
+				   srv_mysql50_table_name_prefix,
+				   sizeof(srv_mysql50_table_name_prefix) - 1)
 			|| strcmp(test_tablename
-			+ sizeof srv_mysql50_table_name_prefix,
-			test_filename)) {
+				  + sizeof(srv_mysql50_table_name_prefix) - 1,
+				  test_filename)) {
+
 		sql_print_error("tablename encoding has been changed");
+
 		goto error;
 	}
 #endif /* DBUG_OFF */
