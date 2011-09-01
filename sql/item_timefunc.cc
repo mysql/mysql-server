@@ -1370,7 +1370,8 @@ longlong Item_temporal_func::val_int()
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
     return 0;
-  return (longlong)TIME_to_ulonglong(&ltime);
+  longlong v= TIME_to_ulonglong(&ltime);
+  return ltime.neg ? -v : v;
 }
 
 

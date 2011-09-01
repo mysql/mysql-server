@@ -18,6 +18,8 @@ select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
 select sec_to_time(9001.1), time_to_sec('15:12:22.123456'), time_to_sec(15.5566778899);
 select sec_to_time(time_to_sec('-838:59:59'));
 select sec_to_time('9001.1'), sec_to_time('1234567890123.123');
+select sec_to_time(-9001.1), sec_to_time(-9001.1) / 1,
+       sec_to_time(-9001.1) / 1e0, sec_to_time(-9001) div 1;
 --replace_result e+042 e+42
 select sec_to_time(90011e-1), sec_to_time(1234567890123e30);
 select sec_to_time(1234567890123), sec_to_time('99999999999999999999999999999');
