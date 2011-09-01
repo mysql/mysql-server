@@ -17,5 +17,6 @@ create-big               : Bug#11748731 2010-11-15 mattiasj was not tested
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
 file_contents            : Bug#12585902 file_contents.test fails when building from "bzr export"
 log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
+mysql_embedded           : Bug#12561297 seems to be fixed in 5.5.16 (I verified that it fails also in tag:mysql-5.5.15)
 innodb_mysql_sync        : Merge problems, DEBUG_SYNC wait conditions are not identical, Martin working on it
 
