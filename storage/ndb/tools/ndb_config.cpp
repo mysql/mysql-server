@@ -228,7 +228,7 @@ main(int argc, char** argv){
   }
 
   if ((g_nodes && g_connections) ||
-       g_system && (g_nodes || g_connections))
+      (g_system && (g_nodes || g_connections)))
   {
     fprintf(stderr,
 	    "Error: Only one of the section-options: --nodes, --connections, --system is allowed.\n");
@@ -241,7 +241,7 @@ main(int argc, char** argv){
    */
 
   if ((g_config_file && g_mycnf) ||
-       g_config_from_node && (g_config_file || g_mycnf))
+      ((g_config_from_node != INT_MIN) && (g_config_file || g_mycnf)))
   {
     fprintf(stderr,
 	    "Error: Config should be retrieved from only one of the following sources:\n");
