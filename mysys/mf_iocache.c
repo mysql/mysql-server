@@ -1744,7 +1744,7 @@ int my_b_flush_io_cache(IO_CACHE *info,
       */
       if (!append_cache && info->seek_not_done)
       {					/* File touched, do seek */
-	if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) ==
+	if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(info->myflags & MY_WME)) ==
 	    MY_FILEPOS_ERROR)
 	{
 	  UNLOCK_APPEND_BUFFER;

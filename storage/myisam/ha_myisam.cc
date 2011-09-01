@@ -99,7 +99,7 @@ static void mi_check_print_msg(HA_CHECK *param,	const char* msg_type,
 			 T_AUTO_REPAIR))
   {
     my_message(ER_NOT_KEYFILE, msgbuf, MYF(MY_WME));
-    if (thd->variables.log_warnings > 2)
+    if (thd->variables.log_warnings > 2 && ! thd->log_all_errors)
       sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
     return;
   }
@@ -1673,7 +1673,7 @@ bool ha_myisam::check_and_repair(THD *thd)
     bool save_log_all_errors;
     sql_print_warning("Recovering table: '%s'",table->s->path.str);
     save_log_all_errors= thd->log_all_errors;
-    thd->log_all_errors= (thd->variables.log_warnings > 2);
+    thd->log_all_errors|= (thd->variables.log_warnings > 2);
     if (myisam_recover_options & HA_RECOVER_FULL_BACKUP)
     {
       char buff[MY_BACKUP_NAME_EXTRA_LENGTH+1];

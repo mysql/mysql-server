@@ -151,6 +151,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 	{
 	  mi_check_print_error(info->sort_info->param,
 			       "myisam_sort_buffer_size is too small");
+          my_errno= ENOMEM;
 	  goto err;
 	}
       }
@@ -175,7 +176,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   if (memavl < MIN_SORT_BUFFER)
   {
     mi_check_print_error(info->sort_info->param,"MyISAM sort buffer too small"); /* purecov: tested */
-    goto err; /* purecov: tested */
+    my_errno= ENOMEM;                           /* purecov: tested */
+    goto err;                                   /* purecov: tested */
   }
   (*info->lock_in_memory)(info->sort_info->param);/* Everything is allocated */
 
