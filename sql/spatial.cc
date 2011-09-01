@@ -705,6 +705,8 @@ int Gis_line_string::store_shapes(Gcalc_shape_transporter *trn) const
 {
   uint32 n_points;
   double x, y;
+  double prev_x, prev_y;
+  int first_point= 1;
   const char *data= m_data;
 
   if (no_data(m_data, 4))
@@ -720,8 +722,13 @@ int Gis_line_string::store_shapes(Gcalc_shape_transporter *trn) const
   {
     get_point(&x, &y, data);
     data+= POINT_DATA_SIZE;
+    if (!first_point && x == prev_x && y == prev_y)
+      continue;
     if (trn->add_point(x, y))
       return 1;
+    first_point= 0;
+    prev_x= x;
+    prev_y= y;
   }
 
   return trn->complete_line();
@@ -1119,6 +1126,9 @@ int Gis_polygon::store_shapes(Gcalc_shape_transporter *trn) const
 {
   uint32 n_linear_rings;
   const char *data= m_data;
+  double first_x, first_y;
+  double prev_x, prev_y;
+  int was_equal_first= 0;
 
   if (trn->start_poly())
     return 1;
@@ -1140,11 +1150,33 @@ int Gis_polygon::store_shapes(Gcalc_shape_transporter *trn) const
       return 1;
 
     trn->start_ring();
+    get_point(&first_x, &first_y, data);
+    data+= POINT_DATA_SIZE;
+    n_points--;
+    prev_x= first_x;
+    prev_y= first_y;
+    if (trn->add_point(first_x, first_y))
+      return 1;
     while (--n_points)
     {
       double x, y;
       get_point(&x, &y, data);
       data+= POINT_DATA_SIZE;
+      if (x == prev_x && y == prev_y)
+        continue;
+      prev_x= x;
+      prev_y= y;
+      if (was_equal_first)
+      {
+        if (trn->add_point(first_x, first_y))
+          return 1;
+        was_equal_first= 0;
+      }
+      if (x == first_x && y == first_y)
+      {
+        was_equal_first= 1;
+        continue;
+      }
       if (trn->add_point(x, y))
         return 1;
     }

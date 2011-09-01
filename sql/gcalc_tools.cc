@@ -106,10 +106,23 @@ int Gcalc_function::reserve_op_buffer(uint n_ops)
 
 int Gcalc_function::alloc_states()
 {
-  if (function_buffer.reserve((n_shapes+1) * sizeof(int)))
+  if (function_buffer.reserve((n_shapes+1) * 2 * sizeof(int)))
     return 1;
   i_states= (int *) (function_buffer.ptr() + ALIGN_SIZE(function_buffer.length()));
+  saved_i_states= i_states + (n_shapes + 1);
   return 0;
+}
+
+
+void Gcalc_function::save_states()
+{
+  memcpy(saved_i_states, i_states, (n_shapes+1) * sizeof(int));
+}
+
+
+void Gcalc_function::restore_states()
+{
+  memcpy(i_states, saved_i_states, (n_shapes+1) * sizeof(int));
 }
 
 
@@ -170,36 +183,64 @@ void Gcalc_function::reset()
 
 int Gcalc_function::find_function(Gcalc_scan_iterator &scan_it)
 {
+  const Gcalc_scan_iterator::point *eq_start, *cur_eq, *events;
+
   while (scan_it.more_points())
   {
     if (scan_it.step())
       return -1;
-    Gcalc_scan_events ev= scan_it.get_event();
-    const Gcalc_scan_iterator::point *evpos= scan_it.get_event_position();
-    if (ev & (scev_point | scev_end | scev_two_ends))
+    events= scan_it.get_events();
+
+    /* these kinds of events don't change the function */
+    if (events->simple_event())
       continue;
 
+    Gcalc_point_iterator pit(&scan_it);
     clear_state();
-    for (Gcalc_point_iterator pit(&scan_it); pit.point() != evpos; ++pit)
+    /* Walk to the event, marking polygons we met */
+    for (; pit.point() != scan_it.get_event_position(); ++pit)
     {
       gcalc_shape_info si= pit.point()->get_shape();
       if ((get_shape_kind(si) == Gcalc_function::shape_polygon))
         invert_state(si);
     }
-    invert_state(evpos->get_shape());
-
-    if (ev == scev_intersection)
-    {
-      const Gcalc_scan_iterator::point *evnext= evpos->c_get_next();
-      if ((get_shape_kind(evpos->get_shape()) !=
-             Gcalc_function::shape_polygon)             ||
-          (get_shape_kind(evnext->get_shape()) !=
-             Gcalc_function::shape_polygon))
-        invert_state(evnext->get_shape());
-    }
+    save_states();
+    /* Check the status of the event point */
+    for (; events; events= events->get_next())
+      set_on_state(events->get_shape());
 
     if (count())
       return 1;
+
+    if (scan_it.get_event_position() == scan_it.get_event_end())
+      continue;
+
+    /* Check the status after the event */
+    restore_states();
+    eq_start= pit.point();
+    do
+    {
+      ++pit;
+      if (pit.point() != scan_it.get_event_end() &&
+          eq_start->cmp_dx_dy(pit.point()) == 0)
+        continue;
+      save_states();
+      for (cur_eq= eq_start; cur_eq != pit.point();
+          cur_eq= cur_eq->get_next())
+        set_on_state(cur_eq->get_shape());
+      if (count())
+        return 1;
+      restore_states();
+      for (cur_eq= eq_start; cur_eq != pit.point(); cur_eq= cur_eq->get_next())
+      {
+        gcalc_shape_info si= cur_eq->get_shape();
+        if ((get_shape_kind(si) == Gcalc_function::shape_polygon))
+          invert_state(si);
+      }
+      if (count())
+        return 1;
+      eq_start= pit.point();
+    } while (pit.point() != scan_it.get_event_end());
   }
   return 0;
 }
@@ -457,6 +498,10 @@ void Gcalc_operation_reducer::init(Gcalc_function *fn, modes mode)
   m_fn= fn;
   m_mode= mode;
   m_first_active_thread= NULL;
+  m_lines= NULL;
+  m_lines_hook= (Gcalc_dyn_list::Item **) &m_lines;
+  m_poly_borders= NULL;
+  m_poly_borders_hook= (Gcalc_dyn_list::Item **) &m_poly_borders;
 }
 
 
@@ -470,10 +515,10 @@ Gcalc_operation_reducer(Gcalc_function *fn, modes mode, size_t blk_size) :
 
 
 inline int Gcalc_operation_reducer::continue_range(active_thread *t,
-						const Gcalc_heap::Info *p)
+						const Gcalc_heap::Info *p,
+                                                int horiz_dir, double dx_dy)
 {
-  DBUG_ASSERT(t->result_range);
-  res_point *rp= add_res_point();
+  res_point *rp= add_res_point(t->rp->type);
   if (!rp)
     return 1;
   rp->glue= NULL;
@@ -482,16 +527,17 @@ inline int Gcalc_operation_reducer::continue_range(active_thread *t,
   rp->intersection_point= false;
   rp->pi= p;
   t->rp= rp;
+  t->horiz_dir= horiz_dir;
+  t->dx_dy= dx_dy;
   return 0;
 }
 
 
 inline int Gcalc_operation_reducer::continue_i_range(active_thread *t,
-						  const Gcalc_heap::Info *p,
-						  double x, double y)
+						  double x, double y,
+                                                  int horiz_dir, double dx_dy)
 {
-  DBUG_ASSERT(t->result_range);
-  res_point *rp= add_res_point();
+  res_point *rp= add_res_point(t->rp->type);
   if (!rp)
     return 1;
   rp->glue= NULL;
@@ -499,133 +545,10 @@ inline int Gcalc_operation_reducer::continue_i_range(active_thread *t,
   t->rp->up= rp;
   rp->intersection_point= true;
   rp->x= x;
-  rp->pi= p;
   rp->y= y;
   t->rp= rp;
-  return 0;
-}
-
-inline int Gcalc_operation_reducer::start_range(active_thread *t,
-					     const Gcalc_heap::Info *p)
-{
-  res_point *rp= add_res_point();
-  if (!rp)
-    return 1;
-  rp->glue= rp->down= NULL;
-  rp->intersection_point= false;
-  rp->pi= p;
-  t->result_range= 1;
-  t->rp= rp;
-  return 0;
-}
-
-inline int Gcalc_operation_reducer::start_i_range(active_thread *t,
-					       const Gcalc_heap::Info *p,
-					       double x, double y)
-{
-  res_point *rp= add_res_point();
-  if (!rp)
-    return 1;
-  rp->glue= rp->down= NULL;
-  rp->intersection_point= true;
-  rp->x= x;
-  rp->y= y;
-  rp->pi= p;
-  t->result_range= 1;
-  t->rp= rp;
-  return 0;
-}
-
-inline int Gcalc_operation_reducer::end_range(active_thread *t,
-					   const Gcalc_heap::Info *p)
-{
-  res_point *rp= add_res_point();
-  if (!rp)
-    return 1;
-  rp->glue= rp->up= NULL;
-  rp->down= t->rp;
-  rp->intersection_point= false;
-  rp->pi= p;
-  t->rp->up= rp;
-  t->result_range= 0;
-  return 0;
-}
-
-inline int Gcalc_operation_reducer::end_i_range(active_thread *t,
-					     const Gcalc_heap::Info *p,
-					     double x, double y)
-{
-  res_point *rp= add_res_point();
-  if (!rp)
-    return 1;
-  rp->glue= rp->up= NULL;
-  rp->down= t->rp;
-  rp->intersection_point= true;
-  rp->x= x;
-  rp->pi= p;
-  rp->y= y;
-  t->rp->up= rp;
-  t->result_range= 0;
-  return 0;
-}
-
-int Gcalc_operation_reducer::start_couple(active_thread *t0, active_thread *t1,
-				       const Gcalc_heap::Info *p,
-                                       const active_thread *prev_range)
-{
-  res_point *rp0, *rp1;
-  if (!(rp0= add_res_point()) || !(rp1= add_res_point()))
-    return 1;
-  rp0->glue= rp1;
-  rp1->glue= rp0;
-  rp0->intersection_point= rp1->intersection_point= false;
-  rp0->down= rp1->down= NULL;
-  rp0->pi= rp1->pi= p;
-  t0->rp= rp0;
-  t1->rp= rp1;
-  if (prev_range)
-  {
-    rp0->outer_poly= prev_range->thread_start;
-    t1->thread_start= prev_range->thread_start;
-  }
-  else
-  {
-    rp0->outer_poly= 0;
-    t0->thread_start= rp0;
-  }
-  return 0;
-}
-
-int Gcalc_operation_reducer::start_i_couple(active_thread *t0, active_thread *t1,
-					 const Gcalc_heap::Info *p0,
-					 const Gcalc_heap::Info *p1,
-					 double x, double y,
-                                         const active_thread *prev_range)
-{
-  res_point *rp0, *rp1;
-  if (!(rp0= add_res_point()) || !(rp1= add_res_point()))
-    return 1;
-  rp0->glue= rp1;
-  rp1->glue= rp0;
-  rp0->pi= p0;
-  rp1->pi= p1;
-  rp0->intersection_point= rp1->intersection_point= true;
-  rp0->down= rp1->down= NULL;
-  rp0->x= rp1->x= x;
-  rp0->y= rp1->y= y;
-  t0->result_range= t1->result_range= 1;
-  t0->rp= rp0;
-  t1->rp= rp1;
-  if (prev_range)
-  {
-    rp0->outer_poly= prev_range->thread_start;
-    t1->thread_start= prev_range->thread_start;
-  }
-  else
-  {
-    rp0->outer_poly= 0;
-    t0->thread_start= rp0;
-  }
+  t->horiz_dir= horiz_dir;
+  t->dx_dy= dx_dy;
   return 0;
 }
 
@@ -633,8 +556,9 @@ int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
 				     const Gcalc_heap::Info *p)
 {
   res_point *rp0, *rp1;
-  DBUG_ASSERT(t1->result_range);
-  if (!(rp0= add_res_point()) || !(rp1= add_res_point()))
+  DBUG_ASSERT(t0->rp->type == t1->rp->type);
+  if (!(rp0= add_res_point(t0->rp->type)) ||
+      !(rp1= add_res_point(t0->rp->type)))
     return 1;
   rp0->down= t0->rp;
   rp1->down= t1->rp;
@@ -645,208 +569,69 @@ int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
   t1->rp->up= rp1;
   rp0->intersection_point= rp1->intersection_point= false;
   rp0->pi= rp1->pi= p;
-  t0->result_range= t1->result_range= 0;
   return 0;
 }
 
-int Gcalc_operation_reducer::end_i_couple(active_thread *t0, active_thread *t1,
-				       const Gcalc_heap::Info *p0,
-				       const Gcalc_heap::Info *p1,
-				       double x, double y)
-{
-  res_point *rp0, *rp1;
-  if (!(rp0= add_res_point()) || !(rp1= add_res_point()))
-    return 1;
-  rp0->down= t0->rp;
-  rp1->down= t1->rp;
-  rp0->pi= p0;
-  rp1->pi= p1;
-  rp1->glue= rp0;
-  rp0->glue= rp1;
-  rp0->up= rp1->up= NULL;
-  rp0->intersection_point= rp1->intersection_point= true;
-  rp0->x= rp1->x= x;
-  rp0->y= rp1->y= y;
-  t0->result_range= t1->result_range= 0;
-  t0->rp->up= rp0;
-  t1->rp->up= rp1;
-  return 0;
-}
-
-int Gcalc_operation_reducer::add_single_point(const Gcalc_heap::Info *p)
-{
-  res_point *rp= add_res_point();
-  if (!rp)
-    return 1;
-  rp->glue= rp->up= rp->down= NULL;
-  rp->intersection_point= false;
-  rp->pi= p;
-  rp->x= p->x;
-  rp->y= p->y;
-  return 0;
-}
-
-int Gcalc_operation_reducer::add_i_single_point(const Gcalc_heap::Info *p,
-					     double x, double y)
-{
-  res_point *rp= add_res_point();
-  if (!rp)
-    return 1;
-  rp->glue= rp->up= rp->down= NULL;
-  rp->intersection_point= true;
-  rp->x= x;
-  rp->pi= p;
-  rp->y= y;
-  return 0;
-}
-
-int Gcalc_operation_reducer::
-handle_lines_intersection(active_thread *t0, active_thread *t1,
-			  const Gcalc_heap::Info *p0, const Gcalc_heap::Info *p1,
-			  double x, double y)
-{
-  m_fn->invert_state(p0->shape);
-  if (p0->shape != p1->shape)
-    m_fn->invert_state(p1->shape);
-  int intersection_state= m_fn->count();
-  if ((t0->result_range | t1->result_range) == intersection_state)
-    return 0;
-
-  if (t0->result_range &&
-      (end_i_range(t0, p1, x, y) || start_i_range(t0, p1, x, y)))
-    return 1;
-
-  if (t1->result_range &&
-      (end_i_range(t1, p0, x, y) || start_i_range(t1, p0, x, y)))
-    return 1;
-
-  if (intersection_state &&
-      add_i_single_point(p0, x, y))
-    return 1;
-    
-  return 0;
-}
-
-inline int Gcalc_operation_reducer::
-handle_line_polygon_intersection(active_thread *l, const Gcalc_heap::Info *pl,
-				 int line_state, int poly_state,
-				 double x, double y)
-{
-  int range_after= ~poly_state & line_state;
-  if (l->result_range == range_after)
-    return 0;
-  return range_after ? start_i_range(l, pl, x, y) : end_i_range(l, pl, x, y);
-}
-
-static inline void switch_athreads(Gcalc_operation_reducer::active_thread *t0,
-				   Gcalc_operation_reducer::active_thread *t1,
-				   Gcalc_dyn_list::Item **hook)
-{
-  *hook= t1;
-  t0->next= t1->next;
-  t1->next= t0;
-}
-
-inline int Gcalc_operation_reducer::
-handle_polygons_intersection(active_thread *t0, active_thread *t1,
-			     Gcalc_dyn_list::Item **t_hook,
-			     const Gcalc_heap::Info *p0,
-			     const Gcalc_heap::Info *p1,
-			     int prev_state, double x, double y,
-                             const active_thread *prev_range)
-{
-  m_fn->invert_state(p0->shape);
-  int state_11= m_fn->count();
-  m_fn->invert_state(p1->shape);
-  int state_2= m_fn->count();
-  int state_01= prev_state ^ t0->result_range;
-  if ((prev_state == state_01) && (prev_state == state_2))
-  {
-    if (state_11 == prev_state)
-    {
-      switch_athreads(t0, t1, t_hook);
-      return 0;
-    }
-    return start_i_couple(t0, t1, p0, p1, x, y, prev_range);
-  }
-  if (prev_state == state_2)
-  {
-    if (state_01 == state_11)
-    {
-      if (m_mode & polygon_selfintersections_allowed)
-      {
-	switch_athreads(t0, t1, t_hook);
-	return 0;
-      }
-      if (prev_state != (m_mode & prefer_big_with_holes))
-	return continue_i_range(t0, p0, x, y) || continue_i_range(t1, p1, x, y);
-      return end_i_couple(t0, t1, p0, p1, x, y) ||
-	start_i_couple(t0, t1, p0, p1, x, y, prev_range);
-    }
-    else
-      return end_i_couple(t0, t1, p0, p1, x, y);
-  }
-  if (state_01 ^ state_11)
-  {
-    switch_athreads(t0, t1, t_hook);
-    return 0;
-  }
-
-  active_thread *thread_to_continue;
-  const Gcalc_heap::Info *way_to_go;
-  if (prev_state == state_01)
-  {
-    thread_to_continue= t1;
-    way_to_go= p1;
-  }
-  else 
-  {
-    thread_to_continue= t0;
-    way_to_go= p0;
-  }
-  return continue_i_range(thread_to_continue, way_to_go, x, y);
-}
 
 int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
 {
   Gcalc_point_iterator pi(si);
-  active_thread *cur_t= m_first_active_thread;
-  Gcalc_dyn_list::Item **at_hook= (Gcalc_dyn_list::Item **)&m_first_active_thread;
-  const active_thread *prev_range;
-  int prev_state;
+  const Gcalc_heap::Info *event_point= NULL;
+  int prev_state= 0;
+  int sav_prev_state;
+  active_thread *prev_range= NULL;
+  const Gcalc_scan_iterator::point *events;
+  const Gcalc_scan_iterator::point *eq_start;
+  active_thread **cur_t_hook= &m_first_active_thread;
+  active_thread **starting_t_hook;
+  active_thread *bottom_threads= NULL;
+  active_thread *eq_thread, *point_thread;;
 
-  if (si->get_event() & (scev_point | scev_end | scev_two_ends))
+  m_fn->clear_state();
+  /* Walk to the event, remembering what is needed. */
+  for (; pi.point() != si->get_event_position();
+       ++pi, cur_t_hook= (active_thread **) &(*cur_t_hook)->next)
   {
-    for (; pi.point() != si->get_event_position(); ++pi, cur_t= cur_t->get_next())
-      at_hook= &cur_t->next;
+    active_thread *cur_t= *cur_t_hook;
+    if (cur_t->enabled() &&
+        cur_t->rp->type == Gcalc_function::shape_polygon)
+    {
+      prev_state^= 1;
+      prev_range= prev_state ? cur_t : 0;
+    }
+    if (m_fn->get_shape_kind(pi.get_shape()) == Gcalc_function::shape_polygon)
+      m_fn->invert_state(pi.get_shape());
+  }
 
-    switch (si->get_event())
+  events= si->get_events();
+  if (events->simple_event())
+  {
+    active_thread *cur_t= *cur_t_hook;
+    switch (events->event)
     {
       case scev_point:
       {
-        if (cur_t->result_range &&
-            continue_range(cur_t, pi.get_pi()))
+        if (cur_t->enabled() &&
+            continue_range(cur_t, events->pi, events->horiz_dir, events->dx_dy))
           return 1;
         break;
       }
       case scev_end:
       {
-        if (cur_t->result_range &&
-            end_range(cur_t, pi.get_pi()))
+        if (cur_t->enabled() && end_line(cur_t, events->pi, si))
           return 1;
-        *at_hook= cur_t->next;
+        *cur_t_hook= cur_t->get_next();
         free_item(cur_t);
         break;
       }
       case scev_two_ends:
       {
-        active_thread *cur_t1= cur_t->get_next();
-        if (cur_t->result_range &&
-            end_couple(cur_t, cur_t1, pi.get_pi()))
+        if (cur_t->enabled() &&
+            end_couple(cur_t, cur_t->get_next(), events->pi))
           return 1;
-
-        *at_hook= cur_t1->next;
-        free_list(cur_t, &cur_t1->next);
+        *cur_t_hook= cur_t->get_next()->get_next();
+        free_item(cur_t->next);
+        free_item(cur_t);
         break;
       }
       default:
@@ -855,130 +640,420 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
     return 0;
   }
 
-  prev_state= 0;
-  prev_range= 0;
+  starting_t_hook= cur_t_hook;
+  sav_prev_state= prev_state;
 
-  m_fn->clear_state();
-  for (; pi.point() != si->get_event_position(); ++pi, cur_t= cur_t->get_next())
+  /* Walk through the event, collecting all the 'incoming' threads */
+  for (; events; events= events->get_next())
   {
-    if (m_fn->get_shape_kind(pi.get_shape()) == Gcalc_function::shape_polygon)
+    active_thread *cur_t= *cur_t_hook;
+
+    if (!event_point && events->event != scev_intersection)
+      event_point= events->pi;
+    if (events->event == scev_single_point)
+      continue;
+
+    if (events->event == scev_thread ||
+        events->event == scev_two_threads)
     {
-      m_fn->invert_state(pi.get_shape());
-      prev_state^= cur_t->result_range;
+      active_thread *new_t= new_active_thread();
+      if (!new_t)
+        return 1;
+      new_t->rp= NULL;
+      /* Insert into the main thread list before the current */
+      new_t->next= cur_t;
+      *cur_t_hook= new_t;
+      cur_t_hook= (active_thread **) &new_t->next;
     }
-    at_hook= &cur_t->next;
-    if (cur_t->result_range)
-      prev_range= prev_state ? cur_t : 0;
-  }
-
-  switch (si->get_event())
-  {
-  case scev_thread:
-  {
-    active_thread *new_t= new_active_thread();
-    if (!new_t)
-      return 1;
-    m_fn->invert_state(pi.get_shape());
-    new_t->result_range= ~prev_state & m_fn->count();
-    new_t->next= *at_hook;
-    *at_hook= new_t;
-    if (new_t->result_range &&
-	start_range(new_t, pi.get_pi()))
-      return 1;
-    break;
-  }
-  case scev_two_threads:
-  {
-    active_thread *new_t0, *new_t1;
-    int fn_result;
-    const Gcalc_heap::Info *p= pi.get_pi();
-    bool line= m_fn->get_shape_kind(p->shape) == Gcalc_function::shape_line;
-    if (!(new_t0= new_active_thread()) || !(new_t1= new_active_thread()))
-      return 1;
-    
-    m_fn->invert_state(pi.get_shape());
-    fn_result= m_fn->count();
-    if (line)
-      new_t0->result_range= new_t1->result_range= ~prev_state & fn_result;
     else
-      new_t0->result_range= new_t1->result_range= prev_state ^ fn_result;
-    new_t1->next= *at_hook;
-    new_t0->next= new_t1;
-    *at_hook= new_t0;
-    if (new_t0->result_range &&
-	start_couple(new_t0, new_t1, pi.get_pi(), prev_range))
-      return 1;
-    break;
+    {
+      if (events->is_bottom())
+      {
+        /* Move thread from the main list to the bottom_threads. */
+        *cur_t_hook= cur_t->get_next();
+        cur_t->next= bottom_threads;
+        bottom_threads= cur_t;
+      }
+      if (cur_t->enabled())
+      {
+        if (cur_t->rp->type == Gcalc_function::shape_line)
+        {
+          DBUG_ASSERT(!prev_state);
+          add_line(1, cur_t, events);
+        }
+        else
+        {
+          add_poly_border(1, cur_t, prev_state, events);
+          prev_state^= 1;
+        }
+        if (!events->is_bottom())
+        {
+          active_thread *new_t= new_active_thread();
+          if (!new_t)
+            return 1;
+          new_t->rp= NULL;
+          /* Replace the current thread with the new. */
+          new_t->next= cur_t->next;
+          *cur_t_hook= new_t;
+          cur_t_hook= (active_thread **) &new_t->next;
+          /* And move old to the bottom list */
+          cur_t->next= bottom_threads;
+          bottom_threads= cur_t;
+        }
+      }
+      else if (!events->is_bottom())
+        cur_t_hook= (active_thread **) &cur_t->next;
+    }
   }
-  case scev_intersection:
+  prev_state= sav_prev_state;
+  cur_t_hook= starting_t_hook;
+
+  eq_start= pi.point();
+  eq_thread= point_thread= *starting_t_hook;
+  while (eq_start != si->get_event_end())
   {
-    active_thread *cur_t1= cur_t->get_next();
-    const Gcalc_heap::Info *p0, *p1;
-    p0= pi.get_pi();
+    const Gcalc_scan_iterator::point *cur_eq;
+    int in_state, after_state;
+
     ++pi;
-    p1= pi.get_pi();
-    bool line0= m_fn->get_shape_kind(p0->shape) == Gcalc_function::shape_line;
-    bool line1= m_fn->get_shape_kind(p1->shape) == Gcalc_function::shape_line;
+    point_thread= point_thread->get_next();
 
-    if (!line0 && !line1) /* two polygons*/
+    if (pi.point() != si->get_event_end() &&
+        eq_start->cmp_dx_dy(pi.point()) == 0)
+      continue;
+
+    m_fn->save_states();
+    for (cur_eq= eq_start; cur_eq != pi.point(); cur_eq= cur_eq->get_next())
+      m_fn->set_on_state(cur_eq->get_shape());
+    in_state= m_fn->count();
+
+    m_fn->restore_states();
+    for (cur_eq= eq_start; cur_eq != pi.point(); cur_eq= cur_eq->get_next())
     {
-      if (handle_polygons_intersection(cur_t, cur_t1, at_hook, p0, p1,
-				       prev_state, pi.get_x(), si->get_y(),
-                                       prev_range))
-	return 1;
+      gcalc_shape_info si= cur_eq->get_shape();
+      if ((m_fn->get_shape_kind(si) == Gcalc_function::shape_polygon))
+        m_fn->invert_state(si);
     }
-    else if (line0 && line1)
+    after_state= m_fn->count();
+    if (prev_state != after_state)
     {
-      if (!prev_state &&
-	  handle_lines_intersection(cur_t, cur_t1,
-				    p0, p1, pi.get_x(), si->get_y()))
-	return 1;
-      switch_athreads(cur_t, cur_t1, at_hook);
+      if (add_poly_border(0, eq_thread, prev_state, eq_start))
+        return 1;
+    }
+    else if (!prev_state /* &&!after_state */ && in_state)
+    {
+      if (add_line(0, eq_thread, eq_start))
+        return 1;
+    }
+
+    prev_state= after_state;
+    eq_start= pi.point();
+    eq_thread= point_thread;
+  }
+
+  if (!sav_prev_state && !m_poly_borders && !m_lines)
+  {
+    /* Check if we need to add the event point itself */
+    m_fn->clear_state();
+    for (pi.restart(si); pi.point() != si->get_event_position(); ++pi)
+    {
+      if (m_fn->get_shape_kind(pi.get_shape()) == Gcalc_function::shape_polygon)
+        m_fn->invert_state(pi.get_shape());
+    }
+    for (events= si->get_events(); events; events= events->get_next())
+      m_fn->set_on_state(events->get_shape());
+
+    return m_fn->count() ? add_single_point(event_point, si) : 0;
+  }
+
+  if (m_poly_borders)
+  {
+    *m_poly_borders_hook= NULL;
+    while (m_poly_borders)
+    {
+      poly_border *pb1, *pb2;
+      pb1= m_poly_borders;
+      DBUG_ASSERT(m_poly_borders->next);
+
+      pb2= get_pair_border(pb1);
+      /* Remove pb1 from the list. The pb2 already removed in get_pair_border. */
+      m_poly_borders= pb1->get_next();
+      if (connect_threads(pb1->incoming, pb2->incoming,
+                          pb1->t, pb2->t, pb1->p, pb2->p,
+                          prev_range, event_point, si,
+                          Gcalc_function::shape_polygon))
+        return 1;
+
+      free_item(pb1);
+      free_item(pb2);
+    }
+    m_poly_borders_hook= (Gcalc_dyn_list::Item **) &m_poly_borders;
+    m_poly_borders= NULL;
+  }
+
+  if (m_lines)
+  {
+    *m_lines_hook= NULL;
+    if (m_lines->get_next() &&
+        !m_lines->get_next()->get_next())
+    {
+      if (connect_threads(m_lines->incoming, m_lines->get_next()->incoming,
+                          m_lines->t, m_lines->get_next()->t,
+                          m_lines->p, m_lines->get_next()->p, NULL,
+                          event_point, si, Gcalc_function::shape_line))
+        return 1;
     }
     else
     {
-      int poly_state;
-      int line_state;
-      const Gcalc_heap::Info *line;
-      active_thread *line_t;
-      m_fn->invert_state(p0->shape);
-      if (line0)
+      for (line *cur_line= m_lines; cur_line; cur_line= cur_line->get_next())
       {
-	line_state= m_fn->count();
-	poly_state= prev_state;
-	line= p0;
-	line_t= cur_t1;
+        if (cur_line->incoming)
+        {
+          if (end_line(cur_line->t, event_point, si))
+            return 1;
+        }
+        else
+          start_line(cur_line->t, cur_line->p, event_point, si);
       }
-      else
-      {
-	poly_state= m_fn->count();
-	m_fn->invert_state(p1->shape);
-	line_state= m_fn->count();
-	line= p1;
-	line_t= cur_t;
-      }
-      if (handle_line_polygon_intersection(line_t, line,
-					   line_state, poly_state,
-					   pi.get_x(), si->get_y()))
-	return 1;
-      switch_athreads(cur_t, cur_t1, at_hook);
     }
-    break;
+    free_list(m_lines);
+    m_lines= NULL;
+    m_lines_hook= (Gcalc_dyn_list::Item **) &m_lines;
   }
-  case scev_single_point:
+
+  if (bottom_threads)
+    free_list(bottom_threads);
+
+  return 0;
+}
+
+
+int Gcalc_operation_reducer::add_single_point(const Gcalc_heap::Info *p,
+                                              const Gcalc_scan_iterator *si)
+{
+  res_point *rp= add_res_point(Gcalc_function::shape_point);
+  if (!rp)
+    return 1;
+  rp->glue= rp->up= rp->down= NULL;
+  if (p)
   {
-    m_fn->invert_state(pi.get_shape());
-    if ((prev_state ^ m_fn->count()) &&
-	add_single_point(pi.get_pi()))
-      return 1;
-    break;
+    rp->intersection_point= false;
+    rp->pi= p;
   }
-  default:
-    DBUG_ASSERT(0);
+  else
+  {
+    rp->intersection_point= true;
+    rp->x= si->get_y();
+    rp->y= si->get_events()->x;
+  }
+  return 0;
+}
+
+
+Gcalc_operation_reducer::poly_border
+  *Gcalc_operation_reducer::get_pair_border(poly_border *b1)
+{
+  poly_border *prev_b= b1;
+  poly_border *result= b1->get_next();
+  if (b1->prev_state)
+  {
+    if (b1->incoming)
+    {
+      /* Find the first outgoing, otherwise the last one. */
+      while (result->incoming && result->get_next())
+      {
+        prev_b= result;
+        result= result->get_next();
+      }
+    }
+    else
+    {
+      /* Get the last one */
+      while (result->get_next())
+      {
+        prev_b= result;
+        result= result->get_next();
+      }
+    }
+  }
+  else /* !b1->prev_state */
+  {
+    if (b1->incoming)
+    {
+      /* Get the next incoming, otherwise the last one. */
+      while (!result->incoming && result->get_next())
+      {
+        prev_b= result;
+        result= result->get_next();
+      }
+    }
+    else
+    {
+      /* Just pick the next one */
+    }
+  }
+  /* Delete the result from the list. */
+  prev_b->next= result->next;
+  return result;
+}
+
+
+int Gcalc_operation_reducer::connect_threads(
+    int incoming_a, int incoming_b,
+    active_thread *ta, active_thread *tb,
+    const Gcalc_scan_iterator::point *pa, const Gcalc_scan_iterator::point *pb,
+    active_thread *prev_range, const Gcalc_heap::Info *ev_p,
+    const Gcalc_scan_iterator *si, Gcalc_function::shape_type s_t)
+{
+  if (incoming_a && incoming_b)
+  {
+    res_point *rpa, *rpb;
+    DBUG_ASSERT(ta->rp->type == tb->rp->type);
+    if (!(rpa= add_res_point(ta->rp->type)) ||
+        !(rpb= add_res_point(ta->rp->type)))
+      return 1;
+    rpa->down= ta->rp;
+    rpb->down= tb->rp;
+    rpb->glue= rpa;
+    rpa->glue= rpb;
+    rpa->up= rpb->up= NULL;
+    ta->rp->up= rpa;
+    tb->rp->up= rpb;
+    if (ev_p)
+    {
+      rpa->intersection_point= rpb->intersection_point= false;
+      rpa->pi= rpb->pi= ev_p;
+    }
+    else
+    {
+      rpa->intersection_point= rpb->intersection_point= true;
+      rpa->x= rpb->x= si->get_events()->x;
+      rpa->y= rpb->y= si->get_y();
+    }
+
+    ta->rp= tb->rp= NULL;
+    return 0;
+  }
+  if (!incoming_a)
+  {
+    DBUG_ASSERT(!incoming_b);
+
+    res_point *rp0, *rp1;
+    if (!(rp0= add_res_point(s_t)) || !(rp1= add_res_point(s_t)))
+      return 1;
+    rp0->glue= rp1;
+    rp1->glue= rp0;
+    if (ev_p)
+    {
+      rp0->intersection_point= rp1->intersection_point= false;
+      rp0->pi= rp1->pi= ev_p;
+    }
+    else
+    {
+      rp0->intersection_point= rp1->intersection_point= true;
+      rp0->x= rp1->x= si->get_events()->x;
+      rp0->y= rp1->y= si->get_y();
+    }
+    rp0->down= rp1->down= NULL;
+    ta->rp= rp0;
+    tb->rp= rp1;
+    ta->horiz_dir= pa->horiz_dir;
+    ta->dx_dy= pa->dx_dy;
+
+    tb->horiz_dir= pb->horiz_dir;
+    tb->dx_dy= pb->dx_dy;
+
+    if (prev_range)
+    {
+      rp0->outer_poly= prev_range->thread_start;
+      tb->thread_start= prev_range->thread_start;
+    }
+    else
+    {
+      rp0->outer_poly= 0;
+      ta->thread_start= rp0;
+    }
+    return 0;
+  }
+  /* else, if only ta is incoming */
+
+  DBUG_ASSERT(tb != ta);
+  tb->rp= ta->rp;
+  tb->thread_start= ta->thread_start;
+  if (Gcalc_scan_iterator::point::
+      compare_dx_dy(ta->horiz_dir, ta->dx_dy,
+                    pb->horiz_dir, pb->dx_dy) != 0)
+  {
+    if (ev_p ? continue_range(tb, ev_p, pb->horiz_dir, pb->dx_dy):
+               continue_i_range(tb,
+                                si->get_events()->x, si->get_y(),
+                                pb->horiz_dir, pb->dx_dy))
+      return 1;
+  }
+  else
+  {
+    tb->horiz_dir= pb->horiz_dir;
+    tb->dx_dy= pb->dx_dy;
   }
 
   return 0;
 }
+
+
+int Gcalc_operation_reducer::start_line(active_thread *t,
+                                        const Gcalc_scan_iterator::point *p,
+                                        const Gcalc_heap::Info *ev_p,
+                                        const Gcalc_scan_iterator *si)
+{
+  res_point *rp= add_res_point(Gcalc_function::shape_line);
+  if (!rp)
+    return 1;
+  rp->glue= rp->down= NULL;
+  if (ev_p)
+  {
+    rp->intersection_point= false;
+    rp->pi= ev_p;
+  }
+  else
+  {
+    rp->intersection_point= true;
+    rp->x= si->get_events()->x;
+    rp->y= si->get_y();
+  }
+  t->rp= rp;
+  t->horiz_dir= p->horiz_dir;
+  t->dx_dy= p->dx_dy;
+  return 0;
+}
+
+
+int Gcalc_operation_reducer::end_line(active_thread *t,
+                                      const Gcalc_heap::Info *ev_p,
+                                      const Gcalc_scan_iterator *si)
+{
+  DBUG_ASSERT(t->rp->type == Gcalc_function::shape_line);
+  res_point *rp= add_res_point(Gcalc_function::shape_line);
+  if (!rp)
+    return 1;
+  rp->glue= rp->up= NULL;
+  rp->down= t->rp;
+  if (ev_p)
+  {
+    rp->intersection_point= false;
+    rp->pi= ev_p;
+  }
+  else
+  {
+    rp->intersection_point= true;
+    rp->x= si->get_events()->x;
+    rp->y= si->get_y();
+  }
+  t->rp->up= rp;
+  t->rp= NULL;
+
+  return 0;
+}
+
 
 int Gcalc_operation_reducer::count_all(Gcalc_heap *hp)
 {
@@ -1014,7 +1089,7 @@ inline int Gcalc_operation_reducer::get_single_result(res_point *res,
       return 1;
   }
   else
-    if (storage->single_point(res->x, res->y))
+    if (storage->single_point(res->pi->x, res->pi->y))
       return 1;
   free_result(res);
   return 0;
@@ -1113,13 +1188,13 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
   *m_res_hook= NULL;
   while (m_result)
   {
-    if (!m_result->up)
+    Gcalc_function::shape_type shape= m_result->type;
+    if (shape == Gcalc_function::shape_point)
     {
       if (get_single_result(m_result, storage))
 	return 1;
       continue;
     }
-    Gcalc_function::shape_type shape= m_fn->get_shape_kind(m_result->pi->shape);
     if (shape == Gcalc_function::shape_polygon)
     {
       if (m_result->outer_poly)

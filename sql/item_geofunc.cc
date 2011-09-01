@@ -665,10 +665,12 @@ static int calc_distance(double *result, Gcalc_heap *collector, uint obj2_si,
 {
   bool above_cur_point, cur_point_edge;
   const Gcalc_scan_iterator::point *evpos;
-  const Gcalc_heap::Info *cur_point, *dist_point;
-  Gcalc_scan_events ev;
+  const Gcalc_heap::Info *cur_point= NULL;
+  const Gcalc_heap::Info *dist_point;
+  const Gcalc_scan_iterator::point *ev;
   double t, distance, cur_distance;
   double ex, ey, vx, vy, e_sqrlen;
+  int o1, o2;
 
   DBUG_ENTER("calc_distance");
 
@@ -680,32 +682,39 @@ static int calc_distance(double *result, Gcalc_heap *collector, uint obj2_si,
     if (scan_it->step())
       goto mem_error;
     evpos= scan_it->get_event_position();
-    ev= scan_it->get_event();
-    cur_point= evpos->pi;
+    ev= scan_it->get_events();
+    cur_point= NULL;
+
+    if (ev->simple_event())
+    {
+      cur_point= ev->pi;
+      goto calculate_distance;
+    }
 
     /*
        handling intersection we only need to check if it's the intersecion
        of objects 1 and 2. In this case distance is 0
     */
-    if (ev == scev_intersection)
+    o1= 0;
+    o2= 0;
+    for (; ev; ev= ev->get_next())
     {
-      if ((evpos->get_next()->pi->shape >= obj2_si) !=
-            (cur_point->shape >= obj2_si))
+      if (ev->event != scev_intersection)
+        cur_point= ev->pi;
+      if (ev->pi->shape >= obj2_si)
+        o2= 1;
+      else
+        o1= 1;
+      if (o1 && o2)
       {
         distance= 0;
         goto exit;
       }
-      continue;
     }
+    if (!cur_point)
+      continue;
 
-    /*
-       if we get 'scev_point | scev_end | scev_two_ends' we don't need
-       to check for intersection of objects.
-       Though we need to calculate distances.
-    */
-    if (ev & (scev_point | scev_end | scev_two_ends))
-      goto calculate_distance;
-
+#ifdef TO_REMOVE
     goto calculate_distance;
     /*
        having these events we need to check for possible intersection
@@ -728,7 +737,7 @@ static int calc_distance(double *result, Gcalc_heap *collector, uint obj2_si,
       distance= 0;
       goto exit;
     }
-
+#endif /*TO_REMOVE*/
 
 calculate_distance:
     if (cur_point->shape >= obj2_si)
@@ -1516,6 +1525,7 @@ longlong Item_func_issimple::val_int()
   Gcalc_operation_transporter trn(&func, &collector);
   Geometry *g;
   int result= 1;
+  const Gcalc_scan_iterator::point *ev;
 
   DBUG_ENTER("Item_func_issimple::val_int");
   DBUG_ASSERT(fixed == 1);
@@ -1539,11 +1549,19 @@ longlong Item_func_issimple::val_int()
     if (scan_it.step())
       goto mem_error;
 
-    if (scan_it.get_event() == scev_intersection)
-    {
-      result= 0;
-      break;
-    }
+    ev= scan_it.get_events();
+    if (ev->simple_event())
+      continue;
+
+    if ((ev->event == scev_thread || ev->event == scev_single_point) &&
+        !ev->get_next())
+      continue;
+
+    if (ev->event == scev_two_threads && !ev->get_next()->get_next())
+      continue;
+
+    result= 0;
+    break;
   }
 
   collector.reset();
@@ -1553,7 +1571,6 @@ longlong Item_func_issimple::val_int()
 mem_error:
   null_value= 1;
   DBUG_RETURN(0);
-  return 0;
 }
 
 
@@ -1731,7 +1748,7 @@ double Item_func_distance::val_real()
   bool above_cur_point, cur_point_edge;
   const Gcalc_scan_iterator::point *evpos;
   const Gcalc_heap::Info *cur_point, *dist_point;
-  Gcalc_scan_events ev;
+  const Gcalc_scan_iterator::point *ev;
   double t, distance, cur_distance;
   double x1, x2, y1, y2;
   double ex, ey, vx, vy, e_sqrlen;
@@ -1782,39 +1799,24 @@ double Item_func_distance::val_real()
     if (scan_it.step())
       goto mem_error;
     evpos= scan_it.get_event_position();
-    ev= scan_it.get_event();
-    cur_point= evpos->pi;
+    ev= scan_it.get_events();
 
+    if (ev->simple_event())
+    {
+      cur_point= ev->pi;
+      goto count_distance;
+    }
     /*
        handling intersection we only need to check if it's the intersecion
        of objects 1 and 2. In this case distance is 0
     */
-    if (ev == scev_intersection)
-    {
-      if ((evpos->get_next()->pi->shape >= obj2_si) !=
-            (cur_point->shape >= obj2_si))
-      {
-        distance= 0;
-        goto exit;
-      }
-      continue;
-    }
-
-    /*
-       if we get 'scev_point | scev_end | scev_two_ends' we don't need
-       to check for intersection of objects.
-       Though we need to calculate distances.
-    */
-    if (ev & (scev_point | scev_end | scev_two_ends))
-      goto count_distance;
+    cur_point= NULL;
 
     /*
        having these events we need to check for possible intersection
        of objects
        scev_thread | scev_two_threads | scev_single_point
     */
-    DBUG_ASSERT(ev & (scev_thread | scev_two_threads | scev_single_point));
-
     func.clear_state();
     for (Gcalc_point_iterator pit(&scan_it); pit.point() != evpos; ++pit)
     {
@@ -1822,14 +1824,22 @@ double Item_func_distance::val_real()
       if ((func.get_shape_kind(si) == Gcalc_function::shape_polygon))
         func.invert_state(si);
     }
-    func.invert_state(evpos->get_shape());
-    if (func.count())
+
+    for (; ev; ev= ev->get_next())
     {
-      /* Point of one object is inside the other - intersection found */
-      distance= 0;
-      goto exit;
+      if (ev->event != scev_intersection)
+        cur_point= ev->pi;
+      func.set_on_state(evpos->get_shape());
+      if (func.count())
+      {
+        /* Point of one object is inside the other - intersection found */
+        distance= 0;
+        goto exit;
+      }
     }
 
+    if (!cur_point)
+      continue;
 
 count_distance:
     if (cur_point->shape >= obj2_si)
