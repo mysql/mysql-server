@@ -55,6 +55,22 @@ const char *Group_log_state::COND_MESSAGE_WAIT_FOR_SQL_THREAD_NO_REPLICATION=
 const uint Group_log_state::COND_MESSAGE_MAX_TEXT_LENGTH= 1024;
 
 
+void Group_log_state::clear()
+{
+  sid_lock->rdlock();
+  rpl_sidno max_sidno= sid_map->get_max_sidno();
+  for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
+    sid_locks.lock(sidno);
+
+  ended_groups.clear();
+  owned_groups.clear();
+
+  for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
+    sid_locks.unlock(sidno);
+  sid_lock->unlock();
+}
+
+
 enum_group_status
 Group_log_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno, const THD *thd)
 {
@@ -62,17 +78,21 @@ Group_log_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno, const THD *thd)
   //ended_groups.ensure_sidno(sidno);
   //printf("Group_log_state::acquire_ownership(sidno=%d gno=%lld)\n", sidno, gno);
   DBUG_ASSERT(!ended_groups.contains_group(sidno, gno));
+  DBUG_PRINT("info", ("acquire ownership of group %d:%lld", sidno, gno));
   Rpl_owner_id owner;
   owner.copy_from(thd);
-  DBUG_RETURN(owned_groups.add(sidno, gno, owner));
+  enum_group_status ret= owned_groups.add(sidno, gno, owner);
+  DBUG_RETURN(ret);
 }
 
 
 enum_group_status Group_log_state::end_group(rpl_sidno sidno, rpl_gno gno)
 {
   DBUG_ENTER("Group_log_state::end_group");
+  DBUG_PRINT("info", ("ending group %d:%lld", sidno, gno));
   owned_groups.remove(sidno, gno);
-  DBUG_RETURN(ended_groups.add(sidno, gno));
+  enum_group_status ret= ended_groups._add(sidno, gno);
+  DBUG_RETURN(ret);
 }
 
 
@@ -108,6 +128,7 @@ rpl_gno Group_log_state::get_automatic_gno(rpl_sidno sidno) const
 void Group_log_state::wait_for_sidno(THD *thd, const Sid_map *sm,
                                      Group g, Rpl_owner_id owner)
 {
+  DBUG_ENTER("Group_log_state::wait_for_sidno");
   // Generate message.
   char buf[Group_log_state::COND_MESSAGE_MAX_TEXT_LENGTH + 1];
   char group[Group::MAX_TEXT_LENGTH + 1];
@@ -153,6 +174,8 @@ void Group_log_state::wait_for_sidno(THD *thd, const Sid_map *sm,
   while (!is_partial(g.sidno, g.gno) && !thd->killed && !abort_loop)
     sid_locks.wait(g.sidno);
   thd->exit_cond(prev_proc_info);
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -190,9 +213,17 @@ enum_group_status Group_log_state::ensure_sidno()
   rpl_sidno sidno= sid_map->get_max_sidno();
   if (sidno > 0)
   {
-    GROUP_STATUS_THROW(ended_groups.ensure_sidno(sidno));
-    GROUP_STATUS_THROW(owned_groups.ensure_sidno(sidno));
-    GROUP_STATUS_THROW(sid_locks.ensure_index(sidno));
+    // The lock may be temporarily released during one of the calls to
+    // ensure_sidno or ensure_index.  Hence, we must re-check the
+    // condition after the calls.
+    do
+    {
+      GROUP_STATUS_THROW(ended_groups.ensure_sidno(sidno));
+      GROUP_STATUS_THROW(owned_groups.ensure_sidno(sidno));
+      GROUP_STATUS_THROW(sid_locks.ensure_index(sidno));
+    } while (ended_groups.get_max_sidno() < sidno ||
+             owned_groups.get_max_sidno() < sidno ||
+             sid_locks.get_max_index() < sidno);
   }
   DBUG_RETURN(GS_SUCCESS);
 }

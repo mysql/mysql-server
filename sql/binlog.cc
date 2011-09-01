@@ -634,10 +634,12 @@ static inline int
 binlog_commit_flush_stmt_cache(THD *thd,
                                binlog_cache_mngr *cache_mngr)
 {
+  DBUG_ENTER("binlog_commit_flush_stmt_cache");
   binlog_cache_data* cache_data= &cache_mngr->stmt_cache;
   Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"),
                           cache_data->is_trx_cache(), FALSE, TRUE, 0, TRUE);
-  return binlog_flush_cache(thd, cache_mngr, cache_data, &end_evt);
+  int ret= binlog_flush_cache(thd, cache_mngr, cache_data, &end_evt);
+  DBUG_RETURN(ret);
 }
 
 /**
@@ -652,10 +654,12 @@ binlog_commit_flush_stmt_cache(THD *thd,
 static inline int
 binlog_commit_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr)
 {
+  DBUG_ENTER("binlog_commit_flush_trx_cache");
   binlog_cache_data* cache_data= &cache_mngr->trx_cache;
   Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"),
                           cache_data->is_trx_cache(), FALSE, TRUE, 0, TRUE);
-  return binlog_flush_cache(thd, cache_mngr, cache_data, &end_evt);
+  int ret= binlog_flush_cache(thd, cache_mngr, cache_data, &end_evt);
+  DBUG_RETURN(ret);
 }
 
 /**
@@ -670,10 +674,12 @@ binlog_commit_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr)
 static inline int
 binlog_rollback_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr)
 {
+  DBUG_ENTER("binlog_rollback_flush_trx_cache");
   binlog_cache_data* cache_data= &cache_mngr->trx_cache;
   Query_log_event end_evt(thd, STRING_WITH_LEN("ROLLBACK"),
                           cache_data->is_trx_cache(), FALSE, TRUE, 0, TRUE);
-  return binlog_flush_cache(thd, cache_mngr, cache_data, &end_evt);
+  int ret= binlog_flush_cache(thd, cache_mngr, cache_data, &end_evt);
+  DBUG_RETURN(ret);
 }
 
 /**
@@ -690,8 +696,10 @@ static inline int
 binlog_commit_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr,
                               my_xid xid)
 {
+  DBUG_ENTER("binlog_commit_flush_trx_cache");
   Xid_log_event end_evt(thd, xid);
-  return binlog_flush_cache(thd, cache_mngr, &cache_mngr->trx_cache, &end_evt);
+  int ret= binlog_flush_cache(thd, cache_mngr, &cache_mngr->trx_cache, &end_evt);
+  DBUG_RETURN(ret);
 }
 
 /**
@@ -2410,6 +2418,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
 
+  sid_lock.rdlock();
+
   /* Save variables so that we can reopen the log */
   save_name=name;
   name=0;					// Protect against free
@@ -2499,9 +2509,12 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
       goto err;
   my_free((void *) save_name);
 
+  group_log_state.clear();
+
 err:
   if (error == 1)
     name= const_cast<char*>(save_name);
+  sid_lock.unlock();
   mysql_mutex_unlock(&LOCK_thread_count);
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
@@ -4691,8 +4704,12 @@ int MYSQL_BIN_LOG::log_xid(THD *thd, my_xid xid)
     We always commit the entire transaction when writing an XID. Also
     note that the return value is inverted.
    */
-  DBUG_RETURN(!binlog_commit_flush_stmt_cache(thd, cache_mngr) &&
-              !binlog_commit_flush_trx_cache(thd, cache_mngr, xid));
+  int ret= (!binlog_commit_flush_stmt_cache(thd, cache_mngr) &&
+            !ugid_before_flush_trx_cache(thd, &mysql_bin_log.sid_lock,
+                                         &mysql_bin_log.group_log_state,
+                                         &cache_mngr->trx_cache.group_cache) &&
+            !binlog_commit_flush_trx_cache(thd, cache_mngr, xid));
+  DBUG_RETURN(ret);
 }
 
 int MYSQL_BIN_LOG::unlog(ulong cookie, my_xid xid)

@@ -350,16 +350,6 @@ ok:
 }
 
 
-enum_group_status Group_set::add(rpl_sidno sidno, rpl_gno start, rpl_gno end)
-{
-  DBUG_ENTER("Group_set::add(rpl_sidno, rpl_gno, rpl_gno)");
-  DBUG_ASSERT(sidno >= 1 && start > 0 && end > start);
-  ensure_sidno(sidno);
-  Interval_iterator ivit(this, sidno);
-  DBUG_RETURN(add(&ivit, start, end));
-}
-
-
 rpl_gno parse_gno(const char **s)
 {
   char *endp;
@@ -459,10 +449,9 @@ enum_group_status Group_set::add(const char *text)
       // current interval does not begin before it.  Otherwise iterate
       // from the beginning.
       Interval *current= ivit.get();
-      if (current != NULL && start >= current->start)
-        GROUP_STATUS_THROW(add(&ivit, start, end));
-      else
-        GROUP_STATUS_THROW(add(sidno, start, end));
+      if (current == NULL || start < current->start)
+        ivit.init(this, sidno);
+      GROUP_STATUS_THROW(add(&ivit, start, end));
     }
 
     // Must be end of string or comma. (Commas are consumed and
@@ -578,7 +567,7 @@ enum_group_status Group_set::add(const Group_set *other)
         rpl_sidno this_sidno= sid_map->add_permanent(sid);
         if (this_sidno == 0)/// @todo: can also be io error /sven
           DBUG_RETURN(GS_ERROR_OUT_OF_MEMORY);
-        ensure_sidno(this_sidno);
+        GROUP_STATUS_THROW(ensure_sidno(this_sidno));
         GROUP_STATUS_THROW(add(this_sidno, other_ivit));
       }
     }
@@ -832,6 +821,7 @@ bool Group_set::is_subset(const Group_set *super) const
   DBUG_PRINT("info", ("%s", buf));
   super->to_string(buf);
   DBUG_PRINT("info", ("%s", buf));
+  free(buf);
 
   int sidno= 0, super_sidno= 0;
   Const_interval_iterator ivit(this), super_ivit(super);

@@ -1449,7 +1449,7 @@ public:
 
 class Item_func_group_subset : public Item_int_func
 {
-  String arg_1, arg_2;
+  String buf;
 public:
   Item_func_group_subset(Item *a, Item *b) : Item_int_func(a, b) {}
   longlong val_int();
