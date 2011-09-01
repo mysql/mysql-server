@@ -203,11 +203,16 @@ static struct st_mysql_sys_var* system_variables_aliases[]= {
       THDVAR(0, name) == MYSQL_SYSVAR_NAME(name).def_val)                 \
     THDVAR(0, name)= name ## _alias;
 
+/* Note:
+   The following list must be identical to the list for system_variables[] in ha_maria.cc
+*/
+
 void copy_variable_aliases()
 {
   int i= 0;
   COPY_SYSVAR(block_size);
   COPY_SYSVAR(checkpoint_interval);
+  i++;                                          // Skip checkpoint_min_log_activity
   COPY_SYSVAR(force_start_after_recovery_failures);
   COPY_SYSVAR(group_commit);
   COPY_SYSVAR(group_commit_interval);

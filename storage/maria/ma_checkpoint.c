@@ -533,8 +533,9 @@ filter_flush_file_evenly(enum pagecache_page_type type,
    risk could be that while a checkpoint happens no LRD flushing happens.
 */
 
-static uint maria_checkpoint_min_activity= 2*1024*1024;
-
+static ulong maria_checkpoint_min_cache_activity= 10*1024*1024;
+/* Set in ha_maria.cc */
+ulong maria_checkpoint_min_log_activity= 1*1024*1024;
 
 pthread_handler_t ma_checkpoint_background(void *arg)
 {
@@ -578,6 +579,9 @@ pthread_handler_t ma_checkpoint_background(void *arg)
     switch (sleeps % interval)
     {
     case 0:
+    {
+      TRANSLOG_ADDRESS horizon= translog_get_horizon();
+
       /*
         With background flushing evenly distributed over the time
         between two checkpoints, we should have only little flushing to do
@@ -592,10 +596,12 @@ pthread_handler_t ma_checkpoint_background(void *arg)
         want to checkpoint every minute, hence the positive
         maria_checkpoint_min_activity.
       */
-      if (((translog_get_horizon() - log_horizon_at_last_checkpoint) +
-           (maria_pagecache->global_cache_write -
-            pagecache_flushes_at_last_checkpoint) *
-           maria_pagecache->block_size) < maria_checkpoint_min_activity)
+      if (horizon != log_horizon_at_last_checkpoint &&
+          (ulonglong) (horizon - log_horizon_at_last_checkpoint) <=
+          maria_checkpoint_min_log_activity &&
+          ((ulonglong) (maria_pagecache->global_cache_write -
+                        pagecache_flushes_at_last_checkpoint) *
+             maria_pagecache->block_size) <= maria_checkpoint_min_cache_activity)
       {
         /* don't take checkpoint, so don't know what to flush */
         pages_to_flush_before_next_checkpoint= 0;
@@ -618,6 +624,7 @@ pthread_handler_t ma_checkpoint_background(void *arg)
         and sleep until the next checkpoint.
       */
       break;
+    }
     case 1:
       /* set up parameters for background page flushing */
       filter_param.up_to_lsn= last_checkpoint_lsn;

@@ -23,6 +23,7 @@ on (maria_vars.variable_name = concat('m', aria_vars.variable_name))
 where aria_vars.variable_name like 'aria_%'
     and not (maria_vars.variable_value <=> aria_vars.variable_value);
 variable_name	variable_name
+NULL	ARIA_CHECKPOINT_LOG_ACTIVITY
 select maria_vars.variable_name, aria_vars.variable_name from
 information_schema.session_status as aria_vars left join
 information_schema.session_status as maria_vars
