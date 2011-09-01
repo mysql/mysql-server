@@ -50,6 +50,10 @@
 #include "hostname.h"
 #include "sql_db.h"
 
+#ifndef MCP_WL6004_DISTRIBUTION
+#include "handler.h"
+#endif
+
 bool mysql_user_table_is_in_short_password_format= false;
 
 static const
@@ -1842,6 +1846,9 @@ bool change_password(THD *thd, const char *host, const char *user,
   bool save_binlog_row_based;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
+#ifndef MCP_WL6004_DISTRIBUTION
+  bool do_distribute= 0;
+#endif
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'  new_password: '%s'",
 		      host,user,new_password));
@@ -1927,6 +1934,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       else
       {
         result= 1;
+        do_distribute= 0;
         DBUG_PRINT("info", ("%u: Commit DDL transaction failed: %d",
                             __LINE__, err));
       }
@@ -1934,9 +1942,21 @@ bool change_password(THD *thd, const char *host, const char *user,
     else
     {
       DBUG_PRINT("info", ("%u: Aborting DDL transaction", __LINE__));
+      do_distribute= 0;
       trans_rollback_stmt(thd);
     }
     assert(thd->transaction.stmt.is_empty());
+  }
+#endif
+
+#ifndef MCP_WL6004_DISTRIBUTION
+  if (result)
+  {
+    do_distribute= 0;
+  }
+  else
+  {
+    do_distribute= 1;
   }
 #endif
 
@@ -1963,6 +1983,19 @@ end:
     DBUG_PRINT("info", ("%u: Aborting DDL transaction", __LINE__));
     trans_rollback_stmt(thd);
     assert(thd->transaction.stmt.is_empty());
+  }
+#endif
+
+#ifndef MCP_WL6004_DISTRIBUTION
+  if (do_distribute)
+  {
+    query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
+                          acl_user->user ? acl_user->user : "",
+                          acl_user->host.hostname ? acl_user->host.hostname : "",
+                          new_password);
+    ha_binlog_log_query(thd, 0, LOGCOM_GRANT,
+                        buff, query_length,
+                        "mysql", "");
   }
 #endif
 
@@ -3834,12 +3867,27 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
 #endif
 
+#ifndef MCP_WL6004_DISTRIBUTION
+  bool do_distribute= !result;
+#endif
+
   if (!result) /* success */
   {
     result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
+
+#ifndef MCP_WL6004_DISTRIBUTION
+  if (do_distribute)
+  {
+    char *db= table_list->get_db_name();
+    char *lex_db= thd->lex->select_lex.db;
+    ha_binlog_log_query(thd, 0, LOGCOM_GRANT,
+                        thd->query(), thd->query_length(),
+                        (db)?db:((lex_db)?lex_db:"mysql"), "");
+  }
+#endif
 
   if (!result) /* success */
     my_ok(thd);
@@ -4196,12 +4244,26 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 #endif
 
+#ifndef MCP_WL6004_DISTRIBUTION
+  bool do_distribute= !result;
+#endif
+
   if (!result)
   {
     result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
+
+#ifndef MCP_WL6004_DISTRIBUTION
+  if (do_distribute)
+  {
+    char *lex_db= thd->lex->select_lex.db;
+    ha_binlog_log_query(thd, 0, LOGCOM_GRANT,
+                        thd->query(), thd->query_length(),
+                        (db)?db:((lex_db)?lex_db:"mysql"), "");
+  }
+#endif
 
   if (!result)
     my_ok(thd);
@@ -6601,6 +6663,16 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
+
+#ifndef MCP_WL6004_DISTRIBUTION
+  if (some_users_created)
+  {
+    ha_binlog_log_query(thd, 0, LOGCOM_CREATE_USER,
+                        thd->query(), thd->query_length(),
+                        "mysql", "");
+  }
+#endif
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -6712,6 +6784,16 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
+
+#ifndef MCP_WL6004_DISTRIBUTION
+  if (some_users_deleted)
+  {
+    ha_binlog_log_query(thd, 0, LOGCOM_DROP_USER,
+                        thd->query(), thd->query_length(),
+                        "mysql", "");
+  }
+#endif
+
   thd->variables.sql_mode= old_sql_mode;
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -6836,6 +6918,16 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
+
+#ifndef MCP_WL6004_DISTRIBUTION
+  if (some_users_renamed)
+  {
+    ha_binlog_log_query(thd, 0, LOGCOM_RENAME_USER,
+                        thd->query(), thd->query_length(),
+                        "mysql", "");
+  }
+#endif
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -6863,6 +6955,10 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   uint counter, revoked, is_proc;
   int result;
   ACL_DB *acl_db;
+#ifndef MCP_WL6004_DISTRIBUTION
+  char *db= NULL;
+#endif
+
   TABLE_LIST tables[GRANT_TABLES];
   bool save_binlog_row_based;
   DBUG_ENTER("mysql_revoke_all");
@@ -6938,6 +7034,9 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	      current element in acl_dbs.
 	     */
 	    revoked= 1;
+#ifndef MCP_WL6004_DISTRIBUTION
+            db= acl_db->db;
+#endif
 	    continue;
 	  }
 	  result= -1; // Something went wrong
@@ -7059,6 +7158,17 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
+
+#ifndef MCP_WL6004_DISTRIBUTION
+  if (true) // statment is always written to binlog??
+  {
+    char *lex_db= thd->lex->select_lex.db;
+    ha_binlog_log_query(thd, 0, LOGCOM_REVOKE,
+                        thd->query(), thd->query_length(),
+                        (db)?db:((lex_db)?lex_db:"mysql"), "");
+  }
+#endif
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
