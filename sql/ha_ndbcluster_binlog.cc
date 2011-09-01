@@ -53,6 +53,8 @@ bool ndb_log_empty_epochs(void);
 */
 #include "ha_ndbcluster_tables.h"
 
+#include "ndb_dist_priv_util.h"
+
 /*
   Timeout for syncing schema events between
   mysql servers, and between mysql server and the binlog
@@ -395,6 +397,12 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
            strcmp(share->table_name, NDB_APPLY_TABLE) == 0)
     do_event_op= 1;
 
+  if (Ndb_dist_priv_util::is_distributed_priv_table(share->db,
+                                                    share->table_name))
+  {
+    do_event_op= 0;
+  }
+
   {
     int i, no_nodes= g_ndb_cluster_connection->no_db_nodes();
     share->subscriber_bitmap= (MY_BITMAP*)
@@ -626,6 +634,44 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
   DBUG_RETURN(error);
 }
 
+
+// Determine if privilege tables are distributed, ie. stored in NDB
+static bool
+priv_tables_are_in_ndb(THD *thd)
+{
+  bool distributed= false;
+  Ndb_dist_priv_util dist_priv;
+  DBUG_ENTER("ndbcluster_distributed_privileges");
+
+  Ndb *ndb= check_ndb_in_thd(thd);
+  if (!ndb)
+    DBUG_RETURN(false); // MAGNUS, error message?
+
+  if (ndb->setDatabaseName(dist_priv.database()) != 0)
+    DBUG_RETURN(false);
+
+  const char* table_name;
+  while((table_name= dist_priv.iter_next_table()))
+  {
+    DBUG_PRINT("info", ("table_name: %s", table_name));
+    Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
+    const NDBTAB *ndbtab= ndbtab_g.get_table();
+    if (ndbtab)
+    {
+      distributed= true;
+    }
+    else if (distributed)
+    {
+      sql_print_error("NDB: Inconsistency detected in distributed "
+                      "privilege tables. Table '%s.%s' is not distributed",
+                      dist_priv.database(), table_name);
+      DBUG_RETURN(false);
+    }
+  }
+  DBUG_RETURN(distributed);
+}
+
+
 static void
 ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binlog_command,
                             const char *query, uint query_length,
@@ -675,6 +721,46 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
   case LOGCOM_DROP_DB:
     type= SOT_DROP_DB;
     DBUG_ASSERT(FALSE);
+    break;
+  case LOGCOM_CREATE_USER:
+    type= SOT_CREATE_USER;
+    if (priv_tables_are_in_ndb(thd))
+    {
+      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
+      log= 1;
+    }
+    break;
+  case LOGCOM_DROP_USER:
+    type= SOT_DROP_USER;
+    if (priv_tables_are_in_ndb(thd))
+    {
+      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
+      log= 1;
+    }
+    break;
+  case LOGCOM_RENAME_USER:
+    type= SOT_RENAME_USER;
+    if (priv_tables_are_in_ndb(thd))
+    {
+      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
+      log= 1;
+    }
+    break;
+  case LOGCOM_GRANT:
+    type= SOT_GRANT;
+    if (priv_tables_are_in_ndb(thd))
+    {
+      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
+      log= 1;
+    }
+    break;
+  case LOGCOM_REVOKE:
+    type= SOT_REVOKE;
+    if (priv_tables_are_in_ndb(thd))
+    {
+      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
+      log= 1;
+    }
     break;
   }
   if (log)
@@ -1681,6 +1767,16 @@ get_schema_type_name(uint type)
     return "ONLINE_ALTER_TABLE_PREPARE";
   case SOT_ONLINE_ALTER_TABLE_COMMIT:
     return "ONLINE_ALTER_TABLE_COMMIT";
+  case SOT_CREATE_USER:
+    return "CREATE_USER";
+  case SOT_DROP_USER:
+    return "DROP_USER";
+  case SOT_RENAME_USER:
+    return "RENAME_USER";
+  case SOT_GRANT:
+    return "GRANT";
+  case SOT_REVOKE:
+    return "REVOKE";
   }
   return "<unknown>";
 }
@@ -1781,6 +1877,21 @@ int ndbcluster_log_schema_op(THD *thd,
     break;
   case SOT_TRUNCATE_TABLE:
     type_str= "truncate table";
+    break;
+  case SOT_CREATE_USER:
+    type_str= "create user";
+    break;
+  case SOT_DROP_USER:
+    type_str= "drop user";
+    break;
+  case SOT_RENAME_USER:
+    type_str= "rename user";
+    break;
+  case SOT_GRANT:
+    type_str= "grant/revoke";
+    break;
+  case SOT_REVOKE:
+    type_str= "revoke all";
     break;
   default:
     abort(); /* should not happen, programming error */
@@ -2515,6 +2626,26 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           log_query= 1;
           break;
         }
+        case SOT_CREATE_USER:
+        case SOT_DROP_USER:
+        case SOT_RENAME_USER:
+        case SOT_GRANT:
+        case SOT_REVOKE:
+        {
+          if (opt_ndb_extra_logging > 9)
+            sql_print_information("Got dist_priv event: %s, "
+                                  "flushing privileges",
+                                  get_schema_type_name(schema_type));
+
+          thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+          const int no_print_error[1]= {0};
+          char *cmd= (char *) "flush privileges";
+          run_query(thd, cmd,
+                    cmd + strlen(cmd),
+                    no_print_error);
+          log_query= 1;
+	  break;
+        }
         case SOT_TABLESPACE:
         case SOT_LOGFILE_GROUP:
           log_query= 1;
@@ -2825,7 +2956,9 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         }
 
         thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-        if (ndbcluster_check_if_local_table(schema->db, schema->name))
+        if (ndbcluster_check_if_local_table(schema->db, schema->name) &&
+           !Ndb_dist_priv_util::is_distributed_priv_table(schema->db,
+                                                          schema->name))
         {
           sql_print_error("NDB Binlog: Skipping locally defined table '%s.%s' "
                           "from binlog schema event '%s' from node %d.",
@@ -4714,6 +4847,15 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     DBUG_RETURN(0); // replication already setup, or should not
   }
 
+  if (Ndb_dist_priv_util::is_distributed_priv_table(db, table_name))
+  {
+    // The distributed privilege tables are distributed by writing
+    // the CREATE USER, GRANT, REVOKE etc. to ndb_schema -> no need
+    // to listen to events from this table
+    DBUG_PRINT("info", ("Skipping binlogging of table %s/%s", db, table_name));
+    do_event_op= 0;
+  }
+
   if (!ndb_schema_share &&
       strcmp(share->db, NDB_REP_DB) == 0 &&
       strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
@@ -5023,6 +5165,11 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
                         share->flags));
     DBUG_RETURN(0);
   }
+
+  // Don't allow event ops to be created on distributed priv tables
+  // they are distributed via ndb_schema
+  assert(!Ndb_dist_priv_util::is_distributed_priv_table(share->db,
+                                                        share->table_name));
 
   Ndb_event_data *event_data= share->event_data;
   int do_ndb_schema_share= 0, do_ndb_apply_status_share= 0;

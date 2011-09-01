@@ -46,6 +46,7 @@
 #include "ndb_global_schema_lock.h"
 #include "ndb_global_schema_lock_guard.h"
 #include "abstract_query_plan.h"
+#include "ndb_dist_priv_util.h"
 #include "ha_ndb_index_stat.h"
 
 #include <mysql/plugin.h>
@@ -10109,7 +10110,9 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     ndb_rep_event_name(&event_name, new_dbname, new_tabname, 
                        get_binlog_full(share));
 
-    if (!ndbcluster_create_event(thd, ndb, ndbtab, event_name.c_ptr(), share,
+    if (!Ndb_dist_priv_util::is_distributed_priv_table(new_dbname,
+                                                       new_tabname) &&
+        !ndbcluster_create_event(thd, ndb, ndbtab, event_name.c_ptr(), share,
                                  share && ndb_binlog_running ? 2 : 1/* push warning */))
     {
       if (opt_ndb_extra_logging)
@@ -11094,7 +11097,8 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
     }
   }
 #ifdef HAVE_NDB_BINLOG
-  if (ndbcluster_check_if_local_table(db, name))
+  if (ndbcluster_check_if_local_table(db, name) &&
+      !Ndb_dist_priv_util::is_distributed_priv_table(db, name))
   {
     DBUG_PRINT("info", ("ndbcluster_discover: Skipping locally defined table '%s.%s'",
                         db, name));
