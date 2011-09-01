@@ -6514,6 +6514,7 @@ ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
 
 ER_INDEX_CORRUPT
   eng "Index %s is corrupted"
+
 ER_MTS_FEATURE_IS_NOT_SUPPORTED
   eng "%s is not supported in multi-threaded slave mode. %s"
 ER_MTS_UPDATED_DBS_GREATER_MAX
@@ -6522,3 +6523,6 @@ ER_MTS_CANT_PARALLEL
   eng "Cannot execute the current event group in the parallel mode. Encountered event %s, relay-log name %s, position %s which prevents execution of this event group in parallel mode. Reason: %s."
 ER_MTS_INCONSISTENT_DATA
   eng "%s"
+
+ER_UNDO_RECORD_TOO_BIG
+  eng "Undo log record is too big."
