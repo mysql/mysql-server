@@ -1183,6 +1183,14 @@ my_bool acl_reload(THD *thd)
   if (old_initialized)
     mysql_mutex_unlock(&acl_cache->lock);
 end:
+#ifndef MCP_WL6004_TRANS
+  if (!thd->transaction.stmt.is_empty())
+  {
+    DBUG_PRINT("info", ("%u: Committing read transaction", __LINE__));
+    trans_commit_stmt(thd);
+    assert(thd->transaction.stmt.is_empty());
+  }
+#endif
   close_mysql_tables(thd);
   DBUG_RETURN(return_val);
 }
@@ -1905,7 +1913,34 @@ bool change_password(THD *thd, const char *host, const char *user,
   acl_cache->clear(1);				// Clear locked hostname cache
   mysql_mutex_unlock(&acl_cache->lock);
   result= 0;
-  if (mysql_bin_log.is_open())
+
+#ifndef MCP_WL6004_TRANS
+  if (!thd->transaction.stmt.is_empty())
+  {
+    if (!result)
+    {
+      int err= trans_commit_stmt(thd);
+      if (err == 0)
+      {
+        DBUG_PRINT("info", ("%u: Commit DDL transaction ok", __LINE__));
+      }
+      else
+      {
+        result= 1;
+        DBUG_PRINT("info", ("%u: Commit DDL transaction failed: %d",
+                            __LINE__, err));
+      }
+    }
+    else
+    {
+      DBUG_PRINT("info", ("%u: Aborting DDL transaction", __LINE__));
+      trans_rollback_stmt(thd);
+    }
+    assert(thd->transaction.stmt.is_empty());
+  }
+#endif
+
+  if (!result && mysql_bin_log.is_open())
   {
     query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
                           acl_user->user ? acl_user->user : "",
@@ -1916,7 +1951,22 @@ bool change_password(THD *thd, const char *host, const char *user,
                               FALSE, FALSE, FALSE, 0);
   }
 end:
-  close_mysql_tables(thd);
+
+#ifndef MCP_WL6004_TRANS
+  if (!thd->transaction.stmt.is_empty())
+  {
+    /**
+     * We get here if something went wrong,
+     * check that result != 0
+     */
+    assert(result != 0);
+    DBUG_PRINT("info", ("%u: Aborting DDL transaction", __LINE__));
+    trans_rollback_stmt(thd);
+    assert(thd->transaction.stmt.is_empty());
+  }
+#endif
+
+  close_thread_tables(thd);
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -3758,6 +3808,32 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   thd->mem_root= old_root;
   mysql_mutex_unlock(&acl_cache->lock);
 
+#ifndef MCP_WL6004_TRANS
+  if (!thd->transaction.stmt.is_empty())
+  {
+    if (!result)
+    {
+      int err= trans_commit_stmt(thd);
+      if (err == 0)
+      {
+        DBUG_PRINT("info", ("%u: Commit DDL transaction ok", __LINE__));
+      }
+      else
+      {
+        result= 1;
+        DBUG_PRINT("info", ("%u: Commit DDL transaction failed: %d",
+                            __LINE__, err));
+      }
+    }
+    else
+    {
+      DBUG_PRINT("info", ("%u: Aborting DDL transaction", __LINE__));
+      trans_rollback_stmt(thd);
+    }
+    assert(thd->transaction.stmt.is_empty());
+  }
+#endif
+
   if (!result) /* success */
   {
     result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
@@ -4094,6 +4170,32 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
   mysql_mutex_unlock(&acl_cache->lock);
 
+#ifndef MCP_WL6004_TRANS
+  if (!thd->transaction.stmt.is_empty())
+  {
+    if (!result)
+    {
+      int err= trans_commit_stmt(thd);
+      if (err == 0)
+      {
+        DBUG_PRINT("info", ("%u: Commit DDL transaction ok", __LINE__));
+      }
+      else
+      {
+        result= 1;
+        DBUG_PRINT("info", ("%u: Commit DDL transaction failed: %d",
+                            __LINE__, err));
+      }
+    }
+    else
+    {
+      DBUG_PRINT("info", ("%u: Aborting DDL transaction", __LINE__));
+      trans_rollback_stmt(thd);
+    }
+    assert(thd->transaction.stmt.is_empty());
+  }
+#endif
+
   if (!result)
   {
     result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
@@ -4382,6 +4484,14 @@ static my_bool grant_reload_procs_priv(THD *thd)
   }
   mysql_rwlock_unlock(&LOCK_grant);
 
+#ifndef MCP_WL6004_TRANS
+  if (!thd->transaction.stmt.is_empty())
+  {
+    DBUG_PRINT("info", ("%u: Committing read transaction", __LINE__));
+    trans_commit_stmt(thd);
+    assert(thd->transaction.stmt.is_empty());
+  }
+#endif
   close_mysql_tables(thd);
   DBUG_RETURN(return_val);
 }
@@ -4453,6 +4563,14 @@ my_bool grant_reload(THD *thd)
     free_root(&old_mem,MYF(0));
   }
   mysql_rwlock_unlock(&LOCK_grant);
+#ifndef MCP_WL6004_TRANS
+  if (!thd->transaction.stmt.is_empty())
+  {
+    DBUG_PRINT("info", ("%u: Committing read transaction", __LINE__));
+    trans_commit_stmt(thd);
+    assert(thd->transaction.stmt.is_empty());
+  }
+#endif
   close_mysql_tables(thd);
 
   /*
@@ -6460,6 +6578,25 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   if (result)
     my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
 
+#ifndef MCP_WL6004_TRANS
+  if (!thd->transaction.stmt.is_empty())
+  {
+    int err= trans_commit_stmt(thd);
+    if (err == 0)
+    {
+      DBUG_PRINT("info", ("%u: Commit DDL ok", __LINE__));
+    }
+    else
+    {
+      result= 1;
+      some_users_created= FALSE;
+      DBUG_PRINT("info",
+                 ("%u: Commit DDL transaction failed: %d", __LINE__, err));
+    }
+    assert(thd->transaction.stmt.is_empty());
+  }
+#endif
+
   if (some_users_created)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
@@ -6543,6 +6680,33 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   if (result)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
+
+#ifndef MCP_WL6004_TRANS
+  if (!thd->transaction.stmt.is_empty())
+  {
+    if (!result)
+    {
+      int err= trans_commit_stmt(thd);
+      if (err == 0)
+      {
+        DBUG_PRINT("info", ("%u: Commit DDL transaction ok", __LINE__));
+      }
+      else
+      {
+        result= 1;
+        some_users_deleted= FALSE;
+        DBUG_PRINT("info", ("%u: Commit DDL transaction failed: %d",
+                            __LINE__, err));
+      }
+    }
+    else
+    {
+      DBUG_PRINT("info", ("%u: Aborting DDL transaction", __LINE__));
+      trans_rollback_stmt(thd);
+    }
+    assert(thd->transaction.stmt.is_empty());
+  }
+#endif
 
   if (some_users_deleted)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
@@ -6640,6 +6804,34 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   if (result)
     my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
   
+#ifndef MCP_WL6004_TRANS
+  if (!thd->transaction.stmt.is_empty())
+  {
+    if (!result)
+    {
+      int err= trans_commit_stmt(thd);
+      if (err == 0)
+      {
+        DBUG_PRINT("info", ("%u: Commit DDL transaction ok", __LINE__));
+      }
+      else
+      {
+        result= 1;
+        some_users_renamed= FALSE;
+        DBUG_PRINT("info", ("%u: Commit DDL transaction failed: %d",
+                            __LINE__, err));
+      }
+    }
+    else
+    {
+      DBUG_PRINT("info", ("%u: Aborting DDL transaction", __LINE__));
+      trans_rollback_stmt(thd);
+      some_users_renamed= FALSE;
+    }
+    assert(thd->transaction.stmt.is_empty());
+  }
+#endif
+
   if (some_users_renamed && mysql_bin_log.is_open())
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
@@ -6836,6 +7028,32 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   if (result)
     my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
+
+#ifndef MCP_WL6004_TRANS
+  if (!thd->transaction.stmt.is_empty())
+  {
+    if (!result)
+    {
+      int err= trans_commit_stmt(thd);
+      if (err == 0)
+      {
+        DBUG_PRINT("info", ("%u: Commit DDL transaction ok", __LINE__));
+      }
+      else
+      {
+        result= 1;
+        DBUG_PRINT("info", ("%u: Commit DDL transaction failed: %d",
+                            __LINE__, err));
+      }
+    }
+    else
+    {
+      DBUG_PRINT("info", ("%u: Aborting DDL transaction", __LINE__));
+      trans_rollback_stmt(thd);
+    }
+    assert(thd->transaction.stmt.is_empty());
+  }
+#endif
 
   result= result |
     write_bin_log(thd, FALSE, thd->query(), thd->query_length());
