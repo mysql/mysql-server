@@ -39,7 +39,8 @@ libkernel_a_SOURCES = VMSignal.cpp \
                       SafeMutex.cpp \
                       Ndbinfo.cpp \
                       NdbinfoTables.cpp \
-                      ArenaPool.cpp
+                      ArenaPool.cpp \
+                      mt_thr_config.cpp
 
 libsched_a_SOURCES = TimeQueue.cpp \
                      ThreadConfig.cpp \

@@ -33,6 +33,7 @@
 #include <kernel_config_parameters.h>
 
 #include <util/ConfigValues.hpp>
+#include <NdbEnv.h>
 
 #include <ndbapi_limits.h>
 
@@ -392,7 +393,77 @@ Configuration::setupConfiguration(){
     t = globalEmulatorData.theWatchDog ->setCheckInterval(t);
     _timeBetweenWatchDogCheckInitial = t;
   }
-  
+
+  const char * thrconfigstring = NdbEnv_GetEnv("NDB_MT_THREAD_CONFIG",
+                                               (char*)0, 0);
+  if (thrconfigstring ||
+      iter.get(CFG_DB_MT_THREAD_CONFIG, &thrconfigstring) == 0)
+  {
+    int res = m_thr_config.do_parse(thrconfigstring);
+    if (res != 0)
+    {
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+                "Invalid configuration fetched, invalid ThreadConfig",
+                m_thr_config.getErrorMessage());
+    }
+  }
+  else
+  {
+    const char * mask;
+    if (iter.get(CFG_DB_EXECUTE_LOCK_CPU, &mask) == 0)
+    {
+      int res = m_thr_config.setLockExecuteThreadToCPU(mask);
+      if (res < 0)
+      {
+        // Could not parse LockExecuteThreadToCPU mask
+        g_eventLogger->warning("Failed to parse 'LockExecuteThreadToCPU=%s' "
+                               "(error: %d), ignoring it!",
+                               mask, res);
+      }
+    }
+
+    Uint32 maintCPU = NO_LOCK_CPU;
+    iter.get(CFG_DB_MAINT_LOCK_CPU, &maintCPU);
+    if (maintCPU == 65535)
+      maintCPU = NO_LOCK_CPU; // Ignore old default(may come from old mgmd)
+    if (maintCPU != NO_LOCK_CPU)
+      m_thr_config.setLockMaintThreadsToCPU(maintCPU);
+
+    Uint32 mtthreads = 0;
+    iter.get(CFG_DB_MT_THREADS, &mtthreads);
+
+    Uint32 classic = 0;
+    iter.get(CFG_NDBMT_CLASSIC, &classic);
+    const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
+    if (p != 0)
+    {
+      if (strstr(p, "NOPLEASE") != 0)
+        classic = 1;
+    }
+
+    Uint32 lqhthreads = 0;
+    iter.get(CFG_NDBMT_LQH_THREADS, &lqhthreads);
+
+    int res = m_thr_config.do_parse(mtthreads, lqhthreads, classic);
+    if (res != 0)
+    {
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+                "Invalid configuration fetched, invalid thread configuration",
+                m_thr_config.getErrorMessage());
+    }
+  }
+  if (thrconfigstring)
+  {
+    ndbout_c("ThreadConfig: input: %s parsed: %s",
+             thrconfigstring,
+             m_thr_config.getConfigString());
+  }
+  else
+  {
+    ndbout_c("ThreadConfig (old ndb_mgmd): parsed: %s",
+             m_thr_config.getConfigString());
+  }
+
   ConfigValues* cf = ConfigValuesFactory::extractCurrentSection(iter.m_config);
 
   if(m_clusterConfigIter)

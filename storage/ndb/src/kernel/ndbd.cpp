@@ -297,69 +297,45 @@ get_multithreaded_config(EmulatorData& ed)
 {
   // multithreaded is compiled in ndbd/ndbmtd for now
   globalData.isNdbMt = SimulatedBlock::isMultiThreaded();
-  if (!globalData.isNdbMt) {
+  if (!globalData.isNdbMt)
+  {
     ndbout << "NDBMT: non-mt" << endl;
     return 0;
   }
 
-  ndb_mgm_configuration * conf = ed.theConfiguration->getClusterConfig();
-  if (conf == 0)
-  {
-    abort();
-  }
+  THRConfig & conf = ed.theConfiguration->m_thr_config;
 
-  ndb_mgm_configuration_iterator * p =
-    ndb_mgm_create_configuration_iterator(conf, CFG_SECTION_NODE);
-  if (ndb_mgm_find(p, CFG_NODE_ID, globalData.ownId))
-  {
-    abort();
-  }
-
-  Uint32 mtthreads = 0;
-  ndb_mgm_get_int_parameter(p, CFG_DB_MT_THREADS, &mtthreads);
-  ndbout << "NDBMT: MaxNoOfExecutionThreads=" << mtthreads << endl;
+  Uint32 threadcount = conf.getThreadCount();
+  ndbout << "NDBMT: MaxNoOfExecutionThreads=" << threadcount << endl;
 
   globalData.isNdbMtLqh = true;
 
   {
-    Uint32 classic = 0;
-    ndb_mgm_get_int_parameter(p, CFG_NDBMT_CLASSIC, &classic);
-    if (classic)
-      globalData.isNdbMtLqh = false;
-
-    const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
-    if (p != 0)
+    if (conf.getMtClassic())
     {
-      if (strstr(p, "NOPLEASE") != 0)
-        globalData.isNdbMtLqh = false;
-      else
-        globalData.isNdbMtLqh = true;
+      globalData.isNdbMtLqh = false;
     }
   }
 
   if (!globalData.isNdbMtLqh)
     return 0;
 
-  Uint32 threads = 0;
-  switch(mtthreads){
-  case 0:
-  case 1:
-  case 2:
-  case 3:
-    threads = 1; // TC + receiver + SUMA + LQH
-    break;
-  case 4:
-  case 5:
-  case 6:
-    threads = 2; // TC + receiver + SUMA + 2 * LQH
-    break;
-  default:
-    threads = 4; // TC + receiver + SUMA + 4 * LQH
-  }
-
-  ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_THREADS, &threads);
+  Uint32 threads = conf.getThreadCount(THRConfig::T_LDM);
   Uint32 workers = threads;
-  ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_WORKERS, &workers);
+  {
+    ndb_mgm_configuration * conf = ed.theConfiguration->getClusterConfig();
+    if (conf == 0)
+    {
+      abort();
+    }
+    ndb_mgm_configuration_iterator * p =
+      ndb_mgm_create_configuration_iterator(conf, CFG_SECTION_NODE);
+    if (ndb_mgm_find(p, CFG_NODE_ID, globalData.ownId))
+    {
+      abort();
+    }
+    ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_WORKERS, &workers);
+  }
 
 #ifdef VM_TRACE
   // testing
@@ -368,9 +344,6 @@ get_multithreaded_config(EmulatorData& ed)
     p = NdbEnv_GetEnv("NDBMT_LQH_WORKERS", (char*)0, 0);
     if (p != 0)
       workers = atoi(p);
-    p = NdbEnv_GetEnv("NDBMT_LQH_THREADS", (char*)0, 0);
-    if (p != 0)
-      threads = atoi(p);
   }
 #endif
 
@@ -654,10 +627,11 @@ ndbd_run(bool foreground, int report_fd,
     // Ignore error
   }
 
+  theConfig->setupConfiguration();
+
   if (get_multithreaded_config(globalEmulatorData))
     ndbd_exit(-1);
 
-  theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel);
 
   NdbThread* pWatchdog = globalEmulatorData.theWatchDog->doStart();
