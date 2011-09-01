@@ -324,6 +324,8 @@ ErrorBundle ErrorCodes[] = {
   { 829,  DMEC, AE, "Corrupt data received for insert/update" },
   { 831,  DMEC, AE, "Too many nullable/bitfields in table definition" },
   { 850,  DMEC, AE, "Too long or too short default value"},
+  { 851,  DMEC, AE, "Maximum 8052 bytes of FIXED columns supported"
+    ", use varchar or COLUMN_FORMAT DYNMIC instead" },
   { 876,  DMEC, AE, "876" },
   { 877,  DMEC, AE, "877" },
   { 878,  DMEC, AE, "878" },
