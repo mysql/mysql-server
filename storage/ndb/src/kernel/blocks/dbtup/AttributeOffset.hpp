@@ -34,7 +34,9 @@ public:
   static Uint32 getNullFlagOffset(const Uint32 &);
   static Uint32 getNullFlagByteOffset(const Uint32 & desc);
   static Uint32 getNullFlagBitOffset(const Uint32 &);
-  
+
+  static Uint32 getMaxOffset();
+
   Uint32 m_data;
 
   friend class NdbOut& operator<<(class NdbOut&, const AttributeOffset&);
@@ -141,6 +143,13 @@ Uint32
 AttributeOffset::getNullFlagBitOffset(const Uint32 & desc)
 {
   return (getNullFlagPos(desc) & AO_NULL_FLAG_WORD_MASK);
+}
+
+inline
+Uint32
+AttributeOffset::getMaxOffset()
+{
+  return AO_ATTRIBUTE_OFFSET_MASK;
 }
 
 class NdbOut&
