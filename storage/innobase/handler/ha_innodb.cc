@@ -1045,6 +1045,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_UNSUPPORTED);
 	case DB_INDEX_CORRUPT:
 		return(HA_ERR_INDEX_CORRUPT);
+	case DB_UNDO_RECORD_TOO_BIG:
+		return(HA_ERR_UNDO_REC_TOO_BIG);
 	}
 }
 
