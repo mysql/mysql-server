@@ -89,7 +89,7 @@ UNIV_INTERN ibool	srv_buf_dump_thread_active = FALSE;
 UNIV_INTERN const char*	srv_main_thread_op_info = "";
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
-UNIV_INTERN const char*	srv_mysql50_table_name_prefix = "#mysql50#";
+const char		srv_mysql50_table_name_prefix[10] = "#mysql50#";
 
 /* Server parameters which are read from the initfile */
 
