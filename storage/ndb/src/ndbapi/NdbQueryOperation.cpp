@@ -47,7 +47,8 @@
  */
 #define UNUSED(x) ((void)(x))
 
-//#define TEST_NEXTREQ
+// To force usage of SCAN_NEXTREQ even for small scans resultsets
+static const bool testNextReq = false;
 
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_TupleNotFound = 626;
@@ -4255,18 +4256,11 @@ NdbQueryOperationImpl
   if (myClosestScan != NULL)
   {
 
-#ifdef TEST_NEXTREQ
     // To force usage of SCAN_NEXTREQ even for small scans resultsets
-    if (this == &getRoot())
+    if (testNextReq)
     {
       m_maxBatchRows = 1;
     }
-    else
-    {
-      m_maxBatchRows =
-        myClosestScan->getQueryOperationDef().getTable().getFragmentCount();
-    }
-#endif
 
     const Ndb& ndb = *getQuery().getNdbTransaction().getNdb();
 
@@ -4312,14 +4306,6 @@ NdbQueryOperationImpl
   
   if (m_operationDef.isScanOperation())
   {
-    if (myClosestScan != &getRoot())
-    {
-      /** Each SPJ block instance will scan each fragment, so the batch size
-       * cannot be smaller than the number of fragments.*/
-      maxBatchRows = 
-        MAX(maxBatchRows, myClosestScan->getQueryOperationDef().
-            getTable().getFragmentCount());
-    }
     // Use this value for current op and all lookup descendants.
     m_maxBatchRows = maxBatchRows;
     // Return max(Unit32) to avoid interfering with batch size calculation 
@@ -4478,16 +4464,20 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
                                       batchRows,
                                       batchByteSize,
                                       firstBatchRows);
-    assert(batchRows==getMaxBatchRows());
-    assert(batchRows==firstBatchRows);
+    assert(batchRows == firstBatchRows);
+    assert(batchRows == getMaxBatchRows());
     assert(m_parallelism == Parallelism_max ||
            m_parallelism == Parallelism_adaptive);
     if (m_parallelism == Parallelism_max)
     {
       requestInfo |= QN_ScanIndexParameters::SIP_PARALLEL;
     }
-    param->requestInfo = requestInfo; 
-    param->batchSize = ((Uint16)batchByteSize << 16) | (Uint16)firstBatchRows;
+    param->requestInfo = requestInfo;
+    // Check that both values fit in param->batchSize.
+    assert(getMaxBatchRows() < (1<<QN_ScanIndexParameters::BatchRowBits));
+    assert(batchByteSize < (1 << (sizeof param->batchSize * 8
+                                  - QN_ScanIndexParameters::BatchRowBits)));
+    param->batchSize = (batchByteSize << 11) | getMaxBatchRows();
     param->resultData = getIdOfReceiver();
     QueryNodeParameters::setOpLen(param->len, paramType, length);
   }
