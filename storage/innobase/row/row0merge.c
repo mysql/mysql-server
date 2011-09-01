@@ -2929,16 +2929,19 @@ row_merge_build_indexes(
 		row_merge_file_create(&merge_files[i]);
 
 		if (indexes[i]->type & DICT_FTS) {
+			ibool	opt_doc_id_size = FALSE;
+
 			/* To build FTS index, we would need to extract
 			doc's word, Doc ID, and word's position, so
 			we need to build a "fts sort index" indexing
 			on above three 'fields' */
 			fts_sort_idx = row_merge_create_fts_sort_index(
-					indexes[i], old_table);
+					indexes[i], old_table,
+					&opt_doc_id_size);
 
 			row_fts_psort_info_init(trx, table, new_table,
-						fts_sort_idx, &psort_info,
-						&merge_info);
+						fts_sort_idx, opt_doc_id_size,
+						&psort_info, &merge_info);
 		}
 	}
 

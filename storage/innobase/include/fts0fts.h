@@ -649,14 +649,23 @@ innobase_mysql_fts_get_token(
 	ulint*		offset);	/*!< out: offset to token,
 					measured as characters from
 					'start' */
-/********************************************************************
-Fetch COUNT(*) from specified table. */
+/*********************************************************************//**
+Fetch COUNT(*) from specified table.
+@return the number of rows in the table */
 ulint
 fts_get_rows_count(
 /*===============*/
-					/* out: the number of rows in
-					the table */
-	fts_table_t*	fts_table);	/* in: fts table to read */
+	fts_table_t*	fts_table);	/*!< in: fts table to read */
+
+/*************************************************************//**
+Get maximum Doc ID in a table if index "FTS_DOC_ID_INDEX" exists
+@return max Doc ID or 0 if index "FTS_DOC_ID_INDEX" does not exist */
+UNIV_INTERN
+doc_id_t
+fts_get_max_doc_id(     
+/*===============*/
+	dict_table_t*	table);		/*!< in: user table */
+
 
 /* Information about changes in a single transaction affecting
 the FTS system. */
