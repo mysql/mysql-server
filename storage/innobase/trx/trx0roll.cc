@@ -773,8 +773,8 @@ Note: this is done in a background thread.
 @return	a dummy parameter */
 extern "C" UNIV_INTERN
 os_thread_ret_t
-trx_rollback_or_clean_all_recovered(
-/*================================*/
+DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
+/*================================================*/
 	void*	arg __attribute__((unused)))
 			/*!< in: a dummy parameter required by
 			os_thread_create */

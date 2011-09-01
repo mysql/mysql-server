@@ -66,7 +66,7 @@ extern "C" UNIV_INTERN
 os_thread_ret_t
 DECLARE_THREAD(buf_dump_thread)(
 /*============================*/
-	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
+	void*	arg);				/*!< in: a dummy parameter
 						required by os_thread_create */
 
 #endif /* buf0dump_h */

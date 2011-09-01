@@ -573,8 +573,8 @@ again.
 @return this function does not return, it calls os_thread_exit() */
 extern "C" UNIV_INTERN
 os_thread_ret_t
-buf_dump_thread(
-/*============*/
+DECLARE_THREAD(buf_dump_thread)(
+/*============================*/
 	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {
