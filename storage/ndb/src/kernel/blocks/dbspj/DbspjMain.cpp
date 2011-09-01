@@ -4326,15 +4326,17 @@ Dbspj::scanIndex_build(Build_context& ctx,
     treeNodePtr.p->m_info = &g_ScanIndexOpInfo;
     treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
     treeNodePtr.p->m_bits |= TreeNode::T_NEED_REPORT_BATCH_COMPLETED;
-    treeNodePtr.p->m_batch_size = batchSize & 0xFFFF;
+    treeNodePtr.p->m_batch_size = 
+      batchSize & ~(0xFFFFFFFF << QN_ScanIndexParameters::BatchRowBits);
 
     ScanFragReq*dst=(ScanFragReq*)treeNodePtr.p->m_scanindex_data.m_scanFragReq;
     dst->senderData = treeNodePtr.i;
     dst->resultRef = reference();
     dst->resultData = treeNodePtr.i;
     dst->savePointId = ctx.m_savepointId;
-    dst->batch_size_rows  = batchSize & 0xFFFF;
-    dst->batch_size_bytes = batchSize >> 16;
+    dst->batch_size_rows  = 
+      batchSize & ~(0xFFFFFFFF << QN_ScanIndexParameters::BatchRowBits);
+    dst->batch_size_bytes = batchSize >> QN_ScanIndexParameters::BatchRowBits;
 
     Uint32 transId1 = requestPtr.p->m_transId[0];
     Uint32 transId2 = requestPtr.p->m_transId[1];
@@ -5020,12 +5022,13 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
    * When parent's batch is complete, we send our batch
    */
   const ScanFragReq * org = (const ScanFragReq*)data.m_scanFragReq;
-  ndbassert(org->batch_size_rows >= data.m_fragCount - data.m_frags_complete);
+  ndbrequire(org->batch_size_rows > 0);
 
   if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
   {
     jam();
-    data.m_parallelism = data.m_fragCount - data.m_frags_complete;
+    data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete, 
+                             org->batch_size_rows);
   }
   else if (data.m_firstExecution)
   {
@@ -5051,8 +5054,9 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
      * in the other direction is more costly).
      */
     Int32 parallelism = 
-      static_cast<Int32>(data.m_parallelismStat.getMean()
-                         - 2 * data.m_parallelismStat.getStdDev());
+      static_cast<Int32>(MIN(data.m_parallelismStat.getMean()
+                             - 2 * data.m_parallelismStat.getStdDev(),
+                             org->batch_size_rows));
 
     if (parallelism < 1)
     {
@@ -5117,17 +5121,9 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
 
   data.m_firstExecution = false;
 
-  if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
-  {
-    ndbrequire((data.m_frags_outstanding + data.m_frags_complete) ==
-               data.m_fragCount);
-  }
-  else
-  {
-    ndbrequire(static_cast<Uint32>(data.m_frags_outstanding + 
-                                   data.m_frags_complete) <=
-               data.m_fragCount);
-  }
+  ndbrequire(static_cast<Uint32>(data.m_frags_outstanding + 
+                                 data.m_frags_complete) <=
+             data.m_fragCount);
 
   data.m_batch_chunks = 1;
   requestPtr.p->m_cnt_active++;
@@ -5575,7 +5571,8 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
         data.m_largestBatchBytes < org->batch_size_bytes/data.m_parallelism)
     {
       jam();
-      data.m_parallelism = data.m_fragCount - data.m_frags_complete;
+      data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
+                               org->batch_size_rows);
       if (data.m_largestBatchRows > 0)
       {
         jam();
@@ -5624,7 +5621,8 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
   else
   {
     jam();
-    data.m_parallelism = data.m_fragCount - data.m_frags_complete;
+    data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
+                             org->batch_size_rows);
   }
 
   const Uint32 bs_rows = org->batch_size_rows/data.m_parallelism;

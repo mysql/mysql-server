@@ -271,9 +271,11 @@ struct QN_ScanIndexParameters
 {
   Uint32 len;
   Uint32 requestInfo;
-  Uint32 batchSize;    // (bytes << 16) | (rows)
+  Uint32 batchSize;    // (bytes << 11) | (rows)
   Uint32 resultData;   // Api connect ptr
   STATIC_CONST ( NodeSize = 4 );
+  // Number of bits for representing row count in 'batchSize'.
+  STATIC_CONST ( BatchRowBits = 11 );
 
   enum ScanIndexParamBits
   {
