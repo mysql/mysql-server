@@ -124,7 +124,7 @@ os_thread_create(
 
 	thread = CreateThread(NULL,	/* no security attributes */
 			      0,	/* default size stack */
-			      (LPTHREAD_START_ROUTINE) func,
+			      func,
 			      arg,
 			      0,	/* thread runs immediately */
 			      &win_thread_id);
