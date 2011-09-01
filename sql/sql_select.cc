@@ -21547,6 +21547,19 @@ void JOIN::save_query_plan(Join_plan_state *save_to)
 
 
 /**
+  Reset a query execution plan so that it can be reoptimized in-place.
+*/
+void JOIN::reset_query_plan()
+{
+  for (uint i= 0; i < table_count; i++)
+  {
+    join_tab[i].keyuse= NULL;
+    join_tab[i].checked_keys.clear_all();
+  }
+}
+
+
+/**
   Restore a query execution plan previously saved by the caller.
 
   @param The object from which the current query plan state is restored.
@@ -21579,7 +21592,8 @@ void JOIN::restore_query_plan(Join_plan_state *restore_from)
 
   @param added_where  An extra conjunct to the WHERE clause to reoptimize with
   @param join_tables  The set of tables to reoptimize
-  @param save_to      If != NULL, save here the state of the current query plan
+  @param save_to      If != NULL, save here the state of the current query plan,
+                      otherwise reuse the existing query plan structures.
 
   @notes
   Given a query plan that was already optimized taking into account some WHERE
@@ -21623,6 +21637,8 @@ JOIN::reoptimize(Item *added_where, table_map join_tables,
 
   if (save_to)
     save_query_plan(save_to);
+  else
+    reset_query_plan();
 
   if (!keyuse.buffer &&
       my_init_dynamic_array(&keyuse, sizeof(KEYUSE), 20, 64))

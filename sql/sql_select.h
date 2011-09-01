@@ -698,6 +698,7 @@ protected:
   enum_reopt_result reoptimize(Item *added_where, table_map join_tables,
                                Join_plan_state *save_to);
   void save_query_plan(Join_plan_state *save_to);
+  void reset_query_plan();
   void restore_query_plan(Join_plan_state *restore_from);
   /* Choose a subquery plan for a table-less subquery. */
   bool choose_tableless_subquery_plan();

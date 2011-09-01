@@ -4641,17 +4641,12 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
         const_tables != table_count)
     {
       /*
-        The subquery was not reoptimized either because the user allowed only
-        the IN-EXISTS strategy, or because materialization was not possible
-        based on semantic analysis. Cleanup the original plan and reoptimize.
+        The subquery was not reoptimized with the newly injected IN-EXISTS
+        conditions either because the user allowed only the IN-EXISTS strategy,
+        or because materialization was not possible based on semantic analysis.
       */
-      for (uint i= 0; i < table_count; i++)
-      {
-        join_tab[i].keyuse= NULL;
-        join_tab[i].checked_keys.clear_all();
-      }
-      if ((reopt_result= reoptimize(in_to_exists_where, join_tables, NULL)) ==
-          REOPT_ERROR)
+      reopt_result= reoptimize(in_to_exists_where, join_tables, NULL);
+      if (reopt_result == REOPT_ERROR)
         return TRUE;
     }
 

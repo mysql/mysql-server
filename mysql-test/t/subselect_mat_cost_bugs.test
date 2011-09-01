@@ -348,4 +348,40 @@ SELECT * FROM t1
 WHERE (f1) IN (SELECT f1 FROM t2)
 LIMIT 0;
 
+set @@optimizer_switch='default';
 drop table t1, t2;
+
+--echo #
+--echo # LP BUG#834492: Crash in fix_semijoin_strategies_for_picked_join_order
+--echo # with nested subqueries and LooseScan=ON
+--echo #
+
+CREATE TABLE t3 (b int) ;
+INSERT INTO t3 VALUES (0),(0);
+
+CREATE TABLE t4 (a int, b int, c int, d int, PRIMARY KEY (a)) ;
+INSERT INTO t4 VALUES (28,0,0,0),(29,3,0,0);
+
+CREATE TABLE t5 (a int, b int, c int, d int, KEY (c,b)) ;
+INSERT INTO t5 VALUES (28,0,0,0),(29,3,0,0);
+
+SET @@optimizer_switch='semijoin=ON,loosescan=ON,firstmatch=OFF,materialization=OFF';
+
+EXPLAIN SELECT *
+FROM t3
+WHERE t3.b > ALL (
+        SELECT c
+        FROM t4
+        WHERE t4.a >= t3.b
+        AND a = SOME (SELECT b FROM t5));
+
+SELECT *
+FROM t3
+WHERE t3.b > ALL (
+        SELECT c
+        FROM t4
+        WHERE t4.a >= t3.b
+        AND a = SOME (SELECT b FROM t5));
+
+set @@optimizer_switch='default';
+drop table t3, t4, t5;
