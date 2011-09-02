@@ -42,7 +42,7 @@ public:
     T_LDM   = 1, /* LQH/ACC/TUP/TUX etc */
     T_RECV  = 2, /* CMVMI */
     T_REP   = 3, /* SUMA */
-    T_MAINT = 4, /* FS, SocketServer etc */
+    T_IO    = 4, /* FS, SocketServer etc */
 
     T_END  = 5
   };
@@ -52,7 +52,7 @@ public:
 
   // NOTE: needs to be called before do_parse
   int setLockExecuteThreadToCPU(const char * val);
-  int setLockMaintThreadsToCPU(unsigned val);
+  int setLockIoThreadsToCPU(unsigned val);
 
   int do_parse(const char * ThreadConfig);
   int do_parse(unsigned MaxNoOfExecutionThreads,
@@ -64,10 +64,10 @@ public:
   const char * getErrorMessage() const;
   const char * getInfoMessage() const;
 
-  Uint32 getThreadCount() const; // Don't count FS/MAINT thread
+  Uint32 getThreadCount() const; // Don't count FS/IO thread
   Uint32 getThreadCount(T_Type) const;
   Uint32 getMtClassic() const { return m_classic; }
-private:
+protected:
   struct T_Thread
   {
     unsigned m_type;
@@ -77,7 +77,7 @@ private:
   };
   bool m_classic;
   SparseBitmask m_LockExecuteThreadToCPU;
-  SparseBitmask m_LockMaintThreadsToCPU;
+  SparseBitmask m_LockIoThreadsToCPU;
   Vector<SparseBitmask> m_cpu_sets;
   Vector<T_Thread> m_threads[T_END];
 
@@ -122,7 +122,13 @@ class THRConfigApplier : public THRConfig
 {
 public:
   int create_cpusets();
-  int do_bind(unsigned t_type, unsigned no, NdbThread*);
+
+  void appendInfo(BaseString&, const unsigned short list[], unsigned cnt) const;
+  int do_bind(NdbThread*, const unsigned short list[], unsigned cnt);
+  int do_bind_io(NdbThread*);
+
+protected:
+  const T_Thread* find_thread(const unsigned short list[], unsigned cnt) const;
 };
 
 #endif // IPCConfig_H

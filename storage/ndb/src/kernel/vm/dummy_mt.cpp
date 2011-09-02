@@ -86,3 +86,8 @@ TimeQueue::~TimeQueue()
 {
 }
 
+bool
+NdbIsMultiThreaded()
+{
+  return true;
+}
