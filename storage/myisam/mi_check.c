@@ -1539,6 +1539,9 @@ int mi_repair(HA_CHECK *param, register MI_INFO *info,
   got_error=1;
   new_file= -1;
   sort_param.sort_info=&sort_info;
+  param->retry_repair= 0;
+  param->warning_printed= 0;
+  param->error_printed= 0;
 
   if (!(param->testflag & T_SILENT))
   {
@@ -1683,7 +1686,7 @@ int mi_repair(HA_CHECK *param, register MI_INFO *info,
   if (rep_quick && del+sort_info.dupp != info->state->del)
   {
     mi_check_print_error(param,"Couldn't fix table with quick recovery: Found wrong number of deleted records");
-    mi_check_print_error(param,"Run recovery again without -q");
+    mi_check_print_error(param,"Run recovery again without --quick");
     got_error=1;
     param->retry_repair=1;
     param->testflag|=T_RETRY_WITHOUT_QUICK;
@@ -1914,7 +1917,7 @@ int flush_blocks(HA_CHECK *param, KEY_CACHE *key_cache, File file,
 {
   if (flush_key_blocks(key_cache, file, dirty_part_map, FLUSH_RELEASE))
   {
-    mi_check_print_error(param,"%d when trying to write bufferts",my_errno);
+    mi_check_print_error(param,"%d when trying to write buffers",my_errno);
     return(1);
   }
   if (!param->using_global_keycache)
@@ -2228,7 +2231,7 @@ int mi_repair_by_sort(HA_CHECK *param, register MI_INFO *info,
   MYISAM_SHARE *share=info->s;
   HA_KEYSEG *keyseg;
   ulong   *rec_per_key_part;
-  char llbuff[22];
+  char llbuff[22], llbuff2[22];
   MI_SORT_INFO sort_info;
   ulonglong UNINIT_VAR(key_map);
   DBUG_ENTER("mi_repair_by_sort");
@@ -2244,12 +2247,16 @@ int mi_repair_by_sort(HA_CHECK *param, register MI_INFO *info,
     printf("Data records: %s\n", llstr(start_records,llbuff));
   }
   param->testflag|=T_REP; /* for easy checking */
+  param->retry_repair= 0;
+  param->warning_printed= 0;
+  param->error_printed= 0;
 
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
 
   bzero((char*)&sort_info,sizeof(sort_info));
   bzero((char *)&sort_param, sizeof(sort_param));
+
   if (!(sort_info.key_block=
 	alloc_key_blocks(param,
 			 (uint) param->sort_key_blocks,
@@ -2261,7 +2268,7 @@ int mi_repair_by_sort(HA_CHECK *param, register MI_INFO *info,
        init_io_cache(&info->rec_cache,info->dfile,
 		     (uint) param->write_buffer_length,
 		     WRITE_CACHE,new_header_length,1,
-		     MYF(MY_WME | MY_WAIT_IF_FULL) & param->myf_rw)))
+                     MYF((param->myf_rw & MY_WAIT_IF_FULL) | MY_WME))))
     goto err;
   sort_info.key_block_end=sort_info.key_block+param->sort_key_blocks;
   info->opt_flag|=WRITE_CACHE_USED;
@@ -2433,7 +2440,10 @@ int mi_repair_by_sort(HA_CHECK *param, register MI_INFO *info,
 			      (my_bool) (!(param->testflag & T_VERBOSE)),
 			      (uint) param->sort_buffer_length))
     {
-      param->retry_repair=1;
+      param->retry_repair= 1;
+      if (! param->error_printed)
+        mi_check_print_error(param, "Couldn't fix table with create_index_by_sort(). Error: %d",
+                             my_errno);
       goto err;
     }
     /* No need to calculate checksum again. */
@@ -2462,7 +2472,10 @@ int mi_repair_by_sort(HA_CHECK *param, register MI_INFO *info,
 	/* Don't repair if we loosed more than one row */
 	if (info->state->records+1 < start_records)
 	{
-	  info->state->records=start_records;
+          mi_check_print_error(param,
+                               "Couldn't fix table as SAFE_REPAIR was requested and we would loose too many rows. %s -> %s",
+                               llstr(start_records, llbuff), llstr(info->state->records, llbuff2));
+	  info->state->records= start_records;
 	  goto err;
 	}
       }
@@ -2492,7 +2505,7 @@ int mi_repair_by_sort(HA_CHECK *param, register MI_INFO *info,
   if (rep_quick && del+sort_info.dupp != info->state->del)
   {
     mi_check_print_error(param,"Couldn't fix table with quick recovery: Found wrong number of deleted records");
-    mi_check_print_error(param,"Run recovery again without -q");
+    mi_check_print_error(param,"Run recovery again without --quick");
     got_error=1;
     param->retry_repair=1;
     param->testflag|=T_RETRY_WITHOUT_QUICK;
@@ -2664,6 +2677,9 @@ int mi_repair_parallel(HA_CHECK *param, register MI_INFO *info,
     printf("Data records: %s\n", llstr(start_records,llbuff));
   }
   param->testflag|=T_REP; /* for easy checking */
+  param->retry_repair= 0;
+  param->warning_printed= 0;
+  param->error_printed= 0;
 
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;

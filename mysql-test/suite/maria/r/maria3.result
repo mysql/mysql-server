@@ -305,6 +305,7 @@ select lower(variable_name) as Variable_name, Variable_value as Value from infor
 Variable_name	Value
 aria_block_size	8192
 aria_checkpoint_interval	30
+aria_checkpoint_log_activity	1048576
 aria_force_start_after_recovery_failures	0
 aria_group_commit	none
 aria_group_commit_interval	0

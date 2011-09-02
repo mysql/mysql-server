@@ -664,7 +664,7 @@ THD::THD()
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
    in_sub_stmt(0),
-   sql_log_bin_toplevel(false),
+   sql_log_bin_toplevel(false), log_all_errors(0),
    binlog_table_maps(0), binlog_flags(0UL),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -2599,26 +2599,32 @@ bool select_max_min_finder_subselect::cmp_real()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+    return(val1 > val2);
+  return (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_int()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+    return(val1 > val2);
+  return (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_decimal()
@@ -2626,13 +2632,16 @@ bool select_max_min_finder_subselect::cmp_decimal()
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       my_decimal_cmp(cvalue, mvalue) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     my_decimal_cmp(cvalue,mvalue) < 0);
+    return (my_decimal_cmp(cvalue, mvalue) > 0) ;
+  return (my_decimal_cmp(cvalue,mvalue) < 0);
 }
 
 bool select_max_min_finder_subselect::cmp_str()
@@ -2645,13 +2654,16 @@ bool select_max_min_finder_subselect::cmp_str()
   */
   val1= cache->val_str(&buf1);
   val2= maxmin->val_str(&buf1);
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       sortcmp(val1, val2, cache->collation.collation) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     sortcmp(val1, val2, cache->collation.collation) < 0);
+    return (sortcmp(val1, val2, cache->collation.collation) > 0) ;
+  return (sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
 int select_exists_subselect::send_data(List<Item> &items)

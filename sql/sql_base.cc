@@ -62,7 +62,7 @@ private:
 bool
 Prelock_error_handler::handle_error(uint sql_errno,
                                     const char * /* message */,
-                                    MYSQL_ERROR::enum_warning_level /* level */,
+                                    MYSQL_ERROR::enum_warning_level level,
                                     THD * /* thd */)
 {
   if (sql_errno == ER_NO_SUCH_TABLE)
@@ -71,7 +71,8 @@ Prelock_error_handler::handle_error(uint sql_errno,
     return TRUE;
   }
 
-  m_unhandled_errors++;
+  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+    m_unhandled_errors++;
   return FALSE;
 }
 

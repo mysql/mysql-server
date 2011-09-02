@@ -150,9 +150,15 @@ static MYSQL_SYSVAR_ULONG(block_size, maria_block_size,
 
 static MYSQL_SYSVAR_ULONG(checkpoint_interval, checkpoint_interval,
        PLUGIN_VAR_RQCMDARG,
-       "Interval between automatic checkpoints, in seconds; 0 means"
+       "Interval between tries to do an automatic checkpoints. In seconds; 0 means"
        " 'no automatic checkpoints' which makes sense only for testing.",
        NULL, update_checkpoint_interval, 30, 0, UINT_MAX, 1);
+
+static MYSQL_SYSVAR_ULONG(checkpoint_log_activity, maria_checkpoint_min_log_activity,
+       PLUGIN_VAR_RQCMDARG,
+       "Number of bytes that the transaction log has to grow between checkpoints before a new "
+       "checkpoint is written to the log.",
+       NULL, NULL, 1024*1024, 0, UINT_MAX, 1);
 
 static MYSQL_SYSVAR_ULONG(force_start_after_recovery_failures,
        force_start_after_recovery_failures,
@@ -304,7 +310,7 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error(fmt, args);
+    sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
     return;
   }
 
@@ -312,6 +318,8 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
       (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR | T_AUTO_REPAIR))
   {
     my_message(ER_NOT_KEYFILE, msgbuf, MYF(MY_WME));
+    if (thd->variables.log_warnings > 2)
+      sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
     return;
   }
   length= (uint) (strxmov(name, param->db_name, ".", param->table_name,
@@ -330,8 +338,11 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
   protocol->store(msg_type, system_charset_info);
   protocol->store(msgbuf, msg_length, system_charset_info);
   if (protocol->write())
-    sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
-                    msgbuf);
+    sql_print_error("Failed on my_net_write, writing to stderr instead: %s.%s: %s\n",
+                    param->db_name, param->table_name, msgbuf);
+  else if (thd->variables.log_warnings > 2)
+    sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
+
   return;
 }
 
@@ -2184,13 +2195,17 @@ bool ha_maria::check_and_repair(THD *thd)
 
   if (crashed)
   {
+    bool save_log_all_errors;
     sql_print_warning("Recovering table: '%s'", table->s->path.str);
+    save_log_all_errors= thd->log_all_errors;
+    thd->log_all_errors|= (thd->variables.log_warnings > 2);
     check_opt.flags=
       ((maria_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
        (maria_recover_options & HA_RECOVER_FORCE ? 0 : T_SAFE_REPAIR) |
        T_AUTO_REPAIR);
     if (repair(thd, &check_opt))
       error= 1;
+    thd->log_all_errors= save_log_all_errors;
   }
   pthread_mutex_lock(&LOCK_thread_count);
   thd->query_string= old_query;
@@ -3556,6 +3571,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
   MYSQL_SYSVAR(checkpoint_interval),
+  MYSQL_SYSVAR(checkpoint_log_activity),
   MYSQL_SYSVAR(force_start_after_recovery_failures),
   MYSQL_SYSVAR(group_commit),
   MYSQL_SYSVAR(group_commit_interval),
@@ -3588,6 +3604,7 @@ static void update_checkpoint_interval(MYSQL_THD thd,
   ma_checkpoint_end();
   ma_checkpoint_init(*(ulong *)var_ptr= (ulong)(*(long *)save));
 }
+
 
 /**
    @brief Updates group commit mode
