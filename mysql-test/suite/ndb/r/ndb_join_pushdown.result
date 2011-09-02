@@ -5178,6 +5178,55 @@ pw	4	4	5
 wh	1	1	2
 drop table t1;
 drop table t2;
+create table t1 (
+a char(10) primary key,
+b char(10) not null,
+c char(10) not null,
+l00 char(255) not null,
+l01 char(255) not null,
+l02 char(255) not null,
+l03 char(255) not null,
+l04 char(255) not null,
+l05 char(255) not null,
+l06 char(255) not null,
+l07 char(255) not null,
+l08 char(255) not null,
+l09 char(255) not null,
+l10 char(255) not null,
+l11 char(255) not null,
+l12 char(255) not null,
+l13 char(255) not null,
+l14 char(255) not null,
+l15 char(255) not null,
+l16 char(255) not null,
+l17 char(255) not null,
+l18 char(255) not null,
+l19 char(255) not null,
+l20 char(255) not null,
+l21 char(255) not null,
+l22 char(255) not null,
+l23 char(255) not null,
+l24 char(255) not null,
+l25 char(255) not null,
+l26 char(255) not null,
+l27 char(255) not null,
+l28 char(255) not null,
+l29 char(255) not null,
+l30 char(255) not null,
+l31 char(255) not null,
+index(c, b)
+) engine=ndb partition by key(a) partitions 8;
+insert into t1 values ('a','a','a','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
+insert into t1 values ('b','b','b','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
+insert into t1 values ('c','c','c','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
+explain select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	3	Parent of 2 pushed join@1
+1	SIMPLE	x2	ref	c	c	10	test.x1.b	1	Child of 'x1' in pushed join@1
+select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
+count(*)
+3
+drop table t1;
 create temporary table spj_counts_at_end
 select counter_name, sum(val) as val 
 from ndbinfo.counters 
@@ -5193,13 +5242,13 @@ and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
        and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
 counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	6
-LOCAL_TABLE_SCANS_SENT	236
+LOCAL_TABLE_SCANS_SENT	244
 PRUNED_RANGE_SCANS_RECEIVED	25
 RANGE_SCANS_RECEIVED	720
 READS_NOT_FOUND	6616
 READS_RECEIVED	52
-SCAN_ROWS_RETURNED	76380
-TABLE_SCANS_RECEIVED	236
+SCAN_ROWS_RETURNED	76386
+TABLE_SCANS_RECEIVED	244
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
 where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
@@ -5211,15 +5260,15 @@ drop table spj_save_counts;
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-2520
+2524
 pruned_scan_count
 8
 sorted_scan_count
 10
 pushed_queries_defined
-383
+385
 pushed_queries_dropped
 11
 pushed_queries_executed
-534
+535
 set ndb_join_pushdown = @save_ndb_join_pushdown;
