@@ -17,14 +17,15 @@
 #define TABLE_FILE_SUMMARY_H
 
 /**
-  @file storage/perfschema/table_file_summary.h
-  Table FILE_SUMMARY_BY_xxx (declarations).
+  @file storage/perfschema/table_file_summary_by_event_name.h
+  Table FILE_SUMMARY_BY_EVENT_NAME (declarations).
 */
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "table_helper.h"
 
 /**
   @addtogroup Performance_schema_tables
@@ -35,14 +36,12 @@
 struct row_file_summary_by_event_name
 {
   /** Column EVENT_NAME. */
-  const char *m_name;
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
-  /**
-    Columns COUNT_READ, COUNT_WRITE,
-    SUM_NUMBER_OF_BYTES_READ, SUM_NUMBER_OF_BYTES_WRITE.
+  PFS_event_name_row m_event_name;
+
+  /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER and NUMBER_OF_BYTES
+      for READ, WRITE and MISC operation types.
   */
-  PFS_file_io_stat m_file_io_stat;
+  PFS_file_io_stat_row m_io_stat;
 };
 
 /** Table PERFORMANCE_SCHEMA.FILE_SUMMARY_BY_EVENT_NAME. */
@@ -58,9 +57,7 @@ public:
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
 
-protected:
-  void make_row(PFS_file_class *klass);
-
+private:
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,
                               Field **fields,
@@ -73,6 +70,8 @@ public:
   {}
 
 private:
+  void make_row(PFS_file_class *klass);
+
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
@@ -80,65 +79,6 @@ private:
 
   /** Current row. */
   row_file_summary_by_event_name m_row;
-  /** Current position. */
-  PFS_simple_index m_pos;
-  /** Next position. */
-  PFS_simple_index m_next_pos;
-};
-
-/** A row of PERFORMANCE_SCHEMA.FILE_SUMMARY_BY_INSTANCE. */
-struct row_file_summary_by_instance
-{
-  /** Column FILE_NAME. */
-  const char *m_filename;
-  /** Length in bytes of @c m_filename. */
-  uint m_filename_length;
-  /** Column EVENT_NAME. */
-  const char *m_name;
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
-  /**
-    Columns COUNT_READ, COUNT_WRITE,
-    SUM_NUMBER_OF_BYTES_READ, SUM_NUMBER_OF_BYTES_WRITE.
-  */
-  PFS_file_io_stat m_file_io_stat;
-};
-
-/** Table PERFORMANCE_SCHEMA.FILE_UMMARY_BY_INSTANCE. */
-class table_file_summary_by_instance : public PFS_engine_table
-{
-public:
-  /** Table share */
-  static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
-  static int delete_all_rows();
-
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
-
-protected:
-  void make_row(PFS_file *pfs);
-
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
-                              bool read_all);
-
-  table_file_summary_by_instance();
-
-public:
-  ~table_file_summary_by_instance()
-  {}
-
-private:
-  /** Table share lock. */
-  static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
-
-  /** Current row. */
-  row_file_summary_by_instance m_row;
   /** True if the current row exists. */
   bool m_row_exists;
   /** Current position. */

@@ -76,7 +76,8 @@ table_ews_by_thread_by_event_name.h
 table_ews_by_user_by_event_name.h
 table_ews_global_by_event_name.h
 table_file_instances.h
-table_file_summary.h
+table_file_summary_by_instance.h
+table_file_summary_by_event_name.h
 table_socket_instances.h
 table_socket_summary_by_instance.h
 table_socket_summary_by_event_name.h
@@ -143,7 +144,8 @@ table_ews_by_thread_by_event_name.cc
 table_ews_by_user_by_event_name.cc
 table_ews_global_by_event_name.cc
 table_file_instances.cc
-table_file_summary.cc
+table_file_summary_by_instance.cc
+table_file_summary_by_event_name.cc
 table_socket_instances.cc
 table_socket_summary_by_instance.cc
 table_socket_summary_by_event_name.cc
