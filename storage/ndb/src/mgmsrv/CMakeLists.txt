@@ -22,6 +22,7 @@ ADD_CONVENIENCE_LIBRARY(ndbconf
                Config.cpp
                ConfigInfo.cpp
                InitConfigFileParser.cpp
+               ${NDB_SOURCE_DIR}/src/kernel/vm/mt_thr_config.cpp
 )
 TARGET_LINK_LIBRARIES(ndbconf ndbmgmapi)
 
