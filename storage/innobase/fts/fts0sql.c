@@ -1,7 +1,24 @@
-/******************************************************
-Full Text Search functionality.
+/*****************************************************************************
 
-(c) 2007 Innobase Oy
+Copyright (c) 2010,  Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file fts/fts0sql.c
+Full Text Search functionality.
 
 Created 2007-03-27 Sunny Bains
 *******************************************************/
@@ -18,28 +35,28 @@ Created 2007-03-27 Sunny Bains
 #include "fts0vlc.ic"
 #endif
 
-/* SQL statements for creating the ancillary FTS tables. %s must be replaced
+/** SQL statements for creating the ancillary FTS tables. %s must be replaced
 with the indexed table's id. */
 
-/* Preamble to all SQL statements. */
+/** Preamble to all SQL statements. */
 static const char* fts_sql_begin=
 	"PROCEDURE P() IS\n";
 
-/* Postamble to non-committing SQL statements. */
+/** Postamble to non-committing SQL statements. */
 static const char* fts_sql_end=
 	"\n"
 	"END;\n";
 
-/********************************************************************
-Get the table id. */
-
+/******************************************************************//**
+Get the table id.
+@return number of bytes written */
+UNIV_INTERN
 int
 fts_get_table_id(
 /*=============*/
-					/* out: number of bytes written */
 	const fts_table_t*
-			fts_table,	/* in: FTS Auxiliary table */
-	char*		table_id)	/* out: table id, must be at least
+			fts_table,	/*!< in: FTS Auxiliary table */
+	char*		table_id)	/*!< out: table id, must be at least
 					FTS_AUX_MIN_TABLE_ID_LENGTH bytes
 					long */
 {
@@ -71,16 +88,15 @@ fts_get_table_id(
 	return(len);
 }
 
-/********************************************************************
-Construct the prefix name of an FTS table. */
-
+/******************************************************************//**
+Construct the prefix name of an FTS table.
+@return own: table name, must be freed with mem_free() */
+UNIV_INTERN
 char*
 fts_get_table_name_prefix(
 /*======================*/
-					/* out, own: table name,
-					must be freed with mem_free() */
 	const fts_table_t*
-			fts_table)	/* in: Auxiliary table type */
+			fts_table)	/*!< in: Auxiliary table type */
 {
 	int		len;
 	char*		slash;
@@ -111,16 +127,15 @@ fts_get_table_name_prefix(
 	return(prefix_name);
 }
 
-/********************************************************************
-Construct the name of an ancillary FTS table. */
-
+/******************************************************************//**
+Construct the name of an ancillary FTS table.
+@return own: table name, must be freed with mem_free() */
+UNIV_INTERN
 char*
 fts_get_table_name(
 /*===============*/
-					/* out, own: table name,
-					must be freed with mem_free() */
 	const fts_table_t*	fts_table)
-					/* in: Auxiliary table type */
+					/*!< in: Auxiliary table type */
 {
 	int		len;
 	char*		name;
@@ -143,16 +158,16 @@ fts_get_table_name(
 	return(name);
 }
 
-/********************************************************************
-Parse an SQL string. %s is replaced with the table's id. */
-
+/******************************************************************//**
+Parse an SQL string. %s is replaced with the table's id.
+@return query graph */
+UNIV_INTERN
 que_t*
 fts_parse_sql(
 /*==========*/
-					/* out: query graph */
-	fts_table_t*	fts_table,	/* in: FTS auxiliarry table info */
-	pars_info_t*	info,		/* in: info struct, or NULL */
-	const char*	sql)		/* in: SQL string to evaluate */
+	fts_table_t*	fts_table,	/*!< in: FTS auxiliarry table info */
+	pars_info_t*	info,		/*!< in: info struct, or NULL */
+	const char*	sql)		/*!< in: SQL string to evaluate */
 {
 	char*		str;
 	que_t*		graph;
@@ -198,16 +213,16 @@ fts_parse_sql(
 	return(graph);
 }
 
-/********************************************************************
-Parse an SQL string. %s is replaced with the table's id. */
-
+/******************************************************************//**
+Parse an SQL string. %s is replaced with the table's id.
+@return query graph */
+UNIV_INTERN
 que_t*
 fts_parse_sql_no_dict_lock(
 /*=======================*/
-					/* out: query graph */
-	fts_table_t*	fts_table,	/* in: FTS aux table info */
-	pars_info_t*	info,		/* in: info struct, or NULL */
-	const char*	sql)		/* in: SQL string to evaluate */
+	fts_table_t*	fts_table,	/*!< in: FTS aux table info */
+	pars_info_t*	info,		/*!< in: info struct, or NULL */
+	const char*	sql)		/*!< in: SQL string to evaluate */
 {
 	char*		str;
 	que_t*		graph;
@@ -242,15 +257,15 @@ fts_parse_sql_no_dict_lock(
 	return(graph);
 }
 
-/********************************************************************
-Evaluate an SQL query graph. */
-
+/******************************************************************//**
+Evaluate an SQL query graph.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_eval_sql(
 /*=========*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
-	que_t*		graph)		/* in: Query graph to evaluate */
+	trx_t*		trx,		/*!< in: transaction */
+	que_t*		graph)		/*!< in: Query graph to evaluate */
 {
 	que_thr_t*	thr;
 
@@ -264,7 +279,7 @@ fts_eval_sql(
 	return(trx->error_state);
 }
 
-/********************************************************************
+/******************************************************************//**
 Construct the column specification part of the SQL string for selecting the
 indexed FTS columns for the given table. Adds the necessary bound
 ids to the given 'info' and returns the SQL string. Examples:
@@ -278,15 +293,14 @@ Two indexed columns named "subject" and "content":
 
  "$sel0, $sel1",
  info/ids: sel0 -> "subject", sel1 -> "content",
-*/
-
+@return heap-allocated WHERE string */
+UNIV_INTERN
 const char*
 fts_get_select_columns_str(
 /*=======================*/
-					/* out: heap-allocated WHERE string */
-	dict_index_t*   index,		/* in: index */
-	pars_info_t*    info,		/* in/out: parser info */
-	mem_heap_t*     heap)		/* in: memory heap */
+	dict_index_t*   index,		/*!< in: index */
+	pars_info_t*    info,		/*!< in/out: parser info */
+	mem_heap_t*     heap)		/*!< in: memory heap */
 {
 	ulint		i;
 	const char*	str = "";
@@ -308,14 +322,14 @@ fts_get_select_columns_str(
 	return(str);
 }
 
-/********************************************************************
-Commit a transaction. */
-
+/******************************************************************//**
+Commit a transaction.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_sql_commit(
 /*===========*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx)		/* in: transaction */
+	trx_t*		trx)		/*!< in: transaction */
 {
 	ulint	error;
 
@@ -327,14 +341,14 @@ fts_sql_commit(
 	return(DB_SUCCESS);
 }
 
-/********************************************************************
-Rollback a transaction. */
-
+/******************************************************************//**
+Rollback a transaction.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_sql_rollback(
 /*=============*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx)		/* in: transaction */
+	trx_t*		trx)		/*!< in: transaction */
 {
 	return(trx_rollback_to_savepoint(trx, NULL));
 }
