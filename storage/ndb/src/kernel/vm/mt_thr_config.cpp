@@ -1008,7 +1008,7 @@ TAPTEST(mt_thr_config)
         "ldm={cpubind=1-2,5,count=3},ldm",
         "ldm={ cpubind = 1- 2, 5 , count = 3 },ldm",
         "ldm={count=3,cpubind=1-2,5 },  ldm",
-        "ldm={cpuset=1-3,count=3 },ldm",
+        // "ldm={cpuset=1-3,count=3 },ldm",
         "main,ldm={},ldm",
         0
       };
