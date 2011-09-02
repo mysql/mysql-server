@@ -1877,13 +1877,15 @@ fts_trx_init(
 	rbt_search_cmp(tables, &parent, &table->id, fts_trx_table_id_cmp, NULL);
 
 	if (parent.result == 0) {
-		ftt = *rbt_value(fts_trx_table_t*, parent.last);
+		fts_trx_table_t**	fttp;
+
+		fttp = rbt_value(fts_trx_table_t*, parent.last);
+		ftt = *fttp;
 	} else {
 		ftt = fts_trx_table_create(trx->fts_trx, table);
 		rbt_add_node(tables, &parent, &ftt);
 	}
 
-	ut_a(ftt);
 	ut_a(ftt->table == table);
 
 	return(ftt);
@@ -2773,11 +2775,11 @@ fts_commit(
 	     node && error == DB_SUCCESS;
 	     node = rbt_next(tables, node)) {
 
-		fts_trx_table_t*	ftt;
+		fts_trx_table_t**	ftt;
 
-		ftt = *rbt_value(fts_trx_table_t*, node);
+		ftt = rbt_value(fts_trx_table_t*, node);
 
-		error = fts_commit_table(ftt);
+		error = fts_commit_table(*ftt);
 	}
 
 	return(error);
@@ -4514,8 +4516,10 @@ fts_savepoint_free(
 
 	for (node = rbt_first(tables); node; node = rbt_first(tables)) {
 		fts_trx_table_t*	ftt;
+		fts_trx_table_t**	fttp;
 
-		ftt = *rbt_value(fts_trx_table_t*, node);
+		fttp = rbt_value(fts_trx_table_t*, node);
+		ftt = *fttp;
 
 		/* This can be NULL if a savepoint was released. */
 		if (ftt->rows != NULL) {
@@ -5027,11 +5031,11 @@ fts_savepoint_copy(
 	for (node = rbt_first(tables); node; node = rbt_next(tables, node)) {
 
 		fts_trx_table_t*	ftt_dst;
-		const fts_trx_table_t*	ftt_src;
+		const fts_trx_table_t**	ftt_src;
 
-		ftt_src = *rbt_value(const fts_trx_table_t*, node);
+		ftt_src = rbt_value(const fts_trx_table_t*, node);
 
-		ftt_dst = fts_trx_table_clone(ftt_src);
+		ftt_dst = fts_trx_table_clone(*ftt_src);
 
 		rbt_insert(dst->tables, &ftt_dst->table->id, &ftt_dst);
 	}
@@ -5293,18 +5297,19 @@ fts_savepoint_rollback_last_stmt(
              node;
              node = rbt_next(l_tables, node)) {
 
-                fts_trx_table_t*	l_ftt;
-                fts_trx_table_t*	s_ftt;
+                fts_trx_table_t**	l_ftt;
 
-                l_ftt = *rbt_value(fts_trx_table_t*, node);
+                l_ftt = rbt_value(fts_trx_table_t*, node);
 
-		rbt_search_cmp(s_tables, &parent, &l_ftt->table->id,
+		rbt_search_cmp(s_tables, &parent, &(*l_ftt)->table->id,
 			       fts_trx_table_id_cmp, NULL);
 
 		if (parent.result == 0) {
-			s_ftt = *rbt_value(fts_trx_table_t*, parent.last);
+                	fts_trx_table_t**	s_ftt;
 
-			fts_undo_last_stmt(s_ftt, l_ftt);
+			s_ftt = rbt_value(fts_trx_table_t*, parent.last);
+
+			fts_undo_last_stmt(*s_ftt, *l_ftt);
 		}
         }
 }

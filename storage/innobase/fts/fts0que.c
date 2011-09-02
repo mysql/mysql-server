@@ -1075,12 +1075,15 @@ fts_query_intersect(
 		node's ilist doc ids are out of range. */
 		if (!rbt_empty(query->doc_ids)) {
 			const ib_rbt_node_t*	node;
+			doc_id_t*		doc_id;
 
 			node = rbt_first(query->doc_ids);
-			query->lower_doc_id = *rbt_value(doc_id_t, node);
+			doc_id = rbt_value(doc_id_t, node);
+			query->lower_doc_id = *doc_id;
 
 			node = rbt_last(query->doc_ids);
-			query->upper_doc_id = *rbt_value(doc_id_t, node);
+			doc_id = rbt_value(doc_id_t, node);
+			query->upper_doc_id = *doc_id;
 
 		} else {
 			query->lower_doc_id = 0;
@@ -2896,12 +2899,14 @@ fts_query_calculate_ranking(
 
 		int			ret;
 		const byte*		word;
+		const byte**		wordp;
 		ib_rbt_bound_t		parent;
 		double			weight;
 		fts_doc_freq_t*		doc_freq;
 		fts_word_freq_t*	word_freq;
 
-		word = *rbt_value(const byte*, node);
+		wordp = rbt_value(const byte*, node);
+		word = *wordp;
 
 		ret = rbt_search(query->word_freqs, &parent, word);
 
@@ -3467,8 +3472,11 @@ fts_expand_query(
 		     node_word = rbt_next(ranking->words, node_word)) {
 			fts_string_t	str;
 			ibool		ret;
+			const byte**	strp;
 
-			str.f_str = (byte*)*rbt_value(const byte*, node_word);
+			strp = rbt_value(const byte*, node_word);
+			/* FIXME: We are discarding a const qualifier here. */
+			str.f_str = (byte*) *strp;
 			str.f_len = ut_strlen((const char*)str.f_str);
 			ret = rbt_delete(result_doc.tokens, &str);
 
