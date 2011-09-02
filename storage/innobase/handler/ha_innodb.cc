@@ -4612,8 +4612,8 @@ innobase_strnxfrm(
 /*==============*/
 	const CHARSET_INFO*
 			cs,		/*!< in: Character set */
-	uchar*		str,		/*!< in: string */
-	ulint		len)		/*!< in: string length */
+	const uchar*	str,		/*!< in: string */
+	const ulint	len)		/*!< in: string length */
 {
 	uchar		mystr[2];
 	ulint		value;

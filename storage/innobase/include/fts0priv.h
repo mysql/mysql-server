@@ -111,36 +111,35 @@ component.
 /** Maximum length of an integer stored in the config table value column. */
 #define FTS_MAX_INT_LEN			32
 
-/********************************************************************
-Parse an SQL string. %s is replaced with the table's id. */
+/******************************************************************//**
+Parse an SQL string. %s is replaced with the table's id.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 que_t*
 fts_parse_sql(
 /*==========*/
-					/* out: DB_SUCCESS or error code */
 	fts_table_t*	fts_table,	/*!< in: FTS aux table */
 	pars_info_t*	info,		/*!< in: info struct, or NULL */
 	const char*	sql);		/*!< in: SQL string to evaluate */
-/********************************************************************
-Evaluate a parsed SQL statement.*/
+/******************************************************************//**
+Evaluate a parsed SQL statement
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_eval_sql(
 /*=========*/
-					/* out: DB_SUCCESS or error code */
 	trx_t*		trx,		/*!< in: transaction */
 	que_t*		graph);		/*!< in: Parsed statement */
-/********************************************************************
-Construct the name of an ancillary FTS table for the given table. */
+/******************************************************************//**
+Construct the name of an ancillary FTS table for the given table.
+@return own: table name, must be freed with mem_free() */
 UNIV_INTERN
 char*
 fts_get_table_name(
-/*===================*/
-					/* out, own: table name,
-					must be freed with mem_free() */
+/*===============*/
 	const fts_table_t*
 			fts_table);	/*!< in: FTS aux table info */
-/********************************************************************
+/******************************************************************//**
 Construct the column specification part of the SQL string for selecting the
 indexed FTS columns for the given table. Adds the necessary bound
 ids to the given 'info' and returns the SQL string. Examples:
@@ -154,12 +153,11 @@ Two indexed columns named "subject" and "content":
 
  "$sel0, $sel1",
  info/ids: sel0 -> "subject", sel1 -> "content",
-*/
+@return heap-allocated WHERE string */
 UNIV_INTERN
 const char*
 fts_get_select_columns_str(
 /*=======================*/
-					/* out: heap-allocated WHERE string */
 	dict_index_t*	index,		/*!< in: FTS index */
 	pars_info_t*	info,		/*!< in/out: parser info */
 	mem_heap_t*	heap);		/*!< in: memory heap */
@@ -200,8 +198,9 @@ fts_query_expansion_fetch_doc(
 	void*		row,		/*!< in: sel_node_t* */
 	void*		user_arg);	/*!< in: fts_doc_t* */
 /********************************************************************
-Write out a single word's data as new entry/entries in the INDEX table. */
-
+Write out a single word's data as new entry/entries in the INDEX table.
+@return DB_SUCCESS if all OK. */
+UNIV_INTERN
 ulint
 fts_write_node(
 /*===========*/
@@ -232,154 +231,145 @@ fts_tokenize_document_next(
 					tokens from this tokenization */
 	fts_doc_t*	result);	/*!< out: if provided, save
 					result tokens here */
-/********************************************************************
-Create a new empty document. */
+/******************************************************************//**
+Create a new empty document.
+@return own: new document */
 UNIV_INTERN
 fts_doc_t*
 fts_doc_init(
 /*=========*/
-					/* out, own: new document */
 	fts_doc_t*	doc);		/*!< in: doc to initialize */
-/********************************************************************
-Do a binary search for a doc id in the array.*/
+/******************************************************************//**
+Do a binary search for a doc id in the array
+@return +ve index if found -ve index where it should be
+        inserted if not found */
 UNIV_INTERN
 int
 fts_bsearch(
 /*========*/
-					/* out: +ve index if found -ve
-					index where it should be
-					inserted if not found */
 	fts_update_t*	array,		/*!< in: array to sort */
 	int		lower,		/*!< in: lower bound of array*/
 	int		upper,		/*!< in: upper bound of array*/
 	doc_id_t	doc_id);	/*!< in: doc id to lookup */
-/********************************************************************
+/******************************************************************//**
 Free document. */
 UNIV_INTERN
 void
 fts_doc_free(
 /*=========*/
 	fts_doc_t*	doc);		/*!< in: document */
-/********************************************************************
+/******************************************************************//**
 Free fts_optimizer_word_t instanace.*/
 
 void
 fts_word_free(
 /*==========*/
-					/* out: void*/
 	fts_word_t*	word);		/*!< in: instance to free.*/
-/********************************************************************
-Read the rows from the FTS index*/
+/******************************************************************//**
+Read the rows from the FTS inde
+@return vector of rows fetched */
 UNIV_INTERN
 ulint
 fts_index_fetch_nodes(
 /*==================*/
-					/* out: vector of rows fetched*/
 	trx_t*		trx,		/*!< in: transaction */
 	que_t**		graph,		/*!< in: prepared statement */
 	fts_table_t*	fts_table,	/*!< in: FTS aux table */
 	const fts_string_t*
 			word,		/*!< in: the word to fetch */
 	fts_fetch_t*	fetch);		/*!< in: fetch callback.*/
-/********************************************************************
-Create a fts_optimizer_word_t instance. */
+/******************************************************************//**
+Create a fts_optimizer_word_t instance.
+@return new instance */
 UNIV_INTERN
 fts_word_t*
 fts_word_init(
 /*==========*/
-					/* out: new instance */
 	fts_word_t*	word,		/*!< in: word to initialize */
 	byte*		utf8,		/*!< in: UTF-8 string */
 	ulint		len);		/*!< in: length of string in bytes */
-/********************************************************************
+/******************************************************************//**
 Compare two fts_trx_table_t instances, we actually compare the
-table id's here. */
+table id's here.
+@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_trx_table_cmp(
 /*==============*/
-					/* out:
-					< 0 if n1 < n2,
-					0 if n1 == n2,
-					> 0 if n1 > n2 */
 	const void*	v1,		/*!< in: id1 */
 	const void*	v2);		/*!< in: id2 */
-/********************************************************************
-Compare a table id with a trx_table_t table id. */
+/******************************************************************//**
+Compare a table id with a trx_table_t table id. 
+@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_trx_table_id_cmp(
 /*=================*/
-					/* out:
-					< 0 if n1 < n2,
-					0 if n1 == n2,
-					> 0 if n1 > n2 */
 	const void*	p1,		/*!< in: id1 */
 	const void*	p2);		/*!< in: id2 */
-/********************************************************************
-Commit a transaction. */
+/******************************************************************//**
+Commit a transaction.
+@return DB_SUCCESS if all OK */
 UNIV_INTERN
 ulint
 fts_sql_commit(
 /*===========*/
-					/* out: DB_SUCCESS if all OK */
 	trx_t*		trx);		/*!< in: transaction */
-/********************************************************************
-Rollback a transaction. */
+/******************************************************************//**
+Rollback a transaction.
+@return DB_SUCCESS if all OK */
 UNIV_INTERN
 ulint
 fts_sql_rollback(
 /*=============*/
-					/* out: DB_SUCCESS if all OK */
 	trx_t*		trx);		/*!< in: transaction */
-/********************************************************************
+/******************************************************************//**
 Parse an SQL string. %s is replaced with the table's id. Don't acquire
-the dict mutex.*/
+the dict mutex
+@return query graph */
 UNIV_INTERN
 que_t*
 fts_parse_sql_no_dict_lock(
 /*=======================*/
-					/* out: query graph */
 	fts_table_t*	fts_table,	/*!< in: table with FTS index */
 	pars_info_t*	info,		/*!< in: parser info */
 	const char*	sql);		/*!< in: SQL string to evaluate */
-/********************************************************************
+/******************************************************************//**
 Get value from config table. The caller must ensure that enough
-space is allocated for value to hold the column contents.*/
-
+space is allocated for value to hold the column contents
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_config_get_value(
 /*=================*/
-					/* out: DB_SUCCESS or error code */
 	trx_t*		trx,		/* transaction */
 	fts_table_t*	fts_table,	/*!< in: the indexed FTS table */
 	const char*	name,		/*!< in: get config value for
 					this parameter name */
 	fts_string_t*	value);		/*!< out: value read from
 					config table */
-/********************************************************************
+/******************************************************************//**
 Get value specific to an FTS index from the config table. The caller
 must ensure that enough space is allocated for value to hold the
-column contents. */
+column contents.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_config_get_index_value(
 /*=======================*/
-					/* out: DB_SUCCESS or error
-					code */
 	trx_t*		trx,		/*!< transaction */
 	dict_index_t*	index,		/*!< in: index */
 	const char*	param,		/*!< in: get config value for
 					this parameter name */
 	fts_string_t*	value);		/*!< out: value read from
 					config table */
-/********************************************************************
-Set the value in the config table for name. */
+/******************************************************************//**
+Set the value in the config table for name.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_config_set_value(
 /*=================*/
-					/* out: DB_SUCCESS or error code */
 	trx_t*		trx,		/*!< transaction */
 	fts_table_t*	fts_table,	/*!< in: the indexed FTS table */
 	const char*	name,		/*!< in: get config value for
@@ -398,106 +388,98 @@ fts_config_set_ulint(
 	const char*	name,		/*!< in: param name */
 	ulint		int_value);	/*!< in: value */
 
-/********************************************************************
-Set the value specific to an FTS index in the config table. */
+/******************************************************************//**
+Set the value specific to an FTS index in the config table.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_config_set_index_value(
 /*=======================*/
-					/* out: DB_SUCCESS or error
-					code */
 	trx_t*		trx,		/*!< transaction */
 	dict_index_t*	index,		/*!< in: index */
 	const char*	param,		/*!< in: get config value for
 					this parameter name */
 	fts_string_t*	value);		/*!< out: value read from
 					config table */
-/********************************************************************
-Increment the value in the config table for column name. */
+/******************************************************************//**
+Increment the value in the config table for column name.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_config_increment_value(
 /*=======================*/
-					/* out: DB_SUCCESS or error
-					code */
 	trx_t*		trx,		/*!< transaction */
 	fts_table_t*	fts_table,	/*!< in: the indexed FTS table */
 	const char*	name,		/*!< in: increment config value
 					for this parameter name */
 	ulint		delta);		/*!< in: increment by this much */
-/********************************************************************
-Increment the per index value in the config table for column name. */
+/******************************************************************//**
+Increment the per index value in the config table for column name.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_config_increment_index_value(
 /*=============================*/
-					/* out: DB_SUCCESS or error
-					code */
 	trx_t*		trx,		/*!< transaction */
 	dict_index_t*	index,		/*!< in: FTS index */
 	const char*	name,		/*!< in: increment config value
 					for this parameter name */
 	ulint		delta);		/*!< in: increment by this much */
-/********************************************************************
-Get an ulint value from the config table. */
+/******************************************************************//**
+Get an ulint value from the config table.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_config_get_index_ulint(
 /*=======================*/
-					/* out: DB_SUCCESS if all OK
-					else error code */
 	trx_t*		trx,		/*!< in: transaction */
 	dict_index_t*	index,		/*!< in: FTS index */
 	const char*	name,		/*!< in: param name */
 	ulint*		int_value);	/*!< out: value */
-/********************************************************************
-Set an ulint value int the config table. */
+/******************************************************************//**
+Set an ulint value int the config table.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_config_set_index_ulint(
 /*=======================*/
-					/* out: DB_SUCCESS if all OK
-					else error code */
 	trx_t*		trx,		/*!< in: transaction */
 	dict_index_t*	index,		/*!< in: FTS index */
 	const char*	name,		/*!< in: param name */
 	ulint		int_value);	/*!< in: value */
-/********************************************************************
-Get an ulint value from the config table. */
+/******************************************************************//**
+Get an ulint value from the config table.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_config_get_ulint(
 /*=================*/
-					/* out: DB_SUCCESS if all OK
-					else error code */
 	trx_t*		trx,		/*!< in: transaction */
 	fts_table_t*	fts_table,	/*!< in: the indexed FTS table */
 	const char*	name,		/*!< in: param name */
 	ulint*		int_value);	/*!< out: value */
-/********************************************************************
-Search cache for word. */
+/******************************************************************//**
+Search cache for word.
+@return the word node vector if found else NULL */
 UNIV_INTERN
 const ib_vector_t*
 fts_cache_find_word(
 /*================*/
-					/* out: the word node vector if found
-					else NULL */
 	const fts_index_cache_t*
 			index_cache,	/*!< in: cache to search */
-
 	const fts_string_t*
 			text);		/*!< in: word to search for */
-/********************************************************************
-Check cache for deleted doc id. */
+/******************************************************************//**
+Check cache for deleted doc id.
+@return TRUE if deleted */
 UNIV_INTERN
 ibool
 fts_cache_is_deleted_doc_id(
 /*========================*/
-					/* out: TRUE if deleted */
 	const fts_cache_t*
 			cache,		/*!< in: cache ito search */
 	doc_id_t	doc_id);	/*!< in: doc id to search for */
-/********************************************************************
+/******************************************************************//**
 Append deleted doc ids to vector and sort the vector. */
 UNIV_INTERN
 void
@@ -506,16 +488,15 @@ fts_cache_append_deleted_doc_ids(
 	const fts_cache_t*
 			cache,		/*!< in: cache to use */
 	ib_vector_t*	vector);	/*!< in: append to this vector */
-/********************************************************************
+/******************************************************************//**
 Wait for the background thread to start. We poll to detect change
 of state, which is acceptable, since the wait should happen only
-once during startup. */
+once during startup.
+@return true if the thread started else FALSE (i.e timed out) */
 UNIV_INTERN
 ibool
 fts_wait_for_background_thread_to_start(
 /*====================================*/
-					/* out: true if the thread
-					started else FALSE (i.e timed out) */
 	dict_table_t*	table,		/*!< in: table to which the thread
 					is attached */
 	ulint		max_wait);	/*!< in: time in microseconds, if set
@@ -529,30 +510,28 @@ ulint
 fts_get_total_document_count(
 /*=========================*/
 	dict_table_t*	table);		/*!< in: table instance */
-/********************************************************************
-Get the total number of words in the FTS for a particular FTS index. */
+/******************************************************************//**
+Get the total number of words in the FTS for a particular FTS index.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_get_total_word_count(
 /*=====================*/
-					/* out: DB_SUCCESS if all OK
-					else error code */
 	trx_t*		trx,		/*!< in: transaction */
 	dict_index_t*	index,		/*!< in: for this index */
 	ulint*		total);		/*!< out: total words */
-/********************************************************************
-Search the index specific cache for a particular FTS index. */
+/******************************************************************//**
+Search the index specific cache for a particular FTS index.
+@return the index specific cache else NULL */
 UNIV_INTERN
 const fts_index_cache_t*
 fts_find_index_cache(
 /*================*/
-					/* out: the index specific
-					cache else NULL */
 	const fts_cache_t*
 			cache,		/*!< in: cache to search */
 	const dict_index_t*
 			index);		/*!< in: index to search for */
-/********************************************************************
+/******************************************************************//**
 Write the table id to the given buffer (including final NUL). Buffer must be
 at least FTS_AUX_MIN_TABLE_ID_LENGTH bytes long.
 @return	number of bytes written */
@@ -562,52 +541,51 @@ fts_write_object_id(
 /*================*/
 	ullint		id,		/*!< in: a table/index id */
 	char*		str);		/*!< in: buffer to write the id to */
-/********************************************************************
-Read the table id from the string generated by fts_write_object_id(). */
+/******************************************************************//**
+Read the table id from the string generated by fts_write_object_id().
+@return TRUE if parse successful */
 UNIV_INLINE
 ibool
 fts_read_object_id(
 /*===============*/
-					/* out: TRUE if parse successful */
 	ullint*		id,		/*!< out: a dulint id */
 	const char*	str);		/*!< in: buffer to read from */
-/********************************************************************
-Get the table id. */
+/******************************************************************//**
+Get the table id.
+@return number of bytes written */
 UNIV_INTERN
 int
 fts_get_table_id(
 /*=============*/
-					/* out: number of bytes written */
 	const fts_table_t*
 			fts_table,	/*!< in: FTS Auxiliary table */
 	char*		table_id);	/*!< out: table id, must be at least
 					FTS_AUX_MIN_TABLE_ID_LENGTH bytes
 					long */
-/********************************************************************
+/******************************************************************//**
 Add the table to add to the OPTIMIZER's list. */
 UNIV_INTERN
 void
 fts_optimize_add_table(
 /*===================*/
 	dict_table_t*	table);		/*!< in: table to add */
-/********************************************************************
+/******************************************************************//**
 Optimize a table. */
 UNIV_INTERN
 void
 fts_optimize_do_table(
 /*==================*/
 	dict_table_t*	table);		/*!< in: table to optimize */
-/********************************************************************
-Construct the prefix name of an FTS table. */
+/******************************************************************//**
+Construct the prefix name of an FTS table.
+@return own: table name, must be freed with mem_free() */
 UNIV_INTERN
 char*
 fts_get_table_name_prefix(
 /*======================*/
-					/* out, own: table name,
-					must be freed with mem_free() */
 	const fts_table_t*
 			fts_table);	/*!< in: Auxiliary table type */
-/********************************************************************
+/******************************************************************//**
 Add node positions. */
 UNIV_INTERN
 void
@@ -618,14 +596,13 @@ fts_cache_node_add_positions(
 	doc_id_t	doc_id,		/*!< in: doc id */
 	ib_vector_t*	positions);	/*!< in: fts_token_t::positions */
 
-/********************************************************************
-Create the config table name for retrieving index specific value. */
+/******************************************************************//**
+Create the config table name for retrieving index specific value.
+@return index config parameter name */
 UNIV_INTERN
 char*
 fts_config_create_index_param_name(
 /*===============================*/
-						/* out,own: index config
-						parameter name */
 	const char*		param,		/*!< in: base name of param */
 	const dict_index_t*	index);		/*!< in: index for config */
 

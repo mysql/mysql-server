@@ -371,7 +371,7 @@ do {							\
 	mutex_exit(&dict_sys->mutex);			\
 } while (0)
 
-/********************************************************************
+/******************************************************************//**
 Create a FTS cache. */
 UNIV_INTERN
 fts_cache_t*
@@ -379,7 +379,7 @@ fts_cache_create(
 /*=============*/
 	dict_table_t*	table);			/*!< table owns the FTS cache */
 
-/********************************************************************
+/******************************************************************//**
 Create a FTS index cache. */
 
 void
@@ -388,7 +388,7 @@ fts_cache_index_cache_create(
 	dict_table_t*	table,			/*!< in: table with FTS index */
 	dict_index_t*	index);			/*!< in: FTS index */
 
-/********************************************************************
+/******************************************************************//**
 Get the next available document id. This function creates a new
 transaction to generate the document id. */
 UNIV_INTERN
@@ -411,7 +411,7 @@ fts_update_next_doc_id(
 	const char*		table_name,	/*!< in: table name */
 	doc_id_t		doc_id);	/*!< in: DOC ID to set */
 
-/********************************************************************
+/******************************************************************//**
 Update the last document id. This function could create a new
 transaction to update the last document id. */
 UNIV_INTERN
@@ -424,21 +424,22 @@ fts_update_sync_doc_id(
 	doc_id_t		doc_id,		/*!< in: last document id */
 	trx_t*			trx);		/*!< in: update trx */
 
-/********************************************************************
-Create a new document id .*/
+/******************************************************************//**
+Create a new document id .
+@return DB_SUCCESS if all went well else error */
 UNIV_INTERN
 ulint
 fts_create_doc_id(
 /*==============*/
-					/* out: DB_SUCCESS if all went well
-					else error */
-	dict_table_t*	table,		/*!< in: row is of this table. */
-	dtuple_t*	row,		/*!< in/out: add doc id value to this
-					row. This is the current row that is
-					being inserted. */
-	mem_heap_t*	heap);		/*!< in: heap */
+	dict_table_t*	table,			/*!< in: row is of this
+						table. */
+	dtuple_t*	row,			/*!< in/out: add doc id
+						value to this row. This is the
+						current row that is being
+						inserted. */
+	mem_heap_t*	heap);			/*!< in: heap */
 
-/********************************************************************
+/******************************************************************//**
 Create a new fts_doc_ids_t. 
 @return new fts_doc_ids_t. */
 UNIV_INTERN
@@ -446,50 +447,51 @@ fts_doc_ids_t*
 fts_doc_ids_create(void);
 /*=====================*/
 
-/********************************************************************
+/******************************************************************//**
 Free a fts_doc_ids_t. */
 UNIV_INTERN
 void
 fts_doc_ids_free(
 /*=============*/
-	fts_doc_ids_t*	doc_ids);	/*!< in: doc_ids to free */
+	fts_doc_ids_t*	doc_ids);		/*!< in: doc_ids to free */
 
-/********************************************************************
+/******************************************************************//**
 Notify the FTS system about an operation on an FTS-indexed table. */
 UNIV_INTERN
 void
 fts_trx_add_op(
 /*===========*/
-	trx_t*		trx,		/*!< in: InnoDB transaction */
-	dict_table_t*	table,		/*!< in: table */
-	doc_id_t	doc_id,		/*!< in: doc id */
-	fts_row_state	state,		/*!< in: state of the row */
-	ib_vector_t*	indexes);	/*!< in: FTS indexes affected */
+	trx_t*		trx,			/*!< in: InnoDB transaction */
+	dict_table_t*	table,			/*!< in: table */
+	doc_id_t	doc_id,			/*!< in: doc id */
+	fts_row_state	state,			/*!< in: state of the row */
+	ib_vector_t*	indexes);		/*!< in: FTS indexes affected */
 
-/********************************************************************
+/******************************************************************//**
 Free an FTS trx. */
 UNIV_INTERN
 void
 fts_trx_free(
 /*=========*/
-	fts_trx_t*	fts_trx);	/*!< in, own: FTS trx */
+	fts_trx_t*	fts_trx);		/*!< in, own: FTS trx */
 
-/********************************************************************
+/******************************************************************//**
 Creates the common ancillary tables needed for supporting an FTS index
 on the given table. row_mysql_lock_data_dictionary must have been
-called before this. */
+called before this.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_create_common_tables(
 /*=====================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/*!< in: transaction handle */
+	trx_t*		trx,			/*!< in: transaction handle */
 	const dict_table_t*
-			table,		/*!< in: table with one FTS index */
-	const char*	name,		/*!< in: table name */
+			table,			/*!< in: table with one FTS
+						index */
+	const char*	name,			/*!< in: table name */
 	ibool		skip_doc_id_index);
-					/*!< in: Skip index on doc id */
-/********************************************************************
+						/*!< in: Skip index on doc id */
+/******************************************************************//**
 Wrapper function of fts_create_index_tables_low(), create auxiliary
 tables for an FTS index
 @return DB_SUCCESS or error code */
@@ -497,10 +499,11 @@ UNIV_INTERN
 ulint
 fts_create_index_tables(
 /*====================*/
-	trx_t*			trx,	/*!< in: transaction handle */
-	const dict_index_t*	index);	/*!< in: the FTS index instance */
+	trx_t*			trx,		/*!< in: transaction handle */
+	const dict_index_t*	index);		/*!< in: the FTS index
+						instance */
 
-/********************************************************************
+/******************************************************************//**
 Creates the column specific ancillary tables needed for supporting an
 FTS index on the given table. row_mysql_lock_data_dictionary must have
 been called before this.
@@ -509,19 +512,21 @@ UNIV_INTERN
 ulint
 fts_create_index_tables_low(
 /*========================*/
-	trx_t*		trx,		/*!< in: transaction handle */
+	trx_t*		trx,			/*!< in: transaction handle */
 	const dict_index_t*
-			index,		/*!< in: the FTS index instance */
-	const char*	table_name,	/*!< in: the table name */
-	table_id_t	table_id);	/*!< in: the table id */
+			index,			/*!< in: the FTS index
+						instance */
+	const char*	table_name,		/*!< in: the table name */
+	table_id_t	table_id);		/*!< in: the table id */
 
-/********************************************************************
+/******************************************************************//**
 Add the FTS document id hidden column. */
 UNIV_INTERN
 void
 fts_add_doc_id_column(
 /*==================*/
-	dict_table_t*	table);		/*!< in/out: Table with FTS index */
+	dict_table_t*	table);			/*!< in/out: Table with
+						FTS index */
 
 /*********************************************************************//**
 Drops the ancillary tables needed for supporting an FTS index on the
@@ -532,18 +537,19 @@ UNIV_INTERN
 ulint
 fts_drop_tables(
 /*============*/
-	trx_t*		trx,		/*!< in: transaction */
-	dict_table_t*	table);		/*!< in: table has the FTS index */
+	trx_t*		trx,			/*!< in: transaction */
+	dict_table_t*	table);			/*!< in: table has the FTS
+						index */
 
-/********************************************************************
+/******************************************************************//**
 The given transaction is about to be committed; do whatever is necessary
-from the FTS system's POV. */
+from the FTS system's POV. 
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 fts_commit(
 /*=======*/
-					/*!< out: DB_SUCCESS or error code */
-	trx_t*		trx);		/*!< in: transaction */
+	trx_t*		trx);			/*!< in: transaction */
 
 /*******************************************************************//**
 FTS Query entry point.
@@ -552,112 +558,121 @@ UNIV_INTERN
 ulint
 fts_query(
 /*======*/
-	trx_t*		trx,		/*!< in: transaction */
-	dict_index_t*	index,		/*!< in: FTS index to search */
-	uint		flags,		/*!< in: FTS search mode */
-	const byte*	query,		/*!< in: FTS query */
-	ulint		query_len,	/*!< in: FTS query string len
-					in bytes */
-	fts_result_t**	result);	/*!< out: query result, to be freed
-					by the caller.*/
+	trx_t*		trx,			/*!< in: transaction */
+	dict_index_t*	index,			/*!< in: FTS index to search */
+	uint		flags,			/*!< in: FTS search mode */
+	const byte*	query,			/*!< in: FTS query */
+	ulint		query_len,		/*!< in: FTS query string len
+						in bytes */
+	fts_result_t**	result);		/*!< out: query result, to be
+						freed by the caller.*/
 
-/********************************************************************
+/******************************************************************//**
 Retrieve the FTS Relevance Ranking result for doc with doc_id
 @return the relevance ranking value. */
 UNIV_INTERN
 float
 fts_retrieve_ranking(
 /*=================*/
-	fts_result_t*	result,		/*!< in: FTS result structure */
-	doc_id_t	doc_id);	/*!< in: the interested document
-					doc_id */
+	fts_result_t*	result,			/*!< in: FTS result structure */
+	doc_id_t	doc_id);		/*!< in: the interested document
+						doc_id */
 
-/********************************************************************
+/******************************************************************//**
 FTS Query sort result, returned by fts_query() on fts_ranking_t::rank. */
 UNIV_INTERN
 void
 fts_query_sort_result_on_rank(
 /*==========================*/
-	fts_result_t*	result);	/*!< out: result instance to sort.*/
+	fts_result_t*	result);		/*!< out: result instance
+						to sort.*/
 
-/********************************************************************
+/******************************************************************//**
 FTS Query free result, returned by fts_query(). */
 UNIV_INTERN
 void
 fts_query_free_result(
 /*==================*/
-	fts_result_t*	result);	/*!< in: result instance to free.*/
+	fts_result_t*	result);		/*!< in: result instance
+						to free.*/
 
-/********************************************************************
+/******************************************************************//**
 Extract the doc id from the FTS hidden column. */
 UNIV_INTERN
 doc_id_t
 fts_get_doc_id_from_row(
 /*====================*/
-	dict_table_t*	table,		/*!< in: table */
-	dtuple_t*	row);		/*!< in: row whose FTS doc id we
-					want to extract.*/
+	dict_table_t*	table,			/*!< in: table */
+	dtuple_t*	row);			/*!< in: row whose FTS doc id we
+						want to extract.*/
 
-/********************************************************************
+/******************************************************************//**
 Extract the doc id from the FTS hidden column. */
 UNIV_INTERN
 doc_id_t
 fts_get_doc_id_from_rec(
 /*====================*/
-	dict_table_t*	table,		/*!< in: table */
-	const rec_t*	rec,		/*!< in: rec */
-	mem_heap_t*	heap);		/*!< in: heap */
+	dict_table_t*	table,			/*!< in: table */
+	const rec_t*	rec,			/*!< in: rec */
+	mem_heap_t*	heap);			/*!< in: heap */
 
-/********************************************************************
+/******************************************************************//**
 Update the query graph with a new document id. */
 UNIV_INTERN
 ulint
 fts_update_doc_id(
 /*==============*/
-	dict_table_t*	table,		/*!< in: table */
-	upd_field_t*	ufield,		/*!< out: update node */
-	doc_id_t*	next_doc_id);	/*!< out: buffer for writing */
+	dict_table_t*	table,			/*!< in: table */
+	upd_field_t*	ufield,			/*!< out: update node */
+	doc_id_t*	next_doc_id);		/*!< out: buffer for writing */
 
-/********************************************************************
+/******************************************************************//**
 FTS initialize. */
 UNIV_INTERN
 void
 fts_startup(void);
 /*==============*/
 
-/********************************************************************
+/******************************************************************//**
 Signal FTS threads to initiate shutdown. */
 UNIV_INTERN
 void
 fts_start_shutdown(
 /*===============*/
-	dict_table_t*	table,		/*!< in: table with FTS indexes */
-	fts_t*		fts);		/*!< in: fts instance to shutdown */
-/********************************************************************
+	dict_table_t*	table,			/*!< in: table with FTS
+						indexes */
+	fts_t*		fts);			/*!< in: fts instance to
+						shutdown */
+
+/******************************************************************//**
 Wait for FTS threads to shutdown. */
 UNIV_INTERN
 void
 fts_shutdown(
 /*=========*/
-	dict_table_t*	table,		/*!< in: table with FTS indexes */
-	fts_t*		fts);		/*!< in: fts instance to shutdown */
+	dict_table_t*	table,			/*!< in: table with FTS
+						indexes */
+	fts_t*		fts);			/*!< in: fts instance to
+						shutdown */
 
-/********************************************************************
-Create an instance of fts_t. */
+/******************************************************************//**
+Create an instance of fts_t.
+@return instance of fts_t */
 UNIV_INTERN
 fts_t*
 fts_create(
 /*=======*/
-					/* out: instance of fts_t */
-	dict_table_t*	table);		/*!< out: table with FTS indexes */
+	dict_table_t*	table);			/*!< out: table with FTS
+						indexes */
 
-/************************************************************************
+/**********************************************************************//**
 Free the FTS resources. */
 UNIV_INTERN
 void
 fts_free(
 /*=====*/
-	dict_table_t*   table);		/*!< in/out: table with FTS indexes */
+	dict_table_t*   table);			/*!< in/out: table with
+						FTS indexes */
 
 /*********************************************************************//**
 Run OPTIMIZE on the given table.
@@ -666,7 +681,7 @@ UNIV_INTERN
 ulint
 fts_optimize_table(
 /*===============*/
-	dict_table_t*	table);		/*!< in: table to optimiza */
+	dict_table_t*	table);			/*!< in: table to optimiza */
 
 /**********************************************************************//**
 Startup the optimize thread and create the work queue. */
@@ -690,17 +705,17 @@ UNIV_INTERN
 ulint
 fts_drop_index_tables(
 /*==================*/
-	trx_t*		trx,		/*!< in: transaction */
-	dict_index_t*	index);		/*!< in: Index to drop */
+	trx_t*		trx,			/*!< in: transaction */
+	dict_index_t*	index);			/*!< in: Index to drop */
 
-/********************************************************************
+/******************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for
 acknowledgement from the consumer of the message. */
 UNIV_INTERN
 void
 fts_optimize_remove_table(
 /*======================*/
-	dict_table_t*	table);		/*!< in: table to remove */
+	dict_table_t*	table);			/*!< in: table to remove */
 
 /**********************************************************************//**
 Signal the optimize thread to prepare for shutdown. */
@@ -717,14 +732,14 @@ fts_optimize_end(void);
 /*===================*/
 
 /**********************************************************************//**
-Take a FTS savepoint. */
+Take a FTS savepoint.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
 void
 fts_savepoint_take(
 /*===============*/
-					/*!< out: DB_SUCCESS or error code */
-	trx_t*		trx,		/*!< in: transaction */
-	const char*	name);		/*!< in: savepoint name */
+	trx_t*		trx,			/*!< in: transaction */
+	const char*	name);			/*!< in: savepoint name */
 
 /**********************************************************************//**
 Refresh last statement savepoint.
@@ -733,7 +748,7 @@ UNIV_INTERN
 void
 fts_savepoint_laststmt_refresh(
 /*===========================*/
-	trx_t*		trx);		/*!< in: transaction */
+	trx_t*		trx);			/*!< in: transaction */
 
 /**********************************************************************//**
 Release the savepoint data identified by  name. */
@@ -741,8 +756,8 @@ UNIV_INTERN
 void
 fts_savepoint_release(
 /*==================*/
-	trx_t*		trx,		/*!< in: transaction */
-	const char*	name);		/*!< in: savepoint name */
+	trx_t*		trx,			/*!< in: transaction */
+	const char*	name);			/*!< in: savepoint name */
 
 /**********************************************************************//**
 Free the FTS cache. */
@@ -750,7 +765,7 @@ UNIV_INTERN
 void
 fts_cache_destroy(
 /*==============*/
-	fts_cache_t*	cache);		/*!< in: cache*/
+	fts_cache_t*	cache);			/*!< in: cache*/
 
 /*********************************************************************//**
 Clear cache. If the shutdown flag is TRUE then the cache can contain
@@ -760,9 +775,9 @@ UNIV_INTERN
 void
 fts_cache_clear(
 /*============*/
-	fts_cache_t*	cache,		/*!< in: cache */
-	ibool		free_words);	/*!< in: TRUE if free
-					in memory word cache. */
+	fts_cache_t*	cache,			/*!< in: cache */
+	ibool		free_words);		/*!< in: TRUE if free
+						in memory word cache. */
 
 /*********************************************************************//**
 Initialize things in cache. */
@@ -770,7 +785,7 @@ UNIV_INTERN
 void
 fts_cache_init(
 /*===========*/
-	fts_cache_t*	cache);		/*!< in: cache */
+	fts_cache_t*	cache);			/*!< in: cache */
 
 /*********************************************************************//**
 Rollback to and including savepoint indentified by name. */
@@ -778,8 +793,8 @@ UNIV_INTERN
 void
 fts_savepoint_rollback(
 /*===================*/
-	trx_t*		trx,		/*!< in: transaction */
-	const char*	name);		/*!< in: savepoint name */
+	trx_t*		trx,			/*!< in: transaction */
+	const char*	name);			/*!< in: savepoint name */
 
 /*********************************************************************//**
 Rollback to and including savepoint indentified by name. */
@@ -787,9 +802,9 @@ UNIV_INTERN
 void
 fts_savepoint_rollback_last_stmt(
 /*=============================*/
-	trx_t*		trx);		/*!< in: transaction */
+	trx_t*		trx);			/*!< in: transaction */
 
-/*************************************************************************
+/***********************************************************************//**
 Drop all orphaned FTS auxiliary tables, those that don't have a parent
 table or FTS index defined on them. */
 UNIV_INTERN
@@ -797,7 +812,7 @@ void
 fts_drop_orphaned_tables(void);
 /*==========================*/
 
-/********************************************************************
+/******************************************************************//**
 Since we do a horizontal split on the index table, we need to drop the
 all the split tables. */
 UNIV_INTERN
@@ -817,7 +832,7 @@ UNIV_INTERN
 ulint
 fts_sync_table(
 /*===========*/
-	dict_table_t*	table);		/*!< in: table */
+	dict_table_t*	table);			/*!< in: table */
 
 /****************************************************************//**
 Free the query graph but check whether dict_sys->mutex is already
@@ -845,7 +860,7 @@ UNIV_INTERN
 doc_id_t
 fts_init_doc_id(
 /*============*/
-	const dict_table_t*		table);		/*!< in: table */
+	const dict_table_t*		table);	/*!< in: table */
 
 /******************************************************************//**
 compare two character string according to their charset. */
@@ -853,9 +868,9 @@ extern
 int
 innobase_fts_text_cmp(
 /*==================*/
-	const void*	cs,		/*!< in: Character set */
-	const void*	p1,		/*!< in: key */
-	const void*	p2);		/*!< in: node */
+	const void*	cs,			/*!< in: Character set */
+	const void*	p1,			/*!< in: key */
+	const void*	p2);			/*!< in: node */
 
 /******************************************************************//**
 Makes all characters in a string lower case. */
@@ -863,11 +878,13 @@ extern
 size_t
 innobase_fts_casedn_str(
 /*====================*/
-        CHARSET_INFO*   cs,     /*!< in: Character set */
-	char*		src,    /*!< in: string to put in lower case */
-	size_t		src_len,/*!< in: input string length */
-	char*		dst,    /*!< in: buffer for result string */
-	size_t		dst_len);/*!< in: buffer size */
+        CHARSET_INFO*	cs,			/*!< in: Character set */
+	char*		src,			/*!< in: string to put in
+						lower case */
+	size_t		src_len,		/*!< in: input string length */
+	char*		dst,			/*!< in: buffer for result
+						string */
+	size_t		dst_len);		/*!< in: buffer size */
 
 
 /******************************************************************//**
@@ -876,9 +893,9 @@ extern
 int
 innobase_fts_text_cmp_prefix(
 /*=========================*/
-	const void*	cs,		/*!< in: Character set */
-	const void*	p1,		/*!< in: key */
-	const void*	p2);		/*!< in: node */
+	const void*	cs,			/*!< in: Character set */
+	const void*	p1,			/*!< in: key */
+	const void*	p2);			/*!< in: node */
 
 /*************************************************************//**
 Get the next token from the given string and store it in *token. */
@@ -886,14 +903,15 @@ extern
 ulint
 innobase_mysql_fts_get_token(
 /*=========================*/
-	CHARSET_INFO*	charset,	/*!< in: Character set */
-	byte*		start,		/*!< in: start of text */
-	byte*		end,		/*!< in: one character past end of
-					text */
-	fts_string_t*	token,		/*!< out: token's text */
-	ulint*		offset);	/*!< out: offset to token,
-					measured as characters from
-					'start' */
+	CHARSET_INFO*	charset,		/*!< in: Character set */
+	byte*		start,			/*!< in: start of text */
+	byte*		end,			/*!< in: one character past
+						end of text */
+	fts_string_t*	token,			/*!< out: token's text */
+	ulint*		offset);		/*!< out: offset to token,
+						measured as characters from
+						'start' */
+
 /*********************************************************************//**
 Fetch COUNT(*) from specified table.
 @return the number of rows in the table */
@@ -901,7 +919,7 @@ UNIV_INTERN
 ulint
 fts_get_rows_count(
 /*===============*/
-	fts_table_t*	fts_table);	/*!< in: fts table to read */
+	fts_table_t*	fts_table);		/*!< in: fts table to read */
 
 /*************************************************************//**
 Get maximum Doc ID in a table if index "FTS_DOC_ID_INDEX" exists
@@ -910,7 +928,7 @@ UNIV_INTERN
 doc_id_t
 fts_get_max_doc_id(     
 /*===============*/
-	dict_table_t*	table);		/*!< in: user table */
+	dict_table_t*	table);			/*!< in: user table */
 
 /******************************************************************//**
 Check whether user supplied stopword table exists and is of
@@ -968,9 +986,10 @@ UNIV_INTERN
 ulint
 fts_table_fetch_doc_ids(
 /*====================*/
-	trx_t*		trx,		/*!< in: transaction */
-	fts_table_t*	fts_table,	/*!< in: aux table */
-	fts_doc_ids_t*	doc_ids);	/*!< in: For collecting doc ids */
+	trx_t*		trx,			/*!< in: transaction */
+	fts_table_t*	fts_table,		/*!< in: aux table */
+	fts_doc_ids_t*	doc_ids);		/*!< in: For collecting
+						doc ids */
 /****************************************************************//**
 This function loads the documents in "ADDED" table into FTS cache,
 it also loads the stopword info into the FTS cache.
@@ -979,8 +998,8 @@ UNIV_INTERN
 ibool
 fts_init_index(
 /*===========*/
-	dict_table_t*	table,		/*!< in: Table with FTS */
-	ibool		has_cache_lock);/*!< in: Whether we already have
-					cache lock */
+	dict_table_t*	table,			/*!< in: Table with FTS */
+	ibool		has_cache_lock);	/*!< in: Whether we already
+						have cache lock */
 #endif /*!< fts0fts.h */
 
