@@ -7163,8 +7163,11 @@ ha_innobase::ft_init_ext(
 		fprintf(stderr, "NL search\n");
 	}
 
-	/* Convert incoming query string to utf8 charset */
-	if (strcmp(char_set->csname, "utf8") != 0) {
+	/* FIXME: utf32 and utf16 are not compatible with some
+	string function used. So to convert them to uft8 before
+	proceed. */
+	if (strcmp(char_set->csname, "utf32") == 0
+	    || strcmp(char_set->csname, "utf16") == 0) {
 		buf_tmp_used = innobase_convert_string(
 			buf_tmp, sizeof(buf_tmp) - 1,
 			&my_charset_utf8_general_ci,
