@@ -390,7 +390,10 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
 {
   DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
   max= max_arg;
-  init(select_lex, new select_max_min_finder_subselect(this, max_arg));
+  init(select_lex,
+       new select_max_min_finder_subselect(this, max_arg,
+                                           parent->substype() ==
+                                           Item_subselect::ALL_SUBS));
   max_columns= 1;
   maybe_null= 1;
   max_columns= 1;
@@ -1008,11 +1011,20 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     }
 
     Item *subs;
-    if (!select_lex->group_list.elements &&
-        !select_lex->having &&
-	!select_lex->with_sum_func &&
-	!(select_lex->next_select()) &&
-        select_lex->table_list.elements)
+    /*
+      Check if optimization with aggregate min/max possible
+      1 There is no aggregate in the subquery
+      2 It is not UNION
+      3 There is tables
+      4 It is not ALL subquery with possible NULLs in the SELECT list
+    */
+    if (!select_lex->group_list.elements &&                /*1*/
+        !select_lex->having &&                             /*1*/
+	!select_lex->with_sum_func &&                      /*1*/
+	!(select_lex->next_select()) &&                    /*2*/
+        select_lex->table_list.elements &&                 /*3*/
+        (!select_lex->ref_pointer_array[0]->maybe_null ||  /*4*/
+         substype() != Item_subselect::ALL_SUBS))          /*4*/
     {
       Item_sum_hybrid *item;
       nesting_map save_allow_sum_func;

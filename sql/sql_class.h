@@ -2931,9 +2931,11 @@ class select_max_min_finder_subselect :public select_subselect
   Item_cache *cache;
   bool (select_max_min_finder_subselect::*op)();
   bool fmax;
+  bool is_all;
 public:
-  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx)
-    :select_subselect(item_arg), cache(0), fmax(mx)
+  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx,
+                                  bool all)
+    :select_subselect(item_arg), cache(0), fmax(mx), is_all(all)
   {}
   void cleanup();
   int send_data(List<Item> &items);
