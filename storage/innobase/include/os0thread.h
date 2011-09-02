@@ -52,7 +52,15 @@ typedef LPTHREAD_START_ROUTINE	os_thread_func_t;
 /** Macro for specifying a Windows thread start function. */
 #define DECLARE_THREAD(func)	WINAPI func
 
+/** Required to get around a build error on Windows. Even though our functions
+are defined/declared as WINAPI f(LPVOID a); the compiler complains that they
+are defined as: os_thread_ret_t (__cdecl *)(void *). Because our functions
+don't access the arguments and don't return any value, we should be safe. */
+#define os_thread_create(f,a,i)	\
+	os_thread_create_func(reinterpret_cast<os_thread_func_t>(f), a, i)
+
 #else
+
 typedef pthread_t		os_thread_t;
 typedef os_thread_t		os_thread_id_t;	/*!< In Unix we use the thread
 						handle itself as the id of
@@ -61,7 +69,9 @@ extern "C"  { typedef void*	(*os_thread_func_t)(void*); }
 
 /** Macro for specifying a POSIX thread start function. */
 #define DECLARE_THREAD(func)	func
-#endif
+#define os_thread_create(f,a,i)	os_thread_create_func(f, a, i)
+
+#endif /* __WIN__ */
 
 /* Define a function pointer type to use in a typecast */
 typedef void* (*os_posix_f_t) (void*);
@@ -98,8 +108,8 @@ thread should always use that to exit and not use return() to exit.
 @return	handle to the thread */
 UNIV_INTERN
 os_thread_t
-os_thread_create(
-/*=============*/
+os_thread_create_func(
+/*==================*/
 	os_thread_func_t	func,		/*!< in: pointer to function
 						from which to start */
 	void*			arg,		/*!< in: argument to start

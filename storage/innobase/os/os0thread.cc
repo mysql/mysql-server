@@ -105,8 +105,8 @@ and returns an ulint.
 @return	handle to the thread */
 UNIV_INTERN
 os_thread_t
-os_thread_create(
-/*=============*/
+os_thread_create_func(
+/*==================*/
 	os_thread_func_t	func,		/*!< in: pointer to function
 						from which to start */
 	void*			arg,		/*!< in: argument to start
