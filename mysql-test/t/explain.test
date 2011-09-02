@@ -152,7 +152,7 @@ DROP TABLE t1;
 --echo # explain extended crash with subquery and ONLY_FULL_GROUP_BY sql_mode
 --echo #
 
-CREATE TABLE t1 (f1 INT);
+CREATE TABLE t1 (f1 INT not null);
 
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';

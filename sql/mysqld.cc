@@ -3099,7 +3099,7 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
   MYSQL_ERROR::enum_warning_level level;
   sql_print_message_func func;
   DBUG_ENTER("my_message_sql");
-  DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
+  DBUG_PRINT("error", ("error: %u  message: '%s'  Flag: %d", error, str, MyFlags));
 
   DBUG_ASSERT(str != NULL);
   /*
@@ -3143,7 +3143,10 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       this could be improved by having a common stack of handlers.
     */
     if (thd->handle_error(error, str, level))
+    {
+      DBUG_PRINT("info", ("error handled by handle_error()"));
       DBUG_RETURN(0);
+    }
 
     if (level == MYSQL_ERROR::WARN_LEVEL_WARN)
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, error, str);
@@ -3222,7 +3225,7 @@ to_error_log:
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(0););
 
-  if (!thd || (MyFlags & ME_NOREFRESH))
+  if (!thd || thd->log_all_errors || (MyFlags & ME_NOREFRESH))
     (*func)("%s: %s", my_progname_short, str); /* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -6584,8 +6587,7 @@ each time the SQL thread starts.",
    "log and this option just turns on --log-bin instead.",
    &opt_update_logname, &opt_update_logname, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-warnings", 'W', "Log some not critical warnings to the general log "
-   "file.",
+  {"log-warnings", 'W', "Log some not critical warnings to the general log file.  Value can be between 0-6; The higher value, the more warnings",
    &global_system_variables.log_warnings,
    &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
    0, 0, 0},
@@ -9576,6 +9578,16 @@ static int get_options(int *argc,char **argv)
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
   my_crc_dbug_check= opt_my_crc_dbug_check;
+
+  /*
+    Log mysys errors when we don't have a thd or thd->log_all_errors is set (recovery) to
+    the log.  This is mainly useful for debugging strange system errors.
+  */
+  if (global_system_variables.log_warnings >= 10)
+    my_global_flags= MY_WME | ME_JUST_INFO;
+  /* Log all errors not handled by thd->handle_error() to my_message_sql() */
+  if (global_system_variables.log_warnings >= 11)
+    my_global_flags|= ME_NOREFRESH;
 
   /* long_query_time is in microseconds */
   global_system_variables.long_query_time= max_system_variables.long_query_time=

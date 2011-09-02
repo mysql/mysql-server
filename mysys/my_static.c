@@ -32,6 +32,7 @@ char		NEAR curr_dir[FN_REFLEN]= {0},
 ulong		my_stream_opened=0,my_file_opened=0, my_tmp_file_created=0;
 ulong           my_file_total_opened= 0;
 int		NEAR my_umask=0664, NEAR my_umask_dir=0777;
+myf             my_global_flags;
 #ifndef THREAD
 int		NEAR my_errno=0;
 #endif

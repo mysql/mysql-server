@@ -2344,7 +2344,7 @@ static int initialize_variables_for_repair(HA_CHECK *param,
     return 1;
   }
 
-  /* Allow us to restore state and check how state changed */
+  /* Make a copy to allow us to restore state and check how state changed */
   memcpy(org_share, share, sizeof(*share));
 
   /* Repair code relies on share->state.state so we have to update it here */
@@ -2363,6 +2363,14 @@ static int initialize_variables_for_repair(HA_CHECK *param,
   else
     param->testflag&= ~T_QUICK;
   param->org_key_map= share->state.key_map;
+
+  /*
+    Clear check variables set by repair. This is needed to allow one to run
+    several repair's in a row with same param
+  */
+  param->retry_repair= 0;
+  param->warning_printed= 0;
+  param->error_printed= 0;
 
   sort_param->sort_info= sort_info;
   sort_param->fix_datafile= ! rep_quick;

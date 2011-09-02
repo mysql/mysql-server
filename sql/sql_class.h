@@ -1596,6 +1596,8 @@ public:
   bool sql_log_bin_toplevel;
   /* True when opt_userstat_running is set at start of query */
   bool userstat_running;
+  /* True if we want to log all errors */
+  bool log_all_errors;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
@@ -3218,9 +3220,11 @@ class select_max_min_finder_subselect :public select_subselect
   Item_cache *cache;
   bool (select_max_min_finder_subselect::*op)();
   bool fmax;
+  bool is_all;
 public:
-  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx)
-    :select_subselect(item_arg), cache(0), fmax(mx)
+  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx,
+                                  bool all)
+    :select_subselect(item_arg), cache(0), fmax(mx), is_all(all)
   {}
   void cleanup();
   int send_data(List<Item> &items);

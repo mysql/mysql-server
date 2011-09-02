@@ -533,8 +533,9 @@ filter_flush_file_evenly(enum pagecache_page_type type,
    risk could be that while a checkpoint happens no LRD flushing happens.
 */
 
-static uint maria_checkpoint_min_activity= 2*1024*1024;
-
+static ulong maria_checkpoint_min_cache_activity= 10*1024*1024;
+/* Set in ha_maria.cc */
+ulong maria_checkpoint_min_log_activity= 1*1024*1024;
 
 pthread_handler_t ma_checkpoint_background(void *arg)
 {
@@ -578,53 +579,61 @@ pthread_handler_t ma_checkpoint_background(void *arg)
     switch (sleeps % interval)
     {
     case 0:
+    {
       /* If checkpoints are disabled, wait 1 second and try again */
       if (maria_checkpoint_disabled)
       {
         sleep_time= 1;
         break;
       }
-      /*
-        With background flushing evenly distributed over the time
-        between two checkpoints, we should have only little flushing to do
-        in the checkpoint.
-      */
-      /*
-        No checkpoint if little work of interest for recovery was done
-        since last checkpoint. Such work includes log writing (lengthens
-        recovery, checkpoint would shorten it), page flushing (checkpoint
-        would decrease the amount of read pages in recovery).
-        In case of one short statement per minute (very low load), we don't
-        want to checkpoint every minute, hence the positive
-        maria_checkpoint_min_activity.
-      */
-
-      if (((translog_get_horizon() - log_horizon_at_last_checkpoint) +
-           (maria_pagecache->global_cache_write -
-            pagecache_flushes_at_last_checkpoint) *
-           maria_pagecache->block_size) < maria_checkpoint_min_activity)
       {
-        /* don't take checkpoint, so don't know what to flush */
-        pages_to_flush_before_next_checkpoint= 0;
-        sleep_time= interval;
-        break;
+        TRANSLOG_ADDRESS horizon= translog_get_horizon();
+
+        /*
+          With background flushing evenly distributed over the time
+          between two checkpoints, we should have only little flushing to do
+          in the checkpoint.
+        */
+        /*
+          No checkpoint if little work of interest for recovery was done
+          since last checkpoint. Such work includes log writing (lengthens
+          recovery, checkpoint would shorten it), page flushing (checkpoint
+          would decrease the amount of read pages in recovery).
+          In case of one short statement per minute (very low load), we don't
+          want to checkpoint every minute, hence the positive
+          maria_checkpoint_min_activity.
+        */
+        if (horizon != log_horizon_at_last_checkpoint &&
+            (ulonglong) (horizon - log_horizon_at_last_checkpoint) <=
+            maria_checkpoint_min_log_activity &&
+            ((ulonglong) (maria_pagecache->global_cache_write -
+                          pagecache_flushes_at_last_checkpoint) *
+             maria_pagecache->block_size) <=
+            maria_checkpoint_min_cache_activity)
+        {
+          /* don't take checkpoint, so don't know what to flush */
+          pages_to_flush_before_next_checkpoint= 0;
+          sleep_time= interval;
+          break;
+        }
+        sleep_time= 1;
+        ma_checkpoint_execute(CHECKPOINT_MEDIUM, TRUE);
+        /*
+          Snapshot this kind of "state" of the engine. Note that the value below
+          is possibly greater than last_checkpoint_lsn.
+        */
+        log_horizon_at_last_checkpoint= translog_get_horizon();
+        pagecache_flushes_at_last_checkpoint=
+          maria_pagecache->global_cache_write;
+        /*
+          If the checkpoint above succeeded it has set d|kfiles and
+          d|kfiles_end. If is has failed, it has set
+          pages_to_flush_before_next_checkpoint to 0 so we will skip flushing
+          and sleep until the next checkpoint.
+        */
       }
-      sleep_time= 1;
-      ma_checkpoint_execute(CHECKPOINT_MEDIUM, TRUE);
-      /*
-        Snapshot this kind of "state" of the engine. Note that the value below
-        is possibly greater than last_checkpoint_lsn.
-      */
-      log_horizon_at_last_checkpoint= translog_get_horizon();
-      pagecache_flushes_at_last_checkpoint=
-        maria_pagecache->global_cache_write;
-      /*
-        If the checkpoint above succeeded it has set d|kfiles and
-        d|kfiles_end. If is has failed, it has set
-        pages_to_flush_before_next_checkpoint to 0 so we will skip flushing
-        and sleep until the next checkpoint.
-      */
       break;
+    }
     case 1:
       /* set up parameters for background page flushing */
       filter_param.up_to_lsn= last_checkpoint_lsn;
