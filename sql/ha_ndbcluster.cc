@@ -7417,7 +7417,17 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
     
     if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables)
       lock_type= TL_READ;
-    
+
+    /**
+     * We need locks on source table when
+     *   doing offline alter...
+     * In 5.1 this worked due to TL_WRITE_ALLOW_READ...
+     * but that has been removed in 5.5
+     * I simply add this to get it...
+     */
+    if (sql_command == SQLCOM_ALTER_TABLE)
+      lock_type = TL_WRITE;
+
     m_lock.type=lock_type;
   }
   *to++= &m_lock;
