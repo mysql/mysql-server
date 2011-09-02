@@ -2537,7 +2537,7 @@ private:
   void handleCharsetPos(Uint32 csNumber, CHARSET_INFO** charsetArray,
                         Uint32 noOfCharsets,
                         Uint32 & charsetIndex, Uint32 & attrDes2);
-  void computeTableMetaData(Tablerec *regTabPtr);
+  Uint32 computeTableMetaData(Tablerec *regTabPtr);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
