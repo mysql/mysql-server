@@ -3382,7 +3382,8 @@ fts_doc_fetch_by_doc_id(
 }
 
 /*********************************************************************//**
-Write out a single word's data as new entry/entries in the INDEX table. */
+Write out a single word's data as new entry/entries in the INDEX table.
+@return DB_SUCCESS if all OK. */
 UNIV_INTERN
 ulint
 fts_write_node(

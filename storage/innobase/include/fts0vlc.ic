@@ -28,13 +28,13 @@ Created 2007-03-27 Sunny Bains
 
 #include "fts0types.h"
 
-/********************************************************************
-Return length of val if it were encoded using our VLC scheme. */
+/******************************************************************//**
+Return length of val if it were encoded using our VLC scheme.
+@return length of value encoded, in bytes */
 UNIV_INLINE
 ulint
 fts_get_encoded_len(
 /*================*/
-			/* out: length of value encoded, in bytes */
 	ulint	val)	/* in: value to encode */
 {
 	if (val <= 127) {
@@ -55,13 +55,13 @@ fts_get_encoded_len(
 	}
 }
 
-/********************************************************************
-Encode an integer using our VLC scheme and return the length in bytes. */
+/******************************************************************//**
+Encode an integer using our VLC scheme and return the length in bytes.
+@return length of value encoded, in bytes */
 UNIV_INLINE
 ulint
 fts_encode_int(
 /*===========*/
-			/* out: length of value encoded, in bytes */
 	ulint	val,	/* in: value to encode */
 	byte*	buf)	/* in: buffer, must have enough space */
 {
@@ -109,13 +109,13 @@ fts_encode_int(
 	return(len);
 }
 
-/********************************************************************
-Decode and return the integer that was encoded using our VLC scheme.*/
+/******************************************************************//**
+Decode and return the integer that was encoded using our VLC scheme.
+@return value decoded */
 UNIV_INLINE
 ulint
 fts_decode_vlc(
 /*===========*/
-			/* out: value decoded */
 	byte**	ptr)	/* in: ptr to decode from, this ptr is
 			incremented by the number of bytes decoded */
 {
