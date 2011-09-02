@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2011,  Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,12 +17,11 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /******************************************************************//**
-@file fut/fts0config.c
+@file fts/fts0config.c
 Full Text Search configuration table.
 
-Created 9/5/2007 Sunny Bains
+Created 2007/5/9 Sunny Bains
 ***********************************************************************/
-
 
 #include "trx0roll.h"
 #include "row0sel.h"
@@ -34,16 +33,15 @@ Created 9/5/2007 Sunny Bains
 #include "fts0vlc.ic"
 #endif
 
-/********************************************************************
-Callback function for fetching the config value. */
+/******************************************************************//**
+Callback function for fetching the config value.
+@return always returns TRUE */
 static
 ibool
 fts_config_fetch_value(
 /*===================*/
-						/* out: always returns
-						non-NULL */
-	void*		row,			/* in: sel_node_t* */
-	void*		user_arg)		/* in: pointer to
+	void*		row,			/*!< in: sel_node_t* */
+	void*		user_arg)		/*!< in: pointer to
 						 ib_vector_t */
 {
 	sel_node_t*	node = row;
@@ -67,20 +65,20 @@ fts_config_fetch_value(
 	return(TRUE);
 }
 
-/********************************************************************
+/******************************************************************//**
 Get value from the config table. The caller must ensure that enough
-space is allocated for value to hold the column contents. */
-
+space is allocated for value to hold the column contents.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_config_get_value(
 /*=================*/
-						/* out: DB_SUCCESS or error
-						code */
-	trx_t*		trx,			/* transaction */
-	fts_table_t*	fts_table,		/* in: the indexed FTS table */
-	const char*	name,			/* in: get config value for
+	trx_t*		trx,			/*!< transaction */
+	fts_table_t*	fts_table,		/*!< in: the indexed
+						FTS table */
+	const char*	name,			/*!< in: get config value for
 						this parameter name */
-	fts_string_t*	value)			/* out: value read from
+	fts_string_t*	value)			/*!< out: value read from
 						config table */
 {
 	pars_info_t*	info;
@@ -157,21 +155,20 @@ fts_config_create_index_param_name(
 	return(name);
 }
 
-/********************************************************************
+/******************************************************************//**
 Get value specific to an FTS index from the config table. The caller
 must ensure that enough space is allocated for value to hold the
-column contents. */
-
+column contents.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_config_get_index_value(
 /*=======================*/
-						/* out: DB_SUCCESS or error
-						code */
-	trx_t*		trx,			/* transaction */
-	dict_index_t*	index,			/* in: index */
-	const char*	param,			/* in: get config value for
+	trx_t*		trx,			/*!< transaction */
+	dict_index_t*	index,			/*!< in: index */
+	const char*	param,			/*!< in: get config value for
 						this parameter name */
-	fts_string_t*	value)			/* out: value read from
+	fts_string_t*	value)			/*!< out: value read from
 						config table */
 {
 	char*		name;
@@ -191,20 +188,20 @@ fts_config_get_index_value(
 	return(error);
 }
 
-/********************************************************************
-Set the value in the config table for name. */
-
+/******************************************************************//**
+Set the value in the config table for name.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_config_set_value(
 /*=================*/
-						/* out: DB_SUCCESS or error
-						code */
-	trx_t*		trx,			/* transaction */
-	fts_table_t*	fts_table,		/* in: the indexed FTS table */
-	const char*	name,			/* in: get config value for
+	trx_t*		trx,			/*!< transaction */
+	fts_table_t*	fts_table,		/*!< in: the indexed
+						FTS table */
+	const char*	name,			/*!< in: get config value for
 						this parameter name */
 	const fts_string_t*
-			value)			/* in: value to update */
+			value)			/*!< in: value to update */
 {
 	pars_info_t*	info;
 	que_t*		graph;
@@ -260,19 +257,18 @@ fts_config_set_value(
 	return(error);
 }
 
-/********************************************************************
-Set the value specific to an FTS index in the config table. */
-
+/******************************************************************//**
+Set the value specific to an FTS index in the config table.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_config_set_index_value(
 /*=======================*/
-						/* out: DB_SUCCESS or error
-						code */
-	trx_t*		trx,			/* transaction */
-	dict_index_t*	index,			/* in: index */
-	const char*	param,			/* in: get config value for
+	trx_t*		trx,			/*!< transaction */
+	dict_index_t*	index,			/*!< in: index */
+	const char*	param,			/*!< in: get config value for
 						this parameter name */
-	fts_string_t*	value)			/* out: value read from
+	fts_string_t*	value)			/*!< out: value read from
 						config table */
 {
 	char*		name;
@@ -292,18 +288,17 @@ fts_config_set_index_value(
 	return(error);
 }
 
-/********************************************************************
-Get an ulint value from the config table. */
-
+/******************************************************************//**
+Get an ulint value from the config table.
+@return DB_SUCCESS if all OK else error code */
+UNIV_INTERN
 ulint
 fts_config_get_index_ulint(
 /*=======================*/
-						/* out: DB_SUCCESS if all OK
-						else error code */
-	trx_t*		trx,			/* in: transaction */
-	dict_index_t*	index,			/* in: FTS index */
-	const char*	name,			/* in: param name */
-	ulint*		int_value)		/* out: value */
+	trx_t*		trx,			/*!< in: transaction */
+	dict_index_t*	index,			/*!< in: FTS index */
+	const char*	name,			/*!< in: param name */
+	ulint*		int_value)		/*!< out: value */
 {
 	ulint		error;
 	fts_string_t	value;
@@ -329,18 +324,17 @@ fts_config_get_index_ulint(
 	return(error);
 }
 
-/********************************************************************
-Set an ulint value in the config table. */
-
+/******************************************************************//**
+Set an ulint value in the config table.
+@return DB_SUCCESS if all OK else error code */
+UNIV_INTERN
 ulint
 fts_config_set_index_ulint(
 /*=======================*/
-						/* out: DB_SUCCESS if all OK
-						else error code */
-	trx_t*		trx,			/* in: transaction */
-	dict_index_t*	index,			/* in: FTS index */
-	const char*	name,			/* in: param name */
-	ulint		int_value)		/* in: value */
+	trx_t*		trx,			/*!< in: transaction */
+	dict_index_t*	index,			/*!< in: FTS index */
+	const char*	name,			/*!< in: param name */
+	ulint		int_value)		/*!< in: value */
 {
 	ulint		error;
 	fts_string_t	value;
@@ -353,7 +347,7 @@ fts_config_set_index_ulint(
 	// FIXME: Get rid of snprintf
 	ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
 
-	value.f_len = snprintf(
+	value.f_len = ut_snprintf(
 		(char*) value.f_str, FTS_MAX_INT_LEN, "%lu", int_value);
 
 	error = fts_config_set_index_value(trx, index, name, &value);
@@ -370,18 +364,18 @@ fts_config_set_index_ulint(
 	return(error);
 }
 
-/********************************************************************
-Get an ulint value from the config table. */
-
+/******************************************************************//**
+Get an ulint value from the config table.
+@return DB_SUCCESS if all OK else error code */
+UNIV_INTERN
 ulint
 fts_config_get_ulint(
 /*=================*/
-						/* out: DB_SUCCESS if all OK
-						else error code */
-	trx_t*		trx,			/* in: transaction */
-	fts_table_t*	fts_table,		/* in: the indexed FTS table */
-	const char*	name,			/* in: param name */
-	ulint*		int_value)		/* out: value */
+	trx_t*		trx,			/*!< in: transaction */
+	fts_table_t*	fts_table,		/*!< in: the indexed
+						FTS table */
+	const char*	name,			/*!< in: param name */
+	ulint*		int_value)		/*!< out: value */
 {
 	ulint		error;
 	fts_string_t	value;
@@ -407,18 +401,18 @@ fts_config_get_ulint(
 	return(error);
 }
 
-/********************************************************************
-Set an ulint value in the config table. */
-
+/******************************************************************//**
+Set an ulint value in the config table.
+@return DB_SUCCESS if all OK else error code */
+UNIV_INTERN
 ulint
 fts_config_set_ulint(
 /*=================*/
-						/* out: DB_SUCCESS if all OK
-						else error code */
-	trx_t*		trx,			/* in: transaction */
-	fts_table_t*	fts_table,		/* in: the indexed FTS table */
-	const char*	name,			/* in: param name */
-	ulint		int_value)		/* in: value */
+	trx_t*		trx,			/*!< in: transaction */
+	fts_table_t*	fts_table,		/*!< in: the indexed
+						FTS table */
+	const char*	name,			/*!< in: param name */
+	ulint		int_value)		/*!< in: value */
 {
 	ulint		error;
 	fts_string_t	value;
@@ -448,19 +442,20 @@ fts_config_set_ulint(
 	return(error);
 }
 
-/********************************************************************
-Increment the value in the config table for column name. */
-
+/******************************************************************//**
+Increment the value in the config table for column name.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_config_increment_value(
 /*=======================*/
-						/* out: DB_SUCCESS or error
-						code */
-	trx_t*		trx,			/* transaction */
-	fts_table_t*	fts_table,		/* in: the indexed FTS table */
-	const char*	name,			/* in: increment config value
+	trx_t*		trx,			/*!< transaction */
+	fts_table_t*	fts_table,		/*!< in: the indexed
+						FTS table */
+	const char*	name,			/*!< in: increment config value
 						for this parameter name */
-	ulint		delta)			/* in: increment by this much */
+	ulint		delta)			/*!< in: increment by this
+						much */
 {
 	ulint		error;
 	fts_string_t	value;
@@ -533,19 +528,19 @@ fts_config_increment_value(
 	return(error);
 }
 
-/********************************************************************
-Increment the per index value in the config table for column name. */
-
+/******************************************************************//**
+Increment the per index value in the config table for column name.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_config_increment_index_value(
 /*=============================*/
-						/* out: DB_SUCCESS or error
-						code */
-	trx_t*		trx,			/* transaction */
-	dict_index_t*	index,			/* in: FTS index */
-	const char*	param,			/* in: increment config value
+	trx_t*		trx,			/*!< transaction */
+	dict_index_t*	index,			/*!< in: FTS index */
+	const char*	param,			/*!< in: increment config value
 						for this parameter name */
-	ulint		delta)			/* in: increment by this much */
+	ulint		delta)			/*!< in: increment by this
+						much */
 {
 	char*		name;
 	ulint		error;

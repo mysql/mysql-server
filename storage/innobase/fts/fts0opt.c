@@ -17,7 +17,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /******************************************************************//**
-@file fut/fut0opt.c
+@file fts/fts0opt.c
 Full Text Search optimize thread
 
 Created 2007/03/27 Sunny Bains
