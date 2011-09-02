@@ -500,6 +500,34 @@ THRConfig::getConfigString()
   return m_cfg_string.c_str();
 }
 
+Uint32
+THRConfig::getThreadCount() const
+{
+  // Note! not counting T_MAINT
+  Uint32 cnt = 0;
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
+  {
+    if (i != T_MAINT)
+    {
+      cnt += m_threads[i].size();
+    }
+  }
+  return cnt;
+}
+
+Uint32
+THRConfig::getThreadCount(T_Type type) const
+{
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
+  {
+    if (i == (Uint32)type)
+    {
+      return m_threads[i].size();
+    }
+  }
+  return 0;
+}
+
 const char *
 THRConfig::getErrorMessage() const
 {
@@ -516,7 +544,7 @@ static
 char *
 skipblank(char * str)
 {
-  while (isblank(* str))
+  while (isspace(* str))
     str++;
   return str;
 }
@@ -564,7 +592,7 @@ parseUnsigned(char *& str, unsigned * dst)
   str = skipblank(str);
   char * endptr = 0;
   errno = 0;
-  long val = strtoll(str, &endptr, 0);
+  long val = strtol(str, &endptr, 0);
   if (errno == ERANGE)
     return -1;
   if (val < 0 || Int64(val) > 0xFFFFFFFF)
@@ -585,7 +613,7 @@ parseBitmask(char *& str, SparseBitmask * mask)
   if (len == 0)
     return -1;
 
-  while (isblank(str[len-1]))
+  while (isspace(str[len-1]))
     len--;
   if (str[len-1] == ',')
     len--;
@@ -830,7 +858,7 @@ THRConfig::do_parse(const char * ThreadConfig)
 unsigned
 THRConfig::createCpuSet(const SparseBitmask& mask)
 {
-  for (size_t i = 0; i < m_cpu_sets.size(); i++)
+  for (unsigned i = 0; i < m_cpu_sets.size(); i++)
     if (m_cpu_sets[i].equal(mask))
       return i;
 

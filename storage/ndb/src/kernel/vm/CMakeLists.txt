@@ -38,6 +38,7 @@ ADD_LIBRARY(ndbkernel STATIC
     Ndbinfo.cpp
     NdbinfoTables.cpp
     ArenaPool.cpp
+    mt_thr_config.cpp
 )
 
 ADD_LIBRARY(ndbsched STATIC

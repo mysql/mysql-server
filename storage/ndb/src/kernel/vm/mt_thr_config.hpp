@@ -64,6 +64,9 @@ public:
   const char * getErrorMessage() const;
   const char * getInfoMessage() const;
 
+  Uint32 getThreadCount() const; // Don't count FS/MAINT thread
+  Uint32 getThreadCount(T_Type) const;
+  Uint32 getMtClassic() const { return m_classic; }
 private:
   struct T_Thread
   {
