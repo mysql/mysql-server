@@ -1,22 +1,39 @@
-/******************************************************************//**
-@file fut/fts0ast.c
+/*****************************************************************************
+
+Copyright (c) 2010,  Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file fts/fts0ast.c
 Full Text Search parser helper file.
 
-Created 3/16/2007 Sunny Bains.
+Created 2007/3/16 Sunny Bains.
 ***********************************************************************/
 
 #include "mem0mem.h"
 #include "fts0ast.h"
 #include "fts0pars.h"
 
-/********************************************************************
-Create an empty fts_ast_node_t.*/
+/******************************************************************//**
+Create an empty fts_ast_node_t.
+@return Create a new node */
 static
 fts_ast_node_t*
-fts_ast_node_create(
-/*================*/
-						/* out: Create a new node */
-		void)
+fts_ast_node_create(void)
+/*=====================*/
 {
 	fts_ast_node_t*	node;
 
@@ -26,15 +43,15 @@ fts_ast_node_create(
 	return(node);
 }
 
-/********************************************************************
-Create a operator fts_ast_node_t.*/
-
+/******************************************************************//**
+Create a operator fts_ast_node_t.
+@return new node */
+UNIV_INTERN
 fts_ast_node_t*
 fts_ast_create_node_oper(
 /*=====================*/
-						/* out: new node */
-	void*		arg,			/* in: ast state instance */
-	fts_ast_oper_t	oper)			/* in: ast operator */
+	void*		arg,			/*!< in: ast state instance */
+	fts_ast_oper_t	oper)			/*!< in: ast operator */
 {
 	fts_ast_node_t*	node = fts_ast_node_create();
 
@@ -46,16 +63,16 @@ fts_ast_create_node_oper(
 	return(node);
 }
 
-/********************************************************************
+/******************************************************************//**
 This function takes ownership of the ptr and is responsible
-for free'ing it*/
-
+for free'ing it
+@return new node */
+UNIV_INTERN
 fts_ast_node_t*
 fts_ast_create_node_term(
 /*=====================*/
-						/* out: new node */
-	void*		arg,			/* in: ast state instance */
-	const char*	ptr)			/* in: ast term string */
+	void*		arg,			/*!< in: ast state instance */
+	const char*	ptr)			/*!< in: ast term string */
 {
 	ulint		len = strlen(ptr);
 	fts_ast_node_t*	node = fts_ast_node_create();
@@ -70,25 +87,25 @@ fts_ast_create_node_term(
 	return(node);
 }
 
-/********************************************************************
+/******************************************************************//**
 This function takes ownership of the ptr and is responsible
-for free'ing it. */
-
+for free'ing it. 
+@return new node */
+UNIV_INTERN
 fts_ast_node_t*
 fts_ast_create_node_text(
 /*=====================*/
-						/* out: new node */
-	void*		arg,			/* in: ast state instance */
-	const char*	ptr)			/* in: ast text string */
+	void*		arg,			/*!< in: ast state instance */
+	const char*	ptr)			/*!< in: ast text string */
 {
-	/* We ignore the actual quotes "" */
+	/*!< We ignore the actual quotes "" */
 	ulint		len = strlen(ptr) - 2;
 	fts_ast_node_t*	node = fts_ast_node_create();
 
 	node->type = FTS_AST_TEXT;
 	node->text.ptr = ut_malloc(len + 1);
 
-	/* Skip copying the first quote */
+	/*!< Skip copying the first quote */
 	memcpy(node->text.ptr, ptr + 1, len);
 	node->text.ptr[len] = 0;
 	node->text.distance = ULINT_UNDEFINED;
@@ -98,16 +115,16 @@ fts_ast_create_node_text(
 	return(node);
 }
 
-/********************************************************************
+/******************************************************************//**
 This function takes ownership of the expr and is responsible
-for free'ing it. */
-
+for free'ing it. 
+@return new node */
+UNIV_INTERN
 fts_ast_node_t*
 fts_ast_create_node_list(
 /*=====================*/
-						/* out: new node */
-	void*		arg,			/* in: ast state instance */
-	fts_ast_node_t*	expr)			/* in: ast expr instance */
+	void*		arg,			/*!< in: ast state instance */
+	fts_ast_node_t*	expr)			/*!< in: ast expr instance */
 {
 	fts_ast_node_t*	node = fts_ast_node_create();
 
@@ -119,16 +136,16 @@ fts_ast_create_node_list(
 	return(node);
 }
 
-/********************************************************************
+/******************************************************************//**
 Create a sub-expression list node. This function takes ownership of
-expr and is responsible for deleting it. */
-
+expr and is responsible for deleting it. 
+@return new node */
+UNIV_INTERN
 fts_ast_node_t*
 fts_ast_create_node_subexp_list(
 /*============================*/
-						/* out: new node */
-	void*		arg,			/* in: ast state instance */
-	fts_ast_node_t*	expr)			/* in: ast expr instance */
+	void*		arg,			/*!< in: ast state instance */
+	fts_ast_node_t*	expr)			/*!< in: ast expr instance */
 {
 	fts_ast_node_t*	node = fts_ast_node_create();
 
@@ -140,21 +157,22 @@ fts_ast_create_node_subexp_list(
 	return(node);
 }
 
-/********************************************************************
+/******************************************************************//**
 Free an expr list node elements. */
 static
 void
 fts_ast_free_list(
 /*==============*/
-	fts_ast_node_t*	node)
+	fts_ast_node_t*	node)			/*!< in: ast node to free */
 {
 	ut_a(node->type == FTS_AST_LIST
 	     || node->type == FTS_AST_SUBEXP_LIST);
 
-	node = node->list.head;
+	for (node = node->list.head;
+	     node != NULL;
+	     node = fts_ast_free_node(node)) {
 
-	while (node) {
-		node = fts_ast_free_node(node);
+		/*!< No op */
 	}
 }
 
@@ -165,7 +183,7 @@ UNIV_INTERN
 fts_ast_node_t*
 fts_ast_free_node(
 /*==============*/
-	fts_ast_node_t*	node)			/* in: the node to free */
+	fts_ast_node_t*	node)			/*!< in: the node to free */
 {
 	fts_ast_node_t*	next_node;
 
@@ -197,7 +215,7 @@ fts_ast_free_node(
 		ut_error;
 	}
 
-	/* Get next node before freeing the node itself */
+	/*!< Get next node before freeing the node itself */
 	next_node = node->next;
 
 	ut_free(node);
@@ -205,16 +223,16 @@ fts_ast_free_node(
 	return(next_node);
 }
 
-/********************************************************************
+/******************************************************************//**
 This AST takes ownership of the expr and is responsible
-for free'ing it. */
-
+for free'ing it. 
+@return in param "list" */
+UNIV_INTERN
 fts_ast_node_t*
 fts_ast_add_node(
 /*=============*/
-						/* out: in param "list" */
-	fts_ast_node_t*	node,			/* in: list instance */
-	fts_ast_node_t*	elem)			/* in: node to add to list */
+	fts_ast_node_t*	node,			/*!< in: list instance */
+	fts_ast_node_t*	elem)			/*!< in: node to add to list */
 {
 	ut_a(!elem->next);
 	ut_a(node->type == FTS_AST_LIST
@@ -234,15 +252,15 @@ fts_ast_add_node(
 	return(node);
 }
 
-/********************************************************************
+/******************************************************************//**
 For tracking node allocations, in case there is an error during
 parsing. */
-
+UNIV_INTERN
 void
 fts_ast_state_add_node(
 /*===================*/
-	fts_ast_state_t*state,			/* in: ast instance */
-	fts_ast_node_t*	node)			/* in: node to add to ast */
+	fts_ast_state_t*state,			/*!< in: ast instance */
+	fts_ast_node_t*	node)			/*!< in: node to add to ast */
 {
 	if (!state->list.head) {
 		ut_a(!state->list.tail);
@@ -254,13 +272,13 @@ fts_ast_state_add_node(
 	}
 }
 
-/********************************************************************
+/******************************************************************//**
 Set the wildcard attribute of a term. */
-
+UNIV_INTERN
 void
 fts_ast_term_set_wildcard(
 /*======================*/
-	fts_ast_node_t*	node)			/* in/out: set attribute of
+	fts_ast_node_t*	node)			/*!< in/out: set attribute of
 						a term node */
 {
 	ut_a(node->type == FTS_AST_TERM);
@@ -269,14 +287,14 @@ fts_ast_term_set_wildcard(
 	node->term.wildcard = TRUE;
 }
 
-/********************************************************************
+/******************************************************************//**
 Set the proximity attribute of a text node. */
-
+UNIV_INTERN
 void
 fts_ast_term_set_distance(
 /*======================*/
-	fts_ast_node_t*	node,			/* in/out: text node */
-	ulint		distance)		/* in: the text proximity
+	fts_ast_node_t*	node,			/*!< in/out: text node */
+	ulint		distance)		/*!< in: the text proximity
 						distance */
 {
 	ut_a(node->type == FTS_AST_TEXT);
@@ -285,13 +303,13 @@ fts_ast_term_set_distance(
 	node->text.distance = distance;
 }
 
-/********************************************************************
+/******************************************************************//**
 Free node and expr allocations. */
-
+UNIV_INTERN
 void
 fts_ast_state_free(
 /*===============*/
-	fts_ast_state_t*state)			/* in: ast state to free */
+	fts_ast_state_t*state)			/*!< in: ast state to free */
 {
 	fts_ast_node_t*	node = state->list.head;
 
@@ -314,13 +332,13 @@ fts_ast_state_free(
 	state->root = state->list.head = state->list.tail = NULL;
 }
 
-/********************************************************************
+/******************************************************************//**
 Print an ast node. */
-
+UNIV_INTERN
 void
 fts_ast_node_print(
 /*===============*/
-	fts_ast_node_t*	node)			/* in: ast node to print */
+	fts_ast_node_t*	node)			/*!< in: ast node to print */
 {
 	switch(node->type) {
 	case FTS_AST_TEXT:
@@ -358,27 +376,27 @@ fts_ast_node_print(
 	}
 }
 
-/********************************************************************
-Traverse the AST - in-order traversal. */
-
+/******************************************************************//**
+Traverse the AST - in-order traversal. 
+@return DB_SUCCESS if all went well */
+UNIV_INTERN
 ulint
 fts_ast_visit(
 /*==========*/
-						/* out: DB_SUCCESS if all
-						went well */
-	fts_ast_oper_t		oper,		/* in: current operator */
-	fts_ast_node_t*		node,		/* in: current root node */
-	fts_ast_callback	visitor,	/* in: callback function */
-	void*			arg)		/* in: arg for callback */
+	fts_ast_oper_t		oper,		/*!< in: current operator */
+	fts_ast_node_t*		node,		/*!< in: current root node */
+	fts_ast_callback	visitor,	/*!< in: callback function */
+	void*			arg)		/*!< in: arg for callback */
 {
 	ulint			error = DB_SUCCESS;
 
 	ut_a(node->type == FTS_AST_LIST
 	     || node->type == FTS_AST_SUBEXP_LIST);
 
-	node = node->list.head;
+	for (node = node->list.head;
+	     node && error == DB_SUCCESS;
+	     node = node->next) {
 
-	while (node && error == DB_SUCCESS) {
 		if (node->type == FTS_AST_LIST) {
 			error = fts_ast_visit(oper, node, visitor, arg);
 		} else if (node->type == FTS_AST_SUBEXP_LIST) {
@@ -388,8 +406,6 @@ fts_ast_visit(
 		} else {
 			visitor(oper, node, arg);
 		}
-
-		node = node->next;
 	}
 
 	return(error);
