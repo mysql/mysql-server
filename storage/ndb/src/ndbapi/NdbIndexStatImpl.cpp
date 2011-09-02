@@ -2240,7 +2240,7 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
       cnt == stat.m_numEqH &&
       side == -1) {
     stat.m_rule = "b3.3";
-    const double u = 1.0 + c.get_unq(posL, posH, keyAttrs - 1);
+    const double u = c.get_unq(posL, posH, keyAttrs - 1);
     const double wL = 1.0 / u;
     const double wH = 1.0 - wL;
     value.m_rir = wL * c.get_rir(posL) + wH * c.get_rir(posH);

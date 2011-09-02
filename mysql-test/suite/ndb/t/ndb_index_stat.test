@@ -334,5 +334,45 @@ explain select * from t1, t2 where b2 = b1 and a1 = 1;
 
 drop table t1, t2;
 
+# bugXXXXX rule b3.3 fix
+
+CREATE TABLE t1(
+  K INT NOT NULL AUTO_INCREMENT,
+  I INT,
+  J INT,
+  L INT,
+  PRIMARY KEY(K),
+  KEY(I,J),
+  KEY(L)
+) ENGINE=ndbcluster
+  partition by key (K) partitions 1;
+
+INSERT INTO t1(I,J,L) VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(0,0,0);
+
+INSERT INTO t1(I,J,L) SELECT I,1,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,2,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,3,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,4,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,5,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,6,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,7,I FROM t1;
+INSERT INTO t1(I,J,L) SELECT I,8,I FROM t1;
+
+select i, count(*) from t1 group by 1 order by 1;
+select l, count(*) from t1 group by 1 order by 1;
+
+ANALYZE TABLE t1;
+
+explain SELECT count(*) as Count FROM t1 WHERE I = 5;
+SELECT count(*) as Count FROM t1 WHERE I = 5;
+
+# before fix rows was 128 instead of 256
+explain SELECT count(*) as Count FROM t1 WHERE L = 5;
+SELECT count(*) as Count FROM t1 WHERE L = 5;
+
+drop table t1;
+
 set @is_enable = @is_enable_default;
 source ndb_index_stat_enable.inc;
