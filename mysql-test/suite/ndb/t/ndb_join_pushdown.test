@@ -3641,6 +3641,63 @@ drop table t1;
 drop table t2;
 
 ########################################
+# Test query with very long records.
+connection ddl;
+create table t1 (
+  a char(10) primary key,
+  b char(10) not null,
+  c char(10) not null,
+  l00 char(255) not null,
+  l01 char(255) not null,
+  l02 char(255) not null,
+  l03 char(255) not null,
+  l04 char(255) not null,
+  l05 char(255) not null,
+  l06 char(255) not null,
+  l07 char(255) not null,
+  l08 char(255) not null,
+  l09 char(255) not null,
+  l10 char(255) not null,
+  l11 char(255) not null,
+  l12 char(255) not null,
+  l13 char(255) not null,
+  l14 char(255) not null,
+  l15 char(255) not null,
+  l16 char(255) not null,
+  l17 char(255) not null,
+  l18 char(255) not null,
+  l19 char(255) not null,
+  l20 char(255) not null,
+  l21 char(255) not null,
+  l22 char(255) not null,
+  l23 char(255) not null,
+  l24 char(255) not null,
+  l25 char(255) not null,
+  l26 char(255) not null,
+  l27 char(255) not null,
+  l28 char(255) not null,
+  l29 char(255) not null,
+  l30 char(255) not null,
+  l31 char(255) not null,
+  index(c, b)
+) engine=ndb partition by key(a) partitions 8;
+
+connection spj;
+
+insert into t1 values ('a','a','a','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
+
+insert into t1 values ('b','b','b','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
+
+insert into t1 values ('c','c','c','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
+
+explain select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
+
+select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
+
+connection ddl;
+drop table t1;
+
+########################################
 # Verify DBSPJ counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
 
