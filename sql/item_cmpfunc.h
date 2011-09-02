@@ -1816,6 +1816,7 @@ public:
     return item;
   }
   Item *neg_transformer(THD *thd);
+  void mark_as_condition_AND_part(TABLE_LIST *embedding);
 };
 
 inline bool is_cond_and(Item *item)

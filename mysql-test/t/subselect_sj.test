@@ -1571,5 +1571,28 @@ SELECT * FROM t1 WHERE c1 IN ( SELECT t3.c1 FROM t3 LEFT JOIN t2 ON t2 .c1 = t3 
 
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # BUG#834534: Assertion `0' failed in replace_where_subcondition with semijoin subquery in HAVING
+--echo #
+CREATE TABLE t1 ( d int );
+INSERT INTO t1 VALUES (2),(2),(0),(2),(2);
+
+CREATE TABLE t2 ( b int );
+INSERT INTO t2 VALUES (4),(3),(3);
+
+CREATE TABLE t3 ( a int );
+
+SELECT *
+FROM t3
+WHERE (t3.a) IN (
+        SELECT t1.d
+        FROM t1
+        HAVING ( 4 ) IN (
+                SELECT t2.b
+                FROM t2
+        )
+);
+drop table t1, t2,t3; 
+
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;

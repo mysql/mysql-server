@@ -1729,4 +1729,24 @@ c1	c2
 2	7
 5	6
 DROP TABLE t1, t2, t3;
+#
+# BUG#834534: Assertion `0' failed in replace_where_subcondition with semijoin subquery in HAVING
+#
+CREATE TABLE t1 ( d int );
+INSERT INTO t1 VALUES (2),(2),(0),(2),(2);
+CREATE TABLE t2 ( b int );
+INSERT INTO t2 VALUES (4),(3),(3);
+CREATE TABLE t3 ( a int );
+SELECT *
+FROM t3
+WHERE (t3.a) IN (
+SELECT t1.d
+FROM t1
+HAVING ( 4 ) IN (
+SELECT t2.b
+FROM t2
+)
+);
+a
+drop table t1, t2,t3;
 set optimizer_switch=@subselect_sj_tmp;

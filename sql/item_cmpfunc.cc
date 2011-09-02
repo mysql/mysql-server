@@ -4076,15 +4076,12 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
 #ifndef EMBEDDED_LIBRARY
   uchar buff[sizeof(char*)];			// Max local vars in function
 #endif
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
 
-  if (functype() != COND_AND_FUNC)
-    thd->thd_marker.emb_on_expr_nest= NULL;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -4144,7 +4141,6 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null=1;
   }
   thd->lex->current_select->cond_count+= list.elements;
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   fix_length_and_dec();
   fixed= 1;
   return FALSE;
@@ -4410,6 +4406,17 @@ void Item_cond::neg_arguments(THD *thd)
 	return;					// Fatal OEM error
     }
     VOID(li.replace(new_item));
+  }
+}
+
+
+void Item_cond_and::mark_as_condition_AND_part(TABLE_LIST *embedding)
+{
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item=li++))
+  {
+    item->mark_as_condition_AND_part(embedding);
   }
 }
 

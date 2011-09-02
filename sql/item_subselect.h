@@ -428,7 +428,6 @@ public:
       join nest pointer - the predicate is an AND-part of ON expression
                           of a join nest   
       NULL              - for all other locations
-    See also THD::emb_on_expr_nest.
   */
   TABLE_LIST *emb_on_expr_nest;
   /*
@@ -447,7 +446,7 @@ public:
 
   /* A bitmap of possible execution strategies for an IN predicate. */
   uchar in_strategy;
-
+   
   bool is_jtbm_merged;
 
   /*
@@ -459,7 +458,7 @@ public:
     TRUE<=>registered in the list of semijoins in outer select
   */
   bool is_registered_semijoin;
-
+  
   /*
     Used to determine how this subselect item is represented in the item tree,
     in case there is a need to locate it there and replace with something else.
@@ -489,7 +488,8 @@ public:
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
      abort_on_null(0), optimizer(0),
-    pushed_cond_guards(NULL), func(NULL), in_strategy(SUBS_NOT_TRANSFORMED),
+    pushed_cond_guards(NULL), func(NULL), emb_on_expr_nest(NULL), 
+    in_strategy(SUBS_NOT_TRANSFORMED),
     is_jtbm_merged(FALSE),
     upper_item(0)
     {}
@@ -533,6 +533,12 @@ public:
     user.
   */
   int get_identifier();
+
+  void mark_as_condition_AND_part(TABLE_LIST *embedding)
+  {
+    emb_on_expr_nest= embedding;
+  }
+
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
   friend class Item_in_optimizer;

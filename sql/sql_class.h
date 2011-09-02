@@ -1600,15 +1600,6 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
-  /* Place to store various things */
-  union 
-  { 
-    /*
-      Used by subquery optimizations, see Item_in_subselect::emb_on_expr_nest.
-    */
-    TABLE_LIST *emb_on_expr_nest;
-  } thd_marker;
-
   bool prepare_derived_at_open;
 
   /* 

@@ -340,7 +340,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         !select_lex->is_part_of_union() &&                            // 2
         !select_lex->group_list.elements && !join->order &&           // 3
         !join->having && !select_lex->with_sum_func &&                // 4
-        thd->thd_marker.emb_on_expr_nest &&                           // 5
+        in_subs->emb_on_expr_nest &&                                  // 5
         select_lex->outer_select()->join &&                           // 6
         parent_unit->first_select()->leaf_tables.elements &&          // 7
         !in_subs->in_strategy &&                                      // 8
@@ -353,7 +353,6 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
 
       (void)subquery_types_allow_materialization(in_subs);
 
-      in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
       in_subs->is_flattenable_semijoin= TRUE;
 
       /* Register the subquery for further processing in flatten_subqueries() */
@@ -434,10 +433,9 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
             If the subquery is an AND-part of WHERE register for being processed
             with jtbm strategy
           */
-          if (thd->thd_marker.emb_on_expr_nest == NO_JOIN_NEST &&
+          if (in_subs->emb_on_expr_nest == NO_JOIN_NEST &&
               optimizer_flag(thd, OPTIMIZER_SWITCH_SEMIJOIN))
           {
-            in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
             in_subs->is_flattenable_semijoin= FALSE;
             if (!in_subs->is_registered_semijoin)
 	    {

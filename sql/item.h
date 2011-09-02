@@ -1292,6 +1292,8 @@ public:
     be defined for Item_func.
   */
   virtual void get_cache_parameters(List<Item> &parameters) { };
+
+  virtual void mark_as_condition_AND_part(TABLE_LIST *embedding) {};
 };
 
 

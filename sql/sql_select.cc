@@ -13716,6 +13716,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
       bool maybe_null=(*cur_group->item)->maybe_null;
       key_part_info->null_bit=0;
       key_part_info->field=  field;
+      key_part_info->fieldnr= field->field_index + 1;
       if (cur_group == group)
         field->key_start.set_bit(0);
       key_part_info->offset= field->offset(table->record[0]);
@@ -13839,6 +13840,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
       key_part_info->field->init(table);
       key_part_info->key_type=FIELDFLAG_BINARY;
       key_part_info->type=    HA_KEYTYPE_BINARY;
+      key_part_info->fieldnr= key_part_info->field->field_index + 1;
       key_part_info++;
     }
     /* Create a distinct key over the columns we are going to return */
@@ -13856,6 +13858,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
 
       key_part_info->offset=   (*reg_field)->offset(table->record[0]);
       key_part_info->length=   (uint16) (*reg_field)->pack_length();
+      key_part_info->fieldnr= (*reg_field)->field_index + 1;
       /* TODO:
         The below method of computing the key format length of the
         key part is a copy/paste from opt_range.cc, and table.cc.

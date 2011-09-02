@@ -1242,5 +1242,26 @@ select left(a1,7), left(a2,7) from t1_1024 where (a1,3) in (select substring(b1,
 
 drop table t1_1024, t2_1024;
 
+--echo #
+--echo # BUG##836491: Crash in Item_field::Item_field from add_ref_to_table_cond() with semijoin+materialization
+--echo #
+
+CREATE TABLE t1 (c int, d varchar(1), KEY(d)) ;
+INSERT INTO t1 VALUES (2,'x'),(2,'x'),(2,'j'),(2,'c');
+
+CREATE TABLE t2 (a int, d varchar(1)) ;
+INSERT INTO t2 VALUES (1,'x');
+
+CREATE TABLE t3 (d varchar(1)) ;
+INSERT INTO t3 VALUES ('x'),('x'),('j'),('c');
+
+SELECT t2.a, t1.c
+FROM t1, t2
+WHERE t2.d IN ( SELECT d FROM t3 )
+AND t1.d = t2.d
+GROUP BY 1 , 2;
+
+drop table t1,t2,t3;
+
 set optimizer_switch=@subselect_sj_mat_tmp;
 

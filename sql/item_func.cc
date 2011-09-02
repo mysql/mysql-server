@@ -152,11 +152,9 @@ Item_func::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   Item **arg,**arg_end;
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
 #ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
 #endif
-  thd->thd_marker.emb_on_expr_nest= NULL;
 
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
@@ -210,7 +208,6 @@ Item_func::fix_fields(THD *thd, Item **ref)
   if (thd->is_error()) // An error inside fix_length_and_dec occured
     return TRUE;
   fixed= 1;
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   return FALSE;
 }
 
