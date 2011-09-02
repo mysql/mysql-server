@@ -21,11 +21,15 @@
  * in xml format (--xml).
  *
  * Config can be retrieved from only one of the following sources:
- ** config stored at mgmd (default. The options --config_from_node=0,
- ** or --config_from_node=1 also give the same results.)
- ** config stored at a data node (--config_from_node)
- ** my.cnf (--mycnf=<fullPath/mycnfFileName>)
- ** config.file  (--config_file=<fullPath/configFileName>
+ ** 1) config stored at mgmd (default)
+ ** 2) config stored at a data node (--config_from_node=<data node id>)
+ *** (Note:
+ ***  Node numbers less than 1 give error:
+ ***  "Given value <node id> is not a valid node number." 
+ ***  Non-data node numbers give error:
+ ***  "Node <node id> is not a data node.")
+ ** 3) my.cnf (--mycnf=<fullPath/mycnfFileName>)
+ ** 4) config.file (--config_file=<fullPath/configFileName>
  *
  * Config variables are displayed from only one of the following
  * sections of the retrieved config:
@@ -53,7 +57,7 @@
  ** ndb_config --config_from_node=2 --connections --query=type
  ** ndb_config --config_from_node=2 --query=id,NoOfFragmentLogFiles
  *
- ** Display results for only node 2:
+ **  Get config from eg. node 2 and display results for node 2 only:
  *** ndb_config --config_from_node=2 --query=id,NoOfFragmentLogFiles --nodeid=2
  */
 
@@ -139,7 +143,7 @@ static struct my_option my_long_options[] =
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "config_from_node", NDB_OPT_NOSHORT, "Use current config from node with given nodeid",
     (uchar**) &g_config_from_node, (uchar**) &g_config_from_node,
-    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    0, GET_INT, REQUIRED_ARG, INT_MIN, INT_MIN, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -224,7 +228,7 @@ main(int argc, char** argv){
   }
 
   if ((g_nodes && g_connections) ||
-       g_system && (g_nodes || g_connections))
+      (g_system && (g_nodes || g_connections)))
   {
     fprintf(stderr,
 	    "Error: Only one of the section-options: --nodes, --connections, --system is allowed.\n");
@@ -237,7 +241,7 @@ main(int argc, char** argv){
    */
 
   if ((g_config_file && g_mycnf) ||
-       g_config_from_node && (g_config_file || g_mycnf))
+      ((g_config_from_node != INT_MIN) && (g_config_file || g_mycnf)))
   {
     fprintf(stderr,
 	    "Error: Config should be retrieved from only one of the following sources:\n");
@@ -602,13 +606,23 @@ fetch_configuration(int from_node)
 	    ndb_mgm_get_connected_host(mgm),
 	    ndb_mgm_get_connected_port(mgm));
   }
-	  
-  if (from_node > 1)
+	 
+  if (from_node == INT_MIN)
   {
-    conf = ndb_mgm_get_configuration_from_node(mgm, from_node);
+    // from_node option is not requested.
+    // Retrieve config from the default src: mgmd
+    conf = ndb_mgm_get_configuration(mgm, 0);
+  }
+  else if (from_node < 1)
+  {
+    fprintf(stderr, "Invalid node number %d is given for --config_from_node.\n", from_node);
+    goto noconnect;
   }
   else
-     conf = ndb_mgm_get_configuration(mgm, 0);
+  {
+    // Retrieve config from the given data node
+     conf = ndb_mgm_get_configuration_from_node(mgm, from_node);
+  }
 
   if(conf == 0)
   {

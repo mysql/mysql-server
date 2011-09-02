@@ -1506,16 +1506,32 @@ NdbIndexStatImpl::cache_insert(Con& con)
     const Uint8* rir_ptr = &cacheValuePtr[0];
     Uint32 rir;
     memcpy(&rir, rir_ptr, 4);
-    assert(rir != 0);
+    if (!(rir != 0))
+    {
+      setError(InvalidCache, __LINE__);
+      return -1;
+    }
     Uint32 unq_prev = 0;
     for (uint k = 0; k < c.m_keyAttrs; k++)
     {
       Uint8* unq_ptr = &cacheValuePtr[4 + k * 4];
       Uint32 unq;
       memcpy(&unq, unq_ptr, 4);
-      assert(unq != 0);
-      assert(rir >= unq);
-      assert(unq >= unq_prev);
+      if (!(unq != 0))
+      {
+        setError(InvalidCache, __LINE__);
+        return -1;
+      }
+      if (!(rir >= unq))
+      {
+        setError(InvalidCache, __LINE__);
+        return -1;
+      }
+      if (!(unq >= unq_prev))
+      {
+        setError(InvalidCache, __LINE__);
+        return -1;
+      }
       unq_prev = unq;
     }
   }
@@ -1712,6 +1728,34 @@ NdbIndexStatImpl::cache_verify(const Cache& c)
       {
         setError(InvalidCache, __LINE__);
         return -1;
+      }
+      const Uint8* ptr1 = c.get_valueptr(pos1);
+      const Uint8* ptr2 = c.get_valueptr(pos2);
+      Uint32 rir1;
+      Uint32 rir2;
+      memcpy(&rir1, &ptr1[0], 4);
+      memcpy(&rir2, &ptr2[0], 4);
+      if (!(rir1 < rir2))
+      {
+        setError(InvalidCache, __LINE__);
+        return -1;
+      }
+      for (uint k = 0; k < c.m_keyAttrs; k++)
+      {
+        Uint32 unq1;
+        Uint32 unq2;
+        memcpy(&unq1, &ptr1[4 + k * 4], 4);
+        memcpy(&unq2, &ptr2[4 + k * 4], 4);
+        if (!(unq1 <= unq2))
+        {
+          setError(InvalidCache, __LINE__);
+          return -1;
+        }
+        if (k == c.m_keyAttrs - 1 && !(unq1 < unq2))
+        {
+          setError(InvalidCache, __LINE__);
+          return -1;
+        }
       }
     }
   }
@@ -2196,7 +2240,7 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
       cnt == stat.m_numEqH &&
       side == -1) {
     stat.m_rule = "b3.3";
-    const double u = 1.0 + c.get_unq(posL, posH, keyAttrs - 1);
+    const double u = c.get_unq(posL, posH, keyAttrs - 1);
     const double wL = 1.0 / u;
     const double wH = 1.0 - wL;
     value.m_rir = wL * c.get_rir(posL) + wH * c.get_rir(posH);

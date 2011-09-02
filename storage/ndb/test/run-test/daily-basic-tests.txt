@@ -1740,3 +1740,8 @@ max-time: 300
 cmd: testIndexStat
 args:
 
+max-time: 300
+cmd: testBlobs
+args: -bug 62321 -skip p
+
+
