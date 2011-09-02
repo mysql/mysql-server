@@ -44,7 +44,7 @@ static void test_3748 (void) {
 
 	if (startmsn.msn == ZERO_MSN.msn)
 	    startmsn = msn;
-	r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, msn, xids, NULL); assert(r == 0);
+	r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, msn, xids, true, NULL); assert(r == 0);
 	xids_destroy(&xids);
     }
     for (int i=N/10; i<N; i++) {

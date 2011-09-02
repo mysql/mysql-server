@@ -38,14 +38,13 @@ NONSTANDARD_SRCS= \
 		  $(LOADER_SRCS) \
 
 FAIL3312C_SRCS = filesize.c test_update_broadcast_stress.c test3529.c
-FAIL3389_SRCS = insert-dup-prelock.c loader-cleanup-test.c loader-dup-test.c loader-stress-del.c loader-stress-test.c loader-tpch-load.c preload-db.c preload-db-nested.c
 
 #SRCS = $(sort $(wildcard *.c))
 # To patch out upgrade tests, replace line above with line below,
 # and patch out loader-stress-test3 (see below)
 #SRCS = $(sort $(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(wildcard *.c)))
 # To patch out tests failing on 3312c branch (including upgrade tests), use this:
-SRCS = $(sort $(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(filter-out $(FAIL3389_SRCS),$(filter-out $(FAIL3312C_SRCS),$(wildcard *.c)))))
+SRCS = $(sort $(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(filter-out $(FAIL3312C_SRCS),$(wildcard *.c))))
 
 
 #end
@@ -392,7 +391,7 @@ EXTRA_TDB_TESTS = \
 endif
 
 RECOVER_TESTS = $(patsubst %.c,%.abortrecover,$(RECOVER_SRCS))
-LOADER_TESTS = $(patsubst %.c,%.loader,$(filter-out $(FAIL3389_SRCS),$(LOADER_SRCS)))
+LOADER_TESTS = $(patsubst %.c,%.loader,$(LOADER_SRCS))
 ifeq ($(OS_CHOICE),windows)
 RECOVER_TESTS = $(patsubst %.c,%.abortrecover,$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(RECOVER_SRCS)))
 LOADER_TESTS = $(patsubst %.c,%.loader,$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(LOADER_SRCS)))

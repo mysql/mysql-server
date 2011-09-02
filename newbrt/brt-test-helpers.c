@@ -171,6 +171,13 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     return 0;
 }
 
+static int
+testhelper_string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
+{
+    char *s = a->data, *t = b->data;
+    return strcmp(s, t);
+}
+
 int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_type cmdtype, char *key, int keylen, char *val, int vallen) {
     void *node_v;
     int r;
@@ -205,14 +212,12 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
 
     XIDS xids_0 = xids_get_root_xids();
     MSN msn = next_dummymsn();
-    r = toku_fifo_enq(BNC_BUFFER(node, childnum), key, keylen, val, vallen, cmdtype, msn, xids_0, NULL);
+    r = toku_bnc_insert_msg(BNC(node, childnum), key, keylen, val, vallen, cmdtype, msn, xids_0, true, NULL, testhelper_string_key_cmp);
     assert(r==0);
     // Hack to get the test working. The problem is that this test
     // is directly queueing something in a FIFO instead of 
     // using brt APIs.
     node->max_msn_applied_to_node_on_disk = msn;
-    int sizediff = keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids_0);
-    BNC_NBYTESINBUF(node, childnum) += sizediff;
     node->dirty = 1;
 
     toku_unpin_brtnode(brt, node_v);

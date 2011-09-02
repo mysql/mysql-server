@@ -56,7 +56,7 @@ insert_into_child_buffer(BRT brt, BRTNODE node, int childnum, int minkey, int ma
         DBT thekey; toku_fill_dbt(&thekey, &key, sizeof key);
         DBT theval; toku_fill_dbt(&theval, &val, sizeof val);
 	MSN msn = next_dummymsn();
-        toku_brt_append_to_child_buffer(brt, node, childnum, BRT_INSERT, msn, xids_get_root_xids(), &thekey, &theval);
+        toku_brt_append_to_child_buffer(brt, node, childnum, BRT_INSERT, msn, xids_get_root_xids(), true, &thekey, &theval);
     }
 }
 

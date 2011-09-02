@@ -238,7 +238,7 @@ serialize_brtnode_partition_size (BRTNODE node, int i)
     result++; // Byte that states what the partition is
     if (node->height > 0) {
         result += 4; // size of bytes in buffer table
-        result += BNC_NBYTESINBUF(node, i);
+        result += toku_bnc_nbytesinbuf(BNC(node, i));
     }
     else {
         result += 4; // n_entries in buffer table
@@ -251,6 +251,25 @@ serialize_brtnode_partition_size (BRTNODE node, int i)
 
 #define BRTNODE_PARTITION_OMT_LEAVES 0xaa
 #define BRTNODE_PARTITION_FIFO_MSG 0xbb
+
+static void
+serialize_nonleaf_childinfo(NONLEAF_CHILDINFO bnc, struct wbuf *wb)
+{
+    unsigned char ch = BRTNODE_PARTITION_FIFO_MSG;
+    wbuf_nocrc_char(wb, ch);
+    // serialize the FIFO, first the number of entries, then the elements
+    wbuf_nocrc_int(wb, toku_bnc_n_entries(bnc));
+    FIFO_ITERATE(
+        bnc->buffer, key, keylen, data, datalen, type, msn, xids, UU(is_fresh),
+        {
+            invariant((int)type>=0 && type<256);
+            wbuf_nocrc_char(wb, (unsigned char)type);
+            wbuf_MSN(wb, msn);
+            wbuf_nocrc_xids(wb, xids);
+            wbuf_nocrc_bytes(wb, key, keylen);
+            wbuf_nocrc_bytes(wb, data, datalen);
+        });
+}
 
 //
 // Serialize the i'th partition of node into sb
@@ -270,19 +289,7 @@ serialize_brtnode_partition(BRTNODE node, int i, struct sub_block *sb) {
     wbuf_init(&wb, sb->uncompressed_ptr, sb->uncompressed_size);
     if (node->height > 0) {
         // TODO: (Zardosht) possibly exit early if there are no messages
-        unsigned char ch = BRTNODE_PARTITION_FIFO_MSG;
-        wbuf_nocrc_char(&wb, ch);
-        // serialize the FIFO, first the number of entries, then the elements
-        wbuf_nocrc_int(&wb, toku_fifo_n_entries(BNC_BUFFER(node,i)));
-        FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, msn, xids,
-                     {
-                         invariant((int)type>=0 && type<256);
-                         wbuf_nocrc_char(&wb, (unsigned char)type);
-                         wbuf_MSN(&wb, msn);
-                         wbuf_nocrc_xids(&wb, xids);
-                         wbuf_nocrc_bytes(&wb, key, keylen);
-                         wbuf_nocrc_bytes(&wb, data, datalen);
-                     });
+        serialize_nonleaf_childinfo(BNC(node, i), &wb);
     }
     else {
         unsigned char ch = BRTNODE_PARTITION_OMT_LEAVES;
@@ -857,7 +864,7 @@ toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_h
 }
 
 static void
-deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf,
+deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
                          DB *cmp_extra, brt_compare_func cmp) {
     int r;
     int n_bytes_in_buffer = 0;
@@ -896,7 +903,7 @@ deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf,
         } else {
             dest = NULL;
         }
-        r = toku_fifo_enq(BNC_BUFFER(node, cnum), key, keylen, val, vallen, type, msn, xids, dest); /* Copies the data into the fifo */
+        r = toku_fifo_enq(bnc->buffer, key, keylen, val, vallen, type, msn, xids, true, dest); /* Copies the data into the fifo */
         lazy_assert_zero(r);
         n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
         //printf("Inserted\n");
@@ -905,18 +912,17 @@ deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf,
     invariant(rbuf->ndone == rbuf->size);
 
     if (cmp) {
-        struct toku_fifo_entry_key_msn_cmp_extra extra = { .cmp_extra = cmp_extra, .cmp = cmp, .fifo = BNC_BUFFER(node, cnum) };
+        struct toku_fifo_entry_key_msn_cmp_extra extra = { .cmp_extra = cmp_extra, .cmp = cmp, .fifo = bnc->buffer };
         r = mergesort_r(offsets, noffsets, sizeof offsets[0], &extra, toku_fifo_entry_key_msn_cmp);
         assert_zero(r);
-        toku_omt_destroy(&BNC_MESSAGE_TREE(node, cnum));
-        r = toku_omt_create_steal_sorted_array(&BNC_MESSAGE_TREE(node, cnum), &offsets, noffsets, n_in_this_buffer);
+        toku_omt_destroy(&bnc->fresh_message_tree);
+        r = toku_omt_create_steal_sorted_array(&bnc->fresh_message_tree, &offsets, noffsets, n_in_this_buffer);
         assert_zero(r);
-        toku_omt_destroy(&BNC_BROADCAST_BUFFER(node, cnum));
-        r = toku_omt_create_steal_sorted_array(&BNC_BROADCAST_BUFFER(node, cnum), &broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
+        toku_omt_destroy(&bnc->broadcast_list);
+        r = toku_omt_create_steal_sorted_array(&bnc->broadcast_list, &broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
         assert_zero(r);
     }
-    BNC_NBYTESINBUF(node, cnum) = n_bytes_in_buffer;
-    BP_WORKDONE(node, cnum) = 0;
+    bnc->n_bytes_in_buffer = n_bytes_in_buffer;
 }
 
 // dump a buffer to stderr
@@ -970,18 +976,17 @@ BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
     bn->n_bytes_in_buffer = 0;
     bn->seqinsert = 0;
     bn->optimized_for_upgrade = 0;
+    bn->stale_ancestor_messages_applied = false;
     return bn;
 }
 
 NONLEAF_CHILDINFO toku_create_empty_nl(void) {
     NONLEAF_CHILDINFO XMALLOC(cn);
     cn->n_bytes_in_buffer = 0;
-    int r = toku_fifo_create(&cn->buffer);
-    assert_zero(r);
-    r = toku_omt_create(&cn->message_tree);
-    assert_zero(r);
-    r = toku_omt_create(&cn->broadcast_buffer);
-    assert_zero(r);
+    int r = toku_fifo_create(&cn->buffer); assert_zero(r);
+    r = toku_omt_create(&cn->fresh_message_tree); assert_zero(r);
+    r = toku_omt_create(&cn->stale_message_tree); assert_zero(r);
+    r = toku_omt_create(&cn->broadcast_list); assert_zero(r);
     return cn;
 }
 
@@ -997,8 +1002,9 @@ void destroy_basement_node (BASEMENTNODE bn)
 void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl)
 {
     toku_fifo_free(&nl->buffer);
-    toku_omt_destroy(&nl->message_tree);
-    toku_omt_destroy(&nl->broadcast_buffer);
+    toku_omt_destroy(&nl->fresh_message_tree);
+    toku_omt_destroy(&nl->stale_message_tree);
+    toku_omt_destroy(&nl->broadcast_list);
     toku_free(nl);
 }
 
@@ -1233,7 +1239,8 @@ deserialize_brtnode_partition(
     if (node->height > 0) {
         unsigned char ch = rbuf_char(&rb);
         assert(ch == BRTNODE_PARTITION_FIFO_MSG);
-        deserialize_child_buffer(node, index, &rb, cmp_extra, cmp);
+        deserialize_child_buffer(BNC(node, index), &rb, cmp_extra, cmp);
+        BP_WORKDONE(node, index) = 0;
     }
     else {
         unsigned char ch = rbuf_char(&rb);

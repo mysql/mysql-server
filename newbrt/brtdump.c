@@ -163,13 +163,14 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     for (int i=0; i<n->n_children; i++) {
         if (n->height > 0) {
             printf("   child %d: %" PRId64 "\n", i, BP_BLOCKNUM(n, i).b);
-            unsigned int n_bytes = BNC_NBYTESINBUF(n, i); 
-            int n_entries = toku_fifo_n_entries(BNC_BUFFER(n, i));
+            NONLEAF_CHILDINFO bnc = BNC(n, i);
+            unsigned int n_bytes = toku_bnc_nbytesinbuf(bnc); 
+            int n_entries = toku_bnc_n_entries(bnc);
             if (n_bytes > 0 || n_entries > 0) {
                 printf("   buffer contains %u bytes (%d items)\n", n_bytes, n_entries);
             }
             if (dump_data) {
-                FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, msn, xids,
+                FIFO_ITERATE(bnc->buffer, key, keylen, data, datalen, typ, msn, xids, UU(is_fresh),
                              {
                                  printf("    msn=%"PRIu64" (0x%"PRIx64") ", msn.msn, msn.msn);
                                  printf("    TYPE=");
