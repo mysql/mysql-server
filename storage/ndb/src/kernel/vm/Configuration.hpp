@@ -27,6 +27,7 @@
 #include <NdbThread.h>
 #include <util/SparseBitmask.hpp>
 #include <util/UtilBuffer.hpp>
+#include "mt_thr_config.hpp"
 
 enum ThreadTypes
 {
@@ -124,6 +125,7 @@ public:
   ndb_mgm_configuration* getClusterConfig() const { return m_clusterConfig; }
   Uint32 get_config_generation() const; 
 
+  THRConfigApplier m_thr_config;
 private:
   friend class Cmvmi;
   friend class Qmgr;

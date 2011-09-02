@@ -3251,28 +3251,11 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   */
   static thr_job_buffer dummy_buffer;
 
-  /*
-   * Before we had three main threads with fixed block assignment.
-   * Now there is also worker instances (we send to LQH instance).
+  /**
+   * Pick any instance running in this thread
    */
-  Uint32 main = 0;
-  Uint32 instance = 0;
-  if (dst == 0)
-    main = NDBCNTR;
-  else if (dst == 1)
-    main = DBLQH;
-  else if (dst >= NUM_MAIN_THREADS && dst < NUM_MAIN_THREADS + num_lqh_threads)
-  {
-    main = DBLQH;
-    instance = dst - NUM_MAIN_THREADS + 1;
-  }
-  else if (dst == receiver_thread_no)
-    main = CMVMI;
-  else
-    require(false);
-  Uint32 bno = numberToBlock(main, instance);
-  require(block2ThreadId(main, instance) == dst);
   struct thr_data * dstptr = rep->m_thread + dst;
+  Uint32 bno = dstptr->m_instance_list[0];
 
   memset(&signalT.header, 0, sizeof(SignalHeader));
   signalT.header.theVerId_signalNumber   = GSN_STOP_FOR_CRASH;
