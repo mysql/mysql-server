@@ -244,16 +244,17 @@ SET(INNOBASE_SOURCES
 	eval/eval0proc.c
 	fil/fil0fil.c
 	fsp/fsp0fsp.c
-	fut/fts0ast.c
-	fut/fts0blex.c
-	fut/fts0config.c
 	fut/fut0fut.c
 	fut/fut0lst.c
-	fut/fts0opt.c
-	fut/fts0pars.c
-	fut/fts0que.c
-	fut/fts0sql.c
-	fut/fts0tlex.c
+	fts/fts0fts.c
+	fts/fts0ast.c
+	fts/fts0blex.c
+	fts/fts0config.c
+	fts/fts0opt.c
+	fts/fts0pars.c
+	fts/fts0que.c
+	fts/fts0sql.c
+	fts/fts0tlex.c
 	ha/ha0ha.c
 	ha/ha0storage.c
 	ha/hash0hash.c
