@@ -66,167 +66,167 @@ typedef struct fts_select_struct fts_select_t;
 typedef struct fts_doc_freq_struct fts_doc_freq_t;
 typedef struct fts_word_freq_struct fts_word_freq_t;
 
-/* State of an FTS query. */
+/** State of an FTS query. */
 struct fts_query_struct {
-	mem_heap_t*	heap;		/* Heap to use for allocations */
+	mem_heap_t*	heap;		/*!< Heap to use for allocations */
 
-	trx_t*		trx;		/* The query transaction */
+	trx_t*		trx;		/*!< The query transaction */
 
-	dict_index_t*	index;		/* The FTS index to search */
-					/* FTS auxiliary common table def */
+	dict_index_t*	index;		/*!< The FTS index to search */
+					/*!< FTS auxiliary common table def */
 	fts_table_t	fts_common_table;
 
-	fts_table_t	fts_index_table;/* FTS auxiliary index table def */
+	fts_table_t	fts_index_table;/*!< FTS auxiliary index table def */
 
-	fts_doc_ids_t*	deleted;	/* Deleted doc ids that need to be
+	fts_doc_ids_t*	deleted;	/*!< Deleted doc ids that need to be
 					filtered from the output */
 
-	fts_ast_node_t*	root;		/* Abstract syntax tree */
+	fts_ast_node_t*	root;		/*!< Abstract syntax tree */
 
-	fts_ast_node_t* cur_node;	/* Current tree node */
+	fts_ast_node_t* cur_node;	/*!< Current tree node */
 
-	ib_rbt_t*       doc_ids;	/* The current set of matching
+	ib_rbt_t*       doc_ids;	/*!< The current set of matching
 					doc ids, elements are of
 					type fts_ranking_t */
 
-	ib_rbt_t*	intersection;	/* The doc ids that were found in
+	ib_rbt_t*	intersection;	/*!< The doc ids that were found in
 					doc_ids, this tree will become
 					the new doc_ids, elements are of type
 					fts_ranking_t */
 
-					/* Prepared statement to read the
+					/*!< Prepared statement to read the
 					nodes from the FTS INDEX */
 	que_t*		read_nodes_graph;
 
-	fts_ast_oper_t	oper;		/* Current boolean mode operator */
+	fts_ast_oper_t	oper;		/*!< Current boolean mode operator */
 
-					/* TRUE if we want to collect the
+					/*!< TRUE if we want to collect the
 					word positions within the document */
 	ibool		collect_positions;
 
-	ulint		flags;		/* Specify the full text search type,
+	ulint		flags;		/*!< Specify the full text search type,
 					such as  boolean search, phrase
 					search, proximity search etc. */
 
-	ulint		distance;	/* The proximity distance of a
+	ulint		distance;	/*!< The proximity distance of a
 					phrase search. */
 
-					/* These doc ids are used as a
+					/*!< These doc ids are used as a
 					boundary condition when searching the
 					FTS index rows */
 
-	doc_id_t	lower_doc_id;	/* Lowest doc id in doc_ids */
+	doc_id_t	lower_doc_id;	/*!< Lowest doc id in doc_ids */
 
-	doc_id_t	upper_doc_id;	/* Highest doc id in doc_ids */
+	doc_id_t	upper_doc_id;	/*!< Highest doc id in doc_ids */
 
-	ibool		boolean_mode;	/* TRUE if boolean mode query */
+	ibool		boolean_mode;	/*!< TRUE if boolean mode query */
 
-	ib_vector_t*	matched;	/* Array of matching documents
+	ib_vector_t*	matched;	/*!< Array of matching documents
 					(fts_match_t) to search for a phrase */
 
-	ib_vector_t**	match_array;	/* Used for proximity search, contains
+	ib_vector_t**	match_array;	/*!< Used for proximity search, contains
 					position info for each matched word
 					in the word list */
 
-	ulint		total_docs;	/* The total number of documents */
+	ulint		total_docs;	/*!< The total number of documents */
 
-	ulint		total_words;	/* The total number of words */
+	ulint		total_words;	/*!< The total number of words */
 
-	ulint		error;		/* Error code if any, that is
+	ulint		error;		/*!< Error code if any, that is
 					encountered during query processing */
 
-	ib_rbt_t*	word_freqs;	/* RB tree of word frequencies per
+	ib_rbt_t*	word_freqs;	/*!< RB tree of word frequencies per
 					document, its elements are of type
 					fts_word_freq_t */
 
-	ibool		inited;		/* Flag to test whether the query
+	ibool		inited;		/*!< Flag to test whether the query
 					processing has started or not */
 };
 
-/* For phrase matching, first we collect the documents and the positions
+/** For phrase matching, first we collect the documents and the positions
 then we match. */
 struct fts_match_struct {
-	doc_id_t	doc_id;		/* Document id */
+	doc_id_t	doc_id;		/*!< Document id */
 
-	ulint		start;		/* Start the phrase match from
+	ulint		start;		/*!< Start the phrase match from
 					this offset within the positions
 					vector. */
 
-	ib_vector_t*	positions;	/* Offsets of a word in a
+	ib_vector_t*	positions;	/*!< Offsets of a word in a
 					document */
 };
 
-/* For matching tokens in a phrase search. We use this data structure in
+/** For matching tokens in a phrase search. We use this data structure in
 the callback that determines whether a document should be accepted or
 rejected for a phrase search. */
 struct fts_select_struct {
-	doc_id_t	doc_id;		/* The document id to match */
+	doc_id_t	doc_id;		/*!< The document id to match */
 
-	ulint		min_pos;	/* For found to be TRUE at least
+	ulint		min_pos;	/*!< For found to be TRUE at least
 					one position must be greater than
 					min_pos. */
 
-	ibool		found;		/* TRUE if found */
+	ibool		found;		/*!< TRUE if found */
 
 	fts_word_freq_t*
-			word_freq;	/* Word frequency instance of the
+			word_freq;	/*!< Word frequency instance of the
 					current word being looked up in
 					the FTS index */
 };
 
-/* The match positions and tokesn to match */
+/** The match positions and tokesn to match */
 struct fts_phrase_struct {
-	ibool		found;		/* Match result */
+	ibool		found;		/*!< Match result */
 
 	const fts_match_t*
-			match;		/* Positions within text */
+			match;		/*!< Positions within text */
 
 	const ib_vector_t*
-			tokens;		/* Tokens to match */
+			tokens;		/*!< Tokens to match */
 
-	ulint		distance;	/* For matching on proximity
+	ulint		distance;	/*!< For matching on proximity
 					distance. Can be 0 for exact match */
-	CHARSET_INFO*	charset;	/* Phrase match charset */
-	mem_heap_t*     heap;		/* Heap for word processing */
-	ulint		zip_size;	/* row zip size */
+	CHARSET_INFO*	charset;	/*!< Phrase match charset */
+	mem_heap_t*     heap;		/*!< Heap for word processing */
+	ulint		zip_size;	/*!< row zip size */
 };
 
-/* For storing the frequncy of a word/term in a document */
+/** For storing the frequncy of a word/term in a document */
 struct fts_doc_freq_struct {
-	doc_id_t	doc_id;		/* Document id */
-	ulint		freq;		/* Frequency of a word in a document */
+	doc_id_t	doc_id;		/*!< Document id */
+	ulint		freq;		/*!< Frequency of a word in a document */
 };
 
-/* To determine the word frequency per document. */
+/** To determine the word frequency per document. */
 struct fts_word_freq_struct {
-	byte*		word;		/* Word for which we need the freq,
+	byte*		word;		/*!< Word for which we need the freq,
 					it's allocated on the query heap */
 
-	ib_rbt_t*	doc_freqs;	/* RB Tree for storing per document
+	ib_rbt_t*	doc_freqs;	/*!< RB Tree for storing per document
 					word frequencies. The elements are
 					of type fts_doc_freq_t */
-	ulint		doc_count;	/* Total number of documents that
+	ulint		doc_count;	/*!< Total number of documents that
 					contain this word */
-	double		idf;		/* Inverse document frequency */
+	double		idf;		/*!< Inverse document frequency */
 };
 
 /********************************************************************
-Callback function to fetch the rows in an FTS INDEX record. */
+Callback function to fetch the rows in an FTS INDEX record. 
+@return always TRUE */
 static
 ibool
 fts_query_index_fetch_nodes(
 /*========================*/
-					/*!< out: always returns non-NULL */
 	void*		row,		/*!< in: sel_node_t* */
 	void*		user_arg);	/*!< in: pointer to ib_vector_t */
 
 /********************************************************************
-Read and filter nodes. */
+Read and filter nodes.
+@return fts_node_t instance */
 static
 void
 fts_query_filter_doc_ids(
 /*=====================*/
-					/*!< out: fts_node_t instance */
 	fts_query_t*	query,		/*!< in: query instance */
 	const byte*	word,		/*!< in: the current word */
 	fts_word_freq_t*word_freq,	/*!< in/out: word frequency */
@@ -234,7 +234,8 @@ fts_query_filter_doc_ids(
 			node,		/*!< in: current FTS node */
 	void*		data,		/*!< in: doc id ilist */
 	ulint		len,		/*!< in: doc id ilist size */
-	ibool		calc_doc_count);/*!< in: whether to remember doc count */
+	ibool		calc_doc_count);/*!< in: whether to remember doc
+					count */
 
 /******************************************************************//**
 compare two character string case insensitively according to their charset. */
@@ -247,19 +248,19 @@ innobase_fts_text_case_cmp(
 	const void*	p2);		/*!< in: node */
 
 #if 0
-/********************************************************************
-Find a doc_id in a word's ilist. */
+/*****************************************************************//***
+Find a doc_id in a word's ilist.
+@return TRUE if found. */
 static
-ulint
+ibool
 fts_query_find_doc_id(
 /*==================*/
-					/*!< out: freq of word in document, if
-					document found else 0 */
 	fts_select_t*	select,		/*!< in/out: search the doc id selected,
 					update the frequency if found. */
 	void*		data,		/*!< in: doc id ilist */
 	ulint		len);		/*!< in: doc id ilist size */
 #endif
+
 /*************************************************************//**
 This function implements a simple "blind" query expansion search:
 words in documents found in the first search pass will be used as
@@ -323,15 +324,12 @@ fts_query_terms_in_document(
 #endif
 
 /********************************************************************
-Compare two fts_doc_freq_t doc_ids. */
+Compare two fts_doc_freq_t doc_ids.
+@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
 int
 fts_freq_doc_id_cmp(
 /*================*/
-						/*!< out:
-						< 0 if n1 < n2,
-						0 if n1 == n2,
-						> 0 if n1 > n2 */
 	const void*	p1,			/*!< in: id1 */
 	const void*	p2)			/*!< in: id2 */
 {
@@ -655,12 +653,10 @@ fts_query_remove_doc_id(
 }
 
 /*******************************************************************//**
-Find the doc id in the query set but not in the
-deleted set, artificialy downgrade or upgrade its
-ranking by a value and make/initialize its ranking
-under or above its normal range 0 to 1. This is
-used for Boolean Search operator such as Negation
-operator, which makes word's contribution to the
+Find the doc id in the query set but not in the deleted set, artificialy
+downgrade or upgrade its ranking by a value and make/initialize its ranking
+under or above its normal range 0 to 1. This is used for Boolean Search
+operator such as Negation operator, which makes word's contribution to the
 row's relevance to be negative */
 static
 void
@@ -682,9 +678,8 @@ fts_query_change_ranking(
 
 		ranking = rbt_value(fts_ranking_t, parent.last);
 
-		ranking->rank += (fts_rank_t)((downgrade)
-						? RANK_DOWNGRADE
-						: RANK_UPGRADE);
+		ranking->rank += (fts_rank_t)
+			(downgrade ? RANK_DOWNGRADE : RANK_UPGRADE);
 
 		/* Allow at most 2 adjustment by RANK_DOWNGRADE (-0.5)
 		and RANK_UPGRADE (0.5) */
@@ -694,7 +689,6 @@ fts_query_change_ranking(
 			ranking->rank = -1.0;
 		}
 	}
-	return;
 }
 
 /*******************************************************************//**
@@ -734,7 +728,6 @@ fts_query_intersect_doc_id(
 			ranking->words = NULL;
 		}
 	}
-	return;
 }
 
 /*******************************************************************//**
@@ -762,8 +755,6 @@ fts_query_free_doc_ids(
 	}
 
 	rbt_free(doc_ids);
-
-	return;
 }
 
 /*******************************************************************//**
@@ -920,10 +911,12 @@ fts_cache_find_wildcard(
 			num_word++;
 
 			if (!forward) {
-				cur_node = rbt_prev(index_cache->words, cur_node);
+				cur_node = rbt_prev(
+					index_cache->words, cur_node);
 			} else {
 cont_search:
-				cur_node = rbt_next(index_cache->words, cur_node);
+				cur_node = rbt_next(
+					index_cache->words, cur_node);
 			}
 
 			if (!cur_node) {
@@ -956,7 +949,6 @@ fts_query_difference(
 	ulint			n_doc_ids= 0;
 	trx_t*			trx = query->trx;
 	dict_table_t*		table = query->index->table;
-	que_t*			graph = NULL;
 
 	ut_a(query->oper == FTS_IGNORE);
 
@@ -975,6 +967,7 @@ fts_query_difference(
 		fts_fetch_t		fetch;
 		const ib_vector_t*	nodes;
 		const fts_index_cache_t*index_cache;
+		que_t*			graph = NULL;
 		fts_cache_t*		cache = table->fts->cache;
 
 		rw_lock_x_lock(&cache->lock);
@@ -1027,7 +1020,6 @@ fts_query_intersect(
 	ulint			n_doc_ids = 0;
 	trx_t*			trx = query->trx;
 	dict_table_t*		table = query->index->table;
-	que_t*			graph = NULL;
 
 	ut_a(query->oper == FTS_EXIST);
 
@@ -1058,6 +1050,7 @@ fts_query_intersect(
 		fts_fetch_t		fetch;
 		const ib_vector_t*	nodes;
 		const fts_index_cache_t*index_cache;
+		que_t*			graph = NULL;
 		fts_cache_t*		cache = table->fts->cache;
 
 		ut_a(!query->intersection);
@@ -2523,13 +2516,13 @@ fts_ast_visit_sub_exp(
 }
 
 #if 0
-/********************************************************************
-Check if the doc id exists in the ilist. */
+/*****************************************************************//***
+Check if the doc id exists in the ilist. 
+@return TRUE if doc id found */
 static
 ulint
 fts_query_find_doc_id(
 /*==================*/
-					/*!< out: TRUE if doc id found */
 	fts_select_t*	select,		/*!< in/out: contains the doc id to
 					find, we update the word freq if
 					document found */
