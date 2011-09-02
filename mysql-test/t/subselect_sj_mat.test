@@ -1289,6 +1289,35 @@ HAVING a IN (
 );
 DROP TABLE t1, t2, t3, t4;
 
+--echo #
+--echo # BUG#836507: Crash in setup_sj_materialization_part1() with semijoin+materialization
+--echo #
+CREATE TABLE t1 (a int) ;
+INSERT IGNORE INTO t1 VALUES (1),(1);
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (1);
+
+CREATE TABLE t3 (a int);
+
+CREATE TABLE t4 (a int);
+INSERT INTO t4 VALUES (2),(2);
+
+CREATE TABLE t5 (a int);
+INSERT INTO t5 VALUES (1);
+
+SELECT * FROM t1
+WHERE (a) IN (
+        SELECT t5.a
+        FROM (
+                t2
+                LEFT JOIN ( t3 , t4 )
+                ON 1 = 1
+        )
+        JOIN t5
+);
+
+DROP TABLE t1,t2,t3,t4,t5;
 
 set optimizer_switch=@subselect_sj_mat_tmp;
 

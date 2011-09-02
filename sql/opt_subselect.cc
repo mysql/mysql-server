@@ -2935,6 +2935,11 @@ bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab)
   DBUG_ENTER("setup_sj_materialization");
   JOIN_TAB *tab= sjm_tab->bush_children->start;
   TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
+  
+  /* Walk out of outer join nests until we reach the semi-join nest we're in */
+  while (!emb_sj_nest->sj_mat_info)
+    emb_sj_nest= emb_sj_nest->embedding;
+
   SJ_MATERIALIZATION_INFO *sjm= emb_sj_nest->sj_mat_info;
   THD *thd= tab->join->thd;
   /* First the calls come to the materialization function */
@@ -2983,6 +2988,9 @@ bool setup_sj_materialization_part2(JOIN_TAB *sjm_tab)
   DBUG_ENTER("setup_sj_materialization_part2");
   JOIN_TAB *tab= sjm_tab->bush_children->start;
   TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
+  /* Walk out of outer join nests until we reach the semi-join nest we're in */
+  while (!emb_sj_nest->sj_mat_info)
+    emb_sj_nest= emb_sj_nest->embedding;
   SJ_MATERIALIZATION_INFO *sjm= emb_sj_nest->sj_mat_info;
   THD *thd= tab->join->thd;
   uint i;
