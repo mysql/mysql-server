@@ -266,16 +266,7 @@ fts_sync(
 /*=====*/
 	fts_sync_t*	sync);		/*!< in: sync state */
 
-/****************************************************************//**
-Add the document with the given id to the table's cache, and run
-SYNC if the cache grows too big. */
-static
-void
-fts_add_doc(
-/*========*/
-	fts_get_doc_t*	get_doc,	/*!< in: state */
-	doc_id_t	doc_id);	/*!< in: document id of document
-					to add */
+#ifdef FTS_CACHE_SIZE_DEBUG
 /****************************************************************//**
 Read the max cache size parameter from the config table. */
 static
@@ -283,7 +274,21 @@ void
 fts_update_max_cache_size(
 /*======================*/
 	fts_sync_t*	sync);		/*!< in: sync state */
+#endif
 
+/*********************************************************************//**
+This function fetches the document just inserted right before
+we commit the transaction, and tokenize the inserted text data
+and insert into FTS auxiliary table and its cache. 
+@return TRUE if successful */
+static
+ulint
+fts_add_doc_by_id(
+/*==============*/
+	fts_trx_table_t*ftt,		/*!< in: FTS trx table */
+	doc_id_t	doc_id,		/*!< in: doc id */
+	ib_vector_t*	fts_indexes __attribute__((unused)));
+					/*!< in: affected fts indexes */
 /****************************************************************//**
 Check whether a particular word (term) exists in the FTS index.
 @return DB_SUCCESS if all went fine */
@@ -1995,6 +2000,7 @@ fts_fetch_store_doc_id(
 	return(FALSE);
 }
 
+#ifdef FTS_CACHE_SIZE_DEBUG
 /******************************************************************//**
 Get the max cache size in bytes. If there is an error reading the
 value we simply print an error message here and return the default
@@ -2064,6 +2070,7 @@ fts_get_max_cache_size(
 
 	return(cache_size_in_mb * 1024 * 1024);
 }
+#endif
 
 /*********************************************************************//**
 Get the total number of documents in the FTS.
@@ -2418,39 +2425,6 @@ fts_doc_ids_free(
 }
 
 /*********************************************************************//**
-Add the document id to the transaction's list of added document ids. */
-static
-void
-fts_add_doc_id(
-/*===========*/
-	fts_trx_table_t*ftt,		/*!< in: FTS trx table */
-	doc_id_t	doc_id,		/*!< in: doc id */
-	ib_vector_t*	fts_indexes __attribute__((unused)))
-					/*!< in: affected fts indexes */
-{
-	fts_cache_t*    	cache = ftt->table->fts->cache;
-	ulint			i;
-
-	ut_ad(cache->get_docs);
-
-	/* If Doc ID is supplied by user, the table might not
-	yet be sync-ed */
-	if (!(ftt->table->fts->fts_status & ADDED_TABLE_SYNCED)) {
-		fts_init_index(ftt->table, FALSE);
-	}
-
-	/* Get the document, parse them and add to FTS ADD table
-	and FTS cache */
-	for (i = 0; i < ib_vector_size(cache->get_docs); ++i) {
-		fts_get_doc_t*  get_doc;
-		get_doc = ib_vector_get(cache->get_docs, i);
-
-		fts_add_doc(get_doc, doc_id);
-	}
-
-}
-
-/*********************************************************************//**
 Do commit-phase steps necessary for the insertion of a new row.
 @return DB_SUCCESS or error code */
 static
@@ -2471,7 +2445,7 @@ fts_add(
 
 	ut_a(row->state == FTS_INSERT || row->state == FTS_MODIFY);
 
-	fts_add_doc_id(ftt, doc_id, row->fts_indexes);
+	fts_add_doc_by_id(ftt, doc_id, row->fts_indexes);
 
 #ifdef FTS_ADD_DEBUG
 	/* Following chunk of code Adds the inserted Doc ID into ADDED table.
@@ -2965,23 +2939,104 @@ fts_query_expansion_fetch_doc(
 }
 
 /*********************************************************************//**
-This function fetches the document just inserted right before
-we commit the transaction, and tokenize the inserted text data
-and insert into FTS auxiliary table and its cache. 
+fetch and tokenize the document. */
+static
+void
+fts_fetch_doc_from_rec(
+/*===================*/
+	fts_get_doc_t*  get_doc,	/*!< in: FTS index's get_doc struct */
+	dict_index_t*	clust_index,	/*!< in: cluster index */
+	btr_pcur_t*	pcur,		/*!< in: cursor whose position
+					has been stored */
+	ulint*		offsets,	/*!< in: offsets */
+	fts_doc_t*	doc)		/*!< out: fts doc to hold parsed
+					documents */
+{
+	dict_index_t*		index;
+	dict_table_t*		table;
+	const rec_t*		clust_rec;
+	ulint			num_field;
+	const dict_field_t*	ifield;
+	const dict_col_t*	col;
+	ulint			clust_pos;
+	ulint			i;
+	ulint			doc_len = 0;
+	ulint			processed_doc = 0;
+
+	if (!get_doc) {
+		return;
+	}
+
+	index = get_doc->index_cache->index;
+	table = get_doc->index_cache->index->table;
+
+	clust_rec = btr_pcur_get_rec(pcur);
+
+	num_field = dict_index_get_n_fields(index);
+
+	for (i = 0; i < num_field; i++) {
+		ifield = dict_index_get_nth_field(index, i);
+		col = dict_field_get_col(ifield);
+		clust_pos = dict_col_get_clust_pos(col, clust_index);
+
+		if (!get_doc->index_cache->charset) {
+			ulint   prtype = ifield->col->prtype;
+			get_doc->index_cache->charset = innobase_get_fts_charset(
+				(int)(prtype & DATA_MYSQL_TYPE_MASK),
+				(uint)dtype_get_charset_coll(prtype));
+		}
+
+		if (rec_offs_nth_extern(offsets, clust_pos)) {
+			doc->text.f_str =
+				btr_rec_copy_externally_stored_field(
+					clust_rec, offsets, 
+					dict_table_zip_size(table),
+					clust_pos, &doc->text.f_len,
+					doc->self_heap->arg);
+		} else {
+			doc->text.f_str = (byte*) rec_get_nth_field(
+				clust_rec, offsets, clust_pos,
+				&doc->text.f_len);
+		}
+
+		doc->found = TRUE;
+		doc->charset = get_doc->index_cache->charset;
+
+		/* Null Field */
+		if (doc->text.f_len == UNIV_SQL_NULL) {
+			continue;
+		}
+
+		if (processed_doc == 0) {
+			fts_tokenize_document(doc, NULL);
+		} else {
+			fts_tokenize_document_next(doc, doc_len, NULL);
+		}
+
+		processed_doc++;
+		doc_len += doc->text.f_len + 1;
+	}
+}
+
+/*********************************************************************//**
+This function fetches the document inserted during the committing
+transaction, and tokenize the inserted text data and insert into
+FTS auxiliary table and its cache. 
 @return TRUE if successful */
 static
 ulint
 fts_add_doc_by_id(
 /*==============*/
-	fts_get_doc_t*	get_doc,	/*!< in: state */
-	doc_id_t	doc_id,		/*!< in: id of document to
-					fetch */
-	fts_doc_t*	doc)		/*!< out: Document fetched */
+	fts_trx_table_t*ftt,		/*!< in: FTS trx table */
+	doc_id_t	doc_id,		/*!< in: doc id */
+	ib_vector_t*	fts_indexes __attribute__((unused)))
+					/*!< in: affected fts indexes */
 {
 	mtr_t		mtr;
+	fts_cache_t*   	cache = ftt->table->fts->cache;
 	dict_index_t*   clust_index;
-	dict_table_t*	table = get_doc->index_cache->index->table;
-	dict_index_t*	index = get_doc->index_cache->index;
+	dict_table_t*	table; 
+	dict_index_t*	index;
 	dtuple_t*	tuple; 
 	doc_id_t        temp_doc_id;
 	dfield_t*       dfield;
@@ -2989,6 +3044,22 @@ fts_add_doc_by_id(
 	dict_index_t*	fts_id_index;
 	ibool		is_id_cluster;
 	mem_heap_t*	heap;
+	fts_get_doc_t*	get_doc;
+
+	ut_ad(cache->get_docs);
+
+	/* If Doc ID is supplied by user, the table might not
+	yet be sync-ed */
+	if (!(ftt->table->fts->fts_status & ADDED_TABLE_SYNCED)) {
+		fts_init_index(ftt->table, FALSE);
+	}
+
+	/* Get the first FTS index's get_doc */
+	get_doc = ib_vector_get(cache->get_docs, 0);
+	ut_ad(get_doc);
+
+	table = get_doc->index_cache->index->table;
+	index = get_doc->index_cache->index;
 
 	heap = mem_heap_create(512);
 	
@@ -2996,9 +3067,11 @@ fts_add_doc_by_id(
 	fts_id_index = dict_table_get_index_on_name(
 				table, FTS_DOC_ID_INDEX_NAME);
 
+	/* Check whether the index on FTS_DOC_ID is cluster index */
 	is_id_cluster = (clust_index == fts_id_index);
 
 	mtr_start(&mtr);
+	btr_pcur_init(&pcur);
 
 	/* Search based on Doc ID. Here, we'll need to consider the case
 	there is no primary index on Doc ID */
@@ -3016,16 +3089,13 @@ fts_add_doc_by_id(
 
 	/* If we have a match, add the data to doc structure */
 	if (btr_pcur_get_low_match(&pcur) == 1) {
-		ulint*			offsets = NULL;
-		ulint			doc_len = 0;
-		ulint			num_field;
-		const dict_field_t*	ifield;
-		const dict_col_t*	col;
-		ulint			clust_pos;
-		ulint			i;
-		const rec_t*		clust_rec;
-		const rec_t*		rec;
-		ulint			processed_doc = 0;
+		ulint*		offsets = NULL;
+		ulint		i;
+		const rec_t*	clust_rec;
+		const rec_t*	rec;
+		btr_pcur_t*	doc_pcur;
+		btr_pcur_t	clust_pcur;
+		ulint		num_idx = ib_vector_size(cache->get_docs);
 
 		rec = btr_pcur_get_rec(&pcur);
 
@@ -3033,17 +3103,17 @@ fts_add_doc_by_id(
 		if (page_rec_is_infimum(rec)
 		    || rec_get_deleted_flag(
 			rec, dict_table_is_comp(table))) {
-			doc->found = FALSE;
 			goto func_exit;
 		}
 
 		if (is_id_cluster) {
 			clust_rec = rec;
+			doc_pcur = &pcur;
 		} else {
 			dtuple_t*	clust_ref;
 			ulint		n_fields;
-			btr_pcur_t	clust_pcur;
 
+			btr_pcur_init(&clust_pcur);
 			n_fields = dict_index_get_n_unique(clust_index);
 
 			clust_ref = dtuple_create(heap, n_fields);
@@ -3056,6 +3126,7 @@ fts_add_doc_by_id(
 				clust_index, clust_ref, PAGE_CUR_LE,
 				BTR_SEARCH_LEAF, &clust_pcur, 0, &mtr);
 
+			doc_pcur = &clust_pcur;
 			clust_rec = btr_pcur_get_rec(&clust_pcur);
 						   
 		}
@@ -3063,58 +3134,51 @@ fts_add_doc_by_id(
 		offsets = rec_get_offsets(clust_rec, clust_index,
 					  NULL, ULINT_UNDEFINED, &heap);
 
-		num_field = dict_index_get_n_fields(index);
+		 for (i = 0; i < num_idx; ++i) {
+			fts_get_doc_t*  get_doc;
+			fts_doc_t       doc;
+			dict_table_t*   table;
 
-		for (i = 0; i < num_field; i++) {
-			ifield = dict_index_get_nth_field(index, i);
-			col = dict_field_get_col(ifield);
-			clust_pos = dict_col_get_clust_pos(col, clust_index);
+			get_doc = ib_vector_get(cache->get_docs, i);
+			table = get_doc->index_cache->index->table;
 
-			if (!get_doc->index_cache->charset) {
-				ulint   prtype = ifield->col->prtype;
-				get_doc->index_cache->charset = innobase_get_fts_charset(
-					(int)(prtype & DATA_MYSQL_TYPE_MASK),
-					(uint)dtype_get_charset_coll(prtype));
+			fts_doc_init(&doc);
+
+			fts_fetch_doc_from_rec(
+				get_doc, clust_index, doc_pcur, offsets, &doc);
+
+			if (doc.found) {
+				ibool		success;
+				btr_pcur_store_position(doc_pcur, &mtr);
+				mtr_commit(&mtr);
+
+				rw_lock_x_lock(&table->fts->cache->lock);
+				fts_cache_add_doc(
+					table->fts->cache,
+					get_doc->index_cache,
+					doc_id, doc.tokens);
+				rw_lock_x_unlock(&table->fts->cache->lock);
+
+				mtr_start(&mtr);
+
+				if (i < num_idx - 1) {
+					success = btr_pcur_restore_position(
+						BTR_SEARCH_LEAF, doc_pcur,
+						&mtr);
+					ut_ad(success);
+				}
 			}
 
-			if (rec_offs_nth_extern(offsets, clust_pos)) {
-				doc->text.f_str =
-					btr_rec_copy_externally_stored_field(
-						clust_rec, offsets, 
-						dict_table_zip_size(table),
-						clust_pos, &doc->text.f_len,
-						doc->self_heap->arg);
-
-			} else {
-				doc->text.f_str = (byte*) rec_get_nth_field(
-					clust_rec, offsets, clust_pos,
-					&doc->text.f_len);
-			}
-
-			doc->found = TRUE;
-			doc->charset = get_doc->index_cache->charset;
-
-			/* Null Field */
-			if (doc->text.f_len == UNIV_SQL_NULL) {
-				continue;
-			}
-
-			if (processed_doc == 0) {
-				fts_tokenize_document(doc, NULL);
-			} else {
-				fts_tokenize_document_next(doc, doc_len, NULL);
-			}
-
-			processed_doc++;
-			doc_len += doc->text.f_len + 1;
+			fts_doc_free(&doc);
 		}
-	}
+        }
 func_exit:
 	mtr_commit(&mtr);
 
 	mem_heap_free(heap);
 	return(TRUE);
 }
+
 
 /*********************************************************************//**
 Callback function to read a single ulint column.
@@ -4155,66 +4219,6 @@ fts_tokenize_document_next(
 }
 
 /********************************************************************
-Add the document with the given id to the table's cache, and run
-SYNC if the cache grows too big. */
-static
-void
-fts_add_doc(
-/*========*/
-	fts_get_doc_t*	get_doc,		/*!< in: state */
-	doc_id_t	doc_id)			/*!< in: document id of document
-						to add */
-{
-	fts_doc_t	doc;
-	dict_table_t*	table = get_doc->index_cache->index->table;
-
-	fts_doc_init(&doc);
-
-	fts_add_doc_by_id(get_doc, doc_id, &doc);
-
-	if (doc.found) {
-		rw_lock_x_lock(&table->fts->cache->lock);
-		fts_cache_add_doc(
-			table->fts->cache,
-			get_doc->index_cache, doc_id, doc.tokens);
-		rw_lock_x_unlock(&table->fts->cache->lock);
-	}
-
-	fts_doc_free(&doc);
-}
-
-/********************************************************************
-Callback function for fetch that stores document ids from ADDED table to an
-ib_vector_t. */
-static
-ibool
-fts_fetch_store_doc_ids(
-/*====================*/
-						/* out: always returns
-						non-NULL */
-	void*	row,				/*!< in: sel_node_t* */
-	void*	user_arg)			/*!< in: pointer to ib_vector_t */
-{
-	sel_node_t*	node = row;
-	ib_vector_t*	vec = user_arg;	/* fts_update_t vector */
-
-	dfield_t*	dfield = que_node_get_val(node->select_list);
-	dtype_t*	type = dfield_get_type(dfield);
-	ulint		len = dfield_get_len(dfield);
-	void*		data = dfield_get_data(dfield);
-	fts_update_t*	update = ib_vector_push(vec, NULL);
-
-	ut_a(len == sizeof(doc_id_t));
-	ut_a(dtype_get_mtype(type) == DATA_INT);
-	ut_a(dtype_get_prtype(type) & DATA_UNSIGNED);
-
-	memset(update, 0x0, sizeof(*update));
-	update->doc_id = (doc_id_t) mach_read_from_8(data);
-
-	return(TRUE);
-}
-
-/********************************************************************
 Create the vector of fts_get_doc_t instances. */
 UNIV_INTERN
 ib_vector_t*
@@ -4281,100 +4285,6 @@ fts_get_docs_clear(
 	}
 }
 
-/********************************************************************//**
-Read the doc ids that are pending in the added table.
-@return DB_SUCCESS for OK else error code */
-static
-ulint
-fts_pending_read_doc_ids(
-/*=====================*/
-	fts_table_t*	fts_table,	/*!< in: aux table */
-	ibool		read_max,	/*!< in: if we just want to fetch the
-					max doc id value */
-	ib_vector_t*	doc_ids)	/*!< out: pending doc ids */
-{
-	que_t*		graph;
-	ibool		docs_read = FALSE;
-	ulint		error = DB_SUCCESS;
-	pars_info_t*	info = pars_info_create();
-	trx_t*		trx = trx_allocate_for_background();
-
-	trx->op_info = "fetching added document ids";
-
-	pars_info_bind_function(
-		info, "my_func", fts_fetch_store_doc_ids, doc_ids);
-
-	fts_table->suffix = "ADDED";
-
-	if (read_max) {
-		graph = fts_parse_sql(
-			fts_table,
-			info,
-			"DECLARE FUNCTION my_func;\n"
-			"DECLARE CURSOR c IS SELECT doc_id FROM %s"
-			" ORDER BY doc_id DESC;\n"
-			"BEGIN\n"
-			""
-			"OPEN c;\n"
-			"WHILE 1 = 1 LOOP\n"
-			"  FETCH c INTO my_func();\n"
-			"  IF c % NOTFOUND THEN\n"
-			"    EXIT;\n"
-			"  END IF;\n"
-			"END LOOP;\n"
-			"CLOSE c;");
-	} else {
-		graph = fts_parse_sql(
-			fts_table,
-			info,
-			"DECLARE FUNCTION my_func;\n"
-			"DECLARE CURSOR c IS SELECT doc_id FROM %s"
-			" ORDER BY doc_id;\n"
-			"BEGIN\n"
-			""
-			"OPEN c;\n"
-			"WHILE 1 = 1 LOOP\n"
-			"  FETCH c INTO my_func();\n"
-			"  IF c % NOTFOUND THEN\n"
-			"    EXIT;\n"
-			"  END IF;\n"
-			"END LOOP;\n"
-			"CLOSE c;");
-	}
-
-	while (!docs_read) {
-		error = fts_eval_sql(trx, graph);
-
-		if (error == DB_SUCCESS) {
-			fts_sql_commit(trx);
-			docs_read = TRUE;		/* Exit the loop. */
-		} else {
-			fts_sql_rollback(trx);
-
-			ut_print_timestamp(stderr);
-
-			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
-					"timeout reading added doc ids. "
-					"Retrying!\n");
-
-				trx->error_state = DB_SUCCESS;
-			} else {
-				fprintf(stderr, "  InnoDB: Error: (%lu) "
-					"while reading added doc ids.\n",
-					error);
-				break;
-			}
-		}
-	}
-
-	fts_que_graph_free(graph);
-
-	trx_free_for_background(trx);
-
-	return(error);
-}
-
 /*********************************************************************//**
 Get the initial Doc ID by consulting the ADDED and the CONFIG table
 @return initial Doc ID */
@@ -4427,6 +4337,8 @@ fts_init_doc_id(
 
 	return(max_doc_id);
 }
+
+#ifdef FTS_MULT_INDEX
 /*********************************************************************//**
 Check if the index is in the affected set.
 @return TRUE if index is updated */
@@ -4455,175 +4367,7 @@ fts_is_index_updated(
 
 	return(FALSE);
 }
-
-/*********************************************************************//**
-Add the doc ids to the cache. */
-static
-void
-fts_cache_add_doc_ids(
-/*==================*/
-	fts_sync_t*	sync,		/*!< in: sync state */
-	fts_get_doc_t*	get_doc,	/*!< in: info for reading document */
-	const ib_vector_t*
-			doc_ids)	/*!< in: doc ids to add, they must
-					be sorted in ASC order */
-{
-	ulint		i;
-	dict_table_t*	table = sync->table;
-	fts_cache_t*	cache = table->fts->cache;
-
-	ut_a(sync->lower_index < sync->upper_index);
-
-	/* Process the doc ids that were added, add them to the cache,
-	until we detect that the cache is full. */
-	for (i = sync->lower_index; i < sync->upper_index; ++i) {
-		const fts_update_t*	update;
-
-		update = ib_vector_get_const(doc_ids, i);
-
-		//printf("ADDING doc id: %lu\n", (ulint) update->doc_id);
-
-		/* Add the document id only if we don't know which FTS
-		indexes were affected or the current index matches one
-		of the fts_indexes. */
-		if (update->fts_indexes == NULL
-		    || fts_is_index_updated(update->fts_indexes, get_doc)) {
-
-			fts_add_doc(get_doc, update->doc_id);
-
-			/* Free the memory that is no longer required. This
-			vector is not allocated on the heap and so must
-			be freed explicitly. */
-			if (update->fts_indexes != NULL) {
-				ib_vector_free(update->fts_indexes);
-			}
-		}
-
-		/* If the cache is full then note we have to SYNC to disk. */
-		if (cache->total_size > sync->max_cache_size) {
-
-			if (sync->max_doc_id == 0) {
-				sync->cache_full = TRUE;
-				sync->max_doc_id = update->doc_id;
-				sync->upper_index = i + 1;
-			} else {
-				ut_a(sync->cache_full == TRUE);
-			}
-		}
-	}
-}
-
-/*********************************************************************//**
-Add the doc ids to the cache for all the FTS indexes on a table,
-when the cache is full then write cache contents to disk.
-@return DB_SUCCESS if all OK */
-static
-ulint
-fts_sync_doc_ids(
-/*=============*/
-	fts_sync_t*		sync,		/*!< in: the sync state */
-	const ib_vector_t*	doc_ids)	/*!< in: the doc ids to add */
-{
-	ulint		error = DB_SUCCESS;
-	fts_cache_t*	cache = sync->table->fts->cache;
-
-	ut_a(ib_vector_size(doc_ids) > 0);
-
-	/* Setup the SYNC state, we will attempt to add all
-	the doc ids in the vector. */
-	sync->max_doc_id  = 0;
-	sync->interrupted = FALSE;
-	sync->lower_index = 0;
-	sync->upper_index = ib_vector_size(doc_ids);
-
-	/* We need the lower bound of the doc ids that we are
-	adding to the cache. */
-	if (sync->min_doc_id == 0) {
-
-		sync->min_doc_id  = *(doc_id_t*) ib_vector_get_const(
-			doc_ids, sync->lower_index);
-	}
-
-	/* As long as there are no database errors and we are not
-	interrupted while adding the doc ids to the cache. When the
-	cache fills up, sync the cache contents to disk. */
-	while (sync->lower_index < sync->upper_index) {
-
-		ulint		i;
-
-		// FIXME: For the case of FTS_MODIFY we need to update
-		// only the updated indexes.
-
-		/* Parse and add the resultant data to our FTS cache. */
-		for (i = 0; i < ib_vector_size(cache->get_docs); ++i) {
-
-			fts_get_doc_t*	get_doc;
-
-			get_doc = ib_vector_get(cache->get_docs, i);
-
-			/* Add the doc ids that are in the ADDED table
-			but weren't processed to the cache. */
-			fts_cache_add_doc_ids(sync, get_doc, doc_ids);
-		}
-
-		ut_a(!sync->interrupted);
-
-		/* Received a shutdown signal or all the documents fit
-		in the cache. */
-		if (!sync->cache_full) {
-
-			/* Note that all doc ids have been processed. */
-			sync->lower_index = sync->upper_index;
-
-			sync->max_doc_id =
-				*(doc_id_t*) ib_vector_last_const(doc_ids);
-
-			/* FIXME: Still requires synchronizing word info to
-			disk at this stage.
-			error = fts_sync(sync); */
-			break;
-		}
-
-		/* These must hold! */
-		ut_a(sync->min_doc_id > 0);
-		ut_a(sync->min_doc_id <= sync->max_doc_id);
-		ut_a(sync->upper_index <= ib_vector_size(doc_ids));
-
-		/* SYNC the contents of the cache to disk. */
-		error = fts_sync(sync);
-
-		/* Problem SYNCing or we received a shutdown signal. */
-		if (sync->interrupted || error != DB_SUCCESS) {
-
-			break;
-		}
-
-		ut_a(cache->total_size == 0);
-
-		/* SYNC'ed the cache to disk now do any remaining doc ids
-		that were missed because the cache filled up. */
-
-		sync->min_doc_id  = 0;
-		sync->max_doc_id  = 0;
-		sync->cache_full  = FALSE;
-		sync->lower_index = sync->upper_index;
-		sync->upper_index = ib_vector_size(doc_ids);
-
-		if (sync->lower_index < sync->upper_index) {
-
-			sync->min_doc_id = *(doc_id_t*) ib_vector_get_const(
-				doc_ids, sync->lower_index);
-		}
-	}
-
-	/* If all went well then this must hold. */
-	if (error == DB_SUCCESS && !sync->interrupted) {
-
-		ut_a(sync->lower_index == ib_vector_size(doc_ids));
-	}
-
-	return(error);
-}
+#endif
 
 /*********************************************************************//**
 Fetch COUNT(*) from specified table.
@@ -4701,91 +4445,7 @@ fts_get_rows_count(
 	return(count);
 }
 
-/*********************************************************************//**
-Read and sync the pending doc ids in the FTS auxiliary ADDED table.
-@return DB_SUCCESS if all OK */
-static
-ulint
-fts_load_from_added(
-/*================*/
-	fts_sync_t*	sync)			/*!< in: sync state */
-{
-	ulint		error;
-	ib_vector_t*	doc_ids;
-	fts_table_t	fts_table;
-	ib_alloc_t*	heap_alloc;
-	mem_heap_t*	heap = mem_heap_create(1024);
-
-	heap_alloc = ib_heap_allocator_create(heap);
-
-	/* For collecting doc ids read from ADDED table. */
-	doc_ids = ib_vector_create(heap_alloc, sizeof(fts_update_t), 256);
-
-	/* Read the doc ids that have not been parsed and added to our
-	internal auxiliary ADDED table. */
-
-	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, sync->table);
-
-	/* Since we will be creating a transaction, we piggy back reading
-	of the config value, max_cache_size. */
-	error = fts_pending_read_doc_ids(&fts_table, FALSE, doc_ids);
-
-	/* Set the state of the FTS subsystem for this table to READY. */
-	if (error == DB_SUCCESS) {
-		fts_t*	fts = sync->table->fts;
-
-		mutex_enter(&fts->bg_threads_mutex);
-		fts->fts_status |= BG_THREAD_READY;
-		mutex_exit(&fts->bg_threads_mutex);
-	}
-
-	/* SYNC the pending doc ids to disk */
-	if (error == DB_SUCCESS && ib_vector_size(doc_ids) > 0) {
-
-		ulint		count;
-		fts_cache_t*	cache = sync->table->fts->cache;
-
-		fts_table.suffix = "DELETED";
-		count = fts_get_rows_count(&fts_table);
-
-		/* Read the information that we will use to trigger
-		optimizations of this table. */
-		mutex_enter(&cache->deleted_lock);
-		cache->added += ib_vector_size(doc_ids);
-		cache->deleted += count;
-		mutex_exit(&cache->deleted_lock);
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Added %lu deleted %lu doc ids\n",
-			cache->added, cache->deleted);
-
-		rw_lock_x_lock(&cache->lock);
-
-		if (cache->get_docs == NULL) {
-
-			/* We need one instance of fts_get_doc_t
-			per index. */
-			cache->get_docs = fts_get_docs_create(cache);
-		}
-
-		rw_lock_x_unlock(&cache->lock);
-
-		error = fts_sync_doc_ids(sync, doc_ids);
-
-		/* Force any trailing data in the cache to disk. */
-		if (error == DB_SUCCESS && !sync->interrupted) {
-
-			error = fts_sync(sync);
-		}
-
-		fts_get_docs_clear(cache->get_docs);
-	}
-
-	mem_heap_free(heap);
-
-	return(error);
-}
-
+#ifdef FTS_CACHE_SIZE_DEBUG
 /*********************************************************************//**
 Read the max cache size parameter from the config table. */
 static
@@ -4808,129 +4468,7 @@ fts_update_max_cache_size(
 
 	trx_free_for_background(trx);
 }
-
-/*********************************************************************//**
-Process the doc ids as they arrive via our queue, add the doc ids to
-the FTS cache and SYNC when the cache gets full. */
-static
-void
-fts_process_doc_ids(
-/*=================*/
-	fts_sync_t*	sync)			/*!< in: sync state */
-{
-	ulint		error = DB_SUCCESS;
-	dict_table_t*	table = sync->table;
-	fts_cache_t*	cache = table->fts->cache;
-
-	/* Init the SYNC state */
-	sync->min_doc_id  = 0;
-	sync->max_doc_id  = 0;
-	sync->lower_index = 0;
-	sync->upper_index = 0;
-	sync->interrupted = FALSE;
-
-	/* Process the doc ids as they are added. */
-	while (error == DB_SUCCESS) {
-		fts_doc_ids_t*	doc_ids_queued;
-		fts_t*		fts = table->fts;
-
-		doc_ids_queued = ib_wqueue_wait(fts->add_wq);
-
-		if (fts_is_stop_signalled(fts)) {
-
-			fts_doc_ids_free(doc_ids_queued);
-
-			sync->interrupted = TRUE;
-
-			break;
-		}
-
-		/* Only check and update the cache size at the
-		start of the sync cycle. */
-		if (cache->total_size == 0) {
-
-			fts_update_max_cache_size(sync);
-		}
-
-		ut_a(sync->max_cache_size > 0);
-
-		error = fts_sync_doc_ids(sync, doc_ids_queued->doc_ids);
-
-		/* Free the doc ids that were just added to the cache. */
-		fts_doc_ids_free(doc_ids_queued);
-	}
-}
-
-/*********************************************************************//**
-Start function for the background 'Add' threads.
-@return a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-fts_add_thread(
-/*===========*/
-	void*		arg)			/*!< in: dict_table_t* */
-{
-	fts_sync_t	sync;
-	ulint		error;
-	dict_table_t*	table = arg;
-
-	memset(&sync, 0x0, sizeof(sync));
-
-	/* The table that this thread is responsible for. */
-	sync.table = table;
-
-	fts_update_max_cache_size(&sync);
-
-	/* Register the table with the optimize thread. */
-	fts_optimize_add_table(table);
-
-	/* Read and sync the pending doc ids. */
-	error = fts_load_from_added(&sync);
-
-	if (error == DB_SUCCESS) {
-		fts_cache_t*	cache = sync.table->fts->cache;
-
-		rw_lock_x_lock(&cache->lock);
-
-		if (cache->get_docs == NULL) {
-			cache->get_docs = fts_get_docs_create(cache);
-		}
-
-		/* Load the stopword if it has not been loaded */
-		if (cache->stopword_info.status & STOPWORD_NOT_INIT) {
-			fts_load_stopword(table, NULL, NULL, NULL, TRUE, TRUE);
-		}
-
-		rw_lock_x_unlock(&cache->lock);
-
-		/* Process doc ids as they arrive. */
-		fts_process_doc_ids(&sync);
-
-		fts_get_docs_clear(cache->get_docs);
-	}
-
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: FTS Add thread deregister %s\n",
-		table->name);
-
-	/* Inform the optimize thread that it should stop
-	OPTIMIZING this table and remove it from its list. */
-	fts_optimize_remove_table(table);
-
-	mutex_enter(&table->fts->bg_threads_mutex);
-	--table->fts->bg_threads;
-	mutex_exit(&table->fts->bg_threads_mutex);
-
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: FTS Add thread for %s exiting\n",
-		table->name);
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-	os_thread_exit(NULL);
-
-	OS_THREAD_DUMMY_RETURN;
-}
+#endif
 
 /*********************************************************************//**
 Free the modified rows of a table. */
@@ -6518,6 +6056,8 @@ fts_init_index(
 	}
 
 	table->fts->fts_status |= ADDED_TABLE_SYNCED;
+
+	fts_get_docs_clear(cache->get_docs);
 
 func_exit:
 	if (!has_cache_lock) {

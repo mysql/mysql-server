@@ -924,32 +924,6 @@ dict_table_open_on_name(
 		dict_stats_update(table,
 				  DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY,
 				  dict_locked);
-
-		if (!table->ibd_file_missing
-		    && dict_table_has_fts_index(table)) {
-			/* Create background thread for FTS table. */
-			/* FIXME: Background Add Queue will be
-			disabled. It will become a generic
-			server level fts purge thread rather
-			than per table */
-			/*
-			fts_t*  fts = table->fts;
-			if (fts && !(fts->fts_status & ADD_THREAD_STARTED)) {
-
-				mutex_enter(&fts->bg_threads_mutex);
-
-				ut_a(!fts->add_wq);
-
-				fts->add_wq = ib_wqueue_create();
-
-				++fts->bg_threads;
-				os_thread_create(fts_add_thread, table, NULL);
-
-				fts->fts_status |= ADD_THREAD_STARTED;
-
-				mutex_exit(&fts->bg_threads_mutex);
-			} */
-		}
 	}
 
 	return(table);

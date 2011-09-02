@@ -347,14 +347,6 @@ fts_query_free_result(
 /*==================*/
 	fts_result_t*	result);	/* in: result instance to free.*/
 /********************************************************************
-Start function for the background 'Add' threads. */
-
-os_thread_ret_t
-fts_add_thread(
-/*===========*/
-					/* out: a dummy parameter */
-	void*		arg);		/* in: dict_table_t* */
-/********************************************************************
 Extract the doc id from the FTS hidden column. */
 
 doc_id_t
