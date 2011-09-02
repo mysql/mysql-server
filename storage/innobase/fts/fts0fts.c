@@ -41,17 +41,17 @@ Created 2011/09/02 Sunny Bains.
 
 #define FTS_MAX_ID_LEN	32
 
-/* Column name from the FTS config table */
+/** Column name from the FTS config table */
 #define FTS_MAX_CACHE_SIZE_IN_MB	"cache_size_in_mb"
 
-/* This is maximum FTS cache for each table and would be
+/** This is maximum FTS cache for each table and would be
 a configurable variable */
 UNIV_INTERN ulong	fts_max_cache_size;
 
-/* Variable specifying the maximum FTS max token size */
+/** Variable specifying the maximum FTS max token size */
 UNIV_INTERN ulong	fts_max_token_size;
 
-/* Variable specifying the minimum FTS max token size */
+/** Variable specifying the minimum FTS max token size */
 UNIV_INTERN ulong	fts_min_token_size;
 
 
@@ -62,16 +62,16 @@ ulint n_nodes = 0;
 typedef struct fts_schema_struct fts_schema_t;
 typedef struct fts_sys_table_struct fts_sys_table_t;
 
-/* Error condition reported by fts_utf8_decode() */
+/** Error condition reported by fts_utf8_decode() */
 const ulint UTF8_ERROR = 0xFFFFFFFF;
 
-/* The cache size permissible lower limit (1K) */
+/** The cache size permissible lower limit (1K) */
 static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
 
-/* The cache size permissible upper limit (1G) */
+/** The cache size permissible upper limit (1G) */
 static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
 
-/* Time to sleep after DEADLOCK error before retrying operation. */
+/** Time to sleep after DEADLOCK error before retrying operation. */
 static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
 
 #ifdef UNIV_PFS_RWLOCK
@@ -90,7 +90,7 @@ UNIV_INTERN mysql_pfs_key_t	fts_doc_id_mutex_key;
 schema table INNODB_FTS_INSERTED etc. */
 UNIV_INTERN char* fts_internal_tbl_name		= NULL;
 
-/* InnoDB default stopword list:
+/** InnoDB default stopword list:
 There are different versions of stopwords, the stop words listed
 below comes from "Google Stopword" list. Reference:
 http://meta.wikimedia.org/wiki/Stop_word_list/google_stop_word_list.
@@ -137,15 +137,15 @@ const char *fts_default_stopword[] =
 	NULL
 };
 
-/* For storing table info when checking for orphaned tables. */
+/** For storing table info when checking for orphaned tables. */
 struct fts_sys_table_struct {
-	table_id_t	id;		/* Table id */
-	table_id_t	parent_id;	/* Parent table id */
-	table_id_t	index_id;	/* Table FT index id */
-	char*		name;		/* Name of the table */
+	table_id_t	id;		/*!< Table id */
+	table_id_t	parent_id;	/*!< Parent table id */
+	table_id_t	index_id;	/*!< Table FT index id */
+	char*		name;		/*!< Name of the table */
 };
 
-/* SQL statements for creating the ancillary common FTS tables. */
+/** SQL statements for creating the ancillary common FTS tables. */
 static const char* fts_create_common_tables_sql = {
 	"BEGIN\n"
 	""
@@ -189,7 +189,7 @@ static const char* fts_create_common_tables_sql = {
 	"CREATE UNIQUE CLUSTERED INDEX IND ON %s_STOPWORDS(word);\n",
 };
 
-/* Template for creating the FTS auxiliary index specific tables. */
+/** Template for creating the FTS auxiliary index specific tables. */
 static const char* fts_create_index_tables_sql = {
 	"BEGIN\n"
 	""
@@ -200,7 +200,7 @@ static const char* fts_create_index_tables_sql = {
 	"CREATE UNIQUE CLUSTERED INDEX IND ON %s_DOC_ID(doc_id);\n"
 };
 
-/* Template for creating the ancillary FTS tables word index tables. */
+/** Template for creating the ancillary FTS tables word index tables. */
 static const char* fts_create_index_sql = {
 	"BEGIN\n"
 	""
@@ -208,7 +208,7 @@ static const char* fts_create_index_sql = {
 		"ON %s(word, first_doc_id);\n"
 };
 
-/* FTS auxiliary table suffixes that are common to all FT indexes. */
+/** FTS auxiliary table suffixes that are common to all FT indexes. */
 static const char* fts_common_tables[] = {
 	"ADDED",
 	"BEING_DELETED",
@@ -220,7 +220,7 @@ static const char* fts_common_tables[] = {
 	NULL
 };
 
-/* FTS auxiliary INDEX split intervals. */
+/** FTS auxiliary INDEX split intervals. */
 const  fts_index_selector_t fts_index_selector[] = {
 	{ 9, "INDEX_1" },
 	{ 65, "INDEX_2" },
@@ -231,7 +231,7 @@ const  fts_index_selector_t fts_index_selector[] = {
 	{  0 , NULL	 }
 };
 
-/* Default config values for FTS indexes on a table. */
+/** Default config values for FTS indexes on a table. */
 static const char* fts_config_table_insert_values_sql =
 	"BEGIN\n"
 	"\n"
@@ -1216,6 +1216,7 @@ fts_drop_common_tables(
 Since we do a horizontal split on the index table, we need to drop the
 all the split tables.
 @return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_drop_index_split_tables(
 /*========================*/

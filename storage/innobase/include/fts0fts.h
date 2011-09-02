@@ -49,41 +49,41 @@ Created 2011/09/02 Sunny Bains
 #include "que0types.h"
 #include "ft_global.h"
 
-/* FTS hidden column that is used to map to and from the row */
+/** FTS hidden column that is used to map to and from the row */
 #define FTS_DOC_ID_COL_NAME		"FTS_DOC_ID"
 
-/* The name of the index created by FTS */
+/** The name of the index created by FTS */
 #define FTS_DOC_ID_INDEX_NAME		"FTS_DOC_ID_INDEX"
 
 #define FTS_DOC_ID_INDEX_NAME_LEN	16
 
-/* Doc ID is a 8 byte value */
+/** Doc ID is a 8 byte value */
 #define FTS_DOC_ID_LEN			8
 
-/* The number of fields to sort when we build FT index with
+/** The number of fields to sort when we build FT index with
 FIC. Three fields are sort: (word, doc_id, position) */
 #define FTS_NUM_FIELDS_SORT		3
 
-/* Maximum number of rows in a table, smaller than which, we will
+/** Maximum number of rows in a table, smaller than which, we will
 optimize using a 4 byte Doc ID for FIC merge sort to reduce sort size */
 #define MAX_DOC_ID_OPT_VAL		1073741824
 
-/* Document id type. */
+/** Document id type. */
 typedef ib_uint64_t doc_id_t;
 
-/* doc_id_t printf format */
+/** doc_id_t printf format */
 #define FTS_DOC_ID_FORMAT	"%llu"
 
-/* Convert document id to the InnoDB (BIG ENDIAN) storage format. */
+/** Convert document id to the InnoDB (BIG ENDIAN) storage format. */
 #define fts_write_doc_id(d, s)	mach_write_to_8(d, s)
 
-/* Read a document id to internal format. */
+/** Read a document id to internal format. */
 #define fts_read_doc_id(s)	mach_read_from_8(s)
 
-/* Bind the doc id to a variable */
+/** Bind the doc id to a variable */
 #define fts_bind_doc_id(i, n, v) pars_info_bind_int8_literal(i, n, v)
 
-/* Defines for FTS query mode, they have the same values as
+/** Defines for FTS query mode, they have the same values as
 those defined in mysql file ft_global.h */
 #define FTS_NL		0
 #define FTS_BOOL	1
@@ -94,24 +94,24 @@ those defined in mysql file ft_global.h */
 
 #define FTS_INDEX_TABLE_IND_NAME	"FTS_INDEX_TABLE_IND"
 
-/* Threshold where our optimize thread automatically kicks in */
+/** Threshold where our optimize thread automatically kicks in */
 #define FTS_OPTIMIZE_THRESHOLD		10000000
 
-/* Variable specifying the FTS parallel sort degree */
+/** Variable specifying the FTS parallel sort degree */
 extern ulong		fts_sort_pll_degree;
 
-/* Variable specifying the number of word to optimize for each optimize table
+/** Variable specifying the number of word to optimize for each optimize table
 call */
 extern ulong		fts_num_word_optimize;
 
-/* Variable specifying whether we do additional FTS diagnostic printout
+/** Variable specifying whether we do additional FTS diagnostic printout
 in the log */
 extern char		fts_enable_diag_print;
 
-/* FTS rank type, which will be between 0 .. 1 inclusive */
+/** FTS rank type, which will be between 0 .. 1 inclusive */
 typedef float fts_rank_t;
 
-/* Type of a row during a transaction. FTS_NOTHING means the row can be
+/** Type of a row during a transaction. FTS_NOTHING means the row can be
 forgotten from the FTS system's POV, FTS_INVALID is an internal value used
 to mark invalid states.
 
@@ -125,12 +125,13 @@ typedef enum {
 	FTS_INVALID
 } fts_row_state;
 
-/* The FTS table types. */
+/** The FTS table types. */
 enum fts_table_type_enum {
-	FTS_INDEX_TABLE,		/* FTS auxiliary table that is specific
-					to a particular FTS index on a table */
+	FTS_INDEX_TABLE,		/*!< FTS auxiliary table that is
+					specific to a particular FTS index
+					on a table */
 
-	FTS_COMMON_TABLE		/* FTS auxiliary table that is common
+	FTS_COMMON_TABLE		/*!< FTS auxiliary table that is common
 					for all FTS index on a table */
 };
 
