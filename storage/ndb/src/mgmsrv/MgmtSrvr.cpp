@@ -760,7 +760,7 @@ MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
 
   if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_NDB)
   {
-    error.assfmt("Node %d is not an NDB node. ", nodeId);
+    error.assfmt("Node %d is not a data node. ", nodeId);
     DBUG_RETURN(false);
   }
 

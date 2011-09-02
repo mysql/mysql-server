@@ -4093,11 +4093,37 @@ count_key_columns(const KEY *key_info, const key_range *key)
 }
 
 /* Helper method to compute NDB index bounds. Note: does not set range_no. */
+/* Stats queries may differ so add "from" 0:normal 1:RIR 2:RPK. */
 void
 compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
                      const KEY *key_info,
-                     const key_range *start_key, const key_range *end_key)
+                     const key_range *start_key, const key_range *end_key,
+                     int from)
 {
+  DBUG_ENTER("ha_ndbcluster::compute_index_bounds");
+  DBUG_PRINT("info", ("from: %d", from));
+
+#ifndef DBUG_OFF
+  DBUG_PRINT("info", ("key parts: %u length: %u",
+                      key_info->key_parts, key_info->key_length));
+  {
+    for (uint j= 0; j <= 1; j++)
+    {
+      const key_range* kr= (j == 0 ? start_key : end_key);
+      if (kr)
+      {
+        DBUG_PRINT("info", ("key range %u: length: %u map: %lx flag: %d",
+                          j, kr->length, kr->keypart_map, kr->flag));
+        DBUG_DUMP("key", kr->key, kr->length);
+      }
+      else
+      {
+        DBUG_PRINT("info", ("key range %u: none", j));
+      }
+    }
+  }
+#endif
+
   if (start_key)
   {
     bound.low_key= (const char*)start_key->key;
@@ -4112,9 +4138,11 @@ compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
     bound.low_key_count= 0;
   }
 
+  /* RIR query for x >= 1 inexplicably passes HA_READ_KEY_EXACT. */
   if (start_key &&
       (start_key->flag == HA_READ_KEY_EXACT ||
-       start_key->flag == HA_READ_PREFIX_LAST))
+       start_key->flag == HA_READ_PREFIX_LAST) &&
+      from != 1)
   {
     bound.high_key= bound.low_key;
     bound.high_key_count= bound.low_key_count;
@@ -4144,11 +4172,14 @@ compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
     bound.high_key= NULL;
     bound.high_key_count= 0;
   }
-  DBUG_PRINT("info", ("start_flag=0x%x end_flag=0x%x"
+  DBUG_PRINT("info", ("start_flag=%d end_flag=%d"
                       " lo_keys=%d lo_incl=%d hi_keys=%d hi_incl=%d",
                       start_key?start_key->flag:0, end_key?end_key->flag:0,
-                      bound.low_key_count, bound.low_inclusive,
-                      bound.high_key_count, bound.high_inclusive));
+                      bound.low_key_count,
+                      bound.low_key_count?bound.low_inclusive:0,
+                      bound.high_key_count,
+                      bound.high_key_count?bound.high_inclusive:0));
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -4198,7 +4229,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
                          (descending?
                           end_key : start_key),
                          (descending?
-                          start_key : end_key));
+                          start_key : end_key),
+                         0);
     bound.range_no = 0;
     pbound = &bound;
   }
@@ -12398,7 +12430,8 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
         compute_index_bounds(ib,
                              key_info,
                              min_key, 
-                             max_key);
+                             max_key,
+                             0);
 
         ib.range_no= 0;
 
@@ -14058,7 +14091,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
       /* Include this range in the ordered index scan. */
       NdbIndexScanOperation::IndexBound bound;
-      compute_index_bounds(bound, key_info, &r->start_key, &r->end_key);
+      compute_index_bounds(bound, key_info, &r->start_key, &r->end_key, 0);
       bound.range_no= i;
 
       const NdbRecord *key_rec= m_index[active_index].ndb_record_key;
