@@ -650,7 +650,8 @@ private:
   int ndb_index_stat_query(uint inx,
                            const key_range *min_key,
                            const key_range *max_key,
-                           NdbIndexStat::Stat& stat);
+                           NdbIndexStat::Stat& stat,
+                           int from);
   int ndb_index_stat_get_rir(uint inx,
                              key_range *min_key,
                              key_range *max_key,
