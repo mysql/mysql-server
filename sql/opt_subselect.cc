@@ -4479,20 +4479,6 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     if (outer_join && outer_join->table_count > 0)
     {
       /*
-        The index of the last JOIN_TAB in the outer JOIN where in_subs is
-        attached (pushed to).
-      */
-      uint max_outer_join_tab_idx;
-      /*
-        Make_cond_for_table is called for predicates only in the WHERE/ON
-        clauses. In all other cases, predicates are not pushed to any
-        JOIN_TAB, and their join_tab_idx remains MAX_TABLES. Such predicates
-        are evaluated for each complete row of the outer join.
-      */
-      max_outer_join_tab_idx= (in_subs->get_join_tab_idx() == MAX_TABLES) ?
-                               outer_join->table_count - 1:
-                               in_subs->get_join_tab_idx();
-      /*
         TODO:
         Currently outer_lookup_keys is computed as the number of rows in
         the partial join including the JOIN_TAB where the IN predicate is
@@ -4504,7 +4490,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
         If the join order: t1, t2, the number of unique lookup keys is ~ to
         the number of unique values t2.c2 in the partial join t1 join t2.
       */
-      outer_join->get_partial_cost_and_fanout(max_outer_join_tab_idx,
+      outer_join->get_partial_cost_and_fanout(in_subs->get_join_tab_idx(),
                                               table_map(-1),
                                               &dummy,
                                               &outer_lookup_keys);
