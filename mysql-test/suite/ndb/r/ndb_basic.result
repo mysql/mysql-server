@@ -567,7 +567,7 @@ create table t1 ( c50 char(255), c49 char(255), c48 char(255), c47 char(255), c4
 ERROR HY000: Can't create table 'test.t1' (errno: 851)
 show warnings;
 Level	Code	Message
-Error	1296	Got error 851 'Maximum 8052 bytes of FIXED column supported' from NDB
+Error	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNMIC instead' from NDB
 Error	1005	Can't create table 'test.t1' (errno: 851)
 create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
 ERROR HY000: Field in list of fields for partition function not found in table
