@@ -1113,7 +1113,7 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     CKERR(r);
 
     r = toku_bnc_insert_msg(BNC(&sn, 0), "a", 2, "aval", 5, BRT_NONE, next_dummymsn(), xids_0, true, NULL, string_key_cmp); assert_zero(r);
-    r = toku_bnc_insert_msg(BNC(&sn, 0), "b", 2, "bval", 5, BRT_NONE, next_dummymsn(), xids_123, true, NULL, string_key_cmp); assert_zero(r);
+    r = toku_bnc_insert_msg(BNC(&sn, 0), "b", 2, "bval", 5, BRT_NONE, next_dummymsn(), xids_123, false, NULL, string_key_cmp); assert_zero(r);
     r = toku_bnc_insert_msg(BNC(&sn, 1), "x", 2, "xval", 5, BRT_NONE, next_dummymsn(), xids_234, true, NULL, string_key_cmp); assert_zero(r);
     BNC(&sn, 0)->n_bytes_in_buffer = 2*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_0) + xids_get_serialize_size(xids_123);
     BNC(&sn, 1)->n_bytes_in_buffer = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5) + xids_get_serialize_size(xids_234);
@@ -1194,7 +1194,7 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     assert(strcmp(dest_key, "a") == 0);
     assert(strcmp(src_val, "aval") == 0);
     assert(strcmp(dest_val, "aval") == 0);
-    assert(dest_is_fresh);
+    assert(src_is_fresh == dest_is_fresh);
     r = toku_fifo_deq(src_fifo_1);
     assert(r==0);
     r = toku_fifo_deq(dest_fifo_1);
@@ -1213,7 +1213,7 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     assert(strcmp(dest_key, "b") == 0);
     assert(strcmp(src_val, "bval") == 0);
     assert(strcmp(dest_val, "bval") == 0);
-    assert(dest_is_fresh);
+    assert(src_is_fresh == dest_is_fresh);
     r = toku_fifo_deq(src_fifo_1);
     assert(r==0);
     r = toku_fifo_deq(dest_fifo_1);
@@ -1237,7 +1237,7 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     assert(strcmp(dest_key, "x") == 0);
     assert(strcmp(src_val, "xval") == 0);
     assert(strcmp(dest_val, "xval") == 0);
-    assert(dest_is_fresh);
+    assert(src_is_fresh == dest_is_fresh);
     r = toku_fifo_deq(src_fifo_2);
     assert(r==0);
     r = toku_fifo_deq(dest_fifo_2);
