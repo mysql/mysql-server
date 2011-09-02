@@ -548,7 +548,7 @@ NdbIndexStat::convert_range(Range& range_f,
                             const NdbRecord* key_record,
                             const NdbIndexScanOperation::IndexBound* ib)
 {
-  DBUG_ENTER("NdbIndexStatImpl::convert_range");
+  DBUG_ENTER("NdbIndexStat::convert_range");
   Bound& bound1_f = range_f.m_bound1;
   Bound& bound2_f = range_f.m_bound2;
   NdbIndexStatImpl::Bound& bound1 =
@@ -625,7 +625,11 @@ NdbIndexStat::get_rir(const Stat& stat_f, double* rir)
     x = 1.0;
   require(rir != 0);
   *rir = x;
-  DBUG_PRINT("index_stat", ("rir:%.2f", *rir));
+#ifndef DBUG_OFF
+  char buf[100];
+  sprintf(buf, "%.2f", *rir);
+#endif
+  DBUG_PRINT("index_stat", ("rir:%s", buf));
   DBUG_VOID_RETURN;
 }
 
@@ -640,7 +644,11 @@ NdbIndexStat::get_rpk(const Stat& stat_f, Uint32 k, double* rpk)
     x = 1.0;
   require(rpk != 0);
   *rpk = x;
-  DBUG_PRINT("index_stat", ("rpk[%u]:%.2f", k, *rpk));
+#ifndef DBUG_OFF
+  char buf[100];
+  sprintf(buf, "%.2f", *rpk);
+#endif
+  DBUG_PRINT("index_stat", ("rpk[%u]:%s", k, buf));
   DBUG_VOID_RETURN;
 }
 
