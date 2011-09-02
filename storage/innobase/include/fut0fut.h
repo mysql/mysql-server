@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,40 +31,6 @@ Created 12/13/1995 Heikki Tuuri
 
 #include "fil0fil.h"
 #include "mtr0mtr.h"
-#include "dict0dict.h"
-
-typedef struct fts_stopword_struct	fts_stopword_t;
-
-/* status bits for fts_stopword_t status field. */
-#define STOPWORD_NOT_INIT               0x1
-#define STOPWORD_OFF                    0x2
-#define STOPWORD_FROM_DEFAULT           0x4
-#define STOPWORD_USER_TABLE             0x8
-
-extern const char*	fts_default_stopword[];
-
-/* Variable specifying the maximum FTS cache size for each table */
-extern ulong		fts_max_cache_size;
-
-/* Variable specifying the maximum FTS max token size */
-extern ulong		fts_max_token_size;
-
-/* Variable specifying the minimum FTS max token size */
-extern ulong		fts_min_token_size;
-
-/* Maximum possible Fulltext word length */
-#define FTS_MAX_WORD_LEN	3 * HA_FT_MAXCHARLEN
-
-/* Variable specifying the table that has Fulltext index to display its
-content through information schema table */
-extern char*		fts_internal_tbl_name;
-
-#define	fts_que_graph_free(graph)			\
-do {							\
-	mutex_enter(&dict_sys->mutex);			\
-	que_graph_free(graph);				\
-	mutex_exit(&dict_sys->mutex);			\
-} while (0)
 
 /********************************************************************//**
 Gets a pointer to a file address and latches the page.
@@ -80,77 +46,6 @@ fut_get_ptr(
 	fil_addr_t	addr,	/*!< in: file address */
 	ulint		rw_latch, /*!< in: RW_S_LATCH, RW_X_LATCH */
 	mtr_t*		mtr);	/*!< in: mtr handle */
-
-/******************************************************************//**
-Check whether user supplied stopword table exists and is of
-the right format.
-@return TRUE if the table qualifies */
-UNIV_INTERN
-ibool
-fts_valid_stopword_table(
-/*=====================*/
-	const char*	stopword_table_name);	/*!< in: Stopword table
-						name */
-/****************************************************************//**
-This function loads specified stopword into FTS cache
-@return TRUE if success */
-UNIV_INTERN
-ibool
-fts_load_stopword(
-/*==============*/
-	const dict_table_t*
-			table,			/*!< in: Table with FTS */
-	trx_t*		trx,			/*!< in: Transaction */
-	const char*	global_stopword_table,	/*!< in: Global stopword table
-						name */
-	const char*	session_stopword_table,	/*!< in: Session stopword table
-						name */
-	ibool		stopword_is_on,		/*!< in: Whether stopword
-						option is turned on/off */
-	ibool		reload);		/*!< in: Whether it is during
-						reload of FTS table */
-
-/****************************************************************//**
-Create the vector of fts_get_doc_t instances.
-@return vector of fts_get_doc_t instances */
-UNIV_INTERN
-ib_vector_t*
-fts_get_docs_create(
-/*================*/
-	fts_cache_t*	cache);			/*!< in: fts cache */
-/****************************************************************//**
-Add document to the cache. */
-UNIV_INTERN
-void
-fts_cache_add_doc(
-/*==============*/
-	fts_cache_t*    cache,			/*!< in: cache */
-	fts_index_cache_t*
-			index_cache,		/*!< in: index cache */
-	doc_id_t        doc_id,			/*!< in: doc id to add */
-	ib_rbt_t*       tokens);		/*!< in: document tokens */
-
-/****************************************************************//**
-Read the rows from the FTS index
-@return vector of rows fetched */
-UNIV_INTERN
-ulint
-fts_table_fetch_doc_ids(
-/*====================*/
-	trx_t*		trx,		/*!< in: transaction */
-	fts_table_t*	fts_table,	/*!< in: aux table */
-	fts_doc_ids_t*	doc_ids);	/*!< in: For collecting doc ids */
-/****************************************************************//**
-This function loads the documents in "ADDED" table into FTS cache,
-it also loads the stopword info into the FTS cache.
-@return DB_SUCCESS if all OK */
-UNIV_INTERN
-ibool
-fts_init_index(
-/*===========*/
-	dict_table_t*	table,		/*!< in: Table with FTS */
-	ibool		has_cache_lock);/*!< in: Whether we already have
-					cache lock */
 
 #ifndef UNIV_NONINL
 #include "fut0fut.ic"
