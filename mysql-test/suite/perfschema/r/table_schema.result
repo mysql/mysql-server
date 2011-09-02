@@ -410,16 +410,53 @@ def	performance_schema	file_instances	FILE_NAME	1	NULL	NO	varchar	512	1536	NULL	
 def	performance_schema	file_instances	EVENT_NAME	2	NULL	NO	varchar	128	384	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
 def	performance_schema	file_instances	OPEN_COUNT	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			select,insert,update,references	
 def	performance_schema	file_summary_by_event_name	EVENT_NAME	1	NULL	NO	varchar	128	384	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
-def	performance_schema	file_summary_by_event_name	COUNT_READ	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	file_summary_by_event_name	COUNT_WRITE	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	file_summary_by_event_name	SUM_NUMBER_OF_BYTES_READ	4	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
-def	performance_schema	file_summary_by_event_name	SUM_NUMBER_OF_BYTES_WRITE	5	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	COUNT_STAR	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	SUM_TIMER_WAIT	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	MIN_TIMER_WAIT	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	AVG_TIMER_WAIT	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	MAX_TIMER_WAIT	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	COUNT_READ	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	SUM_TIMER_READ	8	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	MIN_TIMER_READ	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	AVG_TIMER_READ	10	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	MAX_TIMER_READ	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	SUM_NUMBER_OF_BYTES_READ	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	COUNT_WRITE	13	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	SUM_TIMER_WRITE	14	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	MIN_TIMER_WRITE	15	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	AVG_TIMER_WRITE	16	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	MAX_TIMER_WRITE	17	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	SUM_NUMBER_OF_BYTES_WRITE	18	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	COUNT_MISC	19	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	SUM_TIMER_MISC	20	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	MIN_TIMER_MISC	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	AVG_TIMER_MISC	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_event_name	MAX_TIMER_MISC	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	file_summary_by_instance	FILE_NAME	1	NULL	NO	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references	
 def	performance_schema	file_summary_by_instance	EVENT_NAME	2	NULL	NO	varchar	128	384	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
-def	performance_schema	file_summary_by_instance	COUNT_READ	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	file_summary_by_instance	COUNT_WRITE	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	file_summary_by_instance	SUM_NUMBER_OF_BYTES_READ	5	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
-def	performance_schema	file_summary_by_instance	SUM_NUMBER_OF_BYTES_WRITE	6	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	OBJECT_INSTANCE_BEGIN	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	COUNT_STAR	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	SUM_TIMER_WAIT	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	MIN_TIMER_WAIT	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	AVG_TIMER_WAIT	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	MAX_TIMER_WAIT	8	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	COUNT_READ	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	SUM_TIMER_READ	10	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	MIN_TIMER_READ	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	AVG_TIMER_READ	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	MAX_TIMER_READ	13	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	SUM_NUMBER_OF_BYTES_READ	14	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	COUNT_WRITE	15	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	SUM_TIMER_WRITE	16	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	MIN_TIMER_WRITE	17	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	AVG_TIMER_WRITE	18	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	MAX_TIMER_WRITE	19	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	SUM_NUMBER_OF_BYTES_WRITE	20	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	COUNT_MISC	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	SUM_TIMER_MISC	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	MIN_TIMER_MISC	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	AVG_TIMER_MISC	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	file_summary_by_instance	MAX_TIMER_MISC	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	hosts	HOST	1	NULL	YES	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
 def	performance_schema	hosts	CURRENT_CONNECTIONS	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	hosts	TOTAL_CONNECTIONS	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20)			select,insert,update,references	

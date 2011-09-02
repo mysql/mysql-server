@@ -144,6 +144,8 @@ struct PFS_file : public PFS_instr
   uint32 get_version()
   { return m_lock.get_version(); }
 
+  /** File identity */
+  const void *m_identity;
   /** File name. */
   char m_filename[FN_REFLEN];
   /** File name length in bytes. */

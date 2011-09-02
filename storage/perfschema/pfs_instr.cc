@@ -1188,6 +1188,7 @@ search:
         pfs->m_wait_stat.reset();
         pfs->m_file_stat.m_open_count= 1;
         pfs->m_file_stat.m_io_stat.reset();
+        pfs->m_identity= (const void *)pfs;
 
         int res;
         res= lf_hash_insert(&filename_hash, thread->m_filename_hash_pins,
@@ -1552,7 +1553,7 @@ static void reset_file_waits_by_instance(void)
   PFS_file *pfs_last= file_array + file_max;
 
   for ( ; pfs < pfs_last; pfs++)
-    pfs->m_wait_stat.reset();
+    pfs->m_file_stat.reset();
 }
 
 static void reset_socket_waits_by_instance(void)

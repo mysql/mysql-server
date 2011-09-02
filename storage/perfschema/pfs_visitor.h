@@ -546,6 +546,23 @@ public:
   /** Wait and byte count statistics collected. */
   PFS_socket_io_stat m_socket_io_stat;
 };
+
+/**
+  A concrete instance visitor that aggregates
+  file wait and byte count statistics.
+*/
+class PFS_instance_file_io_stat_visitor : public PFS_instance_visitor
+{
+public:
+  PFS_instance_file_io_stat_visitor();
+  virtual ~PFS_instance_file_io_stat_visitor();
+  virtual void visit_file_class(PFS_file_class *pfs);
+  virtual void visit_file(PFS_file *pfs);
+
+  /** Wait and byte count statistics collected. */
+  PFS_file_io_stat m_file_io_stat;
+};
+
 /** @} */
 #endif
 
