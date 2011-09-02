@@ -910,12 +910,12 @@ trx_finalize_for_fts(
 		for (node = rbt_first(tables);
 		     node;
 		     node = rbt_next(tables, node)) {
-			fts_trx_table_t*        ftt;
+			fts_trx_table_t**        ftt;
 
-			ftt = *rbt_value(fts_trx_table_t*, node);
+			ftt = rbt_value(fts_trx_table_t*, node);
 
-			if (ftt->added_doc_ids) {
-				trx_finalize_for_fts_table(ftt);
+			if ((*ftt)->added_doc_ids) {
+				trx_finalize_for_fts_table(*ftt);
 			}
 		}
 	}
