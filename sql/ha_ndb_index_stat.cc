@@ -2107,7 +2107,11 @@ ha_ndbcluster::ndb_index_stat_get_rir(uint inx,
     if (rows == 0)
       rows= 1;
     *rows_out= rows;
-    DBUG_PRINT("index_stat", ("rir: %u", (uint)rows));
+#ifndef DBUG_OFF
+    char rule[NdbIndexStat::RuleBufferBytes];
+    NdbIndexStat::get_rule(stat, rule);
+#endif
+    DBUG_PRINT("index_stat", ("rir: %u rule: %s", (uint)rows, rule));
     DBUG_RETURN(0);
   }
   DBUG_RETURN(err);
@@ -2135,7 +2139,11 @@ ha_ndbcluster::ndb_index_stat_set_rpk(uint inx)
       NdbIndexStat::get_rpk(stat, k, &rpk);
       ulonglong recs= ndb_index_stat_round(rpk);
       key_info->rec_per_key[k]= (ulong)recs;
-      DBUG_PRINT("index_stat", ("rpk[%u]: %u", k, (uint)recs));
+#ifndef DBUG_OFF
+      char rule[NdbIndexStat::RuleBufferBytes];
+      NdbIndexStat::get_rule(stat, rule);
+#endif
+      DBUG_PRINT("index_stat", ("rpk[%u]: %u rule: %s", k, (uint)recs, rule));
     }
     DBUG_RETURN(0);
   }
