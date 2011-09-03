@@ -624,15 +624,21 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
           SQL_SELECT::skip_record evaluates this condition. it may include a
           correlated subquery predicate, such that some field in the subquery
           refers to 'sort_form'.
+
+          PSergey-todo: discuss the above with Timour.
         */
+        MY_BITMAP *tmp_read_set= sort_form->read_set;
+        MY_BITMAP *tmp_write_set= sort_form->write_set;
+        MY_BITMAP *tmp_vcol_set= sort_form->vcol_set;
+
         if (select->cond->with_subselect)
           sort_form->column_bitmaps_set(save_read_set, save_write_set,
                                         save_vcol_set);
         write_record= (select->skip_record(thd) > 0);
         if (select->cond->with_subselect)
-          sort_form->column_bitmaps_set(&sort_form->tmp_set,
-                                        &sort_form->tmp_set,
-                                        &sort_form->tmp_set);
+          sort_form->column_bitmaps_set(tmp_read_set,
+                                        tmp_write_set,
+                                        tmp_vcol_set);
       }
       else
         write_record= true;
