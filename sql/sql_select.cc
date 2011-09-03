@@ -2385,7 +2385,6 @@ JOIN::exec()
       
       thd_proc_info(thd, "Copying to group table");
       DBUG_PRINT("info", ("%s", thd->proc_info));
-      tmp_error= -1;
       if (curr_join != this)
       {
 	if (sum_funcs2)
@@ -2410,6 +2409,7 @@ JOIN::exec()
         JOIN_TAB *first_tab= curr_join->join_tab + curr_join->const_tables;
         first_tab->sorted= test(first_tab->loosescan_match_tab);
       }
+      tmp_error= -1;
       if (setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
@@ -14839,10 +14839,12 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 {
   enum_nested_loop_state rc;
   JOIN_CACHE *cache= join_tab->cache;
-
   DBUG_ENTER("sub_select_cache");
 
-  /* This function cannot be called if join_tab has no associated join buffer */
+  /*
+    This function cannot be called if join_tab has no associated join
+    buffer
+  */
   DBUG_ASSERT(cache != NULL);
 
   join_tab->cache->reset_join(join);

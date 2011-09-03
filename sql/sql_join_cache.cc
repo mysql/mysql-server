@@ -2021,6 +2021,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
   JOIN_TAB *tab;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
+  DBUG_ENTER("JOIN_CACHE::join_records");
 
   if (outer_join_first_inner && !join_tab->first_unmatched)
     join_tab->not_null_compl= TRUE;   
@@ -2102,7 +2103,8 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
 finish:
   restore_last_record();
   reset(TRUE);
-  return rc;
+  DBUG_PRINT("exit", ("rc: %d", rc));
+  DBUG_RETURN(rc);
 }
 
 
@@ -2164,10 +2166,11 @@ enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
   join_tab->table->null_row= 0;
   bool check_only_first_match= join_tab->check_only_first_match();
   bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
+  DBUG_ENTER("JOIN_CACHE::join_matching_records");
 
   /* Return at once if there are no records in the join buffer */
   if (!records)     
-    return NESTED_LOOP_OK;   
+    DBUG_RETURN(NESTED_LOOP_OK);
  
   /* 
     When joining we read records from the join buffer back into record buffers.
@@ -2241,7 +2244,7 @@ finish:
     rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
 finish2:    
   join_tab_scan->close();
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 
@@ -2323,6 +2326,7 @@ bool JOIN_CACHE::set_match_flag_if_none(JOIN_TAB *first_inner,
 enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
 {
   enum_nested_loop_state rc= NESTED_LOOP_OK;
+  DBUG_ENTER("JOIN_CACHE::generate_full_extensions");
   
   /*
     Check whether the extended partial join record meets
@@ -2340,16 +2344,18 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
       {
         reset(TRUE);
-        return rc;
+        DBUG_RETURN(rc);
       }
     }
     if (res == -1)
     {
       rc= NESTED_LOOP_ERROR;
-      return rc;
+      DBUG_RETURN(rc);
     }
   }
-  return rc;
+  else if (join->thd->is_error())
+    rc= NESTED_LOOP_ERROR;
+  DBUG_RETURN(rc);
 }
 
 
@@ -2374,16 +2380,20 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
   RETURN VALUE
     TRUE   there is a match
     FALSE  there is no match
+           In this case the caller must also check thd->is_error() to see
+           if there was a fatal error for the query.
 */ 
 
 inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
 {
   /* Check whether pushdown conditions are satisfied */
+  DBUG_ENTER("JOIN_CACHE:check_match");
+
   if (join_tab->select && join_tab->select->skip_record(join->thd) <= 0)
-    return FALSE;
+    DBUG_RETURN(FALSE);
 
   if (!join_tab->is_last_inner_table())
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   /* 
      This is the last inner table of an outer join,
@@ -2396,7 +2406,7 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
     set_match_flag_if_none(first_inner, rec_ptr);
     if (first_inner->check_only_first_match() &&
         !join_tab->first_inner)
-      return TRUE;
+      DBUG_RETURN(TRUE);
     /* 
       This is the first match for the outer table row.
       The function set_match_flag_if_none has turned the flag
@@ -2410,13 +2420,12 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
     for (JOIN_TAB *tab= first_inner; tab <= join_tab; tab++)
     {
       if (tab->select && tab->select->skip_record(join->thd) <= 0)
-        return FALSE;
+        DBUG_RETURN(FALSE);
     }
   }
   while ((first_inner= first_inner->first_upper) &&
          first_inner->last_inner == join_tab);
-  
-  return TRUE;
+    DBUG_RETURN(TRUE);
 } 
 
 
@@ -2451,10 +2460,11 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   ulonglong cnt; 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool is_first_inner= join_tab == join_tab->first_unmatched;
+  DBUG_ENTER("JOIN_CACHE::join_null_complements");
  
   /* Return at once if there are no records in the join buffer */
   if (!records)
-    return NESTED_LOOP_OK;
+    DBUG_RETURN(NESTED_LOOP_OK);
   
   cnt= records - (is_key_access() ? 0 : test(skip_last));
 
@@ -2484,7 +2494,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   }
 
 finish:
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 

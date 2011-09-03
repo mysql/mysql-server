@@ -2973,7 +2973,7 @@ int subselect_single_select_engine::exec()
     executed= 1;
     thd->where= save_where;
     thd->lex->current_select= save_select;
-    DBUG_RETURN(join->error||thd->is_fatal_error);
+    DBUG_RETURN(join->error || thd->is_fatal_error || thd->is_error());
   }
   thd->where= save_where;
   thd->lex->current_select= save_select;
@@ -4578,7 +4578,8 @@ int subselect_hash_sj_engine::exec()
   /* The subquery should be optimized, and materialized only once. */
   DBUG_ASSERT(materialize_join->optimized && !is_materialized);
   materialize_join->exec();
-  if ((res= test(materialize_join->error || thd->is_fatal_error)))
+  if ((res= test(materialize_join->error || thd->is_fatal_error ||
+                 thd->is_error())))
     goto err;
 
   /*
