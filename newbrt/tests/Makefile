@@ -159,6 +159,9 @@ check_brtloader-test-writer-errors-4: brtloader-test-writer-errors$(BINSUF)
 check_brt-serialize-benchmark: brt-serialize-benchmark$(BINSUF)
 	./$< 92 200000
 
+check_bnc-insert-benchmark: bnc-insert-benchmark$(BINSUF)
+	./$< 100 4096000 1000
+
 check_%: % $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) $(EXTRA_ARGS) $(SUMMARIZE_CMD)
 
