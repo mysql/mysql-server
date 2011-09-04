@@ -54,3 +54,9 @@ compute_jb_pages(struct EmulatorData*)
 {
   return 0;
 }
+
+bool
+NdbIsMultiThreaded()
+{
+  return false;
+}

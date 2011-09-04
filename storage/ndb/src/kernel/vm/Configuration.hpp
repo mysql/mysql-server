@@ -78,9 +78,6 @@ public:
 
   Uint32 executeLockCPU() const;
   void executeLockCPU(Uint32 value);
-  const SparseBitmask& getExecuteCpuMask() const {
-    return _executeLockCPU;
-  }
 
   Uint32 maintLockCPU() const;
   void maintLockCPU(Uint32 value);
@@ -138,8 +135,6 @@ private:
   Uint32 _schedulerExecutionTimer;
   Uint32 _schedulerSpinTimer;
   Uint32 _realtimeScheduler;
-  SparseBitmask _executeLockCPU;
-  Uint32 _maintLockCPU;
   Uint32 _timeBetweenWatchDogCheckInitial;
 
   Vector<struct ThreadInfo> threadInfo;
