@@ -19,7 +19,11 @@
 #include <kernel/ndb_limits.h>
 #include "../../common/util/parse_mask.hpp"
 
+#ifndef TEST_MT_THR_CONFIG
 #define SUPPORT_CPU_SET 0
+#else
+#define SUPPORT_CPU_SET 1
+#endif
 
 static const struct THRConfig::Entries m_entries[] =
 {
@@ -1008,7 +1012,7 @@ TAPTEST(mt_thr_config)
         "ldm={cpubind=1-2,5,count=3},ldm",
         "ldm={ cpubind = 1- 2, 5 , count = 3 },ldm",
         "ldm={count=3,cpubind=1-2,5 },  ldm",
-        // "ldm={cpuset=1-3,count=3 },ldm",
+        "ldm={cpuset=1-3,count=3 },ldm",
         "main,ldm={},ldm",
         0
       };
