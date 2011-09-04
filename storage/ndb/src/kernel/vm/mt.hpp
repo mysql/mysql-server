@@ -58,6 +58,11 @@ void mt_section_lock();
 void mt_section_unlock();
 
 /**
+ * Are we (not) multi threaded
+ */
+bool NdbIsMultiThreaded();
+
+/**
  * Get list of BlockReferences so that
  *   each thread holding an instance of any block in blocks[] get "covered"
  *   (excluding ownThreadId

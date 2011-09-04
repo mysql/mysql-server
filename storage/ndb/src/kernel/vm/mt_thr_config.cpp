@@ -19,6 +19,11 @@
 #include <kernel/ndb_limits.h>
 #include "../../common/util/parse_mask.hpp"
 
+#ifndef TEST_MT_THR_CONFIG
+#define SUPPORT_CPU_SET 0
+#else
+#define SUPPORT_CPU_SET 1
+#endif
 
 static const struct THRConfig::Entries m_entries[] =
 {
@@ -27,7 +32,7 @@ static const struct THRConfig::Entries m_entries[] =
   { "ldm",   THRConfig::T_LDM,   1, MAX_NDBMT_LQH_THREADS },
   { "recv",  THRConfig::T_RECV,  1, 1 },
   { "rep",   THRConfig::T_REP,   1, 1 },
-  { "maint", THRConfig::T_MAINT, 1, 1 }
+  { "io",    THRConfig::T_IO,    1, 1 }
 };
 
 static const struct THRConfig::Param m_params[] =
@@ -102,9 +107,9 @@ THRConfig::setLockExecuteThreadToCPU(const char * mask)
 }
 
 int
-THRConfig::setLockMaintThreadsToCPU(unsigned val)
+THRConfig::setLockIoThreadsToCPU(unsigned val)
 {
-  m_LockMaintThreadsToCPU.set(val);
+  m_LockIoThreadsToCPU.set(val);
   return 0;
 }
 
@@ -131,8 +136,8 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
     m_classic = true;
     add(T_LDM);
     add(T_MAIN);
-    add(T_MAINT);
-    return 0;
+    add(T_IO);
+    return do_bindings();
   }
 
   Uint32 lqhthreads = 0;
@@ -160,7 +165,7 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
   add(T_MAIN);
   add(T_REP);
   add(T_RECV);
-  add(T_MAINT);
+  add(T_IO);
   for(Uint32 i = 0; i < lqhthreads; i++)
   {
     add(T_LDM);
@@ -172,16 +177,16 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
 int
 THRConfig::do_bindings()
 {
-  if (m_LockMaintThreadsToCPU.count() == 1)
+  if (m_LockIoThreadsToCPU.count() == 1)
   {
-    m_threads[T_MAINT][0].m_bind_type = T_Thread::B_CPU_BOUND;
-    m_threads[T_MAINT][0].m_bind_no = m_LockMaintThreadsToCPU.getBitNo(0);
+    m_threads[T_IO][0].m_bind_type = T_Thread::B_CPU_BOUND;
+    m_threads[T_IO][0].m_bind_no = m_LockIoThreadsToCPU.getBitNo(0);
   }
-  else if (m_LockMaintThreadsToCPU.count() > 1)
+  else if (m_LockIoThreadsToCPU.count() > 1)
   {
-    unsigned no = createCpuSet(m_LockMaintThreadsToCPU);
-    m_threads[T_MAINT][0].m_bind_type = T_Thread::B_CPUSET_BOUND;
-    m_threads[T_MAINT][0].m_bind_no = no;
+    unsigned no = createCpuSet(m_LockIoThreadsToCPU);
+    m_threads[T_IO][0].m_bind_type = T_Thread::B_CPUSET_BOUND;
+    m_threads[T_IO][0].m_bind_no = no;
   }
 
   /**
@@ -254,7 +259,7 @@ THRConfig::do_bindings()
     }
   }
 
-  if (m_threads[T_MAINT][0].m_bind_type == T_Thread::B_UNBOUND)
+  if (m_threads[T_IO][0].m_bind_type == T_Thread::B_UNBOUND)
   {
     /**
      * don't count this one...
@@ -286,7 +291,7 @@ THRConfig::do_bindings()
       unsigned no = 0;
       for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
       {
-        if (i == T_MAINT)
+        if (i == T_IO)
           continue;
         for (unsigned j = 0; j < m_threads[i].size(); j++)
         {
@@ -305,7 +310,7 @@ THRConfig::do_bindings()
       m_info_msg.appfmt("Assigning all threads to CPU %u\n", cpu);
       for (unsigned i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
       {
-        if (i == T_MAINT)
+        if (i == T_IO)
           continue;
         bind_unbound(m_threads[i], cpu);
       }
@@ -449,7 +454,7 @@ THRConfig::getConfigString()
     if (m_threads[i].size())
     {
       const char * name = getEntryName(i);
-      if (i != T_MAINT)
+      if (i != T_IO)
       {
         for (unsigned j = 0; j < m_threads[i].size(); j++)
         {
@@ -503,11 +508,11 @@ THRConfig::getConfigString()
 Uint32
 THRConfig::getThreadCount() const
 {
-  // Note! not counting T_MAINT
+  // Note! not counting T_IO
   Uint32 cnt = 0;
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_threads); i++)
   {
-    if (i != T_MAINT)
+    if (i != T_IO)
     {
       cnt += m_threads[i].size();
     }
@@ -531,12 +536,16 @@ THRConfig::getThreadCount(T_Type type) const
 const char *
 THRConfig::getErrorMessage() const
 {
+  if (m_err_msg.empty())
+    return 0;
   return m_err_msg.c_str();
 }
 
 const char *
 THRConfig::getInfoMessage() const
 {
+  if (m_info_msg.empty())
+    return 0;
   return m_info_msg.c_str();
 }
 
@@ -637,6 +646,12 @@ parseParams(char * str, ParamValue values[], BaseString& err)
     unsigned idx = 0;
     for (; idx < NDB_ARRAY_SIZE(m_params); idx++)
     {
+
+#if ! SUPPORT_CPU_SET
+      if (idx == IX_CPUSET)
+        continue;
+#endif
+
       if (strncasecmp(str, m_params[idx].name, strlen(m_params[idx].name)) == 0)
       {
         str += strlen(m_params[idx].name);
@@ -869,6 +884,112 @@ THRConfig::createCpuSet(const SparseBitmask& mask)
 template class Vector<SparseBitmask>;
 template class Vector<THRConfig::T_Thread>;
 
+#ifndef TEST_MT_THR_CONFIG
+#include <BlockNumbers.h>
+#include <NdbThread.h>
+
+static
+int
+findBlock(Uint32 blockNo, const unsigned short list[], unsigned cnt)
+{
+  for (Uint32 i = 0; i < cnt; i++)
+  {
+    if (blockToMain(list[i]) == blockNo)
+      return blockToInstance(list[i]);
+  }
+  return -1;
+}
+
+const THRConfig::T_Thread*
+THRConfigApplier::find_thread(const unsigned short instancelist[], unsigned cnt) const
+{
+  int instanceNo;
+  if ((instanceNo = findBlock(SUMA, instancelist, cnt)) >= 0)
+  {
+    return &m_threads[T_REP][instanceNo];
+  }
+  else if ((instanceNo = findBlock(CMVMI, instancelist, cnt)) >= 0)
+  {
+    return &m_threads[T_RECV][instanceNo];
+  }
+  else if ((instanceNo = findBlock(DBDIH, instancelist, cnt)) >= 0)
+  {
+    return &m_threads[T_MAIN][instanceNo];
+  }
+  else if ((instanceNo = findBlock(DBLQH, instancelist, cnt)) >= 0)
+  {
+    return &m_threads[T_LDM][instanceNo - 1]; // remove proxy...
+  }
+  return 0;
+}
+
+void
+THRConfigApplier::appendInfo(BaseString& str,
+                             const unsigned short list[], unsigned cnt) const
+{
+  const T_Thread* thr = find_thread(list, cnt);
+  assert(thr != 0);
+  str.appfmt("(%s) ", getEntryName(thr->m_type));
+  if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
+  {
+    str.appfmt("cpu: %u ", thr->m_bind_no);
+  }
+  else if (thr->m_bind_type == T_Thread::B_CPUSET_BOUND)
+  {
+    str.appfmt("cpuset: [ %s ] ", m_cpu_sets[thr->m_bind_no].str().c_str());
+  }
+}
+
+int
+THRConfigApplier::create_cpusets()
+{
+  return 0;
+}
+
+int
+THRConfigApplier::do_bind(NdbThread* thread,
+                          const unsigned short list[], unsigned cnt)
+{
+  const T_Thread* thr = find_thread(list, cnt);
+  if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
+  {
+    int res = NdbThread_LockCPU(thread, thr->m_bind_no);
+    if (res == 0)
+      return 1;
+    else
+      return -res;
+  }
+#if TODO
+  else if (thr->m_bind_type == T_Thread::B_CPUSET_BOUND)
+  {
+  }
+#endif
+
+  return 0;
+}
+
+int
+THRConfigApplier::do_bind_io(NdbThread* thread)
+{
+  const T_Thread* thr = &m_threads[T_IO][0];
+  if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
+  {
+    int res = NdbThread_LockCPU(thread, thr->m_bind_no);
+    if (res == 0)
+      return 1;
+    else
+      return -res;
+  }
+#if TODO
+  else if (thr->m_bind_type == T_Thread::B_CPUSET_BOUND)
+  {
+  }
+#endif
+
+  return 0;
+}
+#endif
+
 #ifdef TEST_MT_THR_CONFIG
 
 #include <NdbTap.hpp>
@@ -959,8 +1080,8 @@ TAPTEST(mt_thr_config)
       "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=2},recv={cpubind=1},rep={cpubind=1}",
 
       "1-8",
-      "ldm={count=4},maint={cpubind=8}",
-      "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7},maint={cpubind=8}",
+      "ldm={count=4},io={cpubind=8}",
+      "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7},io={cpubind=8}",
 
       "1-8",
       "ldm={count=4,cpubind=1,4,5,6}",
