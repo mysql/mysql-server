@@ -1158,6 +1158,7 @@ int Gcalc_operation_reducer::get_line_result(res_point *cur,
                                              Gcalc_result_receiver *storage)
 {
   res_point *next;
+  res_point *cur_orig= cur;
   int move_upward= 1;
   if (cur->glue)
   {
@@ -1171,6 +1172,14 @@ int Gcalc_operation_reducer::get_line_result(res_point *cur,
       if (!next)
       {
 	next= cur->glue;
+        if (next == cur_orig)
+        {
+          /* It's the line loop */
+          cur= cur_orig;
+          cur->glue->glue= NULL;
+          move_upward= 1;
+          break;
+        }
 	move_upward^= 1;
       }
     }
