@@ -57,6 +57,14 @@ public:
     m_cur++;
     return 0;
   }
+  /* Returns the next notempty character. */
+  char next_symbol() 
+  {
+    skip_space();
+    if (m_cur >= m_limit)
+      return 0;                                 /* EOL meet. */
+    return *m_cur;
+  }
   void set_error_msg(const char *msg);
 
   // caller should free this pointer

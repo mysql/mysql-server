@@ -62,7 +62,8 @@ INSERT INTO gis_multi_polygon VALUES
 
 INSERT INTO gis_geometrycollection VALUES
 (120, GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
-(121, GeometryFromWKB(AsWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))));
+(121, GeometryFromWKB(AsWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9)))))),
+(122, GeomFromText('GeometryCollection()'));
 
 INSERT into gis_geometry SELECT * FROM gis_point;
 INSERT into gis_geometry SELECT * FROM gis_line;

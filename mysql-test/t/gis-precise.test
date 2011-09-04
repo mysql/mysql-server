@@ -200,4 +200,7 @@ SELECT AsText( ST_UNION(
  PolygonFromText(' POLYGON( ( 2 2 , 3 2 , 7 5 , 2 0 , 2 2 ) ) ') ,
  PolygonFromText(' POLYGON( ( 2 2 , 3 2 , 3 3 , 2 5 , 2 2 ) ) ') ) );
 
+#bug 801466 ST_INTERSECTION() returns invalid value on empty intersection in maria-5.3-gis
+
+SELECT AsText(ST_INTERSECTION(LinestringFromText('LINESTRING(1 1, 2 2)'), GeometryFromText('LINESTRING(3 3, 4 4)')));
 

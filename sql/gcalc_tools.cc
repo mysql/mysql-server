@@ -137,6 +137,8 @@ int Gcalc_function::count_internal()
   cur_func+= 4;
   if (next_func == op_shape)
     return i_states[c_op & ~(op_any | op_not)] ^ mask;
+  if (n_ops == 0)
+    return mask;
 
   result= count_internal();
 
@@ -442,11 +444,9 @@ void Gcalc_result_receiver::reset()
 
 int Gcalc_result_receiver::get_result_typeid()
 {
-  if (!n_shapes)
-    return 0;
-
-  if (collection_result)
+  if (!n_shapes || collection_result)
     return Geometry::wkb_geometrycollection;
+
   switch (common_shapetype)
   {
     case Gcalc_function::shape_polygon:
@@ -1186,6 +1186,7 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
   poly_instance *polygons= NULL;
 
   *m_res_hook= NULL;
+
   while (m_result)
   {
     Gcalc_function::shape_type shape= m_result->type;
