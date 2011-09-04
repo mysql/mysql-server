@@ -3,7 +3,7 @@ set @subselect_sj_mat_tmp= @@optimizer_switch;
 set optimizer_switch=ifnull(@subselect_mat_test_optimizer_switch_value, 'semijoin=on,firstmatch=on,loosescan=on');
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set @optimizer_switch_local_default= @@optimizer_switch;
-drop table if exists t1, t2, t3, t4, t1i, t2i, t3i;
+drop table if exists t1, t2, t3, t4, t5, t1i, t2i, t3i;
 drop table if exists columns;
 drop table if exists t1_16, t2_16, t3_16;
 drop view if exists v1, v2, v1m, v2m;
@@ -1627,6 +1627,35 @@ a
 1
 1
 DROP TABLE t1,t2,t3,t4,t5;
+#
+# BUG#836532: Crash in Item_equal_fields_iterator::get_curr_field with semijoin+materialization
+#
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES ('a'),('a');
+Warnings:
+Warning	1366	Incorrect integer value: 'a' for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'a' for column 'a' at row 2
+CREATE TABLE t4 (a varchar(1));
+INSERT INTO t4 VALUES ('m'),('o');
+CREATE TABLE t3 (a varchar(1) , b varchar(1) ) ;
+INSERT INTO t3 VALUES ('b','b');
+CREATE TABLE t5 (a varchar(1), KEY (a)) ;
+INSERT INTO t5 VALUES ('d'),('e');
+SELECT *
+FROM t2
+WHERE t2.a = ALL (
+SELECT t4.a
+FROM t4
+WHERE t4.a IN (
+SELECT t3.a
+FROM t3 , t5
+WHERE ( t5.a = t3.b )
+)
+);
+a
+0
+0
+DROP TABLE t2,t3,t4,t5;
 set optimizer_switch=@subselect_sj_mat_tmp;
 set @subselect_mat_test_optimizer_switch_value=null;
 set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';

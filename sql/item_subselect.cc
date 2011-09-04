@@ -2264,7 +2264,12 @@ bool Item_in_subselect::inject_in_to_exists_cond(JOIN *join_arg)
     {
       /* The argument list of the top-level AND may change after fix fields. */
       and_args= ((Item_cond*) join_arg->conds)->argument_list();
-      and_args->concat((List<Item> *) &join_arg->cond_equal->current_level);
+      List_iterator<Item_equal> li(join_arg->cond_equal->current_level);
+      Item_equal *elem;
+      while ((elem= li++))
+      {
+        and_args->push_back(elem);
+      }
     }
   }
 
