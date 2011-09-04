@@ -24,7 +24,8 @@ ndb_mgmd_SOURCES = \
 	ConfigInfo.cpp \
 	InitConfigFileParser.cpp \
 	Config.cpp \
-	ConfigManager.cpp
+	ConfigManager.cpp \
+        $(top_srcdir)/storage/ndb/src/kernel/vm/mt_thr_config.cpp
 
 noinst_PROGRAMS = MgmConfig-t
 
@@ -32,7 +33,8 @@ MgmConfig_t_SOURCES = \
 	testConfig.cpp \
 	InitConfigFileParser.cpp \
 	ConfigInfo.cpp \
-	Config.cpp
+	Config.cpp \
+        $(top_srcdir)/storage/ndb/src/kernel/vm/mt_thr_config.cpp
 MgmConfig_t_LDFLAGS = -static
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/ndbapi \
