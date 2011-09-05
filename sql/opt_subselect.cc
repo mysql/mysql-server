@@ -2639,6 +2639,7 @@ ulonglong get_bound_sj_equalities(TABLE_LIST *sj_nest,
     {
       res |= 1ULL << i;
     }
+    i++;
   }
   return res;
 }
