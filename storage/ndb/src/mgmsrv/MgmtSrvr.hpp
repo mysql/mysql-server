@@ -407,14 +407,6 @@ private:
    */
   int okToSendTo(NodeId nodeId, bool unCond = false);
 
-  /**
-   *   Get block number for a block
-   *
-   *   @param   blockName: Block to get number for
-   *   @return  -1 if block not found, otherwise block number
-   */
-  int getBlockNumber(const BaseString &blockName);
-
   int alloc_node_id_req(NodeId free_node_id,
                         enum ndb_mgm_node_type type,
                         Uint32 timeout_ms);

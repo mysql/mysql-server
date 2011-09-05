@@ -2733,18 +2733,6 @@ MgmtSrvr::setTraceNo(int nodeId, int traceNo)
 //****************************************************************************
 
 int 
-MgmtSrvr::getBlockNumber(const BaseString &blockName) 
-{
-  short bno = getBlockNo(blockName.c_str());
-  if(bno != 0)
-    return bno;
-  return -1;
-}
-
-//****************************************************************************
-//****************************************************************************
-
-int 
 MgmtSrvr::setSignalLoggingMode(int nodeId, LogMode mode, 
 			       const Vector<BaseString>& blocks)
 {
@@ -2793,14 +2781,14 @@ MgmtSrvr::setSignalLoggingMode(int nodeId, LogMode mode,
     // Logg command for all blocks
     testOrd->addSignalLoggerCommand(command, logSpec);
   } else {
-    for(unsigned i = 0; i < blocks.size(); i++){
-      int blockNumber = getBlockNumber(blocks[i]);
-      if (blockNumber == -1) {
+    for(unsigned i = 0; i < blocks.size(); i++)
+    {
+      BlockNumber blockNumber = getBlockNo(blocks[i].c_str());
+      if (blockNumber == 0)
         return INVALID_BLOCK_NAME;
-      }
       testOrd->addSignalLoggerCommand(blockNumber, command, logSpec);
-    } // for
-  } // else
+    }
+  }
 
   return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
 }
