@@ -1979,6 +1979,24 @@ sub environment_setup {
     $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
   }
 
+  # --------------------------------------------------------------------------
+  # Add the path where mysqld will find ha_federated.so
+  # --------------------------------------------------------------------------
+  my $fedplug_filename;
+  if (IS_WINDOWS) {
+    $fedplug_filename = "ha_federated.dll";
+  } else {
+    $fedplug_filename = "ha_federated.so";
+  }
+  my $lib_fed_plugin=
+    mtr_file_exists(vs_config_dirs('storage/federated',$fedplug_filename),
+		    "$basedir/storage/federated/.libs/".$fedplug_filename,
+		    "$basedir/lib/mysql/plugin/".$fedplug_filename);
+
+  $ENV{'FEDERATED_PLUGIN'}= $fedplug_filename;
+  $ENV{'FEDERATED_PLUGIN_DIR'}=
+    ($lib_fed_plugin ? dirname($lib_fed_plugin) : "");
+
   # ----------------------------------------------------
   # Add the path where mysqld will find mypluglib.so
   # ----------------------------------------------------
