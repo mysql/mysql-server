@@ -19,4 +19,5 @@ file_contents            : Bug#12585902 file_contents.test fails when building f
 log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
 mysql_embedded           : Bug#12561297 seems to be fixed in 5.5.16 (I verified that it fails also in tag:mysql-5.5.15)
 innodb_mysql_sync        : Merge problems, DEBUG_SYNC wait conditions are not identical, Martin working on it
+kill                     : Merge problems, DEBUG_SYNC wait conditions are not identical, Martin working on it
 
