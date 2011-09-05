@@ -74,6 +74,8 @@ extern ulint	os_n_pending_writes;
 
 #endif
 
+/** File offset in bytes */
+typedef ib_uint64_t os_offset_t;
 #ifdef __WIN__
 /** File handle */
 # define os_file_t	HANDLE
@@ -276,24 +278,20 @@ The wrapper functions have the prefix of "innodb_". */
 # define os_file_close(file)						\
 	pfs_os_file_close_func(file, __FILE__, __LINE__)
 
-# define os_aio(type, mode, name, file, buf, offset, offset_high,	\
+# define os_aio(type, mode, name, file, buf, offset,			\
 		n, message1, message2)					\
 	pfs_os_aio_func(type, mode, name, file, buf, offset,		\
-			offset_high, n, message1, message2,		\
-			__FILE__, __LINE__)
+			n, message1, message2, __FILE__, __LINE__)
 
-# define os_file_read(file, buf, offset, offset_high, n)		\
-	pfs_os_file_read_func(file, buf, offset, offset_high, n,	\
-			      __FILE__, __LINE__)
+# define os_file_read(file, buf, offset, n)				\
+	pfs_os_file_read_func(file, buf, offset, n, __FILE__, __LINE__)
 
-# define os_file_read_no_error_handling(file, buf, offset,		\
-					offset_high, n)			\
-	pfs_os_file_read_no_error_handling_func(file, buf, offset,	\
-						offset_high, n,		\
+# define os_file_read_no_error_handling(file, buf, offset, n)		\
+	pfs_os_file_read_no_error_handling_func(file, buf, offset, n,	\
 						__FILE__, __LINE__)
 
-# define os_file_write(name, file, buf, offset, offset_high, n)		\
-	pfs_os_file_write_func(name, file, buf, offset, offset_high,	\
+# define os_file_write(name, file, buf, offset, n)	\
+	pfs_os_file_write_func(name, file, buf, offset,	\
 			       n, __FILE__, __LINE__)
 
 # define os_file_flush(file)						\
@@ -318,20 +316,18 @@ to original un-instrumented file I/O APIs */
 
 # define os_file_close(file)	os_file_close_func(file)
 
-# define os_aio(type, mode, name, file, buf, offset, offset_high,	\
-	       n, message1, message2)					\
-	os_aio_func(type, mode, name, file, buf, offset, offset_high, n,\
+# define os_aio(type, mode, name, file, buf, offset, n, message1, message2) \
+	os_aio_func(type, mode, name, file, buf, offset, n,		\
 		    message1, message2)
 
-# define os_file_read(file, buf, offset, offset_high, n)		\
-	os_file_read_func(file, buf, offset, offset_high, n)
+# define os_file_read(file, buf, offset, n)	\
+	os_file_read_func(file, buf, offset, n)
 
-# define os_file_read_no_error_handling(file, buf, offset,		\
-				       offset_high, n)			\
-	os_file_read_no_error_handling_func(file, buf, offset, offset_high, n)
+# define os_file_read_no_error_handling(file, buf, offset, n)		\
+	os_file_read_no_error_handling_func(file, buf, offset, n)
 
-# define os_file_write(name, file, buf, offset, offset_high, n)		\
-	os_file_write_func(name, file, buf, offset, offset_high, n)
+# define os_file_write(name, file, buf, offset, n)			\
+	os_file_write_func(name, file, buf, offset, n)
 
 # define os_file_flush(file)	os_file_flush_func(file)
 
@@ -687,10 +683,7 @@ pfs_os_file_read_func(
 /*==================*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n,	/*!< in: number of bytes to read */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
@@ -708,10 +701,7 @@ pfs_os_file_read_no_error_handling_func(
 /*====================================*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n,	/*!< in: number of bytes to read */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
@@ -733,10 +723,7 @@ pfs_os_aio_func(
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read or from which
 				to write */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read or write */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read or write */
 	ulint		n,	/*!< in: number of bytes to read or write */
 	fil_node_t*	message1,/*!< in: message for the aio handler
 				(can be used to identify a completed
@@ -762,10 +749,7 @@ pfs_os_file_write_func(
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
 	const void*	buf,	/*!< in: buffer from which to write */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to write */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to write */
 	ulint		n,	/*!< in: number of bytes to write */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
@@ -814,23 +798,13 @@ os_file_close_no_error_handling(
 #endif /* UNIV_HOTBACKUP */
 /***********************************************************************//**
 Gets a file size.
-@return	TRUE if success */
+@return	file size, or (os_offset_t) -1 on failure */
 UNIV_INTERN
-ibool
+os_offset_t
 os_file_get_size(
 /*=============*/
-	os_file_t	file,	/*!< in: handle to a file */
-	ulint*		size,	/*!< out: least significant 32 bits of file
-				size */
-	ulint*		size_high);/*!< out: most significant 32 bits of size */
-/***********************************************************************//**
-Gets file size as a 64-bit integer ib_int64_t.
-@return	size in bytes, -1 if error */
-UNIV_INTERN
-ib_int64_t
-os_file_get_size_as_iblonglong(
-/*===========================*/
-	os_file_t	file);	/*!< in: handle to a file */
+	os_file_t	file)	/*!< in: handle to a file */
+	__attribute__((warn_unused_result));
 /***********************************************************************//**
 Write the specified number of zeros to a newly created file.
 @return	TRUE if success */
@@ -841,9 +815,8 @@ os_file_set_size(
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
-	ulint		size,	/*!< in: least significant 32 bits of file
-				size */
-	ulint		size_high);/*!< in: most significant 32 bits of size */
+	os_offset_t	size)	/*!< in: file size */
+	__attribute__((nonnull, warn_unused_result));
 /***********************************************************************//**
 Truncates a file at its current position.
 @return	TRUE if success */
@@ -883,10 +856,7 @@ os_file_read_func(
 /*==============*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n);	/*!< in: number of bytes to read */
 /*******************************************************************//**
 Rewind file to its start, read at most size - 1 bytes from it to str, and
@@ -911,10 +881,7 @@ os_file_read_no_error_handling_func(
 /*================================*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n);	/*!< in: number of bytes to read */
 
 /*******************************************************************//**
@@ -930,10 +897,7 @@ os_file_write_func(
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
 	const void*	buf,	/*!< in: buffer from which to write */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to write */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to write */
 	ulint		n);	/*!< in: number of bytes to write */
 /*******************************************************************//**
 Check the existence and type of the given file.
@@ -1037,10 +1001,7 @@ os_aio_func(
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read or from which
 				to write */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read or write */
-	ulint		offset_high, /*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read or write */
 	ulint		n,	/*!< in: number of bytes to read or write */
 	fil_node_t*	message1,/*!< in: message for the aio handler
 				(can be used to identify a completed

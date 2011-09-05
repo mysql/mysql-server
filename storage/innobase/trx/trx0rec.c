@@ -36,6 +36,7 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "dict0dict.h"
 #include "ut0mem.h"
+#include "read0read.h"
 #include "row0ext.h"
 #include "row0upd.h"
 #include "que0que.h"
@@ -1383,11 +1384,13 @@ trx_undo_get_undo_rec(
 	trx_undo_rec_t** undo_rec,	/*!< out, own: copy of the record */
 	mem_heap_t*	heap)		/*!< in: memory heap where copied */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ibool		missing_history;
 
-	if (!trx_purge_update_undo_must_exist(trx_id)) {
+	rw_lock_s_lock(&purge_sys->latch);
+	missing_history = read_view_sees_trx_id(purge_sys->view, trx_id);
+	rw_lock_s_unlock(&purge_sys->latch);
+
+	if (UNIV_UNLIKELY(missing_history)) {
 
 		/* It may be that the necessary undo log has already been
 		deleted */
@@ -1407,10 +1410,10 @@ trx_undo_get_undo_rec(
 #endif /* UNIV_DEBUG */
 
 /*******************************************************************//**
-Build a previous version of a clustered index record. This function checks
-that the caller has a latch on the index page of the clustered index record
-and an s-latch on the purge_view. This guarantees that the stack of versions
-is locked all the way down to the purge_view.
+Build a previous version of a clustered index record. The caller must
+hold a latch on the index page of the clustered index record, to
+guarantee that the stack of versions is locked all the way down to the
+purge_sys->view.
 @return DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is
 earlier than purge_view, which means that it may have been removed */
 UNIV_INTERN
@@ -1451,7 +1454,7 @@ trx_undo_prev_version_build(
 	byte*		buf;
 	ulint		err;
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&purge_sys->latch, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mtr_memo_contains_page(index_mtr, index_rec, MTR_MEMO_PAGE_S_FIX)
 	      || mtr_memo_contains_page(index_mtr, index_rec,

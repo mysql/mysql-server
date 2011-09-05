@@ -240,10 +240,10 @@ trx_undo_get_undo_rec_low(
 	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
 	mem_heap_t*	heap);		/*!< in: memory heap where copied */
 /*******************************************************************//**
-Build a previous version of a clustered index record. This function checks
-that the caller has a latch on the index page of the clustered index record
-and an s-latch on the purge_view. This guarantees that the stack of versions
-is locked.
+Build a previous version of a clustered index record. The caller must
+hold a latch on the index page of the clustered index record, to
+guarantee that the stack of versions is locked all the way down to the
+purge_sys->view.
 @return DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is
 earlier than purge_view, which means that it may have been removed */
 UNIV_INTERN

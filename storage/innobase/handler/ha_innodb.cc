@@ -12099,9 +12099,9 @@ static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
 
 static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
   PLUGIN_VAR_OPCMDARG,
-  "Size of the mutex/lock wait array. Default is 32.",
+  "Size of the mutex/lock wait array.",
   NULL, NULL,
-  32,			/* Default setting */
+  1,			/* Default setting */
   1,			/* Minimum value */
   1024, 0);		/* Maximum value */
 

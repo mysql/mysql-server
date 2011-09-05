@@ -959,6 +959,27 @@ page_get_free_space_of_empty(
 		       - 2 * PAGE_DIR_SLOT_SIZE));
 }
 
+/***********************************************************************//**
+Write a 32-bit field in a data dictionary record. */
+UNIV_INLINE
+void
+page_rec_write_field(
+/*=================*/
+	rec_t*	rec,	/*!< in/out: record to update */
+	ulint	i,	/*!< in: index of the field to update */
+	ulint	val,	/*!< in: value to write */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+{
+	byte*	data;
+	ulint	len;
+
+	data = rec_get_nth_field_old(rec, i, &len);
+
+	ut_ad(len == 4);
+
+	mlog_write_ulint(data, val, MLOG_4BYTES, mtr);
+}
+
 /************************************************************//**
 Each user record on a page, and also the deleted user records in the heap
 takes its size plus the fraction of the dir cell size /
