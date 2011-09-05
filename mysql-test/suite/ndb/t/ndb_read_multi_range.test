@@ -21,6 +21,16 @@ insert into t1 values
   (9,2,8),(10,3,7),(11,4,6),(12,5,5);
 --source suite/ndb/include/ndb_execute_count.inc
 
+##
+# In ps-protocol, server will adds calls to execute(Commit)
+#   (these are optimized away by ndbapi, since there is nothing to commit)
+#   and these generates a diff in execute-count
+# To not have to investigate problem futher, I simply set autocommit=off
+#   (and back further down where we don't track execute-count any longer)
+# It would probably be good to changes these tests to instead use frazers new
+#   ndbapi counters, and instead measure #round-trips
+set autocommit=off;
+
 # batch on primary key
 --source suite/ndb/include/ndb_init_execute_count.inc
 create table r1 as select * from t1 where a in (2,8,12);
@@ -68,7 +78,7 @@ create table r1 as select * from t1 where b in (1,33,5);
 select * from r1 order by a;
 drop table r1;
 --source suite/ndb/include/ndb_init_execute_count.inc
-select * from t1 where b in (1,33,5) order by a;
+select * from t1 force index(b) where b in (1,33,5) order by a;
 --source suite/ndb/include/ndb_execute_count.inc
 --source suite/ndb/include/ndb_init_execute_count.inc
 create table r1 as select * from t1 where b in (45,1,33,5,44);
@@ -76,7 +86,7 @@ create table r1 as select * from t1 where b in (45,1,33,5,44);
 select * from r1 order by a;
 drop table r1;
 --source suite/ndb/include/ndb_init_execute_count.inc
-select * from t1 where b in (45,22) order by a;
+select * from t1 force index(b) where b in (45,22) order by a;
 --source suite/ndb/include/ndb_execute_count.inc
 
 # batch on unique hash index, missing values
@@ -107,6 +117,8 @@ select * from t1 where b in (6,7) or (b <= 5) or (b >= 10) order by b,a;
 select * from t1 where c in (13,2,8,33,12) order by c,a;
 --source suite/ndb/include/ndb_execute_count.inc
 drop table t1;
+
+set autocommit=on;
 
 #
 # Somewhat more complicated
