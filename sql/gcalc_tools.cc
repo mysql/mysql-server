@@ -626,9 +626,19 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
       }
       case scev_two_ends:
       {
-        if (cur_t->enabled() &&
-            end_couple(cur_t, cur_t->get_next(), events->pi))
-          return 1;
+        if (cur_t->enabled() && cur_t->get_next()->enabled())
+        {
+          /* When two threads are ended here */
+          if (end_couple(cur_t, cur_t->get_next(), events->pi))
+            return 1;
+        }
+        else if (cur_t->enabled() || cur_t->get_next()->enabled())
+        {
+          /* Rare case when edges of a polygon coincide */
+          if (end_line(cur_t->enabled() ? cur_t : cur_t->get_next(),
+                       events->pi, si))
+            return 1;
+        }
         *cur_t_hook= cur_t->get_next()->get_next();
         free_item(cur_t->next);
         free_item(cur_t);
