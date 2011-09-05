@@ -5383,6 +5383,25 @@ a
 SELECT a FROM t1 WHERE b <> ALL ( SELECT b FROM t1 GROUP BY b );
 a
 drop table t1;
+#
+# Fix of LP BUG#780386 (NULL left part with empty ALL subquery).
+#
+CREATE TABLE t1 ( f11 int) ;
+INSERT IGNORE INTO t1 VALUES (0),(0);
+CREATE TABLE t2 ( f3 int, f10 int, KEY (f10,f3)) ;
+INSERT IGNORE INTO t2 VALUES (NULL,NULL),(5,0);
+DROP TABLE IF EXISTS t3;
+Warnings:
+Note	1051	Unknown table 't3'
+CREATE TABLE t3 ( f3 int) ;
+INSERT INTO t3 VALUES (0),(0);
+SELECT a1.f3 AS r FROM t2 AS a1 , t1 WHERE a1.f3 < ALL ( SELECT f3 FROM t3 WHERE f3 = 1 ) ;
+r
+NULL
+5
+NULL
+5
+DROP TABLE t1, t2, t3;
 End of 5.2 tests
 #
 # BUG#779885: Crash in eliminate_item_equal with materialization=on in
@@ -5405,25 +5424,6 @@ ON t2.f10 = t3.f10
 );
 f1
 DROP TABLE t1,t2,t3;
-#
-# Fix of LP BUG#780386 (NULL left part with empty ALL subquery).
-#
-CREATE TABLE t1 ( f11 int) ;
-INSERT IGNORE INTO t1 VALUES (0),(0);
-CREATE TABLE t2 ( f3 int, f10 int, KEY (f10,f3)) ;
-INSERT IGNORE INTO t2 VALUES (NULL,NULL),(5,0);
-DROP TABLE IF EXISTS t3;
-Warnings:
-Note	1051	Unknown table 't3'
-CREATE TABLE t3 ( f3 int) ;
-INSERT INTO t3 VALUES (0),(0);
-SELECT a1.f3 AS r FROM t2 AS a1 , t1 WHERE a1.f3 < ALL ( SELECT f3 FROM t3 WHERE f3 = 1 ) ;
-r
-NULL
-5
-NULL
-5
-DROP TABLE t1, t2, t3;
 #
 # BUG LP:813473: Wrong result with outer join + NOT IN subquery
 # This bug is a duplicate of Bug#11764086 whose test case is added below
