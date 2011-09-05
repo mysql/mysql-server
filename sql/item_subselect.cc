@@ -1076,8 +1076,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       if (upper_item)
         upper_item->set_sub_test(item);
     }
-    /* fix fields is already called for  left expression */
-    substitution= func->create(left_expr, subs);
+    /*
+      The swap is needed for expressions of type 'f1 < ALL ( SELECT ....)'
+      where we want to evaluate the sub query even if f1 would be null.
+    */
+    substitution= func->create_swap(left_expr, subs);
     DBUG_RETURN(RES_OK);
   }
 

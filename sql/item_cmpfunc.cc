@@ -245,34 +245,59 @@ Item_bool_func2* Eq_creator::create(Item *a, Item *b) const
   return new Item_func_eq(a, b);
 }
 
+Item_bool_func2* Eq_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_eq(b, a);
+}
 
 Item_bool_func2* Ne_creator::create(Item *a, Item *b) const
 {
   return new Item_func_ne(a, b);
 }
 
+Item_bool_func2* Ne_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_ne(b, a);
+}
 
 Item_bool_func2* Gt_creator::create(Item *a, Item *b) const
 {
   return new Item_func_gt(a, b);
 }
 
+Item_bool_func2* Gt_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_lt(b, a);
+}
 
 Item_bool_func2* Lt_creator::create(Item *a, Item *b) const
 {
   return new Item_func_lt(a, b);
 }
 
+Item_bool_func2* Lt_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_gt(b, a);
+}
 
 Item_bool_func2* Ge_creator::create(Item *a, Item *b) const
 {
   return new Item_func_ge(a, b);
 }
 
+Item_bool_func2* Ge_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_le(b, a);
+}
 
 Item_bool_func2* Le_creator::create(Item *a, Item *b) const
 {
   return new Item_func_le(a, b);
+}
+
+Item_bool_func2* Le_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_ge(b, a);
 }
 
 /*
