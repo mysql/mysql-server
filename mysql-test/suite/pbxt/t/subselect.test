@@ -929,7 +929,7 @@ drop table t1,t2;
 #
 # correct ALL optimisation
 #
-create table t2 (a int, b int);
+create table t2 (a int, b int not null);
 create table t3 (a int);
 insert into t3 values (6),(7),(3);
 select * from t3 where a >= all (select b from t2);
