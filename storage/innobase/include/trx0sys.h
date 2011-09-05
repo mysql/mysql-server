@@ -252,7 +252,7 @@ trx_read_trx_id(
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 /****************************************************************//**
 Looks for the trx handle with the given id in trx_list.
-The caller must be holding trx_sys->lock.
+The caller must be holding trx_sys->mutex.
 @return	the trx handle or NULL if not found;
 the pointer must not be dereferenced unless lock_sys->mutex was
 acquired before calling this function and is still being held */
@@ -283,7 +283,7 @@ trx_list_get_min_trx_id(void);
 /*=========================*/
 /****************************************************************//**
 Checks if a transaction with the given id is active. Caller must hold
-trx_sys->lock in shared mode. If the caller is not holding
+trx_sys->mutex in shared mode. If the caller is not holding
 lock_sys->mutex, the transaction may already have been committed.
 @return	transaction instance if active, or NULL;
 the pointer must not be dereferenced unless lock_sys->mutex was
