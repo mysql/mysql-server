@@ -701,7 +701,7 @@ row_merge_read(
 					elements */
 	row_merge_block_t*	buf)	/*!< out: data */
 {
-	ib_uint64_t	ofs = ((ib_uint64_t) offset) * sizeof *buf;
+	os_offset_t	ofs = ((os_offset_t) offset) * sizeof *buf;
 	ibool		success;
 
 #ifdef UNIV_DEBUG
@@ -712,9 +712,7 @@ row_merge_read(
 #endif /* UNIV_DEBUG */
 
 	success = os_file_read_no_error_handling(OS_FILE_FROM_FD(fd), buf,
-						 (ulint) (ofs & 0xFFFFFFFF),
-						 (ulint) (ofs >> 32),
-						 sizeof *buf);
+						 ofs, sizeof *buf);
 #ifdef POSIX_FADV_DONTNEED
 	/* Each block is read exactly once.  Free up the file cache. */
 	posix_fadvise(fd, ofs, sizeof *buf, POSIX_FADV_DONTNEED);
@@ -742,13 +740,10 @@ row_merge_write(
 	const void*	buf)	/*!< in: data */
 {
 	size_t		buf_len = sizeof(row_merge_block_t);
-	ib_uint64_t	ofs = buf_len * (ib_uint64_t) offset;
+	os_offset_t	ofs = buf_len * (os_offset_t) offset;
 	ibool		ret;
 
-	ret = os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf,
-			    (ulint) (ofs & 0xFFFFFFFF),
-			    (ulint) (ofs >> 32),
-			    buf_len);
+	ret = os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf, ofs, buf_len);
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_write) {

@@ -1063,7 +1063,7 @@ void sp_head::recursion_level_error(THD *thd)
   if (m_type == TYPE_ENUM_PROCEDURE)
   {
     my_error(ER_SP_RECURSION_LIMIT, MYF(0),
-             thd->variables.max_sp_recursion_depth,
+             static_cast<int>(thd->variables.max_sp_recursion_depth),
              m_name.str);
   }
   else

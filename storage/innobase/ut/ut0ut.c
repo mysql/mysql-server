@@ -93,26 +93,6 @@ reimplement this function. */
 #define	ut_gettimeofday		gettimeofday
 #endif
 
-/********************************************************//**
-Gets the high 32 bits in a ulint. That is makes a shift >> 32,
-but since there seem to be compiler bugs in both gcc and Visual C++,
-we do this by a special conversion.
-@return	a >> 32 */
-UNIV_INTERN
-ulint
-ut_get_high32(
-/*==========*/
-	ulint	a)	/*!< in: ulint */
-{
-	ib_int64_t	i;
-
-	i = (ib_int64_t)a;
-
-	i = i >> 32;
-
-	return((ulint)i);
-}
-
 /**********************************************************//**
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime.

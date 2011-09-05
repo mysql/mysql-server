@@ -463,7 +463,7 @@ static int check_connection(THD *thd)
 
     if (vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST))
     {
-      my_error(ER_BAD_HOST_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
@@ -474,7 +474,7 @@ static int check_connection(THD *thd)
       if (ip_to_hostname(&net->vio->remote, thd->main_security_ctx.ip,
                          &thd->main_security_ctx.host, &connect_errors))
       {
-        my_error(ER_BAD_HOST_ERROR, MYF(0), ip);
+        my_error(ER_BAD_HOST_ERROR, MYF(0));
         return 1;
       }
 
