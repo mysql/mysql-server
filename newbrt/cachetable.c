@@ -1326,7 +1326,10 @@ static void do_partial_eviction(CACHETABLE ct, PAIR p) {
 
     assert(ct->size_evicting >= p->size_evicting_estimate);
     ct->size_evicting -= p->size_evicting_estimate;
-    
+    if (8*ct->size_evicting  <= ct->size_current) {
+	workqueue_wakeup_write(&ct->wq, 0);
+    }
+
     p->state = CTPAIR_IDLE;
     if (p->cq) {
         workitem_init(&p->asyncwork, NULL, p);
