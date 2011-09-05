@@ -1829,7 +1829,7 @@ double Item_func_distance::val_real()
     {
       if (ev->event != scev_intersection)
         cur_point= ev->pi;
-      func.set_on_state(evpos->get_shape());
+      func.set_on_state(ev->get_shape());
       if (func.count())
       {
         /* Point of one object is inside the other - intersection found */

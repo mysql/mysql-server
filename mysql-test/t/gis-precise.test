@@ -206,3 +206,8 @@ SELECT AsText(ST_INTERSECTION(LinestringFromText('LINESTRING(1 1, 2 2)'), Geomet
 
 #bug 839341 100% CPU usage with ST_UNION in maria-5.3-gis
 SELECT AsText(ST_UNION(GEOMETRYFROMTEXT('POINT(8 1)') ,MULTILINESTRINGFROMTEXT('MULTILINESTRING((3 5, 2 5, 2 4, 3 4, 3 5))')));
+
+#bug 839318 Crash in Gcalc_scan_iterator::point::get_shape with ST_DISTANCE and MULTILINESTRING in maria-5.3-gis
+SELECT ST_DISTANCE(POINTFROMTEXT('POINT(7 1)'),MULTILINESTRINGFROMTEXT('MULTILINESTRING(
+                (4 7,9 7,6 1,3 4,1 1), (3 5, 2 5, 2 4, 3 4, 3 5))'));
+
