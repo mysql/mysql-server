@@ -347,6 +347,9 @@ typedef struct st_join_table {
      NULL - Not doing a loose scan on this join tab.
   */
   struct st_join_table *loosescan_match_tab;
+  
+  /* TRUE <=> we are inside LooseScan range */
+  bool inside_loosescan_range;
 
   /* Buffer to save index tuple to be able to skip duplicates */
   uchar *loosescan_buf;

@@ -7100,6 +7100,7 @@ get_best_combination(JOIN *join)
       goto loop_end;					// Handled in make_join_stat..
 
     j->loosescan_match_tab= NULL;  //non-nulls will be set later
+    j->inside_loosescan_range= FALSE;
     j->ref.key = -1;
     j->ref.key_parts=0;
 
@@ -8983,6 +8984,15 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     goto no_join_cache;
 
   if (tab->use_quick == 2)
+    goto no_join_cache;
+  
+  /*
+    Don't use join cache if we're inside a join tab range covered by LooseScan
+    strategy (TODO: LooseScan is very similar to FirstMatch so theoretically it 
+    should be possible to use join buffering in the same way we're using it for
+    multi-table firstmatch ranges).
+  */
+  if (tab->inside_loosescan_range)
     goto no_join_cache;
 
   if (tab->is_inner_table_of_semi_join_with_first_match() &&
