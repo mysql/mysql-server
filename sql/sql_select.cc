@@ -899,9 +899,6 @@ JOIN::optimize()
     /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
     select_lex->update_used_tables();
 
-    /* Save this info for the next executions */
-    if (select_lex->save_leaf_tables(thd))
-      DBUG_RETURN(1);
   }
   
   eval_select_list_used_tables();
@@ -961,6 +958,8 @@ JOIN::optimize()
 
     /* Convert all outer joins to inner joins if possible */
     conds= simplify_joins(this, join_list, conds, TRUE, FALSE);
+    if (select_lex->save_leaf_tables(thd))
+      DBUG_RETURN(1);
     build_bitmap_for_nested_joins(join_list, 0);
 
     sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
