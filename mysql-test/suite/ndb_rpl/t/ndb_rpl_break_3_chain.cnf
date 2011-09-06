@@ -36,6 +36,7 @@ log-bin=                       cluster1-bin
 ndb-table-temporary=1
 ndb-extra-logging=99
 binlog-format=row
+ndb-index-stat-enable=0
 
 [mysqld.1.cluster1]
 
