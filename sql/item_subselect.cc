@@ -35,6 +35,7 @@
 #include "sql_select.h"
 #include "opt_trace.h"
 #include "sql_parse.h"                          // check_stack_overrun
+#include "sql_derived.h"                        // mysql_derived_create, ...
 #include "debug_sync.h"
 #include "sql_test.h"
 
@@ -560,7 +561,7 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
                                              Item_subselect *parent,
 					     st_select_lex *select_lex,
 					     bool max_arg)
-  :Item_singlerow_subselect(), was_values(TRUE)
+  :Item_singlerow_subselect(), was_values(false)
 {
   DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
   max= max_arg;
@@ -584,15 +585,7 @@ void Item_maxmin_subselect::cleanup()
   DBUG_ENTER("Item_maxmin_subselect::cleanup");
   Item_singlerow_subselect::cleanup();
 
-  /*
-    By default it is TRUE to avoid TRUE reporting by
-    Item_func_not_all/Item_func_nop_all if this item was never called.
-
-    Engine exec() set it to FALSE by reset_value_registration() call.
-    select_max_min_finder_subselect::send_data() set it back to TRUE if some
-    value will be found.
-  */
-  was_values= TRUE;
+  was_values= false;
   DBUG_VOID_RETURN;
 }
 
@@ -1242,6 +1235,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       if (upper_item)
         upper_item->set_sub_test(item);
     }
+    if (upper_item)
+      upper_item->set_subselect(this);
     /* fix fields is already called for  left expression */
     substitution= func->create(left_expr, subs);
     DBUG_RETURN(RES_OK);
@@ -2494,6 +2489,7 @@ bool subselect_single_select_engine::exec()
       tab->read_record.ref_length= 0;
       tab->read_first_record= tab->save_read_first_record; 
       tab->read_record.read_record= tab->save_read_record;
+      tab->save_read_first_record= NULL;
     }
     executed= true;
     
@@ -2511,7 +2507,7 @@ bool subselect_union_engine::exec()
   THD * const thd= unit->thd;
   DBUG_ASSERT(thd == item->unit->thd);
   char const *save_where= thd->where;
-  const bool res= unit->exec();
+  const bool res= (unit->optimize() || unit->exec());
   thd->where= save_where;
   return res;
 }
@@ -2705,9 +2701,24 @@ bool subselect_uniquesubquery_engine::exec()
   DBUG_ENTER("subselect_uniquesubquery_engine::exec");
   int error;
   TABLE *table= tab->table;
+  TABLE_LIST *tl= table->pos_in_table_list;
   empty_result_set= TRUE;
   table->status= 0;
  
+  if (engine_type() == UNIQUESUBQUERY_ENGINE &&
+      tl->uses_materialization() && !tl->materialized)
+  {
+    bool err= mysql_handle_single_derived(table->in_use->lex, tl,
+                                          mysql_derived_create) ||
+              mysql_handle_single_derived(table->in_use->lex, tl,
+                                          mysql_derived_materialize);
+    if (!tab->table->in_use->lex->describe)
+      mysql_handle_single_derived(table->in_use->lex, tl,
+                                  mysql_derived_cleanup);
+    if (err)
+      DBUG_RETURN(1);
+  }
+
   /* TODO: change to use of 'full_scan' here? */
   if (copy_ref_key())
     DBUG_RETURN(1);
@@ -2809,11 +2820,25 @@ bool subselect_indexsubquery_engine::exec()
   int error;
   bool null_finding= 0;
   TABLE *table= tab->table;
+  TABLE_LIST *tl= table->pos_in_table_list;
 
   ((Item_in_subselect *) item)->value= 0;
   empty_result_set= TRUE;
   null_keypart= 0;
   table->status= 0;
+
+  if (tl->uses_materialization() && !tl->materialized)
+  {
+    bool err= mysql_handle_single_derived(table->in_use->lex, tl,
+                                          mysql_derived_create) ||
+              mysql_handle_single_derived(table->in_use->lex, tl,
+                                          mysql_derived_materialize);
+    if (!tab->table->in_use->lex->describe)
+      mysql_handle_single_derived(table->in_use->lex, tl,
+                                  mysql_derived_cleanup);
+    if (err)
+      DBUG_RETURN(1);
+  }
 
   if (check_null)
   {
@@ -3080,7 +3105,16 @@ void subselect_indexsubquery_engine::print(String *str,
   str->append(STRING_WITH_LEN("<index_lookup>("));
   tab->ref.items[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" in "));
-  str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
+  /*
+    For materialized derived tables/views use table/view alias instead of
+    temporary table name, as it changes on each run and not acceptable for
+    EXPLAIN EXTENDED.
+  */
+  if (tab->table->pos_in_table_list &&
+      tab->table->pos_in_table_list->uses_materialization())
+    str->append(tab->table->alias, strlen(tab->table->alias));
+  else
+    str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
   str->append(STRING_WITH_LEN(" on "));
   str->append(key_info->name);
@@ -3278,7 +3312,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   if (tmp_result_sink->create_result_table(
                          thd, tmp_columns, TRUE,
                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
-                         "materialized subselect", TRUE))
+                         "materialized subselect", TRUE, TRUE))
     DBUG_RETURN(TRUE);
 
   tmp_table= tmp_result_sink->table;

@@ -36,8 +36,8 @@ public:
                   TABLE** table, Open_tables_backup* backup);
   bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
                    bool error);
-  enum enum_return_id find_info_for_server_id(ulong server_id, uint idx, Rpl_info_values *,
-                                              TABLE *table);
+  enum enum_return_id find_info(const ulong *uidx, const uint nidx,
+                                Rpl_info_values *, TABLE *table);
   bool load_info_values(uint max_num_field, Field **fields,
                         Rpl_info_values *field_values);
   bool store_info_values(uint max_num_field, Field **fields,

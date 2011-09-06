@@ -43,8 +43,14 @@ enum {
   /* line for master_retry_count */
   LINE_FOR_MASTER_RETRY_COUNT= 20,
 
+  /* line for ssl_crl */
+  LINE_FOR_SSL_CRL= 21,
+
+  /* line for ssl_crl */
+  LINE_FOR_SSL_CRLPATH= 22,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_RETRY_COUNT
+  LINES_IN_MASTER_INFO= LINE_FOR_SSL_CRLPATH
 };
 
 /*
@@ -73,7 +79,9 @@ const char *info_mi_fields []=
   "bind", 
   "ignore_server_ids",
   "uuid",
-  "retry_count"
+  "retry_count",
+  "ssl_crl",
+  "ssl_crlpath",
 };
 
 Master_info::Master_info(
@@ -105,8 +113,9 @@ Master_info::Master_info(
   host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
+  ssl_crl[0]= 0; ssl_crlpath[0]= 0;
   master_uuid[0]= 0;
-  ignore_server_ids= new Server_ids();
+  ignore_server_ids= new Server_ids(sizeof(::server_id));
 }
 
 Master_info::~Master_info()
@@ -141,13 +150,13 @@ int change_master_server_id_cmp(ulong *id1, ulong *id2)
  */
 bool Master_info::shall_ignore_server_id(ulong s_id)
 {
-  if (likely(ignore_server_ids->server_ids.elements == 1))
+  if (likely(ignore_server_ids->dynamic_ids.elements == 1))
     return (* (ulong*)
-      dynamic_array_ptr(&(ignore_server_ids->server_ids), 0)) == s_id;
+      dynamic_array_ptr(&(ignore_server_ids->dynamic_ids), 0)) == s_id;
   else      
     return bsearch((const ulong *) &s_id,
-                   ignore_server_ids->server_ids.buffer,
-                   ignore_server_ids->server_ids.elements, sizeof(ulong),
+                   ignore_server_ids->dynamic_ids.buffer,
+                   ignore_server_ids->dynamic_ids.elements, sizeof(ulong),
                    (int (*) (const void*, const void*)) change_master_server_id_cmp)
       != NULL;
 }
@@ -192,7 +201,7 @@ void Master_info::end_info()
   if (!inited)
     DBUG_VOID_RETURN;
 
-  handler->end_info();
+  handler->end_info(uidx, nidx);
 
   inited = 0;
 
@@ -241,7 +250,10 @@ int Master_info::flush_info(bool force)
   */
   handler->set_sync_period(sync_masterinfo_period);
 
-  if (write_info(handler, force))
+  if (write_info(handler))
+    goto err;
+
+  if (handler->flush_info(uidx, nidx, force))
     goto err;
 
   DBUG_RETURN(0);
@@ -270,7 +282,7 @@ int Master_info::init_info()
   mysql= 0; file_id= 1;
   int necessary_to_configure= check_info();
   
-  if (handler->init_info())
+  if (handler->init_info(uidx, nidx))
     goto err;
 
   if (necessary_to_configure)
@@ -325,8 +337,9 @@ bool Master_info::read_info(Rpl_info_handler *from)
      is this.
   */
 
-  if (from->prepare_info_for_read() || 
-      from->get_info(master_log_name, sizeof(master_log_name), ""))
+  if (from->prepare_info_for_read(nidx) || 
+      from->get_info(master_log_name, (size_t) sizeof(master_log_name),
+                     (char *) ""))
     DBUG_RETURN(TRUE);
 
   lines= strtoul(master_log_name, &first_non_digit, 10);
@@ -335,17 +348,18 @@ bool Master_info::read_info(Rpl_info_handler *from)
       *first_non_digit=='\0' && lines >= LINES_IN_MASTER_INFO_WITH_SSL)
   {
     /* Seems to be new format => read master log name */
-    if (from->get_info(master_log_name,  sizeof(master_log_name), ""))
+    if (from->get_info(master_log_name, (size_t) sizeof(master_log_name),
+                       (char *) ""))
       DBUG_RETURN(TRUE);
   }
   else 
     lines= 7;
 
   if (from->get_info(&temp_master_log_pos,
-                        (ulong) BIN_LOG_HEADER_SIZE) ||
-      from->get_info(host, sizeof(host), 0) ||
-      from->get_info(user, sizeof(user), "test") ||
-      from->get_info(password, sizeof(password), 0) ||
+                     (ulong) BIN_LOG_HEADER_SIZE) ||
+      from->get_info(host, (size_t) sizeof(host), (char *) 0) ||
+      from->get_info(user, (size_t) sizeof(user), (char *) "test") ||
+      from->get_info(password, (size_t) sizeof(password), (char *) 0) ||
       from->get_info((int *) &port, (int) MYSQL_PORT) ||
       from->get_info((int *) &connect_retry,
                         (int) DEFAULT_CONNECT_RETRY))
@@ -360,11 +374,11 @@ bool Master_info::read_info(Rpl_info_handler *from)
   if (lines >= LINES_IN_MASTER_INFO_WITH_SSL)
   {
     if (from->get_info(&temp_ssl, 0) ||
-        from->get_info(ssl_ca, sizeof(ssl_ca), 0) ||
-        from->get_info(ssl_capath, sizeof(ssl_capath), 0) ||
-        from->get_info(ssl_cert, sizeof(ssl_cert), 0) ||
-        from->get_info(ssl_cipher, sizeof(ssl_cipher), 0) ||
-        from->get_info(ssl_key, sizeof(ssl_key), 0))
+        from->get_info(ssl_ca, (size_t) sizeof(ssl_ca), (char *) 0) ||
+        from->get_info(ssl_capath, (size_t) sizeof(ssl_capath), (char *) 0) ||
+        from->get_info(ssl_cert, (size_t) sizeof(ssl_cert), (char *) 0) ||
+        from->get_info(ssl_cipher, (size_t) sizeof(ssl_cipher), (char *) 0) ||
+        from->get_info(ssl_key, (size_t) sizeof(ssl_key), (char *) 0))
       DBUG_RETURN(TRUE);
   }
 
@@ -393,7 +407,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
   if (lines >= LINE_FOR_MASTER_BIND)
   {
-    if (from->get_info(bind_addr, sizeof(bind_addr), ""))
+    if (from->get_info(bind_addr, (size_t) sizeof(bind_addr), (char *) ""))
       DBUG_RETURN(TRUE);
   }
 
@@ -403,14 +417,15 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
   if (lines >= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS)
   {
-     if (from->get_info(ignore_server_ids, (Server_ids *) NULL))
+     if (from->get_info(ignore_server_ids, (Dynamic_ids *) NULL))
       DBUG_RETURN(TRUE);
   }
 
   /* Starting from 5.5 the master_uuid may be in the repository. */
   if (lines >= LINE_FOR_MASTER_UUID)
   {
-    if (from->get_info(master_uuid, sizeof(master_uuid), 0))
+    if (from->get_info(master_uuid, (size_t) sizeof(master_uuid),
+                       (char *) 0))
       DBUG_RETURN(TRUE);
   }
 
@@ -419,6 +434,13 @@ bool Master_info::read_info(Rpl_info_handler *from)
   if (lines >= LINE_FOR_MASTER_RETRY_COUNT)
   {
     if (from->get_info(&retry_count, master_retry_count))
+      DBUG_RETURN(TRUE);
+  }
+
+  if (lines >= LINE_FOR_SSL_CRLPATH)
+  {
+    if (from->get_info(ssl_crl, sizeof(ssl_crl), (char *) 0) ||
+        from->get_info(ssl_crlpath, sizeof(ssl_crlpath), (char *) 0))
       DBUG_RETURN(TRUE);
   }
 
@@ -435,7 +457,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   DBUG_RETURN(FALSE);
 }
 
-bool Master_info::write_info(Rpl_info_handler *to, bool force)
+bool Master_info::write_info(Rpl_info_handler *to)
 {
   DBUG_ENTER("Master_info::write_info");
 
@@ -447,10 +469,10 @@ bool Master_info::write_info(Rpl_info_handler *to, bool force)
      of file we don't care about this garbage.
   */
 
-  if (to->prepare_info_for_write() ||
+  if (to->prepare_info_for_write(nidx) ||
       to->set_info((int) LINES_IN_MASTER_INFO) ||
       to->set_info(master_log_name) ||
-      to->set_info((ulong)master_log_pos) ||
+      to->set_info((ulong) master_log_pos) ||
       to->set_info(host) ||
       to->set_info(user) ||
       to->set_info(password) ||
@@ -462,15 +484,14 @@ bool Master_info::write_info(Rpl_info_handler *to, bool force)
       to->set_info(ssl_cert) ||
       to->set_info(ssl_cipher) ||
       to->set_info(ssl_key) ||
-      to->set_info(ssl_verify_server_cert) ||
+      to->set_info((int) ssl_verify_server_cert) ||
       to->set_info(heartbeat_period) ||
       to->set_info(bind_addr) ||
       to->set_info(ignore_server_ids) ||
       to->set_info(master_uuid) ||
-      to->set_info(retry_count))
-    DBUG_RETURN(TRUE);
-
-  if (to->flush_info(force))
+      to->set_info(retry_count) ||
+      to->set_info(ssl_crl) ||
+      to->set_info(ssl_crlpath))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);

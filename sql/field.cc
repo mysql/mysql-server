@@ -6502,7 +6502,7 @@ Field_string::compatible_field_size(uint field_metadata,
 {
 #ifdef HAVE_REPLICATION
   const Check_field_param check_param = { this };
-  if (rpl_master_has_bug(rli_arg, 37426, TRUE,
+  if (!is_mts_worker(rli_arg->info_thd) && rpl_master_has_bug(rli_arg, 37426, TRUE,
                          check_field_for_37426, &check_param))
     return FALSE;                        // Not compatible field sizes
 #endif

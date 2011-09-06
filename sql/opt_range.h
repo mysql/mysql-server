@@ -382,6 +382,7 @@ public:
     Returns a QUICK_SELECT with reverse order of to the index.
   */
   virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) { return NULL; }
+  virtual void set_handler(handler *file_arg) {}
 };
 
 
@@ -491,6 +492,7 @@ public:
   void dbug_dump(int indent, bool verbose);
 #endif
   QUICK_SELECT_I *make_reverse(uint used_key_parts_arg);
+  void set_handler(handler *file_arg) { file= file_arg; }
 private:
   /* Default copy ctor used by QUICK_SELECT_DESC */
 };
@@ -810,7 +812,6 @@ private:
 class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I
 {
 private:
-  handler * const file;   /* The handler used to get data. */
   JOIN *join;            /* Descriptor of the current query */
   KEY  *index_info;      /* The index chosen for data access */
   uchar *record;          /* Buffer where the next record is returned. */

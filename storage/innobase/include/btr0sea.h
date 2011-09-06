@@ -270,24 +270,6 @@ struct btr_search_sys_struct{
 /** The adaptive hash index */
 extern btr_search_sys_t*	btr_search_sys;
 
-/** @brief The latch protecting the adaptive search system
-
-This latch protects the
-(1) hash index;
-(2) columns of a record to which we have a pointer in the hash index;
-
-but does NOT protect:
-
-(3) next record offset field in a record;
-(4) next or previous records on the same page.
-
-Bear in mind (3) and (4) when using the hash index.
-*/
-extern rw_lock_t*	btr_search_latch_temp;
-
-/** The latch protecting the adaptive search system */
-#define btr_search_latch	(*btr_search_latch_temp)
-
 #ifdef UNIV_SEARCH_PERF_STAT
 /** Number of successful adaptive hash index lookups */
 extern ulint	btr_search_n_succ;

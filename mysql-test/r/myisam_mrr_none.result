@@ -391,18 +391,21 @@ set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
 set read_rnd_buffer_size=64;
 create table t1(a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-create table t2(a char(8), b char(8), c char(8), filler char(100), key(a,b,c) );
+create table t2(a char(8), b char(8), c char(8), filler char(100), key k1(a,b,c) );
 insert into t2 select 
 concat('a-', 1000 + A.a, '-a'),
 concat('b-', 1000 + B.a, '-b'),
 concat('c-', 1000 + C.a, '-c'),
 'filler'
 from t1 A, t1 B, t1 C;
-explain
-select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+EXPLAIN select count(length(a) + length(filler))
+from t2 force index (k1)
+where a>='a-1000-a' and a <'a-1001-a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	9	NULL	92	Using where
-select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+1	SIMPLE	t2	range	k1	k1	9	NULL	92	Using where
+select count(length(a) + length(filler))
+from t2 force index (k1)
+where a>='a-1000-a' and a <'a-1001-a';
 count(length(a) + length(filler))
 100
 drop table t2;
@@ -546,8 +549,8 @@ DROP TABLE t1, t2;
 #
 # Bug#12321461: CRASH IN DSMRR_IMPL::DSMRR_INIT ON SELECT STRAIGHT_JOIN
 #
-set @save_join_cache_level= @@optimizer_join_cache_level;
-set optimizer_join_cache_level=0;
+set @save_optimizer_switch = @@optimizer_switch;
+set optimizer_switch='block_nested_loop=off,batch_key_access=off';
 CREATE TABLE t1 (
 pk INTEGER,
 c1 VARCHAR(1) NOT NULL,
@@ -568,6 +571,6 @@ FROM t1 RIGHT OUTER JOIN t2 ON t1.c1 = t2.c1
 WHERE t1.pk > 176;
 c1
 DROP TABLE t1,t2;
-set optimizer_join_cache_level= @save_join_cache_level;
+set optimizer_switch= @save_optimizer_switch;
 set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
 set optimizer_switch=default;

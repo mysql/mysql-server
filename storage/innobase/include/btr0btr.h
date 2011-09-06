@@ -199,26 +199,45 @@ btr_block_get_func(
 	ulint		mode,		/*!< in: latch mode */
 	const char*	file,		/*!< in: file name */
 	ulint		line,		/*!< in: line where called */
-	mtr_t*		mtr)		/*!< in/out: mtr */
-	__attribute__((nonnull));
+# ifdef UNIV_SYNC_DEBUG
+	const dict_index_t*	index,	/*!< in: index tree, may be NULL
+					if it is not an insert buffer tree */
+# endif /* UNIV_SYNC_DEBUG */
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+# ifdef UNIV_SYNC_DEBUG
 /** Gets a buffer page and declares its latching order level.
 @param space	tablespace identifier
 @param zip_size	compressed page size in bytes or 0 for uncompressed pages
 @param page_no	page number
 @param mode	latch mode
+@param index	index tree, may be NULL if not the insert buffer tree
 @param mtr	mini-transaction handle
 @return the block descriptor */
-# define btr_block_get(space,zip_size,page_no,mode,mtr) \
-	btr_block_get_func(space,zip_size,page_no,mode,__FILE__,__LINE__,mtr)
+#  define btr_block_get(space,zip_size,page_no,mode,index,mtr)	\
+	btr_block_get_func(space,zip_size,page_no,mode,		\
+			   __FILE__,__LINE__,index,mtr)
+# else /* UNIV_SYNC_DEBUG */
 /** Gets a buffer page and declares its latching order level.
 @param space	tablespace identifier
 @param zip_size	compressed page size in bytes or 0 for uncompressed pages
 @param page_no	page number
 @param mode	latch mode
+@param idx	index tree, may be NULL if not the insert buffer tree
+@param mtr	mini-transaction handle
+@return the block descriptor */
+#  define btr_block_get(space,zip_size,page_no,mode,idx,mtr)		\
+	btr_block_get_func(space,zip_size,page_no,mode,__FILE__,__LINE__,mtr)
+# endif /* UNIV_SYNC_DEBUG */
+/** Gets a buffer page and declares its latching order level.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes or 0 for uncompressed pages
+@param page_no	page number
+@param mode	latch mode
+@param idx	index tree, may be NULL if not the insert buffer tree
 @param mtr	mini-transaction handle
 @return the uncompressed page frame */
-# define btr_page_get(space,zip_size,page_no,mode,mtr) \
-	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,mtr))
+# define btr_page_get(space,zip_size,page_no,mode,idx,mtr)		\
+	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,idx,mtr))
 #endif /* !UNIV_HOTBACKUP */
 /**************************************************************//**
 Gets the index id field of a page.
@@ -344,8 +363,7 @@ btr_free_root(
 	ulint	zip_size,	/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
 	ulint	root_page_no,	/*!< in: root page number */
-	mtr_t*	mtr);		/*!< in: a mini-transaction which has already
-				been started */
+	mtr_t*	mtr);		/*!< in/out: mini-transaction */
 /*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts
 the tuple. It is assumed that mtr contains an x-latch on the tree.
@@ -550,7 +568,12 @@ btr_page_alloc(
 					page split is made */
 	ulint		level,		/*!< in: level where the page is placed
 					in the tree */
-	mtr_t*		mtr);		/*!< in: mtr */
+	mtr_t*		mtr,		/*!< in/out: mini-transaction
+					for the allocation */
+	mtr_t*		init_mtr)	/*!< in/out: mini-transaction
+					for x-latching and initializing
+					the page */
+	__attribute__((nonnull, warn_unused_result));
 /**************************************************************//**
 Frees a file page used in an index tree. NOTE: cannot free field external
 storage pages because the page must contain info on its level. */
@@ -573,6 +596,33 @@ btr_page_free_low(
 	buf_block_t*	block,	/*!< in: block to be freed, x-latched */
 	ulint		level,	/*!< in: page level */
 	mtr_t*		mtr);	/*!< in: mtr */
+/**************************************************************//**
+Marks all MTR_MEMO_FREE_CLUST_LEAF pages nonfree or free.
+For invoking btr_store_big_rec_extern_fields() after an update,
+we must temporarily mark freed clustered index pages allocated, so
+that off-page columns will not be allocated from them. Between the
+btr_store_big_rec_extern_fields() and mtr_commit() we have to
+mark the pages free again, so that no pages will be leaked. */
+UNIV_INTERN
+void
+btr_mark_freed_leaves(
+/*==================*/
+	dict_index_t*	index,	/*!< in/out: clustered index */
+	mtr_t*		mtr,	/*!< in/out: mini-transaction */
+	ibool		nonfree)/*!< in: TRUE=mark nonfree, FALSE=mark freed */
+	UNIV_COLD __attribute__((nonnull));
+#ifdef UNIV_DEBUG
+/**************************************************************//**
+Validates all pages marked MTR_MEMO_FREE_CLUST_LEAF.
+@see btr_mark_freed_leaves()
+@return TRUE */
+UNIV_INTERN
+ibool
+btr_freed_leaves_validate(
+/*======================*/
+	mtr_t*	mtr)	/*!< in: mini-transaction */
+	__attribute__((nonnull, warn_unused_result));
+#endif /* UNIV_DEBUG */
 #ifdef UNIV_BTR_PRINT
 /*************************************************************//**
 Prints size info of a B-tree. */

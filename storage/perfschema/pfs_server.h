@@ -54,6 +54,12 @@
 #ifndef PFS_MAX_FILE_HANDLE
   #define PFS_MAX_FILE_HANDLE 32768
 #endif
+#ifndef PFS_MAX_SOCKETS
+  #define PFS_MAX_SOCKETS 1000
+#endif
+#ifndef PFS_MAX_SOCKET_CLASS
+  #define PFS_MAX_SOCKET_CLASS 10
+#endif
 #ifndef PFS_MAX_TABLE_SHARE
   #define PFS_MAX_TABLE_SHARE 1000
 #endif
@@ -71,6 +77,15 @@
 #endif
 #ifndef PFS_MAX_SETUP_OBJECT
   #define PFS_MAX_SETUP_OBJECT 100
+#endif
+#ifndef PFS_MAX_HOST
+  #define PFS_MAX_HOST 100
+#endif
+#ifndef PFS_MAX_USER
+  #define PFS_MAX_USER 100
+#endif
+#ifndef PFS_MAX_ACCOUNT
+  #define PFS_MAX_ACCOUNT 100
 #endif
 #ifndef PFS_MAX_STAGE_CLASS
   #define PFS_MAX_STAGE_CLASS 150
@@ -164,6 +179,16 @@ struct PFS_global_param
     @sa file_handle_lost.
   */
   ulong m_file_handle_sizing;
+  /**
+    Maxium number of instrumented socket instances
+    @sa socket_lost  
+  */
+  ulong m_socket_sizing;
+  /**
+    Maximum number of instrumented socket classes.
+    @sa socket_class_lost.
+  */
+  ulong m_socket_class_sizing;
   /** Maximum number of rows per thread in table EVENTS_WAITS_HISTORY. */
   ulong m_events_waits_history_sizing;
   /** Maximum number of rows in table EVENTS_WAITS_HISTORY_LONG. */
@@ -172,6 +197,12 @@ struct PFS_global_param
   ulong m_setup_actor_sizing;
   /** Maximum number of rows in table SETUP_OBJECTS. */
   ulong m_setup_object_sizing;
+  /** Maximum number of rows in table HOSTS. */
+  ulong m_host_sizing;
+  /** Maximum number of rows in table USERS. */
+  ulong m_user_sizing;
+  /** Maximum number of rows in table ACCOUNTS. */
+  ulong m_account_sizing;
   /**
     Maximum number of instrumented stage classes.
     @sa stage_class_lost.

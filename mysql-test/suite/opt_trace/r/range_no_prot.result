@@ -789,6 +789,19 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t2`.`key2`",
+              "items": [
+                {
+                  "item": "`test`.`t2`.`key2`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t2`.`key2`"
+            } /* clause_processing */
+          },
+          {
             "refine_plan": [
               {
                 "database": "test",
@@ -983,6 +996,19 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t2`.`key2`",
+              "items": [
+                {
+                  "item": "`test`.`t2`.`key2`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t2`.`key2`"
+            } /* clause_processing */
           },
           {
             "refine_plan": [
@@ -1258,6 +1284,19 @@ GROUP BY key2	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t2`.`key2`",
+              "items": [
+                {
+                  "item": "`test`.`t2`.`key2`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t2`.`key2`"
+            } /* clause_processing */
           },
           {
             "refine_plan": [
@@ -3483,68 +3522,181 @@ EXPLAIN SELECT 1 FROM
       } /* join_preparation */
     },
     {
-      "join_optimization": {
-        "select#": 2,
+      "join_preparation": {
+        "select#": 1,
         "steps": [
           {
-            "condition_processing": {
-              "condition": "WHERE",
-              "original_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)",
+            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`b` < `test`.`t1`.`c`) group by 1 limit 1) `d2`"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_optimization": {
+              "select#": 2,
               "steps": [
                 {
-                  "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                  "condition_processing": {
+                    "condition": "WHERE",
+                    "original_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)",
+                    "steps": [
+                      {
+                        "transformation": "equality_propagation",
+                        "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                      },
+                      {
+                        "transformation": "constant_propagation",
+                        "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                      },
+                      {
+                        "transformation": "trivial_condition_removal",
+                        "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                      }
+                    ] /* steps */
+                  } /* condition_processing */
                 },
                 {
-                  "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                  "ref_optimizer_key_uses": [
+                  ] /* ref_optimizer_key_uses */
                 },
                 {
-                  "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                  "records_estimation": [
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "table_scan": {
+                        "records": 3,
+                        "cost": 2
+                      } /* table_scan */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "table_scan": {
+                        "records": 2,
+                        "cost": 2
+                      } /* table_scan */
+                    }
+                  ] /* records_estimation */
+                },
+                {
+                  "considered_execution_plans": "..."
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)",
+                    "attached_conditions_computation": [
+                      {
+                        "database": "test",
+                        "table": "t2",
+                        "rechecking_index_usage": {
+                          "range_analysis": {
+                            "table_scan": {
+                              "records": 3,
+                              "cost": 5.6
+                            } /* table_scan */,
+                            "potential_range_indices": [
+                              {
+                                "index": "b",
+                                "usable": true,
+                                "key_parts": [
+                                  "b"
+                                ] /* key_parts */
+                              }
+                            ] /* potential_range_indices */,
+                            "best_covering_index_scan": {
+                              "index": "b",
+                              "cost": 1.6465,
+                              "chosen": true
+                            } /* best_covering_index_scan */,
+                            "setup_range_conditions": [
+                            ] /* setup_range_conditions */,
+                            "group_index_range": {
+                              "chosen": false,
+                              "cause": "not_single_table"
+                            } /* group_index_range */,
+                            "analyzing_range_alternatives": {
+                              "range_scan_alternatives": [
+                                {
+                                  "index": "b",
+                                  "index_only": true,
+                                  "records": 18446744073709551615,
+                                  "cost": 0,
+                                  "rowid_ordered": false,
+                                  "chosen": false,
+                                  "cause": "cost"
+                                }
+                              ] /* range_scan_alternatives */,
+                              "analyzing_roworder_intersect": {
+                                "usable": false,
+                                "cause": "too_few_roworder_scans"
+                              } /* analyzing_roworder_intersect */
+                            } /* analyzing_range_alternatives */
+                          } /* range_analysis */
+                        } /* rechecking_index_usage */
+                      }
+                    ] /* attached_conditions_computation */,
+                    "attached_conditions_summary": [
+                      {
+                        "database": "test",
+                        "table": "t1",
+                        "attached": null
+                      },
+                      {
+                        "database": "test",
+                        "table": "t2",
+                        "attached": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                      }
+                    ] /* attached_conditions_summary */
+                  } /* attaching_conditions_to_tables */
+                },
+                {
+                  "clause_processing": {
+                    "clause": "GROUP BY",
+                    "original_clause": "1",
+                    "items": [
+                      {
+                        "item": "1",
+                        "uses_only_constant_tables": true
+                      }
+                    ] /* items */,
+                    "resulting_clause_is_simple": true,
+                    "resulting_clause": ""
+                  } /* clause_processing */
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "scan_type": "table"
+                    },
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "scan_type": "table"
+                    }
+                  ] /* refine_plan */
                 }
               ] /* steps */
-            } /* condition_processing */
+            } /* join_optimization */
           },
           {
-            "ref_optimizer_key_uses": [
-            ] /* ref_optimizer_key_uses */
-          },
-          {
-            "records_estimation": [
-              {
-                "database": "test",
-                "table": "t2",
-                "table_scan": {
-                  "records": 3,
-                  "cost": 2
-                } /* table_scan */
-              },
-              {
-                "database": "test",
-                "table": "t1",
-                "table_scan": {
-                  "records": 2,
-                  "cost": 2
-                } /* table_scan */
-              }
-            ] /* records_estimation */
-          },
-          {
-            "considered_execution_plans": "..."
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)",
-              "attached_conditions_computation": [
+            "join_execution": {
+              "select#": 2,
+              "steps": [
                 {
-                  "database": "test",
-                  "table": "t2",
-                  "rechecking_index_usage": {
+                  "records_estimation_per_record": {
+                    "database": "test",
+                    "table": "t2",
                     "range_analysis": {
                       "table_scan": {
                         "records": 3,
-                        "cost": 5.6
+                        "cost": 4.7051
                       } /* table_scan */,
                       "potential_range_indices": [
                         {
@@ -3561,152 +3713,53 @@ EXPLAIN SELECT 1 FROM
                         "chosen": true
                       } /* best_covering_index_scan */,
                       "setup_range_conditions": [
+                        {
+                          "impossible_condition": {
+                            "cause": "comparison_with_null_always_false"
+                          } /* impossible_condition */
+                        }
                       ] /* setup_range_conditions */,
-                      "group_index_range": {
-                        "chosen": false,
-                        "cause": "not_single_table"
-                      } /* group_index_range */,
-                      "analyzing_range_alternatives": {
-                        "range_scan_alternatives": [
-                          {
-                            "index": "b",
-                            "index_only": true,
-                            "records": 18446744073709551615,
-                            "cost": 0,
-                            "rowid_ordered": false,
-                            "chosen": false,
-                            "cause": "cost"
-                          }
-                        ] /* range_scan_alternatives */,
-                        "analyzing_roworder_intersect": {
-                          "usable": false,
-                          "cause": "too_few_roworder_scans"
-                        } /* analyzing_roworder_intersect */
-                      } /* analyzing_range_alternatives */
+                      "impossible_range": true
                     } /* range_analysis */
-                  } /* rechecking_index_usage */
-                }
-              ] /* attached_conditions_computation */,
-              "attached_conditions_summary": [
-                {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": null
+                  } /* records_estimation_per_record */
                 },
                 {
-                  "database": "test",
-                  "table": "t2",
-                  "attached": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                  "records_estimation_per_record": {
+                    "database": "test",
+                    "table": "t2",
+                    "range_analysis": {
+                      "table_scan": {
+                        "records": 3,
+                        "cost": 4.7051
+                      } /* table_scan */,
+                      "potential_range_indices": [
+                        {
+                          "index": "b",
+                          "usable": true,
+                          "key_parts": [
+                            "b"
+                          ] /* key_parts */
+                        }
+                      ] /* potential_range_indices */,
+                      "best_covering_index_scan": {
+                        "index": "b",
+                        "cost": 1.6465,
+                        "chosen": true
+                      } /* best_covering_index_scan */,
+                      "setup_range_conditions": [
+                        {
+                          "impossible_condition": {
+                            "cause": "comparison_with_null_always_false"
+                          } /* impossible_condition */
+                        }
+                      ] /* setup_range_conditions */,
+                      "impossible_range": true
+                    } /* range_analysis */
+                  } /* records_estimation_per_record */
                 }
-              ] /* attached_conditions_summary */
-            } /* attaching_conditions_to_tables */
+              ] /* steps */
+            } /* join_execution */
           },
-          {
-            "refine_plan": [
-              {
-                "database": "test",
-                "table": "t1",
-                "scan_type": "table"
-              },
-              {
-                "database": "test",
-                "table": "t2",
-                "scan_type": "table"
-              }
-            ] /* refine_plan */
-          }
-        ] /* steps */
-      } /* join_optimization */
-    },
-    {
-      "join_execution": {
-        "select#": 2,
-        "steps": [
-          {
-            "records_estimation_per_record": {
-              "database": "test",
-              "table": "t2",
-              "range_analysis": {
-                "table_scan": {
-                  "records": 3,
-                  "cost": 4.7051
-                } /* table_scan */,
-                "potential_range_indices": [
-                  {
-                    "index": "b",
-                    "usable": true,
-                    "key_parts": [
-                      "b"
-                    ] /* key_parts */
-                  }
-                ] /* potential_range_indices */,
-                "best_covering_index_scan": {
-                  "index": "b",
-                  "cost": 1.6465,
-                  "chosen": true
-                } /* best_covering_index_scan */,
-                "setup_range_conditions": [
-                  {
-                    "impossible_condition": {
-                      "cause": "comparison_with_null_always_false"
-                    } /* impossible_condition */
-                  }
-                ] /* setup_range_conditions */,
-                "impossible_range": true
-              } /* range_analysis */
-            } /* records_estimation_per_record */
-          },
-          {
-            "records_estimation_per_record": {
-              "database": "test",
-              "table": "t2",
-              "range_analysis": {
-                "table_scan": {
-                  "records": 3,
-                  "cost": 4.7051
-                } /* table_scan */,
-                "potential_range_indices": [
-                  {
-                    "index": "b",
-                    "usable": true,
-                    "key_parts": [
-                      "b"
-                    ] /* key_parts */
-                  }
-                ] /* potential_range_indices */,
-                "best_covering_index_scan": {
-                  "index": "b",
-                  "cost": 1.6465,
-                  "chosen": true
-                } /* best_covering_index_scan */,
-                "setup_range_conditions": [
-                  {
-                    "impossible_condition": {
-                      "cause": "comparison_with_null_always_false"
-                    } /* impossible_condition */
-                  }
-                ] /* setup_range_conditions */,
-                "impossible_range": true
-              } /* range_analysis */
-            } /* records_estimation_per_record */
-          }
-        ] /* steps */
-      } /* join_execution */
-    },
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`b` < `test`.`t1`.`c`) group by 1 limit 1) `d2`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
           {
             "records_estimation": [
               {
@@ -3775,68 +3828,181 @@ EXPLAIN SELECT 1 FROM
       } /* join_preparation */
     },
     {
-      "join_optimization": {
-        "select#": 2,
+      "join_preparation": {
+        "select#": 1,
         "steps": [
           {
-            "condition_processing": {
-              "condition": "WHERE",
-              "original_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)",
+            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`b` < `test`.`t1`.`c`) group by 1 limit 1) `d2`"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_optimization": {
+              "select#": 2,
               "steps": [
                 {
-                  "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                  "condition_processing": {
+                    "condition": "WHERE",
+                    "original_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)",
+                    "steps": [
+                      {
+                        "transformation": "equality_propagation",
+                        "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                      },
+                      {
+                        "transformation": "constant_propagation",
+                        "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                      },
+                      {
+                        "transformation": "trivial_condition_removal",
+                        "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                      }
+                    ] /* steps */
+                  } /* condition_processing */
                 },
                 {
-                  "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                  "ref_optimizer_key_uses": [
+                  ] /* ref_optimizer_key_uses */
                 },
                 {
-                  "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                  "records_estimation": [
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "table_scan": {
+                        "records": 3,
+                        "cost": 2
+                      } /* table_scan */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "table_scan": {
+                        "records": 2,
+                        "cost": 2
+                      } /* table_scan */
+                    }
+                  ] /* records_estimation */
+                },
+                {
+                  "considered_execution_plans": "..."
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)",
+                    "attached_conditions_computation": [
+                      {
+                        "database": "test",
+                        "table": "t2",
+                        "rechecking_index_usage": {
+                          "range_analysis": {
+                            "table_scan": {
+                              "records": 3,
+                              "cost": 5.6
+                            } /* table_scan */,
+                            "potential_range_indices": [
+                              {
+                                "index": "b",
+                                "usable": true,
+                                "key_parts": [
+                                  "b"
+                                ] /* key_parts */
+                              }
+                            ] /* potential_range_indices */,
+                            "best_covering_index_scan": {
+                              "index": "b",
+                              "cost": 1.6465,
+                              "chosen": true
+                            } /* best_covering_index_scan */,
+                            "setup_range_conditions": [
+                            ] /* setup_range_conditions */,
+                            "group_index_range": {
+                              "chosen": false,
+                              "cause": "not_single_table"
+                            } /* group_index_range */,
+                            "analyzing_range_alternatives": {
+                              "range_scan_alternatives": [
+                                {
+                                  "index": "b",
+                                  "index_only": true,
+                                  "records": 18446744073709551615,
+                                  "cost": 0,
+                                  "rowid_ordered": false,
+                                  "chosen": false,
+                                  "cause": "cost"
+                                }
+                              ] /* range_scan_alternatives */,
+                              "analyzing_roworder_intersect": {
+                                "usable": false,
+                                "cause": "too_few_roworder_scans"
+                              } /* analyzing_roworder_intersect */
+                            } /* analyzing_range_alternatives */
+                          } /* range_analysis */
+                        } /* rechecking_index_usage */
+                      }
+                    ] /* attached_conditions_computation */,
+                    "attached_conditions_summary": [
+                      {
+                        "database": "test",
+                        "table": "t1",
+                        "attached": null
+                      },
+                      {
+                        "database": "test",
+                        "table": "t2",
+                        "attached": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
+                      }
+                    ] /* attached_conditions_summary */
+                  } /* attaching_conditions_to_tables */
+                },
+                {
+                  "clause_processing": {
+                    "clause": "GROUP BY",
+                    "original_clause": "1",
+                    "items": [
+                      {
+                        "item": "1",
+                        "uses_only_constant_tables": true
+                      }
+                    ] /* items */,
+                    "resulting_clause_is_simple": true,
+                    "resulting_clause": ""
+                  } /* clause_processing */
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "scan_type": "table"
+                    },
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "scan_type": "table"
+                    }
+                  ] /* refine_plan */
                 }
               ] /* steps */
-            } /* condition_processing */
+            } /* join_optimization */
           },
           {
-            "ref_optimizer_key_uses": [
-            ] /* ref_optimizer_key_uses */
-          },
-          {
-            "records_estimation": [
-              {
-                "database": "test",
-                "table": "t2",
-                "table_scan": {
-                  "records": 3,
-                  "cost": 2
-                } /* table_scan */
-              },
-              {
-                "database": "test",
-                "table": "t1",
-                "table_scan": {
-                  "records": 2,
-                  "cost": 2
-                } /* table_scan */
-              }
-            ] /* records_estimation */
-          },
-          {
-            "considered_execution_plans": "..."
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t2`.`b` < `test`.`t1`.`c`)",
-              "attached_conditions_computation": [
+            "join_execution": {
+              "select#": 2,
+              "steps": [
                 {
-                  "database": "test",
-                  "table": "t2",
-                  "rechecking_index_usage": {
+                  "records_estimation_per_record": {
+                    "database": "test",
+                    "table": "t2",
                     "range_analysis": {
                       "table_scan": {
                         "records": 3,
-                        "cost": 5.6
+                        "cost": 4.7051
                       } /* table_scan */,
                       "potential_range_indices": [
                         {
@@ -3853,118 +4019,19 @@ EXPLAIN SELECT 1 FROM
                         "chosen": true
                       } /* best_covering_index_scan */,
                       "setup_range_conditions": [
+                        {
+                          "impossible_condition": {
+                            "cause": "comparison_with_null_always_false"
+                          } /* impossible_condition */
+                        }
                       ] /* setup_range_conditions */,
-                      "group_index_range": {
-                        "chosen": false,
-                        "cause": "not_single_table"
-                      } /* group_index_range */,
-                      "analyzing_range_alternatives": {
-                        "range_scan_alternatives": [
-                          {
-                            "index": "b",
-                            "index_only": true,
-                            "records": 18446744073709551615,
-                            "cost": 0,
-                            "rowid_ordered": false,
-                            "chosen": false,
-                            "cause": "cost"
-                          }
-                        ] /* range_scan_alternatives */,
-                        "analyzing_roworder_intersect": {
-                          "usable": false,
-                          "cause": "too_few_roworder_scans"
-                        } /* analyzing_roworder_intersect */
-                      } /* analyzing_range_alternatives */
+                      "impossible_range": true
                     } /* range_analysis */
-                  } /* rechecking_index_usage */
+                  } /* records_estimation_per_record */
                 }
-              ] /* attached_conditions_computation */,
-              "attached_conditions_summary": [
-                {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": null
-                },
-                {
-                  "database": "test",
-                  "table": "t2",
-                  "attached": "(`test`.`t2`.`b` < `test`.`t1`.`c`)"
-                }
-              ] /* attached_conditions_summary */
-            } /* attaching_conditions_to_tables */
+              ] /* steps */
+            } /* join_execution */
           },
-          {
-            "refine_plan": [
-              {
-                "database": "test",
-                "table": "t1",
-                "scan_type": "table"
-              },
-              {
-                "database": "test",
-                "table": "t2",
-                "scan_type": "table"
-              }
-            ] /* refine_plan */
-          }
-        ] /* steps */
-      } /* join_optimization */
-    },
-    {
-      "join_execution": {
-        "select#": 2,
-        "steps": [
-          {
-            "records_estimation_per_record": {
-              "database": "test",
-              "table": "t2",
-              "range_analysis": {
-                "table_scan": {
-                  "records": 3,
-                  "cost": 4.7051
-                } /* table_scan */,
-                "potential_range_indices": [
-                  {
-                    "index": "b",
-                    "usable": true,
-                    "key_parts": [
-                      "b"
-                    ] /* key_parts */
-                  }
-                ] /* potential_range_indices */,
-                "best_covering_index_scan": {
-                  "index": "b",
-                  "cost": 1.6465,
-                  "chosen": true
-                } /* best_covering_index_scan */,
-                "setup_range_conditions": [
-                  {
-                    "impossible_condition": {
-                      "cause": "comparison_with_null_always_false"
-                    } /* impossible_condition */
-                  }
-                ] /* setup_range_conditions */,
-                "impossible_range": true
-              } /* range_analysis */
-            } /* records_estimation_per_record */
-          }
-        ] /* steps */
-      } /* join_execution */
-    },
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`b` < `test`.`t1`.`c`) group by 1 limit 1) `d2`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
           {
             "records_estimation": [
               {
@@ -4225,6 +4292,19 @@ SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY topic)	{
                         } /* attaching_conditions_to_tables */
                       },
                       {
+                        "clause_processing": {
+                          "clause": "GROUP BY",
+                          "original_clause": "`test`.`t1`.`topic`",
+                          "items": [
+                            {
+                              "item": "`test`.`t1`.`topic`"
+                            }
+                          ] /* items */,
+                          "resulting_clause_is_simple": true,
+                          "resulting_clause": "`test`.`t1`.`topic`"
+                        } /* clause_processing */
+                      },
+                      {
                         "refine_plan": [
                           {
                             "database": "test",
@@ -4418,6 +4498,22 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "`test`.`t1`.`i1`,`test`.`t1`.`i2`",
+              "items": [
+                {
+                  "item": "`test`.`t1`.`i1`"
+                },
+                {
+                  "item": "`test`.`t1`.`i2`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t1`.`i1`,`test`.`t1`.`i2`"
+            } /* clause_processing */
           },
           {
             "refine_plan": [
@@ -4682,6 +4778,19 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "`test`.`t1`.`i1` desc",
+              "items": [
+                {
+                  "item": "`test`.`t1`.`i1`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t1`.`i1` desc"
+            } /* clause_processing */
+          },
+          {
             "records_estimation_for_index_ordering": {
               "database": "test",
               "table": "t1",
@@ -4734,6 +4843,19 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 } /* analyzing_range_alternatives */
               } /* range_analysis */
             } /* records_estimation_for_index_ordering */
+          },
+          {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t1`.`i1` desc",
+              "items": [
+                {
+                  "item": "`test`.`t1`.`i1`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`test`.`t1`.`i1` desc"
+            } /* clause_processing */
           },
           {
             "refine_plan": [
@@ -5487,6 +5609,20 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`test`.`t1`.`a`",
+              "items": [
+                {
+                  "item": "`test`.`t1`.`a`",
+                  "equals_constant_in_where": true
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": ""
+            } /* clause_processing */
           },
           {
             "refine_plan": [

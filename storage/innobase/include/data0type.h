@@ -182,6 +182,12 @@ because in GCC it returns a long. */
 /* Get mbmaxlen from mbminmaxlen. */
 #define DATA_MBMAXLEN(mbminmaxlen) ((ulint) ((mbminmaxlen) / DATA_MBMAX))
 
+/* We now support 15 bits (up to 32767) collation number */
+#define MAX_CHAR_COLL_NUM	32767
+
+/* Mask to get the Charset Collation number (0x7fff) */
+#define CHAR_COLL_MASK		MAX_CHAR_COLL_NUM
+
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Gets the MySQL type code from a dtype.
@@ -491,14 +497,14 @@ dtype_new_read_for_order_and_null_size()
 sym_tab_add_null_lit() */
 
 struct dtype_struct{
-	unsigned	mtype:8;	/*!< main data type */
-	unsigned	prtype:24;	/*!< precise type; MySQL data
+	unsigned	prtype:32;	/*!< precise type; MySQL data
 					type, charset code, flags to
 					indicate nullability,
 					signedness, whether this is a
 					binary string, whether this is
 					a true VARCHAR where MySQL
 					uses 2 bytes to store the length */
+	unsigned	mtype:8;	/*!< main data type */
 
 	/* the remaining fields do not affect alphabetical ordering: */
 

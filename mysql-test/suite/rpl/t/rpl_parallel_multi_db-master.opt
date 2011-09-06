@@ -1,0 +1,1 @@
+--thread_stack=512K --log-warnings=0

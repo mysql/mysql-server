@@ -168,6 +168,7 @@ my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $exe_mysql;
+our $exe_mysql_plugin;
 our $exe_mysqladmin;
 our $exe_mysqltest;
 our $exe_libtool;
@@ -1967,6 +1968,7 @@ sub executable_setup () {
   # Look for the client binaries
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
+  $exe_mysql_plugin=   mtr_exe_exists("$path_client_bindir/mysql_plugin");
 
   $exe_mysql_embedded= mtr_exe_maybe_exists("$basedir/libmysqld/examples/mysql_embedded");
 
@@ -2147,8 +2149,10 @@ sub find_plugin($$)
   my $lib_plugin=
     mtr_file_exists(vs_config_dirs($location,$plugin_filename),
                     "$basedir/lib/plugin/".$plugin_filename,
+                    "$basedir/lib64/plugin/".$plugin_filename,
                     "$basedir/$location/.libs/".$plugin_filename,
                     "$basedir/lib/mysql/plugin/".$plugin_filename,
+                    "$basedir/lib64/mysql/plugin/".$plugin_filename,
                     );
   return $lib_plugin;
 }
@@ -2192,18 +2196,22 @@ sub read_plugin_defs($)
       if ($plug_names) {
 	my $lib_name= basename($plugin);
 	my $load_var= "--plugin_load=";
+	my $load_add_var= "--plugin_load_add=";
 	my $semi= '';
 	foreach my $plug_name (split (',', $plug_names)) {
 	  $load_var .= $semi . "$plug_name=$lib_name";
+	  $load_add_var .= $semi . "$plug_name=$lib_name";
 	  $semi= ';';
 	}
 	$ENV{$plug_var.'_LOAD'}= $load_var;
+	$ENV{$plug_var.'_LOAD_ADD'}= $load_add_var;
       }
     } else {
       $ENV{$plug_var}= "";
       $ENV{$plug_var.'_DIR'}= "";
       $ENV{$plug_var.'_OPT'}= "";
       $ENV{$plug_var.'_LOAD'}= "" if $plug_names;
+      $ENV{$plug_var.'_LOAD_ADD'}= "" if $plug_names;
     }
   }
   close PLUGDEF;
@@ -2310,12 +2318,6 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
-  # Used for guessing default plugin dir, we can't really know for sure
-  $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
-  # Override if this does not exist, but lib64 does (best effort)
-  if (! -d "$basedir/lib" && -d "$basedir/lib64") {
-    $ENV{'MYSQL_LIBDIR'}=     "$basedir/lib64";
-  }
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
@@ -2374,6 +2376,7 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
+  $ENV{'MYSQL_PLUGIN'}=             $exe_mysql_plugin;
   $ENV{'MYSQL_EMBEDDED'}=           $exe_mysql_embedded;
 
   # ----------------------------------------------------

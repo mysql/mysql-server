@@ -454,6 +454,9 @@ static my_bool win32_init_tcp_ip()
 }
 #endif /* __WIN__ */
 
+PSI_stage_info stage_waiting_for_table_level_lock=
+{0, "Waiting for table level lock", 0};
+
 #ifdef HAVE_PSI_INTERFACE
 
 #if !defined(HAVE_PREAD) && !defined(_WIN32)
@@ -534,9 +537,6 @@ static PSI_file_info all_mysys_files[]=
   { &key_file_charset, "charset", 0},
   { &key_file_cnf, "cnf", 0}
 };
-
-PSI_stage_info stage_waiting_for_table_level_lock=
-{0, "Waiting for table level lock", 0};
 
 PSI_stage_info *all_mysys_stages[]=
 {

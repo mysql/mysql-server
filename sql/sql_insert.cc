@@ -723,7 +723,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   lock_type= table_list->lock_type;
 
   THD_STAGE_INFO(thd, stage_init);
-  thd->used_tables=0;
+  thd->lex->used_tables=0;
   values= its++;
   value_count= values->elements;
 
@@ -889,7 +889,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     else
     {
-      if (thd->used_tables)			// Column used in values()
+      if (thd->lex->used_tables)		      // Column used in values()
 	restore_record(table,s->default_values);	// Get empty record
       else
       {
@@ -1239,6 +1239,11 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
+    DBUG_RETURN(TRUE);
+  }
   /*
      first table in list is the one we'll INSERT into, requires INSERT_ACL.
      all others require SELECT_ACL only. the ACL requirement below is for

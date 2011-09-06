@@ -914,7 +914,7 @@ bool Explain_join::explain_rows_and_filtered()
       examined_rows= rows2double(tab->limit);
     else
     {
-      table->file->info(HA_STATUS_VARIABLE);
+      table->pos_in_table_list->fetch_number_of_rows();
       examined_rows= rows2double(table->file->stats.records);
     }
   }
@@ -1013,7 +1013,7 @@ bool Explain_join::explain_extra()
     explain_tmptable_and_filesort(need_tmp_table, need_order, &str_extra);
     need_tmp_table= need_order= false;
 
-    if (distinct && test_all_bits(used_tables,thd->used_tables))
+    if (distinct && test_all_bits(used_tables, thd->lex->used_tables))
       str_extra.append(STRING_WITH_LEN("; Distinct"));
 
     if (tab->loosescan_match_tab)
@@ -1070,17 +1070,13 @@ bool Explain_join::explain_extra()
     {
       str_extra.append(STRING_WITH_LEN("; Using join buffer ("));
       if ((tab->use_join_cache & JOIN_CACHE::ALG_BNL))
-        str_extra.append(STRING_WITH_LEN("BNL"));
+        str_extra.append(STRING_WITH_LEN("Block Nested Loop)"));
       else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA))
-        str_extra.append(STRING_WITH_LEN("BKA"));
+        str_extra.append(STRING_WITH_LEN("Batch Key Access)"));
       else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA_UNIQUE))
-        str_extra.append(STRING_WITH_LEN("BKA_UNIQUE"));
+        str_extra.append(STRING_WITH_LEN("Batch Key Access (unique))"));
       else
         DBUG_ASSERT(0); /* purecov: inspected */
-      if (tab->use_join_cache & JOIN_CACHE::NON_INCREMENTAL_BUFFER)
-        str_extra.append(STRING_WITH_LEN(", regular buffers)"));
-      else
-        str_extra.append(STRING_WITH_LEN(", incremental buffers)"));
     }
 
     /* Skip initial "; "*/
@@ -1138,8 +1134,9 @@ bool Explain_table::explain_rows_and_filtered()
     examined_rows= rows2double(limit);
   else
   {
-    table->file->info(HA_STATUS_VARIABLE);
+    table->pos_in_table_list->fetch_number_of_rows();
     examined_rows= rows2double(table->file->stats.records);
+
   }
   col_rows= new Item_int((longlong) (ulonglong) examined_rows,
                          MY_INT64_NUM_DECIMAL_DIGITS);
@@ -1514,8 +1511,9 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
-    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
-      res= unit->exec();
+    res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE) ||
+         unit->optimize() ||
+         unit->exec();
   }
   else
   {

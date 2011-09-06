@@ -47,6 +47,8 @@ enum buf_flush {
 	BUF_FLUSH_LRU = 0,		/*!< flush via the LRU list */
 	BUF_FLUSH_LIST,			/*!< flush via the flush list
 					of dirty blocks */
+	BUF_FLUSH_SINGLE_PAGE,		/*!< flush via the LRU list
+					but only a single page */
 	BUF_FLUSH_N_TYPES		/*!< index of last element + 1  */
 };
 
@@ -56,6 +58,25 @@ enum buf_io_fix {
 	BUF_IO_READ,			/**< read pending */
 	BUF_IO_WRITE			/**< write pending */
 };
+
+/** Alternatives for srv_checksum_algorithm, which can be changed by
+setting innodb_checksum_algorithm */
+enum srv_checksum_algorithm_enum {
+	SRV_CHECKSUM_ALGORITHM_CRC32,		/*!< Write crc32, allow crc32,
+						innodb or none when reading */
+	SRV_CHECKSUM_ALGORITHM_STRICT_CRC32,	/*!< Write crc32, allow crc32
+						when reading */
+	SRV_CHECKSUM_ALGORITHM_INNODB,		/*!< Write innodb, allow crc32,
+						innodb or none when reading */
+	SRV_CHECKSUM_ALGORITHM_STRICT_INNODB,	/*!< Write innodb, allow
+						innodb when reading */
+	SRV_CHECKSUM_ALGORITHM_NONE,		/*!< Write none, allow crc32,
+						innodb or none when reading */
+	SRV_CHECKSUM_ALGORITHM_STRICT_NONE,	/*!< Write none, allow none
+						when reading */
+};
+
+typedef enum srv_checksum_algorithm_enum	srv_checksum_algorithm_t;
 
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /* @{ */
