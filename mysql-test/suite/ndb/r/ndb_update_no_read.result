@@ -443,6 +443,8 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 affected rows: 1
+set autocommit=off;
+affected rows: 0
 select count(*) from t1 where a in (...)
 count(*)
 1000
@@ -450,6 +452,8 @@ affected rows: 1
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 5
 affected rows: 1
+set autocommit=on;
+affected rows: 0
 update t1 set c = 'kalle' where a in (...)
 affected rows: 1000
 info: Rows matched: 1000  Changed: 1000  Warnings: 0

@@ -436,11 +436,21 @@ let $list =
 2207,3553,350,2805,2276,2235,2803,159,1039,2075,576,614,1899,3348,649,218,637,
 2942,270,3422,3775,3873,3239,989,2463,783,3312);
 
+##
+# In ps-protocol, server will adds calls to execute(Commit)
+#   (these are optimized away by ndbapi, since there is nothing to commit)
+#   and these generates a diff in execute-count
+# To not have to investigate problem futher, I simply set autocommit=off
+#   (and back further down where we don't track execute-count any longer)
+# It would probably be good to changes these tests to instead use frazers new
+#   ndbapi counters, and instead measure #round-trips
+set autocommit=off;
 --echo select count(*) from t1 where a in (...)
 --source suite/ndb/include/ndb_init_execute_count.inc
 --disable_query_log
 eval select count(*) from t1 where a in $list;
 --source suite/ndb/include/ndb_execute_count.inc
+set autocommit=on;
 
 --echo update t1 set c = 'kalle' where a in (...)
 --source suite/ndb/include/ndb_init_execute_count.inc
