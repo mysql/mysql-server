@@ -33,7 +33,7 @@ create table decimaltypes (
 --let JAVA_JVM_OPTS= -ea -Xcheck:jni -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
 --let JAVA_JVM_OPTS_1= -Djava.library.path="$NDBCLIENT_LIB_DIR"
 --let JAVA_JVM_OPTS_2= -Dopenjpa.ConnectionDriverName="com.mysql.jdbc.Driver"
---let JAVA_JVM_OPTS_3= -Dopenjpa.ConnectionURL="jdbc:mysql://localhost:$MASTER_MYPORT/test?user=root"
+--let JAVA_JVM_OPTS_3= -Dopenjpa.ConnectionURL="jdbc:mysql://localhost:$MASTER_MYPORT/test" -Dopenjpa.ConnectionUserName="root"
 --let JAVA_JVM_OPTS_4= -Dopenjpa.ndb.connectString="$NDB_CONNECTSTRING"
 --let JAVA_JVM_OPTS_5= -Dcom.mysql.clusterj.jpa.PersistenceUnit="enhance"
 --let JAVA_JVM_OPTS_6= -Dopenjpa.jdbc.SynchronizeMappings="buildSchema(ForeignKeys=true,SchemaAction='add,deleteTableContents')"
