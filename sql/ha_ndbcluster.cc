@@ -742,8 +742,6 @@ static int update_status_variables(Thd_ndb *thd_ndb,
   if (thd_ndb)
   {
     ns->execute_count= thd_ndb->m_execute_count;
-    sql_print_information("ns->execute_count => %u",
-                          ns->execute_count);
     ns->scan_count= thd_ndb->m_scan_count;
     ns->pruned_scan_count= thd_ndb->m_pruned_scan_count;
     ns->sorted_scan_count= thd_ndb->m_sorted_scan_count;
@@ -1239,8 +1237,6 @@ int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   const NdbOperation *first= trans->getFirstDefinedOperation();
   const NdbOperation *last= trans->getLastDefinedOperation();
   thd_ndb->m_execute_count++;
-  sql_print_information("%u m_execute_count => %u",
-                        __LINE__, thd_ndb->m_execute_count);
   thd_ndb->m_unsent_bytes= 0;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::NoCommit,
@@ -1277,8 +1273,6 @@ int execute_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
   const NdbOperation *first= trans->getFirstDefinedOperation();
   const NdbOperation *last= trans->getLastDefinedOperation();
   thd_ndb->m_execute_count++;
-  sql_print_information("%u m_execute_count => %u",
-                        __LINE__, thd_ndb->m_execute_count);
   thd_ndb->m_unsent_bytes= 0;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::Commit, ao, force_send))
@@ -1308,8 +1302,6 @@ int execute_no_commit_ie(Thd_ndb *thd_ndb, NdbTransaction *trans)
                           thd_ndb->m_force_send);
   thd_ndb->m_unsent_bytes= 0;
   thd_ndb->m_execute_count++;
-  sql_print_information("%u m_execute_count => %u",
-                        __LINE__, thd_ndb->m_execute_count);
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   DBUG_RETURN(res);
 }
@@ -3364,8 +3356,6 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
         g_ndb_slave_state.atTransactionAbort();
       m_thd_ndb->m_unsent_bytes= 0;
       m_thd_ndb->m_execute_count++;
-      sql_print_information("%u m_execute_count => %u",
-                            __LINE__, m_thd_ndb->m_execute_count);
       DBUG_PRINT("info", ("execute_count: %u", m_thd_ndb->m_execute_count));
       trans->execute(NdbTransaction::Rollback);
 #ifdef FIXED_OLD_DATA_TO_ACTUALLY_CONTAIN_GOOD_DATA
@@ -8224,8 +8214,6 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
     g_ndb_slave_state.atTransactionAbort();
   thd_ndb->m_unsent_bytes= 0;
   thd_ndb->m_execute_count++;
-  sql_print_information("%u m_execute_count => %u",
-                        __LINE__, thd_ndb->m_execute_count);
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::Rollback) != 0)
   {
@@ -13445,8 +13433,6 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
     thd_ndb->m_pruned_scan_count += (pOp->getPruned()? 1 : 0);
     
     thd_ndb->m_execute_count++;
-    sql_print_information("%u m_execute_count => %u",
-                          __LINE__, thd_ndb->m_execute_count);
     DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
     if (pTrans->execute(NdbTransaction::NoCommit,
                         NdbOperation::AbortOnError,
