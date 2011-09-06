@@ -829,7 +829,7 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       DBUG_RETURN(1); // mgmt server not up yet
     }
 
-    Uint32 nodeId = m_config_retriever->allocNodeId(4/*retries*/,
+    Uint32 nodeId = m_config_retriever->allocNodeId(10/*retries*/,
                                                     3/*delay*/);
     if(nodeId == 0)
       break;
