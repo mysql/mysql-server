@@ -1535,6 +1535,7 @@ fts_create_one_index_table(
 
 	return(new_table);
 }
+
 /*************************************************************//**
 Wrapper function of fts_create_index_tables_low(), create auxiliary
 tables for an FTS index
@@ -1583,9 +1584,9 @@ fts_create_index_tables_low(
 		new_table = fts_create_one_index_table(
 			trx, index, &fts_table, heap);
 
-		if(!new_table) {
+		if (!new_table) {
 			error = DB_FAIL;
-			goto func_exit;
+			break;
 		}
 
 		graph = fts_parse_sql_no_dict_lock(
@@ -1595,7 +1596,6 @@ fts_create_index_tables_low(
 		que_graph_free(graph);
 	}
 
-func_exit:
 	if (error == DB_SUCCESS) {
 		error = fts_sql_commit(trx);
 	} else {
