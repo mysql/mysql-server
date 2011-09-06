@@ -358,7 +358,7 @@ private:
     int estimate_num_rows(DB* db, u_int64_t* num_rows, DB_TXN* txn);
     bool has_auto_increment_flag(uint* index);
     int write_frm_data(DB* db, DB_TXN* txn, const char* frm_name);
-    int verify_frm_data(const char* frm_name);
+    int verify_frm_data(const char* frm_name, DB_TXN* trans);
     int write_to_status(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size, DB_TXN* txn );
     int write_metadata(DB* db, void* key, uint key_size, void* data, uint data_size, DB_TXN* txn );
     int remove_metadata(DB* db, void* key_data, uint key_size, DB_TXN* transaction);
@@ -517,7 +517,7 @@ public:
     u_int32_t get_cursor_isolation_flags(enum thr_lock_type lock_type, THD* thd);
     THR_LOCK_DATA **store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_lock_type lock_type);
 
-    int get_status();
+    int get_status(DB_TXN* trans);
     void init_hidden_prim_key_info();
     inline void get_auto_primary_key(uchar * to) {
         pthread_mutex_lock(&share->mutex);
