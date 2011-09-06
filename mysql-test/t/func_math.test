@@ -370,6 +370,12 @@ DROP TABLE t1;
 
 SELECT ROUND(LEAST(15, -4939092, 0.2704), STDDEV('a'));
 
+--echo #
+--echo # Bug#12392636  ASSERTION FAILED: SCALE >= 0 && PRECISION > 0 && SCALE <= PRECISION
+--echo #
+
+SELECT SUM(DISTINCT (TRUNCATE((.1), NULL)));
+
 --echo End of 5.1 tests
 
 --echo #
@@ -530,3 +536,35 @@ SELECT 1 div null;
 --echo # Bug #11792200 - DIVIDING LARGE NUMBERS CAUSES STACK CORRUPTIONS
 --echo #
 select (1.175494351E-37 div 1.7976931348623157E+308);
+
+--echo #
+--echo # Bug#12744991 - DECIMAL_ROUND(X,D) GIVES WRONG RESULTS WHEN D == N*(-9)
+--echo #
+
+select round(999999999, -9);
+select round(999999999.0, -9);
+select round(999999999999999999, -18);
+select round(999999999999999999.0, -18);
+
+
+--echo #
+--echo # Bug#12537160 ASSERTION FAILED:
+--echo # STOP0 <= &TO->BUF[TO->LEN] WITH LARGE NUMBER.
+--echo #
+
+let $nine_81=
+999999999999999999999999999999999999999999999999999999999999999999999999999999999;
+
+eval select $nine_81 % 0.1 as foo;
+eval select $nine_81 % 0.0 as foo;
+
+--echo #
+--echo # Bug#12711164 - 61676:
+--echo # RESULT OF DIV WITH DECIMAL AND INTEGER DOES NOT MAKE SENSE 
+--echo #
+
+select 5 div 2;
+select 5.0 div 2.0;
+select 5.0 div 2;
+select 5 div 2.0;
+select 5.9 div 2, 1.23456789e3 DIV 2, 1.23456789e9 DIV 2, 1.23456789e19 DIV 2;

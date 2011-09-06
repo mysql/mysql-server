@@ -213,8 +213,8 @@ Ndbd_mem_manager::ndb_log2(Uint32 input)
 Ndbd_mem_manager::Ndbd_mem_manager()
 {
   m_base_page = 0;
-  bzero(m_buddy_lists, sizeof(m_buddy_lists));
-  bzero(m_resource_limit, sizeof(m_resource_limit));
+  memset(m_buddy_lists, 0, sizeof(m_buddy_lists));
+  memset(m_resource_limit, 0, sizeof(m_resource_limit));
   
   if (sizeof(Free_page_data) != (4 * (1 << FPD_2LOG)))
   {
@@ -366,7 +366,7 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
   while (m_unmapped_chunks.size() < MAX_CHUNKS && allocated < pages)
   {
     InitChunk chunk;
-    bzero(&chunk, sizeof(chunk));
+    memset(&chunk, 0, sizeof(chunk));
     
     if (do_malloc(pages - allocated, &chunk, watchCounter, m_base_page))
     {

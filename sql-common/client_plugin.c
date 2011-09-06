@@ -1,4 +1,4 @@
-/* Copyright (C) 2010 Sun Microsystems, Inc.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -232,12 +232,12 @@ int mysql_client_plugin_init()
   if (initialized)
     return 0;
 
-  bzero(&mysql, sizeof(mysql)); /* dummy mysql for set_mysql_extended_error */
+  memset(&mysql, 0, sizeof(mysql)); /* dummy mysql for set_mysql_extended_error */
 
   pthread_mutex_init(&LOCK_load_client_plugin, MY_MUTEX_INIT_SLOW);
   init_alloc_root(&mem_root, 128, 128);
 
-  bzero(&plugin_list, sizeof(plugin_list));
+  memset(&plugin_list, 0, sizeof(plugin_list));
 
   initialized= 1;
 
@@ -275,7 +275,7 @@ void mysql_client_plugin_deinit()
         dlclose(p->dlhandle);
     }
 
-  bzero(&plugin_list, sizeof(plugin_list));
+  memset(&plugin_list, 0, sizeof(plugin_list));
   initialized= 0;
   free_root(&mem_root, MYF(0));
   pthread_mutex_destroy(&LOCK_load_client_plugin);

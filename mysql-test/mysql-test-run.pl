@@ -163,14 +163,16 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema,funcs_1";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema,funcs_1,opt_trace";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $exe_mysql;
+our $exe_mysql_plugin;
 our $exe_mysqladmin;
 our $exe_mysqltest;
 our $exe_libtool;
+our $exe_mysql_embedded;
 
 our $opt_big_test= 0;
 
@@ -188,6 +190,7 @@ my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
 my $opt_view_protocol;
+my $opt_trace_protocol;
 my $opt_explain_protocol;
 
 our $opt_debug;
@@ -197,7 +200,7 @@ our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
 # -1 indicates use default, override with env.var.
-my $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
+our $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
 # Unit test report stored here for delayed printing
 my $ctest_report;
 
@@ -264,7 +267,6 @@ my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  10; # seconds
 my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
 
 sub suite_timeout { return $opt_suite_timeout * 60; };
-sub check_timeout { return $opt_testcase_timeout * 6; };
 
 my $opt_wait_all;
 my $opt_user_args;
@@ -299,6 +301,8 @@ sub testcase_timeout ($) {
   }
   return $opt_testcase_timeout * 60;
 }
+
+sub check_timeout ($) { return testcase_timeout($_[0]) / 10; }
 
 our $opt_warnings= 1;
 
@@ -454,6 +458,11 @@ sub main {
   # Read definitions from include/plugin.defs
   #
   read_plugin_defs("include/plugin.defs");
+
+  # Also read from any plugin local plugin.defs
+  for (glob "$basedir/plugin/*/tests/mtr/plugin.defs") {
+    read_plugin_defs($_);
+  }
 
   # Simplify reference to semisync plugins
   $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
@@ -665,6 +674,8 @@ sub run_test_server ($$$) {
 			     mtr_report(" - deleting it, already saved",
 					"$opt_max_save_core");
 			     unlink("$core_file");
+			   } else {
+			     mtr_compress_file($core_file) unless @opt_cases;
 			   }
 			   ++$num_saved_cores;
 			 }
@@ -1041,6 +1052,7 @@ sub command_line_setup {
              'ps-protocol'              => \$opt_ps_protocol,
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
+             'opt-trace-protocol'       => \$opt_trace_protocol,
              'explain-protocol'         => \$opt_explain_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
@@ -1366,6 +1378,12 @@ sub command_line_setup {
       collect_option('default-storage-engine', $1);
       mtr_report("Using default engine '$1'")
     }
+    if ( $arg =~ /default-tmp-storage-engine=(\S+)/ )
+    {
+      # Save this for collect phase
+      collect_option('default-tmp-storage-engine', $1);
+      mtr_report("Using default tmp engine '$1'")
+    }
   }
 
   if (IS_WINDOWS and defined $opt_mem) {
@@ -1674,6 +1692,13 @@ sub command_line_setup {
       unless @valgrind_args;
   }
 
+  if ( $opt_trace_protocol )
+  {
+    push(@opt_extra_mysqld_opt, "--optimizer_trace=enabled=on,one_line=off");
+    # some queries yield big traces:
+    push(@opt_extra_mysqld_opt, "--optimizer-trace-max-mem-size=1000000");
+  }
+
   if ( $opt_valgrind )
   {
     # Set valgrind_options to default unless already defined
@@ -1950,6 +1975,9 @@ sub executable_setup () {
   # Look for the client binaries
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
+  $exe_mysql_plugin=   mtr_exe_exists("$path_client_bindir/mysql_plugin");
+
+  $exe_mysql_embedded= mtr_exe_maybe_exists("$basedir/libmysqld/examples/mysql_embedded");
 
   if ( ! $opt_skip_ndbcluster )
   {
@@ -2128,8 +2156,10 @@ sub find_plugin($$)
   my $lib_plugin=
     mtr_file_exists(vs_config_dirs($location,$plugin_filename),
                     "$basedir/lib/plugin/".$plugin_filename,
+                    "$basedir/lib64/plugin/".$plugin_filename,
                     "$basedir/$location/.libs/".$plugin_filename,
                     "$basedir/lib/mysql/plugin/".$plugin_filename,
+                    "$basedir/lib64/mysql/plugin/".$plugin_filename,
                     );
   return $lib_plugin;
 }
@@ -2173,18 +2203,22 @@ sub read_plugin_defs($)
       if ($plug_names) {
 	my $lib_name= basename($plugin);
 	my $load_var= "--plugin_load=";
+	my $load_add_var= "--plugin_load_add=";
 	my $semi= '';
 	foreach my $plug_name (split (',', $plug_names)) {
 	  $load_var .= $semi . "$plug_name=$lib_name";
+	  $load_add_var .= $semi . "$plug_name=$lib_name";
 	  $semi= ';';
 	}
 	$ENV{$plug_var.'_LOAD'}= $load_var;
+	$ENV{$plug_var.'_LOAD_ADD'}= $load_add_var;
       }
     } else {
       $ENV{$plug_var}= "";
       $ENV{$plug_var.'_DIR'}= "";
       $ENV{$plug_var.'_OPT'}= "";
       $ENV{$plug_var.'_LOAD'}= "" if $plug_names;
+      $ENV{$plug_var.'_LOAD_ADD'}= "" if $plug_names;
     }
   }
   close PLUGDEF;
@@ -2293,12 +2327,6 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
-  # Used for guessing default plugin dir, we can't really know for sure
-  $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
-  # Override if this does not exist, but lib64 does (best effort)
-  if (! -d "$basedir/lib" && -d "$basedir/lib64") {
-    $ENV{'MYSQL_LIBDIR'}=     "$basedir/lib64";
-  }
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
@@ -2385,6 +2413,8 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
+  $ENV{'MYSQL_PLUGIN'}=             $exe_mysql_plugin;
+  $ENV{'MYSQL_EMBEDDED'}=           $exe_mysql_embedded;
 
   # ----------------------------------------------------
   # bug25714 executable may _not_ exist in
@@ -3488,7 +3518,7 @@ sub check_testcase($$)
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout= start_timer(check_timeout());
+  my $timeout= start_timer(check_timeout($tinfo));
 
   while (1){
     my $result;
@@ -3560,7 +3590,7 @@ test case was executed:\n";
     }
     elsif ( $proc->{timeout} ) {
       $tinfo->{comment}.= "Timeout for 'check-testcase' expired after "
-	.check_timeout()." seconds";
+	.check_timeout($tinfo)." seconds";
       $result= 4;
     }
     else {
@@ -3650,7 +3680,7 @@ sub run_on_all($$)
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout= start_timer(check_timeout());
+  my $timeout= start_timer(check_timeout($tinfo));
 
   while (1){
     my $result;
@@ -3681,7 +3711,7 @@ sub run_on_all($$)
     }
     elsif ($proc->{timeout}) {
       $tinfo->{comment}.= "Timeout for '$run' expired after "
-	.check_timeout()." seconds";
+	.check_timeout($tinfo)." seconds";
     }
     else {
       # Unknown process returned, most likley a crash, abort everything
@@ -4406,7 +4436,7 @@ sub check_warnings ($) {
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout= start_timer(check_timeout());
+  my $timeout= start_timer(check_timeout($tinfo));
 
   while (1){
     my $result= 0;
@@ -4458,7 +4488,7 @@ sub check_warnings ($) {
     }
     elsif ( $proc->{timeout} ) {
       $tinfo->{comment}.= "Timeout for 'check warnings' expired after "
-	.check_timeout()." seconds";
+	.check_timeout($tinfo)." seconds";
       $result= 4;
     }
     else {
@@ -5518,6 +5548,11 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--view-protocol");
   }
 
+  if ( $opt_trace_protocol )
+  {
+    mtr_add_arg($args, "--opt-trace-protocol");
+  }
+
   if ( $opt_cursor_protocol )
   {
     mtr_add_arg($args, "--cursor-protocol");
@@ -6023,6 +6058,7 @@ Options to control what engine/variation to run
   cursor-protocol       Use the cursor protocol between client and server
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
+  opt-trace-protocol    Print optimizer trace
   explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT queries
   sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
@@ -6124,7 +6160,9 @@ Options for debugging the product
   ddd                   Start mysqld in ddd
   debug                 Dump trace output for all servers and client programs
   debug-common          Same as debug, but sets 'd' debug flags to
-                        "query,info,error,enter,exit"
+                        "query,info,error,enter,exit"; you need this if you
+                        want both to see debug printouts and to use
+                        DBUG_EXECUTE_IF.
   debug-server          Use debug version of server, but without turning on
                         tracing
   debugger=NAME         Start mysqld in the selected debugger

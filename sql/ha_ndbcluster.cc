@@ -1,20 +1,25 @@
-/*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+/**
+  @file
+
+  @brief
+  This file defines the NDB Cluster handler: the interface between
+  MySQL and NDB Cluster
 */
-
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -936,11 +941,11 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
       - Used by replication to see if the error was temporary
     */
     if (ndberr->status == NdbError::TemporaryError)
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
                           ndberr->code, ndberr->message, "NDB");
     else
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                           ndberr->code, ndberr->message, "NDB");
   }
@@ -1454,7 +1459,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans,
     m_table->setStatusInvalid();
     /* Close other open handlers not used by any thread */
     TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
+    memset(&table_list, 0, sizeof(table_list));
     table_list.db= m_dbname;
     table_list.alias= table_list.table_name= m_tabname;
     close_cached_tables(thd, &table_list, have_lock, FALSE, FALSE);
@@ -3294,7 +3299,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
       undo_res= ndb_write_row((uchar *)old_data, TRUE, batched_update);
       if (undo_res)
         push_warning(table->in_use,
-                     MYSQL_ERROR::WARN_LEVEL_WARN,
+                     Sql_condition::WARN_LEVEL_WARN,
                      undo_res,
                      "NDB failed undoing delete at primary key update");
 #endif
@@ -4707,7 +4712,7 @@ handle_conflict_op_error(Thd_ndb* thd_ndb,
           }
           else
           {
-            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+            push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                                 ER_EXCEPTIONS_WRITE_ERROR,
                                 ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
             /* Slave will stop replication. */
@@ -4741,7 +4746,7 @@ handle_conflict_op_error(Thd_ndb* thd_ndb,
           }
           else
           {
-            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+            push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                                 ER_EXCEPTIONS_WRITE_ERROR,
                                 ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
             /* Slave will stop replication. */
@@ -6853,7 +6858,7 @@ void ha_ndbcluster::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 {
   DBUG_PRINT("info", ("ha_ndbcluster::get_dynamic_partition_info"));
 
-  bzero((char*) stat_info, sizeof(PARTITION_STATS));
+  memset((char*) stat_info, 0, sizeof(PARTITION_STATS));
   int error = 0;
   THD *thd = table->in_use;
 
@@ -7427,7 +7432,7 @@ int ha_ndbcluster::start_statement(THD *thd,
     /* lockThisTable(); */
     DBUG_PRINT("info", ("Locking the table..." ));
 #ifdef NOT_YET
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG), 0,
                         "Table only locked locally in this mysqld", "NDB");
 #endif
@@ -8116,7 +8121,7 @@ NDB_Modifiers::parse_modifier(THD *thd,
 {
   if (m->m_found)
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_ILLEGAL_HA_CREATE_OPTION,
                         "%s : modifier %s specified twice",
                         prefix, m->m_name);
@@ -8150,14 +8155,14 @@ NDB_Modifiers::parse_modifier(THD *thd,
     const char * end = strpbrk(str, " ,");
     if (end)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_ILLEGAL_HA_CREATE_OPTION,
                           "%s : invalid value '%.*s' for %s",
                           prefix, (int)(end - str), str, m->m_name);
     }
     else
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_ILLEGAL_HA_CREATE_OPTION,
                           "%s : invalid value '%s' for %s",
                           prefix, str, m->m_name);
@@ -8200,7 +8205,7 @@ NDB_Modifiers::parse(THD *thd,
     char * tmp = new char[_source_len+1];
     if (tmp == 0)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_ILLEGAL_HA_CREATE_OPTION,
                           "%s : unable to parse due to out of memory",
                           prefix);
@@ -8255,14 +8260,14 @@ NDB_Modifiers::parse(THD *thd,
   unknown:
       if (end)
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA_CREATE_OPTION,
                             "%s : unknown modifier: %.*s",
                             prefix, (int)(end - pos), pos);
       }
       else
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA_CREATE_OPTION,
                             "%s : unknown modifier: %s",
                             prefix, pos);
@@ -8737,7 +8742,7 @@ static int create_ndb_column(THD *thd,
 #ifndef NDB_WITHOUT_COLUMN_FORMAT
     if (thd && field->column_format() == COLUMN_FORMAT_TYPE_DYNAMIC)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_ILLEGAL_HA_CREATE_OPTION,
                           "DYNAMIC column %s with "
                           "STORAGE DISK is not supported, "
@@ -8751,7 +8756,7 @@ static int create_ndb_column(THD *thd,
   case ROW_TYPE_FIXED:
     if (thd && (dynamic || field_type_forces_var_part(field->type())))
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_ILLEGAL_HA_CREATE_OPTION,
                           "Row format FIXED incompatible with "
                           "dynamic attribute %s",
@@ -8944,7 +8949,7 @@ int ha_ndbcluster::create(const char *name,
      */
     my_errno= ER_ILLEGAL_HA_CREATE_OPTION;
     DBUG_PRINT("info", ("Ndb doesn't support temporary tables"));
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_ILLEGAL_HA_CREATE_OPTION,
                         "Ndb doesn't support temporary tables");
     DBUG_RETURN(my_errno);
@@ -9200,7 +9205,7 @@ int ha_ndbcluster::create(const char *name,
 #ifndef NDB_WITHOUT_COLUMN_FORMAT
       if (key_part->field->field_storage_type() == HA_SM_DISK)
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA_CREATE_OPTION,
                             ER(ER_ILLEGAL_HA_CREATE_OPTION),
                             ndbcluster_hton_name,
@@ -9295,7 +9300,7 @@ int ha_ndbcluster::create(const char *name,
     if (adjusted_frag_count(ndb, no_fragments, reported_frags))
     {
       push_warning(current_thd,
-                   MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                   Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                    "Ndb might have problems storing the max amount "
                    "of rows specified");
     }
@@ -9562,7 +9567,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
   case UNIQUE_INDEX:
     if (check_index_fields_not_null(key_info))
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 			  ER_NULL_COLUMN_IN_INDEX,
 			  "Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan");
     }
@@ -9571,7 +9576,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
   case ORDERED_INDEX:
     if (key_info->algorithm == HA_KEY_ALG_HASH)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 			  ER_ILLEGAL_HA_CREATE_OPTION,
 			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
 			  ndbcluster_hton_name,
@@ -9653,7 +9658,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
 #ifndef NDB_WITHOUT_COLUMN_FORMAT
     if (field->field_storage_type() == HA_SM_DISK)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_ILLEGAL_HA_CREATE_OPTION,
                           ER(ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
@@ -9694,8 +9699,12 @@ void ha_ndbcluster::prepare_for_alter()
   Add an index on-line to a table
 */
 int ha_ndbcluster::add_index(TABLE *table_arg, 
-                             KEY *key_info, uint num_of_keys)
+                             KEY *key_info, uint num_of_keys,
+                             handler_add_index **add)
 {
+  // TODO: As we don't yet implement ::final_add_index(),
+  // we don't need a handler_add_index object either..?
+  *add= NULL; // new handler_add_index(table_arg, key_info, num_of_keys);
   return add_index_impl(current_thd, table_arg, key_info, num_of_keys);
 }
 
@@ -11297,7 +11306,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
                             file_name->str));
         if (ndb_create_table_from_engine(thd, db, file_name->str))
         {
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_TABLE_EXISTS_ERROR,
                               "Discover of table %s.%s failed",
                               db, file_name->str);
@@ -11324,7 +11333,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
                                       file_name->length);
 	DBUG_ASSERT(record);
 	my_hash_delete(&ndb_tables, record);
-	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+	push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 			    ER_TABLE_EXISTS_ERROR,
 			    "Local table %s.%s shadows ndb table",
 			    db, file_name->str);
@@ -12537,7 +12546,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   pthread_mutex_unlock(&ndbcluster_mutex);
 
   TABLE_LIST table_list;
-  bzero((char*) &table_list,sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
   close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
@@ -12849,7 +12858,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       DBUG_PRINT("error", ("get_share: failed to alloc share"));
       if (!have_lock)
         pthread_mutex_unlock(&ndbcluster_mutex);
-      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(*share));
+      my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(*share)));
       DBUG_RETURN(0);
     }
   }
@@ -15106,7 +15115,7 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   {
     if (!current_thd->variables.new_mode)
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_ILLEGAL_HA_CREATE_OPTION,
                           ER(ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
@@ -15645,7 +15654,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
            create_info->row_type == ROW_TYPE_DEFAULT &&
            col.getDynamic())
        {
-         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+         push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                              ER_ILLEGAL_HA_CREATE_OPTION,
                              "Converted FIXED field to DYNAMIC "
                              "to enable on-line ADD COLUMN",
@@ -15997,7 +16006,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     if (dict->getWarningFlags() &
         NdbDictionary::Dictionary::WarnExtentRoundUp)
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           dict->getWarningFlags(),
                           "Extent size rounded up to kernel page size");
     }
@@ -16020,7 +16029,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     if (dict->getWarningFlags() &
         NdbDictionary::Dictionary::WarnDatafileRoundUp)
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           dict->getWarningFlags(),
                           "Datafile size rounded up to extent size");
     }
@@ -16028,7 +16037,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     if (dict->getWarningFlags() &
         NdbDictionary::Dictionary::WarnDatafileRoundDown)
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           dict->getWarningFlags(),
                           "Datafile size rounded down to extent size");
     }
@@ -16056,7 +16065,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       if (dict->getWarningFlags() &
           NdbDictionary::Dictionary::WarnDatafileRoundUp)
       {
-        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                             dict->getWarningFlags(),
                             "Datafile size rounded up to extent size");
       }
@@ -16064,7 +16073,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
       if (dict->getWarningFlags() &
           NdbDictionary::Dictionary::WarnDatafileRoundDown)
       {
-        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                             dict->getWarningFlags(),
                             "Datafile size rounded down to extent size");
       }
@@ -16129,7 +16138,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     if (dict->getWarningFlags() &
         NdbDictionary::Dictionary::WarnUndobufferRoundUp)
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           dict->getWarningFlags(),
                           "Undo buffer size rounded up to kernel page size");
     }
@@ -16154,7 +16163,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     if (dict->getWarningFlags() &
         NdbDictionary::Dictionary::WarnUndofileRoundDown)
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           dict->getWarningFlags(),
                           "Undofile size rounded down to kernel page size");
     }
@@ -16186,7 +16195,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     if (dict->getWarningFlags() &
         NdbDictionary::Dictionary::WarnUndofileRoundDown)
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           dict->getWarningFlags(),
                           "Undofile size rounded down to kernel page size");
     }

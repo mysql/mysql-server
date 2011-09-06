@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,5 +130,13 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 /* These functions were under INNODB_COMPATIBILITY_HOOKS */
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
+
+/* Handle the ignored database directories list for SHOW/I_S. */
+bool ignore_db_dirs_init();
+void ignore_db_dirs_free();
+void ignore_db_dirs_reset();
+bool ignore_db_dirs_process_additions();
+bool push_ignored_db_dir(char *path);
+extern char *opt_ignore_db_dirs;
 
 #endif /* SQL_SHOW_H */

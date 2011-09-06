@@ -2,7 +2,6 @@
 
 Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
-Copyright (c) 2009, Sun Microsystems, Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -392,8 +391,10 @@ database name and table name. In addition, 14 bytes is added for:
 
 #if SIZEOF_INT == 4
 typedef unsigned int		ib_uint32_t;
+#define UINT32PF		"%u"
 #elif SIZEOF_LONG == 4
 typedef unsigned long		ib_uint32_t;
+#define UINT32PF		"%lu"
 #else
 #error "Neither int or long is 4 bytes"
 #endif

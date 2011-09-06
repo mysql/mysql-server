@@ -1,4 +1,5 @@
-/* Copyright (C) 2002-2004 MySQL AB
+/*
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _my_getopt_h
 #define _my_getopt_h
@@ -115,6 +116,7 @@ longlong getopt_ll_limit_value(longlong, const struct my_option *,
 double getopt_double_limit_value(double num, const struct my_option *optp,
                                  my_bool *fix);
 my_bool getopt_compare_strings(const char *s, const char *t, uint length);
+ulonglong max_of_int_range(int var_type);
 
 C_MODE_END
 

@@ -44,7 +44,7 @@ extern sess_t*	trx_dummy_sess;
 
 /********************************************************************//**
 Releases the search latch if trx has reserved it. */
-UNIV_INTERN
+UNIV_INLINE
 void
 trx_search_latch_release_if_reserved(
 /*=================================*/
@@ -486,6 +486,18 @@ struct trx_lock_struct {
 
 	ib_vector_t*	table_locks;	/*!< All table locks requested by this
 					transaction, including AUTOINC locks */
+
+	ibool		cancel;		/*!< TRUE if the transaction is being
+					rolled back either via deadlock
+					detection or due to lock timeout. The
+					caller has to acquire the trx_t::mutex
+					in order to cancel the locks. In
+					lock_trx_table_locks_remove() we
+					check for this cancel of a transaction's
+					locks and avoid reacquiring the trx
+					mutex to prevent recursive deadlocks.
+					Protected by both the lock sys mutex
+					and the trx_t::mutex. */
 };
 
 #define TRX_MAGIC_N	91118598
@@ -540,7 +552,6 @@ struct trx_struct{
 					state and lock
 					(except some fields of lock, which
 					are protected by lock_sys->mutex) */
-
 	trx_state_t	state;		/*!< State of the trx from the point
 					of view of concurrency control:
 					TRX_STATE_NOT_STARTED (!in_trx_list),
@@ -657,7 +668,7 @@ struct trx_struct{
 					max trx id shortly before the
 					transaction is moved to
 					COMMITTED_IN_MEMORY state.
-					Protected by trx_sys_t::lock
+					Protected by trx_sys_t::mutex
 					when trx->in_trx_list. Initially
 					set to IB_ULONGLONG_MAX. */
 
@@ -872,6 +883,24 @@ struct commit_node_struct{
 #define trx_mutex_exit(t) do {			\
 	mutex_exit(&t->mutex);			\
 } while (0)
+
+/** @brief The latch protecting the adaptive search system
+
+This latch protects the
+(1) hash index;
+(2) columns of a record to which we have a pointer in the hash index;
+
+but does NOT protect:
+
+(3) next record offset field in a record;
+(4) next or previous records on the same page.
+
+Bear in mind (3) and (4) when using the hash index.
+*/
+extern rw_lock_t*	btr_search_latch_temp;
+
+/** The latch protecting the adaptive search system */
+#define btr_search_latch	(*btr_search_latch_temp)
 
 #ifndef UNIV_NONINL
 #include "trx0trx.ic"

@@ -54,4 +54,7 @@ INTO @thread_id;
 KILL QUERY @thread_id;
 CHECK TABLE t1; 
 DROP TABLE t1,t2;
+CONNECTION insertConn;
+--error ER_NOT_KEYFILE
+REAP;
 DISCONNECT insertConn;

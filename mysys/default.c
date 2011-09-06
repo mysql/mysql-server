@@ -1208,7 +1208,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   dirs= (const char **)alloc_root(alloc, DEFAULT_DIRS_SIZE * sizeof(char *));
   if (dirs == NULL)
     return NULL;
-  bzero((char *) dirs, DEFAULT_DIRS_SIZE * sizeof(char *));
+  memset(dirs, 0, DEFAULT_DIRS_SIZE * sizeof(char *));
 
 #ifdef __WIN__
 

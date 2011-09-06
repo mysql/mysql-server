@@ -6458,7 +6458,6 @@ ER_MULTI_UPDATE_KEY_CONFLICT
 
 ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX
   eng "Option binlog_stmt_cache_size (%lu) is greater than max_binlog_stmt_cache_size (%lu); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size."
-
 ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
   eng "Can't update table '%-.192s' while '%-.192s' is being created."
 
@@ -6496,9 +6495,6 @@ ER_TABLE_NEEDS_REBUILD
 WARN_OPTION_BELOW_LIMIT
   eng "The value of '%s' should be no less than the value of '%s'"
 
-WARN_QUERY_NOT_PUSHED
-  eng "Table can't be part of pushed join" 
-
 ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE
   eng "Failure while changing the type of replication repository: %s."
 
@@ -6506,3 +6502,26 @@ ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE
   eng "The creation of some temporary tables could not be rolled back."
 ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE
   eng "Some temporary tables were dropped, but these operations could not be rolled back."
+
+ER_INDEX_COLUMN_TOO_LONG
+  eng "Index column size too large. The maximum column size is %lu bytes."
+
+ER_ERROR_IN_TRIGGER_BODY
+  eng "Trigger '%-.64s' has an error in its body: '%-.256s'"
+
+ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
+  eng "Unknown trigger has an error in its body: '%-.256s'"
+
+ER_INDEX_CORRUPT
+  eng "Index %s is corrupted"
+ER_MTS_FEATURE_IS_NOT_SUPPORTED
+  eng "%s is not supported in multi-threaded slave mode. %s"
+ER_MTS_UPDATED_DBS_GREATER_MAX
+  eng "The number of modified databases exceeds the maximum %d; the database names will not be included in the replication event metadata."
+ER_MTS_CANT_PARALLEL
+  eng "Cannot execute the current event group in the parallel mode. Encountered event %s, relay-log name %s, position %s which prevents execution of this event group in parallel mode. Reason: %s."
+ER_MTS_INCONSISTENT_DATA
+  eng "%s"
+
+WARN_QUERY_NOT_PUSHED
+  eng "Table can't be part of pushed join" 

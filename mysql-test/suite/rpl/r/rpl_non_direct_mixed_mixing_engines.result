@@ -6,7 +6,6 @@ include/master-slave.inc
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 SET @verbose= 'Y';
 SET @commands= 'configure';
-SET SQL_LOG_BIN=0;
 CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
@@ -19,21 +18,6 @@ CREATE TABLE tt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(tran
 CREATE TABLE tt_4 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = Innodb;
 CREATE TABLE tt_5 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = Innodb;
 CREATE TABLE tt_6 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = Innodb;
-SET SQL_LOG_BIN=1;
-SET SQL_LOG_BIN=0;
-CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-CREATE TABLE nt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-CREATE TABLE nt_4 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-CREATE TABLE nt_5 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-CREATE TABLE nt_6 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-CREATE TABLE tt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = Innodb;
-CREATE TABLE tt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = Innodb;
-CREATE TABLE tt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = Innodb;
-CREATE TABLE tt_4 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = Innodb;
-CREATE TABLE tt_5 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = Innodb;
-CREATE TABLE tt_6 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = Innodb;
-SET SQL_LOG_BIN=1;
 INSERT INTO nt_1(trans_id, stmt_id) VALUES(1,1);
 INSERT INTO nt_2(trans_id, stmt_id) VALUES(1,1);
 INSERT INTO nt_3(trans_id, stmt_id) VALUES(1,1);
@@ -11930,4 +11914,21 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_
 ###################################################################################
 #                                        CLEAN
 ###################################################################################
+DROP TABLE tt_1;
+DROP TABLE tt_2;
+DROP TABLE tt_3;
+DROP TABLE tt_4;
+DROP TABLE tt_5;
+DROP TABLE tt_6;
+DROP TABLE nt_1;
+DROP TABLE nt_2;
+DROP TABLE nt_3;
+DROP TABLE nt_4;
+DROP TABLE nt_5;
+DROP TABLE nt_6;
+DROP PROCEDURE pc_i_tt_5_suc;
+DROP PROCEDURE pc_i_nt_5_suc;
+DROP FUNCTION fc_i_tt_5_suc;
+DROP FUNCTION fc_i_nt_5_suc;
+SET @commands= '';
 include/rpl_end.inc

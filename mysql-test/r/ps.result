@@ -2988,15 +2988,15 @@ PREPARE stmt FROM 'EXPLAIN EXTENDED SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(1) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(1) where 1
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(1) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(1) where 1
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 #
@@ -3721,3 +3721,43 @@ FROM (SELECT 1 UNION SELECT 2) t;
 2
 #
 # End of 5.5 tests.
+#
+# Bug#12603141: JOIN::flatten_subqueries asrt/simplify_joins sig11/...
+# Bug#12603457: SEGFAULT IN REINIT_STMT_BEFORE_USE
+#
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+PREPARE stmt FROM '
+SELECT (SELECT 1 FROM t2 WHERE ot.a) AS d
+FROM t1 AS ot
+GROUP BY d';
+EXECUTE stmt;
+d
+EXECUTE stmt;
+d
+INSERT INTO t1 VALUES (0),(1),(2);
+INSERT INTO t2 VALUES (1);
+EXECUTE stmt;
+d
+NULL
+1
+EXECUTE stmt;
+d
+NULL
+1
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1, t2;
+#
+# Bug#12661349 assert in protocol::end_statement
+#
+# Note: This test case should be run with --ps-protocol
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (col1 INT);
+# Connection con1
+# Connection default
+KILL QUERY <con1_id>;
+# Connection con1
+SELECT * FROM t1;
+ERROR 70100: Query execution was interrupted
+# Connection default
+DROP TABLE t1;

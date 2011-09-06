@@ -236,6 +236,7 @@ dict_mem_fill_column_struct(
 
 	column->ind = (unsigned int) col_pos;
 	column->ord_part = 0;
+	column->max_prefix = 0;
 	column->mtype = (unsigned int) mtype;
 	column->prtype = (unsigned int) prtype;
 	column->len = (unsigned int) col_len;

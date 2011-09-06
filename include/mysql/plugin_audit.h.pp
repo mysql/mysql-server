@@ -44,7 +44,7 @@ typedef enum _thd_wait_type_e {
   THD_WAIT_BINLOG= 8,
   THD_WAIT_GROUP_COMMIT= 9,
   THD_WAIT_SYNC= 10,
-  THD_WAIT_LAST= 11 
+  THD_WAIT_LAST= 11
 } thd_wait_type;
 extern struct thd_wait_service_st {
   void (*thd_wait_begin_func)(void*, int);
@@ -82,8 +82,11 @@ struct st_mysql_xid {
 typedef struct st_mysql_xid MYSQL_XID;
 enum enum_mysql_show_type
 {
-  SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
-  SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
+  SHOW_UNDEF, SHOW_BOOL,
+  SHOW_INT,
+  SHOW_LONG,
+  SHOW_LONGLONG,
+  SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
   SHOW_always_last
 };
@@ -209,13 +212,8 @@ void mysql_query_cache_invalidate4(void* thd,
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
-struct mysql_event
-{
-  unsigned int event_class;
-};
 struct mysql_event_general
 {
-  unsigned int event_class;
   unsigned int event_subclass;
   int general_error_code;
   unsigned long general_thread_id;
@@ -231,7 +229,6 @@ struct mysql_event_general
 };
 struct mysql_event_connection
 {
-  unsigned int event_class;
   unsigned int event_subclass;
   int status;
   unsigned long thread_id;
@@ -254,6 +251,6 @@ struct st_mysql_audit
 {
   int interface_version;
   void (*release_thd)(void*);
-  void (*event_notify)(void*, const struct mysql_event *);
+  void (*event_notify)(void*, unsigned int, const void *);
   unsigned long class_mask[1];
 };

@@ -115,11 +115,11 @@ bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
   do
   {
     String *part_name_str= partition_names_it++;
-    const char *part_name= part_name_str->c_ptr_safe();
+    const char *part_name= part_name_str->c_ptr();
     PART_NAME_DEF *part_def;
     part_def= (PART_NAME_DEF*) my_hash_search(part_name_hash,
                                               (const uchar*) part_name,
-                                              strlen(part_name));
+                                              part_name_str->length());
     if (!part_def)
     {
       my_error(ER_NO_SUCH_PARTITION, MYF(0), part_name);
@@ -636,12 +636,11 @@ char *partition_info::find_duplicate_name()
   HASH partition_names;
   uint max_names;
   const uchar *curr_name= NULL;
-  size_t length;
   List_iterator<partition_element> parts_it(partitions);
-  partition_element *p_elem;  
+  partition_element *p_elem;
 
   DBUG_ENTER("partition_info::find_duplicate_name");
-  
+
   /*
     TODO: If table->s->ha_part_data->partition_name_hash.elements is > 0,
     then we could just return NULL, but that has not been verified.
@@ -661,7 +660,6 @@ char *partition_info::find_duplicate_name()
   while ((p_elem= (parts_it++)))
   {
     curr_name= (const uchar*) p_elem->partition_name;
-    length= strlen(p_elem->partition_name);
     if (my_hash_insert(&partition_names, curr_name))
       goto error;
 
@@ -676,7 +674,7 @@ char *partition_info::find_duplicate_name()
           goto error;
       }
     }
-  } 
+  }
   my_hash_free(&partition_names);
   DBUG_RETURN(NULL);
 error:
@@ -1239,11 +1237,11 @@ static void warn_if_dir_in_part_elem(THD *thd, partition_element *part_elem)
 #endif
   {
     if (part_elem->data_file_name)
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (part_elem->index_file_name)
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
     part_elem->data_file_name= part_elem->index_file_name= NULL;
@@ -1518,7 +1516,7 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
   char *buf_ptr= (char*)&buf;
   TABLE_LIST table_list;
 
-  bzero(&table_list, sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
   table_list.db= table_arg->s->db.str;
   table_list.table_name= table_arg->s->table_name.str;
 

@@ -3477,7 +3477,7 @@ recv_reset_log_files_for_backup(
 		exit(1);
 	}
 
-	os_file_write(name, log_file, buf, 0, 0,
+	os_file_write(name, log_file, buf, 0,
 		      LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
 	os_file_flush(log_file);
 	os_file_close(log_file);

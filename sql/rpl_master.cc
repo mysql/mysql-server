@@ -649,13 +649,13 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     Diagnostics_area.
   */
   Diagnostics_area temp_da;
-  Diagnostics_area *saved_da= thd->stmt_da;
-  thd->stmt_da= &temp_da;
+  Diagnostics_area *saved_da= thd->get_stmt_da();
+  thd->set_stmt_da(&temp_da);
 
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
-  bzero((char*) &log,sizeof(log));
+  memset(&log, 0, sizeof(log));
   /* 
      heartbeat_period from @master_heartbeat_period user variable
   */
@@ -1100,7 +1100,7 @@ impossible position";
 #ifndef DBUG_OFF
           ulong hb_info_counter= 0;
 #endif
-          const char* old_msg= thd->proc_info;
+          PSI_stage_info old_stage;
           signal_cnt= mysql_bin_log.signal_cnt;
           do 
           {
@@ -1109,9 +1109,9 @@ impossible position";
               DBUG_ASSERT(heartbeat_ts && heartbeat_period != 0);
               set_timespec_nsec(*heartbeat_ts, heartbeat_period);
             }
-            thd->enter_cond(log_cond, log_lock,
-                            "Master has sent all binlog to slave; "
-                            "waiting for binlog to be updated");
+            thd->ENTER_COND(log_cond, log_lock,
+                            &stage_master_has_sent_all_binlog_to_slave,
+                            &old_stage);
             ret= mysql_bin_log.wait_for_update_bin_log(thd, heartbeat_ts);
             DBUG_ASSERT(ret == 0 || (heartbeat_period != 0 && coord != NULL));
             if (ret == ETIMEDOUT || ret == ETIME)
@@ -1128,14 +1128,14 @@ impossible position";
               /* reset transmit packet for the heartbeat event */
               if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
               {
-                thd->exit_cond(old_msg);
+                thd->EXIT_COND(&old_stage);
                 goto err;
               }
               if (send_heartbeat_event(net, packet, coord, current_checksum_alg))
               {
                 errmsg = "Failed on my_net_write()";
                 my_errno= ER_UNKNOWN_ERROR;
-                thd->exit_cond(old_msg);
+                thd->EXIT_COND(&old_stage);
                 goto err;
               }
             }
@@ -1144,7 +1144,7 @@ impossible position";
               DBUG_PRINT("wait",("binary log received update or a broadcast signal caught"));
             }
           } while (signal_cnt == mysql_bin_log.signal_cnt && !thd->killed);
-          thd->exit_cond(old_msg);
+          thd->EXIT_COND(&old_stage);
         }
         break;
             
@@ -1248,7 +1248,7 @@ impossible position";
   }
 
 end:
-  thd->stmt_da= saved_da;
+  thd->set_stmt_da(saved_da);
   end_io_cache(&log);
   mysql_file_close(file, MYF(MY_WME));
 
@@ -1279,7 +1279,7 @@ err:
     mysql_file_close(file, MYF(MY_WME));
   thd->variables.max_allowed_packet= old_max_allowed_packet;
 
-  thd->stmt_da= saved_da;
+  thd->set_stmt_da(saved_da);
   my_message(my_errno, errmsg, MYF(0));
   DBUG_VOID_RETURN;
 }

@@ -1,6 +1,3 @@
-#ifndef VIO_PRIV_INCLUDED
-#define VIO_PRIV_INCLUDED
-
 /* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -16,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifndef VIO_PRIV_INCLUDED
+#define VIO_PRIV_INCLUDED
+
 /* Structures and functions private to the vio package */
 
 #define DONT_MAP_VIO
@@ -26,10 +26,6 @@
 #include <violite.h>
 
 #ifdef _WIN32
-void	vio_win32_timeout(Vio *vio, uint which, uint timeout);
-#endif
-
-#ifdef __WIN__
 size_t vio_read_pipe(Vio *vio, uchar * buf, size_t size);
 size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
 my_bool vio_is_connected_pipe(Vio *vio);
@@ -43,8 +39,9 @@ my_bool vio_is_connected_shared_memory(Vio *vio);
 int vio_close_shared_memory(Vio * vio);
 #endif
 
-void	vio_timeout(Vio *vio,uint which, uint timeout);
 my_bool vio_buff_has_data(Vio *vio);
+int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event);
+int vio_socket_timeout(Vio *vio, uint which, my_bool old_mode);
 
 #ifdef HAVE_OPENSSL
 #include "my_net.h"			/* needed because of struct in_addr */
@@ -55,9 +52,6 @@ size_t	vio_ssl_write(Vio *vio,const uchar* buf, size_t size);
 /* When the workday is over... */
 int vio_ssl_close(Vio *vio);
 void vio_ssl_delete(Vio *vio);
-
-int vio_ssl_blocking(Vio *vio, my_bool set_blocking_mode, my_bool *old_mode);
-
 my_bool vio_ssl_has_data(Vio *vio);
 
 #endif /* HAVE_OPENSSL */

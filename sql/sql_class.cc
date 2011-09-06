@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,9 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
 
 /*****************************************************************************
 **
@@ -331,11 +334,10 @@ THD *thd_get_current_thd()
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
 #ifdef HAVE_PSI_INTERFACE
-  if (PSI_server)
-    thd_set_psi(thd,
-                PSI_server->new_thread(key_thread_one_connection,
-                                       thd,
-                                       thd_get_thread_id((MYSQL_THD)thd)));
+  thd_set_psi(thd,
+              PSI_CALL(new_thread)(key_thread_one_connection,
+                                   thd,
+                                   thd->thread_id));
 #endif
   thd->set_time();
   thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
@@ -343,7 +345,7 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   threads.append(thd);
   thd_unlock_thread_count(thd);
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
-          (ulong)thd, thd->net.vio->sd));
+          (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
   thd_set_thread_stack(thd, stack_start);
 }
 
@@ -421,7 +423,7 @@ void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
 */
 my_socket thd_get_fd(THD *thd)
 {
-  return thd->net.vio->sd;
+  return mysql_socket_getfd(thd->net.vio->mysql_socket);
 }
 
 /**
@@ -493,43 +495,83 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
                               const char *calling_file,
                               const unsigned int calling_line)
 {
-  THD *thd= (THD *) thd_arg;
+  PSI_stage_info old_stage;
+  PSI_stage_info new_stage;
 
-  if (!thd)
+  old_stage.m_key= 0;
+  old_stage.m_name= info;
+
+  set_thd_stage_info(thd_arg, & old_stage, & new_stage,
+                     calling_function, calling_file, calling_line);
+
+  return new_stage.m_name;
+}
+
+extern "C"
+void set_thd_stage_info(void *opaque_thd,
+                        const PSI_stage_info *new_stage,
+                        PSI_stage_info *old_stage,
+                        const char *calling_func,
+                        const char *calling_file,
+                        const unsigned int calling_line)
+{
+  THD *thd= (THD*) opaque_thd;
+  if (thd == NULL)
     thd= current_thd;
 
-  const char *old_info= thd->proc_info;
-  const char *basename= calling_file ? base_name(calling_file) : NULL;
-  DBUG_PRINT("proc_info", ("%s:%d  %s", basename, calling_line, info));
+  thd->enter_stage(new_stage, old_stage, calling_func, calling_file, calling_line);
+}
+
+void THD::enter_stage(const PSI_stage_info *new_stage,
+                      PSI_stage_info *old_stage,
+                      const char *calling_func,
+                      const char *calling_file,
+                      const unsigned int calling_line)
+{
+  DBUG_PRINT("THD::enter_stage", ("%s:%d", calling_file, calling_line));
+
+  if (old_stage != NULL)
+  {
+    old_stage->m_key= m_current_stage_key;
+    old_stage->m_name= proc_info;
+  }
+
+  if (new_stage != NULL)
+  {
+    const char *msg= new_stage->m_name;
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.status_change(info, calling_function, basename, calling_line);
+    profiling.status_change(msg, calling_func, calling_file, calling_line);
 #endif
-  thd->proc_info= info;
+
+    m_current_stage_key= new_stage->m_key;
+    proc_info= msg;
+
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (likely(PSI_server != NULL))
-    PSI_server->set_thread_state(info);
+    PSI_CALL(set_thread_state)(msg);
+    MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
 #endif
-  return old_info;
+  }
+  return;
 }
 
 extern "C"
-const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
-                           mysql_mutex_t *mutex, const char *msg)
+void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage)
 {
   if (!thd)
     thd= current_thd;
 
-  return thd->enter_cond(cond, mutex, msg);
+  return thd->ENTER_COND(cond, mutex, stage, old_stage);
 }
 
 extern "C"
-void thd_exit_cond(MYSQL_THD thd, const char *old_msg)
+void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage)
 {
   if (!thd)
     thd= current_thd;
 
-  thd->exit_cond(old_msg);
+  thd->EXIT_COND(stage);
   return;
 }
 
@@ -596,7 +638,7 @@ int thd_tx_isolation(const THD *thd)
 extern "C"
 void thd_inc_row_count(THD *thd)
 {
-  thd->warning_info->inc_current_row_for_warning();
+  thd->get_stmt_da()->inc_current_row_for_warning();
 }
 
 
@@ -624,7 +666,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 {
   String str(buffer, length, &my_charset_latin1);
   const Security_context *sctx= &thd->main_security_ctx;
-  char header[64];
+  char header[256];
   int len;
   /*
     The pointers thd->query and thd->proc_info might change since they are
@@ -638,8 +680,8 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
-                   "MySQL thread id %lu, query id %lu",
-                   thd->thread_id, (ulong) thd->query_id);
+                   "MySQL thread id %lu, OS thread handle 0x%lx, query id %lu",
+                   thd->thread_id, (ulong) thd->real_id, (ulong) thd->query_id);
   str.length(0);
   str.append(header, len);
 
@@ -714,9 +756,9 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 bool Drop_table_error_handler::handle_condition(THD *thd,
                                                 uint sql_errno,
                                                 const char* sqlstate,
-                                                MYSQL_ERROR::enum_warning_level level,
+                                                Sql_condition::enum_warning_level level,
                                                 const char* msg,
-                                                MYSQL_ERROR ** cond_hdl)
+                                                Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
@@ -731,6 +773,7 @@ THD::THD(bool enable_plugins)
    user_time(0), in_sub_stmt(0),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
+   binlog_accessed_db_names(NULL),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -738,8 +781,6 @@ THD::THD(bool enable_plugins)
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    m_examined_row_count(0),
-   warning_info(&main_warning_info),
-   stmt_da(&main_da),
    m_statement_psi(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
@@ -755,7 +796,8 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
-   main_warning_info(0, false)
+   main_da(0, false),
+   m_stmt_da(&main_da)
 {
   ulong tmp;
 
@@ -780,7 +822,6 @@ THD::THD(bool enable_plugins)
   is_slave_error= thread_specific_used= FALSE;
   my_hash_clear(&handler_tables_hash);
   tmp_table=0;
-  used_tables=0;
   cuted_fields= 0L;
   m_sent_row_count= 0L;
   limit_found_rows= 0;
@@ -793,14 +834,14 @@ THD::THD(bool enable_plugins)
   utime_after_lock= 0L;
   current_linfo =  0;
   slave_thread = 0;
-  bzero(&variables, sizeof(variables));
+  memset(&variables, 0, sizeof(variables));
   thread_id= 0;
   one_shot_set= 0;
   file_id = 0;
   query_id= 0;
   query_name_consts= 0;
   db_charset= global_system_variables.collation_database;
-  bzero(ha_data, sizeof(ha_data));
+  memset(ha_data, 0, sizeof(ha_data));
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
@@ -854,7 +895,7 @@ THD::THD(bool enable_plugins)
     my_init_dynamic_array(&user_var_events,
 			  sizeof(BINLOG_USER_VAR_EVENT *), 16, 16);
   else
-    bzero((char*) &user_var_events, sizeof(user_var_events));
+    memset(&user_var_events, 0, sizeof(user_var_events));
 
   /* Protocol */
   protocol= &protocol_text;			// Default protocol
@@ -889,9 +930,9 @@ void THD::push_internal_handler(Internal_error_handler *handler)
 
 bool THD::handle_condition(uint sql_errno,
                            const char* sqlstate,
-                           MYSQL_ERROR::enum_warning_level level,
+                           Sql_condition::enum_warning_level level,
                            const char* msg,
-                           MYSQL_ERROR ** cond_hdl)
+                           Sql_condition ** cond_hdl)
 {
   if (!m_internal_handler)
   {
@@ -928,7 +969,7 @@ void THD::raise_error(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_ERROR,
+                         Sql_condition::WARN_LEVEL_ERROR,
                          msg);
 }
 
@@ -944,7 +985,7 @@ void THD::raise_error_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_ERROR,
+                         Sql_condition::WARN_LEVEL_ERROR,
                          ebuff);
   DBUG_VOID_RETURN;
 }
@@ -954,7 +995,7 @@ void THD::raise_warning(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_WARN,
+                         Sql_condition::WARN_LEVEL_WARN,
                          msg);
 }
 
@@ -970,7 +1011,7 @@ void THD::raise_warning_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_WARN,
+                         Sql_condition::WARN_LEVEL_WARN,
                          ebuff);
   DBUG_VOID_RETURN;
 }
@@ -984,7 +1025,7 @@ void THD::raise_note(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_NOTE,
+                         Sql_condition::WARN_LEVEL_NOTE,
                          msg);
   DBUG_VOID_RETURN;
 }
@@ -1003,24 +1044,25 @@ void THD::raise_note_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         MYSQL_ERROR::WARN_LEVEL_NOTE,
+                         Sql_condition::WARN_LEVEL_NOTE,
                          ebuff);
   DBUG_VOID_RETURN;
 }
 
-MYSQL_ERROR* THD::raise_condition(uint sql_errno,
-                                  const char* sqlstate,
-                                  MYSQL_ERROR::enum_warning_level level,
-                                  const char* msg)
+Sql_condition* THD::raise_condition(uint sql_errno,
+                                    const char* sqlstate,
+                                    Sql_condition::enum_warning_level level,
+                                    const char* msg)
 {
-  MYSQL_ERROR *cond= NULL;
+  Diagnostics_area *da= get_stmt_da();
+  Sql_condition *cond= NULL;
   DBUG_ENTER("THD::raise_condition");
 
   if (!(variables.option_bits & OPTION_SQL_NOTES) &&
-      (level == MYSQL_ERROR::WARN_LEVEL_NOTE))
+      (level == Sql_condition::WARN_LEVEL_NOTE))
     DBUG_RETURN(NULL);
 
-  warning_info->opt_clear_warning_info(query_id);
+  da->opt_clear_warning_info(query_id);
 
   /*
     TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
@@ -1034,24 +1076,24 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   if (sqlstate == NULL)
    sqlstate= mysql_errno_to_sqlstate(sql_errno);
 
-  if ((level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
+  if ((level == Sql_condition::WARN_LEVEL_WARN) &&
       really_abort_on_warning())
   {
     /*
       FIXME:
       push_warning and strict SQL_MODE case.
     */
-    level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+    level= Sql_condition::WARN_LEVEL_ERROR;
     killed= THD::KILL_BAD_DATA;
   }
 
   switch (level)
   {
-  case MYSQL_ERROR::WARN_LEVEL_NOTE:
-  case MYSQL_ERROR::WARN_LEVEL_WARN:
+  case Sql_condition::WARN_LEVEL_NOTE:
+  case Sql_condition::WARN_LEVEL_WARN:
     got_warning= 1;
     break;
-  case MYSQL_ERROR::WARN_LEVEL_ERROR:
+  case Sql_condition::WARN_LEVEL_ERROR:
     break;
   default:
     DBUG_ASSERT(FALSE);
@@ -1060,7 +1102,13 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   if (handle_condition(sql_errno, sqlstate, level, msg, &cond))
     DBUG_RETURN(cond);
 
-  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+  /* When simulating OOM, skip writing to error log to avoid mtr errors. */
+  cond= DBUG_EVALUATE_IF(
+    "simulate_out_of_memory",
+    NULL,
+    da->push_warning(this, sql_errno, sqlstate, level, msg));
+
+  if (level == Sql_condition::WARN_LEVEL_ERROR)
   {
     is_slave_error=  1; // needed to catch query errors during replication
 
@@ -1080,20 +1128,16 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
     }
     else
     {
-      if (! stmt_da->is_error())
+      if (!da->is_error())
       {
         set_row_count_func(-1);
-        stmt_da->set_error_status(this, sql_errno, msg, sqlstate);
+        da->set_error_status(sql_errno, msg, sqlstate, cond);
       }
     }
   }
 
   query_cache_abort(&query_cache_tls);
 
-  /* When simulating OOM, skip writing to error log to avoid mtr errors */
-  DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(NULL););
-
-  cond= warning_info->push_warning(this, sql_errno, sqlstate, level, msg);
   DBUG_RETURN(cond);
 }
 
@@ -1176,7 +1220,7 @@ void THD::init(void)
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   update_charset();
   reset_current_stmt_binlog_format_row();
-  bzero((char *) &status_var, sizeof(status_var));
+  memset(&status_var, 0, sizeof(status_var));
 
   if (variables.sql_log_bin)
     variables.option_bits|= OPTION_BIN_LOG;
@@ -1365,23 +1409,26 @@ THD::~THD()
    from_var     from this array
 
   NOTES
-    This function assumes that all variables are long/ulong.
+    This function assumes that all variables are longlong/ulonglong.
     If this assumption will change, then we have to explictely add
     the other variables after the while loop
 */
 
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
 {
-  ulong *end= (ulong*) ((uchar*) to_var +
-                        offsetof(STATUS_VAR, last_system_status_var) +
-			sizeof(ulong));
-  ulong *to= (ulong*) to_var, *from= (ulong*) from_var;
+  int        c;
+  ulonglong *end= (ulonglong*) ((uchar*) to_var +
+                                offsetof(STATUS_VAR, last_system_status_var) +
+                                sizeof(ulonglong));
+  ulonglong *to= (ulonglong*) to_var, *from= (ulonglong*) from_var;
 
   while (to != end)
     *(to++)+= *(from++);
 
-  to_var->bytes_received+= from_var->bytes_received;
-  to_var->bytes_sent+= from_var->bytes_sent;
+  to_var->com_other+= from_var->com_other;
+
+  for (c= 0; c< SQLCOM_END; c++)
+    to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
 }
 
 /*
@@ -1394,22 +1441,27 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
     dec_var      minus this array
   
   NOTE
-    This function assumes that all variables are long/ulong.
+    This function assumes that all variables are longlong/ulonglong.
 */
 
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var)
 {
-  ulong *end= (ulong*) ((uchar*) to_var + offsetof(STATUS_VAR,
-						  last_system_status_var) +
-			sizeof(ulong));
-  ulong *to= (ulong*) to_var, *from= (ulong*) from_var, *dec= (ulong*) dec_var;
+  int        c;
+  ulonglong *end= (ulonglong*) ((uchar*) to_var + offsetof(STATUS_VAR,
+                                                           last_system_status_var) +
+                                sizeof(ulonglong));
+  ulonglong *to= (ulonglong*) to_var,
+            *from= (ulonglong*) from_var,
+            *dec= (ulonglong*) dec_var;
 
   while (to != end)
     *(to++)+= *(from++) - *(dec++);
 
-  to_var->bytes_received+= from_var->bytes_received - dec_var->bytes_received;;
-  to_var->bytes_sent+= from_var->bytes_sent - dec_var->bytes_sent;
+  to_var->com_other+= from_var->com_other - dec_var->com_other;
+
+  for (c= 0; c< SQLCOM_END; c++)
+    to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c] -dec_var->com_stat[(uint) c];
 }
 
 
@@ -1685,6 +1737,7 @@ void THD::cleanup_after_query()
     stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     rand_used= 0;
+    binlog_accessed_db_names= NULL;
   }
   if (first_successful_insert_id_in_cur_stmt > 0)
   {
@@ -2049,7 +2102,8 @@ void THD::rollback_item_tree_changes()
 ** Functions to provide a interface to select results
 *****************************************************************************/
 
-select_result::select_result()
+select_result::select_result():
+  estimated_rowcount(0)
 {
   thd=current_thd;
 }
@@ -2377,7 +2431,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
         Non-ASCII separator arguments are not fully supported
     */
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
                  ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   }
@@ -2408,7 +2462,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
       (exchange->opt_enclosed && non_string_results &&
        field_term_length && strchr(NUMERIC_CHARS, field_term_char)))
   {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                  ER_AMBIGUOUS_FIELD_TERM, ER(ER_AMBIGUOUS_FIELD_TERM));
     is_ambiguous_field_term= TRUE;
   }
@@ -2489,7 +2543,7 @@ bool select_export::send_data(List<Item> &items)
         convert_to_printable(printable_buff, sizeof(printable_buff),
                              error_pos, res->ptr() + res->length() - error_pos,
                              res->charset(), 6);
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
@@ -2500,7 +2554,7 @@ bool select_export::send_data(List<Item> &items)
         /*
           result is longer than UINT_MAX32 and doesn't fit into String
         */
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
                             item->full_name(), static_cast<long>(row_count));
       }
@@ -2635,7 +2689,7 @@ bool select_export::send_data(List<Item> &items)
 	if (!space_inited)
 	{
 	  space_inited=1;
-	  bfill(space,sizeof(space),' ');
+	  memset(space, ' ', sizeof(space));
 	}
 	uint length=item->max_length-used_length;
 	for (; length > sizeof(space) ; length-=sizeof(space))
@@ -3243,7 +3297,7 @@ bool select_dumpvar::send_data(List<Item> &items)
 bool select_dumpvar::send_eof()
 {
   if (! row_count)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                  ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
   /*
     Don't send EOF if we're in error condition (which implies we've already
@@ -3269,7 +3323,11 @@ void TMP_TABLE_PARAM::init()
   quick_group= 1;
   table_charset= 0;
   precomputed_group_by= 0;
+  skip_create_table= 0;
   bit_fields_as_long= 0;
+  recinfo= 0;
+  start_recinfo= 0;
+  keyinfo= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -3290,15 +3348,9 @@ void thd_increment_bytes_received(ulong length)
 }
 
 
-void thd_increment_net_big_packet_count(ulong length)
-{
-  current_thd->status_var.net_big_packet_count+= length;
-}
-
-
 void THD::set_status_var_init()
 {
-  bzero((char*) &status_var, sizeof(status_var));
+  memset(&status_var, 0, sizeof(status_var));
 }
 
 
@@ -3809,8 +3861,7 @@ void THD::inc_status_created_tmp_disk_tables()
 {
   status_var_increment(status_var.created_tmp_disk_tables);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_created_tmp_disk_tables(m_statement_psi, 1);
+  PSI_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
 #endif
 }
 
@@ -3818,8 +3869,7 @@ void THD::inc_status_created_tmp_tables()
 {
   status_var_increment(status_var.created_tmp_tables);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_created_tmp_tables(m_statement_psi, 1);
+  PSI_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif
 }
 
@@ -3827,8 +3877,7 @@ void THD::inc_status_select_full_join()
 {
   status_var_increment(status_var.select_full_join_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_select_full_join(m_statement_psi, 1);
+  PSI_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
 #endif
 }
 
@@ -3836,8 +3885,7 @@ void THD::inc_status_select_full_range_join()
 {
   status_var_increment(status_var.select_full_range_join_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_select_full_range_join(m_statement_psi, 1);
+  PSI_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
 #endif
 }
 
@@ -3845,8 +3893,7 @@ void THD::inc_status_select_range()
 {
   status_var_increment(status_var.select_range_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_select_range(m_statement_psi, 1);
+  PSI_CALL(inc_statement_select_range)(m_statement_psi, 1);
 #endif
 }
 
@@ -3854,8 +3901,7 @@ void THD::inc_status_select_range_check()
 {
   status_var_increment(status_var.select_range_check_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_select_range_check(m_statement_psi, 1);
+  PSI_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
 #endif
 }
 
@@ -3863,8 +3909,7 @@ void THD::inc_status_select_scan()
 {
   status_var_increment(status_var.select_scan_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_select_scan(m_statement_psi, 1);
+  PSI_CALL(inc_statement_select_scan)(m_statement_psi, 1);
 #endif
 }
 
@@ -3872,8 +3917,7 @@ void THD::inc_status_sort_merge_passes()
 {
   status_var_increment(status_var.filesort_merge_passes);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_sort_merge_passes(m_statement_psi, 1);
+  PSI_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
 #endif
 }
 
@@ -3881,8 +3925,7 @@ void THD::inc_status_sort_range()
 {
   status_var_increment(status_var.filesort_range_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_sort_range(m_statement_psi, 1);
+  PSI_CALL(inc_statement_sort_range)(m_statement_psi, 1);
 #endif
 }
 
@@ -3890,8 +3933,7 @@ void THD::inc_status_sort_rows(ha_rows count)
 {
   statistic_add(status_var.filesort_rows, count, &LOCK_status);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_sort_rows(m_statement_psi, count);
+  PSI_CALL(inc_statement_sort_rows)(m_statement_psi, count);
 #endif
 }
 
@@ -3899,8 +3941,7 @@ void THD::inc_status_sort_scan()
 {
   status_var_increment(status_var.filesort_scan_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->inc_statement_sort_scan(m_statement_psi, 1);
+  PSI_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
 #endif
 }
 
@@ -3908,8 +3949,7 @@ void THD::set_status_no_index_used()
 {
   server_status|= SERVER_QUERY_NO_INDEX_USED;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->set_statement_no_index_used(m_statement_psi);
+  PSI_CALL(set_statement_no_index_used)(m_statement_psi);
 #endif
 }
 
@@ -3917,8 +3957,7 @@ void THD::set_status_no_good_index_used()
 {
   server_status|= SERVER_QUERY_NO_GOOD_INDEX_USED;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  if (likely(PSI_server && m_statement_psi))
-    PSI_server->set_statement_no_good_index_used(m_statement_psi);
+  PSI_CALL(set_statement_no_good_index_used)(m_statement_psi);
 #endif
 }
 
@@ -3926,8 +3965,7 @@ void THD::set_command(enum enum_server_command command)
 {
   m_command= command;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (likely(PSI_server != NULL))
-    PSI_server->set_thread_command(m_command);
+  PSI_CALL(set_thread_command)(m_command);
 #endif
 }
 
@@ -3941,8 +3979,7 @@ void THD::set_query(const CSET_STRING &string_arg)
   mysql_mutex_unlock(&LOCK_thd_data);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (likely(PSI_server != NULL))
-    PSI_server->set_thread_info(query(), query_length());
+  PSI_CALL(set_thread_info)(query(), query_length());
 #endif
 }
 
@@ -3982,16 +4019,24 @@ void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
 
 void THD::leave_locked_tables_mode()
 {
+  if (locked_tables_mode == LTM_LOCK_TABLES)
+  {
+    /*
+      When leaving LOCK TABLES mode we have to change the duration of most
+      of the metadata locks being held, except for HANDLER and GRL locks,
+      to transactional for them to be properly released at UNLOCK TABLES.
+    */
+    mdl_context.set_transaction_duration_for_all_locks();
+    /*
+      Make sure we don't release the global read lock and commit blocker
+      when leaving LTM.
+    */
+    global_read_lock.set_explicit_lock_duration(this);
+    /* Also ensure that we don't release metadata locks for open HANDLERs. */
+    if (handler_tables_hash.records)
+      mysql_ha_set_explicit_lock_duration(this);
+  }
   locked_tables_mode= LTM_NONE;
-  mdl_context.set_transaction_duration_for_all_locks();
-  /*
-    Make sure we don't release the global read lock and commit blocker
-    when leaving LTM.
-  */
-  global_read_lock.set_explicit_lock_duration(this);
-  /* Also ensure that we don't release metadata locks for open HANDLERs. */
-  if (handler_tables_hash.records)
-    mysql_ha_set_explicit_lock_duration(this);
 }
 
 void THD::get_definer(LEX_USER *definer)

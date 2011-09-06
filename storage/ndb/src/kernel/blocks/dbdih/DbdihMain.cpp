@@ -1485,7 +1485,7 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
     mask.assign(NdbNodeBitmask::Size, req->nodemask);
     const Uint32 *node_gcis = req->node_gcis;
     Uint32 node_group_gcis[MAX_NDB_NODES+1];
-    bzero(node_group_gcis, sizeof(node_group_gcis));
+    memset(node_group_gcis, 0, sizeof(node_group_gcis));
     for (i = 0; i<MAX_NDB_NODES; i++)
     {
       if (mask.get(i))

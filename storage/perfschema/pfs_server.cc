@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,6 +32,9 @@
 #include "pfs_timer.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
+#include "pfs_host.h"
+#include "pfs_user.h"
+#include "pfs_account.h"
 #include "pfs_defaults.h"
 
 PFS_global_param pfs_param;
@@ -73,6 +76,7 @@ initialize_performance_schema(const PFS_global_param *param)
       init_file_class(param->m_file_class_sizing) ||
       init_stage_class(param->m_stage_class_sizing) ||
       init_statement_class(param->m_statement_class_sizing) ||
+      init_socket_class(param->m_socket_class_sizing) ||
       init_instruments(param) ||
       init_events_waits_history_long(
         param->m_events_waits_history_long_sizing) ||
@@ -85,7 +89,13 @@ initialize_performance_schema(const PFS_global_param *param)
       init_setup_actor(param) ||
       init_setup_actor_hash() ||
       init_setup_object(param) ||
-      init_setup_object_hash())
+      init_setup_object_hash() ||
+      init_host(param) ||
+      init_host_hash() ||
+      init_user(param) ||
+      init_user_hash() ||
+      init_account(param) ||
+      init_account_hash())
   {
     /*
       The performance schema initialization failed.
@@ -128,6 +138,7 @@ static void cleanup_performance_schema(void)
   cleanup_file_class();
   cleanup_stage_class();
   cleanup_statement_class();
+  cleanup_socket_class();
   cleanup_events_waits_history_long();
   cleanup_events_stages_history_long();
   cleanup_events_statements_history_long();
@@ -137,6 +148,12 @@ static void cleanup_performance_schema(void)
   cleanup_setup_actor_hash();
   cleanup_setup_object();
   cleanup_setup_object_hash();
+  cleanup_host();
+  cleanup_host_hash();
+  cleanup_user();
+  cleanup_user_hash();
+  cleanup_account();
+  cleanup_account_hash();
   PFS_atomic::cleanup();
 }
 
@@ -155,4 +172,5 @@ void shutdown_performance_schema(void)
     THR_PFS_initialized= false;
   }
 }
+
 

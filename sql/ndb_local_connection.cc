@@ -108,7 +108,7 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
     if (m_push_warnings)
     {
       // Append the error which caused the error to thd's warning list
-      push_warning(m_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN,
                    last_errno, last_errmsg);
     }
     else

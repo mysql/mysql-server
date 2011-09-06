@@ -936,37 +936,49 @@ create table t1 (a int) partition by list(a) (
 );
 insert into t1 values (1),(1),(2),(2),(3),(4),(3),(4);
 
-# This won't do any table access
+--echo # This won't do any table access
+--let $q = update t1 set a=100 where a=5
+--eval explain extended $q
+--eval explain partitions $q
 flush status;
-update t1 set a=100 where a=5;
+--eval $q
 show status like 'Handler_read_rnd_next';
 
-# ... as compared to this, which will scan both partitions
+--echo # ... as compared to this, which will scan both partitions
+--let $q = update t1 set a=100 where a+1=5+1
+--eval explain partitions $q
 flush status;
-update t1 set a=100 where a+1=5+1;
+--eval $q
 show status like 'Handler_read_rnd_next';
 
-# Same as above for DELETE:
+--echo # Same as above for DELETE:
+--let $q = delete from t1 where a=5
+--eval explain extended $q
+--eval explain partitions $q
 flush status;
-delete from t1 where a=5;
+--eval $q
 show status like 'Handler_read_rnd_next';
 
+--let $q = delete from t1 where a+1=5+1
+--eval explain partitions $q
 flush status;
-delete from t1 where a+1=5+1;
+--eval $q
 show status like 'Handler_read_rnd_next';
 
-# Same as above multi-table UPDATE/DELETE
+--echo # Same as above multi-table UPDATE/DELETE
 create table t2 like t1;
 insert into t2 select * from t2;
 
+--let $q = update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5
+--eval explain partitions $q
 flush status;
-update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
+--eval $q
 show status like 'Handler_read_rnd_next';
-# ^ This shows 3 accesses, these are caused by const table reads. 
-# They should vanish when partition pruning results are used.
 
+--let $q = delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5
+--eval explain partitions $q
 flush status;
-delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
+--eval $q
 show status like 'Handler_read_rnd_next';
 drop table t1,t2;
 
@@ -999,35 +1011,72 @@ PARTITION p2 VALUES LESS THAN (600),
 PARTITION p3 VALUES LESS THAN (800),
 PARTITION p4 VALUES LESS THAN (1001));
 
+CREATE TABLE `t3` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+);
+
+explain partitions insert into t2 select a,1 from t1 where a < 200;
 insert into t2 select a,1 from t1 where a < 200;
 insert into t2 select a,2 from t1 where a >= 200 and a < 400;
 insert into t2 select a,3 from t1 where a >= 400 and a < 600;
 insert into t2 select a,4 from t1 where a >= 600 and a < 800;
 insert into t2 select a,5 from t1 where a >= 800 and a < 1001;
 
-explain partitions select * from t2;
-explain partitions select * from t2 where a < 801 and a > 200;
-explain partitions select * from t2 where a < 801 and a > 800;
-explain partitions select * from t2 where a > 600;
-explain partitions select * from t2 where a > 600 and b = 1;
-explain partitions select * from t2 where a > 600 and b = 4;
-explain partitions select * from t2 where a > 600 and b = 5;
-explain partitions select * from t2 where b = 5;
+--let $q =  select * from t2
+--eval explain partitions $q
+--eval explain partitions insert into t3 $q
+--eval explain extended   insert into t3 $q
+--let $q =  select * from t2 where a < 801 and a > 200
+--eval explain partitions $q
+--eval explain partitions insert into t3 $q
+--let $q =  select * from t2 where a < 801 and a > 800
+--eval explain partitions $q
+--eval explain partitions insert into t3 $q
+--let $q =  select * from t2 where a > 600
+--eval explain partitions $q
+--eval explain partitions insert into t3 $q
+--let $q =  select * from t2 where a > 600 and b = 1
+--eval explain partitions $q
+--eval explain partitions insert into t3 $q
+--let $q =  select * from t2 where a > 600 and b = 4
+--eval explain partitions $q
+--eval explain partitions insert into t3 $q
+--let $q =  select * from t2 where a > 600 and b = 5
+--eval explain partitions $q
+--eval explain partitions insert into t3 $q
+--let $q =  select * from t2 where b = 5
+--eval explain partitions $q
+--eval explain partitions insert into t3 $q
 
+DROP TABLE t3;
+
+--let $q = update t2 set b = 100 where b = 6
+--eval explain extended $q
+--eval explain partitions $q
 flush status;
-update t2 set b = 100 where b = 6;
+--eval $q
 show status like 'Handler_read_rnd_next';
+--let $q = update t2 set a = 1002 where a = 1001
+--eval explain partitions $q
 flush status;
-update t2 set a = 1002 where a = 1001;
+--eval $q
 show status like 'Handler_read_rnd_next';
+--let $q = update t2 set b = 6 where a = 600
+--eval explain partitions $q
 flush status;
-update t2 set b = 6 where a = 600;
+--eval $q
 show status like 'Handler_read_rnd_next';
+--let $q = update t2 set b = 6 where a > 600 and a < 800
+--eval explain partitions $q
 flush status;
-update t2 set b = 6 where a > 600 and a < 800;
+--eval $q
 show status like 'Handler_read_rnd_next';
+--let $q = delete from t2 where a > 600
+--eval explain extended $q
+--eval explain partitions $q
 flush status;
-delete from t2 where a > 600;
+--eval $q
 show status like 'Handler_read_rnd_next';
 
 drop table t2;
@@ -1086,30 +1135,44 @@ explain partitions select * from t2 where b > 5 and b < 7;
 explain extended select * from t2 where b > 0 and b < 5;
 explain partitions select * from t2 where b > 0 and b < 5;
 
+--let $q = update t2 set a = 111 where b = 10
+--eval explain extended $q
+--eval explain partitions $q
 flush status;
-update t2 set a = 111 where b = 10;
+--eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
+--let $q = update t2 set a = 111 where b in (5,6)
+--eval explain partitions $q
 flush status;
-update t2 set a = 111 where b in (5,6);
+--eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
+--let $q = update t2 set a = 222 where b = 7
+--eval explain partitions $q
 flush status;
-update t2 set a = 222 where b = 7;
+--eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
+--let $q = delete from t2 where b = 7
+--eval explain extended $q
+--eval explain partitions $q
 flush status;
-delete from t2 where b = 7;
+--eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
+--let $q = delete from t2 where b > 5
+--eval explain partitions $q
 flush status;
-delete from t2 where b > 5;
+--eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
 show status like 'Handler_read_prev';
 show status like 'Handler_read_next';
+--let $q = delete from t2 where b < 5 or b > 3
+--eval explain partitions $q
 flush status;
-delete from t2 where b < 5 or b > 3;
+--eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
 show status like 'Handler_read_prev';

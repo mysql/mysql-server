@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -598,6 +599,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LIBCHAR	'\\'
 #define FN_LIBCHAR2	'/'
 #define FN_DIRSEP       "/\\"               /* Valid directory separators */
+#define FN_EXEEXT   ".exe"
+#define FN_SOEXT    ".dll"
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
@@ -606,6 +609,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LIBCHAR	'/'
 #define FN_LIBCHAR2	'/'
 #define FN_DIRSEP       "/"     /* Valid directory separators */
+#define FN_EXEEXT   ""
+#define FN_SOEXT    ".so"
 #define FN_ROOTDIR	"/"
 #endif
 
@@ -965,9 +970,10 @@ typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR
 #define SOCKET_EAGAIN	WSAEINPROGRESS
-#define SOCKET_ETIMEDOUT WSAETIMEDOUT
 #define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
 #define SOCKET_EADDRINUSE WSAEADDRINUSE
+#define SOCKET_ETIMEDOUT WSAETIMEDOUT
+#define SOCKET_ECONNRESET WSAECONNRESET
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #else /* Unix */
@@ -975,9 +981,10 @@ typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 #define closesocket(A)	close(A)
 #define SOCKET_EINTR	EINTR
 #define SOCKET_EAGAIN	EAGAIN
-#define SOCKET_ETIMEDOUT SOCKET_EINTR
 #define SOCKET_EWOULDBLOCK EWOULDBLOCK
 #define SOCKET_EADDRINUSE EADDRINUSE
+#define SOCKET_ETIMEDOUT ETIMEDOUT
+#define SOCKET_ECONNRESET ECONNRESET
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #endif

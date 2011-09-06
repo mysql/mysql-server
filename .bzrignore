@@ -3151,6 +3151,7 @@ libmysqld/transaction.cc
 libmysqld/sys_vars.cc
 libmysqld/keycaches.cc
 client/dtoa.c
+libmysqld/opt_trace.cc
 libmysqld/sql_audit.cc
 storage/archive/archive_performance
 storage/archive/concurrency_test
@@ -3195,3 +3196,4 @@ info_macros.cmake
 Docs/INFO_BIN
 Docs/INFO_SRC
 Testing
+source_downloads

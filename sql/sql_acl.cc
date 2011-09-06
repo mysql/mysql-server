@@ -811,7 +811,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_USER user;
-    bzero(&user, sizeof(user));
+    memset(&user, 0, sizeof(user));
     update_hostname(&user.host, get_field(&mem, table->field[0]));
     user.user= get_field(&mem, table->field[1]);
     if (check_no_resolve && hostname_requires_resolving(user.host.hostname))
@@ -825,8 +825,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
     char *password= get_field(&mem, table->field[2]);
     uint password_len= password ? strlen(password) : 0;
-    user.auth_string.str= password ? password : const_cast<char*>("");
-    user.auth_string.length= password_len;
     set_user_salt(&user, password, password_len);
 
     if (set_user_plugin(&user, password_len))
@@ -915,7 +913,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           char *tmpstr= get_field(&mem, table->field[next_field++]);
           if (tmpstr)
           {
-            if (user.auth_string.length)
+            if (password_len)
             {
               sql_print_warning("'user' entry '%s@%s' has both a password "
                                 "and an authentication plugin specified. The "
@@ -1146,9 +1144,9 @@ my_bool acl_reload(THD *thd)
       Execution might have been interrupted; only print the error message
       if an error condition has been raised.
     */
-    if (thd->stmt_da->is_error())
+    if (thd->get_stmt_da()->is_error())
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
-                      thd->stmt_da->message());
+                      thd->get_stmt_da()->message());
     goto end;
   }
 
@@ -1483,8 +1481,8 @@ static void acl_insert_user(const char *user, const char *host,
   {
     acl_user.plugin= password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 ?
       old_password_plugin_name : native_password_plugin_name;
-    acl_user.auth_string.str= strmake_root(&mem, password, password_len);
-    acl_user.auth_string.length= password_len;
+    acl_user.auth_string.str= const_cast<char*>("");
+    acl_user.auth_string.length= 0;
   }
 
   acl_user.access=privileges;
@@ -1858,7 +1856,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       account in tests.  It's ok to leave 'updating' set after tables_ok.
     */
     tables.updating= 1;
-    /* Thanks to bzero, tables.next==0 */
+    /* Thanks to memset, tables.next==0 */
     if (!(thd->spcont || rpl_filter->tables_ok(0, &tables)))
       DBUG_RETURN(0);
   }
@@ -1888,7 +1886,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       my_strcasecmp(system_charset_info, acl_user->plugin.str,
                     old_password_plugin_name.str))
   {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                  ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
   }
   /* update loaded acl entry: */
@@ -3689,6 +3687,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     should_write_to_binlog= TRUE;
 
     db_name= table_list->get_db_name();
+    thd->add_to_binlog_accessed_dbs(db_name); // collecting db:s for MTS
     table_name= table_list->get_table_name();
 
     /* Find/create cached table grant */
@@ -3899,7 +3898,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     {
       result= TRUE;
       continue;
-    }  
+    }
+
     /* Create user if needed */
     error=replace_user_table(thd, tables[0].table, *Str,
 			     0, revoke_grant, create_new_users,
@@ -3912,8 +3912,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
 
     db_name= table_list->db;
+    if (write_to_binlog)
+      thd->add_to_binlog_accessed_dbs(db_name);
     table_name= table_list->table_name;
-
     grant_name= routine_hash_search(Str->host.str, NullS, db_name,
                                     Str->user.str, table_name, is_proc, 1);
     if (!grant_name)
@@ -3956,8 +3957,19 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (write_to_binlog && should_write_to_binlog)
   {
-    if (write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
-      result= TRUE;
+    if (revoke_grant)
+    {
+      if (write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+        result= TRUE;
+    }
+    else
+    {
+      DBUG_ASSERT(thd->rewritten_query.length());
+      if (write_bin_log(thd, FALSE,
+                        thd->rewritten_query.c_ptr_safe(),
+                        thd->rewritten_query.length()))
+        result= TRUE;
+    }
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
@@ -4074,6 +4086,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       result= TRUE;
       continue;
     }
+
     /*
       No User, but a password?
       They did GRANT ... TO CURRENT_USER() IDENTIFIED BY ... !
@@ -4081,6 +4094,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     */
     if (!tmp_Str->user.str && tmp_Str->password.str)
       Str->password= tmp_Str->password;
+
     if (replace_user_table(thd, tables[0].table, *Str,
                            (!db ? rights : 0), revoke_grant, create_new_users,
                            test(thd->variables.sql_mode &
@@ -4100,6 +4114,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 	my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
 	result= -1;
       }
+      thd->add_to_binlog_accessed_dbs(db);
     }
     else if (is_proxy)
     {
@@ -4117,8 +4132,16 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   mysql_mutex_unlock(&acl_cache->lock);
 
   if (should_write_to_binlog)
-    result= result |
-            write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  {
+    if (thd->rewritten_query.length())
+      result= result |
+          write_bin_log(thd, FALSE,
+                        thd->rewritten_query.c_ptr_safe(),
+                        thd->rewritten_query.length());
+    else
+      result= result |
+              write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  }
 
   mysql_rwlock_unlock(&LOCK_grant);
 
@@ -5179,7 +5202,9 @@ static void add_user_option(String *grant, ulong value, const char *name)
   }
 }
 
-static const char *command_array[]=
+#endif /*NO_EMBEDDED_ACCESS_CHECKS */
+
+const char *command_array[]=
 {
   "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD",
   "SHUTDOWN", "PROCESS","FILE", "GRANT", "REFERENCES", "INDEX",
@@ -5189,12 +5214,26 @@ static const char *command_array[]=
   "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE"
 };
 
-static uint command_lengths[]=
+uint command_lengths[]=
 {
   6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
   14, 13, 11, 5, 7, 17
 };
 
+
+void append_int(String *str, const char *txt, size_t len,
+                long val, int cond)
+{
+  if (cond)
+  {
+    String numbuf(42);
+    str->append(txt,len);
+    numbuf.set((longlong)val,&my_charset_bin);
+    str->append(numbuf);
+  }
+}
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 static int show_routine_grants(THD *thd, LEX_USER *lex_user, HASH *hash,
                                const char *type, int typelen,
@@ -5699,7 +5738,7 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc)
   if (initialized && (acl_user= find_acl_user(host,user, FALSE)))
     uc->user_resources= acl_user->user_resource;
   else
-    bzero((char*) &uc->user_resources, sizeof(uc->user_resources));
+    memset(&uc->user_resources, 0, sizeof(uc->user_resources));
 
   mysql_mutex_unlock(&acl_cache->lock);
 }
@@ -6407,6 +6446,8 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   DBUG_RETURN(result);
 }
 
+#endif /*NO_EMBEDDED_ACCESS_CHECKS */
+
 /**
   Auxiliary function for constructing a  user list string.
   @param str     A String to store the user list.
@@ -6415,8 +6456,8 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   @param ident   If TRUE, append ' IDENTIFIED BY/WITH...' after the user,
                  if the given user has credentials set with 'IDENTIFIED BY/WITH'
  */
-static void append_user(String *str, LEX_USER *user, bool comma= TRUE,
-                        bool ident= FALSE)
+void append_user(String *str, LEX_USER *user, bool comma= TRUE,
+                 bool ident= FALSE)
 {
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_plugin(user->plugin.str, user->plugin.length, system_charset_info);
@@ -6456,6 +6497,7 @@ static void append_user(String *str, LEX_USER *user, bool comma= TRUE,
   }
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 /*
   Create a list of users.
@@ -6474,7 +6516,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   String wrong_users;
-  String log_query;
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
@@ -6503,7 +6544,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_wrlock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
-  log_query.append(STRING_WITH_LEN("CREATE USER"));
   while ((tmp_user_name= user_list++))
   {
     if (!(user_name= get_current_user(thd, tmp_user_name)))
@@ -6512,24 +6552,20 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    log_query.append(' ');
-    append_user(&log_query, user_name, FALSE, TRUE);
-    log_query.append(',');
-
     /*
       Search all in-memory structures and grant tables
       for a mention of the new user name.
     */
     if (handle_grant_data(tables, 0, user_name, NULL))
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }
 
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }
@@ -6544,9 +6580,9 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 
   if (some_users_created)
   {
-    /* Remove the last ',' */
-    log_query.length(log_query.length()-1);
-    result|= write_bin_log(thd, FALSE, log_query.c_ptr_safe(), log_query.length());
+    result|= write_bin_log(thd, FALSE,
+                           thd->rewritten_query.c_ptr_safe(),
+                           thd->rewritten_query.length());
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
@@ -6615,7 +6651,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }  
     if (handle_grant_data(tables, 1, user_name, NULL) <= 0)
     {
-      append_user(&wrong_users, user_name, wrong_users.length() > 0);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }
@@ -6711,7 +6747,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     if (handle_grant_data(tables, 0, user_to, NULL) ||
         handle_grant_data(tables, 0, user_from, user_to) <= 0)
     {
-      append_user(&wrong_users, user_from, wrong_users.length() > 0);
+      append_user(&wrong_users, user_from, wrong_users.length() > 0, FALSE);
       result= TRUE;
       continue;
     }
@@ -6967,9 +7003,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
 
   bool has_errors() { return is_grave; }
 
@@ -6982,18 +7018,18 @@ Silence_routine_definer_errors::handle_condition(
   THD *thd,
   uint sql_errno,
   const char*,
-  MYSQL_ERROR::enum_warning_level level,
+  Sql_condition::enum_warning_level level,
   const char* msg,
-  MYSQL_ERROR ** cond_hdl)
+  Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
-  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+  if (level == Sql_condition::WARN_LEVEL_ERROR)
   {
     switch (sql_errno)
     {
       case ER_NONEXISTING_PROC_GRANT:
         /* Convert the error into a warning. */
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      sql_errno, msg);
         return TRUE;
       default:
@@ -7140,7 +7176,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
  found_acl:
   mysql_mutex_unlock(&acl_cache->lock);
 
-  bzero((char*)tables, sizeof(TABLE_LIST));
+  memset(tables, 0, sizeof(TABLE_LIST));
   user_list.empty();
 
   tables->db= (char*)sp_db;
@@ -7171,7 +7207,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
       }
       else
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_PASSWD_LENGTH,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_PASSWD_LENGTH,
                             ER(ER_PASSWD_LENGTH), SCRAMBLED_PASSWORD_CHAR_LENGTH);
         return TRUE;
       }
@@ -7191,7 +7227,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
   thd->lex->ssl_cipher= thd->lex->x509_subject= thd->lex->x509_issuer= 0;
-  bzero((char*) &thd->lex->mqh, sizeof(thd->lex->mqh));
+  memset(&thd->lex->mqh, 0, sizeof(thd->lex->mqh));
 
   /*
     Only care about whether the operation failed or succeeded
@@ -8092,7 +8128,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
         if a plugin provided less, we pad it to 20 with zeros
       */
       memcpy(scramble_buf, data, data_len);
-      bzero(scramble_buf + data_len, SCRAMBLE_LENGTH - data_len);
+      memset(scramble_buf + data_len, 0, SCRAMBLE_LENGTH - data_len);
       data= scramble_buf;
     }
     else
@@ -8131,7 +8167,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   int2store(end + 3, mpvio->server_status[0]);
   int2store(end + 5, mpvio->client_capabilities >> 16);
   end[7]= data_len;
-  bzero(end + 8, 10);
+  memset(end + 8, 0, 10);
   end+= 18;
   /* write scramble tail */
   end= (char*) memcpy(end, data + SCRAMBLE_LENGTH_323,
@@ -8313,7 +8349,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
 
   if (!mpvio->acl_user)
   {
-    login_failed_error(mpvio, 0);
+    login_failed_error(mpvio, mpvio->auth_info.password_used);
     DBUG_RETURN (1);
   }
 
@@ -8461,7 +8497,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
         old_password_plugin, otherwise MySQL will think that server 
         and client plugins don't match.
       */
-      if (mpvio->acl_user->auth_string.length == 0)
+      if (mpvio->acl_user->salt_len == 0)
         mpvio->acl_user_plugin= old_password_plugin_name;
     }
   }
@@ -8481,13 +8517,20 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
 }
 
 #ifndef EMBEDDED_LIBRARY
-/**
-  Get a null character terminated string from a user-supplied buffer.
 
-  @param buffer[in, out]    Pointer to the buffer to be scanned.
+/** Get a string according to the protocol of the underlying buffer. */
+typedef char * (*get_proto_string_func_t) (char **, size_t *, size_t *);
+
+/**
+  Get a string formatted according to the 4.1 version of the MySQL protocol.
+
+  @param buffer[in, out]    Pointer to the user-supplied buffer to be scanned.
   @param max_bytes_available[in, out]  Limit the bytes to scan.
   @param string_length[out] The number of characters scanned not including
                             the null character.
+
+  @remark Strings are always null character terminated in this version of the
+          protocol.
 
   @remark The string_length does not include the terminating null character.
           However, after the call, the buffer is increased by string_length+1
@@ -8499,9 +8542,9 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
 */
 
 static
-char *get_null_terminated_string(char **buffer,
-                                 size_t *max_bytes_available,
-                                 size_t *string_length)
+char *get_41_protocol_string(char **buffer,
+                             size_t *max_bytes_available,
+                             size_t *string_length)
 {
   char *str= (char *)memchr(*buffer, '\0', *max_bytes_available);
 
@@ -8511,7 +8554,60 @@ char *get_null_terminated_string(char **buffer,
   *string_length= (size_t)(str - *buffer);
   *max_bytes_available-= *string_length + 1;
   str= *buffer;
-  *buffer += *string_length + 1;  
+  *buffer += *string_length + 1;
+
+  return str;
+}
+
+
+/**
+  Get a string formatted according to the 4.0 version of the MySQL protocol.
+
+  @param buffer[in, out]    Pointer to the user-supplied buffer to be scanned.
+  @param max_bytes_available[in, out]  Limit the bytes to scan.
+  @param string_length[out] The number of characters scanned not including
+                            the null character.
+
+  @remark If there are not enough bytes left after the current position of
+          the buffer to satisfy the current string, the string is considered
+          to be empty and a pointer to empty_c_string is returned.
+
+  @remark A string at the end of the packet is not null terminated.
+
+  @return Pointer to beginning of the string scanned, or a pointer to a empty
+          string.
+*/
+static
+char *get_40_protocol_string(char **buffer,
+                             size_t *max_bytes_available,
+                             size_t *string_length)
+{
+  char *str;
+  size_t len;
+
+  /* No bytes to scan left, treat string as empty. */
+  if ((*max_bytes_available) == 0)
+  {
+    *string_length= 0;
+    return empty_c_string;
+  }
+
+  str= (char *) memchr(*buffer, '\0', *max_bytes_available);
+
+  /*
+    If the string was not null terminated by the client,
+    the remainder of the packet is the string. Otherwise,
+    advance the buffer past the end of the null terminated
+    string.
+  */
+  if (str == NULL)
+    len= *string_length= *max_bytes_available;
+  else
+    len= (*string_length= (size_t)(str - *buffer)) + 1;
+
+  str= *buffer;
+  *buffer+= len;
+  *max_bytes_available-= len;
 
   return str;
 }
@@ -8522,7 +8618,7 @@ char *get_null_terminated_string(char **buffer,
   @param buffer[in, out] The buffer to scan; updates position after scan.
   @param max_bytes_available[in, out] Limit the number of bytes to scan
   @param string_length[out] Number of characters scanned
-  
+
   @remark In case the length is zero, then the total size of the string is
     considered to be 1 byte; the size byte.
 
@@ -8608,14 +8704,14 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   DBUG_PRINT("info", ("client capabilities: %lu", mpvio->client_capabilities));
   if (mpvio->client_capabilities & CLIENT_SSL)
   {
-    char error_string[1024] __attribute__((unused));
+    unsigned long errptr;
 
     /* Do the SSL layering. */
     if (!ssl_acceptor_fd)
       return packet_error;
 
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout))
+    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout, &errptr))
     {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       return packet_error;
@@ -8638,7 +8734,20 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   if ((mpvio->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
     net->return_status= mpvio->server_status;
- 
+
+  /*
+    The 4.0 and 4.1 versions of the protocol differ on how strings
+    are terminated. In the 4.0 version, if a string is at the end
+    of the packet, the string is not null terminated. Do not assume
+    that the returned string is always null terminated.
+  */
+  get_proto_string_func_t get_string;
+
+  if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
+    get_string= get_41_protocol_string;
+  else
+    get_string= get_40_protocol_string;
+
   /*
     In order to safely scan a head for '\0' string terminators
     we must keep track of how many bytes remain in the allocated
@@ -8647,8 +8756,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   size_t bytes_remaining_in_packet= pkt_len - (end - (char *)net->read_pos);
 
   size_t user_len;
-  char *user= get_null_terminated_string(&end, &bytes_remaining_in_packet,
-                                         &user_len);
+  char *user= get_string(&end, &bytes_remaining_in_packet, &user_len);
   if (user == NULL)
     return packet_error;
 
@@ -8673,8 +8781,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     /*
       Old passwords are zero terminated strings.
     */
-    passwd= get_null_terminated_string(&end, &bytes_remaining_in_packet,
-                                       &passwd_len);
+    passwd= get_string(&end, &bytes_remaining_in_packet, &passwd_len);
   }
 
   if (passwd == NULL)
@@ -8685,40 +8792,51 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
 
   if (mpvio->client_capabilities & CLIENT_CONNECT_WITH_DB)
   {
-    db= get_null_terminated_string(&end, &bytes_remaining_in_packet,
-                                   &db_len);
+    db= get_string(&end, &bytes_remaining_in_packet, &db_len);
     if (db == NULL)
       return packet_error;
   }
 
+  /*
+    Set the default for the password supplied flag for non-existing users
+    as the default plugin (native passsword authentication) would do it
+    for compatibility reasons.
+  */
+  if (passwd_len)
+    mpvio->auth_info.password_used= PASSWORD_USED_YES;
+
   size_t client_plugin_len= 0;
-  char *client_plugin= get_null_terminated_string(&end,
-                                                  &bytes_remaining_in_packet,
-                                                  &client_plugin_len);
+  char *client_plugin= get_string(&end, &bytes_remaining_in_packet,
+                                  &client_plugin_len);
   if (client_plugin == NULL)
     client_plugin= &empty_c_string[0];
- 
+
   char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
   uint dummy_errors;
-  
 
-  /* Since 4.1 all database names are stored in utf8 */
+
+  /*
+    Copy and convert the user and database names to the character set used
+    by the server. Since 4.1 all database names are stored in UTF-8. Also,
+    ensure that the names are properly null-terminated as this is relied
+    upon later.
+  */
   if (db)
   {
     db_len= copy_and_convert(db_buff, sizeof(db_buff) - 1, system_charset_info,
                              db, db_len, mpvio->charset_adapter->charset(),
                              &dummy_errors);
+    db_buff[db_len]= '\0';
     db= db_buff;
-    db_buff[db_len]= 0;
   }
 
   user_len= copy_and_convert(user_buff, sizeof(user_buff) - 1,
-                                system_charset_info, user, user_len,
-                                mpvio->charset_adapter->charset(),
-                                &dummy_errors);
+                             system_charset_info, user, user_len,
+                             mpvio->charset_adapter->charset(),
+                             &dummy_errors);
+  user_buff[user_len]= '\0';
   user= user_buff;
-  user_buff[user_len]= 0;
 
   /* If username starts and ends in "'", chop them off */
   if (user_len > 1 && user[0] == '\'' && user[user_len - 1] == '\'')
@@ -8766,7 +8884,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
         old_password_plugin, otherwise MySQL will think that server 
         and client plugins don't match.
       */
-      if (mpvio->acl_user->auth_string.length == 0)
+      if (mpvio->acl_user->salt_len == 0)
         mpvio->acl_user_plugin= old_password_plugin_name;
     }
   }
@@ -9464,28 +9582,15 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
     sctx->external_user= my_strdup(mpvio.auth_info.external_user, MYF(0));
 
   if (res == CR_OK_HANDSHAKE_COMPLETE)
-    thd->stmt_da->disable_status();
+    thd->get_stmt_da()->disable_status();
   else
     my_ok(thd);
 
-#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
-  /*
-    Allow the network layer to skip big packets. Although a malicious
-    authenticated session might use this to trick the server to read
-    big packets indefinitely, this is a previously established behavior
-    that needs to be preserved as to not break backwards compatibility.
-  */
-  thd->net.skip_big_packet= TRUE;
-#endif
-
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (likely(PSI_server != NULL))
-  {
-    PSI_server->set_thread_user_host(thd->main_security_ctx.user,
-                                     strlen(thd->main_security_ctx.user),
-                                     thd->main_security_ctx.host_or_ip,
-                                     strlen(thd->main_security_ctx.host_or_ip));
-  }
+  PSI_CALL(set_thread_user_host)(thd->main_security_ctx.user,
+                                 strlen(thd->main_security_ctx.user),
+                                 thd->main_security_ctx.host_or_ip,
+                                 strlen(thd->main_security_ctx.host_or_ip));
 #endif
 
   /* Ready to handle queries */
@@ -9564,7 +9669,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 #endif
 
   if (pkt_len == 0) /* no password */
-    DBUG_RETURN(info->auth_string[0] ? CR_ERROR : CR_OK);
+    DBUG_RETURN(mpvio->acl_user->salt_len != 0 ? CR_ERROR : CR_OK);
 
   info->password_used= PASSWORD_USED_YES;
   if (pkt_len == SCRAMBLE_LENGTH)
@@ -9613,7 +9718,7 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     pkt_len= strnlen((char*)pkt, pkt_len);
 
   if (pkt_len == 0) /* no password */
-    return info->auth_string[0] ? CR_ERROR : CR_OK;
+    return mpvio->acl_user->salt_len != 0 ? CR_ERROR : CR_OK;
 
   if (secure_auth(mpvio))
     return CR_ERROR;

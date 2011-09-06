@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ extern LEX_STRING file_instrument_prefix;
 extern LEX_STRING stage_instrument_prefix;
 /** String prefix for all statement instruments. */
 extern LEX_STRING statement_instrument_prefix;
+extern LEX_STRING socket_instrument_prefix;
 
 #endif
 

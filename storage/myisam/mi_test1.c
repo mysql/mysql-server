@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2005 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Testing of the basic functions of a MyISAM table */
 
@@ -66,7 +67,7 @@ static int run_test(const char *filename)
   MI_UNIQUEDEF uniquedef;
   MI_CREATE_INFO create_info;
 
-  bzero((char*) recinfo,sizeof(recinfo));
+  memset(recinfo, 0, sizeof(recinfo));
 
   /* First define 2 columns */
   recinfo[0].type=FIELD_NORMAL; recinfo[0].length=1; /* For NULL bits */
@@ -109,13 +110,13 @@ static int run_test(const char *filename)
   }
   keyinfo[0].flag = (uint8) (pack_keys | unique_key);
 
-  bzero((uchar*) flags,sizeof(flags));
+  memset(flags, 0, sizeof(flags));
   if (opt_unique)
   {
     uint start;
     uniques=1;
-    bzero((char*) &uniquedef,sizeof(uniquedef));
-    bzero((char*) uniqueseg,sizeof(uniqueseg));
+    memset(&uniquedef, 0, sizeof(uniquedef));
+    memset(uniqueseg, 0, sizeof(uniqueseg));
     uniquedef.seg=uniqueseg;
     uniquedef.keysegs=2;
 
@@ -144,7 +145,7 @@ static int run_test(const char *filename)
 
   if (!silent)
     printf("- Creating isam-file\n");
-  bzero((char*) &create_info,sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   create_info.max_rows=(ulong) (rec_pointer_size ?
 				(1L << (rec_pointer_size*8))/40 :
 				0);
@@ -339,12 +340,12 @@ static void create_key_part(uchar *key,uint rownr)
            keyinfo[0].seg[0].type == HA_KEYTYPE_VARTEXT2)
   {						/* Alpha record */
     /* Create a key that may be easily packed */
-    bfill(key,keyinfo[0].seg[0].length,rownr < 10 ? 'A' : 'B');
+    memset(key, rownr < 10 ? 'A' : 'B', keyinfo[0].seg[0].length);
     sprintf((char*) key+keyinfo[0].seg[0].length-2,"%-2d",rownr);
     if ((rownr & 7) == 0)
     {
       /* Change the key to force a unpack of the next key */
-      bfill(key+3,keyinfo[0].seg[0].length-4,rownr < 10 ? 'a' : 'b');
+      memset(key + 3, rownr < 10 ? 'a' : 'b', keyinfo[0].seg[0].length-4);
     }
   }
   else
@@ -354,7 +355,7 @@ static void create_key_part(uchar *key,uint rownr)
     else
     {
       /* Create a key that may be easily packed */
-      bfill(key,keyinfo[0].seg[0].length,rownr < 10 ? 'A' : 'B');
+      memset(key, rownr < 10 ? 'A' : 'B', keyinfo[0].seg[0].length);
       sprintf((char*) key+keyinfo[0].seg[0].length-2,"%-2d",rownr);
       if ((rownr & 7) == 0)
       {
@@ -397,7 +398,7 @@ static uchar blob_record[MAX_REC_LENGTH+20*20];
 static void create_record(uchar *record,uint rownr)
 {
   uchar *pos;
-  bzero((char*) record,MAX_REC_LENGTH);
+  memset(record, 0, MAX_REC_LENGTH);
   record[0]=1;					/* delete marker */
   if (rownr == 0 && keyinfo[0].seg[0].null_bit)
     record[0]|=keyinfo[0].seg[0].null_bit;	/* Null key */
@@ -503,7 +504,7 @@ static void update_record(uchar *record)
     length=uint4korr(pos);
     memcpy(&column, pos+4, sizeof(char*));
     memcpy(blob_record,column,length);
-    bfill(blob_record+length,20,'.');	/* Make it larger */
+    memset(blob_record + length, '.', 20);      /* Make it larger */
     length+=20;
     int4store(pos,length);
     column= blob_record;
@@ -514,7 +515,8 @@ static void update_record(uchar *record)
     /* Second field is longer than 10 characters */
     uint pack_length= HA_VARCHAR_PACKLENGTH(recinfo[1].length-1);
     uint length= pack_length == 1 ? (uint) *(uchar*) pos : uint2korr(pos);
-    bfill(pos+pack_length+length,recinfo[2].length-length-pack_length,'.');
+    memset(pos + pack_length + length, '.',
+           recinfo[2].length - length-pack_length);
     length=recinfo[2].length-pack_length;
     if (pack_length == 1)
       *(uchar*) pos= (uchar) length;
@@ -523,7 +525,7 @@ static void update_record(uchar *record)
   }
   else
   {
-    bfill(pos+recinfo[2].length-10,10,'.');
+    memset(pos + recinfo[2].length - 10, '.', 10);
   }
 }
 

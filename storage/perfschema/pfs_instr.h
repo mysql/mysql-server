@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,13 @@ struct PFS_cond_class;
 struct PFS_file_class;
 struct PFS_table_share;
 struct PFS_thread_class;
+struct PFS_socket_class;
 
+#ifdef __WIN__
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
 #include "pfs_lock.h"
 #include "pfs_stat.h"
 #include "pfs_instr_class.h"
@@ -44,12 +50,19 @@ struct PFS_thread_class;
 */
 
 struct PFS_thread;
+struct PFS_host;
+struct PFS_user;
+struct PFS_account;
 
 /** Base structure for wait instruments. */
 struct PFS_instr
 {
   /** Internal lock. */
   pfs_lock m_lock;
+  /** Enabled flag. */
+  bool m_enabled;
+  /** Timed flag. */
+  bool m_timed;
   /** Instrument wait statistics. */
   PFS_single_stat m_wait_stat;
 };
@@ -61,6 +74,8 @@ struct PFS_mutex : public PFS_instr
   const void *m_identity;
   /** Mutex class. */
   PFS_mutex_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /**
     Mutex lock usage statistics.
     This statistic is not exposed in user visible tables yet.
@@ -82,6 +97,8 @@ struct PFS_rwlock : public PFS_instr
   const void *m_identity;
   /** RWLock class. */
   PFS_rwlock_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /**
     RWLock read lock usage statistics.
     This statistic is not exposed in user visible tables yet.
@@ -115,6 +132,8 @@ struct PFS_cond : public PFS_instr
   const void *m_identity;
   /** Condition class. */
   PFS_cond_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /** Condition instance usage statistics. */
   PFS_cond_stat m_cond_stat;
 };
@@ -131,6 +150,8 @@ struct PFS_file : public PFS_instr
   uint m_filename_length;
   /** File class. */
   PFS_file_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /** File usage statistics. */
   PFS_file_stat m_file_stat;
 };
@@ -138,6 +159,27 @@ struct PFS_file : public PFS_instr
 /** Instrumented table implementation. @see PSI_table. */
 struct PFS_table
 {
+  /**
+    True if table io instrumentation is enabled.
+    This flag is computed.
+  */
+  bool m_io_enabled;
+  /**
+    True if table lock instrumentation is enabled.
+    This flag is computed.
+  */
+  bool m_lock_enabled;
+  /**
+    True if table io instrumentation is timed.
+    This flag is computed.
+  */
+  bool m_io_timed;
+  /**
+    True if table lock instrumentation is timed.
+    This flag is computed.
+  */
+  bool m_lock_timed;
+
 public:
   /**
     Aggregate this table handle statistics to the parents.
@@ -145,7 +187,10 @@ public:
     @sa sanitized_aggregate.
   */
   void aggregate(void)
-  { return safe_aggregate(& m_table_stat, m_share, m_opening_thread); }
+  {
+    if (likely(m_thread_owner != NULL))
+      safe_aggregate(& m_table_stat, m_share, m_thread_owner);
+  }
 
   /**
     Aggregate this table handle statistics to the parents.
@@ -171,7 +216,7 @@ public:
   /** Internal lock. */
   pfs_lock m_lock;
   /** Owner. */
-  PFS_thread *m_opening_thread;
+  PFS_thread *m_thread_owner;
   /** Table share. */
   PFS_table_share *m_share;
   /** Table identity, typically a handler. */
@@ -189,6 +234,30 @@ private:
   static void safe_aggregate_lock(PFS_table_stat *stat,
                                   PFS_table_share *safe_share,
                                   PFS_thread *safe_thread);
+};
+
+/** Instrumented socket implementation. @see PSI_socket. */
+struct PFS_socket : public PFS_instr
+{
+  uint32 get_version()
+  { return m_lock.get_version(); }
+
+  /** Socket identity, typically int */
+  const void *m_identity;
+  /** Owning thread, if applicable */
+  PFS_thread *m_thread_owner;
+  /** Socket file descriptor */
+  uint m_fd;
+  /** Raw socket address */
+  struct sockaddr_storage  m_sock_addr;
+  /** Length of address */
+  socklen_t m_addr_len;
+  /** Idle flag. */
+  bool m_idle;
+  /** Socket class. */
+  PFS_socket_class *m_class;
+  /** Socket usage statistics. */
+  PFS_socket_stat m_socket_stat;
 };
 
 /**
@@ -278,6 +347,12 @@ struct PFS_thread : PFS_connection_slice
 {
   static PFS_thread* get_current_thread(void);
 
+  /** Thread instrumentation flag. */
+  bool m_enabled;
+  /** Size of @c m_events_waits_stack. */
+  uint m_events_waits_count;
+  /** Event ID counter */
+  ulonglong m_event_id;
   /** Internal lock. */
   pfs_lock m_lock;
   /** Pins for filename_hash. */
@@ -288,10 +363,12 @@ struct PFS_thread : PFS_connection_slice
   LF_PINS *m_setup_actor_hash_pins;
   /** Pins for setup_object_hash. */
   LF_PINS *m_setup_object_hash_pins;
-  /** Event ID counter */
-  ulonglong m_event_id;
-  /** Thread instrumentation flag. */
-  bool m_enabled;
+  /** Pins for host_hash. */
+  LF_PINS *m_host_hash_pins;
+  /** Pins for user_hash. */
+  LF_PINS *m_user_hash_pins;
+  /** Pins for account_hash. */
+  LF_PINS *m_account_hash_pins;
   /** Internal thread identifier, unique. */
   ulong m_thread_internal_id;
   /** Parent internal thread identifier. */
@@ -300,8 +377,6 @@ struct PFS_thread : PFS_connection_slice
   ulong m_thread_id;
   /** Thread class. */
   PFS_thread_class *m_class;
-  /** Size of @c m_events_waits_stack. */
-  uint m_events_waits_count;
   /**
     Stack of events waits.
     This member holds the data for the table PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT.
@@ -395,6 +470,10 @@ struct PFS_thread : PFS_connection_slice
   /** Size of @c m_events_statements_stack. */
   uint m_events_statements_count;
   PFS_events_statements *m_statement_stack;
+
+  PFS_host *m_host;
+  PFS_user *m_user;
+  PFS_account *m_account;
 };
 
 extern PFS_single_stat *global_instr_class_waits_array;
@@ -405,8 +484,8 @@ PFS_mutex *sanitize_mutex(PFS_mutex *unsafe);
 PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);
 PFS_cond *sanitize_cond(PFS_cond *unsafe);
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
-const char *sanitize_file_name(const char *unsafe);
 PFS_file *sanitize_file(PFS_file *unsafe);
+PFS_socket *sanitize_socket(PFS_socket *unsafe);
 
 int init_instruments(const PFS_global_param *param);
 void cleanup_instruments();
@@ -433,6 +512,9 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
                         const void *identity);
 void destroy_table(PFS_table *pfs);
 
+PFS_socket* create_socket(PFS_socket_class *socket_class, const void *identity);
+void destroy_socket(PFS_socket *pfs);
+
 /* For iterators and show status. */
 
 extern ulong mutex_max;
@@ -449,6 +531,8 @@ extern long file_handle_max;
 extern ulong file_handle_lost;
 extern ulong table_max;
 extern ulong table_lost;
+extern ulong socket_max;
+extern ulong socket_lost;
 extern ulong events_waits_history_per_thread;
 extern ulong events_stages_history_per_thread;
 extern ulong events_statements_history_per_thread;
@@ -464,9 +548,11 @@ extern PFS_thread *thread_array;
 extern PFS_file *file_array;
 extern PFS_file **file_handle_array;
 extern PFS_table *table_array;
+extern PFS_socket *socket_array;
 
 void reset_events_waits_by_instance();
 void reset_file_instance_io();
+void reset_socket_instance_io();
 
 void aggregate_all_event_names(PFS_single_stat *from_array,
                                PFS_single_stat *to_array);
@@ -476,14 +562,37 @@ void aggregate_all_event_names(PFS_single_stat *from_array,
 
 void aggregate_all_stages(PFS_stage_stat *from_array,
                           PFS_stage_stat *to_array);
+void aggregate_all_stages(PFS_stage_stat *from_array,
+                          PFS_stage_stat *to_array_1,
+                          PFS_stage_stat *to_array_2);
 
 void aggregate_all_statements(PFS_statement_stat *from_array,
                               PFS_statement_stat *to_array);
+void aggregate_all_statements(PFS_statement_stat *from_array,
+                              PFS_statement_stat *to_array_1,
+                              PFS_statement_stat *to_array_2);
 
 void aggregate_thread(PFS_thread *thread);
 void aggregate_thread_waits(PFS_thread *thread);
 void aggregate_thread_stages(PFS_thread *thread);
 void aggregate_thread_statements(PFS_thread *thread);
+void clear_thread_account(PFS_thread *thread);
+void set_thread_account(PFS_thread *thread);
+
+/** Update derived flags for all mutex instances. */
+void update_mutex_derived_flags();
+/** Update derived flags for all rwlock instances. */
+void update_rwlock_derived_flags();
+/** Update derived flags for all condition instances. */
+void update_cond_derived_flags();
+/** Update derived flags for all file handles. */
+void update_file_derived_flags();
+/** Update derived flags for all table handles. */
+void update_table_derived_flags();
+/** Update derived flags for all socket instances. */
+void update_socket_derived_flags();
+/** Update derived flags for all instruments. */
+void update_instruments_derived_flags();
 
 /** @} */
 #endif

@@ -261,7 +261,7 @@ bool String::copy_aligned(const char *str,uint32 arg_length, uint32 offset,
     If we add little-endian UCS-2 sometimes, this code
     will be more complicated. But it's OK for now.
   */
-  bzero((char*) Ptr, offset);
+  memset(Ptr, 0, offset);
   memcpy(Ptr + offset, str, arg_length);
   Ptr[aligned_length]=0;
   /* str_length is always >= 0 as arg_length is != 0 */
@@ -364,7 +364,7 @@ bool String::fill(uint32 max_length,char fill_char)
   {
     if (realloc(max_length))
       return TRUE;
-    bfill(Ptr+str_length,max_length-str_length,fill_char);
+    memset(Ptr+str_length, fill_char, max_length-str_length);
     str_length=max_length;
   }
   return FALSE;
@@ -463,7 +463,7 @@ bool String::append(const char *s,uint32 arg_length, const CHARSET_INFO *cs)
       add_length= arg_length + offset;
       if (realloc(str_length + add_length))
         return TRUE;
-      bzero((char*) Ptr + str_length, offset);
+      memset(Ptr + str_length, 0, offset);
       memcpy(Ptr + str_length + offset, s, arg_length);
       str_length+= add_length;
       return FALSE;
@@ -509,7 +509,7 @@ bool String::append_with_prefill(const char *s,uint32 arg_length,
   t_length= full_length - arg_length;
   if (t_length > 0)
   {
-    bfill(Ptr+str_length, t_length, fill_char);
+    memset(Ptr+str_length, fill_char, t_length);
     str_length=str_length + t_length;
   }
   append(s, arg_length);
@@ -883,7 +883,7 @@ well_formed_copy_nchars(const CHARSET_INFO *to_cs,
           0x01 -> 0x0001
         */
         uint pad_length= to_cs->mbminlen - from_offset;
-        bzero(to, pad_length);
+        memset(to, 0, pad_length);
         memmove(to + pad_length, from, from_offset);
         /*
           In some cases left zero-padding can create an incorrect character.

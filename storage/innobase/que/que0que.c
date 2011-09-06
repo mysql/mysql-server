@@ -703,7 +703,7 @@ que_thr_stop(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	que_t*		graph;
-	trx_t*		trx = thr_get_trx(thr);;
+	trx_t*		trx = thr_get_trx(thr);
 
 	graph = thr->graph;
 

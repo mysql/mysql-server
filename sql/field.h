@@ -20,7 +20,7 @@
 #include "table.h"                              /* TABLE */
 #include "sql_string.h"                         /* String */
 #include "my_decimal.h"                         /* my_decimal */
-#include "sql_error.h"                          /* MYSQL_ERROR */
+#include "sql_error.h"                          /* Sql_condition */
 
 #define DATETIME_DEC                     6
 
@@ -98,8 +98,10 @@ public:
   const char	**table_name, *field_name;
   LEX_STRING	comment;
   /* Field is part of the following keys */
-  key_map	key_start, part_of_key, part_of_key_not_clustered;
-  key_map       part_of_sortkey;
+  key_map key_start;                /* Keys that starts with this field */
+  key_map part_of_key;              /* All keys that includes this field */
+  key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
+  key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
   /* 
     We use three additional unireg types for TIMESTAMP to overcome limitation 
     of current binary format of .frm file. We'd like to be able to support 
@@ -225,7 +227,7 @@ public:
     return pack_length();
   };
 
-  virtual int reset(void) { bzero(ptr,pack_length()); return 0; }
+  virtual int reset(void) { memset(ptr, 0, pack_length()); return 0; }
   virtual void reset_fields() {}
   virtual void set_default()
   {
@@ -264,7 +266,17 @@ public:
   */
   virtual void sql_type(String &str) const =0;
   inline bool is_null(my_ptrdiff_t row_offset= 0)
-  { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : table->null_row; }
+  {
+    /*
+      If the field is NULLable, it has a valid null_ptr pointer, and its
+      NULLity is recorded in the "null_bit" bit of null_ptr[row_offset].
+      Otherwise, it can still be NULL, if it belongs to the inner table of an
+      outer join and the row is NULL-complemented: that case is recorded in
+      TABLE::null_row.
+    */
+    return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) :
+      table->null_row;
+  }
   inline bool is_real_null(my_ptrdiff_t row_offset= 0)
     { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : 0; }
   inline bool is_null_in_record(const uchar *record)
@@ -480,15 +492,15 @@ public:
   { return DERIVATION_IMPLICIT; }
   virtual uint repertoire(void) const { return MY_REPERTOIRE_UNICODE30; }
   virtual void set_derivation(enum Derivation derivation_arg) { }
-  bool set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
+  bool set_warning(Sql_condition::enum_warning_level, unsigned int code,
                    int cuted_increment);
-  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, uint code, 
+  void set_datetime_warning(Sql_condition::enum_warning_level, uint code, 
                             const char *str, uint str_len,
                             timestamp_type ts_type, int cuted_increment);
-  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, uint code, 
+  void set_datetime_warning(Sql_condition::enum_warning_level, uint code, 
                             longlong nr, timestamp_type ts_type,
                             int cuted_increment);
-  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, const uint code, 
+  void set_datetime_warning(Sql_condition::enum_warning_level, const uint code, 
                             double nr, timestamp_type ts_type);
   inline bool check_overflow(int op_result)
   {
@@ -1281,7 +1293,7 @@ public:
   int store(const char *to,uint length, const CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
-  int reset(void) { bzero(ptr,sizeof(float)); return 0; }
+  int reset(void) { memset(ptr, 0, sizeof(float)); return 0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -1329,7 +1341,7 @@ public:
   int  store(const char *to,uint length, const CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  int reset(void) { bzero(ptr,sizeof(double)); return 0; }
+  int reset(void) { memset(ptr, 0, sizeof(double)); return 0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -1847,7 +1859,7 @@ public:
   enum ha_base_keytype key_type() const;
   uint row_pack_length() { return field_length; }
   bool zero_pack() const { return 0; }
-  int  reset(void) { bzero(ptr,field_length+length_bytes); return 0; }
+  int  reset(void) { memset(ptr, 0, field_length+length_bytes); return 0; }
   uint32 pack_length() const { return (uint32) field_length+length_bytes; }
   uint32 key_length() const { return (uint32) field_length; }
   uint32 sort_length() const
@@ -1986,8 +1998,8 @@ public:
   {
     return (uint32) (((ulonglong) 1 << (packlength*8)) -1);
   }
-  int reset(void) { bzero(ptr, packlength+sizeof(uchar*)); return 0; }
-  void reset_fields() { bzero((uchar*) &value,sizeof(value)); }
+  int reset(void) { memset(ptr, 0, packlength+sizeof(uchar*)); return 0; }
+  void reset_fields() { memset(&value, 0, sizeof(value)); }
   uint32 get_field_buffer_size(void) { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN
   static
@@ -2073,7 +2085,7 @@ public:
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length(uint max_length);
   void free() { value.free(); }
-  inline void clear_temporary() { bzero((uchar*) &value,sizeof(value)); }
+  inline void clear_temporary() { memset(&value, 0, sizeof(value)); }
   friend int field_conv(Field *to,Field *from);
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
@@ -2111,7 +2123,13 @@ public:
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   int  store_decimal(const my_decimal *);
-  int  reset(void) { return !maybe_null() || Field_blob::reset(); }
+
+  /**
+    Non-nullable GEOMETRY types cannot have defaults,
+    but the underlying blob must still be reset.
+   */
+  int reset(void) { return Field_blob::reset() || !maybe_null(); }
+
   geometry_type get_geometry_type() { return geom_type; };
   Field_geom *clone(MEM_ROOT *mem_root) const {
     DBUG_ASSERT(type() == MYSQL_TYPE_GEOMETRY);
@@ -2251,7 +2269,7 @@ public:
   uint32 max_display_length() { return field_length; }
   Item_result result_type () const { return INT_RESULT; }
   int reset(void) { 
-    bzero(ptr, bytes_in_rec); 
+    memset(ptr, 0, bytes_in_rec); 
     if (bit_ptr && (bit_len > 0))  // reset odd bits among null bits
       clr_rec_bits(bit_ptr, bit_ofs, bit_len);
     return 0; 

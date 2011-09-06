@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Tests for the performance schema
 
@@ -29,6 +29,9 @@
 #
 # In the thread dimension:
 # - events_waits_summary_by_thread_by_event_name
+# - events_waits_summary_by_account_by_event_name
+# - events_waits_summary_by_user_by_event_name
+# - events_waits_summary_by_host_by_event_name
 #
 # Globally:
 # - events_waits_summary_global_by_event_name
@@ -79,6 +82,8 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+--source ../include/no_protocol.inc
+--source ../include/wait_for_pfs_thread_count.inc
 
 --disable_query_log
 grant ALL on *.* to user1@localhost;
@@ -87,6 +92,11 @@ grant ALL on *.* to user3@localhost;
 grant ALL on *.* to user4@localhost;
 
 flush privileges;
+
+# Purge old users, hosts, user/host from previous tests
+truncate table performance_schema.accounts;
+truncate table performance_schema.users;
+truncate table performance_schema.hosts;
 
 # Save the setup
 
@@ -151,18 +161,70 @@ create table test.t3 like test.t1;
 # explicitly instead of:
 #   like 't%'
 
-prepare dump_thread from
-  "select event_name, count_star
-  from performance_schema.events_waits_summary_by_thread_by_event_name
-  where event_name in
+--disable_warnings
+drop procedure if exists dump_thread;
+drop procedure if exists dump_one_thread;
+--enable_warnings
+
+delimiter $$;
+
+create procedure dump_thread()
+begin
+  call dump_one_thread('user1');
+  call dump_one_thread('user2');
+  call dump_one_thread('user3');
+  call dump_one_thread('user4');
+end
+$$
+
+create procedure dump_one_thread(in username varchar(64))
+begin
+  declare my_thread_id int;
+
+  set my_thread_id = (select thread_id from performance_schema.threads
+                        where processlist_user=username);
+
+  if (my_thread_id is not null) then
+    select username, event_name, count_star
+      from performance_schema.events_waits_summary_by_thread_by_event_name
+      where event_name in
+      ('wait/io/table/sql/handler',
+       'wait/lock/table/sql/handler')
+      and thread_id = my_thread_id
+      order by event_name;
+  else
+    select username, "not found" as status;
+  end if;
+end
+$$
+
+delimiter ;$$
+
+prepare dump_waits_user from
+  "select user, event_name, count_star
+  from performance_schema.events_waits_summary_by_user_by_event_name
+  where user like \'user%\' and event_name in
   (\'wait/io/table/sql/handler\',
    \'wait/lock/table/sql/handler\')
-  and thread_id in
-  (select thread_id from performance_schema.threads
-   where processlist_user in (\'user1\', \'user2\', \'user3\', \'user4\'))
-  order by thread_id, event_name;";
+  order by user, event_name;";
 
-prepare dump_global from
+prepare dump_waits_account from
+  "select user, host, event_name, count_star
+  from performance_schema.events_waits_summary_by_account_by_event_name
+  where user like \'user%\' and event_name in
+  (\'wait/io/table/sql/handler\',
+   \'wait/lock/table/sql/handler\')
+  order by user, host, event_name;";
+
+prepare dump_waits_host from
+  "select host, event_name, count_star
+  from performance_schema.events_waits_summary_by_host_by_event_name
+  where host=\'localhost\'  and event_name in
+  (\'wait/io/table/sql/handler\',
+   \'wait/lock/table/sql/handler\')
+  order by host, event_name;";
+
+prepare dump_waits_global from
   "select event_name, count_star
   from performance_schema.events_waits_summary_global_by_event_name
   where event_name in
@@ -170,7 +232,7 @@ prepare dump_global from
    \'wait/lock/table/sql/handler\')
   order by event_name;";
 
-prepare dump_history from
+prepare dump_waits_history from
   "select event_name, count(event_name), object_type, object_schema, object_name
   from performance_schema.events_waits_history_long
   where event_name in
@@ -179,7 +241,7 @@ prepare dump_history from
   group by object_type, object_schema, object_name, event_name
   order by object_type, object_schema, object_name, event_name;";
 
-prepare dump_index_io from
+prepare dump_waits_index_io from
   "select object_type, object_schema, object_name, index_name,
   count_star, count_read, count_write,
   count_fetch, count_insert, count_update, count_delete
@@ -188,7 +250,7 @@ prepare dump_index_io from
   and object_name in ('t1', 't2', 't3')
   order by object_type, object_schema, object_name, index_name;";
 
-prepare dump_table_io from
+prepare dump_waits_table_io from
   "select object_type, object_schema, object_name,
   count_star, count_read, count_write,
   count_fetch, count_insert, count_update, count_delete
@@ -197,7 +259,7 @@ prepare dump_table_io from
   and object_name in ('t1', 't2', 't3')
   order by object_type, object_schema, object_name";
 
-prepare dump_table_lock from
+prepare dump_waits_table_lock from
   "select object_type, object_schema, object_name,
   count_star, count_read, count_write,
   count_read_normal, count_read_with_shared_locks,

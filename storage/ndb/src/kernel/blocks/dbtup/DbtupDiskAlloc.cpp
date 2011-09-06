@@ -613,7 +613,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
 	     << " fragment: " << fragPtr.p->fragmentId << endl;
 #endif
       ext.p->m_first_page_no = ext.p->m_key.m_page_no;
-      bzero(ext.p->m_free_page_count, sizeof(ext.p->m_free_page_count));
+      memset(ext.p->m_free_page_count, 0, sizeof(ext.p->m_free_page_count));
       ext.p->m_free_space= alloc.m_page_free_bits_map[0] * pages; 
       ext.p->m_free_page_count[0]= pages; // All pages are "free"-est
       ext.p->m_empty_page_no = 0;
@@ -1945,7 +1945,7 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
       ext.p->m_first_page_no = ext.p->m_key.m_page_no;
       ext.p->m_free_space= 0;
       ext.p->m_empty_page_no = (1 << 16); // We don't know, so assume none
-      bzero(ext.p->m_free_page_count, sizeof(ext.p->m_free_page_count));
+      memset(ext.p->m_free_page_count, 0, sizeof(ext.p->m_free_page_count));
       
       if (alloc.m_curr_extent_info_ptr_i != RNIL)
       {

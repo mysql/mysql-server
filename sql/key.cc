@@ -164,7 +164,7 @@ void key_zero_nulls(uchar *tuple, KEY *key_info)
   for (; key_part != key_part_end; key_part++)
   {
     if (key_part->null_bit && *tuple)
-      bzero(tuple+1, key_part->store_length-1);
+      memset(tuple+1, 0, key_part->store_length-1);
     tuple+= key_part->store_length;
   }
 }

@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #define MYSQL_SERVER 1
@@ -335,7 +336,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
                         (long) found, recpos, minpos, length));
     if (recpos != minpos)
     { // Reserved space (Null bits?)
-      bzero((char*) recinfo_pos, sizeof(*recinfo_pos));
+      memset(recinfo_pos, 0, sizeof(*recinfo_pos));
       recinfo_pos->type= (int) FIELD_NORMAL;
       recinfo_pos++->length= (uint16) (minpos - recpos);
     }
@@ -1913,7 +1914,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   }
   if ((error= table2myisam(table_arg, &keydef, &recinfo, &records)))
     DBUG_RETURN(error); /* purecov: inspected */
-  bzero((char*) &create_info, sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   create_info.max_rows= share->max_rows;
   create_info.reloc_rows= share->min_rows;
   create_info.with_auto_increment= share->next_number_key_offset == 0;

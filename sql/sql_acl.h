@@ -1,7 +1,7 @@
 #ifndef SQL_ACL_INCLUDED
 #define SQL_ACL_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -180,10 +180,16 @@ enum mysql_db_table_field
 
 extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
+extern const char *command_array[];
+extern uint        command_lengths[];
+
 
 /* prototypes */
 
 bool hostname_requires_resolving(const char *hostname);
+void append_user(String *str, LEX_USER *user, bool comma, bool passwd);
+void append_int(String *str, const char *txt, size_t len,
+                long val, int cond);
 my_bool  acl_init(bool dont_read_acl_tables);
 my_bool acl_reload(THD *thd);
 void acl_free(bool end=0);

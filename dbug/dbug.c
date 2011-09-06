@@ -364,7 +364,7 @@ static CODE_STATE *code_state(void)
   {
     init_done=TRUE;
     pthread_mutex_init(&THR_LOCK_dbug, NULL);
-    bzero(&init_settings, sizeof(init_settings));
+    memset(&init_settings, 0, sizeof(init_settings));
     init_settings.out_file=stderr;
     init_settings.flags=OPEN_APPEND;
   }
@@ -374,7 +374,7 @@ static CODE_STATE *code_state(void)
   if (!(cs= *cs_ptr))
   {
     cs=(CODE_STATE*) DbugMalloc(sizeof(*cs));
-    bzero((uchar*) cs,sizeof(*cs));
+    memset(cs, 0, sizeof(*cs));
     cs->process= db_process ? db_process : "dbug";
     cs->func="?func";
     cs->file="?file";
@@ -860,7 +860,7 @@ int _db_is_pushed_()
 void _db_set_init_(const char *control)
 {
   CODE_STATE tmp_cs;
-  bzero((uchar*) &tmp_cs, sizeof(tmp_cs));
+  memset(&tmp_cs, 0, sizeof(tmp_cs));
   tmp_cs.stack= &init_settings;
   tmp_cs.process= db_process ? db_process : "dbug";
   DbugParse(&tmp_cs, control);
@@ -1052,7 +1052,7 @@ overflow:
 int _db_explain_init_(char *buf, size_t len)
 {
   CODE_STATE cs;
-  bzero((uchar*) &cs,sizeof(cs));
+  memset(&cs, 0, sizeof(cs));
   cs.stack=&init_settings;
   return _db_explain_(&cs, buf, len);
 }
@@ -1179,7 +1179,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
         pthread_mutex_lock(&THR_LOCK_dbug);
       DoPrefix(cs, _line_);
       Indent(cs, cs->level);
-      (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
+      (void) fprintf(cs->stack->out_file, "<%s %u\n", cs->func, _line_);
       DbugFlush(cs);
     }
   }
@@ -1412,7 +1412,7 @@ next:
         }
         else
         {
-          (*cur)->flags&=~(EXCLUDE & SUBDIR);
+          (*cur)->flags&=~(EXCLUDE | SUBDIR);
           (*cur)->flags|=INCLUDE | subdir;
         }
         goto next;
@@ -1548,7 +1548,7 @@ static void PushState(CODE_STATE *cs)
   struct settings *new_malloc;
 
   new_malloc= (struct settings *) DbugMalloc(sizeof(struct settings));
-  bzero(new_malloc, sizeof(struct settings));
+  memset(new_malloc, 0, sizeof(struct settings));
   new_malloc->next= cs->stack;
   cs->stack= new_malloc;
 }
@@ -1873,7 +1873,6 @@ static void DBUGOpenFile(CODE_STATE *cs,
                          const char *name,const char *end,int append)
 {
   REGISTER FILE *fp;
-  REGISTER BOOLEAN newfile;
 
   if (name != NULL)
   {
@@ -1902,7 +1901,6 @@ static void DBUGOpenFile(CODE_STATE *cs,
       }
       else
       {
-        newfile= !EXISTS(name);
         if (!(fp= fopen(name, append ? "a+" : "w")))
         {
           (void) fprintf(stderr, ERR_OPEN, cs->process, name);

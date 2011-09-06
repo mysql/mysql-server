@@ -1,17 +1,18 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _my_audit_h
 #define _my_audit_h
@@ -24,16 +25,7 @@
 
 #define MYSQL_AUDIT_CLASS_MASK_SIZE 1
 
-#define MYSQL_AUDIT_INTERFACE_VERSION 0x0200
-
-/*
-  The first word in every event class struct indicates the specific
-  class of the event.
-*/
-struct mysql_event
-{
-  unsigned int event_class;
-};
+#define MYSQL_AUDIT_INTERFACE_VERSION 0x0300
 
 
 /*************************************************************************
@@ -55,7 +47,6 @@ struct mysql_event
 
 struct mysql_event_general
 {
-  unsigned int event_class;
   unsigned int event_subclass;
   int general_error_code;
   unsigned long general_thread_id;
@@ -87,7 +78,6 @@ struct mysql_event_general
 
 struct mysql_event_connection
 {
-  unsigned int event_class;
   unsigned int event_subclass;
   int status;
   unsigned long thread_id;
@@ -118,9 +108,9 @@ struct mysql_event_connection
   waiting for the next query from the client.
   
   event_notify() is invoked whenever an event occurs which is of any
-  class for which the plugin has interest. The first word of the
-  mysql_event argument indicates the specific event class and the
-  remainder of the structure is as required for that class.
+  class for which the plugin has interest. The second argument
+  indicates the specific event class and the third argument is data
+  as required for that class.
   
   class_mask is an array of bits used to indicate what event classes
   that this plugin wants to receive.
@@ -130,7 +120,7 @@ struct st_mysql_audit
 {
   int interface_version;
   void (*release_thd)(MYSQL_THD);
-  void (*event_notify)(MYSQL_THD, const struct mysql_event *);
+  void (*event_notify)(MYSQL_THD, unsigned int, const void *);
   unsigned long class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
 };
 

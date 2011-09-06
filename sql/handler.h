@@ -1,7 +1,8 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -15,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-   02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Definitions for parameters to do with handler-routines */
 
@@ -672,6 +673,7 @@ enum enum_schema_tables
   SCH_GLOBAL_VARIABLES,
   SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
+  SCH_OPTIMIZER_TRACE,
   SCH_PARAMETERS,
   SCH_PARTITIONS,
   SCH_PLUGINS,
@@ -1338,6 +1340,27 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 */
 #define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
 
+
+/**
+  Index creation context.
+  Created by handler::add_index() and freed by handler::final_add_index().
+*/
+
+class handler_add_index
+{
+public:
+  /* Table where the indexes are added */
+  TABLE* const table;
+  /* Indexes being created */
+  KEY* const key_info;
+  /* Size of key_info[] */
+  const uint num_of_keys;
+  handler_add_index(TABLE *table_arg, KEY *key_info_arg, uint num_of_keys_arg)
+    : table (table_arg), key_info (key_info_arg), num_of_keys (num_of_keys_arg)
+  {}
+  virtual ~handler_add_index() {}
+};
+
 /**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -1415,9 +1438,22 @@ public:
   bool mrr_have_range;
   /* Current range (the one we're now returning rows from) */
   KEY_MULTI_RANGE mrr_cur_range;
-  
-  /** The following are for read_range() */
-  key_range save_end_range, *end_range;
+
+protected:
+  /*
+    Storage space for the end range value. Should only be accessed using
+    the end_range pointer. The content is invalid when end_range is NULL.
+  */
+  key_range save_end_range;
+
+public:  
+  /*
+    End value for a range scan. If this is NULL the range scan has no
+    end value. Should also be NULL when there is no ongoing range scan.
+    Used by the read_range() functions and also evaluated by pushed
+    index conditions.
+  */
+  key_range *end_range;
   KEY_PART_INFO *range_key_part;
   int key_compare_result_on_equal;
   bool eq_range;
@@ -1484,6 +1520,9 @@ public:
   */
   PSI_table *m_psi;
 
+  virtual void unbind_psi();
+  virtual void rebind_psi();
+
 private:
   friend class DsMrr_impl;
   /**
@@ -1498,7 +1537,7 @@ public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), in_range_check_pushed_down(FALSE),
+    ref(0), end_range(NULL), in_range_check_pushed_down(false),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
@@ -2057,8 +2096,36 @@ public:
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
-  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
+/**
+   First phase of in-place add index.
+   Handlers are supposed to create new indexes here but not make them
+   visible.
+
+   @param table_arg   Table to add index to
+   @param key_info    Information about new indexes
+   @param num_of_key  Number of new indexes
+   @param add[out]    Context of handler specific information needed
+                      for final_add_index().
+
+   @note This function can be called with less than exclusive metadata
+   lock depending on which flags are listed in alter_table_flags.
+*/
+  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+                        handler_add_index **add)
   { return (HA_ERR_WRONG_COMMAND); }
+
+/**
+   Second and last phase of in-place add index.
+   Commit or rollback pending new indexes.
+
+   @param add     Context of handler specific information from add_index().
+   @param commit  If true, commit. If false, rollback index changes.
+
+   @note This function is called with exclusive metadata lock.
+*/
+  virtual int final_add_index(handler_add_index *add, bool commit)
+  { return (HA_ERR_WRONG_COMMAND); }
+
   virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
                                  uint num_of_keys)
   { return (HA_ERR_WRONG_COMMAND); }
@@ -2382,7 +2449,7 @@ public:
 
 protected:
   /* Service methods for use by storage engines. */
-  void ha_statistic_increment(ulong SSV::*offset) const;
+  void ha_statistic_increment(ulonglong SSV::*offset) const;
   void **ha_data(THD *) const;
   THD *ha_thd(void) const;
 
@@ -2665,7 +2732,9 @@ extern ulong total_ha, total_ha_2pc;
 
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
-plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name);
+handlerton *ha_default_temp_handlerton(THD *thd);
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name, 
+                              bool is_temp_table);
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,

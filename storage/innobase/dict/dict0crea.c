@@ -845,7 +845,7 @@ dict_truncate_index_tree(
 	appropriate field in the SYS_INDEXES record: this mini-transaction
 	marks the B-tree totally truncated */
 
-	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
+	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, NULL, mtr);
 
 	btr_free_root(space, zip_size, root_page_no, mtr);
 create:
@@ -1253,6 +1253,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	trx_t*		trx;
 	ulint		error;
 	ibool		success;
+	ibool		srv_file_per_table_backup;
 
 	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
@@ -1297,6 +1298,13 @@ dict_create_or_check_foreign_constraint_tables(void)
 	'CHAR' (internally, really a VARCHAR). We should have made the type
 	VARBINARY, like in other InnoDB system tables, to get a clean
 	design. */
+
+	srv_file_per_table_backup = (ibool) srv_file_per_table;
+
+	/* We always want SYSTEM tables to be created inside the system
+	tablespace. */
+
+	srv_file_per_table = 0;
 
 	error = que_eval_sql(NULL,
 			     "PROCEDURE CREATE_FOREIGN_SYS_TABLES_PROC () IS\n"
@@ -1354,6 +1362,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	success = dict_check_sys_foreign_tables_exist();
 	ut_a(success);
+
+	srv_file_per_table = (my_bool) srv_file_per_table_backup;
 
 	return(error);
 }

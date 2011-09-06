@@ -176,6 +176,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   */
   FILESORT_INFO table_sort= table->sort;
   table->sort.io_cache= NULL;
+  DBUG_ASSERT(table_sort.record_pointers == NULL);
   
   outfile= table_sort.io_cache;
   my_b_clear(&tempfile);
@@ -188,8 +189,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
                           table,
                           thd->variables.max_length_for_sort_data,
                           max_rows, sort_positions);
-  /* filesort cannot handle zero-length records. */
-  DBUG_ASSERT(param.sort_length);
 
   table_sort.addon_buf= 0;
   table_sort.addon_length= param.addon_length;
@@ -283,6 +282,9 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   else
   {
+    /* filesort cannot handle zero-length records during merge. */
+    DBUG_ASSERT(param.sort_length != 0);
+
     if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
     {
       my_free(table_sort.buffpek);
@@ -361,8 +363,10 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
                     "%s: %s",
                     MYF(ME_ERROR + ME_WAITTANG),
                     ER_THD(thd, ER_FILSORT_ABORT),
-                    kill_errno ? ER(kill_errno) : thd->stmt_da->message());
-                    
+                    kill_errno ?
+                    ER(kill_errno) :
+                    thd->get_stmt_da()->message());
+
     if (global_system_variables.log_warnings > 1)
     {
       sql_print_warning("%s, host: %s, user: %s, thread: %lu, query: %-.4096s",
@@ -390,6 +394,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
 void filesort_free_buffers(TABLE *table, bool full)
 {
+  DBUG_ENTER("filesort_free_buffers");
   my_free(table->sort.record_pointers);
   table->sort.record_pointers= NULL;
 
@@ -406,6 +411,7 @@ void filesort_free_buffers(TABLE *table, bool full)
   my_free(table->sort.addon_field);
   table->sort.addon_buf= NULL;
   table->sort.addon_field= NULL;
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -833,9 +839,9 @@ static void make_sortkey(register Sort_param *param,
 	if (field->is_null())
 	{
 	  if (sort_field->reverse)
-	    bfill(to,sort_field->length+1,(char) 255);
+	    memset(to, 255, sort_field->length+1);
 	  else
-	    bzero((char*) to,sort_field->length+1);
+	    memset(to, 0, sort_field->length+1);
 	  to+= sort_field->length+1;
 	  continue;
 	}
@@ -864,7 +870,7 @@ static void make_sortkey(register Sort_param *param,
         if (!res)
         {
           if (maybe_null)
-            bzero((char*) to-1,sort_field->length+1);
+            memset(to-1, 0, sort_field->length+1);
           else
           {
             /* purecov: begin deadcode */
@@ -876,7 +882,7 @@ static void make_sortkey(register Sort_param *param,
             DBUG_ASSERT(0);
             DBUG_PRINT("warning",
                        ("Got null on something that shouldn't be null"));
-            bzero((char*) to,sort_field->length);	// Avoid crash
+            memset(to, 0, sort_field->length);	// Avoid crash
             /* purecov: end */
           }
           break;
@@ -928,12 +934,12 @@ static void make_sortkey(register Sort_param *param,
             if (item->null_value)
             {
               if (maybe_null)
-                bzero((char*) to-1,sort_field->length+1);
+                memset(to-1, 0, sort_field->length+1);
               else
               {
                 DBUG_PRINT("warning",
                            ("Got null on something that shouldn't be null"));
-                bzero((char*) to,sort_field->length);
+                memset(to, 0, sort_field->length);
               }
               break;
             }
@@ -968,7 +974,7 @@ static void make_sortkey(register Sort_param *param,
           {
             if (item->null_value)
             { 
-              bzero((char*)to, sort_field->length+1);
+              memset(to, 0, sort_field->length+1);
               to++;
               break;
             }
@@ -986,7 +992,7 @@ static void make_sortkey(register Sort_param *param,
           {
             if (item->null_value)
             {
-              bzero((char*) to,sort_field->length+1);
+              memset(to, 0, sort_field->length+1);
               to++;
               break;
             }
@@ -1028,28 +1034,17 @@ static void make_sortkey(register Sort_param *param,
     SORT_ADDON_FIELD *addonf= param->addon_field;
     uchar *nulls= to;
     DBUG_ASSERT(addonf != 0);
-    bzero((char *) nulls, addonf->offset);
+    memset(nulls, 0, addonf->offset);
     to+= addonf->offset;
     for ( ; (field= addonf->field) ; addonf++)
     {
       if (addonf->null_bit && field->is_null())
       {
         nulls[addonf->null_offset]|= addonf->null_bit;
-#ifdef HAVE_purify
-	bzero(to, addonf->length);
-#endif
       }
       else
       {
-#ifdef HAVE_purify
-        uchar *end= field->pack(to, field->ptr);
-	uint length= (uint) ((to + addonf->length) - end);
-	DBUG_ASSERT((int) length >= 0);
-	if (length)
-	  bzero(end, length);
-#else
         (void) field->pack(to, field->ptr);
-#endif
       }
       to+= addonf->length;
     }
@@ -1881,7 +1876,7 @@ void change_double_for_sort(double nr,uchar *to)
   if (nr == 0.0)
   {						/* Change to zero string */
     tmp[0]=(uchar) 128;
-    bzero((char*) tmp+1,sizeof(nr)-1);
+    memset(tmp+1, 0, sizeof(nr)-1);
   }
   else
   {

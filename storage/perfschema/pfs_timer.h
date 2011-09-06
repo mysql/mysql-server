@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -78,6 +78,11 @@ struct time_normalizer
                ulonglong *pico_start, ulonglong *pico_end, ulonglong *pico_wait);
 };
 
+/**
+  Idle timer.
+  The timer used to measure all idle events.
+*/
+extern enum_timer_name idle_timer;
 /**
   Wait timer.
   The timer used to measure all wait events.

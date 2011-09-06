@@ -133,42 +133,13 @@ Diagnostics_area* thd_stmt_da(THD* thd)
 #if MYSQL_VERSION_ID < 50500
   return &(thd->main_da);
 #else
+#if MYSQL_VERSION_ID < 50603
   /* "main_da" has been made private and one should use "stmt_da*" */
   return thd->stmt_da;
-#endif
-}
-
-/* extract the list of warnings from THD */
-static inline
-List<MYSQL_ERROR>& thd_warn_list(const THD * thd)
-{
-#if MYSQL_VERSION_ID < 50500
-  return const_cast<THD*>(thd)->warn_list;
 #else
-  /* "options" has moved to "variables.option_bits" */
-  return thd->warning_info->warn_list();
+  /* "stmt_da*" has been made private and one should use 'get_stmt_da()' */
+  return thd->get_stmt_da();
 #endif
-}
-
-static inline
-const char* MYSQL_ERROR_get_message_text(const MYSQL_ERROR* err)
-{
-#if MYSQL_VERSION_ID < 50500
-  return err->msg;
-#else
-  /* "msg" is gone, use accessor */
-  return err->get_message_text();
-#endif
-}
-
-static inline
-uint MYSQL_ERROR_get_sql_errno(const MYSQL_ERROR* err)
-{
-#if MYSQL_VERSION_ID < 50500
-  return err->code;
-#else
-  /* "code" is gone, use accessor */
-  return err->get_sql_errno();
 #endif
 }
 
@@ -277,6 +248,17 @@ uint partition_info_num_subparts(const partition_info* part_info)
 /* New multi range read interface replaced original mrr */
 #define NDB_WITH_NEW_MRR_INTERFACE
 
+#endif
+
+#if MYSQL_VERSION_ID >= 50603
+
+/*
+  Allow use of bzero although MySQL header files redefine
+  it to an invalid symbol, will actually fix this by replacing bzero
+  with memset in sql/ha_ndb*
+*/
+#undef bzero
+#include <strings.h>
 #endif
 
 #endif

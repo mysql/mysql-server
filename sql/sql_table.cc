@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1132,7 +1133,7 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
     frm_action= TRUE;
   else
   {
-    plugin_ref plugin= ha_resolve_by_name(thd, &handler_name);
+    plugin_ref plugin= ha_resolve_by_name(thd, &handler_name, FALSE);
     if (!plugin)
     {
       my_error(ER_ILLEGAL_HA, MYF(0), ddl_log_entry->handler_name);
@@ -1650,7 +1651,7 @@ void execute_ddl_log_recovery()
   /*
     Initialise global_ddl_log struct
   */
-  bzero(global_ddl_log.file_entry_buf, sizeof(global_ddl_log.file_entry_buf));
+  memset(global_ddl_log.file_entry_buf, 0, sizeof(global_ddl_log.file_entry_buf));
   global_ddl_log.inited= FALSE;
   global_ddl_log.recovery_phase= TRUE;
   global_ddl_log.io_size= IO_SIZE;
@@ -2250,6 +2251,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                   find_temporary_table(thd, table) &&
                   table->mdl_request.ticket != NULL));
 
+    thd->add_to_binlog_accessed_dbs(table->db);
+
     /*
       drop_temporary_table may return one of the following error codes:
       .  0 - a temporary table was successfully dropped.
@@ -2395,7 +2398,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         tbl_name.append('.');
         tbl_name.append(String(table->table_name,system_charset_info));
 
-	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+	push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
 			    tbl_name.c_ptr());
       }
@@ -2695,7 +2698,7 @@ bool check_duplicates_in_interval(const char *set_or_name,
                  name, err.ptr(), set_or_name);
         return 1;
       }
-      push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(thd,Sql_condition::WARN_LEVEL_NOTE,
                           ER_DUPLICATED_VALUE_IN_TYPE,
                           ER(ER_DUPLICATED_VALUE_IN_TYPE),
                           name, err.ptr(), set_or_name);
@@ -2946,21 +2949,6 @@ const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
   if (create_info->table_charset && cs != &my_charset_bin)
     cs= create_info->table_charset;
   return cs;
-}
-
-
-bool check_duplicate_warning(THD *thd, char *msg, ulong length)
-{
-  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
-  MYSQL_ERROR *err;
-  while ((err= it++))
-  {
-    if (strncmp(msg, err->get_message_text(), length) == 0)
-    {
-      return true;
-    }
-  }
-  return false;
 }
 
 
@@ -3687,7 +3675,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	      char warn_buff[MYSQL_ERRMSG_SIZE];
 	      my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_KEY),
 			  length);
-	      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+	      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
 			   ER_TOO_LONG_KEY, warn_buff);
               /* Align key length to multibyte char boundary */
               length-= length % sql_field->charset->mbmaxlen;
@@ -3734,7 +3722,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_KEY),
 		      length);
-	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+	  push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
 		       ER_TOO_LONG_KEY, warn_buff);
           /* Align key length to multibyte char boundary */
           length-= length % sql_field->charset->mbmaxlen;
@@ -3825,8 +3813,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_INDEX_COMMENT),
                   key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
       /* do not push duplicate warnings */
-      if (!check_duplicate_warning(thd, warn_buff, strlen(warn_buff)))
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_TOO_LONG_INDEX_COMMENT, warn_buff);
 
       key->key_create_info.comment.length= tmp_len;
@@ -3960,7 +3948,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
     my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_AUTO_CONVERT), sql_field->field_name,
             (sql_field->charset == &my_charset_bin) ? "VARBINARY" : "VARCHAR",
             (sql_field->charset == &my_charset_bin) ? "BLOB" : "TEXT");
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
                  warn_buff);
   }
 
@@ -4346,7 +4334,7 @@ bool mysql_create_table_no_lock(THD *thd,
   {
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           alias);
       error= 0;
@@ -4471,11 +4459,11 @@ bool mysql_create_table_no_lock(THD *thd,
 #endif /* HAVE_READLINK */
   {
     if (create_info->data_file_name)
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (create_info->index_file_name)
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
     create_info->data_file_name= create_info->index_file_name= 0;
@@ -4555,7 +4543,7 @@ err:
 
 warn:
   error= FALSE;
-  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+  push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
   goto err;
@@ -4623,7 +4611,10 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     if (!thd->is_current_stmt_binlog_format_row() ||
         (thd->is_current_stmt_binlog_format_row() &&
          !(create_info->options & HA_LEX_CREATE_TMP_TABLE)))
+    {
+      thd->add_to_binlog_accessed_dbs(create_table->db);
       result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
+    }
   }
 end:
   DBUG_RETURN(result);
@@ -4825,7 +4816,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   src_table->table->use_all_columns();
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
-  bzero((char*) &local_create_info, sizeof(local_create_info));
+  memset(&local_create_info, 0, sizeof(local_create_info));
   local_create_info.db_type= src_table->table->s->db_type();
   local_create_info.row_type= src_table->table->s->row_type;
   if (mysql_prepare_alter_table(thd, src_table->table, &local_create_info,
@@ -4853,6 +4844,11 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   local_create_info.options|= create_info->options & HA_LEX_CREATE_TMP_TABLE;
   /* Reset auto-increment counter for the new table. */
   local_create_info.auto_increment_value= 0;
+  /*
+    Do not inherit values of DATA and INDEX DIRECTORY options from
+    the original table. This is documented behavior.
+  */
+  local_create_info.data_file_name= local_create_info.index_file_name= NULL;
 
   if ((res= mysql_create_table_no_lock(thd, table->db, table->table_name,
                                        &local_create_info, &local_alter_info,
@@ -5040,7 +5036,36 @@ err:
   DBUG_RETURN(-1);
 }
 
+
+/**
+  Check if ALTER TABLE statement changes position of any column
+  in the table or adds new columns.
+
+  @param alter_info  Alter_info object describing structure of new
+                     version of table.
+
+  @retval True  - some column is added or changes its position.
+  @retval False - no columns are added nor their positions change.
+*/
+
 #ifdef MCP_WL3749
+static bool has_new_or_reordered_columns(Alter_info *alter_info)
+{
+  List_iterator_fast<Create_field> new_field_it(alter_info->create_list);
+  Create_field *new_field;
+  uint new_field_idx;
+
+  for (new_field_idx= 0, new_field= new_field_it++; new_field;
+       new_field_idx++, new_field= new_field_it++)
+  {
+    if (! new_field->field ||
+        new_field->field->field_index != new_field_idx)
+      return true;
+  }
+  return false;
+}
+
+
 /**
   @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
 
@@ -5805,6 +5830,9 @@ mysql_compare_tables(TABLE *table,
     Test also that engine was not given during ALTER TABLE, or
     we are force to run regular alter table (copy).
     E.g. ALTER TABLE tbl_name ENGINE=MyISAM.
+    Note that we do copy even if the table is already using the
+    given engine. Many users and tools depend on using ENGINE to
+    force a table rebuild.
 
     For the following ones we also want to run regular alter table:
     ALTER TABLE tbl_name ORDER BY ..
@@ -6084,7 +6112,7 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
 
   if (error == HA_ERR_WRONG_COMMAND)
   {
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_NOTE,
                         ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                         table->s->table_name.str);
     error= 0;
@@ -6608,10 +6636,22 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (def)
     {						// Field is changed
       def->field=field;
+      /*
+        Add column being updated to the list of new columns.
+        Note that columns with AFTER clauses are added to the end
+        of the list for now. Their positions will be corrected later.
+      */
+      new_create_list.push_back(def);
       if (!def->after)
       {
-	new_create_list.push_back(def);
-	def_it.remove();
+        /*
+          If this ALTER TABLE doesn't have an AFTER clause for the modified
+          column then remove this column from the list of columns to be
+          processed. So later we can iterate over the columns remaining
+          in this list and process modified columns with AFTER clause or
+          add new columns.
+        */
+        def_it.remove();
       }
     }
     else
@@ -6671,24 +6711,43 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     }
     if (!def->after)
       new_create_list.push_back(def);
-    else if (def->after == first_keyword)
-      new_create_list.push_front(def);
     else
     {
       Create_field *find;
-      find_it.rewind();
-      while ((find=find_it++))			// Add new columns
+      if (def->change)
       {
-	if (!my_strcasecmp(system_charset_info,def->after, find->field_name))
-	  break;
+        find_it.rewind();
+        /*
+          For columns being modified with AFTER clause we should first remove
+          these columns from the list and then add them back at their correct
+          positions.
+        */
+        while ((find=find_it++))
+        {
+          if (!my_strcasecmp(system_charset_info, def->field_name, find->field_name))
+          {
+            find_it.remove();
+            break;
+          }
+        }
       }
-      if (!find)
+      if (def->after == first_keyword)
+        new_create_list.push_front(def);
+      else
       {
-	my_error(ER_BAD_FIELD_ERROR, MYF(0), def->after, table->s->table_name.str);
-        goto err;
+        find_it.rewind();
+        while ((find=find_it++))
+        {
+          if (!my_strcasecmp(system_charset_info, def->after, find->field_name))
+            break;
+        }
+        if (!find)
+        {
+          my_error(ER_BAD_FIELD_ERROR, MYF(0), def->after, table->s->table_name.str);
+          goto err;
+        }
+        find_it.after(def);			// Put column after this
       }
-      find_it.after(def);			// Put element after this
-      alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
     }
   }
   if (alter_info->alter_list.elements)
@@ -6795,7 +6854,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       KEY_CREATE_INFO key_create_info;
       Key *key;
       enum Key::Keytype key_type;
-      bzero((char*) &key_create_info, sizeof(key_create_info));
+      memset(&key_create_info, 0, sizeof(key_create_info));
 
       key_create_info.algorithm= key_info->algorithm;
       if (key_info->flags & HA_USES_BLOCK_SIZE)
@@ -6971,6 +7030,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint candidate_key_count= 0;
   bool no_pk;
 #endif
+  handler_add_index *add= NULL;
+  bool pending_inplace_add_index= false;
 #ifndef MCP_WL3749
   int alter_supported= HA_ALTER_NOT_SUPPORTED;
   List<Alter_drop> drop_list;
@@ -7040,6 +7101,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   db=table_list->db;
   if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
     new_db= db;
+
+  thd->add_to_binlog_accessed_dbs(db);
+  if (new_db != db)
+    thd->add_to_binlog_accessed_dbs(new_db);
+
   build_table_filename(reg_path, sizeof(reg_path) - 1, db, table_name, reg_ext, 0);
   build_table_filename(path, sizeof(path) - 1, db, table_name, "", 0);
 
@@ -7276,7 +7342,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (error == HA_ERR_WRONG_COMMAND)
     {
       error= 0;
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                           ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                           table->alias);
     }
@@ -7327,7 +7393,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (error == HA_ERR_WRONG_COMMAND)
     {
       error= 0;
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                           ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                           table->alias);
     }
@@ -7430,6 +7496,17 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       need_copy_table= need_copy_table_res;
+
+    if (need_copy_table != ALTER_TABLE_DATA_CHANGED &&
+        has_new_or_reordered_columns(alter_info))
+    {
+      /*
+        ALTER TABLE which adds new columns (e.g. replacing columns being
+        removed) or changes their order can't be executed using in-place
+        algorithm even if table structure stays the same.
+      */
+      need_copy_table= ALTER_TABLE_DATA_CHANGED;
+    }
 
     if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
     {
@@ -7811,8 +7888,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       altered_table->part_info= NULL;;
 #endif
       close_temporary_table(thd, altered_table, 1, 1);
-      if (!error && thd->stmt_da->is_error())
-	error= thd->stmt_da->sql_errno();
+      if (!error && thd->get_stmt_da()->is_error())
+	error= thd->get_stmt_da()->sql_errno();
       if (error)
       {
         switch (error) {
@@ -7993,6 +8070,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
+  if (error)
+    goto err_new_table_cleanup;
+
 #ifdef MCP_WL3749
   /* If we did not need to copy, we might still need to add/drop indexes. */
   if (! new_table)
@@ -8025,7 +8105,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           key_part->field= table->field[key_part->fieldnr];
       }
       /* Add the indexes. */
-      if ((error= table->file->add_index(table, key_info, index_add_count)))
+      if ((error= table->file->add_index(table, key_info, index_add_count,
+                                         &add)))
       {
         /*
           Exchange the key_info for the error message. If we exchange
@@ -8037,11 +8118,27 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         table->key_info= save_key_info;
         goto err_new_table_cleanup;
       }
+      pending_inplace_add_index= true;
     }
     /*end of if (index_add_count)*/
 
     if (index_drop_count)
     {
+      /* Currently we must finalize add index if we also drop indexes */
+      if (pending_inplace_add_index)
+      {
+        /* Committing index changes needs exclusive metadata lock. */
+        DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                                   table_list->db,
+                                                   table_list->table_name,
+                                                   MDL_EXCLUSIVE));
+        if ((error= table->file->final_add_index(add, true)))
+        {
+          table->file->print_error(error, MYF(0));
+          goto err_new_table_cleanup;
+        }
+        pending_inplace_add_index= false;
+      }
       /* The prepare_drop_index() method takes an array of key numbers. */
       key_numbers= (uint*) thd->alloc(sizeof(uint) * index_drop_count);
       keyno_p= key_numbers;
@@ -8082,11 +8179,15 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   /*end of if (! new_table) for add/drop index*/
 #endif /* ifdef MCP_WL3749 */
-  if (error)
-    goto err_new_table_cleanup;
 
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
+    /*
+      In-place operations are not supported for temporary tables, so
+      we don't have to call final_add_index() in this case. The assert
+      verifies that in-place add index has not been done.
+    */
+    DBUG_ASSERT(!pending_inplace_add_index);
     /* Close lock if this is a transactional table */
     if (thd->lock)
     {
@@ -8153,8 +8254,30 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     my_casedn_str(files_charset_info, old_name);
 
   if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
+  {
+    if (pending_inplace_add_index)
+    {
+      pending_inplace_add_index= false;
+      table->file->final_add_index(add, false);
+    }
+    // Mark this TABLE instance as stale to avoid out-of-sync index information.
+    table->m_needs_reopen= true;
     goto err_new_table_cleanup;
-
+  }
+  if (pending_inplace_add_index)
+  {
+    pending_inplace_add_index= false;
+    DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
+      table->file->final_add_index(add, false);
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      goto err_new_table_cleanup;
+    });
+    if ((error= table->file->final_add_index(add, true)))
+    {
+      table->file->print_error(error, MYF(0));
+      goto err_new_table_cleanup;
+    }
+  }
 
   close_all_tables_for_name(thd, table->s,
                             new_name != table_name || new_db != db);
@@ -8302,8 +8425,8 @@ end_online:
     */
     char path[FN_REFLEN];
     TABLE *t_table;
-    build_table_filename(path + 1, sizeof(path) - 1, new_db, table_name, "", 0);
-    t_table= open_table_uncached(thd, path, new_db, tmp_name, FALSE);
+    build_table_filename(path, sizeof(path) - 1, new_db, new_name, "", 0);
+    t_table= open_table_uncached(thd, path, new_db, new_name, FALSE);
     if (t_table)
     {
       intern_close_table(t_table);
@@ -8329,7 +8452,7 @@ end_online:
 end_temporary:
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
 	      (ulong) (copied + deleted), (ulong) deleted,
-	      (ulong) thd->warning_info->statement_warn_count());
+	      (ulong) thd->get_stmt_da()->current_statement_warn_count());
   my_ok(thd, copied + deleted, 0L, tmp_name);
   DBUG_RETURN(FALSE);
 
@@ -8356,7 +8479,7 @@ err:
     Report error here.
   */
   if (alter_info->error_if_not_empty &&
-      thd->warning_info->current_row_for_warning())
+      thd->get_stmt_da()->current_row_for_warning())
   {
     const char *f_val= 0;
     enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
@@ -8377,7 +8500,7 @@ err:
     }
     bool save_abort_on_warning= thd->abort_on_warning;
     thd->abort_on_warning= TRUE;
-    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                                  f_val, strlength(f_val), t_type,
                                  alter_info->datetime_field->field_name);
     thd->abort_on_warning= save_abort_on_warning;
@@ -8530,14 +8653,14 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       my_snprintf(warn_buff, sizeof(warn_buff), 
                   "ORDER BY ignored as there is a user-defined clustered index"
                   " in the table '%-.192s'", from->s->table_name.str);
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                    warn_buff);
     }
     else
     {
       from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
                                                 MYF(MY_FAE | MY_ZEROFILL));
-      bzero((char *) &tables, sizeof(tables));
+      memset(&tables, 0, sizeof(tables));
       tables.table= from;
       tables.alias= tables.table_name= from->s->table_name.str;
       tables.db= from->s->db.str;
@@ -8561,7 +8684,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE);
   if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  thd->warning_info->reset_current_row_for_warning();
+  thd->get_stmt_da()->reset_current_row_for_warning();
   restore_record(to, s->default_values);        // Create empty record
   while (!(error=info.read_record(&info)))
   {
@@ -8620,7 +8743,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     else
       found_count++;
-    thd->warning_info->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_warning();
   }
   end_read_record(&info);
   free_io_cache(from);
@@ -8674,7 +8797,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
-  bzero((char*) &create_info, sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
@@ -8859,7 +8982,7 @@ static bool check_engine(THD *thd, const char *table_name,
 
   if (req_engine && req_engine != *new_engine)
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                        ER_WARN_USING_OTHER_HANDLER,
                        ER(ER_WARN_USING_OTHER_HANDLER),
                        ha_resolve_storage_engine_name(*new_engine),

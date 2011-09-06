@@ -469,6 +469,13 @@ row_purge_del_mark(
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
+		/* skip corrupted secondary index */
+		dict_table_skip_corrupt_index(node->index);
+
+		if (!node->index) {
+			break;
+		}
+
 		index = node->index;
 
 		/* Build the index entry */
@@ -517,6 +524,12 @@ row_purge_upd_exist_or_extern_func(
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
+		dict_table_skip_corrupt_index(node->index);
+
+		if (!node->index) {
+			break;
+		}
+
 		index = node->index;
 
 		if (row_upd_changes_ord_field_binary(node->index, node->update,
@@ -541,6 +554,7 @@ skip_secondaries:
 			= upd_get_nth_field(node->update, i);
 
 		if (dfield_is_ext(&ufield->new_val)) {
+			trx_rseg_t*	rseg;
 			buf_block_t*	block;
 			ulint		internal_offset;
 			byte*		data_field;
@@ -561,6 +575,11 @@ skip_secondaries:
 			trx_undo_decode_roll_ptr(node->roll_ptr,
 						 &is_insert, &rseg_id,
 						 &page_no, &offset);
+
+			rseg = trx_sys_get_nth_rseg(trx_sys, rseg_id);
+			ut_a(rseg != NULL);
+			ut_a(rseg->id == rseg_id);
+
 			mtr_start(&mtr);
 
 			/* We have to acquire an X-latch to the clustered
@@ -581,10 +600,9 @@ skip_secondaries:
 
 			btr_root_get(index, &mtr);
 
-			/* We assume in purge of externally stored fields
-			that the space id of the undo log record is 0! */
+			block = buf_page_get(
+				rseg->space, 0, page_no, RW_X_LATCH, &mtr);
 
-			block = buf_page_get(0, 0, page_no, RW_X_LATCH, &mtr);
 			buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 
 			data_field = buf_block_get_frame(block)

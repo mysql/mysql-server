@@ -213,7 +213,9 @@ class ha_innobase: public handler
 	bool primary_key_is_clustered();
 	int cmp_ref(const uchar *ref1, const uchar *ref2);
 	/** Fast index creation (smart ALTER TABLE) @see handler0alter.cc @{ */
-	int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+	int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+		      handler_add_index **add);
+	int final_add_index(handler_add_index *add, bool commit);
 	int prepare_drop_index(TABLE *table_arg, uint *key_num,
 			       uint num_of_keys);
 	int final_drop_index(TABLE *table_arg);

@@ -93,7 +93,7 @@ void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
   if (default_alloc_size < DEFAULT_ALLOC_SIZE)
     default_alloc_size= DEFAULT_ALLOC_SIZE;
   default_alloc_size= MY_ALIGN(default_alloc_size, DEFAULT_ALIGN_SIZE);
-  bzero((uchar*) &tree->null_element,sizeof(tree->null_element));
+  memset(&tree->null_element, 0, sizeof(tree->null_element));
   tree->root= &tree->null_element;
   tree->compare=compare;
   tree->size_of_element=size > 0 ? (uint) size : 0;

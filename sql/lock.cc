@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -154,8 +154,8 @@ lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
         or hold any type of lock in a session,
         since this would be a DOS attack.
       */
-      if (t->reginfo.lock_type >= TL_READ_NO_INSERT ||
-          thd->lex->sql_command == SQLCOM_LOCK_TABLES)
+      if ((t->reginfo.lock_type >= TL_READ_NO_INSERT ||
+          thd->lex->sql_command == SQLCOM_LOCK_TABLES))
       {
           my_error(ER_CANT_LOCK_RPL_INFO_TABLE, MYF(0));
           DBUG_RETURN(1);

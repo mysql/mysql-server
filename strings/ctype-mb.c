@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -695,7 +695,7 @@ my_hash_sort_mb_bin(const CHARSET_INFO *cs __attribute__((unused)),
   DESCRIPTION
       Write max key:
       - for non-Unicode character sets:
-        just bfill using max_sort_char if max_sort_char is one byte.
+        just memset using max_sort_char if max_sort_char is one byte.
         In case when max_sort_char is two bytes, fill with double-byte pairs
         and optionally pad with a single space character.
       - for Unicode character set (utf-8):
@@ -711,7 +711,7 @@ static void pad_max_char(const CHARSET_INFO *cs, char *str, char *end)
   {
     if (cs->max_sort_char <= 255)
     {
-      bfill(str, end - str, cs->max_sort_char);
+      memset(str, cs->max_sort_char, end - str);
       return;
     }
     buf[0]= cs->max_sort_char >> 8;

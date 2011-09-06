@@ -115,6 +115,9 @@ ins_node_create_entry_list(
 					      node->entry_sys_heap);
 		UT_LIST_ADD_LAST(tuple_list, node->entry_list, entry);
 
+		/* We will include all indexes (include those corrupted
+		secondary indexes) in the entry list. Filteration of
+		these corrupted index will be done in row_ins() */
 		index = dict_table_get_next_index(index);
 	}
 }
@@ -342,9 +345,9 @@ row_ins_clust_index_entry_by_modify(
 			return(DB_LOCK_TABLE_FULL);
 
 		}
-		err = btr_cur_pessimistic_update(0, cursor,
-						 heap, big_rec, update,
-						 0, thr, mtr);
+		err = btr_cur_pessimistic_update(
+			BTR_KEEP_POS_FLAG, cursor, heap, big_rec, update,
+			0, thr, mtr);
 	}
 
 	return(err);
@@ -626,7 +629,7 @@ row_ins_foreign_trx_print(
 	heap_size = mem_heap_get_size(trx->lock.lock_heap);
 	lock_mutex_exit();
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(dict_foreign_err_file);
@@ -636,7 +639,7 @@ row_ins_foreign_trx_print(
 	trx_print_low(dict_foreign_err_file, trx, 600,
 		      n_lock_rec, n_lock_struct, heap_size);
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	ut_ad(mutex_own(&dict_foreign_err_mutex));
 }
@@ -1982,6 +1985,8 @@ row_ins_index_entry_low(
 	ulint		search_mode;
 	ibool		modify			= FALSE;
 	rec_t*		insert_rec;
+	rec_t*		rec;
+	ulint*		offsets;
 	ulint		err;
 	ulint		n_unique;
 	big_rec_t*	big_rec			= NULL;
@@ -2054,7 +2059,6 @@ row_ins_index_entry_low(
 			mtr_start(&mtr);
 
 			if (err != DB_SUCCESS) {
-
 				goto function_exit;
 			}
 
@@ -2083,6 +2087,51 @@ row_ins_index_entry_low(
 			err = row_ins_clust_index_entry_by_modify(
 				mode, &cursor, &heap, &big_rec, entry,
 				thr, &mtr);
+
+			if (big_rec) {
+				ut_a(err == DB_SUCCESS);
+				/* Write out the externally stored
+				columns, but allocate the pages and
+				write the pointers using the
+				mini-transaction of the record update.
+				If any pages were freed in the update,
+				temporarily mark them allocated so
+				that off-page columns will not
+				overwrite them. We must do this,
+				because we will write the redo log for
+				the BLOB writes before writing the
+				redo log for the record update. Thus,
+				redo log application at crash recovery
+				will see BLOBs being written to free pages. */
+
+				btr_mark_freed_leaves(index, &mtr, TRUE);
+
+				rec = btr_cur_get_rec(&cursor);
+				offsets = rec_get_offsets(
+					rec, index, NULL,
+					ULINT_UNDEFINED, &heap);
+
+				err = btr_store_big_rec_extern_fields(
+					index, btr_cur_get_block(&cursor),
+					rec, offsets, big_rec, &mtr,
+					FALSE, &mtr);
+				/* If writing big_rec fails (for
+				example, because of DB_OUT_OF_FILE_SPACE),
+				the record will be corrupted. Even if
+				we did not update any externally
+				stored columns, our update could cause
+				the record to grow so that a
+				non-updated column was selected for
+				external storage. This non-update
+				would not have been written to the
+				undo log, and thus the record cannot
+				be rolled back. */
+				ut_a(err == DB_SUCCESS);
+				/* Free the pages again
+				in order to avoid a leak. */
+				btr_mark_freed_leaves(index, &mtr, FALSE);
+				goto stored_big_rec;
+			}
 		} else {
 			ut_ad(!n_ext);
 			err = row_ins_sec_index_entry_by_modify(
@@ -2111,8 +2160,6 @@ function_exit:
 	mtr_commit(&mtr);
 
 	if (UNIV_LIKELY_NULL(big_rec)) {
-		rec_t*	rec;
-		ulint*	offsets;
 		mtr_start(&mtr);
 
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
@@ -2124,8 +2171,9 @@ function_exit:
 
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(&cursor),
-			rec, offsets, &mtr, FALSE, big_rec);
+			rec, offsets, big_rec, &mtr, FALSE, NULL);
 
+stored_big_rec:
 		if (modify) {
 			dtuple_big_rec_free(big_rec);
 		} else {
@@ -2397,6 +2445,13 @@ row_ins(
 
 		node->index = dict_table_get_next_index(node->index);
 		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+
+		/* Skip corrupted secondary index and its entry */
+		while (node->index && dict_index_is_corrupted(node->index)) {
+
+			node->index = dict_table_get_next_index(node->index);
+			node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+		}
 	}
 
 	ut_ad(node->entry == NULL);

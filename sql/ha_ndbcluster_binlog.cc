@@ -1,18 +1,18 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 #include "ha_ndbcluster_glue.h"
@@ -254,17 +254,20 @@ static void dbug_print_table(const char *info, TABLE *table)
 #define dbug_print_table(a,b)
 #endif
 
+
 static inline void
-print_warning_list(const char* prefix, List<MYSQL_ERROR>& list)
+print_warning_list(const char* prefix, THD* thd)
 {
-  List_iterator_fast<MYSQL_ERROR> it(list);
-  MYSQL_ERROR *err;
+  Diagnostics_area::Sql_condition_iterator
+   it(thd->get_stmt_da()->sql_conditions());
+
+  const Sql_condition *err;
   while ((err= it++))
   {
     sql_print_warning("%s: (%d)%s",
                       prefix,
-                      MYSQL_ERROR_get_sql_errno(err),
-                      MYSQL_ERROR_get_message_text(err));
+                      err->get_sql_errno(),
+                      err->get_message_text());
   }
 }
 
@@ -1318,7 +1321,7 @@ print_could_not_discover_error(THD *thd,
                   "my_errno: %d",
                    schema->db, schema->name, schema->query,
                    schema->node_id, my_errno);
-  print_warning_list("NDB Binlog", thd_warn_list(thd));
+  print_warning_list("NDB Binlog", thd);
 }
 
 
@@ -1578,12 +1581,14 @@ ndbcluster_update_slock(THD *thd,
   }
 
   if (ndb_error)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+  {
+    char buf[1024];
+    my_snprintf(buf, sizeof(buf), "Could not release lock on '%s.%s'",
+                db, table_name);
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-                        ndb_error->code,
-                        ndb_error->message,
-                        "Could not release lock on '%s.%s'",
-                        db, table_name);
+                        ndb_error->code, ndb_error->message, buf);
+  }
   if (trans)
     ndb->closeTransaction(trans);
   ndb->setDatabaseName(save_db);
@@ -1996,7 +2001,7 @@ err:
   }
 end:
   if (ndb_error)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                         ndb_error->code,
                         ndb_error->message,
@@ -2215,7 +2220,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   if (do_close_cached_tables)
   {
     TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
+    memset(&table_list, 0, sizeof(table_list));
     table_list.db= (char *)dbname;
     table_list.alias= table_list.table_name= (char *)tabname;
     close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
@@ -2441,7 +2446,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
               ndbtab_g.invalidate();
             }
             TABLE_LIST table_list;
-            bzero((char*) &table_list,sizeof(table_list));
+            memset(&table_list, 0, sizeof(table_list));
             table_list.db= schema->db;
             table_list.alias= table_list.table_name= schema->name;
             close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
@@ -2787,7 +2792,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         }
         {
           TABLE_LIST table_list;
-          bzero((char*) &table_list,sizeof(table_list));
+          memset(&table_list, 0, sizeof(table_list));
           table_list.db= schema->db;
           table_list.alias= table_list.table_name= schema->name;
           close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
@@ -3088,8 +3093,8 @@ ndb_binlog_index_table__open(THD *thd,
       sql_print_error("NDB Binlog: Opening ndb_binlog_index: killed");
     else
       sql_print_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
-                      thd_stmt_da(thd)->sql_errno(),
-                      thd_stmt_da(thd)->message());
+                      thd->get_stmt_da()->sql_errno(),
+                      thd->get_stmt_da()->message());
     thd_proc_info(thd, save_proc_info);
     return -1;
   }
@@ -3195,9 +3200,9 @@ add_ndb_binlog_index_err:
     Explicitly commit or rollback the writes(although we normally
     use a non transactional engine for the ndb_binlog_index table)
   */
-  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-  thd->stmt_da->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
 
   // Close the tables this thread has opened
   close_thread_tables(thd);
@@ -4276,7 +4281,7 @@ err:
       default:
         abort();
     }
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_NDB_REPLICATION_SCHEMA_ERROR,
                         ER(ER_NDB_REPLICATION_SCHEMA_ERROR),
                         msg);
@@ -4288,7 +4293,7 @@ err:
     my_snprintf(msg, sizeof(msg), "Unable to retrieve %s.%s, logging and "
              "conflict resolution may not function as intended (%s)",
              ndb_rep_db, ndb_replication_table, tmp_buf);
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_ILLEGAL_HA_CREATE_OPTION,
                         ER(ER_ILLEGAL_HA_CREATE_OPTION),
                         ndbcluster_hton_name, msg);  
@@ -4297,7 +4302,7 @@ err:
   *conflict_fn_spec= NULL;
 
   if (ndberror.code && opt_ndb_extra_logging)
-    print_warning_list("NDB", thd_warn_list(thd));
+    print_warning_list("NDB", thd);
   DBUG_RETURN(ndberror.code);
 }
 
@@ -4377,7 +4382,7 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
                                  tmp_buf,
                                  sizeof(tmp_buf)) != 0)
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_CONFLICT_FN_PARSE_ERROR,
                             ER(ER_CONFLICT_FN_PARSE_ERROR),
                             tmp_buf);
@@ -4425,7 +4430,7 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
                           args,
                           num_args) != 0)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_CONFLICT_FN_PARSE_ERROR,
                           ER(ER_CONFLICT_FN_PARSE_ERROR),
                           tmp_buf);
@@ -4739,7 +4744,7 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
                       "with BLOB attribute and no PK is not supported",
                       share->key);
       if (push_warning)
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA_CREATE_OPTION,
                             ER(ER_ILLEGAL_HA_CREATE_OPTION),
                             ndbcluster_hton_name,
@@ -4799,7 +4804,7 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
         failed, print a warning
       */
       if (push_warning > 1)
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
@@ -4827,7 +4832,7 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
         dict->dropEvent(my_event.getName(), 1))
     {
       if (push_warning > 1)
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
@@ -4846,7 +4851,7 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
     if (dict->createEvent(my_event))
     {
       if (push_warning > 1)
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
@@ -4859,7 +4864,7 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
       DBUG_RETURN(-1);
     }
 #ifdef NDB_BINLOG_EXTRA_WARNINGS
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                         0, "NDB Binlog: Removed trailing event",
                         "NDB");
@@ -4981,7 +4986,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     {
       sql_print_error("NDB Binlog: Creating NdbEventOperation failed for"
                       " %s",event_name);
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                           ndb->getNdbError().code,
                           ndb->getNdbError().message,
@@ -5042,7 +5047,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
             sql_print_error("NDB Binlog: Creating NdbEventOperation"
                             " blob field %u handles failed (code=%d) for %s",
                             j, op->getNdbError().code, event_name);
-            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+            push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                                 ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                                 op->getNdbError().code,
                                 op->getNdbError().message,
@@ -5082,7 +5087,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
         retries= 0;
       if (retries == 0)
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG), 
                             op->getNdbError().code, op->getNdbError().message,
                             "NDB");
@@ -5159,7 +5164,7 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
         dict->getNdbError().code != 1419)
     {
       /* drop event failed for some reason, issue a warning */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                           dict->getNdbError().code,
                           dict->getNdbError().message, "NDB");
@@ -6649,7 +6654,7 @@ restart_cluster_failure:
           setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
         i_ndb->setReportThreshEventFreeMem(opt_ndb_report_thresh_binlog_mem_usage);
 
-        bzero((char*)&_row, sizeof(_row));
+        memset(&_row, 0, sizeof(_row));
         thd->variables.character_set_client= &my_charset_latin1;
         DBUG_PRINT("info", ("Initializing transaction"));
         inj->new_trans(thd, &trans);

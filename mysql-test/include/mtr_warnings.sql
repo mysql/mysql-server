@@ -1,3 +1,18 @@
+-- Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; version 2 of the License.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with this program; if not, write to the Free Software Foundation,
+-- 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+
 delimiter ||;
 
 use mtr||
@@ -210,6 +225,12 @@ INSERT INTO global_suppressions VALUES
    a configuration that is not crash-safe.
  */
  (".*If a crash happens this configuration does not guarantee.*"),
+
+ /*
+  In MTS if the user issues a stop slave sql while it is scheduling a group
+  of events, this warning is emitted.
+  */
+ ("Slave SQL: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),
 
  ("THE_LAST_SUPPRESSION")||
 

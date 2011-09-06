@@ -12,8 +12,11 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   --sync_slave_with_master
   --source include/stop_slave.inc
   SHOW CREATE TABLE mysql.slave_relay_log_info;
+  SHOW CREATE TABLE mysql.slave_worker_info;
   ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
+  ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
   SHOW CREATE TABLE mysql.slave_relay_log_info;
+  SHOW CREATE TABLE mysql.slave_worker_info;
   --source include/start_slave.inc
 
   connection master;
@@ -104,12 +107,13 @@ if (`SELECT HEX(@commands) != HEX('')`)
   #
   connection master;
   sync_slave_with_master;
+
   --let $slave_after= `SELECT master_log_pos FROM mysql.slave_relay_log_info`
-  connection master;
-  if ($slave_after != $master_after)
+  if (`SELECT $slave_after != $master_after`)
   {
     --echo Slave is out of sync.
     --echo MASTER_BEFORE $master_before MASTER_AFTER $master_after SLAVE_BEFORE $slave_before SLAVE_AFTER $slave_after
+    connection slave;
     --source include/show_rpl_debug_info.inc
     --die
   }

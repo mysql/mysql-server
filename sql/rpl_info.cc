@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #include <sql_priv.h>
@@ -66,15 +66,14 @@ Rpl_info::Rpl_info(const char* type
 
 Rpl_info::~Rpl_info()
 {
-  DBUG_ENTER("Rpl_info::~Rpl_info");
+  delete []uidx;
+  delete handler;
 
   mysql_mutex_destroy(&run_lock);
   mysql_mutex_destroy(&data_lock);
+  mysql_mutex_destroy(&sleep_lock);
   mysql_cond_destroy(&data_cond);
   mysql_cond_destroy(&start_cond);
   mysql_cond_destroy(&stop_cond);
-
-  delete handler;
-
-  DBUG_VOID_RETURN;
+  mysql_cond_destroy(&sleep_cond);
 }

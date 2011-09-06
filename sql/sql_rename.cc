@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -323,6 +323,10 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
       my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
       break;
   }
+
+  thd->add_to_binlog_accessed_dbs(ren_table->db);
+  thd->add_to_binlog_accessed_dbs(new_db);
+
   if (rc && !skip_error)
     DBUG_RETURN(1);
 

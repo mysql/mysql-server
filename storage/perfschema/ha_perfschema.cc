@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,10 @@
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_account.h"
+#include "pfs_host.h"
+#include "pfs_user.h"
+#include "pfs_account.h"
 
 #ifdef MY_ATOMIC_MODE_DUMMY
 /*
@@ -126,6 +130,8 @@ static struct st_mysql_show_var pfs_status_vars[]=
     (char*) &thread_class_lost, SHOW_LONG_NOFLUSH},
   {"Performance_schema_file_classes_lost",
     (char*) &file_class_lost, SHOW_LONG_NOFLUSH},
+  {"Performance_schema_socket_classes_lost",
+    (char*) &socket_class_lost, SHOW_LONG_NOFLUSH},
   {"Performance_schema_mutex_instances_lost",
     (char*) &mutex_lost, SHOW_LONG},
   {"Performance_schema_rwlock_instances_lost",
@@ -138,6 +144,8 @@ static struct st_mysql_show_var pfs_status_vars[]=
     (char*) &file_lost, SHOW_LONG},
   {"Performance_schema_file_handles_lost",
     (char*) &file_handle_lost, SHOW_LONG},
+  {"Performance_schema_socket_instances_lost",
+    (char*) &socket_lost, SHOW_LONG},
   {"Performance_schema_locker_lost",
     (char*) &locker_lost, SHOW_LONG},
   /* table shares, can be flushed */
@@ -146,6 +154,12 @@ static struct st_mysql_show_var pfs_status_vars[]=
   /* table handles, can be flushed */
   {"Performance_schema_table_handles_lost",
     (char*) &table_lost, SHOW_LONG},
+  {"Performance_schema_hosts_lost",
+    (char*) &host_lost, SHOW_LONG},
+  {"Performance_schema_users_lost",
+    (char*) &user_lost, SHOW_LONG},
+  {"Performance_schema_accounts_lost",
+    (char*) &account_lost, SHOW_LONG},
   {"Performance_schema_stage_classes_lost",
     (char*) &stage_class_lost, SHOW_LONG},
   {"Performance_schema_statement_classes_lost",

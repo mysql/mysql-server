@@ -443,7 +443,7 @@ gt:
 
 void my_xml_parser_create(MY_XML_PARSER *p)
 {
-  bzero((void*)p,sizeof(p[0]));
+  memset(p, 0, sizeof(p[0]));
 }
 
 

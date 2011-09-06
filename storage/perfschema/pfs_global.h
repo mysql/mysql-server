@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,6 +39,13 @@ void *pfs_malloc(size_t size, myf flags);
 
 /** Free memory allocated with @sa pfs_malloc. */
 void pfs_free(void *ptr);
+
+
+uint pfs_get_socket_address(char *host,
+                            uint host_len,
+                            uint *port,
+                            const struct sockaddr_storage *src_addr,
+                            socklen_t src_len);
 
 /**
   Compute a random index value in an interval.

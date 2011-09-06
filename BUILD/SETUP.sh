@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (C) 2000, 2007 MySQL AB
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -250,7 +250,7 @@ gcov_compile_flags="$gcov_compile_flags -DMYSQL_SERVER_SUFFIX=-gcov -DHAVE_gcov"
 
 gcov_link_flags="-fprofile-arcs -ftest-coverage"
 
-gcov_configs="--disable-shared"
+gcov_configs="--with-gcov"
 
 # gprof
 

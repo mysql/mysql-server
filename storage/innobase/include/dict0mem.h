@@ -51,7 +51,12 @@ combination of types */
 #define DICT_UNIQUE	2	/*!< unique index */
 #define	DICT_UNIVERSAL	4	/*!< index which can contain records from any
 				other index */
-#define	DICT_IBUF 	8	/*!< insert buffer tree */
+#define	DICT_IBUF	8	/*!< insert buffer tree */
+#define	DICT_CORRUPT	16	/*!< bit to store the corrupted flag
+				in SYS_INDEXES.TYPE */
+
+#define	DICT_IT_BITS	5	/*!< number of bits used for
+				SYS_INDEXES.TYPE */
 /* @} */
 
 /** Types for a table object */
@@ -260,14 +265,14 @@ struct dict_col_struct{
 	/** The following are copied from dtype_t,
 	so that all bit-fields can be packed tightly. */
 	/* @{ */
-	unsigned	mtype:8;	/*!< main data type */
-	unsigned	prtype:24;	/*!< precise type; MySQL data
+	unsigned	prtype:32;	/*!< precise type; MySQL data
 					type, charset code, flags to
 					indicate nullability,
 					signedness, whether this is a
 					binary string, whether this is
 					a true VARCHAR where MySQL
 					uses 2 bytes to store the length */
+	unsigned	mtype:8;	/*!< main data type */
 
 	/* the remaining fields do not affect alphabetical ordering: */
 
@@ -294,32 +299,58 @@ struct dict_col_struct{
 	unsigned	ord_part:1;	/*!< nonzero if this column
 					appears in the ordering fields
 					of an index */
+	unsigned	max_prefix:12;	/*!< maximum index prefix length on
+					this column. Our current max limit is
+					3072 for Barracuda table */
 };
 
-/** @brief DICT_MAX_INDEX_COL_LEN is measured in bytes and is the maximum
-indexed column length (or indexed prefix length).
+/** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
+is the maximum indexed column length (or indexed prefix length) in
+ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT. Also, in any format,
+any fixed-length field that is longer than this will be encoded as
+a variable-length field.
 
 It is set to 3*256, so that one can create a column prefix index on
 256 characters of a TEXT or VARCHAR column also in the UTF-8
 charset. In that charset, a character may take at most 3 bytes.  This
 constant MUST NOT BE CHANGED, or the compatibility of InnoDB data
 files would be at risk! */
-#define DICT_MAX_INDEX_COL_LEN		REC_MAX_INDEX_COL_LEN
+#define DICT_ANTELOPE_MAX_INDEX_COL_LEN	REC_ANTELOPE_MAX_INDEX_COL_LEN
+
+/** Find out maximum indexed column length by its table format.
+For ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT, the maximum
+field length is REC_ANTELOPE_MAX_INDEX_COL_LEN - 1 (767). For new
+barracuda format, the length could be REC_VERSION_56_MAX_INDEX_COL_LEN
+(3072) bytes */
+#define DICT_MAX_FIELD_LEN_BY_FORMAT(table)				\
+		((dict_table_get_format(table) < UNIV_FORMAT_B)		\
+			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
+			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+
+#define DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags)			\
+		((((flags & DICT_TF_FORMAT_MASK) >> DICT_TF_FORMAT_SHIFT)\
+		    < UNIV_FORMAT_B)					\
+			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
+			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+
+/** Defines the maximum fixed length column size */
+#define DICT_MAX_FIXED_COL_LEN		DICT_ANTELOPE_MAX_INDEX_COL_LEN
 
 /** Data structure for a field in an index */
 struct dict_field_struct{
 	dict_col_t*	col;		/*!< pointer to the table column */
 	const char*	name;		/*!< name of the column */
-	unsigned	prefix_len:10;	/*!< 0 or the length of the column
+	unsigned	prefix_len:12;	/*!< 0 or the length of the column
 					prefix in bytes in a MySQL index of
 					type, e.g., INDEX (textcol(25));
 					must be smaller than
-					DICT_MAX_INDEX_COL_LEN; NOTE that
-					in the UTF-8 charset, MySQL sets this
-					to 3 * the prefix len in UTF-8 chars */
+					DICT_MAX_FIELD_LEN_BY_FORMAT;
+					NOTE that in the UTF-8 charset, MySQL
+					sets this to (mbmaxlen * the prefix len)
+					in UTF-8 chars */
 	unsigned	fixed_len:10;	/*!< 0 or the fixed length of the
 					column if smaller than
-					DICT_MAX_INDEX_COL_LEN */
+					DICT_ANTELOPE_MAX_INDEX_COL_LEN */
 };
 
 /** Data structure for an index.  Most fields will be
@@ -335,8 +366,9 @@ struct dict_index_struct{
 				/*!< space where the index tree is placed */
 	unsigned	page:32;/*!< index tree root page number */
 #endif /* !UNIV_HOTBACKUP */
-	unsigned	type:4;	/*!< index type (DICT_CLUSTERED, DICT_UNIQUE,
-				DICT_UNIVERSAL, DICT_IBUF) */
+	unsigned	type:DICT_IT_BITS;
+				/*!< index type (DICT_CLUSTERED, DICT_UNIQUE,
+				DICT_UNIVERSAL, DICT_IBUF, DICT_CORRUPT) */
 	unsigned	trx_id_offset:10;/*!< position of the trx id column
 				in a clustered index record, if the fields
 				before it are known to be of a fixed size,
@@ -357,8 +389,6 @@ struct dict_index_struct{
 				/*!< TRUE if this index is marked to be
 				dropped in ha_innobase::prepare_drop_index(),
 				otherwise FALSE */
-	unsigned	corrupted:1;
-				/*!< TRUE if the index object is corrupted */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)

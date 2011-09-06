@@ -273,11 +273,8 @@ row_vers_impl_x_locked(
 	trx_id_t	trx_id;
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&purge_sys->latch, RW_LOCK_SHARED));
-	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!lock_mutex_own());
+	ut_ad(!mutex_own(&trx_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -557,6 +554,11 @@ row_vers_build_for_consistent_read(
 				/* The view already sees this version: we can
 				copy it to in_heap and return */
 
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+				ut_a(!rec_offs_any_null_extern(
+					     version, *offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+
 				buf = mem_heap_alloc(in_heap,
 						     rec_offs_size(*offsets));
 				*old_vers = rec_copy(buf, version, *offsets);
@@ -589,6 +591,10 @@ row_vers_build_for_consistent_read(
 
 		*offsets = rec_get_offsets(prev_version, index, *offsets,
 					   ULINT_UNDEFINED, offset_heap);
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+		ut_a(!rec_offs_any_null_extern(prev_version, *offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 		trx_id = row_get_rec_trx_id(prev_version, index, *offsets);
 
@@ -667,22 +673,26 @@ row_vers_build_for_semi_consistent_read(
 			rec_trx_id = version_trx_id;
 		}
 
-		rw_lock_s_lock(&trx_sys->lock);
+		mutex_enter(&trx_sys->mutex);
 		version_trx = trx_get_on_id(version_trx_id);
 		/* version_trx->state cannot change from or to
-		NOT_STARTED while we are holding the trx_sys->lock.
+		NOT_STARTED while we are holding the trx_sys->mutex.
 		It may change from ACTIVE to PREPARED or COMMITTED. */
 		if (version_trx
 		    && trx_state_eq(version_trx,
 				    TRX_STATE_COMMITTED_IN_MEMORY)) {
 			version_trx = NULL;
 		}
-		rw_lock_s_unlock(&trx_sys->lock);
+		mutex_exit(&trx_sys->mutex);
 
 		if (!version_trx) {
 
 			/* We found a version that belongs to a
 			committed transaction: return it. */
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+			ut_a(!rec_offs_any_null_extern(version, *offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 			if (rec == version) {
 				*old_vers = rec;
@@ -741,6 +751,9 @@ row_vers_build_for_semi_consistent_read(
 		version = prev_version;
 		*offsets = rec_get_offsets(version, index, *offsets,
 					   ULINT_UNDEFINED, offset_heap);
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+		ut_a(!rec_offs_any_null_extern(version, *offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 	}/* for (;;) */
 
 	if (heap) {
