@@ -690,7 +690,7 @@ mutex_set_debug_info(
 	ut_ad(mutex);
 	ut_ad(file_name);
 
-	sync_thread_add_level(mutex, mutex->level);
+	sync_thread_add_level(mutex, mutex->level, FALSE);
 
 	mutex->file_name = file_name;
 	mutex->line	 = line;
@@ -1133,8 +1133,9 @@ void
 sync_thread_add_level(
 /*==================*/
 	void*	latch,	/*!< in: pointer to a mutex or an rw-lock */
-	ulint	level)	/*!< in: level in the latching order; if
+	ulint	level,	/*!< in: level in the latching order; if
 			SYNC_LEVEL_VARYING, nothing is done */
+	ibool	relock)	/*!< in: TRUE if re-entering an x-lock */
 {
 	ulint		i;
 	sync_level_t*	slot;
@@ -1185,6 +1186,10 @@ sync_thread_add_level(
 
 	array = thread_slot->levels;
 
+	if (relock) {
+		goto levels_ok;
+	}
+
 	/* NOTE that there is a problem with _NODE and _LEAF levels: if the
 	B-tree height changes, then a leaf can change to an internal node
 	or the other way around. We do not know at present if this can cause
@@ -1216,7 +1221,6 @@ sync_thread_add_level(
 	case SYNC_SEARCH_SYS:
 	case SYNC_SEARCH_SYS_CONF:
 	case SYNC_THREADS:
-	case SYNC_READ_VIEW:
 	case SYNC_LOCK_SYS:
 	case SYNC_LOCK_WAIT_SYS:
 	case SYNC_TRX_SYS:
@@ -1230,6 +1234,7 @@ sync_thread_add_level(
 	case SYNC_DICT_HEADER:
 	case SYNC_TRX_I_S_RWLOCK:
 	case SYNC_TRX_I_S_LAST_READ:
+	case SYNC_IBUF_MUTEX:
 		if (!sync_thread_levels_g(array, level, TRUE)) {
 			fprintf(stderr,
 				"InnoDB: sync_thread_levels_g(array, %lu)"
@@ -1329,21 +1334,33 @@ sync_thread_add_level(
 		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1, TRUE));
 		break;
 	case SYNC_TREE_NODE_NEW:
-		ut_a(sync_thread_levels_contain(array, SYNC_FSP_PAGE)
-		     || sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
+		ut_a(sync_thread_levels_contain(array, SYNC_FSP_PAGE));
 		break;
 	case SYNC_INDEX_TREE:
-		if (sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
-		    && sync_thread_levels_contain(array, SYNC_FSP)) {
-			ut_a(sync_thread_levels_g(array, SYNC_FSP_PAGE - 1,
-						  TRUE));
-		} else {
-			ut_a(sync_thread_levels_g(array, SYNC_TREE_NODE - 1,
-						  TRUE));
-		}
+		ut_a(sync_thread_levels_g(array, SYNC_TREE_NODE - 1, TRUE));
 		break;
-	case SYNC_IBUF_MUTEX:
-		ut_a(sync_thread_levels_g(array, SYNC_FSP_PAGE - 1, TRUE));
+	case SYNC_IBUF_TREE_NODE:
+		ut_a(sync_thread_levels_contain(array, SYNC_IBUF_INDEX_TREE)
+		     || sync_thread_levels_g(array, SYNC_IBUF_TREE_NODE - 1,
+					     TRUE));
+		break;
+	case SYNC_IBUF_TREE_NODE_NEW:
+		/* ibuf_add_free_page() allocates new pages for the
+		change buffer while only holding the tablespace
+		x-latch. These pre-allocated new pages may only be
+		taken in use while holding ibuf_mutex, in
+		btr_page_alloc_for_ibuf(). */
+		ut_a(sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
+		     || sync_thread_levels_contain(array, SYNC_FSP));
+		break;
+	case SYNC_IBUF_INDEX_TREE:
+		if (sync_thread_levels_contain(array, SYNC_FSP)) {
+			ut_a(sync_thread_levels_g(
+				     array, SYNC_FSP_PAGE - 1, TRUE));
+		} else {
+			ut_a(sync_thread_levels_g(
+				     array, SYNC_IBUF_TREE_NODE - 1, TRUE));
+		}
 		break;
 	case SYNC_IBUF_PESS_INSERT_MUTEX:
 		ut_a(sync_thread_levels_g(array, SYNC_FSP - 1, TRUE));
@@ -1367,6 +1384,7 @@ sync_thread_add_level(
 		ut_error;
 	}
 
+levels_ok:
 	if (array->next_free == ULINT_UNDEFINED) {
 		ut_a(array->n_elems < array->max_elems);
 

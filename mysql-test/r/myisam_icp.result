@@ -708,7 +708,7 @@ WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
 (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using where; Using join buffer (Block Nested Loop)
 SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
 WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
 (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
@@ -805,7 +805,7 @@ OR SUBQUERY_t2.c1 = 'a'
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	col_int_key	5	NULL	2	Using where; Using index
 2	DEPENDENT SUBQUERY	SUBQUERY_t1	eq_ref	PRIMARY,col_int_key	PRIMARY	4	func	1	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	SUBQUERY_t2	ALL	col_int_key	NULL	NULL	NULL	1	Using where; Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	SUBQUERY_t2	ALL	col_int_key	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT t1.i1
 FROM t1
 WHERE t1.i1 NOT IN
@@ -868,4 +868,46 @@ i1
 1
 2
 DROP TABLE t1, t2, t3;
+#
+# Bug#12355958 "FAILING ASSERTION: TRX->LOCK.N_ACTIVE_THRS == 1"
+#
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY, 
+a INTEGER NOT NULL, 
+b CHAR(1), 
+KEY(b)
+);
+INSERT INTO t1 VALUES (23,5,'d');
+EXPLAIN SELECT a1.pk 
+FROM t1 AS a1 JOIN (SELECT * FROM t1 LIMIT 1) AS a2 ON a2.b = a1.b
+WHERE a1.a = (SELECT pk FROM t1 LIMIT 1) 
+AND (a1.a != a2.a OR a1.b IS NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+3	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	
+SELECT a1.pk 
+FROM t1 AS a1 JOIN (SELECT * FROM t1 LIMIT 1) AS a2 ON a2.b = a1.b
+WHERE a1.a = (SELECT pk FROM t1 LIMIT 1) 
+AND (a1.a != a2.a OR a1.b IS NULL);
+pk
+CREATE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN SELECT a1.pk 
+FROM v1 AS a1 JOIN (SELECT * FROM v1 LIMIT 1) AS a2 ON a2.b = a1.b
+WHERE a1.a = (SELECT pk FROM v1 LIMIT 1) 
+AND (a1.a != a2.a OR a1.b IS NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+3	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	
+SELECT a1.pk 
+FROM v1 AS a1 JOIN (SELECT * FROM v1 LIMIT 1) AS a2 ON a2.b = a1.b
+WHERE a1.a = (SELECT pk FROM v1 LIMIT 1) 
+AND (a1.a != a2.a OR a1.b IS NULL);
+pk
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# BUG#12601961 "SEGFAULT IN HANDLER::COMPARE_KEY2"
+#
 set optimizer_switch=default;

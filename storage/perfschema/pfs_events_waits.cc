@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,11 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "pfs_global.h"
+#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_user.h"
+#include "pfs_host.h"
+#include "pfs_account.h"
 #include "pfs_events_waits.h"
 #include "pfs_atomic.h"
 #include "m_string.h"
@@ -85,6 +89,9 @@ static inline void copy_events_waits(PFS_events_waits *dest,
 */
 void insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait)
 {
+  if (unlikely(events_waits_history_per_thread == 0))
+    return;
+
   uint index= thread->m_waits_history_index;
 
   /*
@@ -112,6 +119,9 @@ void insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait)
 */
 void insert_events_waits_history_long(PFS_events_waits *wait)
 {
+  if (unlikely(events_waits_history_long_size == 0))
+    return;
+
   uint index= PFS_atomic::add_u32(&events_waits_history_long_index, 1);
 
   index= index % events_waits_history_long_size;
@@ -178,6 +188,45 @@ void reset_events_waits_by_thread()
   {
     if (thread->m_lock.is_populated())
       aggregate_thread_waits(thread);
+  }
+}
+
+/** Reset table EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME data. */
+void reset_events_waits_by_account()
+{
+  PFS_account *pfs= account_array;
+  PFS_account *pfs_last= account_array + account_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+      pfs->aggregate_waits();
+  }
+}
+
+/** Reset table EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME data. */
+void reset_events_waits_by_user()
+{
+  PFS_user *pfs= user_array;
+  PFS_user *pfs_last= user_array + user_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+      pfs->aggregate_waits();
+  }
+}
+
+/** Reset table EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME data. */
+void reset_events_waits_by_host()
+{
+  PFS_host *pfs= host_array;
+  PFS_host *pfs_last= host_array + host_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+      pfs->aggregate_waits();
   }
 }
 

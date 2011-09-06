@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -80,7 +80,7 @@ can still remove old versions from the bottom of the stack. */
    -------------------------------------------------------------------
 latches?
 -------
-The contention of the trx_sys_t:::lock should be minimized. When a transaction
+The contention of the trx_sys_t::mutex should be minimized. When a transaction
 does its first insert or modify in an index, an undo log is assigned for it.
 Then we must have an x-latch to the rollback segment header.
 	When the transaction does more modifys or rolls back, the undo log is
@@ -920,7 +920,7 @@ trx_undo_add_page(
 	page_no = fseg_alloc_free_page_general(header_page + TRX_UNDO_SEG_HDR
 					       + TRX_UNDO_FSEG_HEADER,
 					       undo->top_page_no + 1, FSP_UP,
-					       TRUE, mtr);
+					       TRUE, mtr, mtr);
 
 	fil_space_release_free_extents(undo->space, n_reserved);
 
@@ -1387,8 +1387,6 @@ trx_undo_lists_init(
 /*================*/
 	trx_rseg_t*	rseg)	/*!< in: rollback segment memory object */
 {
-	ulint		page_no;
-	trx_undo_t*	undo;
 	ulint		size	= 0;
 	trx_rsegf_t*	rseg_header;
 	ulint		i;
@@ -1401,10 +1399,12 @@ trx_undo_lists_init(
 
 	mtr_start(&mtr);
 
-	rseg_header = trx_rsegf_get_new(rseg->space, rseg->zip_size,
-					rseg->page_no, &mtr);
+	rseg_header = trx_rsegf_get_new(
+		rseg->space, rseg->zip_size, rseg->page_no, &mtr);
 
 	for (i = 0; i < TRX_RSEG_N_SLOTS; i++) {
+		ulint	page_no;
+
 		page_no = trx_rsegf_get_nth_undo(rseg_header, i, &mtr);
 
 		/* In forced recovery: try to avoid operations which look
@@ -1415,8 +1415,11 @@ trx_undo_lists_init(
 		if (page_no != FIL_NULL
 		    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
 
-			undo = trx_undo_mem_create_at_db_start(rseg, i,
-							       page_no, &mtr);
+			trx_undo_t*	undo;
+
+			undo = trx_undo_mem_create_at_db_start(
+				rseg, i, page_no, &mtr);
+
 			size += undo->size;
 
 			mtr_commit(&mtr);

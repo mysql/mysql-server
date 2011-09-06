@@ -1,6 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB
-   Copyright (C) 2009 Sun Microsystems, Inc
+   Copyright (c) 2008 MySQL AB, 2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 extern PSI_mutex_key key_ss_mutex_LOCK_binlog_;
 extern PSI_cond_key key_ss_cond_COND_binlog_send_;
 #endif
+
+extern PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave;
 
 struct TranxNode {
   char             log_name_[FN_REFLEN];

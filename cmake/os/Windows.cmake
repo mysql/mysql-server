@@ -1,4 +1,4 @@
-# Copyright (C) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -120,9 +120,6 @@ ENDIF()
 LINK_LIBRARIES(ws2_32)
 # ..also for tests
 SET(CMAKE_REQUIRED_LIBRARIES ws2_32)
-
-# System checks
-SET(SIGNAL_WITH_VIO_CLOSE 1) # Something that runtime team needs
 
 # IPv6 constants appeared in Vista SDK first. We need to define them in any case if they are 
 # not in headers, to handle dual mode sockets correctly.

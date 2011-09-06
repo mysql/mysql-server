@@ -1,4 +1,5 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2010 Sun Microsystems, Inc.
+# Use is subject to license terms.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,6 +35,9 @@ SET(tests
  pfs_instr_class-oom
  pfs_instr
  pfs_instr-oom
+ pfs_account-oom
+ pfs_host-oom
+ pfs_user-oom
  pfs
 )
 FOREACH(testname ${tests})

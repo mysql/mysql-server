@@ -9,7 +9,7 @@ stat_name,
 stat_value,
 sample_size,
 stat_description
-FROM innodb.index_stats
+FROM mysql.innodb_index_stats
 WHERE
 database_name = DATABASE() AND
 table_name = 'test_innodb_stats' AND

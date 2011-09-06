@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Tests for the performance schema
 #
@@ -37,6 +37,9 @@ truncate performance_schema.table_io_waits_summary_by_index_usage;
 truncate performance_schema.table_io_waits_summary_by_table;
 truncate performance_schema.table_lock_waits_summary_by_table;
 truncate performance_schema.events_waits_summary_by_thread_by_event_name;
+truncate performance_schema.events_waits_summary_by_account_by_event_name;
+truncate performance_schema.events_waits_summary_by_user_by_event_name;
+truncate performance_schema.events_waits_summary_by_host_by_event_name;
 truncate performance_schema.events_waits_summary_global_by_event_name;
 truncate performance_schema.events_waits_history_long;
 
@@ -45,12 +48,15 @@ show variables like "performance_schema%";
 show status like "performance_schema%";
 
 echo "================== Step 1 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 # Notes about this test
@@ -65,17 +71,19 @@ echo "================== con1 connected ==================";
 # Wait for the connect to complete
 let $wait_condition=
   select count(*) = 1 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user1';
 --source include/wait_condition.inc
 
 echo "================== Step 2 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 --connection con1
@@ -107,12 +115,15 @@ echo "================== con1 marker ==================";
 --connection default
 
 echo "================== Step 3 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 # Debugging helpers
@@ -127,18 +138,20 @@ echo "================== con2 connected ==================";
 
 # Wait for the connect to complete
 let $wait_condition=
-  select count(*) = 2 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user2';
 --source include/wait_condition.inc
 
 echo "================== Step 4 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 --connection con2
@@ -170,12 +183,15 @@ echo "================== con2 marker ==================";
 --connection default
 
 echo "================== Step 5 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 connect (con3, localhost, user3, , );
@@ -186,18 +202,20 @@ echo "================== con3 connected ==================";
 
 # Wait for the connect to complete
 let $wait_condition=
-  select count(*) = 3 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user3';
 --source include/wait_condition.inc
 
 echo "================== Step 6 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 --connection con3
@@ -229,12 +247,15 @@ echo "================== con3 marker ==================";
 --connection default
 
 echo "================== Step 7 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 connect (con4, localhost, user4, , );
@@ -245,18 +266,20 @@ echo "================== con4 connected ==================";
 
 # Wait for the connect to complete
 let $wait_condition=
-  select count(*) = 4 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user4';
 --source include/wait_condition.inc
 
 echo "================== Step 8 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 --connection con4
@@ -288,12 +311,15 @@ echo "================== con4 marker ==================";
 --connection default
 
 echo "================== Step 9 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 --connection con1
@@ -308,12 +334,15 @@ echo "================== con1 marker ==================";
 --connection default
 
 echo "================== Step 10 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 --connection default
@@ -323,12 +352,15 @@ flush tables;
 echo "================== flush marker ==================";
 
 echo "================== Step 11 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 set global read_only=1;
@@ -337,72 +369,81 @@ set global read_only=0;
 echo "================== global read_only marker ==================";
 
 echo "================== Step 12 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 --disconnect con1
 
 # Wait for the disconnect to complete
 let $wait_condition=
-  select count(*) = 3 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 0 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user1';
 --source include/wait_condition.inc
 
 echo "================== con1 disconnected ==================";
 
 echo "================== Step 13 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 --disconnect con2
 
 # Wait for the disconnect to complete
 let $wait_condition=
-  select count(*) = 2 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 0 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user2';
 --source include/wait_condition.inc
 
 echo "================== con2 disconnected ==================";
 
 echo "================== Step 14 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 --disconnect con3
 
 # Wait for the disconnect to complete
 let $wait_condition=
-  select count(*) = 1 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  select count(*) = 0 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user3';
 --source include/wait_condition.inc
 
 echo "================== con3 disconnected ==================";
 
 echo "================== Step 15 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 --disconnect con4
@@ -410,19 +451,21 @@ execute dump_objects_summary;
 # Wait for the disconnect to complete
 let $wait_condition=
   select count(*) = 0 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
-  in ('user1', 'user2', 'user3', 'user4');
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user4';
 --source include/wait_condition.inc
 
 echo "================== con4 disconnected ==================";
 
 echo "================== Step 16 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 --connection default
@@ -432,12 +475,63 @@ truncate performance_schema.events_waits_summary_by_thread_by_event_name;
 echo "================== BY_THREAD truncated ==================";
 
 echo "================== Step 17 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
+execute dump_objects_summary;
+
+truncate performance_schema.events_waits_summary_by_account_by_event_name;
+
+echo "================== BY_ACCOUNT truncated ==================";
+
+echo "================== Step 18 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
+execute dump_objects_summary;
+
+truncate performance_schema.events_waits_summary_by_user_by_event_name;
+
+echo "================== BY_USER truncated ==================";
+
+echo "================== Step 19 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
+execute dump_objects_summary;
+
+truncate performance_schema.events_waits_summary_by_host_by_event_name;
+
+echo "================== BY_HOST truncated ==================";
+
+echo "================== Step 21 ==================";
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 truncate performance_schema.events_waits_summary_global_by_event_name;
@@ -445,11 +539,17 @@ truncate performance_schema.events_waits_summary_global_by_event_name;
 echo "================== GLOBAL truncated ==================";
 
 echo "================== Step 21 ==================";
-execute dump_thread;
-execute dump_global;
-execute dump_history;
-execute dump_index_io;
-execute dump_table_io;
-execute dump_table_lock;
+call dump_thread();
+execute dump_waits_account;
+execute dump_waits_user;
+execute dump_waits_host;
+execute dump_waits_global;
+execute dump_waits_history;
+execute dump_waits_index_io;
+execute dump_waits_table_io;
+execute dump_waits_table_lock;
 execute dump_objects_summary;
+
+# On test failures, may help to track the root cause
+show status like "performance_schema%";
 

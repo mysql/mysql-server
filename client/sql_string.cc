@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
@@ -237,7 +239,7 @@ bool String::copy_aligned(const char *str,uint32 arg_length, uint32 offset,
     If we add big-endian UCS-2 sometimes, this code
     will be more complicated. But it's OK for now.
   */
-  bzero((char*) Ptr, offset);
+  memset(Ptr, 0, offset);
   memcpy(Ptr + offset, str, arg_length);
   Ptr[aligned_length]=0;
   /* str_length is always >= 0 as arg_length is != 0 */
@@ -328,7 +330,7 @@ bool String::fill(uint32 max_length,char fill_char)
   {
     if (realloc(max_length))
       return TRUE;
-    bfill(Ptr+str_length,max_length-str_length,fill_char);
+    memset(Ptr+str_length, fill_char, max_length-str_length);
     str_length=max_length;
   }
   return FALSE;
@@ -465,7 +467,7 @@ bool String::append_with_prefill(const char *s,uint32 arg_length,
   t_length= full_length - arg_length;
   if (t_length > 0)
   {
-    bfill(Ptr+str_length, t_length, fill_char);
+    memset(Ptr+str_length, fill_char, t_length);
     str_length=str_length + t_length;
   }
   append(s, arg_length);

@@ -256,4 +256,19 @@ connection master;
 DROP TABLE t1;
 sync_slave_with_master;
 
+#
+# WL#5872 "avoid using global heap memory to remember autoincrement
+# values for statement-based binlog".
+#
+connection master;
+eval create table t1(a int auto_increment primary key) engine=$engine_type;
+insert into t1 values (null),(null),(1025),(null);
+sync_slave_with_master;
+select * from t1;
+let $diff_tables= master:t1, slave:t1;
+--source include/diff_tables.inc
+connection master;
+drop table t1;
+sync_slave_with_master;
+
 --source include/rpl_end.inc

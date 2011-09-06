@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,21 +88,24 @@ struct CMD_LINE
 };
 
 /**
-  Sys_var_unsigned template is used to generate Sys_var_* classes
-  for variables that represent the value as an unsigned integer.
-  They are Sys_var_uint, Sys_var_ulong, Sys_var_harows, Sys_var_ulonglong.
+  Sys_var_integer template is used to generate Sys_var_* classes
+  for variables that represent the value as a signed or unsigned integer.
+  They are Sys_var_uint, Sys_var_ulong, Sys_var_harows, Sys_var_ulonglong,
+  and Sys_var_long.
 
   An integer variable has a minimal and maximal values, and a "block_size"
   (any valid value of the variable must be divisible by the block_size).
 
   Class specific constructor arguments: min, max, block_size
-  Backing store: uint, ulong, ha_rows, ulonglong, depending on the Sys_var_*
+  Backing store: uint, ulong, ha_rows, ulonglong, long, depending on the
+  Sys_var_*
 */
-template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT>
-class Sys_var_unsigned: public sys_var
+template
+  <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED>
+class Sys_var_integer: public sys_var
 {
 public:
-  Sys_var_unsigned(const char *name_arg,
+  Sys_var_integer(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           T min_val, T max_val, T def_val, uint block_size, PolyLock *lock=0,
@@ -134,23 +137,80 @@ public:
   bool do_check(THD *thd, set_var *var)
   {
     my_bool fixed= FALSE;
-    ulonglong uv;
     longlong v;
+    ulonglong uv;
 
     v= var->value->val_int();
-    if (var->value->unsigned_flag)
-      uv= (ulonglong) v;
+    if (SIGNED) /* target variable has signed type */
+    {
+      if (var->value->unsigned_flag)
+      {
+        /*
+          Input value is such a large positive number that MySQL used an
+          unsigned item to hold it. When cast to a signed longlong, if the
+          result is negative there is "cycling" and this is incorrect (large
+          positive input value should not end up as a large negative value in
+          the session signed variable to be set); instead, we need to pick the
+          allowed number closest to the positive input value, i.e. pick the
+          biggest allowed positive integer.
+        */
+        if (v < 0)
+          uv= max_of_int_range(ARGT);
+        else /* no cycling, longlong can hold true value */
+          uv= (ulonglong) v;
+      }
+      else
+        uv= v;
+      /* This will further restrict with VALID_RANGE, BLOCK_SIZE */
+      var->save_result.ulonglong_value=
+        getopt_ll_limit_value(uv, &option, &fixed);
+    }
     else
-      uv= (ulonglong) (v < 0 ? 0 : v);
+    {
+      if (var->value->unsigned_flag)
+      {
+        /* Guaranteed positive input value, ulonglong can hold it */
+        uv= (ulonglong) v;
+      }
+      else
+      {
+        /*
+          Maybe negative input value; in this case, cast to ulonglong makes it
+          positive, which is wrong. Pick the closest allowed value i.e. 0.
+        */
+        uv= (ulonglong) (v < 0 ? 0 : v);
+      }
+      var->save_result.ulonglong_value=
+        getopt_ull_limit_value(uv, &option, &fixed);
+    }
 
-    var->save_result.ulonglong_value=
-      getopt_ull_limit_value(uv, &option, &fixed);
-
-    if (max_var_ptr() && var->save_result.ulonglong_value > *max_var_ptr())
-      var->save_result.ulonglong_value= *max_var_ptr();
+    if (max_var_ptr())
+    {
+      /* check constraint set with --maximum-...=X */
+      if (SIGNED)
+      {
+        longlong max_val= *max_var_ptr();
+        if (((longlong)(var->save_result.ulonglong_value)) > max_val)
+          var->save_result.ulonglong_value= max_val;
+        /*
+          Signed variable probably has some kind of symmetry. Then it's good
+          to limit negative values just as we limit positive values.
+        */
+        max_val= -max_val;
+        if (((longlong)(var->save_result.ulonglong_value)) < max_val)
+          var->save_result.ulonglong_value= max_val;
+      }
+      else
+      {
+        ulonglong max_val= *max_var_ptr();
+        if (var->save_result.ulonglong_value > max_val)
+          var->save_result.ulonglong_value= max_val;
+      }
+    }
 
     return throw_bounds_warning(thd, name.str,
-                                var->save_result.ulonglong_value != uv,
+                                var->save_result.ulonglong_value !=
+                                (ulonglong)v,
                                 var->value->unsigned_flag, v);
   }
   bool session_update(THD *thd, set_var *var)
@@ -177,10 +237,13 @@ public:
   }
 };
 
-typedef Sys_var_unsigned<uint, GET_UINT, SHOW_INT> Sys_var_uint;
-typedef Sys_var_unsigned<ulong, GET_ULONG, SHOW_LONG> Sys_var_ulong;
-typedef Sys_var_unsigned<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS> Sys_var_harows;
-typedef Sys_var_unsigned<ulonglong, GET_ULL, SHOW_LONGLONG> Sys_var_ulonglong;
+typedef Sys_var_integer<uint, GET_UINT, SHOW_INT, FALSE> Sys_var_uint;
+typedef Sys_var_integer<ulong, GET_ULONG, SHOW_LONG, FALSE> Sys_var_ulong;
+typedef Sys_var_integer<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS, FALSE>
+  Sys_var_harows;
+typedef Sys_var_integer<ulonglong, GET_ULL, SHOW_LONGLONG, FALSE>
+  Sys_var_ulonglong;
+typedef Sys_var_integer<long, GET_LONG, SHOW_SIGNED_LONG, TRUE> Sys_var_long;
 
 /**
   Helper class for variables that take values from a TYPELIB
@@ -1174,7 +1237,7 @@ public:
 
       // special code for storage engines (e.g. to handle historical aliases)
       if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
-        plugin= ha_resolve_by_name(thd, &pname);
+        plugin= ha_resolve_by_name(thd, &pname, FALSE);
       else
         plugin= my_plugin_lock_by_name(thd, &pname, plugin_type);
       if (!plugin)
@@ -1226,7 +1289,7 @@ public:
 
     plugin_ref plugin;
     if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
-      plugin= ha_resolve_by_name(thd, &pname);
+      plugin= ha_resolve_by_name(thd, &pname, FALSE);
     else
       plugin= my_plugin_lock_by_name(thd, &pname, plugin_type);
     DBUG_ASSERT(plugin);
@@ -1724,4 +1787,3 @@ public:
   {}
   virtual bool global_update(THD *thd, set_var *var);
 };
-

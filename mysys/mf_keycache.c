@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -457,11 +457,11 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     keycache->hash_link_root= (HASH_LINK*) ((char*) keycache->hash_root +
 				            ALIGN_SIZE((sizeof(HASH_LINK*) *
 							keycache->hash_entries)));
-    bzero((uchar*) keycache->block_root,
+    memset(keycache->block_root, 0,
 	  keycache->disk_blocks * sizeof(BLOCK_LINK));
-    bzero((uchar*) keycache->hash_root,
+    memset(keycache->hash_root, 0,
           keycache->hash_entries * sizeof(HASH_LINK*));
-    bzero((uchar*) keycache->hash_link_root,
+    memset(keycache->hash_link_root, 0,
 	  keycache->hash_links * sizeof(HASH_LINK));
     keycache->hash_links_used= 0;
     keycache->free_hash_list= NULL;
@@ -493,9 +493,9 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 		keycache->disk_blocks,  (long) keycache->block_root,
 		keycache->hash_entries, (long) keycache->hash_root,
 		keycache->hash_links,   (long) keycache->hash_link_root));
-    bzero((uchar*) keycache->changed_blocks,
+    memset(keycache->changed_blocks, 0,
 	  sizeof(keycache->changed_blocks[0]) * CHANGED_BLOCKS_HASH);
-    bzero((uchar*) keycache->file_blocks,
+    memset(keycache->file_blocks, 0,
 	  sizeof(keycache->file_blocks[0]) * CHANGED_BLOCKS_HASH);
   }
   else

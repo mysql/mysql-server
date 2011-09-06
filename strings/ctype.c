@@ -290,7 +290,7 @@ typedef struct my_cs_file_info
 static void
 my_charset_file_reset_charset(MY_CHARSET_FILE *i)
 {
- bzero(&i->cs, sizeof(i->cs));
+  memset(&i->cs, 0, sizeof(i->cs));
 }
 
 

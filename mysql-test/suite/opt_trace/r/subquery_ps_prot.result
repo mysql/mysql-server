@@ -1,0 +1,600 @@
+SET optimizer_trace_max_mem_size=1048576;
+SET optimizer_trace="enabled=on,end_marker=on,one_line=off";
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t2 VALUES (1,7),(2,7);
+# Subselect execute is traced every time it is executed
+SET @@optimizer_trace_features="greedy_search=off,repeated_subselect=on";
+SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2;
+(SELECT a FROM t1 WHERE t1.a=t2.a)	a
+NULL	1
+2	2
+
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`a`)"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "expanded_query": "/* select#1 */ select (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) AS `(SELECT a FROM t1 WHERE t1.a=t2.a)`,`test`.`t2`.`a` AS `a` from `test`.`t2`"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "records_estimation": [
+              {
+                "database": "test",
+                "table": "t2",
+                "table_scan": {
+                  "records": 2,
+                  "cost": 2
+                } /* table_scan */
+              }
+            ] /* records_estimation */
+          },
+          {
+            "considered_execution_plans": "..."
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "database": "test",
+                  "table": "t2",
+                  "attached": null
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "database": "test",
+                "table": "t2",
+                "scan_type": "table"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "subselect_execution": {
+              "select#": 2,
+              "steps": [
+                {
+                  "join_optimization": {
+                    "select#": 2,
+                    "steps": [
+                      {
+                        "condition_processing": {
+                          "condition": "WHERE",
+                          "original_condition": "(`test`.`t1`.`a` = `test`.`t2`.`a`)",
+                          "steps": [
+                            {
+                              "transformation": "equality_propagation",
+                              "resulting_condition": "(`test`.`t1`.`a` = `test`.`t2`.`a`)"
+                            },
+                            {
+                              "transformation": "constant_propagation",
+                              "resulting_condition": "(`test`.`t1`.`a` = `test`.`t2`.`a`)"
+                            },
+                            {
+                              "transformation": "trivial_condition_removal",
+                              "resulting_condition": "(`test`.`t1`.`a` = `test`.`t2`.`a`)"
+                            }
+                          ] /* steps */
+                        } /* condition_processing */
+                      },
+                      {
+                        "ref_optimizer_key_uses": [
+                        ] /* ref_optimizer_key_uses */
+                      },
+                      {
+                        "records_estimation": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "records": 1,
+                            "cost": 1,
+                            "table_type": "system"
+                          }
+                        ] /* records_estimation */
+                      },
+                      {
+                        "attaching_conditions_to_tables": {
+                          "original_condition": "('2' = `test`.`t2`.`a`)",
+                          "attached_conditions_computation": [
+                          ] /* attached_conditions_computation */,
+                          "attached_conditions_summary": [
+                          ] /* attached_conditions_summary */
+                        } /* attaching_conditions_to_tables */
+                      },
+                      {
+                        "refine_plan": [
+                        ] /* refine_plan */
+                      }
+                    ] /* steps */
+                  } /* join_optimization */
+                },
+                {
+                  "join_execution": {
+                    "select#": 2,
+                    "steps": [
+                    ] /* steps */
+                  } /* join_execution */
+                }
+              ] /* steps */
+            } /* subselect_execution */
+          },
+          {
+            "subselect_execution": {
+              "select#": 2,
+              "steps": [
+                {
+                  "join_execution": {
+                    "select#": 2,
+                    "steps": [
+                    ] /* steps */
+                  } /* join_execution */
+                }
+              ] /* steps */
+            } /* subselect_execution */
+          }
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+
+# Subselect execute is traced only the first time it is executed
+SET @@optimizer_trace_features="greedy_search=off,repeated_subselect=off";
+SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2;
+(SELECT a FROM t1 WHERE t1.a=t2.a)	a
+NULL	1
+2	2
+
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`a`)"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "expanded_query": "/* select#1 */ select (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) AS `(SELECT a FROM t1 WHERE t1.a=t2.a)`,`test`.`t2`.`a` AS `a` from `test`.`t2`"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "records_estimation": [
+              {
+                "database": "test",
+                "table": "t2",
+                "table_scan": {
+                  "records": 2,
+                  "cost": 2
+                } /* table_scan */
+              }
+            ] /* records_estimation */
+          },
+          {
+            "considered_execution_plans": "..."
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "database": "test",
+                  "table": "t2",
+                  "attached": null
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "database": "test",
+                "table": "t2",
+                "scan_type": "table"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "subselect_execution": {
+              "select#": 2,
+              "steps": [
+                {
+                  "join_optimization": {
+                    "select#": 2,
+                    "steps": [
+                      {
+                        "condition_processing": {
+                          "condition": "WHERE",
+                          "original_condition": "(`test`.`t1`.`a` = `test`.`t2`.`a`)",
+                          "steps": [
+                            {
+                              "transformation": "equality_propagation",
+                              "resulting_condition": "(`test`.`t1`.`a` = `test`.`t2`.`a`)"
+                            },
+                            {
+                              "transformation": "constant_propagation",
+                              "resulting_condition": "(`test`.`t1`.`a` = `test`.`t2`.`a`)"
+                            },
+                            {
+                              "transformation": "trivial_condition_removal",
+                              "resulting_condition": "(`test`.`t1`.`a` = `test`.`t2`.`a`)"
+                            }
+                          ] /* steps */
+                        } /* condition_processing */
+                      },
+                      {
+                        "ref_optimizer_key_uses": [
+                        ] /* ref_optimizer_key_uses */
+                      },
+                      {
+                        "records_estimation": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "records": 1,
+                            "cost": 1,
+                            "table_type": "system"
+                          }
+                        ] /* records_estimation */
+                      },
+                      {
+                        "attaching_conditions_to_tables": {
+                          "original_condition": "('2' = `test`.`t2`.`a`)",
+                          "attached_conditions_computation": [
+                          ] /* attached_conditions_computation */,
+                          "attached_conditions_summary": [
+                          ] /* attached_conditions_summary */
+                        } /* attaching_conditions_to_tables */
+                      },
+                      {
+                        "refine_plan": [
+                        ] /* refine_plan */
+                      }
+                    ] /* steps */
+                  } /* join_optimization */
+                },
+                {
+                  "join_execution": {
+                    "select#": 2,
+                    "steps": [
+                    ] /* steps */
+                  } /* join_execution */
+                }
+              ] /* steps */
+            } /* subselect_execution */
+          }
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+
+DROP TABLE t1,t2;
+SET @@optimizer_trace_features="default";
+CREATE TABLE t1 (a FLOAT(5,4) zerofill);
+CREATE TABLE t2 (a FLOAT(5,4),b FLOAT(2,0));
+SELECT t1.a
+FROM t1
+WHERE t1.a= (SELECT b FROM t2 LIMIT 1) AND NOT
+t1.a= (SELECT a FROM t2 LIMIT 1) ;
+a
+
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT t1.a
+FROM t1
+WHERE t1.a= (SELECT b FROM t2 LIMIT 1) AND NOT
+t1.a= (SELECT a FROM t2 LIMIT 1)	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` limit 1"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "join_preparation": {
+              "select#": 3,
+              "steps": [
+                {
+                  "expanded_query": "/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` limit 1"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "expanded_query": "/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = (/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` limit 1)) and (`test`.`t1`.`a` <> (/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` limit 1)))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`test`.`t1`.`a` = (/* select#2 */ select `test`.`t2`.`b` from `test`.`t2` limit 1)) and (`test`.`t1`.`a` <> (/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` limit 1)))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "subselect_equality_propagation": [
+                    {
+                      "subselect_execution": {
+                        "select#": 2,
+                        "steps": [
+                          {
+                            "join_optimization": {
+                              "select#": 2,
+                              "steps": [
+                                {
+                                  "records_estimation": [
+                                    {
+                                      "database": "test",
+                                      "table": "t2",
+                                      "records": 1,
+                                      "cost": 1,
+                                      "table_type": "system"
+                                    }
+                                  ] /* records_estimation */
+                                }
+                              ] /* steps */,
+                              "empty_result": {
+                                "cause": "no matching row in const table"
+                              } /* empty_result */
+                            } /* join_optimization */
+                          },
+                          {
+                            "join_execution": {
+                              "select#": 2,
+                              "steps": [
+                              ] /* steps */
+                            } /* join_execution */
+                          }
+                        ] /* steps */
+                      } /* subselect_execution */
+                    },
+                    {
+                      "subselect_execution": {
+                        "select#": 2,
+                        "steps": [
+                        ] /* steps */
+                      } /* subselect_execution */
+                    }
+                  ] /* subselect_equality_propagation */,
+                  "resulting_condition": "((NULL <> (/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` limit 1)) and multiple equal((/* select#2 */ select NULL from `test`.`t2` limit 1), `test`.`t1`.`a`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "subselect_constant_propagation": [
+                  ] /* subselect_constant_propagation */,
+                  "resulting_condition": "((NULL <> (/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` limit 1)) and multiple equal((/* select#2 */ select NULL from `test`.`t2` limit 1), `test`.`t1`.`a`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "subselect_cond_removal": [
+                  ] /* subselect_cond_removal */,
+                  "resulting_condition": null
+                }
+              ] /* steps */
+            } /* condition_processing */
+          }
+        ] /* steps */,
+        "empty_result": {
+          "cause": "Impossible WHERE"
+        } /* empty_result */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+
+SELECT 1 FROM DUAL
+WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE a = 50 AND b = 3);
+1
+1
+
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT 1 FROM DUAL
+WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE a = 50 AND b = 3)	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a` = 50) and (`test`.`t2`.`b` = 3))"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "expanded_query": "/* select#1 */ select 1 AS `1` from DUAL  where (not(exists(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a` = 50) and (`test`.`t2`.`b` = 3)))))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(not(exists(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a` = 50) and (`test`.`t2`.`b` = 3)))))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "subselect_equality_propagation": [
+                  ] /* subselect_equality_propagation */,
+                  "resulting_condition": "(not(exists(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a` = 50) and (`test`.`t2`.`b` = 3)))))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "subselect_constant_propagation": [
+                  ] /* subselect_constant_propagation */,
+                  "resulting_condition": "(not(exists(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a` = 50) and (`test`.`t2`.`b` = 3)))))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "subselect_cond_removal": [
+                    {
+                      "subselect_execution": {
+                        "select#": 2,
+                        "steps": [
+                          {
+                            "join_optimization": {
+                              "select#": 2,
+                              "steps": [
+                                {
+                                  "condition_processing": {
+                                    "condition": "WHERE",
+                                    "original_condition": "((`test`.`t2`.`a` = 50) and (`test`.`t2`.`b` = 3))",
+                                    "steps": [
+                                      {
+                                        "transformation": "equality_propagation",
+                                        "resulting_condition": "((`test`.`t2`.`a` = 50) and (`test`.`t2`.`b` = 3))"
+                                      },
+                                      {
+                                        "transformation": "constant_propagation",
+                                        "resulting_condition": "((`test`.`t2`.`a` = 50) and (`test`.`t2`.`b` = 3))"
+                                      },
+                                      {
+                                        "transformation": "trivial_condition_removal",
+                                        "resulting_condition": "((`test`.`t2`.`a` = 50) and (`test`.`t2`.`b` = 3))"
+                                      }
+                                    ] /* steps */
+                                  } /* condition_processing */
+                                },
+                                {
+                                  "ref_optimizer_key_uses": [
+                                  ] /* ref_optimizer_key_uses */
+                                },
+                                {
+                                  "records_estimation": [
+                                    {
+                                      "database": "test",
+                                      "table": "t2",
+                                      "records": 1,
+                                      "cost": 1,
+                                      "table_type": "system"
+                                    }
+                                  ] /* records_estimation */
+                                }
+                              ] /* steps */,
+                              "empty_result": {
+                                "cause": "no matching row in const table"
+                              } /* empty_result */
+                            } /* join_optimization */
+                          },
+                          {
+                            "join_execution": {
+                              "select#": 2,
+                              "steps": [
+                              ] /* steps */
+                            } /* join_execution */
+                          }
+                        ] /* steps */
+                      } /* subselect_execution */
+                    }
+                  ] /* subselect_cond_removal */,
+                  "resulting_condition": null
+                }
+              ] /* steps */
+            } /* condition_processing */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+
+DROP TABLE t1,t2;

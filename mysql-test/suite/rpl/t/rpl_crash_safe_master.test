@@ -168,7 +168,6 @@ CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 
 -- echo # Test case3: Set DEBUG POINT in the middle of binlog to
 -- echo #             make the master crash for transaction.
-SET SESSION debug="d,half_binlogged_transaction";
 BEGIN;
 let $rows= 24;
 WHILE($rows)
@@ -178,6 +177,7 @@ WHILE($rows)
 }
 # Write file to make mysql-test-run.pl expect crash and restart
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+SET SESSION debug="d,half_binlogged_transaction";
 # Run the crashing query
 -- error 2013
 COMMIT;
@@ -199,12 +199,12 @@ SELECT COUNT(*) FROM t1;
 
 -- echo # Test case4: Set DEBUG POINT in the middle of binlog to
 -- echo #             make the master crash for non-transaction.
-SET SESSION debug="d,half_binlogged_transaction";
-# Write file to make mysql-test-run.pl expect crash and restart
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
 -- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
+# Write file to make mysql-test-run.pl expect crash and restart
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+SET SESSION debug="d,half_binlogged_transaction";
 -- error 2013
 INSERT INTO t2 (a) VALUES (REPEAT('a',16384));
 

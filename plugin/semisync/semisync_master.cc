@@ -1,5 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc
+   Copyright (c) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -607,7 +608,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     struct timespec start_ts;
     struct timespec abstime;
     int wait_result;
-    const char *old_msg= 0;
+    PSI_stage_info old_stage;
 
     set_timespec(start_ts, 0);
 
@@ -615,8 +616,9 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     lock();
 
     /* This must be called after acquired the lock */
-    old_msg= thd_enter_cond(NULL, &COND_binlog_send_, &LOCK_binlog_,
-                            "Waiting for semi-sync ACK from slave");
+    THD_ENTER_COND(NULL, &COND_binlog_send_, &LOCK_binlog_,
+                   & stage_waiting_for_semi_sync_ack_from_slave,
+                   & old_stage);
 
     /* This is the real check inside the mutex. */
     if (!getMasterEnabled() || !is_on())
@@ -762,7 +764,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
     /* The lock held will be released by thd_exit_cond, so no need to
        call unlock() here */
-    thd_exit_cond(NULL, old_msg);
+    THD_EXIT_COND(NULL, & old_stage);
   }
 
   return function_exit(kWho, 0);

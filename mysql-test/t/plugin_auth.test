@@ -6,6 +6,12 @@ CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password su
 query_vertical SELECT PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
   FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';
 
+SET @old_log_output=          @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+
+SET GLOBAL log_output =       'TABLE';
+SET GLOBAL general_log=       'ON';
+
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 
@@ -299,9 +305,15 @@ connection default;
 --echo # in connection default
 disconnect plug_con;
 
+--echo WL#5706 -- show the above got logged/rewritten correctly
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('% IDENTIFIED ','WITH%');
+
 --echo ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
+
+SET GLOBAL log_output=  @old_log_output;
+SET GLOBAL general_log= @old_general_log;
 --echo ## END @@external_user tests
 
 --echo #
@@ -511,6 +523,36 @@ SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
   WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
     COLUMN_NAME IN ('plugin', 'authentication_string')
   ORDER BY COLUMN_NAME;
+
+
+--echo #
+--echo # Bug #12610784: SET PASSWORD INCORRECTLY KEEP AN OLD EMPTY PASSWORD
+--echo #
+
+CREATE USER bug12610784@localhost; 
+SET PASSWORD FOR bug12610784@localhost = PASSWORD('secret');
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(b12610784,localhost,bug12610784,,test);
+--enable_query_log
+connect(b12610784,localhost,bug12610784,secret,test);
+connection default;
+disconnect b12610784;
+DROP USER bug12610784@localhost;
+
+
+--echo #
+--echo # Bug # 11766641: 59792: BIN/MYSQL -UUNKNOWN -PUNKNOWN 
+--echo #  .-> USING PASSWORD: NO 
+--echo #
+
+--echo # shoud contain "using password=yes"
+--error 1
+--exec $MYSQL -uunknown -punknown 2>&1
+
+--echo # shoud contain "using password=no"
+--error 1
+--exec $MYSQL -uunknown 2>&1
 
 
 --echo End of 5.5 tests

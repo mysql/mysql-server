@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef RPL_INFO_H
 #define RPL_INFO_H
@@ -25,7 +25,8 @@ enum enum_info_repository
 {
   INVALID_INFO_REPOSITORY= -1,
   INFO_REPOSITORY_FILE= 0,
-  INFO_REPOSITORY_TABLE= 1
+  INFO_REPOSITORY_TABLE= 1,
+  INFO_REPOSITORY_DUMMY
 };
 
 class Rpl_info : public Slave_reporting_capability
@@ -55,6 +56,16 @@ public:
 #endif
 
   THD *info_thd;
+
+/**
+  Defines the fields that are used as primary keys in a table.
+*/
+  ulong *uidx;
+
+/**
+  The number of fields that are used as primary keys in a table.
+*/
+  uint nidx;
 
   bool inited;
   volatile bool abort_slave;
@@ -107,12 +118,12 @@ public:
 
   int check_info()
   {
-    return (handler->check_info());
+    return (handler->check_info(uidx, nidx));
   }
 
   int remove_info()
   {
-    return (handler->remove_info());
+    return (handler->remove_info(uidx, nidx));
   }
 
   bool is_transactional()
@@ -125,6 +136,12 @@ public:
     return (handler->update_is_transactional());
   }
 
+  void set_idx_info(ulong *param_uidx, uint param_nidx)
+  {
+    uidx= param_uidx;
+    nidx= param_nidx;
+  }
+
   char *get_description_info()
   {
     return (handler->get_description_info());
@@ -132,7 +149,7 @@ public:
 
   bool copy_info(Rpl_info_handler *from, Rpl_info_handler *to)
   {
-    if (read_info(from) || write_info(to, TRUE))
+    if (read_info(from) || write_info(to))
       return(TRUE);
 
     return(FALSE);
@@ -140,7 +157,6 @@ public:
 
 protected:
   Rpl_info_handler *handler;
-
   uint rpl_info_type;
 
   Rpl_info(const char* type
@@ -157,7 +173,7 @@ protected:
 
 private:
   virtual bool read_info(Rpl_info_handler *from)= 0;
-  virtual bool write_info(Rpl_info_handler *to, bool force)= 0;
+  virtual bool write_info(Rpl_info_handler *to)= 0;
 
   Rpl_info(const Rpl_info& info);
   Rpl_info& operator=(const Rpl_info& info);

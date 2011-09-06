@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,11 +29,13 @@ void test_no_registration()
   PFS_sync_key key;
   PFS_thread_key thread_key;
   PFS_file_key file_key;
+  PFS_socket_key socket_key;
   PFS_mutex_class *mutex;
   PFS_rwlock_class *rwlock;
   PFS_cond_class *cond;
   PFS_thread_class *thread;
   PFS_file_class *file;
+  PFS_socket_class *socket;
   /* PFS_table_share *table; */
 
   rc= init_sync_class(0, 0, 0);
@@ -42,6 +44,8 @@ void test_no_registration()
   ok(rc == 0, "zero init (thread)");
   rc= init_file_class(0);
   ok(rc == 0, "zero init (file)");
+  rc= init_socket_class(0);
+  ok(rc == 0, "zero init (socket)");
   rc= init_table_share(0);
   ok(rc == 0, "zero init (table)");
 
@@ -80,10 +84,17 @@ void test_no_registration()
   file_key= register_file_class("FOO", 3, 0);
   ok(file_key == 0, "no file registered");
 
+  socket_key= register_socket_class("FOO", 3, 0);
+  ok(socket_key == 0, "no socket registered");
+  socket_key= register_socket_class("BAR", 3, 0);
+  ok(socket_key == 0, "no socket registered");
+  socket_key= register_socket_class("FOO", 3, 0);
+  ok(socket_key == 0, "no socket registered");
+
+#ifdef LATER
   PFS_thread fake_thread;
   fake_thread.m_table_share_hash_pins= NULL;
 
-#ifdef LATER
   table= find_or_create_table_share(& fake_thread, false, "foo_db", 6, "foo_table", 9);
   ok(table == NULL, "not created");
   table= find_or_create_table_share(& fake_thread, false, "bar_db", 6, "bar_table", 9);
@@ -127,9 +138,17 @@ void test_no_registration()
   file= find_file_class(9999);
   ok(file == NULL, "no file key 9999");
 
+  socket= find_socket_class(0);
+  ok(socket == NULL, "no socket key 0");
+  socket= find_socket_class(1);
+  ok(socket == NULL, "no socket key 1");
+  socket= find_socket_class(9999);
+  ok(socket == NULL, "no socket key 9999");
+
   cleanup_sync_class();
   cleanup_thread_class();
   cleanup_file_class();
+  cleanup_socket_class();
   cleanup_table_share();
 }
 
@@ -348,6 +367,53 @@ void test_file_registration()
   cleanup_file_class();
 }
 
+void test_socket_registration()
+{
+  int rc;
+  PFS_socket_key key;
+  PFS_socket_class *socket;
+
+  rc= init_socket_class(5);
+  ok(rc == 0, "room for 5 socket");
+
+  key= register_socket_class("FOO", 3, 0);
+  ok(key == 1, "foo registered");
+  key= register_socket_class("BAR", 3, 0);
+  ok(key == 2, "bar registered");
+  key= register_socket_class("FOO", 3, 0);
+  ok(key == 1, "foo re registered");
+  key= register_socket_class("Socket-3", 8, 0);
+  ok(key == 3, "Socket-3 registered");
+  key= register_socket_class("Socket-4", 8, 0);
+  ok(key == 4, "Socket-4 registered");
+  key= register_socket_class("Socket-5", 8, 0);
+  ok(key == 5, "Socket-5 registered");
+  ok(socket_class_lost == 0, "lost nothing");
+  key= register_socket_class("Socket-6", 8, 0);
+  ok(key == 0, "Socket-6 not registered");
+  ok(socket_class_lost == 1, "lost 1 socket");
+  key= register_socket_class("Socket-7", 8, 0);
+  ok(key == 0, "Socket-7 not registered");
+  ok(socket_class_lost == 2, "lost 2 socket");
+  key= register_socket_class("Socket-3", 8, 0);
+  ok(key == 3, "Socket-3 re registered");
+  ok(socket_class_lost == 2, "lost 2 socket");
+  key= register_socket_class("Socket-5", 8, 0);
+  ok(key == 5, "Socket-5 re registered");
+  ok(socket_class_lost == 2, "lost 2 socket");
+
+  socket= find_socket_class(0);
+  ok(socket == NULL, "no key 0");
+  socket= find_socket_class(3);
+  ok(socket != NULL, "found key 3");
+  ok(strncmp(socket->m_name, "Socket-3", 8) == 0, "key 3 is Socket-3");
+  ok(socket->m_name_length == 8, "name length 3");
+  socket= find_socket_class(9999);
+  ok(socket == NULL, "no key 9999");
+
+  cleanup_socket_class();
+}
+
 void test_table_registration()
 {
 #ifdef LATER
@@ -441,6 +507,7 @@ void test_instruments_reset()
   int rc;
   PFS_sync_key key;
   PFS_file_key file_key;
+  PFS_socket_key socket_key;
   PFS_mutex_class *mutex_1;
   PFS_mutex_class *mutex_2;
   PFS_mutex_class *mutex_3;
@@ -453,6 +520,9 @@ void test_instruments_reset()
   PFS_file_class *file_1;
   PFS_file_class *file_2;
   PFS_file_class *file_3;
+  PFS_socket_class *socket_1;
+  PFS_socket_class *socket_2;
+  PFS_socket_class *socket_3;
 
   rc= init_sync_class(3, 3, 3);
   ok(rc == 0, "init (sync)");
@@ -460,6 +530,8 @@ void test_instruments_reset()
   ok(rc == 0, "init (thread)");
   rc= init_file_class(3);
   ok(rc == 0, "init (file)");
+  rc= init_socket_class(3);
+  ok(rc == 0, "init (socket)");
 
   key= register_mutex_class("M-1", 3, 0);
   ok(key == 1, "mutex registered");
@@ -489,6 +561,13 @@ void test_instruments_reset()
   file_key= register_file_class("F-3", 3, 0);
   ok(file_key == 3, "file registered");
 
+  socket_key= register_socket_class("S-1", 3, 0);
+  ok(socket_key == 1, "socket registered");
+  socket_key= register_socket_class("S-2", 3, 0);
+  ok(socket_key == 2, "socket registered");
+  socket_key= register_socket_class("S-3", 3, 0);
+  ok(socket_key == 3, "socket registered");
+
   mutex_1= find_mutex_class(1);
   ok(mutex_1 != NULL, "mutex key 1");
   mutex_2= find_mutex_class(2);
@@ -516,6 +595,13 @@ void test_instruments_reset()
   ok(file_2 != NULL, "file key 2");
   file_3= find_file_class(3);
   ok(file_3 != NULL, "file key 3");
+
+  socket_1= find_socket_class(1);
+  ok(socket_1 != NULL, "socket key 1");
+  socket_2= find_socket_class(2);
+  ok(socket_2 != NULL, "socket key 2");
+  socket_3= find_socket_class(3);
+  ok(socket_3 != NULL, "socket key 3");
 
 #ifdef LATER
   set_wait_stat(mutex_1);
@@ -562,6 +648,7 @@ void test_instruments_reset()
 
   cleanup_sync_class();
   cleanup_file_class();
+  cleanup_socket_class();
 }
 
 void do_all_tests()
@@ -574,6 +661,7 @@ void do_all_tests()
   test_cond_registration();
   test_thread_registration();
   test_file_registration();
+  test_socket_registration();
   test_table_registration();
   test_instruments_reset();
 
@@ -582,7 +670,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(146);
+  plan(181);
   MY_INIT("pfs_instr_info-t");
   do_all_tests();
   return 0;

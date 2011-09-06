@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1008,7 +1008,7 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
       ds_control->ds_action= (st_debug_sync_action*) new_action;
       ds_control->ds_allocated= new_alloc;
       /* Clear memory as we do not run string constructors here. */
-      bzero((uchar*) (ds_control->ds_action + dsp_idx),
+      memset((ds_control->ds_action + dsp_idx), 0,
             (new_alloc - dsp_idx) * sizeof(st_debug_sync_action));
     }
     DBUG_PRINT("debug_sync", ("added action idx: %u", dsp_idx));
@@ -1395,7 +1395,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str)
 
   /*
     Now check for actions that define a new action.
-    Initialize action. Do not use bzero(). Strings may have malloced.
+    Initialize action. Do not use memset(). Strings may have malloced.
   */
   action->activation_count= 0;
   action->hit_limit= 0;
@@ -1785,7 +1785,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
                         sig_wait, sig_glob, error));});
         if (error == ETIMEDOUT || error == ETIME)
         {
-          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                        ER_DEBUG_SYNC_TIMEOUT, ER(ER_DEBUG_SYNC_TIMEOUT));
           break;
         }

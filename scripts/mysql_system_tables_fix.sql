@@ -1,4 +1,4 @@
--- Copyright (C) 2003, 2010 Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -679,3 +679,6 @@ ALTER TABLE ndb_binlog_index
 # changes was correct
 
 flush privileges;
+
+ALTER TABLE slave_master_info ADD Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)';
+ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files';

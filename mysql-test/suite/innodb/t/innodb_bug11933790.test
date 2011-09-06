@@ -4,7 +4,6 @@
 #
 
 -- source include/have_innodb.inc
--- source suite/innodb/include/innodb_stats_bootstrap.inc
 
 call mtr.add_suppression("InnoDB: Error while trying to save table statistics for table .+bug11933790: Lock wait timeout");
 
@@ -16,13 +15,13 @@ SET SESSION innodb_analyze_is_persistent=1;
 
 CREATE TABLE bug11933790 (c INT) ENGINE=INNODB;
 
-# add some records to innodb.table_stats
+# add some records to mysql.innodb_table_stats
 ANALYZE TABLE bug11933790;
 
 SET autocommit=0;
 
-# lock the records in innodb.table_stats
-SELECT * FROM innodb.table_stats FOR UPDATE;
+# lock the records in mysql.innodb_table_stats
+SELECT * FROM mysql.innodb_table_stats FOR UPDATE;
 
 -- connect (con1,localhost,root,,)
 
@@ -45,4 +44,3 @@ ANALYZE TABLE bug11933790;
 COMMIT;
 
 DROP TABLE bug11933790;
-DROP DATABASE innodb;

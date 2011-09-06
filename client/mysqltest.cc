@@ -22,13 +22,6 @@
   http://dev.mysql.com/doc/mysqltest/en/index.html
 
   Please keep the test framework tools identical in all versions!
-
-  Written by:
-  Sasha Pachev <sasha@mysql.com>
-  Matt Wagner  <matt@mysql.com>
-  Monty
-  Jani
-  Holyfoot
 */
 
 #define MTEST_VERSION "3.3"
@@ -90,7 +83,8 @@ enum {
   OPT_PS_PROTOCOL=OPT_MAX_CLIENT_OPTION, OPT_SP_PROTOCOL,
   OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS, OPT_LOG_DIR,
-  OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, OPT_EXPLAIN_PROTOCOL
+  OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, OPT_TRACE_PROTOCOL,
+  OPT_EXPLAIN_PROTOCOL
 };
 
 static int record= 0, opt_sleep= -1;
@@ -110,6 +104,7 @@ static my_bool opt_mark_progress= 0;
 static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
 static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
+static my_bool opt_trace_protocol= 0, opt_trace_protocol_enabled= 0;
 static my_bool explain_protocol= 0, explain_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static my_bool parsing_disabled= 0;
@@ -201,6 +196,9 @@ static char *opt_plugin_dir= 0;
 static my_regex_t ps_re;     /* the query can be run using PS protocol */
 static my_regex_t sp_re;     /* the query can be run as a SP */
 static my_regex_t view_re;   /* the query can be run as a view*/
+/* the query can be traced with optimizer trace*/
+static my_regex_t opt_trace_re;
+static my_regex_t explain_re;/* the query can be converted to EXPLAIN */
 
 static void init_re(void);
 static int match_re(my_regex_t *, char *);
@@ -505,6 +503,7 @@ void str_to_file(const char *fname, char *str, int size);
 void str_to_file2(const char *fname, char *str, int size, my_bool append);
 
 void fix_win_paths(const char *val, int len);
+const char *get_errname_from_code (uint error_code);
 
 #ifdef __WIN__
 void free_tmp_sh_file();
@@ -542,7 +541,7 @@ class LogFile {
   size_t m_bytes_written;
 public:
   LogFile() : m_file(NULL), m_bytes_written(0) {
-    bzero(m_file_name, sizeof(m_file_name));
+    memset(m_file_name, 0, sizeof(m_file_name));
   }
 
   ~LogFile() {
@@ -2274,6 +2273,7 @@ void var_set_int(const char* name, int value)
 void var_set_errno(int sql_errno)
 {
   var_set_int("$mysql_errno", sql_errno);
+  var_set_string("$mysql_errname", get_errname_from_code(sql_errno));
 }
 
 
@@ -4608,8 +4608,7 @@ void do_shutdown_server(struct st_command *command)
 }
 
 
-#if MYSQL_VERSION_ID >= 50000
-/* List of error names to error codes, available from 5.0 */
+/* List of error names to error codes */
 typedef struct
 {
   const char *name;
@@ -4619,6 +4618,7 @@ typedef struct
 
 static st_error global_error_names[] =
 {
+  { "<No error>", -1, "" },
 #include <mysqld_ername.h>
   { 0, 0, 0 }
 };
@@ -4649,16 +4649,28 @@ uint get_errcode_from_name(char *error_name, char *error_end)
     die("Unknown SQL error name '%s'", error_name);
   DBUG_RETURN(0);
 }
-#else
-uint get_errcode_from_name(char *error_name __attribute__((unused)),
-                           char *error_end __attribute__((unused)))
+
+const char *get_errname_from_code (uint error_code)
 {
-  abort_not_in_this_version();
-  return 0; /* Never reached */
-}
-#endif
+   st_error *e= global_error_names;
 
+   DBUG_ENTER("get_errname_from_code");
+   DBUG_PRINT("enter", ("error_code: %d", error_code));
 
+   if (! error_code)
+   {
+     DBUG_RETURN("");
+   }
+   for (; e->name; e++)
+   {
+     if (e->code == error_code)
+     {
+       DBUG_RETURN(e->name);
+     }
+   }
+   /* Apparently, errors without known names may occur */
+   DBUG_RETURN("<Unknown>");
+} 
 
 void do_get_errcodes(struct st_command *command)
 {
@@ -5365,6 +5377,8 @@ void do_connect(struct st_command *command)
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     mysql_ssl_set(&con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
+    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
 #if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
@@ -6351,7 +6365,12 @@ static struct my_option my_long_options[] =
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
    &view_protocol, &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"explain-protocol", OPT_EXPLAIN_PROTOCOL, "Explains all select.",
+  {"opt-trace-protocol", OPT_TRACE_PROTOCOL,
+   "Trace DML statements with optimizer trace",
+   &opt_trace_protocol, &opt_trace_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"explain-protocol", OPT_EXPLAIN_PROTOCOL,
+   "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements",
    &explain_protocol, &explain_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT,
@@ -6359,7 +6378,7 @@ static struct my_option my_long_options[] =
    &opt_connect_timeout, &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
    120, 0, 3600 * 12, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+    &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -6374,7 +6393,7 @@ void print_version(void)
 void usage()
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
   my_print_help(my_long_options);
@@ -7837,12 +7856,48 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   DBUG_VOID_RETURN;
 }
 
+/**
+   Display the optimizer trace produced by the last executed statement.
+ */
+void display_opt_trace(struct st_connection *cn,
+                       struct st_command *command,
+                       int flags)
+{
+  if (!disable_query_log &&
+      opt_trace_protocol_enabled &&
+      !cn->pending &&
+      !command->expected_errors.count &&
+      match_re(&opt_trace_re, command->query))
+  {
+    st_command save_command= *command;
+    DYNAMIC_STRING query_str;
+    init_dynamic_string(&query_str,
+                        "SELECT trace FROM information_schema.optimizer_trace"
+                        " /* injected by --opt-trace-protocol */",
+                        128, 128);
+
+    command->query= query_str.str;
+    command->query_len= query_str.length;
+    command->end= strend(command->query);
+
+    /* Sorted trace is not readable at all, don't bother to lower case */
+    /* No need to keep old values, will be reset anyway */
+    display_result_sorted= FALSE;
+    display_result_lower= FALSE;
+    run_query(cn, command, flags);
+
+    dynstr_free(&query_str);
+    *command= save_command;
+  }
+}
+
 
 void run_explain(struct st_connection *cn, struct st_command *command, int flags)
 {
   if (explain_protocol_enabled &&
+      (flags & QUERY_REAP_FLAG) &&
       !command->expected_errors.count &&
-      match_re(&view_re, command->query))
+      match_re(&explain_re, command->query))
   {
     st_command save_command= *command;
     DYNAMIC_STRING query_str;
@@ -7852,6 +7907,7 @@ void run_explain(struct st_connection *cn, struct st_command *command, int flags
     init_dynamic_string(&query_str, "EXPLAIN EXTENDED ", 256, 256);
     dynstr_append_mem(&query_str, command->query,
                       command->end - command->query);
+    
     command->query= query_str.str;
     command->query_len= query_str.length;
     command->end= strend(command->query);
@@ -7925,9 +7981,24 @@ void init_re(void)
     "^("
     "[[:space:]]*SELECT[[:space:]])";
 
+  const char *opt_trace_re_str =
+    "^("
+    "[[:space:]]*INSERT[[:space:]]|"
+    "[[:space:]]*UPDATE[[:space:]]|"
+    "[[:space:]]*DELETE[[:space:]]|"
+    "[[:space:]]*EXPLAIN[[:space:]]|"
+    "[[:space:]]*SELECT[[:space:]])";
+
+  /* Filter for queries that can be converted to EXPLAIN */
+  const char *explain_re_str =
+    "^("
+    "[[:space:]]*(SELECT|DELETE|UPDATE|INSERT|REPLACE)[[:space:]])";
+
   init_re_comp(&ps_re, ps_re_str);
   init_re_comp(&sp_re, sp_re_str);
   init_re_comp(&view_re, view_re_str);
+  init_re_comp(&opt_trace_re, opt_trace_re_str);
+  init_re_comp(&explain_re, explain_re_str);
 }
 
 
@@ -7964,6 +8035,7 @@ void free_re(void)
   my_regfree(&ps_re);
   my_regfree(&sp_re);
   my_regfree(&view_re);
+  my_regfree(&opt_trace_re);
   my_regex_end();
 }
 
@@ -8277,6 +8349,7 @@ int main(int argc, char **argv)
   var_set_int("$PS_PROTOCOL", ps_protocol);
   var_set_int("$SP_PROTOCOL", sp_protocol);
   var_set_int("$VIEW_PROTOCOL", view_protocol);
+  var_set_int("$OPT_TRACE_PROTOCOL", opt_trace_protocol);
   var_set_int("$EXPLAIN_PROTOCOL", explain_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
 
@@ -8313,6 +8386,7 @@ int main(int argc, char **argv)
   ps_protocol_enabled= ps_protocol;
   sp_protocol_enabled= sp_protocol;
   view_protocol_enabled= view_protocol;
+  opt_trace_protocol_enabled= opt_trace_protocol;
   explain_protocol_enabled= explain_protocol;
   cursor_protocol_enabled= cursor_protocol;
 
@@ -8345,6 +8419,8 @@ int main(int argc, char **argv)
   {
     mysql_ssl_set(&con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(&con->mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
+    mysql_options(&con->mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
 #if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= opt_host && !strcmp(opt_host, "localhost");
@@ -8586,13 +8662,21 @@ int main(int argc, char **argv)
         /* Check for special property for this query */
         display_result_vertically|= (command->type == Q_QUERY_VERTICAL);
 
-	if (save_file[0])
+        /*
+          We run EXPLAIN _before_ the query. If query is UPDATE/DELETE is
+          matters: a DELETE may delete rows, and then EXPLAIN DELETE will
+          usually terminate quickly with "no matching rows". To make it more
+          interesting, EXPLAIN is now first.
+        */
+	run_explain(cur_con, command, flags);
+	/* Check for 'require' */
+	if (*save_file)
 	{
 	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
-	  save_file[0]= 0;
+	  *save_file= 0;
 	}
 	run_query(cur_con, command, flags);
-	run_explain(cur_con, command, flags);
+	display_opt_trace(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
 
@@ -9017,8 +9101,8 @@ void do_get_replace(struct st_command *command)
 
   free_replace();
 
-  bzero((char*) &to_array,sizeof(to_array));
-  bzero((char*) &from_array,sizeof(from_array));
+  memset(&to_array, 0, sizeof(to_array));
+  memset(&from_array, 0, sizeof(from_array));
   if (!*from)
     die("Missing argument in %s", command->query);
   start= buff= (char*)my_malloc(strlen(from)+1,MYF(MY_WME | MY_FAE));
@@ -9224,7 +9308,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
   /* for each regexp substitution statement */
   while (p < expr_end)
   {
-    bzero(&reg,sizeof(reg));
+    memset(&reg, 0, sizeof(reg));
     /* find the start of the statement */
     while (p < expr_end)
     {
@@ -9677,7 +9761,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
     if (len > max_length)
       max_length=len;
   }
-  bzero((char*) is_word_end,sizeof(is_word_end));
+  memset(is_word_end, 0, sizeof(is_word_end));
   for (i=0 ; word_end_chars[i] ; i++)
     is_word_end[(uchar) word_end_chars[i]]=1;
 
@@ -9768,7 +9852,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
       or_bits(sets.set+used_sets,sets.set);	/* Can restart from start */
 
     /* Find all chars that follows current sets */
-    bzero((char*) used_chars,sizeof(used_chars));
+    memset(used_chars, 0, sizeof(used_chars));
     for (i= (uint) ~0; (i=get_next_bit(sets.set+used_sets,i)) ;)
     {
       used_chars[follow[i].chr]=1;
@@ -9902,7 +9986,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
 
 int init_sets(REP_SETS *sets,uint states)
 {
-  bzero((char*) sets,sizeof(*sets));
+  memset(sets, 0, sizeof(*sets));
   sets->size_of_bits=((states+7)/8);
   if (!(sets->set_buffer=(REP_SET*) my_malloc(sizeof(REP_SET)*SET_MALLOC_HUNC,
 					      MYF(MY_WME))))
@@ -9933,8 +10017,8 @@ REP_SET *make_new_set(REP_SETS *sets)
   {
     sets->extra--;
     set=sets->set+ sets->count++;
-    bzero((char*) set->bits,sizeof(uint)*sets->size_of_bits);
-    bzero((char*) &set->next[0],sizeof(set->next[0])*LAST_CHAR_CODE);
+    memset(set->bits, 0, sizeof(uint)*sets->size_of_bits);
+    memset(&set->next[0], 0, sizeof(set->next[0])*LAST_CHAR_CODE);
     set->found_offset=0;
     set->found_len=0;
     set->table_offset= (uint) ~0;

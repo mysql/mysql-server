@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -87,12 +87,11 @@ mtr_memo_slot_release(
 			buf_page_release((buf_block_t*)object, type);
 		} else if (type == MTR_MEMO_S_LOCK) {
 			rw_lock_s_unlock((rw_lock_t*)object);
-#ifdef UNIV_DEBUG
 		} else if (type != MTR_MEMO_X_LOCK) {
-			ut_ad(type == MTR_MEMO_MODIFY);
+			ut_ad(type == MTR_MEMO_MODIFY
+			      || type == MTR_MEMO_FREE_CLUST_LEAF);
 			ut_ad(mtr_memo_contains(mtr, object,
 						MTR_MEMO_PAGE_X_FIX));
-#endif /* UNIV_DEBUG */
 		} else {
 			rw_lock_x_unlock((rw_lock_t*)object);
 		}
@@ -296,9 +295,20 @@ mtr_commit(
 	mtr_memo_pop_all(mtr);
 #endif /* !UNIV_HOTBACKUP */
 
-	ut_d(mtr->state = MTR_COMMITTED);
 	dyn_array_free(&(mtr->memo));
 	dyn_array_free(&(mtr->log));
+#ifdef UNIV_DEBUG_VALGRIND
+	/* Declare everything uninitialized except
+	mtr->start_lsn, mtr->end_lsn and mtr->state. */
+	{
+		lsn_t	start_lsn	= mtr->start_lsn;
+		lsn_t	end_lsn		= mtr->end_lsn;
+		UNIV_MEM_INVALID(mtr, sizeof *mtr);
+		mtr->start_lsn = start_lsn;
+		mtr->end_lsn = end_lsn;
+	}
+#endif /* UNIV_DEBUG_VALGRIND */
+	ut_d(mtr->state = MTR_COMMITTED);
 }
 
 #ifndef UNIV_HOTBACKUP

@@ -40,8 +40,10 @@ Created 11/5/1995 Heikki Tuuri
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
-/** The linear read-ahead area size */
-#define	BUF_READ_AHEAD_LINEAR_AREA	BUF_READ_AHEAD_AREA
+/** There must be at least this many pages in buf_pool in the area to start
+a random read-ahead */
+#define BUF_READ_AHEAD_RANDOM_THRESHOLD(b)	\
+				(5 + BUF_READ_AHEAD_AREA(b) / 8)
 
 /** If there are buf_pool->curr_size per the number below pending reads, then
 read-ahead is not done: this is to prevent flooding the buffer pool with
@@ -81,11 +83,15 @@ buf_read_page_low(
 {
 	buf_page_t*	bpage;
 	ulint		wake_later;
+	ibool		ignore_nonexistent_pages;
 
 	*err = DB_SUCCESS;
 
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 	mode = mode & ~OS_AIO_SIMULATED_WAKE_LATER;
+
+	ignore_nonexistent_pages = mode & BUF_READ_IGNORE_NONEXISTENT_PAGES;
+	mode &= ~BUF_READ_IGNORE_NONEXISTENT_PAGES;
 
 	if (trx_doublewrite && space == TRX_SYS_SPACE
 	    && (   (offset >= trx_doublewrite->block1
@@ -139,18 +145,27 @@ buf_read_page_low(
 
 	thd_wait_begin(NULL, THD_WAIT_DISKIO);
 	if (zip_size) {
-		*err = fil_io(OS_FILE_READ | wake_later,
+		*err = fil_io(OS_FILE_READ | wake_later
+			      | ignore_nonexistent_pages,
 			      sync, space, zip_size, offset, 0, zip_size,
 			      bpage->zip.data, bpage);
 	} else {
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
 
-		*err = fil_io(OS_FILE_READ | wake_later,
+		*err = fil_io(OS_FILE_READ | wake_later
+			      | ignore_nonexistent_pages,
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
 			      ((buf_block_t*) bpage)->frame, bpage);
 	}
 	thd_wait_end(NULL);
-	ut_a(*err == DB_SUCCESS);
+
+	if (*err != DB_SUCCESS) {
+		if (ignore_nonexistent_pages) {
+			return(0);
+		}
+		/* else */
+		ut_error;
+	}
 
 	if (sync) {
 		/* The i/o is already completed when we arrive from
@@ -159,6 +174,171 @@ buf_read_page_low(
 	}
 
 	return(1);
+}
+
+/********************************************************************//**
+Applies a random read-ahead in buf_pool if there are at least a threshold
+value of accessed pages from the random read-ahead area. Does not read any
+page, not even the one at the position (space, offset), if the read-ahead
+mechanism is not activated. NOTE 1: the calling thread may own latches on
+pages: to avoid deadlocks this function must be written such that it cannot
+end up waiting for these latches! NOTE 2: the calling thread must want
+access to the page given: this rule is set to prevent unintended read-aheads
+performed by ibuf routines, a situation which could result in a deadlock if
+the OS does not support asynchronous i/o.
+@return number of page read requests issued; NOTE that if we read ibuf
+pages, it may happen that the page at the given page number does not
+get read even if we return a positive value!
+@return	number of page read requests issued */
+UNIV_INTERN
+ulint
+buf_read_ahead_random(
+/*==================*/
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes,
+				or 0 */
+	ulint	offset,		/*!< in: page number of a page which
+				the current thread wants to access */
+	ibool	inside_ibuf)	/*!< in: TRUE if we are inside ibuf
+				routine */
+{
+	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
+	ib_int64_t	tablespace_version;
+	ulint		recent_blocks	= 0;
+	ulint		ibuf_mode;
+	ulint		count;
+	ulint		low, high;
+	ulint		err;
+	ulint		i;
+	const ulint	buf_read_ahead_random_area
+				= BUF_READ_AHEAD_AREA(buf_pool);
+
+	if (!srv_random_read_ahead) {
+		/* Disabled by user */
+		return(0);
+	}
+
+	if (srv_startup_is_before_trx_rollback_phase) {
+		/* No read-ahead to avoid thread deadlocks */
+		return(0);
+	}
+
+	if (ibuf_bitmap_page(zip_size, offset)
+	    || trx_sys_hdr_page(space, offset)) {
+
+		/* If it is an ibuf bitmap page or trx sys hdr, we do
+		no read-ahead, as that could break the ibuf page access
+		order */
+
+		return(0);
+	}
+
+	/* Remember the tablespace version before we ask te tablespace size
+	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
+	do not try to read outside the bounds of the tablespace! */
+
+	tablespace_version = fil_space_get_version(space);
+
+	low  = (offset / buf_read_ahead_random_area)
+		* buf_read_ahead_random_area;
+	high = (offset / buf_read_ahead_random_area + 1)
+		* buf_read_ahead_random_area;
+	if (high > fil_space_get_size(space)) {
+
+		high = fil_space_get_size(space);
+	}
+
+	buf_pool_mutex_enter(buf_pool);
+
+	if (buf_pool->n_pend_reads
+	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
+		buf_pool_mutex_exit(buf_pool);
+
+		return(0);
+	}
+
+	/* Count how many blocks in the area have been recently accessed,
+	that is, reside near the start of the LRU list. */
+
+	for (i = low; i < high; i++) {
+		const buf_page_t* bpage =
+			buf_page_hash_get(buf_pool, space, i);
+
+		if (bpage
+		    && buf_page_is_accessed(bpage)
+		    && buf_page_peek_if_young(bpage)) {
+
+			recent_blocks++;
+
+			if (recent_blocks
+			    >= BUF_READ_AHEAD_RANDOM_THRESHOLD(buf_pool)) {
+
+				buf_pool_mutex_exit(buf_pool);
+				goto read_ahead;
+			}
+		}
+	}
+
+	buf_pool_mutex_exit(buf_pool);
+	/* Do nothing */
+	return(0);
+
+read_ahead:
+	/* Read all the suitable blocks within the area */
+
+	if (inside_ibuf) {
+		ibuf_mode = BUF_READ_IBUF_PAGES_ONLY;
+	} else {
+		ibuf_mode = BUF_READ_ANY_PAGE;
+	}
+
+	count = 0;
+
+	for (i = low; i < high; i++) {
+		/* It is only sensible to do read-ahead in the non-sync aio
+		mode: hence FALSE as the first parameter */
+
+		if (!ibuf_bitmap_page(zip_size, i)) {
+			count += buf_read_page_low(
+				&err, FALSE,
+				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
+				space, zip_size, FALSE,
+				tablespace_version, i);
+			if (err == DB_TABLESPACE_DELETED) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					"  InnoDB: Warning: in random"
+					" readahead trying to access\n"
+					"InnoDB: tablespace %lu page %lu,\n"
+					"InnoDB: but the tablespace does not"
+					" exist or is just being dropped.\n",
+					(ulong) space, (ulong) i);
+			}
+		}
+	}
+
+	/* In simulated aio we wake the aio handler threads only after
+	queuing all aio requests, in native aio the following call does
+	nothing: */
+
+	os_aio_simulated_wake_handler_threads();
+
+#ifdef UNIV_DEBUG
+	if (buf_debug_prints && (count > 0)) {
+		fprintf(stderr,
+			"Random read-ahead space %lu offset %lu pages %lu\n",
+			(ulong) space, (ulong) offset,
+			(ulong) count);
+	}
+#endif /* UNIV_DEBUG */
+
+	/* Read ahead is considered one I/O operation for the purpose of
+	LRU policy decision. */
+	buf_LRU_stat_inc_io();
+
+	buf_pool->stat.n_ra_pages_read_rnd += count;
+	srv_buf_pool_reads += count;
+	return(count);
 }
 
 /********************************************************************//**
@@ -175,7 +355,6 @@ buf_read_page(
 	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
 	ulint	offset)	/*!< in: page number */
 {
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 	ib_int64_t	tablespace_version;
 	ulint		count;
 	ulint		err;
@@ -199,11 +378,51 @@ buf_read_page(
 			(ulong) space, (ulong) offset);
 	}
 
-	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(buf_pool);
-
 	/* Increment number of I/O operations used for LRU policy. */
 	buf_LRU_stat_inc_io();
+
+	return(count > 0);
+}
+
+/********************************************************************//**
+High-level function which reads a page asynchronously from a file to the
+buffer buf_pool if it is not already there. Sets the io_fix flag and sets
+an exclusive lock on the buffer frame. The flag is cleared and the x-lock
+released by the i/o-handler thread.
+@return TRUE if page has been read in, FALSE in case of failure */
+UNIV_INTERN
+ibool
+buf_read_page_async(
+/*================*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset)	/*!< in: page number */
+{
+	ulint		zip_size;
+	ib_int64_t	tablespace_version;
+	ulint		count;
+	ulint		err;
+
+	zip_size = fil_space_get_zip_size(space);
+
+	if (zip_size == ULINT_UNDEFINED) {
+		return(FALSE);
+	}
+
+	tablespace_version = fil_space_get_version(space);
+
+	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE
+				  | OS_AIO_SIMULATED_WAKE_LATER
+				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
+				  space, zip_size, FALSE,
+				  tablespace_version, offset);
+	srv_buf_pool_reads += count;
+
+	/* We do not increment number of I/O operations used for LRU policy
+	here (buf_LRU_stat_inc_io()). We use this in heuristics to decide
+	about evicting uncompressed version of compressed pages from the
+	buffer pool. Since this function is called from buffer pool load
+	these IOs are deliberate and are not part of normal workload we can
+	ignore these in our heuristics. */
 
 	return(count > 0);
 }
@@ -257,7 +476,7 @@ buf_read_ahead_linear(
 	ulint		err;
 	ulint		i;
 	const ulint	buf_read_ahead_linear_area
-		= BUF_READ_AHEAD_LINEAR_AREA(buf_pool);
+		= BUF_READ_AHEAD_AREA(buf_pool);
 	ulint		threshold;
 
 	/* check if readahead is disabled */
@@ -474,9 +693,6 @@ buf_read_ahead_linear(
 
 	os_aio_simulated_wake_handler_threads();
 
-	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(buf_pool);
-
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints && (count > 0)) {
 		fprintf(stderr,
@@ -561,9 +777,6 @@ tablespace_deleted:
 	}
 
 	os_aio_simulated_wake_handler_threads();
-
-	/* Flush pages from the end of all the LRU lists if necessary */
-	buf_flush_free_margins();
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
@@ -655,9 +868,6 @@ buf_read_recv_pages(
 	}
 
 	os_aio_simulated_wake_handler_threads();
-
-	/* Flush pages from the end of all the LRU lists if necessary */
-	buf_flush_free_margins();
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys_priv.h"
 #include "my_static.h"
@@ -109,7 +109,7 @@ uint my_set_max_open_files(uint files)
   /* Copy any initialized files */
   memcpy((char*) tmp, (char*) my_file_info,
          sizeof(*tmp) * min(my_file_limit, files));
-  bzero((char*) (tmp + my_file_limit),
+  memset((tmp + my_file_limit), 0, 
         max((int) (files- my_file_limit), 0)*sizeof(*tmp));
   my_free_open_file_info();			/* Free if already allocated */
   my_file_info= tmp;

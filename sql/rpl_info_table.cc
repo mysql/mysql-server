@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,16 +11,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_info_table.h"
 #include "rpl_utility.h"
 
-Rpl_info_table::Rpl_info_table(uint nparam, uint param_field_idx,
+Rpl_info_table::Rpl_info_table(uint nparam,
                                const char* param_schema,
                                const char *param_table)
-:Rpl_info_handler(nparam), field_idx(param_field_idx),
- is_transactional(FALSE)
+:Rpl_info_handler(nparam), is_transactional(FALSE)
 {
   str_schema.str= str_table.str= NULL;
   str_schema.length= str_table.length= 0;
@@ -61,7 +60,7 @@ Rpl_info_table::~Rpl_info_table()
   my_free(str_schema.str);
 }
 
-int Rpl_info_table::do_init_info()
+int Rpl_info_table::do_init_info(const ulong *uidx, const uint nidx)
 {
   int error= 1;
   enum enum_return_id res= FOUND_ID;
@@ -85,11 +84,10 @@ int Rpl_info_table::do_init_info()
     goto end;
 
   /*
-    Points the cursor at the row to be read where the master_id equals to
-    the server_id.
+    Points the cursor at the row to be read.
   */
-  if ((res= access->find_info_for_server_id(server_id, field_idx,
-                                            field_values, table)) == FOUND_ID)
+  if ((res= access->find_info(uidx, nidx, field_values,
+                              table)) == FOUND_ID)
   {
     /*
       Reads the information stored in the rpl_info table into a
@@ -112,7 +110,8 @@ end:
   DBUG_RETURN(error);
 }
 
-int Rpl_info_table::do_flush_info(const bool force)
+int Rpl_info_table::do_flush_info(const ulong *uidx, const uint nidx,
+                                  const bool force)
 {
   int error= 1;
   enum enum_return_id res= FOUND_ID;
@@ -141,12 +140,11 @@ int Rpl_info_table::do_flush_info(const bool force)
     goto end;
 
   /*
-    Points the cursor at the row to be read where the master_id
-    equals to the server_id. If the row is not found an error is
-    reported.
+    Points the cursor at the row to be read. If the row is not found
+    an error is reported.
   */
-  if ((res= access->find_info_for_server_id(server_id, field_idx,
-                                            field_values, table)) == NOT_FOUND_ID)
+  if ((res= access->find_info(uidx, nidx, field_values,
+                              table)) == NOT_FOUND_ID)
   {
     /*
       Prepares the information to be stored before calling ha_write_row.
@@ -200,6 +198,18 @@ int Rpl_info_table::do_flush_info(const bool force)
   }
 
 end:
+  DBUG_EXECUTE_IF("mts_debug_concurrent_access",
+    {
+      while (mts_debug_concurrent_access < 2 && mts_debug_concurrent_access >  0)
+      {
+        DBUG_PRINT("mts", ("Waiting while locks are acquired to show "
+          "concurrency in mts: %u %lu\n", mts_debug_concurrent_access,
+          (ulong) thd->thread_id));
+        my_sleep(6000000);
+      }
+    };
+  );
+
   /*
     Unlocks and closes the rpl_info table.
   */
@@ -210,7 +220,7 @@ end:
   DBUG_RETURN(error);
 }
 
-int Rpl_info_table::do_remove_info()
+int Rpl_info_table::do_remove_info(const ulong *uidx, const uint nidx)
 {
   int error= 1;
   enum enum_return_id res= FOUND_ID;
@@ -234,12 +244,11 @@ int Rpl_info_table::do_remove_info()
     goto end;
 
   /*
-    Points the cursor at the row to be deleted where the the master_id
-    equals to the server_id. If the row is not found, the execution
-    proceeds normally.
+    Points the cursor at the row to be deleted. If the row is not
+    found, the execution proceeds normally.
   */
-  if ((res= access->find_info_for_server_id(server_id, field_idx,
-                                            field_values, table)) == FOUND_ID)
+  if ((res= access->find_info(uidx, nidx, field_values,
+                              table)) == FOUND_ID)
   {
     /*
       Deletes a row in the rpl_info table.
@@ -262,7 +271,7 @@ end:
   DBUG_RETURN(error);
 }
 
-int Rpl_info_table::do_check_info()
+int Rpl_info_table::do_check_info(const ulong *uidx, const uint nidx)
 {
   int error= 1;
   TABLE *table= NULL;
@@ -289,12 +298,11 @@ int Rpl_info_table::do_check_info()
   }
 
   /*
-    Points the cursor at the row to be deleted where the the master_id
-    equals to the server_id. If the row is not found, an error is
-    reported.
+    Points the cursor at the row to be cheked. If the row is not
+    found, the execution proceeds normally.
   */
-  if (access->find_info_for_server_id(server_id, field_idx,
-                                      field_values, table) != FOUND_ID)
+  if (access->find_info(uidx, nidx, field_values,
+                        table) != FOUND_ID)
   {
     /* 
        We cannot simply call my_error here because it does not
@@ -315,28 +323,35 @@ end:
   DBUG_RETURN(error);
 }
 
-void Rpl_info_table::do_end_info()
+void Rpl_info_table::do_end_info(const ulong *uidx, const uint nidx)
 {
 }
 
-int Rpl_info_table::do_prepare_info_for_read()
+int Rpl_info_table::do_prepare_info_for_read(const uint nidx)
 {
   if (!field_values)
     return TRUE;
 
-  cursor= 1;
+  cursor= nidx;
 
   return FALSE;
 }
 
-int Rpl_info_table::do_prepare_info_for_write()
+int Rpl_info_table::do_prepare_info_for_write(const uint nidx)
 {
-  return(do_prepare_info_for_read());
+  return(do_prepare_info_for_read(nidx));
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const char *value)
 {
   return (field_values->value[pos].copy(value, strlen(value),
+                                        &my_charset_bin));
+}
+
+bool Rpl_info_table::do_set_info(const int pos, const uchar *value,
+                                 const size_t size)
+{
+  return (field_values->value[pos].copy((char *) value, size,
                                         &my_charset_bin));
 }
 
@@ -358,9 +373,9 @@ bool Rpl_info_table::do_set_info(const int pos, const float value)
                                             &my_charset_bin));
 }
 
-bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
+bool Rpl_info_table::do_set_info(const int pos, const Dynamic_ids *value)
 {
-  if (const_cast<Server_ids *>(value)->pack_server_ids(&field_values->value[pos]))
+  if (const_cast<Dynamic_ids *>(value)->pack_dynamic_ids(&field_values->value[pos]))
     return TRUE;
 
   return FALSE;
@@ -378,6 +393,15 @@ bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
     *value= '\0';
 
   return FALSE;
+}
+
+bool Rpl_info_table::do_get_info(const int pos, uchar *value, const size_t size,
+                                 const uchar *default_value __attribute__((unused)))
+{
+  if (field_values->value[pos].length() == size)
+    return (!memcpy((char *) value, (char *)
+            field_values->value[pos].c_ptr_safe(), size));
+  return TRUE;
 }
 
 bool Rpl_info_table::do_get_info(const int pos, ulong *value,
@@ -432,10 +456,10 @@ bool Rpl_info_table::do_get_info(const int pos, float *value,
   return TRUE;
 }
 
-bool Rpl_info_table::do_get_info(const int pos, Server_ids *value,
-                                 const Server_ids *default_value __attribute__((unused)))
+bool Rpl_info_table::do_get_info(const int pos, Dynamic_ids *value,
+                                 const Dynamic_ids *default_value __attribute__((unused)))
 {
-  if (value->unpack_server_ids(field_values->value[pos].c_ptr_safe()))
+  if (value->unpack_dynamic_ids(field_values->value[pos].c_ptr_safe()))
     return TRUE;
 
   return FALSE;
@@ -457,7 +481,7 @@ bool Rpl_info_table::do_update_is_transactional()
   ulong saved_mode;
   TABLE *table= NULL;
   Open_tables_backup backup;
- 
+
   DBUG_ENTER("Rpl_info_table::do_update_is_transactional");
 
   THD *thd= access->create_thd();
@@ -471,7 +495,7 @@ bool Rpl_info_table::do_update_is_transactional()
                          get_number_info(), TL_READ,
                          &table, &backup))
     goto end;
- 
+
   is_transactional= table->file->has_transactions();
   error= FALSE;
 

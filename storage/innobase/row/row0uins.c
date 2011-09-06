@@ -319,10 +319,9 @@ row_undo_ins_remove_sec_rec(
 	ulint		err	= DB_SUCCESS;
 	mem_heap_t*	heap;
 
-	for (heap = mem_heap_create(1024);
-	     node->index != NULL;
-	     mem_heap_empty(heap),
-		     node->index = dict_table_get_next_index(node->index)) {
+	heap = mem_heap_create(1024);
+
+	while (node->index != NULL) {
 		dtuple_t*	entry;
 
 		entry = row_build_index_entry(node->row, node->ext,
@@ -347,6 +346,9 @@ row_undo_ins_remove_sec_rec(
 				goto func_exit;
 			}
 		}
+
+		mem_heap_empty(heap);
+		dict_table_next_uncorrupted_index(node->index);
 	}
 
 func_exit:
@@ -388,6 +390,8 @@ row_undo_ins(
 	/* Skip the clustered index (the first index) */
 	node->index = dict_table_get_next_index(
 		dict_table_get_first_index(node->table));
+
+	dict_table_skip_corrupt_index(node->index);
 
 	err = row_undo_ins_remove_sec_rec(node);
 

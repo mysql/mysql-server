@@ -1500,7 +1500,7 @@ mysql_stmt_init(MYSQL *mysql)
   stmt->read_row_func= stmt_read_row_no_result_set;
   stmt->prefetch_rows= DEFAULT_PREFETCH_ROWS;
   strmov(stmt->sqlstate, not_error_sqlstate);
-  /* The rest of statement members was bzeroed inside malloc */
+  /* The rest of statement members was zeroed inside malloc */
 
   init_alloc_root(&stmt->extension->fields_mem_root, 2048, 0);
 
@@ -1799,7 +1799,7 @@ mysql_stmt_result_metadata(MYSQL_STMT *stmt)
   result->eof=		1;                      /* Marker for buffered */
   result->fields=	stmt->fields;
   result->field_count=	stmt->field_count;
-  /* The rest of members of 'result' was bzeroed inside malloc */
+  /* The rest of members of 'result' was zeroed inside malloc */
   DBUG_RETURN(result);
 }
 
@@ -2108,7 +2108,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
       set_stmt_errmsg(stmt, net);
       DBUG_RETURN(1);
     }
-    bzero((char*) net->write_pos, null_count);
+    memset(net->write_pos, 0, null_count);
     net->write_pos+= null_count;
     param_end= stmt->params + stmt->param_count;
 
@@ -3312,7 +3312,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
         field->length < 21)
     {
       bmove_upp(buff+field->length,buff+length, length);
-      bfill(buff, field->length - length,'0');
+      memset(buff, '0', field->length - length);
       length= field->length;
     }
     fetch_string_with_conversion(param, (char*) buff, length);
@@ -3433,7 +3433,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     {
       bmove_upp((uchar*) buff + field->length, (uchar*) buff + len,
                 len);
-      bfill((char*) buff, field->length - len, '0');
+      memset(buff, '0', field->length - len);
       len= field->length;
     }
     fetch_string_with_conversion(param, buff, len);
@@ -4417,7 +4417,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     */
     MYSQL_BIND  *my_bind, *end;
     MYSQL_FIELD *field;
-    bzero((char*) stmt->bind, sizeof(*stmt->bind)* stmt->field_count);
+    memset(stmt->bind, 0, sizeof(*stmt->bind) * stmt->field_count);
 
     for (my_bind= stmt->bind, end= my_bind + stmt->field_count,
            field= stmt->fields;

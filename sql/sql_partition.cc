@@ -1084,8 +1084,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   int error;
   LEX *old_lex= thd->lex;
   LEX lex;
-  uint8 saved_full_group_by_flag;
-  nesting_map saved_allow_sum_func;
   DBUG_ENTER("fix_fields_part_func");
 
   if (init_lex_with_single_table(thd, table, &lex))
@@ -1110,19 +1108,22 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     This is a tricky call to prepare for since it can have a large number
     of interesting side effects, both desirable and undesirable.
   */
-  saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
-  saved_allow_sum_func= thd->lex->allow_sum_func;
-  thd->lex->allow_sum_func= 0;
+  {
+    const bool save_agg_field= thd->lex->current_select->non_agg_field_used();
+    const bool save_agg_func=  thd->lex->current_select->agg_func_used();
+    const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
+    thd->lex->allow_sum_func= 0;
 
-  error= func_expr->fix_fields(thd, (Item**)&func_expr);
+    error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
-  /*
-    Restore full_group_by_flag and allow_sum_func,
-    fix_fields should not affect mysql_select later, see Bug#46923.
-  */
-  thd->lex->current_select->full_group_by_flag= saved_full_group_by_flag;
-  thd->lex->allow_sum_func= saved_allow_sum_func;
-
+    /*
+      Restore agg_field/agg_func  and allow_sum_func,
+      fix_fields should not affect mysql_select later, see Bug#46923.
+    */
+    thd->lex->current_select->set_non_agg_field_used(save_agg_field);
+    thd->lex->current_select->set_agg_func_used(save_agg_func);
+    thd->lex->allow_sum_func= saved_allow_sum_func;
+  }
   if (unlikely(error))
   {
     DBUG_PRINT("info", ("Field in partition function not part of table"));
@@ -1152,7 +1153,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
       goto end;
     }
     else
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR,
                    ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
   }
@@ -6608,14 +6609,14 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
       if (drop_partition)
       {
         /* Table is still ok, but we left a shadow frm file behind. */
-        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+        push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,
                             "%s %s",
            "Operation was unsuccessful, table is still intact,",
            "but it is possible that a shadow frm file was left behind");
       }
       else
       {
-        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+        push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,
                             "%s %s %s %s",
            "Operation was unsuccessful, table is still intact,",
            "but it is possible that a shadow frm file was left behind.",
@@ -6631,7 +6632,7 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
            Failed during install of shadow frm file, table isn't intact
            and dropped partitions are still there
         */
-        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+        push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,
                             "%s %s %s",
           "Failed during alter of partitions, table is no longer intact.",
           "The frm file is in an unknown state, and a backup",
@@ -6645,7 +6646,7 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
           ask the user to perform the action manually. We remove the log
           records and ask the user to perform the action manually.
         */
-        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+        push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,
                             "%s %s",
               "Failed during drop of partitions, table is intact.",
               "Manual drop of remaining partitions is required");
@@ -6657,7 +6658,7 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
           certainly in a very bad state so we give user warning and disable
           the table by writing an ancient frm version into it.
         */
-        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+        push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,
                             "%s %s %s",
            "Failed during renaming of partitions. We are now in a position",
            "where table is not reusable",
@@ -6686,7 +6687,7 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
         even though we reported an error the operation was successfully
         completed.
       */
-      push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,"%s %s",
+      push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,"%s %s",
          "Operation was successfully completed by failure handling,",
          "after failure of normal operation");
     }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,11 +38,20 @@ void test_oom()
   ok(rc == 1, "oom (file)");
   rc= init_table_share(1000);
   ok(rc == 1, "oom (cond)");
+  rc= init_socket_class(1000);
+  ok(rc == 1, "oom (socket)");
+  rc= init_stage_class(1000);
+  ok(rc == 1, "oom (stage)");
+  rc= init_statement_class(1000);
+  ok(rc == 1, "oom (statement)");
 
   cleanup_sync_class();
   cleanup_thread_class();
   cleanup_file_class();
   cleanup_table_share();
+  cleanup_socket_class();
+  cleanup_stage_class();
+  cleanup_statement_class();
 }
 
 void do_all_tests()
@@ -56,7 +65,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(6);
+  plan(9);
   MY_INIT("pfs_instr_info-oom-t");
   do_all_tests();
   return 0;

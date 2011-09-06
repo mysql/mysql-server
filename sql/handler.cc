@@ -110,7 +110,8 @@ static plugin_ref ha_default_plugin(THD *thd)
 
 
 /** @brief
-  Return the default storage engine handlerton for thread
+  Return the default storage engine handlerton used for non-temp tables 
+  for thread
 
   SYNOPSIS
     ha_default_handlerton(thd)
@@ -129,6 +130,35 @@ handlerton *ha_default_handlerton(THD *thd)
 }
 
 
+static plugin_ref ha_default_temp_plugin(THD *thd)
+{
+  if (thd->variables.temp_table_plugin)
+    return thd->variables.temp_table_plugin;
+  return my_plugin_lock(thd, &global_system_variables.temp_table_plugin);
+}
+
+
+/** @brief
+  Return the default storage engine handlerton used for explicitly 
+  created temp tables for a thread
+
+  SYNOPSIS
+    ha_default_temp_handlerton(thd)
+    thd         current thread
+
+  RETURN
+    pointer to handlerton
+*/
+handlerton *ha_default_temp_handlerton(THD *thd)
+{
+  plugin_ref plugin= ha_default_temp_plugin(thd);
+  DBUG_ASSERT(plugin);
+  handlerton *hton= plugin_data(plugin, handlerton*);
+  DBUG_ASSERT(hton);
+  return hton;
+}
+
+
 /** @brief
   Return the storage engine handlerton for the supplied name
   
@@ -140,7 +170,8 @@ handlerton *ha_default_handlerton(THD *thd)
   RETURN
     pointer to storage engine plugin handle
 */
-plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name)
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name, 
+                              bool is_temp_table)
 {
   const LEX_STRING *table_alias;
   plugin_ref plugin;
@@ -150,7 +181,8 @@ redo:
   if (thd && !my_charset_latin1.coll->strnncoll(&my_charset_latin1,
                            (const uchar *)name->str, name->length,
                            (const uchar *)STRING_WITH_LEN("DEFAULT"), 0))
-    return ha_default_plugin(thd);
+    return is_temp_table ? 
+      ha_default_plugin(thd) : ha_default_temp_plugin(thd);
 
   if ((plugin= my_plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
@@ -366,6 +398,8 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_AUTOINC_READ_FAILED,    ER_DEFAULT(ER_AUTOINC_READ_FAILED));
   SETMSG(HA_ERR_AUTOINC_ERANGE,         ER_DEFAULT(ER_WARN_DATA_OUT_OF_RANGE));
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER_DEFAULT(ER_TOO_MANY_CONCURRENT_TRXS));
+  SETMSG(HA_ERR_INDEX_COL_TOO_LONG,	ER_DEFAULT(ER_INDEX_COLUMN_TOO_LONG));
+  SETMSG(HA_ERR_INDEX_CORRUPT,		ER_DEFAULT(ER_INDEX_CORRUPT));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -1024,7 +1058,7 @@ int ha_prepare(THD *thd)
       }
       else
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                             ha_resolve_storage_engine_name(ht));
       }
@@ -1401,7 +1435,7 @@ int ha_rollback_trans(THD *thd, bool all)
     trans->no_2pc=0;
     if (is_real_trans && thd->transaction_rollback_request &&
         thd->transaction.xid_state.xa_state != XA_NOTR)
-      thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
+      thd->transaction.xid_state.rm_error= thd->get_stmt_da()->sql_errno();
   }
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
@@ -1901,7 +1935,7 @@ int ha_start_consistent_snapshot(THD *thd)
     exist:
   */
   if (warn)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                  "This MySQL server does not support any "
                  "consistent-read capable storage engine");
   return 0;
@@ -1997,9 +2031,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
   char buff[MYSQL_ERRMSG_SIZE];
 };
 
@@ -2009,9 +2043,9 @@ Ha_delete_table_error_handler::
 handle_condition(THD *,
                  uint,
                  const char*,
-                 MYSQL_ERROR::enum_warning_level,
+                 Sql_condition::enum_warning_level,
                  const char* msg,
-                 MYSQL_ERROR ** cond_hdl)
+                 Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   /* Grab the error message */
@@ -2034,8 +2068,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   TABLE_SHARE dummy_share;
   DBUG_ENTER("ha_delete_table");
 
-  bzero((char*) &dummy_table, sizeof(dummy_table));
-  bzero((char*) &dummy_share, sizeof(dummy_share));
+  memset(&dummy_table, 0, sizeof(dummy_table));
+  memset(&dummy_share, 0, sizeof(dummy_share));
   dummy_table.s= &dummy_share;
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
@@ -2074,14 +2108,14 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       XXX: should we convert *all* errors to warnings here?
       What if the error is fatal?
     */
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, error,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, error,
                 ha_delete_table_error_handler.buff);
   }
   delete file;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely((error == 0) && (PSI_server != NULL)))
-    PSI_server->drop_table_share(db, strlen(db), alias, strlen(alias));
+  if (likely(error == 0))
+    PSI_CALL(drop_table_share)(db, strlen(db), alias, strlen(alias));
 #endif
 
   DBUG_RETURN(error);
@@ -2117,7 +2151,7 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 
 
 
-void handler::ha_statistic_increment(ulong SSV::*offset) const
+void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
   status_var_increment(table->in_use->status_var.*offset);
 }
@@ -2131,6 +2165,30 @@ THD *handler::ha_thd(void) const
 {
   DBUG_ASSERT(!table || !table->in_use || table->in_use == current_thd);
   return (table && table->in_use) ? table->in_use : current_thd;
+}
+
+void handler::unbind_psi()
+{
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Notify the instrumentation that this table is not owned
+    by this thread any more.
+  */
+  if (likely(PSI_server != NULL))
+    PSI_server->unbind_table(m_psi);
+#endif
+}
+
+void handler::rebind_psi()
+{
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Notify the instrumentation that this table is now owned
+    by this thread.
+  */
+  if (likely(PSI_server != NULL))
+    PSI_server->rebind_table(m_psi);
+#endif
 }
 
 PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
@@ -2180,12 +2238,8 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
 #ifdef HAVE_PSI_TABLE_INTERFACE
-    if (likely(PSI_server != NULL))
-    {    
-      PSI_table_share *share_psi= ha_table_share_psi(table_share);
-      if (likely(share_psi != NULL))
-        m_psi= PSI_server->open_table(share_psi, this);
-    }    
+    PSI_table_share *share_psi= ha_table_share_psi(table_share);
+    m_psi= PSI_CALL(open_table)(share_psi, this);
 #endif
 
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
@@ -2209,11 +2263,8 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 int handler::ha_close(void)
 {
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely(PSI_server && m_psi))
-  {
-    PSI_server->close_table(m_psi);
-    m_psi= NULL; /* instrumentation handle, invalid after close_table() */
-  }
+  PSI_CALL(close_table)(m_psi);
+  m_psi= NULL; /* instrumentation handle, invalid after close_table() */
 #endif
   DBUG_ASSERT(m_psi == NULL);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
@@ -2271,6 +2322,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(end_range == NULL);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
@@ -3065,8 +3117,14 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_TOO_MANY_CONCURRENT_TRXS:
     textno= ER_TOO_MANY_CONCURRENT_TRXS;
     break;
+  case HA_ERR_INDEX_COL_TOO_LONG:
+    textno= ER_INDEX_COLUMN_TOO_LONG;
+    break;
   case HA_ERR_NOT_IN_LOCK_PARTITIONS:
     textno=ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET;
+    break;
+  case HA_ERR_INDEX_CORRUPT:
+    textno= ER_INDEX_CORRUPT;
     break;
   default:
     {
@@ -3854,6 +3912,7 @@ handler::alter_table_phase1(THD *thd,
   int error= 0;
   HA_ALTER_FLAGS adding;
   HA_ALTER_FLAGS dropping;
+  handler_add_index *add= NULL;
 
   adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX | HA_ADD_PK_INDEX |
     HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
@@ -3884,7 +3943,7 @@ handler::alter_table_phase1(THD *thd,
      }
     /* Add the indexes. */
     if ((error= add_index(table, key_info,
-                          alter_info->index_add_count)))
+                          alter_info->index_add_count, &add)))
     {
       /*
         Exchange the key_info for the error message. If we exchange
@@ -3896,6 +3955,10 @@ handler::alter_table_phase1(THD *thd,
       table->key_info= save_key_info;
       DBUG_RETURN(error);
     }
+    /*
+      Save add_index_handle
+     */
+    alter_info->data= (void *) add;
   }
 
   if ((*alter_flags & dropping).is_set())
@@ -3934,14 +3997,25 @@ handler::alter_table_phase2(THD *thd,
 {
   DBUG_ENTER("alter_table_phase2");
   int error= 0;
+  HA_ALTER_FLAGS adding;
   HA_ALTER_FLAGS dropping;
 
+  adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX | HA_ADD_PK_INDEX |
+    HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
   dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX |
     HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
 
   if ((*alter_flags & dropping).is_set())
   {
     if ((error= final_drop_index(table)))
+    {
+      print_error(error, MYF(0));
+      DBUG_RETURN(error);
+    }
+  }
+  else if ((*alter_flags & adding).is_set())
+  {
+    if ((error= final_add_index((handler_add_index *)alter_info->data, true)))
     {
       print_error(error, MYF(0));
       DBUG_RETURN(error);
@@ -4230,10 +4304,9 @@ int ha_create_table(THD *thd, const char *path,
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  if (likely(PSI_server != NULL))
   {
     my_bool temp= (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
-    share.m_psi= PSI_server->get_table_share(temp, &share);
+    share.m_psi= PSI_CALL(get_table_share)(temp, &share);
   }
 #endif
 
@@ -4287,7 +4360,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   DBUG_ENTER("ha_create_table_from_engine");
   DBUG_PRINT("enter", ("name '%s'.'%s'", db, name));
 
-  bzero((uchar*) &create_info,sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   if ((error= ha_discover(thd, db, name, &frmblob, &frmlen)))
   {
     /* Table could not be discovered and thus not created */
@@ -4787,7 +4860,8 @@ double handler::index_only_read_time(uint keynr, double records)
 {
   double read_time;
   uint keys_per_block= (stats.block_size/2/
-			(table->key_info[keynr].key_length + ref_length) + 1);
+                        (table_share->key_info[keynr].key_length + ref_length) +
+                        1);
   read_time=((double) (records + keys_per_block-1) /
              (double) keys_per_block);
   return read_time;
@@ -5610,7 +5684,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
                                          uint *buffer_size, COST_VECT *cost)
 {
   ulong max_buff_entries, elem_size;
-  ha_rows rows_in_full_step, rows_in_last_step;
+  ha_rows rows_in_last_step;
   uint n_full_steps;
   double index_read_cost;
 
@@ -5622,15 +5696,13 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
 
   /* Number of iterations we'll make with full buffer */
   n_full_steps= (uint)floor(rows2double(rows) / max_buff_entries);
-  
-  /* 
-    Get numbers of rows we'll be processing in 
-     - non-last sweep, with full buffer 
-     - last iteration, with non-full buffer
+
+  /*
+    Get numbers of rows we'll be processing in last iteration, with
+    non-full buffer
   */
-  rows_in_full_step= max_buff_entries;
   rows_in_last_step= rows % max_buff_entries;
-  
+
   /* Adjust buffer size if we expect to use only part of the buffer */
   if (n_full_steps)
   {
@@ -5644,11 +5716,11 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
                       (size_t)(1.2*rows_in_last_step) * elem_size + 
                       h->ref_length + table->key_info[keynr].key_length);
   }
-  
+
   COST_VECT last_step_cost;
   get_sort_and_sweep_cost(table, rows_in_last_step, &last_step_cost);
   cost->add(&last_step_cost);
- 
+
   if (n_full_steps != 0)
     cost->mem_cost= *buffer_size;
   else

@@ -65,6 +65,8 @@ Created 10/8/1995 Heikki Tuuri
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 #include "srv0mon.h"
+#include "ut0crc32.h"
+
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
@@ -82,6 +84,8 @@ UNIV_INTERN ulint	srv_dml_needed_delay = 0;
 UNIV_INTERN ibool	srv_monitor_active = FALSE;
 UNIV_INTERN ibool	srv_error_monitor_active = FALSE;
 
+UNIV_INTERN ibool	srv_buf_dump_thread_active = FALSE;
+
 UNIV_INTERN const char*	srv_main_thread_op_info = "";
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
@@ -93,6 +97,16 @@ UNIV_INTERN const char	srv_mysql50_table_name_prefix[9] = "#mysql50#";
 names, where the file name itself may also contain a path */
 
 UNIV_INTERN char*	srv_data_home	= NULL;
+
+/** Rollback files directory, can be absolute. */
+UNIV_INTERN char*	srv_undo_dir = NULL;
+
+/** The number of tablespaces to use for rollback segments. */
+UNIV_INTERN ulong	srv_undo_tablespaces = 8;
+
+/* The number of rollback segments to use */
+UNIV_INTERN ulong	srv_undo_logs = 1;
+
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN char*	srv_arch_dir	= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
@@ -192,6 +206,10 @@ UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
 /* number of locks to protect buf_pool->page_hash */
 UNIV_INTERN ulong	srv_n_page_hash_locks = 16;
+/** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
+UNIV_INTERN ulong	srv_LRU_scan_depth	= 1024;
+/** whether or not to flush neighbors of a block */
+UNIV_INTERN my_bool	srv_flush_neighbors	= TRUE;
 /* previously requested size */
 UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
@@ -206,6 +224,8 @@ UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
 
+/* Switch to enable random read ahead. */
+UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
@@ -248,9 +268,6 @@ UNIV_INTERN ulong srv_n_purge_threads = 0;
 
 /* the number of pages to purge in one batch */
 UNIV_INTERN ulong srv_purge_batch_size = 20;
-
-/* the number of rollback segments to use */
-UNIV_INTERN ulong srv_rollback_segments = TRX_SYS_N_RSEGS;
 
 /* variable counts amount of data read in total (in bytes) */
 UNIV_INTERN ulint srv_data_read = 0;
@@ -334,14 +351,17 @@ UNIV_INTERN unsigned long long	srv_stats_transient_sample_pages = 8;
 UNIV_INTERN unsigned long long	srv_stats_persistent_sample_pages = 20;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
-UNIV_INTERN ibool	srv_use_checksums = TRUE;
+
+/** doublewrite buffer is 1MB is size i.e.: it can hold 128 16K pages.
+The following parameter is the size of the buffer that is used for
+batch flushing i.e.: LRU flushing and flush_list flushing. The rest
+of the pages are used for single page flushing. */
+UNIV_INTERN ulong	srv_doublewrite_batch_size	= 120;
 
 UNIV_INTERN ulong	srv_replication_delay		= 0;
 
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
-UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-UNIV_INTERN ulong	srv_thread_sleep_delay = 10000;
 UNIV_INTERN ulong	srv_spin_wait_delay	= 6;
 UNIV_INTERN ibool	srv_priority_boost	= TRUE;
 
@@ -583,6 +603,17 @@ UNIV_INTERN os_event_t	srv_monitor_event;
 
 /** Event to signal the error thread */
 UNIV_INTERN os_event_t	srv_error_event;
+
+/** Event to signal the buffer pool dump/load thread */
+UNIV_INTERN os_event_t	srv_buf_dump_event;
+
+/** The buffer pool dump/load file name */
+UNIV_INTERN char*	srv_buf_dump_filename;
+
+/** Boolean config knobs that tell InnoDB to dump the buffer pool at shutdown
+and/or load it during startup. */
+UNIV_INTERN char	srv_buffer_pool_dump_at_shutdown = FALSE;
+UNIV_INTERN char	srv_buffer_pool_load_at_startup = FALSE;
 
 /***********************************************************************
 Prints counters for work done by srv_master_thread. */
@@ -901,6 +932,8 @@ srv_init(void)
 
 	srv_monitor_event = os_event_create(NULL);
 
+	srv_buf_dump_event = os_event_create("buf_dump_event");
+
 	UT_LIST_INIT(srv_sys->tasks);
 
 	/* Create dummy indexes for infimum and supremum records */
@@ -911,6 +944,8 @@ srv_init(void)
 
 	/* Initialize some INFORMATION SCHEMA internal structures */
 	trx_i_s_cache_init(trx_i_s_cache);
+
+	ut_crc32_init();
 }
 
 /*********************************************************************//**
@@ -928,6 +963,9 @@ srv_free(void)
 	srv_sys = NULL;
 
 	trx_i_s_cache_free(trx_i_s_cache);
+
+	os_event_free(srv_buf_dump_event);
+	srv_buf_dump_event = NULL;
 }
 
 /*********************************************************************//**
@@ -1181,10 +1219,10 @@ srv_printf_innodb_monitor(
 	      "ROW OPERATIONS\n"
 	      "--------------\n", file);
 	fprintf(file, "%ld queries inside InnoDB, %lu queries in queue\n",
-		(long) srv_conc_n_threads,
+		(long) srv_conc_get_active_threads(),
 		srv_conc_get_waiting_threads());
 
-	/* This is a dirty read, without holding trx_sys->read_view_mutex. */
+	/* This is a dirty read, without holding trx_sys->mutex. */
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
 
@@ -1275,6 +1313,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
 	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
 	export_vars.innodb_buffer_pool_reads = srv_buf_pool_reads;
+	export_vars.innodb_buffer_pool_read_ahead_rnd
+		= stat.n_ra_pages_read_rnd;
 	export_vars.innodb_buffer_pool_read_ahead
 		= stat.n_ra_pages_read;
 	export_vars.innodb_buffer_pool_read_ahead_evicted
@@ -1452,6 +1492,9 @@ loop:
 
 			last_table_monitor_time = ut_time();
 
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
+
 			fputs("===========================================\n",
 			      stderr);
 
@@ -1466,6 +1509,9 @@ loop:
 			      "END OF INNODB TABLE MONITOR OUTPUT\n"
 			      "==================================\n",
 			      stderr);
+
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 		}
 	}
 
@@ -1666,11 +1712,14 @@ srv_any_background_threads_are_active(void)
 		thread_active = "srv_lock_timeout thread";
 	} else if (srv_monitor_active) {
 		thread_active = "srv_monitor_thread";
+	} else if (srv_buf_dump_thread_active) {
+		thread_active = "buf_dump_thread";
 	}
 
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);
 	os_event_set(srv_timeout_event);
+	os_event_set(srv_buf_dump_event);
 
 	return(thread_active);
 }
@@ -1850,7 +1899,7 @@ srv_master_do_purge(void)
 			/* Nothing to purge. */
 			n_pages_purged = 0;
 		} else {
-			n_pages_purged = trx_purge(0, srv_purge_batch_size);
+			n_pages_purged = trx_purge(1, srv_purge_batch_size);
 		}
 
 		total_pages_purged += n_pages_purged;
@@ -2303,8 +2352,6 @@ srv_task_execute(void)
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
-	os_atomic_inc_ulint(&purge_sys->bh_mutex, &purge_sys->n_executing, 1);
-
 	mutex_enter(&srv_sys->tasks_mutex);
 
 	if (UT_LIST_GET_LEN(srv_sys->tasks) > 0) {
@@ -2325,8 +2372,6 @@ srv_task_execute(void)
 		os_atomic_inc_ulint(
 			&purge_sys->bh_mutex, &purge_sys->n_completed, 1);
 	}
-
-	os_atomic_dec_ulint(&purge_sys->bh_mutex, &purge_sys->n_executing, 1);
 
 	return(thr != NULL);
 }
@@ -2404,50 +2449,62 @@ void
 srv_do_purge(
 /*=========*/
 	ulint		n_threads,	/*!< in: number of threads to use */
-	ulint		batch_size,	/*!< in: purge batch size */
 	ulint*		n_total_purged)	/*!< in/out: total pages purged */
 {
-	if (n_threads <= 1) {
-		ulint	n_pages_purged;
+	ulint		n_pages_purged;
+	static ulint	n_use_threads = 0;
+	static ulint	rseg_history_len = 0;
 
-		/* Purge until there are no more records to
-		purge and there is no change in configuration
-		or server state. */
+	ut_a(n_threads > 0);
 
-		do {
-			n_pages_purged = trx_purge(0, batch_size);
+	/* Purge until there are no more records to purge and there is
+	no change in configuration or server state. If the user has
+	configured more than one purge thread then we treat that as a
+	pool of threads and only use the extra threads if purge can't
+	keep up with updates. */
 
-			*n_total_purged += n_pages_purged;
+	if (n_use_threads == 0) {
+		n_use_threads = n_threads;
+	}
 
-		} while (n_pages_purged > 0 && !srv_fast_shutdown);
+	do {
+		if (trx_sys->rseg_history_len > rseg_history_len) {
 
-	} else {
-		ulint	n_pages_purged;
+			/* History length is now longer than what it was
+			when we took the last snapshot. Use more threads. */
 
-		do {
-			n_pages_purged = trx_purge(n_threads, batch_size);
-
-			*n_total_purged += n_pages_purged;
-
-			/* During shutdown the worker threads can
-			exit when they detect a change in state.
-			Force the coordinator thread to do the purge
-			tasks from the work queue. */
-
-			while (srv_get_task_queue_length() > 0) {
-
-				ibool	success;
-
-				ut_a(srv_shutdown_state);
-
-				success = srv_task_execute();
-				ut_a(success);
+			if (n_use_threads < n_threads) {
+				++n_use_threads;
 			}
 
-		} while (trx_sys->rseg_history_len > 100
-			 && srv_shutdown_state == SRV_SHUTDOWN_NONE
-			 && srv_fast_shutdown == 0);
-	}
+		} else if (n_use_threads > 1) {
+			/* History length same or smaller since last snapshot,
+			use fewer threads. */
+
+			--n_use_threads;
+		}
+
+		/* Ensure that the purge threads are less than what
+		was configured. */
+
+		ut_a(n_use_threads > 0);
+		ut_a(n_use_threads <= n_threads);
+
+		/* Take a snapshot of the history list before purge. */
+		rseg_history_len = trx_sys->rseg_history_len;
+#if 0
+		fprintf(stderr, "%lu:%lu %lu\n",
+			rseg_history_len, trx_sys->rseg_history_len,
+			n_use_threads);
+#endif
+		n_pages_purged = trx_purge(n_use_threads, srv_purge_batch_size);
+
+		*n_total_purged += n_pages_purged;
+
+	} while (srv_shutdown_state == SRV_SHUTDOWN_NONE
+		 && srv_fast_shutdown == 0
+		 && n_pages_purged > 0);
+
 }
 
 /*********************************************************************//**
@@ -2488,31 +2545,14 @@ srv_purge_coordinator_thread(
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 
-		ulint	n_threads = srv_n_purge_threads;
-		ulint	batch_size = srv_purge_batch_size;
-
-		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-
-			/* If shutdown is signalled, then switch
-			to single threaded purge. There are no user
-			threads to contended with and secondly purge
-			worker threads can exit silently, causing a
-			potential hang. We try and avoid that as much
-			as we can until the underlying problem is fixed
-			properly. */
-
-			n_threads = 1;
-		}
-
-		/* If there are very few records to purge or the last
+		/* If there are no records to purge or the last
 		purge didn't purge any records then wait for activity.
 	        We peek at the history len without holding any mutex
 		because in the worst case we will end up waiting for
 		the next purge event. */
 
-		if (trx_sys->rseg_history_len < batch_size
-		    || (n_total_purged == 0
-			&& retries >= TRX_SYS_N_RSEGS)) {
+		if (trx_sys->rseg_history_len == 0
+		    || (n_total_purged == 0 && retries >= TRX_SYS_N_RSEGS)) {
 
 			srv_suspend_thread(slot);
 
@@ -2535,7 +2575,7 @@ srv_purge_coordinator_thread(
 			n_total_purged = 0;
 		}
 
-		srv_do_purge(n_threads, batch_size, &n_total_purged);
+		srv_do_purge(srv_n_purge_threads, &n_total_purged);
 	}
 
 	/* The task queue should always be empty, independent of fast

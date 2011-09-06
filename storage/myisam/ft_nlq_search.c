@@ -229,7 +229,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   if (! (ftparser_param= ftparser_call_initializer(info, keynr, 0)))
     goto err;
 
-  bzero(&wtree,sizeof(wtree));
+  memset(&wtree, 0, sizeof(wtree));
 
   init_tree(&aio.dtree,0,0,sizeof(FT_SUPERDOC),(qsort_cmp2)&FT_SUPERDOC_cmp,0,
             NULL, NULL);

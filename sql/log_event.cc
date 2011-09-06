@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +41,7 @@
 #include "rpl_record.h"
 #include "transaction.h"
 #include <my_dir.h>
+#include "rpl_rli_pdb.h"
 
 #endif /* MYSQL_CLIENT */
 
@@ -100,6 +102,11 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
 
 static const char *HA_ERR(int i)
 {
+  /* 
+    This function should only be called in case of an error
+    was detected 
+   */
+  DBUG_ASSERT(i != 0);
   switch (i) {
   case HA_ERR_KEY_NOT_FOUND: return "HA_ERR_KEY_NOT_FOUND";
   case HA_ERR_FOUND_DUPP_KEY: return "HA_ERR_FOUND_DUPP_KEY";
@@ -152,38 +159,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
   }
-  return 0;
-}
-
-/**
-  Delay to delete the Rows_query log event until all its rows event are applied
-
-  @param ev    log event should be deleted
-  @param rli   Relay_log_info structure for the slave IO thread.
-*/
-void handle_rows_query_log_event(Log_event *ev, Relay_log_info *rli)
-{
-  DBUG_ENTER("handle_rows_query_log_event");
-  Log_event_type ev_type= ev->get_type_code();
-
-  /* Delete the Rows_query log event after its last rows event are applied */
-  if ((ev_type == WRITE_ROWS_EVENT || ev_type == DELETE_ROWS_EVENT ||
-       ev_type == UPDATE_ROWS_EVENT) && rli->rows_query_ev != NULL &&
-      ((Rows_log_event*) ev)->get_flags(Rows_log_event::STMT_END_F))
-  {
-    delete rli->rows_query_ev;
-    rli->rows_query_ev= NULL;
-    rli->info_thd->set_query(NULL, 0);
-  }
-
-  /* Record the Rows_query log event until all its rows event are applied */
-  if (ev_type == ROWS_QUERY_LOG_EVENT)
-  {
-    DBUG_ASSERT(rli->rows_query_ev == NULL);
-    rli->rows_query_ev= (Rows_query_log_event*) ev;
-  }
-
-  DBUG_VOID_RETURN;
+  return "No Error!";
 }
 
 /**
@@ -204,12 +180,13 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                            TABLE *table, const char * type,
                                            const char *log_name, ulong pos)
 {
-  const char *handler_error= HA_ERR(ha_error);
+  const char *handler_error= (ha_error ? HA_ERR(ha_error) : NULL);
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end= buff + sizeof(buff);
   uint len;
-  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
-  MYSQL_ERROR *err;
+  Diagnostics_area::Sql_condition_iterator it=
+    thd->get_stmt_da()->sql_conditions();
+  const Sql_condition *err;
   buff[0]= 0;
 
   for (err= it++, slider= buff; err && slider < buff_end - 1;
@@ -221,7 +198,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
   }
 
   if (ha_error != 0)
-    rli->report(level, thd->is_error() ? thd->stmt_da->sql_errno() : 0,
+    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0,
                 "Could not execute %s event on table %s.%s;"
                 "%s handler error %s; "
                 "the event's master log %s, end_log_pos %lu",
@@ -229,7 +206,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                 buff, handler_error == NULL ? "<unknown>" : handler_error,
                 log_name, pos);
   else
-    rli->report(level, thd->is_error() ? thd->stmt_da->sql_errno() : 0,
+    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0,
                 "Could not execute %s event on table %s.%s;"
                 "%s the event's master log %s, end_log_pos %lu",
                 type, table->s->db.str, table->s->table_name.str,
@@ -372,13 +349,13 @@ inline int ignored_error_code(int err_code)
 */ 
 int convert_handler_error(int error, THD* thd, TABLE *table)
 {
-  uint actual_error= (thd->is_error() ? thd->stmt_da->sql_errno() :
+  uint actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
                            0);
 
   if (actual_error == 0)
   {
     table->file->print_error(error, MYF(0));
-    actual_error= (thd->is_error() ? thd->stmt_da->sql_errno() :
+    actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
       if (global_system_variables.log_warnings)
@@ -678,18 +655,16 @@ const char* Log_event::get_type_str()
 */
 
 #ifndef MYSQL_CLIENT
-Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
+Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
+                     enum_event_cache_type cache_type_arg,
+                     enum_event_logging_type logging_type_arg)
   :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg),
-   cache_type(Log_event::EVENT_INVALID_CACHE), crc(0), thd(thd_arg),
-   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  event_cache_type(cache_type_arg),
+  event_logging_type(logging_type_arg),
+  crc(0), thd(thd_arg), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id=	thd->server_id;
   when=		thd->start_time;
-
-  if (using_trans)
-    cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
-  else
-    cache_type= Log_event::EVENT_STMT_CACHE;
 
 #ifndef MCP_BUG52305
   unmasked_server_id= server_id;
@@ -703,9 +678,11 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
   the binlog but we have no THD, so we need this minimal constructor).
 */
 
-Log_event::Log_event()
-  :temp_buf(0), exec_time(0), flags(0),  crc(0), thd(0),
-   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+Log_event::Log_event(enum_event_cache_type cache_type_arg,
+                     enum_event_logging_type logging_type_arg)
+  :temp_buf(0), exec_time(0), flags(0), event_cache_type(cache_type_arg),
+  event_logging_type(logging_type_arg), crc(0), thd(0),
+  checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id=	::server_id;
   /*
@@ -728,8 +705,10 @@ Log_event::Log_event()
 
 Log_event::Log_event(const char* buf,
                      const Format_description_log_event* description_event)
-  :temp_buf(0), exec_time(0), cache_type(Log_event::EVENT_INVALID_CACHE),
-    crc(0), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  :temp_buf(0), exec_time(0),
+  event_cache_type(EVENT_INVALID_CACHE),
+  event_logging_type(EVENT_INVALID_LOGGING),
+  crc(0), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
@@ -808,6 +787,10 @@ Log_event::Log_event(const char* buf,
 
 #ifndef MYSQL_CLIENT
 #ifdef HAVE_REPLICATION
+inline int Log_event::do_apply_event_worker(Slave_worker *w)
+{ 
+  return do_apply_event(w);
+}
 
 int Log_event::do_update_pos(Relay_log_info *rli)
 {
@@ -824,6 +807,9 @@ int Log_event::do_update_pos(Relay_log_info *rli)
 
     Matz: I don't think we will need this check with this refactoring.
   */
+
+  DBUG_ASSERT(!is_mts_worker(rli->info_thd));
+
   if (rli)
     rli->stmt_done(log_pos);
   return 0;                                   // Cannot fail currently
@@ -923,18 +909,20 @@ void Log_event::init_show_field_list(List<Item>* field_list)
 my_bool Log_event::need_checksum()
 {
   DBUG_ENTER("Log_event::need_checksum");
-  my_bool ret;
+  my_bool ret= FALSE;
   /* 
      few callers of Log_event::write 
      (incl FD::write, FD constructing code on the slave side, Rotate relay log
      and Stop event) 
      provides their checksum alg preference through Log_event::checksum_alg.
   */
-  ret= (checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-    (checksum_alg != BINLOG_CHECKSUM_ALG_OFF) :
-    ((binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF) &&
-     (cache_type == Log_event::EVENT_NO_CACHE))? binlog_checksum_options :
-    FALSE;
+  if (checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF)
+    ret= (checksum_alg != BINLOG_CHECKSUM_ALG_OFF);
+  else if (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF &&
+           event_cache_type == Log_event::EVENT_NO_CACHE)
+    ret= binlog_checksum_options;
+  else
+    ret= FALSE;
 
   /*
     FD calls the methods before data_written has been calculated.
@@ -974,7 +962,7 @@ my_bool Log_event::need_checksum()
   DBUG_ASSERT(((get_type_code() != ROTATE_EVENT &&
                 get_type_code() != STOP_EVENT) ||
                get_type_code() != FORMAT_DESCRIPTION_EVENT) ||
-              cache_type == Log_event::EVENT_NO_CACHE);
+              event_cache_type == Log_event::EVENT_NO_CACHE);
 
   DBUG_RETURN(ret);
 }
@@ -1406,7 +1394,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
       debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
       DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event(char*,...): byte on position %d", debug_cor_pos));
-      DBUG_SET("-d,corrupt_read_log_event_char");
+      DBUG_SET("");
     }
   );                                                 
   if (crc_check &&
@@ -2390,6 +2378,457 @@ Log_event::continue_group(Relay_log_info *rli)
     return Log_event::EVENT_SKIP_IGNORE;
   return Log_event::do_shall_skip(rli);
 }
+
+
+bool Log_event::contains_partition_info()
+{
+  return (get_type_code() == TABLE_MAP_EVENT) ||
+    (get_type_code() == QUERY_EVENT && !ends_group() && !starts_group()) ||
+    (get_type_code() == EXECUTE_LOAD_QUERY_EVENT);
+}
+
+/**
+   The method maps the event to a Worker and return a pointer to it.
+   As a part of the group, an event belongs to one of the following types:
+
+   B - beginning of a group of events (BEGIN query_log_event)
+   g - mini-group representative event containing the partition info
+      (any Table_map, a Query_log_event)
+   p - a mini-group internal event that *p*receeding its g-parent
+      (int_, rand_, user_ var:s) 
+   r - a mini-group internal "regular" event that follows its g-parent
+      (Delete, Update, Write -rows)
+   T - terminator of the group (XID, COMMIT, ROLLBACK, auto-commit query)
+
+   Only the first g-event computes the assigned Worker which once 
+   is determined remains to be for the rest of the group.
+   That is the g-event solely carries partitioning info.
+   For B-event the assigned Worker is NULL to indicate Coordinator 
+   has not yet decided. The same applies to p-event.
+   
+   Notice, these is a special group consisting of optionally multiple p-events
+   terminating with a g-event.
+   Such case is caused by old master binlog and a few corner-cases of
+   the current master version (todo: to fix). 
+
+   In case of the event accesses more than OVER_MAX_DBS the method
+   has to ensure sure previously assigned groups to all other workers are
+   done.
+
+
+   @note The function updates GAQ queue directly, updates APH hash 
+         plus relocates some temporary tables from Coordinator's list into
+         involved entries of APH through @c map_db_to_worker.
+         There's few memory allocations commented where to be freed.
+   
+   @return a pointer to the Worker struct or NULL.
+*/
+
+Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
+{
+  Slave_job_group group, *ptr_group;
+  bool is_b_event;
+  int  num_dbs= 0;
+  Slave_worker *ret_worker= NULL;
+  char llbuff[22];
+#ifndef DBUG_OFF
+  THD *thd= rli->info_thd;
+#endif
+  Slave_committed_queue *gaq= rli->gaq;
+
+  /* checking partioning properties and perform corresponding actions */
+
+  // Beginning of a group designated explicitly with BEGIN
+  if ((is_b_event= starts_group()) ||
+      // or DDL:s or autocommit queries possibly associated with own p-events
+      (!rli->curr_group_seen_begin &&
+       /*
+         the following is a special case of B-free still multi-event group like
+         { p_1,p_2,...,p_k, g }.
+         In that case either GAQ is empty (the very first group is being
+         assigned) or the last assigned group index points at one of
+         mapped-to-a-worker.
+       */
+       (gaq->empty() ||
+        gaq->get_job_group(rli->gaq->assigned_group_index)->
+        worker_id != MTS_WORKER_UNDEF)))
+  {
+    ulong gaq_idx;
+    rli->mts_groups_assigned++;
+
+    rli->curr_group_isolated= FALSE;
+    group.reset(log_pos, rli->mts_groups_assigned);
+    // the last occupied GAQ's array index
+    gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
+    
+    DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF && gaq_idx < gaq->size);
+    DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
+                group_relay_log_name == NULL);
+    DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
+    DBUG_ASSERT(rli->last_assigned_worker == NULL);
+
+    if (is_b_event)
+    {
+      Log_event *ptr_curr_ev= this;
+      // B-event is appended to the Deferred Array associated with GCAP
+      insert_dynamic(&rli->curr_group_da,
+                     (uchar*) &ptr_curr_ev);
+
+      DBUG_ASSERT(rli->curr_group_da.elements == 1);
+
+      // mark the current group as started with explicit B-event
+      rli->curr_group_seen_begin= TRUE;
+
+      return ret_worker;
+    } 
+  }
+
+  // mini-group representative
+
+  if (contains_partition_info())
+  {
+    int i= 0;
+    num_dbs= mts_number_dbs();
+    List_iterator<char> it(*get_mts_dbs(&rli->mts_coor_mem_root));
+    it++;
+
+    ret_worker= rli->last_assigned_worker;
+    if (num_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
+    {
+      // Worker with id 0 to handle serial execution
+      if (!ret_worker)
+        ret_worker= *(Slave_worker**) dynamic_array_ptr(&rli->workers, 0);
+      // No need to know a possible error out of synchronization call.
+      (void) wait_for_workers_to_finish(rli, ret_worker);
+      /*
+        this marking is transferred further into T-event of the current group.
+      */
+      rli->curr_group_isolated= TRUE;
+    }
+
+    do
+    {
+      char **ref_cur_db= it.ref();
+      
+      if (!(ret_worker=
+            map_db_to_worker(*ref_cur_db, rli,
+                             &mts_assigned_partitions[i],
+                             /*
+                               todo: optimize it. Although pure 
+                               rows- event load in insensetive to the flag value
+                             */
+                             TRUE,
+                             ret_worker)))
+      {
+        llstr(rli->get_event_relay_log_pos(), llbuff);
+        my_error(ER_MTS_CANT_PARALLEL, MYF(0),
+                 get_type_str(), rli->get_event_relay_log_name(), llbuff,
+                 "could not distribute the event to a Worker");
+        return ret_worker;
+      }
+      // all temporary tables are transferred from Coordinator in over-max case
+      DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
+      DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db, *ref_cur_db));
+      DBUG_ASSERT(ret_worker == mts_assigned_partitions[i]->worker);
+      DBUG_ASSERT(mts_assigned_partitions[i]->usage > 0);
+
+      i++;
+    } while (it++);
+
+    if ((ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index))->
+        worker_id == MTS_WORKER_UNDEF)
+    {
+      ptr_group->worker_id= ret_worker->id;
+      
+      DBUG_ASSERT(ptr_group->group_relay_log_name == NULL);
+    }
+
+    DBUG_ASSERT(i == num_dbs || num_dbs == OVER_MAX_DBS_IN_EVENT_MTS);
+  }
+  else 
+  {
+    // a mini-group internal "regular" event
+    if (rli->last_assigned_worker)
+    {
+      ret_worker= rli->last_assigned_worker;
+      
+      DBUG_ASSERT(rli->curr_group_assigned_parts.elements > 0 ||
+                  ret_worker->id == 0);
+    }
+    else // int_, rand_, user_ var:s, load-data events
+    {
+      Log_event *ptr_curr_ev= this;
+
+      if (!(get_type_code() == INTVAR_EVENT ||
+            get_type_code() == RAND_EVENT ||
+            get_type_code() == USER_VAR_EVENT ||
+            get_type_code() == ROWS_QUERY_LOG_EVENT ||
+            get_type_code() == BEGIN_LOAD_QUERY_EVENT ||
+            get_type_code() == APPEND_BLOCK_EVENT))
+      {
+        DBUG_ASSERT(!ret_worker);
+        
+        llstr(rli->get_event_relay_log_pos(), llbuff);
+        my_error(ER_MTS_CANT_PARALLEL, MYF(0),
+                 get_type_str(), rli->get_event_relay_log_name(), llbuff,
+                 "the event is a part of a group that is unsupported in "
+                 "the parallel execution mode");
+
+        return ret_worker;
+      }
+
+      insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
+      
+      if (!rli->curr_group_seen_begin)
+      {
+        /*
+          This is a case of B/T-less group like
+          `set @user_var, select f()' that are logged w/o B-event.
+          Notice, while the select-f() can be mended in the current
+          master version, the old server binlogs can't since it bring in
+          the same B/T-less {p, g} group.
+        */
+        DBUG_ASSERT(rli->curr_group_da.elements > 0);
+      }
+      else
+      {
+        DBUG_ASSERT(rli->curr_group_da.elements > 1);
+      }
+
+      DBUG_ASSERT(!ret_worker);
+
+      return ret_worker;
+    }
+  }
+
+  // T-event: Commit, Xid, a DDL query or dml query of B-less group.
+  if (ends_group() || !rli->curr_group_seen_begin)
+  {
+    // index of GAQ that this terminal event belongs to
+    mts_group_idx= gaq->assigned_group_index;
+    rli->mts_group_status= Relay_log_info::MTS_END_GROUP;
+    if (rli->curr_group_isolated)
+      set_mts_isolate_group();
+    ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+
+    DBUG_ASSERT(ret_worker != NULL);
+    
+    /*
+      The following two blocks are executed if the worker has not been
+      notified about new relay-log or a new checkpoints. 
+      Relay-log string is freed by Coordinator, Worker deallocates
+      strings in the checkpoint block.
+      However if the worker exits earlier reclaiming for both happens anyway at
+      GAQ delete.
+    */
+    if (!ret_worker->relay_log_change_notified)
+    {
+      /*
+        Prior this event, C rotated the relay log to drop each
+        Worker's notified flag. Now group terminating event initiates
+        the new relay-log (where the current event is from) name
+        delivery to Worker that will receive it in commit_positions().
+      */
+      DBUG_ASSERT(ptr_group->group_relay_log_name == NULL);
+
+      ptr_group->group_relay_log_name= (char *)
+        my_malloc(strlen(rli->
+                         get_group_relay_log_name()) + 1, MYF(MY_WME));
+      strcpy(ptr_group->group_relay_log_name,
+             rli->get_event_relay_log_name());
+
+      DBUG_ASSERT(ptr_group->group_relay_log_name != NULL);
+
+      ret_worker->relay_log_change_notified= TRUE;
+    }
+
+    if (!ret_worker->checkpoint_notified)
+    {
+      ptr_group->checkpoint_log_name= (char *)
+        my_malloc(strlen(rli->
+                         get_group_master_log_name()) + 1, MYF(MY_WME));
+      strcpy(ptr_group->checkpoint_log_name,
+             rli->get_group_master_log_name());
+      ptr_group->checkpoint_log_pos= rli->get_group_master_log_pos();
+      ptr_group->checkpoint_relay_log_name= (char *)
+        my_malloc(strlen(rli->
+                         get_group_relay_log_name()) + 1, MYF(MY_WME));
+      strcpy(ptr_group->checkpoint_relay_log_name,
+             rli->get_group_relay_log_name());
+      ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
+      ptr_group->shifted= ret_worker->bitmap_shifted;
+      ret_worker->bitmap_shifted= 0;
+      ret_worker->checkpoint_notified= TRUE;
+    }
+    ptr_group->checkpoint_seqno= rli->checkpoint_seqno;
+    ptr_group->ts= when + (time_t) exec_time;       // Seconds_behind_master related
+    rli->checkpoint_seqno++;
+
+    // reclaiming resources allocated during the group scheduling
+    free_root(&rli->mts_coor_mem_root, MYF(MY_KEEP_PREALLOC));
+
+#ifndef DBUG_OFF
+    w_rr++;
+#endif
+
+  }
+  
+  return ret_worker;
+}
+
+/**
+   Scheduling event to execute in parallel or execute it directly.
+   In MTS case the event gets associated with either Coordinator or a
+   Worker.  A special case of the association is NULL when the Worker
+   can't be decided yet.  In the single threaded sequential mode the
+   event maps to SQL thread rli.
+
+   @note in case of MTS failure Coordinator destroys all gathered
+         deferred events.
+
+   @return 0 as success, otherwise a failure.
+*/
+int Log_event::apply_event(Relay_log_info *rli)
+{
+  DBUG_ENTER("LOG_EVENT:apply_event");
+  bool parallel= FALSE;
+  enum enum_mts_event_exec_mode actual_exec_mode= EVENT_EXEC_PARALLEL;
+  THD *thd= rli->info_thd;
+
+  worker= rli;
+
+  if (rli->is_mts_recovery())
+  {
+    bool skip= 
+      bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index) &&
+      (get_mts_execution_mode(::server_id, 
+                          rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
+       == EVENT_EXEC_PARALLEL);
+    if (skip)
+    {
+      DBUG_RETURN(0);
+    }
+    else
+    { 
+      DBUG_RETURN(do_apply_event(rli));
+    }
+  }
+
+  if (!(parallel= rli->is_parallel_exec()) ||
+      ((actual_exec_mode= 
+        get_mts_execution_mode(::server_id, 
+                           rli->mts_group_status == Relay_log_info::MTS_IN_GROUP))
+       != EVENT_EXEC_PARALLEL))
+  {
+    if (parallel)
+    {
+      /* 
+         There are two classes of events that Coordinator executes
+         itself. One e.g the master Rotate requires all Workers to finish up 
+         their assignments. The other async class, e.g the slave Rotate,
+         can't have this such synchronization because Worker might be waiting
+         for terminal events to finish.
+      */
+
+      if (actual_exec_mode != EVENT_EXEC_ASYNC)
+      {     
+        /*
+          this  event does not split the current group but is indeed
+          a separator beetwen two master's binlog therefore requiring
+          Workers to sync.
+        */
+        if (rli->curr_group_da.elements > 0)
+        {
+          char llbuff[22];
+          /* 
+             Possible reason is a old version binlog sequential event
+             wrappped with BEGIN/COMMIT or preceeded by User|Int|Random- var.
+             MTS has to stop to suggest restart in the permanent sequential mode.
+          */
+          llstr(rli->get_event_relay_log_pos(), llbuff);
+          my_error(ER_MTS_CANT_PARALLEL, MYF(0),
+                   get_type_str(), rli->get_event_relay_log_name(), llbuff,
+                   "possible malformed group of events from an old master");
+
+          /* Coordinator cant continue, it marks MTS group status accordingly */
+          rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
+
+          goto err;
+        }
+        /*
+          Marking sure the event will be executed in sequential mode.
+        */
+        if (wait_for_workers_to_finish(rli) == -1)
+        {
+          // handle synchronization error
+          rli->report(WARNING_LEVEL, 0,
+                      "Slave worker thread has failed to apply an event. As a "
+                      "consequence, the coordinator thread is stopping "
+                      "execution.");
+          DBUG_RETURN(-1);
+        }
+        /*
+          Given not in-group mark the event handler can invoke checkpoint
+          update routine in the following course.
+        */
+        DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP);
+
+#ifndef DBUG_OFF
+        /* all Workers are idle as done through wait_for_workers_to_finish */
+        for (uint k= 0; k < rli->curr_group_da.elements; k++)
+        {
+          DBUG_ASSERT(!(*(Slave_worker **)
+                        dynamic_array_ptr(&rli->workers, k))->usage_partition);
+          DBUG_ASSERT(!(*(Slave_worker **)
+                        dynamic_array_ptr(&rli->workers, k))->jobs.len);
+        }
+#endif
+      }
+      else
+      {
+        DBUG_ASSERT(actual_exec_mode == EVENT_EXEC_ASYNC);
+      }
+    }
+    DBUG_RETURN(do_apply_event(rli));
+  }
+
+  DBUG_ASSERT(actual_exec_mode == EVENT_EXEC_PARALLEL);
+  DBUG_ASSERT(!(rli->curr_group_seen_begin && ends_group()) ||
+              rli->last_assigned_worker);
+
+  worker= NULL;
+  rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
+
+  worker= (Relay_log_info*)
+    (rli->last_assigned_worker= get_slave_worker(rli));
+
+#ifndef DBUG_OFF
+  if (rli->last_assigned_worker)
+    DBUG_PRINT("mts", ("Assigning job to worker %lu",
+               rli->last_assigned_worker->id));
+#endif
+
+err:
+  if (thd->is_error())
+  {
+    DBUG_ASSERT(!worker);
+
+    // destroy buffered events of the current group prior to exit
+    for (uint k= 0; k < rli->curr_group_da.elements; k++)
+    { 
+      delete *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, k);
+    }
+  }
+  else
+  {
+    DBUG_ASSERT(worker || rli->curr_group_assigned_parts.elements == 0);
+  }
+
+  DBUG_RETURN((!thd->is_error() ||
+               DBUG_EVALUATE_IF("fault_injection_get_slave_worker", 1, 0)) ?
+              0 : -1);
+}
+
 #endif
 
 /**************************************************************************
@@ -2652,6 +3091,37 @@ bool Query_log_event::write(IO_CACHE* file)
       start+= host.length;
     }
   }
+
+  if (thd && thd->get_binlog_accessed_db_names() != NULL)
+  {
+    uchar dbs;
+    *start++= Q_UPDATED_DB_NAMES;
+
+    compile_time_assert(MAX_DBS_IN_EVENT_MTS <= OVER_MAX_DBS_IN_EVENT_MTS);
+
+    /* 
+       in case of the number of db:s exceeds  MAX_DBS_IN_EVENT_MTS
+       no db:s is written and event will require the sequential applying on slave.
+    */
+    dbs= *start++=
+      (thd->get_binlog_accessed_db_names()->elements <= MAX_DBS_IN_EVENT_MTS) ?
+      thd->get_binlog_accessed_db_names()->elements : OVER_MAX_DBS_IN_EVENT_MTS;
+
+    DBUG_ASSERT(dbs != 0);
+
+    if (dbs <= MAX_DBS_IN_EVENT_MTS)
+    {
+      List_iterator_fast<char> it(*thd->get_binlog_accessed_db_names());
+      char *db_name;
+
+      while ((db_name= it++))
+      {
+        strcpy((char*) start, db_name);
+        start += strlen(db_name) + 1;
+      }
+    }
+  }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
@@ -2700,29 +3170,33 @@ Query_log_event::Query_log_event()
 }
 
 
-/*
-  SYNOPSIS
-    Query_log_event::Query_log_event()
-      thd_arg           - thread handle
-      query_arg         - array of char representing the query
-      query_length      - size of the  `query_arg' array
-      using_trans       - there is a modified transactional table
-      suppress_use      - suppress the generation of 'USE' statements
-      errcode           - the error code of the query
-      
-  DESCRIPTION
-  Creates an event for binlogging
-  The value for `errcode' should be supplied by caller.
+/**
+  Creates a Query Log Event.
+
+  @param thd_arg      Thread handle
+  @param query_arg    Array of char representing the query
+  @param query_length Size of the 'query_arg' array
+  @param using_trans  Indicates that there are transactional changes.
+  @param immediate    After being written to the binary log, the event
+                      must be flushed immediately. This indirectly implies
+                      the stmt-cache.
+  @param suppress_use Suppress the generation of 'USE' statements
+  @param errcode      The error code of the query
+  @param ignore       Ignore user's statement, i.e. lex information, while
+                      deciding which cache must be used.
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans,
-				 bool direct, bool suppress_use, int errcode)
+				 bool immediate, bool suppress_use,
+                                 int errcode, bool ignore_cmd_internals)
 
   :Log_event(thd_arg,
              (thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F :
               0) |
              (suppress_use ? LOG_EVENT_SUPPRESS_USE_F : 0),
-	     using_trans),
+	     using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                          Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
    data_buf(0), query(query_arg), catalog(thd_arg->catalog),
    db(thd_arg->db), q_len((uint32) query_length),
    thread_id(thd_arg->thread_id),
@@ -2735,7 +3209,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    lc_time_names_number(thd_arg->variables.lc_time_names->number),
    charset_database_number(0),
    table_map_for_update((ulonglong)thd_arg->table_map_for_update),
-   master_data_written(0)
+   master_data_written(0), mts_accessed_dbs(0)
 {
   time_t end_time;
 
@@ -2800,62 +3274,146 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   else
     time_zone_len= 0;
 
+  /*
+    In what follows, we define in which cache, trx-cache or stmt-cache,
+    this Query Log Event will be written to.
+
+    If ignore_cmd_internals is defined, we rely on the is_trans flag to
+    choose the cache and this is done in the base class Log_event. False
+    means that the stmt-cache will be used and upon statement commit/rollback
+    the cache will be flushed to disk. True means that the trx-cache will
+    be used and upon transaction commit/rollback the cache will be flushed
+    to disk.
+
+    If set immediate cache is defined, for convenience, we automatically
+    use the stmt-cache. This mean that the statement will be written
+    to the stmt-cache and immediately flushed to disk without waiting
+    for a commit/rollback notification.
+
+    For example, the cluster/ndb captures a request to execute a DDL
+    statement and synchronously propagate it to all available MySQL
+    servers. Unfortunately, the current protocol assumes that the
+    generated events are immediately written to diks and does not check
+    for commit/rollback.
+
+    Upon dropping a connection, DDLs (i.e. DROP TEMPORARY TABLE) are
+    generated and in this case the statements have the immediate flag
+    set because there is no commit/rollback.
+
+    If the immediate flag is not set, the decision on the cache is based
+    on the current statement and the flag is_trans, which indicates if
+    a transactional engine was updated. 
+
+    Statements are classifed as row producers (i.e. can_generate_row_events())
+    or non-row producers. Non-row producers, DDL in general, are treated
+    as the immediate flag was set and for convenience are written to the
+    stmt-cache and immediately flushed to disk. 
+
+    Row producers are handled in general according to the is_trans flag.
+    False means that the stmt-cache will be used and upon statement
+    commit/rollback the cache will be flushed to disk. True means that the
+    trx-cache will be used and upon transaction commit/rollback the cache
+    will be flushed to disk.
+
+    Unfortunately, there are exceptions to this non-row and row producer
+    rules:
+
+      . The SAVEPOINT, ROLLBACK TO SAVEPOINT, RELEASE SAVEPOINT does not
+        have the flag is_trans set because there is no updated engine but
+        must be written to the trx-cache.
+
+      . SET does not have the flag is_trans set but, if auto-commit is off,
+        must be written to the trx-cache.
+
+      . CREATE TABLE is classfied as non-row producer but CREATE TEMPORARY
+        must be handled as row producer.
+
+      . DROP TABLE is classfied as non-row producer but DROP TEMPORARY
+        must be handled as row producer.
+
+    Finally, some statements that does not have the flag is_trans set may
+    be written to the trx-cache based on the following criteria:
+
+      . updated both a transactional and a non-transactional engine (i.e.
+        stmt_has_updated_trans_table()).
+
+      . accessed both a transactional and a non-transactional engine and
+        is classified as unsafe (i.e. is_mixed_stmt_unsafe()).
+
+      . is executed within a transaction and previously a transactional
+        engine was updated and the flag binlog_direct_non_trans_update
+        is set.
+  */
+  if (ignore_cmd_internals)
+    return;
+
+  /*
+    TRUE defines that the trx-cache must be used.
+  */
+  bool cmd_can_generate_row_events= FALSE;
+  /*
+    TRUE defines that the trx-cache must be used.
+  */
+  bool cmd_must_go_to_trx_cache= FALSE;
+   
   LEX *lex= thd->lex;
-  /*
-    Defines that the statement will be written directly to the binary log
-    without being wrapped by a BEGIN...COMMIT. Otherwise, the statement
-    will be written to either the trx-cache or stmt-cache.
-
-    Note that a cache will not be used if the parameter direct is TRUE.
-  */
-  bool use_cache= FALSE;
-  /*
-    TRUE defines that the trx-cache must be used and by consequence the
-    use_cache is TRUE.
-
-    Note that a cache will not be used if the parameter direct is TRUE.
-  */
-  bool trx_cache= FALSE;
-  cache_type= Log_event::EVENT_INVALID_CACHE;
-
-  switch (lex->sql_command)
+  if (!immediate)
   {
-    case SQLCOM_DROP_TABLE:
-      use_cache= (lex->drop_temporary && thd->in_multi_stmt_transaction_mode());
-    break;
-
-    case SQLCOM_CREATE_TABLE:
-      trx_cache= (lex->select_lex.item_list.elements &&
-                  thd->is_current_stmt_binlog_format_row());
-      use_cache= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-                   thd->in_multi_stmt_transaction_mode()) || trx_cache;
+    switch (lex->sql_command)
+    {
+      case SQLCOM_DROP_TABLE:
+        cmd_can_generate_row_events= lex->drop_temporary &&
+                                     thd->in_multi_stmt_transaction_mode();
       break;
-    case SQLCOM_SET_OPTION:
-      use_cache= trx_cache= (lex->autocommit ? FALSE : TRUE);
-      break;
-    case SQLCOM_RELEASE_SAVEPOINT:
-    case SQLCOM_ROLLBACK_TO_SAVEPOINT:
-    case SQLCOM_SAVEPOINT:
-      use_cache= trx_cache= TRUE;
-      break;
-    default:
-      use_cache= sqlcom_can_generate_row_events(thd);
-      break;
+      case SQLCOM_CREATE_TABLE:
+        cmd_must_go_to_trx_cache= lex->select_lex.item_list.elements &&
+                                  thd->is_current_stmt_binlog_format_row();
+        cmd_can_generate_row_events= 
+          ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+            thd->in_multi_stmt_transaction_mode()) || cmd_must_go_to_trx_cache;
+        break;
+      case SQLCOM_SET_OPTION:
+        cmd_can_generate_row_events= cmd_must_go_to_trx_cache=
+          (lex->autocommit ? FALSE : TRUE);
+        break;
+      case SQLCOM_RELEASE_SAVEPOINT:
+      case SQLCOM_ROLLBACK_TO_SAVEPOINT:
+      case SQLCOM_SAVEPOINT:
+        cmd_can_generate_row_events= cmd_must_go_to_trx_cache= TRUE;
+        break;
+      default:
+        cmd_can_generate_row_events= sqlcom_can_generate_row_events(thd);
+        break;
+    }
   }
-
-  if (!use_cache || direct)
+  
+  if (cmd_can_generate_row_events)
   {
-    cache_type= Log_event::EVENT_NO_CACHE;
+    cmd_must_go_to_trx_cache= cmd_must_go_to_trx_cache || using_trans;
+    if (cmd_must_go_to_trx_cache || stmt_has_updated_trans_table(thd) ||
+        thd->lex->is_mixed_stmt_unsafe(thd->in_multi_stmt_transaction_mode(),
+                                       thd->variables.binlog_direct_non_trans_update,
+                                       trans_has_updated_trans_table(thd),
+                                       thd->tx_isolation) ||
+        (!thd->variables.binlog_direct_non_trans_update && trans_has_updated_trans_table(thd)))
+    {
+      event_logging_type= Log_event::EVENT_NORMAL_LOGGING; 
+      event_cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
+    }
+    else
+    {
+      event_logging_type= Log_event::EVENT_NORMAL_LOGGING; 
+      event_cache_type= Log_event::EVENT_STMT_CACHE;
+    }
   }
-  else if (using_trans || trx_cache || stmt_has_updated_trans_table(thd) ||
-           thd->lex->is_mixed_stmt_unsafe(thd->in_multi_stmt_transaction_mode(),
-                                          thd->variables.binlog_direct_non_trans_update,
-                                          trans_has_updated_trans_table(thd),
-                                          thd->tx_isolation))
-    cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
   else
-    cache_type= Log_event::EVENT_STMT_CACHE;
-  DBUG_ASSERT(cache_type != Log_event::EVENT_INVALID_CACHE);
+  {
+    event_logging_type= Log_event::EVENT_IMMEDIATE_LOGGING;
+    event_cache_type= Log_event::EVENT_STMT_CACHE;
+  }
+
+  DBUG_ASSERT(event_cache_type != Log_event::EVENT_INVALID_CACHE);
+  DBUG_ASSERT(event_logging_type != Log_event::EVENT_INVALID_LOGGING);
   DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %llu",
                      (ulong) flags2, sql_mode));
 }
@@ -2936,6 +3494,7 @@ code_name(int code)
   case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
   case Q_TABLE_MAP_FOR_UPDATE_CODE: return "Q_TABLE_MAP_FOR_UPDATE_CODE";
   case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
+  case Q_UPDATED_DB_NAMES: return "Q_UPDATED_DB_NAMES";
   }
   sprintf(buf, "CODE#%d", code);
   return buf;
@@ -2973,7 +3532,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
    auto_increment_increment(1), auto_increment_offset(1),
    time_zone_len(0), lc_time_names_number(0), charset_database_number(0),
-   table_map_for_update(0), master_data_written(0)
+   table_map_for_update(0), master_data_written(0),
+   mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS)
 {
   ulong data_len;
   uint32 tmp;
@@ -3152,6 +3712,31 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       CHECK_SPACE(pos, end, host.length);
       host.str= (char *)pos;
       pos+= host.length;
+      break;
+    }
+    case Q_UPDATED_DB_NAMES:
+    {
+      CHECK_SPACE(pos, end, 1);
+      mts_accessed_dbs= *pos++;
+      /* 
+         Notice, the following check is positive also in case of
+         the master's MAX_DBS_IN_EVENT_MTS > the slave's one and the event 
+         contains e.g the master's MAX_DBS_IN_EVENT_MTS db:s.
+      */
+      if (mts_accessed_dbs > MAX_DBS_IN_EVENT_MTS)
+      {
+        mts_accessed_dbs= OVER_MAX_DBS_IN_EVENT_MTS;
+        break;
+      }
+
+      DBUG_ASSERT(mts_accessed_dbs != 0);
+
+      for (uchar i= 0; i < mts_accessed_dbs; i++)
+      {
+        strcpy(mts_accessed_db_names[i], (char*) pos);
+        pos+= 1 + strlen((const char*) pos);
+      }
+      break;
     }
     default:
       /* That's why you must write status vars in growing order of code */
@@ -3403,13 +3988,95 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 }
 #endif /* MYSQL_CLIENT */
 
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+
+/**
+   Associating slave Worker thread to a subset of temporary tables
+   belonging to db-partitions the event accesses.
+   The pointer if all entries is cleaned.
+
+   @param thd   THD instance pointer
+*/
+void Query_log_event::attach_temp_tables_worker(THD *thd)
+{
+  if (!is_mts_worker(thd) || !contains_partition_info())
+    return;
+  
+  // in over max-db:s case just one special parttion is locked
+  int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
+              1 : mts_accessed_dbs);
+
+  DBUG_ASSERT(!thd->temporary_tables);
+
+  for (int i= 0; i < parts; i++)
+  {
+    mts_move_temp_tables_to_thd(thd,
+                                mts_assigned_partitions[i]->temporary_tables);
+    mts_assigned_partitions[i]->temporary_tables= NULL;
+  }
+}
+
+/**
+   Dissociating slave Worker thread from its thd->temporary_tables
+   to possibly update the involved entries of db-to-worker hash
+   with new values of temporary_tables.
+
+   @param thd   THD instance pointer
+*/
+void Query_log_event::detach_temp_tables_worker(THD *thd)
+{
+  if (!is_mts_worker(thd))
+    return;
+
+  int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
+              1 : mts_accessed_dbs);
+  /*
+    todo: optimize for a case of 
+
+    a. one db
+       Only detaching temporary_tables from thd to entry would require
+       instead of the double-loop below.
+
+    b. unchanged thd->temporary_tables. 
+       In such case the involved entries would continue to hold the
+       unmodified lists provided that the attach_ method does not
+       destroy references to them.
+  */
+  for (int i= 0; i < parts; i++)
+  {
+    mts_assigned_partitions[i]->temporary_tables= NULL;
+  }
+
+  for (TABLE *table= thd->temporary_tables; table;)
+  {
+    int i;
+
+    // find which entry to go
+    for (i= 0; i < parts; i++)
+      if (strcmp(table->s->db.str, mts_accessed_db_names[i]) < 0)
+        continue;
+      else
+        break;
+
+    DBUG_ASSERT(i < mts_accessed_dbs);
+
+    // table pointer is shifted inside the function
+    table= mts_move_temp_table_to_entry(table, thd, mts_assigned_partitions[i]);
+  }
+
+  DBUG_ASSERT(!thd->temporary_tables);
+#ifndef DBUG_OFF
+  for (int i= 0; i < parts; i++)
+  {
+    DBUG_ASSERT(!mts_assigned_partitions[i]->temporary_tables ||
+                !mts_assigned_partitions[i]->temporary_tables->prev);
+  }
+#endif
+}
 
 /*
   Query_log_event::do_apply_event()
 */
-
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-
 int Query_log_event::do_apply_event(Relay_log_info const *rli)
 {
   return do_apply_event(rli, query, q_len);
@@ -3471,8 +4138,12 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   const_cast<Relay_log_info*>(rli)->set_future_group_master_log_pos(log_pos);
   DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
 
+  /*
+    todo: such cleanup should not be specific to Query event and therefore
+          is preferable at a common with other event pre-execution point
+  */
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
-  if (strcmp("COMMIT", query) == 0 && rli->tables_to_lock)
+  if (strcmp("COMMIT", query) == 0 && rli->tables_to_lock != NULL)
   {
     /*
       Cleaning-up the last statement context:
@@ -3516,10 +4187,11 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   */
   if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
-    thd->set_time((time_t)when);
+    thd->set_time((time_t) when);
     thd->set_query_and_id((char*)query_arg, q_len_arg,
                           thd->charset(), next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
+    attach_temp_tables_worker(thd);
     DBUG_PRINT("query",("%s", thd->query()));
 
     if (ignored_error_code((expected_error= error_code)) ||
@@ -3687,7 +4359,7 @@ START SLAVE; . Query: '%s'", expected_error, thd->query());
     }
 
     /* If the query was not ignored, it is printed to the general log */
-    if (!thd->is_error() || thd->stmt_da->sql_errno() != ER_SLAVE_IGNORED_TABLE)
+    if (!thd->is_error() || thd->get_stmt_da()->sql_errno() != ER_SLAVE_IGNORED_TABLE)
       general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
 compare_errors:
@@ -3699,14 +4371,14 @@ compare_errors:
       not exist errors", we silently clear the error if TEMPORARY was used.
     */
     if (thd->lex->sql_command == SQLCOM_DROP_TABLE && thd->lex->drop_temporary &&
-        thd->is_error() && thd->stmt_da->sql_errno() == ER_BAD_TABLE_ERROR &&
+        thd->is_error() && thd->get_stmt_da()->sql_errno() == ER_BAD_TABLE_ERROR &&
         !expected_error)
-      thd->stmt_da->reset_diagnostics_area();
+      thd->get_stmt_da()->reset_diagnostics_area();
     /*
       If we expected a non-zero error code, and we don't get the same error
       code, and it should be ignored or is related to a concurrency issue.
     */
-    actual_error= thd->is_error() ? thd->stmt_da->sql_errno() : 0;
+    actual_error= thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
                        expected_error, actual_error));
 
@@ -3723,7 +4395,7 @@ Error on slave: actual message='%s', error code=%d. \
 Default database: '%s'. Query: '%s'",
                       ER_SAFE(expected_error),
                       expected_error,
-                      actual_error ? thd->stmt_da->message() : "no error",
+                      actual_error ? thd->get_stmt_da()->message() : "no error",
                       actual_error,
                       print_slave_db_safe(db), query_arg);
       thd->is_slave_error= 1;
@@ -3747,7 +4419,7 @@ Default database: '%s'. Query: '%s'",
     {
       rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' on query. Default database: '%s'. Query: '%s'",
-                      (actual_error ? thd->stmt_da->message() :
+                      (actual_error ? thd->get_stmt_da()->message() :
                        "unexpected success or fatal error"),
                       print_slave_db_safe(thd->db), query_arg);
       thd->is_slave_error= 1;
@@ -3783,6 +4455,9 @@ Default database: '%s'. Query: '%s'",
       The sql thread receives the killed status and will proceed
       to shutdown trying to finish incomplete events group.
     */
+
+    // TODO: address the middle-group killing in MTS case
+
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     if (strcmp("COMMIT", query) != 0 &&
                         strcmp("BEGIN", query) != 0)
@@ -3793,6 +4468,9 @@ Default database: '%s'. Query: '%s'",
   }
 
 end:
+
+  if (thd->temporary_tables)
+    detach_temp_tables_worker(thd);
   /*
     Probably we have set thd->query, thd->db, thd->catalog to point to places
     in the data_buf of this event. Now the event is going to be deleted
@@ -3839,6 +4517,7 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
   DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
        if (!strcmp("COMMIT", query))
        {
+         sql_print_information("Crashing crash_after_commit_and_update_pos.");
          rli->flush_info(TRUE);
          DBUG_SUICIDE();
        }
@@ -4847,7 +5526,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       bool ignore, bool using_trans)
   :Log_event(thd_arg,
              thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0,
-             using_trans),
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                           Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
    thread_id(thd_arg->thread_id),
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
    num_fields(0),fields(0),
@@ -5223,9 +5904,9 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   */
   if (rpl_filter->db_ok(thd->db))
   {
-    thd->set_time((time_t)when);
+    thd->set_time((time_t) when);
     thd->set_query_id(next_query_id());
-    thd->warning_info->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];
@@ -5375,9 +6056,9 @@ error:
   thd->catalog= 0;
   thd->set_db(NULL, 0);                   /* will free the current database */
   thd->reset_query();
-  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-  thd->stmt_da->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
   close_thread_tables(thd);
   /*
     - If inside a multi-statement transaction,
@@ -5404,8 +6085,8 @@ error:
     int sql_errno;
     if (thd->is_error())
     {
-      err= thd->stmt_da->message();
-      sql_errno= thd->stmt_da->sql_errno();
+      err= thd->get_stmt_da()->message();
+      sql_errno= thd->get_stmt_da()->sql_errno();
     }
     else
     {
@@ -5492,9 +6173,9 @@ void Rotate_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
                                    uint ident_len_arg, ulonglong pos_arg,
                                    uint flags_arg)
-  :Log_event(), new_log_ident(new_log_ident_arg),
-   pos(pos_arg),ident_len(ident_len_arg ? ident_len_arg :
-                          (uint) strlen(new_log_ident_arg)), flags(flags_arg)
+  :Log_event(Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING),
+   new_log_ident(new_log_ident_arg), pos(pos_arg),ident_len(ident_len_arg ?
+   ident_len_arg : (uint) strlen(new_log_ident_arg)), flags(flags_arg)
 {
 #ifndef DBUG_OFF
   char buff[22];
@@ -5502,7 +6183,8 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
   DBUG_PRINT("enter",("new_log_ident: %s  pos: %s  flags: %lu", new_log_ident_arg,
                       llstr(pos_arg, buff), (ulong) flags));
 #endif
-  cache_type= EVENT_NO_CACHE;
+  event_cache_type= EVENT_NO_CACHE;
+  event_logging_type= EVENT_IMMEDIATE_LOGGING;
   if (flags & DUP_NAME)
     new_log_ident= my_strndup(new_log_ident_arg, ident_len, MYF(MY_WME));
   if (flags & RELAY_LOG)
@@ -5601,13 +6283,25 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
   */
   if ((server_id != ::server_id || rli->replicate_same_server_id) &&
       !is_relay_log_event() &&
-      !rli->is_in_group())
+      ((!rli->is_parallel_exec() && !rli->is_in_group()) ||
+       rli->mts_group_status != Relay_log_info::MTS_IN_GROUP))
   {
+    if (rli->is_parallel_exec())
+    {
+      /*
+        Rotate events are special events that are handled as a
+        synchronization point. For that reason, the checkpoint
+        routine is being called here.
+      */
+      (void) mts_checkpoint_routine(rli, 0, FALSE, TRUE); // TODO: ALFRANIO ERROR
+    }
+
     mysql_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",
                         rli->get_group_master_log_name(),
                         (ulong) rli->get_group_master_log_pos()));
+
     memcpy((void *)rli->get_group_master_log_name(),
            new_log_ident, ident_len + 1);
     rli->notify_group_master_log_name_update();
@@ -5618,8 +6312,9 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         rli->get_group_master_log_name(),
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
-    rli->flush_info(TRUE);
-    
+    if (rli->is_parallel_exec())
+      rli->reset_notified_checkpoint(0, when + (time_t) exec_time);
+
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
       a master's downgrade from 5.0 to 4.0.
@@ -5978,10 +6673,69 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+/**
+   Worker commits Xid transaction and in case of its transactional
+   info table marks the current group as done in the Coordnator's 
+   Group Assigned Queue.
+
+   @return zero as success or non-zero as an error 
+*/
+int Xid_log_event::do_apply_event_worker(Slave_worker *w)
+{
+  int error= 0;
+  bool is_trans_repo= w->is_transactional();
+  Slave_committed_queue *coordinator_gaq= w->c_rli->gaq;
+
+  /* For a slave Xid_log_event is COMMIT */
+  general_log_print(thd, COM_QUERY,
+                    "COMMIT /* implicit, from Xid_log_event */");
+
+  DBUG_PRINT("mts", ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
+                     w->get_group_master_log_name(),
+                     w->get_group_master_log_pos(),
+                     w->get_group_relay_log_name(),
+                     w->get_group_relay_log_pos(),
+                     w->get_event_relay_log_name(),
+                     w->get_event_relay_log_pos()));
+
+  DBUG_EXECUTE_IF("crash_before_update_pos",
+                  sql_print_information("Crashing crash_before_update_pos.");
+                  DBUG_SUICIDE(););
+
+  if (is_trans_repo)
+  {
+    ulong gaq_idx= mts_group_idx;
+    Slave_job_group *ptr_group= coordinator_gaq->get_job_group(gaq_idx);
+
+    if ((error= w->commit_positions(this, ptr_group, true)))
+      goto err;
+  }
+
+  DBUG_PRINT("mts", ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
+                     w->get_group_master_log_name(),
+                     w->get_group_master_log_pos(),
+                     w->get_group_relay_log_name(),
+                     w->get_group_relay_log_pos(),
+                     w->get_event_relay_log_name(),
+                     w->get_event_relay_log_pos()));
+
+  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply",
+                  sql_print_information("Crashing crash_after_update_pos_before_apply.");
+                  DBUG_SUICIDE(););
+
+  error= trans_commit(thd); /* Automatically rolls back on error. */
+  DBUG_EXECUTE_IF("crash_after_apply", 
+                  sql_print_information("Crashing crash_after_apply.");
+                  DBUG_SUICIDE(););
+  thd->mdl_context.release_transactional_locks();
+
+err:
+  return error;
+}
+
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
   int error= 0;
-
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
 
   /*
@@ -6001,15 +6755,17 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
     mysql_mutex_lock(&rli_ptr->data_lock);
   }
 
-  DBUG_PRINT("info", ("do_apply group master %s %lu  group relay %s %lu event %s %lu\n",
+  DBUG_PRINT("info", ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
     rli_ptr->get_group_master_log_name(),
-    (ulong) rli_ptr->get_group_master_log_pos(),
+    rli_ptr->get_group_master_log_pos(),
     rli_ptr->get_group_relay_log_name(),
-    (ulong) rli_ptr->get_group_relay_log_pos(),
+    rli_ptr->get_group_relay_log_pos(),
     rli_ptr->get_event_relay_log_name(),
-    (ulong) rli_ptr->get_event_relay_log_pos()));
+    rli_ptr->get_event_relay_log_pos()));
 
-  DBUG_EXECUTE_IF("crash_before_update_pos", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_before_update_pos",
+                  sql_print_information("Crashing crash_before_update_pos.");
+                  DBUG_SUICIDE(););
 
   /*
     We need to update the positions in here to make it transactional.  
@@ -6031,18 +6787,22 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
       goto err;
   }
 
-  DBUG_PRINT("info", ("do_apply group master %s %lu  group relay %s %lu event %s %lu\n",
+  DBUG_PRINT("info", ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
     rli_ptr->get_group_master_log_name(),
-    (ulong) rli_ptr->get_group_master_log_pos(),
+    rli_ptr->get_group_master_log_pos(),
     rli_ptr->get_group_relay_log_name(),
-    (ulong) rli_ptr->get_group_relay_log_pos(),
+    rli_ptr->get_group_relay_log_pos(),
     rli_ptr->get_event_relay_log_name(),
-    (ulong) rli_ptr->get_event_relay_log_pos()));
+    rli_ptr->get_event_relay_log_pos()));
 
-  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply",
+                  sql_print_information("Crashing crash_after_update_pos_before_apply.");
+                  DBUG_SUICIDE(););
 
   error= trans_commit(thd); /* Automatically rolls back on error. */
-  DBUG_EXECUTE_IF("crash_after_apply", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_after_apply", 
+                  sql_print_information("Crashing crash_after_apply.");
+                  DBUG_SUICIDE(););
   thd->mdl_context.release_transactional_locks();
 
 err:
@@ -6780,7 +7540,7 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   int error = 1;
 
   THD_STAGE_INFO(thd, stage_making_temp_file_create_before_load_data);
-  bzero((char*)&file, sizeof(file));
+  memset(&file, 0, sizeof(file));
   ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
   /* old copy may exist already */
   mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
@@ -6857,7 +7617,11 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg,
 					       uchar *block_arg,
 					       uint block_len_arg,
 					       bool using_trans)
-  :Log_event(thd_arg,0, using_trans), block(block_arg),
+  :Log_event(thd_arg, 0,
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                           Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
+   block(block_arg),
    block_len(block_len_arg), file_id(thd_arg->file_id), db(db_arg)
 {
 }
@@ -7023,7 +7787,11 @@ err:
 #ifndef MYSQL_CLIENT
 Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char* db_arg,
 					     bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id), db(db_arg)
+  :Log_event(thd_arg, 0, 
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                           Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
+  file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif
@@ -7119,7 +7887,11 @@ int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
 Execute_load_log_event::Execute_load_log_event(THD *thd_arg,
                                                const char* db_arg,
 					       bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id), db(db_arg)
+  :Log_event(thd_arg, 0,
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                           Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
+  file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif
@@ -7335,9 +8107,9 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                              ulong query_length_arg, uint fn_pos_start_arg,
                              uint fn_pos_end_arg,
                              enum_load_dup_handling dup_handling_arg,
-                             bool using_trans, bool direct, bool suppress_use,
+                             bool using_trans, bool immediate, bool suppress_use,
                              int errcode):
-  Query_log_event(thd_arg, query_arg, query_length_arg, using_trans, direct,
+  Query_log_event(thd_arg, query_arg, query_length_arg, using_trans, immediate,
                   suppress_use, errcode),
   file_id(thd_arg->file_id), fn_pos_start(fn_pos_start_arg),
   fn_pos_end(fn_pos_end_arg), dup_handling(dup_handling_arg)
@@ -7612,8 +8384,11 @@ const char *sql_ex_info::init(const char *buf, const char *buf_end,
 
 #ifndef MYSQL_CLIENT
 Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
-                               MY_BITMAP const *cols, bool is_transactional)
-  : Log_event(thd_arg, 0, is_transactional),
+                               MY_BITMAP const *cols, bool using_trans)
+  : Log_event(thd_arg, 0,
+             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                           Log_event::EVENT_STMT_CACHE,
+             Log_event::EVENT_NORMAL_LOGGING),
     m_row_count(0),
     m_table(tbl_arg),
     m_table_id(tid),
@@ -7961,7 +8736,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     if (open_and_lock_tables(thd, rli->tables_to_lock, FALSE, 0))
     {
-      uint actual_error= thd->stmt_da->sql_errno();
+      uint actual_error= thd->get_stmt_da()->sql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)
       {
         /*
@@ -7972,7 +8747,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error executing row event: '%s'",
-                    (actual_error ? thd->stmt_da->message() :
+                    (actual_error ? thd->get_stmt_da()->message() :
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
@@ -8048,7 +8823,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (table)
   {
-    bool transactional_table= table->file->has_transactions();
     /*
       table == NULL means that this table should not be replicated
       (this was set up by Table_map_log_event::do_apply_event()
@@ -8063,7 +8837,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    thd->set_time((time_t)when);
+    thd->set_time((time_t) when);
 
     /*
       Now we are in a statement and will stay in a statement until we
@@ -8119,6 +8893,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     // row processing loop
 
+    const uchar *saved_m_curr_row= m_curr_row;
     while (error == 0)
     {
       /* in_use can have been set to NULL in close_tables_for_reopen */
@@ -8128,7 +8903,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       error= do_exec_row(rli);
 
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      if (error)
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
 
       table->in_use = old_thd;
@@ -8137,7 +8913,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         int actual_error= convert_handler_error(error, thd, table);
         bool idempotent_error= (idempotent_error_code(error) &&
-                               (slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT));
+                                slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT);
         bool ignored_error= (idempotent_error == 0 ?
                              ignored_error_code(actual_error) : 0);
 
@@ -8155,39 +8931,52 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         }
       }
 
-      /*
-       If m_curr_row_end  was not set during event execution (e.g., because
-       of errors) we can't proceed to the next row. If the error is transient
-       (i.e., error==0 at this point) we must call unpack_current_row() to set 
-       m_curr_row_end.
-      */ 
-   
       DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
                           (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
 
-      if (!m_curr_row_end && !error)
-        error= unpack_current_row(rli, &m_cols);
+      if (!error)
+      {
+        /*
+          If m_curr_row_end  was not set during event execution (e.g., because
+          of errors) we can't proceed to the next row. If the error is transient
+          (i.e., error == 0 at this point) we must call unpack_current_row() to
+          set m_curr_row_end.
+        */ 
+        if (!m_curr_row_end)
+          error= unpack_current_row(rli, &m_cols);
   
+        m_curr_row= m_curr_row_end;
+      }
+
       // at this moment m_curr_row_end should be set
       DBUG_ASSERT(error || m_curr_row_end != NULL); 
       DBUG_ASSERT(error || m_curr_row <= m_curr_row_end);
       DBUG_ASSERT(error || m_curr_row_end <= m_rows_end);
-  
-      m_curr_row= m_curr_row_end;
  
-      if (error == 0 && !transactional_table)
-      {
-        /*
-          We rely on trans_commit_stmt() to propagate unsafe_rollback_flags
-          from statement to transaction level. For that reason, only the
-          statement level is set.
-        */
-        thd->transaction.stmt.mark_modified_non_trans_table();
-      }
-
       if (m_curr_row == m_rows_end)
         break;
     } // row processing loop
+
+    if (saved_m_curr_row != m_curr_row && !table->file->has_transactions())
+    {
+      /*
+        Usually, the trans_commit_stmt() propagates unsafe_rollback_flags
+        from statement to transaction level. However, we cannot rely on
+        this when row format is in use as several events can be processed
+        before calling this function. This happens because it is called
+        only when the latest event generated by a statement is processed.
+
+        There are however upper level functions that execute per event
+        and check transaction's status. So if the unsafe_rollback_flags
+        are not propagated here, this can lead to errors.
+
+        For example, a transaction that updates non-transactional tables
+        may be stopped in the middle thus leading to inconsistencies
+        after a restart.
+      */
+      thd->transaction.stmt.mark_modified_non_trans_table();
+      thd->transaction.merge_unsafe_rollback_flags();
+    }
 
     /*
       Restore the sql_mode after the rows event is processed.
@@ -8354,6 +9143,9 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
 
   DBUG_PRINT("info", ("flags: %s",
                       get_flags(STMT_END_F) ? "STMT_END_F " : ""));
+
+  /* Worker does not execute binlog update position logics */
+  DBUG_ASSERT(!is_mts_worker(rli->info_thd));
 
   if (get_flags(STMT_END_F))
   {
@@ -8545,8 +9337,11 @@ int Table_map_log_event::save_field_metadata()
  */
 #if !defined(MYSQL_CLIENT)
 Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
-                                         bool is_transactional)
-  : Log_event(thd, 0, is_transactional),
+                                         bool using_trans)
+  : Log_event(thd, 0,
+              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                            Log_event::EVENT_STMT_CACHE,
+              Log_event::EVENT_NORMAL_LOGGING),
     m_table(tbl),
     m_dbnam(tbl->s->db.str),
     m_dblen(m_dbnam ? tbl->s->db.length : 0),
@@ -8605,7 +9400,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
                                  &m_field_metadata, (m_colcnt * 2),
                                  NULL);
 
-  bzero(m_field_metadata, (m_colcnt * 2));
+  memset(m_field_metadata, 0, (m_colcnt * 2));
 
   /*
     Create an array for the field metadata and store it.
@@ -8623,7 +9418,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   else
     m_data_size+= m_field_metadata_size + 3; 
 
-  bzero(m_null_bits, num_null_bytes);
+  memset(m_null_bits, 0, num_null_bytes);
   for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
     if (m_table->field[i]->maybe_null())
       m_null_bits[(i / 8)]+= 1 << (i % 8);
@@ -8761,6 +9556,97 @@ Table_map_log_event::~Table_map_log_event()
  */
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+
+enum enum_tbl_map_status
+{
+  /* no duplicate identifier found */
+  OK_TO_PROCESS= 0,
+
+  /* this table map must be filtered out */
+  FILTERED_OUT= 1,
+
+  /* identifier mapping table with different properties */
+  SAME_ID_MAPPING_DIFFERENT_TABLE= 2,
+  
+  /* a duplicate identifier was found mapping the same table */
+  SAME_ID_MAPPING_SAME_TABLE= 3
+};
+
+/*
+  Checks if this table map event should be processed or not. First
+  it checks the filtering rules, and then looks for duplicate identifiers
+  in the existing list of rli->tables_to_lock.
+
+  It checks that there hasn't been any corruption by verifying that there
+  are no duplicate entries with different properties.
+
+  In some cases, some binary logs could get corrupted, showing several
+  tables mapped to the same table_id, 0 (see: BUG#56226). Thus we do this
+  early sanity check for such cases and avoid that the server crashes 
+  later.
+
+  In some corner cases, the master logs duplicate table map events, i.e.,
+  same id, same database name, same table name (see: BUG#37137). This is
+  different from the above as it's the same table that is mapped again 
+  to the same identifier. Thus we cannot just check for same ids and 
+  assume that the event is corrupted we need to check every property. 
+
+  NOTE: in the event that BUG#37137 ever gets fixed, this extra check 
+        will still be valid because we would need to support old binary 
+        logs anyway.
+
+  @param rli The relay log info reference.
+  @param table_list A list element containing the table to check against.
+  @return OK_TO_PROCESS 
+            if there was no identifier already in rli->tables_to_lock 
+            
+          FILTERED_OUT
+            if the event is filtered according to the filtering rules
+
+          SAME_ID_MAPPING_DIFFERENT_TABLE 
+            if the same identifier already maps a different table in 
+            rli->tables_to_lock
+
+          SAME_ID_MAPPING_SAME_TABLE 
+            if the same identifier already maps the same table in 
+            rli->tables_to_lock.
+*/
+static enum_tbl_map_status
+check_table_map(Relay_log_info const *rli, RPL_TABLE_LIST *table_list)
+{
+  DBUG_ENTER("check_table_map");
+  enum_tbl_map_status res= OK_TO_PROCESS;
+
+  if (rli->info_thd->slave_thread /* filtering is for slave only */ &&
+      (!rpl_filter->db_ok(table_list->db) ||
+       (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
+    res= FILTERED_OUT;
+  else
+  {
+    for(RPL_TABLE_LIST *ptr= static_cast<RPL_TABLE_LIST*>(rli->tables_to_lock);
+        ptr; 
+        ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_local))
+    {
+      if (ptr->table_id == table_list->table_id)
+      {
+
+        if (strcmp(ptr->db, table_list->db) || 
+            strcmp(ptr->alias, table_list->table_name) || 
+            ptr->lock_type != TL_WRITE) // the ::do_apply_event always sets TL_WRITE
+          res= SAME_ID_MAPPING_DIFFERENT_TABLE;
+        else
+          res= SAME_ID_MAPPING_SAME_TABLE;
+
+        break;
+      }
+    }
+  }
+
+  DBUG_PRINT("debug", ("check of table map ended up with: %u", res));
+
+  DBUG_RETURN(res);
+}
+
 int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 {
   RPL_TABLE_LIST *table_list;
@@ -8797,18 +9683,11 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                              tname_mem, strlen(tname_mem),
                              tname_mem, TL_WRITE);
 
-  table_list->table_id= m_table_id;
+  table_list->table_id= DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id);
   table_list->updating= 1;
-
-  int error= 0;
-
-  if (rli->info_thd->slave_thread /* filtering is for slave only */ &&
-      (!rpl_filter->db_ok(table_list->db) ||
-       (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
-  {
-    my_free(memory);
-  }
-  else
+  DBUG_PRINT("debug", ("table: %s is mapped to %u", table_list->table_name, table_list->table_id));
+  enum_tbl_map_status tblmap_status= check_table_map(rli, table_list);
+  if (tblmap_status == OK_TO_PROCESS)
   {
     DBUG_ASSERT(thd->lex->query_tables != table_list);
 
@@ -8838,8 +9717,48 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
     const_cast<Relay_log_info*>(rli)->tables_to_lock_count++;
     /* 'memory' is freed in clear_tables_to_lock */
   }
+  else  // FILTERED_OUT, SAME_ID_MAPPING_*
+  {
+    /*
+      If mapped already but with different properties, we raise an
+      error.
+      If mapped already but with same properties we skip the event.
+      If filtered out we skip the event.
 
-  DBUG_RETURN(error);
+      In all three cases, we need to free the memory previously 
+      allocated.
+     */
+    if (tblmap_status == SAME_ID_MAPPING_DIFFERENT_TABLE)
+    {
+      /*
+        Something bad has happened. We need to stop the slave as strange things
+        could happen if we proceed: slave crash, wrong table being updated, ...
+        As a consequence we push an error in this case.
+       */
+
+      char buf[256];
+
+      my_snprintf(buf, sizeof(buf), 
+                  "Found table map event mapping table id %u which "
+                  "was already mapped but with different settings.",
+                  table_list->table_id);
+
+      if (thd->slave_thread)
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+                    ER(ER_SLAVE_FATAL_ERROR), buf);
+      else
+        /* 
+          For the cases in which a 'BINLOG' statement is set to 
+          execute in a user session 
+         */
+        my_printf_error(ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR), 
+                        MYF(0), buf);
+    } 
+    
+    my_free(memory);
+  }
+
+  DBUG_RETURN(tblmap_status == SAME_ID_MAPPING_DIFFERENT_TABLE);
 }
 
 Log_event::enum_skip_reason
@@ -10035,7 +10954,8 @@ TABLE_SCAN:
   restart_ha_rnd_next:
       error= table->file->ha_rnd_next(table->record[0]);
 
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      if (error)
+        DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
 
       case 0:
@@ -10622,16 +11542,21 @@ Rows_query_log_event::write_data_body(IO_CACHE *file)
   DBUG_RETURN(write_str(file, m_rows_query, (uint) strlen(m_rows_query)));
 }
 
-#ifndef MYSQL_CLIENT
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Rows_query_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
   /* Set query for writing Rows_query log event into binlog later.*/
   thd->set_query(m_rows_query, (uint32) strlen(m_rows_query));
+
+  DBUG_ASSERT(rli->rows_query_ev == NULL);
+
+  const_cast<Relay_log_info*>(rli)->rows_query_ev= this;
+
   DBUG_RETURN(0);
 }
-#endif /* !MYSQL_CLIENT */
+#endif
 
 
 #ifdef MYSQL_CLIENT
@@ -10651,12 +11576,12 @@ st_print_event_info::st_print_event_info()
 {
   /*
     Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
-    program's startup, but these explicit bzero() is for the day someone
+    program's startup, but these explicit memset() is for the day someone
     creates dynamic instances.
   */
-  bzero(db, sizeof(db));
-  bzero(charset, sizeof(charset));
-  bzero(time_zone_str, sizeof(time_zone_str));
+  memset(db, 0, sizeof(db));
+  memset(charset, 0, sizeof(charset));
+  memset(time_zone_str, 0, sizeof(time_zone_str));
   delimiter[0]= ';';
   delimiter[1]= 0;
   myf const flags = MYF(MY_WME | MY_NABP);

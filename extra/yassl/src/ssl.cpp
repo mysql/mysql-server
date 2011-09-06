@@ -1,5 +1,5 @@
 /*
-   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1683,8 +1683,22 @@ unsigned long ERR_get_error()
     }
 
 
+    void yaSSL_transport_set_ptr(SSL *ssl, void *ptr)
+    {
+      ssl->useSocket().set_transport_ptr(ptr);
+    }
 
 
+    void yaSSL_transport_set_recv_function(SSL *ssl, yaSSL_recv_func_t func)
+    {
+      ssl->useSocket().set_transport_recv_function(func);
+    }
+
+
+    void yaSSL_transport_set_send_function(SSL *ssl, yaSSL_send_func_t func)
+    {
+      ssl->useSocket().set_transport_send_function(func);
+    }
 
 } // extern "C"
 } // namespace

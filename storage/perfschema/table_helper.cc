@@ -22,6 +22,84 @@
 #include "my_pthread.h"
 #include "pfs_engine_table.h"
 #include "table_helper.h"
+#include "pfs_host.h"
+#include "pfs_user.h"
+#include "pfs_account.h"
+
+int PFS_host_row::make_row(PFS_host *pfs)
+{
+  m_hostname_length= pfs->m_hostname_length;
+  if (m_hostname_length > sizeof(m_hostname))
+    return 1;
+  if (m_hostname_length > 0)
+    memcpy(m_hostname, pfs->m_hostname, sizeof(m_hostname));
+  return 0;
+}
+
+void PFS_host_row::set_field(Field *f)
+{
+  if (m_hostname_length > 0)
+    PFS_engine_table::set_field_char_utf8(f, m_hostname, m_hostname_length);
+  else
+    f->set_null();
+}
+
+int PFS_user_row::make_row(PFS_user *pfs)
+{
+  m_username_length= pfs->m_username_length;
+  if (m_username_length > sizeof(m_username))
+    return 1;
+  if (m_username_length > 0)
+    memcpy(m_username, pfs->m_username, sizeof(m_username));
+  return 0;
+}
+
+void PFS_user_row::set_field(Field *f)
+{
+  if (m_username_length > 0)
+    PFS_engine_table::set_field_char_utf8(f, m_username, m_username_length);
+  else
+    f->set_null();
+}
+
+int PFS_account_row::make_row(PFS_account *pfs)
+{
+  m_username_length= pfs->m_username_length;
+  if (m_username_length > sizeof(m_username))
+    return 1;
+  if (m_username_length > 0)
+    memcpy(m_username, pfs->m_username, sizeof(m_username));
+
+  m_hostname_length= pfs->m_hostname_length;
+  if (m_hostname_length > sizeof(m_hostname))
+    return 1;
+  if (m_hostname_length > 0)
+    memcpy(m_hostname, pfs->m_hostname, sizeof(m_hostname));
+
+  return 0;
+}
+
+void PFS_account_row::set_field(uint index, Field *f)
+{
+  switch (index)
+  {
+    case 0: /* USER */
+      if (m_username_length > 0)
+        PFS_engine_table::set_field_char_utf8(f, m_username, m_username_length);
+      else
+        f->set_null();
+      break;
+    case 1: /* HOST */
+      if (m_hostname_length > 0)
+        PFS_engine_table::set_field_char_utf8(f, m_hostname, m_hostname_length);
+      else
+        f->set_null();
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+  }
+}
 
 int PFS_object_row::make_row(PFS_table_share *pfs)
 {
@@ -166,6 +244,22 @@ void PFS_statement_stat_row::set_field(uint index, Field *f)
       break;
     case 23: /* SUM_NO_GOOD_INDEX_USED */
       PFS_engine_table::set_field_ulonglong(f, m_no_good_index_used);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+  }
+}
+
+void PFS_connection_stat_row::set_field(uint index, Field *f)
+{
+  switch (index)
+  {
+    case 0: /* CURRENT_CONNECTIONS */
+      PFS_engine_table::set_field_ulonglong(f, m_current_connections);
+      break;
+    case 1: /* TOTAL_CONNECTIONS */
+      PFS_engine_table::set_field_ulonglong(f, m_total_connections);
       break;
     default:
       DBUG_ASSERT(false);

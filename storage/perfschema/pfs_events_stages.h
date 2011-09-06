@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PFS_EVENTS_STAGES_H
 #define PFS_EVENTS_STAGES_H
@@ -24,7 +24,7 @@
 #include "pfs_events.h"
 
 struct PFS_thread;
-struct PFS_user_host;
+struct PFS_account;
 struct PFS_user;
 struct PFS_host;
 
@@ -53,11 +53,11 @@ void reset_events_stages_current();
 void reset_events_stages_history();
 void reset_events_stages_history_long();
 void reset_events_stages_by_thread();
-void reset_events_stages_by_user_host();
+void reset_events_stages_by_account();
 void reset_events_stages_by_user();
 void reset_events_stages_by_host();
 void reset_events_stages_global();
-void aggregate_user_host_stages(PFS_user_host *user_host);
+void aggregate_account_stages(PFS_account *account);
 void aggregate_user_stages(PFS_user *user);
 void aggregate_host_stages(PFS_host *host);
 

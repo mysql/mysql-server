@@ -130,9 +130,7 @@
 #cmakedefine HAVE_AIOWAIT 1
 #cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_ALLOCA 1
-#cmakedefine HAVE_BFILL 1
 #cmakedefine HAVE_BMOVE 1
-#cmakedefine HAVE_BZERO 1
 #cmakedefine HAVE_INDEX 1
 #cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
@@ -218,7 +216,6 @@
 #cmakedefine HAVE_PTHREAD_ATTR_SETSTACKSIZE 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_CREATE 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
-#cmakedefine HAVE_PTHREAD_INIT 1
 #cmakedefine HAVE_PTHREAD_KEY_DELETE 1
 #cmakedefine HAVE_PTHREAD_KEY_DELETE 1
 #cmakedefine HAVE_PTHREAD_KILL 1
@@ -289,7 +286,6 @@
 #cmakedefine HAVE_TZNAME 1
 #cmakedefine HAVE_AIO_READ 1
 /* Symbols we may use */
-#cmakedefine HAVE_SYS_ERRLIST 1
 /* used by stacktrace functions */
 #cmakedefine HAVE_BSS_START 1
 #cmakedefine HAVE_BACKTRACE 1
@@ -514,6 +510,7 @@
 #cmakedefine EXTRA_DEBUG 1
 #cmakedefine BACKUP_TEST 1
 #cmakedefine CYBOZU 1
+#cmakedefine OPTIMIZER_TRACE 1
 #cmakedefine USE_SYMDIR 1
 
 /* Character sets and collations */

@@ -142,6 +142,7 @@ CALL mtr.add_suppression("Multi-statement transaction required more than 'max_bi
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_stmt_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
 CALL mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master. Message: error writing to the binary log");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 TRUNCATE t1;
 SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;
 SET GLOBAL binlog_cache_size= ORIGINAL_VALUE;
@@ -150,7 +151,7 @@ SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;
 BEGIN;
 Repeat statement 'INSERT INTO t1 VALUES($n, repeat("a", 32))' 128 times
 COMMIT;
-include/wait_for_slave_sql_error.inc [errno=1534]
+include/wait_for_slave_sql_error.inc [errno=1197]
 SELECT count(*) FROM t1;
 count(*)
 0

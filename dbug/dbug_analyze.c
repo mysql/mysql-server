@@ -571,9 +571,6 @@ int main (int argc, char **argv)
     FILE *infile;
     FILE *outfile = {stdout};
 
-#if defined(HAVE_PTHREAD_INIT)
-  pthread_init();                       /* Must be called before DBUG_ENTER */
-#endif
   my_thread_global_init(); 
   {
     DBUG_ENTER ("main");

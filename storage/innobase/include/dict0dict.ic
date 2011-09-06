@@ -27,6 +27,7 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "dict0load.h"
 #include "rem0types.h"
+#include "srv0srv.h"
 
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
@@ -818,6 +819,62 @@ dict_index_get_space_reserve(void)
 /*==============================*/
 {
 	return(UNIV_PAGE_SIZE / 16);
+}
+
+/**********************************************************************//**
+Determine bytes of column prefix to be stored in the undo log. Please
+note if the table format is UNIV_FORMAT_A (< UNIV_FORMAT_B), no prefix
+needs to be stored in the undo log.
+@return bytes of column prefix to be stored in the undo log */
+UNIV_INLINE
+ulint
+dict_max_field_len_store_undo(
+/*==========================*/
+	dict_table_t*		table,	/*!< in: table */
+	const dict_col_t*	col)	/*!< in: column which index prefix
+					is based on */
+{
+	ulint	prefix_len = 0;
+
+	if (dict_table_get_format(table) >= UNIV_FORMAT_B)
+	{
+		prefix_len = col->max_prefix
+			? col->max_prefix
+			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+	}
+
+	return(prefix_len);
+}
+
+/********************************************************************//**
+Check whether the table is corrupted.
+@return	nonzero for corrupted table, zero for valid tables */
+UNIV_INLINE
+ulint
+dict_table_is_corrupted(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	return(UNIV_UNLIKELY(table->corrupted));
+}
+
+/********************************************************************//**
+Check whether the index is corrupted.
+@return	nonzero for corrupted index, zero for valid indexes */
+UNIV_INLINE
+ulint
+dict_index_is_corrupted(
+/*====================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return(UNIV_UNLIKELY((index->type & DICT_CORRUPT)
+	       || (index->table && index->table->corrupted)));
 }
 
 #endif /* !UNIV_HOTBACKUP */

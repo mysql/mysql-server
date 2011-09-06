@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2002, 2004-2006 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 	/* Functions to handle fixed-length-records */
 
@@ -54,7 +54,7 @@ int _mi_write_static_record(MI_INFO *info, const uchar *record)
       if (info->s->base.pack_reclength != info->s->base.reclength)
       {
 	uint length=info->s->base.pack_reclength - info->s->base.reclength;
-	bzero(temp,length);
+	memset(temp, 0, length);
 	if (my_b_write(&info->rec_cache, temp,length))
 	  goto err;
       }
@@ -69,7 +69,7 @@ int _mi_write_static_record(MI_INFO *info, const uchar *record)
       if (info->s->base.pack_reclength != info->s->base.reclength)
       {
 	uint length=info->s->base.pack_reclength - info->s->base.reclength;
-	bzero(temp,length);
+	memset(temp, 0, length);
 	if (info->s->file_write(info, temp,length,
 		      info->state->data_file_length+
 		      info->s->base.reclength,

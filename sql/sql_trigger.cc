@@ -1,4 +1,5 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +32,7 @@
 #include "sql_acl.h"                       // *_ACL, is_acl_user
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "sp_cache.h"                     // sp_invalidate_cache
+#include <mysys_err.h>
 
 /*************************************************************************/
 
@@ -155,7 +157,7 @@ Trigger_creation_ctx::create(THD *thd,
   if (invalid_creation_ctx)
   {
     push_warning_printf(thd,
-                        MYSQL_ERROR::WARN_LEVEL_WARN,
+                        Sql_condition::WARN_LEVEL_WARN,
                         ER_TRG_INVALID_CREATION_CTX,
                         ER(ER_TRG_INVALID_CREATION_CTX),
                         (const char *) db_name,
@@ -301,6 +303,55 @@ public:
 private:
   char *path;
   LEX_STRING *trigger_table_value;
+};
+
+
+/**
+  An error handler that catches all non-OOM errors which can occur during
+  parsing of trigger body. Such errors are ignored and corresponding error
+  message is used to construct a more verbose error message which contains
+  name of problematic trigger. This error message is later emitted when
+  one tries to perform DML or some of DDL on this table.
+  Also, if possible, grabs name of the trigger being parsed so it can be
+  used to correctly drop problematic trigger.
+*/
+class Deprecated_trigger_syntax_handler : public Internal_error_handler 
+{
+private:
+
+  char m_message[MYSQL_ERRMSG_SIZE];
+  LEX_STRING *m_trigger_name;
+
+public:
+
+  Deprecated_trigger_syntax_handler() : m_trigger_name(NULL) {}
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_warning_level level,
+                                const char* message,
+                                Sql_condition ** cond_hdl)
+  {
+    if (sql_errno != EE_OUTOFMEMORY &&
+        sql_errno != ER_OUT_OF_RESOURCES)
+    {
+      if(thd->lex->spname)
+        m_trigger_name= &thd->lex->spname->m_name;
+      if (m_trigger_name)
+        my_snprintf(m_message, sizeof(m_message),
+                    ER(ER_ERROR_IN_TRIGGER_BODY),
+                    m_trigger_name->str, message);
+      else
+        my_snprintf(m_message, sizeof(m_message),
+                    ER(ER_ERROR_IN_UNKNOWN_TRIGGER_BODY), message);
+      return true;
+    }
+    return false;
+  }
+
+  LEX_STRING *get_trigger_name() { return m_trigger_name; }
+  char *get_error_message() { return m_message; }
 };
 
 
@@ -527,6 +578,8 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
 end:
   if (!result)
   {
+    if (tables)
+      thd->add_to_binlog_accessed_dbs(tables->db);
     result= write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
   }
 
@@ -591,6 +644,8 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   LEX_STRING *trg_connection_cl_name;
   LEX_STRING *trg_db_cl_name;
 
+  if (check_for_broken_triggers())
+    return true;
 
   /* Trigger must be in the same schema as target table. */
   if (my_strcasecmp(table_alias_charset, table->s->db.str,
@@ -748,7 +803,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
                                    lex->definer->user.str))
   {
     push_warning_printf(thd,
-                        MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        Sql_condition::WARN_LEVEL_NOTE,
                         ER_NO_SUCH_USER,
                         ER(ER_NO_SUCH_USER),
                         lex->definer->user.str,
@@ -864,7 +919,7 @@ static bool rm_trigger_file(char *path, const char *db,
   @param path         char buffer of size FN_REFLEN to be used
                       for constructing path to .TRN file.
   @param db           trigger's database name
-  @param table_name   trigger's name
+  @param trigger_name trigger's name
 
   @retval
     False   success
@@ -1226,7 +1281,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           DBUG_RETURN(1); // EOM
         }
 
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_TRG_NO_CREATION_CTX,
                             ER(ER_TRG_NO_CREATION_CTX),
                             (const char*) db,
@@ -1329,12 +1384,11 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         lex_start(thd);
         thd->spcont= NULL;
 
-        if (parse_sql(thd, & parser_state, creation_ctx))
-        {
-          /* Currently sphead is always deleted in case of a parse error */
-          DBUG_ASSERT(lex.sphead == 0);
-          goto err_with_lex_cleanup;
-        }
+        Deprecated_trigger_syntax_handler error_handler;
+        thd->push_internal_handler(&error_handler);
+        bool parse_error= parse_sql(thd, & parser_state, creation_ctx);
+        thd->pop_internal_handler();
+
         /*
           Not strictly necessary to invoke this method here, since we know
           that we've parsed CREATE TRIGGER and not an
@@ -1344,6 +1398,54 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           types of analyses in future.
         */
         lex.set_trg_event_type_for_tables();
+
+        if (parse_error)
+        {
+          if (!triggers->m_has_unparseable_trigger)
+            triggers->set_parse_error_message(error_handler.get_error_message());
+          /* Currently sphead is always set to NULL in case of a parse error */
+          DBUG_ASSERT(lex.sphead == 0);
+          if (error_handler.get_trigger_name())
+          {
+            LEX_STRING *trigger_name;
+            const LEX_STRING *orig_trigger_name= error_handler.get_trigger_name();
+
+            if (!(trigger_name= alloc_lex_string(&table->mem_root)) ||
+                !(trigger_name->str= strmake_root(&table->mem_root,
+                                                  orig_trigger_name->str,
+                                                  orig_trigger_name->length)))
+              goto err_with_lex_cleanup;
+
+            trigger_name->length= orig_trigger_name->length;
+
+            if (triggers->names_list.push_back(trigger_name,
+                                               &table->mem_root))
+              goto err_with_lex_cleanup;
+          }
+          else
+          {
+            /* 
+               The Table_triggers_list is not constructed as a list of
+               trigger objects as one would expect, but rather of lists of
+               properties of equal length. Thus, even if we don't get the
+               trigger name, we still fill all in all the lists with
+               placeholders as we might otherwise create a skew in the
+               lists. Obviously, this has to be refactored.
+            */
+            LEX_STRING *empty= alloc_lex_string(&table->mem_root);
+            if (!empty)
+              goto err_with_lex_cleanup;
+
+            empty->str= const_cast<char*>("");
+            empty->length= 0;
+            if (triggers->names_list.push_back(empty, &table->mem_root))
+              goto err_with_lex_cleanup;
+          }
+          lex_end(&lex);
+          continue;
+        }
+
+        lex.sphead->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
 
         int event= lex.trg_chistics.event;
         int action_time= lex.trg_chistics.action_time;
@@ -1362,7 +1464,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
             warning here.
           */
 
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
                               (const char*) db,
                               (const char*) sp->m_name.str);
@@ -1411,9 +1513,8 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         char fname[NAME_LEN + 1];
         DBUG_ASSERT((!my_strcasecmp(table_alias_charset, lex.query_tables->db, db) ||
                      (check_n_cut_mysql50_prefix(db, fname, sizeof(fname)) &&
-                      !my_strcasecmp(table_alias_charset, lex.query_tables->db, fname))) &&
-                    (!my_strcasecmp(table_alias_charset, lex.query_tables->table_name,
-                                    table_name) ||
+                      !my_strcasecmp(table_alias_charset, lex.query_tables->db, fname))));
+        DBUG_ASSERT((!my_strcasecmp(table_alias_charset, lex.query_tables->table_name, table_name) ||
                      (check_n_cut_mysql50_prefix(table_name, fname, sizeof(fname)) &&
                       !my_strcasecmp(table_alias_charset, lex.query_tables->table_name, fname))));
 #endif
@@ -1636,7 +1737,7 @@ bool add_table_for_trigger(THD *thd,
     if (if_exists)
     {
       push_warning_printf(thd,
-                          MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          Sql_condition::WARN_LEVEL_NOTE,
                           ER_TRG_DOES_NOT_EXIST,
                           ER(ER_TRG_DOES_NOT_EXIST));
 
@@ -1680,7 +1781,7 @@ bool Table_triggers_list::drop_all_triggers(THD *thd, char *db, char *name)
   bool result= 0;
   DBUG_ENTER("drop_all_triggers");
 
-  bzero(&table, sizeof(table));
+  memset(&table, 0, sizeof(table));
   init_sql_alloc(&table.mem_root, 8192, 0);
 
   if (Table_triggers_list::check_n_load(thd, db, name, &table, 1))
@@ -1695,6 +1796,13 @@ bool Table_triggers_list::drop_all_triggers(THD *thd, char *db, char *name)
 
     while ((trigger= it_name++))
     {
+      /*
+        Trigger, which body we failed to parse during call
+        Table_triggers_list::check_n_load(), might be missing name.
+        Such triggers have zero-length name and are skipped here.
+      */
+      if (trigger->length == 0)
+        continue;
       if (rm_trigname_file(path, db, trigger->str))
       {
         /*
@@ -1893,7 +2001,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   LEX_STRING *err_trigname;
   DBUG_ENTER("change_table_name");
 
-  bzero(&table, sizeof(table));
+  memset(&table, 0, sizeof(table));
   init_sql_alloc(&table.mem_root, 8192, 0);
 
   /*
@@ -1913,6 +2021,11 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   }
   if (table.triggers)
   {
+    if (table.triggers->check_for_broken_triggers())
+    {
+      result= 1;
+      goto end;
+    }
     LEX_STRING old_table_name= { (char *) old_alias, strlen(old_alias) };
     LEX_STRING new_table_name= { (char *) new_table, strlen(new_table) };
     /*
@@ -2000,6 +2113,9 @@ bool Table_triggers_list::process_triggers(THD *thd,
   Sub_statement_state statement_state;
   sp_head *sp_trigger= bodies[event][time_type];
   SELECT_LEX *save_current_select;
+
+  if (check_for_broken_triggers())
+    return true;
 
   if (sp_trigger == NULL)
     return FALSE;
@@ -2135,6 +2251,22 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
 
 
 /**
+   Signals to the Table_triggers_list that a parse error has occured when
+   reading a trigger from file. This makes the Table_triggers_list enter an
+   error state flagged by m_has_unparseable_trigger == true. The error message
+   will be used whenever a statement invoking or manipulating triggers is
+   issued against the Table_triggers_list's table.
+
+   @param error_message The error message thrown by the parser.
+ */
+void Table_triggers_list::set_parse_error_message(char *error_message)
+{
+  m_has_unparseable_trigger= true;
+  strcpy(m_parse_error_message, error_message);
+}
+
+
+/**
   Trigger BUG#14090 compatibility hook.
 
   @param[in,out] unknown_key       reference on the line with unknown
@@ -2173,7 +2305,7 @@ Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
 
     DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
     push_warning_printf(current_thd,
-                        MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        Sql_condition::WARN_LEVEL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER(ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");
@@ -2214,7 +2346,7 @@ process_unknown_string(char *&unknown_key, uchar* base, MEM_ROOT *mem_root,
 
     DBUG_PRINT("info", ("trigger_table affected by BUG#15921 detected"));
     push_warning_printf(current_thd,
-                        MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        Sql_condition::WARN_LEVEL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER(ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");

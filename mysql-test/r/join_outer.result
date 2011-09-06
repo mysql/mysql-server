@@ -39,11 +39,11 @@ NULL	NULL	NULL	4	7	D	7
 select t1.*,t2.* from t1 left join t2 using (a);
 grp	a	c	id	a	c	d
 1	1	a	1	1	a	1
-2	2	b	NULL	NULL	NULL	NULL
-2	3	c	NULL	NULL	NULL	NULL
 3	4	E	3	4	A	4
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
+2	2	b	NULL	NULL	NULL	NULL
+2	3	c	NULL	NULL	NULL	NULL
 NULL	NULL		NULL	NULL	NULL	NULL
 select t1.*,t2.* from t1 left join t2 using (a) where t1.a=t2.a;
 grp	a	c	id	a	c	d
@@ -95,7 +95,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select t1.*,t2.* from t1 left join t2 on t1.a=t2.a where isnull(t2.a)=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.a	1	Using where
+1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	5	Using where; Using join buffer (Block Nested Loop)
 select t1.*,t2.*,t3.a from t1 left join t2 on (t1.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
 grp	a	c	id	a	c	d	a
 1	1	a	1	1	a	1	1
@@ -312,11 +312,11 @@ Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer (Block Nested Loop)
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
 select count(*) from t1 left join t2 on (t1.id = t2.owner);
 count(*)
 4
@@ -332,11 +332,11 @@ Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer (Block Nested Loop)
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
 select count(*) from t2 right join t1 on (t1.id = t2.owner);
 count(*)
 4
@@ -610,7 +610,7 @@ INSERT INTO t2 VALUES (1,1);
 explain SELECT * from t1 left join t2 on t1.id=t2.id where t2.id IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ref	id	id	4	test.t1.id	1	Using where; Using index; Not exists
+1	SIMPLE	t2	ref	id	id	4	test.t1.id	1	Using where; Not exists; Using index
 SELECT * from t1 left join t2 on t1.id=t2.id where t2.id IS NULL;
 id	name	id	idx
 2	no	NULL	NULL
@@ -688,8 +688,8 @@ a1	a2	b1	b2	c1	c2
 explain select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 drop table t1, t2, t3;
 create table t1 (
 a int(11),
@@ -1023,40 +1023,40 @@ a	b	a	b
 7	8	7	5
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t2.b > t1.a OR t1.a > t1.b;
 a	b	a	b
-2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
+2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a NOT BETWEEN t2.b AND t1.b;
 a	b	a	b
-2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
+2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a BETWEEN t2.b AND t1.b);
 a	b	a	b
-2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
+2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a OR t2.b > t1.a OR t1.a > t1.b;
 a	b	a	b
-2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
 7	8	7	5
+2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a != t2.a AND t1.a BETWEEN t2.b AND t1.b);
 a	b	a	b
-2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
 7	8	7	5
+2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a AND (t2.b > t1.a OR t1.a > t1.b);
 a	b	a	b
@@ -1228,7 +1228,7 @@ EXPLAIN
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	idx	idx	4	test.t1.id	2	Using where; Not exists
+1	SIMPLE	t2	ALL	idx	NULL	NULL	NULL	9	Using where; Not exists; Using join buffer (Block Nested Loop)
 flush status;
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 id	a
@@ -1237,12 +1237,12 @@ id	a
 show status like 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	5
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	6
+Handler_read_rnd_next	16
 DROP TABLE t1,t2;
 CREATE TABLE t1 (c int  PRIMARY KEY, e int NOT NULL);
 INSERT INTO t1 VALUES (1,0), (2,1);
@@ -1251,7 +1251,7 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON e<>0 WHERE c=1 AND d IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	3	Using where; Using index; Not exists
+1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	3	Using where; Not exists; Using index
 SELECT * FROM t1 LEFT JOIN t2 ON e<>0 WHERE c=1 AND d IS NULL;
 c	e	d
 1	0	NULL
@@ -1307,7 +1307,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '1' AS `f1`,NULL AS `f2`,'3' AS `f3`,NULL AS `f1`,NULL AS `f2` from `test`.`t2` where ((coalesce('1',NULL),'3') in ((1,3),(2,2)))
+Note	1003	/* select#1 */ select '1' AS `f1`,NULL AS `f2`,'3' AS `f3`,NULL AS `f1`,NULL AS `f2` from `test`.`t2` where ((coalesce('1',NULL),'3') in ((1,3),(2,2)))
 SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
 WHERE (COALESCE(t1.f1, t2.f1), f3) IN ((1, 3), (2, 2));
 f1	f2	f3	f1	f2
@@ -1333,14 +1333,14 @@ RIGHT OUTER JOIN t1 tt1 ON 1
 STRAIGHT_JOIN    t1 tt9 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	tt1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	tt2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	tt3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	tt4	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	tt5	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	tt6	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	tt7	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	tt8	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	tt9	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	tt2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt4	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt5	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt6	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt7	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt8	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt9	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
 SET optimizer_search_depth = DEFAULT;
 DROP TABLE t1;
 #
@@ -1359,8 +1359,8 @@ EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t1 TA1
 RIGHT JOIN t2 TA2 JOIN t2 TA3 ON TA2.f1 ON TA3.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	TA2	ALL	NULL	NULL	NULL	NULL	20	Using where
-1	SIMPLE	TA3	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (BNL, incremental buffers)
-1	SIMPLE	TA1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	TA3	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (Block Nested Loop)
+1	SIMPLE	TA1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 DROP TABLE t1, t2;
 #
 # Bug#48971 Segfault in add_found_match_trig_cond () at sql_select.cc:5990
@@ -1377,13 +1377,13 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt1` left join (`test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1))) on(1) where 1
+Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt1` left join (`test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1))) on(1) where 1
 EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
 RIGHT JOIN t1 AS jt2
 RIGHT JOIN t1 AS jt3
@@ -1394,13 +1394,13 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1)) left join `test`.`t1` `jt1` on(1) where 1
+Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1)) left join `test`.`t1` `jt1` on(1) where 1
 DROP TABLE t1;
 #
 # Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
@@ -1657,8 +1657,8 @@ explain SELECT t1.a FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a)
 ON 0 WHERE t1.a OR t3.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
 SELECT t1.a FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a)
 ON 0 WHERE t1.a OR t3.a;
 a
@@ -1667,9 +1667,9 @@ explain SELECT t1.a FROM t1 LEFT JOIN
 ON 0 WHERE t1.a OR t4.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
 SELECT t1.a FROM t1 LEFT JOIN
 (t2 LEFT JOIN (t3 LEFT JOIN t4 ON 1) ON t2.a)
 ON 0 WHERE t1.a OR t4.a;
@@ -1713,3 +1713,30 @@ ON t2.col_int = t1.pk
 WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 col_int
 DROP TABLE t1,t2,t3,t4;
+
+# BUG#12567331 - INFINITE LOOP WHEN RESOLVING AN ALIASED COLUMN
+# USED IN GROUP BY
+
+CREATE TABLE t1 (pk int(11));
+PREPARE prep_stmt_9846 FROM '
+SELECT alias1.pk AS field1 FROM
+t1 AS alias1
+LEFT JOIN
+( 
+  t1 AS alias2
+  RIGHT  JOIN
+  ( 
+    t1 AS alias3
+    JOIN t1 AS alias4
+    ON 1
+  )
+  ON 1
+)
+ON 1
+GROUP BY field1';
+execute prep_stmt_9846;
+field1
+execute prep_stmt_9846;
+field1
+deallocate prepare prep_stmt_9846;
+drop table t1;

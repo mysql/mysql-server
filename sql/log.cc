@@ -239,9 +239,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sql_state,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
   const char *message() const { return m_message; }
 };
 
@@ -249,9 +249,9 @@ bool
 Silence_log_table_errors::handle_condition(THD *,
                                            uint,
                                            const char*,
-                                           MYSQL_ERROR::enum_warning_level,
+                                           Sql_condition::enum_warning_level,
                                            const char* msg,
-                                           MYSQL_ERROR ** cond_hdl)
+                                           Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   strmake(m_message, msg, sizeof(m_message)-1);
@@ -1616,7 +1616,7 @@ MYSQL_LOG::MYSQL_LOG()
     called only in main(). Doing initialization here would make it happen
     before main().
   */
-  bzero((char*) &log_file, sizeof(log_file));
+  memset(&log_file, 0, sizeof(log_file));
 }
 
 void MYSQL_LOG::init_pthread_objects()
@@ -2824,7 +2824,7 @@ int TC_LOG_MMAP::recover()
     goto err2;
 
   my_hash_free(&xids);
-  bzero(data, (size_t)file_length);
+  memset(data, 0, (size_t)file_length);
   return 0;
 
 err2:

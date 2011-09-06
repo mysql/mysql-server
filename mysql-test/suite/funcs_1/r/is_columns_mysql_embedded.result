@@ -97,6 +97,20 @@ def	mysql	host	Select_priv	3	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('
 def	mysql	host	Show_view_priv	16	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')				
 def	mysql	host	Trigger_priv	20	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')				
 def	mysql	host	Update_priv	5	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')				
+def	mysql	innodb_index_stats	database_name	1	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI			
+def	mysql	innodb_index_stats	index_name	3	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI			
+def	mysql	innodb_index_stats	sample_size	7	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	innodb_index_stats	stat_description	8	NULL	NO	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)				
+def	mysql	innodb_index_stats	stat_name	5	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI			
+def	mysql	innodb_index_stats	stat_timestamp	4	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP		
+def	mysql	innodb_index_stats	stat_value	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	innodb_index_stats	table_name	2	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI			
+def	mysql	innodb_table_stats	clustered_index_size	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	innodb_table_stats	database_name	1	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI			
+def	mysql	innodb_table_stats	n_rows	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	innodb_table_stats	stats_timestamp	3	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP		
+def	mysql	innodb_table_stats	sum_of_other_index_sizes	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	innodb_table_stats	table_name	2	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI			
 def	mysql	ndb_binlog_index	deletes	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
 def	mysql	ndb_binlog_index	epoch	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned	PRI			
 def	mysql	ndb_binlog_index	File	2	NULL	NO	varchar	255	255	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)				
@@ -166,6 +180,8 @@ def	mysql	slave_master_info	Ssl_ca	11	NULL	YES	text	65535	65535	NULL	NULL	utf8	u
 def	mysql	slave_master_info	Ssl_capath	12	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The path to the Certificate Authority (CA) certificates.
 def	mysql	slave_master_info	Ssl_cert	13	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The name of the SSL certificate file.
 def	mysql	slave_master_info	Ssl_cipher	14	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The name of the cipher in use for the SSL connection.
+def	mysql	slave_master_info	Ssl_crl	22	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The file used for the Certificate Revocation List (CRL)
+def	mysql	slave_master_info	Ssl_crlpath	23	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The path used for Certificate Revocation List (CRL) files
 def	mysql	slave_master_info	Ssl_key	15	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The name of the SSL key file.
 def	mysql	slave_master_info	Ssl_verify_server_cert	16	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)				Whether to verify the server certificate.
 def	mysql	slave_master_info	User_name	6	NULL	YES	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The user name used to connect to the master.
@@ -175,9 +191,23 @@ def	mysql	slave_relay_log_info	Master_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	
 def	mysql	slave_relay_log_info	Master_log_name	5	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The name of the master binary log file from which the events in the relay log file were read.
 def	mysql	slave_relay_log_info	Master_log_pos	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				The master log position of the last executed event.
 def	mysql	slave_relay_log_info	Number_of_lines	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned				Number of lines in the file or rows in the table. Used to version table definitions.
+def	mysql	slave_relay_log_info	Number_of_workers	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned				
 def	mysql	slave_relay_log_info	Relay_log_name	3	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				The name of the current relay log file.
 def	mysql	slave_relay_log_info	Relay_log_pos	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				The relay log position of the last executed event.
 def	mysql	slave_relay_log_info	Sql_delay	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				The number of seconds that the slave must lag behind the master.
+def	mysql	slave_worker_info	Checkpoint_group_bitmap	13	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	blob				
+def	mysql	slave_worker_info	Checkpoint_group_size	12	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned				
+def	mysql	slave_worker_info	Checkpoint_master_log_name	9	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				
+def	mysql	slave_worker_info	Checkpoint_master_log_pos	10	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	slave_worker_info	Checkpoint_relay_log_name	7	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				
+def	mysql	slave_worker_info	Checkpoint_relay_log_pos	8	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	slave_worker_info	Checkpoint_seqno	11	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned				
+def	mysql	slave_worker_info	Master_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI			
+def	mysql	slave_worker_info	Master_log_name	5	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				
+def	mysql	slave_worker_info	Master_log_pos	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	slave_worker_info	Relay_log_name	3	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text				
+def	mysql	slave_worker_info	Relay_log_pos	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned				
+def	mysql	slave_worker_info	Worker_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI			
 def	mysql	slow_log	db	7	NULL	NO	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)				
 def	mysql	slow_log	insert_id	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
 def	mysql	slow_log	last_insert_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)				
@@ -420,6 +450,20 @@ NULL	mysql	help_topic	help_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) 
 3.0000	mysql	host	Alter_routine_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	host	Execute_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	host	Trigger_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
+3.0000	mysql	innodb_index_stats	database_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	mysql	innodb_index_stats	table_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	mysql	innodb_index_stats	index_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	mysql	innodb_index_stats	stat_timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
+3.0000	mysql	innodb_index_stats	stat_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	mysql	innodb_index_stats	stat_value	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	mysql	innodb_index_stats	sample_size	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+3.0000	mysql	innodb_index_stats	stat_description	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+3.0000	mysql	innodb_table_stats	database_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	mysql	innodb_table_stats	table_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	mysql	innodb_table_stats	stats_timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
+NULL	mysql	innodb_table_stats	n_rows	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	mysql	innodb_table_stats	clustered_index_size	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	mysql	innodb_table_stats	sum_of_other_index_sizes	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	ndb_binlog_index	Position	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 1.0000	mysql	ndb_binlog_index	File	varchar	255	255	latin1	latin1_swedish_ci	varchar(255)
 NULL	mysql	ndb_binlog_index	epoch	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
@@ -494,6 +538,8 @@ NULL	mysql	slave_master_info	Heartbeat	float	NULL	NULL	NULL	NULL	float
 1.0000	mysql	slave_master_info	Ignored_server_ids	text	65535	65535	utf8	utf8_bin	text
 1.0000	mysql	slave_master_info	Uuid	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Retry_count	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+1.0000	mysql	slave_master_info	Ssl_crl	text	65535	65535	utf8	utf8_bin	text
+1.0000	mysql	slave_master_info	Ssl_crlpath	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_relay_log_info	Master_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	slave_relay_log_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_relay_log_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
@@ -501,6 +547,20 @@ NULL	mysql	slave_relay_log_info	Relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(
 1.0000	mysql	slave_relay_log_info	Master_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_relay_log_info	Master_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	slave_relay_log_info	Sql_delay	int	NULL	NULL	NULL	NULL	int(11)
+NULL	mysql	slave_relay_log_info	Number_of_workers	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	slave_worker_info	Master_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	slave_worker_info	Worker_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
+1.0000	mysql	slave_worker_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_worker_info	Relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+1.0000	mysql	slave_worker_info	Master_log_name	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_worker_info	Master_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+1.0000	mysql	slave_worker_info	Checkpoint_relay_log_name	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_worker_info	Checkpoint_relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+1.0000	mysql	slave_worker_info	Checkpoint_master_log_name	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_worker_info	Checkpoint_master_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	mysql	slave_worker_info	Checkpoint_seqno	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	slave_worker_info	Checkpoint_group_size	int	NULL	NULL	NULL	NULL	int(10) unsigned
+1.0000	mysql	slave_worker_info	Checkpoint_group_bitmap	blob	65535	65535	NULL	NULL	blob
 NULL	mysql	slow_log	start_time	timestamp	NULL	NULL	NULL	NULL	timestamp
 1.0000	mysql	slow_log	user_host	mediumtext	16777215	16777215	utf8	utf8_general_ci	mediumtext
 NULL	mysql	slow_log	query_time	time	NULL	NULL	NULL	NULL	time

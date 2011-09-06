@@ -363,7 +363,7 @@ DbUtil::runQuery(const char* sql,
   MYSQL_BIND *bind_param = new MYSQL_BIND[params];
   NdbAutoObjArrayPtr<MYSQL_BIND> _guard(bind_param);
 
-  bzero(bind_param, params * sizeof(MYSQL_BIND));
+  memset(bind_param, 0, params * sizeof(MYSQL_BIND));
 
   for(uint i= 0; i < mysql_stmt_param_count(stmt); i++)
   {
@@ -434,7 +434,7 @@ DbUtil::runQuery(const char* sql,
     uint num_fields= mysql_num_fields(res);
     MYSQL_BIND *bind_result = new MYSQL_BIND[num_fields];
     NdbAutoObjArrayPtr<MYSQL_BIND> _guard1(bind_result);
-    bzero(bind_result, num_fields * sizeof(MYSQL_BIND));
+    memset(bind_result, 0, num_fields * sizeof(MYSQL_BIND));
 
     for (uint i= 0; i < num_fields; i++)
     {

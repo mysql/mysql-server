@@ -24,6 +24,7 @@ Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
 
 #include "ut0ut.h"
+#include "ut0sort.h"
 
 #ifdef UNIV_NONINL
 #include "ut0ut.ic"
@@ -434,6 +435,21 @@ ut_print_buf(
 	putc(';', file);
 }
 
+/**********************************************************************//**
+Sort function for ulint arrays. */
+UNIV_INTERN
+void
+ut_ulint_sort(
+/*==========*/
+	ulint*	arr,		/*!< in/out: array to sort */
+	ulint*	aux_arr,	/*!< in/out: aux array to use in sort */
+	ulint	low,		/*!< in: lower bound */
+	ulint	high)		/*!< in: upper bound */
+{
+	UT_SORT_FUNCTION_BODY(ut_ulint_sort, arr, aux_arr, low, high,
+			      ut_ulint_cmp);
+}
+
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
 @return	first power of 2 which is >= n */
@@ -559,6 +575,26 @@ ut_copy_file(
 #ifdef __WIN__
 # include <stdarg.h>
 /**********************************************************************//**
+A substitute for vsnprintf(3), formatted output conversion into
+a limited buffer. Note: this function DOES NOT return the number of
+characters that would have been printed if the buffer was unlimited because
+VC's _vsnprintf() returns -1 in this case and we would need to call
+_vscprintf() in addition to estimate that but we would need another copy
+of "ap" for that and VC does not provide va_copy(). */
+UNIV_INTERN
+void
+ut_vsnprintf(
+/*=========*/
+	char*		str,	/*!< out: string */
+	size_t		size,	/*!< in: str size */
+	const char*	fmt,	/*!< in: format */
+	va_list		ap)	/*!< in: format values */
+{
+	_vsnprintf(str, size, fmt, ap);
+	str[size - 1] = '\0';
+}
+
+/**********************************************************************//**
 A substitute for snprintf(3), formatted output conversion into
 a limited buffer.
 @return number of characters that would have been printed if the size
@@ -642,6 +678,8 @@ ut_strerr(
 		return("Table is being used");
 	case DB_TOO_BIG_RECORD:
 		return("Record too big");
+	case DB_TOO_BIG_INDEX_COL:
+		return("Index columns size too big");
 	case DB_LOCK_WAIT_TIMEOUT:
 		return("Lock wait timeout");
 	case DB_NO_REFERENCED_ROW:
@@ -652,8 +690,6 @@ ut_strerr(
 		return("Cannot add constraint");
 	case DB_CORRUPTION:
 		return("Data structure corruption");
-	case DB_COL_APPEARS_TWICE_IN_INDEX:
-		return("Column appears twice in index");
 	case DB_CANNOT_DROP_CONSTRAINT:
 		return("Cannot drop constraint");
 	case DB_NO_SAVEPOINT:
@@ -692,6 +728,8 @@ ut_strerr(
 		return("No index on referencing keys in referencing table");
 	case DB_PARENT_NO_INDEX:
 		return("No index on referenced keys in referenced table");
+	case DB_INDEX_CORRUPT:
+		return("Index corrupted");
 	case DB_END_OF_INDEX:
 		return("End of index");
 	/* do not add default: in order to produce a warning if new code

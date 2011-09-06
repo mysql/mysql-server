@@ -121,7 +121,7 @@ FT_WORD *_mi_ft_parserecord(MI_INFO *info, uint keynr, const uchar *record,
   DBUG_ENTER("_mi_ft_parserecord");
   if (! (param= ftparser_call_initializer(info, keynr, 0)))
     DBUG_RETURN(NULL);
-  bzero((char*) &ptree, sizeof(ptree));
+  memset(&ptree, 0, sizeof(ptree));
   param->flags= 0;
   if (_mi_ft_parse(&ptree, info, keynr, record, param, mem_root))
     DBUG_RETURN(NULL);

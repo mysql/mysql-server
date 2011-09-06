@@ -73,6 +73,25 @@
 #undef _H_STRINGS
 #endif
 #include <m_string.h>
+
+#ifndef NDB_REMOVE_BZERO
+/*
+  Make it possible to use bzero in NDB although
+  MySQL headers redefines it to an invalid symbol
+*/
+#ifdef bzero
+#undef bzero
+#endif
+
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
+
+#if !defined(bzero) && !defined(HAVE_BZERO)
+#define bzero(A,B) memset((A),0,(B))
+#endif
+#endif
+
 #include <m_ctype.h>
 #include <ctype.h>
 

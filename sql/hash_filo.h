@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #define  HASH_FILO_H
 
 #include "hash.h"        /* my_hash_get_key, my_hash_free_key, HASH */
-#include "m_string.h"    /* bzero */
+#include "m_string.h"
 #include "mysqld.h"      /* key_hash_filo_lock */
 
 class hash_filo_element
@@ -55,7 +55,7 @@ public:
     get_key(get_key_arg), free_element(free_element_arg),init(0),
     hash_charset(hash_charset_arg)
   {
-    bzero((char*) &cache,sizeof(cache));
+    memset(&cache, 0, sizeof(cache));
   }
 
   ~hash_filo()

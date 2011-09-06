@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,8 +32,9 @@ void print_plan(JOIN* join,uint idx, double record_count, double read_time,
                 double current_read_time, const char *info);
 void dump_TABLE_LIST_graph(SELECT_LEX *select_lex, TABLE_LIST* tl);
 void print_sjm(TABLE_LIST *emb_sj_nest);
-void print_keyuse_array(const Key_use_array *keyuse_array);
 #endif
 void mysql_print_status();
-
+class Opt_trace_context;
+void print_keyuse_array(Opt_trace_context *trace,
+                        const Key_use_array *keyuse_array);
 #endif /* SQL_TEST_INCLUDED */

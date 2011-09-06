@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -898,7 +898,7 @@ ha_federated::ha_federated(handlerton *hton,
   mysql(0), stored_result(0)
 {
   trx_next= 0;
-  bzero(&bulk_insert, sizeof(bulk_insert));
+  memset(&bulk_insert, 0, sizeof(bulk_insert));
 }
 
 

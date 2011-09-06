@@ -29,6 +29,12 @@ def	mysql	help_topic	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE
 def	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	host	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	host	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	3	index_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	4	stat_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_table_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_table_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	ndb_binlog_index	0	mysql	PRIMARY	1	epoch	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	plugin	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	proc	0	mysql	PRIMARY	1	db	A	#CARD#	NULL	NULL		BTREE		
@@ -48,6 +54,8 @@ def	mysql	proxies_priv	0	mysql	PRIMARY	4	Proxied_user	A	#CARD#	NULL	NULL		BTREE
 def	mysql	servers	0	mysql	PRIMARY	1	Server_name	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	slave_master_info	0	mysql	PRIMARY	1	Master_id	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	slave_relay_log_info	0	mysql	PRIMARY	1	Master_id	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	slave_worker_info	0	mysql	PRIMARY	1	Master_id	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	slave_worker_info	0	mysql	PRIMARY	2	Worker_id	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE		
@@ -89,6 +97,12 @@ def	mysql	help_topic	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE
 def	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	host	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	host	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	3	index_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	4	stat_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_table_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	innodb_table_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	ndb_binlog_index	0	mysql	PRIMARY	1	epoch	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	plugin	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	proc	0	mysql	PRIMARY	1	db	A	#CARD#	NULL	NULL		BTREE		
@@ -108,6 +122,8 @@ def	mysql	proxies_priv	0	mysql	PRIMARY	4	Proxied_user	A	#CARD#	NULL	NULL		BTREE
 def	mysql	servers	0	mysql	PRIMARY	1	Server_name	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	slave_master_info	0	mysql	PRIMARY	1	Master_id	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	slave_relay_log_info	0	mysql	PRIMARY	1	Master_id	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	slave_worker_info	0	mysql	PRIMARY	1	Master_id	A	#CARD#	NULL	NULL		BTREE		
+def	mysql	slave_worker_info	0	mysql	PRIMARY	2	Worker_id	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
 def	mysql	tables_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE		

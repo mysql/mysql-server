@@ -284,7 +284,7 @@ static char *process_int_arg(char *to, char *end, size_t length,
     if (res_length < length)
     {
       size_t diff= (length- res_length);
-      bfill(to, diff, (print_type & PREZERO_ARG) ? '0' : ' ');
+      memset(to, (print_type & PREZERO_ARG) ? '0' : ' ', diff);
       if (arg_type == 'p' && print_type & PREZERO_ARG)
       {
         if (diff > 1)
