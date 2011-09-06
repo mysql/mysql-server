@@ -1099,7 +1099,7 @@ trx_undo_rec_get_partial_row(
 /***********************************************************************//**
 Erases the unused undo log page end.
 @return TRUE if the page contained something, FALSE if it was empty */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((nonnull))
 ibool
 trx_undo_erase_page_end(
 /*====================*/
@@ -1110,16 +1110,11 @@ trx_undo_erase_page_end(
 
 	first_free = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 				      + TRX_UNDO_PAGE_FREE);
-	if (first_free == TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE) {
-		/* This was an empty page to begin with.
-		Do nothing here; the caller should free the page. */
-		return(FALSE);
-	}
 	memset(undo_page + first_free, 0xff,
 	       (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END) - first_free);
 
 	mlog_write_initial_log_record(undo_page, MLOG_UNDO_ERASE_END, mtr);
-	return(TRUE);
+	return(first_free != TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE);
 }
 
 /***********************************************************//**
@@ -1141,11 +1136,7 @@ trx_undo_parse_erase_page_end(
 		return(ptr);
 	}
 
-	if (!trx_undo_erase_page_end(page, mtr)) {
-		/* The function trx_undo_erase_page_end() should not
-		have done anything to an empty page. */
-		ut_ad(0);
-	}
+	trx_undo_erase_page_end(page, mtr);
 
 	return(ptr);
 }
@@ -1289,6 +1280,18 @@ trx_undo_report_row_operation(
 				/* The record did not fit on an empty
 				undo page. Discard the freshly allocated
 				page and return an error. */
+
+				/* When we remove a page from an undo
+				log, this is analogous to a
+				pessimistic insert in a B-tree, and we
+				must reserve the counterpart of the
+				tree latch, which is the rseg
+				mutex. We must commit the mini-transaction
+				first, because it may be holding lower-level
+				latches, such as SYNC_FSP and SYNC_FSP_PAGE. */
+
+				mtr_commit(&mtr);
+				mtr_start(&mtr);
 
 				mutex_enter(&rseg->mutex);
 				trx_undo_free_last_page(trx, undo, &mtr);
