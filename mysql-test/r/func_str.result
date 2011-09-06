@@ -2835,6 +2835,12 @@ format(123,2,'no_NO')
 123,00
 DROP TABLE t1;
 #
+# Bug#11764310 conv function crashes, negative argument to memcpy
+#
+SELECT CONV(1,-2147483648,-2147483648);
+CONV(1,-2147483648,-2147483648)
+
+#
 # End of 5.5 tests
 #
 #
