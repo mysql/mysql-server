@@ -438,8 +438,13 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   have_classpath=no
   if test X"$classpath" != Xyes && test X"$classpath" != Xno && test X"$classpath" != Xdefault
   then
-    AC_MSG_RESULT([-- including provided classpath])
+    AC_MSG_RESULT([-- including provided classpath: $classpath])
     have_classpath=$classpath;
+  elif test X"$CLASSPATH" != X
+  then
+    AC_MSG_RESULT([-- including CLASSPATH from environment: $CLASSPATH])
+    have_classpath="$CLASSPATH"
+    classpath="$CLASSPATH"
   fi
 
   # needed for junit test compile: 
