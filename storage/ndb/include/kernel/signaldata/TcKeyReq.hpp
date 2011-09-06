@@ -174,6 +174,8 @@ private:
   static Uint8  getAIInTcKeyReq(const UintR & requestInfo);
   static UintR  getNoDiskFlag(const UintR & requestInfo);
 
+  static UintR getCoordinatedTransactionFlag(const UintR & requestInfo);
+
   /**
    * Get:ers for scanInfo
    */
@@ -204,7 +206,7 @@ private:
 
   static void setReorgFlag(UintR & requestInfo, UintR val);
   static UintR getReorgFlag(const UintR & requestInfo);
-
+  static void setCoordinatedTransactionFlag(UintR & requestInfo, UintR val);
   static void setQueueOnRedoProblemFlag(UintR & requestInfo, UintR val);
   static UintR getQueueOnRedoProblemFlag(const UintR & requestInfo);
 
@@ -243,13 +245,14 @@ private:
  y = Commit Type           - 2  Bit 12-13
  n = No disk flag          - 1  Bit 1
  r = reorg flag            - 1  Bit 19
+ x = Coordinated Tx flag   - 1  Bit 16
  q = Queue on redo problem - 1  Bit 9
  D = deferred constraint   - 1  Bit 17
 
            1111111111222222222233
  01234567890123456789012345678901
  dnb cooop lsyyeiaaarkkkkkkkkkkkk  (Short TCKEYREQ)
- dnbvcooopqlsyyei D r              (Long TCKEYREQ)
+ dnbvcooopqlsyyeixD r              (Long TCKEYREQ)
 */
 
 #define TCKEY_NODISK_SHIFT (1)
@@ -278,6 +281,7 @@ private:
 #define TC_REORG_SHIFT     (19)
 #define QUEUE_ON_REDO_SHIFT (9)
 
+#define TC_COORDINATED_SHIFT (16)
 #define TC_DEFERRED_CONSTAINTS_SHIFT (17)
 
 /**
@@ -373,6 +377,12 @@ inline
 Uint8
 TcKeyReq::getDistributionKeyFlag(const UintR & requestInfo){
   return (Uint8)((requestInfo >> DISTR_KEY_SHIFT) & 1);
+}
+
+inline
+UintR
+TcKeyReq::getCoordinatedTransactionFlag(const UintR & requestInfo){
+  return (UintR)((requestInfo >> TC_COORDINATED_SHIFT) & 1);
 }
 
 inline
@@ -473,6 +483,14 @@ TcKeyReq::setDistributionKeyFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setDistributionKeyFlag");
   requestInfo &= ~(1 << DISTR_KEY_SHIFT);
   requestInfo |= (flag << DISTR_KEY_SHIFT);
+}
+
+inline
+void
+TcKeyReq::setCoordinatedTransactionFlag(UintR & requestInfo, UintR flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setCoordinatedTransactionFlag");
+  requestInfo &= ~(1 << TC_COORDINATED_SHIFT);
+  requestInfo |= (flag << TC_COORDINATED_SHIFT);
 }
 
 inline
@@ -605,7 +623,7 @@ TcKeyReq::getReorgFlag(const UintR & requestInfo){
 inline
 void
 TcKeyReq::setReorgFlag(UintR & requestInfo, Uint32 flag){
-  ASSERT_BOOL(flag, "TcKeyReq::setNoDiskFlag");
+  ASSERT_BOOL(flag, "TcKeyReq::setReorgFlag");
   requestInfo |= (flag << TC_REORG_SHIFT);
 }
 
