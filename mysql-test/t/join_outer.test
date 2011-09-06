@@ -1173,3 +1173,37 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug #838633: second execution of PS with outer join
+--echo #                 converted to inner join
+--echo #
+
+CREATE TABLE t1 ( b int NOT NULL ) ;
+INSERT INTO t1 VALUES (9),(10);
+
+CREATE TABLE t2 ( b int NOT NULL, PRIMARY KEY (b)) ;
+INSERT INTO t2 VALUES 
+  (75),(76),(77),(78),(79),(80),(81),(82),(83),(84),(85),(86),(87),(88),(89),
+  (10), (90),(91),(92),(93),(94),(95),(96),(97),(98),(99),(100);
+
+CREATE TABLE t3 ( a int, b int NOT NULL , PRIMARY KEY (b)) ;
+INSERT INTO t3 VALUES 
+  (0,6),(0,7),(0,8),(2,9),(0,10),(2,21),(0,22),(2,23),(2,24),(2,25);
+
+SET SESSION join_cache_level=4;
+
+EXPLAIN EXTENDED
+SELECT * FROM (t2 LEFT JOIN t1 ON t1.b = t2.b) JOIN t3 ON t1.b = t3.b;
+
+PREPARE stmt FROM
+'SELECT * FROM (t2 LEFT JOIN t1 ON t1.b = t2.b) JOIN t3 ON t1.b = t3.b';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+SET SESSION join_cache_level=default;
+
+DROP TABLE t1,t2,t3;
