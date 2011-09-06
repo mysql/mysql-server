@@ -1437,5 +1437,10 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#11764310 conv function crashes, negative argument to memcpy
+--echo #
+SELECT CONV(1,-2147483648,-2147483648);
+
+--echo #
 --echo # End of 5.5 tests
 --echo #
