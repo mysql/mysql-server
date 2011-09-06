@@ -305,6 +305,7 @@ public:
   */
   uint          packed_info;
 
+  READ_RECORD::Setup_func materialize_table;
   READ_RECORD::Setup_func read_first_record;
   Next_select_func next_select;
   READ_RECORD	read_record;
@@ -353,9 +354,9 @@ public:
   uint          used_uneven_bit_fields;
   enum quick_type use_quick;
   enum join_type type;
-  bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
+  bool          not_used_in_distinct;
   /* TRUE <=> index-based access method must return records in order */
-  bool		sorted;
+  bool          sorted;
   /* 
     If it's not 0 the number stored this field indicates that the index
     scan has been chosen to access the table data and we expect to scan 
@@ -364,9 +365,8 @@ public:
   ha_rows       limit; 
   TABLE_REF	ref;
   /**
-    Join buffering strategy (same as return code of check_join_cache_level().
-    During optimization, this contains allowed join buffering strategies,
-    after optimization it contains chosen join buffering strategy (if any).
+    Join buffering strategy.
+    After optimization it contains chosen join buffering strategy (if any).
    */
   uint          use_join_cache;
   JOIN_CACHE	*cache;
@@ -528,6 +528,7 @@ st_join_table::st_join_table()
     pre_idx_push_cond(NULL),
     info(NULL),
     packed_info(0),
+    materialize_table(NULL),
     read_first_record(NULL),
     next_select(NULL),
     read_record(),
@@ -555,8 +556,6 @@ st_join_table::st_join_table()
     used_uneven_bit_fields(0),
     use_quick(QS_NONE),
     type(JT_UNKNOWN),
-    cached_eq_ref_table(FALSE),
-    eq_ref_table(FALSE),
     not_used_in_distinct(FALSE),
     sorted(FALSE),
 
@@ -897,11 +896,14 @@ protected:
   /* Shall skip record from the join buffer if its match flag is on */
   virtual bool skip_record_if_match();
 
-  /*  Read all flag and data fields of a record from the join buffer */
-  int read_all_record_fields();
-  
-  /* Read all flag fields of a record from the join buffer */
-  uint read_flag_fields();
+  /* Read some flag and data fields of a record from the join buffer */
+  int read_some_record_fields();
+
+  /* Read some flag fields of a record from the join buffer */
+  void read_some_flag_fields();
+
+  /* Read all flag fields of the record which is at position rec_ptr */
+  void read_all_flag_fields_by_pos(uchar *rec_ptr);
 
   /* Read a data record field from the join buffer */
   uint read_record_field(CACHE_FIELD *copy, bool last_record);
@@ -1007,9 +1009,8 @@ public:
     buff= 0;
   }   
 
-  /** Bits describing cache's type @sa check_join_cache_usage() */
-  enum {NON_INCREMENTAL_BUFFER= 1,
-        ALG_NONE= 0, ALG_BNL= 2, ALG_BKA= 4, ALG_BKA_UNIQUE= 8};
+  /** Bits describing cache's type @sa setup_join_buffering() */
+  enum {ALG_NONE= 0, ALG_BNL= 1, ALG_BKA= 2, ALG_BKA_UNIQUE= 4};
 
   friend class JOIN_CACHE_BNL;
   friend class JOIN_CACHE_BKA;
@@ -1760,12 +1761,16 @@ public:
 
 
   Next_select_func first_select;
-  /*
+  /**
     The cost of best complete join plan found so far during optimization,
     after optimization phase - cost of picked join order (not taking into
     account the changes made by test_if_skip_sort_order()).
   */
   double   best_read;
+  /**
+    The estimated row count of the plan with best read time (see above).
+  */
+  ha_rows  best_rowcount;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   TABLE    *tmp_table;
@@ -2090,6 +2095,8 @@ public:
                                         select_lex == unit->fake_select_lex));
   }
   void cache_const_exprs();
+  bool generate_derived_keys();
+  void drop_unused_derived_keys();
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
@@ -2358,6 +2365,10 @@ ORDER *simple_remove_const(ORDER *order, Item *where);
 bool const_expression_in_where(Item *cond, Item *comp_item,
                                Field *comp_field= NULL,
                                Item **const_item= NULL);
+bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
+                           MI_COLUMNDEF *start_recinfo,
+                           MI_COLUMNDEF **recinfo,
+                           ulonglong options, my_bool big_tables);
 
 /**
   Printing the transformed query in EXPLAIN EXTENDED or optimizer trace

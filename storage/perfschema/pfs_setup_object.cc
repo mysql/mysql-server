@@ -72,6 +72,7 @@ void cleanup_setup_object(void)
   setup_object_max= 0;
 }
 
+C_MODE_START
 static uchar *setup_object_hash_get_key(const uchar *entry, size_t *length,
                                         my_bool)
 {
@@ -86,6 +87,7 @@ static uchar *setup_object_hash_get_key(const uchar *entry, size_t *length,
   result= setup_object->m_key.m_hash_key;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
 }
+C_MODE_END
 
 /**
   Initialize the setup objects hash.
@@ -114,10 +116,12 @@ void cleanup_setup_object_hash(void)
 
 static LF_PINS* get_setup_object_hash_pins(PFS_thread *thread)
 {
-  if (! setup_object_hash_inited)
-    return NULL;
   if (unlikely(thread->m_setup_object_hash_pins == NULL))
+  {
+    if (! setup_object_hash_inited)
+      return NULL;
     thread->m_setup_object_hash_pins= lf_hash_get_pins(&setup_object_hash);
+  }
   return thread->m_setup_object_hash_pins;
 }
 
@@ -157,47 +161,46 @@ int insert_setup_object(enum_object_type object_type, const String *schema,
   if (unlikely(pins == NULL))
     return HA_ERR_OUT_OF_MEM;
 
-  PFS_scan scan;
-  uint random= randomized_index(object, setup_object_max);
+  static uint setup_object_monotonic_index= 0;
+  uint index;
+  uint attempts= 0;
+  PFS_setup_object *pfs;
 
-  for (scan.init(random, setup_object_max);
-       scan.has_pass();
-       scan.next_pass())
+  while (++attempts <= setup_object_max)
   {
-    PFS_setup_object *pfs= setup_object_array + scan.first();
-    PFS_setup_object *pfs_last= setup_object_array + scan.last();
+    /* See create_mutex() */
+    PFS_atomic::add_u32(& setup_object_monotonic_index, 1);
+    index= setup_object_monotonic_index % setup_object_max;
+    pfs= setup_object_array + index;
 
-    for ( ; pfs < pfs_last; pfs++)
+    if (pfs->m_lock.is_free())
     {
-      if (pfs->m_lock.is_free())
+      if (pfs->m_lock.free_to_dirty())
       {
-        if (pfs->m_lock.free_to_dirty())
+        set_setup_object_key(&pfs->m_key, object_type,
+                             schema->ptr(), schema->length(),
+                             object->ptr(), object->length());
+        pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
+        pfs->m_schema_name_length= schema->length();
+        pfs->m_object_name= pfs->m_schema_name + pfs->m_schema_name_length + 1;
+        pfs->m_object_name_length= object->length();
+        pfs->m_enabled= enabled;
+        pfs->m_timed= timed;
+
+        int res;
+        res= lf_hash_insert(&setup_object_hash, pins, &pfs);
+        if (likely(res == 0))
         {
-          set_setup_object_key(&pfs->m_key, object_type,
-                               schema->ptr(), schema->length(),
-                               object->ptr(), object->length());
-          pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
-          pfs->m_schema_name_length= schema->length();
-          pfs->m_object_name= pfs->m_schema_name + pfs->m_schema_name_length + 1;
-          pfs->m_object_name_length= object->length();
-          pfs->m_enabled= enabled;
-          pfs->m_timed= timed;
-
-          int res;
-          res= lf_hash_insert(&setup_object_hash, pins, &pfs);
-          if (likely(res == 0))
-          {
-            pfs->m_lock.dirty_to_allocated();
-            setup_objects_version++;
-            return 0;
-          }
-
-          pfs->m_lock.dirty_to_free();
-          if (res > 0)
-            return HA_ERR_FOUND_DUPP_KEY;
-          /* OOM in lf_hash_insert */
-          return HA_ERR_OUT_OF_MEM;
+          pfs->m_lock.dirty_to_allocated();
+          setup_objects_version++;
+          return 0;
         }
+
+        pfs->m_lock.dirty_to_free();
+        if (res > 0)
+          return HA_ERR_FOUND_DUPP_KEY;
+        /* OOM in lf_hash_insert */
+        return HA_ERR_OUT_OF_MEM;
       }
     }
   }
@@ -231,6 +234,8 @@ int delete_setup_object(enum_object_type object_type, const String *schema,
     lf_hash_delete(&setup_object_hash, pins, key.m_hash_key, key.m_key_length);
     pfs->m_lock.allocated_to_free();
   }
+
+  lf_hash_search_unpin(pins);
 
   setup_objects_version++;
   return 0;
@@ -326,8 +331,11 @@ void lookup_setup_object(PFS_thread *thread,
       pfs= *entry;
       *enabled= pfs->m_enabled;
       *timed= pfs->m_timed;
+      lf_hash_search_unpin(pins);
       return;
     }
+
+    lf_hash_search_unpin(pins);
   }
   *enabled= false;
   *timed= false;

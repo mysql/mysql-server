@@ -302,7 +302,7 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused1; /* Please remove with the next incompatible ABI change. */
+  my_bool mysql_socket_idle; /* Perfschema: True when socket state is IDLE */
   my_bool unused2; /* Please remove with the next incompatible ABI change */
   my_bool compress;
   my_bool unused3; /* Please remove with the next incompatible ABI change. */

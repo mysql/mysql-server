@@ -399,6 +399,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_AUTOINC_ERANGE,         ER_DEFAULT(ER_WARN_DATA_OUT_OF_RANGE));
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER_DEFAULT(ER_TOO_MANY_CONCURRENT_TRXS));
   SETMSG(HA_ERR_INDEX_COL_TOO_LONG,	ER_DEFAULT(ER_INDEX_COLUMN_TOO_LONG));
+  SETMSG(HA_ERR_INDEX_CORRUPT,		ER_DEFAULT(ER_INDEX_CORRUPT));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -2150,7 +2151,7 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 
 
 
-void handler::ha_statistic_increment(ulong SSV::*offset) const
+void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
   status_var_increment(table->in_use->status_var.*offset);
 }
@@ -2321,6 +2322,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(end_range == NULL);
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
@@ -3120,6 +3122,12 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_NOT_IN_LOCK_PARTITIONS:
     textno=ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET;
+    break;
+  case HA_ERR_INDEX_CORRUPT:
+    textno= ER_INDEX_CORRUPT;
+    break;
+  case HA_ERR_UNDO_REC_TOO_BIG:
+    textno= ER_UNDO_RECORD_TOO_BIG;
     break;
   default:
     {
@@ -4479,7 +4487,8 @@ double handler::index_only_read_time(uint keynr, double records)
 {
   double read_time;
   uint keys_per_block= (stats.block_size/2/
-			(table->key_info[keynr].key_length + ref_length) + 1);
+                        (table_share->key_info[keynr].key_length + ref_length) +
+                        1);
   read_time=((double) (records + keys_per_block-1) /
              (double) keys_per_block);
   return read_time;
