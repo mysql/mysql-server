@@ -175,14 +175,14 @@ int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
 static COND *make_cond_for_table(THD *thd, Item *cond,table_map table,
                                  table_map used_table,
-                                 uint join_tab_idx_arg,
+                                 int join_tab_idx_arg,
                                  bool exclude_expensive_cond,
                                  bool retain_ref_cond);
 static COND *make_cond_for_table_from_pred(THD *thd, Item *root_cond,
                                            Item *cond,
                                            table_map tables,
                                            table_map used_table,
-                                           uint join_tab_idx_arg,
+                                           int join_tab_idx_arg,
                                            bool exclude_expensive_cond,
                                            bool retain_ref_cond);
 
@@ -1088,7 +1088,7 @@ JOIN::optimize()
       if (conds && !(thd->lex->describe & DESCRIBE_EXTENDED))
       {
         COND *table_independent_conds=
-          make_cond_for_table(thd, conds, PSEUDO_TABLE_BITS, 0, MAX_TABLES,
+          make_cond_for_table(thd, conds, PSEUDO_TABLE_BITS, 0, -1,
                               FALSE, FALSE);
         DBUG_EXECUTE("where",
                      print_where(table_independent_conds,
@@ -2535,7 +2535,7 @@ JOIN::exec()
 
       Item* sort_table_cond= make_cond_for_table(thd, curr_join->tmp_having,
 						 used_tables,
-						 (table_map)0, MAX_TABLES,
+						 (table_map)0, -1,
 						 FALSE, FALSE);
       if (sort_table_cond)
       {
@@ -2573,7 +2573,7 @@ JOIN::exec()
                                          QT_ORDINARY););
 	curr_join->tmp_having= make_cond_for_table(thd, curr_join->tmp_having,
 						   ~ (table_map) 0,
-						   ~used_tables, MAX_TABLES,
+						   ~used_tables, -1,
 						   FALSE, FALSE);
 	DBUG_EXECUTE("where",print_where(curr_join->tmp_having,
                                          "having after sort",
@@ -6047,7 +6047,7 @@ greedy_search(JOIN      *join,
     read_time_arg and record_count_arg contain the computed cost and fanout
 */
 
-void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
+void JOIN::get_partial_cost_and_fanout(int end_tab_idx,
                                        table_map filter_map,
                                        double *read_time_arg, 
                                        double *record_count_arg)
@@ -6057,14 +6057,14 @@ void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
   double sj_inner_fanout= 1.0;
   JOIN_TAB *end_tab= NULL;
   JOIN_TAB *tab;
-  uint i;
-  uint last_sj_table= MAX_TABLES;
+  int i;
+  int last_sj_table= MAX_TABLES;
 
   /* 
     Handle a special case where the join is degenerate, and produces no
     records
   */
-  if (table_count == 0)
+  if (table_count == const_tables)
   {
     *read_time_arg= 0.0;
     /*
@@ -6074,6 +6074,7 @@ void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
          calculations.
     */
     *record_count_arg=1.0;
+    return;
   }
 
   for (tab= first_depth_first_tab(this), i= const_tables;
@@ -6086,19 +6087,17 @@ void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
   }
 
   for (tab= first_depth_first_tab(this), i= const_tables;
-       (i <= end_tab_idx && tab);
+       ;
        tab= next_depth_first_tab(this, tab), i++)
   {
-    /* 
-      We've entered the SJM nest that contains the end_tab. The caller is
-      actually 
-      - interested in fanout inside the nest (because that's how many times 
-        we'll invoke the attached WHERE conditions)
-      - not interested in cost
-    */
     if (end_tab->bush_root_tab && end_tab->bush_root_tab == tab)
     {
-      /* Ok, end_tab is inside SJM nest and we're entering that nest now */
+      /* 
+        We've entered the SJM nest that contains the end_tab. The caller is
+        - interested in fanout inside the nest (because that's how many times 
+          we'll invoke the attached WHERE conditions)
+        - not interested in cost
+      */
       record_count= 1.0;
       read_time= 0.0;
     }
@@ -6112,8 +6111,18 @@ void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
       sj_inner_fanout= 1.0;
       last_sj_table= i + tab->n_sj_tables;
     }
-
-    if (tab->records_read && (tab->table->map & filter_map))
+    
+    table_map cur_table_map;
+    if (tab->table)
+      cur_table_map= tab->table->map;
+    else
+    {
+      /* This is a SJ-Materialization nest. Check all of its tables */
+      TABLE *first_child= tab->bush_children->start->table;
+      TABLE_LIST *sjm_nest= first_child->pos_in_table_list->embedding;
+      cur_table_map= sjm_nest->nested_join->used_tables;
+    }
+    if (tab->records_read && (cur_table_map & filter_map))
     {
       record_count *= tab->records_read;
       read_time += tab->read_time;
@@ -6127,6 +6136,9 @@ void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
       sj_inner_fanout= 1.0;
       last_sj_table= MAX_TABLES;
     }
+
+    if (tab == end_tab)
+      break;
   }
   *read_time_arg= read_time;// + record_count / TIME_FOR_COMPARE;
   *record_count_arg= record_count;
@@ -6615,7 +6627,7 @@ int JOIN_TAB::make_scan_filter()
   if (cond &&
       (tmp= make_cond_for_table(join->thd, cond,
                                join->const_table_map | table->map,
-			       table->map, MAX_TABLES, FALSE, TRUE)))
+			       table->map, -1, FALSE, TRUE)))
   {
      DBUG_EXECUTE("where",print_where(tmp,"cache", QT_ORDINARY););
      if (!(cache_select=
@@ -7087,6 +7099,7 @@ get_best_combination(JOIN *join)
       goto loop_end;					// Handled in make_join_stat..
 
     j->loosescan_match_tab= NULL;  //non-nulls will be set later
+    j->inside_loosescan_range= FALSE;
     j->ref.key = -1;
     j->ref.key_parts=0;
 
@@ -7901,7 +7914,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         join->exec_const_cond=
 	  make_cond_for_table(thd, cond,
                               join->const_table_map,
-                              (table_map) 0, MAX_TABLES, FALSE, FALSE);
+                              (table_map) 0, -1, FALSE, FALSE);
         /* Add conditions added by add_not_null_conds(). */
         for (uint i= 0 ; i < join->const_tables ; i++)
           add_cond_and_fix(thd, &join->exec_const_cond,
@@ -7920,7 +7933,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         COND *outer_ref_cond= make_cond_for_table(thd, cond, 
                                                   OUTER_REF_TABLE_BIT,
                                                   OUTER_REF_TABLE_BIT,
-                                                  MAX_TABLES, FALSE, FALSE);
+                                                  -1, FALSE, FALSE);
         if (outer_ref_cond)
 	{
           add_cond_and_fix(thd, &outer_ref_cond, join->outer_ref_cond);
@@ -8090,7 +8103,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             {
               COND *push_cond= 
               make_cond_for_table(thd, tmp, current_map, current_map,
-                                  MAX_TABLES, FALSE, FALSE);
+                                  -1, FALSE, FALSE);
               if (push_cond)
               {
                 /* Push condition to handler */
@@ -8262,7 +8275,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           JOIN_TAB *cond_tab= join_tab->first_inner;
           COND *tmp= make_cond_for_table(thd, *join_tab->on_expr_ref,
                                          join->const_table_map,
-                                         (table_map) 0, MAX_TABLES, FALSE, FALSE);
+                                         (table_map) 0, -1, FALSE, FALSE);
           if (!tmp)
             continue;
           tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
@@ -8308,10 +8321,10 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           current_map= tab->table->map;
           used_tables2|= current_map;
           /*
-            psergey: have put the MAX_TABLES below. It's bad, will need to fix it.
+            psergey: have put the -1 below. It's bad, will need to fix it.
           */
           COND *tmp_cond= make_cond_for_table(thd, on_expr, used_tables2,
-                                              current_map, /*(tab - first_tab)*/ MAX_TABLES,
+                                              current_map, /*(tab - first_tab)*/ -1,
 					      FALSE, FALSE);
           if (tab == first_inner_tab && tab->on_precond)
             add_cond_and_fix(thd, &tmp_cond, tab->on_precond);
@@ -8970,6 +8983,15 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     goto no_join_cache;
 
   if (tab->use_quick == 2)
+    goto no_join_cache;
+  
+  /*
+    Don't use join cache if we're inside a join tab range covered by LooseScan
+    strategy (TODO: LooseScan is very similar to FirstMatch so theoretically it 
+    should be possible to use join buffering in the same way we're using it for
+    multi-table firstmatch ranges).
+  */
+  if (tab->inside_loosescan_range)
     goto no_join_cache;
 
   if (tab->is_inner_table_of_semi_join_with_first_match() &&
@@ -16684,7 +16706,7 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
 static Item *
 make_cond_for_table(THD *thd, Item *cond, table_map tables,
                     table_map used_table,
-                    uint join_tab_idx_arg,
+                    int join_tab_idx_arg,
                     bool exclude_expensive_cond __attribute__((unused)),
 		    bool retain_ref_cond)
 {
@@ -16698,7 +16720,7 @@ make_cond_for_table(THD *thd, Item *cond, table_map tables,
 static Item *
 make_cond_for_table_from_pred(THD *thd, Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
-                              uint join_tab_idx_arg,
+                              int join_tab_idx_arg,
                               bool exclude_expensive_cond __attribute__
                               ((unused)),
                               bool retain_ref_cond)

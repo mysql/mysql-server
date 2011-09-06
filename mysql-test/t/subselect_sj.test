@@ -2,7 +2,7 @@
 # Nested Loops semi-join subquery evaluation tests
 #
 --disable_warnings
-drop table if exists t0, t1, t2, t3, t4, t10, t11, t12;
+drop table if exists t0, t1, t2, t3, t4, t5, t10, t11, t12;
 drop view if exists v1, v2, v3, v4;
 drop procedure if exists p1;
 --enable_warnings
@@ -1593,6 +1593,54 @@ WHERE (t3.a) IN (
         )
 );
 drop table t1, t2,t3; 
+
+--echo #
+--echo # BUG#834758: Wrong result with innner join, LooseScan, two-column IN() predicate
+--echo #
+
+set @tmp835758=@@optimizer_switch;
+set optimizer_switch='semijoin=on,loosescan=on,materialization=off,firstmatch=off';
+
+CREATE TABLE t1 (b int) ;
+INSERT INTO t1 VALUES (1),(5);
+
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ;
+INSERT INTO t2 VALUES (6),(10);
+
+CREATE TABLE t3 (a int, b int, KEY (b)) ;
+INSERT INTO t3 VALUES (6,5),(6,2),(8,0),(9,1),(6,5);
+
+--echo # This used to incorrectly pick a join order of (t1, LooseScan(t3), t2):
+explain 
+SELECT * FROM t1, t2 WHERE (t2.a , t1.b) IN (SELECT a, b FROM t3);
+SELECT * FROM t1, t2 WHERE (t2.a , t1.b) IN (SELECT a, b FROM t3);
+
+DROP TABLE t1, t2, t3;
+set @@optimizer_switch= @tmp835758;
+
+--echo #
+--echo # BUG#834739: Wrong result with 3-way inner join, LooseScan,multipart keys  
+--echo #
+set @tmp834739=@@optimizer_switch;
+set optimizer_switch='semijoin=on,loosescan=on,materialization=off,firstmatch=off';
+CREATE TABLE t2 ( b int, c int, KEY (b)) ;
+INSERT INTO t2 VALUES (1,0),(1,0),(9,0),(1,0),(5,0);
+
+CREATE TABLE t3 ( a int);
+INSERT INTO t3 VALUES (0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
+
+CREATE TABLE t4 ( a int);
+INSERT INTO t4 VALUES (0),(0),(0);
+
+CREATE TABLE t5 ( b int, a int , KEY (a,b)) ;
+INSERT INTO t5 VALUES (7,0),(9,0);
+
+explain
+SELECT * FROM t3 WHERE t3.a IN (SELECT t5.a FROM t2, t4, t5 WHERE t2.c = t5.a AND t2.b = t5.b);
+SELECT * FROM t3 WHERE t3.a IN (SELECT t5.a FROM t2, t4, t5 WHERE t2.c = t5.a AND t2.b = t5.b);
+
+DROP TABLE t2, t3, t4, t5;
+set @@optimizer_switch=@tmp834739;
 
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;

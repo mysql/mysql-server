@@ -347,6 +347,9 @@ typedef struct st_join_table {
      NULL - Not doing a loose scan on this join tab.
   */
   struct st_join_table *loosescan_match_tab;
+  
+  /* TRUE <=> we are inside LooseScan range */
+  bool inside_loosescan_range;
 
   /* Buffer to save index tuple to be able to skip duplicates */
   uchar *loosescan_buf;
@@ -1154,7 +1157,7 @@ public:
            max_allowed_join_cache_level > JOIN_CACHE_HASHED_BIT;
   }
   bool choose_subquery_plan(table_map join_tables);
-  void get_partial_cost_and_fanout(uint end_tab_idx,
+  void get_partial_cost_and_fanout(int end_tab_idx,
                                    table_map filter_map,
                                    double *read_time_arg, 
                                    double *record_count_arg);

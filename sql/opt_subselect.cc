@@ -559,6 +559,16 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
       if (inner->field_type() == MYSQL_TYPE_BLOB || 
           inner->field_type() == MYSQL_TYPE_GEOMETRY)
         DBUG_RETURN(FALSE);
+      /* 
+        Materialization also is unable to work when create_tmp_table() will
+        create a blob column because item->max_length is too big.
+        The following check is copied from Item::make_string_field():
+      */ 
+      if (inner->max_length / inner->collation.collation->mbmaxlen > 
+          CONVERT_IF_BIGGER_TO_BLOB)
+      {
+        DBUG_RETURN(FALSE);
+      }
       break;
     case TIME_RESULT:
       if (mysql_type_to_time_type(outer->field_type()) !=
@@ -2639,6 +2649,7 @@ ulonglong get_bound_sj_equalities(TABLE_LIST *sj_nest,
     {
       res |= 1ULL << i;
     }
+    i++;
   }
   return res;
 }
@@ -2935,6 +2946,11 @@ bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab)
   DBUG_ENTER("setup_sj_materialization");
   JOIN_TAB *tab= sjm_tab->bush_children->start;
   TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
+  
+  /* Walk out of outer join nests until we reach the semi-join nest we're in */
+  while (!emb_sj_nest->sj_mat_info)
+    emb_sj_nest= emb_sj_nest->embedding;
+
   SJ_MATERIALIZATION_INFO *sjm= emb_sj_nest->sj_mat_info;
   THD *thd= tab->join->thd;
   /* First the calls come to the materialization function */
@@ -2983,6 +2999,9 @@ bool setup_sj_materialization_part2(JOIN_TAB *sjm_tab)
   DBUG_ENTER("setup_sj_materialization_part2");
   JOIN_TAB *tab= sjm_tab->bush_children->start;
   TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
+  /* Walk out of outer join nests until we reach the semi-join nest we're in */
+  while (!emb_sj_nest->sj_mat_info)
+    emb_sj_nest= emb_sj_nest->embedding;
   SJ_MATERIALIZATION_INFO *sjm= emb_sj_nest->sj_mat_info;
   THD *thd= tab->join->thd;
   uint i;
@@ -3818,6 +3837,8 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       {
         /* We jump from the last table to the first one */
         tab->loosescan_match_tab= tab + pos->n_sj_tables - 1;
+        for (uint j= i; j < pos->n_sj_tables; j++)
+          join->join_tab[j].inside_loosescan_range= TRUE;
 
         /* Calculate key length */
         keylen= 0;
@@ -4479,20 +4500,6 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     if (outer_join && outer_join->table_count > 0)
     {
       /*
-        The index of the last JOIN_TAB in the outer JOIN where in_subs is
-        attached (pushed to).
-      */
-      uint max_outer_join_tab_idx;
-      /*
-        Make_cond_for_table is called for predicates only in the WHERE/ON
-        clauses. In all other cases, predicates are not pushed to any
-        JOIN_TAB, and their join_tab_idx remains MAX_TABLES. Such predicates
-        are evaluated for each complete row of the outer join.
-      */
-      max_outer_join_tab_idx= (in_subs->get_join_tab_idx() == MAX_TABLES) ?
-                               outer_join->table_count - 1:
-                               in_subs->get_join_tab_idx();
-      /*
         TODO:
         Currently outer_lookup_keys is computed as the number of rows in
         the partial join including the JOIN_TAB where the IN predicate is
@@ -4504,7 +4511,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
         If the join order: t1, t2, the number of unique lookup keys is ~ to
         the number of unique values t2.c2 in the partial join t1 join t2.
       */
-      outer_join->get_partial_cost_and_fanout(max_outer_join_tab_idx,
+      outer_join->get_partial_cost_and_fanout(in_subs->get_join_tab_idx(),
                                               table_map(-1),
                                               &dummy,
                                               &outer_lookup_keys);

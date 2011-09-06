@@ -3,7 +3,7 @@ set @subselect_sj_mat_tmp= @@optimizer_switch;
 set optimizer_switch=ifnull(@subselect_mat_test_optimizer_switch_value, 'semijoin=on,firstmatch=on,loosescan=on');
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set @optimizer_switch_local_default= @@optimizer_switch;
-drop table if exists t1, t2, t3, t1i, t2i, t3i;
+drop table if exists t1, t2, t3, t4, t5, t1i, t2i, t3i;
 drop table if exists columns;
 drop table if exists t1_16, t2_16, t3_16;
 drop view if exists v1, v2, v1m, v2m;
@@ -1579,6 +1579,83 @@ GROUP BY 1 , 2;
 a	c
 1	2
 drop table t1,t2,t3;
+#
+# BUG#836523: Crash in JOIN::get_partial_cost_and_fanout with semijoin+materialization 
+#
+CREATE TABLE t1 (a varchar(1));
+INSERT INTO t1 VALUES ('a'),('a');
+CREATE TABLE t2 (a varchar(1));
+CREATE TABLE t3 (a int);
+INSERT INTO t3 VALUES (1),(2);
+CREATE TABLE t4 (a varchar(1));
+INSERT INTO t4 VALUES ('a'),('a');
+SELECT t1.a
+FROM t1
+WHERE t1.a IN (
+SELECT t2.a
+FROM t2, t3
+)
+HAVING a IN (
+SELECT a
+FROM t4
+);
+a
+DROP TABLE t1, t2, t3, t4;
+#
+# BUG#836507: Crash in setup_sj_materialization_part1() with semijoin+materialization
+#
+CREATE TABLE t1 (a int) ;
+INSERT IGNORE INTO t1 VALUES (1),(1);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (1);
+CREATE TABLE t3 (a int);
+CREATE TABLE t4 (a int);
+INSERT INTO t4 VALUES (2),(2);
+CREATE TABLE t5 (a int);
+INSERT INTO t5 VALUES (1);
+SELECT * FROM t1
+WHERE (a) IN (
+SELECT t5.a
+FROM (
+t2
+LEFT JOIN ( t3 , t4 )
+ON 1 = 1
+)
+JOIN t5
+);
+a
+1
+1
+DROP TABLE t1,t2,t3,t4,t5;
+#
+# BUG#836532: Crash in Item_equal_fields_iterator::get_curr_field with semijoin+materialization
+#
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES ('a'),('a');
+Warnings:
+Warning	1366	Incorrect integer value: 'a' for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'a' for column 'a' at row 2
+CREATE TABLE t4 (a varchar(1));
+INSERT INTO t4 VALUES ('m'),('o');
+CREATE TABLE t3 (a varchar(1) , b varchar(1) ) ;
+INSERT INTO t3 VALUES ('b','b');
+CREATE TABLE t5 (a varchar(1), KEY (a)) ;
+INSERT INTO t5 VALUES ('d'),('e');
+SELECT *
+FROM t2
+WHERE t2.a = ALL (
+SELECT t4.a
+FROM t4
+WHERE t4.a IN (
+SELECT t3.a
+FROM t3 , t5
+WHERE ( t5.a = t3.b )
+)
+);
+a
+0
+0
+DROP TABLE t2,t3,t4,t5;
 set optimizer_switch=@subselect_sj_mat_tmp;
 set @subselect_mat_test_optimizer_switch_value=null;
 set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
