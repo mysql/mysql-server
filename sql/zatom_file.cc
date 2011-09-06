@@ -22,7 +22,7 @@
 const char *Atom_file::OVERWRITE_FILE_SUFFIX= ".overwrite";
 
 
-Atom_file::Atom_file(char *file_name_arg)
+Atom_file::Atom_file(const char *file_name_arg)
   : fd(-1), ofd(-1)
 {
   DBUG_ENTER("Atom_file::Atom_file");
@@ -178,7 +178,7 @@ int Atom_file::close()
 }
 
 
-size_t Atom_file::pread(my_off_t offset, my_off_t length, uchar *buffer)
+size_t Atom_file::pread(my_off_t offset, my_off_t length, uchar *buffer) const
 {
   DBUG_ENTER("Atom_file::pread");
   DBUG_ASSERT(is_open());
@@ -207,7 +207,7 @@ size_t Atom_file::pread(my_off_t offset, my_off_t length, uchar *buffer)
 
 
 int Atom_file::truncate_and_append(my_off_t offset, my_off_t length,
-                                   uchar *data)
+                                   const uchar *data)
 {
   DBUG_ENTER("Atom_file::truncate_and_append");
   File ofd= my_open(overwrite_file_name, O_WRONLY | O_BINARY | O_CREAT | O_EXCL,

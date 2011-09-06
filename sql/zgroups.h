@@ -1954,20 +1954,20 @@ int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
 class Atom_file
 {
 public:
-  Atom_file(char *file_name);
+  Atom_file(const char *file_name);
   int open(bool write);
   int close();
-  bool is_open() { return fd != -1; }
-  bool is_writable() { return fd != -1 && writable; }
-  size_t append(my_off_t length, uchar *data)
+  bool is_open() const { return fd != -1; }
+  bool is_writable() const { return fd != -1 && writable; }
+  size_t append(my_off_t length, const uchar *data)
   {
     DBUG_ENTER("Atom_file::append");
     DBUG_ASSERT(is_writable());
     my_off_t ret= my_write(fd, data, length, MYF(MY_WME));
     DBUG_RETURN(ret);
   }
-  size_t pread(my_off_t offset, my_off_t length, uchar *buffer);
-  int truncate_and_append(my_off_t offset, my_off_t length, uchar *data);
+  size_t pread(my_off_t offset, my_off_t length, uchar *buffer) const;
+  int truncate_and_append(my_off_t offset, my_off_t length, const uchar *data);
   int sync()
   {
     DBUG_ASSERT(is_writable());
@@ -1992,20 +1992,31 @@ private:
 class Rot_file
 {
 public:
-  Rot_file(char *file_name);
+  Rot_file(const char *file_name);
   int open(bool write);
   int close();
-  my_off_t append(my_off_t length, char *data);
-  my_off_t pread(my_off_t offset, my_off_t length, char *buffer);
+  my_off_t append(my_off_t length, const uchar *data)
+  {
+    DBUG_ENTER("Rot_file::append");
+    DBUG_ASSERT(is_writable());
+    my_off_t ret= my_write(fd, data, length, MYF(MY_WME));
+    DBUG_RETURN(ret);
+  }
+  my_off_t pread(my_off_t offset, my_off_t length, char *buffer) const;
   void set_rotation_limit(my_off_t limit);
-  my_off_t get_rotation_limit(my_off_t limit);
+  my_off_t get_rotation_limit() const;
   int purge(my_off_t offset);
   int truncate(my_off_t offset);
-  int flush();
-  bool is_writable();
-  bool is_open();
+  int sync();
+  bool is_writable() const;
+  bool is_open() const;
   ~Rot_file();
 private:
+  char file_name[FN_REFLEN];
+  File fd;
+  my_off_t rotation_limit;
+  bool writable;
+/*
   struct Sub_file
   {
     int fd;
@@ -2017,6 +2028,7 @@ private:
   int fd;
   enum_state state;
   my_off_t limit;
+*/
 };
 
 
