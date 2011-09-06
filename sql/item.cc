@@ -5191,6 +5191,10 @@ Field *Item::make_string_field(TABLE *table)
 {
   Field *field;
   DBUG_ASSERT(collation.collation);
+  /* 
+    Note: the following check is repeated in 
+    subquery_types_allow_materialization():
+  */
   if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
     field= new Field_blob(max_length, maybe_null, name,
                           collation.collation);

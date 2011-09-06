@@ -559,6 +559,16 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
       if (inner->field_type() == MYSQL_TYPE_BLOB || 
           inner->field_type() == MYSQL_TYPE_GEOMETRY)
         DBUG_RETURN(FALSE);
+      /* 
+        Materialization also is unable to work when create_tmp_table() will
+        create a blob column because item->max_length is too big.
+        The following check is copied from Item::make_string_field():
+      */ 
+      if (inner->max_length / inner->collation.collation->mbmaxlen > 
+          CONVERT_IF_BIGGER_TO_BLOB)
+      {
+        DBUG_RETURN(FALSE);
+      }
       break;
     case TIME_RESULT:
       if (mysql_type_to_time_type(outer->field_type()) !=
