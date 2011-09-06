@@ -317,7 +317,7 @@ public:
   inline void *nth_element(int n)
   {
     list_node *node= first;
-    void *data;
+    void *data= NULL;
     for (int i=0; i <= n; i++)
     {
       if (node == &end_of_list)
