@@ -47,7 +47,6 @@ Usage: $0 [OPTIONS]
   --datadir=path       The path to the MySQL data directory.
   --defaults-extra-file=name
                        Read this file after the global files are read.
-
   --defaults-file=name Only read default options from the given file name.
   --force              Causes mysql_install_db to run even if DNS does not
                        work.  In that case, grant table entries that normally
