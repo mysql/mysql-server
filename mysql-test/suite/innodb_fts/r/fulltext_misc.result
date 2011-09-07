@@ -53,7 +53,7 @@ UNIQUE INDEX kodoboru (kodoboru),
 FULLTEXT KEY obor (obor),
 FULLTEXT KEY aobor (aobor)
 ) ENGINE = InnoDB;
-ERROR HY000: InnoDB presently supports one FULLTEXT index per table
+drop table t1;
 CREATE TABLE t1 (
 kodoboru varchar(10) default NULL,
 obor tinytext,

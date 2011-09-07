@@ -1409,13 +1409,6 @@ row_fts_do_update(
 	doc_id_t	old_doc_id,	/* in: old document id */
 	doc_id_t	new_doc_id)	/* in: new document id */
 {
-	/* Now we know we're dealing with an update. Check which
-	FTS indexes need to be updated.
-	FIXME: We only support single FTS index on a table. So
-	skip this check for now
-	updated_fts_indexes = row_upd_changes_fts_columns(
-					table, node->update); */
-
 	if (trx->fts_next_doc_id) {
 		fts_trx_add_op(trx, table, old_doc_id, FTS_DELETE, NULL);
 		fts_trx_add_op(trx, table, new_doc_id, FTS_INSERT, NULL);

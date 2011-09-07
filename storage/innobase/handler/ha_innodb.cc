@@ -80,7 +80,9 @@ extern "C" {
 #include "ibuf0ibuf.h"
 #include "dict0dict.h"
 #include "srv0mon.h"
-#include "fut0fut.h"
+#include "pars0pars.h"
+#include "fts0fts.h"
+#include "fts0types.h"
 }
 
 #include "ha_innodb.h"
@@ -6178,6 +6180,33 @@ calc_row_difference(
 
 		if (!DICT_TF2_FLAG_IS_SET(
 			innodb_table, DICT_TF2_FTS_HAS_DOC_ID)) {
+
+			/* If Doc ID is managed by user, and if any
+			FTS indexed column has been updated, its corresponding
+			Doc ID must also be updated. Otherwise, return
+			error */
+			if (changes_fts_column && !changes_fts_doc_col) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr, " InnoDB: A new Doc ID"
+					" must be supplied while updating"
+					" FTS indexed columns.\n");
+				return(DB_FTS_INVALID_DOCID);
+			}
+
+			/* Doc ID must monotonically increase */
+			ut_ad(innodb_table->fts->cache);
+			if (doc_id < prebuilt->table->fts->cache->next_doc_id) {
+				fprintf(stderr,
+                                        "InnoDB: FTS Doc ID must be large than"
+                                        " %llu for table",
+                                        innodb_table->fts->cache->next_doc_id - 1);
+                                ut_print_name(stderr, trx,
+					      TRUE, innodb_table->name);
+                                putc('\n', stderr);
+
+				return(DB_FTS_INVALID_DOCID);
+			}
+
 			trx->fts_next_doc_id = doc_id;
 		} else {
 			trx->fts_next_doc_id = 0;
@@ -8033,11 +8062,6 @@ ha_innobase::create(
 				my_error(ER_INNODB_NO_FT_TEMP_TABLE, MYF(0));
 				DBUG_RETURN(-1);
 			}
-		}
-
-		if (fts_indexes > 1) {
-			my_error(ER_INNODB_FT_LIMIT, MYF(0));
-			 DBUG_RETURN(-1);
 		}
 	}
 

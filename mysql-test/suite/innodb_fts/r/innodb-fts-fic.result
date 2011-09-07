@@ -70,3 +70,70 @@ FTS_DOC_ID	title	body
 1	MySQL Tutorial	DBMS stands for DataBase ...
 3	Optimizing MySQL	In this tutorial we will show ...
 drop table articles;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+CREATE FULLTEXT INDEX idx on articles (title);
+CREATE FULLTEXT INDEX idx2 on articles (body);
+SELECT * FROM articles WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+ERROR HY000: Can't find FULLTEXT index matching the column list
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+SELECT * FROM articles WHERE MATCH (body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+3	Optimizing MySQL	In this tutorial we will show ...
+drop index idx2 on articles;
+SELECT * FROM articles WHERE MATCH (body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+ERROR HY000: Can't find FULLTEXT index matching the column list
+CREATE FULLTEXT INDEX idx2 on articles (body);
+SELECT * FROM articles WHERE MATCH (body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+3	Optimizing MySQL	In this tutorial we will show ...
+UPDATE articles set title = 'aaaa'
+WHERE MATCH(title) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('aaaa' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	aaaa	DBMS stands for DataBase ...
+drop table articles;
+CREATE TABLE articles (
+FTS_DOC_ID BIGINT UNSIGNED NOT NULL ,
+title VARCHAR(200),
+body TEXT
+) ENGINE=InnoDB;
+CREATE FULLTEXT INDEX idx on articles (title);
+INSERT INTO articles  VALUES (9, 'MySQL Tutorial','DBMS stands for DataBase ...');
+UPDATE articles set title = 'bbbb'  WHERE MATCH(title) AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+ERROR HY000: Invalid InnoDB FTS Doc ID
+UPDATE articles set title = 'bbbb', FTS_DOC_ID=8  WHERE MATCH(title) AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+ERROR HY000: Invalid InnoDB FTS Doc ID
+UPDATE articles set title = 'bbbb', FTS_DOC_ID=10  WHERE MATCH(title) AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+SELECT * FROM articles WHERE MATCH (title) AGAINST ('bbbb' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID	title	body
+10	bbbb	DBMS stands for DataBase ...
+SELECT * FROM articles WHERE MATCH (title) AGAINST ('tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID	title	body
+CREATE FULLTEXT INDEX idx2 ON articles (body);
+SELECT * FROM articles WHERE MATCH (body) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID	title	body
+10	bbbb	DBMS stands for DataBase ...
+UPDATE articles set body = 'bbbb', FTS_DOC_ID=11  WHERE MATCH(body) AGAINST ('database' IN NATURAL LANGUAGE MODE);
+drop table articles;

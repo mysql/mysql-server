@@ -283,6 +283,15 @@ fts_add_doc_by_id(
 	doc_id_t	doc_id,		/*!< in: doc id */
 	ib_vector_t*	fts_indexes __attribute__((unused)));
 					/*!< in: affected fts indexes */
+/*********************************************************************//**
+Search the index cache for a get_doc structure.
+@return the fts_get_doc_t item else NULL */
+static
+fts_get_doc_t*
+fts_get_index_get_doc(
+/*==================*/
+	fts_cache_t*		cache,	/*!< in: cache to search */
+	const dict_index_t*	index);	/*!< in: index to search for */
 /****************************************************************//**
 Check whether a particular word (term) exists in the FTS index.
 @return DB_SUCCESS if all went fine */
@@ -613,6 +622,120 @@ fts_cache_create(
 	return(cache);
 }
 
+/*******************************************************************//**
+Add a newly create index into FTS cache */
+UNIV_INTERN
+void
+fts_add_index(
+/*==========*/
+        dict_index_t*	index,		/*!< FTS index to be added */
+        dict_table_t*	table)		/*!< table */
+{
+	fts_t*			fts = table->fts;
+	fts_cache_t*		cache;
+	fts_index_cache_t*	index_cache;
+
+	ut_ad(fts);
+	cache = table->fts->cache;
+
+	rw_lock_x_lock(&cache->init_lock);
+
+	ib_vector_push(fts->indexes, &index);
+
+	index_cache = (fts_index_cache_t*) fts_find_index_cache(cache, index);
+
+	if (!index_cache) {
+		/* Add new index cache structure */
+		index_cache = fts_cache_index_cache_create(table, index);
+	}
+
+	if (cache->get_docs) {
+		fts_get_doc_t*  get_doc;
+		get_doc = ib_vector_push(cache->get_docs, NULL);
+		memset(get_doc, 0x0, sizeof(*get_doc));
+		get_doc->index_cache = index_cache;
+        }
+	rw_lock_x_unlock(&cache->init_lock);
+}
+
+/*******************************************************************//**
+Drop auxiliary tables related to an FTS index
+@return DB_SUCCESS or error number */
+UNIV_INTERN
+ulint
+fts_drop_index(
+/*===========*/
+	dict_table_t*	table,	/*!< in: Table where indexes are dropped */
+	dict_index_t*	index,	/*!< in: Index to be dropped */
+	trx_t*		trx)	/*!< in: Transaction for the drop */
+{
+	ib_vector_t*	indexes = table->fts->indexes;
+	ulint		err = DB_SUCCESS;
+
+	ut_a(indexes);
+
+	if (ib_vector_size(indexes) == 1) {
+		ut_ad(index == (dict_index_t*) ib_vector_getp(
+			table->fts->indexes, 0));
+
+		/* If we are dropping the only FTS index of the table,
+		remove it from optimize thread */
+		fts_optimize_remove_table(table);
+
+		DICT_TF2_FLAG_UNSET(table, DICT_TF2_FTS);
+
+		/* If Doc ID column is not added internally by FTS index,
+		we can drop all FTS auxiliary tables. Otherwise, we will
+		need to keep some common table such as CONFIG table, so
+		as to keep track of incrementing Doc IDs */
+		if (!DICT_TF2_FLAG_IS_SET(
+			table, DICT_TF2_FTS_HAS_DOC_ID)) {
+			err = fts_drop_tables(trx, table);
+
+			err = fts_drop_index_tables(trx, index);
+
+			fts_free(table);
+
+			return(err);
+		}
+
+		fts_cache_destroy(table->fts->cache);
+		table->fts->cache = fts_cache_create(table);
+	} else {
+		fts_cache_t*            cache = table->fts->cache;
+		fts_index_cache_t*      index_cache;
+
+		rw_lock_x_lock(&cache->init_lock);
+
+		index_cache = (fts_index_cache_t*) fts_find_index_cache(
+			cache, index);
+
+		if (index_cache) {
+			if (cache->get_docs) {
+				fts_get_doc_t*  get_doc;
+
+				get_doc = fts_get_index_get_doc(cache, index);
+
+				if (get_doc) {
+					ib_vector_remove(
+						cache->get_docs,
+						*(void**) get_doc);
+				}
+			}
+
+			ib_vector_remove(cache->indexes, *(void**)index_cache);
+		}
+
+		rw_lock_x_unlock(&cache->init_lock);
+	}
+
+	err = fts_drop_index_tables(trx, index);
+
+	ib_vector_remove(indexes, (const void*) index);
+
+        return(err);
+}
+
 /****************************************************************//**
 Free the query graph but check whether dict_sys->mutex is already
 held */
@@ -703,9 +826,10 @@ fts_index_get_charset(
 
 }
 /****************************************************************//**
-Create an FTS index cache. */
+Create an FTS index cache.
+@return Index Cache */
 UNIV_INTERN
-void
+fts_index_cache_t*
 fts_cache_index_cache_create(
 /*=========================*/
 	dict_table_t*		table,		/*!< in: table with FTS index */
@@ -741,6 +865,8 @@ fts_cache_index_cache_create(
 	fts_index_cache_init(cache->sync_heap, index_cache);
 
 	rw_lock_x_unlock(&cache->init_lock);
+
+	return(index_cache);
 }
 
 /****************************************************************//**
@@ -865,6 +991,37 @@ fts_get_index_cache(
 		if (index_cache->index == index) {
 
 			return(index_cache);
+		}
+	}
+
+	return(NULL);
+}
+
+/*********************************************************************//**
+Search the index cache for a get_doc structure.
+@return the fts_get_doc_t item else NULL */
+static
+fts_get_doc_t*
+fts_get_index_get_doc(
+/*==================*/
+	fts_cache_t*		cache,		/*!< in: cache to search */
+	const dict_index_t*	index)		/*!< in: index to search for */
+{
+	ulint			i;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_EX)
+	      || rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_EX));
+#endif
+
+	for (i = 0; i < ib_vector_size(cache->get_docs); ++i) {
+		fts_get_doc_t*	get_doc;
+
+		get_doc = ib_vector_get(cache->get_docs, i);
+
+		if (get_doc->index_cache->index == index) {
+
+			return(get_doc);
 		}
 	}
 
@@ -4874,7 +5031,6 @@ fts_update_doc_id(
 		ufield->field_no = dict_col_get_clust_pos(
 			&table->cols[table->fts->doc_col], clust_index);
 
-		// FIXME: Testing/debugging (Need to address endian issues).
 		/* It is possible we update record that has
 		not yet be sync-ed from last crash. */
 		/* Convert to storage byte order. */
