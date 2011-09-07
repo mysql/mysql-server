@@ -851,9 +851,9 @@ static int process_options(int argc, char *argv[], char *operation)
       
       strncpy(buff, opt_basedir, sizeof(buff) - 1);
 #ifdef __WIN__
-      strncat(buff, "/", sizeof(buff) - 1);
+      strncat(buff, "/", sizeof(buff) - strlen(buff) - 1);
 #else
-      strncat(buff, FN_DIRSEP, sizeof(buff) - 1);
+      strncat(buff, FN_DIRSEP, sizeof(buff) - strlen(buff) - 1);
 #endif
       buff[sizeof(buff) - 1]= 0;
       my_delete(opt_basedir, MYF(0));
