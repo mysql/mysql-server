@@ -37,8 +37,8 @@
     */                                                                       \
     if( _token != 0 )                                                        \
     {                                                                        \
-      uint yylen=0;                                                          \
-      char *yychar;                                                          \
+      uint yylen= 0;                                                          \
+      char *yychar= NULL;                                                    \
       if( _token != END_OF_INPUT )                                           \
       {                                                                      \
         /*
@@ -47,8 +47,8 @@
         */                                                                   \
         yylen= _yylen!=0 ? _yylen : lip->yyLength_PS();                      \
         yylen= yylen<TOCK_NAME_LENGTH ? yylen : TOCK_NAME_LENGTH-1;          \
-        yychar= _yychar!=NULL ? (char*)_yychar :                             \
-                                (char*)lip->get_cpp_tok_start();             \
+        yychar= _yychar ? (char*)_yychar :                                   \
+                          (char*)lip->get_cpp_tok_start();                   \
       }                                                                      \
       PSI_server->digest_add_token(lip->m_digest_psi,_token,yychar,yylen);   \
     }                                                                        \

@@ -4794,6 +4794,14 @@ static struct PSI_digest_locker* digest_start_v1(PSI_statement_locker *locker)
   PFS_events_statements      *pfs;
   PFS_digest_storage         *digest_storage;
 
+  /* 
+    If current statement is not instrumented
+  */
+  if(!flag_events_statements_current)
+  {
+    return NULL;
+  }
+
   /*
     Get statement locker state from statement locker
   */
