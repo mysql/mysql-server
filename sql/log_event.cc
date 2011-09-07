@@ -1952,6 +1952,32 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
   const char *sql_command, *sql_clause1, *sql_clause2;
   Log_event_type type_code= get_type_code();
   
+#ifndef MCP_WL5353
+  if (m_extra_row_data)
+  {
+    uint8 extra_data_len= m_extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET];
+    uint8 extra_payload_len= extra_data_len - EXTRA_ROW_INFO_HDR_BYTES;
+    assert(extra_data_len >= EXTRA_ROW_INFO_HDR_BYTES);
+
+    my_b_printf(file, "### Extra row data format: %u, len: %u :",
+                m_extra_row_data[EXTRA_ROW_INFO_FORMAT_OFFSET],
+                extra_payload_len);
+    if (extra_payload_len)
+    {
+      /*
+         Buffer for hex view of string, including '0x' prefix,
+         2 hex chars / byte and trailing 0
+      */
+      const int buff_len= 2 + (256 * 2) + 1;
+      char buff[buff_len];
+      str_to_hex(buff, (const char*) &m_extra_row_data[EXTRA_ROW_INFO_HDR_BYTES],
+                 extra_payload_len);
+      my_b_printf(file, "%s", buff);
+    }
+    my_b_printf(file, "\n");
+  }
+#endif
+
   switch (type_code) {
   case WRITE_ROWS_EVENT:
     sql_command= "INSERT INTO";
@@ -3091,6 +3117,46 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli)
   return do_apply_event(rli, query, q_len);
 }
 
+#ifndef MCP_WL5353
+#ifdef HAVE_NDB_BINLOG
+
+static bool is_silent_error(THD* thd)
+{
+  DBUG_ENTER("is_silent_error");
+  List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+  MYSQL_ERROR *err;
+
+  while ((err= it++))
+  {
+    DBUG_PRINT("info", ("Error : %u : %s", err->code, err->msg));
+
+    switch (err->code)
+    {
+    case ER_GET_TEMPORARY_ERRMSG:
+    {
+      /*
+         If we are rolling back due to an explicit request, do so
+         silently
+      */
+      if (strcmp(SLAVE_SILENT_RETRY_MSG, err->msg) == 0)
+      {
+        DBUG_PRINT("info", ("Silent retry"));
+        DBUG_RETURN(true);
+      }
+
+      break;
+    }
+    default:
+      break;
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+// #ifdef HAVE_NDB_BINLOG
+#endif
+#endif // #ifndef MCP_WL5353
 
 /**
   @todo
@@ -3411,11 +3477,19 @@ Default database: '%s'. Query: '%s'",
     */
     else if (thd->is_slave_error || thd->is_fatal_error)
     {
-      rli->report(ERROR_LEVEL, actual_error,
-                      "Error '%s' on query. Default database: '%s'. Query: '%s'",
-                      (actual_error ? thd->main_da.message() :
-                       "unexpected success or fatal error"),
-                      print_slave_db_safe(thd->db), query_arg);
+#ifndef MCP_WL5353
+#ifdef HAVE_NDB_BINLOG
+      bool be_silent= is_silent_error(thd);
+      if (!be_silent)
+#endif
+#endif // #ifndef MCP_WL5353
+      {
+        rli->report(ERROR_LEVEL, actual_error,
+                    "Error '%s' on query. Default database: '%s'. Query: '%s'",
+                    (actual_error ? thd->main_da.message() :
+                     "unexpected success or fatal error"),
+                    print_slave_db_safe(thd->db), query_arg);
+      }
       thd->is_slave_error= 1;
     }
 
@@ -7128,6 +7202,63 @@ const char *sql_ex_info::init(const char *buf, const char *buf_end,
   return buf;
 }
 
+#ifndef MCP_WL5353
+#ifndef DBUG_OFF
+#ifndef MYSQL_CLIENT
+static uchar dbug_extra_row_data_val= 0;
+
+/**
+   set_extra_data
+
+   Called during self-test to generate various
+   self-consistent binlog row event extra
+   thread data structures which can be checked
+   when reading the binlog.
+
+   @param thd  Current thd
+   @param arr  Buffer to use
+*/
+void set_extra_data(THD* thd, uchar* arr)
+{
+  assert(thd->binlog_row_event_extra_data == NULL);
+  uchar val= (dbug_extra_row_data_val++) %
+    (EXTRA_ROW_INFO_MAX_PAYLOAD + 1); /* 0 .. MAX_PAYLOAD + 1 */
+  arr[EXTRA_ROW_INFO_LEN_OFFSET]= val + EXTRA_ROW_INFO_HDR_BYTES;
+  arr[EXTRA_ROW_INFO_FORMAT_OFFSET]= val;
+  for (uchar i=0; i<val; i++)
+    arr[EXTRA_ROW_INFO_HDR_BYTES+i]= val;
+
+  thd->binlog_row_event_extra_data= arr;
+}
+
+#endif // #ifndef MYSQL_CLIENT
+
+/**
+   check_extra_data
+
+   Called during self-test to check that
+   binlog row event extra data is self-
+   consistent as defined by the set_extra_data
+   function above.
+
+   Will assert(false) if not.
+
+   @param extra_row_data
+*/
+void check_extra_data(uchar* extra_row_data)
+{
+  assert(extra_row_data);
+  uint16 len= extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET];
+  uint8 val= len - EXTRA_ROW_INFO_HDR_BYTES;
+  assert(extra_row_data[EXTRA_ROW_INFO_FORMAT_OFFSET] == val);
+  for (uint16 i= 0; i < val; i++)
+  {
+    assert(extra_row_data[EXTRA_ROW_INFO_HDR_BYTES + i] == val);
+  }
+}
+
+#endif  // #ifndef DBUG_OFF
+#endif  // #ifndef MCP_WL5353
 
 /**************************************************************************
 	Rows_log_event member functions
@@ -7141,7 +7272,10 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     m_table(tbl_arg),
     m_table_id(tid),
     m_width(tbl_arg ? tbl_arg->s->fields : 1),
-    m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0) 
+    m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0)
+#ifndef MCP_WL5353
+    ,m_extra_row_data(0)
+#endif
 #ifdef HAVE_REPLICATION
     , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
 #endif
@@ -7159,6 +7293,33 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
   if (thd_arg->options & OPTION_RELAXED_UNIQUE_CHECKS)
       set_flags(RELAXED_UNIQUE_CHECKS_F);
+#ifndef MCP_WL5353
+#ifndef DBUG_OFF
+  uchar extra_data[255];
+  DBUG_EXECUTE_IF("extra_row_data_set",
+                  /* Set extra row data to a known value */
+                  set_extra_data(thd_arg, extra_data););
+#endif
+  if (thd_arg->binlog_row_event_extra_data)
+  {
+    /* Copy Extra data from thd into new event */
+    uint16 extra_data_len= thd_arg->get_binlog_row_event_extra_data_len();
+    assert(extra_data_len >= EXTRA_ROW_INFO_HDR_BYTES);
+
+    m_extra_row_data= (uchar*) my_malloc(extra_data_len, MYF(MY_WME));
+
+    if (likely(m_extra_row_data))
+    {
+      memcpy(m_extra_row_data, thd_arg->binlog_row_event_extra_data,
+             extra_data_len);
+      set_flags(EXTRA_ROW_EV_DATA_F);
+    }
+  }
+
+  DBUG_EXECUTE_IF("extra_row_data_set",
+                  thd_arg->binlog_row_event_extra_data = NULL;);
+#endif // #ifndef MCP_WL5353
+
   /* if bitmap_init fails, caught in is_valid() */
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf)*8 ? m_bitbuf : NULL,
@@ -7190,6 +7351,9 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
     m_table(NULL),
 #endif
     m_table_id(0), m_rows_buf(0), m_rows_cur(0), m_rows_end(0)
+#ifndef MCP_WL5353
+    ,m_extra_row_data(0)
+#endif
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
     , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
 #endif
@@ -7219,8 +7383,35 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 
   m_flags= uint2korr(post_start);
 
+#ifndef MCP_WL5353
+  uint16 extra_data_len= 0;
+  if ((m_flags & EXTRA_ROW_EV_DATA_F))
+  {
+    const uchar* extra_data_start= (const uchar*) post_start + 2;
+    extra_data_len= extra_data_start[EXTRA_ROW_INFO_LEN_OFFSET];
+    assert(m_extra_row_data == 0);
+    assert(extra_data_len >= EXTRA_ROW_INFO_HDR_BYTES);
+    DBUG_PRINT("debug", ("extra_data_len = %u",
+                         extra_data_len));
+
+    m_extra_row_data= (uchar*) my_malloc(extra_data_len,
+                                         MYF(MY_WME));
+    if (likely(m_extra_row_data))
+    {
+      memcpy(m_extra_row_data, extra_data_start, extra_data_len);
+    }
+  }
+  DBUG_EXECUTE_IF("extra_row_data_check",
+                  /* Check extra data has expected value */
+                  check_extra_data(m_extra_row_data););
+#endif // #ifndef MCP_WL5353
+
   uchar const *const var_start=
-    (const uchar *)buf + common_header_len + post_header_len;
+    (const uchar *)buf + common_header_len + post_header_len
+#ifndef MCP_WL5353
+    + extra_data_len
+#endif
+    ;
   uchar const *const ptr_width= var_start;
   uchar *ptr_after_width= (uchar*) ptr_width;
   DBUG_PRINT("debug", ("Reading from %p", ptr_after_width));
@@ -7300,6 +7491,9 @@ Rows_log_event::~Rows_log_event()
     m_cols.bitmap= 0; // so no my_free in bitmap_free
   bitmap_free(&m_cols); // To pair with bitmap_init().
   my_free((uchar*)m_rows_buf, MYF(MY_ALLOW_ZERO_PTR));
+#ifndef MCP_WL5353
+  my_free((uchar*)m_extra_row_data, MYF(MY_ALLOW_ZERO_PTR));
+#endif
 }
 
 int Rows_log_event::get_data_size()
@@ -7316,6 +7510,11 @@ int Rows_log_event::get_data_size()
   int data_size= ROWS_HEADER_LEN;
   data_size+= no_bytes_in_map(&m_cols);
   data_size+= (uint) (end - buf);
+#ifndef MCP_WL5353
+  data_size+= m_extra_row_data ?
+    m_extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET] :
+    0;
+#endif
 
   if (type_code == UPDATE_ROWS_EVENT)
     data_size+= no_bytes_in_map(&m_cols_ai);
@@ -7466,6 +7665,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         thd->options|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
         thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+
+#ifndef MCP_WL5353
+    if (get_flags(EXTRA_ROW_EV_DATA_F))
+        thd->binlog_row_event_extra_data = m_extra_row_data;
+    else
+        thd->binlog_row_event_extra_data = NULL;
+#endif
+
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
@@ -7595,6 +7802,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       thd->options|= OPTION_ALLOW_BATCH;
     else
       thd->options&= ~OPTION_ALLOW_BATCH;
+#endif
+#ifndef MCP_WL5353
+    if (get_flags(EXTRA_ROW_EV_DATA_F))
+        thd->binlog_row_event_extra_data = m_extra_row_data;
+    else
+        thd->binlog_row_event_extra_data = NULL;
 #endif
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
@@ -7915,7 +8128,22 @@ bool Rows_log_event::write_data_header(IO_CACHE *file)
                   });
   int6store(buf + RW_MAPID_OFFSET, (ulonglong)m_table_id);
   int2store(buf + RW_FLAGS_OFFSET, m_flags);
+#ifndef MCP_WL5353
+  int rc = my_b_safe_write(file, buf, ROWS_HEADER_LEN);
+
+  if ((rc == 0) &&
+      (m_flags & EXTRA_ROW_EV_DATA_F))
+  {
+    /* Write extra row data */
+    rc = my_b_safe_write(file, m_extra_row_data,
+                         m_extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET]);
+  }
+
+  /* Function returns bool, where false(0) is success :( */
+  return (rc != 0);
+#else
   return (my_b_safe_write(file, buf, ROWS_HEADER_LEN));
+#endif
 }
 
 bool Rows_log_event::write_data_body(IO_CACHE*file)

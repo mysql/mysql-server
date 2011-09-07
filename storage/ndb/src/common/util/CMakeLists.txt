@@ -55,6 +55,8 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             require.c
             Vector.cpp
             NdbPack.cpp
+            HashMap2.cpp
+            LinkedStack.cpp
 )
 TARGET_LINK_LIBRARIES(ndbgeneral ndbtrace ${ZLIB_LIBRARY} mysys)
 
@@ -88,3 +90,12 @@ SET_TARGET_PROPERTIES(NdbPack-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_NDB_PACK")
 TARGET_LINK_LIBRARIES(NdbPack-t ndbgeneral ndbportlib)
 
+ADD_EXECUTABLE(HashMap2-t HashMap2.cpp)
+SET_TARGET_PROPERTIES(HashMap2-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_HASHMAP2")
+TARGET_LINK_LIBRARIES(HashMap2-t ndbgeneral)
+
+ADD_EXECUTABLE(LinkedStack-t LinkedStack.cpp)
+SET_TARGET_PROPERTIES(LinkedStack-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_LINKEDSTACK")
+TARGET_LINK_LIBRARIES(LinkedStack-t ndbgeneral)
