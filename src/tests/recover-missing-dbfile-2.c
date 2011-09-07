@@ -12,11 +12,6 @@ const char *namea=NAMEA;
 #define NAMEB_HINT "b_db"
 const char *nameb=NAMEB;
 
-// needed to get .bdb versions to compile
-#ifndef DB_CLOSE_DONT_TRIM_LOG
-#define DB_CLOSE_DONT_TRIM_LOG 0
-#endif
-
 static void run_test (void) {
     int r;
     r = system("rm -rf " ENVDIR);

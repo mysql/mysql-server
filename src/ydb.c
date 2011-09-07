@@ -1066,9 +1066,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
 	toku_ydb_unlock();  // ydb lock must not be held when shutting down minicron
 	toku_cachetable_minicron_shutdown(env->i->cachetable);
         if (env->i->logger) {
-            if ( flags && DB_CLOSE_DONT_TRIM_LOG ) {
-                toku_logger_trim_log_files(env->i->logger, FALSE);
-            }
+            toku_logger_trim_log_files(env->i->logger, FALSE);
             r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL);
             if (r) {
 		err_msg = "Cannot close environment (error during checkpoint)\n";
@@ -1152,7 +1150,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
     env->i = NULL;
     toku_free(env);
     env = NULL;
-    if ((flags!=0) && !(flags==DB_CLOSE_DONT_TRIM_LOG))
+    if (flags!=0)
         r = EINVAL;
     return r;
 
