@@ -434,7 +434,12 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   }
 
   /* Compute table aggregate metadata. */
-  computeTableMetaData(regTabPtr.p);
+  terrorCode = computeTableMetaData(regTabPtr.p);
+  if (terrorCode)
+  {
+    jam();
+    goto error;
+  }
 
 #if 0
   ndbout << *regTabPtr.p << endl;
@@ -1453,7 +1458,7 @@ Dbtup::handleCharsetPos(Uint32 csNumber, CHARSET_INFO** charsetArray,
   This function (re-)computes aggregated metadata. It is called for
   both ALTER TABLE and CREATE TABLE.
  */
-void
+Uint32
 Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 {
   Uint32 dyn_null_words[2];
@@ -1610,6 +1615,10 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
         BitmaskImpl::set(dyn_null_words[ind], regTabPtr->dynVarSizeMask[ind], null_pos);
       }
     }
+    if (off > AttributeOffset::getMaxOffset())
+    {
+      return ZTOO_LARGE_TUPLE_ERROR;
+    }
     AttributeOffset::setOffset(attrDes2, off);
     *tabDesc++= attrDes2;
   }
@@ -1681,6 +1690,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 
   setUpQueryRoutines(regTabPtr);
   setUpKeyArray(regTabPtr);
+  return 0;
 }
 
 void

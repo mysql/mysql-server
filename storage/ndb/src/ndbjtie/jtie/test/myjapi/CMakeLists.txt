@@ -14,9 +14,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-CREATE_JAR(jtie-test-myjapi 
-  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/*.java 
-  ${CMAKE_CURRENT_SOURCE_DIR}/test/*.java
-  CLASSPATH ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
+FILE(GLOB src1 ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/*.java)
+FILE(GLOB src2 ${CMAKE_CURRENT_SOURCE_DIR}/test/*.java)
+
+CREATE_JAR(jtie-test-myjapi ${src1} ${src2}
+  CLASSPATH ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
   DEPENDENCIES jtie.jar)
 

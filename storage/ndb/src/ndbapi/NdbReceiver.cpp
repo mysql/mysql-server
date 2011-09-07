@@ -56,7 +56,7 @@ NdbReceiver::init(ReceiverType type, bool useRec, void* owner)
   if (useRec)
   {
     m_record.m_ndb_record= NULL;
-    m_record.m_row= NULL;
+    m_record.m_row_recv= NULL;
     m_record.m_row_buffer= NULL;
     m_record.m_row_offset= 0;
     m_record.m_read_range_no= false;
@@ -118,11 +118,38 @@ NdbReceiver::getValues(const NdbRecord* rec, char *row_ptr)
   assert(m_using_ndb_record);
 
   m_record.m_ndb_record= rec;
-  m_record.m_row= row_ptr;
+  m_record.m_row_recv= row_ptr;
   m_record.m_row_offset= rec->m_row_size;
 }
 
-#define KEY_ATTR_ID (~(Uint32)0)
+void
+NdbReceiver::prepareReceive(char *buf)
+{
+  /* Set pointers etc. to prepare for receiving the first row of the batch. */
+  assert(theMagicNumber == 0x11223344);
+  m_received_result_length = 0;
+  m_expected_result_length = 0;
+  if (m_using_ndb_record)
+  {
+    m_record.m_row_recv= buf;
+  }
+  theCurrentRecAttr = theFirstRecAttr;
+}
+
+void
+NdbReceiver::prepareRead(char *buf, Uint32 rows)
+{
+  /* Set pointers etc. to prepare for reading the first row of the batch. */
+  assert(theMagicNumber == 0x11223344);
+  m_current_row = 0;
+  m_result_rows = rows;
+  if (m_using_ndb_record)
+  {
+    m_record.m_row_buffer = buf;
+  }
+}
+
+ #define KEY_ATTR_ID (~(Uint32)0)
 
 /*
   Compute the batch size (rows between each NEXT_TABREQ / SCAN_TABCONF) to
@@ -219,7 +246,7 @@ NdbReceiver::do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
 {
   m_using_ndb_record= true;
   m_record.m_ndb_record= ndb_record;
-  m_record.m_row= row_buffer;
+  m_record.m_row_recv= row_buffer;
   m_record.m_row_buffer= row_buffer;
   m_record.m_row_offset= rowsize;
   m_record.m_read_range_no= read_range_no;
@@ -524,7 +551,7 @@ NdbReceiver::receive_packed_ndbrecord(Uint32 bmlen,
       {
 	if (BitmaskImpl::get(bmlen, aDataPtr, ++i))
 	{
-          setRecToNULL(col, m_record.m_row);
+          setRecToNULL(col, m_record.m_row_recv);
 
           // Next column...
 	  continue;
@@ -668,7 +695,8 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
         assert(m_record.m_read_range_no);
         assert(attrSize==4);
         assert (m_record.m_row_offset >= m_record.m_ndb_record->m_row_size+attrSize);
-        memcpy(m_record.m_row+m_record.m_ndb_record->m_row_size, aDataPtr++, 4);
+        memcpy(m_record.m_row_recv+m_record.m_ndb_record->m_row_size, 
+               aDataPtr++, 4);
         aLength--;
         continue; // Next
       }
@@ -682,7 +710,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
         assert (m_record.m_row_offset >= m_record.m_ndb_record->m_row_size);
         Uint32 len= receive_packed_ndbrecord(attrSize >> 2, // Bitmap length
                                              aDataPtr,
-                                             m_record.m_row);
+                                             m_record.m_row_recv);
         aDataPtr+= len;
         aLength-= len;
         continue;  // Next
@@ -709,13 +737,13 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
         
         /* Save this extra getValue */
         save_pos+= sizeof(Uint32);
-        memcpy(m_record.m_row + m_record.m_row_offset - save_pos,
+        memcpy(m_record.m_row_recv + m_record.m_row_offset - save_pos,
                &attrSize, sizeof(Uint32));
         if (attrSize > 0)
         {
           save_pos+= attrSize;
           assert (save_pos<=m_record.m_row_offset);
-          memcpy(m_record.m_row + m_record.m_row_offset - save_pos,
+          memcpy(m_record.m_row_recv + m_record.m_row_offset - save_pos,
                  aDataPtr, attrSize);
         }
 
@@ -803,7 +831,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
 
   if (m_using_ndb_record) {
     /* Move onto next row in scan buffer */
-    m_record.m_row+= m_record.m_row_offset;
+    m_record.m_row_recv+= m_record.m_row_offset;
   }
   return (tmp == exp || (exp > TcKeyConf::DirtyReadBit) ? 1 : 0);
 }

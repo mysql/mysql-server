@@ -14,19 +14,25 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SET ( JAVA_SOURCE_DIRS
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/*.java
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/metadata/*.java
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/query/*.java
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/spi/*.java
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/store/*.java
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/util/*.java)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/metadata
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/query
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/spi
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/store
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/util)
+
+SET ( JAVA_SOURCES "")
+FOREACH(D ${JAVA_SOURCE_DIRS})
+  FILE(GLOB tmp ${D}/*.java)
+  LIST(APPEND JAVA_SOURCES ${tmp})
+ENDFOREACH()
 
 SET ( CLASSPATH 
   target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes)
+  ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-api/target/classes)
 
-CREATE_JAR(clusterj-core ${JAVA_SOURCE_DIRS} 
+CREATE_JAR(clusterj-core ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
-  DEPENDENCIES clusterj-api.jar)
-
-
+  DEPENDENCIES clusterj-api.jar
+  EXTRA_FILES src/main/resources/META-INF
+              src/main/resources/com)

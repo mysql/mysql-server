@@ -82,7 +82,12 @@ enum SCHEMA_OP_TYPE
   SOT_TRUNCATE_TABLE= 11,
   SOT_RENAME_TABLE_PREPARE= 12,
   SOT_ONLINE_ALTER_TABLE_PREPARE= 13,
-  SOT_ONLINE_ALTER_TABLE_COMMIT= 14
+  SOT_ONLINE_ALTER_TABLE_COMMIT= 14,
+  SOT_CREATE_USER= 15,
+  SOT_DROP_USER= 16,
+  SOT_RENAME_USER= 17,
+  SOT_GRANT= 18,
+  SOT_REVOKE= 19
 };
 
 const uint max_ndb_nodes= 256; /* multiple of 32 */
@@ -138,7 +143,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                                    uint key_len,
                                    const char *db,
                                    const char *table_name,
-                                   my_bool share_may_exist);
+                                   TABLE * table);
 int ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *table,
                             const char *event_name, NDB_SHARE *share,
                             int push_warning= 0);

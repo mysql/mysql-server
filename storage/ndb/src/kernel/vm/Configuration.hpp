@@ -27,6 +27,7 @@
 #include <NdbThread.h>
 #include <util/SparseBitmask.hpp>
 #include <util/UtilBuffer.hpp>
+#include "mt_thr_config.hpp"
 
 enum ThreadTypes
 {
@@ -77,19 +78,13 @@ public:
 
   Uint32 executeLockCPU() const;
   void executeLockCPU(Uint32 value);
-  const SparseBitmask& getExecuteCpuMask() const {
-    return _executeLockCPU;
-  }
 
   Uint32 maintLockCPU() const;
   void maintLockCPU(Uint32 value);
 
   void setAllRealtimeScheduler();
   void setAllLockCPU(bool exec_thread);
-  int setLockCPU(NdbThread*,
-                 enum ThreadTypes type,
-                 bool exec_thread,
-                 bool init);
+  int setLockCPU(NdbThread*, enum ThreadTypes type);
   int setRealtimeScheduler(NdbThread*,
                            enum ThreadTypes type,
                            bool real_time,
@@ -127,6 +122,7 @@ public:
   ndb_mgm_configuration* getClusterConfig() const { return m_clusterConfig; }
   Uint32 get_config_generation() const; 
 
+  THRConfigApplier m_thr_config;
 private:
   friend class Cmvmi;
   friend class Qmgr;
@@ -139,8 +135,6 @@ private:
   Uint32 _schedulerExecutionTimer;
   Uint32 _schedulerSpinTimer;
   Uint32 _realtimeScheduler;
-  SparseBitmask _executeLockCPU;
-  Uint32 _maintLockCPU;
   Uint32 _timeBetweenWatchDogCheckInitial;
 
   Vector<struct ThreadInfo> threadInfo;

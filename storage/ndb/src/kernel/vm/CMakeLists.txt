@@ -38,6 +38,7 @@ ADD_LIBRARY(ndbkernel STATIC
     Ndbinfo.cpp
     NdbinfoTables.cpp
     ArenaPool.cpp
+    mt_thr_config.cpp
 )
 
 ADD_LIBRARY(ndbsched STATIC
@@ -60,4 +61,9 @@ IF(NDB_BUILD_NDBMTD)
     mt.cpp
     dummy_mt.cpp)
 ENDIF()
+
+ADD_EXECUTABLE(mt_thr_config-t mt_thr_config.cpp)
+SET_TARGET_PROPERTIES(mt_thr_config-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_MT_THR_CONFIG")
+TARGET_LINK_LIBRARIES(mt_thr_config-t ndbgeneral)
 

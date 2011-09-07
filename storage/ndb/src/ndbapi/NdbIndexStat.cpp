@@ -548,7 +548,7 @@ NdbIndexStat::convert_range(Range& range_f,
                             const NdbRecord* key_record,
                             const NdbIndexScanOperation::IndexBound* ib)
 {
-  DBUG_ENTER("NdbIndexStatImpl::convert_range");
+  DBUG_ENTER("NdbIndexStat::convert_range");
   Bound& bound1_f = range_f.m_bound1;
   Bound& bound2_f = range_f.m_bound2;
   NdbIndexStatImpl::Bound& bound1 =
@@ -625,7 +625,11 @@ NdbIndexStat::get_rir(const Stat& stat_f, double* rir)
     x = 1.0;
   require(rir != 0);
   *rir = x;
-  DBUG_PRINT("index_stat", ("rir:%.2f", *rir));
+#ifndef DBUG_OFF
+  char buf[100];
+  sprintf(buf, "%.2f", *rir);
+#endif
+  DBUG_PRINT("index_stat", ("rir:%s", buf));
   DBUG_VOID_RETURN;
 }
 
@@ -640,7 +644,11 @@ NdbIndexStat::get_rpk(const Stat& stat_f, Uint32 k, double* rpk)
     x = 1.0;
   require(rpk != 0);
   *rpk = x;
-  DBUG_PRINT("index_stat", ("rpk[%u]:%.2f", k, *rpk));
+#ifndef DBUG_OFF
+  char buf[100];
+  sprintf(buf, "%.2f", *rpk);
+#endif
+  DBUG_PRINT("index_stat", ("rpk[%u]:%s", k, buf));
   DBUG_VOID_RETURN;
 }
 
@@ -654,6 +662,82 @@ NdbIndexStat::get_rule(const Stat& stat_f, char* buffer)
   BaseString::snprintf(buffer, RuleBufferBytes, "%s/%s/%s",
                        stat.m_rule[0], stat.m_rule[1], stat.m_rule[2]);
   DBUG_VOID_RETURN;
+}
+
+// events and polling
+
+int
+NdbIndexStat::create_sysevents(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::create_sysevents");
+  if (m_impl.create_sysevents(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::drop_sysevents(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::drop_sysevents");
+  if (m_impl.drop_sysevents(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::check_sysevents(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::check_sysevents");
+  if (m_impl.check_sysevents(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::create_listener(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::create_listener");
+  if (m_impl.create_listener(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::execute_listener(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::execute_listener");
+  if (m_impl.execute_listener(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::poll_listener(Ndb* ndb, int max_wait_ms)
+{
+  DBUG_ENTER("NdbIndexStat::poll_listener");
+  int ret = m_impl.poll_listener(ndb, max_wait_ms);
+  if (ret == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(ret);
+}
+
+int
+NdbIndexStat::next_listener(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::next_listener");
+  int ret = m_impl.next_listener(ndb);
+  if (ret == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(ret);
+}
+
+int
+NdbIndexStat::drop_listener(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::drop_listener");
+  if (m_impl.drop_listener(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
 }
 
 // mem

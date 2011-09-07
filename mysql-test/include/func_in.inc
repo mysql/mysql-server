@@ -540,6 +540,12 @@ EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL, NULL);
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #11766212  59270: NOT IN (YEAR( ... ), ... ) PRODUCES MANY VALGRIND WARNINGS
+--echo #
+
+SELECT 1 IN (YEAR(FROM_UNIXTIME(NULL)) ,1);
+
+--echo #
 --echo # Bug#54477: Crash on IN / CASE with NULL arguments
 --echo #
 

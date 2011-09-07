@@ -35,6 +35,7 @@ void add_thr_map(Uint32 block, Uint32 instance, Uint32 thr_no);
 void add_main_thr_map();
 void add_lqh_worker_thr_map(Uint32 block, Uint32 instance);
 void add_extra_worker_thr_map(Uint32 block, Uint32 instance);
+void finalize_thr_map();
 
 void sendlocal(Uint32 self, const struct SignalHeader *s,
                const Uint32 *data, const Uint32 secPtr[3]);
@@ -56,6 +57,11 @@ SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
  */
 void mt_section_lock();
 void mt_section_unlock();
+
+/**
+ * Are we (not) multi threaded
+ */
+bool NdbIsMultiThreaded();
 
 /**
  * Get list of BlockReferences so that

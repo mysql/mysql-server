@@ -13890,7 +13890,8 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
 
     if(likely( ok ))
     {
-      jam();      
+      jam();
+      setApiConTimer(transPtr.i, ctcTimer, __LINE__);
       opPtr.p->noReceivedTriggers++;
       opPtr.p->triggerExecutionCount++; // Default 1 LQHKEYREQ per trigger
 

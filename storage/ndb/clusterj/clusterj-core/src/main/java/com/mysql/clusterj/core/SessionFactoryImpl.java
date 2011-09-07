@@ -313,14 +313,13 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param cls the Class for which to get domain type handler
      * @return the DomainTypeHandler or null if not available
      */
-    @SuppressWarnings( "unchecked" )
     public static <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls) {
-        DomainTypeHandler<T> domainTypeHandler;
         // synchronize here because the map is not synchronized
         synchronized(typeToHandlerMap) {
-            domainTypeHandler = (DomainTypeHandler<T>) typeToHandlerMap.get(cls);
+            @SuppressWarnings( "unchecked" )
+            DomainTypeHandler<T> domainTypeHandler = (DomainTypeHandler<T>) typeToHandlerMap.get(cls);
+            return domainTypeHandler;
         }
-        return domainTypeHandler;
     }
 
     /** Create or get the DomainTypeHandler for a class.
@@ -329,13 +328,13 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param dictionary the dictionary to validate against
      * @return the type handler
      */
-    @SuppressWarnings( "unchecked" )
+    
     public <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls,
             Dictionary dictionary) {
-        DomainTypeHandler<T> domainTypeHandler;
         // synchronize here because the map is not synchronized
         synchronized(typeToHandlerMap) {
-            domainTypeHandler = (DomainTypeHandler<T>) typeToHandlerMap.get(cls);
+            @SuppressWarnings("unchecked")
+            DomainTypeHandler<T> domainTypeHandler = (DomainTypeHandler<T>) typeToHandlerMap.get(cls);
             if (logger.isDetailEnabled()) logger.detail("DomainTypeToHandler for "
                     + cls.getName() + "(" + cls
                     + ") returned " + domainTypeHandler);
@@ -351,8 +350,8 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                     proxyClassToDomainClass.put(proxyClass, cls);
                 }
             }
+            return domainTypeHandler;
         }
-        return domainTypeHandler;
     }
 
     /** Create or get the DomainTypeHandler for an instance.

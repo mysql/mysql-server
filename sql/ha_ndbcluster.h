@@ -15,6 +15,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+/*
+  This file defines the NDB Cluster handler: the interface between MySQL and
+  NDB Cluster
+*/
+
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface                       /* gcc class implementation */
@@ -642,17 +647,16 @@ private:
   void no_uncommitted_rows_reset(THD *);
 
   /* Ordered index statistics v4 */
+  int ndb_index_stat_query(uint inx,
+                           const key_range *min_key,
+                           const key_range *max_key,
+                           NdbIndexStat::Stat& stat,
+                           int from);
   int ndb_index_stat_get_rir(uint inx,
                              key_range *min_key,
                              key_range *max_key,
                              ha_rows *rows_out);
   int ndb_index_stat_set_rpk(uint inx);
-  int ndb_index_stat_wait(struct Ndb_index_stat *st,
-                          uint sample_version);
-  int ndb_index_stat_query(uint inx,
-                           const key_range *min_key,
-                           const key_range *max_key,
-                           NdbIndexStat::Stat& stat);
   int ndb_index_stat_analyze(Ndb *ndb,
                              uint *inx_list,
                              uint inx_count);

@@ -39,6 +39,16 @@ static const char * f_method = "MSms";
 #endif
 #define MAX_CHUNKS 10
 
+#ifdef VM_TRACE
+#ifndef NDBD_RANDOM_START_PAGE
+#define NDBD_RANDOM_START_PAGE
+#endif
+#endif
+
+#ifdef NDBD_RANDOM_START_PAGE
+static Uint32 g_random_start_page_id = 0;
+#endif
+
 /*
  * For muti-threaded ndbd, these calls are used for locking around
  * memory allocation operations.
@@ -224,6 +234,16 @@ Ndbd_mem_manager::Ndbd_mem_manager()
   mt_mem_manager_init();
 }
 
+void*
+Ndbd_mem_manager::get_memroot() const
+{
+#ifdef NDBD_RANDOM_START_PAGE
+  return (void*)(m_base_page - g_random_start_page_id);
+#else
+  return (void*)m_base_page;
+#endif
+}
+
 /**
  *
  * resource 0 has following semantics:
@@ -356,6 +376,29 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
   {
     g_eventLogger->error("Trying to allocate more that 4Gb with 32-bit binary!!");
     return false;
+  }
+#endif
+
+#ifdef NDBD_RANDOM_START_PAGE
+  /**
+   * In order to find bad-users of page-id's
+   *   we add a random offset to the page-id's returned
+   *   however, due to ZONE_LO that offset can't be that big
+   *   (since we at get_page don't know if it's a HI/LO page)
+   */
+  Uint32 max_rand_start = ZONE_LO_BOUND - 1;
+  if (max_rand_start > pages)
+  {
+    max_rand_start -= pages;
+    if (max_rand_start > 0x10000)
+      g_random_start_page_id = 0x10000 + (rand() % (max_rand_start - 0x10000));
+    else if (max_rand_start)
+      g_random_start_page_id = rand() % max_rand_start;
+
+    assert(Uint64(pages) + Uint64(g_random_start_page_id) <= 0xFFFFFFFF);
+
+    ndbout_c("using g_random_start_page_id: %u (%.8x)",
+             g_random_start_page_id, g_random_start_page_id);
   }
 #endif
 
@@ -670,7 +713,7 @@ Ndbd_mem_manager::alloc(AllocZone zone,
       return;
     * pages = save;
   }
-  
+
   alloc_impl(ZONE_LO, ret, pages, min);
 }
 
@@ -870,7 +913,12 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
 
       check_resource_limits(m_resource_limit);
       mt_mem_manager_unlock();
+#ifdef NDBD_RANDOM_START_PAGE
+      *i += g_random_start_page_id;
+      return m_base_page + *i - g_random_start_page_id;
+#else
       return m_base_page + *i;
+#endif
     }
   }
   mt_mem_manager_unlock();
@@ -885,7 +933,11 @@ Ndbd_mem_manager::release_page(Uint32 type, Uint32 i)
   mt_mem_manager_lock();
   Resource_limit tot = m_resource_limit[0];
   Resource_limit rl = m_resource_limit[idx];
-  
+
+#ifdef NDBD_RANDOM_START_PAGE
+  i -= g_random_start_page_id;
+#endif
+
   Uint32 sub = (rl.m_curr <= rl.m_min) ? 1 : 0; // Over min ?
   release(i, 1);
   m_resource_limit[0].m_curr = tot.m_curr - 1;
@@ -954,10 +1006,16 @@ Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
     m_resource_limit[idx].m_curr = rl.m_curr + req;
     check_resource_limits(m_resource_limit);
     mt_mem_manager_unlock();
+#ifdef NDBD_RANDOM_START_PAGE
+    *i += g_random_start_page_id;
+#endif
     return ;
   }
   mt_mem_manager_unlock();
   * cnt = req;
+#ifdef NDBD_RANDOM_START_PAGE
+  *i += g_random_start_page_id;
+#endif
   return;
 }
 
@@ -969,7 +1027,11 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt)
   mt_mem_manager_lock();
   Resource_limit tot = m_resource_limit[0];
   Resource_limit rl = m_resource_limit[idx];
-  
+
+#ifdef NDBD_RANDOM_START_PAGE
+  i -= g_random_start_page_id;
+#endif
+
   release(i, cnt);
 
   Uint32 currnew = rl.m_curr - cnt;

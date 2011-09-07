@@ -10,7 +10,8 @@ CREATE TABLE t10(
   PRIMARY KEY(K),
   KEY(I,J),
   UNIQUE KEY(J,K)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  partition by key (K) partitions 1;
 
 INSERT INTO t10(I,J) VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),(0,0);
 

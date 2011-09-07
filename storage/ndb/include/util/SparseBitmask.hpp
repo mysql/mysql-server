@@ -20,6 +20,7 @@
 
 #include <ndb_global.h>
 #include <util/Vector.hpp>
+#include <util/BaseString.hpp>
 
 class SparseBitmask {
   unsigned m_max_size;
@@ -102,6 +103,11 @@ public:
 
   bool isclear() const { return count() == 0; }
 
+  unsigned getBitNo(unsigned n) const {
+    assert(n < m_vec.size());
+    return m_vec[n];
+  }
+
   void print(void) const {
     for (unsigned i = 0; i < m_vec.size(); i++)
     {
@@ -110,6 +116,38 @@ public:
     }
   }
 
+  bool equal(const SparseBitmask& obj) const {
+    if (obj.count() != count())
+      return false;
+
+    for (unsigned i = 0; i<count(); i++)
+      if (!obj.get(m_vec[i]))
+        return false;
+
+    return true;
+  }
+
+  bool overlaps(const SparseBitmask& obj) const {
+    for (unsigned i = 0; i<count(); i++)
+      if (!obj.get(m_vec[i]))
+        return true;
+
+    for (unsigned i = 0; i<obj.count(); i++)
+      if (!get(obj.getBitNo(i)))
+        return true;
+    return false;
+  }
+
+  BaseString str() const {
+    BaseString tmp;
+    const char* sep="";
+    for (unsigned i = 0; i<m_vec.size(); i++)
+    {
+      tmp.appfmt("%s%u", sep, m_vec[i]);
+      sep=",";
+    }
+    return tmp;
+  }
 };
 
 #endif
