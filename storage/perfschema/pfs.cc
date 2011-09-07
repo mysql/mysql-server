@@ -1057,8 +1057,6 @@ static inline int mysql_mutex_lock(...)
 /** EVENT bit in the state flags bitfield. */
 #define STATE_FLAG_EVENT (1<<2)
 
-#define PFS_MAX_TOKEN_COUNT 1024
-
 pthread_key(PFS_thread*, THR_PFS);
 bool THR_PFS_initialized= false;
 
@@ -1172,14 +1170,6 @@ static enum_operation_type socket_operation_map[]=
   OPERATION_TYPE_SOCKETSHUTDOWN,
   OPERATION_TYPE_SOCKETSELECT
 };
-/**
-  Structure to store token count/array for a statement.
-*/
-struct {
-         uint m_token_count;
-         uint m_token_array[PFS_MAX_TOKEN_COUNT];
-       } typedef PFS_digest_storage;
-PFS_digest_storage digest_storage;
 
 /**
   Structure to store a MD5 hash value (digest) for a statement.
@@ -4797,12 +4787,43 @@ static void set_socket_thread_owner_v1(PSI_socket *socket)
   pfs_socket->m_thread_owner= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
 }
 
-static struct PSI_digest_locker* digest_start_v1(PSI_digest_locker *locker)
+static struct PSI_digest_locker* digest_start_v1(PSI_statement_locker *locker)
 {
-  //printf("\n inside digest_start_v1 \n");
-  /* TBD. */
+  PSI_statement_locker_state *statement_state;
+  PSI_digest_locker_state    *state;
+  PFS_events_statements      *pfs;
+  PFS_digest_storage         *digest_storage;
+
+  /*
+    Get statement locker state from statement locker
+  */
+  statement_state= reinterpret_cast<PSI_statement_locker_state*> (locker);
+  DBUG_ASSERT(statement_state != NULL);
   
-  return NULL;
+  /* 
+    Get digest_locker_state from statement_locker_state.
+  */
+  state= &statement_state->m_digest_state;
+  DBUG_ASSERT(state != NULL);
+  
+  /* 
+    Take out thread specific statement record. And then digest
+    storage information for this statement from it.
+ */
+  pfs= reinterpret_cast<PFS_events_statements*>(statement_state->m_statement);
+  digest_storage= &pfs->m_digest_storage;
+
+  /* 
+    Initialize token count to 0.
+   */
+  digest_storage->m_token_count= 0;
+  
+  /*
+    Set digest_locker_state's digest storage pointer.
+  */
+  state->m_digest_storage= digest_storage;
+
+  return reinterpret_cast<PSI_digest_locker*> (state);
 }
 
 static void digest_add_token_v1(PSI_digest_locker *locker, 
@@ -4810,9 +4831,11 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
                                 char *yytext, 
                                 int yylen)
 {
-  //printf("\n inside digest_add_token_v1 \n");
-  //printf("\n Got Token [%s,%d]\n",yytext,yylen);
+  PSI_digest_locker_state *state= reinterpret_cast<PSI_digest_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
   
+  PFS_digest_storage *digest_storage= reinterpret_cast<PFS_digest_storage *>(state->m_digest_storage);
+
   /* 
    Token 403 is END_OF_INPUT. Once it is recieved, it means all token in 
    statement text are recieved.
@@ -4824,7 +4847,7 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
     /* 
       Calculate MD5 Hash of the tokens recieved.
     */
-    MY_MD5_HASH(digest.m_md5, (unsigned char *)&digest_storage, (uint) sizeof(digest_storage));
+    MY_MD5_HASH(digest.m_md5, (unsigned char *)digest_storage, (uint) sizeof(PFS_digest_storage));
     /* 
       Write MD5 hash value in a string to be used as DIGEST for the statement.
     */
@@ -4837,27 +4860,42 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
             digest.m_md5[12], digest.m_md5[13], digest.m_md5[14],
             digest.m_md5[15]);
 
-    //printf(" Computed Digest= [%s]\n",digest_str);
     /* 
       Populate PFS_statements_digest_stat with this information. 
       TODO: create DIGEST_TEXT from tokens and pass it.
     */
     insert_statement_digest(digest_str, (char*)"DIGEST_TEXT");
-    digest_storage.m_token_count= 0;
+  }
+  else if( digest_storage->m_token_count >= PFS_MAX_TOKEN_COUNT )
+  {
+    /* 
+      If digest storage record is full, do nothing.
+    */
+    return;
   }
   else 
   {
-    /* Add this token to digest storage. */
-    DBUG_ASSERT(digest_storage.m_token_count < PFS_MAX_TOKEN_COUNT);
-    digest_storage.m_token_array[digest_storage.m_token_count]= token;
-    digest_storage.m_token_count++;
+    /*
+      Add this token to digest storage.
+    */
+    /* 
+       TODO If I un comment following code, few test cases in performance
+       schema starts crashing. Need to investigate this.
+    */
+    //digest_storage->m_token_array[digest_storage->m_token_count]= token;
+    //digest_storage->m_token_count++;
   }
 }
 
 static void digest_end_v1(PSI_digest_locker *locker)
 {
-  //printf("\n inside digest_end_v1 \n");
-  /* TBD. */
+  PSI_digest_locker_state *state= reinterpret_cast<PSI_digest_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  
+  PFS_digest_storage *digest_storage= reinterpret_cast<PFS_digest_storage*>(state->m_digest_storage);
+  
+  /* reset token count to 0 */
+  digest_storage->m_token_count= 0;
 }
 
 /**

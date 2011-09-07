@@ -870,7 +870,8 @@ struct PSI_table_locker_state_v1
 
 struct PSI_digest_locker_state_v1
 {
-  int m_token_count;
+  uint m_token_count;
+  void *m_digest_storage;
 };
 
 /**
@@ -1807,7 +1808,7 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
-  (struct PSI_digest_locker *locker);
+  (struct PSI_statement_locker *locker);
 
 typedef void (*digest_add_token_v1_t)
   (struct PSI_digest_locker *locker, uint token, char *yytext, int yylen);
@@ -2213,6 +2214,7 @@ typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
+typedef struct PSI_digest_locker_state_v1 PSI_digest_locker_state;
 #endif
 
 #ifdef USE_PSI_2
@@ -2233,6 +2235,7 @@ typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v2 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v2 PSI_socket_locker_state;
+typedef struct PSI_digest_locker_state_v2 PSI_digest_locker_state;
 #endif
 
 #else /* HAVE_PSI_INTERFACE */
