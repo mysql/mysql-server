@@ -213,7 +213,8 @@ struct PSI_table_locker_state_v1
 };
 struct PSI_digest_locker_state_v1
 {
-  int m_token_count;
+  uint m_token_count; 
+  void *m_digest_storage;
 };
 struct PSI_statement_locker_state_v1
 {
@@ -456,7 +457,7 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                      socklen_t addr_len);
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
-  (struct PSI_digest_locker *locker);
+  (struct PSI_statement_locker *locker);
 typedef void (*digest_add_token_v1_t)
   (struct PSI_digest_locker *locker, uint token, char *yytext, int yylen);
 typedef void (*digest_end_v1_t)
@@ -583,5 +584,6 @@ typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
+typedef struct PSI_digest_locker_state_v1 PSI_digest_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
 C_MODE_END

@@ -611,7 +611,7 @@ static void set_socket_thread_owner_noop(PSI_socket *socket)
   return;
 }
 
-static struct PSI_digest_locker* digest_start_noop(PSI_digest_locker *locker)
+static struct PSI_digest_locker* digest_start_noop(PSI_statement_locker *locker)
 {
   return NULL;
 }

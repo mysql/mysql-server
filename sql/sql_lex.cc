@@ -29,27 +29,30 @@
 #include "sp_head.h"
 
 #define PASS_TOKEN_TO_PS(_token,_yychar,_yylen)                              \
-  /*                                                                           
-    Passing token to PS function to calculate statement digest                
-    for this statement.                                                        
-  */                                                                         \
-  if( _token != 0 )                                                          \
+  if(lip->m_digest_psi != NULL)                                              \
   {                                                                          \
-    uint yylen=0;                                                            \
-    char *yychar;                                                            \
-    if( _token != END_OF_INPUT )                                             \
+    /*
+      Passing token to PS function to calculate statement digest
+      for this statement.
+    */                                                                       \
+    if( _token != 0 )                                                        \
     {                                                                        \
-      /*                                                                       
-        get the length of processed token and make sure it doesn't exceed    
-        TOCK_NAME_LENGTH. If it does, truncate it to TOCK_NAME_LENGTH.         
-      */                                                                     \
-      yylen= _yylen!=0 ? _yylen : lip->yyLength_PS();                        \
-      yylen= yylen<TOCK_NAME_LENGTH ? yylen : TOCK_NAME_LENGTH-1;            \
-      yychar= _yychar!=NULL ? (char*)_yychar :                               \
-                              (char*)lip->get_cpp_tok_start();               \
+      uint yylen=0;                                                          \
+      char *yychar;                                                          \
+      if( _token != END_OF_INPUT )                                           \
+      {                                                                      \
+        /*
+          get the length of processed token and make sure it doesn't exceed
+          TOCK_NAME_LENGTH. If it does, truncate it to TOCK_NAME_LENGTH.
+        */                                                                   \
+        yylen= _yylen!=0 ? _yylen : lip->yyLength_PS();                      \
+        yylen= yylen<TOCK_NAME_LENGTH ? yylen : TOCK_NAME_LENGTH-1;          \
+        yychar= _yychar!=NULL ? (char*)_yychar :                             \
+                                (char*)lip->get_cpp_tok_start();             \
+      }                                                                      \
+      PSI_server->digest_add_token(lip->m_digest_psi,_token,yychar,yylen);   \
     }                                                                        \
-    PSI_server->digest_add_token(lip->m_digest_psi,_token,yychar,yylen);     \
-  }                                                                          \
+  }
 
 
 static int lex_one_token(void *arg, void *yythd);
@@ -193,6 +196,16 @@ bool Lex_input_stream::init(THD *thd,
 
   m_thd= thd;
   reset(buff, length);
+
+  /* DIGEST_START */
+  if( thd->m_statement_psi != NULL )
+  {
+    m_digest_psi= PSI_server->digest_start(thd->m_statement_psi);
+  }
+  else
+  {
+    m_digest_psi= NULL;
+  }
 
   return FALSE;
 }

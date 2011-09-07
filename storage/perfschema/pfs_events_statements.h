@@ -29,6 +29,17 @@ struct PFS_account;
 struct PFS_user;
 struct PFS_host;
 
+/**
+  Structure to store token count/array for a statement
+  on which digest is to be calculated.
+*/
+#define PFS_MAX_TOKEN_COUNT 1024
+typedef struct {
+         uint m_token_count;
+         uint m_token_array[PFS_MAX_TOKEN_COUNT];
+       } PFS_digest_storage;
+
+
 /** A statement record. */
 struct PFS_events_statements : public PFS_events
 {
@@ -43,7 +54,7 @@ struct PFS_events_statements : public PFS_events
 
   /** Locked time. */
   ulonglong m_lock_time;
-
+  
   /** Diagnostics area, message text. */
   char m_message_text[MYSQL_ERRMSG_SIZE+1];
   /** Diagnostics area, error number. */
@@ -87,6 +98,9 @@ struct PFS_events_statements : public PFS_events
   ulonglong m_no_index_used;
   /** Optimizer metric, number of 'no good index used'. */
   ulonglong m_no_good_index_used;
+  
+  /** digest storage */
+  PFS_digest_storage m_digest_storage; 
 };
 
 void insert_events_statements_history(PFS_thread *thread, PFS_events_statements *statement);
