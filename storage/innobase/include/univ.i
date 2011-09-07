@@ -265,7 +265,7 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 #else
 # define UNIV_INTERN
 #endif
-#if defined(WITH_COMPILER_HINTS)        \
+#if defined(INNODB_COMPILER_HINTS)      \
     && defined __GNUC__                 \
     && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
 /** Starting with GCC 4.3, the "cold" attribute is used to inform the
@@ -499,8 +499,6 @@ it is read. */
 it is read or written. */
 # define UNIV_PREFETCH_RW(addr) __builtin_prefetch(addr, 1, 3)
 
-#define COMPILER_HINTS_ENABLED  1
-
 /* Sun Studio includes sun_prefetch.h as of version 5.9 */
 #elif (defined(__SUNPRO_C) && __SUNPRO_C >= 0x590) \
        || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
@@ -519,7 +517,6 @@ it is read or written. */
 /* Use sun_prefetch when compile with Sun Studio */
 #  define UNIV_PREFETCH_R(addr) sun_prefetch_read_many((void*) addr)
 #  define UNIV_PREFETCH_RW(addr) sun_prefetch_write_many(addr)
-#  define COMPILER_HINTS_ENABLED  1
 # else
 #  define UNIV_PREFETCH_R(addr) ((void) 0)
 #  define UNIV_PREFETCH_RW(addr) ((void) 0)
