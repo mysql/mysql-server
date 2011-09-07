@@ -636,7 +636,6 @@ public:
 private:
     int read_full_row(uchar * buf);
     int __close(int mutex_is_locked);
-    int read_last(uint keynr);
     int get_next(uchar* buf, int direction);
     int read_data_from_range_query_buff(uchar* buf, bool need_val);
     void invalidate_bulk_fetch();
