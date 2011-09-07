@@ -8820,24 +8820,18 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
 
 
 /**
-  Make sure that when sending plugin supplued data to the client they
+  Make sure that when sending plugin supplied data to the client they
   are not considered a special out-of-band command, like e.g. 
-  \255 (error) or \254 (change user request packet).
-  To avoid this we send plugin data packets starting with one of these
-  2 bytes "wrapped" in a command \1. 
-  For the above reason we have to wrap plugin data packets starting with
-  \1 as well.
+  \255 (error) or \254 (change user request packet) or \0 (OK).
+  To avoid this the server will send all plugin data packets "wrapped" 
+  in a command \1.
+  Note that the client will continue sending its replies unrwapped.
 */
-
-#define IS_OUT_OF_BAND_PACKET(packet,packet_len) \
-  ((packet_len) > 0 && \
-   (*(packet) == 1 || *(packet) == 255 || *(packet) == 254))
 
 static inline int 
 wrap_plguin_data_into_proper_command(NET *net, 
                                      const uchar *packet, int packet_len)
 {
-  DBUG_ASSERT(IS_OUT_OF_BAND_PACKET(packet, packet_len));
   return net_write_command(net, 1, (uchar *) "", 0, packet, packet_len);
 }
 
@@ -8874,13 +8868,8 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
     res= send_server_handshake_packet(mpvio, (char*) packet, packet_len);
   else if (mpvio->status == MPVIO_EXT::RESTART)
     res= send_plugin_request_packet(mpvio, packet, packet_len);
-  else if (IS_OUT_OF_BAND_PACKET(packet, packet_len))
-    res= wrap_plguin_data_into_proper_command(mpvio->net, packet, packet_len);
   else
-  {
-    res= my_net_write(mpvio->net, packet, packet_len) ||
-         net_flush(mpvio->net);
-  }
+    res= wrap_plguin_data_into_proper_command(mpvio->net, packet, packet_len);
   mpvio->packets_written++;
   DBUG_RETURN(res);
 }
