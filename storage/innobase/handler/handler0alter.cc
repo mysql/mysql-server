@@ -1027,16 +1027,6 @@ ha_innobase::add_index(
 		goto error_exit;
 	}
 
-	/* We do not support create more than one FT index on the
-	table yet.
-	TODO: this restriction will be removed */
-	if ((dict_table_has_fts_index(prebuilt->table) && num_fts_index > 0)
-	    || num_fts_index > 1) {
-		error = DB_UNSUPPORTED;
-		my_error(ER_INNODB_FT_LIMIT, MYF(0));
-		goto error_exit;
-	}
-
 	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
 
 	/* If a new FTS Doc ID column is to be added, there will be
@@ -1394,10 +1384,14 @@ ha_innobase::final_add_index(
 		share->idx_trans_tbl.index_count = 0;
 
 		for (i = 0; i < add->num_of_keys; i++) {
-			if (add->key_info[0].flags & HA_FULLTEXT) {
-				dict_table_get_all_fts_indexes(
-					prebuilt->table,
-					prebuilt->table->fts->indexes);
+			if (add->key_info[i].flags & HA_FULLTEXT) {
+				dict_index_t*	fts_index;
+
+				fts_index = dict_table_get_index_on_name(
+					prebuilt->table, add->key_info[i].name);
+
+				ut_ad(fts_index);
+				fts_add_index(fts_index, prebuilt->table);
 			}
 		}
 	}
@@ -1418,56 +1412,6 @@ ha_innobase::final_add_index(
 	delete add;
 	DBUG_RETURN(err);
 }
-
-/*******************************************************************//**
-Drop auxiliary tables related to an FTS index
-@return	DB_SUCCESS or error number */
-static
-ulint
-innobase_drop_fts_index(
-/*====================*/
-	dict_table_t*	table,	/*!< in: Table where indexes are dropped */
-	dict_index_t*	index,	/*!< in: Index to be dropped */
-	trx_t*		trx)	/*!< in: Transaction for the drop */
-{
-	ib_vector_t*    indexes = table->fts->indexes;
-	ulint		err = DB_SUCCESS;
-
-	ut_a(indexes);
-
-	/* We only support one FTS index per table */
-	if (ib_vector_size(indexes) == 1) {
-
-		fts_optimize_remove_table(table);
-
-		DICT_TF2_FLAG_UNSET(table, DICT_TF2_FTS);
-
-		/* If Doc ID column is not added internally by FTS index,
-		we can drop all FTS auxiliary tables. Otherwise, we will
-		need to keep some common table such as CONFIG table, so
-		as to keep track of incrementing Doc IDs */
-		if (!DICT_TF2_FLAG_IS_SET(table,
-				    DICT_TF2_FTS_HAS_DOC_ID)) {
-			err = fts_drop_tables(trx, table);
-
-			err = fts_drop_index_tables(trx, index);
-
-			fts_free(table);
-
-			return(err);
-		}
-
-		fts_cache_destroy(table->fts->cache);
-		table->fts->cache = fts_cache_create(table);
-	}
-
-	err = fts_drop_index_tables(trx, index);
-
-	ib_vector_remove(indexes, (const void*) index);
-
-	return(err);
-}
-
 /*******************************************************************//**
 Prepare to drop some indexes of a table.
 @return	0 or error number */
@@ -1771,7 +1715,7 @@ ha_innobase::final_drop_index(
 			/* If it is FTS index, first drop its
 			auxiliary tables */
 			if (index->type == DICT_FTS) {
-				innobase_drop_fts_index(
+				fts_drop_index(
 					prebuilt->table, index, trx);
 			}
 

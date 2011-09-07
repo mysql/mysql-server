@@ -3,7 +3,6 @@
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
---error 1740
 CREATE TABLE t1 (
   a int(11) NOT NULL auto_increment,
   b text,
@@ -13,6 +12,8 @@ CREATE TABLE t1 (
   FULLTEXT KEY cc(c),
   FULLTEXT KEY a(b,c)
 ) ENGINE = InnoDB;
+
+drop table t1;
 
 CREATE TABLE t1 (
   a int(11) NOT NULL auto_increment,

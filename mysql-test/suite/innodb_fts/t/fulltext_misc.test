@@ -44,7 +44,6 @@ DROP TABLE t1;
 drop table if exists t1;
 --enable_warnings
 
---error 1740
 CREATE TABLE t1 (
   kodoboru varchar(10) default NULL,
   obor tinytext,
@@ -53,6 +52,8 @@ CREATE TABLE t1 (
   FULLTEXT KEY obor (obor),
   FULLTEXT KEY aobor (aobor)
 ) ENGINE = InnoDB;
+
+drop table t1;
 
 CREATE TABLE t1 (
   kodoboru varchar(10) default NULL,

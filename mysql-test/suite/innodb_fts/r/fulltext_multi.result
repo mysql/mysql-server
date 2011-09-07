@@ -8,7 +8,7 @@ FULLTEXT KEY bb(b),
 FULLTEXT KEY cc(c),
 FULLTEXT KEY a(b,c)
 ) ENGINE = InnoDB;
-ERROR HY000: InnoDB presently supports one FULLTEXT index per table
+drop table t1;
 CREATE TABLE t1 (
 a int(11) NOT NULL auto_increment,
 b text,

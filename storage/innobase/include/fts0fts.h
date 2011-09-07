@@ -380,9 +380,10 @@ fts_cache_create(
 	dict_table_t*	table);			/*!< table owns the FTS cache */
 
 /******************************************************************//**
-Create a FTS index cache. */
-
-void
+Create a FTS index cache.
+@return Index Cache */
+UNIV_INTERN
+fts_index_cache_t*
 fts_cache_index_cache_create(
 /*=========================*/
 	dict_table_t*	table,			/*!< in: table with FTS index */
@@ -1001,5 +1002,24 @@ fts_init_index(
 	dict_table_t*	table,			/*!< in: Table with FTS */
 	ibool		has_cache_lock);	/*!< in: Whether we already
 						have cache lock */
+/*******************************************************************//**
+Add a newly create index in FTS cache */
+UNIV_INTERN
+void
+fts_add_index(
+/*==========*/
+	dict_index_t*	index,			/*!< FTS index to be added */
+	dict_table_t*	table);			/*!< table */
+
+/*******************************************************************//**
+Drop auxiliary tables related to an FTS index
+@return DB_SUCCESS or error number */
+UNIV_INTERN
+ulint
+fts_drop_index(
+/*===========*/
+	dict_table_t*	table,	/*!< in: Table where indexes are dropped */
+	dict_index_t*	index,	/*!< in: Index to be dropped */
+	trx_t*		trx);	/*!< in: Transaction for the drop */
 #endif /*!< fts0fts.h */
 
