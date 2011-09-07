@@ -18,7 +18,7 @@ explain extended select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition: (`test`.`t1`.`a` < 100)
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 0
 insert into t1 select a+100 from t1;
@@ -28,7 +28,7 @@ explain extended select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	20	100.00	Using where with pushed condition: (`test`.`t1`.`a` < 100)
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 0
 delete from t1 where a >= 100;
@@ -38,7 +38,7 @@ explain extended select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition: (`test`.`t1`.`a` < 100)
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 0
 begin;
@@ -50,7 +50,7 @@ explain extended select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	20	100.00	Using where with pushed condition: (`test`.`t1`.`a` < 100)
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 0
 begin;
@@ -62,7 +62,7 @@ explain extended select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition: (`test`.`t1`.`a` < 100)
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 0
 begin;
@@ -74,7 +74,7 @@ explain extended select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition: (`test`.`t1`.`a` < 100)
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 0
 begin;
@@ -86,7 +86,7 @@ explain extended select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition: (`test`.`t1`.`a` < 100)
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 0
 insert into t1 select a from t1;
@@ -97,7 +97,7 @@ explain extended select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition: (`test`.`t1`.`a` < 100)
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 0
 begin;
@@ -109,7 +109,7 @@ explain extended select * from t1 where a < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where with pushed condition: (`test`.`t1`.`a` < 100)
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 100)
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 0
 drop table t1;

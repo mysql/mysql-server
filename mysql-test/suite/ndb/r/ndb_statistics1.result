@@ -76,7 +76,7 @@ EXPLAIN
 SELECT * FROM t10000 AS X JOIN t10000 AS Y
 ON Y.I=X.I AND Y.J = X.I;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	X	ALL	I	NULL	NULL	NULL	10000	Parent of 2 pushed join@1
+1	SIMPLE	X	ALL	I	NULL	NULL	NULL	10000	Parent of 2 pushed join@1; Using where with pushed condition
 1	SIMPLE	Y	ref	J,I	J	5	test.X.I	1	Child of 'X' in pushed join@1; Using where
 EXPLAIN
 SELECT * FROM t100 WHERE k < 42;
@@ -105,11 +105,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10000	ref	I	I	5	const	100	Using where with pushed condition
+1	SIMPLE	t10000	ref	I	I	5	const	100	
 EXPLAIN
 SELECT * FROM t10000 WHERE J = 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10000	ref	J	J	5	const	2	Using where with pushed condition
+1	SIMPLE	t10000	ref	J	J	5	const	2	
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0 AND J = 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -117,7 +117,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10000	ref	I	I	5	const	100	Using where with pushed condition
+1	SIMPLE	t10000	ref	I	I	5	const	100	
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0 AND J > 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -137,7 +137,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT * FROM t10000 WHERE J = 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10000	ref	J	J	5	const	2	Using where with pushed condition
+1	SIMPLE	t10000	ref	J	J	5	const	2	
 EXPLAIN
 SELECT * FROM t10000 WHERE J = 0 AND K > 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
