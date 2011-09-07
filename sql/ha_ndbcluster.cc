@@ -45,6 +45,7 @@
 #include <mysql/plugin.h>
 #include <ndb_version.h>
 #include "ndb_mi.h"
+#include "ndb_conflict_trans.h"
 
 #ifdef ndb_dynamite
 #undef assert
@@ -465,96 +466,6 @@ update_slave_api_stats(Ndb* ndb)
 
 st_ndb_slave_state g_ndb_slave_state;
 
-st_ndb_slave_state::st_ndb_slave_state()
-  : current_conflict_defined_op_count(0),
-    current_master_server_epoch(0),
-    current_max_rep_epoch(0),
-    max_rep_epoch(0),
-    sql_run_id(~Uint32(0))
-{
-  memset(current_violation_count, 0, sizeof(current_violation_count));
-  memset(total_violation_count, 0, sizeof(total_violation_count));
-};
-
-void
-st_ndb_slave_state::atTransactionAbort()
-{
-  /* Reset current-transaction counters + state */
-  memset(current_violation_count, 0, sizeof(current_violation_count));
-  current_conflict_defined_op_count = 0;
-  current_max_rep_epoch = 0;
-}
-
-void
-st_ndb_slave_state::atTransactionCommit()
-{
-  /* Merge committed transaction counters into total state
-   * Then reset current transaction counters
-   */
-  for (int i=0; i < CFT_NUMBER_OF_CFTS; i++)
-  {
-    total_violation_count[i]+= current_violation_count[i];
-    current_violation_count[i] = 0;
-  }
-  current_conflict_defined_op_count = 0;
-  if (current_max_rep_epoch > max_rep_epoch)
-  {
-    DBUG_PRINT("info", ("Max replicated epoch increases from %llu to %llu",
-                        max_rep_epoch,
-                        current_max_rep_epoch));
-
-    max_rep_epoch = current_max_rep_epoch;
-  }
-  current_max_rep_epoch = 0;
-}
-
-void
-st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
-                                       Uint32 row_server_id,
-                                       Uint64 row_epoch,
-                                       bool is_row_server_id_local)
-{
-  if (row_server_id == master_server_id)
-  {
-    /*
-       WRITE_ROW to ndb_apply_status injected by MySQLD
-       immediately upstream of us.
-       Record epoch
-    */
-    current_master_server_epoch = row_epoch;
-    assert(! is_row_server_id_local);
-  }
-  else if (is_row_server_id_local)
-  {
-    DBUG_PRINT("info", ("Recording application of local server %u epoch %llu "
-                        " which is %s.",
-                        row_server_id, row_epoch,
-                        (row_epoch > g_ndb_slave_state.current_max_rep_epoch)?
-                        " new highest." : " older than previously applied"));
-    if (row_epoch > current_max_rep_epoch)
-    {
-      /*
-        Store new highest epoch in thdvar.  If we commit successfully
-        then this can become the new global max
-      */
-      current_max_rep_epoch = row_epoch;
-    }
-  }
-}
-
-void
-st_ndb_slave_state::atResetSlave()
-{
-  /* Reset the Maximum replicated epoch vars
-   * on slave reset
-   * No need to touch the sql_run_id as that
-   * will increment if the slave is started
-   * again.
-   */
-  current_max_rep_epoch = 0;
-  max_rep_epoch = 0;
-}
-
 static int check_slave_state(THD* thd)
 {
   DBUG_ENTER("check_slave_state");
@@ -572,6 +483,8 @@ static int check_slave_state(THD* thd)
                         "treating as Slave restart",
                         g_ndb_slave_state.sql_run_id));
     g_ndb_slave_state.sql_run_id = runId;
+
+    g_ndb_slave_state.atStartSlave();
 
     /* Always try to load the Max Replicated Epoch info
      * first.
@@ -813,6 +726,13 @@ SHOW_VAR ndb_status_conflict_variables[]= {
   {"fn_old",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_OLD], SHOW_LONGLONG},
   {"fn_max_del_win", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN], SHOW_LONGLONG},
   {"fn_epoch",     (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH], SHOW_LONGLONG},
+  {"fn_epoch_trans", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH_TRANS], SHOW_LONGLONG},
+  {"trans_row_conflict_count", (char*) &g_ndb_slave_state.trans_row_conflict_count, SHOW_LONGLONG},
+  {"trans_row_reject_count",   (char*) &g_ndb_slave_state.trans_row_reject_count, SHOW_LONGLONG},
+  {"trans_reject_count",       (char*) &g_ndb_slave_state.trans_in_conflict_count, SHOW_LONGLONG},
+  {"trans_detect_iter_count",  (char*) &g_ndb_slave_state.trans_detect_iter_count, SHOW_LONGLONG},
+  {"trans_conflict_commit_count",
+                               (char*) &g_ndb_slave_state.trans_conflict_commit_count, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -919,66 +839,6 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 
 #ifdef HAVE_NDB_BINLOG
 
-/* Write conflicting row to exceptions table. */
-static int write_conflict_row(NDB_SHARE *share,
-                              NdbTransaction *trans,
-                              const uchar *row,
-                              NdbError& err)
-{
-  DBUG_ENTER("write_conflict_row");
-
-  /* get exceptions table */
-  NDB_CONFLICT_FN_SHARE *cfn_share= share->m_cfn_share;
-  const NDBTAB *ex_tab= cfn_share->m_ex_tab;
-  DBUG_ASSERT(ex_tab != NULL);
-
-  /* get insert op */
-  NdbOperation *ex_op= trans->getNdbOperation(ex_tab);
-  if (ex_op == NULL)
-  {
-    err= trans->getNdbError();
-    DBUG_RETURN(-1);
-  }
-  if (ex_op->insertTuple() == -1)
-  {
-    err= ex_op->getNdbError();
-    DBUG_RETURN(-1);
-  }
-  {
-    uint32 server_id= (uint32)::server_id;
-    uint32 master_server_id= (uint32) ndb_mi_get_master_server_id();
-    uint64 master_epoch= (uint64) g_ndb_slave_state.current_master_server_epoch;
-    uint32 count= (uint32)++(cfn_share->m_count);
-    if (ex_op->setValue((Uint32)0, (const char *)&(server_id)) ||
-        ex_op->setValue((Uint32)1, (const char *)&(master_server_id)) ||
-        ex_op->setValue((Uint32)2, (const char *)&(master_epoch)) ||
-        ex_op->setValue((Uint32)3, (const char *)&(count)))
-    {
-      err= ex_op->getNdbError();
-      DBUG_RETURN(-1);
-    }
-  }
-  /* copy primary keys */
-  {
-    const int fixed_cols= 4;
-    int nkey= cfn_share->m_pk_cols;
-    int k;
-    for (k= 0; k < nkey; k++)
-    {
-      DBUG_ASSERT(row != NULL);
-      const uchar* data= row + cfn_share->m_offset[k];
-      if (ex_op->setValue((Uint32)(fixed_cols + k), (const char*)data) == -1)
-      {
-        err= ex_op->getNdbError();
-        DBUG_RETURN(-1);
-      }
-    }
-  }
-  DBUG_RETURN(0);
-}
-#endif
-
-#ifdef HAVE_NDB_BINLOG
 int
 handle_conflict_op_error(Thd_ndb* thd_ndb,
                          NdbTransaction* trans,
@@ -988,13 +848,14 @@ handle_conflict_op_error(Thd_ndb* thd_ndb,
 int
 handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                     const char* tab_name,
+                    bool table_has_blobs,
+                    const char* handling_type,
                     const NdbRecord* key_rec,
                     const uchar* pk_row,
                     enum_conflicting_op_type op_type,
                     enum_conflict_cause conflict_cause,
                     const NdbError& conflict_error,
-                    NdbTransaction* conflict_trans,
-                    NdbError& err);
+                    NdbTransaction* conflict_trans);
 #endif
 
 static const Uint32 error_op_after_refresh_op = 920;
@@ -4233,7 +4094,609 @@ thd_allow_batch(const THD* thd)
 #endif
 }
 
+/**
+   st_ndb_slave_state constructor
+
+   Initialise Ndb Slave state object
+*/
+st_ndb_slave_state::st_ndb_slave_state()
+  : current_master_server_epoch(0),
+    current_max_rep_epoch(0),
+    conflict_flags(0),
+    retry_trans_count(0),
+    current_trans_row_conflict_count(0),
+    current_trans_row_reject_count(0),
+    current_trans_in_conflict_count(0),
+    max_rep_epoch(0),
+    sql_run_id(~Uint32(0)),
+    trans_row_conflict_count(0),
+    trans_row_reject_count(0),
+    trans_detect_iter_count(0),
+    trans_in_conflict_count(0),
+    trans_conflict_commit_count(0),
+    trans_conflict_apply_state(SAS_NORMAL),
+    trans_dependency_tracker(NULL)
+{
+  memset(current_violation_count, 0, sizeof(current_violation_count));
+  memset(total_violation_count, 0, sizeof(total_violation_count));
+
+  /* Init conflict handling state memroot */
+  const size_t CONFLICT_MEMROOT_BLOCK_SIZE = 32768;
+  init_alloc_root(&conflict_mem_root, CONFLICT_MEMROOT_BLOCK_SIZE, 0);
+};
+
+/**
+   resetPerAttemptCounters
+
+   Reset the per-epoch-transaction-application-attempt counters
+*/
+void
+st_ndb_slave_state::resetPerAttemptCounters()
+{
+  memset(current_violation_count, 0, sizeof(current_violation_count));
+  current_trans_row_conflict_count = 0;
+  current_trans_row_reject_count = 0;
+  current_trans_in_conflict_count = 0;
+
+  conflict_flags = 0;
+  current_max_rep_epoch = 0;
+}
+
+/**
+   atTransactionAbort()
+
+   Called by Slave SQL thread during transaction abort.
+*/
+void
+st_ndb_slave_state::atTransactionAbort()
+{
+  /* Reset current-transaction counters + state */
+  resetPerAttemptCounters();
+}
+
+/**
+   atTransactionCommit()
+
+   Called by Slave SQL thread after transaction commit
+*/
+void
+st_ndb_slave_state::atTransactionCommit()
+{
+  assert( ((trans_dependency_tracker == NULL) &&
+           (trans_conflict_apply_state == SAS_NORMAL)) ||
+          ((trans_dependency_tracker != NULL) &&
+           (trans_conflict_apply_state == SAS_TRACK_TRANS_DEPENDENCIES)) );
+  assert( trans_conflict_apply_state != SAS_APPLY_TRANS_DEPENDENCIES );
+
+  /* Merge committed transaction counters into total state
+   * Then reset current transaction counters
+   */
+  for (int i=0; i < CFT_NUMBER_OF_CFTS; i++)
+  {
+    total_violation_count[i]+= current_violation_count[i];
+  }
+  trans_row_conflict_count+= current_trans_row_conflict_count;
+  trans_row_reject_count+= current_trans_row_reject_count;
+  trans_in_conflict_count+= current_trans_in_conflict_count;
+
+  if (current_trans_in_conflict_count)
+    trans_conflict_commit_count++;
+
+  if (current_max_rep_epoch > max_rep_epoch)
+  {
+    DBUG_PRINT("info", ("Max replicated epoch increases from %llu to %llu",
+                        max_rep_epoch,
+                        current_max_rep_epoch));
+    max_rep_epoch = current_max_rep_epoch;
+  }
+
+  resetPerAttemptCounters();
+
+  /* Clear per-epoch-transaction retry_trans_count */
+  retry_trans_count = 0;
+}
+
+/**
+   atApplyStatusWrite
+
+   Called by Slave SQL thread when applying an event to the
+   ndb_apply_status table
+*/
+void
+st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
+                                       Uint32 row_server_id,
+                                       Uint64 row_epoch,
+                                       bool is_row_server_id_local)
+{
+  if (row_server_id == master_server_id)
+  {
+    /*
+       WRITE_ROW to ndb_apply_status injected by MySQLD
+       immediately upstream of us.
+       Record epoch
+    */
+    current_master_server_epoch = row_epoch;
+    assert(! is_row_server_id_local);
+  }
+  else if (is_row_server_id_local)
+  {
+    DBUG_PRINT("info", ("Recording application of local server %u epoch %llu "
+                        " which is %s.",
+                        row_server_id, row_epoch,
+                        (row_epoch > g_ndb_slave_state.current_max_rep_epoch)?
+                        " new highest." : " older than previously applied"));
+    if (row_epoch > current_max_rep_epoch)
+    {
+      /*
+        Store new highest epoch in thdvar.  If we commit successfully
+        then this can become the new global max
+      */
+      current_max_rep_epoch = row_epoch;
+    }
+  }
+}
+
+/**
+   atResetSlave()
+
+   Called when RESET SLAVE command issued - in context of command client.
+*/
+void
+st_ndb_slave_state::atResetSlave()
+{
+  /* Reset the Maximum replicated epoch vars
+   * on slave reset
+   * No need to touch the sql_run_id as that
+   * will increment if the slave is started
+   * again.
+   */
+  resetPerAttemptCounters();
+
+  retry_trans_count = 0;
+  max_rep_epoch = 0;
+}
+
+/**
+   atStartSlave()
+
+   Called by Slave SQL thread when first applying a row to Ndb after
+   a START SLAVE command.
+*/
+void
+st_ndb_slave_state::atStartSlave()
+{
 #ifdef HAVE_NDB_BINLOG
+  if (trans_conflict_apply_state != SAS_NORMAL)
+  {
+    /*
+      Remove conflict handling state on a SQL thread
+      restart
+    */
+    atEndTransConflictHandling();
+    trans_conflict_apply_state = SAS_NORMAL;
+  }
+#endif
+};
+
+#ifdef HAVE_NDB_BINLOG
+
+/**
+   atBeginTransConflictHandling()
+
+   Called by Slave SQL thread when it determines that Transactional
+   Conflict handling is required
+*/
+void
+st_ndb_slave_state::atBeginTransConflictHandling()
+{
+  DBUG_ENTER("atBeginTransConflictHandling");
+  /*
+     Allocate and initialise Transactional Conflict
+     Resolution Handling Structures
+  */
+  assert(trans_dependency_tracker == NULL);
+  trans_dependency_tracker = DependencyTracker::newDependencyTracker(&conflict_mem_root);
+  DBUG_VOID_RETURN;
+};
+
+/**
+   atPrepareConflictDetection
+
+   Called by Slave SQL thread prior to defining an operation on
+   a table with conflict detection defined.
+*/
+int
+st_ndb_slave_state::atPrepareConflictDetection(const NdbDictionary::Table* table,
+                                               const NdbRecord* key_rec,
+                                               const uchar* row_data,
+                                               Uint64 transaction_id,
+                                               bool& handle_conflict_now)
+{
+  DBUG_ENTER("atPrepareConflictDetection");
+  /*
+    Slave is preparing to apply an operation with conflict detection.
+    If we're performing Transactional Conflict Resolution, take
+    extra steps
+  */
+  switch( trans_conflict_apply_state )
+  {
+  case SAS_NORMAL:
+    DBUG_PRINT("info", ("SAS_NORMAL : No special handling"));
+    /* No special handling */
+    break;
+  case SAS_TRACK_TRANS_DEPENDENCIES:
+  {
+    DBUG_PRINT("info", ("SAS_TRACK_TRANS_DEPENDENCIES : Tracking operation"));
+    /*
+      Track this operation and its transaction id, to determine
+      inter-transaction dependencies by {table, primary key}
+    */
+    assert( trans_dependency_tracker );
+
+    int res = trans_dependency_tracker
+      ->track_operation(table,
+                        key_rec,
+                        row_data,
+                        transaction_id);
+    if (res != 0)
+    {
+      sql_print_error("%s", trans_dependency_tracker->get_error_text());
+      DBUG_RETURN(res);
+    }
+    /* Proceed as normal */
+    break;
+  }
+  case SAS_APPLY_TRANS_DEPENDENCIES:
+  {
+    DBUG_PRINT("info", ("SAS_APPLY_TRANS_DEPENDENCIES : Deciding whether to apply"));
+    /*
+       Check if this operation's transaction id is marked in-conflict.
+       If it is, we tell the caller to perform conflict resolution now instead
+       of attempting to apply the operation.
+    */
+    assert( trans_dependency_tracker );
+
+    if (trans_dependency_tracker->in_conflict(transaction_id))
+    {
+      DBUG_PRINT("info", ("Event for transaction %llu is conflicting.  Handling.",
+                          transaction_id));
+      current_trans_row_reject_count++;
+      handle_conflict_now = true;
+      DBUG_RETURN(0);
+    }
+
+    /*
+       This transaction is not marked in-conflict, so continue with normal
+       processing.
+       Note that normal processing may subsequently detect a conflict which
+       didn't exist at the time of the previous TRACK_DEPENDENCIES pass.
+       In this case, we will rollback and repeat the TRACK_DEPENDENCIES
+       stage.
+    */
+    DBUG_PRINT("info", ("Event for transaction %llu is OK, applying",
+                        transaction_id));
+    break;
+  }
+  }
+  DBUG_RETURN(0);
+}
+
+/**
+   atTransConflictDetected
+
+   Called by the Slave SQL thread when a conflict is detected on
+   an executed operation.
+*/
+int
+st_ndb_slave_state::atTransConflictDetected(Uint64 transaction_id)
+{
+  DBUG_ENTER("atTransConflictDetected");
+
+  /*
+     The Slave has detected a conflict on an operation applied
+     to a table with Transactional Conflict Resolution defined.
+     Handle according to current state.
+  */
+  conflict_flags |= SCS_TRANS_CONFLICT_DETECTED_THIS_PASS;
+  current_trans_row_conflict_count++;
+
+  switch (trans_conflict_apply_state)
+  {
+  case SAS_NORMAL:
+  {
+    DBUG_PRINT("info", ("SAS_NORMAL : Conflict on op on table with trans detection."
+                        "Requires multi-pass resolution.  Will transition to "
+                        "SAS_TRACK_TRANS_DEPENDENCIES at Commit."));
+    /*
+      Conflict on table with transactional conflict resolution
+      defined.
+      This is the trigger that we will do transactional conflict
+      resolution.
+      Record that we need to do multiple passes to correctly
+      perform resolution.
+      TODO : Early exit from applying epoch?
+    */
+    break;
+  }
+  case SAS_TRACK_TRANS_DEPENDENCIES:
+  {
+    DBUG_PRINT("info", ("SAS_TRACK_TRANS_DEPENDENCIES : Operation in transaction %llu "
+                        "had conflict",
+                        transaction_id));
+    /*
+       Conflict on table with transactional conflict resolution
+       defined.
+       We will mark the operation's transaction_id as in-conflict,
+       so that any other operations on the transaction are also
+       considered in-conflict, and any dependent transactions are also
+       considered in-conflict.
+    */
+    assert(trans_dependency_tracker != NULL);
+    int res = trans_dependency_tracker
+      ->mark_conflict(transaction_id);
+
+    if (res != 0)
+    {
+      sql_print_error("%s", trans_dependency_tracker->get_error_text());
+      DBUG_RETURN(res);
+    }
+    break;
+  }
+  case SAS_APPLY_TRANS_DEPENDENCIES:
+  {
+    /*
+       This must be a new conflict, not noticed on the previous
+       pass.
+    */
+    DBUG_PRINT("info", ("SAS_APPLY_TRANS_DEPENDENCIES : Conflict detected.  "
+                        "Must be further conflict.  Will return to "
+                        "SAS_TRACK_TRANS_DEPENDENCIES state at commit."));
+    // TODO : Early exit from applying epoch
+    break;
+  }
+  default:
+    break;
+  }
+
+  DBUG_RETURN(0);
+}
+
+/**
+   atConflictPreCommit
+
+   Called by the Slave SQL thread prior to committing a Slave transaction.
+   This method can request that the Slave transaction is retried.
+
+
+   State transitions :
+
+                       START SLAVE /
+                       RESET SLAVE /
+                        STARTUP
+                            |
+                            |
+                            v
+                    ****************
+                    *  SAS_NORMAL  *
+                    ****************
+                       ^       |
+    No transactional   |       | Conflict on transactional table
+       conflicts       |       | (Rollback)
+       (Commit)        |       |
+                       |       v
+            **********************************
+            *  SAS_TRACK_TRANS_DEPENDENCIES  *
+            **********************************
+               ^          I              ^
+     More      I          I Dependencies |
+    conflicts  I          I determined   | No new conflicts
+     found     I          I (Rollback)   | (Commit)
+    (Rollback) I          I              |
+               I          v              |
+           **********************************
+           *  SAS_APPLY_TRANS_DEPENDENCIES  *
+           **********************************
+
+
+   Operation
+     The initial state is SAS_NORMAL.
+
+     On detecting a conflict on a transactional conflict detetecing table,
+     SAS_TRACK_TRANS_DEPENDENCIES is entered, and the epoch transaction is
+     rolled back and reapplied.
+
+     In SAS_TRACK_TRANS_DEPENDENCIES state, transaction dependencies and
+     conflicts are tracked as the epoch transaction is applied.
+
+     Then the Slave transitions to SAS_APPLY_TRANS_DEPENDENCIES state, and
+     the epoch transaction is rolled back and reapplied.
+
+     In the SAS_APPLY_TRANS_DEPENDENCIES state, operations for transactions
+     marked as in-conflict are not applied.
+
+     If this results in no new conflicts, the epoch transaction is committed,
+     and the SAS_TRACK_TRANS_DEPENDENCIES state is re-entered for processing
+     the next replicated epch transaction.
+     If it results in new conflicts, the epoch transactions is rolled back, and
+     the SAS_TRACK_TRANS_DEPENDENCIES state is re-entered again, to determine
+     the new set of dependencies.
+
+     If no conflicts are found in the SAS_TRACK_TRANS_DEPENDENCIES state, then
+     the epoch transaction is committed, and the Slave transitions to SAS_NORMAL
+     state.
+
+
+   Properties
+     1) Normally, there is no transaction dependency tracking overhead paid by
+        the slave.
+
+     2) On first detecting a transactional conflict, the epoch transaction must be
+        applied at least three times, with two rollbacks.
+
+     3) Transactional conflicts detected in subsequent epochs require the epoch
+        transaction to be applied two times, with one rollback.
+
+     4) A loop between states SAS_TRACK_TRANS_DEPENDENCIES and SAS_APPLY_TRANS_
+        DEPENDENCIES occurs when further transactional conflicts are discovered
+        in SAS_APPLY_TRANS_DEPENDENCIES state.  This implies that the  conflicts
+        discovered in the SAS_TRACK_TRANS_DEPENDENCIES state must not be complete,
+        so we revisit that state to get a more complete picture.
+
+     5) The number of iterations of this loop is fixed to a hard coded limit, after
+        which the Slave will stop with an error.  This should be an unlikely
+        occurrence, as it requires not just n conflicts, but at least 1 new conflict
+        appearing between the transactions in the epoch transaction and the
+        database between the two states, n times in a row.
+
+     6) Where conflicts are occasional, as expected, the post-commit transition to
+        SAS_TRACK_TRANS_DEPENDENCIES rather than SAS_NORMAL results in one epoch
+        transaction having its transaction dependencies needlessly tracked.
+
+*/
+int
+st_ndb_slave_state::atConflictPreCommit(bool& retry_slave_trans)
+{
+  DBUG_ENTER("atConflictPreCommit");
+
+  /*
+    Prior to committing a Slave transaction, we check whether
+    Transactional conflicts have been detected which require
+    us to retry the slave transaction
+  */
+  retry_slave_trans = false;
+  switch(trans_conflict_apply_state)
+  {
+  case SAS_NORMAL:
+  {
+    DBUG_PRINT("info", ("SAS_NORMAL"));
+    /*
+       Normal case.  Only if we defined conflict detection on a table
+       with transactional conflict detection, and saw conflicts (on any table)
+       do we go to another state
+     */
+    if (conflict_flags & SCS_TRANS_CONFLICT_DETECTED_THIS_PASS)
+    {
+      DBUG_PRINT("info", ("Conflict(s) detected this pass, transitioning to "
+                          "SAS_TRACK_TRANS_DEPENDENCIES."));
+      assert(conflict_flags & SCS_OPS_DEFINED);
+      /* Transactional conflict resolution required, switch state */
+      atBeginTransConflictHandling();
+      resetPerAttemptCounters();
+      trans_conflict_apply_state = SAS_TRACK_TRANS_DEPENDENCIES;
+      retry_slave_trans = true;
+    }
+    break;
+  }
+  case SAS_TRACK_TRANS_DEPENDENCIES:
+  {
+    DBUG_PRINT("info", ("SAS_TRACK_TRANS_DEPENDENCIES"));
+
+    if (conflict_flags & SCS_TRANS_CONFLICT_DETECTED_THIS_PASS)
+    {
+      /*
+         Conflict on table with transactional detection
+         this pass, we have collected the details and
+         dependencies, now transition to
+         SAS_APPLY_TRANS_DEPENDENCIES and
+         reapply the epoch transaction without the
+         conflicting transactions.
+      */
+      assert(conflict_flags & SCS_OPS_DEFINED);
+      DBUG_PRINT("info", ("Transactional conflicts, transitioning to "
+                          "SAS_APPLY_TRANS_DEPENDENCIES"));
+
+      trans_conflict_apply_state = SAS_APPLY_TRANS_DEPENDENCIES;
+      trans_detect_iter_count++;
+      retry_slave_trans = true;
+      break;
+    }
+    else
+    {
+      /*
+         No transactional conflicts detected this pass, lets
+         return to SAS_NORMAL state after commit for more efficient
+         application of epoch transactions
+      */
+      DBUG_PRINT("info", ("No transactional conflicts, transitioning to "
+                          "SAS_NORMAL"));
+      atEndTransConflictHandling();
+      trans_conflict_apply_state = SAS_NORMAL;
+      break;
+    }
+  }
+  case SAS_APPLY_TRANS_DEPENDENCIES:
+  {
+    DBUG_PRINT("info", ("SAS_APPLY_TRANS_DEPENDENCIES"));
+    assert(conflict_flags & SCS_OPS_DEFINED);
+    /*
+       We've applied the Slave epoch transaction subject to the
+       conflict detection.  If any further transactional
+       conflicts have been observed, then we must repeat the
+       process.
+    */
+    atEndTransConflictHandling();
+    atBeginTransConflictHandling();
+    trans_conflict_apply_state = SAS_TRACK_TRANS_DEPENDENCIES;
+
+    if (unlikely(conflict_flags & SCS_TRANS_CONFLICT_DETECTED_THIS_PASS))
+    {
+      DBUG_PRINT("info", ("Further conflict(s) detected, repeating the "
+                          "TRACK_TRANS_DEPENDENCIES pass"));
+      /*
+         Further conflict observed when applying, need
+         to re-determine dependencies
+      */
+      resetPerAttemptCounters();
+      retry_slave_trans = true;
+      break;
+    }
+
+
+    DBUG_PRINT("info", ("No further conflicts detected, committing and "
+                        "returning to SAS_TRACK_TRANS_DEPENDENCIES state"));
+    /*
+       With dependencies taken into account, no further
+       conflicts detected, can now proceed to commit
+    */
+    break;
+  }
+  }
+
+  /*
+    Clear conflict flags, to ensure that we detect any new conflicts
+  */
+  conflict_flags = 0;
+
+  if (retry_slave_trans)
+  {
+    DBUG_PRINT("info", ("Requesting transaction restart"));
+    DBUG_RETURN(1);
+  }
+
+  DBUG_PRINT("info", ("Allowing commit to proceed"));
+  DBUG_RETURN(0);
+}
+
+/**
+   atEndTransConflictHandling
+
+   Called when transactional conflict handling has completed.
+*/
+void
+st_ndb_slave_state::atEndTransConflictHandling()
+{
+  DBUG_ENTER("atEndTransConflictHandling");
+  /* Release any conflict handling state */
+  if (trans_dependency_tracker)
+  {
+    current_trans_in_conflict_count =
+      trans_dependency_tracker->get_conflict_count();
+    trans_dependency_tracker = NULL;
+    free_root(&conflict_mem_root, MY_MARK_BLOCKS_FREE);
+  }
+  DBUG_VOID_RETURN;
+};
+
 /**
    prepare_conflict_detection
 
@@ -4242,22 +4705,114 @@ thd_allow_batch(const THD* thd)
 
    It is responsible for defining and adding any operation filtering
    required, and for saving any operation definition state required
-   for post-execute analysis
+   for post-execute analysis.
+
+   For transactional detection, this method may determine that the
+   operation being defined should not be executed, and conflict
+   handling should occur immediately.  In this case, conflict_handled
+   is set to true.
 */
 int
 ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
                                           const NdbRecord* key_rec,
                                           const uchar* old_data,
                                           const uchar* new_data,
+                                          NdbTransaction* trans,
                                           NdbInterpretedCode* code,
-                                          NdbOperation::OperationOptions* options)
+                                          NdbOperation::OperationOptions* options,
+                                          bool& conflict_handled)
 {
   DBUG_ENTER("prepare_conflict_detection");
-
+  THD* thd = table->in_use;
   int res = 0;
+  assert(thd->slave_thread);
+
+  conflict_handled = false;
+
+  /*
+     Check transaction id first, as in transactional conflict detection,
+     the transaction id is what eventually dictates whether an operation
+     is applied or not.
+
+     Not that this applies even if the current operation's table does not
+     have a conflict function defined - if a transaction spans a 'transactional
+     conflict detection' table and a non transactional table, the non-transactional
+     table's data will also be reverted.
+  */
+  Uint64 transaction_id = Ndb_binlog_extra_row_info::InvalidTransactionId;
+  if (thd->binlog_row_event_extra_data)
+  {
+    Ndb_binlog_extra_row_info extra_row_info;
+    extra_row_info.loadFromBuffer(thd->binlog_row_event_extra_data);
+    if (extra_row_info.getFlags() &
+        Ndb_binlog_extra_row_info::NDB_ERIF_TRANSID)
+      transaction_id = extra_row_info.getTransactionId();
+  }
+
+  {
+    bool handle_conflict_now = false;
+    const uchar* row_data = (op_type == WRITE_ROW? new_data : old_data);
+    int res = g_ndb_slave_state.atPrepareConflictDetection(m_table,
+                                                           key_rec,
+                                                           row_data,
+                                                           transaction_id,
+                                                           handle_conflict_now);
+    if (res)
+      DBUG_RETURN(res);
+
+    if (handle_conflict_now)
+    {
+      DBUG_PRINT("info", ("Conflict handling for row occurring now"));
+      NdbError noRealConflictError;
+      const uchar* row_to_save = (op_type == DELETE_ROW)? old_data : new_data;
+
+      /*
+         Directly handle the conflict here - e.g refresh/ write to
+         exceptions table etc.
+      */
+      res = handle_row_conflict(m_share->m_cfn_share,
+                                m_share->table_name,
+                                m_share->flags & NSF_BLOB_FLAG,
+                                "Transaction",
+                                key_rec,
+                                row_to_save,
+                                op_type,
+                                TRANS_IN_CONFLICT,
+                                noRealConflictError,
+                                trans);
+      if (unlikely(res))
+        DBUG_RETURN(res);
+
+      g_ndb_slave_state.conflict_flags |= SCS_OPS_DEFINED;
+
+      /*
+        Indicate that there (may be) some more operations to
+        execute before committing
+      */
+      m_thd_ndb->m_unsent_bytes+= 12;
+      conflict_handled = true;
+      DBUG_RETURN(0);
+    }
+  }
+
+  if (! (m_share->m_cfn_share &&
+         m_share->m_cfn_share->m_conflict_fn))
+  {
+    /* No conflict function definition required */
+    DBUG_RETURN(0);
+  }
+
   const st_conflict_fn_def* conflict_fn = m_share->m_cfn_share->m_conflict_fn;
   assert( conflict_fn != NULL );
 
+  if (unlikely((conflict_fn->flags & CF_TRANSACTIONAL) &&
+               (transaction_id == Ndb_binlog_extra_row_info::InvalidTransactionId)))
+  {
+    sql_print_warning("NDB Slave : Transactional conflict detection defined on table %s, but "
+                      "events received without transaction ids.  Check --ndb-log-transaction-id setting "
+                      "on upstream Cluster.",
+                      m_share->key);
+  }
 
   /*
      Prepare interpreted code for operation (update + delete only) according
@@ -4280,7 +4835,7 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
     }
   } // if (op_type != WRITE_ROW)
 
-  g_ndb_slave_state.current_conflict_defined_op_count++;
+  g_ndb_slave_state.conflict_flags |= SCS_OPS_DEFINED;
 
   /* Now save data for potential insert to exceptions table... */
   const uchar* row_to_save = (op_type == DELETE_ROW)? old_data : new_data;
@@ -4288,6 +4843,7 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
   ex_data.share= m_share;
   ex_data.key_rec= key_rec;
   ex_data.op_type= op_type;
+  ex_data.trans_id= transaction_id;
   /*
     We need to save the row data for possible conflict resolution after
     execute().
@@ -4335,32 +4891,38 @@ handle_conflict_op_error(Thd_ndb* thd_ndb,
       (err.classification == NdbError::NoDataFound))
   {
     DBUG_PRINT("info",
-               ("err.code %s (int) error_conflict_fn_violation, "
-                "err.classification %s",
-                err.code == (int) error_conflict_fn_violation ? "==" : "!=",
-                err.classification
-                == NdbError::ConstraintViolation
-                ? "== NdbError::ConstraintViolation"
-                : (err.classification == NdbError::NoDataFound
-                   ? "== NdbError::NoDataFound" : "!=")));
+               ("err.code = %s, err.classification = %s",
+               ((err.code == (int) error_conflict_fn_violation)?
+                "error_conflict_fn_violation":
+                ((err.code == (int) error_op_after_refresh_op)?
+                 "error_op_after_refresh_op" : "?")),
+               ((err.classification == NdbError::ConstraintViolation)?
+                "ConstraintViolation":
+                ((err.classification == NdbError::NoDataFound)?
+                 "NoDataFound" : "?"))));
 
     enum_conflict_cause conflict_cause;
 
+    /* Map cause onto our conflict description type */
     if ((err.code == (int) error_conflict_fn_violation) ||
         (err.code == (int) error_op_after_refresh_op))
     {
+      DBUG_PRINT("info", ("ROW_IN_CONFLICT"));
       conflict_cause= ROW_IN_CONFLICT;
     }
     else if (err.classification == NdbError::ConstraintViolation)
     {
+      DBUG_PRINT("info", ("ROW_ALREADY_EXISTS"));
       conflict_cause= ROW_ALREADY_EXISTS;
     }
     else
     {
       assert(err.classification == NdbError::NoDataFound);
+      DBUG_PRINT("info", ("ROW_DOES_NOT_EXIST"));
       conflict_cause= ROW_DOES_NOT_EXIST;
     }
 
+    /* Get exceptions data from operation */
     const void* buffer=op->getCustomData();
     assert(buffer);
     Ndb_exceptions_data ex_data;
@@ -4368,88 +4930,65 @@ handle_conflict_op_error(Thd_ndb* thd_ndb,
     NDB_SHARE *share= ex_data.share;
     const NdbRecord* key_rec= ex_data.key_rec;
     const uchar* row= ex_data.row;
-    enum_conflicting_op_type op_type = ex_data.op_type;
-    DBUG_ASSERT(share != NULL && row != NULL);
+    enum_conflicting_op_type causing_op_type = ex_data.op_type;
 
+    DBUG_PRINT("info", ("Conflict causing op type : %u",
+                        causing_op_type));
+
+    if (causing_op_type == REFRESH_ROW)
+    {
+      /*
+         The failing op was a refresh row, we require that it
+         failed due to being a duplicate (e.g. a refresh
+         occurring on a refreshed row)
+       */
+      if (err.code == (int) error_op_after_refresh_op)
+      {
+        DBUG_PRINT("info", ("Operation after refresh - ignoring"));
+        DBUG_RETURN(0);
+      }
+      else
+      {
+        DBUG_PRINT("info", ("Refresh op hit real error %u", err.code));
+        /* Unexpected error, normal handling*/
+        DBUG_RETURN(err.code);
+      }
+    }
+
+    DBUG_ASSERT(share != NULL && row != NULL);
     NDB_CONFLICT_FN_SHARE* cfn_share= share->m_cfn_share;
+    bool table_has_trans_conflict_detection =
+      cfn_share &&
+      cfn_share->m_conflict_fn &&
+      (cfn_share->m_conflict_fn->flags & CF_TRANSACTIONAL);
+
+    if (table_has_trans_conflict_detection)
+    {
+      /* Perform special transactional conflict-detected handling */
+      int res = g_ndb_slave_state.atTransConflictDetected(ex_data.trans_id);
+      if (res)
+        DBUG_RETURN(res);
+    }
+
     if (cfn_share)
     {
+      /* Now handle the conflict on this row */
       enum_conflict_fn_type cft = cfn_share->m_conflict_fn->type;
-      bool haveExTable = cfn_share->m_ex_tab != NULL;
 
       g_ndb_slave_state.current_violation_count[cft]++;
 
-      {
-        NdbError handle_error;
-        if (handle_row_conflict(cfn_share,
-                                share->table_name,
-                                key_rec,
-                                row,
-                                op_type,
-                                conflict_cause,
-                                err,
-                                trans,
-                                handle_error))
-        {
-          /* Error with handling of row conflict */
-          char msg[FN_REFLEN];
-          my_snprintf(msg, sizeof(msg), "Row conflict handling "
-                      "on table %s hit Ndb error %d '%s'",
-                      share->table_name,
-                      handle_error.code,
-                      handle_error.message);
+      int res = handle_row_conflict(cfn_share,
+                                    share->table_name,
+                                    false, /* table_has_blobs */
+                                    "Row",
+                                    key_rec,
+                                    row,
+                                    causing_op_type,
+                                    conflict_cause,
+                                    err,
+                                    trans);
 
-          if (handle_error.status == NdbError::TemporaryError)
-          {
-            /* Slave will roll back and retry entire transaction. */
-            ERR_RETURN(handle_error);
-          }
-          else
-          {
-            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                                ER_EXCEPTIONS_WRITE_ERROR,
-                                ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
-            /* Slave will stop replication. */
-            DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
-          }
-        }
-      }
-
-
-      if (haveExTable)
-      {
-        NdbError ex_err;
-        if (write_conflict_row(share, trans, row, ex_err))
-        {
-          char msg[FN_REFLEN];
-          my_snprintf(msg, sizeof(msg), "table %s NDB error %d '%s'",
-                      cfn_share->m_ex_tab->getName(),
-                      ex_err.code, ex_err.message);
-
-          NdbDictionary::Dictionary* dict= thd_ndb->ndb->getDictionary();
-
-          if (ex_err.classification == NdbError::SchemaError)
-          {
-            dict->removeTableGlobal(*(cfn_share->m_ex_tab), false);
-            cfn_share->m_ex_tab= NULL;
-          }
-          else if (ex_err.status == NdbError::TemporaryError)
-          {
-            /* Slave will roll back and retry entire transaction. */
-            ERR_RETURN(ex_err);
-          }
-          else
-          {
-            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                                ER_EXCEPTIONS_WRITE_ERROR,
-                                ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
-            /* Slave will stop replication. */
-            DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
-          }
-        }
-      } // if (haveExTable)
-
-      DBUG_RETURN(0);
+      DBUG_RETURN(res);
     }
     else
     {
@@ -4466,10 +5005,7 @@ handle_conflict_op_error(Thd_ndb* thd_ndb,
 
   DBUG_RETURN(0); // Reachable?
 }
-#endif /* HAVE_NDB_BINLOG */
 
-
-#ifdef HAVE_NDB_BINLOG
 /*
   is_serverid_local
 */
@@ -4684,12 +5220,33 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   MY_BITMAP tmpBitmap;
   MY_BITMAP *user_cols_written_bitmap;
 #ifdef HAVE_NDB_BINLOG
-  bool haveConflictFunction =
-    (thd->slave_thread &&
-     m_share->m_cfn_share &&
-     m_share->m_cfn_share->m_conflict_fn);
+  /* Conflict resolution in slave thread */
+  bool haveConflictFunction = false;
+  if (thd->slave_thread)
+  {
+    haveConflictFunction =
+      m_share->m_cfn_share &&
+      m_share->m_cfn_share->m_conflict_fn;
+    bool conflict_handled = false;
+
+    if (unlikely((error = prepare_conflict_detection(WRITE_ROW,
+                                                     key_rec,
+                                                     NULL,    /* old_data */
+                                                     record,  /* new_data */
+                                                     trans,
+                                                     NULL,    /* code */
+                                                     &options,
+                                                     conflict_handled))))
+      DBUG_RETURN(error);
+
+    if (unlikely(conflict_handled))
+    {
+      /* No need to continue with operation definition */
+      /* TODO : Ensure batch execution */
+      DBUG_RETURN(0);
+    }
+  };
 #endif
-  
   if (m_use_write
 #ifdef HAVE_NDB_BINLOG
       /* Conflict detection must use normal Insert */
@@ -4732,19 +5289,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   }
   else
   {
-#ifdef HAVE_NDB_BINLOG
-    if (haveConflictFunction)
-    {
-      /* Conflict detection in slave thread */
-      if (unlikely((error = prepare_conflict_detection(WRITE_ROW,
-                                                       key_rec,
-                                                       NULL,    /* old_data */
-                                                       record,  /* new_data */
-                                                       NULL,    /* code */
-                                                       &options))))
-        DBUG_RETURN(error);
-    }
-#endif
     uchar *mask;
 
     /* Check whether Ndb table definition includes any default values. */
@@ -4891,20 +5435,34 @@ int ha_ndbcluster::primary_key_cmp(const uchar * old_row, const uchar * new_row)
 }
 
 #ifdef HAVE_NDB_BINLOG
+
+static Ndb_exceptions_data StaticRefreshExceptionsData=
+{ NULL, NULL, NULL, REFRESH_ROW, 0 };
+
 int
 handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                     const char* table_name,
+                    bool table_has_blobs,
+                    const char* handling_type,
                     const NdbRecord* key_rec,
                     const uchar* pk_row,
                     enum_conflicting_op_type op_type,
                     enum_conflict_cause conflict_cause,
                     const NdbError& conflict_error,
-                    NdbTransaction* conflict_trans,
-                    NdbError& err)
+                    NdbTransaction* conflict_trans)
 {
   DBUG_ENTER("handle_row_conflict");
 
-  if (cfn_share->m_flags & CFF_REFRESH_ROWS)
+  /*
+     We will refresh the row if the conflict function requires
+     it, or if we are handling a transactional conflict.
+  */
+  bool refresh_row =
+    (conflict_cause == TRANS_IN_CONFLICT) ||
+    (cfn_share &&
+     (cfn_share->m_flags & CFF_REFRESH_ROWS));
+
+  if (refresh_row)
   {
     /* A conflict has been detected between an applied replicated operation
      * and the data in the DB.
@@ -4927,66 +5485,220 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
     assert(key_rec != NULL);
     assert(pk_row != NULL);
 
-    /* When the slave splits an epoch into batches, a conflict row detected
-     * and refreshed in an early batch can be written to by operations in
-     * a later batch.  As the operations will not have applied, and the
-     * row has already been refreshed, we need not attempt to refresh
-     * it again
-     */
-    if ((conflict_cause == ROW_IN_CONFLICT) &&
-        (conflict_error.code == (int) error_op_after_refresh_op))
+    do
     {
-      /* Attempt to apply an operation after the row was refreshed
-       * Ignore the error
+      /* We cannot refresh a row which has Blobs, as we do not support
+       * Blob refresh yet.
+       * Rows implicated by a transactional conflict function may have
+       * Blobs.
+       * We will generate an error in this case
        */
-      DBUG_PRINT("info", ("Operation after refresh error - ignoring"));
-      DBUG_RETURN(0);
-    }
+      if (table_has_blobs)
+      {
+        char msg[FN_REFLEN];
+        my_snprintf(msg, sizeof(msg), "%s conflict handling "
+                    "on table %s failed as table has Blobs which cannot be refreshed.",
+                    handling_type,
+                    table_name);
 
-    /* When a delete operation finds that the row does not exist, it indicates
-     * a DELETE vs DELETE conflict.  If we refresh the row then we can get
-     * non deterministic behaviour depending on slave batching as follows :
-     *   Row is deleted
-     *
-     *     Case 1
-     *       Slave applied DELETE, INSERT in 1 batch
-     *
-     *         After first batch, the row is present (due to INSERT), it is
-     *         refreshed.
-     *
-     *     Case 2
-     *       Slave applied DELETE in 1 batch, INSERT in 2nd batch
-     *
-     *         After first batch, the row is not present, it is refreshed
-     *         INSERT is then rejected.
-     *
-     * The problem of not being able to 'record' a DELETE vs DELETE conflict
-     * is known.  We attempt at least to give consistent behaviour for
-     * DELETE vs DELETE conflicts by :
-     *   NOT refreshing a row when a DELETE vs DELETE conflict is detected
-     * This should map all batching scenarios onto Case1.
-     */
-    if ((op_type == DELETE_ROW) &&
-        (conflict_cause == ROW_DOES_NOT_EXIST))
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                            ER_EXCEPTIONS_WRITE_ERROR,
+                            ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+
+        DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
+      }
+
+      /* When the slave splits an epoch into batches, a conflict row detected
+       * and refreshed in an early batch can be written to by operations in
+       * a later batch.  As the operations will not have applied, and the
+       * row has already been refreshed, we need not attempt to refresh
+       * it again
+       */
+      if ((conflict_cause == ROW_IN_CONFLICT) &&
+          (conflict_error.code == (int) error_op_after_refresh_op))
+      {
+        /* Attempt to apply an operation after the row was refreshed
+         * Ignore the error
+         */
+        DBUG_PRINT("info", ("Operation after refresh error - ignoring"));
+        break;
+      }
+
+      /* When a delete operation finds that the row does not exist, it indicates
+       * a DELETE vs DELETE conflict.  If we refresh the row then we can get
+       * non deterministic behaviour depending on slave batching as follows :
+       *   Row is deleted
+       *
+       *     Case 1
+       *       Slave applied DELETE, INSERT in 1 batch
+       *
+       *         After first batch, the row is present (due to INSERT), it is
+       *         refreshed.
+       *
+       *     Case 2
+       *       Slave applied DELETE in 1 batch, INSERT in 2nd batch
+       *
+       *         After first batch, the row is not present, it is refreshed
+       *         INSERT is then rejected.
+       *
+       * The problem of not being able to 'record' a DELETE vs DELETE conflict
+       * is known.  We attempt at least to give consistent behaviour for
+       * DELETE vs DELETE conflicts by :
+       *   NOT refreshing a row when a DELETE vs DELETE conflict is detected
+       * This should map all batching scenarios onto Case1.
+       */
+      if ((op_type == DELETE_ROW) &&
+          (conflict_cause == ROW_DOES_NOT_EXIST))
+      {
+        DBUG_PRINT("info", ("Delete vs Delete detected, NOT refreshing"));
+        break;
+      }
+
+      /*
+        We give the refresh operation some 'exceptions data', so that
+        it can be identified as part of conflict resolution when
+        handling operation errors.
+        Specifically we need to be able to handle duplicate row
+        refreshes.
+        As there is no unique exceptions data, we use a singleton.
+
+        We also need to 'force' the ANYVALUE of the row to 0 to
+        indicate that the refresh is locally-sourced.
+        Otherwise we can 'pickup' the ANYVALUE of a previous
+        update to the row.
+        If some previous update in this transaction came from a
+        Slave, then using its ANYVALUE can result in that Slave
+        ignoring this correction.
+      */
+      NdbOperation::OperationOptions options;
+      options.optionsPresent =
+        NdbOperation::OperationOptions::OO_CUSTOMDATA |
+        NdbOperation::OperationOptions::OO_ANYVALUE;
+      options.customData = &StaticRefreshExceptionsData;
+      options.anyValue = 0;
+
+      /* Create a refresh to operation to realign other clusters */
+      // TODO AnyValue
+      // TODO Do we ever get non-PK key?
+      //      Keyless table?
+      //      Unique index
+      const NdbOperation* refresh_op= conflict_trans->refreshTuple(key_rec,
+                                                                   (const char*) pk_row,
+                                                                   &options,
+                                                                   sizeof(options));
+      if (!refresh_op)
+      {
+        NdbError err = conflict_trans->getNdbError();
+
+        if (err.status == NdbError::TemporaryError)
+        {
+          /* Slave will roll back and retry entire transaction. */
+          ERR_RETURN(err);
+        }
+        else
+        {
+          char msg[FN_REFLEN];
+          my_snprintf(msg, sizeof(msg), "Row conflict handling "
+                      "on table %s hit Ndb error %d '%s'",
+                      table_name,
+                      err.code,
+                      err.message);
+          push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                              ER_EXCEPTIONS_WRITE_ERROR,
+                              ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+          /* Slave will stop replication. */
+          DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
+        }
+      }
+    } while(0); // End of 'refresh' block
+  }
+
+  if (cfn_share &&
+      cfn_share->m_ex_tab != NULL)
+  {
+    NdbError err;
+    assert(err.code == 0);
+    do
     {
-      DBUG_PRINT("info", ("Delete vs Delete detected, NOT refreshing"));
-      DBUG_RETURN(0);
-    }
+      /* Have exceptions table, add row to it */
+      const NDBTAB *ex_tab= cfn_share->m_ex_tab;
 
-    /* Create a refresh to operation to realign other clusters */
-    // TODO AnyValue
-    // TODO Do we ever get non-PK key?
-    //      Keyless table?
-    //      Unique index
-    const NdbOperation* refresh_op= conflict_trans->refreshTuple(key_rec,
-                                                                 (const char*) pk_row);
+      /* get insert op */
+      NdbOperation *ex_op= conflict_trans->getNdbOperation(ex_tab);
+      if (ex_op == NULL)
+      {
+        err= conflict_trans->getNdbError();
+        break;
+      }
+      if (ex_op->insertTuple() == -1)
+      {
+        err= ex_op->getNdbError();
+        break;
+      }
+      {
+        uint32 server_id= (uint32)::server_id;
+        uint32 master_server_id= (uint32) ndb_mi_get_master_server_id();
+        uint64 master_epoch= (uint64) g_ndb_slave_state.current_master_server_epoch;
+        uint32 count= (uint32)++(cfn_share->m_count);
+        if (ex_op->setValue((Uint32)0, (const char *)&(server_id)) ||
+            ex_op->setValue((Uint32)1, (const char *)&(master_server_id)) ||
+            ex_op->setValue((Uint32)2, (const char *)&(master_epoch)) ||
+            ex_op->setValue((Uint32)3, (const char *)&(count)))
+        {
+          err= ex_op->getNdbError();
+          break;
+        }
+      }
+      /* copy primary keys */
+      {
+        const int fixed_cols= 4;
+        int nkey= cfn_share->m_pk_cols;
+        int k;
+        for (k= 0; k < nkey; k++)
+        {
+          DBUG_ASSERT(pk_row != NULL);
+          const uchar* data= pk_row + cfn_share->m_offset[k];
+          if (ex_op->setValue((Uint32)(fixed_cols + k), (const char*)data) == -1)
+          {
+            err= ex_op->getNdbError();
+            break;
+          }
+        }
+      }
+    } while (0);
 
-    if (!refresh_op)
+    if (err.code != 0)
     {
-      err= conflict_trans->getNdbError();
-      DBUG_RETURN(1);
+      char msg[FN_REFLEN];
+      my_snprintf(msg, sizeof(msg), "%s conflict handling "
+                  "on table %s hit Ndb error %d '%s'",
+                  handling_type,
+                  table_name,
+                  err.code,
+                  err.message);
+
+      if (err.classification == NdbError::SchemaError)
+      {
+        /* Something up with Exceptions table schema, forget it */
+        NdbDictionary::Dictionary* dict= conflict_trans->getNdb()->getDictionary();
+        dict->removeTableGlobal(*(cfn_share->m_ex_tab), false);
+        cfn_share->m_ex_tab= NULL;
+      }
+      else if (err.status == NdbError::TemporaryError)
+      {
+        /* Slave will roll back and retry entire transaction. */
+        ERR_RETURN(err);
+      }
+      else
+      {
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                            ER_EXCEPTIONS_WRITE_ERROR,
+                            ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+        /* Slave will stop replication. */
+        DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
+      }
     }
-  } /* if (cfn_share->m_flags & CFF_REFRESH_ROWS) */
+  } /* if (cfn_share->m_ex_tab != NULL) */
 
   DBUG_RETURN(0);
 };
@@ -5344,17 +6056,27 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     NdbInterpretedCode code(m_table, buffer,
                             sizeof(buffer)/sizeof(buffer[0]));
 
-    if (thd->slave_thread && m_share->m_cfn_share &&
-        m_share->m_cfn_share->m_conflict_fn)
+    if (thd->slave_thread)
     {
-       /* Conflict resolution in slave thread. */
+      bool conflict_handled = false;
+      /* Conflict resolution in slave thread. */
+
       if (unlikely((error = prepare_conflict_detection(UPDATE_ROW,
                                                        key_rec,
                                                        old_data,
                                                        new_data,
+                                                       trans,
                                                        &code,
-                                                       &options))))
+                                                       &options,
+                                                       conflict_handled))))
         DBUG_RETURN(error);
+
+      if (unlikely(conflict_handled))
+      {
+        /* No need to continue with operation defintion */
+        /* TODO : Ensure batch execution */
+        DBUG_RETURN(0);
+      }
     }
 #endif /* HAVE_NDB_BINLOG */
     if (options.optionsPresent !=0)
@@ -5623,17 +6345,27 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     Uint32 buffer[ MAX_CONFLICT_INTERPRETED_PROG_SIZE ];
     NdbInterpretedCode code(m_table, buffer,
                             sizeof(buffer)/sizeof(buffer[0]));
-    if (thd->slave_thread && m_share->m_cfn_share &&
-        m_share->m_cfn_share->m_conflict_fn)
+    if (thd->slave_thread)
     {
+       bool conflict_handled = false;
+
       /* Conflict resolution in slave thread. */
       if (unlikely((error = prepare_conflict_detection(DELETE_ROW,
                                                        key_rec,
                                                        key_row, /* old_data */
                                                        NULL,    /* new_data */
+                                                       trans,
                                                        &code,
-                                                       &options))))
+                                                       &options,
+                                                       conflict_handled))))
         DBUG_RETURN(error);
+
+      if (unlikely(conflict_handled))
+      {
+        /* No need to continue with operation definition */
+        /* TODO : Ensure batch execution */
+        DBUG_RETURN(0);
+      }
     }
 #endif /* HAVE_NDB_BINLOG */
     if (options.optionsPresent != 0)
@@ -7541,6 +8273,8 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   NdbTransaction *trans= thd_ndb->trans;
+  bool retry_slave_trans = false;
+  (void) retry_slave_trans;
 
   DBUG_ENTER("ndbcluster_commit");
   DBUG_ASSERT(ndb);
@@ -7580,9 +8314,23 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 
   if (thd->slave_thread)
   {
-    if (!g_ndb_slave_state.current_conflict_defined_op_count ||
-        !thd_ndb->m_unsent_bytes ||
-        !(res= execute_no_commit(thd_ndb, trans, TRUE)))
+#ifdef HAVE_NDB_BINLOG
+    /* If this slave transaction has included conflict detecting ops
+     * and some defined operations are not yet sent, then perform
+     * an execute(NoCommit) before committing, as conflict op handling
+     * is done by execute(NoCommit)
+     */
+    if (g_ndb_slave_state.conflict_flags & SCS_OPS_DEFINED)
+    {
+      if (thd_ndb->m_unsent_bytes)
+        res = execute_no_commit(thd_ndb, trans, TRUE);
+    }
+
+    if (likely(res == 0))
+      res = g_ndb_slave_state.atConflictPreCommit(retry_slave_trans);
+#endif /* HAVE_NDB_BINLOG */
+
+    if (likely(res == 0))
       res= execute_commit(thd, thd_ndb, trans, 1, TRUE);
 
     update_slave_api_stats(thd_ndb->ndb);
@@ -7611,12 +8359,50 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 
   if (res != 0)
   {
-    const NdbError err= trans->getNdbError();
-    const NdbOperation *error_op= trans->getNdbErrorOperation();
-    set_ndb_err(thd, err);
-    res= ndb_to_mysql_error(&err);
-    if (res != -1)
-      ndbcluster_print_error(res, error_op);
+#ifdef HAVE_NDB_BINLOG
+    if (retry_slave_trans)
+    {
+      if (st_ndb_slave_state::MAX_RETRY_TRANS_COUNT >
+          g_ndb_slave_state.retry_trans_count++)
+      {
+        /*
+           Warning is necessary to cause retry from slave.cc
+           exec_relay_log_event()
+        */
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     ER_GET_TEMPORARY_ERRMSG,
+                     SLAVE_SILENT_RETRY_MSG);
+        /*
+          Set retry count to zero to:
+          1) Avoid consuming slave-temp-error retry attempts
+          2) Ensure no inter-attempt sleep
+
+          Better fix : Save + restore retry count around transactional
+          conflict handling
+        */
+        ndb_mi_set_relay_log_trans_retries(0);
+      }
+      else
+      {
+        /*
+           Too many retries, print error and exit - normal
+           too many retries mechanism will cause exit
+         */
+        sql_print_error("Ndb slave retried transaction %u time(s) in vain.  Giving up.",
+                        st_ndb_slave_state::MAX_RETRY_TRANS_COUNT);
+      }
+      res= ER_GET_TEMPORARY_ERRMSG;
+    }
+    else
+#endif
+    {
+      const NdbError err= trans->getNdbError();
+      const NdbOperation *error_op= trans->getNdbErrorOperation();
+      set_ndb_err(thd, err);
+      res= ndb_to_mysql_error(&err);
+      if (res != -1)
+        ndbcluster_print_error(res, error_op);
+    }
   }
   else
   {
@@ -8812,6 +9598,7 @@ int ha_ndbcluster::create(const char *name,
     switch(conflict_fn->type)
     {
     case CFT_NDB_EPOCH:
+    case CFT_NDB_EPOCH_TRANS:
     {
       /* Default 6 extra Gci bits allows 2^6 == 64
        * epochs / saveGCP, a comfortable default
@@ -11481,6 +12268,12 @@ static int ndbcluster_init(void *p)
 
   if (ndbcluster_inited)
     DBUG_RETURN(FALSE);
+
+#ifdef HAVE_NDB_BINLOG
+  /* Check const alignment */
+  assert(DependencyTracker::InvalidTransactionId ==
+         Ndb_binlog_extra_row_info::InvalidTransactionId);
+#endif
 
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
@@ -16342,6 +17135,18 @@ static MYSQL_SYSVAR_BOOL(
 );
 
 
+my_bool opt_ndb_log_transaction_id;
+static MYSQL_SYSVAR_BOOL(
+  log_transaction_id,               /* name */
+  opt_ndb_log_transaction_id,       /* var  */
+  PLUGIN_VAR_OPCMDARG,
+  "Log Ndb transaction identities per row in the Binlog",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  0                                 /* default */
+);
+
+
 static MYSQL_SYSVAR_STR(
   connectstring,                    /* name */
   opt_ndb_connectstring,            /* var */
@@ -16449,6 +17254,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(log_binlog_index),
   MYSQL_SYSVAR(log_empty_epochs),
   MYSQL_SYSVAR(log_apply_status),
+  MYSQL_SYSVAR(log_transaction_id),
   MYSQL_SYSVAR(connectstring),
   MYSQL_SYSVAR(mgmd_host),
   MYSQL_SYSVAR(nodeid),

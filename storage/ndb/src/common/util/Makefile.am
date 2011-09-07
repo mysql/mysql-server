@@ -35,7 +35,7 @@ INCLUDES_LOC = @ZLIB_INCLUDES@
 libndbazio_la_SOURCES = ndbzio.c
 libndbazio_la_LIBADD = @ZLIB_LIBS@
 
-noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t SparseBitmask-t ndb_version-t NdbPack-t
+noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t SparseBitmask-t ndb_version-t NdbPack-t HashMap2-t LinkedStack-t
 
 BaseString_t_SOURCES = BaseString.cpp
 BaseString_t_CXXFLAGS = -DTEST_BASE_STRING
@@ -82,6 +82,22 @@ NdbPack_t_LDADD = \
 	$(top_builddir)/mysys/libmysys.la \
 	$(top_builddir)/strings/libmystrings.la \
 	$(top_builddir)/dbug/libdbug.la
+
+HashMap2_t_SOURCES = HashMap2.cpp
+HashMap2_t_CXXFLAGS = -DTEST_HASHMAP2
+HashMap2_t_LDADD = \
+	libgeneral.la \
+	$(top_builddir)/mysys/libmysyslt.la \
+	$(top_builddir)/dbug/libdbuglt.la \
+	$(top_builddir)/strings/libmystringslt.la
+
+LinkedStack_t_SOURCES = LinkedStack.cpp
+LinkedStack_t_CXXFLAGS = -DTEST_LINKEDSTACK
+LinkedStack_t_LDADD = \
+	libgeneral.la \
+	$(top_builddir)/mysys/libmysyslt.la \
+	$(top_builddir)/dbug/libdbuglt.la \
+	$(top_builddir)/strings/libmystringslt.la
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am
