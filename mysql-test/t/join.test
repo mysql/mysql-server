@@ -1015,3 +1015,13 @@ SELECT STRAIGHT_JOIN * FROM t1 JOIN t2 ON t2.f2 = t1.f1
 
 DROP TABLE t1,t2;
 
+#
+# Item_equal used cmp_item::get_comparator() incorrectly
+#
+create table t1 (i time key);
+insert into t1 values ('1:1:1'), ('2:2:2');
+create table t2 (i time);
+insert into t2 values ('1:1:1');
+select t2.i from t1 left join t2 on t2.i = t1.i where t1.i = '1:1:1';
+drop table t1,t2;
+

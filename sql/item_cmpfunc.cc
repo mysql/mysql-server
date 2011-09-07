@@ -2763,7 +2763,7 @@ Item *Item_func_case::find_item(String *str)
     {
       if (args[i]->real_item()->type() == NULL_ITEM)
         continue;
-      cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
+      cmp_type= item_cmp_type(left_result_type, args[i]->cmp_type());
       DBUG_ASSERT(cmp_type != ROW_RESULT);
       DBUG_ASSERT(cmp_items[(uint)cmp_type]);
       if (!(value_added_map & (1<<(uint)cmp_type)))
@@ -2928,7 +2928,7 @@ void Item_func_case::fix_length_and_dec()
   {
     uint i;
     agg[0]= args[first_expr_num];
-    left_result_type= agg[0]->result_type();
+    left_result_type= agg[0]->cmp_type();
 
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
@@ -2946,17 +2946,21 @@ void Item_func_case::fix_length_and_dec()
       found_types |= (1 << item_cmp_type(left_result_type, STRING_RESULT));
     }
 
+    Item *date_arg= 0;
     for (i= 0; i <= (uint)TIME_RESULT; i++)
     {
       if (found_types & (1 << i) && !cmp_items[i])
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
-        DBUG_ASSERT((Item_result)i != TIME_RESULT);
         if ((Item_result)i == STRING_RESULT &&
             agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV, 1))
           return;
+
+        if ((Item_result)i == TIME_RESULT)
+          date_arg= find_date_time_item(args, arg_count, 0);
+
         if (!(cmp_items[i]=
-            cmp_item::get_comparator((Item_result)i, 0,
+            cmp_item::get_comparator((Item_result)i, date_arg,
                                      cmp_collation.collation)))
           return;
       }
@@ -3547,10 +3551,13 @@ void cmp_item_row::store_value(Item *item)
     for (uint i=0; i < n; i++)
     {
       if (!comparators[i])
+      {
+        DBUG_ASSERT(item->element_index(i)->cmp_type() != TIME_RESULT);
         if (!(comparators[i]=
               cmp_item::get_comparator(item->element_index(i)->result_type(), 0,
                                        item->element_index(i)->collation.collation)))
 	  break;					// new failed
+      }
       comparators[i]->store_value(item->element_index(i));
       item->null_value|= item->element_index(i)->null_value;
     }
@@ -5664,7 +5671,7 @@ longlong Item_equal::val_int()
 void Item_equal::fix_length_and_dec()
 {
   Item *item= get_first(NULL);
-  eval_item= cmp_item::get_comparator(item->result_type(), 0,
+  eval_item= cmp_item::get_comparator(item->cmp_type(), item,
                                       item->collation.collation);
 }
 
