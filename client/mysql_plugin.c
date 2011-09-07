@@ -1157,10 +1157,11 @@ static int bootstrap_server(char *server_path, char *bootstrap_file)
 
 #ifdef __WIN__
   char *format_str= 0;
-  char *verbose_str= "";
+  const char *verbose_str= NULL;
+   
   
   if (opt_verbose)
-    strcat(verbose_str, "--console");
+    verbose_str= "--console";
   if (has_spaces(opt_datadir) || has_spaces(opt_basedir) ||
       has_spaces(bootstrap_file))
     format_str= "\"%s %s --bootstrap --datadir=%s --basedir=%s < %s\"";
