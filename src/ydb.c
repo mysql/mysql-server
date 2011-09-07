@@ -1789,8 +1789,10 @@ static int
 env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_string_buf, int env_panic_string_length) {
     int r;
     if (env_panic_string_buf) {
-	if (env && env->i && env->i->is_panicked && env->i->panic_string)
+	if (env && env->i && env->i->is_panicked && env->i->panic_string) {
 	    strncpy(env_panic_string_buf, env->i->panic_string, env_panic_string_length);
+	    env_panic_string_buf[env_panic_string_length - 1] = '\0';  // just in case
+	}
 	else 
 	    *env_panic_string_buf = '\0';
     }
@@ -2043,7 +2045,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 static int
 env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     ENGINE_STATUS engstat;
-    uint32_t stringsize = 80;
+    uint32_t stringsize = 1024;
     char panicstring[stringsize];
     int n = 0;  // number of characters printed so far
 
