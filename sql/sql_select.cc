@@ -11675,7 +11675,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     for any join operation (inner join, outer join, semi-join) with 'JT_ALL' 
     access method.  In that case, a JOIN_CACHE_BNL object is always employed.
 
-    If an index is used to access rows of the joined table and batch_key_access
+    If an index is used to access rows of the joined table and batched_key_access
     is on, then a JOIN_CACHE_BKA object is employed. (Unless debug flag,
     test_bka unique, is set, then a JOIN_CACHE_BKA_UNIQUE object is employed
     instead.) 

@@ -1072,9 +1072,9 @@ bool Explain_join::explain_extra()
       if ((tab->use_join_cache & JOIN_CACHE::ALG_BNL))
         str_extra.append(STRING_WITH_LEN("Block Nested Loop)"));
       else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA))
-        str_extra.append(STRING_WITH_LEN("Batch Key Access)"));
+        str_extra.append(STRING_WITH_LEN("Batched Key Access)"));
       else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA_UNIQUE))
-        str_extra.append(STRING_WITH_LEN("Batch Key Access (unique))"));
+        str_extra.append(STRING_WITH_LEN("Batched Key Access (unique))"));
       else
         DBUG_ASSERT(0); /* purecov: inspected */
     }
