@@ -781,6 +781,15 @@ static int update_status_variables(Thd_ndb *thd_ndb,
    SHOW_LONGLONG},                                                      \
   {"api_trans_local_read_row_count" NAME_SUFFIX,                        \
    (char*) ARRAY_LOCATION[ Ndb::TransLocalReadRowCount ],               \
+   SHOW_LONGLONG},                                                      \
+  {"api_adaptive_send_forced_count" NAME_SUFFIX,                        \
+   (char *) ARRAY_LOCATION[ Ndb::ForcedSendsCount ],                    \
+   SHOW_LONGLONG},                                                      \
+  {"api_adaptive_send_unforced_count" NAME_SUFFIX,                      \
+   (char *) ARRAY_LOCATION[ Ndb::UnforcedSendsCount ],                  \
+   SHOW_LONGLONG},                                                      \
+  {"api_adaptive_send_deferred_count" NAME_SUFFIX,                      \
+   (char *) ARRAY_LOCATION[ Ndb::DeferredSendsCount ],                  \
    SHOW_LONGLONG}
 
 SHOW_VAR ndb_status_variables_dynamic[]= {
