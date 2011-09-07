@@ -2,6 +2,15 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
 drop database if exists mysqltest;
 SHOW GLOBAL STATUS LIKE 'ndb\_%';
 Variable_name	Value
+Ndb_api_adaptive_send_deferred_count	#
+Ndb_api_adaptive_send_deferred_count_session	#
+Ndb_api_adaptive_send_deferred_count_slave	#
+Ndb_api_adaptive_send_forced_count	#
+Ndb_api_adaptive_send_forced_count_session	#
+Ndb_api_adaptive_send_forced_count_slave	#
+Ndb_api_adaptive_send_unforced_count	#
+Ndb_api_adaptive_send_unforced_count_session	#
+Ndb_api_adaptive_send_unforced_count_slave	#
 Ndb_api_bytes_received_count	#
 Ndb_api_bytes_received_count_session	#
 Ndb_api_bytes_received_count_slave	#
