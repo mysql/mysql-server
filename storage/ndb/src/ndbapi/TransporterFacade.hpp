@@ -71,6 +71,12 @@ public:
 
   Uint32 get_active_ndb_objects() const;
 
+  /** 
+   * Get/Set wait time in the send thread.
+   */
+ void setSendThreadInterval(Uint32 ms);
+ Uint32 getSendThreadInterval(void);
+
   // Only sends to nodes which are alive
 private:
   int sendSignal(const NdbApiSignal * signal, NodeId nodeId);
@@ -225,6 +231,7 @@ private:
 
   // Declarations for the receive and send thread
   int  theStopReceive;
+  Uint32 sendThreadWaitMillisec;
 
   void threadMainSend(void);
   NdbThread* theSendThread;
