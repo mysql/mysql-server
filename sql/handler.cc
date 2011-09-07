@@ -3967,6 +3967,17 @@ handler::alter_table_phase1(THD *thd,
     uint          *keyno_p;
     uint          *idx_p;
     uint          *idx_end_p;
+    
+    /* Currently we must finalize add index if we also drop indexes */
+    if ((*alter_flags & adding).is_set())
+    {
+      if ((error= final_add_index((handler_add_index *)alter_info->data, true)))
+      {
+        print_error(error, MYF(0));
+        DBUG_RETURN(error);
+      }
+    }
+
     DBUG_PRINT("info", ("Renumbering indexes"));
     /* The prepare_drop_index() method takes an array of key numbers. */
     key_numbers= (uint*) thd->alloc(sizeof(uint) * alter_info->index_drop_count);

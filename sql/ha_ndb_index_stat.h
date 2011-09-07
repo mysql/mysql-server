@@ -19,20 +19,37 @@
 
 extern struct st_ndb_status g_ndb_status;
 
+extern pthread_mutex_t ndbcluster_mutex;
+
 extern pthread_t ndb_index_stat_thread;
 extern pthread_cond_t COND_ndb_index_stat_thread;
 extern pthread_mutex_t LOCK_ndb_index_stat_thread;
-extern pthread_mutex_t ndb_index_stat_glob_mutex;
+
+/* protect entry lists where needed */
 extern pthread_mutex_t ndb_index_stat_list_mutex;
+
+/* protect and signal changes in stats entries */
 extern pthread_mutex_t ndb_index_stat_stat_mutex;
 extern pthread_cond_t ndb_index_stat_stat_cond;
 
+/* these have to live in ha_ndbcluster.cc */
 extern bool ndb_index_stat_get_enable(THD *thd);
-
 extern long g_ndb_status_index_stat_cache_query;
 extern long g_ndb_status_index_stat_cache_clean;
 
 void 
 compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
                      const KEY *key_info,
-                     const key_range *start_key, const key_range *end_key);
+                     const key_range *start_key, const key_range *end_key,
+                     int from);
+
+/* error codes local to ha_ndb */
+
+/* stats thread is not open for requests (should not happen) */
+#define Ndb_index_stat_error_NOT_ALLOW          9001
+
+/* stats entry for existing index not found (should not happen) */
+#define Ndb_index_stat_error_NOT_FOUND          9002
+
+/* request on stats entry with recent error was ignored */
+#define Ndb_index_stat_error_HAS_ERROR          9003

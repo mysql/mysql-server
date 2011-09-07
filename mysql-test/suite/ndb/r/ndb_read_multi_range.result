@@ -11,6 +11,7 @@ insert into t1 values
 (9,2,8),(10,3,7),(11,4,6),(12,5,5);
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
+set autocommit=off;
 create table r1 as select * from t1 where a in (2,8,12);
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
@@ -77,7 +78,7 @@ a	b	c
 8	5	9
 12	5	5
 drop table r1;
-select * from t1 where b in (1,33,5) order by a;
+select * from t1 force index(b) where b in (1,33,5) order by a;
 a	b	c
 4	5	4
 8	5	9
@@ -86,20 +87,20 @@ a	b	c
 1
 create table r1 as select * from t1 where b in (45,1,33,5,44);
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
-2
+3
 select * from r1 order by a;
 a	b	c
 4	5	4
 8	5	9
 12	5	5
 drop table r1;
-select * from t1 where b in (45,22) order by a;
+select * from t1 force index(b) where b in (45,22) order by a;
 a	b	c
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
 create table r1 as select * from t1 where c in (2,8,33);
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
-2
+3
 select * from r1 order by a;
 a	b	c
 2	3	2
@@ -156,6 +157,7 @@ a	b	c
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
 drop table t1;
+set autocommit=on;
 create table t1 (
 a int not null,
 b int not null,

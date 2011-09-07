@@ -290,7 +290,8 @@ NdbTransaction::execute(ExecType aTypeOfExec,
 			NdbOperation::AbortOption abortOption,
 			int forceSend)
 {
-  NdbError savedError= theError;
+  NdbError existingTransError = theError;
+  NdbError firstTransError;
   DBUG_ENTER("NdbTransaction::execute");
   DBUG_PRINT("enter", ("aTypeOfExec: %d, abortOption: %d", 
 		       aTypeOfExec, abortOption));
@@ -374,8 +375,8 @@ NdbTransaction::execute(ExecType aTypeOfExec,
           if (tBlob->preExecute(tExecType, batch) == -1)
 	  {
             ret = -1;
-	    if(savedError.code==0)
-	      savedError= theError;
+	    if (firstTransError.code==0)
+	      firstTransError= theError;
 	  }
           tBlob = tBlob->theNext;
         }
@@ -413,8 +414,8 @@ NdbTransaction::execute(ExecType aTypeOfExec,
             if (tBlob->preCommit() == -1)
 	    {
 	      ret = -1;
-	      if(savedError.code==0)
-		savedError= theError;
+	      if (firstTransError.code==0)
+		firstTransError= theError;
 	    }
             tBlob = tBlob->theNext;
           }
@@ -440,8 +441,6 @@ NdbTransaction::execute(ExecType aTypeOfExec,
 		       NdbOperation::DefaultAbortOption,
 		       forceSend) == -1)
     {
-      if(savedError.code==0)
-	savedError= theError;
       /**
        * We abort the execute here. But we still need to put the split-off
        * operation list back into the transaction object, or we will get a
@@ -463,9 +462,13 @@ NdbTransaction::execute(ExecType aTypeOfExec,
           theCompletedLastOp = tCompletedLastOp;
       }
 
+      /* executeNoBlobs will have set transaction error */
       DBUG_RETURN(-1);
     }
 
+    /* Capture any trans error left by the execute() in case it gets trampled */
+    if (firstTransError.code==0)
+      firstTransError= theError;
 
 #ifdef ndb_api_crash_on_complex_blob_abort
     assert(theFirstOpInList == NULL && theLastOpInList == NULL);
@@ -483,8 +486,8 @@ NdbTransaction::execute(ExecType aTypeOfExec,
             if (tBlob->postExecute(tExecType) == -1)
 	    {
               ret = -1;
-	      if(savedError.code==0)
-		savedError= theError;
+	      if (firstTransError.code==0)
+		firstTransError= theError;
 	    }
             tBlob = tBlob->theNext;
           }
@@ -520,8 +523,37 @@ NdbTransaction::execute(ExecType aTypeOfExec,
   }
 #endif
 
-  if(savedError.code!=0 && theError.code==4350) // Trans already aborted
-      theError= savedError;
+  /* Sometimes the original error is trampled by 'Trans already aborted',
+   * detect this case and attempt to restore the original error
+   */
+  if (theError.code == 4350) // Trans already aborted
+  {
+    DBUG_PRINT("info", ("Trans already aborted, existingTransError.code %u, "
+                        "firstTransError.code %u",
+                        existingTransError.code,
+                        firstTransError.code));
+    if (existingTransError.code != 0)
+    {
+      theError = existingTransError;
+    }
+    else if (firstTransError.code != 0)
+    {
+      theError = firstTransError;
+    }
+  }
+
+  /* Generally return the first error which we encountered as
+   * the Trans error.  Caller can traverse the op list to
+   * get the full picture
+   */
+  if (firstTransError.code != 0)
+  {
+    DBUG_PRINT("info", ("Setting error to first error.  firstTransError.code = %u, "
+                        "theError.code = %u",
+                        firstTransError.code,
+                        theError.code));
+    theError = firstTransError;
+  }
 
   DBUG_RETURN(ret);
 }

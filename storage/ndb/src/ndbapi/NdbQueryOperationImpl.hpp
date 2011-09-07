@@ -247,8 +247,14 @@ public:
   Uint32 getRootFragCount() const
   { return m_rootFragCount; }
 
+  NdbBulkAllocator& getResultStreamAlloc()
+  { return m_resultStreamAlloc; }
+
   NdbBulkAllocator& getTupleSetAlloc()
   { return m_tupleSetAlloc; }
+
+  NdbBulkAllocator& getRowBufferAlloc()
+  { return m_rowBufferAlloc; }
 
 private:
   /** Possible return values from NdbQueryImpl::awaitMoreResults. 
@@ -265,62 +271,17 @@ private:
     FetchResult_noMoreCache = 2
   };
 
-  /** A stack of NdbRootFragment pointers.
-   *  NdbRootFragments which are 'BatchComplete' are pushed on this stack by 
-   *  the receiver thread, and later pop'ed into the application thread when 
-   *  it need more results to process.
-   *  Due to this shared usage, the PollGuard mutex must be set before 
-   *  accessing SharedFragStack.
+  /**
+   * Container of root fragments that the application is currently
+   * iterating over. 'Owned' by application thread and can be accesed
+   * without requiring a mutex lock.
+   * RootFragments are appended to a OrderedFragSet by ::prepareMoreResults()
+   *
    */
-  class SharedFragStack{
-  public:
-    // For calculating need for dynamically allocated memory.
-    static const Uint32 pointersPerFragment = 2;
-
-    explicit SharedFragStack();
-
-    /** 
-     * Prepare internal datastructures.
-     * param[in] allocator For allocating arrays of pointers.
-     * param[in] capacity Max no of root fragments.
-     * @return 0 if ok, else errorcode
-     */
-    int prepare(NdbBulkAllocator& allocator, int capacity);
-
-    NdbRootFragment* pop() { 
-      return m_current>=0 ? m_array[m_current--] : NULL;
-    }
-    
-    void push(NdbRootFragment& frag);
-
-    int size() const {
-      return (m_current+1);
-    }
-
-    void clear() {
-      m_current = -1;
-    }
-
-    /** Possible error received from TC / datanodes. */
-    int m_errorCode;
-
-  private:
-    /** Capacity of stack.*/
-    int m_capacity;
-
-    /** Index of current top of stack.*/
-    int m_current;
-    NdbRootFragment** m_array;
-
-    // No copying.
-    SharedFragStack(const SharedFragStack&);
-    SharedFragStack& operator=(const SharedFragStack&);
-  }; // class SharedFragStack
-
   class OrderedFragSet{
   public:
     // For calculating need for dynamically allocated memory.
-    static const Uint32 pointersPerFragment = 1;
+    static const Uint32 pointersPerFragment = 2;
 
     explicit OrderedFragSet();
 
@@ -333,43 +294,55 @@ private:
      * param[in] capacity Max no of root fragments.
      * @return 0 if ok, else errorcode
      */
-    int prepare(NdbBulkAllocator& allocator,
-                NdbQueryOptions::ScanOrdering ordering, 
-                int capacity,  
-                const NdbRecord* keyRecord,
-                const NdbRecord* resultRecord);
+    void prepare(NdbBulkAllocator& allocator,
+                 NdbQueryOptions::ScanOrdering ordering, 
+                 int capacity,  
+                 const NdbRecord* keyRecord,
+                 const NdbRecord* resultRecord);
+
+    /**
+     * Add root fragments with completed ResultSets to this OrderedFragSet.
+     * The PollGuard mutex must locked, and under its protection
+     * completed root fragments are 'consumed' from rootFrags[] and
+     * added to OrderedFragSet where it become available for the
+     * application thread.
+     */
+    void prepareMoreResults(NdbRootFragment rootFrags[], Uint32 cnt);  // Need mutex lock
 
     /** Get the root fragment from which to read the next row.*/
     NdbRootFragment* getCurrent() const;
 
-    /** Re-organize the fragments after a row has been consumed. This is 
-     * needed to remove fragements that has been needed, and to re-sort 
-     * fragments if doing a sorted scan.*/
+    /**
+     * Re-organize the fragments after a row has been consumed. This is 
+     * needed to remove fragments that has been emptied, and to re-sort 
+     * fragments if doing a sorted scan.
+     */
     void reorganize();
-
-    /** Add a complete fragment that has been received.*/
-    void add(NdbRootFragment& frag);
 
     /** Reset object to an empty state.*/
     void clear();
 
-    /** Get a fragment where all rows have been consumed. (This method is 
-     * not idempotent - the fragment is removed from the set. 
-     * @return Emptied fragment (or NULL if there are no more emptied 
-     * fragments).
+    /**
+     * Get all fragments where more rows may be (pre-)fetched.
+     * (This method is not idempotent - the fragments are removed
+     * from the set.)
+     * @return Number of fragments (in &frags) from which more 
+     * results should be requested.
      */
-    NdbRootFragment* getEmpty();
+    Uint32 getFetchMore(NdbRootFragment** &rootFrags);
 
   private:
 
-    /** Max no of fragments.*/
+    /** No of fragments to read until '::finalBatchReceived()'.*/
     int m_capacity;
     /** Number of fragments in 'm_activeFrags'.*/
     int m_activeFragCount;
-    /** Number of fragments in 'm_emptiedFrags'. */
-    int m_emptiedFragCount;
-    /** Number of fragments where the final batch has been received
-     * and consumed.*/
+    /** Number of fragments in 'm_fetchMoreFrags'. */
+    int m_fetchMoreFragCount;
+    /**
+     * Number of fragments where the final batch has been received
+     * and consumed.
+     */
     int m_finalFragCount;
     /** Ordering of index scan result.*/
     NdbQueryOptions::ScanOrdering m_ordering;
@@ -377,15 +350,21 @@ private:
     const NdbRecord* m_keyRecord;
     /** Needed for comparing records when ordering results.*/
     const NdbRecord* m_resultRecord;
-    /** Fragments where some tuples in the current batch has not yet been 
-     * consumed.*/
+    /**
+     * Fragments where some tuples in the current ResultSet has not 
+     * yet been consumed.
+     */
     NdbRootFragment** m_activeFrags;
-    /** Fragments where all tuples in the current batch have been consumed, 
-     * but where there are more batches to fetch.*/
-    NdbRootFragment** m_emptiedFrags;
-    // No copying.
-    OrderedFragSet(const OrderedFragSet&);
-    OrderedFragSet& operator=(const OrderedFragSet&);
+    /**
+     * Fragments from which we should request more ResultSets.
+     * Either due to the current batch has been consumed, or double buffering
+     * of result sets allows us to request another batch before the current
+     * has been consumed.
+     */
+    NdbRootFragment** m_fetchMoreFrags;
+
+    /** Add a complete fragment that has been received.*/
+    void add(NdbRootFragment& frag);
 
     /** For sorting fragment reads according to index value of first record. 
      * Also f1<f2 if f2 has reached end of data and f1 has not.
@@ -395,6 +374,10 @@ private:
 
     /** For debugging purposes.*/
     bool verifySortOrder() const;
+
+    // No copying.
+    OrderedFragSet(const OrderedFragSet&);
+    OrderedFragSet& operator=(const OrderedFragSet&);
   }; // class OrderedFragSet
 
   /** The interface that is visible to the application developer.*/
@@ -423,6 +406,14 @@ private:
 
   /** Possible error status of this query.*/
   NdbError m_error;
+
+  /**
+   * Possible error received from TC / datanodes.
+   * Only access w/ PollGuard mutex as it is set by receiver thread.
+   * Checked and moved into 'm_error' with ::hasReceivedError().
+   */
+  int m_errorReceived;   // BEWARE: protect with PollGuard mutex
+
   /** Transaction in which this query instance executes.*/
   NdbTransaction& m_transaction;
 
@@ -442,7 +433,7 @@ private:
   Uint32 m_globalCursor;
 
   /** Number of root fragments not yet completed within the current batch.
-   *  Only access w/ PollGuard mutex as it is also updated by receiver threa 
+   *  Only access w/ PollGuard mutex as it is also updated by receiver thread 
    */
   Uint32 m_pendingFrags;  // BEWARE: protect with PollGuard mutex
 
@@ -462,11 +453,6 @@ private:
    * accessed by application thread.
    */
   OrderedFragSet m_applFrags;
-
-  /** Root frgaments that have received a complete batch. Shared between 
-   *  application thread and receiving thread. Access should be mutex protected.
-   */
-  SharedFragStack m_fullFrags;  // BEWARE: protect with PollGuard mutex
 
   /** Number of root fragments for which confirmation for the final batch 
    * (with tcPtrI=RNIL) has been received. Observe that even if 
@@ -543,10 +529,12 @@ private:
   /** Send SCAN_NEXTREQ signal to fetch another batch from a scan query
    * @return 0 if send succeeded, -1 otherwise.
    */
-  int sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend);
+  int sendFetchMore(NdbRootFragment* rootFrags[], Uint32 cnt,
+                    bool forceSend);
 
   /** Wait for more scan results which already has been REQuested to arrive.
-   * @return 0 if some rows did arrive, a negative value if there are errors (in m_error.code),
+   * @return 0 if some rows did arrive, a negative value if there are errors
+   * (in m_error.code),
    * and 1 of there are no more rows to receive.
    */
   FetchResult awaitMoreResults(bool forceSend);
@@ -577,13 +565,10 @@ private:
    *  the result.
    *  @return: 'true' if its time to resume appl. threads
    */ 
-  bool handleBatchComplete(Uint32 rootFragNo);
+  bool handleBatchComplete(NdbRootFragment& rootFrag);
 
   NdbBulkAllocator& getPointerAlloc()
   { return m_pointerAlloc; }
-  
-  NdbBulkAllocator& getRowBufferAlloc()
-  { return m_rowBufferAlloc; }
 
 }; // class NdbQueryImpl
 
@@ -676,13 +661,29 @@ public:
   NdbQueryOptions::ScanOrdering getOrdering() const
   { return m_ordering; }
 
-   /** 
-   * Set the number of fragments to be scanned in parallel for the root 
-   * operation of this query. This only applies to table scans and non-sorted
-   * scans of ordered indexes.
+  /**
+   * Set the number of fragments to be scanned in parallel. This only applies
+   * to table scans and non-sorted scans of ordered indexes. This method is
+   * only implemented for then root scan operation.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
   int setParallelism(Uint32 parallelism);
+
+  /**
+   * Set the number of fragments to be scanned in parallel to the maximum
+   * possible value. This is the default for the root scan operation.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
+  int setMaxParallelism();
+
+  /**
+   * Let the system dynamically choose the number of fragments to scan in
+   * parallel. The system will try to choose a value that gives optimal
+   * performance. This is the default for all scans but the root scan. This
+   * method only implemented for non-root scan operations.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
+  int setAdaptiveParallelism();
 
   /** Set the batch size (max rows per batch) for this operation. This
    * only applies to scan operations, as lookup operations always will
@@ -705,10 +706,6 @@ public:
   int setInterpretedCode(const NdbInterpretedCode& code);
   bool hasInterpretedCode() const;
 
-  NdbResultStream& getResultStream(Uint32 rootFragNo) const;
-
-  const NdbReceiver& getReceiver(Uint32 rootFragNo) const;
-
   /** Verify magic number.*/
   bool checkMagicNumber() const
   { return m_magic == MAGIC; }
@@ -718,6 +715,12 @@ public:
    */
   Uint32 getMaxBatchRows() const
   { return m_maxBatchRows; }
+
+  /** Get size of row as required to buffer it. */  
+  Uint32 getRowSize() const;
+
+  const NdbRecord* getNdbRecord() const
+  { return m_ndbRecord; }
 
 private:
 
@@ -742,16 +745,9 @@ private:
   /** Max rows (per resultStream) in a scan batch.*/
   Uint32 m_maxBatchRows;
 
-  /** For processing results from this operation (Array of).*/
-  NdbResultStream** m_resultStreams;
   /** Buffer for parameters in serialized format */
   Uint32Buffer m_params;
 
-  /** Buffer size allocated for *each* ResultStream/Receiver when 
-   *  fetching results.*/
-  Uint32 m_bufferSize;
-  /** Used for checking if buffer overrun occurred. */
-  Uint32* m_batchOverflowCheck;
   /** User specified buffer for final storage of result.*/
   char* m_resultBuffer;
   /** User specified pointer to application pointer that should be 
@@ -819,9 +815,6 @@ private:
   Uint32 calculateBatchedRows(const NdbQueryOperationImpl* closestScan);
   void setBatchedRows(Uint32 batchedRows);
 
-  /** Construct and prepare receiver streams for result processing. */
-  int prepareReceiver();
-
   /** Prepare ATTRINFO for execution. (Add execution params++)
    *  @return possible error code.*/
   int prepareAttrInfo(Uint32Buffer& attrInfo);
@@ -863,7 +856,6 @@ private:
   bool diskInUserProjection() const
   { return m_diskInUserProjection; }
 
-  Uint32 getRowSize() const;
 }; // class NdbQueryOperationImpl
 
 

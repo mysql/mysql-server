@@ -623,12 +623,12 @@ MgmApiSession::getConfig(Parser_t::Context &,
 
   UtilBuffer packed;
 
-  bool success =
-   (from_node == 0 || from_node == m_mgmsrv.getOwnNodeId()) ?
-                m_mgmsrv.get_packed_config((ndb_mgm_node_type)nodetype,
-                                           pack64, error) :
-                m_mgmsrv.get_packed_config_from_node(from_node,
-                                                     pack64, error);
+  bool success = (from_node > 0) ?
+                 m_mgmsrv.get_packed_config_from_node(from_node,
+                                                      pack64, error) :
+                 m_mgmsrv.get_packed_config((ndb_mgm_node_type)nodetype,
+                                            pack64, error);
+
   if (!success)
   {
     m_output->println("result: %s", error.c_str());

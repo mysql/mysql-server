@@ -110,7 +110,8 @@ static const NdbRecord* g_ind_rec = 0;
 
 struct my_record
 {
-  Uint32 m_null_bm;
+  Uint8 m_null_bm;
+  Uint8 fill[3];
   Uint32 m_a;
   Uint32 m_b;
   char m_c[1+g_charlen];
@@ -133,6 +134,7 @@ static NdbIndexScanOperation* g_rangescan_op = 0;
 
 static NdbIndexStat* g_is = 0;
 static bool g_has_created_stat_tables = false;
+static bool g_has_created_stat_events = false;
 
 static uint
 urandom()
@@ -212,7 +214,7 @@ errdb()
       ll0(++any << " rangescan_op: error " << e);
   }
   if (g_is != 0) {
-    const NdbError& e = g_is->getNdbError();
+    const NdbIndexStat::Error& e = g_is->getNdbError();
     if (e.code != 0)
       ll0(++any << " stat: error " << e);
   }
@@ -376,6 +378,7 @@ struct Val {
   void copy(const Val& val2);
   void make(uint numattrs, const Lim& lim);
   int cmp(const Val& val2, uint numattrs = g_numattrs, uint* num_eq = 0) const;
+  void fromib(const NdbIndexScanOperation::IndexBound& ib, uint j);
 
 private:
   Val& operator=(const Val&);
@@ -554,6 +557,40 @@ Val::cmp(const Val& val2, uint numattrs, uint* num_eq) const
   if (num_eq != 0)
     *num_eq = n;
   return k;
+}
+
+void
+Val::fromib(const NdbIndexScanOperation::IndexBound& ib, uint j)
+{
+  const char* key = (j == 0 ? ib.low_key : ib.high_key);
+  const uint numattrs = (j == 0 ? ib.low_key_count : ib.high_key_count);
+  const Uint8 nullbits = *(const Uint8*)key;
+  require(numattrs <= g_numattrs);
+  if (numattrs >= 1) {
+    if (nullbits & (1 << g_ndbrec_b_nb_offset))
+      b_null = 1;
+    else {
+      memcpy(&b, &key[g_ndbrec_b_offset], sizeof(b));
+      b_null = 0;
+    }
+  }
+  if (numattrs >= 2) {
+    if (nullbits & (1 << g_ndbrec_c_nb_offset))
+      c_null = 1;
+    else {
+      memcpy(c, &key[g_ndbrec_c_offset], sizeof(c));
+      c_null = 0;
+    }
+  }
+  if (numattrs >= 3) {
+    if (nullbits & (1 << g_ndbrec_d_nb_offset))
+      d_null = 1;
+    else {
+      memcpy(&d, &key[g_ndbrec_d_offset], sizeof(d));
+      d_null = 0;
+    }
+  }
+  m_numattrs = numattrs;
 }
 
 // index keys
@@ -844,7 +881,9 @@ struct Bnd {
   Bnd& make(uint minattrs);
   Bnd& make(uint minattrs, const Val& theval);
   int cmp(const Key& key) const;
+  int cmp(const Bnd& bnd2);
   int type(uint colno) const; // for setBound
+  void fromib(const NdbIndexScanOperation::IndexBound& ib, uint j);
 
 private:
   Bnd& operator=(const Bnd&);
@@ -937,6 +976,52 @@ Bnd::cmp(const Key& key) const
 }
 
 int
+Bnd::cmp(const Bnd& bnd2)
+{
+  int place; // debug
+  int ret;
+  const Bnd& bnd1 = *this;
+  const Val& val1 = bnd1.m_val;
+  const Val& val2 = bnd2.m_val;
+  const uint numattrs1 = val1.m_numattrs;
+  const uint numattrs2 = val2.m_numattrs;
+  const uint n = (numattrs1 < numattrs2 ? numattrs1 : numattrs2);
+  do {
+    int k = val1.cmp(val2, n);
+    if (k != 0) {
+      place = 1;
+      ret = k;
+      break;
+    }
+    if (numattrs1 < numattrs2) {
+      place = 2;
+      ret = (+1) * bnd1.m_side;
+      break;
+    }
+    if (numattrs1 > numattrs2) {
+      place = 3;
+      ret = (-1) * bnd1.m_side;
+      break;
+    }
+    if (bnd1.m_side < bnd2.m_side) {
+      place = 4;
+      ret = -1;
+      break;
+    }
+    if (bnd1.m_side > bnd2.m_side) {
+      place = 5;
+      ret = +1;
+      break;
+    }
+    place = 6;
+    ret = 0;
+  } while (0);
+  ll3("bnd: " << *this << " cmp bnd: " << bnd2
+      << " ret: " << ret << " place: " << place);
+  return ret;
+}
+
+int
 Bnd::type(uint colno) const
 {
   int t;
@@ -958,6 +1043,21 @@ Bnd::type(uint colno) const
       t = 3; // GT
   }
   return t;
+}
+
+void
+Bnd::fromib(const NdbIndexScanOperation::IndexBound& ib, uint j)
+{
+  Val& val = m_val;
+  val.fromib(ib, j);
+  const uint numattrs = (j == 0 ? ib.low_key_count : ib.high_key_count);
+  const bool inclusive = (j == 0 ? ib.low_inclusive : ib.high_inclusive);
+  if (numattrs == 0) {
+    m_side = 0;
+  } else {
+    m_side = (j == 0 ? (inclusive ? -1 : +1) : (inclusive ? +1 : -1));
+  }
+  m_lohi = j;
 }
 
 // stats values
@@ -1016,6 +1116,7 @@ struct Rng {
   void copy(const Rng& rng2);
   int cmp(const Key& key) const; // -1,0,+1 = key is before,in,after range
   uint rowcount() const;
+  void fromib(const NdbIndexScanOperation::IndexBound& ib);
 
 private:
   Rng& operator=(const Rng&);
@@ -1162,6 +1263,15 @@ Rng::rowcount() const
   uint count = hi - lo + 1;
   ll3("rowcount: " << count << " lim: " << lim[0] << " " << lim[1]);
   return count;
+}
+
+void
+Rng::fromib(const NdbIndexScanOperation::IndexBound& ib)
+{
+  for (uint j = 0; j <= 1; j++) {
+    Bnd& bnd = m_bnd[j];
+    bnd.fromib(ib, j);
+  }
 }
 
 static Rng* g_rnglist = 0;
@@ -1409,6 +1519,40 @@ readstat()
   return 0;
 }
 
+// test polling after updatestat
+
+static int
+startlistener()
+{
+  ll1("startlistener");
+  chkdb(g_is->create_listener(g_ndb_sys) == 0);
+  chkdb(g_is->execute_listener(g_ndb_sys) == 0);
+  return 0;
+}
+
+static int
+runlistener()
+{
+  ll1("runlistener");
+  int ret;
+  chkdb((ret = g_is->poll_listener(g_ndb_sys, 10000)) != -1);
+  chkrc(ret == 1);
+  // one event is expected
+  chkdb((ret = g_is->next_listener(g_ndb_sys)) != -1);
+  chkrc(ret == 1);
+  chkdb((ret = g_is->next_listener(g_ndb_sys)) != -1);
+  chkrc(ret == 0);
+  return 0;
+}
+
+static int
+stoplistener()
+{
+  ll1("stoplistener");
+  chkdb(g_is->drop_listener(g_ndb_sys) != -1);
+  return 0;
+}
+
 // stats queries
 
 // exact stats from scan results
@@ -1475,7 +1619,8 @@ queryscan(Rng& rng)
  */
 static int
 initialiseIndexBound(const Rng& rng, 
-                     NdbIndexScanOperation::IndexBound& ib)
+                     NdbIndexScanOperation::IndexBound& ib,
+                     my_record* low_key, my_record* high_key)
 {
   ll3("initialiseIndexBound: " << rng);
   uint i;
@@ -1483,9 +1628,13 @@ initialiseIndexBound(const Rng& rng,
   Uint32 colsInBound[2]= {0, 0};
   bool boundInclusive[2]= {false, false};
 
+  memset(&ib, 0xf1, sizeof(ib));
+  memset(low_key, 0xf2, sizeof(*low_key));
+  memset(high_key, 0xf3, sizeof(*high_key));
+
   // Clear nullbit storage
-  *((char *)ib.low_key) = 
-    *((char *)ib.high_key) = 0;
+  low_key->m_null_bm = 0;
+  high_key->m_null_bm = 0;
 
   for (i = 0; i < g_numattrs; i++) {
     const Uint32 no = i; // index attribute number
@@ -1499,7 +1648,7 @@ initialiseIndexBound(const Rng& rng,
     }
     for (j = 0; j <= 1; j++) {
       /* Get ptr to key storage space for this bound */
-      my_record* keyBuf= (my_record *)( (j==0) ? ib.low_key : ib.high_key);
+      my_record* keyBuf= (j==0) ? low_key : high_key;
       int t = type[j];
       if (t == -1)
         continue;
@@ -1542,8 +1691,10 @@ initialiseIndexBound(const Rng& rng,
   }
 
   /* Now have everything we need to initialise the IndexBound */
+  ib.low_key = (char*)low_key;
   ib.low_key_count= colsInBound[0];
   ib.low_inclusive= boundInclusive[0];
+  ib.high_key = (char*)high_key;
   ib.high_key_count= colsInBound[1];
   ib.high_inclusive= boundInclusive[1];
   ib.range_no= 0;
@@ -1554,11 +1705,18 @@ initialiseIndexBound(const Rng& rng,
       " high_inc=" << ib.high_inclusive);
   ll3(" low bound b=" << *((Uint32*) &ib.low_key[g_ndbrec_b_offset]) <<
       " d=" << *((Uint16*) &ib.low_key[g_ndbrec_d_offset]) <<
-      " first byte=%xu" << ib.low_key[0]);
+      " first byte=" << ib.low_key[0]);
   ll3(" high bound b=" << *((Uint32*) &ib.high_key[g_ndbrec_b_offset]) <<
       " d=" << *((Uint16*) &ib.high_key[g_ndbrec_d_offset]) <<
-      " first byte=%xu" << ib.high_key[0]);  
+      " first byte=" << ib.high_key[0]);  
 
+  // verify by reverse
+  {
+    Rng rng;
+    rng.fromib(ib);
+    require(rng.m_bnd[0].cmp(bnd[0]) == 0);
+    require(rng.m_bnd[1].cmp(bnd[1]) == 0);
+  }
   return 0;
 }
 
@@ -1568,13 +1726,12 @@ querystat_v2(Rng& rng)
   ll3("querystat_v2");
   
   /* Create IndexBound and key storage space */
-  char keySpace[2][g_ndbrecord_bytes];
   NdbIndexScanOperation::IndexBound ib;
-  ib.low_key= keySpace[0];
-  ib.high_key= keySpace[1];
+  my_record low_key;
+  my_record high_key;
 
   chkdb((g_con = g_ndb->startTransaction()) != 0);
-  chkrc(initialiseIndexBound(rng, ib) == 0);
+  chkrc(initialiseIndexBound(rng, ib, &low_key, &high_key) == 0);
 
   Uint64 count = ~(Uint64)0;
   chkdb(g_is->records_in_range(g_ind, 
@@ -1610,10 +1767,9 @@ querystat(Rng& rng)
 
   // convert to IndexBound (like in mysqld)
   NdbIndexScanOperation::IndexBound ib;
-  char keySpace[2][g_ndbrecord_bytes];
-  ib.low_key = keySpace[0];
-  ib.high_key = keySpace[1];
-  chkrc(initialiseIndexBound(rng, ib) == 0);
+  my_record low_key;
+  my_record high_key;
+  chkrc(initialiseIndexBound(rng, ib, &low_key, &high_key) == 0);
   chkrc(g_is->convert_range(range, g_ind_rec, &ib) == 0);
 
   // index stat query
@@ -1960,6 +2116,7 @@ runtest()
   chkrc(createindex() == 0);
   chkrc(createNdbRecords() == 0);
   chkrc(definestat() == 0);
+  chkrc(startlistener() == 0);
 
   for (g_loop = 0; g_opts.loops == 0 || g_loop < g_opts.loops; g_loop++) {
     ll0("=== loop " << g_loop << " ===");
@@ -1973,6 +2130,7 @@ runtest()
     makeranges();
     chkrc(scanranges() == 0);
     chkrc(updatestat() == 0);
+    chkrc(runlistener() == 0);
     chkrc(readstat() == 0);
     chkrc(queryranges() == 0);
     loopstats();
@@ -1980,6 +2138,7 @@ runtest()
   }
   finalstats();
 
+  chkrc(stoplistener() == 0);
   if (!g_opts.keeptable)
     chkrc(droptable() == 0);
   freeranges();
@@ -2113,22 +2272,66 @@ docreate_stat_tables()
 {
   if (g_is->check_systables(g_ndb_sys) == 0)
     return 0;
+  ll1("check_systables: " << g_is->getNdbError());
 
-  if (g_is->create_systables(g_ndb_sys) == 0)
-  {
-    g_has_created_stat_tables = true;
-    return 0;
-  }
-  return -1;
+  ll0("create stat tables");
+  chkdb(g_is->create_systables(g_ndb_sys) == 0);
+  g_has_created_stat_tables = true;
+  return 0;
 }
 
 static
-void
+int
 dodrop_stat_tables()
 {
   if (g_has_created_stat_tables == false)
-    return;
-  g_is->drop_systables(g_ndb_sys);
+    return 0;
+
+  ll0("drop stat tables");
+  chkdb(g_is->drop_systables(g_ndb_sys) == 0);
+  return 0;
+}
+
+static int
+docreate_stat_events()
+{
+  if (g_is->check_sysevents(g_ndb_sys) == 0)
+    return 0;
+  ll1("check_sysevents: " << g_is->getNdbError());
+
+  ll0("create stat events");
+  chkdb(g_is->create_sysevents(g_ndb_sys) == 0);
+  g_has_created_stat_events = true;
+  return 0;
+}
+
+static int
+dodrop_stat_events()
+{
+  if (g_has_created_stat_events == false)
+    return 0;
+
+  ll0("drop stat events");
+  chkdb(g_is->drop_sysevents(g_ndb_sys) == 0);
+  return 0;
+}
+
+static int
+docreate_sys_objects()
+{
+  require(g_is != 0 && g_ndb_sys != 0);
+  chkrc(docreate_stat_tables() == 0);
+  chkrc(docreate_stat_events() == 0);
+  return 0;
+}
+
+static int
+dodrop_sys_objects()
+{
+  require(g_is != 0 && g_ndb_sys != 0);
+  chkrc(dodrop_stat_events() == 0);
+  chkrc(dodrop_stat_tables() == 0);
+  return 0;
 }
 
 int
@@ -2156,17 +2359,22 @@ main(int argc, char** argv)
     ll0("connect failed");
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  if (docreate_stat_tables() == -1){
-    ll0("failed to create stat tables");
-    return NDBT_ProgramExit(NDBT_FAILED);
+  if (docreate_sys_objects() == -1) {
+    ll0("failed to check or create stat tables and events");
+    goto failed;
   }
   if (runtest() == -1) {
     ll0("test failed");
-    dodrop_stat_tables();
-    dodisconnect();
-    return NDBT_ProgramExit(NDBT_FAILED);
+    goto failed;
   }
-  dodrop_stat_tables();
+  if (dodrop_sys_objects() == -1) {
+    ll0("failed to drop created stat tables or events");
+    goto failed;
+  }
   dodisconnect();
   return NDBT_ProgramExit(NDBT_OK);
+failed:
+  (void)dodrop_sys_objects();
+  dodisconnect();
+  return NDBT_ProgramExit(NDBT_FAILED);
 }

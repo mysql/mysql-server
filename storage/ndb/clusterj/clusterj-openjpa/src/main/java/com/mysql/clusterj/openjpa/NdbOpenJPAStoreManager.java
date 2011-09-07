@@ -132,7 +132,14 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         JDBCFetchConfiguration fetch) {
         if (logger.isDebugEnabled()) {
             logger.debug("NdbStoreManager.find(Object oid, ValueMapping vm, "
-                    + "JDBCFetchConfiguration fetch) delegated to super.");
+                    + "JDBCFetchConfiguration fetch) delegated to super with oid " + oid + ".");
+        }
+        // return null if the oid is null (this will be the case if a foreign key element is null)
+        ClassMapping cls = vm.getDeclaredTypeMapping();
+        NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler = getDomainTypeHandler(cls);
+        Object handler = domainTypeHandler.createKeyValueHandler(oid);
+        if (handler == null) {
+            return null;
         }
         return super.find(oid, vm, fetch);
     }
@@ -244,8 +251,9 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
 //                    domainTypeHandler.createKeyValueHandler(id.getIdObject()));
                 // initialize via OpenJPA protocol
                 // select all columns from table
+                ValueHandler keyValueHandler = domainTypeHandler.createKeyValueHandler(id.getIdObject());
                 ResultData resultData = session.selectUnique(domainTypeHandler,
-                        domainTypeHandler.createKeyValueHandler(id.getIdObject()),
+                        keyValueHandler,
                         null);
                 // create an OpenJPA Result from the ndb result data
                 NdbOpenJPAResult result = new NdbOpenJPAResult(resultData, domainTypeHandler, null);

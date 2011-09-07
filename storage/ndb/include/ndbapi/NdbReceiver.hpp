@@ -41,7 +41,6 @@ class NdbReceiver
   friend class NdbIndexScanOperation;
   friend class NdbTransaction;
   friend class NdbRootFragment;
-  friend class ReceiverIdIterator;
   friend int compare_ndbrecord(const NdbReceiver *r1,
                       const NdbReceiver *r2,
                       const NdbRecord *key_record,
@@ -82,6 +81,12 @@ public:
   inline NdbReceiver* next() { return m_next; }
   
   void setErrorCode(int);
+
+  /* Prepare for receiving of rows into specified buffer */
+  void prepareReceive(char *buf);
+
+  /* Prepare for reading of rows from specified buffer */
+  void prepareRead(char *buf, Uint32 rows);
 
 private:
   Uint32 theMagicNumber;
@@ -141,8 +146,9 @@ private:
   /* members used for NdbRecord operation. */
   struct {
     const NdbRecord *m_ndb_record;
-    char *m_row;
-    /* Block of memory used to receive all rows in a batch during scan. */
+    /* Destination to receive next row into. */
+    char *m_row_recv;
+    /* Block of memory used to read all rows in a batch during scan. */
     char *m_row_buffer;
     /*
       Offsets between two rows in m_row_buffer.
@@ -227,7 +233,7 @@ private:
                     const char * & data_ptr) const;
   int getScanAttrData(const char * & data, Uint32 & size, Uint32 & pos) const;
   /** Used by NdbQueryOperationImpl, where random access to rows is needed.*/
-  void setCurrentRow(Uint32 currentRow);
+  void setCurrentRow(char* buffer, Uint32 row);
   /** Used by NdbQueryOperationImpl.*/
   Uint32 getCurrentRow() const { return m_current_row; }
 };
@@ -260,7 +266,7 @@ NdbReceiver::prepareSend(){
   if (m_using_ndb_record)
   {
     if (m_type==NDB_SCANRECEIVER || m_type==NDB_QUERY_OPERATION)
-      m_record.m_row= m_record.m_row_buffer;
+      m_record.m_row_recv= m_record.m_row_buffer;
   }
   theCurrentRecAttr = theFirstRecAttr;
 }
@@ -288,9 +294,13 @@ NdbReceiver::execSCANOPCONF(Uint32 tcPtrI, Uint32 len, Uint32 rows){
 
 inline
 void
-NdbReceiver::setCurrentRow(Uint32 currentRow)
+NdbReceiver::setCurrentRow(char* buffer, Uint32 row)
 {
-  m_current_row = currentRow;
+  m_record.m_row_buffer = buffer;
+  m_current_row = row;
+#ifdef assert
+  assert(m_current_row < m_result_rows);
+#endif
 }
 
 inline

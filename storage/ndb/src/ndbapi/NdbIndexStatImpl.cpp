@@ -22,6 +22,7 @@
 #include <Bitmask.hpp>
 #include <NdbSqlUtil.hpp>
 #include <NdbRecord.hpp>
+#include <NdbEventOperation.hpp>
 #include "NdbIndexStatImpl.hpp"
 
 #undef min
@@ -33,8 +34,8 @@ static const char* const g_headtable_name = NDB_INDEX_STAT_HEAD_TABLE;
 static const char* const g_sampletable_name = NDB_INDEX_STAT_SAMPLE_TABLE;
 static const char* const g_sampleindex1_name = NDB_INDEX_STAT_SAMPLE_INDEX1;
 
-const int ERR_NoSuchObject[] = { 709, 723, 4243, 0 };
-const int ERR_TupleNotFound[] = { 626, 0 };
+static const int ERR_NoSuchObject[] = { 709, 723, 4243, 0 };
+static const int ERR_TupleNotFound[] = { 626, 0 };
 
 NdbIndexStatImpl::NdbIndexStatImpl(NdbIndexStat& facade) :
   NdbIndexStat(*this),
@@ -45,7 +46,8 @@ NdbIndexStatImpl::NdbIndexStatImpl(NdbIndexStat& facade) :
   init();
   m_query_mutex = NdbMutex_Create();
   assert(m_query_mutex != 0);
-  m_mem_handler = &g_mem_default_handler;
+  m_eventOp = 0;
+  m_mem_handler = &c_mem_default_handler;
 }
 
 void
@@ -544,10 +546,8 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
 }
 
 int
-NdbIndexStatImpl::check_systables(Ndb* ndb)
+NdbIndexStatImpl::check_systables(Sys& sys)
 {
-  Sys sys(this, ndb);
-
   if (get_systables(sys) == -1)
     return -1;
 
@@ -562,6 +562,17 @@ NdbIndexStatImpl::check_systables(Ndb* ndb)
     setError(BadSysTables, __LINE__);
     return -1;
   }
+
+  return 0;
+}
+
+int
+NdbIndexStatImpl::check_systables(Ndb* ndb)
+{
+  Sys sys(this, ndb);
+  
+  if (check_systables(sys) == -1)
+    return -1;
 
   return 0;
 }
@@ -725,7 +736,7 @@ NdbIndexStatImpl::set_index(const NdbDictionary::Index& index,
       }
       NdbPack::Type type (
         icol->getType(),
-        icol->getArrayType() + icol->getSize() * icol->getLength(),
+        icol->getSizeInBytes(),
         icol->getNullable(),
         icol->getCharset() != 0 ? icol->getCharset()->number : 0
       );
@@ -742,7 +753,7 @@ NdbIndexStatImpl::set_index(const NdbDictionary::Index& index,
     // rir + rpk
     if (m_valueSpec.add(type, m_valueAttrs) == -1)
     {
-      setError(InternalError, __LINE__);
+      setError(InternalError, __LINE__, m_valueSpec.get_error_code());
       return -1;
     }
   }
@@ -781,6 +792,7 @@ void
 NdbIndexStatImpl::init_head(Head& head)
 {
   head.m_found = -1;
+  head.m_eventType = -1;
   head.m_indexId = 0;
   head.m_indexVersion = 0;
   head.m_tableId = 0;
@@ -1153,15 +1165,32 @@ NdbIndexStatImpl::read_next(Con& con)
       setError(con, __LINE__);
     return ret;
   }
-  // create consistent NdbPack::Data instances
-  if (m_keyData.desc_all(m_keyAttrs) == -1)
+
+  /*
+   * Key and value are raw data and little-endian.  Create the complete
+   * NdbPack::Data instance and convert it to native-endian.
+   */
+  const NdbPack::Endian::Value from_endian = NdbPack::Endian::Little;
+  const NdbPack::Endian::Value to_endian = NdbPack::Endian::Native;
+
+  if (m_keyData.desc_all(m_keyAttrs, from_endian) == -1)
   {
-    setError(InternalError, __LINE__);
+    setError(InternalError, __LINE__, m_keyData.get_error_code());
     return -1;
   }
-  if (m_valueData.desc_all(m_valueAttrs) == -1)
+  if (m_keyData.convert(to_endian) == -1)
   {
-    setError(InternalError, __LINE__);
+    setError(InternalError, __LINE__, m_keyData.get_error_code());
+    return -1;
+  }
+  if (m_valueData.desc_all(m_valueAttrs, from_endian) == -1)
+  {
+    setError(InternalError, __LINE__, m_valueData.get_error_code());
+    return -1;
+  }
+  if (m_valueData.convert(to_endian) == -1)
+  {
+    setError(InternalError, __LINE__, m_valueData.get_error_code());
     return -1;
   }
   return 0;
@@ -1183,13 +1212,12 @@ NdbIndexStatImpl::read_commit(Con& con)
 int
 NdbIndexStatImpl::save_start(Con& con)
 {
-  Mem* mem = m_mem_handler;
   if (m_cacheBuild != 0)
   {
     free_cache(m_cacheBuild);
     m_cacheBuild = 0;
   }
-  con.m_cacheBuild = (Cache*)mem->mem_alloc(sizeof(Cache));
+  con.m_cacheBuild = new Cache;
   if (con.m_cacheBuild == 0)
   {
     setError(NoMemError, __LINE__);
@@ -1478,16 +1506,32 @@ NdbIndexStatImpl::cache_insert(Con& con)
     const Uint8* rir_ptr = &cacheValuePtr[0];
     Uint32 rir;
     memcpy(&rir, rir_ptr, 4);
-    assert(rir != 0);
+    if (!(rir != 0))
+    {
+      setError(InvalidCache, __LINE__);
+      return -1;
+    }
     Uint32 unq_prev = 0;
     for (uint k = 0; k < c.m_keyAttrs; k++)
     {
       Uint8* unq_ptr = &cacheValuePtr[4 + k * 4];
       Uint32 unq;
       memcpy(&unq, unq_ptr, 4);
-      assert(unq != 0);
-      assert(rir >= unq);
-      assert(unq >= unq_prev);
+      if (!(unq != 0))
+      {
+        setError(InvalidCache, __LINE__);
+        return -1;
+      }
+      if (!(rir >= unq))
+      {
+        setError(InvalidCache, __LINE__);
+        return -1;
+      }
+      if (!(unq >= unq_prev))
+      {
+        setError(InvalidCache, __LINE__);
+        return -1;
+      }
       unq_prev = unq;
     }
   }
@@ -1685,6 +1729,34 @@ NdbIndexStatImpl::cache_verify(const Cache& c)
         setError(InvalidCache, __LINE__);
         return -1;
       }
+      const Uint8* ptr1 = c.get_valueptr(pos1);
+      const Uint8* ptr2 = c.get_valueptr(pos2);
+      Uint32 rir1;
+      Uint32 rir2;
+      memcpy(&rir1, &ptr1[0], 4);
+      memcpy(&rir2, &ptr2[0], 4);
+      if (!(rir1 < rir2))
+      {
+        setError(InvalidCache, __LINE__);
+        return -1;
+      }
+      for (uint k = 0; k < c.m_keyAttrs; k++)
+      {
+        Uint32 unq1;
+        Uint32 unq2;
+        memcpy(&unq1, &ptr1[4 + k * 4], 4);
+        memcpy(&unq2, &ptr2[4 + k * 4], 4);
+        if (!(unq1 <= unq2))
+        {
+          setError(InvalidCache, __LINE__);
+          return -1;
+        }
+        if (k == c.m_keyAttrs - 1 && !(unq1 < unq2))
+        {
+          setError(InvalidCache, __LINE__);
+          return -1;
+        }
+      }
     }
   }
   return 0;
@@ -1725,7 +1797,7 @@ NdbIndexStatImpl::free_cache(Cache* c)
   mem->mem_free(c->m_addrArray);
   mem->mem_free(c->m_keyArray);
   mem->mem_free(c->m_valueArray);
-  mem->mem_free(c);
+  delete c;
 }
 
 void
@@ -1838,7 +1910,9 @@ NdbIndexStatImpl::convert_range(Range& range,
     Uint32 len_out;
     for (uint i = 0; i < key_count; i++)
     {
-      const NdbRecord::Attr& attr = key_record->columns[i];
+      const uint i2 = key_record->key_indexes[i];
+      require(i2 < key_record->noOfColumns);
+      const NdbRecord::Attr& attr = key_record->columns[i2];
       if (!attr.is_null(key))
       {
         const char* data = key + attr.offset;
@@ -1855,7 +1929,7 @@ NdbIndexStatImpl::convert_range(Range& range,
         }
         if (bound.m_data.add(data, &len_out) == -1)
         {
-          setError(InternalError, __LINE__);
+          setError(InternalError, __LINE__, bound.m_data.get_error_code());
           return -1;
         }
       }
@@ -1863,7 +1937,7 @@ NdbIndexStatImpl::convert_range(Range& range,
       {
         if (bound.m_data.add_null(&len_out) == -1)
         {
-          setError(InternalError, __LINE__);
+          setError(InternalError, __LINE__, bound.m_data.get_error_code());
           return -1;
         }
       }
@@ -2166,7 +2240,7 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
       cnt == stat.m_numEqH &&
       side == -1) {
     stat.m_rule = "b3.3";
-    const double u = 1.0 + c.get_unq(posL, posH, keyAttrs - 1);
+    const double u = c.get_unq(posL, posH, keyAttrs - 1);
     const double wL = 1.0 / u;
     const double wH = 1.0 - wL;
     value.m_rir = wL * c.get_rir(posL) + wH * c.get_rir(posH);
@@ -2241,59 +2315,206 @@ NdbIndexStatImpl::query_keycmp(const Cache& c,
   return res;
 }
 
-// mem alloc - default impl
+// events and polling
 
-NdbIndexStatImpl::MemDefault
-NdbIndexStatImpl::g_mem_default_handler;
+int
+NdbIndexStatImpl::create_sysevents(Ndb* ndb)
+{
+  Sys sys(this, ndb);
+  NdbDictionary::Dictionary* const dic = ndb->getDictionary();
+
+  if (check_systables(sys) == -1)
+    return -1;
+  const NdbDictionary::Table* tab = sys.m_headtable;
+  require(tab != 0);
+
+  const char* const evname = NDB_INDEX_STAT_HEAD_EVENT;
+  NdbDictionary::Event ev(evname, *tab);
+  ev.addTableEvent(NdbDictionary::Event::TE_INSERT);
+  ev.addTableEvent(NdbDictionary::Event::TE_DELETE);
+  ev.addTableEvent(NdbDictionary::Event::TE_UPDATE);
+  for (int i = 0; i < tab->getNoOfColumns(); i++)
+    ev.addEventColumn(i);
+  ev.setReport(NdbDictionary::Event::ER_UPDATED);
+
+  if (dic->createEvent(ev) == -1)
+  {
+    setError(dic->getNdbError().code, __LINE__);
+    return -1;
+  }
+  return 0;
+}
+
+int
+NdbIndexStatImpl::drop_sysevents(Ndb* ndb)
+{
+  Sys sys(this, ndb);
+  NdbDictionary::Dictionary* const dic = ndb->getDictionary();
+
+  if (check_systables(sys) == -1)
+    return -1;
+
+  const char* const evname = NDB_INDEX_STAT_HEAD_EVENT;
+  if (dic->dropEvent(evname) == -1)
+  {
+    int code = dic->getNdbError().code;
+    if (code != 4710)
+    {
+      setError(dic->getNdbError().code, __LINE__);
+      return -1;
+    }
+  }
+  return 0;
+}
+
+int
+NdbIndexStatImpl::check_sysevents(Ndb* ndb)
+{
+  Sys sys(this, ndb);
+  NdbDictionary::Dictionary* const dic = ndb->getDictionary();
+
+  if (check_systables(sys) == -1)
+    return -1;
+
+  const char* const evname = NDB_INDEX_STAT_HEAD_EVENT;
+  const NdbDictionary::Event* ev = dic->getEvent(evname);
+  if (ev == 0)
+  {
+    setError(dic->getNdbError().code, __LINE__);
+    return -1;
+  }
+  delete ev; // getEvent() creates new instance
+  return 0;
+}
+
+int
+NdbIndexStatImpl::create_listener(Ndb* ndb)
+{
+  if (m_eventOp != 0)
+  {
+    setError(UsageError, __LINE__);
+    return -1;
+  }
+  const char* const evname = NDB_INDEX_STAT_HEAD_EVENT;
+  m_eventOp = ndb->createEventOperation(evname);
+  if (m_eventOp == 0)
+  {
+    setError(ndb->getNdbError().code, __LINE__);
+    return -1;
+  }
+
+  // all columns are non-nullable
+  Head& head = m_facadeHead;
+  if (m_eventOp->getValue("index_id", (char*)&head.m_indexId) == 0 ||
+      m_eventOp->getValue("index_version", (char*)&head.m_indexVersion) == 0 ||
+      m_eventOp->getValue("table_id", (char*)&head.m_tableId) == 0 ||
+      m_eventOp->getValue("frag_count", (char*)&head.m_fragCount) == 0 ||
+      m_eventOp->getValue("value_format", (char*)&head.m_valueFormat) == 0 ||
+      m_eventOp->getValue("sample_version", (char*)&head.m_sampleVersion) == 0 ||
+      m_eventOp->getValue("load_time", (char*)&head.m_loadTime) == 0 ||
+      m_eventOp->getValue("sample_count", (char*)&head.m_sampleCount) == 0 ||
+      m_eventOp->getValue("key_bytes", (char*)&head.m_keyBytes) == 0)
+  {
+    setError(m_eventOp->getNdbError().code, __LINE__);
+    return -1;
+  }
+  // wl4124_todo why this
+  static Head xxx;
+  if (m_eventOp->getPreValue("index_id", (char*)&xxx.m_indexId) == 0 ||
+      m_eventOp->getPreValue("index_version", (char*)&xxx.m_indexVersion) == 0 ||
+      m_eventOp->getPreValue("table_id", (char*)&xxx.m_tableId) == 0 ||
+      m_eventOp->getPreValue("frag_count", (char*)&xxx.m_fragCount) == 0 ||
+      m_eventOp->getPreValue("value_format", (char*)&xxx.m_valueFormat) == 0 ||
+      m_eventOp->getPreValue("sample_version", (char*)&xxx.m_sampleVersion) == 0 ||
+      m_eventOp->getPreValue("load_time", (char*)&xxx.m_loadTime) == 0 ||
+      m_eventOp->getPreValue("sample_count", (char*)&xxx.m_sampleCount) == 0 ||
+      m_eventOp->getPreValue("key_bytes", (char*)&xxx.m_keyBytes) == 0)
+  {
+    setError(m_eventOp->getNdbError().code, __LINE__);
+    return -1;
+  }
+  return 0;
+}
+
+int
+NdbIndexStatImpl::execute_listener(Ndb* ndb)
+{
+  if (m_eventOp == 0)
+  {
+    setError(UsageError, __LINE__);
+    return -1;
+  }
+  if (m_eventOp->execute() == -1)
+  {
+    setError(m_eventOp->getNdbError().code, __LINE__);
+    return -1;
+  }
+  return 0;
+}
+
+int
+NdbIndexStatImpl::poll_listener(Ndb* ndb, int max_wait_ms)
+{
+  int ret;
+  if ((ret = ndb->pollEvents(max_wait_ms)) < 0)
+  {
+    setError(ndb->getNdbError().code, __LINE__);
+    return -1;
+  }
+  return (ret == 0 ? 0 : 1);
+}
+
+int
+NdbIndexStatImpl::next_listener(Ndb* ndb)
+{
+  NdbEventOperation* op = ndb->nextEvent();
+  if (op == 0)
+    return 0;
+
+  Head& head = m_facadeHead;
+  head.m_eventType = (int)op->getEventType();
+  return 1;
+}
+
+int
+NdbIndexStatImpl::drop_listener(Ndb* ndb)
+{
+  if (m_eventOp == 0)
+  {
+    setError(UsageError, __LINE__);
+    return -1;
+  }
+  if (ndb->dropEventOperation(m_eventOp) != 0)
+  {
+    setError(ndb->getNdbError().code, __LINE__);
+    return -1;
+  }
+  m_eventOp = 0;
+  return 0;
+}
+
+// mem alloc - default impl
 
 NdbIndexStatImpl::MemDefault::MemDefault()
 {
-  m_used = 0;
 }
 
 NdbIndexStatImpl::MemDefault::~MemDefault()
 {
-  assert(m_used == 0);
 }
 
 void*
 NdbIndexStatImpl::MemDefault::mem_alloc(UintPtr size)
 {
-  if (size == 0 || size % 4 != 0)
-  {
-    size += 4 - size % 4;
-  }
-  Item* item = (Item*)malloc(sizeof(Item) + size);
-  if (item != 0)
-  {
-    item->m_magic = MemMagic;
-    item->m_size = size;
-    void* ptr = &item[1];
-    m_used += size;
-    return ptr;
-  }
-  return 0;
+  void* ptr = malloc(size);
+  return ptr;
 }
 
 void
 NdbIndexStatImpl::MemDefault::mem_free(void* ptr)
 {
   if (ptr != 0)
-  {
-    Item* item = (Item*)ptr - 1;
-    assert(item->m_magic == MemMagic);
-    size_t size = item->m_size;
-    item->m_magic = 0;
-    free(item);
-    assert(m_used >= size);
-    m_used -= size;
-  }
-}
-
-UintPtr
-NdbIndexStatImpl::MemDefault::mem_used() const
-{
-  return m_used;
+    free(ptr);
 }
 
 // error

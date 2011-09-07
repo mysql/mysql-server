@@ -2381,49 +2381,6 @@ check_queues_empty(thr_data *selfptr)
 }
 
 /*
- * Map instance number to real instance on this node.  Used in
- * sendlocal/sendprioa to find right thread and in execute_signals
- * to find right block instance.  SignalHeader is not modified.
- */
-
-static Uint8 g_map_instance[MAX_BLOCK_INSTANCES];
-
-static void
-map_instance_init()
-{
-  g_map_instance[0] = 0;
-  Uint32 ino;
-  for (ino = 1; ino < MAX_BLOCK_INSTANCES; ino++)
-  {
-    if (!globalData.isNdbMtLqh)
-    {
-      g_map_instance[ino] = 0;
-    }
-    else
-    {
-      require(num_lqh_workers != 0);
-      if (ino <= MAX_NDBMT_LQH_WORKERS)
-      {
-        g_map_instance[ino] = 1 + (ino - 1) % num_lqh_workers;
-      }
-      else
-      {
-        /* Extra workers are not mapped. */
-        g_map_instance[ino] = ino;
-      }
-    }
-  }
-}
-
-static inline Uint32
-map_instance(const SignalHeader *s)
-{
-  Uint32 ino = blockToInstance(s->theReceiversBlockNumber);
-  assert(ino < MAX_BLOCK_INSTANCES);
-  return g_map_instance[ino];
-}
-
-/*
  * Execute at most MAX_SIGNALS signals from one job queue, updating local read
  * state as appropriate.
  *
@@ -2489,7 +2446,7 @@ execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
       NDB_PREFETCH_READ (read_buffer->m_data + read_pos + 32);
     }
     Uint32 bno = blockToMain(s->theReceiversBlockNumber);
-    Uint32 ino = map_instance(s);
+    Uint32 ino = blockToInstance(s->theReceiversBlockNumber);
     SimulatedBlock* block = globalData.mt_getBlock(bno, ino);
     assert(block != 0);
 
@@ -2572,8 +2529,8 @@ run_job_buffers(thr_data *selfptr, Signal *sig, Uint32 *signalIdCounter)
 }
 
 struct thr_map_entry {
-  enum { NULL_THR_NO = 0xFFFF };
-  Uint32 thr_no;
+  enum { NULL_THR_NO = 0xFF };
+  Uint8 thr_no;
   thr_map_entry() : thr_no(NULL_THR_NO) {}
 };
 
@@ -2681,6 +2638,50 @@ add_extra_worker_thr_map(Uint32 block, Uint32 instance)
   add_thr_map(block, instance, thr_no);
 }
 
+/**
+ * create the duplicate entries needed so that
+ *   sender doesnt need to know how many instances there
+ *   actually are in this node...
+ *
+ * if only 1 instance...then duplicate that for all slots
+ * else assume instance 0 is proxy...and duplicate workers (modulo)
+ *
+ * NOTE: extra pgman worker is instance 5
+ */
+void
+finalize_thr_map()
+{
+  for (Uint32 b = 0; b < NO_OF_BLOCKS; b++)
+  {
+    Uint32 bno = b + MIN_BLOCK_NO;
+    Uint32 cnt = 0;
+    while (cnt < MAX_BLOCK_INSTANCES &&
+           thr_map[b][cnt].thr_no != thr_map_entry::NULL_THR_NO)
+      cnt++;
+
+    if (cnt != MAX_BLOCK_INSTANCES)
+    {
+      SimulatedBlock * main = globalData.getBlock(bno, 0);
+      for (Uint32 i = cnt; i < MAX_BLOCK_INSTANCES; i++)
+      {
+        Uint32 dup = (cnt == 1) ? 0 : 1 + ((i - 1) % (cnt - 1));
+        if (thr_map[b][i].thr_no == thr_map_entry::NULL_THR_NO)
+        {
+          thr_map[b][i] = thr_map[b][dup];
+          main->addInstance(globalData.getBlock(bno, dup), i);
+        }
+        else
+        {
+          /**
+           * extra pgman instance
+           */
+          require(bno == PGMAN);
+        }
+      }
+    }
+  }
+}
+
 static void reportSignalStats(Uint32 self, Uint32 a_count, Uint32 a_size,
                               Uint32 b_count, Uint32 b_size)
 {
@@ -2753,6 +2754,7 @@ init_thread(thr_data *selfptr)
       NdbSleep_MilliSleep(30);
   }
 
+  THRConfigApplier & conf = globalEmulatorData.theConfiguration->m_thr_config;
   BaseString tmp;
   tmp.appfmt("thr: %u ", thr_no);
 
@@ -2762,22 +2764,21 @@ init_thread(thr_data *selfptr)
     tmp.appfmt("tid: %u ", tid);
   }
 
-  if (selfptr->m_cpu != NO_LOCK_CPU)
+  conf.appendInfo(tmp,
+                  selfptr->m_instance_list, selfptr->m_instance_count);
+  int res = conf.do_bind(selfptr->m_thread,
+                         selfptr->m_instance_list, selfptr->m_instance_count);
+  if (res < 0)
   {
-    tmp.appfmt("cpu: %u ", selfptr->m_cpu);
-    int res = NdbThread_LockCPU(selfptr->m_thread, selfptr->m_cpu);
-    if (res == 0)
-    {
-      tmp.appfmt("OK ");
-    }
-    else
-    {
-      tmp.appfmt("err: %u ", res);
-    }
+    tmp.appfmt("err: %d ", -res);
+  }
+  else if (res > 0)
+  {
+    tmp.appfmt("OK ");
   }
 
   selfptr->m_thr_id = pthread_self();
-  
+
   for (Uint32 i = 0; i < selfptr->m_instance_count; i++) 
   {
     BlockReference block = selfptr->m_instance_list[i];
@@ -3120,7 +3121,7 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
           const Uint32 secPtr[3])
 {
   Uint32 block = blockToMain(s->theReceiversBlockNumber);
-  Uint32 instance = map_instance(s);
+  Uint32 instance = blockToInstance(s->theReceiversBlockNumber);
 
   /*
    * Max number of signals to put into job buffer before flushing the buffer
@@ -3156,7 +3157,7 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
           const Uint32 secPtr[3])
 {
   Uint32 block = blockToMain(s->theReceiversBlockNumber);
-  Uint32 instance = map_instance(s);
+  Uint32 instance = blockToInstance(s->theReceiversBlockNumber);
 
   Uint32 dst = block2ThreadId(block, instance);
   struct thr_repository* rep = &g_thr_repository;
@@ -3250,28 +3251,11 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   */
   static thr_job_buffer dummy_buffer;
 
-  /*
-   * Before we had three main threads with fixed block assignment.
-   * Now there is also worker instances (we send to LQH instance).
+  /**
+   * Pick any instance running in this thread
    */
-  Uint32 main = 0;
-  Uint32 instance = 0;
-  if (dst == 0)
-    main = NDBCNTR;
-  else if (dst == 1)
-    main = DBLQH;
-  else if (dst >= NUM_MAIN_THREADS && dst < NUM_MAIN_THREADS + num_lqh_threads)
-  {
-    main = DBLQH;
-    instance = dst - NUM_MAIN_THREADS + 1;
-  }
-  else if (dst == receiver_thread_no)
-    main = CMVMI;
-  else
-    require(false);
-  Uint32 bno = numberToBlock(main, instance);
-  require(block2ThreadId(main, instance) == dst);
   struct thr_data * dstptr = rep->m_thread + dst;
+  Uint32 bno = dstptr->m_instance_list[0];
 
   memset(&signalT.header, 0, sizeof(SignalHeader));
   signalT.header.theVerId_signalNumber   = GSN_STOP_FOR_CRASH;
@@ -3507,7 +3491,6 @@ ThreadConfig::init()
 
   ndbout << "NDBMT: num_threads=" << num_threads << endl;
 
-  ::map_instance_init();
   ::rep_init(&g_thr_repository, num_threads,
              globalEmulatorData.m_mem_manager);
 }
@@ -3516,109 +3499,13 @@ static
 void
 setcpuaffinity(struct thr_repository* rep)
 {
-  SparseBitmask mask =
-    globalEmulatorData.theConfiguration->getExecuteCpuMask();
-
-
-  bool mtlqh = globalData.ndbMtLqhThreads > 0;
-  unsigned cnt = mask.count();
-  if (cnt == 0)
+  THRConfigApplier & conf = globalEmulatorData.theConfiguration->m_thr_config;
+  conf.create_cpusets();
+  if (conf.getInfoMessage())
   {
-    return;
+    printf("%s", conf.getInfoMessage());
+    fflush(stdout);
   }
-
-  if (cnt < num_threads)
-  {
-    ndbout_c("WARNING: Too few CPU's specified with "
-             "LockExecuteThreadToCPU. Only %d specified "
-             " but %d was needed, this may cause contention.",
-             cnt, num_threads);
-  }
-
-  if (cnt >= num_threads)
-  {
-    ndbout_c("Assigning each thread its own CPU");
-    unsigned cpu = mask.find(0);
-    for (unsigned thr_no = 0; thr_no < num_threads; thr_no++)
-    {
-      rep->m_thread[thr_no].m_cpu = cpu;
-      cpu = mask.find(cpu + 1);
-    }
-  }
-  else if (cnt == 1)
-  {
-    unsigned cpu = mask.find(0);
-    ndbout_c("Assigning all threads to CPU %u", cpu);
-    for (unsigned thr_no = 0; thr_no < num_threads; thr_no++)
-    {
-      rep->m_thread[thr_no].m_cpu = cpu;
-    }
-  }
-  else if (mtlqh)
-  {
-    if (cnt > globalData.ndbMtLqhThreads)
-    {
-      /**
-       * let each LQH have it's own CPU and rest share...
-       */
-      ndbout_c("Assigning LQH threads to dedicated CPU(s) and "
-               "other threads will share remaining");
-      // LQH threads start with 2
-      unsigned cpu = mask.find(0);
-      for (unsigned thr_no = 2; thr_no < num_threads - 1; thr_no++)
-      {
-        rep->m_thread[thr_no].m_cpu = cpu;
-        mask.clear(cpu);
-        cpu = mask.find(cpu + 1);
-      }
-
-      cpu = mask.find(0);
-      rep->m_thread[0].m_cpu = cpu; // TC
-      rep->m_thread[1].m_cpu = cpu; // backup/suma
-      if ((cpu = mask.find(cpu + 1)) == mask.NotFound)
-      {
-        cpu = mask.find(0);
-      }
-      rep->m_thread[receiver_thread_no].m_cpu = cpu; // receiver
-    }
-    else
-    {
-      // put receiver, tc, backup/suma in 1 thread,
-      // and round robin LQH for rest
-      unsigned cpu = mask.find(0);
-      ndbout_c("Assigning LQH threads round robin to CPU(s) and "
-               "other threads will share CPU %u", cpu);
-      rep->m_thread[0].m_cpu = cpu; // TC
-      rep->m_thread[1].m_cpu = cpu; // backup/suma
-      rep->m_thread[receiver_thread_no].m_cpu = cpu; // receiver
-      mask.clear(cpu);
-      cpu = mask.find(0);
-      for (unsigned thr_no = 2; thr_no < num_threads - 1; thr_no++)
-      {
-        rep->m_thread[thr_no].m_cpu = cpu;
-        cpu = mask.find(cpu + 1);
-        if (cpu == mask.NotFound)
-        {
-          cpu = mask.find(0);
-        }
-      }
-    }
-  }
-  else
-  {
-    /**
-     * mt-classic and cnt > 1
-     */
-    require(num_threads == 3);
-    unsigned cpu = mask.find(0);
-    ndbout_c("Assigning LQH thread to CPU %u and "
-             "other threads will share", cpu);
-    rep->m_thread[1].m_cpu = cpu; // LQH
-    cpu = mask.find(cpu + 1);
-    rep->m_thread[0].m_cpu = cpu;
-    rep->m_thread[2].m_cpu = cpu;
-  }
-
 }
 
 void

@@ -40,70 +40,10 @@ Bundle-Name: ${NAME}
 Bundle-Description: ClusterJ")
 ENDMACRO(CREATE_MANIFEST)
 
-MACRO(ADD_FILES_TO_JAR TARGET)
-
-  MYSQL_PARSE_ARGUMENTS(ARG
-    ""
-    ""
-    ${ARGN}
-  )
-
-  SET(JAVA_CLASSES ${ARG_DEFAULT_ARGS})
-
-  LIST(LENGTH JAVA_CLASSES CLASS_LIST_LENGTH)
-  MATH(EXPR EVEN "${CLASS_LIST_LENGTH}%2")
-  IF(EVEN GREATER 0)
-    MESSAGE(SEND_ERROR "CREATE_JAR_FROM_CLASSES has ${CLASS_LIST_LENGTH} but needs equal number of class parameters")
-  ENDIF()
-
-  MATH(EXPR CLASS_LIST_LENGTH "${CLASS_LIST_LENGTH} - 2")
-
-  SET_JAVA_NDB_VERSION()
-
-  FOREACH(I RANGE 0 ${CLASS_LIST_LENGTH} 2)
-
-    MATH(EXPR J "${I} + 1")
-    LIST(GET JAVA_CLASSES ${I} DIR)
-    LIST(GET JAVA_CLASSES ${J} IT)
-    SET(CLASS_DIRS -C ${DIR} ${IT})
-
-    ADD_CUSTOM_COMMAND( TARGET  ${TARGET}.jar POST_BUILD
-      COMMAND echo \"${JAVA_ARCHIVE} ufv ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar ${CLASS_DIRS}\"
-      COMMAND ${JAVA_ARCHIVE} ufv ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar ${CLASS_DIRS}
-      COMMENT "adding ${CLASS_DIRS} to target ${TARGET}-${JAVA_NDB_VERSION}.jar")
-
-  ENDFOREACH(I RANGE 0 ${CLASS_LIST_LENGTH} 2)
-
-ENDMACRO(ADD_FILES_TO_JAR)
-
-
-MACRO(CREATE_JAR_FROM_CLASSES TARGET)
-
-  MYSQL_PARSE_ARGUMENTS(ARG
-    "DEPENDENCIES;MANIFEST"
-    ""
-    ${ARGN}
-  )
-
-  SET_JAVA_NDB_VERSION()
-
-  ADD_CUSTOM_TARGET( ${TARGET}.jar ALL
-      COMMAND echo \"${JAVA_ARCHIVE} cfvm ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar ${ARG_MANIFEST}\"
-      COMMAND ${JAVA_ARCHIVE} cfvm ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar ${ARG_MANIFEST} )
-  FOREACH(DEP ${ARG_DEPENDENCIES})
-    ADD_DEPENDENCIES(${TARGET}.jar ${DEP})
-  ENDFOREACH(DEP ${ARG_DEPENDENCIES})
-
-  ADD_FILES_TO_JAR(${TARGET} "${ARG_DEFAULT_ARGS}")
-
-ENDMACRO(CREATE_JAR_FROM_CLASSES)
-
-
-# the target
 MACRO(CREATE_JAR)
 
   MYSQL_PARSE_ARGUMENTS(ARG
-    "CLASSPATH;DEPENDENCIES;MANIFEST;ENHANCE;EXTRA_FILES"
+    "CLASSPATH;MERGE_JARS;DEPENDENCIES;MANIFEST;ENHANCE;EXTRA_FILES"
     ""
     ${ARGN}
   )
@@ -112,18 +52,11 @@ MACRO(CREATE_JAR)
   SET(JAVA_FILES ${ARG_DEFAULT_ARGS})
   LIST(REMOVE_AT JAVA_FILES 0)
 
-  SET (CLASS_DIR "target/classes")
-  SET (JAR_DIR ".")
-
-  FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CLASS_DIR})
-  FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${JAR_DIR})
-  SET(TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CLASS_DIR})
+  SET (BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/target")
+  SET (CLASS_DIR "${BUILD_DIR}/classes")
+  SET (TARGET_DIR "${CLASS_DIR}")
 
   SET_JAVA_NDB_VERSION()
-
-  ADD_CUSTOM_TARGET( ${TARGET}.jar ALL
-    COMMAND echo \"${JAVA_ARCHIVE} cfv ${JAR_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar -C ${CLASS_DIR} .\"
-    COMMAND ${JAVA_ARCHIVE} cfv ${JAR_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar -C ${CLASS_DIR} .)
 
   # Concatenate the ARG_CLASSSPATH(a list of strings) into a string
   # with platform specific separator
@@ -140,28 +73,124 @@ MACRO(CREATE_JAR)
   ENDFOREACH()
   # MESSAGE(STATUS "classpath_str: ${classpath_str}")
 
+  # Target jar-file
+  SET(JAR ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar)
 
-  IF(EXISTS ${ARG_ENHANCE})
-    MESSAGE(STATUS "enhancing ${TARGET}.jar")
-    SET(ENHANCER org.apache.openjpa.enhance.PCEnhancer)
-    ADD_CUSTOM_COMMAND( TARGET ${TARGET}.jar PRE_BUILD
-      COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
-      COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}
-      COMMAND echo \"${JAVA_RUNTIME} -classpath ${classpath_str}${separator}${WITH_CLASSPATH} ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}\"
-      COMMAND ${JAVA_RUNTIME} -classpath "${classpath_str}${separator}${WITH_CLASSPATH}" ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}
-    )
-  ELSE()
-    ADD_CUSTOM_COMMAND( TARGET ${TARGET}.jar PRE_BUILD
+  # Marker for dependency handling
+  SET(MARKER_BASE ${BUILD_DIR}/create_jar)
+  SET(COUNTER 0)
+  SET(MARKER "${MARKER_BASE}.${COUNTER}")
+
+  # Add target
+  ADD_CUSTOM_TARGET(${TARGET}.jar ALL DEPENDS ${JAR})
+
+  # Compile
+  IF (JAVA_FILES)
+    ADD_CUSTOM_COMMAND(
+      OUTPUT ${MARKER}
+      COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CLASS_DIR}
       COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
       COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
+      COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
+      DEPENDS ${JAVA_FILES}
+      COMMENT "Building objects for ${TARGET}.jar"
+    )
+  ELSE()
+    ADD_CUSTOM_COMMAND(
+      OUTPUT ${MARKER}
+      COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CLASS_DIR}
+      COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
+      DEPENDS ${JAVA_FILES}
+      COMMENT "No files to compile for ${TARGET}.jar"
     )
   ENDIF()
 
-  LIST(LENGTH ARG_EXTRA_FILES LIST_LENGTH)
-  IF(LIST_LENGTH GREATER 0)
-    ADD_FILES_TO_JAR(${TARGET} "${ARG_EXTRA_FILES}")
+  # Copy extra files/directories
+  FOREACH(F ${ARG_EXTRA_FILES})
+
+    SET(OLD_MARKER ${MARKER})
+    MATH(EXPR COUNTER "${COUNTER} + 1")
+    SET(MARKER "${MARKER_BASE}.${COUNTER}")
+
+    GET_FILENAME_COMPONENT(N ${F} NAME)
+    IF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${F})
+      ADD_CUSTOM_COMMAND(
+        OUTPUT ${MARKER}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${F} ${CLASS_DIR}/${N}
+        COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
+        DEPENDS ${F} ${OLD_MARKER}
+        COMMENT "Adding directory ${N} to ${TARGET}.jar"
+      )
+    ELSE()
+      ADD_CUSTOM_COMMAND(
+        OUTPUT ${MARKER}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${F} ${CLASS_DIR}/${N}
+        COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
+        DEPENDS ${F} ${OLD_MARKER}
+        COMMENT "Adding file ${N} to ${TARGET}.jar"
+      )
+    ENDIF()
+  ENDFOREACH()
+
+  # Enhance
+  IF(EXISTS ${ARG_ENHANCE})
+    SET(ENHANCER org.apache.openjpa.enhance.PCEnhancer)
+
+    SET(OLD_MARKER ${MARKER})
+    MATH(EXPR COUNTER "${COUNTER} + 1")
+    SET(MARKER "${MARKER_BASE}.${COUNTER}")
+
+    ADD_CUSTOM_COMMAND(
+      OUTPUT ${MARKER}
+      COMMAND echo \"${JAVA_RUNTIME} -classpath ${classpath_str}${separator}${WITH_CLASSPATH} ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}\"
+      COMMAND ${JAVA_RUNTIME} -classpath "${classpath_str}${separator}${WITH_CLASSPATH}" ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}
+      
+      COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
+      DEPENDS ${OLD_MARKER}
+      COMMENT "Enhancing objects for ${TARGET}.jar"
+    )
   ENDIF()
 
+  # Unpack extra jars
+  FOREACH(_J ${ARG_MERGE_JARS})
+
+    SET(OLD_MARKER ${MARKER})
+    MATH(EXPR COUNTER "${COUNTER} + 1")
+    SET(MARKER "${MARKER_BASE}.${COUNTER}")
+
+    GET_FILENAME_COMPONENT(P ${_J} PATH)
+    GET_FILENAME_COMPONENT(N ${_J} NAME_WE)
+    SET(J ${P}/${N}-${JAVA_NDB_VERSION}.jar)
+
+    ADD_CUSTOM_COMMAND(
+      OUTPUT ${MARKER}
+      COMMAND ${JAVA_ARCHIVE} xf ${J}
+      COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
+      DEPENDS ${J} ${OLD_MARKER}
+      WORKING_DIRECTORY ${CLASS_DIR}
+      COMMENT "Unpacking ${N}.jar"
+    )
+  ENDFOREACH()
+
+  # Create JAR
+  SET(_ARG cf)
+  IF(ARG_MANIFEST)
+    SET(_ARG cfm)
+  ENDIF()
+
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${JAR}
+    COMMAND echo \"${JAVA_ARCHIVE} ${_ARG} ${JAR}.tmp ${ARG_MANIFEST} -C ${CLASS_DIR} .\"
+    COMMAND ${JAVA_ARCHIVE} ${_ARG} ${JAR}.tmp ${ARG_MANIFEST} -C ${CLASS_DIR} .
+    COMMAND ${CMAKE_COMMAND} -E copy ${JAR}.tmp ${JAR}
+    COMMAND ${CMAKE_COMMAND} -E remove ${JAR}.tmp
+    COMMENT "Creating ${TARGET}.jar"
+    DEPENDS ${MARKER}
+  )
+
+  # Add CMake dependencies
   FOREACH(DEP ${ARG_DEPENDENCIES})
     ADD_DEPENDENCIES(${TARGET}.jar ${DEP})
   ENDFOREACH(DEP ${ARG_DEPENDENCIES})

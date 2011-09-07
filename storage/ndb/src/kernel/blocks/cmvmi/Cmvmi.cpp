@@ -1687,13 +1687,9 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   }
   if (arg == DumpStateOrd::CmvmiExecuteLockCPU)
   {
-    Uint32 exec_cpu_id = signal->theData[1];
-    globalEmulatorData.theConfiguration->executeLockCPU(exec_cpu_id);
   }
   if (arg == DumpStateOrd::CmvmiMaintLockCPU)
   {
-    Uint32 maint_cpu_id = signal->theData[1];
-    globalEmulatorData.theConfiguration->maintLockCPU(maint_cpu_id);
   }
   if (arg == DumpStateOrd::CmvmiSetRestartOnErrorInsert)
   {

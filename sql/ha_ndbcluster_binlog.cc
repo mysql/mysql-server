@@ -53,6 +53,8 @@ bool ndb_log_empty_epochs(void);
 */
 #include "ha_ndbcluster_tables.h"
 
+#include "ndb_dist_priv_util.h"
+
 /*
   Timeout for syncing schema events between
   mysql servers, and between mysql server and the binlog
@@ -398,6 +400,12 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
            strcmp(share->table_name, NDB_APPLY_TABLE) == 0)
     do_event_op= 1;
 
+  if (Ndb_dist_priv_util::is_distributed_priv_table(share->db,
+                                                    share->table_name))
+  {
+    do_event_op= 0;
+  }
+
   {
     int i, no_nodes= g_ndb_cluster_connection->no_db_nodes();
     share->subscriber_bitmap= (MY_BITMAP*)
@@ -629,6 +637,44 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
   DBUG_RETURN(error);
 }
 
+
+// Determine if privilege tables are distributed, ie. stored in NDB
+static bool
+priv_tables_are_in_ndb(THD *thd)
+{
+  bool distributed= false;
+  Ndb_dist_priv_util dist_priv;
+  DBUG_ENTER("ndbcluster_distributed_privileges");
+
+  Ndb *ndb= check_ndb_in_thd(thd);
+  if (!ndb)
+    DBUG_RETURN(false); // MAGNUS, error message?
+
+  if (ndb->setDatabaseName(dist_priv.database()) != 0)
+    DBUG_RETURN(false);
+
+  const char* table_name;
+  while((table_name= dist_priv.iter_next_table()))
+  {
+    DBUG_PRINT("info", ("table_name: %s", table_name));
+    Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
+    const NDBTAB *ndbtab= ndbtab_g.get_table();
+    if (ndbtab)
+    {
+      distributed= true;
+    }
+    else if (distributed)
+    {
+      sql_print_error("NDB: Inconsistency detected in distributed "
+                      "privilege tables. Table '%s.%s' is not distributed",
+                      dist_priv.database(), table_name);
+      DBUG_RETURN(false);
+    }
+  }
+  DBUG_RETURN(distributed);
+}
+
+
 static void
 ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binlog_command,
                             const char *query, uint query_length,
@@ -678,6 +724,46 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
   case LOGCOM_DROP_DB:
     type= SOT_DROP_DB;
     DBUG_ASSERT(FALSE);
+    break;
+  case LOGCOM_CREATE_USER:
+    type= SOT_CREATE_USER;
+    if (priv_tables_are_in_ndb(thd))
+    {
+      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
+      log= 1;
+    }
+    break;
+  case LOGCOM_DROP_USER:
+    type= SOT_DROP_USER;
+    if (priv_tables_are_in_ndb(thd))
+    {
+      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
+      log= 1;
+    }
+    break;
+  case LOGCOM_RENAME_USER:
+    type= SOT_RENAME_USER;
+    if (priv_tables_are_in_ndb(thd))
+    {
+      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
+      log= 1;
+    }
+    break;
+  case LOGCOM_GRANT:
+    type= SOT_GRANT;
+    if (priv_tables_are_in_ndb(thd))
+    {
+      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
+      log= 1;
+    }
+    break;
+  case LOGCOM_REVOKE:
+    type= SOT_REVOKE;
+    if (priv_tables_are_in_ndb(thd))
+    {
+      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
+      log= 1;
+    }
     break;
   }
   if (log)
@@ -1684,6 +1770,16 @@ get_schema_type_name(uint type)
     return "ONLINE_ALTER_TABLE_PREPARE";
   case SOT_ONLINE_ALTER_TABLE_COMMIT:
     return "ONLINE_ALTER_TABLE_COMMIT";
+  case SOT_CREATE_USER:
+    return "CREATE_USER";
+  case SOT_DROP_USER:
+    return "DROP_USER";
+  case SOT_RENAME_USER:
+    return "RENAME_USER";
+  case SOT_GRANT:
+    return "GRANT";
+  case SOT_REVOKE:
+    return "REVOKE";
   }
   return "<unknown>";
 }
@@ -1784,6 +1880,21 @@ int ndbcluster_log_schema_op(THD *thd,
     break;
   case SOT_TRUNCATE_TABLE:
     type_str= "truncate table";
+    break;
+  case SOT_CREATE_USER:
+    type_str= "create user";
+    break;
+  case SOT_DROP_USER:
+    type_str= "drop user";
+    break;
+  case SOT_RENAME_USER:
+    type_str= "rename user";
+    break;
+  case SOT_GRANT:
+    type_str= "grant/revoke";
+    break;
+  case SOT_REVOKE:
+    type_str= "revoke all";
     break;
   default:
     abort(); /* should not happen, programming error */
@@ -2518,6 +2629,26 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           log_query= 1;
           break;
         }
+        case SOT_CREATE_USER:
+        case SOT_DROP_USER:
+        case SOT_RENAME_USER:
+        case SOT_GRANT:
+        case SOT_REVOKE:
+        {
+          if (opt_ndb_extra_logging > 9)
+            sql_print_information("Got dist_priv event: %s, "
+                                  "flushing privileges",
+                                  get_schema_type_name(schema_type));
+
+          thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+          const int no_print_error[1]= {0};
+          char *cmd= (char *) "flush privileges";
+          run_query(thd, cmd,
+                    cmd + strlen(cmd),
+                    no_print_error);
+          log_query= 1;
+	  break;
+        }
         case SOT_TABLESPACE:
         case SOT_LOGFILE_GROUP:
           log_query= 1;
@@ -2828,7 +2959,9 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         }
 
         thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-        if (ndbcluster_check_if_local_table(schema->db, schema->name))
+        if (ndbcluster_check_if_local_table(schema->db, schema->name) &&
+           !Ndb_dist_priv_util::is_distributed_priv_table(schema->db,
+                                                          schema->name))
         {
           sql_print_error("NDB Binlog: Skipping locally defined table '%s.%s' "
                           "from binlog schema event '%s' from node %d.",
@@ -3767,10 +3900,84 @@ row_conflict_fn_max_del_win(NDB_CONFLICT_FN_SHARE* cfn_share,
   }
 };
 
+
+/**
+  CFT_NDB_EPOCH
+
+*/
+
+int
+row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE* cfn_share,
+                      enum_conflicting_op_type op_type,
+                      const uchar* old_data,
+                      const uchar* new_data,
+                      const MY_BITMAP* write_set,
+                      NdbInterpretedCode* code)
+{
+  DBUG_ENTER("row_conflict_fn_epoch");
+  switch(op_type)
+  {
+  case WRITE_ROW:
+    abort();
+    DBUG_RETURN(1);
+  case UPDATE_ROW:
+  case DELETE_ROW:
+  {
+    const uint label_0= 0;
+    const Uint32
+      RegAuthor= 1, RegZero= 2,
+      RegMaxRepEpoch= 1, RegRowEpoch= 2;
+    int r;
+
+    r= code->load_const_u32(RegZero, 0);
+    assert(r == 0);
+    r= code->read_attr(RegAuthor, NdbDictionary::Column::ROW_AUTHOR);
+    assert(r == 0);
+    /* If last author was not local, assume no conflict */
+    r= code->branch_ne(RegZero, RegAuthor, label_0);
+    assert(r == 0);
+
+    /*
+     * Load registers RegMaxRepEpoch and RegRowEpoch
+     */
+    r= code->load_const_u64(RegMaxRepEpoch, g_ndb_slave_state.max_rep_epoch);
+    assert(r == 0);
+    r= code->read_attr(RegRowEpoch, NdbDictionary::Column::ROW_GCI64);
+    assert(r == 0);
+
+    /*
+     * if RegRowEpoch <= RegMaxRepEpoch goto label_0
+     * else raise error for this row
+     */
+    r= code->branch_le(RegRowEpoch, RegMaxRepEpoch, label_0);
+    assert(r == 0);
+    r= code->interpret_exit_nok(error_conflict_fn_violation);
+    assert(r == 0);
+    r= code->def_label(label_0);
+    assert(r == 0);
+    r= code->interpret_exit_ok();
+    assert(r == 0);
+    r= code->finalise();
+    assert(r == 0);
+    DBUG_RETURN(r);
+  }
+  default:
+    abort();
+    DBUG_RETURN(1);
+  }
+};
+
 static const st_conflict_fn_arg_def resolve_col_args[]=
 {
   /* Arg type              Optional */
   { CFAT_COLUMN_NAME,      false },
+  { CFAT_END,              false }
+};
+
+static const st_conflict_fn_arg_def epoch_fn_args[]=
+{
+  /* Arg type              Optional */
+  { CFAT_EXTRA_GCI_BITS,   true  },
   { CFAT_END,              false }
 };
 
@@ -3782,6 +3989,8 @@ static const st_conflict_fn_def conflict_fns[]=
     &resolve_col_args[0], row_conflict_fn_max         },
   { "NDB$OLD",            CFT_NDB_OLD,
     &resolve_col_args[0], row_conflict_fn_old         },
+  { "NDB$EPOCH",          CFT_NDB_EPOCH,
+    &epoch_fn_args[0],    row_conflict_fn_epoch       }
 };
 
 static unsigned n_conflict_fns=
@@ -3911,6 +4120,24 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
         }
         break;
       }
+      case CFAT_EXTRA_GCI_BITS:
+      {
+        /* Map string to number and check it's in range etc */
+        char* end_of_arg = (char*) end_arg;
+        Uint32 bits = strtoul(start_arg, &end_of_arg, 0);
+        DBUG_PRINT("info", ("Using %u as the number of extra bits", bits));
+
+        if (bits > 31)
+        {
+          arg_processing_error= true;
+          error_str= "Too many extra Gci bits";
+          DBUG_PRINT("info", ("%s", error_str));
+          break;
+        }
+        /* Num bits seems ok */
+        args[no_args].extraGciBits = bits;
+        break;
+      }
       case CFAT_END:
         abort();
       }
@@ -4014,6 +4241,57 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
                              table->s->table_name.str,
                              conflict_fn->name,
                              table->s->field[args[0].fieldno]->field_name);
+    }
+    break;
+  }
+  case CFT_NDB_EPOCH:
+  {
+    if (num_args > 1)
+    {
+      my_snprintf(msg, msg_len,
+                  "Too many arguments to conflict function");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    /* Check that table doesn't have Blobs as we don't support that */
+    if (share->flags & NSF_BLOB_FLAG)
+    {
+      my_snprintf(msg, msg_len, "Table has Blob column(s), not suitable for NDB$EPOCH.");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    /* Check that table has required extra meta-columns */
+    /* Todo : Could warn if extra gcibits is insufficient to
+     * represent SavePeriod/EpochPeriod
+     */
+    if (ndbtab->getExtraRowGciBits() == 0)
+      sql_print_information("Ndb Slave : CFT_NDB_EPOCH, low epoch resolution");
+
+    if (ndbtab->getExtraRowAuthorBits() == 0)
+    {
+      my_snprintf(msg, msg_len, "No extra row author bits in table.");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+
+    if (slave_set_resolve_fn(thd, share, ndbtab,
+                             0, // field_no
+                             0, // resolve_col_sz
+                             conflict_fn, table, CFF_REFRESH_ROWS))
+    {
+      my_snprintf(msg, msg_len,
+                  "unable to setup conflict resolution");
+      DBUG_PRINT("info", ("%s", msg));
+      DBUG_RETURN(-1);
+    }
+    if (opt_ndb_extra_logging)
+    {
+      sql_print_information("NDB Slave: Table %s.%s using conflict_fn %s.",
+                            table->s->db.str,
+                            table->s->table_name.str,
+                            conflict_fn->name);
     }
     break;
   }
@@ -4543,66 +4821,42 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                                    uint key_len,
                                    const char *db,
                                    const char *table_name,
-                                   my_bool share_may_exist)
+                                   TABLE * table)
 {
   int do_event_op= ndb_binlog_running;
   DBUG_ENTER("ndbcluster_create_binlog_setup");
-  DBUG_PRINT("enter",("key: %s  key_len: %d  %s.%s  share_may_exist: %d",
-                      key, key_len, db, table_name, share_may_exist));
+  DBUG_PRINT("enter",("key: %s  key_len: %d  %s.%s",
+                      key, key_len, db, table_name));
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(table_name));
   DBUG_ASSERT(strlen(key) == key_len);
 
   pthread_mutex_lock(&ndbcluster_mutex);
-
-  /* Handle any trailing share */
-  NDB_SHARE *share= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
-                                                (const uchar*) key, key_len);
-
-  if (share && share_may_exist)
+  NDB_SHARE * share = get_share(key, table, TRUE, TRUE);
+  if (share == 0)
   {
-    if (get_binlog_nologging(share) ||
-        share->op != 0 ||
-        share->new_op != 0)
-    {
-      pthread_mutex_unlock(&ndbcluster_mutex);
-      DBUG_RETURN(0); // replication already setup, or should not
-    }
+    /**
+     * Failed to create share
+     */
+    pthread_mutex_unlock(&ndbcluster_mutex);
+    DBUG_RETURN(-1);
+  }
+  pthread_mutex_unlock(&ndbcluster_mutex);
+
+  pthread_mutex_lock(&share->mutex);
+  if (get_binlog_nologging(share) || share->op != 0 || share->new_op != 0)
+  {
+    pthread_mutex_unlock(&share->mutex);
+    free_share(&share);
+    DBUG_RETURN(0); // replication already setup, or should not
   }
 
-  if (share)
+  if (Ndb_dist_priv_util::is_distributed_priv_table(db, table_name))
   {
-    if (share->op || share->new_op)
-    {
-      my_errno= HA_ERR_TABLE_EXIST;
-      pthread_mutex_unlock(&ndbcluster_mutex);
-      DBUG_RETURN(1);
-    }
-    if (!share_may_exist || share->connect_count != 
-        g_ndb_cluster_connection->get_connect_count())
-    {
-      handle_trailing_share(thd, share);
-      share= NULL;
-    }
-  }
-
-  /* Create share which is needed to hold replication information */
-  if (share)
-  {
-    /* ndb_share reference create */
-    ++share->use_count;
-    DBUG_PRINT("NDB_SHARE", ("%s create  use_count: %u",
-                             share->key, share->use_count));
-  }
-  /* ndb_share reference create */
-  else if (!(share= get_share(key, 0, TRUE, TRUE)))
-  {
-    sql_print_error("NDB Binlog: "
-                    "allocating table share for %s failed", key);
-  }
-  else
-  {
-    DBUG_PRINT("NDB_SHARE", ("%s create  use_count: %u",
-                             share->key, share->use_count));
+    // The distributed privilege tables are distributed by writing
+    // the CREATE USER, GRANT, REVOKE etc. to ndb_schema -> no need
+    // to listen to events from this table
+    DBUG_PRINT("info", ("Skipping binlogging of table %s/%s", db, table_name));
+    do_event_op= 0;
   }
 
   if (!ndb_schema_share &&
@@ -4617,10 +4871,9 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
   if (!do_event_op)
   {
     set_binlog_nologging(share);
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    pthread_mutex_unlock(&share->mutex);
     DBUG_RETURN(0);
   }
-  pthread_mutex_unlock(&ndbcluster_mutex);
 
   while (share && !IS_TMP_PREFIX(table_name))
   {
@@ -4658,6 +4911,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     {
       if (opt_ndb_extra_logging)
         sql_print_information("NDB Binlog: NOT logging %s", share->key);
+      pthread_mutex_unlock(&share->mutex);
       DBUG_RETURN(0);
     }
 
@@ -4700,10 +4954,14 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                       "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
                       event_name.c_ptr());
       /* a warning has been issued to the client */
-      DBUG_RETURN(0);
+      break;
     }
+    pthread_mutex_unlock(&share->mutex);
     DBUG_RETURN(0);
   }
+
+  pthread_mutex_unlock(&share->mutex);
+  free_share(&share);
   DBUG_RETURN(-1);
 }
 
@@ -4910,6 +5168,11 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
                         share->flags));
     DBUG_RETURN(0);
   }
+
+  // Don't allow event ops to be created on distributed priv tables
+  // they are distributed via ndb_schema
+  assert(!Ndb_dist_priv_util::is_distributed_priv_table(share->db,
+                                                        share->table_name));
 
   Ndb_event_data *event_data= share->event_data;
   int do_ndb_schema_share= 0, do_ndb_apply_status_share= 0;
@@ -5752,8 +6015,8 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   MY_BITMAP b;
   /* Potential buffer for the bitmap */
   uint32 bitbuf[128 / (sizeof(uint32) * 8)];
-  bitmap_init(&b, n_fields <= sizeof(bitbuf) * 8 ? bitbuf : NULL, 
-              n_fields, FALSE);
+  const bool own_buffer = n_fields <= sizeof(bitbuf) * 8;
+  bitmap_init(&b, own_buffer ? bitbuf : NULL, n_fields, FALSE); 
   bitmap_set_all(&b);
 
   /*
@@ -5914,6 +6177,11 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   {
     my_free(blobs_buffer[0], MYF(MY_ALLOW_ZERO_PTR));
     my_free(blobs_buffer[1], MYF(MY_ALLOW_ZERO_PTR));
+  }
+
+  if (!own_buffer)
+  {
+    bitmap_free(&b);
   }
 
   return 0;

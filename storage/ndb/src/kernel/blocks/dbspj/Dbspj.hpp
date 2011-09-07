@@ -530,21 +530,87 @@ public:
   typedef SLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> ScanFragHandle_list;
   typedef LocalSLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> Local_ScanFragHandle_list;
 
+  /**
+   * This class computes mean and standard deviation incrementally for a series
+   * of samples.
+   */
+  class IncrementalStatistics
+  {
+  public:
+    /**
+     * We cannot have a (non-trivial) constructor, since this class is used in
+     * unions.
+     */
+    void init()
+    {
+      m_mean = m_sumSquare = 0.0;
+      m_noOfSamples = 0;
+    }
+
+    // Add another sample.
+    void update(double sample);
+
+    double getMean() const { return m_mean; }
+
+    double getStdDev() const { 
+      return m_noOfSamples < 2 ? 0.0 : sqrt(m_sumSquare/(m_noOfSamples - 1));
+    }
+
+  private:
+    // Mean of all samples
+    double m_mean;
+    //Sum of square of differences from the current mean.
+    double m_sumSquare;
+    Uint32 m_noOfSamples;
+  }; // IncrementalStatistics
+
   struct ScanIndexData
   {
     Uint16 m_frags_complete;
     Uint16 m_frags_outstanding;
+    /**
+     * The number of fragment for which we have not yet sent SCAN_FRAGREQ but
+     * will eventually do so.
+     */
+    Uint16 m_frags_not_started;
     Uint32 m_rows_received;  // #execTRANSID_AI
     Uint32 m_rows_expecting; // Sum(ScanFragConf)
     Uint32 m_batch_chunks;   // #SCAN_FRAGREQ + #SCAN_NEXTREQ to retrieve batch
     Uint32 m_scanCookie;
     Uint32 m_fragCount;
+    // The number of fragments that we scan in parallel.
+    Uint32 m_parallelism;
+    /**
+     * True if this is the first instantiation of this operation. A child
+     * operation will be instantiated once for each batch of its parent.
+     */
+    bool m_firstExecution;
+    /**
+     * Mean and standard deviation for the optimal parallelism for earlier
+     * executions of this operation.
+     */
+    IncrementalStatistics m_parallelismStat;
+    // Total number of rows for the current execution of this operation.
+    Uint32 m_totalRows;
+    // Total number of bytes for the current execution of this operation.
+    Uint32 m_totalBytes;
+
     ScanFragHandle_list::HeadPOD m_fragments; // ScanFrag states
     union
     {
       PatternStore::HeadPOD m_prunePattern;
       Uint32 m_constPrunePtrI;
     };
+    /**
+     * Max number of rows seen in a batch. Used for calculating the number of
+     * rows per fragment in the next next batch when using adaptive batch size.
+     */
+    Uint32 m_largestBatchRows;
+    /**
+     * Max number of bytes seen in a batch. Used for calculating the number of
+     * rows per fragment in the next next batch when using adaptive batch size.
+     */
+    Uint32 m_largestBatchBytes;
     Uint32 m_scanFragReq[ScanFragReq::SignalLength + 2];
   };
 
@@ -1164,6 +1230,13 @@ private:
   void scanIndex_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
   void scanIndex_fixupBound(Ptr<ScanFragHandle> fragPtr, Uint32 ptrI, Uint32);
   void scanIndex_send(Signal*,Ptr<Request>,Ptr<TreeNode>);
+  void scanIndex_send(Signal* signal,
+                      Ptr<Request> requestPtr,
+                      Ptr<TreeNode> treeNodePtr,
+                      Uint32 noOfFrags,
+                      Uint32 bs_bytes,
+                      Uint32 bs_rows,
+                      Uint32& batchRange);
   void scanIndex_batchComplete(Signal* signal);
   Uint32 scanIndex_findFrag(Local_ScanFragHandle_list &, Ptr<ScanFragHandle>&,
                             Uint32 fragId);
