@@ -815,7 +815,7 @@ void TransporterFacade::forceSend(Uint32 block_number) {
 //-------------------------------------------------
 // Improving API performance
 //-------------------------------------------------
-void
+int
 TransporterFacade::checkForceSend(Uint32 block_number) {  
   m_threads.m_statusNext[numberToIndex(block_number)] = ThreadData::ACTIVE;
   //-------------------------------------------------
@@ -828,14 +828,16 @@ TransporterFacade::checkForceSend(Uint32 block_number) {
   // time to increase so therefore we have to keep track of
   // how the users are performing adaptively.
   //-------------------------------------------------
-  
-  if (theTransporterRegistry->forceSendCheck(currentSendLimit) == 1) {
+
+  int did_send = theTransporterRegistry->forceSendCheck(currentSendLimit);
+  if(did_send == 1) {
     sendPerformedLastInterval = 1;
   }
   checkCounter--;
   if (checkCounter < 0) {
     calculateSendLimit();
   }
+  return did_send;
 }
 
 

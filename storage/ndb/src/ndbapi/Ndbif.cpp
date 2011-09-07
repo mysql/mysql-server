@@ -1247,7 +1247,13 @@ Ndb::sendPrepTrans(int forceSend)
     insert_completed_list(a_con);
   }//for
   theNoOfPreparedTransactions = 0;
-  theImpl->do_forceSend(forceSend);
+  int did_send = theImpl->do_forceSend(forceSend);
+  if(forceSend) {
+    theImpl->incClientStat(Ndb::ForcedSendsCount, 1);
+  }
+  else {
+    theImpl->incClientStat(did_send ? Ndb::UnforcedSendsCount : Ndb::DeferredSendsCount, 1);
+  }
   return;
 }//Ndb::sendPrepTrans()
 

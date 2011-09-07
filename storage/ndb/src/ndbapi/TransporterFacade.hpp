@@ -126,7 +126,7 @@ public:
 
   // Improving the API performance
   void forceSend(Uint32 block_number);
-  void checkForceSend(Uint32 block_number);
+  int checkForceSend(Uint32 block_number);
 
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
 
