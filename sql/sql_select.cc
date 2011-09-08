@@ -695,10 +695,12 @@ JOIN::prepare(TABLE_LIST *tables_init,
     thd->where="having clause";
     thd->lex->allow_sum_func|= 1 << select_lex_arg->nest_level;
     select_lex->having_fix_field= 1;
+    select_lex->resolve_place= st_select_lex::RESOLVE_HAVING;
     bool having_fix_rc= (!having->fixed &&
 			 (having->fix_fields(thd, &having) ||
 			  having->check_cols(1)));
     select_lex->having_fix_field= 0;
+    select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
     if (having_fix_rc || thd->is_error())
       DBUG_RETURN(-1);				/* purecov: inspected */
     thd->lex->allow_sum_func= save_allow_sum_func;
@@ -926,7 +928,8 @@ bool resolve_subquery(THD *thd, JOIN *join)
 
   enum {SQ_NONE, SQ_SEMIJOIN, SQ_MATERIALIZATION} sq_choice= SQ_NONE;
   bool types_problem= false; // if types prevented subq materialization
-  SELECT_LEX *select_lex= join->select_lex;
+  SELECT_LEX *const select_lex= join->select_lex;
+  SELECT_LEX *const outer= select_lex->outer_select();
 
   /*
     @todo for PS, make the whole block execute only on the first execution.
@@ -971,15 +974,15 @@ bool resolve_subquery(THD *thd, JOIN *join)
       DBUG_RETURN(TRUE);
     }
 
-    SELECT_LEX *current= thd->lex->current_select;
-    thd->lex->current_select= current->outer_select();
+    DBUG_ASSERT(select_lex == thd->lex->current_select);
+    thd->lex->current_select= outer;
     char const *save_where= thd->where;
     thd->where= "IN/ALL/ANY subquery";
         
     bool result= !in_predicate->left_expr->fixed &&
                   in_predicate->left_expr->fix_fields(thd,
                                                      &in_predicate->left_expr);
-    thd->lex->current_select= current;
+    thd->lex->current_select= select_lex;
     thd->where= save_where;
     if (result)
       DBUG_RETURN(TRUE); /* purecov: deadcode */
@@ -1008,28 +1011,27 @@ bool resolve_subquery(THD *thd, JOIN *join)
       statement.
   */
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
-      subq_predicate_substype == Item_subselect::IN_SUBS &&          // 1
+      subq_predicate_substype == Item_subselect::IN_SUBS &&             // 1
       !select_lex->is_part_of_union() &&                                // 2
       !select_lex->group_list.elements && !join->order &&               // 3
       !join->having && !select_lex->with_sum_func &&                    // 4
-      thd->thd_marker.emb_on_expr_nest &&                               // 5
-      select_lex->outer_select()->join &&                               // 6
+      (outer->resolve_place == st_select_lex::RESOLVE_CONDITION ||      // 5
+       outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5
+      outer->join &&                                                    // 6
       select_lex->master_unit()->first_select()->leaf_tables &&         // 7
       in_exists_predicate->exec_method == 
                            Item_exists_subselect::EXEC_UNSPECIFIED &&   // 8
-      select_lex->outer_select()->leaf_tables &&                        // 9
-      !((join->select_options |
-         select_lex->outer_select()->join->select_options)
+      outer->leaf_tables &&                                             // 9
+      !((join->select_options | outer->join->select_options)
         & SELECT_STRAIGHT_JOIN))                                        // 10
   {
     DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
 
     /* Notify in the subquery predicate where it belongs in the query graph */
-    in_exists_predicate->embedding_join_nest= thd->thd_marker.emb_on_expr_nest;
+    in_exists_predicate->embedding_join_nest= outer->resolve_nest;
 
     /* Register the subquery for further processing in flatten_subqueries() */
-    select_lex->outer_select()->join->
-      sj_subselects.push_back(in_exists_predicate);
+    outer->join->sj_subselects.push_back(in_exists_predicate);
     sq_choice= SQ_SEMIJOIN;
   }
   else
@@ -1077,7 +1079,7 @@ bool resolve_subquery(THD *thd, JOIN *join)
         !select_lex->is_part_of_union() &&                              // 2
         select_lex->master_unit()->first_select()->leaf_tables &&       // 3
         thd->lex->sql_command == SQLCOM_SELECT &&                       // *
-        select_lex->outer_select()->leaf_tables &&                      // 3A
+        outer->leaf_tables &&                                           // 3A
         in_predicate->is_top_level_item() &&                            // 4
         !in_predicate->is_correlated &&                                 // 5
         in_predicate->exec_method ==
@@ -3927,7 +3929,7 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     1. Find out where to put the predicate into.
      Note: for "t1 LEFT JOIN t2" this will be t2, a leaf.
   */
-  if ((void*)subq_pred->embedding_join_nest != (void*)1)
+  if ((void*)subq_pred->embedding_join_nest != NULL)
   {
     if (subq_pred->embedding_join_nest->nested_join)
     {
@@ -4342,7 +4344,7 @@ bool JOIN::flatten_subqueries()
        tables + (*subq)->unit->first_select()->join->tables < MAX_TABLES;
        subq++)
   {
-    Item **tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
+    Item **tree= ((*subq)->embedding_join_nest == NULL) ?
                    &conds : &((*subq)->embedding_join_nest->on_expr);
     if (replace_subcondition(this, tree, *subq, new Item_int(1), FALSE))
       DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -4395,8 +4397,7 @@ skip_conversion:
 
     Item *substitute= (*subq)->substitution;
     const bool do_fix_fields= !(*subq)->substitution->fixed;
-    const bool subquery_in_join_clause=
-      ((*subq)->embedding_join_nest != (TABLE_LIST*)1);
+    const bool subquery_in_join_clause= (*subq)->embedding_join_nest != NULL;
 
     Item **tree= subquery_in_join_clause ?
                    &((*subq)->embedding_join_nest->on_expr) :
