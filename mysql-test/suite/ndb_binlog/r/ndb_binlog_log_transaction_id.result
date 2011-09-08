@@ -1,0 +1,104 @@
+use test;
+create table t1 (a int primary key, b int) engine=ndb;
+create table t2 (a int primary key, b int) engine=ndb;
+Single row autocommit transactions
+Should have 1 transaction id
+insert into t1 values (1,1);
+Number of different transaction ids in Binlog
+select count(1) as number_of_transactions from diff_extra_data;
+number_of_transactions
+1
+reset master;
+Should have 1 transaction id
+insert into t1 values (2,2);
+Number of different transaction ids in Binlog
+select count(1) as number_of_transactions from diff_extra_data;
+number_of_transactions
+1
+reset master;
+Should have 1 transaction id
+update t1 set b=20 where a=2;
+Number of different transaction ids in Binlog
+select count(1) as number_of_transactions from diff_extra_data;
+number_of_transactions
+1
+reset master;
+Multi row autocommit transaction
+Should have 1 transaction id
+delete from t1;
+Number of different transaction ids in Binlog
+select count(1) as number_of_transactions from diff_extra_data;
+number_of_transactions
+1
+reset master;
+Multi row explicit transaction
+Should have 1 transaction id
+begin;
+insert into t1 values (3,3);
+insert into t1 values (4,4);
+insert into t1 values (5,5);
+commit;
+Number of different transaction ids in Binlog
+select count(1) as number_of_transactions from diff_extra_data;
+number_of_transactions
+1
+reset master;
+Should have 1 transaction id
+begin;
+insert into t1 values (6,6);
+update t1 set b=40 where a=4;
+delete from t1 where a=5;
+commit;
+Number of different transaction ids in Binlog
+select count(1) as number_of_transactions from diff_extra_data;
+number_of_transactions
+1
+reset master;
+Multi table explicit transaction
+Should have 1 transaction id
+begin;
+insert into t1 values (7,7);
+insert into t2 values (7,7);
+insert into t2 values (8,8);
+commit;
+Number of different transaction ids in Binlog
+select count(1) as number_of_transactions from diff_extra_data;
+number_of_transactions
+1
+reset master;
+Multiple autocommit transactions
+Should have 2 transaction ids
+insert into t1 values (8,8);
+insert into t1 values (9,9);
+Number of different transaction ids in Binlog
+select count(1) as number_of_transactions from diff_extra_data;
+number_of_transactions
+2
+reset master;
+Multiple autocommit transactions on single row
+Should have 3 transaction ids
+insert into t1 values (10,10);
+update t1 set b=100 where a=10;
+delete from t1 where a=10;
+Number of different transaction ids in Binlog
+select count(1) as number_of_transactions from diff_extra_data;
+number_of_transactions
+3
+reset master;
+Multiple explicit transactions
+Should have 2 transaction ids
+begin;
+insert into t1 values (11,11);
+delete from t1;
+commit;
+begin;
+insert into t2 values (11,11);
+delete from t2;
+commit;
+Number of different transaction ids in Binlog
+select count(1) as number_of_transactions from diff_extra_data;
+number_of_transactions
+2
+reset master;
+drop table t1;
+drop table t2;
