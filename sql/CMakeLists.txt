@@ -186,7 +186,8 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 
-SET (BINLOG_SOURCE zatom_file.cc zuuid.cc zgroup.cc zowner_id.cc
+SET (BINLOG_SOURCE zatom_file.cc zrot_file.cc zuuid.cc zgroup.cc zowner_id.cc
+                   zcompact.cc
                    zsid_map.cc zgroup_set.cc zugid_specification.cc
                    zgroup_log_state.cc zowned_groups.cc zgroup_cache.cc
                    zgroup_execution.cc zmutex_cond_array.cc

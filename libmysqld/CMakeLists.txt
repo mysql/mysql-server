@@ -65,6 +65,9 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_record.cc
   ../sql/rpl_reporting.cc
   ../sql/rpl_utility.cc
+  ../sql/zcompact.cc
+  ../sql/zatom_file.cc
+  ../sql/zrot_file.cc
   ../sql/zuuid.cc
   ../sql/zgroup.cc
   ../sql/zowner_id.cc
