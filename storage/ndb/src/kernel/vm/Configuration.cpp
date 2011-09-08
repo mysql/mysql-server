@@ -457,6 +457,46 @@ Configuration::setupConfiguration(){
   m_clusterConfigIter = ndb_mgm_create_configuration_iterator
     (p, CFG_SECTION_NODE);
 
+  /**
+   * This is parts of get_multithreaded_config
+   */
+  do
+  {
+    globalData.isNdbMt = NdbIsMultiThreaded();
+    globalData.isNdbMtLqh = true;
+    {
+      if (m_thr_config.getMtClassic())
+      {
+        globalData.isNdbMtLqh = false;
+      }
+    }
+
+    if (!globalData.isNdbMtLqh)
+      break;
+
+    Uint32 threads = m_thr_config.getThreadCount(THRConfig::T_LDM);
+    Uint32 workers = threads;
+    iter.get(CFG_NDBMT_LQH_WORKERS, &workers);
+
+#ifdef VM_TRACE
+    // testing
+    {
+      const char* p;
+      p = NdbEnv_GetEnv("NDBMT_LQH_WORKERS", (char*)0, 0);
+      if (p != 0)
+        workers = atoi(p);
+    }
+#endif
+
+
+    assert(workers != 0 && workers <= MAX_NDBMT_LQH_WORKERS);
+    assert(threads != 0 && threads <= MAX_NDBMT_LQH_THREADS);
+    assert(workers % threads == 0);
+
+    globalData.ndbMtLqhWorkers = workers;
+    globalData.ndbMtLqhThreads = threads;
+  } while (0);
+
   calcSizeAlt(cf);
 
   DBUG_VOID_RETURN;
