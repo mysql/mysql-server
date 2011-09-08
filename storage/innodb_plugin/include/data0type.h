@@ -168,6 +168,15 @@ SQL null*/
 store the charset-collation number; one byte is left unused, though */
 #define DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE	6
 
+/* We support 8 bits (up to 255) collation number until 5.6.3, in which
+the collation number is extended to 32767 */
+#define MAX_CHAR_COLL_NUM			255
+
+/* Mask to get the large charset-collation number in PRTYPE
+This is used to mainly block loading tables with large charset-collation
+value with database from 5.6 */
+#define LARGE_CHAR_COLL_PRTYPE_MASK		0xFFFFUL
+
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Gets the MySQL type code from a dtype.
