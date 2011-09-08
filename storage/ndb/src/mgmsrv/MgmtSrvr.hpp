@@ -320,7 +320,6 @@ public:
 
   bool transporter_connect(NDB_SOCKET_TYPE sockfd, BaseString& errormsg);
 
-  const char *get_connect_address(Uint32 node_id);
   SocketServer *get_socket_server() { return &m_socket_server; }
 
   int createNodegroup(int *nodes, int count, int *ng);
@@ -399,6 +398,8 @@ private:
   bool m_need_restart;
 
   struct in_addr m_connect_address[MAX_NODES];
+  const char *get_connect_address(NodeId node_id);
+  void clear_connect_address_cache(NodeId nodeid);
 
   /**
    * trp_client interface

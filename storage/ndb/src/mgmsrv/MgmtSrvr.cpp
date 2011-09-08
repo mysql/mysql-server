@@ -255,7 +255,7 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts) :
   /* Init node arrays */
   for(Uint32 i = 0; i<MAX_NODES; i++) {
     nodeTypes[i] = (enum ndb_mgm_node_type)-1;
-    m_connect_address[i].s_addr= 0;
+    clear_connect_address_cache(i);
   }
 
   /* Setup clusterlog as client[0] in m_event_listner */
@@ -661,7 +661,7 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
   ConfigIter iter(m_local_config, CFG_SECTION_NODE);
   for(Uint32 i = 0; i<MAX_NODES; i++) {
 
-    m_connect_address[i].s_addr= 0;
+    clear_connect_address_cache(i);
 
     if (iter.first())
       continue;
@@ -2888,6 +2888,8 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
                                                signal->getDataPtr());
     /* Clear local nodeid reservation(if any) */
     release_local_nodeid_reservation(rep->failedNodeId);
+
+     clear_connect_address_cache(rep->failedNodeId);
     break;
   }
   case GSN_TAMPER_ORD:
@@ -2944,6 +2946,8 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
 
       /* Clear local nodeid reservation(if any) */
       release_local_nodeid_reservation(i);
+
+      clear_connect_address_cache(i);
     }
     return;
   }
@@ -2972,12 +2976,15 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
   return nodeTypes[nodeId];
 }
 
-const char *MgmtSrvr::get_connect_address(Uint32 node_id)
+
+const char*
+MgmtSrvr::get_connect_address(NodeId node_id)
 {
-  if (theFacade &&
-      m_connect_address[node_id].s_addr == 0)
+  assert(node_id < NDB_ARRAY_SIZE(m_connect_address));
+
+  if (m_connect_address[node_id].s_addr == 0)
   {
-    // No cached connect adress available
+    // No cached connect address available
     const trp_node &node= getNodeInfo(node_id);
     if (node.is_connected())
     {
@@ -2989,6 +2996,14 @@ const char *MgmtSrvr::get_connect_address(Uint32 node_id)
 
   // Return the cached connect address
   return inet_ntoa(m_connect_address[node_id]);
+}
+
+
+void
+MgmtSrvr::clear_connect_address_cache(NodeId nodeid)
+{
+  assert(nodeid < NDB_ARRAY_SIZE(m_connect_address));
+  m_connect_address[nodeid].s_addr = 0;
 }
 
 /***************************************************************************
