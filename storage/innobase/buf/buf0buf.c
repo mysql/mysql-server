@@ -463,7 +463,7 @@ buf_page_is_corrupted(
 	ulint		checksum_field2;
 	ib_uint32_t	crc32;
 
-	if (UNIV_LIKELY(!zip_size)
+	if (!zip_size
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
 		      read_buf + UNIV_PAGE_SIZE
 		      - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
@@ -509,7 +509,7 @@ buf_page_is_corrupted(
 		return(FALSE);
 	}
 
-	if (UNIV_UNLIKELY(zip_size)) {
+	if (zip_size) {
 		return(!page_zip_verify_checksum(read_buf, zip_size));
 	}
 
@@ -1978,7 +1978,7 @@ lookup:
 
 	ut_ad(buf_page_hash_lock_held_s(buf_pool, bpage));
 
-	if (UNIV_UNLIKELY(!bpage->zip.data)) {
+	if (!bpage->zip.data) {
 		/* There is no compressed page. */
 err_exit:
 		rw_lock_s_unlock(hash_lock);
@@ -3320,8 +3320,7 @@ buf_page_init_for_read(
 		ut_ad(mode == BUF_READ_ANY_PAGE);
 	}
 
-	if (zip_size && UNIV_LIKELY(!unzip)
-	    && UNIV_LIKELY(!recv_recovery_is_on())) {
+	if (zip_size && !unzip && !recv_recovery_is_on()) {
 		block = NULL;
 	} else {
 		block = buf_LRU_get_free_block(buf_pool);
@@ -3385,7 +3384,7 @@ err_exit:
 		rw_lock_x_lock_gen(&block->lock, BUF_IO_READ);
 		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
-		if (UNIV_UNLIKELY(zip_size)) {
+		if (zip_size) {
 			page_zip_set_size(&block->page.zip, zip_size);
 
 			/* buf_pool->mutex may be released and

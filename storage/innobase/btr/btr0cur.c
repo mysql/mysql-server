@@ -1246,7 +1246,7 @@ btr_cur_optimistic_insert(
 		rec_size = rec_get_converted_size(index, entry, n_ext);
 	}
 
-	if (UNIV_UNLIKELY(zip_size)) {
+	if (zip_size) {
 		/* Estimate the free space of an empty compressed page.
 		Subtract one byte for the encoded heap_no in the
 		modification log. */
@@ -1354,7 +1354,7 @@ fail_err:
 					     n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
-			if (UNIV_LIKELY(zip_size != 0)) {
+			if (zip_size != 0) {
 
 				goto fail;
 			}
@@ -1867,7 +1867,7 @@ btr_cur_update_in_place(
 	page_zip = buf_block_get_page_zip(block);
 
 	/* Check that enough space is available on the compressed page. */
-	if (UNIV_LIKELY_NULL(page_zip)
+	if (page_zip
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
 					 rec_offs_size(offsets), FALSE, mtr)) {
 		return(DB_ZIP_OVERFLOW);
@@ -2052,7 +2052,7 @@ any_extern:
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-	if (UNIV_LIKELY_NULL(page_zip)
+	if (page_zip
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
 					 new_rec_size, TRUE, mtr)) {
 		err = DB_ZIP_OVERFLOW;
@@ -2352,7 +2352,7 @@ btr_cur_pessimistic_update(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	n_ext += btr_push_update_extern_fields(new_entry, update, *heap);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		ut_ad(page_is_comp(page));
 		if (page_zip_rec_needs_ext(
 			    rec_get_converted_size(index, new_entry, n_ext),
@@ -3911,7 +3911,7 @@ btr_cur_set_ownership_of_extern_field(
 		byte_val = byte_val | BTR_EXTERN_OWNER_FLAG;
 	}
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		mach_write_to_1(data + local_len + BTR_EXTERN_LEN, byte_val);
 		page_zip_write_blob_ptr(page_zip, rec, index, offsets, i, mtr);
 	} else if (UNIV_LIKELY(mtr != NULL)) {
@@ -4227,7 +4227,7 @@ btr_store_big_rec_extern_fields_func(
 		alloc_mtr = &mtr;
 	}
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		int	err;
 
 		/* Zlib deflate needs 128 kilobytes for the default
@@ -4282,7 +4282,7 @@ btr_store_big_rec_extern_fields_func(
 
 		prev_page_no = FIL_NULL;
 
-		if (UNIV_LIKELY_NULL(page_zip)) {
+		if (page_zip) {
 			int	err = deflateReset(&c_stream);
 			ut_a(err == Z_OK);
 
@@ -4308,7 +4308,7 @@ btr_store_big_rec_extern_fields_func(
 
 				mtr_commit(&mtr);
 
-				if (UNIV_LIKELY_NULL(page_zip)) {
+				if (page_zip) {
 					deflateEnd(&c_stream);
 					mem_heap_free(heap);
 				}
@@ -4330,7 +4330,7 @@ btr_store_big_rec_extern_fields_func(
 							SYNC_EXTERN_STORAGE);
 				prev_page = buf_block_get_frame(prev_block);
 
-				if (UNIV_LIKELY_NULL(page_zip)) {
+				if (page_zip) {
 					mlog_write_ulint(
 						prev_page + FIL_PAGE_NEXT,
 						page_no, MLOG_4BYTES, &mtr);
@@ -4347,7 +4347,7 @@ btr_store_big_rec_extern_fields_func(
 
 			}
 
-			if (UNIV_LIKELY_NULL(page_zip)) {
+			if (page_zip) {
 				int		err;
 				page_zip_des_t*	blob_page_zip;
 
@@ -4570,7 +4570,7 @@ next_zip_page:
 		}
 	}
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		deflateEnd(&c_stream);
 		mem_heap_free(heap);
 	}
@@ -4795,7 +4795,7 @@ btr_free_externally_stored_field(
 
 			btr_page_free_low(index, ext_block, 0, &mtr);
 
-			if (UNIV_LIKELY(page_zip != NULL)) {
+			if (page_zip != NULL) {
 				mach_write_to_4(field_ref + BTR_EXTERN_PAGE_NO,
 						next_page_no);
 				mach_write_to_4(field_ref + BTR_EXTERN_LEN + 4,
@@ -5158,7 +5158,7 @@ btr_copy_externally_stored_field_prefix_low(
 		return(0);
 	}
 
-	if (UNIV_UNLIKELY(zip_size)) {
+	if (zip_size) {
 		return(btr_copy_zblob_prefix(buf, len, zip_size,
 					     space_id, page_no, offset));
 	} else {

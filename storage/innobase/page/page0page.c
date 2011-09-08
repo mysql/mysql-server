@@ -228,7 +228,7 @@ page_set_max_trx_id(
 	during a database recovery we assume that the max trx id of every
 	page is the maximum trx id assigned before the crash. */
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
 		page_zip_write_header(page_zip,
 				      page + (PAGE_HEADER + PAGE_MAX_TRX_ID),
@@ -646,7 +646,7 @@ page_copy_rec_list_end(
 	/* Here, "ret" may be pointing to a user record or the
 	predefined supremum record. */
 
-	if (UNIV_LIKELY_NULL(new_page_zip)) {
+	if (new_page_zip) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 	}
 
@@ -666,11 +666,10 @@ page_copy_rec_list_end(
 				       page_get_max_trx_id(page), mtr);
 	}
 
-	if (UNIV_LIKELY_NULL(new_page_zip)) {
+	if (new_page_zip) {
 		mtr_set_log_mode(mtr, log_mode);
 
-		if (UNIV_UNLIKELY
-		    (!page_zip_compress(new_page_zip, new_page, index, mtr))) {
+		if (!page_zip_compress(new_page_zip, new_page, index, mtr)) {
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
 			ulint	ret_pos
@@ -682,14 +681,12 @@ page_copy_rec_list_end(
 			that is smaller than "ret"). */
 			ut_a(ret_pos > 0);
 
-			if (UNIV_UNLIKELY
-			    (!page_zip_reorganize(new_block, index, mtr))) {
+			if (!page_zip_reorganize(new_block, index, mtr)) {
 
 				btr_blob_dbg_remove(new_page, index,
 						    "copy_end_reorg_fail");
-				if (UNIV_UNLIKELY
-				    (!page_zip_decompress(new_page_zip,
-							  new_page, FALSE))) {
+				if (!page_zip_decompress(new_page_zip,
+							 new_page, FALSE)) {
 					ut_error;
 				}
 				ut_ad(page_validate(new_page, index));
@@ -753,7 +750,7 @@ page_copy_rec_list_start(
 		return(ret);
 	}
 
-	if (UNIV_LIKELY_NULL(new_page_zip)) {
+	if (new_page_zip) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 	}
 
@@ -789,7 +786,7 @@ page_copy_rec_list_start(
 				       mtr);
 	}
 
-	if (UNIV_LIKELY_NULL(new_page_zip)) {
+	if (new_page_zip) {
 		mtr_set_log_mode(mtr, log_mode);
 
 		if (UNIV_UNLIKELY
@@ -982,7 +979,7 @@ page_delete_rec_list_end(
 				       ? MLOG_COMP_LIST_END_DELETE
 				       : MLOG_LIST_END_DELETE, mtr);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		ulint		log_mode;
 
 		ut_a(page_is_comp(page));

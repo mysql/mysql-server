@@ -163,7 +163,7 @@ row_upd_rec_sys_fields(
 	}
 #endif /* UNIV_SYNC_DEBUG */
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		ulint	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
 		page_zip_write_trx_id_and_roll_ptr(page_zip, rec, offsets,
 						   pos, trx->id, roll_ptr);
