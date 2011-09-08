@@ -3185,19 +3185,20 @@ buf_page_init_low(
 
 /********************************************************************//**
 Inits a page to the buffer buf_pool. */
-static
+static __attribute__((nonnull))
 void
 buf_page_init(
 /*==========*/
+	buf_pool_t*	buf_pool,/*!< in/out: buffer pool */
 	ulint		space,	/*!< in: space id */
 	ulint		offset,	/*!< in: offset of the page within space
 				in units of a page */
 	ulint		fold,	/*!< in: buf_page_address_fold(space,offset) */
-	buf_block_t*	block)	/*!< in: block to init */
+	buf_block_t*	block)	/*!< in/out: block to init */
 {
 	buf_page_t*	hash_page;
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
+	ut_ad(buf_pool == buf_pool_get(space, offset));
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	ut_ad(mutex_own(&(block->mutex)));
@@ -3366,7 +3367,7 @@ err_exit:
 
 		ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
 
-		buf_page_init(space, offset, fold, block);
+		buf_page_init(buf_pool, space, offset, fold, block);
 		rw_lock_x_unlock(hash_lock);
 
 		/* The block must be put to the LRU list, to the old blocks */
@@ -3589,7 +3590,7 @@ buf_page_create(
 
 	mutex_enter(&block->mutex);
 
-	buf_page_init(space, offset, fold, block);
+	buf_page_init(buf_pool, space, offset, fold, block);
 
 	rw_lock_x_unlock(hash_lock);
 
