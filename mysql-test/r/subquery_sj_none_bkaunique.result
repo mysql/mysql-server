@@ -3196,7 +3196,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t2 where (b,a) in (select a,b from t1 where a=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	10	func,func	1	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	ref	a	a	10	const,func	1	Using where; Using index
 drop table t1,t2;
 create table t1 (a int, b int);
 insert into t1 select a,a from t0;
