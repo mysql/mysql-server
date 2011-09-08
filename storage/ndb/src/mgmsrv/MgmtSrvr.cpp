@@ -3505,18 +3505,12 @@ MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
 
 
 bool
-MgmtSrvr::alloc_node_id(NodeId& nodeid,
-			enum ndb_mgm_node_type type,
-			const struct sockaddr* client_addr,
-			int& error_code, BaseString& error_string,
-                        bool log_event,
-                        Uint32 timeout_s)
+MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
+                             enum ndb_mgm_node_type type,
+                             const struct sockaddr* client_addr,
+                             int& error_code, BaseString& error_string,
+                              Uint32 timeout_s)
 {
-  g_eventLogger->debug("Trying to allocate nodeid for '%s'" \
-                       "(nodeid: %u, type: %s)",
-                       inet_ntoa(((sockaddr_in*)client_addr)->sin_addr),
-                       (unsigned)nodeid, ndb_mgm_get_node_type_string(type));
-
   if (m_opts.no_nodeid_checks)
   {
     if (nodeid == 0)
@@ -3641,6 +3635,42 @@ MgmtSrvr::alloc_node_id(NodeId& nodeid,
                         alias, str);
   }
   error_code = NDB_MGM_ALLOCID_ERROR;
+  return false;
+}
+
+
+bool
+MgmtSrvr::alloc_node_id(NodeId& nodeid,
+			enum ndb_mgm_node_type type,
+			const struct sockaddr* client_addr,
+			int& error_code, BaseString& error_string,
+                        bool log_event,
+                        Uint32 timeout_s)
+{
+  const char* type_str = ndb_mgm_get_node_type_string(type);
+  const char* addr_str = inet_ntoa(((sockaddr_in*)client_addr)->sin_addr);
+
+  g_eventLogger->debug("Trying to allocate nodeid for %s" \
+                       "(nodeid: %u, type: %s)",
+                       addr_str, (unsigned)nodeid, type_str);
+
+
+  if (alloc_node_id_impl(nodeid, type, client_addr,
+                         error_code, error_string,
+                         timeout_s))
+  {
+    g_eventLogger->info("Nodeid %u allocated for %s at %s",
+                        (unsigned)nodeid, type_str, addr_str);
+    return true;
+  }
+
+  if (!log_event)
+    return false;
+
+  g_eventLogger->warning("Failed to allocate nodeid for %s at %s. "     \
+                         "Returned eror: '%s'",
+                         type_str, addr_str, error_string.c_str());
+
   return false;
 }
 

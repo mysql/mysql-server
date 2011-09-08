@@ -498,6 +498,11 @@ private:
                      const struct sockaddr* client_addr,
                      Vector<PossibleNode>& nodes_info,
                      int& error_code, BaseString& error_string);
+  bool alloc_node_id_impl(NodeId& nodeid,
+                          ndb_mgm_node_type type,
+                          const struct sockaddr* client_addr,
+                          int& error_code, BaseString& error_string,
+                          Uint32 timeout_s = 20);
 public:
   /*
     Nodeid allocation
