@@ -288,7 +288,6 @@ typedef struct st_join_table {
   ulong         max_used_fieldlength;
   uint          used_blobs;
   uint          used_null_fields;
-  uint          used_rowid_fields;
   uint          used_uneven_bit_fields;
   enum join_type type;
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
@@ -386,15 +385,6 @@ typedef struct st_join_table {
     return (select && select->quick &&
             (select->quick->get_type() ==
              QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
-  }
-  bool check_rowid_field()
-  {
-    if (keep_current_rowid && !used_rowid_fields)
-    {
-      used_rowid_fields= 1;
-      used_fieldlength+= table->file->ref_length;
-    }
-    return test(used_rowid_fields);
   }
   bool is_inner_table_of_semi_join_with_first_match()
   {

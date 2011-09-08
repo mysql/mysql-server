@@ -1822,6 +1822,86 @@ a
 0
 DROP TABLE t2, t3, t4, t5;
 set @@optimizer_switch=@tmp834739;
+#
+# BUG#830993: Crash in end_read_record with derived table
+#
+set @tmp_830993=@@optimizer_switch;
+set optimizer_switch='semijoin=on,loosescan=off,materialization=off,firstmatch=off';
+set @tmp_830993_jbs= @@join_buffer_size;
+set join_buffer_size=160;
+CREATE TABLE t1 (
+a int(11) NOT NULL AUTO_INCREMENT, 
+b int(11) DEFAULT NULL, 
+c int(11) DEFAULT NULL, 
+d time DEFAULT NULL, 
+e varchar(1) DEFAULT NULL, 
+f varchar(1) DEFAULT NULL, 
+PRIMARY KEY (a), 
+KEY c (c), 
+KEY d (d), 
+KEY e (e,c)
+);
+INSERT INTO t1 VALUES (10,NULL,8,'22:55:23','x','x'),
+(11,8,7,'10:19:31','d','d'),(12,1,1,'14:40:36','r','r'),
+(13,9,7,'04:37:47','f','f'),(14,4,9,'19:34:06','y','y'),
+(15,3,NULL,'20:35:33','u','u'),(16,2,1,NULL,'m','m'),
+(17,NULL,9,'14:43:37',NULL,NULL),(18,2,2,'02:23:09','o','o'),
+(19,NULL,9,'01:22:45','w','w'),(20,6,2,'00:00:00','m','m'),
+(21,7,4,'00:13:25','q','q'),(22,2,0,'03:47:16',NULL,NULL),
+(23,5,4,'01:41:48','d','d'),(24,7,8,'00:00:00','g','g'),
+(25,6,NULL,'22:32:04','x','x'),(26,6,NULL,'16:44:14','f','f'),
+(27,2,0,'17:38:37','p','p'),(28,9,NULL,'08:46:48','j','j'),
+(29,6,8,'14:11:27','c','c');
+CREATE TABLE t2 like t1;
+INSERT INTO t2 VALUES (1,2,4,'22:34:09','v','v'),
+(2,150,62,'14:26:02','v','v'),(3,NULL,7,'14:03:03','c','c'),
+(4,2,1,'01:46:09',NULL,NULL),(5,5,0,'16:21:18','x','x'),
+(6,3,7,'18:56:33','i','i'),(7,1,7,NULL,'e','e'),
+(8,4,1,'09:29:08','p','p'),(9,NULL,7,'19:11:10','s','s'),
+(10,2,1,'11:57:26','j','j'),(11,6,5,'00:39:46','z','z'),
+(12,6,2,'03:28:15','c','c'),(13,8,0,'06:44:18','a','a'),
+(14,2,1,'14:36:39','q','q'),(15,6,8,'18:42:45','y','y'),
+(16,8,1,'02:57:29',NULL,NULL),(17,3,1,'16:46:13','r','r'),
+(18,3,9,'19:39:02','v','v'),(19,9,1,NULL,NULL,NULL),
+(20,6,5,'20:58:33','r','r');
+explain
+SELECT
+alias1.a, alias1.b, alias1.c, alias1.d, alias1.e, alias1.f,
+alias2.a as a2_a, alias2.b as a2_b, alias2.c as a2_c, alias2.d as a2_d, 
+alias2.e as a2_e, alias2.f as a2_f,
+t2.a as t2_a, t2.b as t2_b, t2.c as t2_c, t2.d as t2_d, t2.e as t2_e, t2.f as t2_f
+FROM 
+(SELECT * FROM t2) AS alias1,
+t1 AS alias2, 
+t2
+WHERE 
+alias1.c IN (SELECT SQ3_alias1.b 
+FROM t2 AS SQ3_alias1 STRAIGHT_JOIN t2 AS SQ3_alias2)
+LIMIT 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	20	Start temporary
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (incremental, BNL join)
+1	PRIMARY	SQ3_alias1	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (incremental, BNL join)
+1	PRIMARY	SQ3_alias2	index	NULL	PRIMARY	4	NULL	20	Using index; End temporary; Using join buffer (incremental, BNL join)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	20	
+create table t3 as
+SELECT 
+alias1.a, alias1.b, alias1.c, alias1.d, alias1.e, alias1.f,
+alias2.a as a2_a, alias2.b as a2_b, alias2.c as a2_c, alias2.d as a2_d, 
+alias2.e as a2_e, alias2.f as a2_f,
+t2.a as t2_a, t2.b as t2_b, t2.c as t2_c, t2.d as t2_d, t2.e as t2_e, t2.f as t2_f
+FROM 
+(SELECT * FROM t2) AS alias1,
+t1 AS alias2, 
+t2
+WHERE 
+alias1.c IN (SELECT SQ3_alias1.b 
+FROM t2 AS SQ3_alias1 STRAIGHT_JOIN t2 AS SQ3_alias2)
+LIMIT 100;
+drop table t1,t2, t3;
+set optimizer_switch=@tmp_830993;
+set join_buffer_size= @tmp_830993_jbs;
 set optimizer_switch=@subselect_sj_tmp;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off

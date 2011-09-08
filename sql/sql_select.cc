@@ -6571,6 +6571,16 @@ void JOIN_TAB::calc_used_field_length(bool max_fl)
     rec_length+=(table->s->null_fields+7)/8;
   if (table->maybe_null)
     rec_length+=sizeof(my_bool);
+
+  /* Take into account that DuplicateElimination may need to store rowid */
+  uint rowid_add_size= 0;
+  if (keep_current_rowid)
+  {
+    rowid_add_size= table->file->ref_length; 
+    rec_length += rowid_add_size;
+    fields++;
+  }
+
   if (max_fl)
   {
     // TODO: to improve this estimate for max expected length 
@@ -6584,13 +6594,9 @@ void JOIN_TAB::calc_used_field_length(bool max_fl)
     }
     max_used_fieldlength= rec_length;
   } 
-  else if (table->file->stats.mean_rec_length)           
-    set_if_smaller(rec_length, table->file->stats.mean_rec_length);
+  else if (table->file->stats.mean_rec_length)
+    set_if_smaller(rec_length, table->file->stats.mean_rec_length + rowid_add_size);
       
-  /*
-    TODO: why we don't count here rowid that we might need to store when 
-    using DuplicateElimination?
-  */
   used_fields=fields;
   used_fieldlength=rec_length;
   used_blobs=blobs;

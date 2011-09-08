@@ -225,8 +225,6 @@ void JOIN_CACHE::calc_record_fields()
     flag_fields+= test(tab->table->maybe_null);
     fields+= tab->used_fields;
     blobs+= tab->used_blobs;
-
-    fields+= tab->check_rowid_field();
   }
   if ((with_match_flag= join_tab->use_match_flag()))
     flag_fields++;
@@ -620,7 +618,12 @@ void JOIN_CACHE::create_remaining_fields()
       copy->type= CACHE_ROWID;
       copy->field= 0;
       copy->referenced_field_no= 0;
-      length+= copy->length;
+      /* 
+        Note: this may seem odd, but at this point we have
+        table->file->ref==NULL while table->file->ref_length is already set 
+        to correct value.
+      */
+      length += table->file->ref_length;
       data_field_count++;
       copy++;
     }
@@ -1297,6 +1300,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   if (with_length)
   {
     rec_len_ptr= cp;   
+    DBUG_ASSERT(cp + size_of_rec_len <= buff + buff_size);
     cp+= size_of_rec_len;
   }
 
@@ -1306,6 +1310,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   */
   if (prev_cache)
   {
+    DBUG_ASSERT(cp + prev_cache->get_size_of_rec_offset() <= buff + buff_size);
     cp+= prev_cache->get_size_of_rec_offset();
     prev_cache->store_rec_ref(cp, link);
   } 
@@ -1322,6 +1327,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   flags_pos= cp;
   for ( ; copy < copy_end; copy++)
   {
+    DBUG_ASSERT(cp + copy->length <= buff + buff_size);
     memcpy(cp, copy->str, copy->length);
     cp+= copy->length;
   } 
@@ -1348,6 +1354,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
       {
         last_rec_blob_data_is_in_rec_buff= 1;
         /* Put down the length of the blob and the pointer to the data */  
+        DBUG_ASSERT(cp + copy->length + sizeof(char*) <= buff + buff_size);
 	blob_field->get_image(cp, copy->length+sizeof(char*),
                               blob_field->charset());
 	cp+= copy->length+sizeof(char*);
@@ -1357,6 +1364,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
         /* First put down the length of the blob and then copy the data */ 
 	blob_field->get_image(cp, copy->length, 
 			      blob_field->charset());
+        DBUG_ASSERT(cp + copy->length + copy->blob_length <= buff + buff_size);
 	memcpy(cp+copy->length, copy->str, copy->blob_length);               
 	cp+= copy->length+copy->blob_length;
       }
@@ -1367,12 +1375,14 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
       case CACHE_VARSTR1:
         /* Copy the significant part of the short varstring field */ 
         len= (uint) copy->str[0] + 1;
+        DBUG_ASSERT(cp + len <= buff + buff_size);
         memcpy(cp, copy->str, len);
         cp+= len;
         break;
       case CACHE_VARSTR2:
         /* Copy the significant part of the long varstring field */
         len= uint2korr(copy->str) + 2;
+        DBUG_ASSERT(cp + len <= buff + buff_size);
         memcpy(cp, copy->str, len);
         cp+= len;
         break;
@@ -1387,6 +1397,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 	     end > str && end[-1] == ' ';
 	     end--) ;
 	len=(uint) (end-str);
+        DBUG_ASSERT(cp + len + 2 <= buff + buff_size);
         int2store(cp, len);
 	memcpy(cp+2, str, len);
 	cp+= len+2;
@@ -1406,6 +1417,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
         /* fall through */
       default:      
         /* Copy the entire image of the field from the record buffer */
+        DBUG_ASSERT(cp + copy->length <= buff + buff_size);
 	memcpy(cp, copy->str, copy->length);
 	cp+= copy->length;
       }
@@ -1425,6 +1437,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
         cnt++;
       }
     }
+    DBUG_ASSERT(cp + size_of_fld_ofs*cnt <= buff + buff_size);
     cp+= size_of_fld_ofs*cnt;
   }
 
