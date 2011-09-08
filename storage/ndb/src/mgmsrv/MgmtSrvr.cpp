@@ -2883,8 +2883,13 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
     break;
   }
 
-  case GSN_NF_COMPLETEREP:
+  case GSN_NF_COMPLETEREP:{
+    const NFCompleteRep * rep = CAST_CONSTPTR(NFCompleteRep,
+                                               signal->getDataPtr());
+    /* Clear local nodeid reservation(if any) */
+    release_local_nodeid_reservation(rep->failedNodeId);
     break;
+  }
   case GSN_TAMPER_ORD:
     ndbout << "TAMPER ORD" << endl;
     break;
@@ -2894,16 +2899,11 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
   case GSN_CONNECT_REP:{
     const Uint32 nodeId = signal->getDataPtr()[0];
 
-    NdbMutex_Lock(m_reserved_nodes_mutex);
-    if (m_reserved_nodes.get(nodeId))
-    {
-      /*
-        Clear local nodeid reservation since nodeid is
-        now reserved by a connected transporter
-      */
-      m_reserved_nodes.clear(nodeId);
-    }
-    NdbMutex_Unlock(m_reserved_nodes_mutex);
+    /*
+      Clear local nodeid reservation since nodeid is
+      now reserved by a connected transporter
+    */
+    release_local_nodeid_reservation(nodeId);
 
     union {
       Uint32 theData[25];
@@ -2942,13 +2942,8 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
       theData[1] = i;
       eventReport(theData, 1);
 
-      /*
-        Double check that local nodeid reservation is cleared
-      */
-      NdbMutex_Lock(m_reserved_nodes_mutex);
-      if (m_reserved_nodes.get(i))
-        m_reserved_nodes.clear(i);
-      NdbMutex_Unlock(m_reserved_nodes_mutex);
+      /* Clear local nodeid reservation(if any) */
+      release_local_nodeid_reservation(i);
     }
     return;
   }
@@ -3075,6 +3070,19 @@ MgmtSrvr::NodeIdReservations::has_timedout(NodeId n, NDB_TICKS now) const
   if (r.m_timeout && (now - r.m_start) > r.m_timeout)
     return true;
   return false;
+}
+
+
+void
+MgmtSrvr::release_local_nodeid_reservation(NodeId nodeid)
+{
+  NdbMutex_Lock(m_reserved_nodes_mutex);
+  if (m_reserved_nodes.get(nodeid))
+  {
+    g_eventLogger->debug("Releasing local reservation for nodeid %d", nodeid);
+    m_reserved_nodes.clear(nodeid);
+  }
+  NdbMutex_Unlock(m_reserved_nodes_mutex);
 }
 
 
