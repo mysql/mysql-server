@@ -3387,7 +3387,6 @@ MgmtSrvr::try_alloc(NodeId id,
   assert(type == NDB_MGM_NODE_TYPE_NDB ||
          type == NDB_MGM_NODE_TYPE_API);
 
-  const NDB_TICKS retry_timeout = 3000; // milliseconds
   const NDB_TICKS start = NdbTick_CurrentMillisecond();
   while (true)
   {
@@ -3403,6 +3402,7 @@ MgmtSrvr::try_alloc(NodeId id,
     if (res == NO_CONTACT_WITH_DB_NODES &&
         type == NDB_MGM_NODE_TYPE_API)
     {
+      const NDB_TICKS retry_timeout = 3000; // milliseconds
       NDB_TICKS elapsed = NdbTick_CurrentMillisecond() - start;
       if (elapsed > retry_timeout)
       {
