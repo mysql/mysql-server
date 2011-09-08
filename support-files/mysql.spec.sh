@@ -984,6 +984,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
@@ -1111,6 +1112,10 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Thu Sep 08 2011 Daniel Fischer <daniel.fischer@oracle.com>
+
+- Add mysql_plugin man page.
+
 * Fri Aug 12 2011 Daniel Fischer <daniel.fischer@oracle.com>
 
 - Source plugin library files list from cmake-generated file.
