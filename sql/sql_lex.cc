@@ -3220,18 +3220,19 @@ void st_select_lex::append_table_to_list(TABLE_LIST *TABLE_LIST::*link,
   tl->*link= table;
 }
 
+
 /*
   @brief
-  Remove given table from the leaf_tables list.
+  Replace given table from the leaf_tables list for a list of tables 
 
-  @param link  Offset to which list in table structure to use
-  @param table Table to remove
+  @param table Table to replace
+  @param list  List to substititute the table for
 
   @details
-  Remove 'table' from the leaf_tables list using the 'link' offset.
+  Replace 'table' from the leaf_tables list for a list of tables 'tbl_list'.
 */
 
-void st_select_lex::remove_table_from_list(TABLE_LIST *table)
+void st_select_lex::replace_leaf_table(TABLE_LIST *table, List<TABLE_LIST> &tbl_list)
 {
   TABLE_LIST *tl;
   List_iterator<TABLE_LIST> ti(leaf_tables);
@@ -3239,7 +3240,7 @@ void st_select_lex::remove_table_from_list(TABLE_LIST *table)
   {
     if (tl == table)
     {
-      ti.remove();
+      ti.replace(tbl_list);
       break;
     }
   }
@@ -3344,8 +3345,6 @@ bool SELECT_LEX::merge_subquery(THD *thd, TABLE_LIST *derived,
                                 uint table_no, table_map map)
 {
   derived->wrap_into_nested_join(subq_select->top_join_list);
-  /* Reconnect the next_leaf chain. */
-  leaf_tables.concat(&subq_select->leaf_tables);
 
   ftfunc_list->concat(subq_select->ftfunc_list);
   if (join ||
@@ -3361,18 +3360,14 @@ bool SELECT_LEX::merge_subquery(THD *thd, TABLE_LIST *derived,
          in_subq->emb_on_expr_nest= derived;
     }
   }
-  /*
-    Remove merged table from chain.
-    When merge_subquery is called at a subquery-to-semijoin transformation
-    the derived isn't in the leaf_tables list, so in this case the call of
-    remove_table_from_list does not cause any actions.
-  */
-  remove_table_from_list(derived);
 
   /* Walk through child's tables and adjust table map, tablenr,
    * parent_lex */
   subq_select->remap_tables(derived, map, table_no, this);
   subq_select->merged_into= this;
+
+  replace_leaf_table(derived, subq_select->leaf_tables);
+
   return FALSE;
 }
 
