@@ -4352,3 +4352,23 @@ WHERE t4.a >= v1.a);
 a	a
 DROP VIEW v1;
 DROP TABLE t1,t2,t3,t4;
+#
+# BUG#833600: Wrong result with view + outer join + uncorrelated subquery (non-semijoin) 
+#
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (0,0),(0,0);
+CREATE TABLE t2 ( a int, b int );
+INSERT IGNORE INTO t2 VALUES (1,0),(1,0);
+CREATE TABLE t3 ( b int );
+INSERT IGNORE INTO t3 VALUES (0),(0);
+CREATE OR REPLACE VIEW v2 AS SELECT * FROM t2;
+SELECT * FROM t1 RIGHT JOIN v2 ON ( v2.a = t1.a ) WHERE v2.b IN ( SELECT b FROM t3 ) AND t1.b IS NULL ;
+a	b	a	b
+NULL	NULL	1	0
+NULL	NULL	1	0
+SELECT * FROM t1 RIGHT JOIN v2 ON ( v2.a = t1.a ) WHERE v2.b IN ( SELECT b FROM t3 ) AND t1.b IS NULL ;
+a	b	a	b
+NULL	NULL	1	0
+NULL	NULL	1	0
+DROP VIEW v2;
+DROP TABLE t1, t2, t3;

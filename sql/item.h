@@ -2919,6 +2919,7 @@ public:
   Item *equal_fields_propagator(uchar *arg);
   Item *replace_equal_field(uchar *arg);
   table_map used_tables() const;	
+  table_map not_null_tables() const;
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   { 
     return (*ref)->walk(processor, walk_subquery, arg) ||

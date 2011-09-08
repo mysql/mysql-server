@@ -9106,6 +9106,12 @@ table_map Item_direct_view_ref::used_tables() const
          (view->merged ? (*ref)->used_tables() : view->table->map); 
 }
 
+table_map Item_direct_view_ref::not_null_tables() const		
+{
+  return get_depended_from() ? 
+         0 :
+         (view->merged ? (*ref)->not_null_tables() : view->table->map); 
+}
 
 /*
   we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
