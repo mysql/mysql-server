@@ -40,6 +40,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
+#include "db0err.h"
 
 /****************************************************************//**
 Compare the name of an index column.
@@ -449,7 +450,7 @@ loop:
 /********************************************************************//**
 Loads definitions for table columns. */
 static
-void
+enum db_err
 dict_load_columns(
 /*==============*/
 	dict_table_t*	table,	/*!< in: table */
@@ -470,6 +471,7 @@ dict_load_columns(
 	ulint		col_len;
 	ulint		i;
 	mtr_t		mtr;
+	enum db_err	err = DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -517,6 +519,30 @@ dict_load_columns(
 		field = rec_get_nth_field_old(rec, 6, &len);
 		prtype = mach_read_from_4(field);
 
+		/* We can rely on dtype_get_charset_coll() to check
+		charset collation number exceed limit, since it comes
+		with a smaller mask. We have to do the check explicitly
+		here */
+		if (((prtype >> 16) & LARGE_CHAR_COLL_PRTYPE_MASK)
+		    > MAX_CHAR_COLL_NUM) {
+                        fprintf(stderr, "InnoDB: Error: load column"
+                                        " '%s' for table '%s' failed.\n"
+                                        "InnoDB: column '%s' has a charset"
+                                        " collation number of %lu, exceeds"
+					" maximum value %lu supported\n",
+					name, name, table->name,
+					(ulong) ((prtype >> 16)
+						 & LARGE_CHAR_COLL_PRTYPE_MASK),
+					(ulong) MAX_CHAR_COLL_NUM);
+			err = DB_CORRUPTION;
+
+			/* If the force recovery flag is not set, it will
+			stop loading and exit */
+			if (!srv_force_recovery) {
+				goto func_exit;
+			}
+		}
+
 		if (dtype_get_charset_coll(prtype) == 0
 		    && dtype_is_string_type(mtype)) {
 			/* The table was created with < 4.1.2. */
@@ -548,8 +574,11 @@ dict_load_columns(
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
+func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
+
+	return(err);
 }
 
 /********************************************************************//**
@@ -1044,7 +1073,12 @@ err_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	dict_load_columns(table, heap);
+	err = dict_load_columns(table, heap);
+
+	if (err != DB_SUCCESS && !srv_force_recovery) {
+		table = NULL;
+		goto func_exit;
+	}
 
 	dict_table_add_to_cache(table, heap);
 
@@ -1106,6 +1140,8 @@ err_exit:
 		mutex_exit(&dict_foreign_err_mutex);
 	}
 #endif /* 0 */
+
+func_exit:
 	mem_heap_free(heap);
 
 	return(table);
