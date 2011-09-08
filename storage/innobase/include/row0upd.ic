@@ -157,11 +157,6 @@ row_upd_rec_sys_fields(
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
-#ifdef UNIV_SYNC_DEBUG
-	if (!rw_lock_own(&btr_search_latch, RW_LOCK_EX)) {
-		ut_ad(!buf_block_align(rec)->is_hashed);
-	}
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (page_zip) {
 		ulint	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
