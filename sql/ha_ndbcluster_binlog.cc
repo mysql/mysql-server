@@ -47,6 +47,7 @@ extern my_bool opt_ndb_log_binlog_index;
 extern my_bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
 extern st_ndb_slave_state g_ndb_slave_state;
+extern my_bool opt_ndb_log_transaction_id;
 
 bool ndb_log_empty_epochs(void);
 
@@ -4247,13 +4248,15 @@ static const st_conflict_fn_arg_def epoch_fn_args[]=
 static const st_conflict_fn_def conflict_fns[]=
 {
   { "NDB$MAX_DELETE_WIN", CFT_NDB_MAX_DEL_WIN,
-    &resolve_col_args[0], row_conflict_fn_max_del_win },
+    &resolve_col_args[0], row_conflict_fn_max_del_win, 0 },
   { "NDB$MAX",            CFT_NDB_MAX,
-    &resolve_col_args[0], row_conflict_fn_max         },
+    &resolve_col_args[0], row_conflict_fn_max,         0 },
   { "NDB$OLD",            CFT_NDB_OLD,
-    &resolve_col_args[0], row_conflict_fn_old         },
+    &resolve_col_args[0], row_conflict_fn_old,         0 },
+  { "NDB$EPOCH_TRANS",    CFT_NDB_EPOCH_TRANS,
+    &epoch_fn_args[0],    row_conflict_fn_epoch,       CF_TRANSACTIONAL},
   { "NDB$EPOCH",          CFT_NDB_EPOCH,
-    &epoch_fn_args[0],    row_conflict_fn_epoch       }
+    &epoch_fn_args[0],    row_conflict_fn_epoch,       0 }
 };
 
 static unsigned n_conflict_fns=
@@ -4508,6 +4511,7 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
     break;
   }
   case CFT_NDB_EPOCH:
+  case CFT_NDB_EPOCH_TRANS:
   {
     if (num_args > 1)
     {
@@ -4520,7 +4524,7 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
     /* Check that table doesn't have Blobs as we don't support that */
     if (share->flags & NSF_BLOB_FLAG)
     {
-      my_snprintf(msg, msg_len, "Table has Blob column(s), not suitable for NDB$EPOCH.");
+      my_snprintf(msg, msg_len, "Table has Blob column(s), not suitable for NDB$EPOCH[_TRANS].");
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
     }
@@ -4530,7 +4534,7 @@ setup_conflict_fn(THD *thd, NDB_SHARE *share,
      * represent SavePeriod/EpochPeriod
      */
     if (ndbtab->getExtraRowGciBits() == 0)
-      sql_print_information("Ndb Slave : CFT_NDB_EPOCH, low epoch resolution");
+      sql_print_information("Ndb Slave : CFT_NDB_EPOCH[_TRANS], low epoch resolution");
 
     if (ndbtab->getExtraRowAuthorBits() == 0)
     {
@@ -6140,8 +6144,9 @@ ndb_find_binlog_index_row(ndb_binlog_index_row **rows,
   return row;
 }
 
+
 static int
-ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
+ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
                                     ndb_binlog_index_row **rows,
                                     injector::transaction &trans,
                                     unsigned &trans_row_count,
@@ -6287,6 +6292,17 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   */
   uint32 logged_server_id= anyValue;
   ndbcluster_anyvalue_set_serverid(logged_server_id, originating_server_id);
+
+  /*
+     Get NdbApi transaction id for this event to put into Binlog
+  */
+  Ndb_binlog_extra_row_info extra_row_info;
+  if (opt_ndb_log_transaction_id)
+  {
+    extra_row_info.setFlags(Ndb_binlog_extra_row_info::NDB_ERIF_TRANSID);
+    extra_row_info.setTransactionId(pOp->getTransId());
+    thd->binlog_row_event_extra_data = extra_row_info.generateBuffer();
+  }
 
   DBUG_ASSERT(trans.good());
   DBUG_ASSERT(table != 0);
@@ -6455,6 +6471,11 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     /* We should REALLY never get here. */
     DBUG_PRINT("info", ("default - uh oh, a brain exploded."));
     break;
+  }
+
+  if (opt_ndb_log_transaction_id)
+  {
+    thd->binlog_row_event_extra_data = NULL;
   }
 
   if (share->flags & NSF_BLOB_FLAG)
@@ -7362,7 +7383,8 @@ restart_cluster_failure:
 #endif
           if ((unsigned) pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
-            ndb_binlog_thread_handle_data_event(i_ndb, pOp, &rows, trans, trans_row_count, trans_slave_row_count);
+            ndb_binlog_thread_handle_data_event(thd, i_ndb, pOp, &rows, trans,
+                                                trans_row_count, trans_slave_row_count);
           else
           {
             ndb_binlog_thread_handle_non_data_event(thd, pOp, *rows);
@@ -7784,4 +7806,121 @@ ulong opt_server_id_mask = ~0;
 
 #endif
 
+Ndb_binlog_extra_row_info::
+Ndb_binlog_extra_row_info()
+{
+  flags = 0;
+  transactionId = InvalidTransactionId;
+  /* Prepare buffer with extra row info buffer bytes */
+  buff[ EXTRA_ROW_INFO_LEN_OFFSET ] = 0;
+  buff[ EXTRA_ROW_INFO_FORMAT_OFFSET ] = ERIF_NDB;
+}
+
+void
+Ndb_binlog_extra_row_info::
+setFlags(Uint16 _flags)
+{
+  flags = _flags;
+}
+
+void
+Ndb_binlog_extra_row_info::
+setTransactionId(Uint64 _transactionId)
+{
+  assert(_transactionId != InvalidTransactionId);
+  transactionId = _transactionId;
+};
+
+int
+Ndb_binlog_extra_row_info::
+loadFromBuffer(const uchar* extra_row_info)
+{
+  assert(extra_row_info);
+
+  Uint8 length = extra_row_info[ EXTRA_ROW_INFO_LEN_OFFSET ];
+  assert(length >= EXTRA_ROW_INFO_HDR_BYTES);
+  Uint8 payload_length = length - EXTRA_ROW_INFO_HDR_BYTES;
+  Uint8 format = extra_row_info[ EXTRA_ROW_INFO_FORMAT_OFFSET ];
+
+  if (likely(format == ERIF_NDB))
+  {
+    if (likely(payload_length >= FLAGS_SIZE))
+    {
+      const uchar* data = &extra_row_info[ EXTRA_ROW_INFO_HDR_BYTES ];
+      Uint8 nextPos = 0;
+
+      /* Have flags at least */
+      Uint16 netFlags;
+      memcpy(&netFlags, &data[ nextPos ], FLAGS_SIZE);
+      nextPos += FLAGS_SIZE;
+      flags = uint2korr((const char*) &netFlags);
+
+      if (flags & NDB_ERIF_TRANSID)
+      {
+        if (likely((nextPos + TRANSID_SIZE) <= payload_length))
+        {
+          /*
+            Correct length, retrieve transaction id, converting from
+            little endian if necessary.
+          */
+          Uint64 netTransId;
+          memcpy(&netTransId,
+                 &data[ nextPos ],
+                 TRANSID_SIZE);
+          nextPos += TRANSID_SIZE;
+          transactionId = uint8korr((const char*) &netTransId);
+        }
+        else
+        {
+          /*
+             Error - supposed to have transaction id, but
+             buffer too short
+          */
+          return -1;
+        }
+      }
+    }
+  }
+
+  /* We currently ignore other formats of extra binlog info, and
+   * different lengths.
+   */
+
+  return 0;
+}
+
+uchar*
+Ndb_binlog_extra_row_info::generateBuffer()
+{
+  /*
+    Here we write out the buffer in network format,
+    based on the current member settings.
+  */
+  Uint8 nextPos = EXTRA_ROW_INFO_HDR_BYTES;
+
+  if (flags)
+  {
+    /* Write current flags into buff */
+    Uint16 netFlags = uint2korr((const char*) &flags);
+    memcpy(&buff[ nextPos ], &netFlags, FLAGS_SIZE);
+    nextPos += FLAGS_SIZE;
+
+    if (flags & NDB_ERIF_TRANSID)
+    {
+      Uint64 netTransactionId = uint8korr((const char*) &transactionId);
+      memcpy(&buff[ nextPos ], &netTransactionId, TRANSID_SIZE);
+      nextPos += TRANSID_SIZE;
+    }
+
+    assert( nextPos <= MaxLen );
+    /* Set length */
+    assert( buff[ EXTRA_ROW_INFO_FORMAT_OFFSET ] == ERIF_NDB );
+    buff[ EXTRA_ROW_INFO_LEN_OFFSET ] = nextPos;
+
+    return buff;
+  }
+  return 0;
+}
+
+// #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #endif

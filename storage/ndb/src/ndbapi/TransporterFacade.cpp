@@ -425,6 +425,19 @@ TransporterFacade::doStop(){
   DBUG_VOID_RETURN;
 }
 
+void TransporterFacade::setSendThreadInterval(Uint32 ms)
+{
+  if(ms > 0 && ms <= 10) 
+  { 
+    sendThreadWaitMillisec = ms;
+  }
+}
+
+Uint32 TransporterFacade::getSendThreadInterval(void)
+{
+  return sendThreadWaitMillisec;
+}
+
 extern "C" 
 void* 
 runSendRequest_C(void * me)
@@ -444,7 +457,7 @@ void TransporterFacade::threadMainSend(void)
   m_socket_server.startServer();
 
   while(!theStopReceive) {
-    NdbSleep_MilliSleep(10);
+    NdbSleep_MilliSleep(sendThreadWaitMillisec);
     NdbMutex_Lock(theMutexPtr);
     if (sendPerformedLastInterval == 0) {
       theTransporterRegistry->performSend();
@@ -537,7 +550,8 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theSendThread(NULL),
   theReceiveThread(NULL),
   m_fragmented_signal_id(0),
-  m_globalDictCache(cache)
+  m_globalDictCache(cache),
+  sendThreadWaitMillisec(10)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   theMutexPtr = NdbMutex_CreateWithName("TTFM");
@@ -815,7 +829,7 @@ void TransporterFacade::forceSend(Uint32 block_number) {
 //-------------------------------------------------
 // Improving API performance
 //-------------------------------------------------
-void
+int
 TransporterFacade::checkForceSend(Uint32 block_number) {  
   m_threads.m_statusNext[numberToIndex(block_number)] = ThreadData::ACTIVE;
   //-------------------------------------------------
@@ -828,14 +842,16 @@ TransporterFacade::checkForceSend(Uint32 block_number) {
   // time to increase so therefore we have to keep track of
   // how the users are performing adaptively.
   //-------------------------------------------------
-  
-  if (theTransporterRegistry->forceSendCheck(currentSendLimit) == 1) {
+
+  int did_send = theTransporterRegistry->forceSendCheck(currentSendLimit);
+  if(did_send == 1) {
     sendPerformedLastInterval = 1;
   }
   checkCounter--;
   if (checkCounter < 0) {
     calculateSendLimit();
   }
+  return did_send;
 }
 
 

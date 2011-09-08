@@ -231,6 +231,12 @@ extern ulong opt_server_id_mask;
 
 extern I_List<THD> threads;
 
+#ifndef MCP_WL5353
+#ifdef HAVE_NDB_BINLOG
+#define SLAVE_SILENT_RETRY_MSG "Slave transaction rollback requested"
+#endif
+#endif
+
 #endif /* HAVE_REPLICATION */
 
 /* masks for start/stop operations on io and sql slave threads */
