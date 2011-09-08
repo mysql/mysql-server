@@ -475,6 +475,7 @@ private:
   } m_reserved_nodes;
   NdbMutex* m_reserved_nodes_mutex;
 
+  void release_local_nodeid_reservation(NodeId nodeid);
   struct PossibleNode
   {
     unsigned id;
