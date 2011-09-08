@@ -4388,8 +4388,7 @@ wrong_offs:
 		if (!set_also_gap_locks
 		    || srv_locks_unsafe_for_binlog
 		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED
-		    || (unique_search
-			&& !UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp)))) {
+		    || (unique_search && !rec_get_deleted_flag(rec, comp))) {
 
 			goto no_gap_lock;
 		} else {
@@ -4576,7 +4575,7 @@ locks_ok:
 	point that rec is on a buffer pool page. Functions like
 	page_rec_is_comp() cannot be used! */
 
-	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp))) {
+	if (rec_get_deleted_flag(rec, comp)) {
 
 		/* The record is delete-marked: we can skip it */
 
@@ -4674,7 +4673,7 @@ requires_clust_rec:
 			goto lock_wait_or_error;
 		}
 
-		if (UNIV_UNLIKELY(rec_get_deleted_flag(clust_rec, comp))) {
+		if (rec_get_deleted_flag(clust_rec, comp)) {
 
 			/* The record is delete marked: we can skip it */
 

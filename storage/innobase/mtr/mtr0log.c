@@ -175,7 +175,7 @@ mlog_parse_nbytes(
 		}
 
 		if (page) {
-			if (UNIV_LIKELY_NULL(page_zip)) {
+			if (page_zip) {
 				mach_write_to_8
 					(((page_zip_des_t*) page_zip)->data
 					 + offset, dval);
@@ -199,7 +199,7 @@ mlog_parse_nbytes(
 			goto corrupt;
 		}
 		if (page) {
-			if (UNIV_LIKELY_NULL(page_zip)) {
+			if (page_zip) {
 				mach_write_to_1
 					(((page_zip_des_t*) page_zip)->data
 					 + offset, val);
@@ -212,7 +212,7 @@ mlog_parse_nbytes(
 			goto corrupt;
 		}
 		if (page) {
-			if (UNIV_LIKELY_NULL(page_zip)) {
+			if (page_zip) {
 				mach_write_to_2
 					(((page_zip_des_t*) page_zip)->data
 					 + offset, val);
@@ -222,7 +222,7 @@ mlog_parse_nbytes(
 		break;
 	case MLOG_4BYTES:
 		if (page) {
-			if (UNIV_LIKELY_NULL(page_zip)) {
+			if (page_zip) {
 				mach_write_to_4
 					(((page_zip_des_t*) page_zip)->data
 					 + offset, val);
@@ -420,7 +420,7 @@ mlog_parse_string(
 	}
 
 	if (page) {
-		if (UNIV_LIKELY_NULL(page_zip)) {
+		if (page_zip) {
 			memcpy(((page_zip_des_t*) page_zip)->data
 				+ offset, ptr, len);
 		}
