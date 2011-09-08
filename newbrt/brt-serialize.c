@@ -665,8 +665,7 @@ toku_create_compressed_partition_from_available(
 // tests are showing that serial insertions are slightly faster 
 // using the pthreads than using CILK. Disabling CILK until we have
 // some evidence that it is faster
-//#ifdef HAVE_CILK
-#if 0
+#ifdef HAVE_CILK
 
 static void
 serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]) {
