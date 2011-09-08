@@ -758,7 +758,6 @@ compress_internal_node_partition(BRTNODE node, int i)
 // callback for partially evicting a node
 int toku_brtnode_pe_callback (void *brtnode_pv, long UU(bytes_to_free), long* bytes_freed, void* UU(extraargs)) {
     BRTNODE node = (BRTNODE)brtnode_pv;
-    long orig_size = brtnode_memory_size(node);
 
     // 
     // nothing on internal nodes for now
@@ -823,7 +822,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long UU(bytes_to_free), long* by
             }
         }
     }
-    *bytes_freed = orig_size - brtnode_memory_size(node);
+    *bytes_freed = brtnode_memory_size(node);
 
 exit:
     if (node->height == 0) {
