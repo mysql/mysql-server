@@ -3615,8 +3615,11 @@ MgmtSrvr::alloc_node_id(NodeId& nodeid,
 
   if (try_alloc_from_list(nodeid, type, timeout_ms, nodes))
   {
-    /* Be ready to accept connections from this node */
-    theFacade->ext_doConnect(nodeid);
+    if (type == NDB_MGM_NODE_TYPE_NDB)
+    {
+      /* Be ready to accept connections from this node */
+      theFacade->ext_doConnect(nodeid);
+    }
 
     return true;
   }
