@@ -570,7 +570,7 @@ angel_run(const char* progname,
                       retriever.get_mgmd_host(),
                       retriever.get_mgmd_port());
 
-  const int alloc_retries = 2;
+  const int alloc_retries = 10;
   const int alloc_delay = 3;
   const Uint32 nodeid = retriever.allocNodeId(alloc_retries, alloc_delay);
   if (nodeid == 0)
@@ -842,7 +842,7 @@ angel_run(const char* progname,
     retriever.setNodeId(nodeid);
 
     g_eventLogger->debug("Angel reallocating nodeid %d", nodeid);
-    const int alloc_retries = 10;
+    const int alloc_retries = 20;
     const int alloc_delay = 3;
     const Uint32 realloced = retriever.allocNodeId(alloc_retries, alloc_delay);
     if (realloced == 0)
