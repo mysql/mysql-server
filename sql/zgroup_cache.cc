@@ -297,8 +297,9 @@ void Group_cache::generate_automatic_gno(const THD *thd, Group_log_state *gls)
 
 
 enum_group_status
-Group_cache::write_to_log(Group_cache *trx_group_cache,
-                          rpl_binlog_pos offset_after_last_statement)
+Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
+                                  rpl_binlog_pos offset_after_last_statement,
+                                  Cached_subgroup **last_non_dummy_subgroup)
 {
   DBUG_ENTER("Group_cache::write_to_log(Group_cache *)");
   //printf("Group_cache::write_to_log(Group_cache *)\n");
@@ -347,7 +348,6 @@ Group_cache::write_to_log(Group_cache *trx_group_cache,
     Find the last non-dummy group so that we can set
     offset_after_last_statement for it.
   */
-  Cached_subgroup *last_non_dummy= NULL;
   // offset_after_last_statement is -1 if this Group_cache contains
   // only dummy groups.
 #ifdef NO_DBUG
@@ -359,18 +359,29 @@ Group_cache::write_to_log(Group_cache *trx_group_cache,
       Cached_subgroup *cs= get_unsafe_pointer(i);
       if (cs->type != DUMMY_SUBGROUP)
       {
-        last_non_dummy= cs;
+        *last_non_dummy_subgroup= cs;
         break;
       }
     }
-    DBUG_ASSERT((last_non_dummy != NULL &&
+    DBUG_ASSERT((*last_non_dummy_subgroup != NULL &&
                  offset_after_last_statement != -1) ||
-                (last_non_dummy == NULL &&
+                (*last_non_dummy_subgroup == NULL &&
                  offset_after_last_statement == -1));
   }
 
-  // @todo write to log when log has been implemented
+  DBUG_RETURN(GS_SUCCESS);
+}
 
+
+enum_group_status
+Group_cache::write_to_log(Group_cache *trx_group_cache,
+                          rpl_binlog_pos offset_after_last_statement)
+{
+  DBUG_ENTER("Group_cache::write_to_log");
+  Cached_subgroup *last_non_dummy_subgroup;
+  GROUP_STATUS_THROW(write_to_log_prepare(trx_group_cache,
+                                          offset_after_last_statement,
+                                          &last_non_dummy_subgroup));
   DBUG_RETURN(GS_SUCCESS);
 }
 

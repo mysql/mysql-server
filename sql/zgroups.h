@@ -1895,6 +1895,17 @@ private:
     @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
   */
   enum_group_status add_subgroup(const Cached_subgroup *subgroup);
+  /**
+    Prepare the cache to be written to the group log.
+
+    @todo The group log is not yet implemented. /Sven
+
+    @param trx_group_cache @see write_to_log.
+  */
+  enum_group_status
+    write_to_log_prepare(Group_cache *trx_group_cache,
+                         rpl_binlog_pos offset_after_last_statement,
+                         Cached_subgroup **last_non_dummy_subgroup);
 
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GROUP_CACHE
@@ -2002,16 +2013,21 @@ public:
     my_off_t ret= my_write(fd, data, length, MYF(MY_WME));
     DBUG_RETURN(ret);
   }
-  my_off_t pread(my_off_t offset, my_off_t length, char *buffer) const;
-  void set_rotation_limit(my_off_t limit);
-  my_off_t get_rotation_limit() const;
+  my_off_t pread(my_off_t offset, my_off_t length, uchar *buffer) const;
+  void set_rotation_limit(my_off_t limit) { rotation_limit= limit; }
+  my_off_t get_rotation_limit() const { return rotation_limit; }
   int purge(my_off_t offset);
   int truncate(my_off_t offset);
-  int sync();
-  bool is_writable() const;
-  bool is_open() const;
+  int sync()
+  {
+    DBUG_ASSERT(is_writable());
+    return my_sync(fd, MYF(MY_WME));
+  }
+  bool is_writable() const { return writable; }
+  bool is_open() const { return fd != -1; }
   ~Rot_file();
 private:
+  int header_length;
   char file_name[FN_REFLEN];
   File fd;
   my_off_t rotation_limit;
@@ -2030,6 +2046,19 @@ private:
   my_off_t limit;
 */
 };
+
+
+class Group_log : Rot_file
+{
+public:
+  Group_log(const char *filename) : Rot_file(filename) {}
+};
+
+
+int write_compact_unsigned(File fd, ulonglong n, myf my_flags);
+int read_compact_unsigned(File fd, ulonglong *out, myf my_flags);
+int write_compact_signed(File fd, longlong n, myf my_flags);
+int read_compact_signed(File fd, longlong *out, myf my_flags);
 
 
 #endif /* HAVE_UGID */
