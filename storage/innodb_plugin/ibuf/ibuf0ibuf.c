@@ -1766,15 +1766,14 @@ ibuf_add_free_page(void)
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, page_no, RW_X_LATCH, &mtr);
 
-		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE_NEW);
+		ibuf_enter();
 
+		mutex_enter(&ibuf_mutex);
+
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE_NEW);
 
 		page = buf_block_get_frame(block);
 	}
-
-	ibuf_enter();
-
-	mutex_enter(&ibuf_mutex);
 
 	root = ibuf_tree_root_get(&mtr);
 

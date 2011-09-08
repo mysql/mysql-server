@@ -1683,13 +1683,13 @@ ibuf_add_free_page(
 
 	page = buf_page_get(space, page_no, RW_X_LATCH, &mtr);
 
-#ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_TREE_NODE_NEW);
-#endif /* UNIV_SYNC_DEBUG */
-
 	ibuf_enter();
 
 	mutex_enter(&ibuf_mutex);
+
+#ifdef UNIV_SYNC_DEBUG
+	buf_page_dbg_add_level(page, SYNC_TREE_NODE_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 
 	root = ibuf_tree_root_get(ibuf_data, space, &mtr);
 
