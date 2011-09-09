@@ -1993,16 +1993,12 @@ row_merge_insert_index_tuples(
 	ulint			error = DB_SUCCESS;
 	ulint			foffs = 0;
 	ulint*			offsets;
-	fts_tokenizer_word_t	new_word;
-	ib_vector_t*		positions = NULL;
-	doc_id_t		last_doc_id;
-	que_t**			ins_graph = NULL;
-	fts_table_t		fts_table;
-	mem_heap_t*		fts_heap = NULL;
 
 	ut_ad(trx);
 	ut_ad(index);
 	ut_ad(table);
+
+	ut_ad(!(index->type & DICT_FTS));
 
 	/* We use the insert query graph as the dummy graph
 	needed in the row module call */
@@ -2027,31 +2023,6 @@ row_merge_insert_index_tuples(
 	}
 
 	b = block;
-
-	/* Initialize related variables if creating FTS indexes */
-	if (index->type & DICT_FTS) {
-		ib_alloc_t*             heap_alloc;
-		ulint			n_bytes;
-
-		fts_heap = mem_heap_create(512);
-
-		heap_alloc = ib_heap_allocator_create(fts_heap);
-
-		memset(&new_word, 0, sizeof(new_word));
-
-                new_word.nodes = ib_vector_create(
-                        heap_alloc, sizeof(fts_node_t), 4);
-		positions = ib_vector_create(heap_alloc, sizeof(ulint), 32);	
-		last_doc_id = 0;
-
-		/* Allocate insert query graphs for FTS auxillary
-		Index Table, note we have 4 such index tables */
-		n_bytes = sizeof(que_t*) * 5;
-		ins_graph = mem_heap_alloc(fts_heap, n_bytes);
-		memset(ins_graph, 0x0, n_bytes);
-
-		FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
-	}
 
 	if (!row_merge_read(fd, foffs, block)) {
 		error = DB_CORRUPTION;
@@ -2080,15 +2051,6 @@ row_merge_insert_index_tuples(
 				row_merge_copy_blobs(mrec, offsets, zip_size,
 						     dtuple, tuple_heap);
 			}
-
-			if (index->type & DICT_FTS) {
-				row_fts_insert_tuple(
-					trx, ins_graph,
-					&fts_table, &new_word,
-					positions, &last_doc_id, dtuple,
-					NULL, fts_heap, ULINT_UNDEFINED);
-				continue;
-                        }
 
 			node->row = dtuple;
 			node->table = table;
@@ -2119,15 +2081,6 @@ row_merge_insert_index_tuples(
 next_rec:
 			mem_heap_empty(tuple_heap);
 		}
-
-		/* Insert the last word for FTS) */
-		if (index->type & DICT_FTS) {
-			row_fts_insert_tuple(
-				trx, ins_graph,
-				&fts_table, &new_word,
-				positions, &last_doc_id, NULL, NULL,
-				fts_heap, ULINT_UNDEFINED);
-		}
 	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
@@ -2137,10 +2090,6 @@ err_exit:
 	trx->op_info = "";
 
 	mem_heap_free(tuple_heap);
-
-	if (fts_heap) {
-		mem_heap_free(fts_heap);
-	}
 
 	return(error);
 }

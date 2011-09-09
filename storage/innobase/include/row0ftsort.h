@@ -91,8 +91,7 @@ struct fts_psort_struct {
 	fts_psort_common_t*	psort_common;	/*!< ptr to all psort info */
 };
 
-/** Structure carries information for tokenization status while processing
-each word string */
+/** Structure stores information from string tokenization operation */ 
 struct fts_tokenize_ctx {
 	ulint			processed_len;  /*!< processed string length */
 	ulint			init_pos;       /*!< doc start position */
@@ -108,6 +107,21 @@ struct fts_tokenize_ctx {
 };
 
 typedef struct fts_tokenize_ctx fts_tokenize_ctx_t;
+
+/** Structure stores information needed for the insertion phase of FTS
+parallel sort. */
+struct fts_psort_insert {
+	trx_t*		trx;		/*!< Transaction used for insertion */
+	que_t**		ins_graph;	/*!< insert graph */	
+	fts_table_t	fts_table;	/*!< auxiliary table */
+	CHARSET_INFO*	charset;	/*!< charset info */
+	mem_heap_t*	heap;		/*!< heap */
+	ibool		opt_doc_id_size;/*!< Whether to use smaller (4 bytes)
+					integer for Doc ID */
+};
+
+typedef struct fts_psort_insert	fts_psort_insert_t;
+
 
 /** status bit used for communication between parent and child thread */
 #define FTS_PARENT_COMPLETE	1
@@ -247,18 +261,13 @@ UNIV_INTERN
 void
 row_fts_insert_tuple(
 /*=================*/
-	trx_t*		trx,		/*!< in: transaction */
-	que_t**		ins_graph,	/*!< in: Insert query graphs */
-	fts_table_t*	fts_table,	/*!< in: fts aux table instance */
+	fts_psort_insert_t*
+			ins_ctx,        /*!< in: insert context */
 	fts_tokenizer_word_t* word,	/*!< in: last processed
 					tokenized word */
 	ib_vector_t*	positions,	/*!< in: word position */
 	doc_id_t*	in_doc_id,	/*!< in: last item doc id */
-	dtuple_t*	dtuple,		/*!< in: index entry */
-	CHARSET_INFO*	charset,	/*!< in: charset */
-	mem_heap_t*	heap,		/*!< in: heap */
-	ibool		opt_doc_id_size);/*!< in: Doc ID value needs to add
-					back */
+	dtuple_t*	dtuple);	/*!< in: entry to insert */
 /********************************************************************//**
 Propagate a newly added record up one level in the selection tree
 @return parent where this value propagated to */
