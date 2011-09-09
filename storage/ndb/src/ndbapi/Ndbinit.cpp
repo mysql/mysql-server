@@ -204,6 +204,8 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
     theNdbObjectIdMap(1024,1024),
     theNoOfDBnodes(0),
     theWaiter(this),
+    wakeHandler(0),
+    wakeContext(~Uint32(0)),
     m_ev_op(0),
     customDataPtr(0)
 {
