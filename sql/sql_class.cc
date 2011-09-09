@@ -1388,6 +1388,15 @@ THD::~THD()
     delete rli_fake;
     rli_fake= NULL;
   }
+
+#ifdef HAVE_UGID
+  if (variables.ugid_next_list.group_set != NULL)
+  {
+    delete variables.ugid_next_list.group_set;
+    variables.ugid_next_list.group_set= NULL;
+    variables.ugid_next_list.is_non_null= false;
+  }
+#endif
   
   mysql_audit_free_thd(this);
 #endif

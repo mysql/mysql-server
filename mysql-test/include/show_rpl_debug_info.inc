@@ -65,8 +65,13 @@ while ($_rpl_server)
   --echo **** SHOW WARNINGS on $CURRENT_CONNECTION ****
   SHOW WARNINGS;
   --echo
+  --echo **** UGID_* on $CURRENT_CONNECTION ****
+  query_vertical
+ SELECT @@GLOBAL.UGID_ENDED_GROUPS, @@GLOBAL.UGID_PARTIAL_GROUPS,
+        @@SESSION.UGID_ENDED_GROUPS, @@SESSION.UGID_PARTIAL_GROUPS;
+  --echo
   --echo **** SELECT replication-related variables on $CURRENT_CONNECTION ****
-  SELECT NOW(), @@SERVER_ID, @@SERVER_UUID;
+  query_vertical SELECT NOW(), @@SERVER_ID, @@SERVER_UUID;
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
   query_vertical SHOW SLAVE STATUS;

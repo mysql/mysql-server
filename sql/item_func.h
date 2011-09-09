@@ -1447,6 +1447,17 @@ public:
 };
 
 
+class Item_func_group_subset : public Item_int_func
+{
+  String buf;
+public:
+  Item_func_group_subset(Item *a, Item *b) : Item_int_func(a, b) {}
+  longlong val_int();
+  const char *func_name() const { return "group_subset"; }
+  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+};
+
+
 /* Handling of user definable variables */
 
 class user_var_entry;

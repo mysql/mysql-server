@@ -4029,3 +4029,60 @@ String *Item_func_uuid::val_str(String *str)
   strmov(s+18, clock_seq_and_node_str);
   return str;
 }
+
+
+void Item_func_group_subtract::fix_length_and_dec()
+{
+  maybe_null= args[0]->maybe_null || args[1]->maybe_null;
+  collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
+  /*
+    In the worst case, the string grows after subtraction. This
+    happens when a group in args[0] is split by a group in args[1],
+    e.g., UUID:1-6 minus UUID:3-4 becomes UUID:1-2,5-6.  The worst
+    case is UUID:1-100 minus UUID:9, where the two characters ":9" in
+    args[1] yield the five characters "-8,10" in the result.
+  */
+  fix_char_length_ulonglong(args[0]->max_length +
+                            (ulonglong)(max(args[1]->max_length - 
+                                            Uuid::TEXT_LENGTH, 0)) * 5 / 2);
+}
+
+
+String *Item_func_group_subtract::val_str_ascii(String *str)
+{
+  DBUG_ENTER("Item_func_group_subtract::val_str_ascii");
+  String *str1, *str2;
+  const char *charp1, *charp2;
+  enum_group_status status;
+  // get first set
+  if (!args[0]->null_value && !args[1]->null_value &&
+      (str1= args[0]->val_str_ascii(str)) != NULL &&
+      (charp1= str1->c_ptr_safe()) != NULL)
+  {
+    mysql_bin_log.sid_lock.rdlock();
+    Group_set set1(&mysql_bin_log.sid_map, charp1, &status);
+    // get second set
+    if (status == GS_SUCCESS &&
+        (str2= args[1]->val_str_ascii(str)) != NULL &&
+        (charp2= str2->c_ptr_safe()) != NULL)
+    {
+      Group_set set2(&mysql_bin_log.sid_map, charp2, &status);
+      int length;
+      // subtract, save result, return result
+      if (status == GS_SUCCESS &&
+          set1.remove(&set2) == GS_SUCCESS &&
+          !str->realloc((length= set1.get_string_length()) + 1))
+      {
+        set1.to_string((char *)str->ptr());
+        mysql_bin_log.sid_lock.unlock();
+        str->length(length);
+        DBUG_RETURN(str);
+      }
+    }
+    mysql_bin_log.sid_lock.unlock();
+  }
+  null_value= true;
+  DBUG_RETURN(NULL);
+}
+
+
