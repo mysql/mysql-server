@@ -363,7 +363,8 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_first_ndb_object(0),
     m_latest_error_msg(),
     m_latest_error(0),
-    m_max_trans_id(0)
+    m_max_trans_id(0),
+    m_multi_wait_group(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
@@ -497,6 +498,10 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     NdbMutex_Destroy(m_new_delete_ndb_mutex);
   m_new_delete_ndb_mutex = 0;
   
+  if(m_multi_wait_group)
+    delete m_multi_wait_group;
+  m_multi_wait_group = 0;
+
   DBUG_VOID_RETURN;
 }
 
@@ -981,5 +986,46 @@ Ndb_cluster_connection::collect_client_stats(Uint64* statsArr, Uint32 sz)
   return relevant;
 }
 
-template class Vector<Ndb_cluster_connection_impl::Node>;
+void
+Ndb_cluster_connection::set_max_adaptive_send_time(Uint32 milliseconds)
+{
+  m_impl.m_transporter_facade->setSendThreadInterval(milliseconds);
+}
 
+Uint32
+Ndb_cluster_connection::get_max_adaptive_send_time()
+{
+  return m_impl.m_transporter_facade->getSendThreadInterval();
+}
+
+NdbWaitGroup *
+Ndb_cluster_connection::create_ndb_wait_group(int size)
+{
+  if(m_impl.m_multi_wait_group == NULL)
+  {
+    m_impl.m_multi_wait_group = new NdbWaitGroup(this, size);
+    return m_impl.m_multi_wait_group;
+  }
+  else
+  {
+    return NULL;  // NdbWaitGroup already exists
+  }
+}
+
+bool
+Ndb_cluster_connection::release_ndb_wait_group(NdbWaitGroup *group)
+{
+  if(m_impl.m_multi_wait_group && m_impl.m_multi_wait_group == group)
+  {
+    delete m_impl.m_multi_wait_group;
+    m_impl.m_multi_wait_group = 0;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+
+template class Vector<Ndb_cluster_connection_impl::Node>;

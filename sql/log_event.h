@@ -3509,6 +3509,13 @@ public:
       values for all columns of the table.
      */
     COMPLETE_ROWS_F = (1U << 3)
+
+#ifndef MCP_WL5353
+    /**
+       Indicates that additional information was appended to the event.
+    */
+    ,EXTRA_ROW_EV_DATA_F = (1U << 4)
+#endif
   };
 
   typedef uint16 flag_set;
@@ -3572,6 +3579,10 @@ public:
 
   uint     m_row_count;         /* The number of rows added to the event */
 
+#ifndef MCP_WL5353
+  const uchar* get_extra_row_data() const   { return m_extra_row_data; }
+#endif
+
 protected:
   /* 
      The constructors are protected since you're supposed to inherit
@@ -3619,6 +3630,11 @@ protected:
   uchar    *m_rows_end;		/* One-after the end of the allocated space */
 
   flag_set m_flags;		/* Flags for row-level events */
+
+#ifndef MCP_WL5353
+  uchar    *m_extra_row_data;   /* Pointer to extra row data if any */
+                                /* If non null, first byte is length */
+#endif
 
   /* helper functions */
 

@@ -104,6 +104,7 @@ static bool fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * d
 static bool fixShmUniqueId(InitConfigFileParser::Context & ctx, const char * data);
 static bool checkLocalhostHostnameMix(InitConfigFileParser::Context & ctx, const char * data);
 static bool checkThreadPrioSpec(InitConfigFileParser::Context & ctx, const char * data);
+static bool checkThreadConfig(InitConfigFileParser::Context & ctx, const char * data);
 
 const ConfigInfo::SectionRule 
 ConfigInfo::m_SectionRules[] = {
@@ -166,6 +167,7 @@ ConfigInfo::m_SectionRules[] = {
   { DB_TOKEN,   fixBackupDataDir, 0 },
 
   { DB_TOKEN,   checkDbConstraints, 0 },
+  { DB_TOKEN,   checkThreadConfig, 0 },
 
   { API_TOKEN, checkThreadPrioSpec, 0 },
   { MGM_TOKEN, checkThreadPrioSpec, 0 },
@@ -1721,7 +1723,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "2",
+    "0",
     "2",
     "8"
   },
@@ -1763,6 +1765,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0,
     "false",
     "true"
+  },
+
+  {
+    CFG_DB_MT_THREAD_CONFIG,
+    "ThreadConfig",
+    DB_TOKEN,
+    "Thread configuration",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    0,
+    0,
+    0
   },
 
   {
@@ -4755,6 +4770,78 @@ checkThreadPrioSpec(InitConfigFileParser::Context & ctx, const char * unused)
     }
     return true;
   }
+  return true;
+}
+
+#include "../kernel/vm/mt_thr_config.hpp"
+
+static
+bool
+checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
+{
+  (void)unused;
+  Uint32 maxExecuteThreads = 0;
+  Uint32 lqhThreads = 0;
+  Uint32 classic = 0;
+  const char * thrconfig = 0;
+  const char * locktocpu = 0;
+
+  THRConfig tmp;
+  if (ctx.m_currentSection->get("LockExecuteThreadToCPU", &locktocpu))
+  {
+    tmp.setLockExecuteThreadToCPU(locktocpu);
+  }
+
+  ctx.m_currentSection->get("MaxNoOfExecutionThreads", &maxExecuteThreads);
+  ctx.m_currentSection->get("__ndbmt_lqh_threads", &lqhThreads);
+  ctx.m_currentSection->get("__ndbmt_classic", &classic);
+
+  if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
+  {
+    int ret = tmp.do_parse(thrconfig);
+    if (ret)
+    {
+      ctx.reportError("Unable to parse ThreadConfig: %s",
+                      tmp.getErrorMessage());
+      return false;
+    }
+
+    if (maxExecuteThreads)
+    {
+      ctx.reportWarning("ThreadConfig overrides MaxNoOfExecutionThreads");
+    }
+
+    if (lqhThreads)
+    {
+      ctx.reportWarning("ThreadConfig overrides __ndbmt_lqh_threads");
+    }
+
+    if (classic)
+    {
+      ctx.reportWarning("ThreadConfig overrides __ndbmt_classic");
+    }
+  }
+  else if (maxExecuteThreads || lqhThreads || classic)
+  {
+    int ret = tmp.do_parse(maxExecuteThreads, lqhThreads, classic);
+    if (ret)
+    {
+      ctx.reportError("Unable to set thread configuration: %s",
+                      tmp.getErrorMessage());
+      return false;
+    }
+  }
+
+  if (tmp.getInfoMessage())
+  {
+    ctx.reportWarning("%s", tmp.getInfoMessage());
+  }
+
+  if (thrconfig == 0)
+  {
+    ctx.m_currentSection->put("ThreadConfig", tmp.getConfigString());
+  }
+
   return true;
 }
 
