@@ -402,6 +402,14 @@ public:
    */
 
   /**
+   * Notify upper layer of explicit wakeup request
+   *
+   * The is called from the thread holding receiving data from the
+   * transporter, under the protection of the transporter lock.
+   */
+  virtual void reportWakeup() { }
+
+  /**
    * Ask upper layer to supply a list of struct iovec's with data to
    * send to a node.
    *

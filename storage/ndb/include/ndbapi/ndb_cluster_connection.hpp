@@ -34,6 +34,7 @@ private:
 };
 
 class Ndb;
+class NdbWaitGroup;
 
 /**
  * @class Ndb_cluster_connection
@@ -207,8 +208,11 @@ public:
   unsigned int get_next_node(Ndb_cluster_connection_node_iter &iter);
   unsigned int get_next_alive_node(Ndb_cluster_connection_node_iter &iter);
   unsigned get_active_ndb_objects() const;
-  
+
   Uint64 *get_latest_trans_gci();
+  NdbWaitGroup * create_ndb_wait_group(int size);
+  bool release_ndb_wait_group(NdbWaitGroup *);
+
 #endif
 
 private:
@@ -216,6 +220,7 @@ private:
   friend class NdbImpl;
   friend class Ndb_cluster_connection_impl;
   friend class SignalSender;
+  friend class NdbWaitGroup;
   class Ndb_cluster_connection_impl & m_impl;
   Ndb_cluster_connection(Ndb_cluster_connection_impl&);
 
