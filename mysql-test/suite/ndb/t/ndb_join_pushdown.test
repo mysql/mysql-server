@@ -37,30 +37,6 @@ let $pushed_queries_dropped_at_startup = query_get_value(show status like 'Ndb_p
 let $pushed_queries_executed_at_startup = query_get_value(show status like 'Ndb_pushed_queries_executed', Value, 1);
 let $pushed_reads_at_startup = query_get_value(show status like 'Ndb_pushed_reads', Value, 1);
 
-# Use this table and the two queries below to turn of meassuring 
-# SCAN_ROWS_RETURNED for certain bushy scan queries. The reason for this is 
-# that growth of this counter is platform dependent for these queries. There
-# are two reasons for this:
-# 1. Distribution hashing (partitioning) of tables is endian dependent. This
-# may cause data to be more skewed on some platforms. This again requires more
-# batches to scan the table and thus more repeats of repeatable scans (i.e. 
-# those that will be repeated for each batch of the other branch of a bushy
-# scan). This increases the overall scan row count.
-# 2. If a timer expires in LQH after receiving SCAN_FRAGREQ, LQH may decide to
-# send SCAN_FRAGCONF immediately, even if more tuples could fit in the batch.
-# As above this causes more repeats of repeatable scans.
-
-create temporary table spj_save_counts like spj_counts_at_startup;
-
-insert into spj_save_counts values ('SCAN_ROWS_RETURNED', 0);
-
-# Record current counter value.
-let $save_scan_rows_returned = update spj_save_counts set val = (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
-
-# Update spj_counts_at_startup to compensate for counter increments since 
-# running save_scan_rows_returned.
-let $compensate_scan_rows_returned = update spj_counts_at_startup set val = val + (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') - (select val from spj_save_counts where counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
-
 ##############
 # Test start
 
@@ -1046,7 +1022,6 @@ connection ddl;
 alter table t1 partition by key(a);
 
 connection spj;
-eval $save_scan_rows_returned;
 
 explain select count(*) from t1 
   join t1 as t2 on t2.a = t1.c 
@@ -1076,8 +1051,6 @@ explain select count(*) from t1 as x1
 select count(*) from t1 as x1
   join t1 as x2 on x2.a = x1.c and x1.b < 2 
   join t1 as x3 on x3.a = x1.c;
-
-eval $compensate_scan_rows_returned;
 
 connection ddl;
 drop table t1;
@@ -1280,6 +1253,162 @@ explain extended
 insert into t1 values (0x4f, null);
 --sorted_result
 select * from t1 left join t1 as t2 on t2.a = t1.b;
+
+### Test max number of pushable operations.
+
+insert into t3 values (8,8,8,8);
+
+# Unique lookups only.
+explain extended select count(*) from t3 as x0
+ join t3 as x1 on x0.b3=x1.d3 and x0.d3=8
+ join t3 as x2 on x1.b3=x2.d3
+ join t3 as x3 on x2.b3=x3.d3
+ join t3 as x4 on x3.b3=x4.d3
+ join t3 as x5 on x4.b3=x5.d3
+ join t3 as x6 on x5.b3=x6.d3
+ join t3 as x7 on x6.b3=x7.d3
+ join t3 as x8 on x7.b3=x8.d3
+ join t3 as x9 on x8.b3=x9.d3
+ join t3 as x10 on x9.b3=x10.d3
+ join t3 as x11 on x10.b3=x11.d3
+ join t3 as x12 on x11.b3=x12.d3
+ join t3 as x13 on x12.b3=x13.d3
+ join t3 as x14 on x13.b3=x14.d3
+ join t3 as x15 on x14.b3=x15.d3
+ join t3 as x16 on x15.b3=x16.d3
+ join t3 as x17 on x16.b3=x17.d3;
+
+select count(*) from t3 as x0
+ join t3 as x1 on x0.b3=x1.d3 and x0.d3=8
+ join t3 as x2 on x1.b3=x2.d3
+ join t3 as x3 on x2.b3=x3.d3
+ join t3 as x4 on x3.b3=x4.d3
+ join t3 as x5 on x4.b3=x5.d3
+ join t3 as x6 on x5.b3=x6.d3
+ join t3 as x7 on x6.b3=x7.d3
+ join t3 as x8 on x7.b3=x8.d3
+ join t3 as x9 on x8.b3=x9.d3
+ join t3 as x10 on x9.b3=x10.d3
+ join t3 as x11 on x10.b3=x11.d3
+ join t3 as x12 on x11.b3=x12.d3
+ join t3 as x13 on x12.b3=x13.d3
+ join t3 as x14 on x13.b3=x14.d3
+ join t3 as x15 on x14.b3=x15.d3
+ join t3 as x16 on x15.b3=x16.d3
+ join t3 as x17 on x16.b3=x17.d3;
+
+
+# Max scans
+explain extended select count(*) from t3 as x0
+ join t3 as x1 on x0.c3=x1.a3
+ join t3 as x2 on x1.c3=x2.a3
+ join t3 as x3 on x2.c3=x3.a3
+ join t3 as x4 on x3.c3=x4.a3
+ join t3 as x5 on x4.c3=x5.a3
+ join t3 as x6 on x5.c3=x6.a3
+ join t3 as x7 on x6.c3=x7.a3
+ join t3 as x8 on x7.c3=x8.a3
+ join t3 as x9 on x8.c3=x9.a3
+ join t3 as x10 on x9.c3=x10.a3
+ join t3 as x11 on x10.c3=x11.a3
+ join t3 as x12 on x11.c3=x12.a3
+ join t3 as x13 on x12.c3=x13.a3
+ join t3 as x14 on x13.c3=x14.a3
+ join t3 as x15 on x14.c3=x15.a3
+ join t3 as x16 on x15.c3=x16.a3
+ join t3 as x17 on x16.c3=x17.a3
+ join t3 as x18 on x17.c3=x18.a3
+ join t3 as x19 on x18.c3=x19.a3
+ join t3 as x20 on x19.c3=x20.a3
+ join t3 as x21 on x20.c3=x21.a3
+ join t3 as x22 on x21.c3=x22.a3
+ join t3 as x23 on x22.c3=x23.a3
+ join t3 as x24 on x23.c3=x24.a3
+ join t3 as x25 on x24.c3=x25.a3
+ join t3 as x26 on x25.c3=x26.a3
+ join t3 as x27 on x26.c3=x27.a3
+ join t3 as x28 on x27.c3=x28.a3
+ join t3 as x29 on x28.c3=x29.a3
+ join t3 as x30 on x29.c3=x30.a3
+ join t3 as x31 on x30.c3=x31.a3
+ join t3 as x32 on x31.c3=x32.a3
+ join t3 as x33 on x32.c3=x33.a3;
+
+select count(*) from t3 as x0
+ join t3 as x1 on x0.c3=x1.a3
+ join t3 as x2 on x1.c3=x2.a3
+ join t3 as x3 on x2.c3=x3.a3
+ join t3 as x4 on x3.c3=x4.a3
+ join t3 as x5 on x4.c3=x5.a3
+ join t3 as x6 on x5.c3=x6.a3
+ join t3 as x7 on x6.c3=x7.a3
+ join t3 as x8 on x7.c3=x8.a3
+ join t3 as x9 on x8.c3=x9.a3
+ join t3 as x10 on x9.c3=x10.a3
+ join t3 as x11 on x10.c3=x11.a3
+ join t3 as x12 on x11.c3=x12.a3
+ join t3 as x13 on x12.c3=x13.a3
+ join t3 as x14 on x13.c3=x14.a3
+ join t3 as x15 on x14.c3=x15.a3
+ join t3 as x16 on x15.c3=x16.a3
+ join t3 as x17 on x16.c3=x17.a3
+ join t3 as x18 on x17.c3=x18.a3
+ join t3 as x19 on x18.c3=x19.a3
+ join t3 as x20 on x19.c3=x20.a3
+ join t3 as x21 on x20.c3=x21.a3
+ join t3 as x22 on x21.c3=x22.a3
+ join t3 as x23 on x22.c3=x23.a3
+ join t3 as x24 on x23.c3=x24.a3
+ join t3 as x25 on x24.c3=x25.a3
+ join t3 as x26 on x25.c3=x26.a3
+ join t3 as x27 on x26.c3=x27.a3
+ join t3 as x28 on x27.c3=x28.a3
+ join t3 as x29 on x28.c3=x29.a3
+ join t3 as x30 on x29.c3=x30.a3
+ join t3 as x31 on x30.c3=x31.a3
+ join t3 as x32 on x31.c3=x32.a3
+ join t3 as x33 on x32.c3=x33.a3;
+
+#Mixed join
+explain extended select count(*) from t3 as x0
+ join t3 as x1 on x0.b3=x1.d3
+ join t3 as x2 on x1.b3=x2.d3
+ join t3 as x3 on x2.b3=x3.d3
+ join t3 as x4 on x3.b3=x4.d3
+ join t3 as x5 on x4.b3=x5.d3
+ join t3 as x6 on x5.b3=x6.d3
+ join t3 as x7 on x6.b3=x7.d3
+ join t3 as x8 on x7.b3=x8.d3
+ join t3 as x9 on x8.b3=x9.d3
+ join t3 as x10 on x9.b3=x10.d3
+ join t3 as x11 on x10.b3=x11.d3
+ join t3 as x12 on x11.b3=x12.d3
+ join t3 as x13 on x12.b3=x13.d3
+ join t3 as x14 on x13.b3=x14.d3
+ join t3 as x15 on x14.b3=x15.d3
+ join t3 as x16 on x15.b3=x16.d3
+ join t3 as x17 on x15.b3=x17.a3
+ join t3 as x18 on x16.b3=x18.d3;
+
+select count(*) from t3 as x0
+ join t3 as x1 on x0.b3=x1.d3
+ join t3 as x2 on x1.b3=x2.d3
+ join t3 as x3 on x2.b3=x3.d3
+ join t3 as x4 on x3.b3=x4.d3
+ join t3 as x5 on x4.b3=x5.d3
+ join t3 as x6 on x5.b3=x6.d3
+ join t3 as x7 on x6.b3=x7.d3
+ join t3 as x8 on x7.b3=x8.d3
+ join t3 as x9 on x8.b3=x9.d3
+ join t3 as x10 on x9.b3=x10.d3
+ join t3 as x11 on x10.b3=x11.d3
+ join t3 as x12 on x11.b3=x12.d3
+ join t3 as x13 on x12.b3=x13.d3
+ join t3 as x14 on x13.b3=x14.d3
+ join t3 as x15 on x14.b3=x15.d3
+ join t3 as x16 on x15.b3=x16.d3
+ join t3 as x17 on x15.b3=x17.a3
+ join t3 as x18 on x16.b3=x18.d3;
 
 connection ddl;
 drop table t1,t2,t3, t3_hash;
@@ -2987,7 +3116,6 @@ explain extended select straight_join * from
 # These should be allowed to be executed in 'parallel', depending on
 # only the root operation
 #
-eval $save_scan_rows_returned;
 
 explain extended select straight_join count(*) from t1 as x1 
   join t1 as x2 on x2.b = x1.a
@@ -3022,8 +3150,6 @@ select straight_join count(*) from t1 as x1
   join t1 as x6 on x6.b = x1.a
   join t1 as x7 on x7.b = x1.a
 where x3.a < x2.pk and x4.a < x3.pk; 
-
-eval $compensate_scan_rows_returned;
 
 #############
 # If we have an outer join, we can't create an artificial dep. 'through' the outer join.
@@ -3064,8 +3190,6 @@ select straight_join count(*) from t1 as x1
 #
 # Bushy execution is expected for these scans (x2 & x4) wrt. root (x1)
 #
-eval $save_scan_rows_returned;
-
 explain extended
 select straight_join count(*) from t1 as x1
   join t1 as x2 on x2.b = x1.a
@@ -3079,8 +3203,6 @@ set ndb_join_pushdown=on;
 select straight_join count(*) from t1 as x1
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.pk = x1.a join t1 as x4 on x4.b = x3.a;
-
-eval $compensate_scan_rows_returned;
 
 #############
 # Test bushy lookups + 1scan, 
@@ -3195,15 +3317,11 @@ explain select straight_join count(*) from t1 as x0
    join t3 as x3 on x2.c=x3.a  
    join t1 as x4 on x0.d=x4.a and x3.b=x4.b;
 
-eval $save_scan_rows_returned;
-
 select straight_join count(*) from t1 as x0  
    join t3 as x1 on x0.c=x1.a  
    join t1 as x2 on x0.c=x2.a 
    join t3 as x3 on x2.c=x3.a  
    join t1 as x4 on x0.d=x4.a and x3.b=x4.b;
-
-eval $compensate_scan_rows_returned;
 
 connection ddl;
 drop table t1;
@@ -3720,21 +3838,15 @@ connection spj;
 select spj_counts_at_end.counter_name, spj_counts_at_end.val - spj_counts_at_startup.val 
        from spj_counts_at_end, spj_counts_at_startup 
        where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
+       and spj_counts_at_end.counter_name <> 'READS_NOT_FOUND'
        and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
        and spj_counts_at_end.counter_name <> 'REMOTE_READS_SENT'
        and spj_counts_at_end.counter_name <> 'LOCAL_RANGE_SCANS_SENT'
        and spj_counts_at_end.counter_name <> 'REMOTE_RANGE_SCANS_SENT'
+       and spj_counts_at_end.counter_name <> 'SCAN_ROWS_RETURNED'
        and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
 
-# The sum of LOCAL+REMOTE should be constant
-select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
-       from spj_counts_at_end, spj_counts_at_startup 
-       where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
-       and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
-       or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
-
 connection spj;
-drop table spj_save_counts;
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 
@@ -3750,7 +3862,10 @@ let $pushed_reads_at_end = query_get_value(show status like 'Ndb_pushed_reads', 
 
 # Calculate the change.
 --disable_query_log
---eval select $scan_count_at_end - $scan_count_at_startup as scan_count
+# There is some random variation in scan_count, probably due to statistics
+# being updated at unpredictable intervals. Therefore, we only test for 
+# deviations greater than on tenth of the expected value.
+--eval select round(($scan_count_at_end - $scan_count_at_startup)/2524, 1) as scan_count_derived
 --eval select $pruned_scan_count_at_end - $pruned_scan_count_at_startup as pruned_scan_count
 --eval select $sorted_scan_count_at_end - $sorted_scan_count_at_startup as sorted_scan_count
 --eval select $pushed_queries_defined_at_end - $pushed_queries_defined_at_startup as pushed_queries_defined
