@@ -59,7 +59,7 @@ BEGIN
   -- Dump all global variables except those that may change.
   -- timestamp changes if time passes. server_uuid changes if server restarts.
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-    WHERE variable_name != 'timestamp' AND variable_name != 'server_uuid'
+    WHERE variable_name != 'timestamp' AND variable_name != 'server_uuid' AND variable_name != 'ugid_ended_groups' AND variable_name != 'ugid_partial_groups'
     ORDER BY VARIABLE_NAME;
 
   -- Dump all databases, there should be none
