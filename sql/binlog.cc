@@ -1657,7 +1657,8 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
    description_event_for_exec(0), description_event_for_queue(0)
 #ifdef HAVE_UGID
-  , sid_map(&sid_lock), group_log_state(&sid_lock, &sid_map)
+  , sid_map(&sid_lock), group_log_state(&sid_lock, &sid_map),
+   group_log("")
 #endif
 {
   /*

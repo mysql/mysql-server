@@ -20,6 +20,7 @@
 
 
 Rot_file::Rot_file(const char *_file_name)
+  : fd(-1)
 {
   DBUG_ASSERT(strlen(_file_name) < sizeof(file_name));
   strcpy(file_name, _file_name);
