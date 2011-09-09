@@ -324,6 +324,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
   m_join_root(),
   m_join_scope(),
   m_const_scope(),
+  m_internal_op_count(0),
   m_fld_refs(0),
   m_builder(NULL)
 { 
@@ -493,6 +494,33 @@ ndb_pushed_builder_ctx::make_pushed_join(
 
 
 /**
+ * Find the number SPJ operations needed to execute a given access type.
+ * (Unique index lookups are translated to two single table lookups internally.)
+ */
+uint internal_operation_count(AQP::enum_access_type accessType)
+{
+  switch (accessType)
+  {
+  case AQP::AT_PRIMARY_KEY:
+  case AQP::AT_ORDERED_INDEX_SCAN:
+  case AQP::AT_MULTI_PRIMARY_KEY:
+  case AQP::AT_MULTI_MIXED:
+  case AQP::AT_TABLE_SCAN:
+    return 1;
+ 
+    // Unique key lookups is mapped to two primary key lookups internally.
+  case AQP::AT_UNIQUE_KEY:
+  case AQP::AT_MULTI_UNIQUE_KEY:
+    return 2;
+
+  default:
+    // Other access types are not pushable, so seeing them here is an error.
+    DBUG_ASSERT(false);
+    return 2;
+  }
+}
+ 
+/**
  * If there is a pushable query starting with 'root'; add as many
  * child operations as possible to this 'ndb_pushed_builder_ctx' starting
  * with that join_root.
@@ -531,6 +559,7 @@ ndb_pushed_builder_ctx::is_pushable_with_root(const AQP::Table_access* root)
   m_join_root= root;
   m_const_scope.set_prefix(root_no);
   m_join_scope= ndb_table_access_map(root_no);
+  m_internal_op_count = internal_operation_count(access_type);
 
   uint push_cnt= 0;
   for (uint tab_no= root->get_access_no()+1; tab_no<m_plan.get_access_count(); tab_no++)
@@ -636,6 +665,19 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
       DBUG_RETURN(false);
     }
   }
+
+  // Check that we do not exceed the max number of pushable operations.
+  const uint internal_ops_needed = internal_operation_count(access_type);
+  if (unlikely(m_internal_op_count + internal_ops_needed
+               > NDB_SPJ_MAX_TREE_NODES))
+  {
+    EXPLAIN_NO_PUSH("Cannot push table '%s' as child of '%s'. Max number"
+                    " of pushable tables exceeded.",
+                    table->get_table()->alias,
+                    m_join_root->get_table()->alias);
+    DBUG_RETURN(false);
+  }
+  m_internal_op_count += internal_ops_needed;
 
   DBUG_PRINT("info", ("Table:%d, Checking %d REF keys", tab_no, 
                       table->get_no_of_key_fields()));
