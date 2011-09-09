@@ -52,12 +52,11 @@ struct fts_doc_item {
 tokenization threads and sort threads. */
 typedef UT_LIST_BASE_NODE_T(fts_doc_item_t)     fts_doc_list_t;
 
-#define FTS_PLL_ENABLED		1
 #define FTS_NUM_AUX_INDEX	6
 #define FTS_PLL_MERGE		1
 
 /** Sort information passed to each individual parallel sort thread */
-typedef struct fts_psort_info_struct	fts_psort_info_t;
+typedef struct fts_psort_struct		fts_psort_t;
 
 /** Common info passed to each parallel sort thread */
 struct fts_psort_common_struct {
@@ -65,7 +64,7 @@ struct fts_psort_common_struct {
 	dict_table_t*		new_table;	/*!< source table */
 	trx_t*			trx;		/*!< transaction */
 	dict_index_t*		sort_index;	/*!< FTS index */
-	fts_psort_info_t*	all_info;	/*!< all parallel sort info */
+	fts_psort_t*		all_info;	/*!< all parallel sort info */
 	os_event_t		sort_event;	/*!< sort event */
 	ibool			opt_doc_id_size;/*!< whether to use 4 bytes
 						instead of 8 bytes integer to
@@ -76,7 +75,7 @@ struct fts_psort_common_struct {
 
 typedef struct fts_psort_common_struct	fts_psort_common_t;
 
-struct fts_psort_info_struct {
+struct fts_psort_struct {
 	ulint			psort_id;	/*!< Parallel sort ID */
 	row_merge_buf_t*	merge_buf[FTS_NUM_AUX_INDEX];
 						/*!< sort buffer */
@@ -92,6 +91,23 @@ struct fts_psort_info_struct {
 	fts_psort_common_t*	psort_common;	/*!< ptr to all psort info */
 };
 
+/** Structure carries information for tokenization status while processing
+each word string */
+struct fts_tokenize_ctx {
+	ulint			processed_len;  /*!< processed string length */
+	ulint			init_pos;       /*!< doc start position */
+	ulint			buf_used;       /*!< the sort buffer (ID) when
+						tokenization stops, which
+						could due to sort buffer full */
+	ulint			rows_added[FTS_NUM_AUX_INDEX];
+						/*!< number of rows added for
+						each FTS index partition */
+	ib_rbt_t*		cached_stopword;/*!< in: stopword list */
+	dfield_t		sort_field[FTS_NUM_FIELDS_SORT];
+						/*!< in: sort field */
+};
+
+typedef struct fts_tokenize_ctx fts_tokenize_ctx_t;
 
 /** status bit used for communication between parent and child thread */
 #define FTS_PARENT_COMPLETE	1
@@ -149,9 +165,9 @@ row_fts_psort_info_init(
 					/*!< in: whether to use 4 bytes
 					instead of 8 bytes integer to
 					store Doc ID during sort */
-	fts_psort_info_t**	psort,	/*!< out: parallel sort info to be
+	fts_psort_t**		psort,	/*!< out: parallel sort info to be
 					instantiated */
-	fts_psort_info_t**	merge);	/*!< out: parallel merge info
+	fts_psort_t**		merge);	/*!< out: parallel merge info
 					to be instantiated */
 /********************************************************************//**
 Clean up and deallocate FTS parallel sort structures, and close
@@ -160,58 +176,27 @@ UNIV_INTERN
 void
 row_fts_psort_info_destroy(
 /*=======================*/
-	fts_psort_info_t*	psort_info,	/*!< parallel sort info */
-	fts_psort_info_t*	merge_info);	/*!< parallel merge info */
+	fts_psort_t*	psort_info,	/*!< parallel sort info */
+	fts_psort_t*	merge_info);	/*!< parallel merge info */
 /********************************************************************//**
 Free up merge buffers when merge sort is done */
 UNIV_INTERN
 void
 row_fts_free_pll_merge_buf(
 /*=======================*/
-	fts_psort_info_t*	psort_info);	/*!< in: parallel sort info */
+	fts_psort_t*	psort_info);	/*!< in: parallel sort info */
 /******************************************************//**
 Tokenize incoming text data and add to the sort buffer.
-FIXME: Consider run out of buffer in the middle of string parsing.
 @return TRUE if the record passed, FALSE if out of space */
 UNIV_INTERN
 ibool
 row_merge_fts_doc_tokenize(
 /*=======================*/
-	row_merge_buf_t** sort_buf,	/*!< in/out: sort buffer */
-	const dfield_t*	dfield,		/*!< in: Field contain doc to be
-					parsed */
-	doc_id_t	doc_id,		/*!< in: Doc ID for this document */
-	fts_doc_t*	doc,		/*!< in: Doc to be tokenized */
-	ulint*		processed_len,	/*!< in: Length processed */
-	ulint		zip_size,	/*!< in: Table zip size */
-	mem_heap_t*	blob_heap,	/*!< in: Heap used when fetch externally
-					stored record */
-	ib_rbt_t*	cached_stopword,/*!< in: Cached stopword */
-	dtype_t*	word_dtype,	/*!< in: data structure for word col */
-	ulint*		init_pos,	/*!< in/out: doc start position */
-	ulint*		buf_used,	/*!< in/out: sort buffer used */
-	ulint*		rows_added,	/*!< in/out: num rows added */
-	merge_file_t**	merge_file,	/*!< in/out: merge file to fill */
-	ibool		opt_doc_id_size);/*!< in: whether to use 4 bytes
-					instead of 8 bytes integer to
-					store Doc ID during sort*/
-
-/********************************************************************//**
-Read sorted file containing index data tuples and insert these data
-tuples to the index
-@return DB_SUCCESS or error number */
-UNIV_INTERN
-ulint
-row_merge_insert_fts_tuples(
-/*========================*/
-	trx_t*			trx,	/*!< in: transaction */
-	dict_index_t*		index,	/*!< in: index */
-	dict_table_t*		table,	/*!< in: new table */
-	ulint			zip_size,/*!< in: compressed page size of
-					the old table, or 0 if uncompressed */
-	fts_psort_info_t*		psort_info,
-	ulint			id);
-
+	row_merge_buf_t**	sort_buf,	/*!< in/out: sort buffer */
+	doc_id_t		doc_id,		/*!< in: Doc ID */
+	fts_doc_t*		doc,		/*!< in: Doc to be tokenized */
+	merge_file_t**		merge_file,	/*!< in/out: merge file */
+	fts_tokenize_ctx_t*	t_ctx);		/*!< in/out: tokenize context */
 /*********************************************************************//**
 Function performs parallel tokenization of the incoming doc strings.
 @return OS_THREAD_DUMMY_RETURN */
@@ -226,7 +211,7 @@ UNIV_INTERN
 void
 row_fts_start_psort(
 /*================*/
-	fts_psort_info_t*	psort_info);	/*!< in: parallel sort info */
+	fts_psort_t*	psort_info);	/*!< in: parallel sort info */
 /*********************************************************************//**
 Function performs the merge and insertion of the sorted records.
 @return OS_THREAD_DUMMY_RETURN */
@@ -241,8 +226,7 @@ UNIV_INTERN
 void
 row_fts_start_parallel_merge(
 /*=========================*/
-	fts_psort_info_t* merge_info,	/*!< in: parallel sort info */
-	fts_psort_info_t* psort_info);	/*!< in: parallel merge info */
+	fts_psort_t*	merge_info);	/*!< in: parallel sort info */
 /********************************************************************//**
 Insert processed FTS data to the auxillary tables.
 @return DB_SUCCESS if insertion runs fine */
@@ -254,8 +238,6 @@ row_merge_write_fts_word(
 	que_t**		ins_graph,	/*!< in: Insert query graphs */
 	fts_tokenizer_word_t*word,	/*!< in: sorted and tokenized
 					word */
-	fts_node_t*	fts_node,	/*!< in: fts node for FTS
-					INDEX table */
 	fts_table_t*	fts_table,	/*!< in: fts aux table instance */
 	CHARSET_INFO*	charset);	/*!< in: charset */
 /********************************************************************//**
@@ -298,12 +280,9 @@ UNIV_INTERN
 ulint
 row_fts_merge_insert(
 /*=================*/
-	trx_t*		trx,		/*!< in: transaction */
 	dict_index_t*	index,		/*!< in: index */
 	dict_table_t*	table,		/*!< in: new table */
-	ulint		zip_size,	/*!< in: compressed page size of
-					the old table, or 0 if uncompressed */
-	fts_psort_info_t* psort_info,	/*!< parallel sort info */
+	fts_psort_t*	psort_info,	/*!< parallel sort info */
 	ulint		id);		/* !< in: which auxiliary table's data
 					to insert to */
 
